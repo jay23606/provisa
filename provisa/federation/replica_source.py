@@ -67,9 +67,13 @@ class EngineTableSource:
     ``in_place`` says the engine reads the source itself (a live attach), which is what lets the
     engine also run the copy as its own statement where the store allows it."""
 
-    def __init__(self, engine_runtime: Any, ref: str, *, in_place: bool) -> None:
+    def __init__(
+        self, engine_runtime: Any, ref: str, *, in_place: bool, projection: str = "*"
+    ) -> None:
         self._engine = engine_runtime
         self._ref = ref
+        # REQ-1965: the select list -- a natively nested column as the engine's own JSON.
+        self._projection = projection
         reads = {SourceRead.ARROW_STREAM}
         if in_place:
             reads.add(SourceRead.ENGINE_REACHABLE)
@@ -78,7 +82,7 @@ class EngineTableSource:
     async def batches(self, batch_rows: int) -> AsyncIterator[pa.RecordBatch]:
         from provisa.federation.execution_auth import SystemAuth, mint_system_token
 
-        sql = f"SELECT * FROM {self._ref}"
+        sql = f"SELECT {self._projection} FROM {self._ref}"
         # The system's own read of a source table for its replica: authorized as such, and
         # pinned to this one statement (REQ-1760).
         _schema, stream = self._engine.execute_engine_stream(

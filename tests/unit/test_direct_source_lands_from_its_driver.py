@@ -32,6 +32,7 @@ class _Engine:
 
     def __init__(self, kind: str) -> None:
         self.engine = build_engine(kind)
+        self.dialect = self.engine.dialect  # the runtime speaks its engine's dialect
         self.reads: list[str] = []
 
     async def execute_engine(self, sql, authorization=None):
@@ -51,7 +52,7 @@ def _source(stype: str, **settings) -> SimpleNamespace:
     return SimpleNamespace(id="src", type=stype, **settings)
 
 
-_TABLE = SimpleNamespace(schema_name="tiny", table_name="nation")
+_TABLE = SimpleNamespace(schema_name="tiny", table_name="nation", columns=[])
 
 
 @pytest.mark.asyncio
@@ -74,3 +75,39 @@ async def test_a_floored_source_the_engine_attaches_is_read_through_its_own_driv
     engine = _Engine("duckdb")
     await make_floored_direct_loader(_state(), engine)(_source("postgresql", replicate=0), _TABLE)
     assert engine.reads == ["driver"]
+
+
+async def test_a_natively_nested_column_is_landed_as_json_the_source_produces():
+    """REQ-1965: the land reads a native array, struct or map column through the source's own
+    to-JSON expression, by name, so the store receives JSON and no native value."""
+    from provisa.transpiler.native_json import source_projection
+
+    columns = [
+        SimpleNamespace(name="id", native_filter_type=None, native_type=None),
+        SimpleNamespace(
+            name="tags",
+            native_filter_type=None,
+            native_type="varchar[]",
+            array_depth=1,
+            element_type="text",
+        ),
+        SimpleNamespace(
+            name="amounts",
+            native_filter_type=None,
+            native_type="decimal(18,2)[]",
+            array_depth=1,
+            element_type="numeric(18,2)",
+        ),
+        SimpleNamespace(name="_nf_limit", native_filter_type="query_param", native_type=None),
+    ]
+
+    assert source_projection(columns, "duckdb") == (
+        '"id", to_json("tags") AS "tags", '
+        'to_json(list_transform("amounts", x1 -> CAST(x1 AS VARCHAR))) AS "amounts"'
+    )
+    assert source_projection(columns, "postgres") == (
+        '"id", to_jsonb("tags") AS "tags", '
+        'to_jsonb(CASE WHEN "amounts" IS NULL THEN NULL ELSE ARRAY(SELECT CAST(x AS TEXT) '
+        'FROM UNNEST("amounts") WITH ORDINALITY AS u(x, i) ORDER BY i) END) AS "amounts"'
+    )
+    assert source_projection(columns[:1], "duckdb") == "*"  # nothing nested: the table as it is

@@ -288,3 +288,24 @@ def strip_native_json(tree: exp.Expr, served_as_json: Callable[[exp.Expr], bool]
         marked = marked_column(node)
         if marked is not None and served_as_json(marked[0]):
             node.replace(marked[0])
+
+
+def source_projection(columns: list, dialect: str) -> str:
+    """The select list that reads a source table's rows for landing (REQ-1965): ``*`` for a table
+    with no natively nested column; otherwise every data column by name, each natively nested one
+    through this backend's to-JSON expression under its own name -- so the store receives JSON,
+    produced by the source or engine that holds the native value. ``columns`` are the registered
+    columns (``name``, ``native_filter_type`` and the three hidden attributes)."""
+    data = [c for c in columns if getattr(c, "native_filter_type", None) is None]
+    if not any(getattr(c, "native_type", None) for c in data):
+        return "*"
+    parts: list[str] = []
+    for c in data:
+        quoted = exp.to_identifier(c.name, quoted=True).sql(dialect=dialect)
+        native = getattr(c, "native_type", None)
+        if not native:
+            parts.append(quoted)
+            continue
+        nested = NestedColumn(native, getattr(c, "array_depth", 0) or 0, c.element_type)
+        parts.append(f"{to_json_sql(quoted, nested, dialect, c.name)} AS {quoted}")
+    return ", ".join(parts)

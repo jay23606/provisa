@@ -29,6 +29,7 @@ from typing import Any
 
 from provisa.core.native_types import NativeType, parse_native_type
 
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -97,7 +98,8 @@ _IR_TO_SA: dict[str, Any] = {
     # Postgres/MySQL/DuckDB and TEXT-affinity on SQLite — portable via the dialect compiler, no
     # hand-maintained per-store fallback. A native array, struct or map is a JSON column too
     # (REQ-1965, ``column_typing``).
-    "json": JSON,
+    # REQ-1965: on PostgreSQL the replica lands the indexable JSON type, jsonb.
+    "json": JSON().with_variant(JSONB(), "postgresql"),
     # REQ-424: an embedding column of a replica the engine indexes (see Embedding).
     "vector": Embedding,
 }

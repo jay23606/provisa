@@ -94,8 +94,8 @@ def test_to_physical_renders_per_dialect():
     assert to_physical("timestamp", "mysql") == "DATETIME"  # mysql renders DateTime as DATETIME
     assert to_physical("varchar", "postgresql") == "TEXT"  # native spelling normalized to IR first
     # REQ-980: first-class JSON renders natively per store dialect
-    assert to_physical("json", "postgresql") == "JSON"
-    assert to_physical("jsonb", "postgresql") == "JSON"  # jsonb narrows to portable generic JSON
+    assert to_physical("json", "postgresql") == "JSONB"  # REQ-1965: the indexable JSON type
+    assert to_physical("jsonb", "postgresql") == "JSONB"
     assert to_physical("json", "sqlite") == "JSON"  # SQLAlchemy JSON on sqlite (TEXT-affinity)
 
 
