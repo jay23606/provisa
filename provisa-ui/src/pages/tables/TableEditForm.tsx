@@ -27,6 +27,7 @@ import type { Role } from "../../types/auth";
 import type { PlatformSettings } from "../../api/admin";
 import { sourceProbeTypes } from "../../liveCapability";
 import { IR_TYPES_FALLBACK, toIrType } from "../../irTypes";
+import { NumericSizeInputs } from "./NumericSizeInputs";
 import { fetchIrTypes } from "../../api/admin";
 import { NAMING_CONVENTIONS } from "./constants";
 import { TestDataColumns } from "./testdata/TestDataColumns";
@@ -874,6 +875,15 @@ export function TableEditForm({
                                 comboboxProps={{ withinPortal: true }}
                                 styles={{ input: { fontFamily: "monospace" } }}
                               />
+                              {c.dataType && toIrType(c.dataType) === "numeric" && (
+                                <NumericSizeInputs
+                                  key={c.columnName}
+                                  dataType={c.dataType}
+                                  onChange={(v) => updateEditCol(i, "dataType", v)}
+                                  disabled={hidingOnly}
+                                  testId={`edit-table-col-numeric-size-${c.columnName}`}
+                                />
+                              )}
                             </Table.Td>
                             <Table.Td style={{ textAlign: "center" }}>
                               <Tip text={t("tableEditForm.primaryKeyAria")}>

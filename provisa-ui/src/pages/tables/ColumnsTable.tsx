@@ -19,6 +19,7 @@ import { MultiSelect } from "../../components/MultiSelect";
 import { useTranslation } from "react-i18next";
 
 import { toIrType } from "../../irTypes";
+import { NumericSizeInputs } from "./NumericSizeInputs";
 import type { Role } from "../../types/auth";
 import type { ColumnForm } from "./types";
 import { ColumnGlossaryHover, type ColumnDefinitionLine } from "./ColumnGlossaryHover";
@@ -176,6 +177,14 @@ export function ColumnsTable({
                           allowDeselect={false}
                           data-testid={`register-table-col-datatype-${col.name}`}
                         />
+                        {col.dataType && toIrType(col.dataType) === "numeric" && (
+                          <NumericSizeInputs
+                            key={col.name}
+                            dataType={col.dataType}
+                            onChange={(v) => updateCol(i, "dataType", v)}
+                            testId={`register-table-col-numeric-size-${col.name}`}
+                          />
+                        )}
                       </Table.Td>
                       <Table.Td ta="center">
                         <Tip text={t("registerTableForm.primaryKeyTitle")}>
