@@ -190,15 +190,23 @@ def typed_arrow_array(values: list, target: Any, column: str) -> Any:  # REQ-196
 
 
 def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[Any]:  # REQ-1961
-    """For each result column, the Arrow type it is read as: the registered type of the column
-    of that name in the statement's result ``shape`` (``compiler.result_shape``), by the one
-    rule (``core.catalog_types.column_arrow_type``). None — the column keeps the type its
-    values give it — where the statement has no derivable shape, the shape has no column of
-    that name, the registered type is one neither vocabulary names, or the column is JSON
-    (REQ-1965: what a JSON column reads as is its reader's to produce)."""
+    """For each result column, the Arrow type it is read as, or None — the column keeps the type
+    its values give it.
+
+    A result column that IS a registered column (projected bare, aliased or through a star:
+    ``compiler.result_shape.RegisteredType``) is read as that column's registered type, by the
+    one rule (``core.catalog_types.column_arrow_type``): what the model declares for a column is
+    what a read of it returns. None for everything else: a computed expression (the model
+    declares columns, not expressions, and its engine sizes the result — a sum of a two-digit
+    decimal is the engine's wider decimal, exact), a statement with no derivable shape, a result
+    column the shape does not name, a registered type neither vocabulary names, and a JSON
+    column (REQ-1965: what a JSON column reads as is its reader's to produce)."""
+    from provisa.compiler.result_shape import RegisteredType
     from provisa.core.catalog_types import column_arrow_type, is_json_type
 
-    registered = dict(shape or [])
+    registered = {
+        name: declared for name, declared in (shape or []) if isinstance(declared, RegisteredType)
+    }
     return [
         None if is_json_type(registered.get(name)) else column_arrow_type(registered.get(name))
         for name in names

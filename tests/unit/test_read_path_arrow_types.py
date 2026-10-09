@@ -50,6 +50,7 @@ import pyarrow as pa
 import pytest
 
 from provisa.api.airport.query import _direct_typed_schema
+from provisa.compiler.result_shape import RegisteredType
 from provisa.compiler.sql_gen import ColumnRef
 from provisa.executor.formats.arrow import rows_to_arrow_table
 from provisa.federation.runtime_support import arrow_batches_from_rows
@@ -108,15 +109,18 @@ def _types(schema: pa.Schema) -> dict[str, pa.DataType]:
 # The same result's columns as the model registers them: what the governed statement's result
 # shape (compiler.result_shape) says each one is.
 _REGISTERED = [
-    ("i", "integer"),
-    ("b", "bigint"),
-    ("money", "numeric(18,2)"),
-    ("ratio", "numeric"),
-    ("f", "double"),
-    ("t", "varchar"),
-    ("ts", "timestamp"),
-    ("d", "date"),
-    ("ok", "boolean"),
+    (name, RegisteredType(declared))
+    for name, declared in [
+        ("i", "integer"),
+        ("b", "bigint"),
+        ("money", "numeric(18,2)"),
+        ("ratio", "numeric"),
+        ("f", "double"),
+        ("t", "varchar"),
+        ("ts", "timestamp"),
+        ("d", "date"),
+        ("ok", "boolean"),
+    ]
 ]
 # The one rule (REQ-1961): the registered type, on every path. An integer is 32 bits; a numeric
 # is exact where the model records its size and floating point where it does not.
@@ -151,12 +155,14 @@ def test_an_undeclared_numeric_is_floating_point_and_says_what_that_costs():
         def __init__(self) -> None:
             self._rows, self.column_names, self.column_types = rows, ["v"], ["numeric"]
 
-    schema, batches = arrow_batches_from_rows(_One(), shape=[("v", "numeric")])
+    schema, batches = arrow_batches_from_rows(_One(), shape=[("v", RegisteredType("numeric"))])
     (value,) = next(batches).column(0).to_pylist()
     assert schema.field("v").type == pa.float64()
     assert isinstance(value, float) and value == pytest.approx(0.3, abs=1e-15)
     assert Decimal(value) != exact, "a double cannot hold 0.3"
-    schema, batches = arrow_batches_from_rows(_One(), shape=[("v", "numeric(10,1)")])
+    schema, batches = arrow_batches_from_rows(
+        _One(), shape=[("v", RegisteredType("numeric(10,1)"))]
+    )
     assert schema.field("v").type == pa.decimal128(10, 1)
     assert next(batches).column(0).to_pylist() == [exact]
 
@@ -174,11 +180,50 @@ def test_values_that_cannot_be_read_as_the_registered_type_are_an_error_naming_t
 def test_a_column_the_shape_does_not_type_keeps_the_type_its_values_give_it():
     """No registered type by that name, a type neither vocabulary names, or JSON (REQ-1965: a
     JSON column's read form is its reader's): read off the values, as without a shape."""
-    shape = [("i", "USER-DEFINED"), ("t", "json"), ("ok", "boolean")]  # "b" is not in it
+    shape = [
+        ("i", RegisteredType("USER-DEFINED")),
+        ("t", RegisteredType("json")),
+        ("ok", RegisteredType("boolean")),
+    ]  # "b" is not in it
     schema, _batches = arrow_batches_from_rows(_Stream(_ROWS, None), shape=shape)
     types = _types(schema)
     assert types["i"] == pa.int64() and types["b"] == pa.int64() and types["t"] == pa.string()
     assert types["ok"] == pa.bool_()
+
+
+def test_a_computed_column_keeps_the_type_its_engine_gives_it():
+    """The model declares columns, not expressions. ``amount * amount`` over numeric(18,2) is
+    four digits after the point on the engine; SQLGlot annotates it ``DECIMAL(18, 2)``. Typing
+    it by that annotation would refuse a correct answer, so a computed column is not typed by
+    the shape: its values, exact as the engine sent them, decide."""
+    rows = [(Decimal("156.2500"), Decimal("12.50"))]
+
+    class _Two(_Stream):
+        def __init__(self) -> None:
+            self._rows, self.column_names, self.column_types = rows, ["sq", "amount"], None
+
+    shape = [("sq", "DECIMAL(18, 2)"), ("amount", RegisteredType("numeric(18,2)"))]
+    schema, batches = arrow_batches_from_rows(_Two(), shape=shape)
+    assert schema.field("sq").type == pa.decimal128(38, 4)
+    assert schema.field("amount").type == pa.decimal128(18, 2)
+    assert next(batches).column(0).to_pylist() == [Decimal("156.2500")]
+
+
+def test_the_shape_marks_which_result_columns_are_registered_columns():
+    from tests.unit.test_result_shape import _shape
+
+    shape = dict(
+        _shape(
+            "SELECT o.order_id, o.amount AS total, o.amount * o.amount AS sq, "
+            "sum(o.amount) OVER () AS running FROM sales.orders o"
+        )
+    )
+    assert isinstance(shape["order_id"], RegisteredType)
+    assert isinstance(shape["total"], RegisteredType) and shape["total"] == "numeric(18,2)"
+    assert not isinstance(shape["sq"], RegisteredType)
+    assert not isinstance(shape["running"], RegisteredType)
+    (star,) = [_shape("SELECT * FROM sales.orders")]
+    assert all(isinstance(declared, RegisteredType) for _name, declared in star)
 
 
 @pytest.mark.parametrize(

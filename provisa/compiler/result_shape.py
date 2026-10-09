@@ -54,6 +54,17 @@ _PG_TYPNAME = {
 }
 
 
+class RegisteredType(str):
+    """A result column's type that IS a registered column's type — the column is projected as
+    itself (bare, aliased, or through a star), so what the model declares for it holds for the
+    result column too. A type derived for a computed expression is a plain ``str``: an
+    annotation of the expression, not a declaration (SQLGlot's decimal arithmetic, for one,
+    does not follow any engine's — ``amount * amount`` over a two-digit scale is four digits
+    on the engine and two in the annotation)."""
+
+    __slots__ = ()
+
+
 class UnderivableColumn(ValueError):
     """A result column's type cannot be derived from registered metadata."""
 
@@ -82,9 +93,11 @@ def table_columns(table_id: int, ctx: Any, column_types: dict) -> dict[str, str]
             continue  # not visible to this role
         if (table_id, physical) in ctx.columns_outside_relation:
             continue  # registered, but the relation a statement reads does not hold it
-        out[exposed_names.get((table_id, physical)) or apply_sql_name(physical)] = col.data_type
+        out[exposed_names.get((table_id, physical)) or apply_sql_name(physical)] = RegisteredType(
+            col.data_type
+        )
     for virtual in ctx.virtual_columns.get(table_id, {}):
-        out[virtual] = "varchar"
+        out[virtual] = RegisteredType("varchar")
     return out
 
 
