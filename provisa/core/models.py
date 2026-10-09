@@ -949,6 +949,14 @@ class Column(
     # "us"). The compiler translates it in emitted SQL, so every surface reads and filters it as its
     # registered temporal type (ISO 8601 text in GraphQL). Declared, never inferred.
     epoch_unit: str | None = None
+    # REQ-1965: the three hidden attributes of a column that is natively an array, a struct or a
+    # map at its source (provisa.core.ir_types.column_typing). Recorded from the source at
+    # registration, never declared: its array depth (0 unless it is an array of one primitive
+    # type), the semantic SQL type of its innermost element, and the source's own spelling of the
+    # type. A column that is not natively nested carries none of them.
+    array_depth: int = 0
+    element_type: str | None = None
+    native_type: str | None = None
     # REQ-1494: the column's kind of fake, as the operator writes it ("categories((a, b))",
     # "bool(.8)", "email()"), and whether it is stable -- the same on every engine. Checked against
     # the rest of the table by provisa.fakes.checks.check_table.

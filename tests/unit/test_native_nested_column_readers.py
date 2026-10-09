@@ -108,15 +108,29 @@ def test_arrow_carries_a_native_nested_column_as_json_text(stored):
     assert schema.field("tags").type == pa.string()
 
 
-@pytest.mark.parametrize("native", ["ARRAY", "USER-DEFINED"])
-async def test_import_typing_types_a_postgres_array_or_composite_column(native):
-    """An imported model's untyped columns are filled from information_schema, whose data_type
-    for an array is the marker ``ARRAY`` and for a composite ``USER-DEFINED``."""
+@pytest.mark.parametrize(
+    ("catalog_row", "expected"),
+    [
+        (("ARRAY", "_text", "text[]", "b"), ("json", 1, "text", "text[]")),
+        (("USER-DEFINED", "address", "address", "c"), ("json", 0, None, "address")),
+        (("USER-DEFINED", "order_status", "order_status", "e"), ("text", 0, None, None)),
+    ],
+)
+async def test_import_typing_types_a_postgres_array_or_composite_column(catalog_row, expected):
+    """An imported model's untyped columns are filled from the source's catalog.
+    information_schema's data_type for an array is the marker ``ARRAY`` and for an enum, a domain
+    or a composite ``USER-DEFINED``; pg_catalog states the rest."""
     from provisa.api.admin.import_typing import _discover
 
     class _Pool:
+        def has(self, _source_id):
+            return True
+
         async def execute(self, _source_id, _sql, _params=None):
-            return QueryResult(rows=[("id", "integer"), ("tags", native)], column_names=[])
+            return QueryResult(
+                rows=[("id", "integer", "int4", "integer", "b"), ("tags", *catalog_row)],
+                column_names=[],
+            )
 
     source = Source(
         id="orders-pg",
@@ -130,7 +144,6 @@ async def test_import_typing_types_a_postgres_array_or_composite_column(native):
 
     types = await _discover(_Pool(), source, "public", "orders")
 
-    assert types["id"] == "integer"
-    assert types["tags"] in ("json", "text")  # an array is json; an enum or domain stays text
-    if native == "ARRAY":
-        assert types["tags"] == "json"
+    assert types["id"].data_type == "integer"
+    tags = types["tags"]
+    assert (tags.data_type, tags.array_depth, tags.element_type, tags.native_type) == expected

@@ -953,7 +953,9 @@ def test_both_admin_column_fields_keep_what_a_selection_fetched():
     source = inspect.getsource(schema_query)
     assert source.count("await _remember_selected_columns(source_id, schema_name, table_name") == 2
     # The resolver itself never reads the search cache.
-    resolver = inspect.getsource(schema_query.resolve_available_columns_metadata)
+    resolver = inspect.getsource(
+        schema_query.resolve_available_columns_metadata
+    ) + inspect.getsource(schema_query._introspect_available_columns)
     assert "read_cache" not in resolver and "source_catalog_cache" not in resolver
 
 

@@ -19,7 +19,8 @@ describe("toIrType (native → IR)", () => {
     expect(toIrType("double precision")).toBe("double");
     expect(toIrType("DECIMAL(10,2)")).toBe("numeric");
     expect(toIrType("timestamp with time zone")).toBe("timestamp");
-    expect(toIrType("JSONB")).toBe("text");
+    expect(toIrType("JSONB")).toBe("json"); // REQ-980, REQ-1965
+    expect(toIrType("json")).toBe("json");
     expect(toIrType("varbinary")).toBe("bytea");
   });
 

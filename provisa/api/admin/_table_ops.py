@@ -493,7 +493,41 @@ async def _build_columns_for_input(pool, input) -> "tuple[list, MutationResult |
         _err = await _ensure_source_column_types(input, columns)
         if _err is not None:
             return [], _err
+        await _record_nested_attributes(pool, input, columns)
     return columns, None
+
+
+async def _record_nested_attributes(pool, input, columns) -> None:
+    """Record, on each JSON column that is natively an array, a struct or a map at its source,
+    the three hidden attributes the source states for it (REQ-1965): array depth, element type
+    and native type. They are never taken from the caller. A column whose attributes are already
+    stored keeps them (the repository's rule), so the source is asked only for a JSON column
+    this table does not yet hold attributes for."""
+    from provisa.core.repositories.table import stored_nested_columns
+
+    json_columns = [
+        c for c in columns if (c.data_type or "").lower() == "json" and c.native_type is None
+    ]
+    if not json_columns:
+        return
+    async with pool.acquire() as conn:
+        recorded = await stored_nested_columns(
+            conn, input.source_id, input.schema_name, input.table_name
+        )
+    if all(c.name in recorded for c in json_columns):
+        return
+    from provisa.api.admin.schema_query import resolve_available_columns_metadata
+
+    meta = await resolve_available_columns_metadata(
+        input.source_id, input.schema_name, input.table_name
+    )
+    by_name = {m.name: m for m in meta}
+    for c in json_columns:
+        listed = by_name.get(c.name)
+        if listed is not None and listed.native_type:
+            c.array_depth = listed.array_depth
+            c.element_type = listed.element_type
+            c.native_type = listed.native_type
 
 
 async def _ensure_source_column_types(input, columns) -> "MutationResult | None":

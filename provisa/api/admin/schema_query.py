@@ -2424,6 +2424,30 @@ async def _remember_selected_columns(
 async def resolve_available_columns_metadata(
     source_id: str, schema_name: str, table_name: str
 ) -> list[AvailableColumnType]:
+    """A source table's columns with the type registration suggests for each (REQ-1965). A column
+    that is natively an array, a struct or a map is suggested as ``json`` and carries its hidden
+    attributes, whichever reader listed it and however that reader spells the type: the decision
+    is ``column_typing``'s alone."""
+    from provisa.api.app import state
+    from provisa.core.ir_types import column_typing
+
+    platform = state.source_types.get(source_id) or None
+    columns = await _introspect_available_columns(source_id, schema_name, table_name)
+    for column in columns:
+        if column.native_type or not column.data_type:
+            continue  # typed by its own reader (the PostgreSQL catalog), or not typed at all
+        typing = column_typing(column.data_type, platform)
+        if typing.native_type:
+            column.data_type = typing.data_type
+            column.array_depth = typing.array_depth
+            column.element_type = typing.element_type
+            column.native_type = typing.native_type
+    return columns
+
+
+async def _introspect_available_columns(
+    source_id: str, schema_name: str, table_name: str
+) -> list[AvailableColumnType]:
     """Introspect a source table's columns with their data types and comments.
 
     Source-of-truth type resolution used both by the admin ``availableColumnsMetadata`` query and by
@@ -2612,14 +2636,14 @@ async def resolve_available_columns_metadata(
     # Trino — checked BEFORE the native-engine seam below, which only covers ATTACH-mechanism
     # sources and would otherwise fall through to the generic engine-catalog query against a
     # catalog that does not exist pre-registration (see native_schemas's trino branch).
-    from provisa.api.admin.introspect import native_columns
+    from provisa.api.admin.introspect import native_column_typings
 
     # databricks/bigquery need config_conn to look up the source's stored catalog/project
     # (see native_schemas's databricks/bigquery branches) — acquire one the same way the
     # "files" branch above does.
     pool = await _get_pool()
     async with pool.acquire() as _cc:
-        native = await native_columns(
+        native = await native_column_typings(
             source_id, source_type, schema_name, table_name, state.source_pools, _cc
         )
     if native:
@@ -2634,9 +2658,15 @@ async def resolve_available_columns_metadata(
         pk_names = set(native_pks or [])
         return [
             AvailableColumnType(
-                name=name, data_type=dtype.lower(), comment=None, is_primary_key=name in pk_names
+                name=name,
+                data_type=typing.data_type,
+                comment=None,
+                is_primary_key=name in pk_names,
+                array_depth=typing.array_depth,
+                element_type=typing.element_type,
+                native_type=typing.native_type,
             )
-            for name, dtype in native
+            for name, typing in native
         ]
     # REQ-1912: the engine lists only a source it holds a live attach of. With none, a table the
     # driver listed and found no columns for has none to report; a source the driver cannot list

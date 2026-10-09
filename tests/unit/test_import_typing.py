@@ -35,8 +35,14 @@ class _Pool:
             raise ConnectionError("refused")
         self.added.append(source_id)
 
+    def has(self, source_id):
+        return source_id in self.added
+
     async def execute(self, source_id, sql, params):
         for (schema, table), cols in _SCHEMA.items():
+            if params == [schema, table]:
+                # PostgreSQL's catalog row: name, data_type, udt_name, format_type, typtype.
+                return SimpleNamespace(rows=[(n, t, t, t, "b") for n, t in cols])
             if f"'{schema}'" in sql and f"'{table}'" in sql:
                 return SimpleNamespace(rows=cols)
         return SimpleNamespace(rows=[])

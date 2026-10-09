@@ -98,6 +98,9 @@ _COLUMN_PROJECTION = [
     table_columns.c.gql_object_type,
     table_columns.c.gql_is_list,
     table_columns.c.epoch_unit,
+    table_columns.c.array_depth,
+    table_columns.c.element_type,
+    table_columns.c.native_type,
     table_columns.c.fake,
     table_columns.c.fake_stable,
     table_columns.c.fake_stable_version,
@@ -107,6 +110,46 @@ _COLUMN_PROJECTION = [
     table_columns.c.embedding_source_column,
     table_columns.c.encrypted,
 ]
+
+
+def _nested_attributes(
+    col: Any, data_type: str, existing: tuple[str, int, str | None, str] | None
+) -> dict[str, Any]:
+    """The hidden attributes to store for ``col`` (REQ-1965): the ones this registration recorded
+    from the source, else the ones already stored while the column's type is the one they were
+    recorded with, else none."""
+    native = getattr(col, "native_type", None)
+    if native:
+        return {
+            "array_depth": getattr(col, "array_depth", 0),
+            "element_type": getattr(col, "element_type", None),
+            "native_type": native,
+        }
+    if existing is not None and existing[0] == data_type:
+        return {"array_depth": existing[1], "element_type": existing[2], "native_type": existing[3]}
+    return {"array_depth": 0, "element_type": None, "native_type": None}
+
+
+async def stored_nested_columns(
+    conn: "Connection", source_id: str, schema_name: str, table_name: str
+) -> set[str]:
+    """The columns of a registered table that hold the hidden attributes of a natively nested
+    column (REQ-1965); empty for a table not yet registered."""
+    result = await conn.execute_core(
+        select(table_columns.c.column_name)
+        .select_from(
+            table_columns.join(
+                registered_tables, table_columns.c.table_id == registered_tables.c.id
+            )
+        )
+        .where(
+            registered_tables.c.source_id == source_id,
+            registered_tables.c.schema_name == schema_name,
+            registered_tables.c.table_name == table_name,
+            table_columns.c.native_type.is_not(None),
+        )
+    )
+    return {r.column_name for r in result.fetchall()}
 
 
 async def _load_columns(conn: "Connection", table_id: int) -> list[dict]:
@@ -433,10 +476,21 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
                 table_columns.c.data_type,
                 table_columns.c.is_foreign_key,
                 table_columns.c.is_alternate_key,
+                table_columns.c.array_depth,
+                table_columns.c.element_type,
+                table_columns.c.native_type,
             ).where(table_columns.c.table_id == table_id)
         )
     ).fetchall()
     _existing_types = {r.column_name: r.data_type for r in _existing_rows}
+    # REQ-1965: the hidden attributes of a natively nested column are recorded from the source at
+    # registration and persist with the type they describe: a re-registration that restates the
+    # same type without them (a configuration apply, an admin's edit of another field) keeps them.
+    _existing_nested = {
+        r.column_name: (r.data_type, r.array_depth, r.element_type, r.native_type)
+        for r in _existing_rows
+        if r.native_type
+    }
     # REQ-1919: a column's foreign- and alternate-key marks are derived from the relationships
     # that are keyed on it (relationship.upsert), not declared with the table. A re-registration
     # of the table — an apply of a configuration that does not restate its relationships, or an
@@ -527,6 +581,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
                 gql_object_type=getattr(col, "gql_object_type", None),
                 gql_is_list=getattr(col, "gql_is_list", False),
                 epoch_unit=getattr(col, "epoch_unit", None),
+                **_nested_attributes(col, _data_type, _existing_nested.get(col.name)),
                 fake=getattr(col, "fake", None),  # REQ-1494
                 fake_stable=getattr(col, "fake_stable", False),
                 fake_stable_version=pinned_version(

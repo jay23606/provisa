@@ -695,6 +695,11 @@ class AvailableColumnType:  # REQ-533
     # REQ-1982: where a document source's nested field is read from (dot notation); None for a
     # top-level field.
     path: str | None = None
+    # REQ-1965: the hidden attributes of a natively array/struct/map column, recorded with the
+    # column at registration. Not part of the API: the registration form is not offered them.
+    array_depth: strawberry.Private[int] = 0
+    element_type: strawberry.Private[str | None] = None
+    native_type: strawberry.Private[str | None] = None
 
 
 @strawberry.type

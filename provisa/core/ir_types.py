@@ -23,8 +23,11 @@ resolved at registration — never lazily backfilled, and never silently default
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
+
+from provisa.core.native_types import NativeType, parse_native_type
 
 from sqlalchemy import (
     JSON,
@@ -92,7 +95,8 @@ _IR_TO_SA: dict[str, Any] = {
     "bytea": LargeBinary,
     # REQ-980: first-class JSON. SQLAlchemy's generic JSON renders as native JSON on
     # Postgres/MySQL/DuckDB and TEXT-affinity on SQLite — portable via the dialect compiler, no
-    # hand-maintained per-store fallback. Composite/array types stay collapsed to `text` (below).
+    # hand-maintained per-store fallback. A native array, struct or map is a JSON column too
+    # (REQ-1965, ``column_typing``).
     "json": JSON,
     # REQ-424: an embedding column of a replica the engine indexes (see Embedding).
     "vector": Embedding,
@@ -112,6 +116,7 @@ _ALIASES: dict[str, str] = {
     "string": "text",
     "json": "json",  # REQ-980: first-class JSON (jsonb narrows to portable generic JSON)
     "jsonb": "json",
+    "super": "json",  # Redshift: holds any JSON value, so JSON at its source (REQ-1965)
     "bool": "boolean",
     "real": "float",
     "float4": "float",
@@ -129,7 +134,7 @@ _ALIASES: dict[str, str] = {
 }
 
 # Per-platform native→IR translators (REQ-846). Each platform has type spellings the generic
-# aliases don't cover — SQL Server bit/nvarchar/uniqueidentifier, Trino varbinary/row, DuckDB
+# aliases don't cover — SQL Server bit/nvarchar/uniqueidentifier, Trino varbinary, DuckDB
 # hugeint/blob. These overlays take precedence over the generic aliases; common types (integer,
 # varchar, boolean, …) fall through to _ALIASES. Keyed by the SQLAlchemy/engine dialect name.
 _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
@@ -142,9 +147,6 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "time with time zone": "time",
         "ipaddress": "text",
         "uuid": "uuid",
-        "row": "text",
-        "array": "text",
-        "map": "text",
     },
     # REQ-1981: Amazon Athena's catalog spells a column's type as Hive DDL does; a composite
     # (array<...>, map<...>, struct<...>) is text, as Trino's composites are.
@@ -188,9 +190,51 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "timestamptz": "timestamp",
         "timestamp with time zone": "timestamp",
         "json": "json",  # REQ-980
-        "list": "text",
-        "struct": "text",
-        "map": "text",
+    },
+    # The scalar names these platforms use for the element of an array (REQ-1965): the element
+    # type of an array of a primitive is a semantic SQL type, resolved here like any other.
+    "clickhouse": {
+        "string": "text",
+        "fixedstring": "text",
+        "int8": "smallint",  # 8-bit here; the generic int8 alias is PostgreSQL's 8-BYTE integer
+        "int16": "smallint",
+        "int32": "integer",
+        "int64": "bigint",
+        "uint8": "smallint",
+        "uint16": "integer",
+        "uint32": "bigint",
+        "uint64": "bigint",
+        "float32": "float",
+        "float64": "double",
+        "bool": "boolean",
+        "date32": "date",
+        "datetime": "timestamp",
+        "datetime64": "timestamp",
+    },
+    "bigquery": {
+        "int64": "bigint",
+        "float64": "double",
+        "bytes": "bytea",
+        "bignumeric": "numeric",
+    },
+    "databricks": {
+        "byte": "smallint",
+        "tinyint": "smallint",
+        "short": "smallint",
+        "long": "bigint",
+        "binary": "bytea",
+        "timestamp_ntz": "timestamp",
+    },
+    "hiveserver2": {
+        "tinyint": "smallint",
+        "binary": "bytea",
+    },
+    "snowflake": {
+        "number": "numeric",
+        "binary": "bytea",
+        "timestamp_ntz": "timestamp",
+        "timestamp_ltz": "timestamp",
+        "timestamp_tz": "timestamp",
     },
 }
 
@@ -216,6 +260,7 @@ _PLATFORM_TRANSFORMS: dict[tuple[str, str], str] = {
 }
 
 IR_TYPES: frozenset[str] = frozenset(_IR_TO_SA)
+_NUMERIC_SIZE = re.compile(r"\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\Z")
 
 # REQ-1908: a registered temporal column whose source stores it as an epoch number declares the
 # number's unit (Column.epoch_unit). Never inferred: seconds and milliseconds overlap for plausible
@@ -280,7 +325,10 @@ def to_ir(native_type: str, platform: str | None = None) -> str:
     per-platform translator whose spellings take precedence; without it, only the generic aliases
     apply. Strips a length/precision qualifier (``varchar(255)`` → ``varchar``) and lowercases.
     Raises on an unknown type — never a silent ``varchar`` default: a landed column's type must be
-    known at design time, and an unmapped type is a vocabulary gap to close, not to paper over."""
+    known at design time, and an unmapped type is a vocabulary gap to close, not to paper over.
+    A native array, struct or map, in any spelling, is ``json`` (REQ-1965)."""
+    if parse_native_type(native_type).nested:
+        return "json"
     base = native_type.split("(", 1)[0].strip().lower()
     canon: str | None = None
     if platform:
@@ -294,6 +342,86 @@ def to_ir(native_type: str, platform: str | None = None) -> str:
             f"{sorted(IR_TYPES)} (add it to ir_types if a source legitimately produces it)"
         )
     return canon
+
+
+# The source kinds whose array type records no dimensions (PostgreSQL: "declaring the array size
+# or number of dimensions in CREATE TABLE is simply documentation"), or that cannot nest arrays.
+# An array column of one of them has depth 1 however its type is spelled (REQ-1965).
+_ONE_LEVEL_ARRAY_PLATFORMS = frozenset(
+    {"postgresql", "postgres", "greenplum", "yugabytedb", "opengauss", "cockroachdb", "bigquery"}
+)
+
+
+@dataclass(frozen=True)
+class ColumnTyping:
+    """What registration records for a column from its source's native type (REQ-1965).
+
+    ``data_type`` is the type the model shows. The other three are the hidden attributes of a
+    natively nested column: ``array_depth`` (0 unless it is an array of one primitive type),
+    ``element_type`` (the semantic SQL type of its innermost element, with precision and scale)
+    and ``native_type`` (the source's own spelling). A column that is not natively an array, a
+    struct or a map carries none of the three."""
+
+    data_type: str
+    array_depth: int = 0
+    element_type: str | None = None
+    native_type: str | None = None
+
+
+def _semantic_type(native_scalar: str, platform: str | None) -> str:
+    """The semantic SQL type of a native scalar, keeping a decimal's precision and scale in the
+    REQ-1961 spelling (``numeric(18,2)``)."""
+    ir = to_ir(native_scalar, platform)
+    if ir == "numeric":
+        sized = _NUMERIC_SIZE.search(native_scalar)
+        if sized is not None:
+            return f"numeric({int(sized[1])},{int(sized[2])})"
+    return ir
+
+
+def _array_of_a_primitive(shape: NativeType, platform: str | None) -> tuple[int, str] | None:
+    """``(depth, element type)`` when ``shape`` is an array, at any nesting, whose innermost
+    element is one primitive type; None for any other shape."""
+    depth = 0
+    node = shape
+    while node.kind == "array" and node.element is not None:
+        depth += 1
+        node = node.element
+    if depth == 0 or node.kind != "scalar":
+        return None
+    if not is_ir_type(node.spelling, platform):
+        # REQ-1965: registering a natively nested column is never an error, and only an array
+        # whose innermost element is a semantic SQL type has a depth above 0. An element with no
+        # semantic type (a ClickHouse IPv4, a PostGIS geometry) leaves the column plain JSON:
+        # the whole value and the untyped operations work, nothing inside is typed.
+        return None
+    if platform and platform.split("+", 1)[0] in _ONE_LEVEL_ARRAY_PLATFORMS:
+        depth = 1
+    return depth, _semantic_type(node.spelling, platform)
+
+
+def column_typing(native_type: str, platform: str | None = None) -> ColumnTyping:
+    """The ONE decision of what a native type registers as (REQ-1965). ``platform`` is the kind
+    of the source that reported the spelling.
+
+    An array, struct or map is ``json``, with the source's spelling recorded and, for an array
+    of one primitive type at any nesting, its depth and element type. Anything else keeps the
+    spelling it was listed with and carries no hidden attribute."""
+    spelling = native_type.strip().lower()
+    shape = parse_native_type(spelling)
+    if not shape.nested:
+        return ColumnTyping(spelling)
+    typed = _array_of_a_primitive(shape, platform)
+    if typed is None:
+        return ColumnTyping("json", native_type=spelling)
+    return ColumnTyping("json", array_depth=typed[0], element_type=typed[1], native_type=spelling)
+
+
+def composite_typing(native_type: str) -> ColumnTyping:
+    """What a column of a named composite type registers as (REQ-1965): a struct, so plain JSON
+    with its native type recorded. A composite's name does not say it is one -- only its
+    catalog does -- so its reader states it here rather than through a spelling."""
+    return ColumnTyping("json", native_type=native_type.strip().lower())
 
 
 def is_ir_type(name: str, platform: str | None = None) -> bool:
@@ -317,9 +445,6 @@ def indexed_string_length() -> int:
     import os
 
     return int(os.environ.get("PROVISA_INDEXED_STRING_LENGTH", "255"))
-
-
-_NUMERIC_SIZE = re.compile(r"\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\Z")
 
 
 def to_sqlalchemy(type_name: str, *, indexed: bool = False) -> Any:
