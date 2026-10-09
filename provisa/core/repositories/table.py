@@ -22,6 +22,7 @@ from sqlalchemy import delete as _delete, select
 from provisa.core.paging import paging_row
 from provisa.core import domain_policy
 from provisa.core.models import Table
+from provisa.core.numeric_type import ReportedNumericMalformed, stored_type_of
 from provisa.core.repositories import data_product as data_product_repo
 from provisa.core.repositories import glossary as glossary_repo
 from provisa.core.repositories.integrity import (
@@ -563,6 +564,17 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
                 f"column {table.table_name}.{col.name} has no data_type; "
                 "resolve the type at registration — an untyped column cannot be persisted"
             )
+        # REQ-1961: a numeric's precision and scale are stored in one spelling, whoever writes
+        # the registration and however they spelled it; a size no numeric can have is refused
+        # here, the one place a column's type is written.
+        try:
+            _data_type = stored_type_of(_data_type)
+        except ReportedNumericMalformed as malformed:
+            raise ValueError(
+                f"column {table.table_name}.{col.name} is declared {_data_type!r}, which is not "
+                "a numeric type a column can have: precision is 1 to 76 and scale is 0 to the "
+                "precision"
+            ) from malformed
         await conn.execute_core(
             table_columns.insert().values(
                 table_id=table_id,
