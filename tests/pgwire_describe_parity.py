@@ -85,7 +85,7 @@ def registered_shape(sql: str, registry: dict[str, list[tuple[str, str]]]) -> li
     """``sql``'s result shape derived from ``registry`` (table -> [(column, registered type)]) by
     the real derivation pgwire's Describe uses."""
     from provisa.compiler.introspect import ColumnMetadata
-    from provisa.pgwire.result_shape import derive_result_shape
+    from provisa.compiler.result_shape import derive_result_shape
 
     table_map = {name: i for i, name in enumerate(registry, 1)}
     column_types = {

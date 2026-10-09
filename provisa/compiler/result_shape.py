@@ -10,16 +10,21 @@
 
 """A governed statement's result shape — column names and types — derived from registered metadata.
 
-pgwire's Describe(Statement) answers from this (REQ-589, amended 2026-10-01): the statement is
-governed once, and its columns are typed from what the registry already holds — the same per-table
-column types the pgwire catalog advertises (``state.schema_build_cache["column_types"]``) — plus
-SQLGlot's type annotation for computed expressions. No statement is sent to a source or an engine.
+The statement is governed once, and its columns are typed from what the registry already holds —
+the same per-table column types the catalog advertises (``state.schema_build_cache["column_types"]``)
+— plus SQLGlot's type annotation for computed expressions. No statement is sent to a source or an
+engine.
+
+Two readers: pgwire's Describe(Statement) answers from it (REQ-589, amended 2026-10-01), and its
+Execute encodes rows as the types described, so the two agree by construction; and the governed
+plan carries it for every surface that types a result (REQ-1961), which is why it lives with the
+compiler and not with one surface.
 
 A projected column whose type cannot be derived is an error naming the column; nothing probes for
-it. The Execute then encodes its rows as the types described here, so the two agree by construction.
+it.
 """
 
-# Requirements: REQ-589
+# Requirements: REQ-589, REQ-1961
 
 from __future__ import annotations
 

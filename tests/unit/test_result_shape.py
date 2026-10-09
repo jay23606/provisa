@@ -21,7 +21,7 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.compiler.introspect import ColumnMetadata
-from provisa.pgwire.result_shape import UnderivableColumn, derive_result_shape, table_columns
+from provisa.compiler.result_shape import UnderivableColumn, derive_result_shape, table_columns
 
 _COLUMNS = {
     1: [

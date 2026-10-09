@@ -112,6 +112,15 @@ class _Plan:
     # lands it), so it is not derived for one that does. None on the ENGINE route, where the
     # terminal drains the engine's stream instead.
     engine_landing: Callable[[], Awaitable[str]] | None = field(default=None, repr=False)
+    # REQ-1961: the statement's result columns as (name, registered type), from registered
+    # metadata and nothing else (compiler/result_shape.py) — the one statement of what a read's
+    # columns are, for every surface that types its answer. Derived when first asked for and kept
+    # with the governed statement, so a repeat does not derive it again (REQ-1877); answers None
+    # for a statement whose columns cannot be typed that way. None on a plan the planner did
+    # not build from a governed statement.
+    result_shape: Callable[[], Awaitable[list[tuple[str, str]] | None]] | None = field(
+        default=None, repr=False
+    )
     # REQ-1897 (amended 2026-10-01): the response-cache identity of this statement — its governed
     # text and bound values as they stood BEFORE routing. The entry's key is built from these and
     # never from ``sql``/``exec_params``, which are what the chosen route executes (physical text
@@ -1255,6 +1264,34 @@ async def _govern_and_route_planned(
     )
 
 
+def _kept_result_shape(
+    memo: dict[str, Any], governed_sql: str, table_map: dict[str, int], ctx: Any, state: Any
+) -> Callable[[], Awaitable[list[tuple[str, str]] | None]]:
+    """What a plan carries as ``result_shape``: the governed statement's result columns, derived
+    on the first ask and kept in the statement's ``memo`` (the key pgwire's Describe keeps its
+    own under). A statement whose columns cannot be typed from registered metadata answers None;
+    why is kept beside it (``result_shape_underivable``)."""
+
+    async def shape() -> list[tuple[str, str]] | None:
+        if "result_shape" not in memo:
+            from provisa.compiler.result_shape import UnderivableColumn, derive_result_shape
+
+            try:
+                memo["result_shape"] = await _off_loop(
+                    derive_result_shape,
+                    governed_sql,
+                    table_map,
+                    ctx,
+                    state.schema_build_cache["column_types"],
+                )
+            except UnderivableColumn as underivable:
+                memo["result_shape"] = None
+                memo["result_shape_underivable"] = str(underivable)
+        return memo["result_shape"]
+
+    return shape
+
+
 @dataclass
 class _Governed:
     """A statement the pipeline has GOVERNED but not yet routed (REQ-589, amended 2026-10-01).
@@ -2168,6 +2205,9 @@ async def route_governed(
         return _Plan(
             route=Route.ENGINE,
             sql=governed_semantic,
+            result_shape=_kept_result_shape(
+                governed.memo, governed_semantic, gov_ctx.table_map, ctx, state
+            ),
             source_id=_default_source,
             dialect=state.federation_engine.dialect,
             exec_params=exec_params,
@@ -2253,6 +2293,9 @@ async def route_governed(
         return _Plan(
             route=decision.route,
             sql=sql_to_run,
+            result_shape=_kept_result_shape(
+                governed.memo, governed_semantic, gov_ctx.table_map, ctx, state
+            ),
             source_id=_direct_sid,
             dialect=dialect,
             exec_params=exec_params,
@@ -4587,6 +4630,7 @@ async def _route_compiled(
         return _Plan(
             route=Route.ENGINE,
             sql=governed_sql,
+            result_shape=_kept_result_shape(memo, governed_sql, gov_ctx.table_map, ctx, state),
             source_id=_default_source,
             dialect=state.federation_engine.dialect,
             exec_params=exec_params,
@@ -4666,6 +4710,7 @@ async def _route_compiled(
         return _Plan(
             route=decision.route,
             sql=sql_to_run,
+            result_shape=_kept_result_shape(memo, governed_sql, gov_ctx.table_map, ctx, state),
             exec_sql=physical_sql,
             source_id=_direct_sid,
             dialect=dialect,
@@ -4788,7 +4833,7 @@ class _Described:
 
 def _function_call_shape(name: str, state: Any) -> list[tuple[str, str]]:
     """A registered command's result columns, from its declared output contract (REQ-1159)."""
-    from provisa.pgwire.result_shape import UnderivableColumn
+    from provisa.compiler.result_shape import UnderivableColumn
 
     action = (getattr(state, "tracked_functions", None) or {}).get(name) or (
         getattr(state, "tracked_webhooks", None) or {}
@@ -4813,7 +4858,7 @@ async def describe_pgwire_statement(sql: str, role_id: str) -> _Described:  # RE
     from provisa.api.app import state
     from provisa.pgwire.ext_surfaces import rewrite_surface_operators
     from provisa.pgwire.function_call import detect_sql_function_call
-    from provisa.pgwire.result_shape import derive_result_shape
+    from provisa.compiler.result_shape import derive_result_shape
 
     sql = rewrite_surface_operators(sql)
     call = detect_sql_function_call(sql, state, role_id)
