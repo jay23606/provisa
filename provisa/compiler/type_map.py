@@ -201,15 +201,21 @@ def nested_column_graphql_type(column: Mapping) -> GraphQLScalarType | GraphQLLi
     """The GraphQL type of a registered column that is natively an array, a struct or a map at
     its source (REQ-1965), from its hidden attributes alone -- never from the spelling of a
     source type. An array of one primitive type is a list, nested to its depth, of the GraphQL
-    type of its element; an element may be null. Every other such column is the opaque JSON
-    value. None for a column that is not natively nested."""
+    type of its element; an element may be null, and a decimal element with a declared precision
+    is a String. Every other such column is the opaque JSON value. None for a column that is
+    not natively nested."""
     if not column.get("native_type"):
         return None
     depth = column.get("array_depth") or 0
     element = column.get("element_type")
     if depth == 0 or not element:
         return JSONScalar
-    declared: GraphQLScalarType | GraphQLList = column_type_to_graphql(element)
+    # A decimal element with a declared precision travels as a JSON string, exact on every
+    # engine, and is declared as what is served.
+    sized_decimal = element.startswith("numeric(")
+    declared: GraphQLScalarType | GraphQLList = (
+        GraphQLString if sized_decimal else column_type_to_graphql(element)
+    )
     for _ in range(depth):
         declared = GraphQLList(declared)
     return declared

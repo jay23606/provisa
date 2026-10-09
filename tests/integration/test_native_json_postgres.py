@@ -64,7 +64,7 @@ _COLUMNS = [
         (1, "timestamp", "timestamp with time zone[]"),
         ["2026-10-09T10:34:56.123456"],  # the same instant, in UTC
     ),
-    ("blobs", "bytea[]", "ARRAY['\\x00ff'::bytea]", (1, "bytea", "bytea[]"), ["00ff"]),
+    ("blobs", "bytea[]", "ARRAY['\\x00ff'::bytea]", (1, "bytea", "bytea[]"), ["\\x00ff"]),
     (
         "ratios",
         "double precision[]",

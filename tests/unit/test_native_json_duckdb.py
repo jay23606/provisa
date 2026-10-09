@@ -46,7 +46,7 @@ _CASES = [
         "[TIMESTAMPTZ '2026-10-09 12:34:56.123456+02']",
         ["2026-10-09T10:34:56.123456"],  # the same instant, in UTC
     ),
-    ("BLOB[]", "['\\x00\\xFF'::BLOB]", ["00ff"]),
+    ("BLOB[]", "['\\x00\\xFF'::BLOB]", ["\\x00ff"]),
     ("DOUBLE[]", "[1.5, NULL]", [1.5, None]),
     (
         "UUID[]",

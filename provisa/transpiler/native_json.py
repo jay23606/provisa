@@ -18,7 +18,8 @@ from the one table below. Provisa executes nothing and touches no value.
 
 Exactness inside the JSON, for an array of one primitive type (depth 1 or more): a decimal with a
 declared precision is written as a string; a timestamp as ISO 8601 with ``T``, a timestamp with
-time zone taken to UTC first; binary as lower-case hex; a float that is not a number or is
+time zone taken to UTC first; binary as a scalar binary value reads (``\\x00ff``,
+``ir_types.bytea_hex``); a float that is not a number or is
 infinite is refused by the backend, naming ``json.non_finite_number``. A struct, a map or an array
 of them (depth 0) gets the backend's plain to-JSON: nothing inside it is typed.
 
@@ -190,7 +191,7 @@ _BACKENDS: dict[str, _Backend] = {
                 "strftime({x}, '%Y-%m-%dT%H:%M:%S.%f')",
                 "strftime({x} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%M:%S.%f')",
             ),
-            "bytea": "lower(hex({x}))",
+            "bytea": "'\\x' || lower(hex({x}))",
             "float": _DUCKDB_FINITE,
             "double": _DUCKDB_FINITE,
         },
@@ -213,7 +214,7 @@ _BACKENDS: dict[str, _Backend] = {
                 "to_char({x}, 'YYYY-MM-DD\"T\"HH24:MI:SS.US')",
                 "to_char({x} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US')",
             ),
-            "bytea": "encode({x}, 'hex')",
+            "bytea": "'\\x' || encode({x}, 'hex')",
             "float": _POSTGRES_FINITE,
             "double": _POSTGRES_FINITE,
         },
@@ -235,7 +236,7 @@ _BACKENDS: dict[str, _Backend] = {
                 "date_format({x}, '%Y-%m-%dT%H:%i:%s.%f')",
                 "date_format({x} AT TIME ZONE 'UTC', '%Y-%m-%dT%H:%i:%s.%f')",
             ),
-            "bytea": "lower(to_hex({x}))",
+            "bytea": "'\\x' || lower(to_hex({x}))",
             "float": _TRINO_FINITE,
             "double": _TRINO_FINITE,
         },

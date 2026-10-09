@@ -74,3 +74,14 @@ def test_a_list_is_never_declared_from_the_spelling_of_a_source_type(spelling):
     """A column listed with a nested spelling and no attributes is JSON, as every surface lists
     it -- not a list on the engines whose spelling happens to be recognised."""
     assert column_type_to_graphql(spelling) is JSONScalar
+
+
+def test_a_decimal_element_with_a_declared_precision_is_a_string():
+    """It travels as a JSON string, exact on every engine; the list declares what is served. A
+    decimal with no declared precision is floating point (REQ-1961), as a scalar column is."""
+    from provisa.compiler.type_map import GraphQLFloat
+
+    sized = nested_column_graphql_type(_column("numeric(18,2)[]", 1, "numeric(18,2)"))
+    assert isinstance(sized, GraphQLList) and sized.of_type is GraphQLString
+    unsized = nested_column_graphql_type(_column("numeric[]", 1, "numeric"))
+    assert isinstance(unsized, GraphQLList) and unsized.of_type is GraphQLFloat

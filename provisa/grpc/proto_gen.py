@@ -82,18 +82,18 @@ def _physical_to_proto(column_type: str) -> str:
     base = normalized.split("(")[0].strip()
     if base in _PROTO_TYPE_MAP:
         return _PROTO_TYPE_MAP[base]
-    if normalized.startswith("array(") and normalized.endswith(")"):
-        inner = normalized[6:-1]
-        return _physical_to_proto(inner)
+    # REQ-1965: a natively array, struct or map column is a JSON column: a string field carrying
+    # the JSON the source or engine produced, at every depth. Never ``repeated``: a repeated
+    # field could only be filled by decoding that JSON here, value by value.
+    from provisa.core.native_types import parse_native_type
+
+    if parse_native_type(normalized).nested:
+        return "string"
     raise ValueError(f"Unmapped column type for proto: {column_type!r}")
 
 
 def _needs_timestamp_import(columns: list[tuple[str, str]]) -> bool:
     return any(_physical_to_proto(dtype) == "google.protobuf.Timestamp" for _, dtype in columns)
-
-
-def _is_array_type(column_type: str) -> bool:
-    return column_type.lower().strip().startswith("array(")
 
 
 def _to_proto_type_name(gql_name: str) -> str:
@@ -389,9 +389,8 @@ def generate_proto(
             if meta is None:
                 continue
             proto_type = _physical_to_proto(meta.data_type)
-            repeated = "repeated " if _is_array_type(meta.data_type) else ""
             field_num = row_numbers[col["column_name"]]
-            lines.append(f"  {repeated}{proto_type} {col['column_name']} = {field_num};")
+            lines.append(f"  {proto_type} {col['column_name']} = {field_num};")
 
         for rel, target in rel_fields:
             field_num = row_numbers[target.field_name]

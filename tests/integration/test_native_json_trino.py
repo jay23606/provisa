@@ -49,7 +49,7 @@ _CASES = [
         "ARRAY[TIMESTAMP '2026-10-09 12:34:56.123456 +02:00']",
         ["2026-10-09T10:34:56.123456"],  # the same instant, in UTC
     ),
-    ("array(varbinary)", "ARRAY[X'00FF']", ["00ff"]),
+    ("array(varbinary)", "ARRAY[X'00FF']", ["\\x00ff"]),
     ("array(double)", "ARRAY[1.5E0, NULL]", [1.5, None]),
     (
         "array(uuid)",
