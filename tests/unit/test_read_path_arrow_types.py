@@ -311,14 +311,54 @@ def test_the_materialised_table_of_a_result_with_no_rows_without_a_shape():
 
 
 @pytest.mark.parametrize("reported", ["postgres", "duckdb"])
-def test_airport_today(reported):
-    """Typed from the driver's column types alone, so the same with or without rows."""
+def test_airport_reads_each_registered_column_as_its_registered_type(reported):
+    """ON THE ONE RULE since REQ-1961: the schema a scan advertises and streams is the model's
+    for a registered column, whatever the driver reported, with or without rows."""
+    from provisa.api.airport.query import _typed_batches_from_rows
+    from provisa.federation.runtime_support import read_targets
+
+    declared = read_targets(_NAMES, _REGISTERED)
+    typed = _direct_typed_schema(_NAMES, _DRIVER_TYPES[reported], declared)
+    assert _types(typed) == _BY_THE_RULE
+    (batch,) = _typed_batches_from_rows(
+        _Stream(_ROWS, _DRIVER_TYPES[reported]), typed, declared=declared
+    )
+    assert batch.schema == typed
+    assert batch.column(_NAMES.index("money")).to_pylist() == [Decimal("12.50"), Decimal("0.10")]
+
+
+def test_airport_refuses_values_that_are_not_the_registered_type():
+    from provisa.api.airport.query import _typed_batches_from_rows
+    from provisa.federation.runtime_support import ColumnTypeMismatch, read_targets
+
+    declared = read_targets(_NAMES, _REGISTERED)
+    typed = _direct_typed_schema(_NAMES, _DRIVER_TYPES["postgres"], declared)
+    rows = [tuple(Decimal("12.505") if n == "money" else v for n, v in zip(_NAMES, _ROWS[0]))]
+    with pytest.raises(ColumnTypeMismatch) as refused:
+        list(_typed_batches_from_rows(_Stream(rows, None), typed, declared=declared))
+    assert refused.value.column == "money"
+
+
+@pytest.mark.parametrize("reported", ["postgres", "duckdb"])
+def test_airport_without_declared_types(reported):
+    """A column that is not a registered column is typed from the driver's column type alone."""
     assert _types(_direct_typed_schema(_NAMES, _DRIVER_TYPES[reported])) == {
         **_AGREED,
         "i": pa.int32(),
         "money": pa.float64(),  # finding 1: its numeric is a float, sized or not
         "ratio": pa.float64(),
     }
+
+
+def test_airports_scan_takes_its_declared_types_from_the_plans_result_shape():
+    import inspect
+
+    from provisa.api.airport import query
+
+    source = inspect.getsource(query)
+    assert "read_targets(column_names, None if kept is None else kept.now())" in source
+    # its definition, the stream, and both schema probes
+    assert source.count("_declared_types(plan, ") == 4
 
 
 def test_airport_refuses_a_scan_whose_driver_reports_no_types():

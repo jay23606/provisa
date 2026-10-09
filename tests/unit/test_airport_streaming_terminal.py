@@ -92,6 +92,7 @@ def _plan(route, **kwargs):
         exec_params=[],
         pk_bounds=(),  # REQ-1865: row-materialize residency reads this on every plan
         role_id="analyst",  # REQ-1907: residency judges freshness for the plan's reader role
+        result_shape=None,  # as _Plan: built from no governed statement (REQ-1961)
         audit=None,
         audit_written=False,
         row_count=None,  # the terminal's delivered rows; unset on a streamed scan until its drain
