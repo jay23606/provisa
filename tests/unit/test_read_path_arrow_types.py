@@ -18,7 +18,9 @@ shows here as a changed expectation and nothing changes unseen.
 The four paths:
 
 - **row stream** — a source read as rows and packed into Arrow as it streams
-  (``federation.runtime_support.arrow_batches_from_rows``; Flight over a direct route);
+  (``federation.runtime_support.arrow_batches_from_rows``; Flight over a direct route). ON THE
+  ONE RULE since REQ-1961: given the governed statement's result shape, each column is read as
+  its registered type; the "today" cases below are what it does without a shape;
 - **materialised** — a whole row result turned into a table
   (``executor.formats.arrow.rows_to_arrow_table``; Flight's buffered answers);
 - **engine stream** — the engine's own Arrow reader, passed through (its types are the
@@ -103,6 +105,81 @@ def _types(schema: pa.Schema) -> dict[str, pa.DataType]:
 
 # --- the row stream --------------------------------------------------------------------------------
 
+# The same result's columns as the model registers them: what the governed statement's result
+# shape (compiler.result_shape) says each one is.
+_REGISTERED = [
+    ("i", "integer"),
+    ("b", "bigint"),
+    ("money", "numeric(18,2)"),
+    ("ratio", "numeric"),
+    ("f", "double"),
+    ("t", "varchar"),
+    ("ts", "timestamp"),
+    ("d", "date"),
+    ("ok", "boolean"),
+]
+# The one rule (REQ-1961): the registered type, on every path. An integer is 32 bits; a numeric
+# is exact where the model records its size and floating point where it does not.
+_BY_THE_RULE = {
+    **_AGREED,
+    "i": pa.int32(),
+    "money": pa.decimal128(18, 2),
+    "ratio": pa.float64(),
+}
+
+
+@pytest.mark.parametrize("reported", ["postgres", "duckdb", "none"])
+@pytest.mark.parametrize("rows", [_ROWS, []], ids=["rows", "no rows"])
+def test_the_row_stream_reads_each_column_as_its_registered_type(reported, rows):
+    """Whatever the driver reported, whatever the first rows held, and with no rows at all."""
+    schema, batches = arrow_batches_from_rows(
+        _Stream(rows, _DRIVER_TYPES[reported]), shape=_REGISTERED
+    )
+    assert _types(schema) == _BY_THE_RULE
+    for batch in batches:
+        assert batch.schema == schema
+
+
+def test_an_undeclared_numeric_is_floating_point_and_says_what_that_costs():
+    """0.1 + 0.2 as decimals is exactly 0.3. Read as floating point it is approximately 0.3 —
+    here the double Arrow's column-wise cast produces, which is not even the double nearest
+    0.3. Declare the column's precision and scale for exact values."""
+    rows = [(Decimal("0.1") + Decimal("0.2"),)]
+    exact = Decimal("0.3")
+
+    class _One(_Stream):
+        def __init__(self) -> None:
+            self._rows, self.column_names, self.column_types = rows, ["v"], ["numeric"]
+
+    schema, batches = arrow_batches_from_rows(_One(), shape=[("v", "numeric")])
+    (value,) = next(batches).column(0).to_pylist()
+    assert schema.field("v").type == pa.float64()
+    assert isinstance(value, float) and value == pytest.approx(0.3, abs=1e-15)
+    assert Decimal(value) != exact, "a double cannot hold 0.3"
+    schema, batches = arrow_batches_from_rows(_One(), shape=[("v", "numeric(10,1)")])
+    assert schema.field("v").type == pa.decimal128(10, 1)
+    assert next(batches).column(0).to_pylist() == [exact]
+
+
+def test_values_that_cannot_be_read_as_the_registered_type_are_an_error_naming_the_column():
+    """Three digits after the point in a column registered with two: never rounded silently."""
+    from provisa.federation.runtime_support import ColumnTypeMismatch
+
+    rows = [tuple(Decimal("12.505") if n == "money" else v for n, v in zip(_NAMES, _ROWS[0]))]
+    with pytest.raises(ColumnTypeMismatch, match="column 'money'"):
+        schema, batches = arrow_batches_from_rows(_Stream(rows, None), shape=_REGISTERED)
+        list(batches)
+
+
+def test_a_column_the_shape_does_not_type_keeps_the_type_its_values_give_it():
+    """No registered type by that name, a type neither vocabulary names, or JSON (REQ-1965: a
+    JSON column's read form is its reader's): read off the values, as without a shape."""
+    shape = [("i", "USER-DEFINED"), ("t", "json"), ("ok", "boolean")]  # "b" is not in it
+    schema, _batches = arrow_batches_from_rows(_Stream(_ROWS, None), shape=shape)
+    types = _types(schema)
+    assert types["i"] == pa.int64() and types["b"] == pa.int64() and types["t"] == pa.string()
+    assert types["ok"] == pa.bool_()
+
 
 @pytest.mark.parametrize(
     "reported, money",
@@ -114,7 +191,8 @@ def _types(schema: pa.Schema) -> dict[str, pa.DataType]:
         ("none", pa.decimal128(38, 2)),
     ],
 )
-def test_the_row_stream_today(reported, money):
+def test_the_row_stream_without_a_shape(reported, money):
+    """A read that is not a governed plan's (the engine seam's own row adapter) has no shape."""
     schema, _batches = arrow_batches_from_rows(_Stream(_ROWS, _DRIVER_TYPES[reported]))
     assert _types(schema) == {
         **_AGREED,
@@ -125,7 +203,7 @@ def test_the_row_stream_today(reported, money):
 
 
 @pytest.mark.parametrize("reported", ["postgres", "duckdb", "none"])
-def test_the_row_stream_of_a_result_with_no_rows_today(reported):
+def test_the_row_stream_of_a_result_with_no_rows_without_a_shape(reported):
     schema, _batches = arrow_batches_from_rows(_Stream([], _DRIVER_TYPES[reported]))
     assert _types(schema) == _NULLS  # finding 3
 
@@ -185,3 +263,52 @@ def test_the_columns_every_path_types_alike():
             airport.field(name).type,
         }
         assert answers == {arrow_type}, name
+
+
+# --- the one rule ----------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "registered, arrow_type",
+    [
+        ("integer", pa.int32()),
+        ("int4", pa.int32()),
+        ("smallint", pa.int16()),
+        ("bigint", pa.int64()),
+        ("real", pa.float32()),
+        ("double precision", pa.float64()),
+        ("numeric(18,2)", pa.decimal128(18, 2)),
+        ("decimal(10,2)", pa.decimal128(10, 2)),
+        ("numeric(50,4)", pa.decimal256(50, 4)),
+        ("numeric", pa.float64()),
+        ("decimal", pa.float64()),
+        ("character varying(40)", pa.string()),
+        ("timestamp without time zone", pa.timestamp("us")),
+        ("boolean", pa.bool_()),
+        ("json", pa.string()),
+        ("array(varchar)", pa.string()),  # REQ-1965: nested is JSON
+    ],
+)
+def test_the_arrow_type_of_a_registered_type(registered, arrow_type):
+    from provisa.core.catalog_types import column_arrow_type
+
+    assert column_arrow_type(registered) == arrow_type
+
+
+@pytest.mark.parametrize("registered", [None, "", "USER-DEFINED", "geometry"])
+def test_a_type_neither_vocabulary_names_has_no_arrow_type_of_its_own(registered):
+    from provisa.core.catalog_types import column_arrow_type
+
+    assert column_arrow_type(registered) is None
+
+
+def test_flights_direct_stream_is_typed_by_the_plans_result_shape():
+    """The call site: the governed statement's result shape, kept with the statement, is what
+    the row adapter is handed."""
+    import inspect
+
+    from provisa.api.flight import server
+
+    source = inspect.getsource(server)
+    assert "self._run_on_loop(plan.result_shape())" in source
+    assert "arrow_batches_from_rows(stream, shape=shape)" in source

@@ -19,6 +19,7 @@ from __future__ import annotations
 import pyarrow as pa
 
 from provisa.core.ir_types import to_ir
+from provisa.core.numeric_type import numeric_arrow_type
 
 # the engine type -> Arrow type mapping
 _ARROW_TYPE_MAP: dict[str, pa.DataType] = {
@@ -108,3 +109,43 @@ def _physical_type_to_arrow(column_type: str) -> pa.DataType:
     if canonical in _IR_ARROW:
         return _IR_ARROW[canonical]
     raise KeyError(f"Unmapped engine type: {column_type!r}")
+
+
+def column_arrow_type(registered: str | None) -> pa.DataType | None:
+    """THE Arrow type of a column registered as ``registered`` (REQ-1961): the type a read of the
+    column returns, on every read path, and so the type a catalog lists for it.
+
+    A numeric column is exact where the model records its precision and scale and floating point
+    where it does not (``core.numeric_type``); every other type is what the catalog's mapper
+    says. None for a column with no registered type and for one neither vocabulary names: a
+    read of such a column keeps the type its source or engine gave it.
+    """
+    if not registered:
+        return None
+    text = registered.strip().lower()
+    if not _is_nested(text):
+        base = text.partition("(")[0].strip()
+        try:
+            numeric = base in ("numeric", "decimal") or to_ir(text) == "numeric"
+        except ValueError:
+            numeric = False
+        if numeric:
+            return numeric_arrow_type(text)
+    try:
+        return _physical_type_to_arrow(registered)
+    except KeyError:
+        return None
+
+
+def is_json_type(registered: str | None) -> bool:
+    """Whether a column registered as ``registered`` is a JSON column (REQ-1965): ``json`` itself
+    or a nested spelling."""
+    if not registered:
+        return False
+    text = registered.strip().lower()
+    if _is_nested(text):
+        return True
+    try:
+        return to_ir(text) == "json"
+    except ValueError:
+        return False

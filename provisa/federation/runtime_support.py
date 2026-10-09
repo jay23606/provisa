@@ -160,10 +160,56 @@ def arrow_array_for_rows(values: list, declared: str | None) -> Any:  # REQ-1219
     return pa.array(values)
 
 
+class ColumnTypeMismatch(TypeError):
+    """A column's values cannot be read as the type the column is registered with."""
+
+    def __init__(self, column: str, registered: Any, found: Any) -> None:
+        self.column = column
+        super().__init__(
+            f"column {column!r} is registered as a type read as {registered}, and its values "
+            f"arrived as {found}, which cannot be read as that"
+        )
+
+
+def typed_arrow_array(values: list, target: Any, column: str) -> Any:  # REQ-1961
+    """One column of row values as an Arrow array of ``target``, the type the column is
+    registered with — never a type read off the values. Where Arrow cannot build ``target``
+    from the Python values directly (a ``Decimal`` read as floating point), the values are built
+    as what they are and cast by Arrow, column-wise. Values that cannot be read as the
+    registered type are an error naming the column (:class:`ColumnTypeMismatch`)."""
+    import pyarrow as pa
+
+    try:
+        return pa.array(values, type=target)
+    except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+        found = arrow_array_for_rows(values, None)
+    try:
+        return found.cast(target)
+    except (pa.ArrowInvalid, pa.ArrowNotImplementedError) as mismatch:
+        raise ColumnTypeMismatch(column, target, found.type) from mismatch
+
+
+def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[Any]:  # REQ-1961
+    """For each result column, the Arrow type it is read as: the registered type of the column
+    of that name in the statement's result ``shape`` (``compiler.result_shape``), by the one
+    rule (``core.catalog_types.column_arrow_type``). None — the column keeps the type its
+    values give it — where the statement has no derivable shape, the shape has no column of
+    that name, the registered type is one neither vocabulary names, or the column is JSON
+    (REQ-1965: what a JSON column reads as is its reader's to produce)."""
+    from provisa.core.catalog_types import column_arrow_type, is_json_type
+
+    registered = dict(shape or [])
+    return [
+        None if is_json_type(registered.get(name)) else column_arrow_type(registered.get(name))
+        for name in names
+    ]
+
+
 def arrow_batches_from_rows(
     result: ResultStream,
     *,
     batch_rows: int = _ARROW_STREAM_BATCH_ROWS,
+    shape: list[tuple[str, str]] | None = None,
 ) -> tuple[Any, Iterator[Any]]:
     """Adapt a lazy row ``ResultStream`` into ``(pa.Schema, RecordBatch generator)`` — the generic
     Arrow-stream face for a ROWS-only engine (pg / sqlalchemy) that has no native Arrow reader
@@ -171,27 +217,47 @@ def arrow_batches_from_rows(
     ``batch_rows`` rows are held at once, so Flight-SQL / airport stream from a row engine instead of
     materializing the whole result.
 
-    The schema is LOCKED from the first batch (pyarrow type inference) and every later batch is cast
+    ``shape`` is the governed statement's result columns and their registered types (the plan's
+    ``result_shape``, REQ-1961). A column it types is read as its registered type — an integer
+    column is 32 bits, a numeric is exact where the model records its size and floating point
+    where it does not — whatever the driver reported and whatever the first rows held, and a
+    result with no rows has the same schema as one with rows. Without a shape, and for a column
+    the shape does not type, the type is read off the values as before:
+
+    the schema is LOCKED from the first batch (pyarrow type inference) and every later batch is cast
     to it, so all record batches share one schema. An incompatible later value (e.g. a column that was
     all-``NULL`` in the first batch but typed afterward) raises loudly rather than silently corrupting.
-    A zero-row result yields a null-typed schema (column names only) and an empty generator."""
+    A zero-row result yields a null type for such a column."""
     import pyarrow as pa
 
     def _to_batch(rows: list[tuple], schema: Any | None) -> Any:
         cols = [[r[i] for r in rows] for i in range(len(names))]
         if schema is None:
             declared = result.column_types or [None] * len(names)
-            arrays = [arrow_array_for_rows(c, declared[i]) for i, c in enumerate(cols)]
+            arrays = [
+                arrow_array_for_rows(c, declared[i])
+                if targets[i] is None
+                else typed_arrow_array(c, targets[i], names[i])
+                for i, c in enumerate(cols)
+            ]
             return pa.RecordBatch.from_arrays(arrays, names=names)
-        arrays = [pa.array(c, type=schema.field(i).type) for i, c in enumerate(cols)]
+        arrays = [
+            pa.array(c, type=schema.field(i).type)
+            if targets[i] is None
+            else typed_arrow_array(c, targets[i], names[i])
+            for i, c in enumerate(cols)
+        ]
         return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
     row_iter = result.iter_rows()
     first_rows = list(islice(row_iter, batch_rows))
     # A lazy stream opens on its first read, which is when it learns its columns.
     names = result.column_names
+    targets = read_targets(names, shape)
     if not first_rows:
-        empty = pa.schema([pa.field(n, pa.null()) for n in names])
+        empty = pa.schema(
+            [pa.field(n, pa.null() if t is None else t) for n, t in zip(names, targets)]
+        )
         return empty, iter(())
     first_batch = _to_batch(first_rows, None)
     schema = first_batch.schema

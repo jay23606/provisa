@@ -1458,7 +1458,14 @@ class ProvisaFlightServer(
                             passthrough=None,
                             open_rows=_open_rows,
                         )
-                        arrow_schema, batch_gen = arrow_batches_from_rows(stream)
+                        # REQ-1961: each column is read as its registered type, from the
+                        # governed statement's result shape (kept with the statement).
+                        shape = (
+                            self._run_on_loop(plan.result_shape())
+                            if plan.result_shape is not None
+                            else None
+                        )
+                        arrow_schema, batch_gen = arrow_batches_from_rows(stream, shape=shape)
                     except BaseException:
                         _release_slot()
                         raise
