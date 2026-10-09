@@ -167,14 +167,25 @@ def test_an_undeclared_numeric_is_floating_point_and_says_what_that_costs():
     assert next(batches).column(0).to_pylist() == [exact]
 
 
-def test_values_that_cannot_be_read_as_the_registered_type_are_an_error_naming_the_column():
-    """Three digits after the point in a column registered with two: never rounded silently."""
+def test_values_that_cannot_be_read_as_the_registered_type_are_refused_naming_the_column():
+    """Three digits after the point in a column registered with two: never rounded silently.
+    The refusal is one of the read refusals every surface answers in one place, with a stable
+    code, what it is about, and what a registrar does about it."""
+    from provisa.core.read_refusal import ReadRefused
     from provisa.federation.runtime_support import ColumnTypeMismatch
 
     rows = [tuple(Decimal("12.505") if n == "money" else v for n, v in zip(_NAMES, _ROWS[0]))]
-    with pytest.raises(ColumnTypeMismatch, match="column 'money'"):
-        schema, batches = arrow_batches_from_rows(_Stream(rows, None), shape=_REGISTERED)
+    with pytest.raises(ColumnTypeMismatch) as refused:
+        _schema, batches = arrow_batches_from_rows(_Stream(rows, None), shape=_REGISTERED)
         list(batches)
+    assert isinstance(refused.value, ReadRefused)
+    assert refused.value.code == "query.column_type_mismatch"
+    assert refused.value.params == {
+        "column": "money",
+        "registered": "decimal128(18, 2)",
+        "found": "decimal128(38, 3)",
+    }
+    assert "Register the column with the type its source returns" in str(refused.value)
 
 
 def test_a_column_the_shape_does_not_type_keeps_the_type_its_values_give_it():

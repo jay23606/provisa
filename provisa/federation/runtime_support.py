@@ -23,6 +23,7 @@ from decimal import Decimal
 from itertools import islice
 from typing import Any, Callable
 
+from provisa.core.read_refusal import ReadRefused
 from provisa.core import request_deadline
 from provisa.executor.result import (
     QueryResult,
@@ -160,14 +161,27 @@ def arrow_array_for_rows(values: list, declared: str | None) -> Any:  # REQ-1219
     return pa.array(values)
 
 
-class ColumnTypeMismatch(TypeError):
-    """A column's values cannot be read as the type the column is registered with."""
+class ColumnTypeMismatch(ReadRefused):
+    """A column's values cannot be read as the type the column is registered with (REQ-1961).
+
+    The model says what a column is and a read returns it as that; values that are not that are
+    never rounded, widened or passed through as something else. The statement is good and the
+    server has not failed: the registration and the source disagree, and a registrar puts it
+    right — by registering the column with the type its source returns (for a numeric, the
+    precision and scale it really has), or by correcting the source. One of the refusals for a
+    read the deployment cannot answer now (``core.read_refusal``), so every surface answers it
+    in one place with this code and these parameters.
+    """
+
+    code = "query.column_type_mismatch"
 
     def __init__(self, column: str, registered: Any, found: Any) -> None:
         self.column = column
+        self.params = {"column": column, "registered": str(registered), "found": str(found)}
         super().__init__(
-            f"column {column!r} is registered as a type read as {registered}, and its values "
-            f"arrived as {found}, which cannot be read as that"
+            f"column {column!r} is registered as {registered} and its values arrived as "
+            f"{found}, which cannot be read as that without changing them. Register the column "
+            f"with the type its source returns, or correct the source."
         )
 
 
