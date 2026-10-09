@@ -68,3 +68,100 @@ def test_the_vocabulary_and_the_store_ddl_read_the_same_declaration():
     sized = to_sqlalchemy(numeric_type(18, 2))
     assert isinstance(sized, Numeric) and (sized.precision, sized.scale) == (18, 2)
     assert to_sqlalchemy("numeric") is Numeric
+
+
+# --- the engine edge -----------------------------------------------------------------------------
+
+from provisa.core.numeric_type import (  # noqa: E402
+    ReportedNumericMalformed,
+    numeric_size_of,
+    stored_type_of,
+)
+
+# How each engine or source prints a decimal column's type → the size it reports. A new engine
+# is one row here.
+_REPORTED = [
+    ("trino", "decimal(10,2)", (10, 2)),
+    ("trino", "decimal(38,0)", (38, 0)),
+    ("duckdb", "DECIMAL(10,2)", (10, 2)),
+    ("duckdb", "DECIMAL(18,3)", (18, 3)),
+    ("clickhouse", "Decimal(10, 2)", (10, 2)),
+    ("clickhouse", "Decimal32(4)", (9, 4)),
+    ("clickhouse", "Decimal64(4)", (18, 4)),
+    ("clickhouse", "Decimal128(10)", (38, 10)),
+    ("clickhouse", "Decimal256(20)", (76, 20)),
+    ("clickhouse", "Nullable(Decimal(10, 2))", (10, 2)),
+    ("clickhouse", "LowCardinality(Nullable(Decimal64(2)))", (18, 2)),
+    ("postgres", "numeric(10,2)", (10, 2)),
+    ("postgres", "numeric(10)", (10, 0)),
+    ("sql standard", "DEC(12, 4)", (12, 4)),
+    # Reported with no size: an undeclared numeric.
+    ("postgres", "numeric", None),
+    ("trino", "decimal", None),
+    ("duckdb", "DECIMAL", None),
+    # Not decimals.
+    ("trino", "varchar(20)", None),
+    ("trino", "timestamp(6) with time zone", None),
+    ("duckdb", "DOUBLE", None),
+    ("clickhouse", "DateTime64(3)", None),
+    ("clickhouse", "Nullable(String)", None),
+    ("trino", "array(decimal(10,2))", None),
+    ("trino", "row(a decimal(10,2))", None),
+]
+
+
+@pytest.mark.parametrize("engine, reported, size", _REPORTED)
+def test_the_size_an_engine_reports_is_read_from_how_it_prints_the_type(engine, reported, size):
+    assert numeric_size_of(reported) == size, engine
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        "decimal(10,2,3)",
+        "decimal(a,b)",
+        "decimal()",
+        "decimal(10,20)",
+        "decimal(0,0)",
+        "Decimal64",
+        "Decimal64(4, 2)",
+        "Decimal32(12)",
+        "numeric(-1,2)",
+    ],
+)
+def test_a_decimal_whose_size_cannot_be_read_is_an_error_not_an_undeclared_numeric(malformed):
+    with pytest.raises(ReportedNumericMalformed, match="size cannot be read"):
+        numeric_size_of(malformed)
+
+
+def test_what_is_stored_is_the_one_spelling_whichever_engine_reported_it():
+    printed = ["decimal(10,2)", "DECIMAL(10,2)", "Decimal(10, 2)", "numeric(10,2)"]
+    assert {stored_type_of(p) for p in printed} == {"numeric(10,2)"}
+    assert stored_type_of("Decimal64(4)") == "numeric(18,4)"
+    # Anything else is stored as reported.
+    assert stored_type_of("varchar(20)") == "varchar(20)"
+    assert stored_type_of("numeric") == "numeric"
+
+
+def test_the_engines_introspection_seam_hands_on_the_stored_spelling():
+    """Both introspection methods of the engine runtime — every engine's types reach the model
+    through them — store a sized decimal in the one spelling and leave the rest as reported."""
+    import types
+
+    from provisa.federation.runtime import EngineRuntime
+
+    reported = {"amount": "DECIMAL(10,2)", "fee": "Decimal64(4)", "n": "numeric", "name": "VARCHAR"}
+    runtime = EngineRuntime.__new__(EngineRuntime)
+    runtime._state = None
+    runtime._backend = types.SimpleNamespace(
+        introspect_by_catalog=lambda state, catalog, schema, table: dict(reported),
+        introspect_columns=lambda state, source, schema, table: dict(reported),
+    )
+    expected = {
+        "amount": "numeric(10,2)",
+        "fee": "numeric(18,4)",
+        "n": "numeric",
+        "name": "VARCHAR",
+    }
+    assert runtime.introspect_by_catalog("c", "s", "t") == expected
+    assert runtime.introspect_columns(object(), "s", "t") == expected

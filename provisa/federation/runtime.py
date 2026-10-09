@@ -489,14 +489,19 @@ class EngineRuntime:  # REQ-825, REQ-840
     def introspect_by_catalog(self, catalog: str, schema: str, table: str) -> dict[str, str]:
         """Column types keyed by the engine's PHYSICAL catalog name (not source id) — the
         sync introspection seam used by the compile-time type cache."""
-        return self._backend.introspect_by_catalog(self._state, catalog, schema, table)
+        return _as_stored(self._backend.introspect_by_catalog(self._state, catalog, schema, table))
 
     def introspect_columns(self, source: Any, schema_name: str, table_name: str) -> dict[str, str]:
         """Column types as the BOUND ENGINE reports them for a registered table — the single
         introspection seam. Every engine answers in its own type system, and all engine-specific
         access lives in the engine's backend, so callers never reference a concrete engine. Returns
-        ``{column_name: type_name}``; an engine that cannot introspect live returns ``{}``."""
-        return self._backend.introspect_columns(self._state, source, schema_name, table_name)
+        ``{column_name: type_name}``; an engine that cannot introspect live returns ``{}``.
+
+        A decimal's precision and scale reach the model here (REQ-1961): each engine prints them
+        its own way, and what is handed on is the one stored spelling."""
+        return _as_stored(
+            self._backend.introspect_columns(self._state, source, schema_name, table_name)
+        )
 
     def introspect_schemas(self, source: Any) -> list[str] | None:
         """REQ-1673: the schemas of a source's database as the bound engine sees them, with no table
@@ -885,3 +890,11 @@ class EngineRuntime:  # REQ-825, REQ-840
             extra_table_attrs=extra_table_attrs,
             authorization=authorization,
         )
+
+
+def _as_stored(reported: dict[str, str]) -> dict[str, str]:
+    """Column types an engine reported, each as the model stores it: a sized decimal in the one
+    canonical spelling (``core.numeric_type``), every other type as reported (REQ-1961)."""
+    from provisa.core.numeric_type import stored_type_of
+
+    return {column: stored_type_of(type_name) for column, type_name in reported.items()}

@@ -80,3 +80,70 @@ def numeric_arrow_type(data_type: str | None) -> pa.DataType:
     if precision <= _DECIMAL128_MAX_PRECISION:
         return pa.decimal128(precision, scale)
     return pa.decimal256(precision, scale)
+
+
+# --- the engine edge -----------------------------------------------------------------------------
+
+# ClickHouse's sized names fix the precision: Decimal64(4) is 18 digits, 4 of them after the point.
+_CLICKHOUSE_SIZED = {"decimal32": 9, "decimal64": 18, "decimal128": 38, "decimal256": 76}
+_DECIMAL_NAMES = ("decimal", "numeric", "dec", *_CLICKHOUSE_SIZED)
+_WRAPPED = re.compile(r"^\s*(?:nullable|lowcardinality)\s*\((.*)\)\s*$", re.IGNORECASE)
+_REPORTED = re.compile(r"^\s*([a-z0-9]+)\s*(?:\((.*)\))?\s*$", re.IGNORECASE)
+
+
+class ReportedNumericMalformed(ValueError):
+    """An engine or source reported a decimal type whose size cannot be read."""
+
+    def __init__(self, reported: str) -> None:
+        self.reported = reported
+        super().__init__(f"the reported type {reported!r} is a decimal whose size cannot be read")
+
+
+def numeric_size_of(reported_type: str) -> tuple[int, int] | None:
+    """The (precision, scale) an engine or source REPORTS for a column, read from the type as it
+    prints it — the only report some engines give (Trino's ``decimal(10,2)``, DuckDB's
+    ``DECIMAL(10,2)``, ClickHouse's ``Decimal(10, 2)`` and ``Decimal64(4)``, Postgres'
+    ``numeric(10,2)``).
+
+    None for a decimal reported with no size, and for a type that is not a decimal. A decimal
+    whose size is there but unreadable raises :class:`ReportedNumericMalformed`: it is not an
+    undeclared numeric.
+
+    Called only where a type is taken from an engine or source, at registration and
+    introspection; what is stored is :func:`numeric_type`'s one spelling, and everything after
+    reads that through :func:`numeric_size`.
+    """
+    text = reported_type
+    while (wrapped := _WRAPPED.match(text)) is not None:
+        text = wrapped[1]
+    named = _REPORTED.match(text)
+    if named is None or named[1].lower() not in _DECIMAL_NAMES:
+        return None
+    name, arguments = named[1].lower(), named[2]
+    if arguments is None:
+        if name in _CLICKHOUSE_SIZED:
+            raise ReportedNumericMalformed(reported_type)  # these never print without a scale
+        return None
+    parts = [part.strip() for part in arguments.split(",")]
+    if not all(part.isdigit() for part in parts):
+        raise ReportedNumericMalformed(reported_type)
+    numbers = [int(part) for part in parts]
+    if name in _CLICKHOUSE_SIZED and len(numbers) == 1:
+        size = (_CLICKHOUSE_SIZED[name], numbers[0])
+    elif name not in _CLICKHOUSE_SIZED and len(numbers) == 1:
+        size = (numbers[0], 0)  # decimal(10): no digits after the point
+    elif name not in _CLICKHOUSE_SIZED and len(numbers) == 2:  # noqa: PLR2004
+        size = (numbers[0], numbers[1])
+    else:
+        raise ReportedNumericMalformed(reported_type)
+    try:
+        return require_numeric_size(*size)
+    except NumericSizeInvalid as invalid:
+        raise ReportedNumericMalformed(reported_type) from invalid
+
+
+def stored_type_of(reported_type: str) -> str:
+    """The type to STORE for a column an engine or source reports as ``reported_type``: a sized
+    decimal in the one canonical spelling, anything else as reported."""
+    size = numeric_size_of(reported_type)
+    return reported_type if size is None else numeric_type(*size)
