@@ -6108,5 +6108,6 @@
   "es/codeSourceFields.json::codeSourceFields.pypi": "PyPI package",
   "es/codeSourceFields.json::codeSourceFields.entry": "Entry module",
   "es/codeSourceFields.json::codeSourceFields.lockfilePlaceholder": "No lockfile",
-  "es/packageRegistries.json::packageRegistries.npmHelp": "A registry with a scope serves that scope's packages. The mirror serves every other package."
+  "es/packageRegistries.json::packageRegistries.npmHelp": "A registry with a scope serves that scope's packages. The mirror serves every other package.",
+  "es/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

@@ -82,8 +82,8 @@ def test_trino_hands_a_native_nested_value_over_as_json(trino_conn, trino_type, 
     cur = trino_conn.cursor()
     cur.execute(_read_sql(trino_type, value).replace('AS "t"', 'AS "t"("v")'))
     rows = cur.fetchall()
-    assert isinstance(rows[0][0], str)  # JSON text: nothing for Provisa to convert
-    assert json.loads(rows[0][0]) == expected
+    # The exact JSON text Trino writes: nothing for Provisa to convert.
+    assert rows[0][0] == json.dumps(expected, separators=(",", ":"))
     assert rows[1][0] is None  # a NULL column stays NULL
 
 

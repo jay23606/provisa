@@ -6107,5 +6107,6 @@
   "ja/codeSourceFields.json::codeSourceFields.version": "Version",
   "ja/packageRegistries.json::packageRegistries.pypiHelp": "The indexes Python sources install their packages from. The default index serves every Python install in place of the public PyPI.",
   "ja/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories.",
-  "ja/packageRegistries.json::packageRegistries.help": "The registries every Node and Python source of this organization installs from, for its own code and its dependencies. Each field can hold a value or a secret reference such as ${secret:npm_token}. The public npm registry and the public PyPI need no entry."
+  "ja/packageRegistries.json::packageRegistries.help": "The registries every Node and Python source of this organization installs from, for its own code and its dependencies. Each field can hold a value or a secret reference such as ${secret:npm_token}. The public npm registry and the public PyPI need no entry.",
+  "ja/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

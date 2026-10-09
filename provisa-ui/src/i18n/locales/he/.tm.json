@@ -6107,5 +6107,6 @@
   "he/codeSourceFields.json::codeSourceFields.lockfileHint": "A published package rarely carries its lockfile. Give one ({{names}}) when the package has dependencies.",
   "he/packageRegistries.json::packageRegistries.gitTitle": "Git hosts",
   "he/codeSourceFields.json::codeSourceFields.runtime_deno": "Deno",
-  "he/packageRegistries.json::packageRegistries.add_npm": "Add npm registry"
+  "he/packageRegistries.json::packageRegistries.add_npm": "Add npm registry",
+  "he/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

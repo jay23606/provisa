@@ -132,6 +132,10 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "native_filter_type": None,
                     "embedding": False,
                     "path": None,
+                    "array_depth": 0,
+                    "element_type": None,
+                    "native_type": None,
+                    "native_platform": None,
                 }
             ],
         },
@@ -160,6 +164,10 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "native_filter_type": None,
                     "embedding": False,
                     "path": None,
+                    "array_depth": 0,
+                    "element_type": None,
+                    "native_type": None,
+                    "native_platform": None,
                 }
             ],
         },

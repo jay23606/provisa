@@ -6108,5 +6108,6 @@
   "zh-HK/codeSourceFields.json::codeSourceFields.repository": "Repository URL",
   "zh-HK/packageRegistries.json::packageRegistries.gitHelp": "The hosts Node and Python sources fetch Git code and Git dependencies from.",
   "zh-HK/codeSourceFields.json::codeSourceFields.git": "Git repository",
-  "zh-HK/codeSourceFields.json::codeSourceFields.upload": "Upload"
+  "zh-HK/codeSourceFields.json::codeSourceFields.upload": "Upload",
+  "zh-HK/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

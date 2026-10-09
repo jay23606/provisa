@@ -26,7 +26,7 @@ lands nothing for that node and logs; it never fabricates an empty snapshot).
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing
 
 from provisa.federation.execution_auth import system_auth
@@ -106,17 +106,33 @@ AdapterLoader = Any  # Callable[[source, table], Awaitable[list[dict]]] — a pe
 AdapterKeyedLoader = Any
 
 
+def _projection(table: Any, dialect_of: Callable[[], str | None]) -> str:
+    """The select list that reads ``table``'s rows from its source (REQ-1965): ``*`` for a table
+    with no natively nested column -- the table as it is, and the dialect is not asked for --
+    otherwise each column by name, a natively array, struct or map one as the JSON the backend
+    that runs the read produces (``native_json.source_projection``)."""
+    if not any(getattr(c, "native_type", None) for c in table.columns):
+        return "*"
+    from provisa.transpiler.native_json import source_projection
+
+    dialect = dialect_of()
+    if not dialect:
+        raise ValueError(
+            f"{table.schema_name}.{table.table_name} has a natively nested column and its source "
+            "has no SQL dialect to read it as JSON in"
+        )
+    return source_projection(table.columns, dialect)
+
+
 async def engine_table_rows(engine: Any, source: Any, table: Any) -> list[dict]:
     """Every row of ``table`` read through the engine terminal at its catalog-physical name — the
     default row fetch for an engine-scannable source."""
     from provisa.compiler.naming import source_to_catalog
 
-    from provisa.transpiler.native_json import source_projection
-
     catalog = source_to_catalog(source.id)
     ref = f'"{catalog}"."{table.schema_name}"."{table.table_name}"'
     # REQ-1965: a natively array/struct/map column is landed as JSON the engine produces.
-    projection = source_projection(table.columns, engine.dialect)
+    projection = _projection(table, lambda: engine.dialect)
     result = await engine.execute_engine(
         f"SELECT {projection} FROM {ref}", authorization=system_auth("source row load")
     )
@@ -137,7 +153,6 @@ def make_floored_direct_loader(state: Any, engine: Any) -> AdapterLoader:  # REQ
 
     from provisa.core.operator_floor import floor_setting
     from provisa.federation.strategy import engine_attaches
-    from provisa.transpiler.native_json import source_projection
 
     async def _load(source: Any, table: Any) -> list[dict]:
         if floor_setting(source) is None and engine_attaches(engine, _source_type(source)):
@@ -145,7 +160,7 @@ def make_floored_direct_loader(state: Any, engine: Any) -> AdapterLoader:  # REQ
         dialect = state.source_dialects[source.id] or None
         relation = exp.table_(table.table_name, db=table.schema_name).sql(dialect=dialect)
         # REQ-1965: a natively array/struct/map column is landed as JSON the source produces.
-        projection = source_projection(table.columns, dialect) if dialect else "*"
+        projection = _projection(table, lambda: dialect)
         sql = f"SELECT {projection} FROM {relation}"
         result = await engine.execute_native(state.source_pools, source.id, sql, [])
         return [dict(zip(result.column_names, row)) for row in result.rows]
@@ -227,7 +242,6 @@ class SourceRowLoader:
             EngineTableSource,
         )
         from provisa.federation.strategy import engine_attaches
-        from provisa.transpiler.native_json import source_projection
 
         stype = _source_type(source)
         pools = getattr(state, "source_pools", None)
@@ -239,7 +253,7 @@ class SourceRowLoader:
             dialect = state.source_dialects[source.id] or None
             relation = exp.table_(table.table_name, db=table.schema_name).sql(dialect=dialect)
             # REQ-1965: a natively array/struct/map column is copied as JSON the source produces.
-            projection = source_projection(table.columns, dialect) if dialect else "*"
+            projection = _projection(table, lambda: dialect)
             sql = f"SELECT {projection} FROM {relation}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
         loader = self._adapter_loaders.get(stype)
@@ -260,7 +274,7 @@ class SourceRowLoader:
             self._engine,
             ref,
             in_place=engine_attaches(self._engine, stype),
-            projection=source_projection(table.columns, self._engine.dialect),
+            projection=_projection(table, lambda: self._engine.dialect),
         )
 
     async def load_keys(
@@ -312,9 +326,7 @@ class SourceRowLoader:
 
             rule = sqlglot.parse_one(admit, read="postgres").sql(dialect=self._engine.dialect)
             where = f"({where}) AND ({rule})"
-        from provisa.transpiler.native_json import source_projection
-
-        projection = source_projection(table.columns, self._engine.dialect)  # REQ-1965
+        projection = _projection(table, lambda: self._engine.dialect)  # REQ-1965
         result = await self._engine.execute_engine(
             f"SELECT {projection} FROM {ref} WHERE {where}",
             authorization=system_auth("source row load"),

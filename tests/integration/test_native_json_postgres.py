@@ -143,33 +143,38 @@ def test_the_catalog_types_every_array_and_composite_column(pg):
 
 
 def _read(pg, column: str, where: str = "id = 1"):
+    """The JSON text PostgreSQL hands over for ``column``, and the type of the value itself."""
     con, schema = pg
     typing = _registered(pg)[column]
     nested = NestedColumn(typing.native_type, typing.array_depth, typing.element_type)
-    marker = native_json_marker(exp.column(column, "o", quoted=True), nested)
+    marker = native_json_marker(exp.column(column, "o", quoted=True), nested).sql(
+        dialect="postgres"
+    )
     sql = transpile(
-        f'SELECT {marker.sql(dialect="postgres")} AS "{column}" '
+        f"SELECT CAST({marker} AS TEXT), pg_typeof({marker})::text "
         f'FROM "{schema}"."orders" AS "o" WHERE {where}',
         "postgres",
     )
     cur = con.cursor()
     cur.execute(sql)
-    return cur.fetchone()[0], cur.description[0].type_code
+    return cur.fetchone()
 
 
 @pytest.mark.parametrize(
     ("column", "expected"), [(name, expected) for name, *_, expected in _COLUMNS]
 )
 def test_postgres_hands_a_native_array_over_as_jsonb(pg, column, expected):
-    value, type_oid = _read(pg, column)
-    assert type_oid == 3802  # jsonb
-    assert value == expected  # psycopg2 decodes jsonb; the values inside are PostgreSQL's
+    text, value_type = _read(pg, column)
+    assert value_type == "jsonb"
+    # The exact JSON text, as jsonb prints it (", " and ": " separators).
+    assert text == json.dumps(expected)
     assert _read(pg, column, "id = 2")[0] is None  # a NULL column stays NULL
 
 
 def test_postgres_hands_a_composite_and_an_array_of_composites_over_as_jsonb(pg):
-    assert _read(pg, "ship_to")[0] == {"city": "Oslo", "zip": "0150"}
-    assert _read(pg, "stops")[0] == [{"city": "Oslo", "zip": "0150"}]
+    # jsonb orders an object's keys by length, then bytewise.
+    assert _read(pg, "ship_to")[0] == '{"zip": "0150", "city": "Oslo"}'
+    assert _read(pg, "stops")[0] == '[{"zip": "0150", "city": "Oslo"}]'
 
 
 @pytest.mark.parametrize("value", ["'NaN'", "'Infinity'", "'-Infinity'"])

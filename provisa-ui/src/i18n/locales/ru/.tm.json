@@ -6107,5 +6107,6 @@
   "ru/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
   "ru/codeSourceFields.json::codeSourceFields.pypi": "PyPI package",
   "ru/codeSourceFields.json::codeSourceFields.originHint": "The code is installed and read when the source is saved; its functions tagged @table, @command or @stream become its tables, commands and live tables.",
-  "ru/packageRegistries.json::packageRegistries.saved": "Saved"
+  "ru/packageRegistries.json::packageRegistries.saved": "Saved",
+  "ru/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

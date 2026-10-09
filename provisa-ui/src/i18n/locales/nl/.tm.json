@@ -6107,5 +6107,6 @@
   "nl/codeSourceFields.json::codeSourceFields.npm": "npm package",
   "nl/packageRegistries.json::packageRegistries.npmTitle": "npm registries",
   "nl/packageRegistries.json::packageRegistries.mirrorHelp": "Every package without a scope of its own is installed through this registry. An organization has one npm mirror.",
-  "nl/packageRegistries.json::packageRegistries.remove": "Remove"
+  "nl/packageRegistries.json::packageRegistries.remove": "Remove",
+  "nl/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }
