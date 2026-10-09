@@ -24,8 +24,10 @@ The four paths:
 - **materialised** — a whole row result turned into a table
   (``executor.formats.arrow.rows_to_arrow_table``; Flight's buffered answers). ON THE ONE RULE
   since REQ-1961, as the row stream is;
-- **engine stream** — the engine's own Arrow reader, passed through (its types are the
-  engine's; nothing here types it, so it has no row in these tables);
+- **engine stream** — the engine's own Arrow reader
+  (``federation.runtime_support.declared_arrow_stream``; Flight and Airport over an engine
+  route). ON THE ONE RULE since REQ-1961: a registered column the engine typed otherwise is
+  cast to its registered type; a stream in which nothing differs is passed through;
 - **Airport** — a direct scan typed from the driver's column types
   (``api.airport.query._direct_typed_schema``).
 
@@ -305,6 +307,77 @@ def test_the_materialised_table_without_a_shape():
 
 def test_the_materialised_table_of_a_result_with_no_rows_without_a_shape():
     assert _types(rows_to_arrow_table([], _column_refs()).schema) == _NULLS  # finding 3
+
+
+# --- the engine's own stream ------------------------------------------------------------------------
+
+
+def _engine_stream(rows: bool = True):
+    """As an engine reads the columns: its integer 64-bit, its decimals sized its own way."""
+    schema = pa.schema(
+        [("i", pa.int64()), ("money", pa.decimal128(38, 2)), ("ratio", pa.decimal128(38, 3))]
+    )
+    data = [[1, 2], [Decimal("12.50"), Decimal("0.10")], [Decimal("0.500"), Decimal("0.250")]]
+    batches = [
+        pa.RecordBatch.from_arrays(
+            [pa.array(c, t) for c, t in zip(data, schema.types)], schema=schema
+        )
+    ]
+    return schema, iter(batches if rows else [])
+
+
+@pytest.mark.parametrize("rows", [True, False], ids=["rows", "no rows"])
+def test_the_engine_stream_reads_each_registered_column_as_its_registered_type(rows):
+    from provisa.federation.runtime_support import declared_arrow_stream
+
+    schema, batches = declared_arrow_stream(*_engine_stream(rows), _REGISTERED)
+    assert _types(schema) == {
+        "i": pa.int32(),
+        "money": pa.decimal128(18, 2),
+        "ratio": pa.float64(),
+    }
+    got = list(batches)
+    assert all(batch.schema == schema for batch in got) and len(got) == (1 if rows else 0)
+    if rows:
+        assert got[0].column(1).to_pylist() == [Decimal("12.50"), Decimal("0.10")]
+        assert got[0].column(2).to_pylist() == [0.5, 0.25]
+
+
+def test_an_engine_stream_already_as_declared_is_passed_through_untouched():
+    from provisa.federation.runtime_support import declared_arrow_stream
+
+    schema = pa.schema([("i", pa.int32()), ("sq", pa.decimal128(18, 4))])
+    batches = iter([])
+    shape = [("i", RegisteredType("integer")), ("sq", "DECIMAL(18, 2)")]  # sq is computed
+    same_schema, same_batches = declared_arrow_stream(schema, batches, shape)
+    assert same_schema is schema and same_batches is batches
+    assert declared_arrow_stream(schema, batches, None) == (schema, batches)
+
+
+def test_an_engine_value_that_is_not_the_registered_type_is_refused_naming_the_column():
+    from provisa.federation.runtime_support import ColumnTypeMismatch, declared_arrow_stream
+
+    schema = pa.schema([("i", pa.int64())])
+    batch = pa.RecordBatch.from_arrays([pa.array([2**40], pa.int64())], schema=schema)
+    _schema, batches = declared_arrow_stream(
+        schema, iter([batch]), [("i", RegisteredType("integer"))]
+    )
+    with pytest.raises(ColumnTypeMismatch) as refused:
+        list(batches)
+    assert refused.value.params == {"column": "i", "registered": "int32", "found": "int64"}
+
+
+def test_the_engine_streams_of_flight_and_airport_are_read_as_declared():
+    import inspect
+
+    from provisa.api.airport import query
+    from provisa.api.flight import server
+
+    assert (
+        "declared_arrow_stream(\n                arrow_schema, batch_gen, self._result_shape_of(plan)"
+        in inspect.getsource(server)
+    )
+    assert inspect.getsource(query).count("= _declared_engine_stream(state, plan)") == 2
 
 
 # --- Airport ---------------------------------------------------------------------------------------

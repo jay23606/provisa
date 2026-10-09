@@ -203,6 +203,57 @@ def typed_arrow_array(values: list, target: Any, column: str) -> Any:  # REQ-196
         raise ColumnTypeMismatch(column, target, found.type) from mismatch
 
 
+def declared_arrow_stream(  # REQ-1961
+    schema: Any, batches: Iterator[Any], shape: list[tuple[str, str]] | None
+) -> tuple[Any, Iterator[Any]]:
+    """An engine's own Arrow stream with each registered column as the model declares it.
+
+    The engine's reader types its result by the engine's own catalog, which is the model's for
+    most columns and not for all (an attached source's integer read 64-bit, a replica's decimal
+    sized by the engine). A result column that is a registered column (:func:`read_targets`) and
+    arrives as another type is cast to the registered one by Arrow, a column of a batch at a
+    time, and the schema says so before the first batch — the same schema for no rows as for
+    many. A cast that would change a value is refused naming the column
+    (:class:`ColumnTypeMismatch`). A stream in which nothing differs is handed back untouched.
+    """
+    import pyarrow as pa
+
+    targets = read_targets(list(schema.names), shape)
+    differing = [
+        i
+        for i, target in enumerate(targets)
+        if target is not None and schema.field(i).type != target
+    ]
+    if not differing:
+        return schema, batches
+    declared = pa.schema(
+        [
+            field.with_type(targets[i]) if i in differing else field
+            for i, field in enumerate(schema)
+        ],
+        metadata=schema.metadata,
+    )
+
+    def _as_declared() -> Iterator[Any]:
+        try:
+            for batch in batches:
+                columns = list(batch.columns)
+                for i in differing:
+                    try:
+                        columns[i] = columns[i].cast(targets[i])
+                    except (pa.ArrowInvalid, pa.ArrowNotImplementedError) as mismatch:
+                        raise ColumnTypeMismatch(
+                            schema.field(i).name, targets[i], schema.field(i).type
+                        ) from mismatch
+                yield pa.RecordBatch.from_arrays(columns, schema=declared)
+        finally:
+            close = getattr(batches, "close", None)
+            if close is not None:
+                close()
+
+    return declared, _as_declared()
+
+
 def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[Any]:  # REQ-1961
     """For each result column, the Arrow type it is read as, or None — the column keeps the type
     its values give it.

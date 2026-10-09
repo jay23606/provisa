@@ -1560,6 +1560,12 @@ class ProvisaFlightServer(
             arrow_schema, batch_gen = self._state.federation_engine.execute_engine_stream(
                 plan.physical_sql, params
             )
+            # REQ-1961: registered columns are read as the model declares them.
+            from provisa.federation.runtime_support import declared_arrow_stream
+
+            arrow_schema, batch_gen = declared_arrow_stream(
+                arrow_schema, batch_gen, self._result_shape_of(plan)
+            )
         except RuntimeError as exc:
             permits.release()
             release()

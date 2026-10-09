@@ -152,7 +152,7 @@ def governed_table_scan_stream(
             )
             # REQ-1909: the permits ride the batch generator until the scan is fully pulled.
             permits = acquire_plan_permits(state, plan)
-            schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+            schema, batch_gen = _declared_engine_stream(state, plan)
             _finalize_scan_audit(plan, 200, state)
             return ScanStream(schema, permits.guard(_audited(plan, batch_gen)), plan.warnings)
         if plan.route == Route.DIRECT:
@@ -274,7 +274,7 @@ def governed_table_scan_schema(
 
         # REQ-1909: binding the probe reads the live source too; held only while it opens.
         with acquire_plan_permits(state, plan):
-            schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+            schema, batch_gen = _declared_engine_stream(state, plan)
             close = getattr(batch_gen, "close", None)
             if close is not None:
                 close()
@@ -316,6 +316,17 @@ def governed_table_scan_schema(
             _declared_types(plan, result.column_names),
         )
     raise ValueError(f"Route {plan.route!r} is not supported for the airport service")
+
+
+def _declared_engine_stream(state: AppState, plan) -> tuple[pa.Schema, Iterator[pa.RecordBatch]]:
+    """The engine's Arrow stream for the scan with each registered column as the model declares
+    it (REQ-1961, ``runtime_support.declared_arrow_stream``) — the one both the scan and its
+    schema-only probe open, so what is advertised is what is streamed."""
+    from provisa.federation.runtime_support import declared_arrow_stream
+
+    schema, batch_gen = state.federation_engine.execute_engine_stream(plan.physical_sql, [])
+    kept = plan.result_shape
+    return declared_arrow_stream(schema, batch_gen, None if kept is None else kept.now())
 
 
 def _declared_types(plan, column_names: list[str]) -> list[pa.DataType | None]:  # REQ-1961
