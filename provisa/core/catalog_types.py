@@ -19,7 +19,7 @@ from __future__ import annotations
 import pyarrow as pa
 
 from provisa.core.ir_types import to_ir
-from provisa.core.numeric_type import numeric_arrow_type
+from provisa.core.numeric_type import numeric_arrow_type, numeric_size
 
 # the engine type -> Arrow type mapping
 _ARROW_TYPE_MAP: dict[str, pa.DataType] = {
@@ -124,6 +124,15 @@ def _physical_type_to_arrow(column_type: str) -> pa.DataType:
     if canonical in _IR_ARROW:
         return _IR_ARROW[canonical]
     raise KeyError(f"Unmapped engine type: {column_type!r}")
+
+
+def is_undeclared_numeric(registered: str | None) -> bool:
+    """A numeric column the model records no precision and scale for (REQ-1961): floating point
+    on every read path and in every listing."""
+    if not registered:
+        return False
+    text = registered.strip().lower()
+    return not _is_nested(text) and _is_numeric(text) and numeric_size(text) is None
 
 
 def column_arrow_type(registered: str | None) -> pa.DataType | None:

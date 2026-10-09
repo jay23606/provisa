@@ -413,9 +413,12 @@ def _alias_for(table_node: exp.Table) -> str:
 
 
 def _govern_select(
-    node: exp.Select, gov_ctx: GovernanceContext
+    node: exp.Select, gov_ctx: GovernanceContext, *, final: bool = False
 ) -> exp.Select:  # REQ-040, REQ-263, REQ-264
-    """Apply visibility, masking, and RLS to one SELECT node."""
+    """Apply visibility, masking, and RLS to one SELECT node.
+
+    ``final``: this SELECT's projection is the statement's answer, so a numeric column the model
+    records no size for is projected as floating point (:func:`_as_read`, REQ-1961)."""
     table_refs = _get_tables_from_select(node, gov_ctx)
     if not table_refs:
         return node
@@ -472,7 +475,7 @@ def _govern_select(
         if isinstance(expr, exp.Star):
             # Expand SELECT * using all_columns, filtered by visibility.
             # Fall back to keeping * when column metadata is unavailable.
-            expanded = _expand_star(alias_to_tid, gov_ctx)
+            expanded = _expand_star(alias_to_tid, gov_ctx, final=final)
             if expanded:
                 new_exprs.extend(expanded)
             else:
@@ -482,23 +485,25 @@ def _govern_select(
                 pass  # drop invisible column
             else:
                 masked = _maybe_mask_column(expr, alias_to_tid, gov_ctx)
-                if masked is expr:
+                read = _as_read(masked, expr, alias_to_tid, gov_ctx) if final else masked
+                if read is expr:
                     new_exprs.append(expr)
                 else:
-                    masked.meta[_GOVERNED] = True
+                    read.meta[_GOVERNED] = True
                     # The masked value keeps the column's name: a client reads `email`, not a
                     # nameless expression (`?column?`). The identifier is the column's own, so it
                     # is quoted exactly as the statement wrote it.
-                    new_exprs.append(exp.Alias(this=masked, alias=expr.this.copy()))
+                    new_exprs.append(exp.Alias(this=read, alias=expr.this.copy()))
         elif isinstance(expr, exp.Alias) and isinstance(expr.this, exp.Column):
             col = expr.this
             if not _is_column_visible(col, alias_to_tid, gov_ctx):
                 pass  # drop invisible column
             else:
                 masked = _maybe_mask_column(col, alias_to_tid, gov_ctx)
-                if masked is not col:
-                    masked.meta[_GOVERNED] = True
-                    new_exprs.append(exp.Alias(this=masked, alias=expr.alias))
+                read = _as_read(masked, col, alias_to_tid, gov_ctx) if final else masked
+                if read is not col:
+                    read.meta[_GOVERNED] = True
+                    new_exprs.append(exp.Alias(this=read, alias=expr.args["alias"].copy()))
                 else:
                     new_exprs.append(expr)
         else:
@@ -730,6 +735,54 @@ def _maybe_mask_column(
         return col
 
 
+def _registered_column(
+    col: exp.Column, alias_to_tid: dict[str, int], gov_ctx: GovernanceContext
+) -> tuple[int, str, str] | None:
+    """(table id, registered column name, registered type) of the registered column ``col``
+    reads, by the name the statement uses for it; None when it reads none."""
+    from provisa.compiler.naming import apply_sql_name
+
+    tids = [alias_to_tid[col.table]] if col.table in alias_to_tid else []
+    if not col.table:
+        tids = list(alias_to_tid.values())
+    for tid in tids:
+        for name, dtype in gov_ctx.all_columns.get(tid, []):
+            if col.name in (name, apply_sql_name(name)):
+                return tid, name, dtype
+    return None
+
+
+def _as_read(
+    projected: exp.Expr,  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    col: exp.Column,
+    alias_to_tid: dict[str, int],
+    gov_ctx: GovernanceContext,
+) -> exp.Expr:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    """``projected`` — what the statement's answer holds for the column ``col`` (the column, or
+    its mask) — as a read of the column returns it (REQ-1961).
+
+    A numeric column the model records no precision and scale for is floating point on every
+    read path. The cast is made here, in the statement, so the source or engine converts and the
+    value arrives as its own nearest double; nothing is converted afterwards. It wraps what a
+    constant mask produces (still the column's number) and a fake (read through the table's
+    faked projection); a regex or truncate mask has already made the column something else, and
+    is left as it is. Only the answer's own projection is cast: a reference anywhere else in
+    the statement — a filter, a join, an aggregate or any other expression over the column —
+    computes on the exact value.
+    """
+    from provisa.core.catalog_types import is_undeclared_numeric
+    from provisa.security.masking import MaskType
+
+    registered = _registered_column(col, alias_to_tid, gov_ctx)
+    if registered is None or not is_undeclared_numeric(registered[2]):
+        return projected
+    if projected is not col:
+        entry = gov_ctx.masking_rules.get((registered[0], col.name))
+        if entry is None or entry[0].mask_type != MaskType.constant:
+            return projected
+    return exp.Cast(this=projected, to=exp.DataType.build("double precision", dialect="postgres"))
+
+
 def _is_fake(rule: Any) -> bool:
     """A fake mask: read through the table's faked projection, not substituted (REQ-1494)."""
     from provisa.security.masking import MaskType
@@ -740,8 +793,12 @@ def _is_fake(rule: Any) -> bool:
 def _expand_star(
     alias_to_tid: dict[str, int],
     gov_ctx: GovernanceContext,
+    *,
+    final: bool = False,
 ) -> list[exp.Expr]:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
-    """Expand SELECT * to explicit columns, filtered by visibility and masked."""
+    """Expand SELECT * to explicit columns, filtered by visibility and masked — and, in the
+    statement's own answer (``final``), each read as a read of the column returns it
+    (:func:`_as_read`)."""
     from provisa.compiler.naming import apply_sql_name
 
     result: list[exp.Expr] = []  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
@@ -767,6 +824,8 @@ def _expand_star(
                 col_sql = col_expr.sql(dialect="postgres")
                 mask_sql = build_mask_expression(rule, col_sql, col_dtype)
                 masked = sqlglot.parse_one(mask_sql, read="postgres")
+                if final:
+                    masked = _as_read(masked, col_expr, {alias: tid}, gov_ctx)
                 result.append(
                     exp.Alias(
                         this=masked,
@@ -774,7 +833,14 @@ def _expand_star(
                     )
                 )
             else:
-                result.append(col_expr)
+                read = _as_read(col_expr, col_expr, {alias: tid}, gov_ctx) if final else col_expr
+                if read is col_expr:
+                    result.append(col_expr)
+                else:
+                    read.meta[_GOVERNED] = True
+                    result.append(
+                        exp.Alias(this=read, alias=exp.Identifier(this=sql_col_name, quoted=True))
+                    )
     return result
 
 
@@ -783,13 +849,33 @@ def _expand_star(
 # --------------------------------------------------------------------------- #
 
 
-def _govern_selects(tree: exp.Expr, gov_ctx: GovernanceContext) -> exp.Expr:  # pyright: ignore[reportPrivateImportUsage]
+def _is_the_answer(select: exp.Select, tree: exp.Expr) -> bool:  # pyright: ignore[reportPrivateImportUsage]
+    """Whether ``select``'s projection is the statement's own answer: the statement itself, or
+    a branch of the set operation the statement is."""
+    node: Any = select
+    while node is not tree:
+        node = node.parent
+        if not isinstance(node, exp.SetOperation):
+            return False
+    return True
+
+
+def _govern_selects(
+    tree: exp.Expr,  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    gov_ctx: GovernanceContext,
+    *,
+    answers: bool = False,
+) -> exp.Expr:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
     """Govern every SELECT in ``tree`` — the outer one, and each CTE, derived table, scalar or
     IN subquery, EXISTS body and set-operation branch — deepest first, each once. (A transform
     that replaced the outer SELECT never reached the SELECTs inside it, so a CTE or an EXISTS
-    over another table ran with none of the reader's rules.)"""
+    over another table ran with none of the reader's rules.)
+
+    ``answers``: ``tree`` is a read whose rows are the answer (not a fragment of a larger
+    statement, and not a write), so its own projection is read as REQ-1961 says."""
     for select in reversed(list(tree.find_all(exp.Select))):
-        governed_select = _govern_select(select, gov_ctx)
+        final = answers and isinstance(tree, exp.Query) and _is_the_answer(select, tree)
+        governed_select = _govern_select(select, gov_ctx, final=final)
         if governed_select is select:
             continue
         if select is tree:
@@ -830,7 +916,7 @@ def apply_governance(
     if writes:
         tree = admit_write(tree, gov_ctx, session_vars, params)  # pyright: ignore[reportArgumentType]
 
-    tree = _govern_selects(tree, gov_ctx)
+    tree = _govern_selects(tree, gov_ctx, answers=not writes)
 
     governed = tree.sql(dialect="postgres")
 
