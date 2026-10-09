@@ -101,13 +101,18 @@ def test_an_array_of_a_primitive_is_json_with_its_depth_and_element_type(
         array_depth=depth,
         element_type=element,
         native_type=native.strip().lower(),
+        native_platform=platform,
     )
 
 
 @pytest.mark.parametrize(("native", "platform"), _PLAIN_JSON)
 def test_a_struct_a_map_or_an_array_of_them_is_plain_json_with_its_native_type(native, platform):
     assert column_typing(native, platform) == ColumnTyping(
-        data_type="json", array_depth=0, element_type=None, native_type=native.strip().lower()
+        data_type="json",
+        array_depth=0,
+        element_type=None,
+        native_type=native.strip().lower(),
+        native_platform=platform,
     )
 
 

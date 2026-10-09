@@ -700,6 +700,7 @@ class AvailableColumnType:  # REQ-533
     array_depth: strawberry.Private[int] = 0
     element_type: strawberry.Private[str | None] = None
     native_type: strawberry.Private[str | None] = None
+    native_platform: strawberry.Private[str | None] = None
 
 
 @strawberry.type

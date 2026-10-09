@@ -1315,7 +1315,7 @@ def _pg_column_typing(
         return column_typing(formatted or udt_name, kind)
     if data_type == _PG_USER_DEFINED:
         if typtype == "c":
-            return composite_typing(formatted or udt_name)
+            return composite_typing(formatted or udt_name, kind)
         return ColumnTyping("text")
     return ColumnTyping(to_ir(data_type))
 

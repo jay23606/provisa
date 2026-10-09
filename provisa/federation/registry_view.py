@@ -249,6 +249,7 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                         array_depth=c["array_depth"],
                         element_type=c["element_type"],
                         native_type=c["native_type"],
+                        native_platform=c["native_platform"],
                     )
                     for c in rt["columns"]
                 ],

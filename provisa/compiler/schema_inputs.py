@@ -33,7 +33,11 @@ from graphql import (
 
 from provisa.compiler.enum_detect import build_enum_filter_types, resolve_column_type
 from provisa.compiler.naming import apply_gql_name, to_type_name
-from provisa.compiler.type_map import FILTER_TYPE_MAP, column_type_to_graphql
+from provisa.compiler.type_map import (
+    FILTER_TYPE_MAP,
+    column_type_to_graphql,
+    nested_column_graphql_type,
+)
 from provisa.compiler.schema_types import _TableInfo
 from provisa.compiler.schema_directives import (
     GraphQLBoolean,
@@ -114,7 +118,10 @@ def _build_column_fields(  # REQ-008, REQ-010, REQ-039, REQ-155, REQ-156, REQ-22
             import json as _json
 
             object_fields = _json.loads(object_fields)
-        if object_fields and meta.data_type in ("json", "jsonb"):
+        nested_type = nested_column_graphql_type(col)  # REQ-1965
+        if nested_type is not None and not object_fields:
+            gql_type = nested_type
+        elif object_fields and meta.data_type in ("json", "jsonb"):
             _type_prefix = ""
             if "__" in table.type_name:
                 _type_prefix = table.type_name.split("__", 1)[0] + "__"
@@ -178,6 +185,10 @@ def _build_where_input(  # REQ-008, REQ-221
         if "." in pg_name:
             pg_name = pg_name.rsplit(".", 1)[1]
         enum_filter = _enum_filters.get(pg_name)
+        if col.get("native_type"):
+            # REQ-1965: a natively nested column is filtered with the JSON operations, not with
+            # a scalar comparison of its element type.
+            continue
         if enum_filter:
             input_fields[gql_name] = GraphQLInputField(enum_filter)
         else:

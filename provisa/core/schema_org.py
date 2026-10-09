@@ -359,6 +359,7 @@ table_columns = Table(
     Column("array_depth", Integer, nullable=False, server_default="0"),
     Column("element_type", Text),
     Column("native_type", Text),
+    Column("native_platform", Text),  # whose spelling native_type is
     Column("fake", Text),  # REQ-1494: the column's kind of fake, as declared
     Column("fake_stable", Boolean, nullable=False, server_default=false()),  # REQ-1494
     # REQ-1494: the portable definition version a stable fake is pinned to; NULL when not stable

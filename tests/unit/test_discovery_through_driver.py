@@ -268,6 +268,8 @@ async def test_column_metadata_of_a_floored_source_never_asks_the_engine(monkeyp
         "ship_to": (0, None, "address"),
         "stops": (0, None, "address[]"),
     }
+    # The source's own driver listed them: the spelling is PostgreSQL's.
+    assert {c.native_platform for c in columns if c.native_type} == {"postgresql"}
     assert engine.statements == []
 
 

@@ -3009,6 +3009,14 @@ async def _execute_plan_in_org(plan: _Plan, state: Any) -> QueryResult:  # REQ-0
         if tier_error is not None:
             await finalize_audit(plan, 402, state)
             raise tier_error from exc
+        # REQ-1965: a float element that is not a finite number is refused by the backend that
+        # was asked to write it as JSON, under the rule's name; restated as that refusal.
+        from provisa.core.json_refusal import non_finite_refusal
+
+        not_json = non_finite_refusal(engine_exc)
+        if not_json is not None:
+            await finalize_audit(plan, 422, state)
+            raise not_json from exc
         await finalize_audit(plan, 500, state)
         raise
     try:

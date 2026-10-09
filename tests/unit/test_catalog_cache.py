@@ -901,7 +901,8 @@ async def test_selecting_a_table_fetches_its_columns_live_with_the_cache_empty(s
         source_types={"test": "govdata"},
         source_pools=None,
         federation_engine=SimpleNamespace(
-            engine=SimpleNamespace(native_store="duckdb"), introspect_columns=_describe
+            engine=SimpleNamespace(native_store="duckdb", dialect="duckdb"),
+            introspect_columns=_describe,
         ),
     )
     monkeypatch.setattr(app_mod, "state", state, raising=False)

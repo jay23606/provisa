@@ -70,6 +70,7 @@ def _typed(column: Column, typing: ColumnTyping) -> None:
     column.array_depth = typing.array_depth
     column.element_type = typing.element_type
     column.native_type = typing.native_type
+    column.native_platform = typing.native_platform
 
 
 async def type_imported_columns(
@@ -138,6 +139,7 @@ async def type_imported_columns(
                         array_depth=ty.array_depth,
                         element_type=ty.element_type,
                         native_type=ty.native_type,
+                        native_platform=ty.native_platform,
                         visible_to=[ORG_ADMIN_ROLE],
                         writable_by=[ORG_ADMIN_ROLE],
                     )

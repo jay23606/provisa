@@ -34,8 +34,9 @@ from dataclasses import dataclass
 import sqlglot
 import sqlglot.expressions as exp
 
+from provisa.core.json_refusal import NON_FINITE, JsonRefused
+
 MARKER = "provisa_native_json"
-NON_FINITE = "json.non_finite_number"
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,7 @@ class NestedColumn:
     element_type: str | None = None
 
 
-class NativeJsonUnsupported(ValueError):
+class NativeJsonUnsupported(JsonRefused):
     """A backend that has no verified way to hand this native value over as JSON."""
 
     code = "query.json_operation_unsupported"

@@ -2431,17 +2431,21 @@ async def resolve_available_columns_metadata(
     from provisa.api.app import state
     from provisa.core.ir_types import column_typing
 
-    platform = state.source_types.get(source_id) or None
+    # A column the source's own driver listed arrives typed, in the source's spelling. What is
+    # left was listed by the bound engine, in the engine's spelling: recorded as the engine's,
+    # since a cast into ``array(varchar)`` means nothing to the PostgreSQL source behind it.
+    listed_by = state.federation_engine.engine.dialect
     columns = await _introspect_available_columns(source_id, schema_name, table_name)
     for column in columns:
         if column.native_type or not column.data_type:
-            continue  # typed by its own reader (the PostgreSQL catalog), or not typed at all
-        typing = column_typing(column.data_type, platform)
+            continue  # typed by its own reader (the source's driver), or not typed at all
+        typing = column_typing(column.data_type, listed_by)
         if typing.native_type:
             column.data_type = typing.data_type
             column.array_depth = typing.array_depth
             column.element_type = typing.element_type
             column.native_type = typing.native_type
+            column.native_platform = typing.native_platform
     return columns
 
 
@@ -2665,6 +2669,7 @@ async def _introspect_available_columns(
                 array_depth=typing.array_depth,
                 element_type=typing.element_type,
                 native_type=typing.native_type,
+                native_platform=typing.native_platform,
             )
             for name, typing in native
         ]

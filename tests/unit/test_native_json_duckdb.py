@@ -97,8 +97,17 @@ def test_duckdb_refuses_a_float_element_that_is_not_a_finite_number(value):
     con.execute("CREATE TABLE src (v DOUBLE[])")
     con.execute(f"INSERT INTO src VALUES ([1.5, {value}])")
 
-    with pytest.raises(duckdb.Error, match=NON_FINITE):
+    with pytest.raises(duckdb.Error, match=NON_FINITE) as raised:
         con.execute(_read_sql(_registered(con, "src"), "src")).fetchall()
+
+    # The backend's error is recognised by the rule's name and restated as the product's refusal,
+    # which carries the code a client is answered with.
+    from provisa.core.json_refusal import JsonRefused, non_finite_refusal
+
+    refusal = non_finite_refusal(raised.value)
+    assert isinstance(refusal, JsonRefused)
+    assert (refusal.code, refusal.params) == ("json.non_finite_number", {})
+    assert non_finite_refusal(RuntimeError("connection reset")) is None
 
 
 def test_a_statement_with_no_native_nested_column_is_not_parsed_again():

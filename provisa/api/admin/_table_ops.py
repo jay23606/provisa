@@ -493,41 +493,67 @@ async def _build_columns_for_input(pool, input) -> "tuple[list, MutationResult |
         _err = await _ensure_source_column_types(input, columns)
         if _err is not None:
             return [], _err
-        await _record_nested_attributes(pool, input, columns)
+        _err = await _settle_nested_columns(pool, input, columns)
+        if _err is not None:
+            return [], _err
     return columns, None
 
 
-async def _record_nested_attributes(pool, input, columns) -> None:
-    """Record, on each JSON column that is natively an array, a struct or a map at its source,
-    the three hidden attributes the source states for it (REQ-1965): array depth, element type
-    and native type. They are never taken from the caller. A column whose attributes are already
-    stored keeps them (the repository's rule), so the source is asked only for a JSON column
-    this table does not yet hold attributes for."""
-    from provisa.core.repositories.table import stored_nested_columns
+async def _settle_nested_columns(pool, input, columns) -> "MutationResult | None":
+    """Settle each column against what it natively is at its source (REQ-1965).
 
-    json_columns = [
-        c for c in columns if (c.data_type or "").lower() == "json" and c.native_type is None
-    ]
-    if not json_columns:
-        return
+    A column that is natively an array, a struct or a map is a JSON column: it is recorded with
+    the hidden attributes the source states for it (array depth, element type, native type and
+    whose spelling that is), never taken from the caller, and registering it as any other type
+    is refused by name -- a text column over a native array is the failure of issue 195.
+
+    The source is asked only about a column this table does not already store with the type now
+    given: a column kept as it was registered was settled then, and keeps its attributes (the
+    repository's rule), so editing a table does not depend on its source being reachable."""
+    from provisa.api.admin.types import MutationResult
+    from provisa.core.repositories.table import stored_column_types
+
     async with pool.acquire() as conn:
-        recorded = await stored_nested_columns(
+        stored = await stored_column_types(
             conn, input.source_id, input.schema_name, input.table_name
         )
-    if all(c.name in recorded for c in json_columns):
-        return
+    unsettled = [
+        c
+        for c in columns
+        if c.native_filter_type is None
+        and (stored.get(c.name) or "").lower() != (c.data_type or "").lower()
+    ]
+    if not unsettled:
+        return None
     from provisa.api.admin.schema_query import resolve_available_columns_metadata
 
     meta = await resolve_available_columns_metadata(
         input.source_id, input.schema_name, input.table_name
     )
     by_name = {m.name: m for m in meta}
-    for c in json_columns:
+    for c in unsettled:
         listed = by_name.get(c.name)
-        if listed is not None and listed.native_type:
-            c.array_depth = listed.array_depth
-            c.element_type = listed.element_type
-            c.native_type = listed.native_type
+        if listed is None or not listed.native_type:
+            continue
+        if (c.data_type or "").lower() != "json":
+            return MutationResult(
+                success=False,
+                message=(
+                    f"Cannot register: column {c.name} is natively {listed.native_type} at its "
+                    f"source, so its type is json, not {c.data_type}."
+                ),
+                code="schema.column_natively_nested",
+                params={
+                    "column": c.name,
+                    "native_type": listed.native_type,
+                    "type": str(c.data_type),
+                },
+            )
+        c.array_depth = listed.array_depth
+        c.element_type = listed.element_type
+        c.native_type = listed.native_type
+        c.native_platform = listed.native_platform
+    return None
 
 
 async def _ensure_source_column_types(input, columns) -> "MutationResult | None":

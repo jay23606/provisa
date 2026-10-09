@@ -957,6 +957,9 @@ class Column(
     array_depth: int = 0
     element_type: str | None = None
     native_type: str | None = None
+    # Whose spelling native_type is: the source's kind, or the engine's when the engine listed
+    # the column. A value is cast into the native type only on that platform.
+    native_platform: str | None = None
     # REQ-1494: the column's kind of fake, as the operator writes it ("categories((a, b))",
     # "bool(.8)", "email()"), and whether it is stable -- the same on every engine. Checked against
     # the rest of the table by provisa.fakes.checks.check_table.

@@ -362,12 +362,18 @@ class ColumnTyping:
     natively nested column: ``array_depth`` (0 unless it is an array of one primitive type),
     ``element_type`` (the semantic SQL type of its innermost element, with precision and scale)
     and ``native_type`` (the source's own spelling). A column that is not natively an array, a
-    struct or a map carries none of the three."""
+    struct or a map carries none of the three.
+
+    ``native_platform`` says whose spelling ``native_type`` is: the kind of the source, or of the
+    engine when the engine listed the column. A value is cast INTO the native type only by a
+    statement that runs on that platform; ``array(varchar)`` means nothing to a PostgreSQL
+    source."""
 
     data_type: str
     array_depth: int = 0
     element_type: str | None = None
     native_type: str | None = None
+    native_platform: str | None = None
 
 
 def _semantic_type(native_scalar: str, platform: str | None) -> str:
@@ -413,17 +419,26 @@ def column_typing(native_type: str, platform: str | None = None) -> ColumnTyping
     shape = parse_native_type(spelling)
     if not shape.nested:
         return ColumnTyping(spelling)
+    read_from = platform.split("+", 1)[0] if platform else None
     typed = _array_of_a_primitive(shape, platform)
     if typed is None:
-        return ColumnTyping("json", native_type=spelling)
-    return ColumnTyping("json", array_depth=typed[0], element_type=typed[1], native_type=spelling)
+        return ColumnTyping("json", native_type=spelling, native_platform=read_from)
+    return ColumnTyping(
+        "json",
+        array_depth=typed[0],
+        element_type=typed[1],
+        native_type=spelling,
+        native_platform=read_from,
+    )
 
 
-def composite_typing(native_type: str) -> ColumnTyping:
+def composite_typing(native_type: str, platform: str) -> ColumnTyping:
     """What a column of a named composite type registers as (REQ-1965): a struct, so plain JSON
     with its native type recorded. A composite's name does not say it is one -- only its
     catalog does -- so its reader states it here rather than through a spelling."""
-    return ColumnTyping("json", native_type=native_type.strip().lower())
+    return ColumnTyping(
+        "json", native_type=native_type.strip().lower(), native_platform=platform.split("+", 1)[0]
+    )
 
 
 def is_ir_type(name: str, platform: str | None = None) -> bool:

@@ -101,6 +101,7 @@ _COLUMN_PROJECTION = [
     table_columns.c.array_depth,
     table_columns.c.element_type,
     table_columns.c.native_type,
+    table_columns.c.native_platform,
     table_columns.c.fake,
     table_columns.c.fake_stable,
     table_columns.c.fake_stable_version,
@@ -113,7 +114,7 @@ _COLUMN_PROJECTION = [
 
 
 def _nested_attributes(
-    col: Any, data_type: str, existing: tuple[str, int, str | None, str] | None
+    col: Any, data_type: str, existing: tuple[str, int, str | None, str, str | None] | None
 ) -> dict[str, Any]:
     """The hidden attributes to store for ``col`` (REQ-1965): the ones this registration recorded
     from the source, else the ones already stored while the column's type is the one they were
@@ -124,19 +125,26 @@ def _nested_attributes(
             "array_depth": getattr(col, "array_depth", 0),
             "element_type": getattr(col, "element_type", None),
             "native_type": native,
+            "native_platform": getattr(col, "native_platform", None),
         }
     if existing is not None and existing[0] == data_type:
-        return {"array_depth": existing[1], "element_type": existing[2], "native_type": existing[3]}
-    return {"array_depth": 0, "element_type": None, "native_type": None}
+        return {
+            "array_depth": existing[1],
+            "element_type": existing[2],
+            "native_type": existing[3],
+            "native_platform": existing[4],
+        }
+    return {"array_depth": 0, "element_type": None, "native_type": None, "native_platform": None}
 
 
-async def stored_nested_columns(
+async def stored_column_types(
     conn: "Connection", source_id: str, schema_name: str, table_name: str
-) -> set[str]:
-    """The columns of a registered table that hold the hidden attributes of a natively nested
-    column (REQ-1965); empty for a table not yet registered."""
+) -> dict[str, str]:
+    """``{column: data_type}`` as a registered table stores them; empty for a table not yet
+    registered. A column stored with a type was settled against its source when it was
+    registered with that type (REQ-1965)."""
     result = await conn.execute_core(
-        select(table_columns.c.column_name)
+        select(table_columns.c.column_name, table_columns.c.data_type)
         .select_from(
             table_columns.join(
                 registered_tables, table_columns.c.table_id == registered_tables.c.id
@@ -146,10 +154,9 @@ async def stored_nested_columns(
             registered_tables.c.source_id == source_id,
             registered_tables.c.schema_name == schema_name,
             registered_tables.c.table_name == table_name,
-            table_columns.c.native_type.is_not(None),
         )
     )
-    return {r.column_name for r in result.fetchall()}
+    return {r.column_name: r.data_type for r in result.fetchall()}
 
 
 async def _load_columns(conn: "Connection", table_id: int) -> list[dict]:
@@ -479,6 +486,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
                 table_columns.c.array_depth,
                 table_columns.c.element_type,
                 table_columns.c.native_type,
+                table_columns.c.native_platform,
             ).where(table_columns.c.table_id == table_id)
         )
     ).fetchall()
@@ -487,7 +495,13 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
     # registration and persist with the type they describe: a re-registration that restates the
     # same type without them (a configuration apply, an admin's edit of another field) keeps them.
     _existing_nested = {
-        r.column_name: (r.data_type, r.array_depth, r.element_type, r.native_type)
+        r.column_name: (
+            r.data_type,
+            r.array_depth,
+            r.element_type,
+            r.native_type,
+            r.native_platform,
+        )
         for r in _existing_rows
         if r.native_type
     }
