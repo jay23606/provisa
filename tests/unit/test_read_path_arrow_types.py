@@ -22,7 +22,8 @@ The four paths:
   ONE RULE since REQ-1961: given the governed statement's result shape, each column is read as
   its registered type; the "today" cases below are what it does without a shape;
 - **materialised** — a whole row result turned into a table
-  (``executor.formats.arrow.rows_to_arrow_table``; Flight's buffered answers);
+  (``executor.formats.arrow.rows_to_arrow_table``; Flight's buffered answers). ON THE ONE RULE
+  since REQ-1961, as the row stream is;
 - **engine stream** — the engine's own Arrow reader, passed through (its types are the
   engine's; nothing here types it, so it has no row in these tables);
 - **Airport** — a direct scan typed from the driver's column types
@@ -271,7 +272,29 @@ def _column_refs() -> list[ColumnRef]:
     return [ColumnRef(alias=None, column=n, field_name=n, nested_in=None) for n in _NAMES]
 
 
-def test_the_materialised_table_today():
+@pytest.mark.parametrize("rows", [_ROWS, []], ids=["rows", "no rows"])
+def test_the_materialised_table_reads_each_registered_column_as_its_registered_type(rows):
+    """ON THE ONE RULE since REQ-1961: the same answer as the row stream, with or without rows."""
+    table = rows_to_arrow_table(rows, _column_refs(), shape=_REGISTERED)
+    assert _types(table.schema) == _BY_THE_RULE
+    if rows:
+        assert table.column("money").to_pylist() == [Decimal("12.50"), Decimal("0.10")]
+
+
+def test_the_materialised_table_matches_the_shape_by_the_results_own_names():
+    """A compiled statement's table is named by its fields; its shape by the SQL result's names."""
+    refs = [ColumnRef(alias=None, column="amt", field_name="totalAmount", nested_in=None)]
+    table = rows_to_arrow_table(
+        [(Decimal("12.50"),)],
+        refs,
+        shape=[("amt", RegisteredType("numeric(18,2)"))],
+        result_names=["amt"],
+    )
+    assert _types(table.schema) == {"totalAmount": pa.decimal128(18, 2)}
+
+
+def test_the_materialised_table_without_a_shape():
+    """A result that is not a governed statement's (a command's rows) has no shape."""
     assert _types(rows_to_arrow_table(_ROWS, _column_refs()).schema) == {
         **_AGREED,
         "i": pa.int64(),  # finding 2
@@ -280,7 +303,7 @@ def test_the_materialised_table_today():
     }
 
 
-def test_the_materialised_table_of_a_result_with_no_rows_today():
+def test_the_materialised_table_of_a_result_with_no_rows_without_a_shape():
     assert _types(rows_to_arrow_table([], _column_refs()).schema) == _NULLS  # finding 3
 
 
@@ -366,5 +389,6 @@ def test_flights_direct_stream_is_typed_by_the_plans_result_shape():
     from provisa.api.flight import server
 
     source = inspect.getsource(server)
-    assert "self._run_on_loop(plan.result_shape())" in source
-    assert "arrow_batches_from_rows(stream, shape=shape)" in source
+    assert "return None if kept is None else kept.now()" in source  # no loop crossing
+    assert "stream, shape=self._result_shape_of(plan)" in source  # the direct stream
+    assert source.count("shape=self._result_shape_of(plan)") == 3  # and both buffered reads

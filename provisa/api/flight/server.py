@@ -792,6 +792,15 @@ class ProvisaFlightServer(
         # catalog is that role's; with none there is no role to narrow it by.
         return self._do_get_catalog(ticket, str(request["role"]) if self._auth_active() else None)
 
+    def _result_shape_of(self, plan) -> list[tuple[str, str]] | None:  # REQ-1961
+        """The governed statement's result columns and their registered types, kept with the
+        statement (the plan's ``result_shape``); None for a plan that carries none or a
+        statement whose columns cannot be typed from registered metadata."""
+        kept = plan.result_shape
+        # Read here, on this handler's own thread: the derivation needs nothing of the loop,
+        # and a crossing for it would be one more than the read is held to (REQ-1887).
+        return None if kept is None else kept.now()
+
     def _acquire_stream_slot(self) -> Callable[[], None]:  # REQ-1905
         """Take one of this worker's Flight stream slots, waiting for it within the request's
         deadline, and return what gives it back. Called at every point a ticket reaches the engine
@@ -1460,12 +1469,9 @@ class ProvisaFlightServer(
                         )
                         # REQ-1961: each column is read as its registered type, from the
                         # governed statement's result shape (kept with the statement).
-                        shape = (
-                            self._run_on_loop(plan.result_shape())
-                            if plan.result_shape is not None
-                            else None
+                        arrow_schema, batch_gen = arrow_batches_from_rows(
+                            stream, shape=self._result_shape_of(plan)
                         )
-                        arrow_schema, batch_gen = arrow_batches_from_rows(stream, shape=shape)
                     except BaseException:
                         _release_slot()
                         raise
@@ -1492,7 +1498,8 @@ class ProvisaFlightServer(
                     ColumnRef(field_name=c, column=c, alias=None, nested_in=None)
                     for c in result.column_names
                 ]
-                table = rows_to_arrow_table(result.rows, columns)
+                # REQ-1961: registered columns are read as the model declares them.
+                table = rows_to_arrow_table(result.rows, columns, shape=self._result_shape_of(plan))
                 plan.row_count = len(result.rows)
                 self._finalize_audit(plan, 200)
                 return self._license_stream(table, role_id, plan.warnings)  # REQ-1137
@@ -1617,7 +1624,14 @@ class ProvisaFlightServer(
                         ),
                     )
                 )
-                table = rows_to_arrow_table(result.rows, compiled.columns)
+                # REQ-1961: registered columns are read as the model declares them; the
+                # result's own column names are what the statement's shape names.
+                table = rows_to_arrow_table(
+                    result.rows,
+                    compiled.columns,
+                    shape=self._result_shape_of(plan),
+                    result_names=list(result.column_names),
+                )
                 plan.row_count = len(result.rows)
                 self._finalize_audit(plan, 200)
                 return record_batch_stream(table, plan.warnings)  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__

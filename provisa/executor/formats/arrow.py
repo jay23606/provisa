@@ -56,11 +56,28 @@ def rows_to_arrow_ipc(  # REQ-051
 def rows_to_arrow_table(  # REQ-045, REQ-051
     rows: list[tuple],
     columns: list[ColumnRef],
+    *,
+    shape: list[tuple[str, str]] | None = None,
+    result_names: list[str] | None = None,
 ) -> pa.Table:
-    """Convert rows to a PyArrow Table (for Arrow Flight)."""
+    """Convert rows to a PyArrow Table (for Arrow Flight).
+
+    ``shape`` is the governed statement's result columns and their registered types (the plan's
+    ``result_shape``, REQ-1961), named as the statement's result names them — ``result_names``,
+    parallel to ``columns``, when those differ from the names the table is given. A result
+    column that is a registered column is read as its registered type, with or without rows
+    (``runtime_support.read_targets`` / ``typed_arrow_array``, the row stream's own rule);
+    every other column is typed from its values as before.
+    """
+    from provisa.federation.runtime_support import read_targets, typed_arrow_array
+
     names = _column_names(columns)
-    col_data: dict[str, list] = {name: [] for name in names}
-    for row in rows:
-        for i, name in enumerate(names):
-            col_data[name].append(_convert(row[i]))
-    return pa.table(col_data)
+    targets = read_targets(result_names if result_names is not None else names, shape)
+    arrays = []
+    for i, name in enumerate(names):
+        values = [row[i] for row in rows]
+        if targets[i] is not None:
+            arrays.append(typed_arrow_array(values, targets[i], name))
+        else:
+            arrays.append(pa.array([_convert(v) for v in values]))
+    return pa.table(arrays, names=names)

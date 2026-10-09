@@ -381,6 +381,8 @@ async def test_a_plan_carries_its_result_shape_derived_once_and_kept(pipeline, m
     assert await first.result_shape() == shape and derived["n"] == 1
     again = await pipeline.mod._govern_and_route(sql, "analyst")
     assert await again.result_shape() == shape and derived["n"] == 1
+    # A caller already on a thread of its own reads the kept shape without crossing to the loop.
+    assert again.result_shape.now() == shape and derived["n"] == 1
 
 
 async def test_a_statement_whose_columns_cannot_be_typed_says_so_once(pipeline, monkeypatch):

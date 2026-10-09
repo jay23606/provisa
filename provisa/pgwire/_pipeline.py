@@ -118,9 +118,7 @@ class _Plan:
     # with the governed statement, so a repeat does not derive it again (REQ-1877); answers None
     # for a statement whose columns cannot be typed that way. None on a plan the planner did
     # not build from a governed statement.
-    result_shape: Callable[[], Awaitable[list[tuple[str, str]] | None]] | None = field(
-        default=None, repr=False
-    )
+    result_shape: "_KeptResultShape | None" = field(default=None, repr=False)
     # REQ-1897 (amended 2026-10-01): the response-cache identity of this statement — its governed
     # text and bound values as they stood BEFORE routing. The entry's key is built from these and
     # never from ``sql``/``exec_params``, which are what the chosen route executes (physical text
@@ -1264,32 +1262,57 @@ async def _govern_and_route_planned(
     )
 
 
-def _kept_result_shape(
-    memo: dict[str, Any], governed_sql: str, table_map: dict[str, int], ctx: Any, state: Any
-) -> Callable[[], Awaitable[list[tuple[str, str]] | None]]:
+class _KeptResultShape:
     """What a plan carries as ``result_shape``: the governed statement's result columns, derived
     on the first ask and kept in the statement's ``memo`` (the key pgwire's Describe keeps its
     own under). A statement whose columns cannot be typed from registered metadata answers None;
-    why is kept beside it (``result_shape_underivable``)."""
+    why is kept beside it (``result_shape_underivable``).
 
-    async def shape() -> list[tuple[str, str]] | None:
-        if "result_shape" not in memo:
-            from provisa.compiler.result_shape import UnderivableColumn, derive_result_shape
+    Awaited (``await plan.result_shape()``) by a caller on the event loop: the derivation, which
+    parses the statement, runs off the loop. Read with :meth:`now` by a caller that is already
+    on a thread of its own — a Flight handler — which crosses to the loop for nothing
+    (REQ-1887 counts those crossings)."""
 
-            try:
-                memo["result_shape"] = await _off_loop(
-                    derive_result_shape,
-                    governed_sql,
-                    table_map,
-                    ctx,
-                    state.schema_build_cache["column_types"],
-                )
-            except UnderivableColumn as underivable:
-                memo["result_shape"] = None
-                memo["result_shape_underivable"] = str(underivable)
-        return memo["result_shape"]
+    __slots__ = ("_memo", "_args")
 
-    return shape
+    def __init__(
+        self,
+        memo: dict[str, Any],
+        governed_sql: str,
+        table_map: dict[str, int],
+        ctx: Any,
+        state: Any,
+    ) -> None:
+        self._memo = memo
+        self._args = (governed_sql, table_map, ctx, state)
+
+    def _derive(self) -> list[tuple[str, str]] | None:
+        from provisa.compiler.result_shape import UnderivableColumn, derive_result_shape
+
+        governed_sql, table_map, ctx, state = self._args
+        try:
+            return derive_result_shape(
+                governed_sql, table_map, ctx, state.schema_build_cache["column_types"]
+            )
+        except UnderivableColumn as underivable:
+            self._memo["result_shape_underivable"] = str(underivable)
+            return None
+
+    def now(self) -> list[tuple[str, str]] | None:
+        if "result_shape" not in self._memo:
+            self._memo["result_shape"] = self._derive()
+        return self._memo["result_shape"]
+
+    async def __call__(self) -> list[tuple[str, str]] | None:
+        if "result_shape" not in self._memo:
+            self._memo["result_shape"] = await _off_loop(self._derive)
+        return self._memo["result_shape"]
+
+
+def _kept_result_shape(
+    memo: dict[str, Any], governed_sql: str, table_map: dict[str, int], ctx: Any, state: Any
+) -> _KeptResultShape:
+    return _KeptResultShape(memo, governed_sql, table_map, ctx, state)
 
 
 @dataclass
