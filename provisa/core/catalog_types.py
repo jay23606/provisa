@@ -86,18 +86,33 @@ def _is_nested(text: str) -> bool:
     return text.endswith("[]") or text.partition("(")[0].strip() in _NESTED
 
 
-def _physical_type_to_arrow(column_type: str) -> pa.DataType:
-    """The Arrow type a registered column type is listed under.
+def _is_numeric(text: str) -> bool:
+    base = text.partition("(")[0].strip()
+    if base in ("numeric", "decimal"):
+        return True
+    try:
+        return to_ir(text) == "numeric"
+    except ValueError:
+        return False
 
-    A nested type is JSON (REQ-1965), listed as the catalog lists any ``json`` column. A scalar
-    is named by the catalog's own table or by the product's one type vocabulary. A type neither
-    names raises ``KeyError``: the caller lists the column as text and says so.
+
+def _physical_type_to_arrow(column_type: str) -> pa.DataType:
+    """The Arrow type of a registered column type: the type a catalog lists it under AND the
+    type a read of the column returns (REQ-1961 — one function, so the two cannot differ).
+
+    A nested type is JSON (REQ-1965), listed as the catalog lists any ``json`` column. A numeric
+    is exact where the model records its precision and scale and floating point where it does
+    not (``core.numeric_type``). Any other scalar is named by the catalog's own table or by the
+    product's one type vocabulary. A type neither names raises ``KeyError``: the catalog lists
+    the column as text and says so; a read keeps the type its source or engine gave it.
     """
     text = column_type.strip().lower()
     if _is_nested(text):
         return _ARROW_TYPE_MAP["json"]
+    if _is_numeric(text):
+        return numeric_arrow_type(text)
     base = text.partition("(")[0].strip()
-    # Parameterized scalars: decimal(10,2) -> decimal, varchar(20) -> varchar.
+    # Parameterized scalars: varchar(20) -> varchar.
     if base in _ARROW_TYPE_MAP:
         return _ARROW_TYPE_MAP[base]
     # Any other spelling an engine or a source reports (``character varying``, ``int4``,
@@ -112,25 +127,11 @@ def _physical_type_to_arrow(column_type: str) -> pa.DataType:
 
 
 def column_arrow_type(registered: str | None) -> pa.DataType | None:
-    """THE Arrow type of a column registered as ``registered`` (REQ-1961): the type a read of the
-    column returns, on every read path, and so the type a catalog lists for it.
-
-    A numeric column is exact where the model records its precision and scale and floating point
-    where it does not (``core.numeric_type``); every other type is what the catalog's mapper
-    says. None for a column with no registered type and for one neither vocabulary names: a
-    read of such a column keeps the type its source or engine gave it.
-    """
+    """:func:`_physical_type_to_arrow` for a read: None for a column with no registered type and
+    for one neither vocabulary names — a read of such a column keeps the type its source or
+    engine gave it."""
     if not registered:
         return None
-    text = registered.strip().lower()
-    if not _is_nested(text):
-        base = text.partition("(")[0].strip()
-        try:
-            numeric = base in ("numeric", "decimal") or to_ir(text) == "numeric"
-        except ValueError:
-            numeric = False
-        if numeric:
-            return numeric_arrow_type(text)
     try:
         return _physical_type_to_arrow(registered)
     except KeyError:

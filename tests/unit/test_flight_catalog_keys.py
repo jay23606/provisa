@@ -180,7 +180,9 @@ async def test_a_column_is_listed_with_its_registered_type():
     customers = catalog_table_to_arrow_schema(tables["customers"])
     assert customers.field("id").type == pa.int32()
     assert customers.field("name").type == pa.utf8()
-    assert catalog_table_to_arrow_schema(tables["staff"]).field("salary").type == pa.float64()
+    # REQ-1961: a numeric is listed as a read of it returns it — exact, at its recorded size.
+    salary = catalog_table_to_arrow_schema(tables["staff"]).field("salary")
+    assert salary.type == pa.decimal128(12, 2)
 
 
 async def test_a_column_is_listed_under_the_name_sql_reads_it_by(monkeypatch):

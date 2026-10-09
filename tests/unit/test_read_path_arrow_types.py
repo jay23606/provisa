@@ -505,3 +505,41 @@ def test_flights_direct_stream_is_typed_by_the_plans_result_shape():
     assert "return None if kept is None else kept.now()" in source  # no loop crossing
     assert "stream, shape=self._result_shape_of(plan)" in source  # the direct stream
     assert source.count("shape=self._result_shape_of(plan)") == 3  # and both buffered reads
+
+
+# --- the catalog lists what a read returns -----------------------------------------------------------
+
+
+def test_the_type_a_catalog_lists_for_a_column_is_the_type_a_read_of_it_returns():
+    """REQ-1961's sentence, on every read path: one registered table, listed by the Flight
+    catalog and read through the row stream, the materialised table, the engine's stream and an
+    Airport scan."""
+    from provisa.api.airport.query import _typed_batches_from_rows
+    from provisa.api.flight.catalog import (
+        CatalogColumn,
+        CatalogTable,
+        catalog_table_to_arrow_schema,
+    )
+    from provisa.federation.runtime_support import declared_arrow_stream, read_targets
+
+    listed = _types(
+        catalog_table_to_arrow_schema(
+            CatalogTable(
+                domain_id="d",
+                table_name="t",
+                description="",
+                columns=[CatalogColumn(n, str(declared), True, "") for n, declared in _REGISTERED],
+            )
+        )
+    )
+    assert listed == _BY_THE_RULE
+
+    row_stream, _ = arrow_batches_from_rows(_Stream(_ROWS, None), shape=_REGISTERED)
+    materialised = rows_to_arrow_table(_ROWS, _column_refs(), shape=_REGISTERED).schema
+    declared = read_targets(_NAMES, _REGISTERED)
+    airport = _direct_typed_schema(_NAMES, _DRIVER_TYPES["postgres"], declared)
+    (airport_batch,) = _typed_batches_from_rows(_Stream(_ROWS, None), airport, declared=declared)
+    engine_schema, _batches = declared_arrow_stream(*_engine_stream(), _REGISTERED)
+    for read in (row_stream, materialised, airport, airport_batch.schema):
+        assert _types(read) == listed
+    assert _types(engine_schema) == {name: listed[name] for name in engine_schema.names}
