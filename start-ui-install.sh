@@ -310,7 +310,15 @@ if [ -n "$DEMO_NAME" ]; then
 fi
 
 # Core + install overlay (port bindings only — no kafka/mongo/elasticsearch/observability)
-COMPOSE_FILES="-f docker-compose.core.yml -f docker-compose.dev-install.yml"
+# The development stack's host mounts (docker-compose.e2e-mounts.yml; #201). The overlay has no
+# defaults, so they are named here: directories of THIS checkout, which the e2e specs write
+# under and Trino must see at the same absolute path.
+export PROVISA_E2E_FILE_LAKE_HOST="${PROVISA_E2E_FILE_LAKE_HOST:-$SCRIPT_DIR/.e2e-file-lake}"
+export PROVISA_E2E_HIVE_WAREHOUSE_HOST="${PROVISA_E2E_HIVE_WAREHOUSE_HOST:-$SCRIPT_DIR/.e2e-hive-warehouse}"
+export PROVISA_E2E_SHAREPOINT_CERT_HOST="${PROVISA_E2E_SHAREPOINT_CERT_HOST:-$SCRIPT_DIR/sharepoint.pfx}"
+# The warehouse is a bind-backed volume, which does not create a missing host directory.
+mkdir -p "$PROVISA_E2E_FILE_LAKE_HOST" "$PROVISA_E2E_HIVE_WAREHOUSE_HOST"
+COMPOSE_FILES="-f docker-compose.core.yml -f docker-compose.dev-install.yml -f docker-compose.e2e-mounts.yml"
 
 # Kill any previously running backend BEFORE resetting the control-plane database.  The singleton
 # killer above (`kill -9 "-$_other"`) targets the old script's process GROUP, which only covers

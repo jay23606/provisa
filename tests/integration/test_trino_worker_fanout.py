@@ -38,8 +38,11 @@ pytestmark = [pytest.mark.integration]
 _REPO_ROOT = Path(__file__).parents[2]
 
 
+# The same files, in the same order, as the stack this scales (tests/itest_stack.py COMPOSE_ARGS
+# up to the test overlay): a different set would read as a changed Trino and recreate it.
 _COMPOSE_FILES = [
     _REPO_ROOT / "docker-compose.core.yml",
+    _REPO_ROOT / "docker-compose.e2e-mounts.yml",
     _REPO_ROOT / "docker-compose.test.yml",
 ]
 

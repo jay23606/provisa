@@ -1,0 +1,65 @@
+# Host mounts for a TEST or DEVELOPMENT stack. Never part of what an install starts.
+#
+# Usage: add it after the core file --
+#   docker compose -f docker-compose.core.yml -f docker-compose.dev.yml -f docker-compose.e2e-mounts.yml up
+#
+# These mounts let a test process running natively on the host and the containers see the same
+# files, some of them at the same absolute path. They were in docker-compose.core.yml with
+# defaults naming one developer's checkout, so an install on any other machine mounted (or failed
+# to mount) paths it does not have (#201). Here they have NO default: whoever starts the stack
+# sets the three variables to directories of its own checkout, and an unset one fails by name.
+#
+#   PROVISA_E2E_FILE_LAKE_HOST        an absolute directory; mounted at the same path inside
+#   PROVISA_E2E_SHAREPOINT_CERT_HOST  an absolute path to the SharePoint certificate (.pfx)
+#   PROVISA_E2E_HIVE_WAREHOUSE_HOST   an existing absolute directory backing the Hive warehouse
+services:
+  trino:
+    volumes:
+      # REQ-1730 engine-swap: delta_lake/iceberg/csv/parquet/files are SCAN-mechanism sources
+      # DuckDB reads directly off a host path (no ATTACH, no network service) — the engine-swap
+      # harness's own registration backend runs natively and can read any host path, but Trino
+      # runs in this container and has no such access. Mounted at the SAME absolute path inside
+      # the container as on the host (an identity mount, not a translated one): Iceberg's
+      # register_table requires the table_location argument to match the location its own
+      # metadata.json recorded verbatim (verified live 2026-09-16, ICEBERG_INVALID_METADATA
+      # "differs from location provided"), and that metadata is written by pyiceberg running
+      # NATIVELY on the host — its recorded location is the host's own absolute path, which only
+      # Trino can also resolve if the same absolute path exists inside its container too. Default
+      # matches this repo's own checkout path; override via the env var for a different checkout
+      # (a different absolute path needs a different mount target, not just a different source).
+      - ${PROVISA_E2E_FILE_LAKE_HOST:?set PROVISA_E2E_FILE_LAKE_HOST to an absolute directory of this checkout}:${PROVISA_E2E_FILE_LAKE_HOST}
+      # trino-sharepoint's CERTIFICATE auth reads the .pfx from a host FILE PATH
+      # (SharePointAuthFactory.createCertificateAuth, calcite's sharepoint-list module — no inline/
+      # base64 alternative exists there, unlike TrinoBigQueryConnector's credentials-key). Same
+      # identity-mount reasoning as FILE_LAKE_HOST above: the path Provisa's own connector passes
+      # (SP_CERT_PATH, resolved absolute) must resolve inside the container too, or Trino's own
+      # FileInputStream throws FileNotFoundException — verified live 2026-09-17. Default matches
+      # this repo's own checkout path.
+      - ${PROVISA_E2E_SHAREPOINT_CERT_HOST:?set PROVISA_E2E_SHAREPOINT_CERT_HOST to the absolute path of the certificate}:${PROVISA_E2E_SHAREPOINT_CERT_HOST}:ro
+      # The certificate again, at the fixed in-container path a source's certificate_path may name.
+      - ./sharepoint.pfx:/certs/sharepoint.pfx:ro
+  trino-worker:
+    volumes:
+      - ./sharepoint.pfx:/certs/sharepoint.pfx:ro
+  hive-metastore:
+    volumes:
+      # delta_lake's Trino connector validates/creates a registered table's location THROUGH the
+      # metastore process itself (not just through Trino's own filesystem access) — confirmed live
+      # 2026-09-16: register_table failed HIVE_METASTORE_ERROR "not a directory or unable to create
+      # one" until this same mount (already on trino) was added here too. Same identity-mount
+      # reasoning as trino's own mount above (see its comment) — same absolute path both sides.
+      - ${PROVISA_E2E_FILE_LAKE_HOST:?set PROVISA_E2E_FILE_LAKE_HOST to an absolute directory of this checkout}:${PROVISA_E2E_FILE_LAKE_HOST}
+
+volumes:
+  # Local Hive warehouse shared between the itest hive-metastore and Trino (REQ-1097). Stays a
+  # named volume (docker-compose.test.yml and demo/sources/hive/compose.yml both resolve/reference
+  # it BY NAME — the latter's resolveHiveWarehouseVolume() e2e helper inspects the live Trino
+  # container's mount and passes the name in as an external volume, see that file's module doc) but
+  # is now backed by a bind-mount driver so the same table files are also a real host directory —
+  # a host-side Provisa process can read them without a Hive Metastore Thrift client.
+  hive_warehouse:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PROVISA_E2E_HIVE_WAREHOUSE_HOST:?set PROVISA_E2E_HIVE_WAREHOUSE_HOST to an existing absolute directory}

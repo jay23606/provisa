@@ -59,7 +59,15 @@ export PROVISA_FAKE_KEY_DIR="${PROVISA_FAKE_KEY_DIR:-$SCRIPT_DIR/.provisa/fake-k
 export PROVISA_UI_PORT="${PROVISA_UI_PORT:-3000}"
 
 # Compose files for dev: core services + dev overlay (ports, kafka, mongo, elasticsearch)
-COMPOSE_FILES="-f docker-compose.core.yml -f docker-compose.dev.yml"
+# The development stack's host mounts (docker-compose.e2e-mounts.yml; #201). The overlay has no
+# defaults, so they are named here: directories of THIS checkout, which the e2e specs write
+# under and Trino must see at the same absolute path.
+export PROVISA_E2E_FILE_LAKE_HOST="${PROVISA_E2E_FILE_LAKE_HOST:-$SCRIPT_DIR/.e2e-file-lake}"
+export PROVISA_E2E_HIVE_WAREHOUSE_HOST="${PROVISA_E2E_HIVE_WAREHOUSE_HOST:-$SCRIPT_DIR/.e2e-hive-warehouse}"
+export PROVISA_E2E_SHAREPOINT_CERT_HOST="${PROVISA_E2E_SHAREPOINT_CERT_HOST:-$SCRIPT_DIR/sharepoint.pfx}"
+# The warehouse is a bind-backed volume, which does not create a missing host directory.
+mkdir -p "$PROVISA_E2E_FILE_LAKE_HOST" "$PROVISA_E2E_HIVE_WAREHOUSE_HOST"
+COMPOSE_FILES="-f docker-compose.core.yml -f docker-compose.dev.yml -f docker-compose.e2e-mounts.yml"
 if [ "$OBSERVABILITY" = true ]; then
   # docker-compose.dev.yml only carries port overrides for prometheus/otlp2parquet;
   # this overlay supplies their image/build definitions.

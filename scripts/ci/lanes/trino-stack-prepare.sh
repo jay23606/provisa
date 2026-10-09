@@ -107,16 +107,19 @@ docker compose -f docker-compose.core.yml build zaychik
 # (zaychik, 8480) and ensure_results_bucket (minio) with no fallback, so without them the
 # app's lifespan aborts with "dial tcp [::1]:8480: connect: connection refused" and
 # Playwright reports "Process from config.webServer was not able to start".
-# docker-compose.core.yml's hive_warehouse volume is a `local` driver bind (o: bind), not a
-# plain service-level bind mount — unlike a plain bind, it does NOT auto-create a missing
-# host directory, it fails the container outright ("no such file or directory"). The
-# compose file's own default device path is this repo's maintainer's own machine (matches
-# every other *_HOST default in this file, e.g. SP_CERT_PATH), so CI must override it.
-mkdir -p "$GITHUB_WORKSPACE/.e2e-hive-warehouse"
-echo "PROVISA_E2E_HIVE_WAREHOUSE_HOST=$GITHUB_WORKSPACE/.e2e-hive-warehouse" >> "$GITHUB_ENV"
-# This script's own commands need it too (the lane's later steps read it from GITHUB_ENV).
-export PROVISA_E2E_HIVE_WAREHOUSE_HOST="$GITHUB_WORKSPACE/.e2e-hive-warehouse"
+# The stack's host mounts (docker-compose.e2e-mounts.yml; no defaults, an unset one fails by
+# name): the Hive warehouse, the file lake the specs write under the checkout
+# (provisa-ui/e2e/engine-swap-helpers.ts FILE_LAKE_HOST_DIR) and the certificate written above.
+# The warehouse is a `local` driver bind, which does not create a missing host directory.
+for pair in HIVE_WAREHOUSE:.e2e-hive-warehouse FILE_LAKE:.e2e-file-lake SHAREPOINT_CERT:sharepoint.pfx; do
+  var="PROVISA_E2E_${pair%%:*}_HOST"
+  value="$GITHUB_WORKSPACE/${pair#*:}"
+  # For this script's own commands, and for the lane's later steps.
+  export "$var=$value"
+  echo "$var=$value" >> "$GITHUB_ENV"
+done
+mkdir -p "$PROVISA_E2E_HIVE_WAREHOUSE_HOST" "$PROVISA_E2E_FILE_LAKE_HOST"
 
-docker compose -f docker-compose.core.yml up -d --wait \
+docker compose -f docker-compose.core.yml -f docker-compose.e2e-mounts.yml up -d --wait \
   postgres trino minio zaychik
-docker compose -f docker-compose.core.yml up minio-init
+docker compose -f docker-compose.core.yml -f docker-compose.e2e-mounts.yml up minio-init
