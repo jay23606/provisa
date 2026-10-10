@@ -20,6 +20,7 @@ import logging
 import threading
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from provisa.api.errors import ApiError
@@ -1001,3 +1002,138 @@ def test_the_loader_offers_the_check_for_the_tables_read_from_the_mailboxes(org_
     assert probe(SOURCE, _table("messages")) is not None
     assert probe(SOURCE, _table("folders")) is not None
     assert probe(SOURCE, _table("calendar_events")) is None
+
+
+# --- a check that cannot be made asks for a read; it never ends the tick with nothing asked ---
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        MailPlatformRefused("organisation_mailboxes_off", "switched off", status=403),
+        CredentialRefused("the organisation's Microsoft 365 client", "invalid_client: wrong"),
+        directory.DirectoryRefused("the group names 0 groups"),
+        GraphRefused(403, "Authorization_RequestDenied", "no", "/users"),
+        httpx.ConnectError("no route to host"),
+        RuntimeError("the vault is away"),
+    ],
+    ids=lambda f: type(f).__name__,
+)
+def test_a_sign_in_or_listing_that_fails_asks_for_a_read_and_says_why(failure, caplog):
+    async def connect(source):
+        raise failure
+
+    with caplog.at_level(logging.WARNING):
+        assert asyncio.run(loader.unchanged(connect, SimpleNamespace(id="mail"))) is None
+    said = caplog.text
+    assert "mail" in said and "a read is asked for" in said and type(failure).__name__ in said
+
+
+def test_a_failure_while_asking_graph_or_reading_what_was_kept_asks_for_a_read(
+    org_read, monkeypatch
+):
+    org_read.accounts = (A,)
+    org_read.graph.table.update(_box(A, 1))
+    rows = _read_and_keep(org_read, monkeypatch)
+
+    def unreachable(method, url, params, headers, body):
+        raise httpx.ReadTimeout("timed out")
+
+    org_read.graph.send = unreachable
+    assert _check(org_read, rows) is None  # the network, not "unchanged"
+
+    async def kept():
+        raise RuntimeError("the state store is away")
+
+    async def connect(source):
+        return loader.Reading((A,), lambda: "t", organisation=True, kept=kept)
+
+    assert asyncio.run(loader.unchanged(connect, SOURCE)) is None
+
+
+def test_an_empty_page_with_more_to_come_is_not_unchanged(org_read, monkeypatch):
+    org_read.accounts = (A,)
+    org_read.graph.table.update(_box(A, 1))
+    rows = _read_and_keep(org_read, monkeypatch)
+    assert _check(org_read, rows) == loader.UNCHANGED
+    path = f"/users/{A}/mailFolders/f-inbox/messages/delta"
+    org_read.graph.answers[path] = {
+        "value": [],
+        "@odata.nextLink": f"https://graph.microsoft.com/v1.0{path}?$skiptoken=1",
+    }
+    assert _check(org_read, rows) is None
+
+
+def test_a_completed_read_settles_the_check_of_the_tables_it_fed(org_read, monkeypatch):
+    """The read just made is not asked for again by the first check after it: the tables it
+    fed are recorded as having nothing to report, after what it reached is kept."""
+    from provisa.microsoft365 import mail
+
+    org_read.accounts = (A,)
+    org_read.graph.table.update(_box(A, 1))
+    did: list[tuple] = []
+
+    async def keep(rows):
+        did.append(("keep", len(rows)))
+
+    async def settle(tables):
+        did.append(("settle", tuple(tables)))
+
+    async def connect(source):
+        return loader.Reading(
+            (A,), lambda: org_read.token, organisation=True, keep=keep, settle=settle
+        )
+
+    tables = mail.MESSAGE_TABLES
+    source = loader.make_microsoft365_loader(connect).replica_group_source(
+        SOURCE, tables, {t: cm.ir_columns(t) for t in tables}
+    )
+
+    async def build():
+        async for _table, _batch in source.batches(1000):
+            pass
+        assert did == []  # nothing before the build is recorded as completed
+        await source.committed()
+
+    asyncio.run(build())
+    assert did == [("keep", 2), ("settle", tuple(tables))]
+
+
+async def test_settling_sets_what_each_tables_poll_node_compares_its_check_with(
+    organisation, tmp_path
+):
+    """The real connection's ``settle`` and ``keep``/``kept``, against the org's state store:
+    the node of each table fed holds "unchanged", so the check's first answer after the read
+    matches it (events.injector.check_node) and asks for no second read."""
+    from provisa.core.database import Database, create_engine_from_url
+    from provisa.core.schema_org import mail_sync_state, node_freshness_state
+    from provisa.events import queue
+    from provisa.events.nodes import source_node
+
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
+    with engine.begin() as made:
+        node_freshness_state.metadata.create_all(
+            made, tables=[node_freshness_state, mail_sync_state]
+        )
+    state_db = Database(engine, name="state")
+    await _put(
+        organisation.plane,
+        platform=SOURCE_TYPE,
+        settings={"tenant": TENANT},
+        organisation_mailboxes=True,
+    )
+    connect = loader.make_connect(SimpleNamespace(admin_db=organisation.plane, tenant_db=state_db))
+    reading = await connect(SimpleNamespace(id="m365", mapping=ORG))
+    assert reading.keep is not None and reading.kept is not None and reading.settle is not None
+    await reading.keep({(A, "", "delta"): "l0"})
+    assert await reading.kept() == {(A, "", "delta"): "l0"}
+    await reading.settle(("messages", "threads"))
+    async with state_db.acquire() as conn:
+        for table in ("messages", "threads"):
+            node = source_node("m365", loader.SCHEMA, table)
+            assert (await queue.get_node_state(conn, node))["probe_token"] == loader.UNCHANGED
+        assert (
+            await queue.get_node_state(conn, source_node("m365", loader.SCHEMA, "folders")) is None
+        )
+    await state_db.close()
+    engine.dispose()

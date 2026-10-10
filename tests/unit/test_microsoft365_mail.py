@@ -86,6 +86,8 @@ class FakeGraph:
         self.queued: list[Answer] = []  # answers given before the table is consulted
         #: delta path -> the items a round started from a kept link gives (changes since).
         self.since: dict[str, list] = {}
+        #: delta path -> the whole body a followed link answers with, when a test states it.
+        self.answers: dict[str, object] = {}
         #: delta paths whose kept link Graph no longer honours.
         self.gone: set[str] = set()
 
@@ -121,6 +123,8 @@ class FakeGraph:
         if path.endswith("/delta"):
             if path in self.gone:
                 return 410, {"error": {"code": "SyncStateNotFound", "message": "expired"}}
+            if "$deltatoken" in query and path in self.answers:
+                return 200, self.answers[path]  # a followed link's answer, as a test gives it
             if "$deltatoken" in query:
                 # What changed since the link was given: nothing, unless a test says so.
                 changed = self.since.get(path, [])
@@ -688,3 +692,29 @@ def test_a_kept_link_that_does_not_lead_to_graph_is_never_followed():
     with pytest.raises(ValueError, match="does not lead to Microsoft Graph"):
         mailbox.changed({_INBOX: "https://example.com/v1.0/users/x/messages/delta?$deltatoken=t"})
     assert fake.calls[before:] == []  # the access token went nowhere
+
+
+_INBOX_DELTA = f"{ROOT}/mailFolders/{_INBOX}/messages/delta"
+_AGAIN = f"{BASE_URL}{_INBOX_DELTA}?$deltatoken=again"
+
+
+@pytest.mark.parametrize(
+    ("body", "why"),
+    [
+        # Graph: "there are more pages of data to retrieve in the session, even if the current
+        # response contains an empty result".
+        ({"value": [], "@odata.nextLink": f"{BASE_URL}{_INBOX_DELTA}?$skiptoken=1"}, "more pages"),
+        ({"value": []}, "the round did not end"),
+        ({"@odata.deltaLink": _AGAIN}, "no value at all"),
+        ({"value": None, "@odata.deltaLink": _AGAIN}, "a value that is not a list"),
+        ({"error": {"code": "Something", "message": "inside a 200"}}, "an error in the body"),
+        ("not an object", "not an object"),
+    ],
+)
+def test_a_followed_link_says_unchanged_only_by_an_empty_page_that_ends_the_round(body, why):
+    mailbox, fake = _mailbox(_two_folders())
+    _all(mailbox, "messages")
+    links = dict(mailbox.links or {})
+    assert mailbox.changed(links) is False  # every link: no item, and the round ended
+    fake.answers[_INBOX_DELTA] = body
+    assert mailbox.changed(links) is True, why

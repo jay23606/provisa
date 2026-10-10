@@ -34,7 +34,7 @@ from typing import Any
 import httpx
 
 from provisa.microsoft365 import mail
-from provisa.microsoft365.graph import Graph, GraphRefused, GraphThrottled, http_send
+from provisa.microsoft365.graph import Graph, GraphRefused, http_send
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +60,10 @@ class Reading:
     keep: Callable[[dict[tuple[str, str, str], str]], Awaitable[None]] | None = None
     #: What was kept by the last completed read of the source; None where nothing is kept.
     kept: Callable[[], Awaitable[dict[tuple[str, str, str], str]]] | None = None
+    #: Records, for the tables a completed read just fed, that their check for changes has
+    #: nothing to report: the check's next answer is then compared with that, and a read just
+    #: made is not asked for again. None where no check is kept.
+    settle: Callable[[tuple[str, ...]], Awaitable[None]] | None = None
 
 
 Connect = Callable[[Any], Awaitable[Reading]]
@@ -90,6 +94,19 @@ async def unchanged(connect: Connect, source: Any) -> str | None:
 
     One small batch of requests for each mailbox: every kept link followed for one item. Nothing
     is kept from the answers, so the links stand until a completed read replaces them."""
+    try:
+        return await _asked_unchanged(connect, source)
+    except Exception as failed:  # allow-ble: a check that cannot be made, for whatever reason (the sign-in refused, the organisation's switch off, the directory or the network not answering), must ask for a read, which reports that reason on the replica; it must never end the tick with nothing asked, and never say "unchanged"
+        log.warning(
+            "microsoft_365 %s: could not check for changes, so a read is asked for (%s: %s)",
+            getattr(source, "id", "?"),
+            type(failed).__name__,
+            failed,
+        )
+        return None
+
+
+async def _asked_unchanged(connect: Connect, source: Any) -> str | None:
     from provisa.federation.mail_sync_state import DELTA
 
     reading = await connect(source)
@@ -115,10 +132,7 @@ async def unchanged(connect: Connect, source: Any) -> str | None:
                 for account, kept in sorted(links.items())
             )
 
-    try:
-        return None if await asyncio.to_thread(asked) else UNCHANGED
-    except (GraphRefused, GraphThrottled):
-        return None  # Graph would not answer: that is not "unchanged"
+    return None if await asyncio.to_thread(asked) else UNCHANGED
 
 
 class NoMailboxRead(RuntimeError):
@@ -421,6 +435,8 @@ class _MessagesRead:
         # instead of taking it for one added to the source since.
         rows.update({(account, mail.MAILBOX, PROBE): LEFT_OUT for account in gone})
         await reading.keep(rows)
+        if reading.settle is not None:
+            await reading.settle(self._tables)
 
     async def batches(self, batch_rows: int) -> AsyncIterator[tuple[str, Any]]:
         from provisa.core.ir_arrow import arrow_schema, rows_to_batch
@@ -511,6 +527,19 @@ def make_connect(state: Any) -> Connect:
             async with state.tenant_db.acquire() as conn:
                 return await mail_sync_state.read_all(conn, source.id)
 
+        async def settle(tables: tuple[str, ...]) -> None:
+            # What the poll node of each table compares its check's answer with
+            # (events.injector.check_node): set to "unchanged" by the read that just completed,
+            # so the first check after it finds nothing new and asks for no second read.
+            from provisa.events import queue
+            from provisa.events.nodes import source_node
+
+            async with state.tenant_db.acquire() as conn:
+                for table in tables:
+                    await queue.set_node_state(
+                        conn, source_node(source.id, SCHEMA, table), probe_token=UNCHANGED
+                    )
+
         if settings.organisation:
             assert settings.mailboxes is not None  # the organisation shape names its mailboxes
             # Refused by name unless the organisation's administrator allowed sources that
@@ -523,6 +552,7 @@ def make_connect(state: Any) -> Connect:
                 at_once=int(settings_registry.value("mail.mailboxes_at_once")),
                 keep=keep,
                 kept=kept,
+                settle=settle,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         # Resolved here, where the organisation's vault is bound: the exchange runs in a
@@ -562,6 +592,6 @@ def make_connect(state: Any) -> Connect:
                 loop,
             ).result()
 
-        return Reading((settings.account,), signed_in, keep=keep, kept=kept)
+        return Reading((settings.account,), signed_in, keep=keep, kept=kept, settle=settle)
 
     return connect

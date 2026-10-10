@@ -301,6 +301,15 @@ def thread_rows(account: str, items: list[dict]) -> list[dict[str, Any]]:
     return rows
 
 
+def _nothing_since(answer: Any) -> bool:
+    """Whether a followed link's answer says nothing changed: no item, and the round ended."""
+    return (
+        isinstance(answer, dict)
+        and answer.get("value") == []
+        and isinstance(answer.get("@odata.deltaLink"), str)
+    )
+
+
 class Mailbox:
     """One account's mail, read through Graph."""
 
@@ -362,15 +371,20 @@ class Mailbox:
         """Whether anything of the mailbox's mail changed since ``links`` were kept: a message
         made, changed, removed or moved in any folder, or the list of folders itself. Each
         link is followed asking for one item; nothing is kept from the answers, so the links
-        stand as they were. A link Graph no longer honours cannot say "unchanged", so it
-        counts as changed."""
+        stand as they were.
+
+        A link says "unchanged" in exactly one way: its answer holds no item AND ends the round
+        (an ``@odata.deltaLink``). Graph may give an empty page that is not the last ("there
+        are more pages of data to retrieve in the session, even if the current response
+        contains an empty result"), so an empty page with more to come is a change. So is a
+        link Graph no longer honours, and any answer that is not of that shape."""
         paths = [
             graph_address(link).removeprefix(BASE_URL) for _scope, link in sorted(links.items())
         ]
         if not paths:
             return True  # nothing kept to ask from
         answers = self._graph.batch_each(paths, prefer=("odata.maxpagesize=1",))
-        return any(isinstance(answer, GraphRefused) or answer["value"] for answer in answers)
+        return not all(_nothing_since(answer) for answer in answers)
 
     def _html(self, page: list[dict], unread: list[str]) -> dict[str, str | None]:
         """The HTML body of each message of ``page``. One Graph will not give is None, and its
