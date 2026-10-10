@@ -48,6 +48,7 @@ def _state(*, rls: dict[str, RLSContext], reads: dict[str, list[int]], roles: di
         tracked_functions={},
         tracked_webhooks={},
         meta_roles={},
+        meta_resolved_at={},
         role_build_inputs={
             "tables": tables,
             "metrics": [],

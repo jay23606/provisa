@@ -740,6 +740,11 @@ class AppState:
         return self._active_runtime().meta_roles
 
     @property
+    def meta_resolved_at(self) -> dict:
+        """meta-role id → when a request last resolved it (OrgRuntime.meta_resolved_at)."""
+        return self._active_runtime().meta_resolved_at
+
+    @property
     def view_context(self) -> CompilationContext | None:
         """The model-wide context view SQL is lowered against (OrgRuntime.view_context)."""
         return self._active_runtime().view_context

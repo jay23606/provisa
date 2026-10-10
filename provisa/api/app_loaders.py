@@ -27,6 +27,7 @@ from provisa.api.startup_resilience import tolerate_startup_failure
 from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.naming import source_to_catalog
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
+from provisa.security.meta_role import is_meta_role_id, rebuild_meta_roles, with_meta_masks
 from provisa.security.rights import Capability, reaches_all_domains
 from provisa.compiler.context import build_context
 from provisa.compiler.rls import build_rls_context
@@ -1393,7 +1394,9 @@ async def _load_masking_rules(  # REQ-040, REQ-263, REQ-1677
             if holds_grant(role["id"], unmasked_to, chains):
                 continue
             rules.setdefault((table_id, role["id"]), {})[col_name] = (mask_rule, data_type)
-    state.masking_rules = rules
+    # The meta-roles requests are acting as keep their masks through the rebuild: they are
+    # published here, in the same assignment as their members'.
+    state.masking_rules = with_meta_masks(state, rules, {role["id"] for role in roles})
 
 
 async def _load_kept(conn: Any) -> None:  # REQ-1942
@@ -1725,8 +1728,16 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
     # are built up across rebuilds of a live runtime, so a role deleted since the last build is
     # still in them: without this it keeps its rights (capability resolution reads state.roles)
     # and its schema, and goes on being served to whoever still names it.
+    #
+    # A meta-role is not among them and is not removed here: requests may be acting as it while
+    # this build runs. It is rebuilt from its rebuilt members, or removed, once they are
+    # registered (security/meta_role.rebuild_meta_roles, below).
     current = {role["id"] for role in roles}
-    for gone in [role_id for role_id in state.roles if role_id not in current]:
+    for gone in [
+        role_id
+        for role_id in state.roles
+        if role_id not in current and not is_meta_role_id(role_id)
+    ]:
         del state.roles[gone]
         _drop_data_surface(state, gone)
 
@@ -1756,6 +1767,8 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
             _drop_data_surface(state, role["id"])
             continue
         register_role_surface(state, role, build_rls_context(rls_rules, role["id"]))
+
+    rebuild_meta_roles(state, current)  # #216: a meta-role in use outlives the rebuild
 
     # REQ-045/REQ-143: the SERVED gRPC wire descriptor. A grpc.aio server registers exactly one
     # generated service and stock reflection serves exactly one descriptor pool, so the wire

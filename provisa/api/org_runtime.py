@@ -262,6 +262,9 @@ class OrgRuntime:
     role_build_inputs: dict = field(default_factory=dict)
     # meta-role id → the held roles it acts as (security/meta_role.py), this generation.
     meta_roles: dict = field(default_factory=dict)
+    # meta-role id -> when a request last resolved it (time.monotonic): what a rebuild reads to
+    # know a request may still be acting as it (security/meta_role.rebuild_meta_roles).
+    meta_resolved_at: dict = field(default_factory=dict)
 
     # REQ-1349: this org's rows from its ``org_settings`` table, read once at build time and
     # refreshed by the settings router when the org writes one. Cached here rather than read per
