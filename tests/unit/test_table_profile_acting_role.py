@@ -41,8 +41,11 @@ def governed(monkeypatch) -> list[str]:
     monkeypatch.setattr(
         router_mod, "table_for_steward", lambda request, state, table_id: {"draft": False}
     )
-    state = types.SimpleNamespace(model_db=object(), federation_engine=object())
+    state = types.SimpleNamespace(model_db=object(), federation_engine=object(), roles={})
     monkeypatch.setattr(router_mod, "state", state)
+    monkeypatch.setattr(router_mod, "require_role", lambda roles, role_id: {"id": role_id})
+    monkeypatch.setattr(router_mod, "role_max_query_time_ms", lambda role: None)
+    monkeypatch.setattr(router_mod, "request_timeout_for", lambda transport: 30.0)
     return seen
 
 
@@ -77,3 +80,45 @@ async def test_no_role_at_all_is_refused(governed):
         await router_mod.profile_table(_request(None), 7, x_provisa_role=None)
     assert (err.value.status_code, err.value.code) == (400, "profile.role_header_required")
     assert governed == []
+
+
+async def test_the_read_runs_inside_the_roles_own_time(monkeypatch):
+    """What a preview that waits on its copy's build answers before (ReplicaBuilding)."""
+    from provisa.api.admin.viewer_statement import ViewerRequest
+    from provisa.core import request_deadline
+
+    deadlines: list = []
+
+    async def _read(_state, table_id, role_id, *, limit=None, request=None):
+        deadlines.append(request_deadline.remaining())
+        return types.SimpleNamespace(column_names=["id"], rows=[])
+
+    monkeypatch.setattr(router_mod, "read_as_caller", _read)
+    monkeypatch.setattr(router_mod, "table_for_steward", lambda *a: {"draft": True})
+    monkeypatch.setattr(router_mod, "header_role", lambda *a: "r")
+    monkeypatch.setattr(router_mod, "require_role", lambda roles, role_id: {"id": role_id})
+    monkeypatch.setattr(router_mod, "role_max_query_time_ms", lambda role: 5000)
+    monkeypatch.setattr(router_mod, "request_timeout_for", lambda transport: 30.0)
+    monkeypatch.setattr(
+        router_mod,
+        "state",
+        types.SimpleNamespace(model_db=object(), federation_engine=object(), roles={}),
+    )
+    await router_mod._rows(types.SimpleNamespace(), 9, "r", page=ViewerRequest())
+    assert deadlines[0] is not None and deadlines[0] <= 5.0
+
+
+async def test_a_read_whose_copy_is_still_building_is_answered_by_code():
+    """On any route: the table and how long, by the code a statement on /data/sql is answered
+    with -- not the bare timeout answer."""
+    import json
+
+    from provisa.api.app import create_app
+    from provisa.federation.replica_state import ReplicaBuilding
+
+    handler = create_app().exception_handlers[ReplicaBuilding]
+    resp = await handler(types.SimpleNamespace(), ReplicaBuilding("mail.public.messages", 41.6))
+    body = json.loads(resp.body)
+    assert resp.status_code == 504
+    assert body["code"] == "data.replica_building"
+    assert body["params"] == {"replica": "mail.public.messages", "seconds": 42}

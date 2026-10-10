@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Alert, Button, Group, Loader, Text, TextInput } from "@mantine/core";
 import { RefreshCw } from "lucide-react";
-import { previewTable, runSql } from "../api/admin";
+import { PreviewRefused, previewTable, runSql } from "../api/admin";
 import type { RegisteredTable } from "../types/admin";
 import { ResultsGrid } from "../pages/sql/ResultsGrid";
 import type { ProvenanceEntry } from "../pages/sql/exportXlsx";
@@ -46,6 +46,8 @@ interface PageResult {
   rows: Record<string, unknown>[];
   hasMore: boolean;
   error: string;
+  /** REQ-1921: the page was not read because the table's copy is still being built. */
+  building: boolean;
 }
 
 interface GovernedTableViewerProps {
@@ -99,7 +101,12 @@ export function GovernedTableViewer({
     params: Record<string, string>,
     pageNo: number,
     size: number,
-  ): Promise<{ columns: string[]; rows: Record<string, unknown>[]; error?: string }> => {
+  ): Promise<{
+    columns: string[];
+    rows: Record<string, unknown>[];
+    error?: string;
+    building?: boolean;
+  }> => {
     if (!table.draft) {
       return runSql(pagedViewerSql(table, params, filters, sorts, groupBy, pageNo, size));
     }
@@ -112,6 +119,8 @@ export function GovernedTableViewer({
       columns: [],
       rows: [],
       error: e instanceof Error ? e.message : String(e),
+      // Its copy is still landing: said as that, not as a failure.
+      building: e instanceof PreviewRefused && e.code === "data.replica_building",
     }));
   };
 
@@ -140,6 +149,7 @@ export function GovernedTableViewer({
           rows: r.rows.slice(0, pageSize),
           hasMore: r.rows.length > pageSize,
           error: r.error ?? "",
+          building: r.building ?? false,
         });
         setFetchedKey(queryKey);
       });
@@ -273,6 +283,11 @@ export function GovernedTableViewer({
       ) : loading && result == null ? (
         <Group justify="center" py="xl">
           <Loader size="sm" />
+        </Group>
+      ) : result?.building ? (
+        <Group justify="center" gap="sm" py="xl" data-testid="table-preview-building">
+          <Loader size="sm" />
+          <Text size="sm">{result.error}</Text>
         </Group>
       ) : result?.error ? (
         <Alert color="red" data-testid="table-preview-error">

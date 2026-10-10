@@ -21,6 +21,10 @@ from provisa.api.admin.table_read import read_as_caller, table_for_steward
 from provisa.api.admin.viewer_statement import ViewerRequest
 from provisa.api.app import state
 from provisa.api.errors import ApiError
+from provisa.compiler.limits import role_max_query_time_ms
+from provisa.core import request_deadline
+from provisa.core.limits import request_timeout_for
+from provisa.security.rights import require_role
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/tables", tags=["admin", "tables"])
@@ -55,7 +59,14 @@ async def _rows(
             "profile.role_header_required",
             "X-Provisa-Role header required to read a table's rows",
         )
-    result = await read_as_caller(state, table_id, role_id, limit=limit, request=page)
+    # The read's time is the role's, as a statement's on /data/sql is (REQ-1905): the deadline
+    # is what a read that waits on a replica's build answers before (ReplicaBuilding, which
+    # the app answers by code).
+    transport_timeout = request_timeout_for("graphql")
+    role_ms = role_max_query_time_ms(require_role(state.roles, role_id))
+    timeout = transport_timeout if role_ms is None else min(transport_timeout, role_ms / 1000.0)
+    with request_deadline.within(timeout):
+        result = await read_as_caller(state, table_id, role_id, limit=limit, request=page)
     rows = [dict(zip(result.column_names, row)) for row in result.rows]
     return {
         "columns": list(result.column_names),

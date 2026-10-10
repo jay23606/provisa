@@ -109,7 +109,8 @@
       "unknown_root_field": "Onbekend queryveld '{{field}}': deze rol krijgt geen tabel met die naam",
       "viewer_column_unknown": "'{{column}}' is geen kolom van tabel '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' is geen filter van kolom '{{column}}'",
-      "viewer_value_invalid": "Het filter op '{{column}}' kan de waarde '{{value}}' niet gebruiken"
+      "viewer_value_invalid": "Het filter op '{{column}}' kan de waarde '{{value}}' niet gebruiken",
+      "replica_building": "De kopie van {{replica}} wordt nog opgebouwd. De opbouw gaat door; open het voorbeeld opnieuw zodra deze klaar is."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter voor '{{source_type}}' implementeert discover_schema niet",

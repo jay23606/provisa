@@ -15,11 +15,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 import type { RegisteredTable } from "../../types/admin";
-import { previewTable, runSql } from "../../api/admin";
+import { PreviewRefused, previewTable, runSql } from "../../api/admin";
 import { viewerRequest } from "../nativeParams";
 import type { ActiveFilter } from "../../pages/sql/columnFilter";
 
-vi.mock("../../api/admin", () => ({ runSql: vi.fn(), previewTable: vi.fn() }));
+vi.mock("../../api/admin", () => ({
+  runSql: vi.fn(),
+  previewTable: vi.fn(),
+  PreviewRefused: class PreviewRefused extends Error {
+    code: string | null;
+    constructor(message: string, code: string | null) {
+      super(message);
+      this.code = code;
+    }
+  },
+}));
 
 import { GovernedTableViewer } from "../GovernedTableViewer";
 import { TablePreviewModal } from "../TablePreviewModal";
@@ -92,6 +102,20 @@ describe("GovernedTableViewer over a draft", () => {
     render(<GovernedTableViewer table={DRAFT} role="analyst" />);
     expect(await screen.findByText(/No access to domain 'sales'/)).toBeInTheDocument();
     expect(runSql).not.toHaveBeenCalled();
+  });
+
+  it("says a copy still being built as that, not as a failure", async () => {
+    vi.mocked(previewTable).mockRejectedValue(
+      new PreviewRefused(
+        "The copy of mail.public.messages is still being built.",
+        "data.replica_building",
+      ),
+    );
+    render(<GovernedTableViewer table={DRAFT} role="steward" />);
+    expect(await screen.findByTestId("table-preview-building")).toHaveTextContent(
+      "The copy of mail.public.messages is still being built.",
+    );
+    expect(screen.queryByTestId("table-preview-error")).not.toBeInTheDocument();
   });
 
   it("a table in service is still read by the statement the viewer writes", async () => {

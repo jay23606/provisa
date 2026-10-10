@@ -109,7 +109,8 @@
       "unknown_root_field": "Unbekanntes Abfragefeld '{{field}}': Dieser Rolle wird keine Tabelle mit diesem Namen bereitgestellt",
       "viewer_column_unknown": "'{{column}}' ist keine Spalte der Tabelle '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' ist kein Filter der Spalte '{{column}}'",
-      "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden"
+      "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden",
+      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",

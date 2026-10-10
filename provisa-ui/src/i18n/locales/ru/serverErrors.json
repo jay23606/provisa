@@ -109,7 +109,8 @@
       "unknown_root_field": "Неизвестное поле запроса '{{field}}': этой роли не предоставляется таблица с таким именем",
       "viewer_column_unknown": "'{{column}}' не является столбцом таблицы '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' не является фильтром столбца '{{column}}'",
-      "viewer_value_invalid": "Фильтр по '{{column}}' не может использовать значение '{{value}}'"
+      "viewer_value_invalid": "Фильтр по '{{column}}' не может использовать значение '{{value}}'",
+      "replica_building": "Копия {{replica}} ещё создаётся. Создание продолжается; откройте предпросмотр снова, когда оно завершится."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Адаптер для '{{source_type}}' не реализует discover_schema",
