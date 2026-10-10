@@ -1141,6 +1141,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.cache_ttl,
                     input.replicate,
                     input.load_protected,
+                    input.freshness_gate,
                 ),
                 source_type=input.type,
             )
@@ -1557,6 +1558,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.cache_ttl,
                     input.replicate,
                     input.load_protected,
+                    input.freshness_gate,
                 ),
             )
             if _ttl_refusal is not None:
@@ -3432,7 +3434,10 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         async with pool.acquire() as conn:
             _sig = await conn.execute_core(
                 select(
-                    sources.c.change_signal, sources.c.replicate, sources.c.load_protected
+                    sources.c.change_signal,
+                    sources.c.replicate,
+                    sources.c.load_protected,
+                    sources.c.freshness_gate,
                 ).where(sources.c.id == source_id)
             )
             _sig_row = _sig.fetchone()
@@ -3445,6 +3450,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                         cache_ttl,
                         _sig_row.replicate,
                         _sig_row.load_protected,
+                        _sig_row.freshness_gate,
                     ),
                 )
                 if _ttl_refusal is not None:
@@ -3613,7 +3619,10 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         async with pool.acquire() as conn:
             _row = await conn.execute_core(
                 select(
-                    sources.c.change_signal, sources.c.cache_ttl, sources.c.load_protected
+                    sources.c.change_signal,
+                    sources.c.cache_ttl,
+                    sources.c.load_protected,
+                    sources.c.freshness_gate,
                 ).where(sources.c.id == source_id)
             )
             row = _row.fetchone()
@@ -3630,7 +3639,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _refusal = await landing_ttl_refusal(
                 conn,
                 source_id,
-                source=SourceTtl(row.change_signal, row.cache_ttl, replicate, row.load_protected),
+                source=SourceTtl(
+                    row.change_signal,
+                    row.cache_ttl,
+                    replicate,
+                    row.load_protected,
+                    row.freshness_gate,
+                ),
             )
             if _refusal is not None:
                 return _refusal
@@ -3871,9 +3886,12 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         pool = await _get_pool()
         async with pool.acquire() as conn:
             _res = await conn.execute_core(
-                select(sources.c.cache_ttl, sources.c.change_signal, sources.c.replicate).where(
-                    sources.c.id == source_id
-                )
+                select(
+                    sources.c.cache_ttl,
+                    sources.c.change_signal,
+                    sources.c.replicate,
+                    sources.c.freshness_gate,
+                ).where(sources.c.id == source_id)
             )
             row = _res.fetchone()
             if row is None:
@@ -3896,7 +3914,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _contradicted = await replicate_contradiction_refusal(
                 conn,
                 source_id,
-                source=SourceTtl(row.change_signal, row.cache_ttl, row.replicate, load_protected),
+                source=SourceTtl(
+                    row.change_signal,
+                    row.cache_ttl,
+                    row.replicate,
+                    load_protected,
+                    row.freshness_gate,
+                ),
             )
             if _contradicted is not None:
                 return _contradicted

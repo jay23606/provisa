@@ -57,11 +57,12 @@ export function sourceLoadFieldsValid(
   );
 }
 
-/** The change signals whose staleness clock IS the Cache TTL (REQ-930). */
-const TTL_CLOCK_SIGNALS = ["ttl", "ttl_probe"];
+/** The change signals whose clock IS the Cache TTL (REQ-930): ttl re-reads on it, and a probing
+ * signal asks its probe on it (server: role_ttl.CLOCKED_SIGNALS). */
+const TTL_CLOCK_SIGNALS = ["ttl", "ttl_probe", "probe"];
 
 /**
- * A ttl/ttl_probe change signal with no resolved landing Cache TTL (the table's own, else its
+ * A ttl/ttl_probe/probe change signal with no resolved landing Cache TTL (the table's own, else its
  * source's — the global response-cache default is not a landing clock) is refused only when the
  * data is replicated: `landed` is true for materialize / row_materialize / Replicate set to
  * Always or a Hot threshold / Load Protected. A live-read ttl table saves normally; the server raises on read if it ever lands
@@ -71,7 +72,12 @@ export function ttlSignalMissingCacheTtl(
   changeSignal: string | null,
   resolvedCacheTtl: number | null,
   landed: boolean,
+  // REQ-860: the source has the read-time freshness gate. Its probe is judged at each read,
+  // which is a cadence of its own, so `probe` there needs no Cache TTL (server: role_ttl
+  // missing_landing_ttl `gated`). The source form offers no bare `probe`, so it passes none.
+  gated: boolean = false,
 ): boolean {
+  if (changeSignal === "probe" && gated) return false;
   return (
     landed &&
     changeSignal !== null &&

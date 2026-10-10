@@ -47,6 +47,8 @@ class SourceTtl:
     cache_ttl: int | None
     replicate: int | None
     load_protected: bool
+    #: REQ-860: the source's read-time freshness gate; its ``probe`` needs no cache_ttl.
+    freshness_gate: bool
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,7 @@ async def _as_saved(
                 sources.c.cache_ttl,
                 sources.c.replicate,
                 sources.c.load_protected,
+                sources.c.freshness_gate,
             ).where(sources.c.id == source_id)
         )
         row = res.fetchone()
@@ -89,7 +92,13 @@ async def _as_saved(
                 code="schema.source_not_found",
                 params={"source": source_id},
             )
-        source = SourceTtl(row.change_signal, row.cache_ttl, row.replicate, row.load_protected)
+        source = SourceTtl(
+            row.change_signal,
+            row.cache_ttl,
+            row.replicate,
+            row.load_protected,
+            row.freshness_gate,
+        )
     res = await conn.execute_core(
         select(
             registered_tables.c.schema_name,
@@ -252,7 +261,11 @@ async def landing_ttl_refusal(
         ):
             continue
         err = missing_landing_ttl(
-            t.change_signal, source.change_signal, t.cache_ttl, source.cache_ttl
+            t.change_signal,
+            source.change_signal,
+            t.cache_ttl,
+            source.cache_ttl,
+            gated=source.freshness_gate,
         )
         if err is not None:
             return MutationResult(

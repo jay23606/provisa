@@ -1293,7 +1293,11 @@ def _validate_landing_ttl(config) -> None:  # REQ-1907
         ):
             continue
         err = missing_landing_ttl(
-            table.change_signal, source.change_signal, table.cache_ttl, source.cache_ttl
+            table.change_signal,
+            source.change_signal,
+            table.cache_ttl,
+            source.cache_ttl,
+            gated=source.freshness_gate,
         )
         if err is not None:
             raise ValueError(f"table {table.table_name!r} (source {source.id!r}): {err}")

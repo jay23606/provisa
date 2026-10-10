@@ -144,7 +144,7 @@ def _t(signal, ttl, **kw) -> TableTtl:
 
 
 def _s(signal, ttl, **kw) -> SourceTtl:
-    flags = dict(replicate=None, load_protected=False)
+    flags = dict(replicate=None, load_protected=False, freshness_gate=False)
     flags.update(kw)
     return SourceTtl(signal, ttl, **flags)
 
@@ -160,7 +160,7 @@ _LANDING = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
 async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
     tmp_path, signal, tflag, sflag
@@ -189,7 +189,7 @@ async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_path, signal):
     """Nothing in the operator's settings lands it, and the bound engine reads the source in
     place, so it has no replica and needs no landing clock."""
@@ -205,7 +205,25 @@ async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_p
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["probe", "native", "debezium", "kafka", "signal"])
+@pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
+async def test_a_probe_on_a_freshness_gated_source_needs_no_cache_ttl(tmp_path, tflag, sflag):
+    """REQ-860: a gated source's probe is judged at each read; without the gate a probe has no
+    cadence but the cache_ttl, and is refused without one."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path, source_signal="kafka") as db:
+        async with db.acquire() as conn:
+            gated = _s("kafka", None, freshness_gate=True, **sflag)
+            table = _t("probe", None, **tflag)
+            assert await landing_ttl_refusal(conn, "s", source=gated, table=table) is None
+            ungated = _s("kafka", None, **sflag)
+            refused = await landing_ttl_refusal(conn, "s", source=ungated, table=table)
+            assert refused is not None and refused.code == "schema.landing_ttl_required"
+            assert "change_signal 'probe'" in refused.message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "signal"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
 async def test_the_no_ttl_freshness_signals_need_no_cache_ttl(tmp_path, signal, tflag, sflag):
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
@@ -581,7 +599,7 @@ async def test_a_non_standard_threshold_is_kept_as_saved(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source_type", ["elasticsearch", "redis", "cassandra", "prometheus"])
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
     tmp_path, monkeypatch, source_type, signal
 ):
@@ -608,7 +626,7 @@ async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source_type", ["ingest", "data_profiler"])
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
     tmp_path, monkeypatch, source_type, signal
 ):

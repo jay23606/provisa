@@ -18,8 +18,8 @@ const LIVE = { materialize: false, replicate: null, loadProtected: null };
 const SRC = { changeSignal: "ttl", replicate: null, loadProtected: false };
 
 describe("tableTtlSignalError", () => {
-  it("refuses a landed ttl/ttl_probe table with no Cache TTL", () => {
-    for (const changeSignal of ["ttl", "ttl_probe"]) {
+  it("refuses a landed ttl, ttl_probe or probe table with no Cache TTL", () => {
+    for (const changeSignal of ["ttl", "ttl_probe", "probe"]) {
       expect(tableTtlSignalError({ ...LIVE, changeSignal, materialize: true }, SRC, null)).toBe(
         true,
       );
@@ -28,6 +28,15 @@ describe("tableTtlSignalError", () => {
         true,
       );
     }
+  });
+
+  it("lets a probe on a freshness-gated source go without a Cache TTL", () => {
+    // REQ-860: the gate judges the probe at each read; ttl and ttl_probe still need the clock.
+    const gated = { ...SRC, freshnessGate: true };
+    const landed = { ...LIVE, materialize: true };
+    expect(tableTtlSignalError({ ...landed, changeSignal: "probe" }, gated, null)).toBe(false);
+    expect(tableTtlSignalError({ ...landed, changeSignal: "ttl_probe" }, gated, null)).toBe(true);
+    expect(tableTtlSignalError({ ...landed, changeSignal: "ttl" }, gated, null)).toBe(true);
   });
 
   it("inherits the signal and the landing mode from the source", () => {
@@ -75,7 +84,7 @@ describe("tableTtlSignalError", () => {
     expect(tableTtlSignalError({ ...LIVE, changeSignal: "ttl", materialize: true }, SRC, 30)).toBe(
       false,
     );
-    for (const changeSignal of ["probe", "native", "debezium", "kafka"]) {
+    for (const changeSignal of ["native", "debezium", "kafka"]) {
       expect(tableTtlSignalError({ ...LIVE, changeSignal, materialize: true }, SRC, null)).toBe(
         false,
       );

@@ -45,7 +45,10 @@ export function roleTtlValid(rows: RoleTtl[]): boolean {
  */
 export function tableTtlSignalError(
   table: Pick<RegisteredTable, "changeSignal" | "materialize" | "replicate" | "loadProtected">,
-  source: Pick<Source, "changeSignal" | "replicate" | "loadProtected"> | undefined,
+  source:
+    | (Pick<Source, "changeSignal" | "replicate" | "loadProtected"> &
+        Partial<Pick<Source, "freshnessGate">>)
+    | undefined,
   resolvedCacheTtl: number | null,
 ): boolean {
   const signal = table.changeSignal ?? source?.changeSignal ?? null;
@@ -57,5 +60,5 @@ export function tableTtlSignalError(
       resolvedReplicate(table.replicate, source?.replicate),
       table.loadProtected ?? source?.loadProtected ?? false,
     );
-  return ttlSignalMissingCacheTtl(signal, resolvedCacheTtl, landed);
+  return ttlSignalMissingCacheTtl(signal, resolvedCacheTtl, landed, source?.freshnessGate === true);
 }

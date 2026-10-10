@@ -40,13 +40,17 @@ describe("source load/timeliness client validation", () => {
     expect(sentinelPathValid("/local/path")).toBe(false);
   });
 
-  it("refuses a ttl/ttl_probe signal with no landing Cache TTL only when the data lands", () => {
+  it("refuses a ttl, ttl_probe or probe signal with no landing Cache TTL only when the data lands", () => {
     expect(ttlSignalMissingCacheTtl("ttl", null, true)).toBe(true);
     expect(ttlSignalMissingCacheTtl("ttl_probe", null, true)).toBe(true);
+    // A probe is asked on the Cache TTL and nowhere else: without one it is never asked again.
+    expect(ttlSignalMissingCacheTtl("probe", null, true)).toBe(true);
+    expect(ttlSignalMissingCacheTtl("probe", 60, true)).toBe(false);
+    expect(ttlSignalMissingCacheTtl("probe", null, false)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", null, false)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", 60, true)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", 0, true)).toBe(false);
-    for (const other of ["probe", "native", "debezium", "kafka"]) {
+    for (const other of ["native", "debezium", "kafka"]) {
       expect(ttlSignalMissingCacheTtl(other, null, true)).toBe(false);
     }
     expect(ttlSignalMissingCacheTtl(null, null, true)).toBe(false);
@@ -96,7 +100,7 @@ describe("source load/timeliness client validation", () => {
     expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", replicate: 500 })).toBe(false);
     expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", replicate: -1 })).toBe(true);
     expect(sourceLoadFieldsValid({ ...ok, replicate: -1, loadProtected: true })).toBe(false);
-    for (const signal of ["probe", "native", "debezium", "kafka"]) {
+    for (const signal of ["native", "debezium", "kafka"]) {
       expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", changeSignal: signal })).toBe(true);
     }
   });

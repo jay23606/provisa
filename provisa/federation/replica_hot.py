@@ -281,7 +281,11 @@ def hot_candidates(
             continue
         if (
             missing_landing_ttl(
-                reg.change_signal, source.change_signal, reg.cache_ttl, source.cache_ttl
+                reg.change_signal,
+                source.change_signal,
+                reg.cache_ttl,
+                source.cache_ttl,
+                gated=source.freshness_gate,
             )
             is not None
         ):
@@ -374,7 +378,11 @@ def hot_view(state: Any, source: Any, table: Any) -> "HotView":
             skipped = NOT_WHOLE
         elif (
             missing_landing_ttl(
-                table.change_signal, source.change_signal, table.cache_ttl, source.cache_ttl
+                table.change_signal,
+                source.change_signal,
+                table.cache_ttl,
+                source.cache_ttl,
+                gated=source.freshness_gate,
             )
             is not None
         ):
