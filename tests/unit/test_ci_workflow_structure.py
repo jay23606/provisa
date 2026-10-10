@@ -629,68 +629,19 @@ def test_the_leaf_check_runs_only_on_ci_branches_and_never_on_main_or_a_tag():
     assert set(jobs["verdict"]["needs"]) == set(jobs) - {"verdict"}
 
 
-# The proof's level-2 jobs call one real caller of each kind and pass it, by name, exactly what
-# that lane reads on main. They exist only on the proof branch: the flip commit removes them.
-_REAL_CALLER_SECRETS = {
-    "real-amd64-engines": set(),
-    "real-suite-neo4j": {"SPLUNKBASE_USERNAME", "SPLUNKBASE_PASSWORD"},
-    "real-ui-trino": {"SP_CERT_P12_BASE64"},
-    "real-suite": {"ANTHROPIC_API_KEY", "SPLUNKBASE_USERNAME", "SPLUNKBASE_PASSWORD"},
-    "real-ui-swap": set(),
-    # Level 4: every secret ui-e2e-core.yml declares -- the live sources and the model key.
-    "real-ui-core": {
-        "ANTHROPIC_API_KEY",
-        "AZURE_CLIENT_ID",
-        "AZURE_CLIENT_SECRET",
-        "AZURE_TENANT_ID",
-        "DATABRICKS_HTTP_PATH",
-        "DATABRICKS_SERVER_HOSTNAME",
-        "DATABRICKS_TOKEN",
-        "FABRIC_CAPACITY_NAME",
-        "FABRIC_DATABASE",
-        "FABRIC_RESOURCE_GROUP",
-        "FABRIC_SQL_SERVER",
-        "GOOGLE_APPLICATION_CREDENTIALS_JSON",
-        "GOOGLE_CLOUD_PROJECT",
-        "GSHEETS_TEST_SHEET_ID",
-        "SNOWFLAKE_ACCOUNT",
-        "SNOWFLAKE_PASSWORD",
-        "SNOWFLAKE_USER",
-        "SNOWFLAKE_WAREHOUSE",
-        "SP_CERT_P12_BASE64",
-        "SP_CERT_PASSWORD",
-        "SP_CLIENT_ID",
-        "SP_SITE_URL",
-        "SP_TENANT_ID",
-    },
-}
-# The level at which each starts (the neo4j lane alone only AT level 2: level 3 runs the suite).
-_REAL_CALLER_GATE = {
-    "real-amd64-engines": ">= 2 && fromJSON(needs.scope.outputs.level) < 4",
-    "real-suite-neo4j": "== 2",
-    "real-ui-trino": ">= 2 && fromJSON(needs.scope.outputs.level) < 4",
-    "real-suite": "== 3",
-    "real-ui-swap": "== 3",
-    "real-ui-core": "== 4",
-}
-
-
-def test_the_leaf_check_reads_no_secret_below_level_two_and_can_publish_nothing():
+def test_the_leaf_check_reads_no_secret_and_can_publish_nothing():
     for name in (_LEAF_CHECK, "ci-leaf-stub-leg.yml"):
         path = REPO / ".github" / "workflows" / name
         workflow = yaml.safe_load(path.read_text())
         # Its token reads the repository and nothing else, for every job.
         assert workflow["permissions"] == {"contents": "read"}
         for job, body in workflow["jobs"].items():
-            allowed = _REAL_CALLER_SECRETS.get(job, set()) if name == _LEAF_CHECK else set()
             read = set(re.findall(r"secrets\.([A-Za-z0-9_]+)", yaml.safe_dump(body)))
-            assert read == allowed, f"{name}:{job} reads {sorted(read)}"
-            # A value passed as a secret is one of those, or a literal (the lane's self-test
-            # passes a made-up string to show an expression over the matrix reaches one lane).
+            assert not read, f"{name}:{job} reads {sorted(read)}"
+            # What the lane's self-test passes as a secret is a made-up literal (to show an
+            # expression over the matrix reaches one lane), never a repository secret.
             passed = body.get("secrets") or {}
-            assert {k for k, v in passed.items() if "secrets." in str(v)} == allowed, (
-                f"{name}:{job}"
-            )
+            assert not [k for k, v in passed.items() if "secrets." in str(v)], f"{name}:{job}"
             assert "permissions" not in body, f"{name}:{job} widens its token"
             # No leg of the release is called, and no step is one that publishes.
             assert not str(body.get("uses", "")).startswith("./.github/workflows/release-")
@@ -705,21 +656,14 @@ def test_the_leaf_check_reads_no_secret_below_level_two_and_can_publish_nothing(
                 # ensure-release, the one action here that could create a release, is skipped.
                 if "ensure-release" in str(step.get("uses", "")):
                     assert step["if"] == "${{ fromJSON('false') }}"
-    # A job that calls a real caller is a level-2 job, gated on the level file.
+    # The proof scaffolding is gone (it was removed when the refactor reached main): no job
+    # calls a real caller workflow -- only the lane workflow and the stand-in leg -- and the file
+    # that chose a proof level does not exist.
     jobs = yaml.safe_load((REPO / ".github" / "workflows" / _LEAF_CHECK).read_text())["jobs"]
-    real = {
-        job
-        for job, body in jobs.items()
-        if str(body.get("uses", "")).startswith("./.github/workflows/")
-        and body["uses"] not in (LANE, "./.github/workflows/ci-leaf-stub-leg.yml")
-    }
-    assert real == set(_REAL_CALLER_SECRETS)
-    for job in real:
-        assert jobs[job]["needs"] == ["scope", "level-1"]
-        assert jobs[job]["if"] == f"fromJSON(needs.scope.outputs.level) {_REAL_CALLER_GATE[job]}"
-    # Neither suite call asks for the lanes that hold live credentials.
-    for job in ("real-suite", "real-suite-neo4j"):
-        assert set(jobs[job]["with"]) == {"lanes"}
+    for job, body in jobs.items():
+        if "uses" in body:
+            assert body["uses"] in (LANE, "./.github/workflows/ci-leaf-stub-leg.yml"), job
+    assert not (REPO / ".github" / "ci-proof-level").exists()
 
 
 def test_no_workflow_inherits_secrets_or_serialises_them():
@@ -776,23 +720,20 @@ def test_the_leaf_check_covers_every_leaf_or_says_why_not():
             assert "failure-expected" not in body["with"], f"{caller}:{job}"
 
 
-def test_the_proof_level_is_one_committed_file_and_each_level_needs_the_one_below():
-    """A push proves up to the level `.github/ci-proof-level` names, so it does not start
-    everything; level 1's jobs need level 0's gate, which needs every composite action's check."""
+def test_the_reusable_workflows_are_checked_only_after_every_action_is():
+    """Level 1's jobs need level 0's gate, which needs every composite action's check: a broken
+    action is reported as itself, not as a lane that failed for an unclear reason."""
     _text, workflow = _leaf_check()
-    level = (REPO / ".github" / "ci-proof-level").read_text().strip()
-    assert level in {"0", "1", "2", "3", "4"}, level
     jobs = workflow["jobs"]
-    assert jobs["scope"]["outputs"] == {"level": "${{ steps.level.outputs.level }}"}
-    level_one = {"lane", "lane-fails", "release-dry-run"}
-    for job in level_one:
+    for job in ("lane", "lane-fails", "release-dry-run"):
         assert jobs[job]["needs"] == ["scope", "level-0"], job
-        assert jobs[job]["if"] == "fromJSON(needs.scope.outputs.level) >= 1", job
+        assert "if" not in jobs[job], job
     level_zero = set(jobs["level-0"]["needs"])
     assert level_zero == {
         job for job, body in jobs.items() if str(body.get("name", "")).startswith("action / ")
     }
     assert len(level_zero) == 10
+    assert jobs["level-1"]["needs"] == ["lane-results", "release-results"]
 
 
 def test_no_proof_job_fails_on_purpose_uncontained_and_no_needed_job_is_contained():

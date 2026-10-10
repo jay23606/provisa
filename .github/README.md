@@ -131,7 +131,11 @@ by review alone.
 | A job failed under `continue-on-error` shows `success` to its dependant | 37983239912 |
 | Real callers through `lane.yml`: amd64-only engines, the suite's neo4j lane, the UI Trino lane | 37985386268 |
 | A callable workflow given a few of its declared secrets by name; `inputs.lanes` on a push | 37985386268 |
+| The whole suite through `lane.yml`: every lane and shard and the cluster job, with the same counts as main's own suite on the same tree | 38022163213 |
+| The UI swap lane through `lane.yml`: it ran, failed for a cause outside the workflow, and uploaded its report and logs | 38022163213 |
+| The core UI lane as two jobs with 23 secrets by name: credential files written and removed, the sampler, the not-executed list, reports after failure; a run that would pass its bound stops itself and still writes them | 38050265191 |
 
-Unproven: the other suite lanes and the cluster job through `lane.yml`; the UI swap lane; the
-core UI lane with its live credentials; the release legs (a dry run); the warehouse and
-Salesforce jobs with secrets passed by name.
+Unproven: the core UI lane PASSING (run 38050265191 found its cause -- the runner out of memory
+with ten databases started at once -- and the specs' fix has not run yet); the release legs (a
+dry run); the warehouse and Salesforce jobs with secrets passed by name; `integration-suite.yml`
+as main's caller of the lanes (its first suite on main).

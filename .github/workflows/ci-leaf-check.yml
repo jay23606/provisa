@@ -49,27 +49,8 @@ jobs:
     if: startsWith(github.ref, 'refs/heads/ci/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    outputs:
-      level: ${{ steps.level.outputs.level }}
     steps:
-      - uses: actions/checkout@v4
-      # The highest level this push proves, named by one committed file. A level runs only when
-      # the level below it passed in this run.
-      #   0  each composite action alone
-      #   1  the reusable workflows with trivial work (the lane; the release's control flow)
-      #   2  one REAL caller of each kind, at its cheapest (proof only: removed at the flip)
-      #   3  the orchestrated runs: the whole suite, and the UI swap lane (proof only)
-      #   4  the UI core lane ALONE, with its live credentials (proof only; the maintainer's word
-      #      each time). Levels 2 and 3 do not run at level 4: they are proven and cost hours.
-      - name: The level to prove
-        id: level
-        run: |
-          level="$(tr -d '[:space:]' < .github/ci-proof-level)"
-          case "$level" in
-            0|1|2|3|4) echo "level=$level" >> "$GITHUB_OUTPUT" ;;
-            *) echo "::error::.github/ci-proof-level is '$level'; this workflow proves levels 0 to 4"; exit 1 ;;
-          esac
-          echo "proving up to level $level on ${GITHUB_REF_NAME} at ${GITHUB_SHA}"
+      - run: echo "proving the leaves on ${GITHUB_REF_NAME} at ${GITHUB_SHA}"
 
   # ── composite actions ──────────────────────────────────────────────────────────────────────
 
@@ -354,7 +335,6 @@ jobs:
   lane:
     name: lane / ${{ matrix.case }}
     needs: [scope, level-0]
-    if: fromJSON(needs.scope.outputs.level) >= 1
     strategy:
       fail-fast: false
       matrix:
@@ -401,7 +381,6 @@ jobs:
   lane-fails:
     name: lane / fails on purpose
     needs: [scope, level-0]
-    if: fromJSON(needs.scope.outputs.level) >= 1
     uses: ./.github/workflows/lane.yml
     with:
       name: leaf fails
@@ -479,7 +458,6 @@ jobs:
   release-dry-run:
     name: release / dry run
     needs: [scope, level-0]
-    if: fromJSON(needs.scope.outputs.level) >= 1
     uses: ./.github/workflows/ci-leaf-stub-leg.yml
     with:
       version: ${{ inputs.version || github.ref_name }}
@@ -511,13 +489,7 @@ jobs:
           assert dry.get("left-the-run") == "false", dry
           EOF
 
-  # ── level 2: one real caller of each kind (PROOF ONLY -- removed in the flip commit) ───────
-  #
-  # A push to a ci/** branch cannot trigger these workflows (their own triggers are main,
-  # release branches, tags), so they are called. Each reads exactly what it reads on main today,
-  # passed by name: the amd64 engines none; the Trino UI lane the SharePoint certificate; the
-  # suite's neo4j lane the Splunkbase account its harness may need.
-
+  # Level 1 as one job: the lane workflow and the release's control flow behaved as they should.
   level-1:
     name: level 1 / the reusable workflows
     needs: [lane-results, release-results]
@@ -525,102 +497,6 @@ jobs:
     timeout-minutes: 5
     steps:
       - run: echo "the lane workflow and the release's control flow behaved as they should"
-
-  real-amd64-engines:
-    name: real / amd64-only engines
-    needs: [scope, level-1]
-    if: fromJSON(needs.scope.outputs.level) >= 2 && fromJSON(needs.scope.outputs.level) < 4
-    uses: ./.github/workflows/amd64-engines.yml
-
-  real-suite-neo4j:
-    name: real / suite (neo4j)
-    needs: [scope, level-1]
-    # At level 3 the whole suite runs instead, which includes this lane.
-    if: fromJSON(needs.scope.outputs.level) == 2
-    uses: ./.github/workflows/integration-suite-lanes.yml
-    with:
-      lanes: neo4j
-    secrets:
-      SPLUNKBASE_USERNAME: ${{ secrets.SPLUNKBASE_USERNAME }}
-      SPLUNKBASE_PASSWORD: ${{ secrets.SPLUNKBASE_PASSWORD }}
-    # The suite's own queue: behind a suite already running on main, never beside it.
-    concurrency:
-      group: integration-suite
-      queue: max
-
-  real-ui-trino:
-    name: real / UI Trino lane
-    needs: [scope, level-1]
-    if: fromJSON(needs.scope.outputs.level) >= 2 && fromJSON(needs.scope.outputs.level) < 4
-    uses: ./.github/workflows/ui-e2e-trino.yml
-    secrets:
-      SP_CERT_P12_BASE64: ${{ secrets.SP_CERT_P12_BASE64 }}
-
-  # ── level 3: the orchestrated runs (PROOF ONLY -- removed in the flip commit) ──────────────
-  #
-  # The whole suite as a push to main runs it: every lane and the cluster job, no warehouse and
-  # no Salesforce lane (those are nightly or on demand, with live credentials -- level 4). It
-  # is passed the three secrets the lanes read on main. And the UI swap lane, which reads none.
-
-  real-suite:
-    name: real / suite (all lanes)
-    needs: [scope, level-1]
-    if: fromJSON(needs.scope.outputs.level) == 3
-    uses: ./.github/workflows/integration-suite-lanes.yml
-    with:
-      lanes: all
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      SPLUNKBASE_USERNAME: ${{ secrets.SPLUNKBASE_USERNAME }}
-      SPLUNKBASE_PASSWORD: ${{ secrets.SPLUNKBASE_PASSWORD }}
-    concurrency:
-      group: integration-suite
-      queue: max
-
-  real-ui-swap:
-    name: real / UI swap lane
-    needs: [scope, level-1]
-    if: fromJSON(needs.scope.outputs.level) == 3
-    uses: ./.github/workflows/ui-e2e-swap-amd64.yml
-
-  # ── level 4: the UI core lane with its live credentials (PROOF ONLY -- removed at the flip) ─
-  #
-  # Run for a cause: the lane has reached its 120-minute bound on every release, failing from the
-  # first provisioning spec on, and a timed-out run printed no error text. Here its two jobs run
-  # as refactored -- the provisioning specs alone on their own runner with one worker, each with
-  # the runner sampler and Playwright's JSON report -- and are passed the lane's secrets by name:
-  # the live sources (Snowflake, Databricks, BigQuery and Google Sheets, Fabric and the Azure
-  # principal that resumes and pauses its capacity, SharePoint) and the model key.
-
-  real-ui-core:
-    name: real / UI core lane
-    needs: [scope, level-1]
-    if: fromJSON(needs.scope.outputs.level) == 4
-    uses: ./.github/workflows/ui-e2e-core.yml
-    secrets:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
-      DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
-      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      FABRIC_CAPACITY_NAME: ${{ secrets.FABRIC_CAPACITY_NAME }}
-      FABRIC_DATABASE: ${{ secrets.FABRIC_DATABASE }}
-      FABRIC_RESOURCE_GROUP: ${{ secrets.FABRIC_RESOURCE_GROUP }}
-      FABRIC_SQL_SERVER: ${{ secrets.FABRIC_SQL_SERVER }}
-      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
-      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
-      GSHEETS_TEST_SHEET_ID: ${{ secrets.GSHEETS_TEST_SHEET_ID }}
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      SP_CERT_P12_BASE64: ${{ secrets.SP_CERT_P12_BASE64 }}
-      SP_CERT_PASSWORD: ${{ secrets.SP_CERT_PASSWORD }}
-      SP_CLIENT_ID: ${{ secrets.SP_CLIENT_ID }}
-      SP_SITE_URL: ${{ secrets.SP_SITE_URL }}
-      SP_TENANT_ID: ${{ secrets.SP_TENANT_ID }}
 
   # ── the verdict ────────────────────────────────────────────────────────────────────────────
 
@@ -645,12 +521,6 @@ jobs:
       - release-dry-run
       - release-results
       - level-1
-      - real-amd64-engines
-      - real-suite-neo4j
-      - real-ui-trino
-      - real-suite
-      - real-ui-swap
-      - real-ui-core
     if: ${{ always() && startsWith(github.ref, 'refs/heads/ci/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -664,29 +534,9 @@ jobs:
 
           needs = json.loads(os.environ["NEEDS"])
           results = {job: need["result"] for job, need in needs.items()}
-          level = int(needs["scope"]["outputs"]["level"])
           # Every job must succeed. The lane that fails on purpose contains its failure (it does
           # not fail the run); lane-results asserts that it happened.
           expected = {job: "success" for job in results}
-          # Level 1's jobs do not run when the committed level is 0.
-          if level < 1:
-              for job in ("lane", "lane-fails", "lane-results", "release-dry-run",
-                          "release-results"):
-                  expected[job] = "skipped"
-              expected["level-1"] = "skipped"
-          # Level 2's jobs do not run below level 2.
-          if level < 2 or level == 4:
-              for job in ("real-amd64-engines", "real-ui-trino"):
-                  expected[job] = "skipped"
-          if level != 2:
-              expected["real-suite-neo4j"] = "skipped"
-          if level != 3:
-              for job in ("real-suite", "real-ui-swap"):
-                  expected[job] = "skipped"
-          # Level 4 is the UI core lane alone.
-          if level != 4:
-              expected["real-ui-core"] = "skipped"
-          print(f"level {level}")
           wrong = {job: (got, expected[job]) for job, got in results.items() if got != expected[job]}
           for job in sorted(results):
               print(f"{job:32} {results[job]:10} expected {expected[job]}")
