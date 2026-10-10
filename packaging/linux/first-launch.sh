@@ -977,7 +977,9 @@ ask_hostname() {
     echo "$default"
     return
   fi
-  printf "This node's hostname or IP [${default}]: "
+  # The answer is this function's output (its caller captures it), so the question goes to
+  # stderr: on stdout it became part of the answer.
+  printf "This node's hostname or IP [${default}]: " >&2
   local input
   read -r input
   input="${input//[[:space:]]/}"
@@ -993,14 +995,14 @@ ask_api_port() {
   local default=8000
   local port=""
   while true; do
-    printf "API port [${default}]: "
+    printf "API port [${default}]: " >&2  # stderr: stdout is the answer (see ask_hostname)
     read -r port
     port="${port//[[:space:]]/}"
     port="${port:-$default}"
     if [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1024 ] && [ "$port" -le 65535 ]; then
       break
     fi
-    printf "Invalid port. Enter a number between 1024 and 65535.\n"
+    printf "Invalid port. Enter a number between 1024 and 65535.\n" >&2
   done
   echo "$port"
 }
