@@ -10,8 +10,9 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Button, Group, Modal, Text } from "@mantine/core";
+import { Button, Modal, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 
 interface Props {
   title: string;
@@ -51,14 +52,16 @@ export function ConfirmDialog({ title, consequence, onConfirm, children }: Props
         withCloseButton={false}
       >
         <Text mb="md">{consequence}</Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setOpen(false)} disabled={loading}>
-            {t("common.cancel")}
-          </Button>
-          <Button color="red" onClick={handleConfirm} loading={loading}>
-            {loading ? t("common.processing") : t("common.confirm")}
-          </Button>
-        </Group>
+        {/* The action first, then the shared Cancel, at the start of the row like every form. */}
+        <FormFooter
+          onCancel={() => setOpen(false)}
+          cancelProps={{ disabled: loading }}
+          action={
+            <Button color="red" onClick={handleConfirm} loading={loading}>
+              {loading ? t("common.processing") : t("common.confirm")}
+            </Button>
+          }
+        />
       </Modal>
     </>
   );
