@@ -54,6 +54,8 @@ COST: dict[str, int] = {
     "labels.get": 1,
     "messages.list": 5,
     "messages.get": 20,
+    "history.list": 2,
+    "threads.get": 10,
 }
 #: Units a minute Google allows one mailbox, per project.
 UNITS_PER_MINUTE = 6000
@@ -182,6 +184,9 @@ class Gmail:
         # A service account reading as many users: each call says whose allowance it is
         # counted against (Google's ``quotaUser`` system parameter).
         self._quota_user = quota_user
+        #: The mailbox's history id as its read began, set by whoever opens the mailbox for a
+        #: read (its profile is the first thing asked): where that read will have reached.
+        self.opened_at: str | None = None
 
     async def _call(self, call: str, path: str, params: dict[str, Any] | None = None) -> dict:
         url = f"{BASE_URL}{self.account}/{path}"
@@ -268,6 +273,24 @@ class Gmail:
             if not token:
                 return
             params = {**params, "pageToken": token}
+
+    async def history(self, since: str) -> AsyncIterator[list[dict]]:
+        """What happened to the mailbox after the history record ``since``, a page of records
+        at a time: each names the messages added, deleted, and given or relieved of labels,
+        by id and thread. :class:`GmailNotFound` when Google no longer has ``since`` (it keeps
+        about a week of history): the mailbox is then read from its start."""
+        params: dict[str, Any] = {"startHistoryId": since, "maxResults": PAGE_SIZE}
+        while True:
+            answered = await self._call("history.list", "history", params)
+            yield answered.get("history", [])
+            token = answered.get("nextPageToken")
+            if not token:
+                return
+            params = {**params, "pageToken": token}
+
+    async def thread(self, thread_id: str) -> dict:
+        """One thread: its messages, each with its labels, snippet, date and headers."""
+        return await self._call("threads.get", f"threads/{thread_id}", {"format": "metadata"})
 
     async def message(self, message_id: str, mail: MailSettings) -> dict:
         """One message: whole, or its headers and labels only, as the source reads mail."""
