@@ -41,7 +41,6 @@ from typing import Any
 import httpx
 
 from provisa.core import canonical_mail as cm
-from provisa.core.secrets import resolve_secrets
 from provisa.federation.data_replicator import noted, unreadable_messages_note
 from provisa.google_workspace import settings as gw_settings
 from provisa.google_workspace.gmail import Gmail, GmailNotFound, GmailRefused, QuotaExhausted
@@ -84,12 +83,15 @@ def source_settings(source: Any) -> Settings:
     return gw_settings.parse(dict(getattr(source, "mapping", None) or {}))
 
 
-def _resolved(auth: Any) -> Any:
-    """``auth`` with its vault references resolved, in the context that holds the vault: the
-    token exchange runs in a worker thread, which holds none."""
+async def _resolved(admin_db: Any, org_id: str, auth: Any) -> Any:
+    """``auth`` with its vault references resolved in ``org_id``'s vault, here on the event
+    loop: the token exchange runs in a worker thread, which holds no vault. The vault is the
+    organisation's whoever calls (``mail_platforms.resolved``), never one the caller bound."""
+    from provisa.core import mail_platforms
+
     return auth.model_copy(
         update={
-            name: resolve_secrets(value)
+            name: await mail_platforms.resolved(admin_db, org_id, value)
             for name, value in auth.model_dump().items()
             if isinstance(value, str)
         }
@@ -597,8 +599,9 @@ def make_google_workspace_loader(connect: Connect) -> Any:
 async def organisation_account(admin_db: Any, org_id: str) -> tuple[Any, str]:
     """The organisation's Google service account and the administrator address directory calls
     are made as, for reading the organisation's mailboxes: refused by name unless its
-    administrator has allowed such sources. The key is resolved here, where the organisation's
-    vault is bound, and held only by the account."""
+    administrator has allowed such sources. The key is resolved here in the organisation's own
+    vault, which no caller need have bound (a source of the organisation's mailboxes names no
+    secret of its own, so a replica build binds none for it), and held only by the account."""
     from provisa.core import mail_platforms
     from provisa.google_workspace import SOURCE_TYPE
     from provisa.google_workspace.directory import ServiceAccount
@@ -612,7 +615,8 @@ async def organisation_account(admin_db: Any, org_id: str) -> tuple[Any, str]:
             f"{SOURCE_TYPE} needs organisation_key, admin_address",
             missing="organisation_key, admin_address",
         )
-    return ServiceAccount(resolve_secrets(entry.organisation_key)), admin
+    key = await mail_platforms.resolved(admin_db, org_id, entry.organisation_key)
+    return ServiceAccount(key), admin
 
 
 async def listed_mailboxes(account: Any, admin: str, chosen: Any) -> list[str]:
@@ -670,9 +674,9 @@ def make_connect(state: Any) -> Connect:
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         (address,) = settings.accounts
-        # Resolved here, where the organisation's vault is bound: the exchange runs in a
-        # worker thread, which holds none.
-        auth = _resolved(settings.auth(address, client))
+        # Resolved here, in the organisation's vault: the exchange runs in a worker thread,
+        # which holds none.
+        auth = await _resolved(state.admin_db, org_id, settings.auth(address, client))
 
         async def signed_in(_address: str) -> str:
             return await asyncio.to_thread(access_token, auth)

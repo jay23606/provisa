@@ -496,12 +496,26 @@ def organisation(plane, monkeypatch):  # noqa: F811  (the fixture from test_mail
         return ["ada@example.test", "bo@example.test"]
 
     monkeypatch.setattr(loader, "listed_mailboxes", listed_mailboxes)
-    monkeypatch.setattr(loader, "resolve_secrets", lambda reference: KEY)
     monkeypatch.setattr(settings_registry, "value", lambda key: 5)
     token = request_context.set_current_org("acme")
     state = SimpleNamespace(admin_db=plane, tenant_db=None)
     yield SimpleNamespace(plane=plane, connect=loader.make_connect(state), listed=listed)
     request_context.reset_current_org(token)
+
+
+@pytest.mark.asyncio
+async def test_the_key_is_read_from_the_organisations_vault_with_none_bound_by_the_caller(plane):  # noqa: F811
+    """A source of the organisation's mailboxes names no secret of its own, so a replica build,
+    a check for changes and a preview bind no vault for it: the reader must not rely on one."""
+    from provisa.core import secrets_store
+    from provisa.federation.source_vault import names_org_secret
+
+    assert names_org_secret(ORG_SOURCE) is False
+    await _put(plane, **ENTRY)
+    assert secrets_store.bound_org_id() is None
+    account, admin = await loader.organisation_account(plane, "acme")
+    assert (account._key, admin) == (KEY, ADMIN)
+    assert secrets_store.bound_org_id() is None  # bound for the read, and no longer
 
 
 @pytest.mark.asyncio
@@ -596,7 +610,6 @@ def check(plane, monkeypatch):  # noqa: F811
     monkeypatch.setattr(router, "_admin_db", lambda: plane)
     monkeypatch.setattr(router, "listed_mailboxes", listed_mailboxes)
     monkeypatch.setattr(secrets_store, "bound_to_request_org", bound)
-    monkeypatch.setattr(loader, "resolve_secrets", lambda reference: KEY)
     token = request_context.set_current_org("acme")
     yield SimpleNamespace(router=router, plane=plane, outcome=outcome)
     request_context.reset_current_org(token)

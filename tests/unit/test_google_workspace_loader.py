@@ -23,6 +23,7 @@ import httpx
 import pytest
 
 from provisa.core import canonical_mail as cm
+from provisa.core import mail_platforms
 from provisa.core.ir_arrow import arrow_schema, rows_to_batch
 from provisa.core.models import SourceType
 from provisa.google_workspace import SOURCE_TYPE, loader
@@ -38,6 +39,16 @@ from provisa.google_workspace.loader import (
 from provisa.google_workspace.settings import SECRET_KEYS, MailSettings
 
 pytestmark = pytest.mark.asyncio
+
+
+def _in_vault(resolve):
+    """The organisation's vault, standing in for ``mail_platforms.resolved``."""
+
+    async def resolved(_admin_db, _org_id, value):
+        return resolve(value)
+
+    return resolved
+
 
 ACCOUNT = "ada@example.test"
 FULL = MailSettings("full", None, (), None, False)
@@ -403,7 +414,9 @@ class TestTheLoader:
         seen["state"] = SimpleNamespace(admin_db="admin-plane")
         monkeypatch.setattr(loader, "Gmail", Recording)
         monkeypatch.setattr(
-            loader, "resolve_secrets", lambda v: v.replace("${secret:k}", "resolved-key")
+            mail_platforms,
+            "resolved",
+            _in_vault(lambda v: v.replace("${secret:k}", "resolved-key")),
         )
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", token_for)
         return seen
@@ -440,7 +453,9 @@ class TestTheLoader:
 
         monkeypatch.setattr(mail_platforms, "require", require)
         monkeypatch.setattr(
-            loader, "resolve_secrets", lambda v: v.replace("${secret:", "resolved:").rstrip("}")
+            mail_platforms,
+            "resolved",
+            _in_vault(lambda v: v.replace("${secret:", "resolved:").rstrip("}")),
         )
         token = request_context.set_current_org("acme")
         try:
@@ -581,7 +596,7 @@ class TestTheGroupBuild:
                 gmails.append(self)
 
         monkeypatch.setattr(loader, "Gmail", Recording)
-        monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
+        monkeypatch.setattr(mail_platforms, "resolved", _in_vault(lambda v: v))
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
         made = _connected_loader()
         made.gmails = gmails
@@ -658,7 +673,7 @@ class TestTheMailboxProbe:
                 raise AssertionError("a probe reads no message")
 
         monkeypatch.setattr(loader, "Gmail", Probed)
-        monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
+        monkeypatch.setattr(mail_platforms, "resolved", _in_vault(lambda v: v))
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
         made = _connected_loader()
         made.mailbox = mailbox
