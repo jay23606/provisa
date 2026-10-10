@@ -381,6 +381,28 @@ class EngineBackend:
                 await conn.execute_core(CreateSchema(schema, if_not_exists=True))
             return await apply_cdc(conn, tbl, pk_columns, events)
 
+    async def apply_change_group(self, state: Any, group: list[Any]) -> None:
+        """Apply the changes of several landed tables that belong together
+        (``federation.change_group``), in the order given and in one transaction of the store's
+        own connection. A store with no transaction across tables applies each table's change
+        as it comes, in that order. A native engine whose store is embedded and shares a single
+        connection (DuckDB) overrides this, as it does ``apply_cdc_events``."""
+        del state
+        from sqlalchemy.schema import CreateSchema
+
+        from provisa.federation.materialize_exec import apply_cdc, build_table
+        from provisa.federation.store_writer import store_connection
+
+        async with store_connection(self.engine.materialize_store()) as conn:
+            async with conn.transaction():
+                for changes in group:
+                    if changes.schema and conn.capabilities.schemas:
+                        await conn.execute_core(CreateSchema(changes.schema, if_not_exists=True))
+                    table = build_table(
+                        changes.schema, changes.table, changes.columns, tuple(changes.pk_columns)
+                    )
+                    await apply_cdc(conn, table, changes.pk_columns, changes.events)
+
     async def analyze_landed_table(
         self, state: Any, *, catalog: str | None, schema: str, table: str
     ) -> None:  # REQ-280, REQ-1688

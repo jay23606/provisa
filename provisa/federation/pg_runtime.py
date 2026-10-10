@@ -672,29 +672,76 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         Runs on the caller's own thread with the connection held, as ``land_table`` does."""
         if not pk_columns:
             raise ValueError(f"CDC land into {schema}.{table} requires primary key columns")
-        names = [name for name, _ in columns]
 
         def _run() -> dict[str, int]:
             cur = self._con.cursor()
             try:
-                self._ensure_table(cur, schema, table, columns, pk_columns)
-                counts = {"upsert": 0, "delete": 0}
-                for ev in events:
-                    if ev.operation.lower() == "delete":
-                        where = " AND ".join(f'"{c}" = %s' for c in pk_columns)
-                        cur.execute(
-                            f'DELETE FROM "{schema}"."{table}" WHERE {where}',
-                            tuple(ev.row.get(c) for c in pk_columns),
-                        )
-                        counts["delete"] += 1
-                    else:
-                        self._upsert_rows(cur, schema, table, names, pk_columns, [ev.row])
-                        counts["upsert"] += 1
-                return counts
+                return self._apply_events(cur, schema, table, columns, pk_columns, events)
             finally:
                 cur.close()
 
         return await self._land_guard.run(_run)
+
+    def _apply_events(
+        self,
+        cur: Any,
+        schema: str,
+        table: str,
+        columns: list[tuple[str, str]],
+        pk_columns: list[str],
+        events: list,
+    ) -> dict[str, int]:
+        """Apply change events to one table on ``cur``: insert/update -> upsert by key,
+        delete -> the row removed."""
+        names = [name for name, _ in columns]
+        self._ensure_table(cur, schema, table, columns, pk_columns)
+        counts = {"upsert": 0, "delete": 0}
+        for ev in events:
+            if ev.operation.lower() == "delete":
+                where = " AND ".join(f'"{c}" = %s' for c in pk_columns)
+                cur.execute(
+                    f'DELETE FROM "{schema}"."{table}" WHERE {where}',
+                    tuple(ev.row.get(c) for c in pk_columns),
+                )
+                counts["delete"] += 1
+            else:
+                self._upsert_rows(cur, schema, table, names, pk_columns, [ev.row])
+                counts["upsert"] += 1
+        return counts
+
+    async def apply_change_group(self, group: list[Any]) -> None:
+        """Apply the changes of several landed tables that belong together
+        (``federation.change_group``) in the order given, in ONE transaction: the connection
+        commits each statement on its own, so the group is bracketed explicitly and every
+        table changes or none does."""
+        for changes in group:
+            if not changes.pk_columns:
+                raise ValueError(
+                    f"CDC land into {changes.schema}.{changes.table} requires primary key columns"
+                )
+
+        def _run() -> None:
+            cur = self._con.cursor()
+            try:
+                cur.execute("BEGIN")
+                try:
+                    for changes in group:
+                        self._apply_events(
+                            cur,
+                            changes.schema,
+                            changes.table,
+                            changes.columns,
+                            changes.pk_columns,
+                            changes.events,
+                        )
+                except BaseException:
+                    cur.execute("ROLLBACK")
+                    raise
+                cur.execute("COMMIT")
+            finally:
+                cur.close()
+
+        await self._land_guard.run(_run)
 
     # -- materialization store -------------------------------------------------
 

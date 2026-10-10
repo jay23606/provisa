@@ -905,6 +905,28 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             shape=shape,
         )
 
+    async def apply_change_group(self, group: list[Any]) -> None:
+        """Apply a group of changes (``federation.change_group``) in one transaction: of the
+        embedded DuckDB store through the engine's own connection, else of the server store's."""
+        self.ensure_materialize_attached()
+        if self._store_is_duckdb():
+            self._store_broker.apply_change_group(group)
+            return
+        from sqlalchemy.schema import CreateSchema
+
+        from provisa.federation.materialize_exec import apply_cdc, build_table
+        from provisa.federation.store_writer import store_connection
+
+        async with store_connection(self._store_dsn()) as conn:
+            async with conn.transaction():
+                for changes in group:
+                    if changes.schema and conn.capabilities.schemas:
+                        await conn.execute_core(CreateSchema(changes.schema, if_not_exists=True))
+                    table = build_table(
+                        changes.schema, changes.table, changes.columns, tuple(changes.pk_columns)
+                    )
+                    await apply_cdc(conn, table, changes.pk_columns, changes.events)
+
     async def apply_cdc_events(
         self,
         *,

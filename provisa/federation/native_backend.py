@@ -705,6 +705,17 @@ class NativeEngineBackend(EngineBackend):
             shape=shape,
         )
 
+    async def apply_change_group(self, state: Any, group: list[Any]) -> None:
+        """Apply a group of changes through the runtime when it holds the store's own
+        connection, as ``apply_cdc_events`` does; otherwise the base store connection."""
+        runtime = self._runtime_for(state)
+        if hasattr(runtime, "apply_change_group"):
+            await runtime.apply_change_group(group)
+            return
+        await super().apply_change_group(  # pyright: ignore[reportAttributeAccessIssue]
+            state, group
+        )
+
     async def apply_cdc_events(
         self,
         state: Any,
