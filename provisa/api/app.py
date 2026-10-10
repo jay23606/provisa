@@ -3280,6 +3280,22 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
+    from provisa.federation.replica_state import ReplicaBuilding as _ReplicaBuilding
+
+    @app.exception_handler(_ReplicaBuilding)
+    async def _replica_building_handler(_req: _Request, exc: _ReplicaBuilding):  # noqa: F841  # pyright: ignore[reportUnusedFunction]
+        # A read's time ran out while the replica it needs was still being built (REQ-1661):
+        # not a slow statement and not a failure — the build goes on, and the body says which
+        # table and for how long, by the code /data/sql answers with.
+        return _JSONResponse(
+            status_code=504,
+            content={
+                "detail": str(exc),
+                "code": "data.replica_building",
+                "params": {"replica": exc.replica, "seconds": round(exc.running_for)},
+            },
+        )
+
     from provisa.core.secrets_providers import SecretNameRefused as _SecretNameRefused
 
     @app.exception_handler(_SecretNameRefused)

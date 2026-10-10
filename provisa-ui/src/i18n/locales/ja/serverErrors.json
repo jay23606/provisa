@@ -109,7 +109,8 @@
       "unknown_root_field": "不明なクエリフィールド '{{field}}': このロールにはその名前のテーブルが提供されていません",
       "viewer_column_unknown": "'{{column}}' はテーブル '{{table}}' の列ではありません",
       "viewer_filter_unknown": "'{{operator}}' は列 '{{column}}' のフィルターではありません",
-      "viewer_value_invalid": "'{{column}}' のフィルターでは値 '{{value}}' を使用できません"
+      "viewer_value_invalid": "'{{column}}' のフィルターでは値 '{{value}}' を使用できません",
+      "replica_building": "{{replica}} のコピーはまだ作成中です。作成は続行されます。完了後にもう一度プレビューを開いてください。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "「{{source_type}}」のアダプターは discover_schema を実装していません",

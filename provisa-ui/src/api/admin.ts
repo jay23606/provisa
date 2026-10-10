@@ -453,6 +453,16 @@ export async function deleteOrgRole(orgId: string, roleId: string): Promise<void
   if (!res.ok) throw httpError("deleteOrgRole", res.status);
 }
 
+/** A preview the server did not answer with rows, with the code it gave: the viewer tells a
+ * copy that is still being built (`data.replica_building`) from a refusal. */
+export class PreviewRefused extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.code = code;
+  }
+}
+
 /** One page of a registered table as the table viewer shows it, read as the caller — the read a
  * DRAFT takes (REQ-1921). The body is what the viewer chose; the server writes the statement.
  * One row more than the page comes back when a next page exists. */
@@ -473,7 +483,10 @@ export async function previewTable(
   });
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ detail: resp.statusText }));
-    throw new Error(serverMessage(body, requestFailed("previewTable", resp.status)));
+    throw new PreviewRefused(
+      serverMessage(body, requestFailed("previewTable", resp.status)),
+      typeof body?.code === "string" ? body.code : null,
+    );
   }
   return resp.json();
 }

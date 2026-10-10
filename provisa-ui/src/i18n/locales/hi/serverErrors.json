@@ -109,7 +109,8 @@
       "unknown_root_field": "अज्ञात क्वेरी फ़ील्ड '{{field}}': इस भूमिका को इस नाम की कोई तालिका उपलब्ध नहीं है",
       "viewer_column_unknown": "'{{column}}' तालिका '{{table}}' का कॉलम नहीं है",
       "viewer_filter_unknown": "'{{operator}}' कॉलम '{{column}}' का फ़िल्टर नहीं है",
-      "viewer_value_invalid": "'{{column}}' पर फ़िल्टर मान '{{value}}' का उपयोग नहीं कर सकता"
+      "viewer_value_invalid": "'{{column}}' पर फ़िल्टर मान '{{value}}' का उपयोग नहीं कर सकता",
+      "replica_building": "{{replica}} की प्रति अभी बनाई जा रही है। निर्माण जारी है; पूरा होने पर पूर्वावलोकन फिर से खोलें।"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' का अडैप्टर discover_schema लागू नहीं करता",

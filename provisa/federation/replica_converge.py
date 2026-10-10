@@ -185,6 +185,9 @@ async def converge_replicas(state: Any) -> Converged:
     # REQ-1921: a DRAFT may hold a replica, landed for its steward's preview and kept for its
     # release. It is declared — never retired, its definition watched — and no build of it is
     # asked for here: a draft is built when its steward previews it, not on the model's word.
+    # Why the replicator does not simply ignore ``draft``: a table is registered as a draft
+    # BEFORE its region is settled, and a scheduled build would land it somewhere before its
+    # steward has looked. A build the steward asks for is the steward's act.
     held_draft = [
         ((src.id, reg["schema_name"], reg["table_name"]), src, reg)
         for src, reg in await draft_replica_tables(engine, state)

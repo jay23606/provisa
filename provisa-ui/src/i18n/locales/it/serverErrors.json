@@ -109,7 +109,8 @@
       "unknown_root_field": "Campo di query sconosciuto '{{field}}': a questo ruolo non è servita alcuna tabella con quel nome",
       "viewer_column_unknown": "'{{column}}' non è una colonna della tabella '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' non è un filtro della colonna '{{column}}'",
-      "viewer_value_invalid": "Il filtro su '{{column}}' non può usare il valore '{{value}}'"
+      "viewer_value_invalid": "Il filtro su '{{column}}' non può usare il valore '{{value}}'",
+      "replica_building": "La copia di {{replica}} è ancora in fase di creazione. La creazione continua; riapri l'anteprima al termine."
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adattatore per '{{source_type}}' non implementa discover_schema",

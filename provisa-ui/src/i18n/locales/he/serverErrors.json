@@ -109,7 +109,8 @@
       "unknown_root_field": "שדה שאילתה לא מוכר '{{field}}': לתפקיד זה לא מוגשת טבלה בשם זה",
       "viewer_column_unknown": "'{{column}}' אינה עמודה של הטבלה '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' אינו מסנן של העמודה '{{column}}'",
-      "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'"
+      "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'",
+      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים."
     },
     "discovery": {
       "adapter_missing_discover_schema": "המתאם עבור '{{source_type}}' אינו מממש discover_schema",

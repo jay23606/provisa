@@ -109,7 +109,8 @@
       "unknown_root_field": "未知的查询字段“{{field}}”：此角色没有名为该名称的表",
       "viewer_column_unknown": "“{{column}}”不是表“{{table}}”的列",
       "viewer_filter_unknown": "“{{operator}}”不是列“{{column}}”的筛选器",
-      "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”"
+      "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”",
+      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",

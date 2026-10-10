@@ -109,7 +109,8 @@
       "unknown_root_field": "Unknown query field '{{field}}': this role is not served a table by that name",
       "viewer_column_unknown": "'{{column}}' is not a column of table '{{table}}'",
       "viewer_filter_unknown": "'{{operator}}' is not a filter of column '{{column}}'",
-      "viewer_value_invalid": "The filter on '{{column}}' cannot use the value '{{value}}'"
+      "viewer_value_invalid": "The filter on '{{column}}' cannot use the value '{{value}}'",
+      "replica_building": "The copy of {{replica}} is still being built. The build continues; open the preview again once it has finished."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter for '{{source_type}}' does not implement discover_schema",
