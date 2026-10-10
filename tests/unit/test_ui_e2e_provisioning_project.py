@@ -83,3 +83,26 @@ def test_the_lane_runs_the_provisioning_project_alone_with_one_worker():
     first = re.search(r"--project=core(?!-)", script)
     second = script.index("--project=core-provisioning")
     assert first and first.start() < second and "--workers=1" in script[second:]
+
+
+def test_each_core_job_starts_only_the_demo_sources_its_project_reads():
+    """Global setup starts the demo sources a run needs and keeps them up for the whole run. A
+    run of the "core" project alone needs the Hasura import's database and the Neo4j export
+    target, not the nine big sources of source-to-query.spec.ts, which is the provisioning
+    project's: started for both, they held about 5 GB of the "core" runner for nothing (run
+    38050265191)."""
+    resolver = (UI / "e2e" / "resolve-needed-sources.ts").read_text()
+    assert (
+        'projects[0] === "core"' in resolver and 'projects[0] === "core-provisioning"' in resolver
+    )
+    # What the resolver assumes about where each container-reading file runs.
+    provisioning = _list("PROVISIONING_SPECS")
+    assert "source-to-query.spec.ts" in provisioning
+    for core_file in ("hasura-import.spec.ts", "neo4j-docker-export.spec.ts"):
+        assert core_file not in provisioning
+        assert core_file in resolver
+    # Each job of the lane names exactly one project, so the resolver decides by it.
+    workflow = yaml.safe_load((REPO / ".github/workflows/ui-e2e-core.yml").read_text())
+    runs = {job: body["with"]["run"] for job, body in workflow["jobs"].items()}
+    assert re.findall(r"--project=([\w-]+)", runs["playwright"]) == ["core"]
+    assert re.findall(r"--project=([\w-]+)", runs["provisioning"]) == ["core-provisioning"]

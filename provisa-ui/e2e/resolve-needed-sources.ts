@@ -78,9 +78,43 @@ export interface NeededSources {
   neo4jExport: boolean;
 }
 
+/** The projects named on the command line (`--project core`, `--project=core`). */
+function argProjects(): string[] {
+  const argv = process.argv;
+  const found: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--project" && argv[i + 1]) found.push(argv[i + 1]);
+    else if (argv[i].startsWith("--project=")) found.push(argv[i].slice("--project=".length));
+  }
+  return found;
+}
+
+/**
+ * What a run of ONE core-lane project needs, or undefined when the projects named are not
+ * exactly one of the two. The core lane is two projects on two runners (playwright.config.ts):
+ * "core-provisioning" holds source-to-query.spec.ts, the one file that reads the big demo
+ * sources; "core" holds everything else, of which only the Hasura import (chinook) and the
+ * Neo4j export read a container. Starting all nine for "core" kept Elasticsearch, Cassandra,
+ * Splunk, Fuseki and Mongo up for its whole run with no spec in it reading them (run
+ * 38050265191: about 5 GB and a share of four cores on a runner at load 15-20).
+ */
+function projectNeeds(projects: string[], grep: string | undefined): NeededSources | undefined {
+  if (projects.length !== 1) return undefined;
+  if (projects[0] === "core") {
+    const fixed = new Set<DemoSource>(Object.values(FIXED_FILE_NEEDS).flat());
+    return { sources: DEMO_SOURCES.filter((s) => fixed.has(s)), neo4jExport: true };
+  }
+  if (projects[0] === "core-provisioning") {
+    return { sources: titleScopedNeeds(SOURCE_TO_QUERY_FILE, grep), neo4jExport: false };
+  }
+  return undefined;
+}
+
 export function resolveNeededSources(): NeededSources {
   const files = argSpecFiles();
   if (files.length === 0) {
+    const byProject = projectNeeds(argProjects(), grepPattern());
+    if (byProject) return byProject;
     // No positional spec-file filter — a whole-suite run. Every prior behavior is preserved:
     // start everything, since some file in the run needs each of them.
     return { sources: [...DEMO_SOURCES], neo4jExport: true };
