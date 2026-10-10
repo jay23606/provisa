@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { useTranslation } from "react-i18next";
-import { Trash2, Pencil, Check, X } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import {
   Alert,
   Button,
@@ -61,6 +61,7 @@ import {
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { relationName } from "../naming";
 import { serverMessage } from "../i18n/serverMessage";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 
 /** A role may be saved once it lists a domain — its own, or one a parent role hands down. */
 function listsADomain(form: { domainAccess: string[]; parentRoleId: string }): boolean {
@@ -267,19 +268,17 @@ export function SecurityRolesPage() {
         {/* Nested Group: the parent spreads its children, and the bubble explains this
             button, so it has to travel with it. */}
         <Group gap="xs">
-          <Button
-            data-testid="toggle-role-form"
-            onClick={() => {
-              if (showRoleForm) {
-                setShowRoleForm(false);
-              } else {
+          {!showRoleForm && (
+            <Button
+              data-testid="toggle-role-form"
+              onClick={() => {
                 setExpandedRole(null);
                 handleNewRole();
-              }
-            }}
-          >
-            {showRoleForm ? t("securityPage.closeForm") : t("securityPage.addRole")}
-          </Button>
+              }}
+            >
+              {t("securityPage.addRole")}
+            </Button>
+          )}
           <HelpBubble
             title={t("securityPage.rolePurposeTitle")}
             paragraphs={[t("securityPage.rolePurposeBody"), t("securityPage.rolePurposeAdd")]}
@@ -290,57 +289,70 @@ export function SecurityRolesPage() {
       </Group>
 
       {showRoleForm && (
-        <Stack
-          gap="sm"
-          p="md"
-          style={{ border: "1px solid var(--border)", borderRadius: "0.5rem" }}
-        >
-          <TextInput
-            label={t("securityPage.roleId")}
-            placeholder={t("securityPage.roleIdPlaceholder")}
-            value={roleForm.id}
-            onChange={(e) => setRoleForm({ ...roleForm, id: e.target.value })}
-            data-testid="role-id-input"
-          />
-          <CapabilityGrid
-            value={roleForm.capabilities}
-            onToggle={toggleCapability}
-            label={t("securityPage.capabilities")}
-          />
-          <ResidencyGrant
-            held={roleForm.capabilities.includes("data_residency")}
-            values={roleForm.residencyValues}
-            regions={regionChoices.regions}
-            onHeld={() => toggleCapability("data_residency")}
-            onValues={(residencyValues) => setRoleForm({ ...roleForm, residencyValues })}
-          />
-          <MultiSelect
-            label={t("securityPage.domainAccess")}
-            placeholder={t("securityPage.chooseDomains")}
-            options={domainOptions}
-            value={roleForm.domainAccess}
-            onChange={(selected) => setRoleForm({ ...roleForm, domainAccess: selected })}
-          />
-          {!listsADomain(roleForm) && <DomainsNote savedWithNone={false} />}
+        <FormLayout>
+          <FormIdentifiers>
+            <FormField size="medium">
+              <TextInput
+                label={t("securityPage.roleId")}
+                placeholder={t("securityPage.roleIdPlaceholder")}
+                value={roleForm.id}
+                onChange={(e) => setRoleForm({ ...roleForm, id: e.target.value })}
+                data-testid="role-id-input"
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="full">
+            <CapabilityGrid
+              value={roleForm.capabilities}
+              onToggle={toggleCapability}
+              label={t("securityPage.capabilities")}
+            />
+          </FormField>
+          <FormField size="full">
+            <ResidencyGrant
+              held={roleForm.capabilities.includes("data_residency")}
+              values={roleForm.residencyValues}
+              regions={regionChoices.regions}
+              onHeld={() => toggleCapability("data_residency")}
+              onValues={(residencyValues) => setRoleForm({ ...roleForm, residencyValues })}
+            />
+          </FormField>
+          <FormField size="long">
+            <MultiSelect
+              label={t("securityPage.domainAccess")}
+              placeholder={t("securityPage.chooseDomains")}
+              options={domainOptions}
+              value={roleForm.domainAccess}
+              onChange={(selected) => setRoleForm({ ...roleForm, domainAccess: selected })}
+            />
+          </FormField>
+          {!listsADomain(roleForm) && (
+            <FormField size="full">
+              <DomainsNote savedWithNone={false} />
+            </FormField>
+          )}
           {/* REQ-1677: single parent; the chain is walked child-first at build time. */}
-          <Select
-            label={t("securityPage.parentRole")}
-            description={t("securityPage.parentRoleHelp")}
-            placeholder={t("securityPage.parentRoleNone")}
-            data={roles
-              .filter((r) => r.id !== roleForm.id)
-              .map((r) => ({ value: r.id, label: r.id }))}
-            value={roleForm.parentRoleId || null}
-            onChange={(v) => setRoleForm({ ...roleForm, parentRoleId: v ?? "" })}
-            clearable
-            searchable
-            data-testid="role-parent-select"
-          />
+          <FormField help={t("securityPage.parentRoleHelp")} size="medium">
+            <Select
+              label={t("securityPage.parentRole")}
+              placeholder={t("securityPage.parentRoleNone")}
+              data={roles
+                .filter((r) => r.id !== roleForm.id)
+                .map((r) => ({ value: r.id, label: r.id }))}
+              value={roleForm.parentRoleId || null}
+              onChange={(v) => setRoleForm({ ...roleForm, parentRoleId: v ?? "" })}
+              clearable
+              searchable
+              data-testid="role-parent-select"
+            />
+          </FormField>
           {/* REQ-1174: per-role rate + query-complexity limits. Blank = unlimited on that dimension. */}
-          <Text size="sm" fw={600}>
-            {t("securityPage.limitsHeading", "Rate & query-complexity limits")}
-          </Text>
-          <Group grow>
+          <FormField size="full">
+            <Text size="sm" fw={600}>
+              {t("securityPage.limitsHeading", "Rate & query-complexity limits")}
+            </Text>
+          </FormField>
+          <FormField size="short">
             <NumberInput
               label={t("securityPage.rateReqPerSec", "Requests / sec")}
               placeholder={t("securityPage.unlimited", "unlimited")}
@@ -351,12 +363,16 @@ export function SecurityRolesPage() {
                 setRoleForm({ ...roleForm, reqPerSec: typeof v === "number" ? v : "" })
               }
             />
+          </FormField>
+          <FormField
+            help={t(
+              "securityPage.maxQueryComplexityHint",
+              "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+            )}
+            size="short"
+          >
             <NumberInput
               label={t("securityPage.maxQueryComplexity", "Max query complexity")}
-              description={t(
-                "securityPage.maxQueryComplexityHint",
-                "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
-              )}
               placeholder={t("securityPage.unlimited", "unlimited")}
               min={1}
               data-testid="role-max-complexity"
@@ -365,8 +381,8 @@ export function SecurityRolesPage() {
                 setRoleForm({ ...roleForm, maxComplexity: typeof v === "number" ? v : "" })
               }
             />
-          </Group>
-          <Group grow>
+          </FormField>
+          <FormField size="short">
             <NumberInput
               label={t("securityPage.maxQueryTimeMs", "Max query time (ms)")}
               placeholder={t("securityPage.unlimited", "unlimited")}
@@ -377,20 +393,14 @@ export function SecurityRolesPage() {
                 setRoleForm({ ...roleForm, maxTimeMs: typeof v === "number" ? v : "" })
               }
             />
-          </Group>
-          <Group justify="flex-end">
-            <Button
-              variant="filled"
-              color="blue"
-              leftSection={<Check size={14} />}
-              data-testid="save-role"
-              onClick={handleSaveRole}
-              disabled={saving || !listsADomain(roleForm)}
-            >
-              {t("securityPage.save")}
-            </Button>
-          </Group>
-        </Stack>
+          </FormField>
+          <FormFooter
+            onSave={handleSaveRole}
+            saving={saving}
+            onCancel={() => setShowRoleForm(false)}
+            saveProps={{ "data-testid": "save-role", disabled: !listsADomain(roleForm) }}
+          />
+        </FormLayout>
       )}
 
       <ListTable minWidth={480} testId="roles-list">
@@ -472,65 +482,65 @@ export function SecurityRolesPage() {
                           </Group>
                         </Stack>
                       ) : (
-                        <Stack gap="sm">
-                          <CapabilityGrid
-                            value={roleForm.capabilities}
-                            onToggle={toggleCapability}
-                            label={t("securityPage.capabilities")}
-                          />
-                          <ResidencyGrant
-                            held={roleForm.capabilities.includes("data_residency")}
-                            values={roleForm.residencyValues}
-                            regions={regionChoices.regions}
-                            onHeld={() => toggleCapability("data_residency")}
-                            onValues={(residencyValues) =>
-                              setRoleForm({ ...roleForm, residencyValues })
-                            }
-                          />
-                          <MultiSelect
-                            label={t("securityPage.domainAccess")}
-                            placeholder={t("securityPage.chooseDomains")}
-                            options={domainOptions}
-                            value={roleForm.domainAccess}
-                            onChange={(selected) =>
-                              setRoleForm({ ...roleForm, domainAccess: selected })
-                            }
-                          />
+                        <FormLayout>
+                          <FormField size="full">
+                            <CapabilityGrid
+                              value={roleForm.capabilities}
+                              onToggle={toggleCapability}
+                              label={t("securityPage.capabilities")}
+                            />
+                          </FormField>
+                          <FormField size="full">
+                            <ResidencyGrant
+                              held={roleForm.capabilities.includes("data_residency")}
+                              values={roleForm.residencyValues}
+                              regions={regionChoices.regions}
+                              onHeld={() => toggleCapability("data_residency")}
+                              onValues={(residencyValues) =>
+                                setRoleForm({ ...roleForm, residencyValues })
+                              }
+                            />
+                          </FormField>
+                          <FormField size="long">
+                            <MultiSelect
+                              label={t("securityPage.domainAccess")}
+                              placeholder={t("securityPage.chooseDomains")}
+                              options={domainOptions}
+                              value={roleForm.domainAccess}
+                              onChange={(selected) =>
+                                setRoleForm({ ...roleForm, domainAccess: selected })
+                              }
+                            />
+                          </FormField>
                           {!listsADomain(roleForm) && (
-                            <DomainsNote savedWithNone={r.domain_access.length === 0} />
+                            <FormField size="full">
+                              <DomainsNote savedWithNone={r.domain_access.length === 0} />
+                            </FormField>
                           )}
-                          <Select
-                            label={t("securityPage.parentRole")}
-                            placeholder={t("securityPage.parentRoleNone")}
-                            data={roles
-                              .filter((x) => x.id !== r.id)
-                              .map((x) => ({ value: x.id, label: x.id }))}
-                            value={roleForm.parentRoleId || null}
-                            onChange={(v) => setRoleForm({ ...roleForm, parentRoleId: v ?? "" })}
-                            clearable
-                            searchable
-                            data-testid={`role-parent-select-${r.id}`}
+                          <FormField size="medium">
+                            <Select
+                              label={t("securityPage.parentRole")}
+                              placeholder={t("securityPage.parentRoleNone")}
+                              data={roles
+                                .filter((x) => x.id !== r.id)
+                                .map((x) => ({ value: x.id, label: x.id }))}
+                              value={roleForm.parentRoleId || null}
+                              onChange={(v) => setRoleForm({ ...roleForm, parentRoleId: v ?? "" })}
+                              clearable
+                              searchable
+                              data-testid={`role-parent-select-${r.id}`}
+                            />
+                          </FormField>
+                          <FormFooter
+                            onSave={handleSaveRole}
+                            saving={saving}
+                            onCancel={() => setEditingRoleInRow(null)}
+                            saveProps={{
+                              "data-testid": `save-role-${r.id}`,
+                              disabled: !listsADomain(roleForm),
+                            }}
                           />
-                          <Group justify="flex-end">
-                            <Button
-                              variant="default"
-                              leftSection={<X size={14} />}
-                              onClick={() => setEditingRoleInRow(null)}
-                            >
-                              {t("securityPage.cancel")}
-                            </Button>
-                            <Button
-                              variant="filled"
-                              color="blue"
-                              leftSection={<Check size={14} />}
-                              data-testid={`save-role-${r.id}`}
-                              onClick={handleSaveRole}
-                              disabled={saving || !listsADomain(roleForm)}
-                            >
-                              {t("securityPage.save")}
-                            </Button>
-                          </Group>
-                        </Stack>
+                        </FormLayout>
                       )}
                     </ListDetail>
                   </ListExpandRow>
@@ -755,74 +765,92 @@ export function SecurityRlsPage() {
   const ruleFormFields = (
     <>
       <Group gap="sm" wrap="wrap">
-        <Select
-          label={t("securityPage.applyTo")}
-          data={[
-            { value: "table", label: t("securityPage.applyToTable") },
-            { value: "domain", label: t("securityPage.applyToDomain") },
-            { value: "action", label: t("securityPage.applyToAction") },
-          ]}
-          value={ruleForm.applyToAction ? "action" : ruleForm.applyToDomain ? "domain" : "table"}
-          onChange={(v) =>
-            setRuleForm({
-              ...ruleForm,
-              applyToDomain: v === "domain",
-              applyToAction: v === "action",
-              tableId: "",
-              actionName: "",
-            })
-          }
-          allowDeselect={false}
-          data-testid="rule-apply-to"
-        />
-        <Select
-          label={t("securityPage.domain")}
-          placeholder={t("securityPage.selectPlaceholder")}
-          data={domains.map((d) => ({ value: d.id, label: d.id }))}
-          value={ruleForm.domainFilter || null}
-          onChange={(v) => setRuleForm({ ...ruleForm, domainFilter: v ?? "", tableId: "" })}
-        />
-        {ruleForm.applyToAction && (
-          <Select
-            label={t("securityPage.action")}
-            placeholder={t("securityPage.selectPlaceholder")}
-            data={actions
-              .filter((a) => !ruleForm.domainFilter || a.domainId === ruleForm.domainFilter)
-              .map((a) => ({ value: a.name, label: a.name }))}
-            value={ruleForm.actionName || null}
-            onChange={(v) => setRuleForm({ ...ruleForm, actionName: v ?? "" })}
-            searchable
-            data-testid="rule-action-select"
-          />
-        )}
-        {!ruleForm.applyToDomain && !ruleForm.applyToAction && (
-          <Select
-            label={t("securityPage.table")}
-            placeholder={t("securityPage.selectPlaceholder")}
-            data={tables
-              .filter((tb) => !ruleForm.domainFilter || tb.domainId === ruleForm.domainFilter)
-              .map((tb) => ({ value: tb.tableName, label: tb.tableName }))}
-            value={ruleForm.tableId || null}
-            onChange={(v) => setRuleForm({ ...ruleForm, tableId: v ?? "" })}
-          />
-        )}
-        <Select
-          label={t("securityPage.role")}
-          placeholder={t("securityPage.selectPlaceholder")}
-          data={roles.map((r) => ({ value: r.id, label: r.id }))}
-          value={ruleForm.roleId || null}
-          onChange={(v) => setRuleForm({ ...ruleForm, roleId: v ?? "" })}
-          data-testid="rule-role-select"
-        />
+        <FormLayout>
+          <FormField size="medium">
+            <Select
+              label={t("securityPage.applyTo")}
+              data={[
+                { value: "table", label: t("securityPage.applyToTable") },
+                { value: "domain", label: t("securityPage.applyToDomain") },
+                { value: "action", label: t("securityPage.applyToAction") },
+              ]}
+              value={
+                ruleForm.applyToAction ? "action" : ruleForm.applyToDomain ? "domain" : "table"
+              }
+              onChange={(v) =>
+                setRuleForm({
+                  ...ruleForm,
+                  applyToDomain: v === "domain",
+                  applyToAction: v === "action",
+                  tableId: "",
+                  actionName: "",
+                })
+              }
+              allowDeselect={false}
+              data-testid="rule-apply-to"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("securityPage.domain")}
+              placeholder={t("securityPage.selectPlaceholder")}
+              data={domains.map((d) => ({ value: d.id, label: d.id }))}
+              value={ruleForm.domainFilter || null}
+              onChange={(v) => setRuleForm({ ...ruleForm, domainFilter: v ?? "", tableId: "" })}
+            />
+          </FormField>
+          {ruleForm.applyToAction && (
+            <FormField size="medium">
+              <Select
+                label={t("securityPage.action")}
+                placeholder={t("securityPage.selectPlaceholder")}
+                data={actions
+                  .filter((a) => !ruleForm.domainFilter || a.domainId === ruleForm.domainFilter)
+                  .map((a) => ({ value: a.name, label: a.name }))}
+                value={ruleForm.actionName || null}
+                onChange={(v) => setRuleForm({ ...ruleForm, actionName: v ?? "" })}
+                searchable
+                data-testid="rule-action-select"
+              />
+            </FormField>
+          )}
+          {!ruleForm.applyToDomain && !ruleForm.applyToAction && (
+            <FormField size="medium">
+              <Select
+                label={t("securityPage.table")}
+                placeholder={t("securityPage.selectPlaceholder")}
+                data={tables
+                  .filter((tb) => !ruleForm.domainFilter || tb.domainId === ruleForm.domainFilter)
+                  .map((tb) => ({ value: tb.tableName, label: tb.tableName }))}
+                value={ruleForm.tableId || null}
+                onChange={(v) => setRuleForm({ ...ruleForm, tableId: v ?? "" })}
+              />
+            </FormField>
+          )}
+          <FormField size="medium">
+            <Select
+              label={t("securityPage.role")}
+              placeholder={t("securityPage.selectPlaceholder")}
+              data={roles.map((r) => ({ value: r.id, label: r.id }))}
+              value={ruleForm.roleId || null}
+              onChange={(v) => setRuleForm({ ...ruleForm, roleId: v ?? "" })}
+              data-testid="rule-role-select"
+            />
+          </FormField>
+        </FormLayout>
       </Group>
-      <Textarea
-        label={t("securityPage.filterExpression")}
-        placeholder={t("securityPage.filterExpressionPlaceholder")}
-        rows={2}
-        value={ruleForm.filterExpr}
-        onChange={(e) => setRuleForm({ ...ruleForm, filterExpr: e.target.value })}
-        styles={{ input: { fontFamily: "monospace", fontSize: "0.875rem" } }}
-      />
+      <FormLayout>
+        <FormField size="full">
+          <Textarea
+            label={t("securityPage.filterExpression")}
+            placeholder={t("securityPage.filterExpressionPlaceholder")}
+            rows={2}
+            value={ruleForm.filterExpr}
+            onChange={(e) => setRuleForm({ ...ruleForm, filterExpr: e.target.value })}
+            styles={{ input: { fontFamily: "monospace", fontSize: "0.875rem" } }}
+          />
+        </FormField>
+      </FormLayout>
     </>
   );
 
@@ -844,19 +872,17 @@ export function SecurityRlsPage() {
         {/* Nested Group: the parent spreads its children, and the bubble explains this
             button, so it has to travel with it. */}
         <Group gap="xs">
-          <Button
-            data-testid="toggle-rule-form"
-            onClick={() => {
-              if (showRuleForm) {
-                setShowRuleForm(false);
-              } else {
+          {!showRuleForm && (
+            <Button
+              data-testid="toggle-rule-form"
+              onClick={() => {
                 setExpandedRule(null);
                 handleNewRule();
-              }
-            }}
-          >
-            {showRuleForm ? t("securityPage.closeForm") : t("securityPage.addRls")}
-          </Button>
+              }}
+            >
+              {t("securityPage.addRls")}
+            </Button>
+          )}
           <HelpBubble
             title={t("securityPage.purposeTitle")}
             paragraphs={[t("securityPage.purposeBody"), t("securityPage.purposeAdd")]}
@@ -873,18 +899,12 @@ export function SecurityRlsPage() {
           style={{ border: "1px solid var(--border)", borderRadius: "0.5rem" }}
         >
           {ruleFormFields}
-          <Group justify="flex-end">
-            <Button
-              variant="filled"
-              color="blue"
-              leftSection={<Check size={14} />}
-              data-testid="save-rule"
-              onClick={handleSaveRule}
-              disabled={saving}
-            >
-              {t("securityPage.save")}
-            </Button>
-          </Group>
+          <FormFooter
+            onSave={handleSaveRule}
+            saving={saving}
+            onCancel={() => setShowRuleForm(false)}
+            saveProps={{ "data-testid": "save-rule" }}
+          />
         </Stack>
       )}
 
@@ -998,24 +1018,11 @@ export function SecurityRlsPage() {
                       ) : (
                         <Stack gap="sm">
                           {ruleFormFields}
-                          <Group justify="flex-end">
-                            <Button
-                              variant="default"
-                              leftSection={<X size={14} />}
-                              onClick={() => setEditingRuleInRow(null)}
-                            >
-                              {t("securityPage.cancel")}
-                            </Button>
-                            <Button
-                              variant="filled"
-                              color="blue"
-                              leftSection={<Check size={14} />}
-                              onClick={handleSaveRule}
-                              disabled={saving}
-                            >
-                              {t("securityPage.save")}
-                            </Button>
-                          </Group>
+                          <FormFooter
+                            onSave={handleSaveRule}
+                            saving={saving}
+                            onCancel={() => setEditingRuleInRow(null)}
+                          />
                         </Stack>
                       )}
                     </ListDetail>
