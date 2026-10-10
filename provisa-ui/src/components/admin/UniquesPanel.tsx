@@ -22,7 +22,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { Info, Plus, X } from "lucide-react";
+import { CircleHelp, Plus, X } from "lucide-react";
 import type { UniqueConstraint } from "../../types/admin";
 import { usePanelState } from "../../hooks/usePanelState";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
@@ -71,7 +71,7 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
                 aria-label={t("uniquesPanel.infoTooltip")}
                 onClick={(e) => e.stopPropagation()}
               >
-                <Info size={12} />
+                <CircleHelp size={14} />
               </ActionIcon>
             </Tooltip>
           </Group>
