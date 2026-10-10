@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "グローバル設定を継承",
     "changeSignal": "変更シグナル",
     "changeSignalTooltip": "このソースのテーブルが継承するデフォルトの変更検出シグナルです（各テーブルで上書き可能）。選択肢はソースタイプの機能によって制限されます。",
+    "sourceProbeSignal": {
+      "ttl": "スケジュールに従って再読み取り",
+      "ttl_probe": "スケジュールに従って変更を確認し、変更があった場合にのみ再読み取り"
+    },
     "allowedDomains": "許可ドメイン",
     "allowedDomainsHint": "（未選択 = すべて）",
     "cdcTransportHeading": "CDCトランスポート（Debezium）",

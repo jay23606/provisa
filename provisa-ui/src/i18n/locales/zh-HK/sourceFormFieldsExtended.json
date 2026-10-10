@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "繼承全域設定",
     "changeSignal": "變更訊號",
     "changeSignalTooltip": "此數據來源的資料表繼承的預設變更偵測訊號（每個資料表可個別覆寫）。可用選項受數據來源類型的功能所限制。",
+    "sourceProbeSignal": {
+      "ttl": "按排程重新讀取",
+      "ttl_probe": "按排程檢查變更;只在有變更時重新讀取"
+    },
     "allowedDomains": "允許的網域",
     "allowedDomainsHint": "（未選取 = 全部）",
     "cdcTransportHeading": "CDC 傳輸（Debezium）",

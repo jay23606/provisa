@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "heredar global",
     "changeSignal": "Señal de cambio",
     "changeSignalTooltip": "Señal predeterminada de detección de cambios heredada por las tablas de este origen (cada tabla puede anularla). Las opciones dependen de las capacidades del tipo de origen.",
+    "sourceProbeSignal": {
+      "ttl": "Volver a leer según una programación",
+      "ttl_probe": "Comprobar si hay cambios según la programación; volver a leer solo cuando algo haya cambiado"
+    },
     "allowedDomains": "Dominios permitidos",
     "allowedDomainsHint": "(ninguno seleccionado = todos)",
     "cdcTransportHeading": "Transporte CDC (Debezium)",

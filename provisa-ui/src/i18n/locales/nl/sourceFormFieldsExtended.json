@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "globaal overnemen",
     "changeSignal": "Wijzigingssignaal",
     "changeSignalTooltip": "Standaardsignaal voor wijzigingsdetectie dat door de tabellen van deze bron wordt overgenomen (elke tabel kan het overschrijven). De opties zijn afhankelijk van de mogelijkheden van het brontype.",
+    "sourceProbeSignal": {
+      "ttl": "Opnieuw lezen volgens een schema",
+      "ttl_probe": "Volgens het schema op wijzigingen controleren; alleen opnieuw lezen als er iets is gewijzigd"
+    },
     "allowedDomains": "Toegestane domeinen",
     "allowedDomainsHint": "(niets geselecteerd = alle)",
     "cdcTransportHeading": "CDC-transport (Debezium)",

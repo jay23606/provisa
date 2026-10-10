@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "ירושה מהגדרה גלובלית",
     "changeSignal": "אות שינוי",
     "changeSignalTooltip": "אות ברירת מחדל לזיהוי שינויים שטבלאות המקור הזה יורשות (כל טבלה יכולה לעקוף אותו). האפשרויות מוגבלות לפי יכולות סוג המקור.",
+    "sourceProbeSignal": {
+      "ttl": "קריאה מחדש לפי לוח זמנים",
+      "ttl_probe": "בדיקת שינויים לפי לוח הזמנים; קריאה מחדש רק כשמשהו השתנה"
+    },
     "allowedDomains": "דומיינים מורשים",
     "allowedDomainsHint": "(ללא בחירה = הכול)",
     "cdcTransportHeading": "תעבורת CDC (Debezium)",

@@ -4254,6 +4254,8 @@
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.sfSecurityTokenHelp": "Only when your org requires one",
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.sfUsername": "Salesforce Username",
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.siteUrl": "Site URL",
+  "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.sourceProbeSignal.ttl": "Re-read on a schedule",
+  "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.sourceProbeSignal.ttl_probe": "Check for changes on the schedule; re-read only when something changed",
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.spPassword": "SP Password",
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.spUsername": "SP Username",
   "zh-HK/sourceFormFieldsExtended.json::sourceFormFieldsExtended.subscribePayload": "Subscribe Payload (JSON, optional)",

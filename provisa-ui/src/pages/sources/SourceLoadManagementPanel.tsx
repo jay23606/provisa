@@ -15,7 +15,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Checkbox, Group, NumberInput, Select, Text, TextInput, Tooltip } from "@mantine/core";
-import { sourceChangeSignals } from "../../liveCapability";
+import { SOURCE_PROBE_SOURCE_TYPES, sourceChangeSignals } from "../../liveCapability";
 import { CHANGE_SIGNAL_LABELS } from "./constants";
 import { CollapsibleSection } from "../tables/CollapsibleSection";
 import { ReplicateSelect } from "../../components/admin/ReplicateSelect";
@@ -103,7 +103,10 @@ export function SourceLoadManagementPanel({
           onChange={(v) => setForm({ ...form, changeSignal: v ?? "" })}
           data={sourceChangeSignals(form.type).map((cs) => ({
             value: cs,
-            label: CHANGE_SIGNAL_LABELS[cs] ?? cs,
+            // A source that asks its provider whether it changed says the choice in words.
+            label: SOURCE_PROBE_SOURCE_TYPES.has(form.type)
+              ? t(`sourceFormFieldsExtended.sourceProbeSignal.${cs}`)
+              : (CHANGE_SIGNAL_LABELS[cs] ?? cs),
           }))}
           allowDeselect={false}
           data-testid="change-signal-select"

@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "global übernehmen",
     "changeSignal": "Änderungssignal",
     "changeSignalTooltip": "Standard-Änderungssignal, das die Tabellen dieser Quelle übernehmen (jede Tabelle kann es überschreiben). Die Optionen richten sich nach den Fähigkeiten des Quelltyps.",
+    "sourceProbeSignal": {
+      "ttl": "Nach Zeitplan neu lesen",
+      "ttl_probe": "Nach Zeitplan auf Änderungen prüfen; nur neu lesen, wenn sich etwas geändert hat"
+    },
     "allowedDomains": "Erlaubte Domänen",
     "allowedDomainsHint": "(keine Auswahl = alle)",
     "cdcTransportHeading": "CDC-Transport (Debezium)",

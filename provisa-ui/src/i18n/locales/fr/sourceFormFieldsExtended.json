@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "hériter du global",
     "changeSignal": "Signal de changement",
     "changeSignalTooltip": "Signal de détection de changement par défaut hérité par les tables de cette source (chaque table peut le remplacer). Les options dépendent des capacités du type de source.",
+    "sourceProbeSignal": {
+      "ttl": "Relire selon un calendrier",
+      "ttl_probe": "Vérifier les changements selon le calendrier ; ne relire que si quelque chose a changé"
+    },
     "allowedDomains": "Domaines autorisés",
     "allowedDomainsHint": "(aucune sélection = tous)",
     "cdcTransportHeading": "Transport CDC (Debezium)",

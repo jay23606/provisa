@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "inherit global",
     "changeSignal": "Change Signal",
     "changeSignalTooltip": "Default change-detection signal inherited by this source's tables (each table can override it). Options are gated by the source type's capabilities.",
+    "sourceProbeSignal": {
+      "ttl": "Re-read on a schedule",
+      "ttl_probe": "Check for changes on the schedule; re-read only when something changed"
+    },
     "allowedDomains": "Allowed Domains",
     "allowedDomainsHint": "(none selected = all)",
     "cdcTransportHeading": "CDC Transport (Debezium)",

@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "eredita globale",
     "changeSignal": "Segnale di modifica",
     "changeSignalTooltip": "Segnale di rilevamento delle modifiche predefinito ereditato dalle tabelle di questa origine (ogni tabella può sostituirlo). Le opzioni dipendono dalle capacità del tipo di origine.",
+    "sourceProbeSignal": {
+      "ttl": "Rileggi a intervalli pianificati",
+      "ttl_probe": "Controlla le modifiche a intervalli pianificati; rileggi solo quando qualcosa è cambiato"
+    },
     "allowedDomains": "Domini consentiti",
     "allowedDomainsHint": "(nessuna selezione = tutti)",
     "cdcTransportHeading": "Trasporto CDC (Debezium)",

@@ -70,6 +70,10 @@
     "cacheTtlPlaceholder": "herdar global",
     "changeSignal": "Sinal de alteração",
     "changeSignalTooltip": "Sinal padrão de detecção de alterações herdado pelas tabelas desta fonte (cada tabela pode substituí-lo). As opções dependem das capacidades do tipo de fonte.",
+    "sourceProbeSignal": {
+      "ttl": "Reler conforme uma programação",
+      "ttl_probe": "Verificar alterações conforme a programação; reler somente quando algo tiver mudado"
+    },
     "allowedDomains": "Domínios permitidos",
     "allowedDomainsHint": "(nenhum selecionado = todos)",
     "cdcTransportHeading": "Transporte CDC (Debezium)",
