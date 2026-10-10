@@ -381,8 +381,8 @@ def test_folders_walk_the_tree_and_take_their_role_from_the_well_known_names():
     assert (rows["f-proj"]["kind"], rows["f-proj"]["role"]) == ("user", None)
     assert rows["f-proj"]["parent_id"] == "f-inbox" and rows["f-inbox"]["child_count"] == 1
     assert rows["f-inbox"]["threads_total"] is None  # Google's
-    asked = {c[1].removeprefix(BASE_URL + ROOT + "/mailFolders/") for c in fake.calls}
-    assert set(mail.WELL_KNOWN_FOLDERS) <= asked  # each name asked for; one it lacks is skipped
+    (lookup,) = [c for c in fake.calls if c[0] == "POST"]
+    assert lookup  # each name is asked for in that one batch; one the mailbox lacks is skipped
     top = next(c for c in fake.calls if c[1] == BASE_URL + ROOT + "/mailFolders")
     assert top[2]["includeHiddenFolders"] == "true"
 
@@ -465,6 +465,68 @@ def test_a_call_throttled_past_the_bound_fails_by_name_with_no_part_of_the_answe
         got.append(next(pages))
     assert slept == [6.0] and refused.value.retry_after == "6"
     assert "skiptoken" not in str(refused.value)  # the paging token is not in the message
+
+
+def test_a_wait_of_87_seconds_is_waited_out_under_the_builds_bound_and_the_read_goes_on():
+    """From a live build: Graph asked for 87 s and the read was refused having waited 0 s of
+    the 60 s a call may. A replica's build takes the operator's bound (15 minutes unless it
+    is changed), waits as asked, and reads on."""
+    from provisa.core import settings_registry
+
+    setting = settings_registry.setting("mail.throttle_wait_seconds")
+    assert (setting.type, setting.effect, setting.default, setting.unit) == (
+        "int",
+        "live",
+        900,
+        "seconds",
+    )
+    graph, fake, slept = _graph(
+        {"/x": [[{"id": 1}], [{"id": 2}]]}, wait_seconds=float(setting.default)
+    )
+    fake.queued = [_throttled("87")]
+    assert [p for p in graph.pages("/x")] == [[{"id": 1}], [{"id": 2}]]
+    assert slept == [87.0]
+
+
+def test_a_wait_past_the_bound_fails_by_name_and_says_what_to_change():
+    graph, fake, slept = _graph({"/x": {"id": 1}}, wait_seconds=900.0)
+    fake.queued = [_throttled("901")]
+    with pytest.raises(GraphThrottled) as refused:
+        graph.get("/x")
+    said = str(refused.value)
+    assert slept == [] and "Retry-After: 901" in said and "of the 900s it may" in said
+    assert "Longest wait when a mail service is throttling" in said
+    assert "Mailboxes read at once" in said
+
+
+def test_whoever_watches_the_read_is_told_of_a_wait_and_of_its_end():
+    told: list[float] = []
+    fake = FakeGraph({"/x": {"id": 1}})
+    graph = Graph(
+        fake.send,
+        lambda: "t",
+        wait_seconds=900.0,
+        sleep=lambda s: told.append(-s),
+        waiting=told.append,
+    )
+    fake.queued = [_throttled("87")]
+    graph.get("/x")
+    assert told == [87.0, -87.0, 0.0]  # said, waited, said to be over
+
+
+def test_a_throttled_request_of_a_batch_says_it_is_waiting_too():
+    told: list[float] = []
+    fake = FakeGraph({"/a": {"id": 1}})
+    graph = Graph(fake.send, lambda: "t", sleep=lambda s: None, waiting=told.append)
+    fake.queued = [
+        Answer(
+            200,
+            {},
+            {"responses": [{"id": "0", "status": 429, "headers": {"Retry-After": "30"}}]},
+        )
+    ]
+    assert graph.batch(["/a"]) == [{"id": 1}]
+    assert told == [30.0, 0.0]
 
 
 def test_a_throttled_call_that_names_no_wait_fails_by_name():
@@ -718,3 +780,102 @@ def test_a_followed_link_says_unchanged_only_by_an_empty_page_that_ends_the_roun
     assert mailbox.changed(links) is False  # every link: no item, and the round ended
     fake.answers[_INBOX_DELTA] = body
     assert mailbox.changed(links) is True, why
+
+
+# ------------------------------------------- a folder the mailbox does not have
+
+
+def _refuses(fake: FakeGraph, where: str, code: str, *, only_tracked: bool = False) -> None:
+    """Graph answers 404 ``code`` to every request whose path ends with ``where``."""
+    one = fake._one
+
+    def answering(url: str):
+        path = urlsplit(url).path.removeprefix("/v1.0")
+        if path.endswith(where):
+            return 404, {
+                "error": {"code": code, "message": "The specified folder could not be found."}
+            }
+        return one(url)
+
+    fake._one = answering
+
+
+def test_a_well_known_folder_the_mailbox_does_not_have_is_absent_not_a_refusal():
+    """From a live build: a mailbox with no archive folder answered 404 ErrorFolderNotFound to
+    the lookup of that name, and the whole mailbox was declared unreadable. Which well-known
+    folders a mailbox has depends on the mailbox; one it lacks simply has no role to give."""
+    table = {
+        f"{ROOT}/mailFolders": [[{"id": _INBOX, "displayName": "Inbox"}]],
+        f"{ROOT}/mailFolders/inbox": {"id": _INBOX},
+    }
+    mailbox, fake = _mailbox(table)
+    _refuses(fake, "/mailFolders/archive", "ErrorFolderNotFound")
+    (row,) = _all(mailbox, "folders")
+    assert (row["id"], row["role"]) == (_INBOX, "inbox")
+
+
+def test_the_well_known_names_are_asked_for_in_one_batch():
+    table = {
+        f"{ROOT}/mailFolders": [[{"id": _INBOX, "displayName": "Inbox"}]],
+        f"{ROOT}/mailFolders/inbox": {"id": _INBOX},
+    }
+    mailbox, fake = _mailbox(table)
+    _all(mailbox, "folders")
+    lookups = [c for c in fake.calls if c[0] == "POST"]
+    assert len(lookups) == 1  # not one call for each of Microsoft's seventeen names
+    assert not any(
+        c[0] == "GET" and c[1].rsplit("/", 1)[-1].split("?")[0] in mail.WELL_KNOWN_FOLDERS
+        for c in fake.calls
+    )
+
+
+def test_a_well_known_lookup_graph_refuses_for_another_reason_still_fails_the_read():
+    table = {f"{ROOT}/mailFolders": [[{"id": _INBOX, "displayName": "Inbox"}]]}
+    mailbox, fake = _mailbox(table)
+    one = fake._one
+
+    def denied(url: str):
+        if urlsplit(url).path.endswith("/mailFolders/inbox"):
+            return 403, {"error": {"code": "ErrorAccessDenied", "message": "no"}}
+        return one(url)
+
+    fake._one = denied
+    with pytest.raises(GraphRefused) as refused:
+        _all(mailbox, "folders")
+    assert refused.value.code == "ErrorAccessDenied"
+
+
+def test_the_well_known_names_are_microsofts_own():
+    """The names of Microsoft's "Well-known folder names" table (mailFolder resource type,
+    Microsoft Graph v1.0), which a listing of folders does not give: v1.0 has no property
+    that says a folder's role."""
+    assert mail.WELL_KNOWN_FOLDERS == (
+        "archive",
+        "clutter",
+        "conflicts",
+        "conversationhistory",
+        "deleteditems",
+        "drafts",
+        "inbox",
+        "junkemail",
+        "localfailures",
+        "msgfolderroot",
+        "outbox",
+        "recoverableitemsdeletions",
+        "scheduled",
+        "searchfolders",
+        "sentitems",
+        "serverfailures",
+        "syncissues",
+    )
+
+
+@pytest.mark.parametrize("code", ["ErrorFolderNotFound", "ErrorItemNotFound"])
+def test_a_folder_removed_between_the_walk_and_its_read_is_skipped(code):
+    """The folders are listed, then each is read. One removed in between answers 404 for its
+    messages: its messages are no longer there to read, and the others' are."""
+    mailbox, fake = _mailbox(_two_folders())
+    _refuses(fake, f"/mailFolders/{_SENT}/messages/delta", code)
+    rows = _all(mailbox, "messages")
+    assert [r["id"] for r in rows] == ["m1"]
+    assert mailbox.links is not None and _SENT not in mailbox.links

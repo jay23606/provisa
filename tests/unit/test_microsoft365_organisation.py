@@ -570,7 +570,11 @@ def organisation(plane, monkeypatch):
 
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
     monkeypatch.setattr(secrets, "resolve_secrets", lambda value: "the-secret")
-    monkeypatch.setattr(settings_registry, "value", lambda key: {"mail.mailboxes_at_once": 3}[key])
+    monkeypatch.setattr(
+        settings_registry,
+        "value",
+        lambda key: {"mail.mailboxes_at_once": 3, "mail.throttle_wait_seconds": 900}[key],
+    )
     made: list = []
 
     class Token:
@@ -1146,3 +1150,44 @@ async def test_settling_sets_what_each_tables_poll_node_compares_its_check_with(
         )
     await state_db.close()
     engine.dispose()
+
+
+def test_a_folder_the_mailbox_does_not_have_never_says_the_mailbox_cannot_be_read():
+    """From a live build: 404 ErrorFolderNotFound for a folder inside the mailbox was read as
+    "this mailbox is not there", and the operator was sent to check tenant membership and
+    Exchange access policies. The mailbox answered; it is the folder that is not there."""
+    from provisa.microsoft365.graph import GraphRefused
+
+    folder = GraphRefused(404, "ErrorFolderNotFound", "no such folder", "/users/a/mailFolders/x")
+    mailbox = GraphRefused(404, "MailboxNotEnabledForRESTAPI", "no mailbox", "/users/a/mailFolders")
+    assert loader._not_readable(folder) is False
+    assert loader._not_readable(mailbox) is True
+
+
+def test_a_mailbox_with_no_archive_folder_has_its_folders_read(org_read):
+    org_read.accounts = (A,)
+    root = f"/users/{A}"
+    org_read.graph.table.update(
+        {
+            f"{root}/mailFolders": [[{"id": "f-inbox", "displayName": "Inbox"}]],
+            f"{root}/mailFolders/inbox": {"id": "f-inbox"},
+        }
+    )
+    one = org_read.graph._one
+
+    def answering(url):
+        if url.split("?")[0].endswith("/mailFolders/archive"):
+            return 404, {"error": {"code": "ErrorFolderNotFound", "message": "not found"}}
+        return one(url)
+
+    org_read.graph._one = answering
+    source = org_read.loader.replica_source(SOURCE, _table("folders"), cm.ir_columns("folders"))
+
+    async def read():
+        return [
+            row for batch in [b async for b in source.batches(100)] for row in batch.to_pylist()
+        ]
+
+    (row,) = asyncio.run(read())
+    assert (row["account"], row["id"], row["role"]) == (A.lower(), "f-inbox", "inbox")
+    assert source.notes() == []  # no mailbox was left out

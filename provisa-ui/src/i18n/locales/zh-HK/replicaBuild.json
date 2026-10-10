@@ -9,6 +9,7 @@
     "progressRows": "已複製 {{rows}} 列",
     "building": "複本建置中：已複製 {{rows}} 列，{{rate}} 列/秒（{{how}}）。",
     "buildingNoRate": "複本建置中（{{how}}）。",
+    "buildingWaiting": "副本正在建立；等待 {{seconds}} 秒：{{by}} 正在限制讀取（{{how}}）。",
     "built": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。",
     "builtChecked": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。檢查於 {{checked}},此後沒有變更。",
     "failed": "複本建置失敗（第 {{attempts}} 次嘗試；將會重試）：{{error}}",

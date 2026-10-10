@@ -1363,6 +1363,8 @@ class ReplicaBuildType:  # REQ-1915
     # A float: a GraphQL Int is 32 bits, and a replica can hold more than 2^31 rows.
     rows_copied: float | None
     rows_per_second: float | None  # a running build's rate so far
+    # A running build waiting out a throttle: {"by", "seconds", "until"}; None when not.
+    wait: JsonScalar | None
     # The rows of the last build that copied the whole table; None before the first. An
     # estimate of the table's size for a running build's progress, never a promise.
     completed_rows: float | None

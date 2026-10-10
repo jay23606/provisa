@@ -224,6 +224,21 @@ DECLARED: list[Setting] = [
         credential=True,
     ),
     Setting(
+        key="mail.throttle_wait_seconds",
+        card="concurrency",
+        type="int",
+        effect="live",  # read when a replica's read of a mail source begins
+        # 900: a mail service that is throttling says how long to wait (Retry-After), and for a
+        # mailbox that has been read hard it asks for minutes. A replica's build is background
+        # work: it waits that out and goes on, where failing throws the whole read away. This is
+        # the most the waits of ONE call may add up to; a longer one fails the read by name.
+        req="REQ-1923",
+        env="PROVISA_MAIL_THROTTLE_WAIT_SECONDS",
+        default=900,
+        min=0,
+        unit="seconds",
+    ),
+    Setting(
         key="mail.mailboxes_at_once",
         card="concurrency",
         type="int",

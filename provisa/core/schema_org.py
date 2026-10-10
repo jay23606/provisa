@@ -1475,6 +1475,9 @@ replica_state = Table(
     # model is older than this has not seen the table yet and must not retire its replica.
     Column("model_stamp", BigInteger),
     Column("load_kind", Text),  # data_replicator.TargetLoad of the running or last build
+    # What a running build is waiting out, when it is: {"by", "seconds", "until"} -- its
+    # source's service is throttling it and asked for that long. NULL: it is not waiting.
+    Column("build_wait", JSON(none_as_null=True)),
     # Set when the model stops declaring this replica; it is dropped once every node has had
     # time to reload and every statement already addressed at it has ended. NULL: in use.
     Column("retired_at", DateTime(timezone=True)),

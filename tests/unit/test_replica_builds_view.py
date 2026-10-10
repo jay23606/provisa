@@ -46,6 +46,7 @@ def _record(**kw):
         delta_cursor=None,
         build_notes=[],
         verified_at=None,
+        build_wait=None,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -168,3 +169,13 @@ def test_a_running_build_is_shown_with_the_last_whole_builds_rows():
     )
     assert (view["rows_copied"], view["completed_rows"]) == (12400, 20000)
     assert build_view(_record(build_state="building"), NOW)["completed_rows"] is None
+
+
+def test_a_build_waiting_out_a_throttle_says_who_asked_and_for_how_long():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    wait = {"by": "Microsoft", "seconds": 87, "until": "2026-10-10T12:01:27+00:00"}
+    assert build_view(_record(build_state="building", build_wait=wait), now)["wait"] == wait
+    # A build that is not running is not waiting, whatever its record was left holding.
+    assert build_view(_record(build_state="idle", build_wait=wait), now)["wait"] is None

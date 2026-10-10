@@ -9,6 +9,7 @@
     "progressRows": "הועתקו {{rows}} שורות",
     "building": "הרפליקה נבנית: {{rows}} שורות הועתקו, {{rate}} שורות/שנייה ({{how}}).",
     "buildingNoRate": "הרפליקה נבנית ({{how}}).",
+    "buildingWaiting": "העותק המשוכפל נבנה; ממתין {{seconds}} שניות: {{by}} מגביל את הקריאה ({{how}}).",
     "built": "הרפליקה נבנתה {{when}}: {{rows}} שורות ({{how}}).",
     "builtChecked": "הרפליקה נבנתה {{when}}: {{rows}} שורות ({{how}}). נבדק {{checked}}, ללא שינוי מאז.",
     "failed": "בניית הרפליקה נכשלה (ניסיון {{attempts}}; מתבצע ניסיון חוזר): {{error}}",

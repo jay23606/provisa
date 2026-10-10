@@ -31,7 +31,9 @@ BASE_URL = "https://graph.microsoft.com/v1.0"
 IMMUTABLE_IDS = 'IdType="ImmutableId"'
 #: Graph takes at most this many requests in one batch.
 BATCH_SIZE = 20
-#: How long the waits a throttled call is asked for may add up to before the read fails.
+#: How long the waits a throttled call is asked for may add up to before the read fails, where
+#: the caller states no bound of its own. A replica's build takes the operator's setting
+#: (``mail.throttle_wait_seconds``); this is the bound of a call a person is waiting on.
 WAIT_SECONDS = 60.0
 _TIMEOUT = 30.0
 
@@ -51,9 +53,22 @@ class GraphThrottled(RuntimeError):
     def __init__(self, path: str, asked: str, waited: float, bound: float) -> None:
         super().__init__(
             f"Microsoft Graph is throttling {path} (Retry-After: {asked}); the read waited "
-            f"{waited:g}s of the {bound:g}s it may and was still refused"
+            f"{waited:g}s of the {bound:g}s it may and was still refused. To wait longer, raise "
+            'the setting "Longest wait when a mail service is throttling"; to be throttled '
+            'less, lower "Mailboxes read at once"'
         )
         self.retry_after = asked
+
+
+#: What Graph answers (with 404) for an item, or a folder, that is not in the mailbox: the
+#: mailbox answered, and says it has no such thing. Never a refusal of the mailbox itself.
+FOLDER_NOT_THERE = "ErrorFolderNotFound"
+NOT_THERE_CODES = frozenset({"ErrorItemNotFound", FOLDER_NOT_THERE})
+
+
+def not_there(refused: "GraphRefused") -> bool:
+    """Whether ``refused`` says an item or a folder asked for is not in the mailbox."""
+    return refused.status == 404 and refused.code in NOT_THERE_CODES
 
 
 @dataclass(frozen=True)
@@ -131,11 +146,24 @@ class Graph:
         *,
         wait_seconds: float = WAIT_SECONDS,
         sleep: Callable[[float], None] = time.sleep,
+        waiting: Callable[[float], None] | None = None,
     ) -> None:
         self._send = send
         self._token = token
         self._wait_seconds = wait_seconds
         self._sleep = sleep
+        #: Told how long a throttled call is about to wait, and 0 when the wait is over.
+        self._waiting = waiting
+
+    def _wait(self, seconds: float) -> None:
+        """Wait out what Graph asked for, saying so to whoever watches the read."""
+        if self._waiting is not None:
+            self._waiting(seconds)
+        try:
+            self._sleep(seconds)
+        finally:
+            if self._waiting is not None:
+                self._waiting(0.0)
 
     def _call(
         self,
@@ -159,7 +187,7 @@ class Graph:
                 wait = float(asked)
                 if waited + wait > self._wait_seconds:
                     raise GraphThrottled(_path(url), asked, waited, self._wait_seconds)
-                self._sleep(wait)
+                self._wait(wait)
                 waited += wait
                 continue
             if answer.status >= 400:
@@ -180,7 +208,7 @@ class Graph:
         try:
             return self.get(path, params)
         except GraphRefused as refused:
-            if refused.status == 404 and refused.code == "ErrorItemNotFound":
+            if not_there(refused):
                 return None
             raise
 
@@ -265,7 +293,7 @@ class Graph:
                         raise GraphThrottled(
                             first.split("?", 1)[0], f"{wait:g}", waited, self._wait_seconds
                         )
-                    self._sleep(wait)
+                    self._wait(wait)
                     waited += wait
             answers += [got[str(n)] for n in range(len(chunk))]
         return answers

@@ -92,6 +92,26 @@ describe("replicaBuildLine", () => {
     );
   });
 
+  it("says a running build is waiting out a throttle, who asked and for how long", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "stream_batches",
+        loadKind: "row_copy",
+        rowsCopied: 1200,
+        rowsPerSecond: 3,
+        wait: { by: "Microsoft", seconds: 87, until: "2026-10-10T12:01:27+00:00" },
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingWaiting {"seconds":"#87","by":"Microsoft","how":"replicaBuild.method.stream_batches, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
   it("shows a build that has not reported progress yet without a rate", () => {
     const line = replicaBuildLine(
       build({ state: "building", method: "engine_statement", loadKind: "bulk_stream" }),
