@@ -2677,9 +2677,9 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
     # same registry the admin surfaces read — runtime-registered metrics included).
     state.metrics = {m.name: m for m in _metric_models}
 
-    # REQ-1921: a table or view that has gone draft since the last build keeps no copy in this
-    # region: its cached responses go (its replicas retire with convergence, its view build with
-    # the reclamation sweep). Entries are kept by place, not by table, so the place is purged.
+    # REQ-1921: no reader is answered from a table or view that has gone draft since the last
+    # build: its cached responses go. (A table keeps the replica it has; a view's build goes with
+    # the reclamation sweep.) Entries are kept by place, not by table, so the place is purged.
     from provisa.cache.tenancy import purge_when_drafted
 
     await purge_when_drafted(state, frozenset(t["id"] for t in draft_tables))

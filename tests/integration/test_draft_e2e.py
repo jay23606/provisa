@@ -14,7 +14,11 @@ domain's owners release it (REQ-1921), on a real pg-engine server over a real so
 * Freshly registered it is refused, by name and as draft, on GraphQL and SQL alike, and no schema
   offers it.
 * Released, it is read; replicated, its replica is built.
-* Set as draft again, it is refused again and its replica is removed — not only no longer built.
+* Set as draft again, it is refused again and keeps the replica it has: a draft is offered to
+  no reader, and it may hold its data.
+* A draft the engine reaches only through a replica is landed by its steward's preview — the
+  ordinary build, asked for by that read — and the preview is answered from it, while every
+  ordinary statement is still refused. Released, it is read from the copy already landed.
 """
 
 # Requirements: REQ-1921
@@ -36,13 +40,16 @@ from tests.integration.test_pg_engine_landing_never_writes_source_e2e import (
     _ROWS,
     _SourceAndEngine,
 )
-from tests.integration.test_replica_convergence_e2e import _config
+from tests.integration.test_replica_convergence_e2e import _builds, _config
 
 pytestmark = [pytest.mark.integration]
 
 _NAME = "draft_e2e"
 _REPLICA = f'"org_{_NAME}_replicas"."src__public__orders"'
 _ID_AMOUNT = [(i, amount) for i, amount, _note in _ROWS]
+# Many of this server's reloads (the config's interval is half a second): an undeclared
+# replica is retired by the first of them.
+_KEPT_S = 20
 
 
 @pytest.fixture
@@ -168,7 +175,131 @@ def test_a_table_registered_through_the_admin_is_out_of_service_until_released(s
     _wait(lambda: _replica_rows(pg) == len(_ROWS), seconds=90, what="the replica")
     assert _read(srv) == _ID_AMOUNT
 
-    # Set as draft again: refused again, and its replica goes (retired, then dropped).
+    # Set as draft again: refused again, and its replica stays — through the reloads in which
+    # an undeclared replica is retired and, its wait over, dropped.
     _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: true)")
     _refused_as_draft(srv)
-    _wait(lambda: _replica_rows(pg) is None, seconds=90, what="the replica's removal")
+    time.sleep(_KEPT_S)
+    (build,) = _builds(srv)["builds"]
+    assert build["state"] != "retired", build
+    assert _replica_rows(pg) == len(_ROWS)
+    _refused_as_draft(srv)
+
+
+def _preview(srv, table_id: int, body: dict) -> httpx.Response:
+    return httpx.post(
+        f"{srv.base_url}/admin/tables/{table_id}/preview",
+        json=body,
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=srv.request_timeout + 10,
+    )
+
+
+def _previewed(srv, table_id: int, body: dict) -> dict:
+    """The preview's rows, once its copy has landed: a preview that outlasts its time while the
+    build runs is answered as building, by code, and the next one reads the landed copy."""
+    deadline = time.monotonic() + 120
+    while True:
+        response = _preview(srv, table_id, body)
+        if response.status_code == 200:
+            return response.json()
+        assert response.status_code == 504, response.text
+        assert response.json()["code"] == "data.replica_building", response.text
+        assert time.monotonic() < deadline, "the draft's replica was never landed"
+        time.sleep(0.5)
+
+
+@pytest.fixture(params=["pg", "duckdb"])
+def landing_server(request):
+    """A server on each engine, over a real PostgreSQL source whose tables the operator's
+    setting puts on their replica."""
+    from tests.integration.isolated_server import IsolatedServer
+
+    engine = request.param
+    pg = _SourceAndEngine()
+    pg.start()
+    with tempfile.TemporaryDirectory() as workdir:
+        path = Path(workdir) / "config.yaml"
+        path.write_text(yaml.safe_dump({**_config(), "federation_engine": engine}))
+        control_plane = pg.url(pg.engine_port, "provisa", "+psycopg")
+        env = {
+            "PLATFORM_DATABASE_URL": control_plane,
+            "TENANT_DATABASE_URL": control_plane,
+            "PROVISA_REDIS_EMBEDDED": "1",
+        }
+        kwargs: dict = {}
+        if engine == "pg":
+            env["PROVISA_MATERIALIZE_URL"] = pg.url(pg.engine_port, "provisa")
+        else:
+            kwargs["materialize_store_url"] = f"duckdb:///{Path(workdir) / 'materialize.duckdb'}"
+        srv = IsolatedServer(
+            f"{_NAME}_land_{engine}",
+            engine=engine,
+            config=str(path),
+            control_plane="postgres",
+            env=env,
+            **kwargs,
+        )
+        try:
+            srv.start()
+            yield srv, pg
+        finally:
+            srv.stop_process()
+            pg.stop()
+
+
+def test_a_draft_reached_through_a_replica_is_landed_by_its_stewards_preview(landing_server):
+    srv, pg = landing_server
+    _mutate(
+        srv,
+        'createSource(input: {id: "src", type: "postgresql", host: "127.0.0.1", '
+        f'port: {pg.source_port}, database: "shop", username: "provisa", password: "provisa"}})',
+    )
+    # Every table of the source is served from its replica, never read in place.
+    _mutate(srv, 'updateSourceCache(sourceId: "src", cacheEnabled: true, cacheTtl: 3600)')
+    _mutate(srv, 'updateSourceReplicate(sourceId: "src", replicate: 0)')
+    registered = _mutate(
+        srv,
+        'registerTable(input: {sourceId: "src", domainId: "shop", schemaName: "public", '
+        'tableName: "orders", columns: ['
+        '{name: "id", visibleTo: ["org_admin"], dataType: "integer", isPrimaryKey: true}, '
+        '{name: "amount", visibleTo: ["org_admin"], dataType: "double"}]})',
+    )
+    table_id = registered_id(registered["message"])
+    _refused_as_draft(srv)
+
+    # Its steward's preview: the first page, then a filter, a sort and a second page of it --
+    # each a statement the server writes, answered from the replica that read landed.
+    first = _previewed(srv, table_id, {"sorts": [{"col": "id", "dir": "asc"}]})
+    assert first["draft"] is True
+    assert [(r["id"], r["amount"]) for r in first["rows"]] == _ID_AMOUNT
+
+    low, high = _ID_AMOUNT[0][0], _ID_AMOUNT[-1][0]
+    filtered = _previewed(
+        srv,
+        table_id,
+        {"filters": [{"col": "id", "kind": "number", "op": "eq", "a": str(high)}]},
+    )
+    assert [r["id"] for r in filtered["rows"]] == [high]
+    paged = _previewed(
+        srv,
+        table_id,
+        {"sorts": [{"col": "id", "dir": "desc"}], "page": 1, "pageSize": len(_ID_AMOUNT) - 1},
+    )
+    assert [r["id"] for r in paged["rows"]] == [low]
+
+    unknown = _preview(
+        srv, table_id, {"filters": [{"col": "nope", "kind": "text", "op": "contains", "a": "x"}]}
+    )
+    assert unknown.status_code == 400, unknown.text
+    assert unknown.json()["code"] == "data.viewer_column_unknown", unknown.text
+
+    # Landed -- by the ordinary build, on the ordinary record -- and still offered to no reader.
+    (build,) = _builds(srv)["builds"]
+    assert (build["sourceId"], build["tableName"]) == ("src", "orders")
+    assert build["rowsCopied"] == len(_ROWS) and build["lastError"] is None
+    _refused_as_draft(srv)
+
+    # Released: read by anyone the model serves it to, from the copy already landed.
+    _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: false)")
+    assert _read(srv) == _ID_AMOUNT

@@ -3792,8 +3792,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def set_table_draft(
         self, info: StrawberryInfo, table_id: int, draft: bool
     ) -> MutationResult:  # REQ-1921
-        """Put a table or view out of service (draft) or release it. While draft it is read and
-        written nowhere, offered in no schema and copied nowhere; its domain's owners set and
+        """Put a table or view out of service (draft) or release it. While draft it is offered
+        to no reader: in no schema, refused to every statement. It keeps the replica it has, and
+        its steward's preview may land one (admin/table_read.py). Its domain's owners set and
         clear it, and no other right is needed."""
         from sqlalchemy import update as _update
 

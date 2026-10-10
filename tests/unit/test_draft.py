@@ -310,3 +310,75 @@ async def test_a_table_gone_draft_takes_its_regions_cached_responses_with_it():
     assert await purge_when_drafted(state, frozenset()) == 0  # released: nothing to remove
     assert await purge_when_drafted(state, frozenset({7, 9})) == 3
     assert len(purged) == 2
+
+
+# -- a draft that holds a replica is still in none of the lists a reader is served from ----------
+
+
+async def test_a_draft_holding_a_replica_is_in_no_list_a_reader_is_served_from(model, monkeypatch):
+    """REQ-1921: a draft may hold a replica, landed for its steward's preview. Holding one
+    offers it to nobody: the lists every reader's surface is made from are the tables in
+    service -- the registry reads are planned from, the replica routes, the tables counted for
+    Hot replication, the catalog (Flight, pgwire, MCP and its search index), the live polls."""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from provisa.api.flight.catalog import _build_catalog_tables_async
+    from provisa.core.repositories import table as table_repo
+    from provisa.federation import registry_view, replica_routing, replica_state
+    from provisa.live import reconcile as live_reconcile
+
+    key = ("crm", "public", "staging")
+    async with model.acquire() as conn:
+        await _seed(conn)
+        await table_repo.upsert(conn, _table("orders", draft=False))
+        await table_repo.upsert(conn, _table("staging", draft=True))
+        # As its steward's preview asks for it (query_residency): the ordinary record.
+        assert await replica_state.request_build(
+            conn, key, replica_state.REASON_MODEL, model_stamp=1, now=datetime.now(UTC)
+        )
+        assert await replica_state.read(conn, key) is not None
+        # A draft polled live, were drafts polled.
+        from sqlalchemy import update
+
+        from provisa.core.schema_org import registered_tables as rt
+
+        await conn.execute_core(update(rt).values(live={"strategy": "ttl", "interval": 60}))
+
+    state = SimpleNamespace(
+        model_db=model,
+        tenant_db=model,
+        config=object(),
+        schema_boot_id="b",
+        schema_version=1,
+        tables=[],
+        contexts={},
+    )
+    monkeypatch.setattr("provisa.federation.replica_builds.store_identity", lambda _s: "store")
+
+    def names(tables) -> list[str]:
+        return sorted(t["table_name"] if isinstance(t, dict) else t.table_name for t in tables)
+
+    # What reads are planned from, what Hot replication counts and promotes
+    # (replica_hot.evaluate reads this list), and what the replica routes are made from.
+    assert names(await registry_view.registered_tables(state)) == ["orders"]
+    async with model.acquire() as conn:
+        assert names(await registry_view.registered_tables(state, conn)) == ["orders"]
+    assert names((await replica_routing._registry(state)).registered) == ["orders"]
+    # The catalog every catalog surface is built from.
+    assert sorted(t.table_name for t in await _build_catalog_tables_async(state)) == ["orders"]
+
+    # The live polls.
+    class _Live:
+        specs: list = []
+
+        def reconcile(self, specs, *a, **kw):
+            self.specs = list(specs)
+
+    live = _Live()
+    async with model.acquire() as conn:
+        await live_reconcile.reconcile_live_engine(conn, live)
+    assert [s.query_id for s in live.specs] == ["crm.orders"]
+
+    # It is found only where its steward's read and its build look for it.
+    assert names(await registry_view.draft_tables(state)) == ["staging"]
