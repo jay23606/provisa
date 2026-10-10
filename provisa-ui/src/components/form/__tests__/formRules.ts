@@ -28,7 +28,9 @@ export type FormRule =
    */
   | "explanation-misplaced"
   /** A tick or switch outside the form's group of ticks. */
-  | "tick-ungrouped";
+  | "tick-ungrouped"
+  /** A Save or Cancel button that is not the shared footer's: its look and its saving state differ. */
+  | "save-cancel-not-shared";
 
 export interface FormViolation {
   rule: FormRule;
@@ -297,7 +299,31 @@ export function checkFormRules(
     }
   };
 
+  /** The one text a button shows, when it is a literal or `t("key")`. */
+  const buttonWord = (n: JsxEl): string | undefined => {
+    if (!ts.isJsxElement(n)) return undefined;
+    const parts = n.children.filter((c) => !(ts.isJsxText(c) && c.containsOnlyTriviaWhiteSpaces));
+    if (parts.length !== 1) return undefined;
+    const only = parts[0];
+    if (ts.isJsxText(only)) return only.text.trim();
+    const e = ts.isJsxExpression(only) ? only.expression : undefined;
+    if (e && ts.isStringLiteralLike(e)) return e.text;
+    if (e && ts.isCallExpression(e) && e.expression.getText() === "t") {
+      const key = e.arguments[0];
+      if (key && ts.isStringLiteralLike(key)) return options.textOf?.(key.text);
+    }
+    return undefined;
+  };
+
   const checkButton = (n: JsxEl) => {
+    const word = buttonWord(n);
+    if (word === "Save" || word === "Cancel") {
+      report(
+        "save-cancel-not-shared",
+        n,
+        `a "${word}" button outside <FormFooter onSave onCancel>`,
+      );
+    }
     if (isExceptedButton(n)) return;
     if (attr(n, "fullWidth") !== undefined && attr(n, "fullWidth") !== "false") {
       report("button-stretched", n, "<Button fullWidth>");

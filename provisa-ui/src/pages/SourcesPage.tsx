@@ -16,7 +16,7 @@ import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../component
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   ActionIcon,
   Alert,
@@ -1679,27 +1679,13 @@ export function SourcesPage() {
             {/* The same two actions, in the same place and order, as the edit form below: Save first,
                 Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
                 is created by its own section's button, so it gets Cancel alone. */}
-            <FormFooter>
-              {form.type !== "kaggle" && (
-                <Button
-                  type="submit"
-                  loading={submitting}
-                  leftSection={<Check size={14} />}
-                  data-testid="sources-submit"
-                >
-                  {t("sourcesPage.saveEdit")}
-                </Button>
-              )}
-              <Button
-                variant="default"
-                type="button"
-                leftSection={<X size={14} />}
-                onClick={handleCancelForm}
-                data-testid="sources-cancel"
-              >
-                {t("sourcesPage.cancelEdit")}
-              </Button>
-            </FormFooter>
+            <FormFooter
+              submit={form.type !== "kaggle"}
+              saving={submitting}
+              onCancel={handleCancelForm}
+              saveProps={{ "data-testid": "sources-submit" }}
+              cancelProps={{ "data-testid": "sources-cancel" }}
+            />
           </FormLayout>
         </div>
       )}
@@ -1861,23 +1847,11 @@ export function SourcesPage() {
                                   </FormField>
                                 </FormIdentifiers>
                                 <SourceFormFields {...sourceFormFieldsProps} />
-                                <FormFooter>
-                                  <Button
-                                    variant="filled"
-                                    type="submit"
-                                    leftSection={<Check size={14} />}
-                                  >
-                                    {t("sourcesPage.saveEdit")}
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    type="button"
-                                    leftSection={<X size={14} />}
-                                    onClick={handleCancelForm}
-                                  >
-                                    {t("sourcesPage.cancelEdit")}
-                                  </Button>
-                                </FormFooter>
+                                <FormFooter
+                                  submit
+                                  saving={submitting}
+                                  onCancel={handleCancelForm}
+                                />
                               </FormLayout>
                             ) : (
                               <SourceDetailPanel

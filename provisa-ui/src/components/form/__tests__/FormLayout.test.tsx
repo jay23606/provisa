@@ -9,8 +9,8 @@
 // permission from the copyright holder.
 
 import { describe, it, expect, vi } from "vitest";
-import { Button, Checkbox, TextInput } from "@mantine/core";
-import { render, screen } from "../../../test-utils/render";
+import { Checkbox, TextInput } from "@mantine/core";
+import { fireEvent, render, screen, waitFor } from "../../../test-utils/render";
 import i18n from "../../../i18n";
 import {
   FieldGroup,
@@ -199,31 +199,69 @@ describe("FormLayout", () => {
     spy.mockRestore();
   });
 
-  it("ends in an action row that keeps the primary action first", () => {
+  it("ends in one Save and one Cancel, icon and word, Save first", () => {
     render(
       <FormLayout data-testid="layout">
         <FormField size="medium">
           <TextInput label="Name" />
         </FormField>
-        <FormFooter data-testid="footer">
-          <Button type="submit">Save</Button>
-          <Button variant="default">Cancel</Button>
-        </FormFooter>
+        <FormFooter data-testid="footer" onSave={() => {}} onCancel={() => {}} />
       </FormLayout>,
     );
     const footer = screen.getByTestId("footer");
     expect(footer).toHaveClass("form-footer");
     expect(screen.getByTestId("layout").lastElementChild).toBe(footer);
-    const names = Array.from(footer.querySelectorAll("button")).map((b) => b.textContent);
-    expect(names).toEqual(["Save", "Cancel"]);
+    const buttons = Array.from(footer.querySelectorAll("button"));
+    expect(buttons.map((b) => b.textContent)).toEqual([t("common.save"), t("common.cancel")]);
+    for (const b of buttons) expect(b.querySelector("svg")).not.toBeNull();
   });
 
-  it("serves a dialog with no fields: the action row needs no FormLayout", () => {
-    render(
-      <FormFooter>
-        <Button>Delete</Button>
-      </FormFooter>,
+  it("shows a spinner on Save and disables both buttons until the save settles", async () => {
+    let settle: () => void = () => {};
+    const onSave = vi.fn(() => new Promise<void>((resolve) => (settle = resolve)));
+    render(<FormFooter onSave={onSave} onCancel={() => {}} />);
+    const save = screen.getByRole("button", { name: t("common.save") });
+    const cancel = screen.getByRole("button", { name: t("common.cancel") });
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(save).toBeDisabled();
+    expect(cancel).toBeDisabled();
+    expect(save).toHaveAttribute("data-saving", "true");
+    expect(save.querySelector(".mantine-Loader-root")).not.toBeNull();
+    expect(save).toHaveTextContent(t("common.save"));
+    settle();
+    await waitFor(() => expect(save).toBeEnabled());
+    expect(cancel).toBeEnabled();
+    expect(save.querySelector(".mantine-Loader-root")).toBeNull();
+  });
+
+  it("returns Save to rest when the save is refused", async () => {
+    let refuse: (e: Error) => void = () => {};
+    render(<FormFooter onSave={() => new Promise<void>((_, reject) => (refuse = reject))} />);
+    const save = screen.getByRole("button", { name: t("common.save") });
+    fireEvent.click(save);
+    expect(save).toBeDisabled();
+    refuse(new Error("refused"));
+    await waitFor(() => expect(save).toBeEnabled());
+  });
+
+  it("takes the saving state from a form that submits itself", () => {
+    const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    const { rerender } = render(
+      <form onSubmit={onSubmit}>
+        <FormFooter submit onCancel={() => {}} />
+      </form>,
     );
-    expect(screen.getByRole("button", { name: "Delete" }).parentElement).toHaveClass("form-footer");
+    const save = screen.getByRole("button", { name: t("common.save") });
+    expect(save).toHaveAttribute("type", "submit");
+    fireEvent.click(save);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    rerender(
+      <form onSubmit={onSubmit}>
+        <FormFooter submit saving onCancel={() => {}} />
+      </form>,
+    );
+    expect(save).toBeDisabled();
+    expect(screen.getByRole("button", { name: t("common.cancel") })).toBeDisabled();
   });
 });

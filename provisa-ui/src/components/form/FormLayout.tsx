@@ -20,13 +20,14 @@ import {
   isValidElement,
   useContext,
   useId,
+  useState,
   type CSSProperties,
   type FormEventHandler,
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { Tooltip } from "@mantine/core";
-import { CircleHelp } from "lucide-react";
+import { Button, Loader, Tooltip } from "@mantine/core";
+import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const FormLayoutContext = createContext(false);
@@ -222,13 +223,75 @@ export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElemen
   );
 }
 
+type ButtonExtras = { "data-testid"?: string; disabled?: boolean };
+
 /**
  * A form's or dialog's action row: at the bottom, at the start of the line (left in a left-to-right
- * language, right in a right-to-left one), primary action first. Buttons keep their natural width.
+ * language, right in a right-to-left one). It owns the form's Save and Cancel, so every form has
+ * the same two: the check and the word "Save", then the cross and the word "Cancel".
+ *
+ * From the press until the save settles Save shows a spinner in place of its icon and both buttons
+ * are disabled. A form says it is saving in one of two ways: `onSave` returns the save's promise,
+ * or the form passes `saving` (a form that submits through `<form onSubmit>` sets `submit`).
+ * Other actions of the row go in as children, after the two.
  */
-export function FormFooter({ children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+export function FormFooter({
+  onSave,
+  onCancel,
+  submit = false,
+  saving = false,
+  saveProps,
+  cancelProps,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLDivElement> & {
+  onSave?: () => unknown;
+  onCancel?: () => void;
+  submit?: boolean;
+  saving?: boolean;
+  saveProps?: ButtonExtras;
+  cancelProps?: ButtonExtras;
+}) {
+  const { t } = useTranslation();
+  const [pending, setPending] = useState(false);
+  const busy = saving || pending;
+  const save = () => {
+    const result = onSave?.();
+    if (result instanceof Promise) {
+      setPending(true);
+      // Settled either way: a refused save returns the button to rest, and the form shows why.
+      void result.then(
+        () => setPending(false),
+        () => setPending(false),
+      );
+    }
+  };
   return (
     <div {...rest} className={classes("form-footer", rest.className)}>
+      {(onSave !== undefined || submit) && (
+        <Button
+          {...saveProps}
+          type={submit ? "submit" : "button"}
+          onClick={submit ? undefined : save}
+          leftSection={busy ? <Loader size={14} color="currentColor" /> : <Check size={14} />}
+          disabled={busy || saveProps?.disabled === true}
+          data-saving={busy || undefined}
+        >
+          {t("common.save")}
+        </Button>
+      )}
+      {onCancel !== undefined && (
+        <Button
+          {...cancelProps}
+          type="button"
+          variant="default"
+          onClick={onCancel}
+          leftSection={<X size={14} />}
+          disabled={busy || cancelProps?.disabled === true}
+        >
+          {t("common.cancel")}
+        </Button>
+      )}
       {children}
     </div>
   );

@@ -127,6 +127,7 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/settingsCards.tsx",
   "components/admin/synthetic/DatasetAssertions.tsx",
   "components/admin/synthetic/DatasetConditions.tsx",
+  "components/form/FormLayout.tsx",
   "components/graph/Inspector.tsx",
   "components/graph/Neo4jExportModal.tsx",
   "components/graph/graph-context-menus.tsx",
@@ -272,18 +273,18 @@ describe("the form rules fail what they are meant to fail", () => {
   });
 
   it("action buttons aligned anywhere but the start", () => {
-    expect(rules(`<Group justify="flex-end"><Button>Save</Button></Group>`)).toEqual([
+    expect(rules(`<Group justify="flex-end"><Button>Run</Button></Group>`)).toEqual([
       "actions-not-at-start",
     ]);
     expect(
-      rules(`<Group justify="space-between"><Button>Cancel</Button><Button>Save</Button></Group>`),
+      rules(`<Group justify="space-between"><Button>Close</Button><Button>Run</Button></Group>`),
     ).toEqual(["actions-not-at-start"]);
-    expect(rules(`<div className="modal-actions"><Button>Save</Button></div>`)).toEqual([
+    expect(rules(`<div className="modal-actions"><Button>Run</Button></div>`)).toEqual([
       "actions-not-at-start",
     ]);
     expect(
       rules(
-        `<div style={{ display: "flex", justifyContent: "flex-end" }}>{ok && <Button>Save</Button>}</div>`,
+        `<div style={{ display: "flex", justifyContent: "flex-end" }}>{ok && <Button>Run</Button>}</div>`,
       ),
     ).toEqual(["actions-not-at-start"]);
   });
@@ -294,7 +295,7 @@ describe("the form rules fail what they are meant to fail", () => {
         `<Group justify="space-between"><Title>Sources</Title><Button>+ Source</Button></Group>`,
       ),
     ).toEqual([]);
-    expect(rules(`<FormFooter><Button>Save</Button><Button>Cancel</Button></FormFooter>`)).toEqual(
+    expect(rules(`<FormFooter><Button>Run</Button><Button>Close</Button></FormFooter>`)).toEqual(
       [],
     );
     expect(rules(`<Group justify="flex-end"><ActionIcon /></Group>`)).toEqual([]);
@@ -306,11 +307,11 @@ describe("the form rules fail what they are meant to fail", () => {
     expect(
       rules(`<Stack>{rows.map((r) => <Tooltip label="x"><Button>{r}</Button></Tooltip>)}</Stack>`),
     ).toEqual(["button-stretched"]);
-    expect(rules(`<div className="form-card"><Button>Save</Button></div>`)).toEqual([
+    expect(rules(`<div className="form-card"><Button>Run</Button></div>`)).toEqual([
       "outside-shared-layout",
       "button-stretched",
     ]);
-    expect(rules(`<Group><Button style={{ gridColumn: "1 / -1" }}>Save</Button></Group>`)).toEqual([
+    expect(rules(`<Group><Button style={{ gridColumn: "1 / -1" }}>Run</Button></Group>`)).toEqual([
       "button-stretched",
     ]);
   });
@@ -403,6 +404,26 @@ describe("the form rules hold where an explanation sits and where ticks sit", ()
 
   it("a reusable select counts as a field", () => {
     expect(rules(`<Stack><RegionSelect value={v} /></Stack>`)).toEqual(["outside-shared-layout"]);
+  });
+});
+
+describe("the form rules hold the one Save and the one Cancel", () => {
+  const words = { textOf: (key: string) => ({ "x.save": "Save", "x.cancel": "Cancel" })[key] };
+
+  it("a Save or Cancel button of a form's own", () => {
+    expect(rules(`<FormFooter><Button>{t("x.save")}</Button></FormFooter>`, words)).toEqual([
+      "save-cancel-not-shared",
+    ]);
+    expect(rules(`<Group><Button variant="default">Cancel</Button></Group>`)).toEqual([
+      "save-cancel-not-shared",
+    ]);
+  });
+
+  it("the shared footer's pair, and a button that is neither, pass", () => {
+    expect(rules(`<FormFooter onSave={save} onCancel={close} />`, words)).toEqual([]);
+    expect(
+      rules(`<FormFooter onSave={save}><Button>Fill from profile</Button></FormFooter>`),
+    ).toEqual([]);
   });
 });
 

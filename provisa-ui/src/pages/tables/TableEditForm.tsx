@@ -10,9 +10,8 @@
 
 import { TablePlacementFields } from "./TablePlacementFields";
 import { Fragment, useEffect, useState } from "react";
-import { Check, X, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Alert, Button, Checkbox, Select, Table, Text, TextInput } from "@mantine/core";
+import { Alert, Checkbox, Select, Table, Text, TextInput } from "@mantine/core";
 import { MultiSelect } from "../../components/MultiSelect";
 import { ColumnPresetsEditor } from "../../components/admin/ColumnPresetsEditor";
 import { UniquesPanel } from "../../components/admin/UniquesPanel";
@@ -852,32 +851,14 @@ export function TableEditForm({
           }
         />
       </div>
-      <FormFooter style={{ padding: "0.75rem 0.5rem" }}>
-        <Button
-          variant="filled"
-          leftSection={
-            saving ? (
-              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <Check size={14} />
-            )
-          }
-          data-testid="table-edit-save"
-          onClick={handleSaveEdit}
-          disabled={saving}
-        >
-          {t("tableEditForm.save")}
-        </Button>
-        <Button
-          variant="default"
-          leftSection={<X size={14} />}
-          data-testid="table-edit-cancel"
-          onClick={cancelEditing}
-          disabled={saving}
-        >
-          {t("tableEditForm.cancel")}
-        </Button>
-      </FormFooter>
+      <FormFooter
+        style={{ padding: "0.75rem 0.5rem" }}
+        onSave={handleSaveEdit}
+        saving={saving}
+        onCancel={cancelEditing}
+        saveProps={{ "data-testid": "table-edit-save" }}
+        cancelProps={{ "data-testid": "table-edit-cancel" }}
+      />
     </>
   );
 }

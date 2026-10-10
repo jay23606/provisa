@@ -1082,14 +1082,12 @@ export function RegisterTableForm({
         </FormField>
       )}
       {/* Save registers the table, Cancel closes the form. (The page's "+ Table" only opens it.) */}
-      <FormFooter>
-        <Button onClick={handleSubmit} data-testid="register-table-submit">
-          {t("registerTableForm.submitButton")}
-        </Button>
-        <Button variant="default" onClick={onCancel} data-testid="register-table-cancel">
-          {t("registerTableForm.cancelButton")}
-        </Button>
-      </FormFooter>
+      <FormFooter
+        onSave={handleSubmit}
+        onCancel={onCancel}
+        saveProps={{ "data-testid": "register-table-submit" }}
+        cancelProps={{ "data-testid": "register-table-cancel" }}
+      />
     </FormLayout>
   );
 }
