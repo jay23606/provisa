@@ -11,7 +11,17 @@
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2, Pencil } from "lucide-react";
-import { ActionIcon, Badge, Box, Button, Group, Table, Text, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Group,
+  Table,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
 import type { RegisteredTable, DataProduct } from "../../types/admin";
 import { computeProfile } from "./helpers";
@@ -45,6 +55,9 @@ interface TableReadViewProps {
   handleProfile: (id: number) => void;
   /** REQ-1944: a governance-only viewer: no registration, deploy, profiling or delete. */
   hidingOnly?: boolean;
+  // REQ-1921: put the table out of service (draft) or release it. The view shows the stored
+  // state: the box follows `table.draft` once the change is saved and the table reloaded.
+  onSetDraft?: (table: RegisteredTable, draft: boolean) => void;
   // REQ-1386: opens the governed SELECT * preview modal.
   onPreview: (t: RegisteredTable) => void;
   // REQ-1318: opens the Views-page definition-mode editor (SQL | Metrics toggle).
@@ -69,6 +82,7 @@ export function TableReadView({
   handleDelete,
   handleProfile,
   hidingOnly = false,
+  onSetDraft,
   onPreview,
   onEditDefinition,
   profileColumnsTable,
@@ -413,7 +427,39 @@ export function TableReadView({
             <Trash2 size={14} />
           </ActionIcon>
         )}
+        {/* REQ-1921: draft is set and cleared here, beside the table's other actions. It needs
+            the right to register tables in the table's domain; without it the box only shows
+            the state. */}
+        <Tooltip
+          label={
+            hidingOnly || !onSetDraft
+              ? t("tableReadView.draftNoRightTooltip")
+              : t("tableReadView.draftTooltip")
+          }
+          withArrow
+        >
+          <Checkbox
+            size="xs"
+            label={t("tableReadView.draftLabel")}
+            checked={table.draft}
+            disabled={hidingOnly || !onSetDraft}
+            data-testid="table-read-view-draft"
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSetDraft?.(table, e.currentTarget.checked)}
+          />
+        </Tooltip>
       </Group>
+      {table.draft && (
+        <Text
+          size="xs"
+          c="dimmed"
+          px="0.5rem"
+          pb="0.25rem"
+          data-testid="table-read-view-draft-note"
+        >
+          {t("tableReadView.draftPreviewNote")}
+        </Text>
+      )}
       {deployMsg[table.id] && (
         <Box
           px="0.75rem"

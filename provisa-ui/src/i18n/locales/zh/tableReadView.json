@@ -57,6 +57,10 @@
     "writable": "可写入",
     "writableOps": "接受来自 GraphQL、REST 和 SQL 的 {{ops}}",
     "dataProductChip": "数据产品",
-    "notShown": "未显示"
+    "notShown": "未显示",
+    "draftLabel": "草稿",
+    "draftTooltip": "草稿：已停用——不在任何架构中，也无人可读取。取消勾选即发布该表；勾选则将其停用。",
+    "draftNoRightTooltip": "发布表或将其退回草稿，需要在该表所属域中拥有“表注册”权限。",
+    "draftPreviewNote": "草稿预览：读者目前还看不到此表。"
   }
 }

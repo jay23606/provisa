@@ -452,6 +452,28 @@ export async function deleteOrgRole(orgId: string, roleId: string): Promise<void
   if (!res.ok) throw httpError("deleteOrgRole", res.status);
 }
 
+/** The first rows of a registered table, read as the caller — the one read a DRAFT takes
+ * (REQ-1921): for a caller who may register tables in the table's domain. */
+export async function previewTable(
+  tableId: number,
+  role: string,
+): Promise<{
+  columns: string[];
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  draft: boolean;
+}> {
+  const resp = await fetch(`${API_BASE}/admin/tables/${tableId}/preview`, {
+    method: "POST",
+    headers: { "X-Provisa-Role": role },
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(serverMessage(body, requestFailed("previewTable", resp.status)));
+  }
+  return resp.json();
+}
+
 export async function profileTable(
   tableId: number,
   role: string,

@@ -433,6 +433,15 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     }
   };
 
+  // REQ-1921: the detail's Draft box. The same mutation the edit form's draft control saves
+  // through; the box shows what is stored, so the tables are reloaded once it answers.
+  const handleSetDraft = async (table: RegisteredTable, draft: boolean) => {
+    setError(null);
+    const result = await setTableDraft(table.id, draft);
+    if (!result.success) setError(serverMessage(result, result.message));
+    await reload();
+  };
+
   const handleProfile = async (tableId: number, paramValues?: Record<string, string>) => {
     const existing = tableProfiles[tableId];
     if (existing !== undefined && existing !== "loading") {
@@ -1115,6 +1124,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                           handleDelete={handleDelete}
                           handleProfile={handleProfile}
                           onPreview={setPreviewTable}
+                          onSetDraft={handleSetDraft}
                           profileColumnsTable={
                             // REQ-1934: this table's profile, if its columns table is registered.
                             tables.find(
@@ -1336,7 +1346,11 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           onClose={() => setShowErd(false)}
         />
       )}
-      <TablePreviewModal table={previewTable} onClose={() => setPreviewTable(null)} />
+      <TablePreviewModal
+        table={previewTable}
+        role={activeRole?.id ?? null}
+        onClose={() => setPreviewTable(null)}
+      />
       <NativeParamsModal
         key={profileParamsTable?.id ?? "none"}
         table={profileParamsTable}
