@@ -84,19 +84,65 @@ class FakeGraph:
         self.table = table
         self.calls: list[tuple[str, str, dict, dict]] = []
         self.queued: list[Answer] = []  # answers given before the table is consulted
+        #: delta path -> the items a round started from a kept link gives (changes since).
+        self.since: dict[str, list] = {}
+        #: delta paths whose kept link Graph no longer honours.
+        self.gone: set[str] = set()
+
+    def _folders_of(self, root: str) -> list[dict]:
+        """The mailbox's folders: the ones the table lists, or, where it lists none, one for
+        each folder its messages say they are in."""
+        if f"{root}/mailFolders" in self.table:
+            return [f for page in self.table[f"{root}/mailFolders"] for f in page]
+        messages = [m for page in self.table.get(f"{root}/messages", []) for m in page]
+        return [{"id": i} for i in dict.fromkeys(m["parentFolderId"] for m in messages)]
+
+    def _tracked(self, path: str) -> list | None:
+        """What a delta path gives on its first round: its own entry in the table, else what
+        the mailbox's ``/messages`` and ``/mailFolders`` entries say (so a table written for
+        one listing of the mailbox also answers its folder-by-folder reading)."""
+        if path in self.table:
+            return self.table[path]
+        if path.endswith("/mailFolders/delta"):
+            return [self._folders_of(path.removesuffix("/mailFolders/delta"))]
+        if path.endswith("/messages/delta") and "/mailFolders/" in path:
+            root, folder = path.removesuffix("/messages/delta").split("/mailFolders/")
+            pages = [
+                [m for m in page if m["parentFolderId"] == folder]
+                for page in self.table.get(f"{root}/messages", [])
+            ]
+            return [page for page in pages if page] or [[]]
+        return None
 
     def _one(self, url: str) -> tuple[int, object]:
         parts = urlsplit(url)
         path = parts.path.removeprefix("/v1.0")
         query = parse_qs(parts.query)
-        if path not in self.table:
+        if path.endswith("/delta"):
+            if path in self.gone:
+                return 410, {"error": {"code": "SyncStateNotFound", "message": "expired"}}
+            if "$deltatoken" in query:
+                # What changed since the link was given: nothing, unless a test says so.
+                changed = self.since.get(path, [])
+                return 200, {
+                    "value": changed,
+                    "@odata.deltaLink": f"{BASE_URL}{path}?$deltatoken=again",
+                }
+            answer = self._tracked(path)
+        elif path not in self.table and path.endswith("/mailFolders"):
+            folders = self._folders_of(path.removesuffix("/mailFolders"))
+            answer = [folders] if folders else None
+        else:
+            answer = self.table.get(path)
+        if answer is None:
             return 404, {"error": {"code": "ErrorItemNotFound", "message": "not found"}}
-        answer = self.table[path]
         if isinstance(answer, list):
             page = int(query.get("$skiptoken", ["0"])[0])
             body: dict = {"value": answer[page]}
             if page + 1 < len(answer):
                 body["@odata.nextLink"] = f"{BASE_URL}{path}?$skiptoken={page + 1}"
+            elif path.endswith("/delta"):
+                body["@odata.deltaLink"] = f"{BASE_URL}{path}?$deltatoken=first"
             return 200, body
         return 200, answer
 
@@ -112,6 +158,13 @@ class FakeGraph:
             return Answer(200, {}, {"responses": list(reversed(responses))})
         status, answer = self._one(url)
         return Answer(status, {}, answer)
+
+
+def _rounds(fake: FakeGraph) -> list[tuple[str, str, dict, dict]]:
+    """The requests that read a folder's messages (its delta rounds), in order."""
+    return [
+        c for c in fake.calls if c[0] == "GET" and urlsplit(c[1]).path.endswith("/messages/delta")
+    ]
 
 
 def _graph(table: dict, **kw) -> tuple[Graph, FakeGraph, list[float]]:
@@ -191,9 +244,13 @@ def test_a_message_row():
     assert row["received_at"] == "2026-01-01T10:00:05Z"
     # Columns Microsoft has no value for are None, never an empty stand-in.
     assert row["size_bytes"] is None and row["classification_labels"] is None
-    listing = fake.calls[0]
-    assert listing[2]["$top"] == "50" and "internetMessageHeaders" in listing[2]["$select"]
-    assert listing[3]["Prefer"] == 'IdType="ImmutableId", outlook.body-content-type="text"'
+    # The folder's messages are read as the first round of its change tracking: the page
+    # size is the header Graph takes it by there, and what is selected rides in the link.
+    listing = _rounds(fake)[0]
+    assert "$top" not in listing[2] and "internetMessageHeaders" in listing[2]["$select"]
+    assert listing[3]["Prefer"] == (
+        'IdType="ImmutableId", odata.maxpagesize=50, outlook.body-content-type="text"'
+    )
     assert listing[3]["Authorization"] == "Bearer access-token"
 
 
@@ -248,7 +305,7 @@ def test_messages_are_read_to_the_last_page_and_html_bodies_match_their_messages
         ("m2", "<p>2</p>"),
         ("m3", "<p>3</p>"),
     ]
-    follow = [c for c in fake.calls if c[0] == "GET"][1]
+    follow = _rounds(fake)[1]
     assert follow[1].endswith("$skiptoken=1") and follow[2] == {}  # the next link, as given
 
 
@@ -513,10 +570,8 @@ def test_one_listing_of_the_mailbox_gives_every_message_table():
     got: dict[str, list[dict]] = {}
     for table, rows in mailbox.message_tables(mail.MESSAGE_TABLES):
         got.setdefault(table, []).extend(rows)
-    listings = [
-        c for c in fake.calls if c[0] == "GET" and urlsplit(c[1]).path.endswith("/messages")
-    ]
-    assert len(listings) == 2  # the two pages of ONE listing; no table listed the mailbox again
+    # The two pages of ONE reading of the mailbox's one folder; no table read it again.
+    assert len(_rounds(fake)) == 2
     # Each table's rows are the ones it gives when read on its own.
     for table in mail.MESSAGE_TABLES:
         alone, _ = _mailbox(_mailbox_of_three(), page_size=2)
@@ -530,8 +585,7 @@ def test_a_group_read_without_messages_asks_for_no_bodies():
     got = {table for table, _rows in mailbox.message_tables(tables)}
     assert got == set(tables)
     assert not [c for c in fake.calls if c[0] == "POST"]  # no HTML body was read
-    (listing,) = [c for c in fake.calls if urlsplit(c[1]).path.endswith("/messages")][:1]
-    assert "body" not in listing[2]["$select"].split(",")
+    assert "body" not in _rounds(fake)[0][2]["$select"].split(",")
 
 
 def test_folders_do_not_come_from_the_messages():
@@ -546,3 +600,91 @@ def test_a_group_read_names_the_messages_kept_without_a_body():
     unreadable: list[str] = []
     rows = [r for t, batch in mailbox.message_tables(("messages",), unreadable) for r in batch]
     assert [r["body_html"] for r in rows] == ["<p>1</p>", None] and unreadable == ["m2"]
+
+
+# --- a read is made of delta rounds, and keeps where it reached ---
+
+_INBOX, _SENT = "f-inbox", "f-sent"
+
+
+def _two_folders() -> dict:
+    return {
+        f"{ROOT}/mailFolders": [[{"id": _INBOX}, {"id": _SENT}]],
+        f"{ROOT}/messages": [
+            [_message(1), _message(2, parentFolderId=_SENT)],
+            [_message(3, parentFolderId=_SENT)],
+        ],
+        **_html(1, 2, 3),
+    }
+
+
+def test_every_folder_is_read_and_each_keeps_the_link_its_round_ended_with():
+    mailbox, fake = _mailbox(_two_folders())
+    assert mailbox.links is None  # nothing is kept before a read has ended
+    rows = _all(mailbox, "messages")
+    assert sorted(r["id"] for r in rows) == ["m1", "m2", "m3"]
+    assert {r["id"]: r["folder_ids"] for r in rows}["m3"] == [_SENT]
+    read = [urlsplit(c[1]).path.removeprefix("/v1.0") for c in _rounds(fake)]
+    assert f"{ROOT}/mailFolders/{_INBOX}/messages/delta" in read
+    assert f"{ROOT}/mailFolders/{_SENT}/messages/delta" in read
+    assert mailbox.links is not None
+    # One link for each folder, under the folder's id, and one for the list of folders.
+    assert set(mailbox.links) == {_INBOX, _SENT, mail.MAILBOX}
+    assert mailbox.links[_SENT].endswith(f"/mailFolders/{_SENT}/messages/delta?$deltatoken=first")
+    assert mailbox.links[mail.MAILBOX].endswith("/mailFolders/delta?$deltatoken=first")
+
+
+def test_a_message_met_in_two_folders_is_given_once_and_a_replayed_removal_is_not_a_message():
+    moved = _message(2, parentFolderId=_SENT)
+    table = {
+        f"{ROOT}/mailFolders": [[{"id": _INBOX}, {"id": _SENT}]],
+        f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [
+            [_message(1), moved, {"id": "m9", "@removed": {"reason": "deleted"}}]
+        ],
+        f"{ROOT}/mailFolders/{_SENT}/messages/delta": [[moved]],
+    }
+    mailbox, _ = _mailbox(table)
+    assert [r["message_id"] for r in _all(mailbox, "message_folders")] == ["m1", "m2"]
+
+
+def test_nothing_changed_while_every_link_answers_nothing():
+    mailbox, fake = _mailbox(_two_folders())
+    _all(mailbox, "messages")
+    links = dict(mailbox.links or {})
+    before = len(fake.calls)
+    assert mailbox.changed(links) is False
+    # Asked in one batch, one item each; the links are followed as kept.
+    (asked,) = fake.calls[before:]
+    assert asked[0] == "POST" and urlsplit(asked[1]).path.endswith("/$batch")
+    assert mailbox.links == links  # asking keeps nothing
+
+
+@pytest.mark.parametrize("where", [_INBOX, _SENT, "folders"])
+def test_a_change_in_any_folder_or_in_the_list_of_folders_is_a_change(where):
+    mailbox, fake = _mailbox(_two_folders())
+    _all(mailbox, "messages")
+    path = (
+        f"{ROOT}/mailFolders/delta"
+        if where == "folders"
+        else f"{ROOT}/mailFolders/{where}/messages/delta"
+    )
+    # A removal counts: a message deleted or moved away is a change to the rows.
+    fake.since[path] = [{"id": "m1", "@removed": {"reason": "deleted"}}]
+    assert mailbox.changed(dict(mailbox.links or {})) is True
+
+
+def test_a_link_graph_no_longer_honours_counts_as_changed_and_no_links_cannot_say_unchanged():
+    mailbox, fake = _mailbox(_two_folders())
+    _all(mailbox, "messages")
+    gone = f"{BASE_URL}{ROOT}/mailFolders/f-gone/messages/delta?$deltatoken=old"
+    fake.gone = {f"{ROOT}/mailFolders/f-gone/messages/delta"}
+    assert mailbox.changed({**(mailbox.links or {}), "f-gone": gone}) is True
+    assert mailbox.changed({}) is True
+
+
+def test_a_kept_link_that_does_not_lead_to_graph_is_never_followed():
+    mailbox, fake = _mailbox(_two_folders())
+    before = len(fake.calls)
+    with pytest.raises(ValueError, match="does not lead to Microsoft Graph"):
+        mailbox.changed({_INBOX: "https://example.com/v1.0/users/x/messages/delta?$deltatoken=t"})
+    assert fake.calls[before:] == []  # the access token went nowhere

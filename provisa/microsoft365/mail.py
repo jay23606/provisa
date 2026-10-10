@@ -32,7 +32,13 @@ from typing import Any
 from urllib.parse import quote
 
 from provisa.core import canonical_mail as cm
-from provisa.microsoft365.graph import IMMUTABLE_IDS, Graph, GraphRefused
+from provisa.microsoft365.graph import (
+    BASE_URL,
+    IMMUTABLE_IDS,
+    Graph,
+    GraphRefused,
+    graph_address,
+)
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +73,9 @@ WELL_KNOWN_FOLDERS = (
     "syncissues",
 )
 PAGE_SIZE = 50
+#: The scope of what is kept for the mailbox as a whole (its list of folders), where a
+#: folder's own is kept under the folder's id.
+MAILBOX = ""
 _FOLDER_PAGE = 100
 _TEXT_BODY = 'outlook.body-content-type="text"'
 _HTML_BODY = 'outlook.body-content-type="html"'
@@ -300,13 +309,68 @@ class Mailbox:
         self.account = account.lower()
         self._root = f"/users/{quote(account, safe='@')}"
         self._page_size = page_size
+        #: Where the last whole read of the messages reached: a link for each folder, by its
+        #: id, and one for the list of folders (:data:`MAILBOX`). None until such a read ends.
+        self.links: dict[str, str] | None = None
 
     def _messages(self, fields: str, *, prefer: tuple[str, ...]) -> Iterator[list[dict]]:
-        yield from self._graph.pages(
-            f"{self._root}/messages",
-            {"$select": fields, "$top": str(self._page_size)},
-            prefer=(IMMUTABLE_IDS, *prefer),
+        """Every message of the mailbox, a page at a time, read folder by folder as the first
+        round of Graph's change tracking: a first round gives everything in the folder and
+        ends with the link from which the next asks only what changed. The links are kept in
+        :attr:`links` once every folder has been read to its end.
+
+        Graph tracks changes one folder at a time, so a message is seen where its folder is
+        listed: the walk of the folders covers the hidden ones. A message met a second time
+        (moved between two folders while they were read) is given once."""
+        self.links = None
+        links: dict[str, str] = {}
+        seen: set[str] = set()
+        size = f"odata.maxpagesize={self._page_size}"
+        for folder in [f["id"] for page in self._folders() for f in page]:
+            changes = self._graph.delta(
+                f"{self._root}/mailFolders/{quote(folder, safe='')}/messages/delta",
+                {"$select": fields},
+                prefer=(IMMUTABLE_IDS, size, *prefer),
+            )
+            for page in changes:
+                # A first round has no removals; one replayed into it is not a message.
+                fresh = [m for m in page if "@removed" not in m and m["id"] not in seen]
+                seen.update(m["id"] for m in fresh)
+                if fresh:
+                    yield fresh
+            assert changes.link is not None  # the round was read to its end
+            links[folder] = changes.link
+        # The list of folders has a link of its own: a folder made, renamed or removed since.
+        listed = self._graph.delta(
+            f"{self._root}/mailFolders/delta", {"$select": "id"}, prefer=(IMMUTABLE_IDS,)
         )
+        for _page in listed:
+            pass
+        assert listed.link is not None
+        links[MAILBOX] = listed.link
+        self.links = links
+
+    def readable(self) -> bool:
+        """Whether Graph lets the mailbox be read at all now: one small request."""
+        try:
+            self._graph.get(f"{self._root}/mailFolders", {"$select": "id", "$top": "1"})
+        except GraphRefused:
+            return False
+        return True
+
+    def changed(self, links: dict[str, str]) -> bool:
+        """Whether anything of the mailbox's mail changed since ``links`` were kept: a message
+        made, changed, removed or moved in any folder, or the list of folders itself. Each
+        link is followed asking for one item; nothing is kept from the answers, so the links
+        stand as they were. A link Graph no longer honours cannot say "unchanged", so it
+        counts as changed."""
+        paths = [
+            graph_address(link).removeprefix(BASE_URL) for _scope, link in sorted(links.items())
+        ]
+        if not paths:
+            return True  # nothing kept to ask from
+        answers = self._graph.batch_each(paths, prefer=("odata.maxpagesize=1",))
+        return any(isinstance(answer, GraphRefused) or answer["value"] for answer in answers)
 
     def _html(self, page: list[dict], unread: list[str]) -> dict[str, str | None]:
         """The HTML body of each message of ``page``. One Graph will not give is None, and its

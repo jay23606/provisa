@@ -306,6 +306,21 @@ class ReplicaRunner:
             )
         _log_failure(key, exc, failure, self._retry(), failed_at)
 
+    async def _committed(self, key: ReplicaKey, outcome: BuildOutcome) -> None:
+        """Tell the source its build is recorded as completed, when it asked to be told
+        (``BuildOutcome.committed``). The build stays completed whatever this does: a source
+        that could not keep where its read reached keeps what it had, which is behind the copy,
+        never ahead of it -- its next check finds a change and the read is made again."""
+        if outcome.committed is None:
+            return
+        try:
+            await outcome.committed()
+        except Exception:  # allow-ble: the copy is built and recorded; what the source keeps for its next read is its own, and a failure to keep it must not undo or fail a completed build
+            log.exception(
+                "replica of %s is built, but its source could not keep where the read reached",
+                ".".join(key),
+            )
+
     async def _run_group(self, job: _Job) -> None:
         """Run one read that builds ``job.key`` and its claimed siblings, record each table's
         outcome on its own record, release what the job holds, and look for the next build.
@@ -365,6 +380,10 @@ class ReplicaRunner:
                         outcome.method,
                         len(keys),
                     )
+                done = [o for o in outcomes.values() if not isinstance(o, BaseException)]
+                if len(done) == len(keys):
+                    # One read, one source: its ``committed`` is the same on every outcome.
+                    await self._committed(keys[0], done[0])
         finally:
             with shield.lock:
                 shield.settle()
@@ -433,6 +452,7 @@ class ReplicaRunner:
                     outcome.rows_copied,
                     outcome.method,
                 )
+                await self._committed(job.key, outcome)
         finally:
             with shield.lock:
                 shield.settle()

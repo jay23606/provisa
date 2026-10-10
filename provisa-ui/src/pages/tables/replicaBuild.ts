@@ -125,6 +125,14 @@ export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate):
         accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
       });
     }
+    if (code === "replication.mailboxes_at_quota") {
+      const named = ((params.accounts as string[] | undefined) ?? []).join(", ");
+      const more = Number(params.more ?? 0);
+      return t("replicaBuild.note.mailboxes_at_quota", {
+        total: Number(params.count ?? 0),
+        accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
+      });
+    }
     return t("replicaBuild.note.other", { code });
   });
 }

@@ -850,3 +850,154 @@ def test_every_locale_words_the_three_refusals_with_their_particulars():
         said = json.loads(catalog.read_text())["serverErrors"]["microsoft_365"]
         for key, particulars in wanted.items():
             assert set(re.findall(r"{{(\w+)}}", said[key])) == particulars, (catalog, key)
+
+
+# --- a mailbox at its storage quota, and what a completed read of several keeps ---
+
+
+def _org_group(org_read, monkeypatch, refused: dict[str, Answer]):
+    """A group read of the organisation's mailboxes that keeps what it is given; mailboxes in
+    ``refused`` answer every request with that refusal."""
+    from provisa.microsoft365 import mail
+
+    send = org_read.graph.send
+
+    def refusing(method, url, params, headers, body):
+        for address, refusal in refused.items():
+            if f"/users/{address}/" in url:
+                return refusal
+        return send(method, url, params, headers, body)
+
+    org_read.graph.send = refusing
+    kept: list[dict] = []
+
+    async def keep(rows):
+        kept.append(rows)
+
+    async def connect(source):
+        return loader.Reading(
+            org_read.accounts, lambda: org_read.token, organisation=True, at_once=2, keep=keep
+        )
+
+    tables = mail.MESSAGE_TABLES
+    source = loader.make_microsoft365_loader(connect).replica_group_source(
+        SOURCE, tables, {t: cm.ir_columns(t) for t in tables}
+    )
+
+    async def build():
+        async for _table, _batch in source.batches(1000):
+            pass
+        await source.committed()
+
+    asyncio.run(build())
+    return source, kept
+
+
+def test_a_mailbox_at_its_storage_quota_is_left_out_with_its_own_reason(org_read, monkeypatch):
+    from provisa.federation.data_replicator import MAILBOXES_AT_QUOTA, MAILBOXES_LEFT_OUT
+
+    org_read.accounts = (A, B, C)
+    org_read.graph.table.update({**_box(A, 1), **_box(C, 3)})
+    full = Answer(403, {}, {"error": {"code": "ErrorQuotaExceeded", "message": "full"}})
+    source, kept = _org_group(org_read, monkeypatch, {B: full})
+    notes = {note.code: note.params for note in source.notes()}
+    assert notes[MAILBOXES_AT_QUOTA] == {"count": 1, "accounts": [B], "more": 0}
+    assert MAILBOXES_LEFT_OUT not in notes  # reported once, by its own reason
+    # Links are kept for the mailboxes read; the one left out is kept as left out, so the next
+    # check asks whether it can be read now.
+    (rows,) = kept
+    assert {account for account, _scope, kind in rows if kind == "delta"} == {A, C}
+    assert rows[(B, "", "probe")] == loader.LEFT_OUT
+
+
+def test_a_completed_read_of_several_mailboxes_keeps_each_ones_links(org_read, monkeypatch):
+    org_read.accounts = (A, B)
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 2)})
+    _source, kept = _org_group(org_read, monkeypatch, {})
+    (rows,) = kept
+    assert {(account, scope) for account, scope, _kind in rows} == {
+        (A, "f-inbox"),
+        (A, ""),
+        (B, "f-inbox"),
+        (B, ""),
+    }
+    assert rows[(A, "f-inbox", "delta")] != rows[(B, "f-inbox", "delta")]
+
+
+# --- has anything changed since the last completed read? ---
+
+
+def _check(org_read, kept_rows: dict | None):
+    async def kept():
+        return dict(kept_rows or {})
+
+    async def connect(source):
+        return loader.Reading(
+            org_read.accounts,
+            lambda: org_read.token,
+            organisation=True,
+            at_once=2,
+            kept=None if kept_rows is None else kept,
+        )
+
+    return asyncio.run(loader.unchanged(connect, SOURCE))
+
+
+def _read_and_keep(org_read, monkeypatch, refused: dict[str, Answer] | None = None) -> dict:
+    _source, kept = _org_group(org_read, monkeypatch, refused or {})
+    return kept[0]
+
+
+def test_nothing_changed_since_a_completed_read_says_unchanged(org_read, monkeypatch):
+    org_read.accounts = (A, B)
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 2)})
+    rows = _read_and_keep(org_read, monkeypatch)
+    before = len(org_read.graph.calls)
+    assert _check(org_read, rows) == loader.UNCHANGED
+    # One batch for each mailbox; no message was listed and no body read.
+    asked = org_read.graph.calls[before:]
+    assert [c[0] for c in asked] == ["POST", "POST"]
+
+
+def test_a_change_in_one_mailbox_asks_for_a_read(org_read, monkeypatch):
+    org_read.accounts = (A, B)
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 2)})
+    rows = _read_and_keep(org_read, monkeypatch)
+    org_read.graph.since[f"/users/{B}/mailFolders/f-inbox/messages/delta"] = [{"id": "m9"}]
+    assert _check(org_read, rows) is None
+
+
+def test_what_cannot_be_told_is_never_unchanged(org_read, monkeypatch):
+    org_read.accounts = (A, B)
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 2)})
+    rows = _read_and_keep(org_read, monkeypatch)
+    assert _check(org_read, None) is None  # nothing is kept for this source
+    assert _check(org_read, {}) is None  # no read has completed yet
+    org_read.accounts = (A, B, C)  # a mailbox joined the source since
+    assert _check(org_read, rows) is None
+    org_read.accounts = (A,)  # one left it
+    assert _check(org_read, rows) is None
+    org_read.accounts = (A, B)
+    org_read.graph.queued = [Answer(429, {"Retry-After": "soon"}, None)]  # Graph will not answer
+    assert _check(org_read, rows) is None
+
+
+def test_a_mailbox_that_was_left_out_is_asked_whether_it_can_be_read_now(org_read, monkeypatch):
+    org_read.accounts = (A, B)
+    org_read.graph.table.update(_box(A, 1))
+    gone = Answer(404, {}, {"error": {"code": "MailboxNotEnabledForRESTAPI", "message": "no"}})
+    send = org_read.graph.send
+    rows = _read_and_keep(org_read, monkeypatch, {B: gone})
+    # Still not readable: nothing changed, and the mailbox is not taken for a new one.
+    assert _check(org_read, rows) == loader.UNCHANGED
+    # It can be read now (the refusing stand-in is taken away): a read is asked for.
+    org_read.graph.send = send
+    org_read.graph.table.update(_box(B, 2))
+    assert _check(org_read, rows) is None
+
+
+def test_the_loader_offers_the_check_for_the_tables_read_from_the_mailboxes(org_read):
+    probe = org_read.loader.freshness_probe
+    assert probe(SOURCE, _table("messages")) is not None
+    assert probe(SOURCE, _table("folders")) is not None
+    assert probe(SOURCE, _table("calendar_events")) is None

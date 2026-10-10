@@ -82,6 +82,45 @@ def _path(url: str) -> str:
     return url.split("?", 1)[0].removeprefix(BASE_URL)
 
 
+def graph_address(link: str) -> str:
+    """``link`` as an address under Graph, or a refusal. A link kept from an earlier answer is
+    sent with the access token, so it is followed only where it leads back to Graph."""
+    if not link.startswith(BASE_URL + "/"):
+        raise ValueError("a kept link does not lead to Microsoft Graph; it is not followed")
+    return link
+
+
+class DeltaRound:
+    """The pages of one delta round, and the link it ended with: where the next round starts.
+    ``link`` is None until the round has been read to its end."""
+
+    def __init__(
+        self, graph: "Graph", start: str, params: Mapping[str, str] | None, prefer: tuple[str, ...]
+    ) -> None:
+        self._graph = graph
+        self._start = start
+        self._params = params
+        self._prefer = prefer
+        self.link: str | None = None
+
+    def __iter__(self) -> Iterator[list[dict]]:
+        if self._start.startswith("/"):
+            url, query = BASE_URL + self._start, self._params
+        else:
+            # A kept link carries its query already: the options of its first round.
+            url, query = graph_address(self._start), None
+        while True:
+            page = self._graph._call("GET", url, query, self._prefer)
+            yield page["value"]
+            following = page.get("@odata.nextLink")
+            if following is None:
+                # A round ends with the link the next one starts from; an answer with neither
+                # is not one this reader can continue, and says so by the missing key.
+                self.link = page["@odata.deltaLink"]
+                return
+            url, query = graph_address(following), None
+
+
 class Graph:
     """Graph as one credential reads it. ``token`` gives the access token for each call."""
 
@@ -161,6 +200,15 @@ class Graph:
             yield page["value"]
             # The next page is the address Graph gave, whole: it carries the query already.
             url, query = page.get("@odata.nextLink"), None
+
+    def delta(
+        self, start: str, params: Mapping[str, str] | None = None, *, prefer=()
+    ) -> "DeltaRound":
+        """One round of change tracking over a collection (Graph's delta query). ``start`` is
+        the collection's delta path, for a first round that gives everything in it, or the
+        link the last round ended with, for what changed since. Iterate it to its end, then
+        read its ``link``."""
+        return DeltaRound(self, start, params, tuple(prefer))
 
     def batch(self, paths: list[str], *, prefer=()) -> list[dict]:
         """The answers to GETs of ``paths``, in their order. A refusal of any one fails all."""

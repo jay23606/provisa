@@ -34,7 +34,7 @@ from typing import Any
 import httpx
 
 from provisa.microsoft365 import mail
-from provisa.microsoft365.graph import Graph, GraphRefused, http_send
+from provisa.microsoft365.graph import Graph, GraphRefused, GraphThrottled, http_send
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +54,12 @@ class Reading:
     token: Callable[[], str]
     organisation: bool = False
     at_once: int = 1
+    #: Keeps where a completed read of the source reached (``federation.mail_sync_state``
+    #: rows): called once the build that read to it is recorded as completed. None where
+    #: nothing is kept.
+    keep: Callable[[dict[tuple[str, str, str], str]], Awaitable[None]] | None = None
+    #: What was kept by the last completed read of the source; None where nothing is kept.
+    kept: Callable[[], Awaitable[dict[tuple[str, str, str], str]]] | None = None
 
 
 Connect = Callable[[Any], Awaitable[Reading]]
@@ -63,6 +69,56 @@ Connect = Callable[[Any], Awaitable[Reading]]
 #: refuses fails the build, and so does throttling it does not lift.
 _NOT_READABLE_STATUS = frozenset({403, 404})
 _NOT_READABLE_CODES = frozenset({"MailboxNotEnabledForRESTAPI", "MailboxNotSupportedForRESTAPI"})
+#: What Graph answers for a mailbox at its storage quota when its changes are tracked (the
+#: delta rounds a read is made of write their state into the mailbox). It is left out like one
+#: that cannot be read, and reported with this reason of its own.
+_AT_QUOTA_CODE = "ErrorQuotaExceeded"
+
+
+#: What is kept for a mailbox the last completed read left out, in place of links.
+LEFT_OUT = "left_out"
+#: What the check for changes answers while nothing changed (``events.check_node`` compares it
+#: with the last one it kept; "cannot tell" is None, which is never taken for unchanged).
+UNCHANGED = "unchanged"
+
+
+async def unchanged(connect: Connect, source: Any) -> str | None:
+    """:data:`UNCHANGED` when nothing of the source's mail changed since its last completed
+    read, else None: something changed, or it cannot be told -- nothing was kept yet, a
+    mailbox joined or left the source, a mailbox that was left out can be read now, or Graph
+    would not answer. None asks for a read; it never says the copy is current.
+
+    One small batch of requests for each mailbox: every kept link followed for one item. Nothing
+    is kept from the answers, so the links stand until a completed read replaces them."""
+    from provisa.federation.mail_sync_state import DELTA
+
+    reading = await connect(source)
+    if reading.kept is None:
+        return None
+    links: dict[str, dict[str, str]] = {}
+    left_out: set[str] = set()
+    for (account, scope, kind), token in (await reading.kept()).items():
+        if kind == DELTA:
+            links.setdefault(account, {})[scope] = token
+        elif token == LEFT_OUT:
+            left_out.add(account)
+    if not links or set(links) | left_out != {a.lower() for a in reading.accounts}:
+        return None
+
+    def asked() -> bool:
+        with httpx.Client() as client:
+            graph = Graph(http_send(client), reading.token)
+            if any(mail.Mailbox(graph, account).readable() for account in sorted(left_out)):
+                return True
+            return any(
+                mail.Mailbox(graph, account).changed(kept)
+                for account, kept in sorted(links.items())
+            )
+
+    try:
+        return None if await asyncio.to_thread(asked) else UNCHANGED
+    except (GraphRefused, GraphThrottled):
+        return None  # Graph would not answer: that is not "unchanged"
 
 
 class NoMailboxRead(RuntimeError):
@@ -123,6 +179,10 @@ async def _stepped(make: Callable[[], Iterator[Any]]) -> AsyncIterator[Any]:
         yield rows  # type: ignore[misc]  # not the end marker
 
 
+def _at_quota(refused: BaseException) -> bool:
+    return isinstance(refused, GraphRefused) and refused.code == _AT_QUOTA_CODE
+
+
 def _not_readable(refused: BaseException) -> bool:
     return isinstance(refused, GraphRefused) and (
         refused.status in _NOT_READABLE_STATUS or refused.code in _NOT_READABLE_CODES
@@ -133,6 +193,8 @@ async def _read_mailboxes(
     reading: Reading,
     read: Callable[[mail.Mailbox], Iterator[Any]],
     left_out: list[str],
+    reached: dict[str, dict[str, str]] | None = None,
+    at_quota: list[str] | None = None,
 ) -> AsyncIterator[Any]:
     """What ``read`` gives for each mailbox of ``reading``, as it arrives. One mailbox is read
     as it stands: whatever Graph refuses fails the read. The organisation's mailboxes are
@@ -143,7 +205,11 @@ async def _read_mailboxes(
         send = http_send(client)
 
         def rows_of(account: str) -> Iterator[Any]:
-            return read(mail.Mailbox(Graph(send, reading.token), account))
+            mailbox = mail.Mailbox(Graph(send, reading.token), account)
+            yield from read(mailbox)
+            # Where this mailbox's read reached, once it has been read to its end.
+            if reached is not None and mailbox.links is not None:
+                reached[mailbox.account] = dict(mailbox.links)
 
         if not reading.organisation:
             (account,) = reading.accounts
@@ -164,9 +230,12 @@ async def _read_mailboxes(
                         began = True
                         await arrived.put(item)
                 except GraphRefused as refused:
-                    if began or not _not_readable(refused):
+                    if began or not (_not_readable(refused) or _at_quota(refused)):
                         raise
-                    left_out.append(account)
+                    if _at_quota(refused) and at_quota is not None:
+                        at_quota.append(account)
+                    else:
+                        left_out.append(account)
                     last_refusal[:] = [f"{refused.status} {refused.code}"]
 
         workers = [
@@ -192,12 +261,12 @@ async def _read_mailboxes(
             for task in workers:
                 task.cancel()
             await asyncio.gather(*workers, return_exceptions=True)
-        if reading.accounts and len(left_out) == len(reading.accounts):
+        if reading.accounts and len(left_out) + len(at_quota or ()) == len(reading.accounts):
             from provisa.microsoft365 import directory
 
             roles = await asyncio.to_thread(lambda: directory.carried(reading.token()))
             raise NoMailboxRead(
-                len(left_out),
+                len(reading.accounts),
                 last_refusal[0],
                 None if roles is None else not directory.lacks(roles, directory.MAIL_READ),
             )
@@ -210,14 +279,21 @@ async def _read_mailboxes(
             )
 
 
-def _notes(unreadable: list[str], left_out: list[str]) -> list[Any]:
+def _notes(
+    unreadable: list[str], left_out: list[str], at_quota: list[str] | None = None
+) -> list[Any]:  # type: ignore[assignment]  # an empty default that is never added to
     from provisa.federation.data_replicator import (
+        mailboxes_at_quota_note,
         mailboxes_left_out_note,
         noted,
         unreadable_messages_note,
     )
 
-    return noted(unreadable_messages_note(unreadable), mailboxes_left_out_note(sorted(left_out)))
+    return noted(
+        unreadable_messages_note(unreadable),
+        mailboxes_left_out_note(sorted(left_out)),
+        mailboxes_at_quota_note(sorted(at_quota or [])),
+    )
 
 
 def make_microsoft365_loader(connect: Connect) -> Any:
@@ -271,7 +347,20 @@ def make_microsoft365_loader(connect: Connect) -> Any:
     ) -> Any:
         return _MessagesRead(connect, source, tuple(tables), columns)
 
+    def _freshness_probe(source: Any, table: Any) -> Any:
+        """The table's check for changes (REQ-855, REQ-982), for a table read from the
+        mailboxes: any of the message tables, and the folders, whose counts change with every
+        message. None for any other table."""
+        if table.table_name not in TABLES:
+            return None
+
+        async def token() -> str | None:
+            return await unchanged(connect, source)
+
+        return token
+
     _load.replica_source = _replica_source  # type: ignore[attr-defined]
+    _load.freshness_probe = _freshness_probe  # type: ignore[attr-defined]
     _load.replica_group = _replica_group  # type: ignore[attr-defined]
     _load.replica_group_source = _replica_group_source  # type: ignore[attr-defined]
     return _load
@@ -297,9 +386,41 @@ class _MessagesRead:
         self._columns = columns
         self._unreadable: list[str] = []
         self._left_out: list[str] = []
+        self._at_quota: list[str] = []
+        self._reached: dict[str, dict[str, str]] = {}
+        self._reading: Reading | None = None
 
     def notes(self) -> list[Any]:
-        return _notes(self._unreadable, self._left_out)
+        return _notes(self._unreadable, self._left_out, self._at_quota)
+
+    async def committed(self) -> None:
+        """Keep where this read reached, now that the build it fed is recorded as completed
+        (the replica runner awaits this then, and never for a failed build): each read
+        mailbox's links, a folder's under the folder's id. What was kept for a mailbox or a
+        folder this read did not see is forgotten with the same write.
+
+        Nothing is kept by a read that did not read every one of its mailboxes' messages to
+        the end with their links (one that fed no table needing them): what is kept already
+        stands, and the next check asks from there."""
+        from provisa.federation.mail_sync_state import DELTA, PROBE
+
+        reading = self._reading
+        if reading is None or reading.keep is None:
+            return
+        # A mailbox is kept under its address as the tables' ``account`` column has it.
+        gone = {a.lower() for a in (*self._left_out, *self._at_quota)}
+        read = {a.lower() for a in reading.accounts} - gone
+        if set(self._reached) != read:
+            return
+        rows = {
+            (account, scope, DELTA): link
+            for account, links in self._reached.items()
+            for scope, link in links.items()
+        }
+        # A mailbox left out is kept as that: the next check asks whether it can be read now,
+        # instead of taking it for one added to the source since.
+        rows.update({(account, mail.MAILBOX, PROBE): LEFT_OUT for account in gone})
+        await reading.keep(rows)
 
     async def batches(self, batch_rows: int) -> AsyncIterator[tuple[str, Any]]:
         from provisa.core.ir_arrow import arrow_schema, rows_to_batch
@@ -307,12 +428,16 @@ class _MessagesRead:
         # A build reads once; a read begun again counts again.
         self._unreadable.clear()
         self._left_out.clear()
+        self._at_quota.clear()
+        self._reached.clear()
         schemas = {table: arrow_schema(self._columns[table]) for table in self._tables}
-        reading = await self._connect(self._source)
+        reading = self._reading = await self._connect(self._source)
         async for table, rows in _read_mailboxes(
             reading,
             lambda mailbox: mailbox.message_tables(self._tables, self._unreadable),
             self._left_out,
+            self._reached,
+            self._at_quota,
         ):
             for start in range(0, len(rows), batch_rows):
                 yield (
@@ -373,6 +498,19 @@ def make_connect(state: Any) -> Connect:
     async def connect(source: Any) -> Reading:
         settings = m365.parse(dict(getattr(source, "mapping", None) or {}))
         org_id = require_current_org()
+
+        async def keep(rows: dict[tuple[str, str, str], str]) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.replace(conn, source.id, rows)
+
+        async def kept() -> dict[tuple[str, str, str], str]:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                return await mail_sync_state.read_all(conn, source.id)
+
         if settings.organisation:
             assert settings.mailboxes is not None  # the organisation shape names its mailboxes
             # Refused by name unless the organisation's administrator allowed sources that
@@ -383,6 +521,8 @@ def make_connect(state: Any) -> Connect:
                 token,
                 organisation=True,
                 at_once=int(settings_registry.value("mail.mailboxes_at_once")),
+                keep=keep,
+                kept=kept,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         # Resolved here, where the organisation's vault is bound: the exchange runs in a
@@ -422,6 +562,6 @@ def make_connect(state: Any) -> Connect:
                 loop,
             ).result()
 
-        return Reading((settings.account,), signed_in)
+        return Reading((settings.account,), signed_in, keep=keep, kept=kept)
 
     return connect

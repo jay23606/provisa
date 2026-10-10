@@ -306,6 +306,20 @@ describe("replicaNoteLines", () => {
     ]);
   });
 
+  it("names the mailboxes left out at their storage quota, by that reason", () => {
+    const noted = build({
+      buildNotes: [
+        {
+          code: "replication.mailboxes_at_quota",
+          params: { count: 1, accounts: ["full@contoso.test"], more: 0 },
+        },
+      ],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.mailboxes_at_quota {"total":1,"accounts":"full@contoso.test"}',
+    ]);
+  });
+
   it("gives a line for each thing the build had to say, in the order it said them", () => {
     const noted = build({
       buildNotes: [

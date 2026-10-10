@@ -38,6 +38,7 @@
     "note": {
       "unreadable_messages": "Messages conservés sans leur texte, car une partie n’est pas ce qu’elle déclare : {{total}}. Leurs identifiants : {{ids}}",
       "mailboxes_left_out": "Boîtes aux lettres laissées de côté, car Microsoft ou Google indique qu’elles n’existent pas ou ne peuvent pas être lues : {{total}}. Ce sont : {{accounts}}",
+      "mailboxes_at_quota": "Boîtes aux lettres laissées de côté, car elles ont atteint leur quota de stockage et Microsoft ne suivra pas leurs modifications tant que de l’espace n’aura pas été libéré : {{total}}. Ce sont : {{accounts}}",
       "andMore": "{{ids}} et {{more}} autres",
       "other": "Le dernier build a noté : {{code}}"
     }

@@ -1552,6 +1552,19 @@ CREATE TABLE IF NOT EXISTS node_freshness_state (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Where the last completed read of a mail source reached (REQ-1923): a token for each mailbox
+-- (scope '') or each of its folders (scope = the folder's id); kind 'probe' or 'delta'.
+-- Mirrors provisa.core.schema_org.mail_sync_state.
+CREATE TABLE IF NOT EXISTS mail_sync_state (
+    source_id   TEXT NOT NULL,
+    account     TEXT NOT NULL,
+    scope       TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    token       TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (source_id, account, scope, kind)
+);
+
 -- Replica state (REQ-1912, REQ-826): one row per replica of a source table, shared by every
 -- worker and instance. ``promoted`` is the automatic-promotion decision (a Hot-N table past its
 -- threshold); the replica build's own state is added to this same row. Keyed by the table's

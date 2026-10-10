@@ -229,3 +229,28 @@ async def test_a_build_table_that_cannot_be_removed_does_not_hide_why_the_read_f
     with pytest.raises(RuntimeError, match="stopped answering"):
         await job.run(_noop)
     assert ta.events == ["begin", "abort"] and tb.events == ["begin", "abort"]  # both tried
+
+
+# --- a source is told when the build it fed is recorded as completed ---
+
+
+async def test_every_tables_outcome_carries_the_sources_committed():
+    class _Keeping(_Read):
+        async def committed(self):
+            return None
+
+    read = _Keeping(_pages())
+    results = await _job(
+        read,
+        a=GroupPart(_Target(), _Engine(), prior_hash=_hash(_a(5))),  # unchanged: discarded
+        b=GroupPart(_Target(), _Engine()),
+    ).run(_noop)
+    # The same call on a swapped table's outcome and on an unchanged one's: the read reached
+    # the same place for both, and the copy of each holds what it read.
+    assert results["a"].committed == results["b"].committed == read.committed
+    assert results["a"].changed is False
+
+
+async def test_a_source_with_nothing_to_keep_gives_outcomes_without_it():
+    results = await _job(_Read(_pages()), a=GroupPart(_Target(), _Engine())).run(_noop)
+    assert results["a"].committed is None

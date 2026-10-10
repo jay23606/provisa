@@ -99,11 +99,18 @@ def _secrets(token: directory.ClientToken) -> tuple[str, str]:
     return os.environ["M365_CLIENT_SECRET"], token()
 
 
-def _read(accounts: tuple[str, ...], token: directory.ClientToken):
-    """One group read of ``accounts``: (rows per table as arrow batches, the build's notes)."""
+def _read(accounts: tuple[str, ...], token: directory.ClientToken, kept: list | None = None):
+    """One group read of ``accounts``: (rows per table as arrow batches, the build's notes).
+    With ``kept``, the read is then told its build completed, and what it keeps is added."""
+
+    async def keep(rows):
+        assert kept is not None
+        kept.append(rows)
 
     async def connect(_source):
-        return loader.Reading(accounts, token, organisation=True, at_once=2)
+        return loader.Reading(
+            accounts, token, organisation=True, at_once=2, keep=None if kept is None else keep
+        )
 
     load = loader.make_microsoft365_loader(connect)
     columns = {table: cm.ir_columns(table) for table in mail.MESSAGE_TABLES}
@@ -113,6 +120,8 @@ def _read(accounts: tuple[str, ...], token: directory.ClientToken):
         got: dict[str, list] = {table: [] for table in mail.MESSAGE_TABLES}
         async for table, batch in group.batches(1000):
             got[table].append(batch)
+        if kept is not None:
+            await group.committed()
         return got
 
     got = asyncio.run(asyncio.wait_for(read(), _READ_SECONDS))
@@ -173,6 +182,80 @@ if os.environ.get("M365_TEST_MAILBOX_OUTSIDE", "").strip():
         assert left_out[0].params["accounts"] == [outside] and left_out[0].params["count"] == 1
         accounts = {row["account"] for b in got["messages"] for row in b.to_pylist()}
         assert accounts == {inside}
+
+
+def test_a_completed_read_keeps_its_links_and_nothing_has_changed_right_after(token):
+    """The read is made of delta rounds, one for each folder; what it keeps answers "unchanged"
+    when asked at once (a quiet test mailbox), with a handful of requests and no listing."""
+    from provisa.federation.mail_sync_state import DELTA
+
+    account = _inside()[0]
+    kept: list[dict] = []
+    _read((account,), token, kept)
+    (rows,) = kept
+    assert {(a, kind) for a, _scope, kind in rows} == {(account, DELTA)}
+    scopes = {scope for _a, scope, _k in rows}
+    assert mail.MAILBOX in scopes and len(scopes) > 1, "no folder's link was kept"
+    print(f"links kept: {len(rows)} (one for each folder, one for the list of folders)")
+
+    async def kept_rows():
+        return rows
+
+    async def connect(_source):
+        return loader.Reading((account,), token, organisation=True, kept=kept_rows)
+
+    answer = asyncio.run(loader.unchanged(connect, None))
+    assert answer == loader.UNCHANGED, "a mailbox just read was reported as changed"
+
+
+def test_what_microsofts_pages_do_not_say_about_delta(token):
+    """Four facts the reader rests on that the documentation leaves out. Each is asserted, so
+    a tenant where one does not hold says which."""
+    account = _inside()[0]
+    immutable = {"Prefer": 'IdType="ImmutableId", odata.maxpagesize=1'}
+    with httpx.Client(timeout=60) as http:
+
+        def get(url: str, params: dict | None = None, headers: dict | None = None):
+            return http.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Bearer {token()}", **(headers or {})},
+            )
+
+        root = f"{BASE_URL}/users/{account}"
+        # 1. The page size asked for by header is honoured on a delta round.
+        first = get(f"{root}/mailFolders/inbox/messages/delta", {"$select": "id"}, immutable)
+        assert first.status_code == 200, f"{first.status_code} from the first delta page"
+        items = [m for m in first.json()["value"] if "@removed" not in m]
+        assert len(first.json()["value"]) <= 1, "odata.maxpagesize was not honoured"
+        # 2. Ids on a delta round are the immutable ones when they are asked for: the same id
+        #    names the message on the plain route under the same preference.
+        if items:
+            same = get(f"{root}/messages/{items[0]['id']}", {"$select": "id"}, immutable)
+            assert same.status_code == 200, "a delta id is not an id of the message route"
+            assert same.json()["id"] == items[0]["id"], "delta ids are not the immutable ids"
+        # 3. The folder delta lists every folder the walk of the tree finds, hidden included.
+        with_token = Graph(http_send(http), token)
+        walked = {f["id"] for page in mail.Mailbox(with_token, account)._folders() for f in page}
+        listed: set[str] = set()
+        page = get(
+            f"{root}/mailFolders/delta", {"$select": "id"}, {"Prefer": 'IdType="ImmutableId"'}
+        )
+        while True:
+            assert page.status_code == 200, f"{page.status_code} from the folder delta"
+            body = page.json()
+            listed |= {f["id"] for f in body["value"] if "@removed" not in f}
+            if "@odata.nextLink" not in body:
+                break
+            page = get(body["@odata.nextLink"], None, {"Prefer": 'IdType="ImmutableId"'})
+        print(f"folders: {len(walked)} by the walk, {len(listed)} by the folder delta")
+        missing = len(walked - listed)
+        assert not missing, f"{missing} folder(s) the walk finds are not in the folder delta"
+        # 4. A link Graph does not honour is refused, not answered as "nothing changed".
+        bogus = get(f"{root}/mailFolders/inbox/messages/delta", {"$deltatoken": "not-a-token"})
+        code = (bogus.json().get("error") or {}).get("code")
+        print(f"a link Graph does not honour answers: {bogus.status_code} {code}")
+        assert 400 <= bogus.status_code < 500, "an invalid link was not refused"
 
 
 def test_a_delta_link_can_be_followed_twice(token):

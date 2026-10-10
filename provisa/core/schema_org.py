@@ -1415,6 +1415,23 @@ event_status = Table(
     ),
 )
 
+# REQ-1923: where the last completed read of a mail source reached, a token for each mailbox
+# (``scope`` '') or each of its folders (``scope`` the folder's id). ``kind`` is 'probe' (what
+# the read saw, kept only to ask "changed since?") or 'delta' (where an incremental read
+# continues from). A token is opaque: compared, or handed back to the provider. Written when the
+# build that read to it is recorded as completed (``federation.mail_sync_state``). V1:
+# schema-defined, no migration.
+mail_sync_state = Table(
+    "mail_sync_state",
+    metadata,
+    Column("source_id", Text, primary_key=True),
+    Column("account", Text, primary_key=True),
+    Column("scope", Text, primary_key=True),
+    Column("kind", Text, primary_key=True),
+    Column("token", Text, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
 # REQ-1912 / REQ-826 replica state: one row per replica of a source table, shared by every worker
 # and instance. ``promoted`` is the automatic-promotion decision (a Hot-N table past its
 # threshold); the replica build's own state is added to this same row. Keyed by the table's
