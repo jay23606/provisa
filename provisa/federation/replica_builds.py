@@ -666,8 +666,9 @@ async def _kept_in_place(
     return True
 
 
-#: An event is posted to a table's node for the parts landing in it at most this often while
-#: a pass runs, and once more when it ends: a first build writes thousands of parts.
+#: Cached answers are dropped and an event is posted to a table's node for the parts landing
+#: in it at most this often while a pass runs, and once more when it ends: a first build
+#: writes thousands of parts.
 _RIPPLE_EVERY_S = 5.0
 
 
@@ -741,9 +742,15 @@ async def _land_units(
                     conn, key, done=done, total=reader.total, unit="mailboxes", first=first[key]
                 )
 
+    table_ids = {table.table_name: table.id for _src, table, _a, _d in prepared.values()}
+
     async def ripple(names: list[str]) -> None:
-        # What a completed build posts (run_build): the views that read the table ripple, and
-        # what was answered from it before is no longer what it holds.
+        # An answer cached from the table before these parts landed is no longer what it
+        # holds: dropped here, as a write through Provisa drops it (cache.tenancy).
+        from provisa.cache.tenancy import invalidate_tables
+
+        await invalidate_tables(state, [table_ids[name] for name in names])
+        # And what a completed build posts (run_build): the views that read the table ripple.
         watched = getattr(state, "replica_nodes", None) or {}
         async with state.tenant_db.acquire() as conn:
             for name in names:
@@ -756,16 +763,15 @@ async def _land_units(
                 )
                 await queue.fan_out(conn, event_id, [node])
 
+    behind: set[str] = set()  # tables written to since their last ripple
+
     async def written(unit: Any) -> None:
         now = time.monotonic()
-        due = [
-            name
-            for name in parts
-            if (name in unit.rows or name in unit.removed)
-            and now - rippled[name] >= _RIPPLE_EVERY_S
-        ]
+        behind.update(name for name in parts if name in unit.rows or name in unit.removed)
+        due = [name for name in sorted(behind) if now - rippled[name] >= _RIPPLE_EVERY_S]
         for name in due:
             rippled[name] = now
+            behind.discard(name)
         if due:
             await ripple(due)
 
@@ -777,6 +783,8 @@ async def _land_units(
         mailbox_done=mailbox_done,
         written=written,
     ).run()
+    if behind:
+        await ripple(sorted(behind))  # the last parts landed inside the interval
     notes = tuple(reader.notes())
     built: dict[str, BuildOutcome | BaseException] = {}
     for name, key in by_table.items():

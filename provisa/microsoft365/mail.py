@@ -629,14 +629,20 @@ class Mailbox:
         threads: list[dict] = []
         for folder in folders:
             changes = self._round(folder, None, whole)
-            for page in changes:
-                page = [m for m in page if "@removed" not in m]  # a first round removes nothing
-                if not page:
-                    continue
-                rows, removed = self._changes(tables, page, unread)
-                yield Unit(self.account, rows=rows, removed=removed)
-                if "threads" in tables:
-                    threads += [{k: m.get(k) for k in _THREAD_FIELDS} for m in page]
+            try:
+                for page in changes:
+                    page = [m for m in page if "@removed" not in m]  # a first round removes none
+                    if not page:
+                        continue
+                    rows, removed = self._changes(tables, page, unread)
+                    yield Unit(self.account, rows=rows, removed=removed)
+                    if "threads" in tables:
+                        threads += [{k: m.get(k) for k in _THREAD_FIELDS} for m in page]
+            except GraphRefused as refused:
+                if not not_there(refused):
+                    raise
+                self._folder_gone(folder)
+                continue
             assert changes.link is not None  # the round was read to its end
             yield Unit(self.account, links={folder: changes.link})
         last = Unit(self.account, links={MAILBOX: self._folders_link(None)}, last=True)
@@ -655,12 +661,21 @@ class Mailbox:
         links: dict[str, str] = {}
         for folder in folders:
             changes = self._round(folder, kept.get(folder), whole)
-            for page in changes:
-                for message in page:
-                    if "@removed" in message:
-                        gone.add(message["id"])
-                    else:
-                        changed[message["id"]] = message
+            try:
+                for page in changes:
+                    for message in page:
+                        if "@removed" in message:
+                            gone.add(message["id"])
+                        else:
+                            changed[message["id"]] = message
+            except GraphRefused as refused:
+                if not not_there(refused):
+                    raise
+                # Removed after the folders were listed. It keeps no link: at the next read it
+                # is a kept folder no longer listed, and the mailbox is read from its start,
+                # which is what removes the rows of the messages that went with it.
+                self._folder_gone(folder)
+                continue
             assert changes.link is not None
             links[folder] = changes.link
         links[MAILBOX] = self._folders_link(kept.get(MAILBOX))
@@ -690,6 +705,9 @@ class Mailbox:
                 for row in thread_rows(self.account, self._thread_messages(thread_id))
             ]
         return unit
+
+    def _folder_gone(self, folder: str) -> None:
+        log.info("microsoft_365 %s: folder %s is no longer there; skipped", self.account, folder)
 
     def _thread_messages(self, thread_id: str) -> list[dict]:
         quoted = thread_id.replace("'", "''")

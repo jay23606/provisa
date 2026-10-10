@@ -33,6 +33,7 @@ KEYS = [("s1", "public", name) for name in NAMES]
 
 def _table(name):
     return SimpleNamespace(
+        id=sum(map(ord, name)),  # the table's registered id
         source_id="s1",
         schema_name="public",
         table_name=name,
@@ -294,6 +295,12 @@ def in_place(group, monkeypatch):
     monkeypatch.setattr("provisa.federation.replica_state.record_partial", record_partial)
     monkeypatch.setattr("provisa.federation.replica_state.record_parts", record_parts)
     monkeypatch.setattr("provisa.federation.replica_hot._row_count", row_count)
+
+    async def invalidate_tables(state, table_ids):
+        seen.setdefault("dropped", []).append(sorted(table_ids))
+        return 0
+
+    monkeypatch.setattr("provisa.cache.tenancy.invalidate_tables", invalidate_tables)
     return seen
 
 
@@ -352,3 +359,13 @@ async def test_a_replica_built_from_another_definition_is_copied_whole_again(in_
     await replica_builds.build_group(state, KEYS, _noop)
     assert in_place["applied"] == [] and in_place["reads"] == 1
     assert len(state.federation_engine.engine.backend.targets) == 3
+
+
+async def test_answers_cached_from_a_table_are_dropped_when_parts_land_in_it(in_place):
+    """What was answered from the table before a part landed is no longer what it holds. The
+    table that no part wrote to keeps its cached answers."""
+    state = _in_place_state(in_place)
+    ids = {t.table_name: t.id for t in state.config.tables}
+    await replica_builds.build_group(state, KEYS, _noop)
+    dropped = {table_id for call in in_place["dropped"] for table_id in call}
+    assert dropped == {ids["messages"], ids["threads"]}

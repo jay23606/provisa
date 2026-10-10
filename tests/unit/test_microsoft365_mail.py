@@ -1162,3 +1162,20 @@ def test_units_come_only_from_the_message_tables():
     mailbox, _ = _mailbox(_two_folders())
     with pytest.raises(KeyError, match="do not come from a mailbox's messages"):
         list(mailbox.units(("folders",)))
+
+
+@pytest.mark.parametrize("code", ["ErrorFolderNotFound", "ErrorItemNotFound"])
+def test_a_read_in_units_skips_a_folder_removed_after_the_folders_were_listed(code):
+    mailbox, fake = _mailbox(_two_folders())
+    _refuses(fake, f"/mailFolders/{_SENT}/messages/delta", code)
+    units = _units(mailbox)
+    assert sorted(r["id"] for u in units for r in u.rows.get("messages", [])) == ["m1"]
+    assert set(_links(units)) == {_INBOX, mail.MAILBOX} and units[-1].last
+
+
+def test_what_changed_since_skips_a_folder_removed_and_keeps_no_link_for_it():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    _refuses(fake, f"/mailFolders/{_SENT}/messages/delta", "ErrorFolderNotFound")
+    (unit,) = _units(mailbox, kept)
+    assert unit.last and set(unit.links) == {_INBOX, mail.MAILBOX}
