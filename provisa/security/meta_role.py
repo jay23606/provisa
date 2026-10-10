@@ -120,10 +120,11 @@ def _rls(state: Any, members: list[dict], tables: list[dict]) -> Any:
         terms: list[str] = []
         lifted = False
         for m in members:
-            reads = any(tm.table_id == t["id"] for tm in state.contexts[m["id"]].tables.values())
+            member = state.surfaces[m["id"]]  # one snapshot: context and filters of one build
+            reads = any(tm.table_id == t["id"] for tm in member.context.tables.values())
             if not reads:
                 continue
-            ctx = state.rls_contexts[m["id"]]
+            ctx = member.rls
             expr = ctx.rules.get(t["id"]) or ctx.domain_rules.get(t.get("domain_id") or "")
             if expr is None:
                 lifted = True

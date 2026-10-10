@@ -18,6 +18,7 @@ import pytest
 from provisa.api.flight.catalog import CatalogColumn, CatalogTable
 from provisa.api.mcp import search as search_mod
 from provisa.api.mcp import tools
+from tests.role_state import RoleState
 
 _VOCAB = [
     "customer",
@@ -130,7 +131,7 @@ def _state():
     ]
     config = SimpleNamespace(roles=roles, vector_models=vms, domains=[])
     ctx = SimpleNamespace(tables={}, joins={})
-    return SimpleNamespace(
+    return RoleState(
         config=config,
         contexts={"analyst": ctx, "hr_only": ctx, "admin": ctx},
         mcp_catalog_index=None,

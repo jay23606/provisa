@@ -18,6 +18,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from provisa.api.flight.catalog import build_catalog_tables_from_context
+from tests.role_state import RoleState
 
 
 def _state_with_table(**table_info_kwargs):
@@ -25,7 +26,7 @@ def _state_with_table(**table_info_kwargs):
         domain_id="sales", description="Order records", columns=[], **table_info_kwargs
     )
     ctx = SimpleNamespace(table_map={"orders": tinfo})
-    return SimpleNamespace(contexts={"analyst": ctx})
+    return RoleState(contexts={"analyst": ctx})
 
 
 def test_fact_role_appended_to_description():

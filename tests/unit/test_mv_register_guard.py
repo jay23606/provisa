@@ -23,6 +23,7 @@ import types
 import pytest
 
 from provisa.api.admin import schema_common
+from tests.role_state import RoleState
 
 
 @pytest.fixture
@@ -38,7 +39,7 @@ def fake_state(monkeypatch):
     fed = types.SimpleNamespace(
         materialize_store_target=lambda _: ("postgresql", "mv_cache"),
     )
-    state = types.SimpleNamespace(
+    state = RoleState(
         mv_registry=registry,
         org_id="test",
         engine=None,

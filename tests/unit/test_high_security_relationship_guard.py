@@ -27,6 +27,7 @@ import pytest
 from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import CompilationContext, TableMeta
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -86,7 +87,7 @@ def _ctx() -> CompilationContext:
 
 
 def _state(*, role: dict, security_high: bool) -> SimpleNamespace:
-    return SimpleNamespace(
+    return RoleState(
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         contexts={"modeler": _ctx()},
         rls_contexts={"modeler": RLSContext.empty()},

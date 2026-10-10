@@ -24,6 +24,7 @@ from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.directives import NO_CACHE_HINT
 from provisa.pgwire import _pipeline
 from provisa.pgwire._pipeline import _reject_view_writes
+from provisa.api.role_surface import RoleSurface
 
 
 class _State:
@@ -80,6 +81,8 @@ async def test_compiled_pipeline_entrypoint_rejects_view_write():
     class _FakeState:
         contexts = {"admin": object()}
         rls_contexts: dict = {}
+        # The role's surface, which the pipeline takes once (api/role_surface.py).
+        surfaces = {"admin": RoleSurface(context=object())}
         view_sql_map = {"daily_totals": "SELECT 1"}
         # What the governed-plan lookup reads before the statement is parsed (REQ-1877).
         roles = {"admin": {"id": "admin"}}

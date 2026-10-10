@@ -105,7 +105,8 @@
       "system_catalog_unavailable": "Каталог '{{catalog}}' движка регистрируется. Повторите попытку чуть позже.",
       "domain_not_accessible": "Роль '{{role_id}}' не имеет доступа к домену '{{domain}}'",
       "role_mismatch": "В запросе указана роль '{{body_role}}', но он выполняется от имени роли '{{acting_role}}'. Роль передаётся в заголовке X-Provisa-Role (или определяется вошедшим пользователем); удалите другую роль или приведите её в соответствие.",
-      "sql_parameters_do_not_fit": "Значения параметров не соответствуют запросу: {{reason}}"
+      "sql_parameters_do_not_fit": "Значения параметров не соответствуют запросу: {{reason}}",
+      "unknown_root_field": "Неизвестное поле запроса '{{field}}': этой роли не предоставляется таблица с таким именем"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Адаптер для '{{source_type}}' не реализует discover_schema",

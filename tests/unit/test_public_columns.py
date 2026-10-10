@@ -38,6 +38,7 @@ from provisa.security.rights import (
     served_across_domains,
 )
 from provisa.security.visibility import visible_tables
+from tests.role_state import RoleState
 
 HR, SALES, OPS = "hr", "sales", "ops"
 
@@ -415,13 +416,12 @@ def test_the_cypher_labels_carry_the_published_table_as_a_match_root():
 def test_the_role_narrowed_catalog_carries_the_published_table_and_columns():
     """Flight's catalog, the MCP catalog tools, the JDBC driver's metadata and the admin
     listing all narrow by this one function over the role's compiled context."""
-    import types
 
     from provisa.api.flight.catalog import role_visibility
 
     role = _role("seller", SALES)
     _si, _schema, ctx = _compiled(role)
-    visible = role_visibility(types.SimpleNamespace(contexts={role["id"]: ctx}), role["id"])
+    visible = role_visibility(RoleState(contexts={role["id"]: ctx}), role["id"])
     assert visible[1] == {"id", "name"}
     assert 2 not in visible and 4 not in visible and 5 not in visible
     assert visible[3] == {"id", "staff_id"}
@@ -431,14 +431,13 @@ def test_the_admin_catalog_lists_a_published_table_across_domains_with_its_publi
     """REQ-1958 over REQ-1959: a caller with no administrative right is answered what its role
     is served — a published table of a domain it does not reach, with the published columns
     only, and that table's domain; never the domain's unpublished table."""
-    import types
 
     from provisa.api.admin.catalog_scope import CatalogScope
     from provisa.api.flight.catalog import role_visibility
 
     role = _role("seller", SALES)
     _si, _schema, ctx = _compiled(role)
-    served = role_visibility(types.SimpleNamespace(contexts={role["id"]: ctx}), role["id"])
+    served = role_visibility(RoleState(contexts={role["id"]: ctx}), role["id"])
     scope = CatalogScope(
         whole=False,
         admin=False,

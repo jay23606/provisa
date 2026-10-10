@@ -22,6 +22,8 @@ Five-stage pipeline:
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 
 # Requirements: REQ-345, REQ-346, REQ-347, REQ-348, REQ-349, REQ-350, REQ-351, REQ-352, REQ-353, REQ-392, REQ-398
 
@@ -467,7 +469,6 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
         from provisa.cypher.assembler import assemble_rows, to_serializable
         from provisa.compiler.sql_rewrite import make_semantic_sql
         from provisa.compiler.stage2 import build_governance_context
-        from provisa.compiler.rls import RLSContext
         from provisa.compiler.sql_validator import validate_sql as _validate_sql
         from provisa.pgwire._pipeline import relationship_guard_bypassed
         from provisa.pgwire._pipeline import _govern_and_route_compiled
@@ -476,9 +477,10 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
         return JSONResponse(status_code=500, content={"error": f"Import failed: {exc}"})
 
     role_id = _resolve_role_id(request, state)
-    ctx = state.contexts.get(role_id)
-    if ctx is None:
+    surface = role_surface(state, role_id)  # one snapshot: context and row filters of one build
+    if surface is None:
         return JSONResponse(status_code=503, content={"error": "Schema not loaded"})
+    ctx = surface.context
 
     label_map = _build_label_map(ctx, role_id, state)
 
@@ -542,7 +544,7 @@ async def cypher_query(  # REQ-345, REQ-346, REQ-347, REQ-349, REQ-350, REQ-351,
 
         # Stage 3: Semantic conversion + access validation (transport responsibility)
         semantic_sql = make_semantic_sql(sql_str, ctx)
-        rls = state.rls_contexts.get(role_id, RLSContext.empty())
+        rls = surface.rls
         _gov_ctx_for_validate = build_governance_context(
             role_id,
             rls,

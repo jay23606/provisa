@@ -25,6 +25,7 @@ import pytest
 
 from provisa.api.mcp import tools
 from provisa.executor.result import QueryResult
+from tests.role_state import RoleState
 
 # --- fixtures ---------------------------------------------------------------
 
@@ -55,7 +56,7 @@ def _make_state():
             _metric("headcount", ["hr"], from_fact="employees"),
         ]
     )
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": SimpleNamespace(tables={}), "hr": SimpleNamespace(tables={})},
         config=config,
     )

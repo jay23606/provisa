@@ -17,7 +17,6 @@ as its last error), and success only when the view was built."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 
@@ -25,6 +24,7 @@ import provisa.api.app as app_mod
 from provisa.api.admin.schema_mutation import Mutation
 from provisa.mv.models import MVDefinition, MVStatus
 from provisa.mv.registry import MVRegistry
+from tests.role_state import RoleState
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def view(monkeypatch):
     )
     registry = MVRegistry()
     registry.register(mv)
-    state = SimpleNamespace(
+    state = RoleState(
         mv_registry=registry,
         federation_engine=object(),
         model_db=None,

@@ -42,6 +42,7 @@ from provisa.pgwire._pipeline import (
 )
 from provisa.transpiler.router import Route
 from tests.unit.test_response_cache_shared import FakeCacheStore
+from tests.role_state import RoleState
 
 # -- directives -----------------------------------------------------------------------------------
 
@@ -123,7 +124,7 @@ def _plan(**kw) -> _Plan:
 
 
 def _state(store, *, source_cache=None):
-    return SimpleNamespace(
+    return RoleState(
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         response_cache_store=store,
         model_db="fake",

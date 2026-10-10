@@ -23,6 +23,8 @@ parallel.
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 from types import SimpleNamespace
 import importlib.util
 import json
@@ -1101,11 +1103,12 @@ class ProvisaServicer:  # REQ-045, REQ-143
         from provisa.pgwire._pipeline import _execute_plan, _govern_and_route_compiled
 
         state = self._state
-        if role_id not in state.contexts or role_id not in state.schemas:
+        surface = role_surface(state, role_id)  # one snapshot: parts of one build
+        if surface is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"No schema for role {role_id!r}")
             return None
-        ctx = state.contexts[role_id]
-        schema = state.schemas[role_id]
+        ctx = surface.context
+        schema = surface.schema
 
         msg_cls = getattr(self._pb2, f"{type_name}AggregateResult", None)
         if msg_cls is None:
@@ -1185,11 +1188,12 @@ class ProvisaServicer:  # REQ-045, REQ-143
         from provisa.pgwire._pipeline import _execute_plan, _govern_and_route_compiled
 
         state = self._state
-        if role_id not in state.contexts or role_id not in state.schemas:
+        surface = role_surface(state, role_id)  # one snapshot: parts of one build
+        if surface is None:
             await context.abort(grpc.StatusCode.NOT_FOUND, f"No schema for role {role_id!r}")
             return
-        ctx = state.contexts[role_id]
-        schema = state.schemas[role_id]
+        ctx = surface.context
+        schema = surface.schema
 
         row_cls = getattr(self._pb2, f"{type_name}GroupByRow", None)
         if row_cls is None or getattr(self._pb2, f"{type_name}AggregateResult", None) is None:

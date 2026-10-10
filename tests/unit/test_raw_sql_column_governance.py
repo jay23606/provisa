@@ -38,6 +38,7 @@ from provisa.compiler.sql_gen import CompilationContext, TableMeta
 from provisa.compiler.stage2 import build_governance_context, apply_governance
 from provisa.security.masking import MaskingRule, MaskType
 from tests.helpers import unscoped_role
+from tests.role_state import RoleState
 
 # asyncio_mode = "auto" in pyproject.toml picks up async tests automatically.
 
@@ -250,7 +251,7 @@ class TestColumnGovernanceWithPopulatedTables:
 def _fake_pipeline_state(*, tables: list[dict]) -> SimpleNamespace:
     """Minimal AppState for _govern_and_route — orders table + analyst role."""
     ctx = _ctx()
-    return SimpleNamespace(
+    return RoleState(
         model_stamp=1,  # REQ-1914: the stamp the model was built at; audit rows record it
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         contexts={"analyst": ctx},

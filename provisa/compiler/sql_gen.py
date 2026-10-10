@@ -693,6 +693,23 @@ def _compile_connection_field(  # REQ-218
     )
 
 
+class UnknownRootField(ValueError):
+    """A query names a root field the role's compilation context does not have.
+
+    The statement is at fault, not the server: the role is not served a table by that name (it
+    was never registered for it, or was removed since the client learned the schema). Every
+    surface answers it as a client error naming the field — over HTTP a 400 with code
+    ``data.unknown_root_field`` (api/app.py) — never as an unhandled exception. A ``ValueError``,
+    so a surface that already answers the compiler's refusals answers this one."""
+
+    code = "data.unknown_root_field"
+
+    def __init__(self, field_name: str) -> None:
+        self.field_name = field_name
+        self.params = {"field": field_name}
+        super().__init__(f"Unknown root query field: {field_name!r}")
+
+
 def compile_query(  # REQ-007, REQ-009, REQ-010, REQ-011, REQ-262, REQ-263, REQ-266, REQ-300
     document: DocumentNode,
     ctx: CompilationContext,
@@ -732,7 +749,7 @@ def compile_query(  # REQ-007, REQ-009, REQ-010, REQ-011, REQ-262, REQ-263, REQ-
             if isinstance(sel, FieldNode):
                 field_name = sel.name.value
                 if field_name not in ctx.tables:
-                    raise ValueError(f"Unknown root query field: {field_name!r}")
+                    raise UnknownRootField(field_name)
                 with _stage(_tracer, "compiler.compile_query", name="compile") as span:
                     from provisa.compiler.aggregates import (
                         _compile_aggregate_field,

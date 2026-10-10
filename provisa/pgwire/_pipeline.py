@@ -19,6 +19,8 @@ pgwire, Bolt and Arrow Flight run it on the connection thread's own event loop, 
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import asyncio
 import collections
 from datetime import datetime
@@ -1226,14 +1228,16 @@ async def govern_statement(
     import sqlglot.expressions as exp
 
     from provisa.api.app import state
-    from provisa.compiler.rls import RLSContext
     from provisa.compiler.params import extract_params_comment, extract_relationship_guard_comment
     from provisa.compiler.stage2 import apply_governance, build_governance_context
     from provisa.compiler.sql_validator import validate_sql
 
     from provisa.audit.pipeline import write_denial
 
-    if role_id not in state.contexts:
+    # ONE snapshot of the role's surface for this statement (#213): context and row filters
+    # are read off this object, never one map after another across a rebuild.
+    surface = role_surface(state, role_id)
+    if surface is None:
         # REQ-1386: a refusal is auditable evidence — policy_denials reports on it.
         await write_denial(sql, role_id, None, None, state)
         raise PermissionError(f"No schema for role {role_id!r}")
@@ -1244,8 +1248,8 @@ async def govern_statement(
 
     await resolve_trace_scope(state, role_id, hint=cache_hint_for("sql", sql).debug_trace)
 
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    ctx = surface.context
+    rls = surface.rls
     # REQ-1620: domain_access follows the UNION of every role the caller is acting as ("Role:
     # All"); role_id/RLS/masking/capabilities stay single-role. See
     # security.rights.effective_domain_access_role — the one place this is computed, so every
@@ -3875,7 +3879,6 @@ async def _govern_compiled(
     import sqlglot as _sg
 
     from provisa.audit.pipeline import resolve_table_ids
-    from provisa.compiler.rls import RLSContext
     from provisa.compiler.stage2 import apply_governance, build_governance_context
 
     # REQ-1882: sqlglot tokenization off-loaded — see _off_loop's own docstring. This is the
@@ -3923,8 +3926,9 @@ async def _govern_compiled(
 
     from provisa.security.rights import require_role
 
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    surface = state.surfaces[role_id]  # one snapshot: context and row filters of one build
+    ctx = surface.context
+    rls = surface.rls
 
     gov_ctx = build_governance_context(
         role_id,

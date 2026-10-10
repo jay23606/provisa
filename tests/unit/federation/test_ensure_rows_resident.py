@@ -19,6 +19,7 @@ import pytest
 
 from provisa.compiler.pk_bounds import PkBound
 from provisa.core.models import Column, Source, Table
+from tests.role_state import RoleState
 
 
 def _table(source_id="pg1", cache_ttl=60) -> Table:
@@ -357,7 +358,7 @@ def _regional_table() -> types.SimpleNamespace:
 def _admin_ruled_state(sqlite_dsn, rule):
     from provisa.compiler.rls import RLSContext
 
-    return types.SimpleNamespace(
+    return RoleState(
         federation_engine=_FakeEngine(sqlite_dsn),
         roles={},
         rls_contexts={"org_admin": RLSContext(rules={7: rule})},
@@ -416,7 +417,7 @@ async def test_a_rule_that_cannot_be_judged_over_the_fetched_rows_keeps_none_of_
         await ensure_rows_resident(state, [_bound(1)], reader_role=None)
     assert refused.value.params == {"table": "orders"}
     assert await ensure_rows_resident(
-        types.SimpleNamespace(federation_engine=state.federation_engine, roles={}, rls_contexts={}),
+        RoleState(federation_engine=state.federation_engine, roles={}, rls_contexts={}),
         [_bound(1)],
         reader_role=None,
     ) == [("pg1", "orders", 1)]  # nothing was landed by the refused fetch

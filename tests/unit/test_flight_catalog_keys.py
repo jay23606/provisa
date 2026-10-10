@@ -30,6 +30,7 @@ from provisa.api.flight.catalog import (
     _build_catalog_tables_async,
     catalog_table_to_arrow_schema,
 )
+from tests.role_state import RoleState
 
 # table id → (domain, table, [(column, is_primary_key)])
 _TABLES = {
@@ -109,7 +110,7 @@ def _state():
             physical_to_sql={(i, c): c for i, cols in served.items() for c in cols},
         )
 
-    return types.SimpleNamespace(
+    return RoleState(
         model_db=types.SimpleNamespace(acquire=lambda: _Conn()),
         engine_conn=None,
         contexts={role: _context(served) for role, served in _SERVED.items()},

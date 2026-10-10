@@ -7,6 +7,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from provisa.api.mcp.tools import _unique_constraints
+from tests.role_state import RoleState
 
 
 def test_mcp_unique_constraints_role_scoped_from_ctx():
@@ -18,14 +19,14 @@ def test_mcp_unique_constraints_role_scoped_from_ctx():
         tables={"users": tmeta},
         unique_constraints={7: [("users_email_key", ["email"])]},
     )
-    state = SimpleNamespace(contexts={"analyst": ctx})
+    state = RoleState(contexts={"analyst": ctx})
     got = _unique_constraints(state, "analyst", "sales", "users")
     assert got == [{"name": "users_email_key", "columns": ["email"]}]
 
 
 def test_mcp_unique_constraints_unknown_table_returns_empty():
     ctx = SimpleNamespace(tables={}, unique_constraints={})
-    state = SimpleNamespace(contexts={"analyst": ctx})
+    state = RoleState(contexts={"analyst": ctx})
     assert _unique_constraints(state, "analyst", "sales", "missing") == []
 
 

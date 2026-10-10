@@ -65,9 +65,10 @@ def _rebuild_in_progress() -> bool:
 
 def governance_anchors(state: Any, role_id: str) -> tuple[Any, ...]:
     """The objects governance reads for a role — compared by identity."""
+    surface = state.surfaces[role_id]  # one snapshot: context and row filters of one build
     return (
-        state.contexts[role_id],
-        state.rls_contexts.get(role_id),
+        surface.context,
+        surface.rls,
         state.roles.get(role_id),
         state.masking_rules,
         state.tables,

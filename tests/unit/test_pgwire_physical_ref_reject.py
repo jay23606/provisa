@@ -22,13 +22,14 @@ from types import SimpleNamespace
 from provisa.compiler.compiled_query_cache import CompiledQueryCache
 
 import pytest
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
 
 def _fake_state():
     """Minimal AppState reaching the physical-ref guard: one role context + one source catalog."""
-    return SimpleNamespace(
+    return RoleState(
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         contexts={"analyst": SimpleNamespace()},
         rls_contexts={},

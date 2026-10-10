@@ -17,6 +17,7 @@ import pytest
 
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import tools as mcp_tools
+from tests.role_state import RoleState
 
 
 def _block(**kw):
@@ -137,7 +138,7 @@ def _a_configured_vendor_key(monkeypatch):
 
 def _state():
     ctx = SimpleNamespace(tables={}, joins={})
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": ctx},
         config=SimpleNamespace(roles=[SimpleNamespace(id="analyst", domain_access=["sales"])]),
     )

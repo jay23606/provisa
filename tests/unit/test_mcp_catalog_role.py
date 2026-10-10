@@ -26,6 +26,7 @@ import pytest
 
 from provisa.api.mcp import tools
 from provisa.compiler.sql_types import TableMeta
+from tests.role_state import RoleState
 
 # table id → (domain, table, columns)
 _TABLES = {
@@ -101,7 +102,7 @@ def _context(served: dict[int, list[str]]):
 @pytest.fixture
 def state():
     db = types.SimpleNamespace(acquire=lambda: _Conn())
-    return types.SimpleNamespace(
+    return RoleState(
         model_db=db,
         tenant_db=db,
         engine_conn=None,

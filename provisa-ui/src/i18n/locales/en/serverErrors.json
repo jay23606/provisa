@@ -105,7 +105,8 @@
       "system_catalog_unavailable": "The engine's '{{catalog}}' catalog is being registered. Try again shortly.",
       "domain_not_accessible": "Role '{{role_id}}' does not reach domain '{{domain}}'",
       "role_mismatch": "The request names role '{{body_role}}' but runs as role '{{acting_role}}'. The role is carried by the X-Provisa-Role header (or the signed-in identity); remove the other role or make it match.",
-      "sql_parameters_do_not_fit": "The parameter values do not fit the statement: {{reason}}"
+      "sql_parameters_do_not_fit": "The parameter values do not fit the statement: {{reason}}",
+      "unknown_root_field": "Unknown query field '{{field}}': this role is not served a table by that name"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter for '{{source_type}}' does not implement discover_schema",

@@ -34,6 +34,7 @@ from provisa.cypher.label_map import CypherLabelMap
 from provisa.executor.result import QueryResult
 from provisa.pgwire import _pipeline, governed_plan
 from provisa.transpiler.router import Route
+from tests.role_state import RoleState
 
 _CYPHER = "MATCH (o:Orders) WHERE o.amount > $min RETURN o.amount AS amount"
 
@@ -65,7 +66,7 @@ def _ctx(table_id: int = 1) -> SimpleNamespace:
 
 
 def _state() -> SimpleNamespace:
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": _ctx(), "admin": _ctx()},
         rls_contexts={},
         roles={
@@ -461,7 +462,7 @@ async def test_data_sql_reports_hit_on_a_hit_and_miss_on_a_miss(monkeypatch, acc
     import provisa.api.app as app_mod
     from provisa.api.data.endpoint_dev import SQLRequest, sql_endpoint
 
-    state = SimpleNamespace(schemas={"analyst": object()}, roles={})
+    state = RoleState(schemas={"analyst": object()}, roles={})
     monkeypatch.setattr(app_mod, "state", state, raising=False)
     raw = MagicMock()
     raw.state.role = "analyst"

@@ -43,6 +43,7 @@ from provisa.core.schema_org import (
     table_columns,
     naming_rules,
 )
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -187,7 +188,7 @@ async def test_retired_toggle_round_trips_and_hides_the_term_from_mcp_search(tmp
     from provisa.api.mcp import tools
 
     async with _surface(tmp_path, monkeypatch) as (db, notified):
-        state = types.SimpleNamespace(
+        state = RoleState(
             contexts={"analyst": object()},
             model_db=db,
             tenant_db=db,
@@ -349,7 +350,7 @@ async def test_mcp_search_terms_requires_role_and_returns_refs(tmp_path, monkeyp
     from provisa.api.mcp import tools
 
     async with _surface(tmp_path, monkeypatch) as (db, _notified):
-        state = types.SimpleNamespace(
+        state = RoleState(
             contexts={"analyst": object()},
             model_db=db,
             tenant_db=db,

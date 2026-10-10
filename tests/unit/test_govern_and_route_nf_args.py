@@ -28,7 +28,6 @@ _optimize_and_route, same as the compiled path, and forwards the extracted nf_ar
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -37,6 +36,7 @@ from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.federation.replica_address import ReplicaRoutes
 from provisa.compiler.sql_gen import CompilationContext
 from provisa.compiler.sql_types import TableMeta
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -77,7 +77,7 @@ def _ctx() -> CompilationContext:
 
 
 def _fake_state():
-    return SimpleNamespace(
+    return RoleState(
         model_stamp=1,  # REQ-1914: the stamp the model was built at; audit rows record it
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         contexts={"analyst": _ctx()},

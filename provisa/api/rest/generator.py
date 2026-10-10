@@ -20,6 +20,8 @@ Query params map to GraphQL arguments:
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 # Requirements: REQ-222, REQ-256, REQ-266, REQ-267
 
 import json
@@ -513,17 +515,18 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
             raise HTTPException(status_code=401, detail="authenticated role required")
         role_id = auth_role
 
-        if role_id not in state.schemas:
+        surface = role_surface(state, role_id)  # one snapshot: parts of one build
+        if surface is None:
             raise HTTPException(
                 status_code=400,
                 detail=f"No schema available for role {role_id!r}",
             )
 
-        schema = state.schemas[role_id]
-        ctx = state.contexts[role_id]
+        schema = surface.schema
+        ctx = surface.context
 
         # Resolve {domain_id}/{table_name} → GQL field name via path map
-        path_map = getattr(state, "table_path_maps", {}).get(role_id, {})
+        path_map = surface.table_path_map
         table = next(
             (
                 gql_field

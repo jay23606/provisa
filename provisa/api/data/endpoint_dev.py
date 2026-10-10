@@ -19,6 +19,8 @@ each module under the project's 1000-line limit.
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import logging
 import re
 from typing import TYPE_CHECKING, Any
@@ -36,7 +38,6 @@ from provisa.compiler.definitions import NotAvailableHere
 from provisa.api.admin._dev_shared import detect_target
 from provisa.api.errors import ApiError
 from provisa.core import domain_policy
-from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical
 from provisa.security.rights import Capability, InsufficientRightsError, check_capability
 from provisa.compiler.complexity import ComplexityLimitExceeded
@@ -890,7 +891,8 @@ async def nl_to_sql_endpoint(  # REQ-354, REQ-355, REQ-356, REQ-357, REQ-358, RE
     from provisa.core.org_settings import resolve_org_config
 
     role_id = _resolve_role_id(raw_request, x_provisa_role, request)
-    if role_id not in state.contexts:
+    surface = role_surface(state, role_id)  # one snapshot: the parts are of one build
+    if surface is None:
         raise ApiError(
             400, "data.no_schema_for_role", f"No schema for role {role_id!r}", role_id=role_id
         )
@@ -910,8 +912,8 @@ async def nl_to_sql_endpoint(  # REQ-354, REQ-355, REQ-356, REQ-357, REQ-358, RE
             )
         return {"sql": sql, "cypher": cypher, "attempts": 1}
 
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    ctx = surface.context
+    rls = surface.rls
     from provisa.security.rights import require_role
 
     role_obj = require_role(state.roles, role_id)

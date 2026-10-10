@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import logging
 import re
 from dataclasses import dataclass
@@ -525,14 +527,13 @@ async def compile_query(  # REQ-001, REQ-002, REQ-007, REQ-009, REQ-038, REQ-039
     from provisa.security.rights import has_capability, Capability
     from graphql import GraphQLSyntaxError
 
-    if role_id not in state.schemas:
+    surface = role_surface(state, role_id)  # one snapshot: the parts are of one build
+    if surface is None:
         raise ValueError(f"No schema for role {role_id!r}")
 
-    schema = state.schemas[role_id]
-    ctx = state.contexts[role_id]
-    # Invariant: contexts and rls_contexts are written together per-role; if a
-    # schema/context exists for role_id, its RLSContext must too. Fail loud.
-    rls = state.rls_contexts[role_id]
+    schema = surface.schema
+    ctx = surface.context
+    rls = surface.rls
     role = state.roles.get(role_id)
 
     directives, sql_comment_prefix = _parse_directives(query)

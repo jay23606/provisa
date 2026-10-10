@@ -15,6 +15,7 @@ import pytest
 
 from provisa.events.app_wiring import wire_event_loop
 from provisa.federation.engine import build_duckdb_engine
+from tests.role_state import RoleState
 
 _LOG = logging.getLogger("test")
 
@@ -152,7 +153,7 @@ def _state(*, ready=True):
         }
     ]
     registry = SimpleNamespace(get_enabled=lambda: [])
-    return SimpleNamespace(
+    return RoleState(
         model_db=(_one_db := _fake_db(registered, config.sources)),
         tenant_db=_one_db,
         federation_engine=engine,
@@ -240,7 +241,7 @@ def _state_with_mv(*, column_types):
         debounce_max_delay=None,
         region=None,  # REQ-1921: names no region — built by every region
     )
-    return SimpleNamespace(
+    return RoleState(
         model_db=(_one_db := _fake_db([])),
         tenant_db=_one_db,
         federation_engine=engine,

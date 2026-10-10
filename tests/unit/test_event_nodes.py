@@ -30,6 +30,7 @@ from provisa.events.nodes import expected_event_nodes, lineage_graph, source_nod
 from provisa.federation.engine import build_duckdb_engine
 from provisa.mv.readable_inputs import ViewInputNotReadable, require_readable_inputs
 from tests.helpers import DsnEngine
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.unit
 
@@ -75,7 +76,7 @@ class _Registry:
 
 def _model(views=(), rows=None):
     """Two postgres sources, both holding ``public.orders``, with their engine catalogs."""
-    return SimpleNamespace(
+    return RoleState(
         tables=rows
         if rows is not None
         else [_row(1, "sales"), _row(2, "crm"), _row(3, "crm", "accounts")],

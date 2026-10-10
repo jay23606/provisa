@@ -21,6 +21,7 @@ from graphql import (
 )
 
 from provisa.api.jsonapi.spec import generate_jsonapi_openapi_spec
+from tests.role_state import RoleState
 
 
 def _make_state(role_id: str = "admin") -> SimpleNamespace:
@@ -47,7 +48,7 @@ def _make_state(role_id: str = "admin") -> SimpleNamespace:
             "domain_description": "Pet store domain",
         }
     }
-    state = SimpleNamespace(
+    state = RoleState(
         schemas={role_id: schema},
         table_path_maps={role_id: path_map},
         schema_build_cache={"domains": [{"id": "store", "description": "Pet store domain"}]},
@@ -57,14 +58,14 @@ def _make_state(role_id: str = "admin") -> SimpleNamespace:
 
 class TestEmptySpec:
     def test_unknown_role_returns_empty(self):
-        state = SimpleNamespace(schemas={}, table_path_maps={})
+        state = RoleState(schemas={}, table_path_maps={})
         spec = generate_jsonapi_openapi_spec(state, "nobody")
         assert spec["openapi"] == "3.1.0"
         assert spec["paths"] == {}
 
     def test_no_query_type_returns_empty(self):
         schema = GraphQLSchema()
-        state = SimpleNamespace(
+        state = RoleState(
             schemas={"r": schema},
             table_path_maps={"r": {}},
             schema_build_cache={},
@@ -208,7 +209,7 @@ class TestDomainFilter:
                 "domain_description": None,
             },
         }
-        state = SimpleNamespace(
+        state = RoleState(
             schemas={"admin": schema},
             table_path_maps={"admin": path_map},
             schema_build_cache={"domains": []},

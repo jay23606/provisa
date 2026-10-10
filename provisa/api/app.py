@@ -32,6 +32,7 @@ from fastapi import FastAPI, Request, Response
 from provisa.core import model_change
 from provisa.core.config_location import config_path_str
 from provisa.core.connection_loop import CrossLoopLock, LongLived, run_lifecycle_work
+from provisa.api.role_surface import RoleSurface
 from provisa.api.data.endpoint import router as data_router
 from provisa.api.data.redirect_unwrap import router as redirect_unwrap_router
 from provisa.api.data.endpoint_dev import router as dev_router
@@ -192,13 +193,9 @@ class AppState:
     mcp_catalog_index: Any = None
     mv_registry: MVRegistry = MVRegistry()
     _mv_refresh_task: LongLived | None = None
-    proto_files: dict[str, str] = {}  # role_id → .proto content
     # The one SERVED wire descriptor: union of every role's surface (see
     # app_loaders._build_and_register_schemas). Governance is per-request, not per-descriptor.
     wire_proto: str | None = None
-    table_path_maps: dict[
-        str, dict[str, dict]
-    ] = {}  # role_id → {gql_field_name → {schema_name, table_name, domain_id}}
     _grpc_server: Any | None = None
     _flight_server: Any | None = None  # ProvisaFlightServer
     _flight_relay: Any | None = None  # FlightRelay: the advertised Flight port (REQ-1900)
@@ -687,6 +684,30 @@ class AppState:
     @roles.setter
     def roles(self, value: dict[str, dict]) -> None:
         self._active_runtime().roles = value
+
+    @property
+    def surfaces(self) -> dict[str, RoleSurface]:
+        """role id -> the role's whole data surface, from one build (api/role_surface.py)."""
+        return self._active_runtime().surfaces
+
+    @property
+    def proto_files(self) -> dict[str, str]:
+        """role id -> .proto content (a view of ``surfaces``)."""
+        return self._active_runtime().proto_files
+
+    @proto_files.setter
+    def proto_files(self, value: dict[str, str]) -> None:
+        self._active_runtime().proto_files = value
+
+    @property
+    def table_path_maps(self) -> dict[str, dict[str, dict]]:
+        """role id -> {gql field name -> {schema_name, table_name, domain_id}} (a view of
+        ``surfaces``)."""
+        return self._active_runtime().table_path_maps
+
+    @table_path_maps.setter
+    def table_path_maps(self, value: dict[str, dict[str, dict]]) -> None:
+        self._active_runtime().table_path_maps = value
 
     @property
     def schemas(self) -> dict[str, graphql.GraphQLSchema]:
@@ -3328,6 +3349,18 @@ def create_app() -> FastAPI:
                 "code": "data.table_is_draft",
                 "params": {"table": exc.table},
             },
+        )
+
+    from provisa.compiler.sql_gen import UnknownRootField as _UnknownRootField
+
+    @app.exception_handler(_UnknownRootField)
+    async def _unknown_root_field_handler(_req: _Request, exc: _UnknownRootField):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # A query for a root field the role is not served (compiler/sql_gen.py). The statement
+        # is at fault: a client error naming the field. It used to escape as an unhandled
+        # exception -- a 500, and a closed connection (#213).
+        return _JSONResponse(
+            status_code=400,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
     from provisa.compiler.definitions import DefinitionNotAvailable as _DefinitionNotAvailable

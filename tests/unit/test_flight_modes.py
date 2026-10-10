@@ -28,6 +28,7 @@ from provisa.api.flight.catalog import (
 )
 from provisa.api.flight.server import ProvisaFlightServer
 from provisa.api.flight.server import _parse_limit_value
+from tests.role_state import RoleState
 
 
 # ---------------------------------------------------------------------------
@@ -35,10 +36,11 @@ from provisa.api.flight.server import _parse_limit_value
 # ---------------------------------------------------------------------------
 
 
-class FakeState:
+class FakeState(RoleState):
     """Minimal AppState substitute for testing."""
 
     def __init__(self):
+        super().__init__()
         self.org_id = "default"
         self.schemas = {}
         self.contexts = {}

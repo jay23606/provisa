@@ -28,13 +28,14 @@ import pytest
 from provisa.auth.models import AuthIdentity
 from provisa.bolt.session import BoltSession, _scheme_of
 from tests.platform_plane import simple_user_ids
+from tests.role_state import RoleState
 
 _PASSWORD = "s3cret"
 _HASH = bcrypt.hashpw(_PASSWORD.encode(), bcrypt.gensalt()).decode()
 
 
 def _app_state(**overrides):
-    state = SimpleNamespace(
+    state = RoleState(
         org_id="default",
         auth_config={"provider": "simple", "default_role": "analyst", "role_mapping": []},
         auth_middleware_active=True,

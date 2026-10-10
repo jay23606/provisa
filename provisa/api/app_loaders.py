@@ -1588,14 +1588,7 @@ def _drop_data_surface(state, role_id: str) -> None:
     last build ran still has that build's schema, context and proto in place. Leaving them would
     go on showing the role a catalog it no longer reaches.
     """
-    for surface in (
-        state.schemas,
-        state.contexts,
-        state.rls_contexts,
-        state.table_path_maps,
-        state.proto_files,
-    ):
-        surface.pop(role_id, None)
+    state.surfaces.pop(role_id, None)
 
 
 def schema_input_for(
@@ -1628,6 +1621,7 @@ def schema_input_for(
 def register_role_surface(state: Any, role: dict, rls: Any) -> None:
     """Build and register one role's data surface: its GraphQL schema, REST path map, compiled
     context, RLS context and proto, from this generation's build inputs."""
+    from provisa.api.role_surface import RoleSurface
     from provisa.compiler.schema_gen import build_table_path_map
     from provisa.grpc.proto_gen import generate_proto
 
@@ -1637,17 +1631,23 @@ def register_role_surface(state: Any, role: dict, rls: Any) -> None:
     # "no schema available" for every request to this org runtime (the build is cache-only-on-
     # success). Let generate_schema raise so a bad role definition fails the build loudly and
     # gets fixed at the source, matching generate_proto below.
-    state.schemas[role["id"]] = generate_schema(si)
-    state.table_path_maps[role["id"]] = build_table_path_map(si)
+    #
+    # Every part is built before any of it is installed, and the role's surface is installed
+    # with ONE assignment (api/role_surface.py): a request on its own thread reads either the
+    # surface this replaces or this one, never the schema of one and the context of the other
+    # (#213). generate_proto is not swallowed either: an unmapped column type is a real gap in
+    # the proto type map, not a reason to silently disable gRPC for the role.
     ctx = build_context(si)
     ctx.refusal = state._active_runtime().data_refusal  # REQ-1942
     ctx.kept = dict(state._active_runtime().kept)  # REQ-1942
-    state.contexts[role["id"]] = ctx
-    state.rls_contexts[role["id"]] = rls
-    # No swallow: an unmapped column type is a real gap in the proto type map, not a reason to
-    # silently disable gRPC for the role. Let generate_proto raise so it surfaces at startup and
-    # gets fixed at the source (the type map) — never patched around here.
-    state.proto_files[role["id"]] = generate_proto(si, field_numbers=inputs["field_numbers"])
+    surface = RoleSurface(
+        schema=generate_schema(si),
+        context=ctx,
+        rls=rls,
+        table_path_map=build_table_path_map(si),
+        proto=generate_proto(si, field_numbers=inputs["field_numbers"]),
+    )
+    state.surfaces[role["id"]] = surface
 
 
 def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221, REQ-262, REQ-263

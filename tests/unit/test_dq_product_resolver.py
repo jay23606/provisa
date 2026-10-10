@@ -24,6 +24,7 @@ import pytest
 
 from provisa.api.admin.types import RegisteredTableType
 from tests.helpers import dq_contexts
+from tests.role_state import RoleState
 
 CONTRACT = "dataset: provisa/sales/orders\nchecks:\n  - row_count:\n"
 
@@ -85,7 +86,7 @@ def _table(**overrides: Any) -> RegisteredTableType:
 @pytest.fixture
 def _state(monkeypatch):
     conn = _Conn({"product_id": "orders-product"})
-    st = SimpleNamespace(
+    st = RoleState(
         contexts=dq_contexts(
             (1, "wh", "sales", "sales", "orders"), (2, "dq", "sales", "quality", "orders_scans")
         ),

@@ -31,6 +31,7 @@ from provisa.grpc.query_ir import (
     grpc_table_to_group_by_graphql_text,
     grpc_table_to_semantic_sql,
 )
+from tests.role_state import RoleState
 
 # The columns THIS role can read; ``amount`` exists on the table and in the wire proto's filter
 # message, but is not visible to the role.
@@ -121,7 +122,7 @@ def _servicer():
         OrdersGroupByRow=MagicMock(),
         OrdersAggregateResult=MagicMock(),
     )
-    state = SimpleNamespace(
+    state = RoleState(
         org_id="default",
         contexts={"analyst": _ctx()},
         schemas={"analyst": MagicMock()},

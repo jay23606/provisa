@@ -63,6 +63,13 @@ def _two_roles(monkeypatch):
         monkeypatch.setattr(appmod.state, name, value, raising=False)
 
 
+@pytest.fixture
+def no_data_surface(monkeypatch):
+    """Roles the caller may hold but which are served nothing: no surface at all. (A role's proto
+    is part of its surface, so the fixture's protos alone would make one.)"""
+    monkeypatch.setattr(appmod.state, "proto_files", {})
+
+
 def _refused(err: pytest.ExceptionInfo[ApiError], role_id: str) -> None:
     assert (err.value.status_code, err.value.code) == (403, "auth.role_not_assigned")
     # The same sentence the middleware answers an unassigned X-Provisa-Role with.
@@ -222,7 +229,7 @@ async def test_each_reason_a_role_has_no_proto_is_its_own_answer(monkeypatch):
 # --- /data/grpc/{type}: the role the request runs as ---------------------------------------------
 
 
-async def test_the_proxy_never_runs_as_a_body_role_the_request_does_not_run_as():
+async def test_the_proxy_never_runs_as_a_body_role_the_request_does_not_run_as(no_data_surface):
     request = _request(A, body={"role_id": B})
     request.state.role = A  # established by the auth layer
     with pytest.raises(ApiError) as err:
@@ -297,7 +304,7 @@ async def test_a_command_is_never_run_as_a_role_the_caller_does_not_hold(monkeyp
         lambda req: endpoint_grpc_proxy.jsonapi_group_by_columns(B, "sales", "orders", req),
     ],
 )
-async def test_the_group_by_pickers_answer_only_for_a_held_role(call):
+async def test_the_group_by_pickers_answer_only_for_a_held_role(call, no_data_surface):
     with pytest.raises(ApiError) as err:
         await call(_request(A))
     _refused(err, B)

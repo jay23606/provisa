@@ -36,6 +36,7 @@ from provisa.core.schema_org import (
     table_columns,
     naming_rules,
 )
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -96,7 +97,7 @@ def _state(db):
         table_name="orders",
         domain_id="sales",
     )
-    return types.SimpleNamespace(
+    return RoleState(
         contexts={
             "analyst": types.SimpleNamespace(
                 tables={"orders": orders}, joins={}, physical_to_sql={(table_id, "id"): "id"}

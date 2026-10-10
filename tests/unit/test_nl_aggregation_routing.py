@@ -40,6 +40,7 @@ from provisa.nl.runner import (
     _generate_openapi_query,
     _resolve_aggregation_plan,
 )
+from tests.role_state import RoleState
 
 
 def _agg_only_compiled(root_field: str = "pets_aggregate") -> CompiledQuery:
@@ -438,7 +439,7 @@ class TestExecutorRouting:
     async def test_execute_grpc_aggregate_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _agg_only_compiled()
         with (
             patch.object(
@@ -463,7 +464,7 @@ class TestExecutorRouting:
     async def test_execute_grpc_group_by_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _group_by_compiled()
         with (
             patch.object(
@@ -496,7 +497,7 @@ class TestExecutorRouting:
     async def test_execute_grpc_plain_falls_back_to_sql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         with (
             patch(
                 "provisa.grpc.query_ir.grpc_table_to_semantic_sql",
@@ -512,7 +513,7 @@ class TestExecutorRouting:
     async def test_execute_jsonapi_aggregate_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _agg_only_compiled()
         with (
             patch.object(
@@ -539,7 +540,7 @@ class TestExecutorRouting:
     async def test_execute_jsonapi_group_by_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _group_by_compiled()
         with (
             patch.object(
@@ -585,7 +586,7 @@ class TestExecutorRouting:
         # carries populated "nodes" — not just that includeNodes=true appears in the request URL.
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _group_by_compiled()
         nodes_columns = [
             ColumnRef(alias=None, column="species", field_name="species", nested_in="__join_key__"),
@@ -632,7 +633,7 @@ class TestExecutorRouting:
     async def test_execute_openapi_group_by_with_include_nodes_matches_trailing_param(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _group_by_compiled()
         nodes_columns = [
             ColumnRef(alias=None, column="species", field_name="species", nested_in="__join_key__"),
@@ -675,7 +676,7 @@ class TestExecutorRouting:
     async def test_execute_jsonapi_plain_falls_back_to_domain_table(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         with patch.object(
             executor,
             "_execute_domain_table",
@@ -689,7 +690,7 @@ class TestExecutorRouting:
     async def test_execute_openapi_aggregate_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _agg_only_compiled()
         with (
             patch.object(
@@ -715,7 +716,7 @@ class TestExecutorRouting:
     async def test_execute_openapi_group_by_routes_through_graphql(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         cq = _group_by_compiled()
         with (
             patch.object(
@@ -746,7 +747,7 @@ class TestExecutorRouting:
     async def test_execute_openapi_plain_falls_back_to_domain_table(self):
         from provisa.nl import executor
 
-        app_state = SimpleNamespace(contexts={"admin": _ctx()})
+        app_state = RoleState(contexts={"admin": _ctx()})
         with patch.object(
             executor,
             "_execute_domain_table",

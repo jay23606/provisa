@@ -21,6 +21,7 @@ from provisa.audit.provenance import data_age, enforced_for_request, enforced_su
 from provisa.compiler.rls import RLSContext
 from provisa.security.masking import MaskingRule, MaskType
 from tests.write_governance import write_governance
+from tests.role_state import RoleState
 
 _ORDERS = {"sales.orders": (1, ["id", "region", "email"])}
 
@@ -83,7 +84,7 @@ def test_a_graphql_request_records_the_governance_its_role_had_when_it_ran():
             ],
         }
     ]
-    state = SimpleNamespace(
+    state = RoleState(
         rls_contexts={"admin": RLSContext(rules={1: "region = 'us'"})},
         masking_rules={},
         tables=tables,

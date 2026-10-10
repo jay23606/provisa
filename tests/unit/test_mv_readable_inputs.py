@@ -27,6 +27,7 @@ from provisa.mv import readable_inputs
 from provisa.mv.models import MVDefinition, TableIdentity
 from provisa.mv.readable_inputs import ViewInputNotReadable
 from provisa.mv.registry import MVRegistry
+from tests.role_state import RoleState
 
 
 def _endpoint(table: str, path: str, *columns: ApiColumn) -> ApiEndpoint:
@@ -54,7 +55,7 @@ def state(monkeypatch):
         "provisa.federation.query_residency.row_materialized_tables_by_name", _row_level
     )
     monkeypatch.setattr("provisa.federation.registry_view.registered_sources", _sources)
-    return SimpleNamespace(
+    return RoleState(
         api_endpoints={
             ("crm", "contact"): _endpoint("contact", "/contacts/{id}", _col("id", ParamType.path)),
             ("crm", "deal"): _endpoint("deal", "/deals/{deal_id}"),

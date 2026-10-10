@@ -21,6 +21,7 @@ from graphql import (
 )
 
 from provisa.api.rest.openapi_spec import generate_rest_openapi_spec
+from tests.role_state import RoleState
 
 
 def _make_state(role_id: str = "admin") -> SimpleNamespace:
@@ -49,7 +50,7 @@ def _make_state(role_id: str = "admin") -> SimpleNamespace:
             "write_refused_forms": [],
         }
     }
-    state = SimpleNamespace(
+    state = RoleState(
         schemas={role_id: schema},
         table_path_maps={role_id: path_map},
     )
@@ -58,14 +59,14 @@ def _make_state(role_id: str = "admin") -> SimpleNamespace:
 
 class TestEmptySpec:
     def test_unknown_role_returns_empty_spec(self):
-        state = SimpleNamespace(schemas={}, table_path_maps={})
+        state = RoleState(schemas={}, table_path_maps={})
         spec = generate_rest_openapi_spec(state, "nobody")
         assert spec["openapi"] == "3.1.0"
         assert spec["paths"] == {}
 
     def test_no_query_type_returns_empty_spec(self):
         schema = GraphQLSchema()
-        state = SimpleNamespace(schemas={"r": schema}, table_path_maps={"r": {}})
+        state = RoleState(schemas={"r": schema}, table_path_maps={"r": {}})
         spec = generate_rest_openapi_spec(state, "r")
         assert spec["paths"] == {}
 
@@ -281,7 +282,7 @@ class TestAggregateGroupByParams:
                 "write_refused_forms": [],
             }
         }
-        state = SimpleNamespace(
+        state = RoleState(
             schemas={"admin": schema}, contexts={"admin": ctx}, table_path_maps={"admin": path_map}
         )
         return state
@@ -377,7 +378,7 @@ class TestDomainFilter:
                 "write_refused_forms": [],
             },
         }
-        state = SimpleNamespace(schemas={"admin": schema}, table_path_maps={"admin": path_map})
+        state = RoleState(schemas={"admin": schema}, table_path_maps={"admin": path_map})
 
         spec = generate_rest_openapi_spec(state, "admin", domains=["sales"])
         assert "/sales/orders" in spec["paths"]

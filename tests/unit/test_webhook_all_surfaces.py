@@ -30,6 +30,7 @@ from provisa.api.data.action_exec import (
     invoke_tracked_function,
     list_visible_commands,
 )
+from tests.role_state import RoleState
 
 
 def _webhook() -> dict:
@@ -72,7 +73,7 @@ class _Engine:
 
 def _state() -> SimpleNamespace:
     wh = _webhook()
-    return SimpleNamespace(
+    return RoleState(
         tracked_functions={},
         tracked_webhooks={"add_pet": wh, "ps__addPet": wh},  # raw + gql-field-name alias
         undefined_commands={},

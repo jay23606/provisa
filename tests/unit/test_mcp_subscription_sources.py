@@ -23,12 +23,13 @@ from provisa.api.mcp import tools as mcp_tools
 from provisa.core.database import Database
 from provisa.core.models import GovDataSubject, GovDataSubscription
 from provisa.core.schema_admin import deployment_encryption_key, secrets_store
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
 
 def _state(*, govdata_subscriptions=None):
-    return types.SimpleNamespace(
+    return RoleState(
         contexts={"analyst": object()},
         config=types.SimpleNamespace(govdata_subscriptions=govdata_subscriptions or []),
     )

@@ -20,6 +20,7 @@ import grpc.aio
 import pytest
 
 from provisa.grpc.server import ProvisaServicer, _pascal_to_snake, _rpc_role
+from tests.role_state import RoleState
 
 
 class TestPascalToSnake:
@@ -89,7 +90,7 @@ def _make_state(role_id: str = "admin", schema=None, ctx=None):
     from provisa.cache.store import NoopCacheStore
     from provisa.compiler.rls import RLSContext
 
-    state = SimpleNamespace(
+    state = RoleState(
         org_id="default",
         schemas={role_id: schema or MagicMock()},
         contexts={role_id: ctx or MagicMock()},
