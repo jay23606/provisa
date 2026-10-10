@@ -136,7 +136,7 @@ async def test_an_ordinary_statement_naming_the_draft_is_refused(state, routing)
 
 async def test_the_steward_read_of_a_draft_reaches_routing_governed(state, routing):
     with pytest.raises(_Routed):
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
     routing.assert_awaited_once()
 
 
@@ -150,7 +150,7 @@ async def test_the_same_words_are_still_refused_after_a_steward_read(state, rout
         else None
     )
     with pytest.raises(_Routed):
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
     routing.reset_mock()
 
     with pytest.raises(PermissionError, match="draft"):
@@ -172,7 +172,7 @@ async def test_a_draft_is_read_under_the_callers_own_masks(state, routing):
         }
     }
     with pytest.raises(_Routed):
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
     governed = " ".join(str(a) for a in routing.await_args.args) + str(routing.await_args.kwargs)
     assert "MASKED" in governed
 
@@ -184,14 +184,14 @@ async def test_a_draft_kept_in_another_region_is_not_read_here(state, routing, m
     monkeypatch.setattr(process_region, "_region", "us")
     state.role_build_inputs["draft_tables"] = [_refunds(region="eu")]
     with pytest.raises(ReadRefused) as refused:
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
     assert refused.value.code == "query.home_region_unavailable"
     assert refused.value.params == {"table": "refunds", "region": "eu"}
     routing.assert_not_awaited()
 
     state.role_build_inputs["draft_tables"] = [_refunds(region="us")]
     with pytest.raises(_Routed):
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
 
 
 async def test_a_draft_the_engine_reaches_only_through_a_replica_is_not_read(
@@ -203,7 +203,7 @@ async def test_a_draft_the_engine_reaches_only_through_a_replica_is_not_read(
 
     monkeypatch.setattr(replica_routing, "reads_replica", lambda *a, **k: True)
     with pytest.raises(ApiError) as err:
-        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
     assert (err.value.status_code, err.value.code) == (409, "schema.draft_read_needs_replica")
     assert err.value.params == {"table": "refunds"}
     routing.assert_not_awaited()
@@ -223,14 +223,14 @@ async def test_a_table_in_service_is_read_as_any_statement_reads_it(state, monke
 
     monkeypatch.setattr(_pipeline, "_govern_and_route", _govern)
     monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
-    result = await table_read.read_as_caller(state, SALES, "r", 2000)
+    result = await table_read.read_as_caller(state, SALES, "r", limit=2000)
     assert seen == [('SELECT * FROM "sales"."orders" LIMIT 2000', "r")]
     assert result.plan == "the plan"
 
 
 async def test_a_table_that_is_not_registered_is_not_found(state):
     with pytest.raises(ApiError) as err:
-        await table_read.read_as_caller(state, 404404, "r", 5)
+        await table_read.read_as_caller(state, 404404, "r", limit=5)
     assert (err.value.status_code, err.value.code) == (404, "schema.table_not_found")
 
 
@@ -310,3 +310,179 @@ def test_both_routes_read_through_the_one_function_and_nothing_else():
     assert "run_admin_catalog_sql" not in source and "TABLESAMPLE" not in source
     for route in (routes.profile_table, routes.preview_table):
         assert "await _rows(request, table_id, x_provisa_role," in inspect.getsource(route)
+
+
+# --- the viewer of a draft: filters, sorts and pages, each a statement the SERVER writes ------------
+
+
+def _page(**choices):
+    from provisa.api.admin.viewer_statement import ViewerRequest
+
+    return ViewerRequest.model_validate(choices)
+
+
+def _governed(routing) -> str:
+    """Everything routing was handed: the governed statement and its bound values."""
+    return " ".join(str(a) for a in routing.await_args.args) + str(routing.await_args.kwargs)
+
+
+@pytest.fixture
+def masked_and_filtered(state):
+    """The caller's role sees ``note`` masked and only the rows its row rule admits."""
+    from provisa.compiler.rls import RLSContext
+    from provisa.security.masking import MaskingRule, MaskType
+
+    state.masking_rules = {
+        (_REFUNDS, "r"): {
+            "note": (MaskingRule(mask_type=MaskType.constant, value="MASKED"), "varchar")
+        }
+    }
+    state.rls_contexts["r"] = RLSContext(
+        rules={_REFUNDS: "id > 100"}, domain_rules={}, action_rules={}
+    )
+    return state
+
+
+@pytest.mark.parametrize(
+    ("choices", "written"),
+    [
+        (
+            {"filters": [{"col": "id", "kind": "number", "op": "ge", "a": "7"}]},
+            '"id" >= $1',
+        ),
+        ({"sorts": [{"col": "id", "dir": "desc"}]}, 'ORDER BY "id" DESC'),
+        ({"page": 1, "pageSize": 50}, "LIMIT 51 OFFSET 50"),
+    ],
+    ids=["a filter", "a sort", "a second page"],
+)
+async def test_each_choice_of_the_viewer_reaches_the_governed_stage_under_the_callers_rules(
+    masked_and_filtered, routing, choices, written
+):
+    from provisa.api.admin.viewer_statement import viewer_statement
+
+    sql, _params = viewer_statement(_refunds(), '"sales"."refunds"', _page(**choices))
+    assert written in sql  # what the server wrote from the choice
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(
+            masked_and_filtered, _REFUNDS, "r", request=_page(**choices)
+        )
+    governed = _governed(routing)
+    assert "MASKED" in governed, "the caller's mask is in the statement"
+    assert "id > 100" in governed.replace('"', ""), "and so is its row rule"
+
+
+async def test_a_bound_value_travels_beside_the_statement_never_inside_it(state, routing):
+    choices = {"filters": [{"col": "note", "kind": "text", "op": "contains", "a": "x'; DROP"}]}
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(state, _REFUNDS, "r", request=_page(**choices))
+    from provisa.api.admin.viewer_statement import viewer_statement
+
+    sql, params = viewer_statement(_refunds(), '"sales"."refunds"', _page(**choices))
+    assert "DROP" not in sql and params == ["x'; drop"]
+
+
+@pytest.mark.parametrize(
+    ("choices", "code", "names"),
+    [
+        (
+            {"filters": [{"col": "secret", "kind": "text", "op": "contains", "a": "x"}]},
+            "data.viewer_column_unknown",
+            {"column": "secret", "table": "refunds"},
+        ),
+        (
+            {"sorts": [{"col": "id; DROP TABLE x", "dir": "asc"}]},
+            "data.viewer_column_unknown",
+            {"column": "id; DROP TABLE x", "table": "refunds"},
+        ),
+        (
+            {"groupBy": ["nope"]},
+            "data.viewer_column_unknown",
+            {"column": "nope", "table": "refunds"},
+        ),
+        (
+            {"filters": [{"col": "id", "kind": "number", "op": "regexp", "a": "1"}]},
+            "data.viewer_filter_unknown",
+            {"operator": "regexp", "column": "id"},
+        ),
+        (
+            {"filters": [{"col": "id", "kind": "number", "op": "eq", "a": "1 OR 1=1"}]},
+            "data.viewer_value_invalid",
+            {"column": "id", "value": "1 OR 1=1"},
+        ),
+        (
+            {"filters": [{"col": "id", "kind": "date", "op": "today", "from": "now()"}]},
+            "data.viewer_value_invalid",
+            {"column": "id", "value": "now() .. None"},
+        ),
+    ],
+    ids=["column", "sort column", "group column", "operator", "number", "date bound"],
+)
+async def test_what_the_table_is_not_registered_with_is_refused_before_any_statement(
+    state, routing, choices, code, names
+):
+    with pytest.raises(ApiError) as err:
+        await table_read.read_as_caller(state, _REFUNDS, "r", request=_page(**choices))
+    assert (err.value.status_code, err.value.code) == (400, code)
+    assert err.value.params == names
+    routing.assert_not_awaited()
+
+
+def test_a_sort_direction_and_a_page_are_what_they_are_or_nothing():
+    from pydantic import ValidationError
+
+    for bad in (
+        {"sorts": [{"col": "id", "dir": "asc; DROP"}]},
+        {"page": -1},
+        {"pageSize": 0},
+        {"pageSize": 1_000_000},
+        {"filters": [{"col": "id", "kind": "blob", "op": "eq"}]},
+    ):
+        with pytest.raises(ValidationError):
+            _page(**bad)
+
+
+async def test_after_the_viewer_has_filtered_sorted_and_paged_the_draft_is_as_refused_as_before(
+    masked_and_filtered, routing
+):
+    state = masked_and_filtered
+    tables_before, surface_before = list(state.tables), state.surfaces["r"]
+    for choices in (
+        {"filters": [{"col": "id", "kind": "number", "op": "ge", "a": "7"}]},
+        {"sorts": [{"col": "id", "dir": "desc"}], "page": 3, "pageSize": 25},
+    ):
+        with pytest.raises(_Routed):
+            await table_read.read_as_caller(state, _REFUNDS, "r", request=_page(**choices))
+    routing.reset_mock()
+
+    for words in (_STATEMENT, 'SELECT * FROM "sales"."refunds" WHERE "id" >= 7 LIMIT 51 OFFSET 0'):
+        with pytest.raises(PermissionError, match="draft"):
+            await _ordinary(words)
+    routing.assert_not_awaited()
+    assert state.tables == tables_before and state.surfaces["r"] is surface_before
+
+
+async def test_the_viewer_request_of_a_table_in_service_is_an_ordinary_bound_statement(
+    state, monkeypatch
+):
+    from provisa.pgwire import _pipeline
+
+    seen: list = []
+
+    async def _govern(sql, role_id, **kw):
+        seen.append((sql, role_id, kw))
+        return "the plan"
+
+    async def _execute(plan, _state):
+        return SimpleNamespace(column_names=["id"], rows=[(1,)])
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route", _govern)
+    monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
+    await table_read.read_as_caller(
+        state,
+        SALES,
+        "r",
+        request=_page(filters=[{"col": "id", "kind": "number", "op": "eq", "a": "3"}]),
+    )
+    assert seen == [
+        ('SELECT * FROM "sales"."orders" WHERE "id" = $1 LIMIT 51 OFFSET 0', "r", {"params": [3]})
+    ]

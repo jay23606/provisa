@@ -18,6 +18,7 @@ from fastapi import APIRouter, Header, Request
 
 from provisa.api.acting_role import header_role
 from provisa.api.admin.table_read import read_as_caller, table_for_steward
+from provisa.api.admin.viewer_statement import ViewerRequest
 from provisa.api.app import state
 from provisa.api.errors import ApiError
 
@@ -27,10 +28,16 @@ router = APIRouter(prefix="/admin/tables", tags=["admin", "tables"])
 # Requirements: REQ-452, REQ-1921
 
 _SAMPLE_LIMIT = 2000
-_PREVIEW_LIMIT = 200
 
 
-async def _rows(request: Request, table_id: int, x_provisa_role: str | None, limit: int) -> dict:
+async def _rows(
+    request: Request,
+    table_id: int,
+    x_provisa_role: str | None,
+    *,
+    limit: int | None = None,
+    page: ViewerRequest | None = None,
+) -> dict:
     """Up to ``limit`` rows of the table, read as the caller (admin/table_read.py): the right
     to register tables in the table's own domain, then the caller's role — its row filters, its
     masks, the columns it may see."""
@@ -48,7 +55,7 @@ async def _rows(request: Request, table_id: int, x_provisa_role: str | None, lim
             "profile.role_header_required",
             "X-Provisa-Role header required to read a table's rows",
         )
-    result = await read_as_caller(state, table_id, role_id, limit)
+    result = await read_as_caller(state, table_id, role_id, limit=limit, request=page)
     rows = [dict(zip(result.column_names, row)) for row in result.rows]
     return {
         "columns": list(result.column_names),
@@ -65,15 +72,18 @@ async def profile_table(
     x_provisa_role: str | None = Header(None),
 ) -> dict:  # REQ-452
     """A sample of the table's rows for its profile, read as the caller."""
-    return await _rows(request, table_id, x_provisa_role, _SAMPLE_LIMIT)
+    return await _rows(request, table_id, x_provisa_role, limit=_SAMPLE_LIMIT)
 
 
 @router.post("/{table_id}/preview")
 async def preview_table(
     request: Request,
     table_id: int,
+    page: ViewerRequest,
     x_provisa_role: str | None = Header(None),
 ) -> dict:  # REQ-1921
-    """The first rows of the table, read as the caller: the table detail's Preview of a draft,
-    which no ordinary statement may read."""
-    return await _rows(request, table_id, x_provisa_role, _PREVIEW_LIMIT)
+    """One page of the table as the table viewer shows it, read as the caller: the viewer of a
+    DRAFT, which no statement a caller sends may read. The body is what the viewer chose — its
+    filters, sorts, grouping and page — and the server writes the statement from it. One row
+    more than the page comes back when a next page exists."""
+    return await _rows(request, table_id, x_provisa_role, page=page)

@@ -106,7 +106,10 @@
       "domain_not_accessible": "Rolle '{{role_id}}' hat keinen Zugriff auf die Domäne '{{domain}}'",
       "role_mismatch": "Die Anfrage nennt die Rolle '{{body_role}}', wird aber als Rolle '{{acting_role}}' ausgeführt. Die Rolle wird über den Header X-Provisa-Role (oder die angemeldete Identität) übermittelt; entfernen Sie die andere Rolle oder gleichen Sie sie an.",
       "sql_parameters_do_not_fit": "Die Parameterwerte passen nicht zur Anweisung: {{reason}}",
-      "unknown_root_field": "Unbekanntes Abfragefeld '{{field}}': Dieser Rolle wird keine Tabelle mit diesem Namen bereitgestellt"
+      "unknown_root_field": "Unbekanntes Abfragefeld '{{field}}': Dieser Rolle wird keine Tabelle mit diesem Namen bereitgestellt",
+      "viewer_column_unknown": "'{{column}}' ist keine Spalte der Tabelle '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' ist kein Filter der Spalte '{{column}}'",
+      "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",

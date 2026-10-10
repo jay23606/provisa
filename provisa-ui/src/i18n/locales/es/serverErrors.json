@@ -106,7 +106,10 @@
       "domain_not_accessible": "El rol '{{role_id}}' no tiene acceso al dominio '{{domain}}'",
       "role_mismatch": "La solicitud indica el rol '{{body_role}}' pero se ejecuta como el rol '{{acting_role}}'. El rol se transmite en la cabecera X-Provisa-Role (o en la identidad con sesión iniciada); elimine el otro rol o haga que coincida.",
       "sql_parameters_do_not_fit": "Los valores de los parámetros no corresponden a la sentencia: {{reason}}",
-      "unknown_root_field": "Campo de consulta desconocido '{{field}}': a este rol no se le sirve ninguna tabla con ese nombre"
+      "unknown_root_field": "Campo de consulta desconocido '{{field}}': a este rol no se le sirve ninguna tabla con ese nombre",
+      "viewer_column_unknown": "'{{column}}' no es una columna de la tabla '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' no es un filtro de la columna '{{column}}'",
+      "viewer_value_invalid": "El filtro de '{{column}}' no puede usar el valor '{{value}}'"
     },
     "discovery": {
       "adapter_missing_discover_schema": "El adaptador para '{{source_type}}' no implementa discover_schema",

@@ -106,7 +106,10 @@
       "domain_not_accessible": "Il ruolo '{{role_id}}' non ha accesso al dominio '{{domain}}'",
       "role_mismatch": "La richiesta indica il ruolo '{{body_role}}' ma viene eseguita come ruolo '{{acting_role}}'. Il ruolo è trasmesso dall'intestazione X-Provisa-Role (o dall'identità autenticata); rimuovi l'altro ruolo o fallo corrispondere.",
       "sql_parameters_do_not_fit": "I valori dei parametri non corrispondono all'istruzione: {{reason}}",
-      "unknown_root_field": "Campo di query sconosciuto '{{field}}': a questo ruolo non è servita alcuna tabella con quel nome"
+      "unknown_root_field": "Campo di query sconosciuto '{{field}}': a questo ruolo non è servita alcuna tabella con quel nome",
+      "viewer_column_unknown": "'{{column}}' non è una colonna della tabella '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' non è un filtro della colonna '{{column}}'",
+      "viewer_value_invalid": "Il filtro su '{{column}}' non può usare il valore '{{value}}'"
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adattatore per '{{source_type}}' non implementa discover_schema",

@@ -106,7 +106,10 @@
       "domain_not_accessible": "A função '{{role_id}}' não tem acesso ao domínio '{{domain}}'",
       "role_mismatch": "A solicitação indica a função '{{body_role}}', mas é executada como a função '{{acting_role}}'. A função é transmitida pelo cabeçalho X-Provisa-Role (ou pela identidade conectada); remova a outra função ou faça com que coincida.",
       "sql_parameters_do_not_fit": "Os valores dos parâmetros não correspondem à instrução: {{reason}}",
-      "unknown_root_field": "Campo de consulta desconhecido '{{field}}': nenhuma tabela com esse nome é servida a esta função"
+      "unknown_root_field": "Campo de consulta desconhecido '{{field}}': nenhuma tabela com esse nome é servida a esta função",
+      "viewer_column_unknown": "'{{column}}' não é uma coluna da tabela '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' não é um filtro da coluna '{{column}}'",
+      "viewer_value_invalid": "O filtro em '{{column}}' não pode usar o valor '{{value}}'"
     },
     "discovery": {
       "adapter_missing_discover_schema": "O adaptador para '{{source_type}}' não implementa discover_schema",

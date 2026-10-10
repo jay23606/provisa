@@ -33,7 +33,7 @@ def governed(monkeypatch) -> list[str]:
     """The roles the table's sample was read as."""
     seen: list[str] = []
 
-    async def _read(_state, table_id, role_id, limit):
+    async def _read(_state, table_id, role_id, *, limit=None, request=None):
         seen.append(role_id)
         return types.SimpleNamespace(column_names=["id"], rows=[(1,)])
 

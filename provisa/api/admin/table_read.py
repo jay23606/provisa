@@ -151,8 +151,23 @@ async def _require_read_in_place(state: Any, draft: dict) -> None:
             )
 
 
-async def read_as_caller(state: Any, table_id: int, role_id: str, limit: int) -> Any:
-    """Up to ``limit`` rows of the table as ``role_id`` reads it: a ``QueryResult``.
+def _statement(table: dict, limit: int | None, request: Any) -> tuple[str, list]:
+    """The one statement the read is: the table's first ``limit`` rows, or the page the viewer
+    asked for (``request``: its filters, sorts, grouping and page), written here from the
+    table's registration with every value bound (admin/viewer_statement.py)."""
+    from provisa.api.admin.viewer_statement import viewer_statement
+
+    if request is not None:
+        return viewer_statement(table, table_sql_ref(table), request)
+    return f"SELECT * FROM {table_sql_ref(table)} LIMIT {int(limit or 0)}", []
+
+
+async def read_as_caller(
+    state: Any, table_id: int, role_id: str, *, limit: int | None = None, request: Any = None
+) -> Any:
+    """Rows of the table as ``role_id`` reads it — a ``QueryResult``: its first ``limit`` rows,
+    or the page of it the viewer's ``request`` describes. Either way the statement is written
+    here; the caller sends none.
 
     The caller has already been checked for the right in the table's domain
     (:func:`table_for_steward`)."""
@@ -166,19 +181,30 @@ async def read_as_caller(state: Any, table_id: int, role_id: str, limit: int) ->
 
     table = _in_service(state, table_id)
     if table is not None:
-        sql = f"SELECT * FROM {table_sql_ref(table)} LIMIT {int(limit)}"
-        return await _execute_plan(await _govern_and_route(sql, role_id), state)
+        sql, params = _statement(table, limit, request)
+        plan = (
+            await _govern_and_route(sql, role_id, params=params)
+            if params
+            else await _govern_and_route(sql, role_id)
+        )
+        return await _execute_plan(plan, state)
 
     draft = _draft(state, table_id)
     if draft is None:
         raise ApiError(404, "schema.table_not_found", f"Table {table_id} not found", table=table_id)
+    # Refused by name before any statement is built: a column or operator the table has not.
+    sql, params = _statement(draft, limit, request)
     # Where a regional table may be read is the regions' rule, in its own module.
     require_draft_read_in_its_region(draft["table_name"], draft.get("region"))
     await _require_read_in_place(state, draft)
     seen = _WithDraft(state, draft, role_id, _surface_with(state, role_id, draft))
-    sql = f"SELECT * FROM {table_sql_ref(draft)} LIMIT {int(limit)}"
     plan = await _govern_and_route_compiled(
-        sql, role_id, state=seen, cache_hint=NO_CACHE_HINT, sdl_joins=False
+        sql,
+        role_id,
+        exec_params=params or None,
+        state=seen,
+        cache_hint=NO_CACHE_HINT,
+        sdl_joins=False,
     )
     return await _execute_plan(plan, seen)
 

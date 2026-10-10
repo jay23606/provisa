@@ -106,7 +106,10 @@
       "domain_not_accessible": "Роль '{{role_id}}' не имеет доступа к домену '{{domain}}'",
       "role_mismatch": "В запросе указана роль '{{body_role}}', но он выполняется от имени роли '{{acting_role}}'. Роль передаётся в заголовке X-Provisa-Role (или определяется вошедшим пользователем); удалите другую роль или приведите её в соответствие.",
       "sql_parameters_do_not_fit": "Значения параметров не соответствуют запросу: {{reason}}",
-      "unknown_root_field": "Неизвестное поле запроса '{{field}}': этой роли не предоставляется таблица с таким именем"
+      "unknown_root_field": "Неизвестное поле запроса '{{field}}': этой роли не предоставляется таблица с таким именем",
+      "viewer_column_unknown": "'{{column}}' не является столбцом таблицы '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' не является фильтром столбца '{{column}}'",
+      "viewer_value_invalid": "Фильтр по '{{column}}' не может использовать значение '{{value}}'"
     },
     "discovery": {
       "adapter_missing_discover_schema": "Адаптер для '{{source_type}}' не реализует discover_schema",

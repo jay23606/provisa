@@ -106,7 +106,10 @@
       "domain_not_accessible": "भूमिका '{{role_id}}' की डोमेन '{{domain}}' तक पहुँच नहीं है",
       "role_mismatch": "अनुरोध में भूमिका '{{body_role}}' दी गई है लेकिन यह भूमिका '{{acting_role}}' के रूप में चलता है। भूमिका X-Provisa-Role हेडर (या साइन-इन पहचान) से आती है; दूसरी भूमिका हटाएँ या उसे मिलाएँ।",
       "sql_parameters_do_not_fit": "पैरामीटर मान कथन से मेल नहीं खाते: {{reason}}",
-      "unknown_root_field": "अज्ञात क्वेरी फ़ील्ड '{{field}}': इस भूमिका को इस नाम की कोई तालिका उपलब्ध नहीं है"
+      "unknown_root_field": "अज्ञात क्वेरी फ़ील्ड '{{field}}': इस भूमिका को इस नाम की कोई तालिका उपलब्ध नहीं है",
+      "viewer_column_unknown": "'{{column}}' तालिका '{{table}}' का कॉलम नहीं है",
+      "viewer_filter_unknown": "'{{operator}}' कॉलम '{{column}}' का फ़िल्टर नहीं है",
+      "viewer_value_invalid": "'{{column}}' पर फ़िल्टर मान '{{value}}' का उपयोग नहीं कर सकता"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' का अडैप्टर discover_schema लागू नहीं करता",
