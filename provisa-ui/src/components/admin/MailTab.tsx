@@ -34,6 +34,7 @@ import {
   type MailState,
   type MailStats,
 } from "../../api/mail";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 /**
  * REQ-1576: the deployment's mail transport, owned by the platform_admin.
@@ -135,87 +136,96 @@ export function MailTab() {
   if (!s) return <Text>{t("mailTab.loading")}</Text>;
 
   return (
-    <Stack gap="lg" maw={820} data-testid="mail-tab">
-      <Stack gap="sm">
-        <Text c="dimmed" fz="sm">
-          {t("mailTab.intro")}
-        </Text>
+    <Stack gap="lg" data-testid="mail-tab">
+      <FormLayout>
+        <FormField size="full">
+          <Text c="dimmed" fz="sm">
+            {t("mailTab.intro")}
+          </Text>
+        </FormField>
 
-        {error && <Alert color="red">{error}</Alert>}
+        {error && (
+          <FormField size="full">
+            <Alert color="red">{error}</Alert>
+          </FormField>
+        )}
         {msg && (
-          <Alert color="green" data-testid="mail-saved">
-            {msg}
-          </Alert>
+          <FormField size="full">
+            <Alert color="green" data-testid="mail-saved">
+              {msg}
+            </Alert>
+          </FormField>
         )}
 
-        <Select
-          label={t("mailTab.providerLabel")}
-          description={selected?.description}
-          value={choice}
-          onChange={(v) => setChoice(v ?? "")}
-          allowDeselect={false}
-          data={s.providers.map((p) => ({
-            value: p.key,
-            // An uninstalled transport stays on the list, disabled, naming what it needs.
-            label: p.available
-              ? p.label
-              : t("mailTab.providerRequires", { label: p.label, library: p.requires }),
-            disabled: !p.available,
-          }))}
-          data-testid="mail-provider"
-        />
+        <FormField hint={selected?.description} size="medium">
+          <Select
+            label={t("mailTab.providerLabel")}
+            value={choice}
+            onChange={(v) => setChoice(v ?? "")}
+            allowDeselect={false}
+            data={s.providers.map((p) => ({
+              value: p.key,
+              // An uninstalled transport stays on the list, disabled, naming what it needs.
+              label: p.available
+                ? p.label
+                : t("mailTab.providerRequires", { label: p.label, library: p.requires }),
+              disabled: !p.available,
+            }))}
+            data-testid="mail-provider"
+          />
+        </FormField>
 
         {(selected?.config_fields ?? []).map((f) => (
-          <TextInput
-            key={f.config_key}
-            label={f.label}
-            required={f.required}
-            type={f.type === "number" ? "number" : "text"}
-            placeholder={
-              secretPlaceholder(f, s.secret_set?.[choice], {
-                set: t("mailTab.secretOnFile"),
-                unset: t("mailTab.secretNotSet"),
-              }) ?? f.placeholder
-            }
-            value={config[choice]?.[f.config_key] ?? ""}
-            onChange={(e) => setField(f.config_key, e.currentTarget.value)}
-            data-testid={`mail-field-${f.config_key}`}
-          />
+          <FormField size="medium" key={f.config_key}>
+            <TextInput
+              label={f.label}
+              required={f.required}
+              type={f.type === "number" ? "number" : "text"}
+              placeholder={
+                secretPlaceholder(f, s.secret_set?.[choice], {
+                  set: t("mailTab.secretOnFile"),
+                  unset: t("mailTab.secretNotSet"),
+                }) ?? f.placeholder
+              }
+              value={config[choice]?.[f.config_key] ?? ""}
+              onChange={(e) => setField(f.config_key, e.currentTarget.value)}
+              data-testid={`mail-field-${f.config_key}`}
+            />
+          </FormField>
         ))}
 
-        <TextInput
-          label={t("mailTab.fromAddressLabel")}
-          description={t("mailTab.fromAddressHelp")}
-          value={shared.from_address}
-          onChange={(e) => setShared({ ...shared, from_address: e.currentTarget.value })}
-          data-testid="mail-from-address"
-        />
-        <TextInput
-          label={t("mailTab.baseUrlLabel")}
-          description={t("mailTab.baseUrlHelp")}
-          value={shared.base_url}
-          onChange={(e) => setShared({ ...shared, base_url: e.currentTarget.value })}
-          data-testid="mail-base-url"
-        />
-        <NumberInput
-          label={t("mailTab.timeoutLabel")}
-          min={1}
-          value={shared.timeout_seconds}
-          onChange={(v) => setShared({ ...shared, timeout_seconds: Number(v) || 1 })}
-          data-testid="mail-timeout"
-        />
+        <FormField hint={t("mailTab.fromAddressHelp")} size="long">
+          <TextInput
+            label={t("mailTab.fromAddressLabel")}
+            value={shared.from_address}
+            onChange={(e) => setShared({ ...shared, from_address: e.currentTarget.value })}
+            data-testid="mail-from-address"
+          />
+        </FormField>
+        <FormField hint={t("mailTab.baseUrlHelp")} size="long">
+          <TextInput
+            label={t("mailTab.baseUrlLabel")}
+            value={shared.base_url}
+            onChange={(e) => setShared({ ...shared, base_url: e.currentTarget.value })}
+            data-testid="mail-base-url"
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("mailTab.timeoutLabel")}
+            min={1}
+            value={shared.timeout_seconds}
+            onChange={(v) => setShared({ ...shared, timeout_seconds: Number(v) || 1 })}
+            data-testid="mail-timeout"
+          />
+        </FormField>
 
-        <Group>
-          <Button
-            onClick={save}
-            loading={saving}
-            disabled={incomplete || choice === ""}
-            data-testid="mail-save"
-          >
-            {t("mailTab.save")}
-          </Button>
-        </Group>
-      </Stack>
+        <FormFooter
+          onSave={save}
+          saving={saving}
+          saveProps={{ "data-testid": "mail-save", disabled: incomplete || choice === "" }}
+        />
+      </FormLayout>
 
       <Card withBorder padding="md" data-testid="mail-test">
         <Stack gap="sm">
@@ -224,13 +234,17 @@ export function MailTab() {
             {t("mailTab.testIntro")}
           </Text>
           <Group align="flex-end">
-            <TextInput
-              label={t("mailTab.testRecipient")}
-              value={testTo}
-              onChange={(e) => setTestTo(e.currentTarget.value)}
-              w={320}
-              data-testid="mail-test-recipient"
-            />
+            <FormLayout>
+              <FormField size="medium">
+                <TextInput
+                  label={t("mailTab.testRecipient")}
+                  value={testTo}
+                  onChange={(e) => setTestTo(e.currentTarget.value)}
+                  w={320}
+                  data-testid="mail-test-recipient"
+                />
+              </FormField>
+            </FormLayout>
             <Button
               onClick={test}
               loading={testing}
