@@ -21,7 +21,14 @@ export type FormRule =
   /** Action buttons aligned anywhere but the start of the line. */
   | "actions-not-at-start"
   /** A button stretched by `fullWidth` or by its container. */
-  | "button-stretched";
+  | "button-stretched"
+  /**
+   * Text between a label and its control, or an explanation too long to sit under a field: a
+   * brief one is FormField's `hint` (below the control), a longer one its `help` (behind a (?)).
+   */
+  | "explanation-misplaced"
+  /** A tick or switch outside the form's group of ticks. */
+  | "tick-ungrouped";
 
 export interface FormViolation {
   rule: FormRule;
@@ -34,7 +41,12 @@ export interface FormRuleOptions {
   notAForm?: boolean;
   /** Buttons that may fill their container: each is matched by a substring of its own JSX. */
   stretchedButtonExceptions?: readonly string[];
+  /** The English text of a translation key, so the length of a hint can be held. */
+  textOf?: (key: string) => string | undefined;
 }
+
+/** The longest explanation that may sit under a field, in English characters. */
+export const HINT_MAX_CHARS = 90;
 
 const SINGLE_LINE = new Set([
   "TextInput",
@@ -49,7 +61,21 @@ const SINGLE_LINE = new Set([
   "Switch",
   "input",
   "select",
+  // One reusable control each, placed by the form that uses it.
+  "RegionSelect",
+  "ReplicateSelect",
 ]);
+const TICKS = new Set(["Checkbox", "Switch"]);
+/** What may lay a FormField out. */
+const FIELD_PARENTS = new Set([
+  "FormLayout",
+  "FieldGroup",
+  "FormIdentifiers",
+  "FormChecks",
+  "CollapsibleSection",
+]);
+/** Options of one choice: the group is the field, its boxes are not ticks of the form. */
+const CHOICE_GROUPS = new Set(["Checkbox.Group", "Radio.Group", "Switch.Group"]);
 const MULTI_LINE = new Set(["Textarea", "JsonInput", "textarea"]);
 const TABLE_CELLS = new Set(["Table.Td", "Table.Th", "td", "th"]);
 /** Elements that render their child in place, so the child's layout parent is theirs. */
@@ -187,8 +213,58 @@ export function checkFormRules(
       report("full-width-single-line", n, `<${tag}> spans the row`);
     }
     if (options.notAForm || hasAncestor(n, TABLE_CELLS)) return;
-    if (!hasAncestor(n, new Set(["FormField"]))) {
+    if (attr(n, "description") !== undefined) {
+      report(
+        "explanation-misplaced",
+        n,
+        `<${tag} description>: use the FormField's hint (brief, below) or help (behind a (?))`,
+      );
+    }
+    const grouped = hasAncestor(n, new Set(["FormChecks"]));
+    if (TICKS.has(tag) && !grouped && !hasAncestor(n, CHOICE_GROUPS)) {
+      report("tick-ungrouped", n, `<${tag}> is not in the form's <FormChecks>`);
+    }
+    if (!grouped && !hasAncestor(n, new Set(["FormField"]))) {
       report("outside-shared-layout", n, `<${tag}> is not inside a <FormField>`);
+    }
+  };
+
+  /** The text an attribute shows: a literal, or the English of `t("key")`. */
+  const shownText = (n: JsxEl, name: string): string | undefined => {
+    for (const a of opening(n).attributes.properties) {
+      if (!ts.isJsxAttribute(a) || a.name.getText() !== name || !a.initializer) continue;
+      if (ts.isStringLiteral(a.initializer)) return a.initializer.text;
+      const e = ts.isJsxExpression(a.initializer) ? a.initializer.expression : undefined;
+      if (e && ts.isStringLiteralLike(e)) return e.text;
+      if (e && ts.isCallExpression(e) && e.expression.getText() === "t") {
+        const key = e.arguments[0];
+        if (key && ts.isStringLiteralLike(key)) return options.textOf?.(key.text);
+      }
+    }
+    return undefined;
+  };
+
+  const checkExplanation = (n: ts.JsxElement) => {
+    const hint = attr(n, "hint");
+    if (hint === undefined) return;
+    const child = layoutChildren(n)[0];
+    if (child && TICKS.has(tagOf(child))) {
+      report("explanation-misplaced", n, "a tick takes help behind a (?), not a hint beside it");
+    }
+    const text = shownText(n, "hint");
+    if (text !== undefined && text.length > HINT_MAX_CHARS) {
+      report(
+        "explanation-misplaced",
+        n,
+        `a hint of ${text.length} characters: over ${HINT_MAX_CHARS} it is help, behind a (?)`,
+      );
+    }
+  };
+
+  const checkFieldParent = (n: ts.JsxElement) => {
+    const parent = layoutParent(n);
+    if (parent && !FIELD_PARENTS.has(tagOf(parent))) {
+      report("outside-shared-layout", n, `<FormField> laid out by a <${tagOf(parent)}>`);
     }
   };
 
@@ -201,6 +277,8 @@ export function checkFormRules(
   };
 
   const checkActionRow = (n: ts.JsxElement, tag: string) => {
+    // The actions of one row of a list sit at the end of the row: they are not a form's actions.
+    if (hasAncestor(n, TABLE_CELLS)) return;
     const className = attr(n, "className") ?? "";
     if (/\bmodal-actions\b/.test(className)) {
       report("actions-not-at-start", n, "modal-actions aligns its buttons to the end");
@@ -255,7 +333,11 @@ export function checkFormRules(
       if (SINGLE_LINE.has(tag) || MULTI_LINE.has(tag)) checkControl(n, tag);
       if (tag === "Button") checkButton(n);
       if (ts.isJsxElement(n)) {
-        if (tag === "FormField") checkFormField(n);
+        if (tag === "FormField") {
+          checkFormField(n);
+          checkExplanation(n);
+          checkFieldParent(n);
+        }
         checkActionRow(n, tag);
       }
       if (tag !== "FormLayout" && /\bform-(card|row)\b/.test(attr(n, "className") ?? "")) {

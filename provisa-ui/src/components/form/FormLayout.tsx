@@ -13,8 +13,11 @@
 // order and the keyboard order. The widths live in App.css (`.form-layout`, `.form-field--*`).
 
 import {
+  Children,
+  cloneElement,
   createContext,
   createElement,
+  isValidElement,
   useContext,
   useId,
   type CSSProperties,
@@ -22,6 +25,8 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
+import { Tooltip } from "@mantine/core";
+import { CircleHelp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const FormLayoutContext = createContext(false);
@@ -48,7 +53,11 @@ export function FormLayout({
 }: LayoutElementProps & { component?: "div" | "form" | "fieldset" }) {
   return (
     <FormLayoutContext.Provider value={true}>
-      {createElement(component, { ...rest, className: classes("form-layout", className) }, children)}
+      {createElement(
+        component,
+        { ...rest, className: classes("form-layout", className) },
+        children,
+      )}
     </FormLayoutContext.Provider>
   );
 }
@@ -59,20 +68,78 @@ export function FormLayout({
  */
 export type FormFieldSize = "short" | "medium" | "long" | "full";
 
+/** A longer explanation: a (?) immediately after the label, opened by hover, focus or touch. */
+function LabelWithHelp({ label, help }: { label: ReactNode; help: string }) {
+  return (
+    <span className="form-label">
+      {label}
+      <Tooltip label={help} multiline w={320} events={{ hover: true, focus: true, touch: true }}>
+        <span className="form-help" role="img" tabIndex={0} aria-label={help}>
+          <CircleHelp size={14} aria-hidden />
+        </span>
+      </Tooltip>
+    </span>
+  );
+}
+
+type Explainable = { label?: ReactNode; description?: ReactNode };
+
+/**
+ * One field of a form. `hint` is a brief explanation (one short sentence) shown BELOW the control;
+ * `help` is a longer one, shown only behind a (?) immediately after the label. Nothing is ever
+ * rendered between the label and the control, so the controls of a row share a baseline.
+ */
 export function FormField({
   size,
+  hint,
+  help,
   className,
   style,
   children,
   ...rest
 }: Omit<HTMLAttributes<HTMLDivElement>, "style"> & {
   size: FormFieldSize;
+  hint?: string;
+  help?: string;
   style?: CSSProperties;
   children: ReactNode;
 }) {
   useInsideFormLayout("FormField");
+  let content = children;
+  if (hint !== undefined || help !== undefined) {
+    const only = Children.toArray(children);
+    const control = only.length === 1 ? only[0] : null;
+    if (!isValidElement<Explainable>(control)) {
+      throw new Error(
+        "<FormField hint|help> needs the field's control as its only child (REQ-1968)",
+      );
+    }
+    content = cloneElement(control, {
+      ...(hint !== undefined ? { description: hint } : {}),
+      ...(help !== undefined
+        ? { label: <LabelWithHelp label={control.props.label} help={help} /> }
+        : {}),
+    });
+  }
   return (
-    <div {...rest} style={style} className={classes("form-field", `form-field--${size}`, className)}>
+    <div
+      {...rest}
+      style={style}
+      className={classes("form-field", `form-field--${size}`, className)}
+    >
+      {content}
+    </div>
+  );
+}
+
+/**
+ * The ticks and switches of a form, together on a line of their own beneath the fields they
+ * belong with. Each is its label and an optional (?); no paragraph sits beside a box.
+ */
+export function FormChecks({ children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  useInsideFormLayout("FormChecks");
+  return (
+    <div {...rest} className={classes("form-checks", rest.className)}>
       {children}
     </div>
   );

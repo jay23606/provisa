@@ -8,7 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { createTheme, type MantineColorsTuple } from "@mantine/core";
+import { createTheme, InputWrapper, type MantineColorsTuple } from "@mantine/core";
 
 // Brand indigo scale. Index 5 (#6366f1) is the historical --primary token;
 // index 4 (#818cf8) is --primary-hover. Filled components use `primaryShade`
@@ -39,4 +39,11 @@ export const theme = createTheme({
   cursorType: "pointer",
   // Respect the OS reduced-motion setting for all Mantine transitions (REQ-1013).
   respectReducedMotion: true,
+  components: {
+    // Nothing sits between a field's label and its control: an explanation is below the control,
+    // before the error. Set once here so no form can place it otherwise.
+    InputWrapper: InputWrapper.extend({
+      defaultProps: { inputWrapperOrder: ["label", "input", "description", "error"] },
+    }),
+  },
 });

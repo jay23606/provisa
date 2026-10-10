@@ -70,7 +70,8 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
 
 /**
  * Shrinking: files that do not follow the rules yet. A file leaves this list in the commit that
- * converts it, and the guard fails a listed file that already passes. Nothing is added here.
+ * converts it, and the guard fails a listed file that already passes. Nothing is added here,
+ * except when the rules themselves grow: the files then caught are listed in that same commit.
  */
 const NOT_YET_CONVERTED: readonly string[] = [
   "components/ChatPanel.tsx",
@@ -153,7 +154,19 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/data-products/DataProductFormCard.tsx",
   "pages/metrics/OssieInterchangePanel.tsx",
   "pages/security/RoleFormParts.tsx",
+  "pages/sources/CloudopsFields.tsx",
+  "pages/sources/GoogleWorkspaceFields.tsx",
+  "pages/sources/IcebergCatalogFields.tsx",
+  "pages/sources/KaggleFormSection.tsx",
+  "pages/sources/Microsoft365Fields.tsx",
+  "pages/sources/ProfilerFormSection.tsx",
+  "pages/sources/PushFeedFormSection.tsx",
+  "pages/sources/SalesforceFields.tsx",
   "pages/sources/SourceDetailPanel.tsx",
+  "pages/sources/SourceFormFieldsExtended.tsx",
+  "pages/sources/SourceLoadManagementPanel.tsx",
+  "pages/sources/SplunkFields.tsx",
+  "pages/sources/WikipediaFields.tsx",
   "pages/sql/ColumnFilterMenu.tsx",
   "pages/sql/ViewModal.tsx",
   "pages/tables/CalendarCreateModal.tsx",
@@ -169,6 +182,7 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/tables/PagingField.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
   "pages/tables/RecurrenceBuilder.tsx",
+  "pages/tables/RegisterTableForm.tsx",
   "pages/tables/RoleTtlField.tsx",
   "pages/tables/SnapshotSchedulePanel.tsx",
   "pages/tables/TableEditForm.tsx",
@@ -193,9 +207,31 @@ function componentFiles(dir: string, found: string[] = []): string[] {
   return found;
 }
 
+/** The English catalog: the core file and every per-component file, as the app merges them. */
+const english: Record<string, unknown> = (() => {
+  const dir = join(SRC, "i18n/locales");
+  const merged = JSON.parse(readFileSync(join(dir, "en.json"), "utf8")) as Record<string, unknown>;
+  for (const name of readdirSync(join(dir, "en"))) {
+    if (name.endsWith(".json") && !name.startsWith(".")) {
+      Object.assign(merged, JSON.parse(readFileSync(join(dir, "en", name), "utf8")));
+    }
+  }
+  return merged;
+})();
+
+function englishOf(key: string): string | undefined {
+  let node: unknown = english;
+  for (const part of key.split(".")) {
+    if (typeof node !== "object" || node === null) return undefined;
+    node = (node as Record<string, unknown>)[part];
+  }
+  return typeof node === "string" ? node : undefined;
+}
+
 function violationsOf(file: string, notAForm = file in NOT_A_FORM): FormViolation[] {
   return checkFormRules(file, readFileSync(join(SRC, file), "utf8"), {
     notAForm,
+    textOf: englishOf,
     stretchedButtonExceptions: (STRETCHED_BUTTONS[file] ?? []).map((e) => e.marker),
   });
 }
@@ -245,11 +281,12 @@ describe("the form rules fail what they are meant to fail", () => {
       rules(
         `<FormLayout><SimpleGrid cols={2}><FormField size="short"><NumberInput /></FormField></SimpleGrid></FormLayout>`,
       ),
-    ).toEqual(["outside-shared-layout"]);
+      // the grid's own columns, and the field it lays out
+    ).toEqual(["outside-shared-layout", "outside-shared-layout"]);
     expect(rules(`<SimpleGrid cols={3}><Card /><Card /></SimpleGrid>`)).toEqual([]);
     expect(
       rules(
-        `<FormLayout component="form" className="form-card"><FormField size="short"><Switch /></FormField></FormLayout>`,
+        `<FormLayout component="form" className="form-card"><FormField size="short"><NumberInput /></FormField></FormLayout>`,
       ),
     ).toEqual([]);
   });
@@ -311,6 +348,86 @@ describe("the form rules fail what they are meant to fail", () => {
         stretchedButtonExceptions: ["org-row"],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("the form rules hold where an explanation sits and where ticks sit", () => {
+  const long = "x".repeat(91);
+
+  it("text between a label and its control", () => {
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium"><TextInput label="Host" description="Where it is." /></FormField></FormLayout>`,
+      ),
+    ).toEqual(["explanation-misplaced"]);
+  });
+
+  it("a brief hint below the control and a long one behind a (?) pass", () => {
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium" hint="Where it is." help="${long}"><TextInput label="Host" /></FormField></FormLayout>`,
+      ),
+    ).toEqual([]);
+  });
+
+  it("a hint too long to sit under a field, literal or translated", () => {
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium" hint="${long}"><TextInput label="Host" /></FormField></FormLayout>`,
+      ),
+    ).toEqual(["explanation-misplaced"]);
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium" hint={t("a.b")}><TextInput label="Host" /></FormField></FormLayout>`,
+        { textOf: (key: string) => (key === "a.b" ? long : undefined) },
+      ),
+    ).toEqual(["explanation-misplaced"]);
+  });
+
+  it("a tick outside the form's group of ticks, or with a paragraph beside it", () => {
+    expect(
+      rules(
+        `<FormLayout><FormField size="short"><Checkbox label="TLS" /></FormField></FormLayout>`,
+      ),
+    ).toEqual(["tick-ungrouped"]);
+    expect(
+      rules(
+        `<FormLayout><FormChecks><FormField size="short" hint="Encrypts."><Switch label="TLS" /></FormField></FormChecks></FormLayout>`,
+      ),
+    ).toEqual(["explanation-misplaced"]);
+  });
+
+  it("ticks in the group, with help behind a (?), and the options of one choice, pass", () => {
+    expect(
+      rules(
+        `<FormLayout><FormChecks><Checkbox label="TLS" /><FormField size="short" help="Why."><Switch label="Cache" /></FormField></FormChecks></FormLayout>`,
+      ),
+    ).toEqual([]);
+    expect(
+      rules(
+        `<FormLayout><FormField size="full"><Checkbox.Group label="Subjects"><Checkbox value="a" label="A" /></Checkbox.Group></FormField></FormLayout>`,
+      ),
+    ).toEqual([]);
+  });
+
+  it("a FormField laid out by anything but the shared layout", () => {
+    expect(
+      rules(
+        `<FormLayout><Stack><FormField size="medium"><TextInput label="Host" /></FormField></Stack></FormLayout>`,
+      ),
+    ).toEqual(["outside-shared-layout"]);
+    expect(
+      rules(
+        `<FormLayout><FormField size="full"><Group><FormField size="short"><NumberInput label="N" /></FormField></Group></FormField></FormLayout>`,
+      ),
+    ).toEqual(["outside-shared-layout"]);
+    expect(rules(`<><FormField size="medium"><TextInput label="Host" /></FormField></>`)).toEqual(
+      [],
+    );
+  });
+
+  it("a reusable select counts as a field", () => {
+    expect(rules(`<Stack><RegionSelect value={v} /></Stack>`)).toEqual(["outside-shared-layout"]);
   });
 });
 

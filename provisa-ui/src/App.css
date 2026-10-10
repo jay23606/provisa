@@ -2252,10 +2252,34 @@ main {
 .form-field input:not([type="checkbox"]):not([type="radio"]) {
   max-width: var(--form-field-max);
 }
-/* A checkbox or switch has no label above it: sit it on the line of its neighbours' controls. */
-.form-field:has(> .mantine-Checkbox-root, > .mantine-Switch-root) {
-  align-self: flex-end;
-  padding-bottom: 0.4rem;
+/* Ticks and switches sit together on a line of their own, each as wide as its label. */
+.form-checks {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+}
+.form-checks > .form-field {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+/* The label and its (?) stay on one line; the (?) is the only thing beside the label. */
+.form-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.form-help {
+  display: inline-flex;
+  color: var(--text-muted);
+  cursor: help;
+}
+.form-help:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 /* Field labels stay on one line; a checkbox or switch sentence wraps. Below phone width the
  * container can be narrower than a label, so there a label may wrap. */
@@ -2313,7 +2337,7 @@ main {
 /* Transitional: a child a form has not wrapped in a FormField yet keeps a row to itself. Goes when
  * the guard's not-yet-converted list is empty. */
 .form-layout
-  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout),
+  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout):not(.form-checks),
 .form-identifiers > :not(.form-field):not(.form-field-group):not(.form-identifiers__heading) {
   flex: 1 1 100%;
 }
