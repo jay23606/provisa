@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Alert, Button, Group, Loader, Text, TextInput } from "@mantine/core";
 import { RefreshCw } from "lucide-react";
-import { runSql } from "../api/admin";
+import { previewTable, runSql } from "../api/admin";
 import type { RegisteredTable } from "../types/admin";
 import { ResultsGrid } from "../pages/sql/ResultsGrid";
 import type { ProvenanceEntry } from "../pages/sql/exportXlsx";
@@ -29,6 +29,7 @@ import { useResultsGrid } from "../pages/sql/useResultsGrid";
 import {
   optionalParamColumns,
   pagedViewerSql,
+  viewerRequest,
   isRequiredParam,
   requiredParamColumns,
   requiredParamsSatisfied,
@@ -51,9 +52,16 @@ interface GovernedTableViewerProps {
   table: RegisteredTable;
   /** Title + refresh row (the Reports viewer shows it; the modal has its own title). */
   showTitle?: boolean;
+  /** The role a DRAFT is read as (REQ-1921): its pages come from the admin preview, which is
+   * told the role. A table in service is read as the session's role, as any statement is. */
+  role?: string | null;
 }
 
-export function GovernedTableViewer({ table, showTitle = false }: GovernedTableViewerProps) {
+export function GovernedTableViewer({
+  table,
+  showTitle = false,
+  role = null,
+}: GovernedTableViewerProps) {
   const { t } = useTranslation();
   const requiredCols = requiredParamColumns(table);
   const optionalCols = optionalParamColumns(table);
@@ -83,6 +91,30 @@ export function GovernedTableViewer({ table, showTitle = false }: GovernedTableV
   const { page, pageSize, sorts, activeFilters: filters, groupBy } = grid;
   const canRun = requiredParamsSatisfied(table, paramValues);
 
+  // REQ-1921: where a page comes from. A table in service is read by the statement the viewer
+  // writes, sent as any statement is. A DRAFT is read by no statement a caller sends: the
+  // viewer sends its choices to the admin preview and the server writes the statement. Either
+  // way one page is one call, and the grid above it is the same.
+  const readPage = (
+    params: Record<string, string>,
+    pageNo: number,
+    size: number,
+  ): Promise<{ columns: string[]; rows: Record<string, unknown>[]; error?: string }> => {
+    if (!table.draft) {
+      return runSql(pagedViewerSql(table, params, filters, sorts, groupBy, pageNo, size));
+    }
+    if (!role) return Promise.resolve({ columns: [], rows: [], error: "No active role" });
+    return previewTable(
+      table.id,
+      role,
+      viewerRequest(table, params, filters, sorts, groupBy, pageNo, size),
+    ).catch((e: unknown) => ({
+      columns: [],
+      rows: [],
+      error: e instanceof Error ? e.message : String(e),
+    }));
+  };
+
   // One page per query: refetch whenever the page or any pushed-down choice
   // changes. Debounced so filter keystrokes coalesce.
   // REQ-1438: pageSize is part of the key — the LIMIT is pushed into the query, so a resize is a
@@ -101,18 +133,16 @@ export function GovernedTableViewer({ table, showTitle = false }: GovernedTableV
     if (activeParams == null) return;
     let cancelled = false;
     const timer = setTimeout(() => {
-      runSql(pagedViewerSql(table, activeParams, filters, sorts, groupBy, page, pageSize)).then(
-        (r) => {
-          if (cancelled) return;
-          setResult({
-            columns: r.columns,
-            rows: r.rows.slice(0, pageSize),
-            hasMore: r.rows.length > pageSize,
-            error: r.error ?? "",
-          });
-          setFetchedKey(queryKey);
-        },
-      );
+      readPage(activeParams, page, pageSize).then((r) => {
+        if (cancelled) return;
+        setResult({
+          columns: r.columns,
+          rows: r.rows.slice(0, pageSize),
+          hasMore: r.rows.length > pageSize,
+          error: r.error ?? "",
+        });
+        setFetchedKey(queryKey);
+      });
     }, 300);
     return () => {
       cancelled = true;
@@ -128,9 +158,7 @@ export function GovernedTableViewer({ table, showTitle = false }: GovernedTableV
     if (activeParams == null) throw new Error("export requested before params were supplied");
     const rows: Record<string, unknown>[] = [];
     for (let chunk = 0; ; chunk++) {
-      const r = await runSql(
-        pagedViewerSql(table, activeParams, filters, sorts, groupBy, chunk, EXPORT_CHUNK_SIZE),
-      );
+      const r = await readPage(activeParams, chunk, EXPORT_CHUNK_SIZE);
       if (r.error) throw new Error(r.error);
       rows.push(...r.rows.slice(0, EXPORT_CHUNK_SIZE));
       if (r.rows.length <= EXPORT_CHUNK_SIZE) return rows;
@@ -161,6 +189,17 @@ export function GovernedTableViewer({ table, showTitle = false }: GovernedTableV
         label: t("tablePreview.provParams"),
         value: supplied.map(([k, v]) => `${k} = ${v}`).join("\n"),
       });
+    if (table.draft) {
+      // A draft's rows were read by the admin preview from these choices; the server wrote the
+      // statement. What was sent is recorded as it was sent.
+      entries.push({
+        label: t("tablePreview.provStatement"),
+        value: `POST /admin/tables/${table.id}/preview\n${JSON.stringify(
+          viewerRequest(table, params, filters, sorts, groupBy, 0, EXPORT_CHUNK_SIZE),
+        )}`,
+      });
+      return entries;
+    }
     // The statement as it was sent: its text with placeholders, then the value bound to each.
     const sent = pagedViewerSql(table, params, filters, sorts, groupBy, 0, EXPORT_CHUNK_SIZE);
     entries.push({
