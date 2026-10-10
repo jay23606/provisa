@@ -50,6 +50,7 @@ import { useDomainFilter } from "../../context/DomainFilterContext";
 import { PagingField } from "./PagingField";
 import { declaredPaging, pagingInput, pagingProblem } from "./paging";
 import {
+  FormChecks,
   FormField,
   FormFooter,
   FormIdentifiers,
@@ -855,11 +856,10 @@ export function RegisterTableForm({
         </FormField>
       </FormIdentifiers>
       {needsCacheTtl && (
-        <FormField size="short">
+        <FormField help={t("registerTableForm.cacheTtlHint")} size="short">
           <NumberInput
             data-testid="register-table-cache-ttl"
             label={t("registerTableForm.cacheTtlLabel")}
-            description={t("registerTableForm.cacheTtlHint")}
             min={0}
             required
             value={cacheTtl === "" ? "" : Number(cacheTtl)}
@@ -1005,36 +1005,17 @@ export function RegisterTableForm({
           rowsFieldEditable
         />
       )}
-      {!isChecker && !isQueryApi && (
-        <FormField size="long">
-          <Checkbox
-            checked={discover}
-            onChange={(e) => setDiscover(e.currentTarget.checked)}
-            data-testid="discover-columns-checkbox"
-            label={
-              <>
-                {t("registerTableForm.discoverLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t("registerTableForm.discoverHint")}
-                </Text>
-              </>
-            }
-          />
-        </FormField>
-      )}
       {sourceId && !isChecker && !isQueryApi && (
-        <FormField size="medium">
+        <FormField
+          size="medium"
+          hint={
+            isCdcSource
+              ? t("registerTableForm.watermarkHintOptional")
+              : t("registerTableForm.watermarkHintRequired")
+          }
+        >
           <Select
-            label={
-              <>
-                {t("registerTableForm.watermarkLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {isCdcSource
-                    ? t("registerTableForm.watermarkHintOptional")
-                    : t("registerTableForm.watermarkHintRequired")}
-                </Text>
-              </>
-            }
+            label={t("registerTableForm.watermarkLabel")}
             placeholder={
               isCdcSource
                 ? t("registerTableForm.watermarkNoneTriggers")
@@ -1059,6 +1040,19 @@ export function RegisterTableForm({
           setSourceFileColumn={setSourceFileColumn}
         />
       )}
+      {/* The ticks sit together beneath the fields. */}
+      <FormChecks>
+        {!isChecker && !isQueryApi && (
+          <FormField size="short" help={t("registerTableForm.discoverHint")}>
+            <Checkbox
+              checked={discover}
+              onChange={(e) => setDiscover(e.currentTarget.checked)}
+              data-testid="discover-columns-checkbox"
+              label={t("registerTableForm.discoverLabel")}
+            />
+          </FormField>
+        )}
+      </FormChecks>
       {!isChecker && (
         <FormField size="full">
           <Stack gap="xs">

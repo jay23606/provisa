@@ -79,7 +79,7 @@ const CHOICE_GROUPS = new Set(["Checkbox.Group", "Radio.Group", "Switch.Group"])
 const MULTI_LINE = new Set(["Textarea", "JsonInput", "textarea"]);
 const TABLE_CELLS = new Set(["Table.Td", "Table.Th", "td", "th"]);
 /** Elements that render their child in place, so the child's layout parent is theirs. */
-const TRANSPARENT = new Set(["Tooltip", "CapabilityGate"]);
+const TRANSPARENT = new Set(["Tooltip", "CapabilityGate", "Fragment", "React.Fragment"]);
 /** Containers that set their own column count and breakpoints. */
 const OWN_GRIDS = new Set(["SimpleGrid", "Grid"]);
 const END_JUSTIFY = /^(flex-end|end|right)$/;
