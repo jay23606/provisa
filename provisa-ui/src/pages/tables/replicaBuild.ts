@@ -68,6 +68,16 @@ export function replicaProgress(build: ReplicaBuild): ReplicaProgress {
 }
 
 function measuredProgress(build: ReplicaBuild): ReplicaProgress {
+  // A build that lands a mailbox at a time knows its total: the mailboxes it reads. That is a
+  // count, not an estimate -- and still never shown as complete while the build runs.
+  const parts = build.progress;
+  if (parts && parts.unit === "mailboxes" && parts.total > 0) {
+    return {
+      percent: Math.min(MOST_SHOWN_PERCENT, Math.floor((parts.done / parts.total) * 100)),
+      exact: true,
+      said: { key: "progressMailboxes", numbers: { done: parts.done, total: parts.total } },
+    };
+  }
   const rows = build.rowsCopied ?? 0;
   const total = build.completedRows ?? 0;
   // A delta applies changes only: its rows are not a share of the table's.

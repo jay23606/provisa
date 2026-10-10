@@ -7,6 +7,7 @@
     "progressAbout": "約 {{percent}}%:約 {{total}} 列中的 {{rows}} 列",
     "progressPast": "已複製 {{rows}} 列;上次建置有 {{total}} 列",
     "progressRows": "已複製 {{rows}} 列",
+    "progressMailboxes": "已讀取 {{total}} 個信箱中的 {{done}} 個",
     "progressWaiting": "等待 {{seconds}} 秒:{{by}} 正在限制讀取",
     "building": "複本建置中：已複製 {{rows}} 列，{{rate}} 列/秒（{{how}}）。",
     "buildingNoRate": "複本建置中（{{how}}）。",
