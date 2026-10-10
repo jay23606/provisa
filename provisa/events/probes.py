@@ -70,6 +70,13 @@ _MAIL_TYPES = frozenset({"google_workspace", "microsoft_365"})
 _ALL = frozenset({WATERMARK, HASH, COUNT, NONE})
 
 
+#: The source kinds whose loader is asked, as a whole, whether the source changed (its
+#: ``freshness_probe``), so that a ``probe`` / ``ttl_probe`` signal set on the SOURCE means
+#: something for tables that have no probe query of their own. None until the poll node asks a
+#: loader's probe; each kind is added here when its probe is wired.
+LOADER_PROBE_TYPES: frozenset[str] = frozenset()
+
+
 def probe_capabilities(source_type: str) -> frozenset[str]:
     """The probe_types a source of ``source_type`` supports (REQ-982). SQL/engine-scannable sources
     (the open-ended default) support all four; HTTP APIs all four (watermark/count conditional on the

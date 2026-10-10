@@ -297,6 +297,7 @@
       "relationship_not_found": "Beziehung '{{relationship}}' nicht gefunden",
       "relationship_saved": "Beziehung '{{relationship}}' gespeichert",
       "remigrated": "{{source}}.{{table}} erneut migriert",
+      "change_signal_not_honoured": "Eine Quelle vom Typ {{type}} kann noch nicht auf Änderungen geprüft werden, daher würde das Änderungssignal {{signal}} nie abgefragt. Verwenden Sie ttl für die Quelle „{{source}}“.",
       "sentinel_path_not_applicable": "Eine Quelle vom Typ {{type}} kann keinen Sentinel-Pfad haben: Kein eigener Produzent kann eine Änderung ihrer Daten markieren, oder die Quelle wird nicht geprüft. Entfernen Sie den Sentinel-Pfad aus der Quelle „{{source}}“.",
       "source_cache_ttl_required": "Die Quelle „{{source}}“ benötigt eine Cache-TTL: Jede ihrer Tabellen ist ein Replikat, das unter dem Änderungssignal {{signal}} nach dieser Uhr aktualisiert wird. Legen Sie sie bei der Quelle unter „Laststeuerung und Aktualität“ fest.",
       "landing_ttl_required": "Die Tabelle „{{table}}“ ist ein Replikat, das nach einer Cache-TTL aktualisiert wird, und weder sie noch ihre Quelle „{{source}}“ hat eine. Legen Sie die Cache-TTL bei der Quelle unter „Laststeuerung und Aktualität“ fest oder bei der Tabelle selbst, sobald sie registriert ist.",

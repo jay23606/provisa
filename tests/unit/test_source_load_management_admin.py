@@ -162,3 +162,38 @@ async def test_the_form_is_told_whether_a_kind_can_have_a_sentinel(monkeypatch):
         "cache_ttl_required": False,
         "sentinel_path": True,
     }
+
+
+# --- a probing signal on a source whose kind cannot yet be checked for changes ---
+
+
+@pytest.mark.parametrize("kind", ["microsoft_365", "google_workspace"])
+@pytest.mark.parametrize("signal", ["probe", "ttl_probe"])
+def test_a_probing_signal_on_a_mail_source_is_refused_until_its_check_is_wired(
+    kind, signal, monkeypatch
+):
+    from provisa.events import probes
+
+    asked = SourceInput(id="mail", type=kind, change_signal=signal, cache_ttl=300)
+    refused = _validate_source_load_management(asked)
+    assert refused is not None and refused.code == "schema.change_signal_not_honoured"
+    assert refused.params == {"source": "mail", "type": kind, "signal": signal}
+    # The plain timer is taken, and so is the probing signal once the kind's check is wired.
+    assert (
+        _validate_source_load_management(
+            SourceInput(id="mail", type=kind, change_signal="ttl", cache_ttl=300)
+        )
+        is None
+    )
+    monkeypatch.setattr(probes, "LOADER_PROBE_TYPES", frozenset({kind}))
+    assert _validate_source_load_management(asked) is None
+
+
+def test_a_probing_signal_on_another_kind_of_source_is_as_it_was():
+    # Its tables carry their own probe query; the source's signal is what they inherit.
+    assert (
+        _validate_source_load_management(
+            SourceInput(id="pg", type="postgresql", change_signal="ttl_probe", cache_ttl=60)
+        )
+        is None
+    )

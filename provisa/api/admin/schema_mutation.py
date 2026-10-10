@@ -745,6 +745,27 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
         source_change_signal(input.type, input.change_signal)
     except ValueError as e:
         return _fail("schema.change_signal_not_push", str(e))
+    # A mail source's tables have no probe query of their own: a probing signal on the source
+    # is honoured only by the kind's own check for changes, once that is wired
+    # (probes.LOADER_PROBE_TYPES). Until then it is refused by name rather than saved and
+    # never asked.
+    from provisa.core import mail_platforms
+    from provisa.events.probes import LOADER_PROBE_TYPES
+
+    if (
+        input.change_signal in ("probe", "ttl_probe")
+        and input.type in mail_platforms.source_types()
+        and input.type not in LOADER_PROBE_TYPES
+    ):
+        return MutationResult(
+            success=False,
+            message=(
+                f"Source {input.id!r}: a {input.type} source cannot yet be checked for changes, "
+                f"so change_signal {input.change_signal!r} would never be asked; use ttl"
+            ),
+            code="schema.change_signal_not_honoured",
+            params={"source": input.id, "type": input.type, "signal": input.change_signal},
+        )
     if input.cache_ttl is not None and input.cache_ttl < 0:
         return _fail("schema.invalid_cache_ttl", "cache_ttl must be 0 or more seconds")
     if input.max_live_concurrency is not None and input.max_live_concurrency < 1:
