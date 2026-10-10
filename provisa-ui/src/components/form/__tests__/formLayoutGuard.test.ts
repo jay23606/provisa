@@ -172,7 +172,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/tables/PagingField.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
   "pages/tables/RecurrenceBuilder.tsx",
-  "pages/tables/RegisterTableForm.tsx",
   "pages/tables/RoleTtlField.tsx",
   "pages/tables/SnapshotSchedulePanel.tsx",
   "pages/tables/TableEditForm.tsx",
