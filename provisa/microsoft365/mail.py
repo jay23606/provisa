@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
@@ -307,6 +308,37 @@ def thread_rows(account: str, items: list[dict]) -> list[dict[str, Any]]:
     return rows
 
 
+#: What a thread row is worked out from, of each of its messages.
+_THREAD_FIELDS = ("id", "conversationId", "subject", "bodyPreview", "receivedDateTime")
+#: A kept link Graph no longer honours: the mailbox is read again from its start.
+_LINK_GONE_STATUS = 410
+_LINK_GONE_CODES = frozenset({"SyncStateNotFound", "syncStateNotFound", "resyncRequired"})
+
+
+@dataclass
+class Unit:
+    """What one part of a mailbox's read changes in the mail tables, to be written together:
+    a reader of the tables sees all of it or none of it.
+
+    ``removed`` names rows by part of their key (every recipient of one message; every row of
+    the mailbox) and is applied before ``rows``, so naming a message's dependants there and
+    giving its current ones in ``rows`` replaces them whole. ``links`` is where the read
+    reached, by folder id (and :data:`MAILBOX`): kept once the unit's rows are written, never
+    before. ``forget`` says the links kept for the mailbox before this read no longer stand.
+    ``last`` marks the mailbox's last unit."""
+
+    account: str
+    rows: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    removed: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    links: dict[str, str] = field(default_factory=dict)
+    forget: bool = False
+    last: bool = False
+
+
+def _link_gone(refused: GraphRefused) -> bool:
+    return refused.status == _LINK_GONE_STATUS or refused.code in _LINK_GONE_CODES
+
+
 def _nothing_since(answer: Any) -> bool:
     """Whether a followed link's answer says nothing changed: no item, and the round ended."""
     return (
@@ -508,6 +540,186 @@ class Mailbox:
                 len(unread),
                 ", ".join(unread),
             )
+
+    # ---------------------------------------------------------------- a read in units
+
+    def _mine(self, **key: str) -> dict[str, Any]:
+        return {"provider": PROVIDER, "account": self.account, **key}
+
+    def _changes(
+        self,
+        tables: tuple[str, ...],
+        page: list[dict],
+        unread: list[str],
+    ) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+        """The rows ``page`` (messages as Graph gives them) puts in ``tables``, and what they
+        replace: each message's dependants are named by the message and replaced whole, so a
+        recipient or an attachment the message no longer has does not stay."""
+        account = self.account
+        rows: dict[str, list[dict]] = {}
+        removed: dict[str, list[dict]] = {}
+        if "messages" in tables:
+            html = self._html(page, unread)
+            rows["messages"] = [message_row(account, m, html[m["id"]]) for m in page]
+        of = [self._mine(message_id=m["id"]) for m in page]
+        if "message_recipients" in tables:
+            removed["message_recipients"] = of
+            rows["message_recipients"] = [r for m in page for r in recipient_rows(account, m)]
+        if "message_folders" in tables:
+            removed["message_folders"] = of
+            rows["message_folders"] = [message_folder_row(account, m) for m in page]
+        if "attachments" in tables:
+            removed["attachments"] = of
+            rows["attachments"] = [
+                a for m in page if m["hasAttachments"] for a in self._attachments(m["id"])
+            ]
+        return rows, removed
+
+    def units(
+        self,
+        tables: tuple[str, ...] | list[str],
+        kept: dict[str, str] | None = None,
+        unreadable: list[str] | None = None,
+    ) -> Iterator[Unit]:
+        """The mailbox's messages as changes to ``tables``, a :class:`Unit` at a time.
+
+        With nothing kept (``kept`` empty) the mailbox is read from its start: its rows in the
+        tables are removed and it lands a page of messages at a time, each page with its
+        messages' dependants; a folder's link is given when the folder has been read to its
+        end, and the threads and the list of folders' link when every folder has.
+
+        With links kept, each folder is asked what changed since its own (a folder met for the
+        first time is read whole) and the mailbox's changes are ONE unit: a message moved
+        between two folders is removed from one and added to the other, and only the two
+        answers together say it is still there.
+
+        A kept link Graph no longer honours, and a folder that was kept and is no longer
+        listed, are answered by reading the mailbox from its start."""
+        wanted = [t for t in tables if t not in MESSAGE_TABLES]
+        if wanted:
+            raise KeyError(f"{', '.join(wanted)} do not come from a mailbox's messages")
+        tables = tuple(tables)
+        unread: list[str] = [] if unreadable is None else unreadable
+        folders = [f["id"] for page in self._folders() for f in page]
+        kept = dict(kept or {})
+        if kept and all(f in folders for f in kept if f != MAILBOX):
+            try:
+                yield self._since(tables, folders, kept, unread)
+                return
+            except GraphRefused as refused:
+                if not _link_gone(refused):
+                    raise
+                log.warning(
+                    "microsoft_365 %s: a kept link is no longer honoured; the mailbox is read "
+                    "again from its start",
+                    self.account,
+                )
+        yield from self._from_the_start(tables, folders, unread)
+
+    def _round(self, folder: str, link: str | None, whole: bool) -> Any:
+        prefer = (IMMUTABLE_IDS, f"odata.maxpagesize={self._page_size}")
+        prefer += (_TEXT_BODY,) if whole else ()
+        if link is not None:
+            return self._graph.delta(link, prefer=prefer)
+        return self._graph.delta(
+            f"{self._root}/mailFolders/{quote(folder, safe='')}/messages/delta",
+            {"$select": _MESSAGE_FIELDS if whole else _OTHER_FIELDS},
+            prefer=prefer,
+        )
+
+    def _folders_link(self, link: str | None) -> str:
+        listed = self._graph.delta(
+            link if link is not None else f"{self._root}/mailFolders/delta",
+            None if link is not None else {"$select": "id"},
+            prefer=(IMMUTABLE_IDS,),
+        )
+        for _page in listed:
+            pass
+        assert listed.link is not None  # the round was read to its end
+        return listed.link
+
+    def _from_the_start(
+        self, tables: tuple[str, ...], folders: list[str], unread: list[str]
+    ) -> Iterator[Unit]:
+        whole = "messages" in tables
+        # What the tables hold of this mailbox is replaced by what is read now.
+        yield Unit(self.account, removed={t: [self._mine()] for t in tables}, forget=True)
+        threads: list[dict] = []
+        for folder in folders:
+            changes = self._round(folder, None, whole)
+            for page in changes:
+                page = [m for m in page if "@removed" not in m]  # a first round removes nothing
+                if not page:
+                    continue
+                rows, removed = self._changes(tables, page, unread)
+                yield Unit(self.account, rows=rows, removed=removed)
+                if "threads" in tables:
+                    threads += [{k: m.get(k) for k in _THREAD_FIELDS} for m in page]
+            assert changes.link is not None  # the round was read to its end
+            yield Unit(self.account, links={folder: changes.link})
+        last = Unit(self.account, links={MAILBOX: self._folders_link(None)}, last=True)
+        if "threads" in tables:
+            # A message moved while the folders were read is met twice: once is counted.
+            once = list({m["id"]: m for m in threads}.values())
+            last.rows["threads"] = thread_rows(self.account, once)
+        yield last
+
+    def _since(
+        self, tables: tuple[str, ...], folders: list[str], kept: dict[str, str], unread: list[str]
+    ) -> Unit:
+        whole = "messages" in tables
+        changed: dict[str, dict] = {}
+        gone: set[str] = set()
+        links: dict[str, str] = {}
+        for folder in folders:
+            changes = self._round(folder, kept.get(folder), whole)
+            for page in changes:
+                for message in page:
+                    if "@removed" in message:
+                        gone.add(message["id"])
+                    else:
+                        changed[message["id"]] = message
+            assert changes.link is not None
+            links[folder] = changes.link
+        links[MAILBOX] = self._folders_link(kept.get(MAILBOX))
+        gone -= set(changed)  # removed from one folder and met in another: moved, still there
+        unit = Unit(self.account, links=links, last=True)
+        messages = list(changed.values())
+        for start in range(0, len(messages), self._page_size):
+            rows, removed = self._changes(tables, messages[start : start + self._page_size], unread)
+            for table, new in rows.items():
+                unit.rows.setdefault(table, []).extend(new)
+            for table, old in removed.items():
+                unit.removed.setdefault(table, []).extend(old)
+        for message_id in sorted(gone):
+            for table in tables:
+                if table == "messages":
+                    unit.removed.setdefault(table, []).append(self._mine(id=message_id))
+                elif table != "threads":
+                    unit.removed.setdefault(table, []).append(self._mine(message_id=message_id))
+        if "threads" in tables:
+            # A thread is its messages taken together: each one a changed message is in is
+            # worked out again from all its messages as they are now. A removed message does
+            # not say which thread it was in, so its thread keeps its row until a whole read.
+            touched = sorted({m["conversationId"] for m in messages})
+            unit.rows["threads"] = [
+                row
+                for thread_id in touched
+                for row in thread_rows(self.account, self._thread_messages(thread_id))
+            ]
+        return unit
+
+    def _thread_messages(self, thread_id: str) -> list[dict]:
+        quoted = thread_id.replace("'", "''")
+        return [
+            {k: m.get(k) for k in _THREAD_FIELDS}
+            for page in self._graph.pages(
+                f"{self._root}/messages",
+                {"$filter": f"conversationId eq '{quoted}'", "$select": ",".join(_THREAD_FIELDS)},
+                prefer=(IMMUTABLE_IDS,),
+            )
+            for m in page
+        ]
 
     def _attachments(self, message_id: str) -> list[dict[str, Any]]:
         path = f"{self._root}/messages/{quote(message_id, safe='')}/attachments"

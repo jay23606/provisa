@@ -11,7 +11,7 @@ read. Graph is a stand-in answering in the forms Microsoft's reference documents
 
 from __future__ import annotations
 
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pyarrow as pa
 import pytest
@@ -90,6 +90,9 @@ class FakeGraph:
         self.answers: dict[str, object] = {}
         #: delta paths whose kept link Graph no longer honours.
         self.gone: set[str] = set()
+        #: The mailbox's messages as they are now (pages), where a test changes them after a
+        #: first read; None while they are as the table states them.
+        self.now: list | None = None
 
     def _folders_of(self, root: str) -> list[dict]:
         """The mailbox's folders: the ones the table lists, or, where it lists none, one for
@@ -121,7 +124,7 @@ class FakeGraph:
         path = parts.path.removeprefix("/v1.0")
         query = parse_qs(parts.query)
         if path.endswith("/delta"):
-            if path in self.gone:
+            if path in self.gone and "$deltatoken" in query:  # a first round is always given
                 return 410, {"error": {"code": "SyncStateNotFound", "message": "expired"}}
             if "$deltatoken" in query and path in self.answers:
                 return 200, self.answers[path]  # a followed link's answer, as a test gives it
@@ -136,6 +139,11 @@ class FakeGraph:
         elif path not in self.table and path.endswith("/mailFolders"):
             folders = self._folders_of(path.removesuffix("/mailFolders"))
             answer = [folders] if folders else None
+        elif path.endswith("/messages") and "$filter" in query:
+            # The messages of one conversation, as the mailbox holds them now.
+            wanted = query["$filter"][0].removeprefix("conversationId eq '").removesuffix("'")
+            held = self.now if self.now is not None else self.table.get(path, [])
+            answer = [[m for page in held for m in page if m["conversationId"] == wanted]]
         else:
             answer = self.table.get(path)
         if answer is None:
@@ -160,6 +168,8 @@ class FakeGraph:
                 status, answer = self._one(BASE_URL + request["url"])
                 responses.append({"id": request["id"], "status": status, "body": answer})
             return Answer(200, {}, {"responses": list(reversed(responses))})
+        if params and "$filter" in params:
+            url += ("&" if "?" in url else "?") + urlencode(params)
         status, answer = self._one(url)
         return Answer(status, {}, answer)
 
@@ -988,3 +998,167 @@ def test_a_request_for_no_one_mailbox_is_not_counted():
     )
     batch = {"requests": [{"url": "/users/a@x.co/m/1"}, {"url": "/users/a@x.co/m/2"}]}
     assert _gated(BASE_URL + "/$batch", batch) == ("a@x.co", 2)
+
+
+# ------------------------------------------------------------------ a read in units
+
+
+def _units(mailbox: mail.Mailbox, kept=None, tables=mail.MESSAGE_TABLES) -> list[mail.Unit]:
+    return list(mailbox.units(tables, kept))
+
+
+def _links(units: list[mail.Unit]) -> dict[str, str]:
+    return {scope: link for unit in units for scope, link in unit.links.items()}
+
+
+def _mine(**key) -> dict:
+    return {"provider": "microsoft", "account": ACCOUNT.lower(), **key}
+
+
+def test_a_first_read_lands_a_page_at_a_time_each_message_with_its_dependants():
+    mailbox, _ = _mailbox(_two_folders(), page_size=1)
+    units = _units(mailbox)
+    first, *pages = units
+    # What the tables held of this mailbox is replaced by what is read now.
+    assert first.forget and first.rows == {}
+    assert first.removed == {table: [_mine()] for table in mail.MESSAGE_TABLES}
+    landed = [u for u in pages if "messages" in u.rows]
+    assert sorted(len(u.rows["messages"]) for u in landed) == [1, 1, 1]
+    for unit in landed:
+        (message,) = unit.rows["messages"]
+        # A message never lands without its recipients and its folder: they are one unit.
+        assert {r["message_id"] for r in unit.rows["message_recipients"]} == {message["id"]}
+        assert [r["message_id"] for r in unit.rows["message_folders"]] == [message["id"]]
+        assert unit.removed["message_recipients"] == [_mine(message_id=message["id"])]
+        assert unit.links == {} and not unit.last
+    assert sum(u.last for u in units) == 1 and units[-1].last
+
+
+def test_a_folders_link_is_given_only_when_the_folder_has_been_read_to_its_end():
+    mailbox, _ = _mailbox(_two_folders(), page_size=1)
+    units = _units(mailbox)
+    order = [
+        ("link", next(iter(u.links))) if u.links else ("rows", u.rows["messages"][0]["id"])
+        for u in units
+        if u.links or "messages" in u.rows
+    ]
+    assert order == [
+        ("rows", "m1"),
+        ("link", _INBOX),
+        ("rows", "m2"),
+        ("rows", "m3"),
+        ("link", _SENT),
+        ("link", mail.MAILBOX),
+    ]
+    assert set(_links(units)) == {_INBOX, _SENT, mail.MAILBOX}
+
+
+def test_the_threads_come_with_the_mailboxs_last_unit():
+    mailbox, _ = _mailbox(_two_folders())
+    last = _units(mailbox)[-1]
+    assert last.last and last.links.keys() == {mail.MAILBOX}
+    assert sum(row["message_count"] for row in last.rows["threads"]) == 3
+
+
+def test_what_changed_since_is_one_unit_for_the_mailbox():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    changed = _message(2, parentFolderId=_SENT, subject="edited")
+    new = _message(4)
+    fake.since = {
+        f"{ROOT}/mailFolders/{_SENT}/messages/delta": [changed],
+        f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [
+            new,
+            {"id": "m1", "@removed": {"reason": "deleted"}},
+        ],
+    }
+    fake.table.update(_html(4))
+    fake.now = [[changed, _message(3, parentFolderId=_SENT), new]]
+    (unit,) = _units(mailbox, kept)
+    assert unit.last and not unit.forget
+    assert sorted(r["id"] for r in unit.rows["messages"]) == ["m2", "m4"]
+    assert {r["id"]: r["subject"] for r in unit.rows["messages"]}["m2"] == "edited"
+    # A changed message's dependants are replaced whole; a removed one's are removed.
+    assert unit.removed["messages"] == [_mine(id="m1")]
+    assert sorted(m["message_id"] for m in unit.removed["message_recipients"]) == [
+        "m1",
+        "m2",
+        "m4",
+    ]
+    assert {r["message_id"] for r in unit.rows["message_recipients"]} == {"m2", "m4"}
+    # Every folder's link moves on, and the list of folders' own.
+    assert set(unit.links) == {_INBOX, _SENT, mail.MAILBOX}
+    assert unit.links[_SENT].endswith("$deltatoken=again")
+
+
+def test_a_message_moved_between_folders_is_changed_not_removed():
+    """Graph says it is removed from one folder and gives it in the other. Whichever folder
+    is asked first, the mailbox's one unit keeps the message."""
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    moved = _message(1, parentFolderId=_SENT)
+    fake.since = {
+        f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [
+            {"id": "m1", "@removed": {"reason": "deleted"}}
+        ],
+        f"{ROOT}/mailFolders/{_SENT}/messages/delta": [moved],
+    }
+    fake.now = [[moved, _message(2, parentFolderId=_SENT), _message(3, parentFolderId=_SENT)]]
+    (unit,) = _units(mailbox, kept)
+    assert "messages" not in unit.removed
+    assert [r["id"] for r in unit.rows["messages"]] == ["m1"]
+    assert [(r["message_id"], r["folder_id"]) for r in unit.rows["message_folders"]] == [
+        ("m1", _SENT)
+    ]
+    assert unit.removed["message_folders"] == [_mine(message_id="m1")]  # its old folder row
+
+
+def test_a_thread_a_changed_message_is_in_is_worked_out_again_from_all_its_messages():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    thread = _message(1)["conversationId"]
+    reply = _message(5, conversationId=thread)
+    fake.since = {f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [reply]}
+    fake.table.update(_html(5))
+    fake.now = [[_message(1), reply]]
+    (unit,) = _units(mailbox, kept)
+    (row,) = unit.rows["threads"]
+    assert (row["id"], row["message_count"]) == (thread, 2)
+
+
+def test_nothing_changed_is_a_unit_with_only_where_the_read_reached():
+    mailbox, _ = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    (unit,) = _units(mailbox, kept)
+    assert unit.last and set(unit.links) == set(kept)
+    assert not any(unit.rows.values()) and not any(unit.removed.values())
+
+
+def test_a_link_graph_no_longer_honours_reads_the_mailbox_again_from_its_start():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    fake.gone = {f"{ROOT}/mailFolders/{_SENT}/messages/delta"}
+    units = _units(mailbox, kept)
+    assert units[0].forget and units[0].removed["messages"] == [_mine()]
+    assert sorted(r["id"] for u in units for r in u.rows.get("messages", [])) == ["m1", "m2", "m3"]
+
+
+def test_a_folder_that_was_kept_and_is_no_longer_listed_reads_the_mailbox_again():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = {**_links(_units(mailbox)), "a-folder-since-removed": "https://graph.microsoft.com/x"}
+    units = _units(mailbox, kept)
+    assert units[0].forget
+
+
+def test_a_folder_met_for_the_first_time_is_read_whole_with_the_others_changes():
+    mailbox, fake = _mailbox(_two_folders())
+    kept = _links(_units(mailbox))
+    del kept[_SENT]  # as if the folder was made since
+    (unit,) = _units(mailbox, kept)
+    assert sorted(r["id"] for r in unit.rows["messages"]) == ["m2", "m3"]
+
+
+def test_units_come_only_from_the_message_tables():
+    mailbox, _ = _mailbox(_two_folders())
+    with pytest.raises(KeyError, match="do not come from a mailbox's messages"):
+        list(mailbox.units(("folders",)))
