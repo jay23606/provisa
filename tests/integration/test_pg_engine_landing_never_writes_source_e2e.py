@@ -41,6 +41,8 @@ import httpx
 import pytest
 import yaml
 
+from tests.ci_images import image
+
 pytestmark = [pytest.mark.integration]
 
 _ROLE = "org_admin"
@@ -73,7 +75,7 @@ class _SourceAndEngine:
         ]
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--name", self._source, *env]
-            + ["-e", "POSTGRES_DB=shop", "-p", publish[0], "-p", publish[1], "postgres:16"]
+            + ["-e", "POSTGRES_DB=shop", "-p", publish[0], "-p", publish[1], image("postgres:16")]
             + ["-c", f"port={self.source_port}", *logging],
             check=True,
             capture_output=True,
@@ -81,7 +83,7 @@ class _SourceAndEngine:
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--name", self._engine, *env]
             + ["-e", "POSTGRES_DB=provisa", "--network", f"container:{self._source}"]
-            + ["postgres:16", "-c", f"port={self.engine_port}", *logging],
+            + [image("postgres:16"), "-c", f"port={self.engine_port}", *logging],
             check=True,
             capture_output=True,
         )

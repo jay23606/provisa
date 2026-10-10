@@ -39,8 +39,10 @@ from pathlib import Path
 
 import httpx
 import pytest
-from tests.helpers import PROFILER_RUN_DEFAULTS
 import yaml
+
+from tests.ci_images import image
+from tests.helpers import PROFILER_RUN_DEFAULTS
 
 pytestmark = [pytest.mark.integration]
 
@@ -74,7 +76,7 @@ class _Databases:
         ]
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--name", self._source, *env]
-            + ["-e", "POSTGRES_DB=shop", "-p", publish[0], "-p", publish[1], "postgres:16"]
+            + ["-e", "POSTGRES_DB=shop", "-p", publish[0], "-p", publish[1], image("postgres:16")]
             + ["-c", f"port={self.source_port}"],
             check=True,
             capture_output=True,
@@ -82,7 +84,7 @@ class _Databases:
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--name", self._engine, *env]
             + ["-e", "POSTGRES_DB=provisa", "--network", f"container:{self._source}"]
-            + ["postgres:16", "-c", f"port={self.engine_port}"],
+            + [image("postgres:16"), "-c", f"port={self.engine_port}"],
             check=True,
             capture_output=True,
         )
