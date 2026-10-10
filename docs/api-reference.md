@@ -447,7 +447,11 @@ Return the auto-generated `.proto` file for a role. [tool-verified: `provisa/api
 
 `{role_id}` is one role the caller holds, or a comma-separated set of held roles (`analyst,org_admin`), which is served as the set's meta-role: the union of what its members are granted. A role the caller does not hold is refused with `403 auth.role_not_assigned`, and a meta-role id named directly with `403 auth.meta_role_named`. `?domains=a,b` narrows the proto to those domains; a domain the role does not reach is refused with `403 data.domain_not_accessible`. A role with no data surface answers `404 data.no_proto_for_role`, an unknown role `404 data.no_role`, and a model that has not been built yet `503 data.schema_cache_not_ready`. (REQ-1620, REQ-273) [tool-verified: `provisa/api/data/endpoint_dev.py`, `provisa/api/acting_role.py`]
 
-Each registered table produces a proto `message`. Relationships produce nested message fields. Type mapping: `integer → int32`, `bigint → int64`, `varchar → string`, `decimal → double`, `boolean → bool`, `timestamp → google.protobuf.Timestamp`. (REQ-538)
+Each table in the role's schema produces a proto `message`. Relationships produce nested message fields. The service lists RPCs only for the tables at the root of the role's schema, the same tables its GraphQL `Query` type lists; a related table has its message and is reached through its relationship. [tool-verified: `provisa/grpc/proto_gen.py`]
+
+Add `?domains=a,b` to restrict the file to those domains. The service then lists RPCs for the chosen domains' own tables; tables related to them appear as messages. [tool-verified: `provisa/api/data/endpoint_dev.py`]
+
+The file follows the model. It is rebuilt with the role's schema whenever the model or the role changes, a meta-role's included. Type mapping: `integer → int32`, `bigint → int64`, `varchar → string`, `decimal → double`, `boolean → bool`, `timestamp → google.protobuf.Timestamp`. (REQ-538)
 
 ---
 
@@ -1220,17 +1224,21 @@ service ProvisaService {
 }
 ```
 
-Each table produces a `Query{TypeName}` streaming RPC. `Insert{TypeName}` RPCs exist for schema symmetry but abort with `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+Each table at the root of the role's schema produces a `Query{TypeName}` streaming RPC. These are the tables the role's GraphQL `Query` type lists. A table the role reaches only through a relationship has no RPC of its own, as it has no root field in GraphQL. `Insert{TypeName}` RPCs exist for schema symmetry but abort with `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
-`grpc_reflection.v1alpha` is enabled for service discovery without a pre-compiled proto. (REQ-529) [tool-verified: `provisa/grpc/reflection.py`]
+A method that is not part of the caller's role's service answers `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+
+`grpc_reflection.v1alpha` is enabled for service discovery without a pre-compiled proto. (REQ-529) Reflection describes each caller the service of the role it is acting as: the same `.proto` that role downloads from `GET /data/proto/{role_id}`. It lists the Provisa service and the reflection service by name, and describes the Provisa service's file. [tool-verified: `provisa/grpc/server.py`]
+
+A reflection call is identified like any other gRPC call. With authentication on, the role comes from the caller's credential. With authentication off, name the role in `x-provisa-role`; on a deployment that serves more than one organisation, also name the organisation in `x-provisa-org`. A call without them is refused as `UNAUTHENTICATED`. On a deployment with authentication off, reflection stays disabled unless `server.grpc_allow_unsecured_reflection` is set. [tool-verified: `provisa/grpc/server.py`]
 
 ```bash
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
 grpcurl -plaintext -H 'x-provisa-role: analyst' \
-  -d '{}' localhost:50051 ProvisaService/QueryOrders
+  -d '{}' localhost:50051 provisa.v1.ProvisaService/QueryOrders
 ```
 
-The gRPC server starts only when a valid proto can be compiled at startup. If schema build fails, the gRPC server does not start. (REQ-529)
+The gRPC server starts when the model loaded at startup defines a gRPC service. (REQ-529) Each call is then served from the model as it stands: a table registered or changed while the server is running is served and described by the next call, with no restart. [tool-verified: `provisa/api/app_startup.py`, `provisa/grpc/descriptor.py`]
 
 #### Aggregate and Group-By RPCs (REQ-1359, REQ-1361, REQ-1405)
 

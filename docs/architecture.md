@@ -76,7 +76,7 @@ The full result is never materialized in Provisa memory — batches are forwarde
 
 ### Protobuf gRPC (port 50051)
 
-Auto-generated `.proto` from the data schema, generated per role. (REQ-525) Streaming queries (one message per row), unary mutations. Server reflection enabled. (REQ-526) Role via `x-provisa-role` metadata key.
+Auto-generated `.proto` from the data schema, generated per role. (REQ-525) Streaming queries (one message per row), unary mutations. Server reflection enabled; it describes each caller the service of its own role. (REQ-526) Role via `x-provisa-role` metadata key.
 
 ### PostgreSQL wire protocol / pgwire (configurable port)
 
