@@ -14,7 +14,7 @@
 
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Checkbox, Group, NumberInput, Select, Text, TextInput, Tooltip } from "@mantine/core";
+import { Checkbox, NumberInput, Select, Text, TextInput, Tooltip } from "@mantine/core";
 import { SOURCE_PROBE_SOURCE_TYPES, sourceChangeSignals } from "../../liveCapability";
 import { CHANGE_SIGNAL_LABELS } from "./constants";
 import { CollapsibleSection } from "../tables/CollapsibleSection";
@@ -28,6 +28,7 @@ import {
   ttlSignalMissingCacheTtl,
 } from "./loadManagement";
 import { useSourceKind } from "./sourceKind";
+import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
 
 export function SourceLoadManagementPanel({
   form,
@@ -45,142 +46,164 @@ export function SourceLoadManagementPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the value turns stale
   }, [staleSentinel]);
   return (
-    <CollapsibleSection
-      // Opened when the kind needs a Cache TTL, so the field that must be filled is in view.
-      key={kindLands ? "cache-ttl-required" : "optional"}
-      defaultOpen={kindLands}
-      title={t("sourceFormFieldsExtended.loadManagementTitle")}
-      testId="source-load-management-panel"
-      info={{
-        label: t("sourceFormFieldsExtended.loadManagementInfoLabel"),
-        text: t("sourceFormFieldsExtended.loadManagementInfo"),
-      }}
-    >
-      {/* The operator's load and recency controls for this source, grouped: caching, the
+    <FormField size="full">
+      <CollapsibleSection
+        // Opened when the kind needs a Cache TTL, so the field that must be filled is in view.
+        key={kindLands ? "cache-ttl-required" : "optional"}
+        defaultOpen={kindLands}
+        title={t("sourceFormFieldsExtended.loadManagementTitle")}
+        testId="source-load-management-panel"
+        info={{
+          label: t("sourceFormFieldsExtended.loadManagementInfoLabel"),
+          text: t("sourceFormFieldsExtended.loadManagementInfo"),
+        }}
+      >
+        {/* The operator's load and recency controls for this source, grouped: caching, the
             change signal, replication and load protection (REQ-826/1141). */}
-      <Text size="xs" c="dimmed" data-testid="source-load-management-help">
-        {t("sourceFormFieldsExtended.loadManagementHelp")}
-      </Text>
-      <Group gap="lg" style={{ gridColumn: "1 / -1" }} wrap="wrap">
-        <Checkbox
-          label={t("sourceFormFieldsExtended.cacheEnabled")}
-          checked={form.cacheEnabled}
-          onChange={(e) => setForm({ ...form, cacheEnabled: e.currentTarget.checked })}
-          data-testid="cache-enabled-checkbox"
-        />
-      </Group>
-      <ReplicateSelect
-        value={form.replicate}
-        onChange={(replicate) => setForm({ ...form, replicate })}
-        scope="source"
-        loadProtected={form.loadProtected}
-        testId="source-replicate-select"
-      />
-      <NumberInput
-        label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-        min={0}
-        value={form.cacheTtl === "" ? "" : Number(form.cacheTtl)}
-        onChange={(v) => setForm({ ...form, cacheTtl: v === "" ? "" : String(v) })}
-        placeholder={t("sourceFormFieldsExtended.cacheTtlPlaceholder")}
-        required={kindLands}
-        error={
-          ttlSignalMissingCacheTtl(
-            form.changeSignal,
-            sourceFormCacheTtl(form.cacheTtl),
-            sourceFormLanded(form, kindLands),
-          )
-            ? t("sourceFormFieldsExtended.cacheTtlRequiredForSignal", {
-                signal: form.changeSignal,
-              })
-            : undefined
-        }
-        data-testid="cache-ttl-input"
-      />
-      <Tooltip label={t("sourceFormFieldsExtended.changeSignalTooltip")} multiline w={280}>
-        <Select
-          label={t("sourceFormFieldsExtended.changeSignal")}
-          value={form.changeSignal}
-          onChange={(v) => setForm({ ...form, changeSignal: v ?? "" })}
-          data={sourceChangeSignals(form.type).map((cs) => ({
-            value: cs,
-            // A source that asks its provider whether it changed says the choice in words.
-            label: SOURCE_PROBE_SOURCE_TYPES.has(form.type)
-              ? t(`sourceFormFieldsExtended.sourceProbeSignal.${cs}`)
-              : (CHANGE_SIGNAL_LABELS[cs] ?? cs),
-          }))}
-          allowDeselect={false}
-          data-testid="change-signal-select"
-        />
-      </Tooltip>
-      {sentinelApplies && (
-        <Tooltip label={t("sourceFormFieldsExtended.sentinelPathTooltip")} multiline w={280}>
-          <TextInput
-            label={t("sourceFormFieldsExtended.sentinelPath")}
-            value={form.sentinelPath}
-            onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
-            placeholder="https://example.com/data/_SUCCESS"
-            error={
-              sentinelPathValid(form.sentinelPath)
-                ? undefined
-                : t("sourceFormFieldsExtended.sentinelPathInvalid")
-            }
-            data-testid="sentinel-path-input"
-          />
-        </Tooltip>
-      )}
-      <Tooltip label={t("sourceFormFieldsExtended.freshnessGateTooltip")} multiline w={280}>
-        <Checkbox
-          label={t("sourceFormFieldsExtended.freshnessGate")}
-          checked={form.freshnessGate}
-          onChange={(e) => setForm({ ...form, freshnessGate: e.currentTarget.checked })}
-          data-testid="freshness-gate-checkbox"
-        />
-      </Tooltip>
-      <NumberInput
-        label={t("sourceFormFieldsExtended.maxLiveConcurrency")}
-        description={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")}
-        min={1}
-        allowDecimal={false}
-        allowNegative={false}
-        value={form.maxLiveConcurrency === "" ? "" : Number(form.maxLiveConcurrency)}
-        onChange={(v) => setForm({ ...form, maxLiveConcurrency: v === "" ? "" : String(v) })}
-        placeholder={t("sourceFormFieldsExtended.maxLiveConcurrencyPlaceholder")}
-        error={
-          maxLiveConcurrencyValid(form.maxLiveConcurrency)
-            ? undefined
-            : t("sourceFormFieldsExtended.maxLiveConcurrencyInvalid")
-        }
-        data-testid="max-live-concurrency-input"
-      />
-      {/* REQ-1141: source-level load protection (scheduled-refresh-only, off-peak window). */}
-      <Group gap="lg" style={{ gridColumn: "1 / -1" }} wrap="wrap" align="flex-end">
-        <Tooltip label={t("sourceFormFieldsExtended.loadProtectedTooltip")} multiline w={280}>
-          <Checkbox
-            label={t("sourceFormFieldsExtended.loadProtected")}
-            checked={form.loadProtected}
-            onChange={(e) => setForm({ ...form, loadProtected: e.currentTarget.checked })}
-            data-testid="load-protected-checkbox"
-          />
-        </Tooltip>
-        {form.loadProtected && (
-          <>
-            <TextInput
-              label={t("sourceFormFieldsExtended.offPeakWindow")}
-              value={form.offPeakWindow}
-              onChange={(e) => setForm({ ...form, offPeakWindow: e.currentTarget.value })}
-              placeholder="01:00-05:00"
-              data-testid="off-peak-window-input"
+        <Text size="xs" c="dimmed" data-testid="source-load-management-help">
+          {t("sourceFormFieldsExtended.loadManagementHelp")}
+        </Text>
+        <FormLayout>
+          <FormField size="short">
+            <Checkbox
+              label={t("sourceFormFieldsExtended.cacheEnabled")}
+              checked={form.cacheEnabled}
+              onChange={(e) => setForm({ ...form, cacheEnabled: e.currentTarget.checked })}
+              data-testid="cache-enabled-checkbox"
             />
-            <TextInput
-              label={t("sourceFormFieldsExtended.offPeakTz")}
-              value={form.offPeakTz}
-              onChange={(e) => setForm({ ...form, offPeakTz: e.currentTarget.value })}
-              placeholder="UTC"
-              data-testid="off-peak-tz-input"
+          </FormField>
+          <FormField size="medium">
+            <ReplicateSelect
+              value={form.replicate}
+              onChange={(replicate) => setForm({ ...form, replicate })}
+              scope="source"
+              loadProtected={form.loadProtected}
+              testId="source-replicate-select"
             />
-          </>
-        )}
-      </Group>
-    </CollapsibleSection>
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
+              min={0}
+              value={form.cacheTtl === "" ? "" : Number(form.cacheTtl)}
+              onChange={(v) => setForm({ ...form, cacheTtl: v === "" ? "" : String(v) })}
+              placeholder={t("sourceFormFieldsExtended.cacheTtlPlaceholder")}
+              required={kindLands}
+              error={
+                ttlSignalMissingCacheTtl(
+                  form.changeSignal,
+                  sourceFormCacheTtl(form.cacheTtl),
+                  sourceFormLanded(form, kindLands),
+                )
+                  ? t("sourceFormFieldsExtended.cacheTtlRequiredForSignal", {
+                      signal: form.changeSignal,
+                    })
+                  : undefined
+              }
+              data-testid="cache-ttl-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Tooltip label={t("sourceFormFieldsExtended.changeSignalTooltip")} multiline w={280}>
+              <Select
+                label={t("sourceFormFieldsExtended.changeSignal")}
+                value={form.changeSignal}
+                onChange={(v) => setForm({ ...form, changeSignal: v ?? "" })}
+                data={sourceChangeSignals(form.type).map((cs) => ({
+                  value: cs,
+                  // A source that asks its provider whether it changed says the choice in words.
+                  label: SOURCE_PROBE_SOURCE_TYPES.has(form.type)
+                    ? t(`sourceFormFieldsExtended.sourceProbeSignal.${cs}`)
+                    : (CHANGE_SIGNAL_LABELS[cs] ?? cs),
+                }))}
+                allowDeselect={false}
+                data-testid="change-signal-select"
+              />
+            </Tooltip>
+          </FormField>
+          {sentinelApplies && (
+            <FormField size="long">
+              <Tooltip label={t("sourceFormFieldsExtended.sentinelPathTooltip")} multiline w={280}>
+                <TextInput
+                  label={t("sourceFormFieldsExtended.sentinelPath")}
+                  value={form.sentinelPath}
+                  onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
+                  placeholder="https://example.com/data/_SUCCESS"
+                  error={
+                    sentinelPathValid(form.sentinelPath)
+                      ? undefined
+                      : t("sourceFormFieldsExtended.sentinelPathInvalid")
+                  }
+                  data-testid="sentinel-path-input"
+                />
+              </Tooltip>
+            </FormField>
+          )}
+          <FormField size="short">
+            <Tooltip label={t("sourceFormFieldsExtended.freshnessGateTooltip")} multiline w={280}>
+              <Checkbox
+                label={t("sourceFormFieldsExtended.freshnessGate")}
+                checked={form.freshnessGate}
+                onChange={(e) => setForm({ ...form, freshnessGate: e.currentTarget.checked })}
+                data-testid="freshness-gate-checkbox"
+              />
+            </Tooltip>
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.maxLiveConcurrency")}
+              description={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")}
+              min={1}
+              allowDecimal={false}
+              allowNegative={false}
+              value={form.maxLiveConcurrency === "" ? "" : Number(form.maxLiveConcurrency)}
+              onChange={(v) => setForm({ ...form, maxLiveConcurrency: v === "" ? "" : String(v) })}
+              placeholder={t("sourceFormFieldsExtended.maxLiveConcurrencyPlaceholder")}
+              error={
+                maxLiveConcurrencyValid(form.maxLiveConcurrency)
+                  ? undefined
+                  : t("sourceFormFieldsExtended.maxLiveConcurrencyInvalid")
+              }
+              data-testid="max-live-concurrency-input"
+            />
+          </FormField>
+          {/* REQ-1141: source-level load protection (scheduled-refresh-only, off-peak window). */}
+          <FieldGroup>
+            <FormField size="short">
+              <Tooltip label={t("sourceFormFieldsExtended.loadProtectedTooltip")} multiline w={280}>
+                <Checkbox
+                  label={t("sourceFormFieldsExtended.loadProtected")}
+                  checked={form.loadProtected}
+                  onChange={(e) => setForm({ ...form, loadProtected: e.currentTarget.checked })}
+                  data-testid="load-protected-checkbox"
+                />
+              </Tooltip>
+            </FormField>
+            {form.loadProtected && (
+              <>
+                <FormField size="short">
+                  <TextInput
+                    label={t("sourceFormFieldsExtended.offPeakWindow")}
+                    value={form.offPeakWindow}
+                    onChange={(e) => setForm({ ...form, offPeakWindow: e.currentTarget.value })}
+                    placeholder="01:00-05:00"
+                    data-testid="off-peak-window-input"
+                  />
+                </FormField>
+                <FormField size="short">
+                  <TextInput
+                    label={t("sourceFormFieldsExtended.offPeakTz")}
+                    value={form.offPeakTz}
+                    onChange={(e) => setForm({ ...form, offPeakTz: e.currentTarget.value })}
+                    placeholder="UTC"
+                    data-testid="off-peak-tz-input"
+                  />
+                </FormField>
+              </>
+            )}
+          </FieldGroup>
+        </FormLayout>
+      </CollapsibleSection>
+    </FormField>
   );
 }

@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "../../../test-utils/render";
+import { renderInForm, screen, fireEvent, within } from "../../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { SourceLoadManagementPanel } from "../SourceLoadManagementPanel";
 import type { SourceFormState } from "../SourceFormFields";
@@ -61,7 +61,7 @@ function Harness({ onForm }: { onForm?: (f: SourceFormState) => void }) {
 
 describe("SourceLoadManagementPanel", () => {
   it("is titled, collapsed by default, and opens to its help text and settings", async () => {
-    render(<Harness />);
+    renderInForm(<Harness />);
     const toggle = screen.getByTestId("source-load-management-panel-toggle");
     expect(toggle).toHaveTextContent("Load Management and Timeliness");
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -76,7 +76,7 @@ describe("SourceLoadManagementPanel", () => {
 
   it("keeps a moved field's behavior: load protection reveals the off-peak inputs", async () => {
     const onForm = vi.fn();
-    render(<Harness onForm={onForm} />);
+    renderInForm(<Harness onForm={onForm} />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await userEvent.click(await screen.findByTestId("load-protected-checkbox"));
     expect(onForm).toHaveBeenLastCalledWith(expect.objectContaining({ loadProtected: true }));
@@ -84,7 +84,7 @@ describe("SourceLoadManagementPanel", () => {
   });
 
   it("renders an accessible (i) icon whose explanation shows on keyboard focus", async () => {
-    render(<Harness />);
+    renderInForm(<Harness />);
     const icon = screen.getByRole("button", { name: "About load management and timeliness" });
     expect(icon).toHaveAttribute("tabindex", "0");
     fireEvent.focus(icon);
@@ -94,7 +94,7 @@ describe("SourceLoadManagementPanel", () => {
   });
 
   it("shows the explanation on hover without toggling the section", async () => {
-    render(<Harness />);
+    renderInForm(<Harness />);
     const toggle = screen.getByTestId("source-load-management-panel-toggle");
     const icon = screen.getByTestId("source-load-management-panel-info");
     await userEvent.hover(icon);
@@ -107,7 +107,7 @@ describe("SourceLoadManagementPanel", () => {
 
   it("edits the sentinel path, freshness gate and live-concurrency cap", async () => {
     const onForm = vi.fn();
-    render(<Harness onForm={onForm} />);
+    renderInForm(<Harness onForm={onForm} />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await userEvent.type(await screen.findByTestId("sentinel-path-input"), "https://x/_SUCCESS");
     expect(onForm).toHaveBeenLastCalledWith(
@@ -121,7 +121,7 @@ describe("SourceLoadManagementPanel", () => {
 
   it("sets Replicate through the shared drop-down, in place of the old checkbox", async () => {
     const onForm = vi.fn();
-    render(<Harness onForm={onForm} />);
+    renderInForm(<Harness onForm={onForm} />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const select = await screen.findByTestId("source-replicate-select");
     expect(select).toHaveValue("Default");
@@ -141,7 +141,7 @@ describe("SourceLoadManagementPanel", () => {
       });
       return <SourceLoadManagementPanel form={form} setForm={setForm} />;
     }
-    render(<Contradictory />);
+    renderInForm(<Contradictory />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     expect(
       await screen.findByText(
@@ -151,7 +151,7 @@ describe("SourceLoadManagementPanel", () => {
   });
 
   it("flags a sentinel path with an unsupported scheme", async () => {
-    render(<Harness />);
+    renderInForm(<Harness />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await userEvent.type(await screen.findByTestId("sentinel-path-input"), "s3://b/_SUCCESS");
     expect(
@@ -168,7 +168,7 @@ describe("SourceLoadManagementPanel", () => {
       });
       return <SourceLoadManagementPanel form={form} setForm={setForm} />;
     }
-    render(<NoTtl />);
+    renderInForm(<NoTtl />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const msg = "The ttl change signal judges staleness by the Cache TTL, so set a Cache TTL.";
     expect(await screen.findByText(msg)).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("SourceLoadManagementPanel", () => {
   });
 
   it("does not error without a Cache TTL for a signal that has its own clock", async () => {
-    render(
+    renderInForm(
       <SourceLoadManagementPanel
         form={{ ...FORM, cacheTtl: "", changeSignal: "probe", freshnessGate: true }}
         setForm={vi.fn()}
@@ -191,7 +191,7 @@ describe("SourceLoadManagementPanel", () => {
   });
 
   it("does not error for a live-read ttl source with no Cache TTL", async () => {
-    render(<SourceLoadManagementPanel form={{ ...FORM, cacheTtl: "" }} setForm={vi.fn()} />);
+    renderInForm(<SourceLoadManagementPanel form={{ ...FORM, cacheTtl: "" }} setForm={vi.fn()} />);
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await screen.findByTestId("cache-ttl-input");
     expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
@@ -217,7 +217,7 @@ describe("SourceLoadManagementPanel", () => {
         });
         return <SourceLoadManagementPanel form={form} setForm={setForm} />;
       }
-      render(<Mail />);
+      renderInForm(<Mail />);
       // No click: the panel opens itself, since the field in it must be filled.
       await vi.waitFor(() =>
         expect(screen.getByTestId("source-load-management-panel-toggle")).toHaveAttribute(
@@ -254,7 +254,7 @@ describe("SourceLoadManagementPanel", () => {
           />
         );
       }
-      render(<Mail />);
+      renderInForm(<Mail />);
       await vi.waitFor(() => expect(screen.queryByTestId("sentinel-path-input")).toBeNull());
       await vi.waitFor(() => expect(seen.at(-1)?.sentinelPath).toBe(""));
       expect(screen.getByTestId("change-signal-select")).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe("SourceLoadManagementPanel", () => {
 
     it("leaves another kind as it was: collapsed, the Cache TTL optional", async () => {
       const asked = kinds({ microsoft_365: true });
-      render(
+      renderInForm(
         <SourceLoadManagementPanel
           form={{ ...FORM, type: "mysql", cacheTtl: "" }}
           setForm={vi.fn()}
