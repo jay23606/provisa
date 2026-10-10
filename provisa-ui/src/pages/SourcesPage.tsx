@@ -85,6 +85,7 @@ import { GOOGLE_WORKSPACE, gwFieldsFromMapping, gwMapping } from "./sources/goog
 import { MICROSOFT_365, m365FieldsFromMapping, m365Mapping } from "./sources/microsoft365";
 import { WIKIPEDIA, wikipediaFieldsFromHints, wikipediaHints } from "./sources/wikipedia";
 import { sourceLoadFieldsValid } from "./sources/loadManagement";
+import { useCacheTtlRequired } from "./sources/sourceKind";
 import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
 import {
@@ -237,6 +238,8 @@ export function SourcesPage() {
     allowedDomains: "" as string,
     description: "" as string,
   });
+  // Whether the server says a source of this kind states its Cache TTL itself (REQ-1907).
+  const cacheTtlRequired = useCacheTtlRequired(form.type);
   // REQ-824: source-level CDC transport (Debezium), entered once per source
   const emptyCdc: CdcState = {
     bootstrapServers: "",
@@ -842,7 +845,7 @@ export function SourcesPage() {
     setError(null);
     // The Load Management and Timeliness panel's inputs show their own errors; an invalid one
     // blocks the save before any mutation runs.
-    if (!sourceLoadFieldsValid(form)) {
+    if (!sourceLoadFieldsValid(form, cacheTtlRequired)) {
       setError(t("sourceFormFieldsExtended.loadManagementFixErrors"));
       return;
     }

@@ -297,6 +297,8 @@
       "relationship_not_found": "リレーションシップ「{{relationship}}」が見つかりません",
       "relationship_saved": "リレーションシップ「{{relationship}}」を保存しました",
       "remigrated": "{{source}}.{{table}} を再マイグレーションしました",
+      "source_cache_ttl_required": "ソース「{{source}}」にはキャッシュTTLが必要です。このソースのテーブルはすべてレプリカであり、変更シグナル {{signal}} のもとでその時計に従って更新されます。ソースの「負荷管理と鮮度」で設定してください。",
+      "landing_ttl_required": "テーブル「{{table}}」はキャッシュTTLに従って更新されるレプリカですが、テーブルにもそのソース「{{source}}」にも設定がありません。ソースの「負荷管理と鮮度」でキャッシュTTLを設定するか、登録後にテーブル自体に設定してください。",
       "replicate_contradicts_load_protected": "負荷保護はレプリケート =「しない」と併用できません。負荷保護されたテーブルはライブで読まれることがありません",
       "replicate_invalid": "レプリケートは「デフォルト」「しない」「常に」または 0 より大きいしきい値である必要があります（指定値: {{value}}）",
       "request_executed": "作成リクエスト #{{id}} を実行しました",

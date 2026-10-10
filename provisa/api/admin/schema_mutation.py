@@ -1132,6 +1132,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.replicate,
                     input.load_protected,
                 ),
+                source_type=input.type,
             )
         if _ttl_refusal is not None:
             return _ttl_refusal

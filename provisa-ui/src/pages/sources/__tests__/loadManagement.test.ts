@@ -52,6 +52,22 @@ describe("source load/timeliness client validation", () => {
     expect(ttlSignalMissingCacheTtl(null, null, true)).toBe(false);
   });
 
+  // #208: a kind whose every table lands needs the clock whatever its replicate setting says.
+  it("refuses a ttl signal with no Cache TTL for a kind the server says lands every table", () => {
+    const mail = {
+      maxLiveConcurrency: "",
+      sentinelPath: "",
+      changeSignal: "ttl",
+      cacheTtl: "",
+      replicate: null,
+      loadProtected: false,
+    };
+    expect(sourceLoadFieldsValid(mail)).toBe(true); // not known to land
+    expect(sourceLoadFieldsValid(mail, true)).toBe(false);
+    expect(sourceLoadFieldsValid({ ...mail, cacheTtl: "300" }, true)).toBe(true);
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe" }, true)).toBe(true);
+  });
+
   it("combines every rule", () => {
     const ok = {
       maxLiveConcurrency: "",

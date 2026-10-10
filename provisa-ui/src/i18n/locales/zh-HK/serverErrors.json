@@ -297,6 +297,8 @@
       "relationship_not_found": "找不到關係「{{relationship}}」",
       "relationship_saved": "關係「{{relationship}}」已儲存",
       "remigrated": "已重新遷移 {{source}}.{{table}}",
+      "source_cache_ttl_required": "數據來源「{{source}}」需要快取 TTL：它的每個表格都是複本，在 {{signal}} 變更訊號下按該時鐘重新整理。請在數據來源的「負載管理與時效性」中設定。",
+      "landing_ttl_required": "表格「{{table}}」是按快取 TTL 重新整理的複本，但它和它的數據來源「{{source}}」都沒有設定。請在數據來源的「負載管理與時效性」中設定快取 TTL，或在表格註冊後在表格本身設定。",
       "replicate_contradicts_load_protected": "負載保護不能與複製 =「永不」同時使用：受負載保護的數據表永不被即時讀取",
       "replicate_invalid": "複製必須是「預設」、「永不」、「一律」或大於 0 的閾值；收到 {{value}}",
       "request_executed": "已執行建立請求 #{{id}}",

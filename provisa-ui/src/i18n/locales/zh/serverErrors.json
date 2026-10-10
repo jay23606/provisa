@@ -297,6 +297,8 @@
       "relationship_not_found": "未找到关系 '{{relationship}}'",
       "relationship_saved": "关系 '{{relationship}}' 已保存",
       "remigrated": "已重新迁移 {{source}}.{{table}}",
+      "source_cache_ttl_required": "数据源“{{source}}”需要缓存 TTL：它的每个表都是副本，在 {{signal}} 变更信号下按该时钟刷新。请在数据源的“负载管理与时效性”中设置。",
+      "landing_ttl_required": "表“{{table}}”是按缓存 TTL 刷新的副本，但它和它的数据源“{{source}}”都没有设置。请在数据源的“负载管理与时效性”中设置缓存 TTL，或在表注册后在表本身上设置。",
       "replicate_contradicts_load_protected": "负载保护不能与复制 =“从不”同时使用：受负载保护的表从不被实时读取",
       "replicate_invalid": "复制必须是“默认”“从不”“始终”或大于 0 的阈值；收到 {{value}}",
       "request_executed": "已执行创建请求 #{{id}}",

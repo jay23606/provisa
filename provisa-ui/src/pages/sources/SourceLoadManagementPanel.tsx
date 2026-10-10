@@ -26,14 +26,19 @@ import {
   sourceFormLanded,
   ttlSignalMissingCacheTtl,
 } from "./loadManagement";
+import { useCacheTtlRequired } from "./sourceKind";
 
 export function SourceLoadManagementPanel({
   form,
   setForm,
 }: Pick<SourceFormFieldsProps, "form" | "setForm">) {
   const { t } = useTranslation();
+  const kindLands = useCacheTtlRequired(form.type);
   return (
     <CollapsibleSection
+      // Opened when the kind needs a Cache TTL, so the field that must be filled is in view.
+      key={kindLands ? "cache-ttl-required" : "optional"}
+      defaultOpen={kindLands}
       title={t("sourceFormFieldsExtended.loadManagementTitle")}
       testId="source-load-management-panel"
       info={{
@@ -67,11 +72,12 @@ export function SourceLoadManagementPanel({
         value={form.cacheTtl === "" ? "" : Number(form.cacheTtl)}
         onChange={(v) => setForm({ ...form, cacheTtl: v === "" ? "" : String(v) })}
         placeholder={t("sourceFormFieldsExtended.cacheTtlPlaceholder")}
+        required={kindLands}
         error={
           ttlSignalMissingCacheTtl(
             form.changeSignal,
             sourceFormCacheTtl(form.cacheTtl),
-            sourceFormLanded(form),
+            sourceFormLanded(form, kindLands),
           )
             ? t("sourceFormFieldsExtended.cacheTtlRequiredForSignal", {
                 signal: form.changeSignal,

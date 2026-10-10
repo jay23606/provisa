@@ -196,4 +196,56 @@ describe("SourceLoadManagementPanel", () => {
     await screen.findByTestId("cache-ttl-input");
     expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
   });
+
+  // #208: the server says every table of a mail source lands, so the source states the clock.
+  describe("for a kind the server says must state its Cache TTL", () => {
+    function kinds(required: Record<string, boolean>) {
+      return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+        const kind = decodeURIComponent(String(url).split("/admin/source-kinds/")[1]);
+        return new Response(JSON.stringify({ cache_ttl_required: required[kind] ?? false }));
+      });
+    }
+
+    it("opens the panel, marks the Cache TTL required and errors until one is given", async () => {
+      const asked = kinds({ microsoft_365: true });
+      function Mail() {
+        const [form, setForm] = useState<SourceFormState>({
+          ...FORM,
+          type: "microsoft_365",
+          cacheTtl: "",
+        });
+        return <SourceLoadManagementPanel form={form} setForm={setForm} />;
+      }
+      render(<Mail />);
+      // No click: the panel opens itself, since the field in it must be filled.
+      await vi.waitFor(() =>
+        expect(screen.getByTestId("source-load-management-panel-toggle")).toHaveAttribute(
+          "aria-expanded",
+          "true",
+        ),
+      );
+      expect(screen.getByTestId("cache-ttl-input")).toBeRequired();
+      const msg = "The ttl change signal judges staleness by the Cache TTL, so set a Cache TTL.";
+      expect(await screen.findByText(msg)).toBeInTheDocument();
+      await userEvent.type(screen.getByTestId("cache-ttl-input"), "300");
+      expect(screen.queryByText(msg)).toBeNull();
+      expect(String(asked.mock.calls[0][0])).toBe("/admin/source-kinds/microsoft_365");
+      asked.mockRestore();
+    });
+
+    it("leaves another kind as it was: collapsed, the Cache TTL optional", async () => {
+      const asked = kinds({ microsoft_365: true });
+      render(
+        <SourceLoadManagementPanel
+          form={{ ...FORM, type: "mysql", cacheTtl: "" }}
+          setForm={vi.fn()}
+        />,
+      );
+      await vi.waitFor(() => expect(asked).toHaveBeenCalled());
+      await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
+      expect(await screen.findByTestId("cache-ttl-input")).not.toBeRequired();
+      expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
+      asked.mockRestore();
+    });
+  });
 });

@@ -623,3 +623,113 @@ async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
     async with _db(tmp_path, source_type=source_type, table_replicate=None) as db:
         async with db.acquire() as conn:
             assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
+
+
+# --- a kind whose every table lands states the clock on the source (#208) ---
+
+_MAIL_KINDS = ["microsoft_365", "google_workspace"]
+
+
+def test_only_the_mail_kinds_must_state_the_clock_on_the_source():
+    from provisa.api.admin._landing_ttl import source_states_the_clock
+
+    assert [source_states_the_clock(kind) for kind in _MAIL_KINDS] == [True, True]
+    for kind in ("postgresql", "openapi", "graphql_remote", "ingest", None):
+        assert source_states_the_clock(kind) is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", _MAIL_KINDS)
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+async def test_a_new_mail_source_is_refused_without_a_cache_ttl(tmp_path, kind, signal):
+    """Nothing is registered under it yet: the source is still asked for the clock, since every
+    table it will have lands and refreshes by it."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path) as db:
+        async with db.acquire() as conn:
+            bad = await landing_ttl_refusal(conn, "mail", source=_s(signal, None), source_type=kind)
+            assert bad is not None and bad.success is False
+            assert bad.code == "schema.source_cache_ttl_required"
+            assert bad.params == {"source": "mail", "signal": signal}
+            # The operator's own value satisfies it; a signal with its own clock needs none.
+            for said in (_s(signal, 300), _s("kafka", None)):
+                assert (
+                    await landing_ttl_refusal(conn, "mail", source=said, source_type=kind) is None
+                )
+            # Another kind is not asked at create: its tables may state their own.
+            assert (
+                await landing_ttl_refusal(
+                    conn, "pg", source=_s(signal, None), source_type="postgresql"
+                )
+                is None
+            )
+
+
+@pytest.mark.asyncio
+async def test_create_source_refuses_a_mail_source_with_no_cache_ttl(tmp_path):
+    async with _db(tmp_path) as db:
+        m, p = _mutation(db)
+        asked = _source_input(change_signal="ttl", cache_ttl=None)
+        asked.id, asked.type = "mail", "microsoft_365"
+        with (
+            p,
+            patch("provisa.api.admin.capabilities.require_capability", return_value=None),
+            patch(
+                "provisa.api.admin.schema_mutation._refuse_over_source_limit",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            result = await m.create_source(MagicMock(), asked)
+        assert result.success is False and result.code == "schema.source_cache_ttl_required"
+        async with db.acquire() as conn:
+            stored = await conn.execute_core(select(sources.c.id).where(sources.c.id == "mail"))
+            assert stored.fetchone() is None  # nothing written
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", _MAIL_KINDS)
+async def test_a_table_of_a_stored_mail_source_with_no_clock_is_refused_naming_the_source(
+    tmp_path, kind
+):
+    """A source saved before the rule has no cache_ttl: registering a table of it is refused by
+    the source's own refusal, which says where the value is set."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path, source_type=kind, table_replicate=None) as db:
+        async with db.acquire() as conn:
+            bad = await landing_ttl_refusal(conn, "s", table=_t(None, None))
+            assert bad is not None and bad.code == "schema.source_cache_ttl_required"
+            assert bad.params == {"source": "s", "signal": "ttl"}
+            assert "Load Management and Timeliness" in bad.message
+
+
+@pytest.mark.asyncio
+async def test_the_form_is_told_which_kinds_state_the_clock(monkeypatch):
+    from provisa.api.admin import source_kinds_router as kinds
+
+    asked: list[str] = []
+    monkeypatch.setattr(
+        kinds, "require_capability_request", lambda request, capability: asked.append(capability)
+    )
+    assert await kinds.source_kind(None, "microsoft_365") == {"cache_ttl_required": True}
+    assert await kinds.source_kind(None, "postgresql") == {"cache_ttl_required": False}
+    assert asked == ["source_registration"] * 2
+
+
+def test_every_locale_words_both_landing_clock_refusals():
+    import json
+    import re
+    from pathlib import Path
+
+    locales = Path(__file__).parents[2] / "provisa-ui/src/i18n/locales"
+    wanted = {
+        "source_cache_ttl_required": {"source", "signal"},
+        "landing_ttl_required": {"table", "source"},
+    }
+    catalogs = sorted(locales.glob("*/serverErrors.json"))
+    assert len(catalogs) == 13
+    for catalog in catalogs:
+        said = json.loads(catalog.read_text())["serverErrors"]["schema"]
+        for key, particulars in wanted.items():
+            assert set(re.findall(r"{{(\w+)}}", said[key])) == particulars, (catalog, key)

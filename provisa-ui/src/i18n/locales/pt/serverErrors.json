@@ -297,6 +297,8 @@
       "relationship_not_found": "Relacionamento '{{relationship}}' não encontrado",
       "relationship_saved": "Relacionamento '{{relationship}}' salvo",
       "remigrated": "{{source}}.{{table}} migrado novamente",
+      "source_cache_ttl_required": "A fonte '{{source}}' precisa de um TTL do cache: cada tabela sua é uma réplica, atualizada por esse relógio com o sinal de alteração {{signal}}. Defina-o em «Gestão de carga e atualidade» da fonte.",
+      "landing_ttl_required": "A tabela '{{table}}' é uma réplica atualizada por um TTL do cache, e nem ela nem a sua fonte '{{source}}' têm um. Defina o TTL do cache em «Gestão de carga e atualidade» da fonte, ou na própria tabela depois de registada.",
       "replicate_contradicts_load_protected": "A proteção de carga não pode ser combinada com Replicar = 'Nunca': uma tabela protegida contra carga nunca é lida ao vivo",
       "replicate_invalid": "Replicar deve ser 'Padrão', 'Nunca', 'Sempre' ou um limite acima de 0; recebido {{value}}",
       "request_executed": "Solicitação de criação nº {{id}} executada",
