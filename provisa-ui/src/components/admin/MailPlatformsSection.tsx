@@ -28,6 +28,7 @@ import {
   Switch,
   Text,
   TextInput,
+  Textarea,
   Title,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
@@ -229,11 +230,14 @@ export function MailPlatformsSection() {
               )}
               {p.organisation_scopes.length > 0 && (
                 <FieldGroup row>
+                  {/* Every scope readable at once: the line wraps, and Copy takes it whole. */}
                   <FormField size="long">
-                    <TextInput
+                    <Textarea
                       label={t("mailPlatforms.organisationScopes")}
                       value={p.organisation_scopes.join(",")}
                       readOnly
+                      autosize
+                      minRows={1}
                       data-testid={`${id}-organisation-scopes`}
                     />
                   </FormField>

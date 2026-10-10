@@ -176,7 +176,11 @@ export function MailTab() {
         </FormField>
 
         {(selected?.config_fields ?? []).map((f) => (
-          <FormField size="medium" key={f.config_key}>
+          // A port or a timeout is a number: a short field.
+          <FormField
+            size={/port|timeout/i.test(f.config_key) ? "short" : "medium"}
+            key={f.config_key}
+          >
             <TextInput
               label={f.label}
               required={f.required}
