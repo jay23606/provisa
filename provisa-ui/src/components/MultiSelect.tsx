@@ -28,6 +28,8 @@ export function MultiSelect({
   description,
   required,
   withAsterisk,
+  "aria-labelledby": labelledBy,
+  "aria-description": ariaDescription,
 }: {
   options: { id: string; label: string }[];
   value: string[];
@@ -41,6 +43,8 @@ export function MultiSelect({
   description?: ReactNode;
   required?: boolean;
   withAsterisk?: boolean;
+  "aria-labelledby"?: string;
+  "aria-description"?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -55,11 +59,15 @@ export function MultiSelect({
       withAsterisk={withAsterisk}
       // Callers historically render this with no visible label; supply an
       // accessible name so the combobox is never anonymous to screen readers.
+      aria-labelledby={labelledBy}
+      aria-description={ariaDescription}
       aria-label={
-        ariaLabel ??
-        (typeof label === "string" ? label : undefined) ??
-        placeholder ??
-        t("multiSelect.defaultLabel")
+        labelledBy !== undefined
+          ? undefined
+          : (ariaLabel ??
+            (typeof label === "string" ? label : undefined) ??
+            placeholder ??
+            t("multiSelect.defaultLabel"))
       }
       placeholder={value.length === 0 ? (placeholder ?? t("multiSelect.all")) : undefined}
       searchable

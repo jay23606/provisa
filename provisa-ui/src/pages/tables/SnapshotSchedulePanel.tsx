@@ -76,14 +76,9 @@ export function SnapshotSchedulePanel({
         <Collapse in={snapshotOpen}>
           <FormLayout style={{ paddingTop: "var(--mantine-spacing-xs)" }}>
             <FieldGroup style={{ alignItems: "flex-end" }}>
-              <FormField size="medium">
+              <FormField help={t("tableEditForm.calendarHelp")} size="medium">
                 <Select
-                  label={
-                    <FieldLabel
-                      text={t("tableEditForm.calendarLabel")}
-                      help={t("tableEditForm.calendarHelp")}
-                    />
-                  }
+                  label={t("tableEditForm.calendarLabel")}
                   data-testid="mv-calendar"
                   placeholder={
                     calendars.length
@@ -146,14 +141,9 @@ export function SnapshotSchedulePanel({
               />
             )}
             {editingTable.mvCalendar && (
-              <FormField size="short">
+              <FormField help={t("tableEditForm.allowedLatenessHelp")} size="short">
                 <NumberInput
-                  label={
-                    <FieldLabel
-                      text={t("tableEditForm.allowedLatenessLabel")}
-                      help={t("tableEditForm.allowedLatenessHelp")}
-                    />
-                  }
+                  label={t("tableEditForm.allowedLatenessLabel")}
                   data-testid="mv-allowed-lateness"
                   min={0}
                   step={60}
@@ -184,7 +174,7 @@ export function SnapshotSchedulePanel({
                 </FormField>
               )}
               {editingTable.mvCalendar && (
-                <FormField size="short">
+                <FormField help={t("tableEditForm.expectedAllHelp")} size="short">
                   <Checkbox
                     data-testid="mv-expected-all"
                     checked={editingTable.mvExpectedEvents === null}
@@ -196,12 +186,7 @@ export function SnapshotSchedulePanel({
                         mvExpectedEvents: e.currentTarget.checked ? null : [],
                       })
                     }
-                    label={
-                      <FieldLabel
-                        text={t("tableEditForm.expectedAllLabel")}
-                        help={t("tableEditForm.expectedAllHelp")}
-                      />
-                    }
+                    label={t("tableEditForm.expectedAllLabel")}
                   />
                 </FormField>
               )}

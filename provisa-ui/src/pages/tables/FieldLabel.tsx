@@ -13,10 +13,13 @@ export function FieldLabel({
   text,
   help,
   required = false,
+  textId,
 }: {
   text: string;
   help: string;
   required?: boolean;
+  /** From useHelpNaming, when the control is to be named by the text alone. */
+  textId?: string;
 }) {
-  return <LabelWithHelp label={text} help={help} required={required} />;
+  return <LabelWithHelp label={text} help={help} required={required} textId={textId} />;
 }

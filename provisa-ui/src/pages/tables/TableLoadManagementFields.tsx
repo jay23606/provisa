@@ -65,14 +65,9 @@ export function TableLoadManagementFields({
         </Text>
         <FormLayout>
           {/* The three settings share a line; what each one lists or reports follows beneath. */}
-          <FormField size="short">
+          <FormField help={t("tableEditForm.cacheTtlHelp")} size="short">
             <NumberInput
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.cacheTtlLabel")}
-                  help={t("tableEditForm.cacheTtlHelp")}
-                />
-              }
+              label={t("tableEditForm.cacheTtlLabel")}
               min={0}
               value={
                 cacheTtlEdits[editingTable.id]?.value ??
@@ -107,15 +102,10 @@ export function TableLoadManagementFields({
               testId="table-replicate-select"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField help={t("tableEditForm.loadProtectedHelp")} size="medium">
             <Select
               // REQ-1141: load protection — scheduled-refresh-only; the query path never pulls the source.
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.loadProtectedLabel")}
-                  help={t("tableEditForm.loadProtectedHelp")}
-                />
-              }
+              label={t("tableEditForm.loadProtectedLabel")}
               data={[
                 { value: "inherit", label: t("tableEditForm.inheritSource") },
                 { value: "on", label: t("tableEditForm.on") },
@@ -209,17 +199,12 @@ export function TableLoadManagementFields({
                       />
                     </Group>
                   </FormField>
-                  <FormField size="medium">
+                  <FormField help={t("tableEditForm.offPeakTzHelp")} size="medium">
                     <Select
                       // REQ-1141: IANA zone for the off-peak window. Picklist of the runtime's supported zones
                       // (Intl.supportedValuesOf) — the same identifiers ZoneInfo accepts server-side — so the
                       // window can never be saved against an unparseable zone.
-                      label={
-                        <FieldLabel
-                          text={t("tableEditForm.offPeakTzLabel")}
-                          help={t("tableEditForm.offPeakTzHelp")}
-                        />
-                      }
+                      label={t("tableEditForm.offPeakTzLabel")}
                       data={IANA_TIME_ZONES}
                       value={editingTable.offPeakTz ?? ""}
                       onChange={(v) =>

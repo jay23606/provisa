@@ -138,6 +138,9 @@ describe("FormLayout", () => {
     );
     expect(icon).toHaveAttribute("tabindex", "0");
     expect(screen.queryByText("One mailbox is connected by its owner.")).not.toBeInTheDocument();
+    // Named by the label's text alone; the help is the description, not part of the name.
+    expect(screen.getByRole("textbox", { name: "Whose mail" })).toBe(input);
+    expect(input).toHaveAttribute("aria-description", "One mailbox is connected by its owner.");
   });
 
   it("draws the required mark right after the label text, before the (?)", () => {
@@ -172,6 +175,10 @@ describe("FormLayout", () => {
     expect(ticks).toHaveClass("form-checks");
     expect(ticks).toContainElement(screen.getByLabelText("Cache enabled"));
     expect(ticks).toContainElement(screen.getByRole("img", { name: "Serve only what is fresh." }));
+    expect(screen.getByRole("checkbox", { name: "Freshness gate" })).toHaveAttribute(
+      "aria-description",
+      "Serve only what is fresh.",
+    );
   });
 
   it("refuses hint or help without the control as its only child", () => {

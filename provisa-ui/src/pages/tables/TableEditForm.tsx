@@ -197,14 +197,9 @@ export function TableEditForm({
         <>
           <FormLayout className="form-card" style={{ marginBottom: "0.75rem" }}>
             <FormIdentifiers>
-              <FormField size="medium">
+              <FormField help={t("tableEditForm.sqlAliasHelp")} size="medium">
                 <TextInput
-                  label={
-                    <FieldLabel
-                      text={t("tableEditForm.sqlAliasLabel")}
-                      help={t("tableEditForm.sqlAliasHelp")}
-                    />
-                  }
+                  label={t("tableEditForm.sqlAliasLabel")}
                   value={editingTable.alias || ""}
                   onChange={(e) =>
                     setEditingTable({
@@ -217,14 +212,9 @@ export function TableEditForm({
               </FormField>
             </FormIdentifiers>
             {/* The fields first, on shared lines; then every tick together; then the description and the sections. */}
-            <FormField size="medium">
+            <FormField help={t("tableEditForm.namingConventionHelp")} size="medium">
               <Select
-                label={
-                  <FieldLabel
-                    text={t("tableEditForm.namingConventionLabel")}
-                    help={t("tableEditForm.namingConventionHelp")}
-                  />
-                }
+                label={t("tableEditForm.namingConventionLabel")}
                 data={NAMING_CONVENTIONS.map((nc) => ({
                   value: nc.value,
                   label: nc.label,
@@ -278,14 +268,9 @@ export function TableEditForm({
                 />
               </FormField>
             )}
-            <FormField size="medium">
+            <FormField help={t("tableEditForm.changeSignalHelp")} size="medium">
               <Select
-                label={
-                  <FieldLabel
-                    text={t("tableEditForm.changeSignalLabel")}
-                    help={t("tableEditForm.changeSignalHelp")}
-                  />
-                }
+                label={t("tableEditForm.changeSignalLabel")}
                 data={[
                   { value: "", label: t("tableEditForm.csInherit") },
                   { value: "ttl", label: t("tableEditForm.csTtl") },
@@ -312,14 +297,9 @@ export function TableEditForm({
                 const caps = sourceProbeTypes(src?.type);
                 if (caps.length === 0) return null;
                 return (
-                  <FormField size="medium">
+                  <FormField help={t("tableEditForm.probeTypeHelp")} size="medium">
                     <Select
-                      label={
-                        <FieldLabel
-                          text={t("tableEditForm.probeTypeLabel")}
-                          help={t("tableEditForm.probeTypeHelp")}
-                        />
-                      }
+                      label={t("tableEditForm.probeTypeLabel")}
                       data={[
                         { value: "", label: t("tableEditForm.probeTypeAuto") },
                         ...caps.map((pt) => ({
@@ -346,14 +326,9 @@ export function TableEditForm({
               })()}
             {(editingTable.changeSignal === "probe" ||
               editingTable.changeSignal === "ttl_probe") && (
-              <FormField size="medium">
+              <FormField help={t("tableEditForm.freshnessProbeHelp")} size="medium">
                 <TextInput
-                  label={
-                    <FieldLabel
-                      text={t("tableEditForm.freshnessProbeLabel")}
-                      help={t("tableEditForm.freshnessProbeHelp")}
-                    />
-                  }
+                  label={t("tableEditForm.freshnessProbeLabel")}
                   value={editingTable.probeQuery ?? ""}
                   onChange={(e) =>
                     setEditingTable({
