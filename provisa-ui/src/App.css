@@ -2296,6 +2296,20 @@ main {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* The action row. flex-start is the logical start, so it is the right edge in a right-to-left
+ * language without a rule of its own. A button is as wide as its label, from one shared minimum. */
+.form-footer {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+}
+.form-footer .mantine-Button-root {
+  flex: 0 0 auto;
+  min-width: 5rem;
+}
 /* Transitional: a child a form has not wrapped in a FormField yet keeps a row to itself. Goes when
  * the guard's not-yet-converted list is empty. */
 .form-layout

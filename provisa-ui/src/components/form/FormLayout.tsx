@@ -106,3 +106,15 @@ export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElemen
     </section>
   );
 }
+
+/**
+ * A form's or dialog's action row: at the bottom, at the start of the line (left in a left-to-right
+ * language, right in a right-to-left one), primary action first. Buttons keep their natural width.
+ */
+export function FormFooter({ children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div {...rest} className={classes("form-footer", rest.className)}>
+      {children}
+    </div>
+  );
+}

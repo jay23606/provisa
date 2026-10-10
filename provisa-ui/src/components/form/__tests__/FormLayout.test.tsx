@@ -9,10 +9,10 @@
 // permission from the copyright holder.
 
 import { describe, it, expect, vi } from "vitest";
-import { TextInput } from "@mantine/core";
+import { Button, TextInput } from "@mantine/core";
 import { render, screen } from "../../../test-utils/render";
 import i18n from "../../../i18n";
-import { FieldGroup, FormField, FormIdentifiers, FormLayout } from "../FormLayout";
+import { FieldGroup, FormField, FormFooter, FormIdentifiers, FormLayout } from "../FormLayout";
 
 const t = i18n.getFixedT("en");
 
@@ -90,5 +90,33 @@ describe("FormLayout", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(element)).toThrow(`<${name}> must be rendered inside a <FormLayout>`);
     spy.mockRestore();
+  });
+
+  it("ends in an action row that keeps the primary action first", () => {
+    render(
+      <FormLayout data-testid="layout">
+        <FormField size="medium">
+          <TextInput label="Name" />
+        </FormField>
+        <FormFooter data-testid="footer">
+          <Button type="submit">Save</Button>
+          <Button variant="default">Cancel</Button>
+        </FormFooter>
+      </FormLayout>,
+    );
+    const footer = screen.getByTestId("footer");
+    expect(footer).toHaveClass("form-footer");
+    expect(screen.getByTestId("layout").lastElementChild).toBe(footer);
+    const names = Array.from(footer.querySelectorAll("button")).map((b) => b.textContent);
+    expect(names).toEqual(["Save", "Cancel"]);
+  });
+
+  it("serves a dialog with no fields: the action row needs no FormLayout", () => {
+    render(
+      <FormFooter>
+        <Button>Delete</Button>
+      </FormFooter>,
+    );
+    expect(screen.getByRole("button", { name: "Delete" }).parentElement).toHaveClass("form-footer");
   });
 });
