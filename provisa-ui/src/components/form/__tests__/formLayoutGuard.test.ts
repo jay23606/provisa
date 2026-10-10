@@ -76,7 +76,6 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
  */
 const NOT_YET_CONVERTED: readonly string[] = [
   "components/ChatPanel.tsx",
-  "components/ConfirmDialog.tsx",
   "components/DemonstratedFeature.tsx",
   "components/DependentsDialog.tsx",
   "components/JoinNotice.tsx",
