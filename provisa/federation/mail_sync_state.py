@@ -95,6 +95,52 @@ async def forget(conn: Any, source_id: str) -> None:
     )
 
 
+async def keep_links(conn: Any, source_id: str, account: str, links: dict[str, str]) -> None:
+    """Keep where a read of ``account`` reached in each of ``links``' scopes, in place of what
+    was kept for those scopes; every other scope of the mailbox stands. For a read that lands
+    a part at a time: each part's position is kept once its rows are written."""
+    async with conn.transaction():
+        for scope, link in links.items():
+            where = (
+                (mail_sync_state.c.source_id == source_id)
+                & (mail_sync_state.c.account == account.lower())
+                & (mail_sync_state.c.scope == scope)
+                & (mail_sync_state.c.kind == DELTA)
+            )
+            await conn.execute_core(delete(mail_sync_state).where(where))
+            await conn.execute_core(
+                mail_sync_state.insert().values(
+                    source_id=source_id,
+                    account=account.lower(),
+                    scope=scope,
+                    kind=DELTA,
+                    token=link,
+                    updated_at=datetime.now(UTC),
+                )
+            )
+
+
+async def forget_account(conn: Any, source_id: str, account: str) -> None:
+    """Keep nothing of what a read of ``account`` reached: it is read from its start next. The
+    owner's approval stands."""
+    await conn.execute_core(
+        delete(mail_sync_state).where(
+            mail_sync_state.c.source_id == source_id,
+            mail_sync_state.c.account == account.lower(),
+            mail_sync_state.c.kind.in_(KINDS),
+        )
+    )
+
+
+async def links_of(conn: Any, source_id: str) -> dict[str, dict[str, str]]:
+    """Where the last read of each mailbox of ``source_id`` reached: account -> scope -> link."""
+    kept: dict[str, dict[str, str]] = {}
+    for (account, scope, kind), token in (await read_all(conn, source_id)).items():
+        if kind == DELTA:
+            kept.setdefault(account, {})[scope] = token
+    return kept
+
+
 def _grant_of(source_id: str, account: str) -> Any:
     return (
         (mail_sync_state.c.source_id == source_id)

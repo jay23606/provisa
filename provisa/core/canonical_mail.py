@@ -607,6 +607,26 @@ def stamped(rows: list[dict], at: datetime) -> list[dict]:
     return rows
 
 
+@dataclass
+class Unit:
+    """What one part of a mailbox's read changes in the mail tables, to be written together:
+    a reader of the tables sees all of it or none of it.
+
+    ``removed`` names rows by part of their key (every recipient of one message; every row of
+    the mailbox) and is applied before ``rows``, so naming a message's dependants there and
+    giving its current ones in ``rows`` replaces them whole. ``links`` is where the read
+    reached, by the reader's own scope (a folder's id, the mailbox itself): kept once the unit's rows are written, never
+    before. ``forget`` says the links kept for the mailbox before this read no longer stand.
+    ``last`` marks the mailbox's last unit."""
+
+    account: str
+    rows: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    removed: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    links: dict[str, str] = field(default_factory=dict)
+    forget: bool = False
+    last: bool = False
+
+
 def key_columns(table: str) -> tuple[str, ...]:
     """The columns that identify a row of ``table``; empty for a table not kept by key."""
     return KEYS.get(table, ())
