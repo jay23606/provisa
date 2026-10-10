@@ -86,7 +86,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/OrgBrandingSettings.tsx",
   "components/OrgJoinSettings.tsx",
   "components/PersonalAccessTokens.tsx",
-  "components/PlatformAdminWelcomeModal.tsx",
   "components/SchemaDiscovery.tsx",
   "components/TableMappingBuilder.tsx",
   "components/TagControl.tsx",
