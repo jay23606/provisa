@@ -191,7 +191,7 @@ describe("TagsTab", () => {
     });
     // "source" is preselected from the active scope; add "column".
     fireEvent.click(screen.getByRole("checkbox", { name: t("tagsTab.scope_column") }));
-    fireEvent.click(screen.getByRole("button", { name: t("tagsTab.createButton") }));
+    fireEvent.click(screen.getByTestId("tags-save"));
     await waitFor(() =>
       expect(upsertSpy).toHaveBeenCalledWith(
         "gdpr",
@@ -212,7 +212,7 @@ describe("TagsTab", () => {
     });
     await pickPolicy("tags-reason-policy", t("tagsTab.policy_required"));
     await pickPolicy("tags-expires-policy", t("tagsTab.policy_hidden"));
-    fireEvent.click(screen.getByRole("button", { name: t("tagsTab.createButton") }));
+    fireEvent.click(screen.getByTestId("tags-save"));
     await waitFor(() =>
       expect(upsertSpy).toHaveBeenCalledWith("gdpr", "", ["source"], "required", "hidden", "none"),
     );
@@ -304,7 +304,7 @@ describe("TagsTab", () => {
       target: { value: "lifecycle" },
     });
     await pickPolicy("tags-param-policy", t("tagsTab.paramPolicy_required"));
-    fireEvent.click(screen.getByText(t("tagsTab.createButton")));
+    fireEvent.click(screen.getByTestId("tags-save"));
     await waitFor(() =>
       expect(upsertSpy).toHaveBeenCalledWith(
         "lifecycle",
