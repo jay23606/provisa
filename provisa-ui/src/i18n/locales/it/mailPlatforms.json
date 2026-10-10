@@ -21,7 +21,6 @@
     "redirectUnknown": "L’indirizzo di reindirizzamento non può essere mostrato perché l’indirizzo pubblico di questa installazione non è impostato.",
     "clientId": "ID client",
     "clientSecret": "Client secret",
-    "clientOptional": "Serve solo per le origini in cui una persona collega la propria casella di posta. Lascia vuoti entrambi i campi se ogni origine legge le caselle dell’organizzazione.",
     "setting": {
       "tenant": "ID della directory (tenant)",
       "admin_address": "Indirizzo dell’amministratore"
@@ -30,7 +29,8 @@
       "tenant": "La directory in cui si trovano gli account Microsoft 365 della tua organizzazione: il suo ID o il suo dominio, come Microsoft Entra lo mostra nella pagina Panoramica della registrazione dell’app.",
       "admin_address": "Un super amministratore del tuo dominio Google Workspace. La directory viene elencata come questo utente; la sua posta viene letta solo se un’origine lo indica."
     },
-    "organisationMailboxes": "Consenti le origini che leggono le caselle di posta dell’organizzazione",
+    "organisationMailboxes": "Leggi le caselle di posta dell’organizzazione",
+    "ownMailbox": "Consenti alle persone di collegare la propria casella di posta",
     "organisationMailboxesHelp": "Disattivato: un’origine legge solo la casella che una persona collega. Attivato: un’origine può leggere molte caselle dell’organizzazione con le credenziali dell’amministratore, e chi può leggerne le tabelle legge ogni casella, a meno che una regola sulle righe non lo limiti.",
     "organisationGrant": {
       "microsoft_365": "Per le origini che leggono le caselle di posta dell’organizzazione, assegna alla registrazione dell’app le autorizzazioni dell’applicazione Mail.Read e User.Read.All e concedi il consenso dell’amministratore.",

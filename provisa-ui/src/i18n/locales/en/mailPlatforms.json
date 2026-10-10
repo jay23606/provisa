@@ -21,7 +21,6 @@
     "redirectUnknown": "The redirect address cannot be shown because this deployment's public address is not set.",
     "clientId": "Client ID",
     "clientSecret": "Client secret",
-    "clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes.",
     "setting": {
       "tenant": "Directory (tenant) ID",
       "admin_address": "Administrator address"
@@ -30,7 +29,8 @@
       "tenant": "The directory your organization's Microsoft 365 accounts are in: its ID or its domain, as Microsoft Entra shows it on the app registration's Overview page.",
       "admin_address": "A super administrator of your Google Workspace domain. The directory is listed as this user; its mail is read only if a source names it."
     },
-    "organisationMailboxes": "Allow sources that read the organization's mailboxes",
+    "organisationMailboxes": "Read the organization's mailboxes",
+    "ownMailbox": "Let people connect their own mailbox",
     "organisationMailboxesHelp": "Off: a source reads only the one mailbox a person connects. On: a source may read many mailboxes of the organization with the administrator's credential, and anyone who may read its tables reads every mailbox unless a row rule limits them.",
     "organisationGrant": {
       "microsoft_365": "For sources that read the organization's mailboxes, give the app registration the application permissions Mail.Read and User.Read.All and grant admin consent.",

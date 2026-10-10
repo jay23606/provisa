@@ -1653,7 +1653,7 @@
   "ja/mailPlatforms.json::mailPlatforms.organisationKey": "Service account key",
   "ja/mailPlatforms.json::mailPlatforms.organisationKeyHelp": "The JSON of the key Google Cloud created for the service account, or a reference to a secret that holds it.",
   "ja/mailPlatforms.json::mailPlatforms.organisationKeyKeep": "A key is entered. Choose a file only to replace it.",
-  "ja/mailPlatforms.json::mailPlatforms.organisationMailboxes": "Allow sources that read the organization's mailboxes",
+  "ja/mailPlatforms.json::mailPlatforms.organisationMailboxes": "Read the organization's mailboxes",
   "ja/mailPlatforms.json::mailPlatforms.organisationMailboxesHelp": "Off: a source reads only the one mailbox a person connects. On: a source may read many mailboxes of the organization with the administrator's credential, and anyone who may read its tables reads every mailbox unless a row rule limits them.",
   "ja/mailPlatforms.json::mailPlatforms.organisationScopes": "Scopes to authorize",
   "ja/mailPlatforms.json::mailPlatforms.platform.google_workspace": "Google Workspace",
@@ -5508,6 +5508,7 @@
   "ja/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "ja/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
   "ja/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "ja/mailPlatforms.json::mailPlatforms.ownMailbox": "Let people connect their own mailbox",
   "ja/regionSelector.json::regionSelector.allRegions": "All regions",
   "ja/regionSelector.json::regionSelector.columnHeader": "Region",
   "ja/regionSelector.json::regionSelector.connectedRegion": "{{region}} (connected)",
@@ -5516,6 +5517,5 @@
   "ja/regionSelector.json::regionSelector.label": "Region",
   "ja/regionSelector.json::regionSelector.loadError": "Regions could not be loaded",
   "ja/regionSelector.json::regionSelector.noRegion": "No region",
-  "ja/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabledHelp": "When on, the answer to a query that reads this source may be kept and reused for the Cache TTL, but only for requests that ask for caching. When off, results that touch this source are never cached.",
-  "ja/mailPlatforms.json::mailPlatforms.clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes."
+  "ja/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabledHelp": "When on, the answer to a query that reads this source may be kept and reused for the Cache TTL, but only for requests that ask for caching. When off, results that touch this source are never cached."
 }
