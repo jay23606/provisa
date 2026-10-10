@@ -62,7 +62,7 @@ describe("RegisterTableForm reveals the domain it registered into", () => {
       "inventory-copies",
     );
     await user.selectOptions(await screen.findByTestId("register-table-table-select"), "getStore");
-    await waitFor(() => expect(screen.getByTestId("register-table-col-datatype-id")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
     await user.click(screen.getByTestId("register-table-submit"));
     await waitFor(() => expect(registerTable).toHaveBeenCalled());
     await waitFor(() => expect(ensureDomainChecked).toHaveBeenCalledWith("inventory-copies"));

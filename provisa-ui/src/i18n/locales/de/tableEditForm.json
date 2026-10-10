@@ -289,6 +289,13 @@
     },
     "pagingRowsFieldHelp": "Die Eigenschaft der Antwort, die die Zeilen enthält, etwa values oder data eines Seiten-Wrappers. Leer lassen, wenn die Antwort selbst die Zeilen ist. Die Spalten der Tabelle sind die der Objekte dort.",
     "pagingRowsFieldFixed": "Bei der Registrierung der Tabelle festgelegt. Registrieren Sie die Tabelle erneut, um ihre Zeilen von anderer Stelle zu lesen.",
-    "scopeHelp": "domain: für Rollen, die die Domäne dieser Tabelle erreichen. public: auch für Rollen außerhalb davon. restricted: nur für die unter „Sichtbar für“ genannten Rollen."
+    "scopeHelp": "domain: für Rollen, die die Domäne dieser Tabelle erreichen. public: auch für Rollen außerhalb davon. restricted: nur für die unter „Sichtbar für“ genannten Rollen.",
+    "columnTabs": {
+      "label": "Spaltenattribute",
+      "naming": "Benennung",
+      "type": "Typ und Schlüssel",
+      "access": "Zugriff",
+      "errors": "{{count}} zu beheben"
+    }
   }
 }

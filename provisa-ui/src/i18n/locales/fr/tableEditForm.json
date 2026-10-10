@@ -289,6 +289,13 @@
     },
     "pagingRowsFieldHelp": "La propriété de la réponse qui contient les lignes, comme values ou data dans une enveloppe de page. Laissez vide quand la réponse est elle-même les lignes. Les colonnes de la table sont celles des objets qui s'y trouvent.",
     "pagingRowsFieldFixed": "Défini à l'enregistrement de la table. Enregistrez de nouveau la table pour lire ses lignes ailleurs.",
-    "scopeHelp": "domain : servi aux rôles qui atteignent le domaine de cette table. public : aussi aux rôles en dehors. restricted : uniquement aux rôles nommés dans Visible par."
+    "scopeHelp": "domain : servi aux rôles qui atteignent le domaine de cette table. public : aussi aux rôles en dehors. restricted : uniquement aux rôles nommés dans Visible par.",
+    "columnTabs": {
+      "label": "Attributs de colonne",
+      "naming": "Nommage",
+      "type": "Type et clés",
+      "access": "Accès",
+      "errors": "{{count}} à corriger"
+    }
   }
 }

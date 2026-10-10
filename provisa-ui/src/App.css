@@ -576,6 +576,26 @@ main {
    * show above it. */
   overflow: auto;
 }
+/* A column's full definition in the hover on its name: label and value lines. */
+.column-definition {
+  margin: 0 0 0.25rem;
+  display: grid;
+  gap: 0.125rem;
+  font-size: 0.8rem;
+}
+.column-definition > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+}
+.column-definition dt {
+  color: var(--text-muted);
+}
+.column-definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* A list with a detail panel on its right (SplitPane). The two share the height the page's head
  * leaves; each scrolls by itself, so the list keeps its place while a long form is filled in. */
 .page-sticky-head > .split-pane {

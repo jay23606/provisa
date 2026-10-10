@@ -64,7 +64,9 @@ async function pickTable() {
   const user = userEvent.setup();
   await user.selectOptions(screen.getByTestId("register-table-source-select"), "src");
   await user.selectOptions(await screen.findByTestId("register-table-table-select"), "events");
-  await waitFor(() => expect(screen.getByTestId("register-table-col-datatype-id")).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
+  // A column's data type is edited on the Type and keys tab.
+  await user.click(screen.getByTestId("column-tab-type"));
   return user;
 }
 

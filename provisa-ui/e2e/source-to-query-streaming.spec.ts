@@ -423,6 +423,8 @@ test.describe("source to query through the UI — streaming/push types (REQ-1739
     await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
       timeout: 30000,
     });
+    // A column's data type and primary key are on the Type and keys tab of the column editor.
+    await page.getByTestId("column-tab-type").click();
     await page.getByTestId("register-table-col-pk-id").check();
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
@@ -493,6 +495,8 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
       timeout: 30000,
     });
+    // A column's data type and primary key are on the Type and keys tab of the column editor.
+    await page.getByTestId("column-tab-type").click();
     await page.getByTestId("register-table-col-pk-id").check();
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 

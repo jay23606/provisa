@@ -289,6 +289,13 @@
     },
     "pagingRowsFieldHelp": "响应中包含行的属性，例如分页包装中的 values 或 data。当响应本身就是行时请留空。表的列即该处对象的列。",
     "pagingRowsFieldFixed": "在注册表时设置。要从其他位置读取行，请重新注册该表。",
-    "scopeHelp": "domain：提供给可访问此表所在域的角色。public：也提供给该域之外的角色。restricted：仅提供给“可见对象”中指定的角色。"
+    "scopeHelp": "domain：提供给可访问此表所在域的角色。public：也提供给该域之外的角色。restricted：仅提供给“可见对象”中指定的角色。",
+    "columnTabs": {
+      "label": "列属性",
+      "naming": "命名",
+      "type": "类型与键",
+      "access": "访问",
+      "errors": "{{count}} 项待修正"
+    }
   }
 }

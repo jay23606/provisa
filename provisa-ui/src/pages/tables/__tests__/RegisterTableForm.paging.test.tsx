@@ -58,7 +58,7 @@ async function pickTable(name: string) {
   const user = userEvent.setup();
   await user.selectOptions(screen.getByTestId("register-table-source-select"), "petstore");
   await user.selectOptions(await screen.findByTestId("register-table-table-select"), name);
-  await waitFor(() => expect(screen.getByTestId("register-table-col-datatype-id")).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
   return user;
 }
 

@@ -5531,5 +5531,10 @@
   "zh/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
   "zh/tablesPage.json::tablesPage.resizeDetail": "Resize the detail panel",
   "zh/tablesPage.json::tablesPage.detailPanel": "Table details",
-  "zh/tablesPage.json::tablesPage.closeDetail": "Close the detail panel"
+  "zh/tablesPage.json::tablesPage.closeDetail": "Close the detail panel",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.label": "Column attributes",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.naming": "Naming",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.type": "Type and keys",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.access": "Access",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix"
 }
