@@ -611,6 +611,16 @@ main {
   font-weight: 400;
   color: var(--text);
 }
+/* The header cell holds the column's name and its filter row, so both stay at the top of the
+ * grid's own scroll area. border-collapse drops a sticky th's border; the divider is an inset
+ * shadow, as on the list pages. */
+.sql-results-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
 .sql-results-table th:last-child,
 .sql-results-table td:last-child {
   border-inline-end: none;

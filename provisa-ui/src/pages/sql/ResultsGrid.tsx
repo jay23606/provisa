@@ -389,7 +389,6 @@ export function ResultsGrid({
                     style={{
                       width: colWidths[c] ?? autoWidths[c] ?? 140,
                       minWidth: COL_MIN,
-                      position: "relative",
                     }}
                   >
                     <div className="th-label" onClick={() => handleSort(c)}>
