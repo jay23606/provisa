@@ -10,6 +10,8 @@
     "building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
     "buildingNoRate": "Replica building ({{how}}).",
     "buildingWaiting": "Replica building; waiting {{seconds}} s: {{by}} is throttling the read ({{how}}).",
+    "buildingPartial": "Replica building and already readable. Partial: {{done}} of {{total}} mailboxes read ({{how}}).",
+    "buildingParts": "Replica being brought up to date: {{done}} of {{total}} mailboxes checked ({{how}}).",
     "built": "Replica built {{when}}: {{rows}} rows ({{how}}).",
     "builtChecked": "Replica built {{when}}: {{rows}} rows ({{how}}). Checked {{checked}}, unchanged since.",
     "failed": "Replica build failed (attempt {{attempts}}; it is tried again): {{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "copied by the engine",
       "stream_batches": "streamed in batches",
       "store_pipeline": "loaded by the store's own pipeline",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "kept up to date in place"
     },
     "loadKind": {
       "bulk_stream": "bulk stream",
@@ -44,6 +47,7 @@
       "unreadable_messages": "Messages kept without their text, because a part is not what it declares: {{total}}. Their ids: {{ids}}",
       "mailboxes_left_out": "Mailboxes left out, because Microsoft or Google says they are not there or may not be read: {{total}}. They are: {{accounts}}",
       "mailboxes_at_quota": "Mailboxes left out, because they are at their storage quota and Microsoft will not track their changes until space is freed: {{total}}. They are: {{accounts}}",
+      "mailboxes_failed": "Mailboxes whose read failed part way: {{total}}. What was read of them is kept and their read continues at the next refresh. They are: {{accounts}}",
       "place_not_kept": "This copy is complete, but where its read reached could not be kept, so the next check for changes will ask for the read again: {{reason}}",
       "andMore": "{{ids}} and {{more}} more",
       "other": "The last build noted: {{code}}"

@@ -10,6 +10,8 @@
     "building": "副本构建中：已复制 {{rows}} 行，{{rate}} 行/秒（{{how}}）。",
     "buildingNoRate": "副本构建中（{{how}}）。",
     "buildingWaiting": "副本正在构建；等待 {{seconds}} 秒：{{by}} 正在限制读取（{{how}}）。",
+    "buildingPartial": "副本正在构建，并且已经可以读取。不完整：已读取 {{total}} 个邮箱中的 {{done}} 个（{{how}}）。",
+    "buildingParts": "副本正在更新：已检查 {{total}} 个邮箱中的 {{done}} 个（{{how}}）。",
     "built": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。",
     "builtChecked": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。检查于 {{checked}},此后未变化。",
     "failed": "副本构建失败（第 {{attempts}} 次尝试；将重试）：{{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "由引擎复制",
       "stream_batches": "分批流式传输",
       "store_pipeline": "由存储自身的管道加载",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "就地保持最新"
     },
     "loadKind": {
       "bulk_stream": "批量流",
@@ -44,6 +47,7 @@
       "unreadable_messages": "因某个部分与其声明不符而未保留正文的邮件:{{total}} 封。其 ID:{{ids}}",
       "mailboxes_left_out": "因 Microsoft 或 Google 表示不存在或不可读取而被排除的邮箱：{{total}} 个。它们是：{{accounts}}",
       "mailboxes_at_quota": "因已达到存储配额、在释放空间之前 Microsoft 不会跟踪其更改而被排除的邮箱：{{total}} 个。它们是：{{accounts}}",
+      "mailboxes_failed": "读取中途失败的邮箱：{{total}} 个。已读取的部分会保留，下次刷新时继续读取。它们是：{{accounts}}",
       "place_not_kept": "此副本已完成，但未能保存其读取到达的位置，因此下一次变更检查将再次请求读取：{{reason}}",
       "andMore": "{{ids}} 以及另外 {{more}} 封",
       "other": "上次构建的备注:{{code}}"

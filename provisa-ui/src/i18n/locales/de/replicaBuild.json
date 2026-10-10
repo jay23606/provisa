@@ -10,6 +10,8 @@
     "building": "Replikat wird gebaut: {{rows}} Zeilen kopiert, {{rate}} Zeilen/s ({{how}}).",
     "buildingNoRate": "Replikat wird gebaut ({{how}}).",
     "buildingWaiting": "Replikat wird erstellt; wartet {{seconds}} s: {{by}} drosselt das Lesen ({{how}}).",
+    "buildingPartial": "Replikat wird erstellt und ist bereits lesbar. Unvollständig: {{done}} von {{total}} Postfächern gelesen ({{how}}).",
+    "buildingParts": "Replikat wird aktualisiert: {{done}} von {{total}} Postfächern geprüft ({{how}}).",
     "built": "Replikat gebaut {{when}}: {{rows}} Zeilen ({{how}}).",
     "builtChecked": "Replikat gebaut {{when}}: {{rows}} Zeilen ({{how}}). Geprüft {{checked}}, seitdem unverändert.",
     "failed": "Replikat-Build fehlgeschlagen (Versuch {{attempts}}; wird erneut versucht): {{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "von der Engine kopiert",
       "stream_batches": "in Batches gestreamt",
       "store_pipeline": "von der eigenen Pipeline des Stores geladen",
-      "delta": "Delta"
+      "delta": "Delta",
+      "apply_units": "an Ort und Stelle aktuell gehalten"
     },
     "loadKind": {
       "bulk_stream": "Bulk-Stream",
@@ -44,6 +47,7 @@
       "unreadable_messages": "Nachrichten, die ohne ihren Text übernommen wurden, weil ein Teil nicht das ist, was er angibt: {{total}}. Ihre IDs: {{ids}}",
       "mailboxes_left_out": "Ausgelassene Postfächer, weil sie laut Microsoft oder Google nicht vorhanden sind oder nicht gelesen werden dürfen: {{total}}. Es sind: {{accounts}}",
       "mailboxes_at_quota": "Ausgelassene Postfächer, weil ihr Speicherkontingent erreicht ist und Microsoft ihre Änderungen erst wieder nachverfolgt, wenn Platz frei wird: {{total}}. Es sind: {{accounts}}",
+      "mailboxes_failed": "Postfächer, deren Lesen mittendrin fehlgeschlagen ist: {{total}}. Was von ihnen gelesen wurde, bleibt erhalten, und das Lesen wird bei der nächsten Aktualisierung fortgesetzt. Es sind: {{accounts}}",
       "place_not_kept": "Diese Kopie ist vollständig, aber es konnte nicht festgehalten werden, wie weit ihr Lesevorgang kam; die nächste Änderungsprüfung fordert den Lesevorgang daher erneut an: {{reason}}",
       "andMore": "{{ids}} und {{more}} weitere",
       "other": "Der letzte Build hat vermerkt: {{code}}"

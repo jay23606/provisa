@@ -724,6 +724,8 @@ query ReplicaBuilds {
       rowsPerSecond
       wait
       completedRows
+      progress
+      partial
       completedAt
       verifiedAt
       nextRefreshAt

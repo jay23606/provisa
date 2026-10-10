@@ -126,6 +126,15 @@ export function replicaBuildLine(
           how: how(build, t),
         });
       }
+      // A mail source's replica is written a part at a time and read meanwhile: it says how
+      // many of the source's mailboxes have been read to their end, not a rate of rows.
+      if (build.progress) {
+        return t(build.partial ? "replicaBuild.buildingPartial" : "replicaBuild.buildingParts", {
+          done: formatNumber(build.progress.done),
+          total: formatNumber(build.progress.total),
+          how: how(build, t),
+        });
+      }
       return build.rowsPerSecond !== null
         ? t("replicaBuild.building", {
             rows,
@@ -194,6 +203,14 @@ export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate):
       const named = ((params.accounts as string[] | undefined) ?? []).join(", ");
       const more = Number(params.more ?? 0);
       return t("replicaBuild.note.mailboxes_at_quota", {
+        total: Number(params.count ?? 0),
+        accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
+      });
+    }
+    if (code === "replication.mailboxes_failed") {
+      const named = ((params.accounts as string[] | undefined) ?? []).join(", ");
+      const more = Number(params.more ?? 0);
+      return t("replicaBuild.note.mailboxes_failed", {
         total: Number(params.count ?? 0),
         accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
       });

@@ -1591,7 +1591,8 @@ export interface ReplicaBuild {
   /** idle (built, nothing pending) | requested | building | failed | retired */
   state: string;
   requestedReason: string | null;
-  /** engine_statement | stream_batches | store_pipeline | delta, of the running or last build */
+  /** engine_statement | stream_batches | store_pipeline | delta | apply_units, of the running or
+   * last build */
   method: string | null;
   /** bulk_stream | row_copy */
   loadKind: string | null;
@@ -1605,6 +1606,11 @@ export interface ReplicaBuild {
   /** The rows of the last build that copied the whole table: an estimate of its size for a
    * running build's progress. Null before the first such build. */
   completedRows: number | null;
+  /** A running build that lands a part at a time: how many of the source's mailboxes it has
+   * read to their end. `first` says the replica had no copy before this build. */
+  progress?: { done: number; total: number; unit: string; first: boolean } | null;
+  /** The replica is read while its first build is still filling it. */
+  partial?: boolean;
   /** null: there is no replica yet. */
   completedAt: string | null;
   /** When its probe last found the source unchanged since that build; null: not since. */

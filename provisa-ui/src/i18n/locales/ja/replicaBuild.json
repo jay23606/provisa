@@ -10,6 +10,8 @@
     "building": "レプリカをビルド中: {{rows}} 行をコピー済み、{{rate}} 行/秒 ({{how}})。",
     "buildingNoRate": "レプリカをビルド中 ({{how}})。",
     "buildingWaiting": "レプリカを構築中。{{seconds}} 秒待機中: {{by}} が読み取りを制限しています（{{how}}）。",
+    "buildingPartial": "レプリカは構築中で、すでに読み取れます。一部のみ: {{total}} 件中 {{done}} 件のメールボックスを読み取り済み（{{how}}）。",
+    "buildingParts": "レプリカを最新の状態に更新中: {{total}} 件中 {{done}} 件のメールボックスを確認済み（{{how}}）。",
     "built": "レプリカは {{when}} にビルドされました: {{rows}} 行 ({{how}})。",
     "builtChecked": "レプリカは {{when}} にビルドされました: {{rows}} 行 ({{how}})。確認: {{checked}}、以降変更なし。",
     "failed": "レプリカのビルドに失敗しました（{{attempts}} 回目。再試行されます）: {{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "エンジンがコピー",
       "stream_batches": "バッチでストリーム",
       "store_pipeline": "ストア自身のパイプラインでロード",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "その場で最新に保たれます"
     },
     "loadKind": {
       "bulk_stream": "バルクストリーム",
@@ -44,6 +47,7 @@
       "unreadable_messages": "パートが宣言どおりの内容でないため、本文なしで保持されたメッセージ: {{total}} 件。ID: {{ids}}",
       "mailboxes_left_out": "Microsoft または Google から、存在しない、または読み取れないと示されたため除外されたメールボックス: {{total}} 件。対象: {{accounts}}",
       "mailboxes_at_quota": "ストレージ クォータに達しており、空き容量ができるまで Microsoft が変更を追跡しないため除外されたメールボックス: {{total}} 件。対象: {{accounts}}",
+      "mailboxes_failed": "読み取りが途中で失敗したメールボックス: {{total}} 件。読み取れた分は保持され、次回の更新で読み取りが続行されます。対象: {{accounts}}",
       "place_not_kept": "このコピーは完了していますが、読み取りの到達位置を保存できなかったため、次回の変更確認で再度読み取りが要求されます: {{reason}}",
       "andMore": "{{ids}} ほか {{more}} 件",
       "other": "前回のビルドの注記: {{code}}"

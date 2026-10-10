@@ -112,6 +112,46 @@ describe("replicaBuildLine", () => {
     );
   });
 
+  it("says a first build of a mail source is readable and partial, by mailboxes read", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "apply_units",
+        loadKind: "row_copy",
+        rowsCopied: 1200,
+        rowsPerSecond: 40,
+        progress: { done: 3, total: 40, unit: "mailboxes", first: true },
+        partial: true,
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingPartial {"done":"#3","total":"#40","how":"replicaBuild.method.apply_units, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
+  it("says a later pass over a replica that exists is bringing it up to date", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "apply_units",
+        loadKind: "row_copy",
+        progress: { done: 12, total: 40, unit: "mailboxes", first: false },
+        partial: false,
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingParts {"done":"#12","total":"#40","how":"replicaBuild.method.apply_units, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
   it("shows a build that has not reported progress yet without a rate", () => {
     const line = replicaBuildLine(
       build({ state: "building", method: "engine_statement", loadKind: "bulk_stream" }),
@@ -324,6 +364,20 @@ describe("replicaNoteLines", () => {
     expect(replicaNoteLines(noted, t)).toEqual([
       'replicaBuild.note.mailboxes_left_out {"total":2,"accounts":"a@contoso.test, b@contoso.test"}',
       'replicaBuild.note.mailboxes_left_out {"total":130,"accounts":"replicaBuild.note.andMore {\\"ids\\":\\"a@contoso.test\\",\\"more\\":129}"}',
+    ]);
+  });
+
+  it("names the mailboxes whose read failed part way", () => {
+    const noted = build({
+      buildNotes: [
+        {
+          code: "replication.mailboxes_failed",
+          params: { count: 1, accounts: ["slow@contoso.test"], more: 0 },
+        },
+      ],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.mailboxes_failed {"total":1,"accounts":"slow@contoso.test"}',
     ]);
   });
 

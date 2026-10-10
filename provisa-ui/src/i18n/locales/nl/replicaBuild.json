@@ -10,6 +10,8 @@
     "building": "Replica wordt gebouwd: {{rows}} rijen gekopieerd, {{rate}} rijen/s ({{how}}).",
     "buildingNoRate": "Replica wordt gebouwd ({{how}}).",
     "buildingWaiting": "Replica wordt opgebouwd; wacht {{seconds}} s: {{by}} beperkt het lezen ({{how}}).",
+    "buildingPartial": "Replica wordt opgebouwd en is al leesbaar. Gedeeltelijk: {{done}} van {{total}} postvakken gelezen ({{how}}).",
+    "buildingParts": "Replica wordt bijgewerkt: {{done}} van {{total}} postvakken gecontroleerd ({{how}}).",
     "built": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}).",
     "builtChecked": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}). Gecontroleerd {{checked}}, sindsdien ongewijzigd.",
     "failed": "Replica-build mislukt (poging {{attempts}}; wordt opnieuw geprobeerd): {{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "gekopieerd door de engine",
       "stream_batches": "in batches gestreamd",
       "store_pipeline": "geladen door de eigen pipeline van de store",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "ter plaatse bijgehouden"
     },
     "loadKind": {
       "bulk_stream": "bulkstream",
@@ -44,6 +47,7 @@
       "unreadable_messages": "Berichten die zonder hun tekst zijn bewaard omdat een onderdeel niet is wat het aangeeft: {{total}}. Hun ID’s: {{ids}}",
       "mailboxes_left_out": "Weggelaten postvakken, omdat ze volgens Microsoft of Google niet bestaan of niet gelezen mogen worden: {{total}}. Het zijn: {{accounts}}",
       "mailboxes_at_quota": "Weggelaten postvakken, omdat ze hun opslagquotum hebben bereikt en Microsoft hun wijzigingen pas weer volgt als er ruimte is vrijgemaakt: {{total}}. Het zijn: {{accounts}}",
+      "mailboxes_failed": "Postvakken waarvan het lezen halverwege is mislukt: {{total}}. Wat ervan is gelezen blijft bewaard en het lezen gaat verder bij de volgende vernieuwing. Het zijn: {{accounts}}",
       "place_not_kept": "Deze kopie is volledig, maar er kon niet worden vastgehouden tot waar de leesactie kwam, dus de volgende controle op wijzigingen vraagt de leesactie opnieuw aan: {{reason}}",
       "andMore": "{{ids}} en nog {{more}}",
       "other": "De laatste build meldde: {{code}}"

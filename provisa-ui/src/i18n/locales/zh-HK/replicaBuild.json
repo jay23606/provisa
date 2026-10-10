@@ -10,6 +10,8 @@
     "building": "複本建置中：已複製 {{rows}} 列，{{rate}} 列/秒（{{how}}）。",
     "buildingNoRate": "複本建置中（{{how}}）。",
     "buildingWaiting": "副本正在建立；等待 {{seconds}} 秒：{{by}} 正在限制讀取（{{how}}）。",
+    "buildingPartial": "副本正在建立，並且已經可以讀取。不完整：已讀取 {{total}} 個郵箱中的 {{done}} 個（{{how}}）。",
+    "buildingParts": "副本正在更新：已檢查 {{total}} 個郵箱中的 {{done}} 個（{{how}}）。",
     "built": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。",
     "builtChecked": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。檢查於 {{checked}},此後沒有變更。",
     "failed": "複本建置失敗（第 {{attempts}} 次嘗試；將會重試）：{{error}}",
@@ -20,7 +22,8 @@
       "engine_statement": "由引擎複製",
       "stream_batches": "分批串流",
       "store_pipeline": "由儲存區自身的管線載入",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "就地保持最新"
     },
     "loadKind": {
       "bulk_stream": "大量串流",
@@ -44,6 +47,7 @@
       "unreadable_messages": "因某個部分與其聲明不符而未保留內文的郵件:{{total}} 封。其 ID:{{ids}}",
       "mailboxes_left_out": "因 Microsoft 或 Google 表示不存在或不可讀取而被排除的信箱：{{total}} 個。它們是：{{accounts}}",
       "mailboxes_at_quota": "因已達到儲存配額、在釋放空間之前 Microsoft 不會追蹤其變更而被排除的信箱：{{total}} 個。它們是：{{accounts}}",
+      "mailboxes_failed": "讀取中途失敗的郵箱：{{total}} 個。已讀取的部分會保留，下次重新整理時繼續讀取。它們是：{{accounts}}",
       "place_not_kept": "此複本已完成，但未能儲存其讀取到達的位置，因此下一次變更檢查將再次要求讀取：{{reason}}",
       "andMore": "{{ids}} 以及另外 {{more}} 封",
       "other": "上次建置的備註:{{code}}"
