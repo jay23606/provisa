@@ -176,6 +176,27 @@ async def glob_token(source_path: str, file_glob: str) -> str | None:
 Transport = Callable[[], Awaitable["str | None"]]
 
 
+def can_probe(
+    probe_type: str,
+    *,
+    watermark_column: str | None = None,
+    sentinel_path: str | None = None,
+    source_path: str | None = None,
+    file_glob: str | None = None,
+) -> bool:
+    """Whether :func:`build_probe` has a transport that asks the source for a token, given a
+    SQL scalar runner and table ref for the types that need them. False is the cases
+    ``build_probe`` answers with no token every time: ``none``, and ``hash`` with nothing to
+    read a token from. The two are held together by tests/unit/test_probes.py."""
+    if file_glob and source_path:
+        return True
+    if probe_type == WATERMARK:
+        return watermark_column is not None
+    if probe_type == COUNT:
+        return True
+    return probe_type == HASH and bool(sentinel_path)
+
+
 def build_probe(
     probe_type: str,
     *,

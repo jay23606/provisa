@@ -185,3 +185,45 @@ async def test_build_probe_none_never_queries():
 async def test_build_probe_watermark_without_scalar_degrades():
     probe = probes.build_probe(probes.WATERMARK, query_scalar=None, ref=None, watermark_column="wm")
     assert await probe() is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("probe_type", sorted(probes.VALID_PROBE_TYPES))
+@pytest.mark.parametrize("watermark", [None, "updated_at"])
+@pytest.mark.parametrize("sentinel", [None, "/data/_SUCCESS"])
+@pytest.mark.parametrize("glob", [(None, None), ("/data", "*.csv")])
+async def test_can_probe_says_what_build_probe_can_ask_for(
+    probe_type, watermark, sentinel, glob, monkeypatch
+):
+    """REQ-855: a replica follows its probe only when the probe has a token to ask for. The
+    predicate and the builder must agree, case by case: a transport that asks is one that is
+    not the builder's own no-token answer."""
+    from provisa.events import sentinel_probe
+
+    asked: list[str] = []
+
+    async def scalar(_sql: str):
+        asked.append("sql")
+        return 1
+
+    async def glob_token(_path: str, _glob: str):
+        asked.append("glob")
+        return "g"
+
+    async def sentinel_token():
+        asked.append("sentinel")
+        return "s"
+
+    monkeypatch.setattr(probes, "glob_token", glob_token)
+    monkeypatch.setattr(sentinel_probe, "build_sentinel_probe", lambda _path: sentinel_token)
+    source_path, file_glob = glob
+    given = {
+        "watermark_column": watermark,
+        "sentinel_path": sentinel,
+        "source_path": source_path,
+        "file_glob": file_glob,
+    }
+    transport = probes.build_probe(probe_type, query_scalar=scalar, ref='"s"."t"', **given)
+    token = await transport()
+    assert probes.can_probe(probe_type, **given) is bool(asked)
+    assert (token is not None) is bool(asked)

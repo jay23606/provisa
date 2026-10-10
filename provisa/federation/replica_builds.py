@@ -335,10 +335,38 @@ async def _build_by_pipeline(
     )
 
 
+async def _probe_decides(state: Any, key: ReplicaKey, source: Any, table: Any) -> bool:
+    """Whether the table's own probe, and not its TTL, says when its replica is rebuilt
+    (REQ-855: under ``probe`` and ``ttl_probe`` a copy is rebuilt only when the probe says the
+    source changed). True for a replica a node of the event loop builds, whose change signal
+    probes and whose probe has a token to ask for; its node's timer runs that probe on the
+    table's TTL and asks for the build. A probe with no token to give degrades to the TTL
+    (REQ-982), and so does a replica no node watches."""
+    from provisa.core.change_signal import is_poll
+    from provisa.core.secrets import resolve_secrets
+    from provisa.events.probes import can_probe
+    from provisa.federation.residency import resolve_landing_args
+
+    if key not in (getattr(state, "replica_nodes", None) or {}):
+        return False
+    backend = state.federation_engine.engine.backend
+    args = resolve_landing_args(source, table, platform=backend.dialect)
+    if not is_poll(args.change_signal) or args.change_signal == "ttl":
+        return False
+    return can_probe(
+        args.probe_type,
+        watermark_column=args.watermark_column,
+        sentinel_path=getattr(source, "sentinel_path", None),  # REQ-1148
+        source_path=resolve_secrets(getattr(source, "path", "") or "") or None,  # REQ-788
+        file_glob=getattr(table, "file_glob", None),  # REQ-788
+    )
+
+
 def _next_refresh_at(state: Any) -> Any:
     """When a replica completed now is next due, by its declared cache TTL; None for a table
-    with no TTL of its own (its refresh is then only what a reader's tolerance asks for), and
-    for one that left the model while it was built."""
+    with no TTL of its own (its refresh is then only what a reader's tolerance asks for), for
+    one whose probe decides (:func:`_probe_decides`), and for one that left the model while it
+    was built."""
 
     async def due(key: ReplicaKey, now: datetime) -> datetime | None:
         from provisa.federation.role_ttl import declared_cache_ttl
@@ -348,7 +376,9 @@ def _next_refresh_at(state: Any) -> Any:
         except ReplicaTableGone:
             return None
         ttl = declared_cache_ttl(table, source)
-        return now + timedelta(seconds=ttl) if ttl else None
+        if not ttl or await _probe_decides(state, key, source, table):
+            return None
+        return now + timedelta(seconds=ttl)
 
     return due
 
