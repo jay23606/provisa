@@ -9,8 +9,8 @@
 // permission from the copyright holder.
 
 // REQ-826: the Replicate drop-down shared by the table form and the source's Load Management
-// panel — Default, Never, the Hot thresholds and Always; a non-standard stored threshold is shown
-// and kept; Never with load protection is flagged.
+// panel — Default, Live if possible (the stored -1), the Hot thresholds and Always; a non-standard stored threshold is shown
+// and kept; Live if possible with load protection is flagged.
 
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
@@ -27,7 +27,7 @@ import {
 
 const STANDARD = [
   "Default",
-  "Never",
+  "Live if possible",
   "Hot-50",
   "Hot-100",
   "Hot-500",
@@ -83,7 +83,7 @@ describe("ReplicateSelect", () => {
 
   it.each([
     [null, "Default"],
-    [-1, "Never"],
+    [-1, "Live if possible"],
     [0, "Always"],
     [500, "Hot-500"],
   ])("shows the stored value %s as %s", (stored, label) => {
@@ -98,7 +98,7 @@ describe("ReplicateSelect", () => {
     const { labels } = openOptions();
     expect(labels).toEqual([
       "Default",
-      "Never",
+      "Live if possible",
       "Hot-50",
       "Hot-100",
       "Hot-500",
@@ -116,7 +116,7 @@ describe("ReplicateSelect", () => {
     render(<Harness initial={null} onChange={onChange} />);
     for (const [label, value] of [
       ["Always", 0],
-      ["Never", -1],
+      ["Live if possible", -1],
       ["Hot-1000", 1000],
       ["Default", null],
     ] as const) {
@@ -126,9 +126,9 @@ describe("ReplicateSelect", () => {
     }
   });
 
-  it("flags Never when load protection is on, and only then", () => {
+  it("flags Live if possible when load protection is on, and only then", () => {
     const message =
-      "Never cannot be combined with load protection: a load-protected table is never read live.";
+      "Live if possible cannot be combined with load protection: a load-protected table is never read live.";
     const { unmount } = render(<Harness initial={-1} loadProtected />);
     expect(screen.getByText(message)).toBeInTheDocument();
     unmount();
@@ -164,7 +164,7 @@ describe("replicate values", () => {
     expect(saysReplicated(-1, false)).toBe(false);
   });
 
-  it("only Never contradicts load protection", () => {
+  it("only Live if possible contradicts load protection", () => {
     expect(replicateContradictsLoadProtection(-1, true)).toBe(true);
     for (const value of [null, 0, 500]) {
       expect(replicateContradictsLoadProtection(value, true)).toBe(false);

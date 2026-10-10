@@ -132,7 +132,7 @@ describe("SourceLoadManagementPanel", () => {
     expect(onForm).toHaveBeenLastCalledWith(expect.objectContaining({ replicate: 0 }));
   });
 
-  it("flags Never on a load-protected source", async () => {
+  it("flags Live if possible on a load-protected source", async () => {
     function Contradictory() {
       const [form, setForm] = useState<SourceFormState>({
         ...FORM,
@@ -145,7 +145,7 @@ describe("SourceLoadManagementPanel", () => {
     await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     expect(
       await screen.findByText(
-        "Never cannot be combined with load protection: a load-protected table is never read live.",
+        "Live if possible cannot be combined with load protection: a load-protected table is never read live.",
       ),
     ).toBeInTheDocument();
   });

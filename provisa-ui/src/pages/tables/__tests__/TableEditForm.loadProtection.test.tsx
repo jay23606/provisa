@@ -176,7 +176,7 @@ describe("TableEditForm — load protection + refresh-policy summary (REQ-1141/1
     expect(select).toHaveValue("Hot-750");
     fireEvent.click(select);
     const listbox = document.getElementById(select.getAttribute("aria-controls") as string);
-    fireEvent.click(within(listbox as HTMLElement).getByText("Never"));
+    fireEvent.click(within(listbox as HTMLElement).getByText("Live if possible"));
     expect(setEditingTable).toHaveBeenLastCalledWith(expect.objectContaining({ replicate: -1 }));
   });
 
