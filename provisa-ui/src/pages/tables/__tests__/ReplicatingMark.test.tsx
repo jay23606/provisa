@@ -114,6 +114,20 @@ describe("ReplicatingMark", () => {
     expect(ring()).toHaveAttribute("aria-label", "3 of 40 mailboxes read");
   });
 
+  it("turns, saying the count, until the first mailbox is read to its end", () => {
+    render(
+      <ReplicatingMark
+        build={build({
+          state: "building",
+          progress: { done: 0, total: 1, unit: "mailboxes", first: true },
+        })}
+      />,
+    );
+    expect(ring()).toHaveAttribute("data-turning", "true");
+    expect(ring()).not.toHaveAttribute("aria-valuenow");
+    expect(ring()).toHaveAttribute("aria-label", "0 of 1 mailboxes read");
+  });
+
   it("never shows a running build as complete", () => {
     render(
       <ReplicatingMark
@@ -263,7 +277,13 @@ describe("how far a running build has got", () => {
     });
     // Its last mailbox read, the build is still not complete until it says so.
     expect(of({ progress: { ...progress, done: 40 } }).percent).toBe(MOST_SHOWN_PERCENT);
-    expect(of({ progress: { ...progress, done: 0 } }).percent).toBe(0);
+    // Before its first mailbox is read to its end it turns, and still says the count.
+    expect(of({ progress: { ...progress, done: 0 } })).toEqual({
+      percent: null,
+      exact: true,
+      said: { key: "progressMailboxes", numbers: { done: 0, total: 40 } },
+    });
+    expect(of({ progress: { ...progress, done: 1 } }).percent).toBe(2);
     // No mailboxes to read measures nothing; the rows do, where they can.
     expect(of({ rowsCopied: 5, progress: { ...progress, total: 0 } }).said.key).toBe(
       "progressRows",
