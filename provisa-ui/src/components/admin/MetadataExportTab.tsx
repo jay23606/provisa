@@ -35,6 +35,7 @@ import {
   type MetadataExportUpdate,
   type PublishOutcome,
 } from "../../api/metadataExport";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-1074: configure and operate the per-org metadata export target.
 //
@@ -166,64 +167,81 @@ export function MetadataExportTab() {
 
   const c = s.config;
   const secretField = (field: SecretField, label: string, isSet: boolean) => (
-    <TextInput
-      label={label}
-      type="password"
-      data-testid={`metadata-export-${field.replace(/_/g, "-")}`}
-      placeholder={isSet ? t("metadataExportTab.secretSet") : t("metadataExportTab.secretUnset")}
-      description={t("metadataExportTab.secretHelp")}
-      value={secrets[field] ?? ""}
-      onChange={(e) => setSecrets({ ...secrets, [field]: e.currentTarget.value })}
-    />
+    <FormField help={t("metadataExportTab.secretHelp")} size="medium">
+      <TextInput
+        label={label}
+        type="password"
+        data-testid={`metadata-export-${field.replace(/_/g, "-")}`}
+        placeholder={isSet ? t("metadataExportTab.secretSet") : t("metadataExportTab.secretUnset")}
+        value={secrets[field] ?? ""}
+        onChange={(e) => setSecrets({ ...secrets, [field]: e.currentTarget.value })}
+      />
+    </FormField>
   );
 
   return (
-    <Stack maw={860} gap="md" data-tour="metadata-export">
-      <Text c="dimmed" size="sm">
-        {t("metadataExportTab.intro")}
-      </Text>
+    <FormLayout>
+      <FormField size="full">
+        <Text c="dimmed" size="sm">
+          {t("metadataExportTab.intro")}
+        </Text>
+      </FormField>
 
-      <Checkbox
-        label={t("metadataExportTab.enabled")}
-        data-testid="metadata-export-enabled"
-        checked={c.enabled}
-        onChange={(e) => patch({ enabled: e.currentTarget.checked })}
-      />
-      <Select
-        label={t("metadataExportTab.provider")}
-        data-testid="metadata-export-provider"
-        data={s.providers.map((p) => ({ value: p, label: p }))}
-        value={c.provider || null}
-        onChange={(v) => patch({ provider: v ?? "" })}
-      />
-      <TextInput
-        label={t("metadataExportTab.endpoint")}
-        data-testid="metadata-export-endpoint"
-        value={c.endpoint}
-        onChange={(e) => patch({ endpoint: e.currentTarget.value })}
-      />
-      <Select
-        label={t("metadataExportTab.authMode")}
-        data-testid="metadata-export-auth-mode"
-        data={AUTH_MODES}
-        value={c.auth_mode}
-        onChange={(v) => patch({ auth_mode: v ?? "api_key" })}
-      />
+      <FormChecks>
+        <FormField size="long">
+          <Checkbox
+            label={t("metadataExportTab.enabled")}
+            data-testid="metadata-export-enabled"
+            checked={c.enabled}
+            onChange={(e) => patch({ enabled: e.currentTarget.checked })}
+          />
+        </FormField>
+      </FormChecks>
+      <FormField size="medium">
+        <Select
+          label={t("metadataExportTab.provider")}
+          data-testid="metadata-export-provider"
+          data={s.providers.map((p) => ({ value: p, label: p }))}
+          value={c.provider || null}
+          onChange={(v) => patch({ provider: v ?? "" })}
+        />
+      </FormField>
+      <FormField size="long">
+        <TextInput
+          label={t("metadataExportTab.endpoint")}
+          data-testid="metadata-export-endpoint"
+          value={c.endpoint}
+          onChange={(e) => patch({ endpoint: e.currentTarget.value })}
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("metadataExportTab.authMode")}
+          data-testid="metadata-export-auth-mode"
+          data={AUTH_MODES}
+          value={c.auth_mode}
+          onChange={(v) => patch({ auth_mode: v ?? "api_key" })}
+        />
+      </FormField>
 
       {c.auth_mode === ENTRA_MODE ? (
         <>
-          <TextInput
-            label={t("metadataExportTab.entraTenantId")}
-            data-testid="metadata-export-entra-tenant-id"
-            value={c.entra_tenant_id}
-            onChange={(e) => patch({ entra_tenant_id: e.currentTarget.value })}
-          />
-          <TextInput
-            label={t("metadataExportTab.entraClientId")}
-            data-testid="metadata-export-entra-client-id"
-            value={c.entra_client_id}
-            onChange={(e) => patch({ entra_client_id: e.currentTarget.value })}
-          />
+          <FormField size="medium">
+            <TextInput
+              label={t("metadataExportTab.entraTenantId")}
+              data-testid="metadata-export-entra-tenant-id"
+              value={c.entra_tenant_id}
+              onChange={(e) => patch({ entra_tenant_id: e.currentTarget.value })}
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("metadataExportTab.entraClientId")}
+              data-testid="metadata-export-entra-client-id"
+              value={c.entra_client_id}
+              onChange={(e) => patch({ entra_client_id: e.currentTarget.value })}
+            />
+          </FormField>
           {secretField(
             "entra_client_secret",
             t("metadataExportTab.entraClientSecret"),
@@ -232,12 +250,14 @@ export function MetadataExportTab() {
         </>
       ) : c.auth_mode === BASIC_MODE ? (
         <>
-          <TextInput
-            label={t("metadataExportTab.username")}
-            data-testid="metadata-export-username"
-            value={c.username}
-            onChange={(e) => patch({ username: e.currentTarget.value })}
-          />
+          <FormField size="medium">
+            <TextInput
+              label={t("metadataExportTab.username")}
+              data-testid="metadata-export-username"
+              value={c.username}
+              onChange={(e) => patch({ username: e.currentTarget.value })}
+            />
+          </FormField>
           {/* The password rides in the same `token` field the bearer mode uses — one stored
               secret per config, read by whichever mode is selected. */}
           {secretField("token", t("metadataExportTab.password"), c.token_set)}
@@ -250,24 +270,28 @@ export function MetadataExportTab() {
         )
       )}
 
-      <TextInput
-        label={t("metadataExportTab.reconcileCron")}
-        description={t("metadataExportTab.reconcileCronHelp")}
-        data-testid="metadata-export-reconcile-cron"
-        value={c.reconcile_cron}
-        onChange={(e) => patch({ reconcile_cron: e.currentTarget.value })}
-      />
-      <NumberInput
-        label={t("metadataExportTab.timeout")}
-        data-testid="metadata-export-timeout"
-        value={c.timeout_seconds}
-        onChange={(v) => patch({ timeout_seconds: Number(v) || 0 })}
-      />
+      <FormField help={t("metadataExportTab.reconcileCronHelp")} size="medium">
+        <TextInput
+          label={t("metadataExportTab.reconcileCron")}
+          data-testid="metadata-export-reconcile-cron"
+          value={c.reconcile_cron}
+          onChange={(e) => patch({ reconcile_cron: e.currentTarget.value })}
+        />
+      </FormField>
+      <FormField size="short">
+        <NumberInput
+          label={t("metadataExportTab.timeout")}
+          data-testid="metadata-export-timeout"
+          value={c.timeout_seconds}
+          onChange={(v) => patch({ timeout_seconds: Number(v) || 0 })}
+        />
+      </FormField>
 
-      <Group>
-        <Button onClick={save} loading={busy === "save"} data-testid="metadata-export-save">
-          {t("metadataExportTab.save")}
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={busy === "save"}
+        saveProps={{ "data-testid": "metadata-export-save" }}
+      >
         <Button
           variant="default"
           onClick={runHealth}
@@ -284,61 +308,69 @@ export function MetadataExportTab() {
         >
           {t("metadataExportTab.publishNow")}
         </Button>
-      </Group>
+      </FormFooter>
 
       {msg && (
-        <Alert color="green" icon={<Check size={16} />} data-testid="metadata-export-saved">
-          {msg}
-        </Alert>
+        <FormField size="full">
+          <Alert color="green" icon={<Check size={16} />} data-testid="metadata-export-saved">
+            {msg}
+          </Alert>
+        </FormField>
       )}
       {error && (
-        <Alert color="red" icon={<TriangleAlert size={16} />} data-testid="metadata-export-error">
-          {error}
-        </Alert>
+        <FormField size="full">
+          <Alert color="red" icon={<TriangleAlert size={16} />} data-testid="metadata-export-error">
+            {error}
+          </Alert>
+        </FormField>
       )}
       {health && (
-        <Alert
-          color={health.ok ? "green" : "red"}
-          icon={health.ok ? <Check size={16} /> : <TriangleAlert size={16} />}
-          data-testid="metadata-export-health-result"
-        >
-          {health.ok ? t("metadataExportTab.healthOk") : health.error}
-        </Alert>
+        <FormField size="full">
+          <Alert
+            color={health.ok ? "green" : "red"}
+            icon={health.ok ? <Check size={16} /> : <TriangleAlert size={16} />}
+            data-testid="metadata-export-health-result"
+          >
+            {health.ok ? t("metadataExportTab.healthOk") : health.error}
+          </Alert>
+        </FormField>
       )}
 
       {publish && (
-        <Stack gap="xs" data-testid="metadata-export-last-publish">
-          <Group gap="xs">
-            <Title order={5}>{t("metadataExportTab.lastPublishHeading")}</Title>
-            <Badge color={publish.ok ? "green" : "red"}>
-              {publish.ok
-                ? t("metadataExportTab.publishComplete", { count: publish.total_published })
-                : t("metadataExportTab.publishPartial", {
-                    count: publish.total_published,
-                    failed: publish.errors.length,
-                  })}
-            </Badge>
-          </Group>
-          {publish.errors.length > 0 && (
-            <Table data-testid="metadata-export-publish-errors">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("metadataExportTab.errorAsset")}</Table.Th>
-                  <Table.Th>{t("metadataExportTab.errorMessage")}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {publish.errors.map((e) => (
-                  <Table.Tr key={`${e.asset}:${e.message}`}>
-                    <Table.Td>{e.asset}</Table.Td>
-                    <Table.Td>{e.message}</Table.Td>
+        <FormField size="full">
+          <Stack gap="xs" data-testid="metadata-export-last-publish">
+            <Group gap="xs">
+              <Title order={5}>{t("metadataExportTab.lastPublishHeading")}</Title>
+              <Badge color={publish.ok ? "green" : "red"}>
+                {publish.ok
+                  ? t("metadataExportTab.publishComplete", { count: publish.total_published })
+                  : t("metadataExportTab.publishPartial", {
+                      count: publish.total_published,
+                      failed: publish.errors.length,
+                    })}
+              </Badge>
+            </Group>
+            {publish.errors.length > 0 && (
+              <Table data-testid="metadata-export-publish-errors">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t("metadataExportTab.errorAsset")}</Table.Th>
+                    <Table.Th>{t("metadataExportTab.errorMessage")}</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Stack>
+                </Table.Thead>
+                <Table.Tbody>
+                  {publish.errors.map((e) => (
+                    <Table.Tr key={`${e.asset}:${e.message}`}>
+                      <Table.Td>{e.asset}</Table.Td>
+                      <Table.Td>{e.message}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Stack>
+        </FormField>
       )}
-    </Stack>
+    </FormLayout>
   );
 }
