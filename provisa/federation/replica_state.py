@@ -200,6 +200,9 @@ REASONS = (
 
 _t = replica_state.c
 
+#: The build method of a build that applied changes to the replica it had (REQ-874).
+DELTA_METHOD = "delta"
+
 
 @dataclass(frozen=True)
 class ReplicaRecord:
@@ -237,6 +240,9 @@ class ReplicaRecord:
     build_notes: list = field(default_factory=list)
     #: When the table's probe last found the source unchanged since the build; None: not since.
     verified_at: datetime | None = None
+    #: The rows of the last build that copied the whole table; None: there has been none. It
+    #: outlives the start of the next build, whose progress is measured against it.
+    completed_rows: int | None = None
 
     @property
     def current_at(self) -> datetime | None:
@@ -291,6 +297,7 @@ _COLUMNS = (
     _t.delta_skipped,
     _t.build_notes,
     _t.verified_at,
+    _t.completed_rows,
 )
 
 
@@ -334,6 +341,7 @@ def _record(row: Any) -> ReplicaRecord:
         # NULL is a replica no build has completed for, which has no notes.
         build_notes=row[29] if row[29] is not None else [],
         verified_at=_aware(row[30]),
+        completed_rows=row[31],
     )
 
 
@@ -725,6 +733,9 @@ async def record_completed(
                 ),
                 build_holder=None,
                 rows_copied=rows_copied,
+                # A delta copies the changes only: its count says nothing of the table's size,
+                # so the last whole build's count stands.
+                **({} if method == DELTA_METHOD else {"completed_rows": rows_copied}),
                 build_method=method,
                 completed_at=now,
                 verified_at=None,

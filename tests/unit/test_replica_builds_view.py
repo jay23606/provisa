@@ -30,6 +30,7 @@ def _record(**kw):
         build_method=None,
         load_kind=None,
         rows_copied=None,
+        completed_rows=None,
         completed_at=None,
         next_refresh_at=None,
         last_error=None,
@@ -151,3 +152,19 @@ def test_a_copy_its_probe_found_unchanged_shows_when_it_was_checked():
 def test_a_build_with_nothing_to_say_shows_no_note():
     view = build_view(_record(completed_at=NOW), NOW)
     assert view["build_notes"] == []
+
+
+def test_a_running_build_is_shown_with_the_last_whole_builds_rows():
+    """What its progress is measured against; None for a table never built whole."""
+    started = NOW - timedelta(seconds=10)
+    view = build_view(
+        _record(
+            build_state="building",
+            build_started_at=started,
+            rows_copied=12400,
+            completed_rows=20000,
+        ),
+        NOW,
+    )
+    assert (view["rows_copied"], view["completed_rows"]) == (12400, 20000)
+    assert build_view(_record(build_state="building"), NOW)["completed_rows"] is None

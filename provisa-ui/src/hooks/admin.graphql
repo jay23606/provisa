@@ -722,6 +722,7 @@ query ReplicaBuilds {
       startedAt
       rowsCopied
       rowsPerSecond
+      completedRows
       completedAt
       verifiedAt
       nextRefreshAt

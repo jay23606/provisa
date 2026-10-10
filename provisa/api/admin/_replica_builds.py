@@ -55,6 +55,9 @@ def build_view(record: Any, now: datetime) -> dict:
         "started_at": _iso(record.build_started_at),
         "rows_copied": record.rows_copied,
         "rows_per_second": rate,
+        # The rows of the last build that copied the whole table: what a running build's
+        # progress is shown against, as an estimate. None before the first such build.
+        "completed_rows": record.completed_rows,
         "completed_at": _iso(record.completed_at),
         # REQ-855: when its probe last found the source unchanged since that build.
         "verified_at": _iso(record.verified_at),

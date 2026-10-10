@@ -428,3 +428,53 @@ async def test_a_readers_age_is_measured_from_the_verification(conn):
     state = _freshness_state(record, "store-a")
     assert state["last_refresh_at"] == verified.timestamp()
     assert _freshness_state(record, "another-store")["last_refresh_at"] is None
+
+
+async def _whole_build(conn, now, *, rows: int, method: str = "stream_batches") -> None:
+    retry = RetryPolicy(60, 3600)
+    await build_state.request_build(conn, KEY, build_state.REASON_REFRESH, now=now)
+    assert await build_state.claim(conn, KEY, holder="h:1", retry=retry, now=now)
+    await build_state.record_completed(
+        conn,
+        KEY,
+        rows_copied=rows,
+        method=method,
+        content_hash=None,
+        store="store-a",
+        next_refresh_at=None,
+        now=now,
+    )
+
+
+async def test_the_last_whole_builds_rows_are_kept_while_the_next_build_runs(conn):
+    """A running build's progress is measured against them; its own count starts from 0."""
+    now = datetime.now(UTC)
+    await build_state.request_build(conn, KEY, build_state.REASON_MODEL)
+    assert (await build_state.read(conn, KEY)).completed_rows is None  # never built
+    await _whole_build(conn, now, rows=20000)
+    assert (await build_state.read(conn, KEY)).completed_rows == 20000
+
+    await build_state.request_build(conn, KEY, build_state.REASON_REFRESH, now=now)
+    await build_state.claim(conn, KEY, holder="h:1", retry=RetryPolicy(60, 3600), now=now)
+    await build_state.record_progress(conn, KEY, rows_copied=12400)
+    running = await build_state.read(conn, KEY)
+    assert (running.build_state, running.rows_copied, running.completed_rows) == (
+        "building",
+        12400,
+        20000,
+    )
+    # A build that fails leaves them; the next whole build replaces them.
+    await build_state.record_failed(conn, KEY, error="refused", now=now)
+    assert (await build_state.read(conn, KEY)).completed_rows == 20000
+    await _whole_build(conn, now + timedelta(hours=2), rows=21000)
+    assert (await build_state.read(conn, KEY)).completed_rows == 21000
+
+
+async def test_a_build_that_applied_changes_only_leaves_the_last_whole_builds_rows(conn):
+    """Its count is the changes, which says nothing of the table's size."""
+    now = datetime.now(UTC)
+    await build_state.request_build(conn, KEY, build_state.REASON_MODEL)
+    await _whole_build(conn, now, rows=20000)
+    await _whole_build(conn, now + timedelta(hours=1), rows=37, method=build_state.DELTA_METHOD)
+    record = await build_state.read(conn, KEY)
+    assert (record.rows_copied, record.completed_rows) == (37, 20000)

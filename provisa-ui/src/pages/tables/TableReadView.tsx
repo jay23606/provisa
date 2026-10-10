@@ -24,6 +24,8 @@ import {
 } from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
 import type { RegisteredTable, DataProduct } from "../../types/admin";
+import type { ReplicaBuild } from "../../api/admin";
+import { ReplicatingMark } from "./ReplicatingMark";
 import { computeProfile } from "./helpers";
 import { TagControl } from "../../components/TagControl";
 import { ColumnGlossaryHover } from "./ColumnGlossaryHover";
@@ -38,6 +40,8 @@ interface TableProfileResult {
 
 interface TableReadViewProps {
   t: RegisteredTable;
+  /** The table's replica build as last reported; undefined when it has none. */
+  build?: ReplicaBuild;
   dataProducts: DataProduct[]; // REQ-1634
   navigate: NavigateFunction;
   viewsOnly: boolean;
@@ -68,6 +72,7 @@ interface TableReadViewProps {
 
 export function TableReadView({
   t: table,
+  build,
   dataProducts,
   navigate,
   viewsOnly,
@@ -301,6 +306,7 @@ export function TableReadView({
         </Group>
       )}
       <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
+        <ReplicatingMark build={build} size="detail" />
         {table.viewSql && (
           <Button
             size="compact-sm"
