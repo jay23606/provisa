@@ -5528,5 +5528,8 @@
   "es/viewDefinitionForm.json::viewDefinitionForm.save": "Save view",
   "es/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "es/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
+  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "es/tablesPage.json::tablesPage.resizeDetail": "Resize the detail panel",
+  "es/tablesPage.json::tablesPage.detailPanel": "Table details",
+  "es/tablesPage.json::tablesPage.closeDetail": "Close the detail panel"
 }

@@ -36,7 +36,7 @@ export function ColumnsTable({
 }) {
   const { t } = useTranslation();
   return (
-  <Table.ScrollContainer minWidth={1050}>
+  <Table.ScrollContainer minWidth={1300}>
     <Table striped highlightOnHover withTableBorder verticalSpacing="xs">
       <Table.Thead>
         <Table.Tr>

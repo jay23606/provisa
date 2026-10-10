@@ -576,6 +576,93 @@ main {
    * show above it. */
   overflow: auto;
 }
+/* A list with a detail panel on its right (SplitPane). The two share the height the page's head
+ * leaves; each scrolls by itself, so the list keeps its place while a long form is filled in. */
+.page-sticky-head > .split-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.split-pane {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.split-pane__list {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The list keeps every column: what the panel leaves it too little room for scrolls sideways. */
+.split-pane__list > .table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.split-pane__list > .table-scroll > table {
+  width: max-content;
+  min-width: 100%;
+}
+.split-pane__list > :not(.table-scroll) {
+  flex: 0 0 auto;
+}
+/* The rule between the two IS the grab handle: a 1px line inside a wider hit area. */
+.split-pane__handle {
+  flex: 0 0 9px;
+  margin-inline: -0.375rem;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+}
+.split-pane__handle > div {
+  width: 1px;
+  background: var(--border);
+}
+.split-pane__handle:focus-visible > div,
+.split-pane__handle:hover > div {
+  width: 3px;
+  background: var(--primary);
+}
+.split-pane__panel {
+  flex: 0 0 auto;
+  width: 60%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.split-pane__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.split-pane__head h4 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.split-pane__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+/* A form in the panel is the panel's own content: it needs no card of its own inside it. */
+.split-pane__body > .form-card {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
 /* An open form (Register Table/Source/Relationship) takes its natural height and is never an
  * inner scroll box: squeezed between the header and the table it hid its own first and last rows
  * (the identity section, Save and Cancel). While a form is open the whole page scrolls instead,

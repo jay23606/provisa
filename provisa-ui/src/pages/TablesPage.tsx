@@ -94,7 +94,6 @@ import {
   ListHead,
   ListGroupRow,
   ListRow,
-  ListExpandRow,
   ListEmpty,
 } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
@@ -102,6 +101,7 @@ import { PageLoading } from "../components/PageLoading";
 import { useCapability } from "../hooks/useCapability";
 import { hidingDomains } from "../lib/capabilities";
 import { domainToSqlName } from "../naming";
+import { SplitPane } from "../components/list/SplitPane";
 
 export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) {
   // REQ-1918: a delete is refused while anything depends on the object; this lists them.
@@ -150,14 +150,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   // Table awaiting native-param entry before its profile sample can run.
   const [profileParamsTable, setProfileParamsTable] = useState<RegisteredTable | null>(null);
   const [showForm, setShowForm] = useState(false);
-  // REQ-1829: opening the form below the current scroll position (e.g. after Polly's
-  // register_table_now leaves the page scrolled into the table list) left its own top fields
-  // (Source/Domain) clipped under the sticky header, only visible by scrolling up manually —
-  // scroll it fully into view the moment it opens instead.
-  const registerFormRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (showForm) registerFormRef.current?.scrollIntoView({ block: "start" });
-  }, [showForm]);
   const [showModeling, setShowModeling] = useState(false); // REQ-1164: entity/fact modeling modal
   // REQ-1318: Views-page definition-mode flow (SQL editor vs metric/dimension picker).
   const [showViewForm, setShowViewForm] = useState(false);
@@ -708,6 +700,158 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   if (loading || (tablesLoading && tables.length === 0))
     return <PageLoading message={translate("tablesPage.loading")} />;
 
+  // The right-hand panel: a create form while one is open, otherwise the selected table -- its
+  // read view, or its edit form once editing has begun. Nothing selected: no panel, and the list
+  // has the page.
+  const closePanel = () => {
+    setShowForm(false);
+    setShowViewForm(false);
+    setShowModeling(false);
+    setExpanded(null);
+    cancelEditing();
+  };
+  const selectedTable =
+    expanded === null ? null : (tables.find((tb) => tb.id === expanded) ?? null);
+  const panelBody =
+    showForm && !viewsOnly ? (
+      <RegisterTableForm
+        sources={sources}
+        domainHints={domainHints}
+        domainAccess={domainAccess}
+        checkedDomains={checkedDomains}
+        domainsEnabled={domainsEnabled}
+        tables={tables}
+        roles={roles}
+        getAvailableColumnsMetadata={getAvailableColumnsMetadata}
+        suggestTableAlias={suggestTableAlias}
+        registerTable={registerTable}
+        onSuccess={() => {
+          setShowForm(false);
+          reload();
+        }}
+        onCancel={() => setShowForm(false)}
+        setError={setError}
+      />
+    ) : showViewForm && viewsOnly ? (
+      <ViewDefinitionForm
+        editing={null}
+        tables={tables}
+        relationships={relationships}
+        domainHints={domainHints}
+        registerTable={registerTable}
+        updateTable={updateTable}
+        onSuccess={() => {
+          setShowViewForm(false);
+          reload();
+        }}
+        onCancel={() => setShowViewForm(false)}
+      />
+    ) : showModeling ? (
+      <ModelingForm
+        domains={domains}
+        onSuccess={() => {
+          setShowModeling(false);
+          reload();
+        }}
+        onCancel={() => setShowModeling(false)}
+      />
+    ) : selectedTable ? (
+      ((t: RegisteredTable) => (
+        <>
+          {editingTable?.id !== t.id ? (
+            <TableReadView
+              t={t}
+              build={buildOf(replicaBuilds?.builds, t)}
+              hidingOnly={hidingOnly}
+              dataProducts={dataProducts}
+              navigate={navigate}
+              viewsOnly={viewsOnly}
+              onEditDefinition={viewsOnly ? setEditingViewDef : undefined}
+              deploying={deploying}
+              setDeploying={setDeploying}
+              deployMsg={deployMsg}
+              setDeployMsg={setDeployMsg}
+              tableProfiles={tableProfiles}
+              deployViewToDb={deployViewToDb}
+              reload={reload}
+              startEditing={startEditing}
+              handleDelete={handleDelete}
+              handleProfile={handleProfile}
+              onPreview={setPreviewTable}
+              onSetDraft={handleSetDraft}
+              profileColumnsTable={
+                // REQ-1934: this table's profile, if its columns table is registered.
+                tables.find(
+                  (tb) =>
+                    tb.tableName === `${t.tableName}_profile_columns` &&
+                    sources.find((s) => s.id === tb.sourceId)?.type === "data_profiler",
+                ) ?? null
+              }
+            />
+          ) : (
+            editingTable && (
+              <ReplicaBuildsContext.Provider value={replicaBuilds}>
+                <TableEditForm
+                  hidingOnly={hidingOnly}
+                  editingTable={editingTable}
+                  setEditingTable={setEditingTable}
+                  savedProfilerId={
+                    tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ?? null
+                  }
+                  editingColumnTypes={editingColumnTypes}
+                  cacheTtlEdits={cacheTtlEdits}
+                  setCacheTtlEdits={setCacheTtlEdits}
+                  sources={sources}
+                  roles={roles}
+                  dataProducts={dataProducts}
+                  settings={settings}
+                  saving={saving}
+                  generatingDesc={generatingDesc}
+                  setGeneratingDesc={setGeneratingDesc}
+                  generatingColDesc={generatingColDesc}
+                  setGeneratingColDesc={setGeneratingColDesc}
+                  generateTableDescription={generateTableDescription}
+                  generateColumnDescription={generateColumnDescription}
+                  cancelEditing={cancelEditing}
+                  handleSaveEdit={handleSaveEdit}
+                  updateEditCol={updateEditCol}
+                />
+              </ReplicaBuildsContext.Provider>
+            )
+          )}
+        </>
+      ))(selectedTable)
+    ) : null;
+  const panelTitle =
+    showForm && !viewsOnly
+      ? translate("tablesPage.addTable")
+      : showViewForm && viewsOnly
+        ? translate("tablesPage.addView")
+        : showModeling
+          ? translate("tablesPage.modelTitle")
+          : selectedTable
+            ? (selectedTable.alias ?? selectedTable.tableName)
+            : "";
+  const panelContent =
+    panelBody === null ? null : (
+      <>
+        <div className="split-pane__head">
+          <Title order={4} data-testid="tables-detail-title">
+            {panelTitle}
+          </Title>
+          <ActionIcon
+            variant="subtle"
+            aria-label={translate("tablesPage.closeDetail")}
+            onClick={closePanel}
+            data-testid="tables-detail-close"
+          >
+            <X size={16} />
+          </ActionIcon>
+        </div>
+        <div className="split-pane__body">{panelBody}</div>
+      </>
+    );
+
   return (
     <div className="page page-sticky-head">
       {/* Anchor the tour waits on before highlighting a step whose element lives in the shell —
@@ -841,392 +985,298 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         </Alert>
       )}
 
-      {/* REQ-1318: create-view flow with the definition-mode toggle. */}
-      {/* page-aux: `.page-sticky-head`'s overflow:hidden clips anything taller than the
-          viewport that isn't its own scrollport — this form's column table can easily be
-          that tall (confirmed live: mouse-wheel scroll did nothing over it, though Tab-driven
-          focus still nudged it into view, since focus-scroll can move an overflow:hidden
-          element's scrollTop even though wheel/scrollbar input can't). `.page-aux` gives it its
-          own `overflow: auto` scrollport, the same treatment RelationshipsPage's candidates
-          table already gets. */}
-      {showViewForm && viewsOnly && (
-        <div className="page-aux">
-          <ViewDefinitionForm
-            editing={null}
-            tables={tables}
-            relationships={relationships}
-            domainHints={domainHints}
-            registerTable={registerTable}
-            updateTable={updateTable}
-            onSuccess={() => {
-              setShowViewForm(false);
-              reload();
-            }}
-            onCancel={() => setShowViewForm(false)}
-          />
-        </div>
-      )}
+      <SplitPane
+        testId="tables-split"
+        storageKey="provisa.tables.detailWidth"
+        handleLabel={translate("tablesPage.resizeDetail")}
+        panelLabel={translate("tablesPage.detailPanel")}
+        list={
+          <>
+            <ListTable testId="tables-list">
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  { col: "source" },
+                  ...(domainsEnabled ? [{ col: "domain" }] : []),
+                  { col: "table" },
+                  translate("tablesPage.colNaming"),
+                  translate("tablesPage.colCacheTtl"),
+                  translate("tablesPage.colEffectiveTtl"),
+                  ...(hasRegions ? [translate("regionSelector.columnHeader")] : []),
+                  { col: "cols" },
+                  "",
+                ]}
+              />
+              <Table.Tbody>
+                {(() => {
+                  const items =
+                    groupBy.length === 0
+                      ? sortGroup.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+                      : sortGroup.items;
 
-      {showForm && !viewsOnly && (
-        <div className="page-aux" ref={registerFormRef}>
-          <RegisterTableForm
-            sources={sources}
-            domainHints={domainHints}
-            domainAccess={domainAccess}
-            checkedDomains={checkedDomains}
-            domainsEnabled={domainsEnabled}
-            tables={tables}
-            roles={roles}
-            getAvailableColumnsMetadata={getAvailableColumnsMetadata}
-            suggestTableAlias={suggestTableAlias}
-            registerTable={registerTable}
-            onSuccess={() => {
-              setShowForm(false);
-              reload();
-            }}
-            onCancel={() => setShowForm(false)}
-            setError={setError}
-          />
-        </div>
-      )}
+                  if (items.length === 0) {
+                    return (
+                      <ListEmpty
+                        colSpan={(domainsEnabled ? 12 : 11) + (hasRegions ? 1 : 0)}
+                        testId="tables-empty"
+                      >
+                        {translate("tablesPage.empty")}
+                      </ListEmpty>
+                    );
+                  }
 
-      <ListTable testId="tables-list">
-        <ListHead
-          sortGroup={sortGroup}
-          columns={[
-            { col: "source" },
-            ...(domainsEnabled ? [{ col: "domain" }] : []),
-            { col: "table" },
-            translate("tablesPage.colNaming"),
-            translate("tablesPage.colCacheTtl"),
-            translate("tablesPage.colEffectiveTtl"),
-            ...(hasRegions ? [translate("regionSelector.columnHeader")] : []),
-            { col: "cols" },
-            "",
-          ]}
-        />
-        <Table.Tbody>
-          {(() => {
-            const items =
-              groupBy.length === 0
-                ? sortGroup.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-                : sortGroup.items;
-
-            if (items.length === 0) {
-              return (
-                <ListEmpty
-                  colSpan={(domainsEnabled ? 12 : 11) + (hasRegions ? 1 : 0)}
-                  testId="tables-empty"
-                >
-                  {translate("tablesPage.empty")}
-                </ListEmpty>
-              );
-            }
-
-            return items.map((item) => {
-              if (item.type === "header") {
-                return (
-                  <ListGroupRow
-                    key={`grp-${item.key}`}
-                    colSpan={(domainsEnabled ? 9 : 8) + (hasRegions ? 1 : 0)}
-                    level={item.level}
-                    label={item.label}
-                    count={item.count}
-                    collapsed={sortGroup.collapsed.has(item.key)}
-                    onToggle={() => sortGroup.toggleCollapsed(item.key)}
-                  />
-                );
-              }
-              const t = item.row;
-              const isEditing = editingTable?.id === t.id;
-              const row = (
-                <Fragment key={t.id}>
-                  <ListRow
-                    // A stable per-table anchor (source.table) for tour steps that open one row.
-                    data-table-row={`${t.sourceId}.${t.tableName}`}
-                    onClick={() => {
-                      setExpanded(expanded === t.id ? null : t.id);
-                      if (expanded === t.id) cancelEditing();
-                    }}
-                  >
-                    <Table.Td>
-                      {t.sourceId === DERIVED_SOURCE_ID ? (
-                        // A derived relation has no external source — its provenance is the
-                        // lineage of its definition, so never print the storage sentinel.
-                        <Badge
-                          size="xs"
-                          variant="light"
-                          color="gray"
-                          data-testid={`tables-derived-${t.tableName}`}
-                        >
-                          {translate("tablesPage.derived")}
-                        </Badge>
-                      ) : (
-                        t.sourceId
-                      )}
-                    </Table.Td>
-                    {domainsEnabled && (
-                      <Table.Td>{t.domainId ? domainToSqlName(t.domainId) : ""}</Table.Td>
-                    )}
-                    <Table.Td
-                      style={{ fontFamily: "monospace", fontSize: "0.9rem" }}
-                      title={t.description || undefined}
-                    >
-                      <Group gap="0.35rem">
-                        {t.alias || t.tableName}
-                        <ReplicatingMark build={buildOf(replicaBuilds?.builds, t)} />
-                        {/* REQ-1320: star-schema role is metadata on the registration itself —
-                            the badge derives live from it, so it can never drift from the def. */}
-                        {t.modelingRole ? (
-                          <Badge
-                            size="xs"
-                            variant="light"
-                            color={t.modelingRole === "fact" ? "grape" : "teal"}
-                            data-testid={`tables-modeling-role-${t.tableName}`}
-                          >
-                            {translate(`tablesPage.modelingRole.${t.modelingRole}`)}
-                          </Badge>
-                        ) : (
-                          <>
-                            {/* REQ-1361: no explicit star-schema role — Enable Aggregates / Enable
-                                Group By directly imply fact/dimension usage, so badge from those. */}
-                            {t.enableAggregates && (
-                              <Badge
-                                size="xs"
-                                variant="outline"
-                                color="grape"
-                                title={translate("tablesPage.modelingRole.impliedFactTitle")}
-                                data-testid={`tables-implied-fact-${t.tableName}`}
-                              >
-                                {translate("tablesPage.modelingRole.fact")}
-                              </Badge>
-                            )}
-                            {t.enableGroupBy && (
-                              <Badge
-                                size="xs"
-                                variant="outline"
-                                color="teal"
-                                title={translate("tablesPage.modelingRole.impliedDimensionTitle")}
-                                data-testid={`tables-implied-dimension-${t.tableName}`}
-                              >
-                                {translate("tablesPage.modelingRole.dimension")}
-                              </Badge>
-                            )}
-                          </>
-                        )}
-                        {/* REQ-1443: a checker table names the checker its contract runs under —
-                            the source's type is the one authority for that, never a table field. */}
-                        {(() => {
-                          const checker = sources.find((s) => s.id === t.sourceId)?.type;
-                          return checker === "soda" || checker === "great_expectations" ? (
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              color="cyan"
-                              title={translate("tablesPage.checker.title")}
-                              data-testid={`tables-checker-${t.tableName}`}
-                            >
-                              {translate(`tablesPage.checker.${checker}`)}
-                            </Badge>
-                          ) : null;
-                        })()}
-                        {t.productId != null && (
-                          <Badge
-                            size="xs"
-                            variant="light"
-                            color="indigo"
-                            title={translate("tablesPage.dataProductTitle")}
-                            data-testid={`tables-data-product-${t.tableName}`}
-                          >
-                            {dataProducts.find((p) => p.id === t.productId)?.name ?? t.productId}
-                          </Badge>
-                        )}
-                        <TagControl objectType="table" tableId={t.id} />
-                      </Group>
-                    </Table.Td>
-                    <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                      {NAMING_CONVENTIONS.find((nc) => nc.value === (t.gqlNamingConvention ?? ""))
-                        ?.label ??
-                        t.gqlNamingConvention ??
-                        translate("tablesPage.inheritSource")}
-                    </Table.Td>
-                    <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                      {t.cacheTtl != null ? `${t.cacheTtl}s` : translate("tablesPage.inherit")}
-                    </Table.Td>
-                    <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                      {getEffectiveTableTtl(t)}
-                    </Table.Td>
-                    {hasRegions && (
-                      <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                        {t.region ?? translate("regionSelector.noRegion")}
-                      </Table.Td>
-                    )}
-                    <Table.Td>{t.columns.length}</Table.Td>
-                    <Table.Td onClick={(e) => e.stopPropagation()}>
-                      <Group gap="xs" wrap="nowrap">
-                        {!hidingOnly &&
-                          (() => {
-                            const srcType = sources.find((s) => s.id === t.sourceId)?.type;
-                            const hasCacheable =
-                              srcType === "graphql_remote" ||
-                              srcType === "openapi" ||
-                              srcType === "grpc_remote";
-                            // REQ-968: only a table whose rows are LANDED can be rebuilt on demand.
-                            // The server derives that from the same policy resolution (REQ-1143) this
-                            // reads, so the button appears exactly where the mutation would accept it.
-                            const serving = t.refreshPolicySummary?.serving;
-                            const isLanded = serving === "scheduled" || serving === "frozen";
-                            return (
-                              <>
-                                {isLanded && (
-                                  <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    title={translate("tablesPage.runNowTitle")}
-                                    onClick={() => {
-                                      setRegenReason("");
-                                      setRegenTable(t);
-                                    }}
-                                    data-testid={`tables-run-now-${t.tableName}`}
-                                  >
-                                    {translate("tablesPage.runNow")}
-                                  </Button>
-                                )}
-                                {hasCacheable && (
-                                  <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    onClick={() => handlePurgeTableCache(t.id)}
-                                    disabled={purging[t.id]}
-                                  >
-                                    {purging[t.id]
-                                      ? translate("tablesPage.purging")
-                                      : translate("tablesPage.invalidateCache")}
-                                  </Button>
-                                )}
-                              </>
-                            );
-                          })()}
-                      </Group>
-                    </Table.Td>
-                  </ListRow>
-                  {expanded === t.id && (
-                    <ListExpandRow colSpan={(domainsEnabled ? 12 : 11) + (hasRegions ? 1 : 0)}>
-                      {!isEditing ? (
-                        <TableReadView
-                          t={t}
-                          build={buildOf(replicaBuilds?.builds, t)}
-                          hidingOnly={hidingOnly}
-                          dataProducts={dataProducts}
-                          navigate={navigate}
-                          viewsOnly={viewsOnly}
-                          onEditDefinition={viewsOnly ? setEditingViewDef : undefined}
-                          deploying={deploying}
-                          setDeploying={setDeploying}
-                          deployMsg={deployMsg}
-                          setDeployMsg={setDeployMsg}
-                          tableProfiles={tableProfiles}
-                          deployViewToDb={deployViewToDb}
-                          reload={reload}
-                          startEditing={startEditing}
-                          handleDelete={handleDelete}
-                          handleProfile={handleProfile}
-                          onPreview={setPreviewTable}
-                          onSetDraft={handleSetDraft}
-                          profileColumnsTable={
-                            // REQ-1934: this table's profile, if its columns table is registered.
-                            tables.find(
-                              (tb) =>
-                                tb.tableName === `${t.tableName}_profile_columns` &&
-                                sources.find((s) => s.id === tb.sourceId)?.type === "data_profiler",
-                            ) ?? null
-                          }
+                  return items.map((item) => {
+                    if (item.type === "header") {
+                      return (
+                        <ListGroupRow
+                          key={`grp-${item.key}`}
+                          colSpan={(domainsEnabled ? 9 : 8) + (hasRegions ? 1 : 0)}
+                          level={item.level}
+                          label={item.label}
+                          count={item.count}
+                          collapsed={sortGroup.collapsed.has(item.key)}
+                          onToggle={() => sortGroup.toggleCollapsed(item.key)}
                         />
-                      ) : (
-                        editingTable && (
-                          <ReplicaBuildsContext.Provider value={replicaBuilds}>
-                            <TableEditForm
-                              hidingOnly={hidingOnly}
-                              editingTable={editingTable}
-                              setEditingTable={setEditingTable}
-                              savedProfilerId={
-                                tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ??
-                                null
-                              }
-                              editingColumnTypes={editingColumnTypes}
-                              cacheTtlEdits={cacheTtlEdits}
-                              setCacheTtlEdits={setCacheTtlEdits}
-                              sources={sources}
-                              roles={roles}
-                              dataProducts={dataProducts}
-                              settings={settings}
-                              saving={saving}
-                              generatingDesc={generatingDesc}
-                              setGeneratingDesc={setGeneratingDesc}
-                              generatingColDesc={generatingColDesc}
-                              setGeneratingColDesc={setGeneratingColDesc}
-                              generateTableDescription={generateTableDescription}
-                              generateColumnDescription={generateColumnDescription}
-                              cancelEditing={cancelEditing}
-                              handleSaveEdit={handleSaveEdit}
-                              updateEditCol={updateEditCol}
-                            />
-                          </ReplicaBuildsContext.Provider>
-                        )
-                      )}
-                    </ListExpandRow>
-                  )}
-                </Fragment>
-              );
-              return row;
-            });
-          })()}
-        </Table.Tbody>
-      </ListTable>
+                      );
+                    }
+                    const t = item.row;
+                    const row = (
+                      <Fragment key={t.id}>
+                        <ListRow
+                          // A stable per-table anchor (source.table) for tour steps that open one row.
+                          data-table-row={`${t.sourceId}.${t.tableName}`}
+                          // The row whose detail the right-hand panel is showing.
+                          selected={expanded === t.id}
+                          aria-selected={expanded === t.id}
+                          onClick={() => {
+                            setExpanded(expanded === t.id ? null : t.id);
+                            if (expanded === t.id) cancelEditing();
+                          }}
+                        >
+                          <Table.Td>
+                            {t.sourceId === DERIVED_SOURCE_ID ? (
+                              // A derived relation has no external source — its provenance is the
+                              // lineage of its definition, so never print the storage sentinel.
+                              <Badge
+                                size="xs"
+                                variant="light"
+                                color="gray"
+                                data-testid={`tables-derived-${t.tableName}`}
+                              >
+                                {translate("tablesPage.derived")}
+                              </Badge>
+                            ) : (
+                              t.sourceId
+                            )}
+                          </Table.Td>
+                          {domainsEnabled && (
+                            <Table.Td>{t.domainId ? domainToSqlName(t.domainId) : ""}</Table.Td>
+                          )}
+                          <Table.Td
+                            style={{ fontFamily: "monospace", fontSize: "0.9rem" }}
+                            title={t.description || undefined}
+                          >
+                            <Group gap="0.35rem">
+                              {t.alias || t.tableName}
+                              <ReplicatingMark build={buildOf(replicaBuilds?.builds, t)} />
+                              {/* REQ-1320: star-schema role is metadata on the registration itself —
+                                the badge derives live from it, so it can never drift from the def. */}
+                              {t.modelingRole ? (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={t.modelingRole === "fact" ? "grape" : "teal"}
+                                  data-testid={`tables-modeling-role-${t.tableName}`}
+                                >
+                                  {translate(`tablesPage.modelingRole.${t.modelingRole}`)}
+                                </Badge>
+                              ) : (
+                                <>
+                                  {/* REQ-1361: no explicit star-schema role — Enable Aggregates / Enable
+                                    Group By directly imply fact/dimension usage, so badge from those. */}
+                                  {t.enableAggregates && (
+                                    <Badge
+                                      size="xs"
+                                      variant="outline"
+                                      color="grape"
+                                      title={translate("tablesPage.modelingRole.impliedFactTitle")}
+                                      data-testid={`tables-implied-fact-${t.tableName}`}
+                                    >
+                                      {translate("tablesPage.modelingRole.fact")}
+                                    </Badge>
+                                  )}
+                                  {t.enableGroupBy && (
+                                    <Badge
+                                      size="xs"
+                                      variant="outline"
+                                      color="teal"
+                                      title={translate(
+                                        "tablesPage.modelingRole.impliedDimensionTitle",
+                                      )}
+                                      data-testid={`tables-implied-dimension-${t.tableName}`}
+                                    >
+                                      {translate("tablesPage.modelingRole.dimension")}
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+                              {/* REQ-1443: a checker table names the checker its contract runs under —
+                                the source's type is the one authority for that, never a table field. */}
+                              {(() => {
+                                const checker = sources.find((s) => s.id === t.sourceId)?.type;
+                                return checker === "soda" || checker === "great_expectations" ? (
+                                  <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="cyan"
+                                    title={translate("tablesPage.checker.title")}
+                                    data-testid={`tables-checker-${t.tableName}`}
+                                  >
+                                    {translate(`tablesPage.checker.${checker}`)}
+                                  </Badge>
+                                ) : null;
+                              })()}
+                              {t.productId != null && (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color="indigo"
+                                  title={translate("tablesPage.dataProductTitle")}
+                                  data-testid={`tables-data-product-${t.tableName}`}
+                                >
+                                  {dataProducts.find((p) => p.id === t.productId)?.name ??
+                                    t.productId}
+                                </Badge>
+                              )}
+                              <TagControl objectType="table" tableId={t.id} />
+                            </Group>
+                          </Table.Td>
+                          <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                            {NAMING_CONVENTIONS.find(
+                              (nc) => nc.value === (t.gqlNamingConvention ?? ""),
+                            )?.label ??
+                              t.gqlNamingConvention ??
+                              translate("tablesPage.inheritSource")}
+                          </Table.Td>
+                          <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                            {t.cacheTtl != null
+                              ? `${t.cacheTtl}s`
+                              : translate("tablesPage.inherit")}
+                          </Table.Td>
+                          <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                            {getEffectiveTableTtl(t)}
+                          </Table.Td>
+                          {hasRegions && (
+                            <Table.Td style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                              {t.region ?? translate("regionSelector.noRegion")}
+                            </Table.Td>
+                          )}
+                          <Table.Td>{t.columns.length}</Table.Td>
+                          <Table.Td onClick={(e) => e.stopPropagation()}>
+                            <Group gap="xs" wrap="nowrap">
+                              {!hidingOnly &&
+                                (() => {
+                                  const srcType = sources.find((s) => s.id === t.sourceId)?.type;
+                                  const hasCacheable =
+                                    srcType === "graphql_remote" ||
+                                    srcType === "openapi" ||
+                                    srcType === "grpc_remote";
+                                  // REQ-968: only a table whose rows are LANDED can be rebuilt on demand.
+                                  // The server derives that from the same policy resolution (REQ-1143) this
+                                  // reads, so the button appears exactly where the mutation would accept it.
+                                  const serving = t.refreshPolicySummary?.serving;
+                                  const isLanded = serving === "scheduled" || serving === "frozen";
+                                  return (
+                                    <>
+                                      {isLanded && (
+                                        <Button
+                                          size="compact-xs"
+                                          variant="default"
+                                          title={translate("tablesPage.runNowTitle")}
+                                          onClick={() => {
+                                            setRegenReason("");
+                                            setRegenTable(t);
+                                          }}
+                                          data-testid={`tables-run-now-${t.tableName}`}
+                                        >
+                                          {translate("tablesPage.runNow")}
+                                        </Button>
+                                      )}
+                                      {hasCacheable && (
+                                        <Button
+                                          size="compact-xs"
+                                          variant="default"
+                                          onClick={() => handlePurgeTableCache(t.id)}
+                                          disabled={purging[t.id]}
+                                        >
+                                          {purging[t.id]
+                                            ? translate("tablesPage.purging")
+                                            : translate("tablesPage.invalidateCache")}
+                                        </Button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                            </Group>
+                          </Table.Td>
+                        </ListRow>
+                      </Fragment>
+                    );
+                    return row;
+                  });
+                })()}
+              </Table.Tbody>
+            </ListTable>
 
-      {(() => {
-        const filtered = regionTables;
-        if (groupBy.length > 0) return null;
-        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-        if (totalPages === 1) return null;
-        return (
-          <Group gap="sm" justify="flex-end" py="sm">
-            <ActionIcon
-              variant="default"
-              aria-label={translate("tablesPage.firstPage")}
-              onClick={() => setPage(0)}
-              disabled={page === 0}
-            >
-              «
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={translate("tablesPage.prevPage")}
-              onClick={() => setPage((p) => p - 1)}
-              disabled={page === 0}
-            >
-              ‹
-            </ActionIcon>
-            <Text fz="sm">{translate("tablesPage.pageOf", { page: page + 1, totalPages })}</Text>
-            <ActionIcon
-              variant="default"
-              aria-label={translate("tablesPage.nextPage")}
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= totalPages - 1}
-            >
-              ›
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={translate("tablesPage.lastPage")}
-              onClick={() => setPage(totalPages - 1)}
-              disabled={page >= totalPages - 1}
-            >
-              »
-            </ActionIcon>
-          </Group>
-        );
-      })()}
+            {(() => {
+              const filtered = regionTables;
+              if (groupBy.length > 0) return null;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              if (totalPages === 1) return null;
+              return (
+                <Group gap="sm" justify="flex-end" py="sm">
+                  <ActionIcon
+                    variant="default"
+                    aria-label={translate("tablesPage.firstPage")}
+                    onClick={() => setPage(0)}
+                    disabled={page === 0}
+                  >
+                    «
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={translate("tablesPage.prevPage")}
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 0}
+                  >
+                    ‹
+                  </ActionIcon>
+                  <Text fz="sm">
+                    {translate("tablesPage.pageOf", { page: page + 1, totalPages })}
+                  </Text>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={translate("tablesPage.nextPage")}
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    ›
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={translate("tablesPage.lastPage")}
+                    onClick={() => setPage(totalPages - 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    »
+                  </ActionIcon>
+                </Group>
+              );
+            })()}
+          </>
+        }
+        panel={panelContent}
+      />
       {/* REQ-1318: edit-view definition flow — a metric view opens in Metrics mode
           prefilled; a free-hand view opens in SQL mode. */}
       <Modal
@@ -1251,21 +1301,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             onCancel={() => setEditingViewDef(null)}
           />
         )}
-      </Modal>
-      <Modal
-        opened={showModeling}
-        onClose={() => setShowModeling(false)}
-        title={translate("tablesPage.modelTitle")}
-        size="lg"
-      >
-        <ModelingForm
-          domains={domains}
-          onSuccess={() => {
-            setShowModeling(false);
-            reload();
-          }}
-          onCancel={() => setShowModeling(false)}
-        />
       </Modal>
       <Modal
         opened={regenTable !== null}
