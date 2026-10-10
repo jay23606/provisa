@@ -300,7 +300,7 @@ def test_grpc_trailing_metadata_nag(monkeypatch):
         def set_trailing_metadata(self, md):
             captured["md"] = md
 
-    servicer = ProvisaServicer(state=object(), pb2_module=object(), pb2_grpc_module=object())
+    servicer = ProvisaServicer(state=object(), messages=object())
     servicer._emit_trailing_metadata(_Ctx())
     assert captured["md"][0][0] == "x-provisa-license-notice"
     assert MID in captured["md"][0][1]

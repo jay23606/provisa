@@ -241,7 +241,7 @@ def _servicer():
     msg_cls = MagicMock(DESCRIPTOR=descriptor)
     pb2 = SimpleNamespace(Orders=msg_cls)
     state = RoleState(org_id="default", contexts={"admin": _ctx()}, multitenancy=False)
-    servicer = ProvisaServicer(state, pb2, MagicMock())
+    servicer = ProvisaServicer(state, pb2)
     servicer._emit_trailing_metadata = MagicMock()
     servicer._meter_msg = lambda msg: msg
     return servicer, msg_cls

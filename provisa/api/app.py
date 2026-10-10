@@ -193,9 +193,6 @@ class AppState:
     mcp_catalog_index: Any = None
     mv_registry: MVRegistry = MVRegistry()
     _mv_refresh_task: LongLived | None = None
-    # The one SERVED wire descriptor: union of every role's surface (see
-    # app_loaders._build_and_register_schemas). Governance is per-request, not per-descriptor.
-    wire_proto: str | None = None
     _grpc_server: Any | None = None
     _flight_server: Any | None = None  # ProvisaFlightServer
     _flight_relay: Any | None = None  # FlightRelay: the advertised Flight port (REQ-1900)
@@ -722,6 +719,27 @@ class AppState:
     @contexts.setter
     def contexts(self, value: dict[str, CompilationContext]) -> None:
         self._active_runtime().contexts = value
+
+    @property
+    def wire_proto(self) -> str | None:
+        """The gRPC service of the bound organisation, as proto text: the union of every role's
+        surface (app_loaders._build_and_register_schemas; OrgRuntime.wire_proto). What is
+        served is compiled from it per organisation (grpc/descriptor.py). Governance is per
+        request, not per descriptor."""
+        return self._active_runtime().wire_proto
+
+    @wire_proto.setter
+    def wire_proto(self, value: str | None) -> None:
+        self._active_runtime().wire_proto = value
+
+    @property
+    def grpc_descriptor(self) -> Any:
+        """The bound organisation's compiled gRPC service (OrgRuntime.grpc_descriptor)."""
+        return self._active_runtime().grpc_descriptor
+
+    @grpc_descriptor.setter
+    def grpc_descriptor(self, value: Any) -> None:
+        self._active_runtime().grpc_descriptor = value
 
     @property
     def role_build_inputs(self) -> dict:

@@ -45,10 +45,6 @@ def startup(monkeypatch):
         return types.SimpleNamespace()
 
     monkeypatch.setattr("provisa.grpc.server.start_grpc_server", _start_grpc)
-    monkeypatch.setattr(
-        "provisa.grpc.schema_gen.compile_proto",
-        lambda proto, out: ("pb2.py", "pb2_grpc.py"),
-    )
     return started
 
 

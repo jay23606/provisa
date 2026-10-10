@@ -266,6 +266,10 @@ class OrgRuntime:
     schema_build_cache: dict = field(default_factory=dict)
     # What any role's surface is built from in this generation (app_loaders.register_role_surface).
     role_build_inputs: dict = field(default_factory=dict)
+    # The organisation's gRPC service as proto text, written by its schema build, and what is
+    # compiled from it (grpc/descriptor.OrgDescriptor): its own, read by its own callers.
+    wire_proto: str | None = None
+    grpc_descriptor: Any = None
     # meta-role id → the held roles it acts as (security/meta_role.py), this generation.
     meta_roles: dict = field(default_factory=dict)
     # meta-role id -> when a request last resolved it (time.monotonic): what a rebuild reads to

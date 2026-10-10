@@ -307,7 +307,7 @@ async def test_a_single_tenant_rpc_binds_the_deployment_org():
     from provisa.core.request_context import reset_current_org
     from provisa.grpc.server import ProvisaServicer
 
-    servicer = ProvisaServicer(SimpleNamespace(org_id="root", multitenancy=False), None, None)
+    servicer = ProvisaServicer(SimpleNamespace(org_id="root", multitenancy=False), None)
     token = await servicer._bind_org({})
     try:
         assert current_org.get() == "root"

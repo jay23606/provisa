@@ -26,6 +26,7 @@ from __future__ import annotations
 from provisa.api.role_surface import role_surface
 
 from types import SimpleNamespace
+import contextvars
 import importlib.util
 import json
 import logging
@@ -290,13 +291,57 @@ def _streaming(body):
     return handler
 
 
+# Whether the RPC running in this context had its organisation bound where it was received
+# (ProvisaServicer._received): the handlers' own binding then has nothing to do.
+_org_bound_for_rpc: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "provisa_grpc_org_bound", default=False
+)
+
+
+class _OrgBoundService(grpc.GenericRpcHandler):
+    """The Provisa service and its reflection, served to each caller from the service of the
+    organisation the call is bound to."""
+
+    def __init__(self, servicer: "ProvisaServicer", *, reflection: bool) -> None:
+        self._servicer = servicer
+        self._reflection = reflection
+
+    def service(self, handler_call_details):
+        from grpc_reflection.v1alpha import reflection
+
+        from provisa.grpc.descriptor import SERVICE_NAME
+
+        service, _, method = (handler_call_details.method or "").lstrip("/").partition("/")
+        if service == SERVICE_NAME:
+            return self._servicer.rpc_handler(method)
+        if self._reflection and (service, method) == (
+            reflection.SERVICE_NAME,
+            "ServerReflectionInfo",
+        ):
+            return self._servicer.reflection_handler()
+        return None
+
+
 class ProvisaServicer:  # REQ-045, REQ-143
     """Dynamic gRPC servicer that handles query RPCs."""
 
-    def __init__(self, state, pb2_module, pb2_grpc_module):
+    def __init__(self, state, messages=None):
         self._state = state
-        self._pb2 = pb2_module
-        self._pb2_grpc = pb2_grpc_module
+        # One compiled service for every RPC — a servicer of a single known service. None:
+        # the service of the organisation each RPC is bound to (grpc/descriptor.py).
+        self._messages = messages
+
+    @property
+    def _pb2(self):
+        """The compiled service this RPC's messages belong to: the bound organisation's own."""
+        if self._messages is not None:
+            return self._messages
+        from provisa.grpc.descriptor import bound_descriptor
+
+        found = bound_descriptor(self._state)
+        if found is None:
+            raise RuntimeError("the bound organisation has no gRPC service")
+        return found
 
     async def _resolve_org(self, requested: str | None) -> str | None:
         """The org this RPC binds: the principal's membership decides, not the metadata (REQ-1337).
@@ -334,6 +379,10 @@ class ProvisaServicer:  # REQ-045, REQ-143
         set/reset isolates the binding."""
         from provisa.core.request_context import set_current_org
 
+        if _org_bound_for_rpc.get():
+            # Bound where the RPC was received, before its request could be decoded
+            # (_received): that binding stands for the whole RPC and is reset there.
+            return None
         if not getattr(self._state, "multitenancy", False):
             return set_current_org(self._state.org_id)
         raw = metadata.get("x-provisa-org")
@@ -346,6 +395,131 @@ class ProvisaServicer:  # REQ-045, REQ-143
         await ensure_serving_runtime(org_id)
         return set_current_org(org_id)
 
+    async def _received(self, method: str, raw: bytes, context):
+        """Bind the organisation of an RPC that arrived as bytes and decode its request with THAT
+        organisation's service: ``(request, reset)``. The organisation is known only from the
+        call (its principal, or its metadata), so nothing is decoded before it is bound; a
+        method the organisation's service does not have is unimplemented for this caller,
+        whatever another organisation's has. Refused as the handlers refuse: no role, then no
+        organisation."""
+        from google.protobuf.message import DecodeError
+
+        from provisa.core.request_context import reset_current_org
+
+        metadata = dict(context.invocation_metadata())
+        if not _rpc_role(metadata):
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-provisa-role metadata")
+        try:
+            org_token = await self._bind_org(metadata)
+        except ValueError as exc:
+            await context.abort(grpc.StatusCode.UNAUTHENTICATED, str(exc))
+            raise
+        bound = _org_bound_for_rpc.set(True)
+
+        def reset() -> None:
+            _org_bound_for_rpc.reset(bound)
+            if org_token is not None:
+                reset_current_org(org_token)
+
+        try:
+            service = self._pb2
+            described = service.method(method)
+            if described is None:
+                await context.abort(grpc.StatusCode.UNIMPLEMENTED, "Method not found!")
+            try:
+                request = service.request_class(described).FromString(raw)
+            except DecodeError:  # answered as grpc answers a request it cannot decode
+                await context.abort(grpc.StatusCode.INTERNAL, "Exception deserializing request!")
+                raise
+        except BaseException:
+            reset()
+            raise
+        return request, reset
+
+    def _unary_rpc(self, method: str, body):
+        """The unary handler of ``method``: request bytes in, the bound organisation's message
+        out as bytes."""
+
+        async def received(raw, context):
+            if not isinstance(raw, bytes):
+                # Already a message: a servicer of one compiled service, handed its own.
+                return await body(raw, context)
+            request, reset = await self._received(method, raw, context)
+            try:
+                response = await body(request, context)
+                return None if response is None else response.SerializeToString()
+            finally:
+                reset()
+
+        return _unary(received)
+
+    def _streaming_rpc(self, method: str, body):
+        """The response-streaming handler of ``method``, as :meth:`_unary_rpc`."""
+
+        async def received(raw, context):
+            if not isinstance(raw, bytes):
+                async for message in body(raw, context):
+                    yield message
+                return
+            request, reset = await self._received(method, raw, context)
+            try:
+                async for message in body(request, context):
+                    yield message.SerializeToString()
+            finally:
+                reset()
+
+        return _streaming(received)
+
+    def rpc_handler(self, method: str) -> grpc.RpcMethodHandler | None:
+        """What serves ``method`` of the Provisa service, taking and giving bytes; None for a
+        name no organisation's service could have. Whether a method streams is its name's rule
+        (:meth:`__getattr__`), since the organisation is not known until the call is read."""
+        try:
+            behaviour = getattr(self, method)
+        except AttributeError:
+            return None
+        if method.startswith("Query") and not method.endswith("Aggregate"):
+            return grpc.unary_stream_rpc_method_handler(behaviour)
+        return grpc.unary_unary_rpc_method_handler(behaviour)
+
+    def reflection_handler(self) -> grpc.RpcMethodHandler:
+        """Server reflection, answered from the service of the organisation the call is bound
+        to: each organisation's callers are described their own service."""
+        from grpc_reflection.v1alpha import reflection, reflection_pb2
+
+        from provisa.core.request_context import reset_current_org
+        from provisa.grpc.descriptor import SERVICE_NAME, bound_descriptor
+        from provisa.grpc.rpc_scope import rpc_scope
+
+        async def described(context):
+            try:
+                token = await self._bind_org(dict(context.invocation_metadata()))
+            except ValueError as exc:
+                await context.abort(grpc.StatusCode.UNAUTHENTICATED, str(exc))
+                raise
+            try:
+                found = bound_descriptor(self._state)
+            finally:
+                if token is not None:
+                    reset_current_org(token)
+            if found is None:
+                await context.abort(grpc.StatusCode.NOT_FOUND, "no gRPC service is defined")
+                raise RuntimeError("abort ends the RPC by raising")
+            return found
+
+        def handler(requests, context):
+            with rpc_scope() as rpc:
+                service = rpc.run(described(_RpcContext(context)))
+            yield from reflection.ReflectionServicer(
+                (SERVICE_NAME, reflection.SERVICE_NAME), pool=service.pool
+            ).ServerReflectionInfo(requests, context)
+
+        return grpc.stream_stream_rpc_method_handler(
+            handler,
+            request_deserializer=reflection_pb2.ServerReflectionRequest.FromString,
+            response_serializer=reflection_pb2.ServerReflectionResponse.SerializeToString,
+        )
+
     def __getattr__(self, name: str):
         """Dynamically resolve RPC handler methods like QueryOrders, InsertOrders.
 
@@ -355,38 +529,50 @@ class ProvisaServicer:  # REQ-045, REQ-143
         # Query{Type} branch below — both prefixes also start with "Query".
         if name.startswith("Query") and name.endswith("Aggregate"):
             type_name = name[len("Query") : -len("Aggregate")]
-            return _unary(
-                lambda request, context: self._handle_query_aggregate(request, context, type_name)
+            return self._unary_rpc(
+                name,
+                lambda request, context: self._handle_query_aggregate(request, context, type_name),
             )
         if name.startswith("Query") and name.endswith("GroupBy"):
             type_name = name[len("Query") : -len("GroupBy")]
-            return _streaming(
-                lambda request, context: self._handle_query_group_by(request, context, type_name)
+            return self._streaming_rpc(
+                name,
+                lambda request, context: self._handle_query_group_by(request, context, type_name),
             )
         # REQ-1899: Query{Type}Batch must resolve before the generic Query{Type} branch below —
         # both prefixes also start with "Query" (same ordering concern as Aggregate/GroupBy above).
         if name.startswith("Query") and name.endswith("Batch"):
             type_name = name[len("Query") : -len("Batch")]
-            return _streaming(
-                lambda request, context: self._handle_query_batch(request, context, type_name)
+            return self._streaming_rpc(
+                name, lambda request, context: self._handle_query_batch(request, context, type_name)
             )
         if name.startswith("Query"):
             type_name = name[len("Query") :]
             # Convert PascalCase type name to snake_case field name
             field_name = _pascal_to_snake(type_name)
-            return _streaming(
-                lambda request, context: self._handle_query(request, context, type_name, field_name)
+            return self._streaming_rpc(
+                name,
+                lambda request, context: self._handle_query(
+                    request, context, type_name, field_name
+                ),
             )
         if name.startswith("Insert"):
             type_name = name[len("Insert") :]
-            return _unary(lambda request, context: self._handle_insert(request, context, type_name))
+            return self._unary_rpc(
+                name, lambda request, context: self._handle_insert(request, context, type_name)
+            )
         if name == "CallCommand":  # REQ-1156
-            return _unary(lambda request, context: self._handle_call_command(request, context))
+            return self._unary_rpc(
+                name, lambda request, context: self._handle_call_command(request, context)
+            )
         if name.startswith("Call"):  # REQ-1156 — per-command typed RPC Call{Cmd}
             rpc = name[len("Call") :]
             cmd_name = self._resolve_command_rpc(rpc)
-            return _unary(
-                lambda request, context: self._handle_typed_command(request, context, cmd_name, rpc)
+            return self._unary_rpc(
+                name,
+                lambda request, context: self._handle_typed_command(
+                    request, context, cmd_name, rpc
+                ),
             )
         raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
 
@@ -1368,37 +1554,25 @@ class ProvisaServicer:  # REQ-045, REQ-143
 def start_grpc_server(
     port: int,
     state,
-    pb2_path: str,
-    pb2_grpc_path: str,
     tls: tuple[str, str] | None = None,
 ) -> grpc.Server:  # REQ-045, REQ-143, REQ-1226, REQ-1882
     """Start a thread-per-RPC gRPC server with the Provisa service (REQ-1882).
 
+    The service is not compiled here: each RPC is served from the service of the organisation
+    it is bound to (:class:`_OrgBoundService`, grpc/descriptor.py), so what a caller may call
+    and is described is its organisation's own, as that organisation's model stands now.
+
     Args:
         port: Port to listen on.
         state: AppState with schemas, contexts, etc.
-        pb2_path: Path to generated _pb2.py module.
-        pb2_grpc_path: Path to generated _pb2_grpc.py module.
         tls: Optional ``(cert_path, key_path)``. When set the server binds a TLS
             secure port (REQ-1226); otherwise it binds an insecure port.
 
     Returns:
         The started grpc.Server.
     """
-    import os
+    servicer = ProvisaServicer(state)
 
-    # Derive module names from the file stems so that _pb2_grpc.py can
-    # successfully import its sibling _pb2 module by the expected name.
-    pb2_name = os.path.splitext(os.path.basename(pb2_path))[0]
-    pb2_grpc_name = os.path.splitext(os.path.basename(pb2_grpc_path))[0]
-    pb2 = _load_module(pb2_path, pb2_name)
-    pb2_grpc = _load_module(pb2_grpc_path, pb2_grpc_name)
-
-    servicer = ProvisaServicer(state, pb2, pb2_grpc)
-
-    # Register handlers dynamically from the generated stub. REQ-273/REQ-1263: the auth
-    # interceptor sits in front of every service on this server — the generated one and
-    # reflection — so no RPC reaches a handler without a validated credential.
     from provisa.grpc.auth import AuthInterceptor
 
     # REQ-1899: default 4MB max message size caps how large a client-chosen batch_rows can safely
@@ -1464,49 +1638,20 @@ def start_grpc_server(
     )
 
     # Find the add_*Servicer_to_server function
-    add_fn_name = None
-    for attr in dir(pb2_grpc):
-        if attr.startswith("add_") and attr.endswith("Servicer_to_server"):
-            add_fn_name = attr
-            break
-
-    if add_fn_name is None:
-        raise RuntimeError("No servicer registration function found in generated grpc stub")
-
-    add_fn = getattr(pb2_grpc, add_fn_name)
-    add_fn(servicer, server)
-
-    # REQ-1904: grpc.health.v1 HealthServicer so an orchestrator gets a real gRPC health check
-    # (SERVING/NOT_SERVING per service) instead of falling back to bare TCP reachability, which
-    # says nothing about whether the process can actually serve a query. Registered ahead of
-    # reflection/health-check exemption in AuthInterceptor (provisa/grpc/auth.py) so a probe never
-    # needs a bearer credential — matches the HTTP surface's unauthenticated /health,/live,/ready.
     from grpc_health.v1 import health, health_pb2, health_pb2_grpc
+
+    from provisa.grpc.auth import auth_active
+    from provisa.grpc.descriptor import SERVICE_NAME
+
+    reflected = auth_active(state) or _allow_unsecured_reflection()
+    server.add_generic_rpc_handlers((_OrgBoundService(servicer, reflection=reflected),))
 
     health_servicer = health.HealthServicer()
     health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
-    service_names = [
-        pb2.DESCRIPTOR.services_by_name[s].full_name for s in pb2.DESCRIPTOR.services_by_name
-    ]
-    for _svc_name in ("", *service_names):
+    for _svc_name in ("", SERVICE_NAME):
         health_servicer.set(_svc_name, health_pb2.HealthCheckResponse.SERVING)
 
-    # REQ-1904: reflection exposes the full generated schema descriptor to anyone who can reach the
-    # port. AuthInterceptor already intercepts reflection calls when auth is active (REQ-273/
-    # REQ-1263), but that relied SOLELY on auth being configured — enable_reflection() ran
-    # unconditionally, so an unsecured/dev-parity deployment (no auth configured, common for
-    # local-dev) left the whole service surface enumerable by default with no explicit decision
-    # behind it. Gate it on an explicit signal instead: auth_active(state) covers the normal
-    # (secured) case, and grpc_allow_unsecured_reflection is a documented, explicit opt-in for a
-    # deployment that wants reflection's discovery convenience despite having no auth. Not caught:
-    # auth_active raising RuntimeError (a misconfigured, supposedly-active auth middleware) is a
-    # real problem that must fail the server start loudly, not be swallowed into "reflection off".
-    from provisa.grpc.auth import auth_active
-    from provisa.grpc.reflection import enable_reflection
-
-    if auth_active(state) or _allow_unsecured_reflection():
-        enable_reflection(server, service_names)
-    else:
+    if not reflected:
         log.warning(
             "gRPC reflection disabled: no auth configured and grpc_allow_unsecured_reflection is "
             "unset. Set it explicitly (provisa.yaml server.grpc_allow_unsecured_reflection or "

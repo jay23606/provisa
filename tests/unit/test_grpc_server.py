@@ -116,19 +116,19 @@ def _make_state(role_id: str = "admin", schema=None, ctx=None):
 class TestServicerDynamicDispatch:
     def test_query_handler_returned(self):
         pb2, _ = _make_pb2_module()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.QueryOrders
         assert callable(handler)
 
     def test_insert_handler_returned(self):
         pb2, _ = _make_pb2_module()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.InsertOrders
         assert callable(handler)
 
     def test_unknown_attribute_raises(self):
         pb2, _ = _make_pb2_module()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         with pytest.raises(AttributeError, match="has no attribute"):
             _ = servicer.DoSomethingElse
 
@@ -140,7 +140,7 @@ class TestHandleQuery:
         pb2, msg_cls = _make_pb2_module("Orders", ["id", "amount"])
         state = _make_state()
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -193,7 +193,7 @@ class TestHandleQuery:
         pb2.OrdersBatch = batch_cls
         state = _make_state()
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -253,7 +253,7 @@ class TestHandleQuery:
         pb2.OrdersBatch = batch_cls
         state = _make_state()
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -307,7 +307,7 @@ class TestHandleQuery:
         # (open_stream/fetch) is covered separately by test_direct_route_streams_when_source_supports_it.
         state.source_pools.supports_stream.return_value = False
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -407,7 +407,7 @@ class TestHandleQuery:
         fake_stream.fetch = AsyncMock(side_effect=[[[1, 100.0], [2, 200.0]], []])
         state.source_pools.open_stream = AsyncMock(return_value=fake_stream)
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -486,7 +486,7 @@ class TestHandleQuery:
         pb2, _ = _make_pb2_module()
         state = _make_state(role_id="admin")
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "unknown")]
         context.abort.side_effect = grpc.aio.AbortError(
@@ -514,8 +514,8 @@ class TestRoleEnforcement:
         admin_state = _make_state(role_id="admin")
         viewer_state = _make_state(role_id="viewer")
 
-        ProvisaServicer(admin_state, admin_pb2, MagicMock())
-        ProvisaServicer(viewer_state, viewer_pb2, MagicMock())
+        ProvisaServicer(admin_state, admin_pb2)
+        ProvisaServicer(viewer_state, viewer_pb2)
 
         # Admin's descriptor exposes 3 fields
         admin_descriptor = admin_msg.DESCRIPTOR
@@ -535,7 +535,7 @@ class TestHandleInsert:
     async def test_insert_returns_unimplemented(self):
         """Insert RPCs abort with UNIMPLEMENTED."""
         pb2, _ = _make_pb2_module()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         request = MagicMock()
@@ -551,7 +551,7 @@ class TestErrorHandling:
     async def test_missing_role_metadata(self):
         """An RPC that names no role has none to run as, so the handler aborts UNAUTHENTICATED."""
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        servicer = ProvisaServicer(_make_state(), pb2, MagicMock())
+        servicer = ProvisaServicer(_make_state(), pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = []
 
@@ -568,7 +568,7 @@ class TestErrorHandling:
         pb2 = SimpleNamespace(DESCRIPTOR=SimpleNamespace(services_by_name={}))
         state = _make_state()
 
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         context.abort.side_effect = grpc.aio.AbortError(
@@ -648,7 +648,7 @@ class TestDictRowToMessage:
     def test_scalar_fields_assigned(self):
         User = _make_fake_msg_cls("User", scalar_fields=["name", "email"])
         pb2 = SimpleNamespace(User=User)
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(User, {"name": "Ada", "email": "ada@example.com"})
 
@@ -657,7 +657,7 @@ class TestDictRowToMessage:
     def test_none_values_skipped(self):
         User = _make_fake_msg_cls("User", scalar_fields=["name", "email"])
         pb2 = SimpleNamespace(User=User)
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(User, {"name": "Ada", "email": None})
 
@@ -666,7 +666,7 @@ class TestDictRowToMessage:
     def test_unknown_dict_key_ignored(self):
         User = _make_fake_msg_cls("User", scalar_fields=["name"])
         pb2 = SimpleNamespace(User=User)
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(User, {"name": "Ada", "not_a_field": "x"})
 
@@ -678,7 +678,7 @@ class TestDictRowToMessage:
             "Inquiry", scalar_fields=["status"], message_fields={"user": (User, False)}
         )
         pb2 = SimpleNamespace(Inquiry=Inquiry, User=User)
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(Inquiry, {"status": "open", "user": {"name": "Ada"}})
 
@@ -692,7 +692,7 @@ class TestDictRowToMessage:
             "User", scalar_fields=["name"], message_fields={"reviews": (Review, True)}
         )
         pb2 = SimpleNamespace(User=User, Review=Review)
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(
             User,
@@ -710,7 +710,7 @@ class TestDictRowToMessage:
             "Inquiry", scalar_fields=["status"], message_fields={"user": (User, False)}
         )
         pb2 = SimpleNamespace(Inquiry=Inquiry)  # User deliberately omitted
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         msg = servicer._dict_row_to_message(Inquiry, {"status": "open", "user": {"name": "Ada"}})
 

@@ -341,7 +341,7 @@ def test_grpc_governance_runs_on_the_rpc_thread_in_parallel():
         org_id="default",  # the one org a single-org deployment binds (REQ-1266)
         security_high=False,
     )
-    servicer = ProvisaServicer(state, SimpleNamespace(), SimpleNamespace())
+    servicer = ProvisaServicer(state, SimpleNamespace())
     behavior_idents: set[int] = set()
     govern_idents: list[int] = []
     both_governing = threading.Barrier(2)

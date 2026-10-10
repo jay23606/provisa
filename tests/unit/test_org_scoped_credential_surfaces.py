@@ -115,7 +115,7 @@ class TestGrpc:
     def _servicer(self):
         from provisa.grpc.server import ProvisaServicer
 
-        return ProvisaServicer(_State(), None, None)
+        return ProvisaServicer(_State(), None)
 
     async def test_the_credentials_org_is_bound(self, monkeypatch):
         monkeypatch.setattr("provisa.grpc.auth.authenticated_identity", _identity)
@@ -218,7 +218,7 @@ class TestAnUnnamedOrgIsRefused:
 
         monkeypatch.setattr("provisa.grpc.auth.authenticated_identity", _person)
         with pytest.raises(OrgResolutionError, match="x-provisa-org"):
-            await ProvisaServicer(_OneOrgState(), None, None)._resolve_org(None)
+            await ProvisaServicer(_OneOrgState(), None)._resolve_org(None)
 
     async def test_mcp(self):
         from provisa.api.mcp.server import _org_for_identity
@@ -273,7 +273,7 @@ class TestSingleTenantNeverReferencesAnOrg:
         monkeypatch.setattr("provisa.grpc.auth.authenticated_identity", _person)
         from provisa.core.request_context import current_org, reset_current_org
 
-        servicer = ProvisaServicer(_SingleTenantState(), None, None)
+        servicer = ProvisaServicer(_SingleTenantState(), None)
         token = await servicer._bind_org({})
         try:
             assert current_org.get() == "root"

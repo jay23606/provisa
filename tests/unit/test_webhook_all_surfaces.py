@@ -200,7 +200,7 @@ def test_grpc_proto_gen_emits_webhook_rpc():
 def test_grpc_servicer_resolves_webhook_rpc():
     from provisa.grpc.server import ProvisaServicer
 
-    servicer = ProvisaServicer(_state(), pb2_module=object(), pb2_grpc_module=object())
+    servicer = ProvisaServicer(_state(), messages=object())
     assert servicer._resolve_command_rpc("AddPet") == "add_pet"
 
 

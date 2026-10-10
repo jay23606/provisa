@@ -289,7 +289,7 @@ class TestREQ617RoleSelectionViaMetadata:
     async def test_missing_role_metadata_raises_unauthenticated(self):
         # REQ-617: Missing x-provisa-role causes UNAUTHENTICATED rejection.
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        servicer = ProvisaServicer(RoleState(schemas={}, contexts={}), pb2, MagicMock())
+        servicer = ProvisaServicer(RoleState(schemas={}, contexts={}), pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = []
 
@@ -315,7 +315,7 @@ class TestREQ617RoleSelectionViaMetadata:
             schemas={"admin": MagicMock()},
             contexts={"admin": MagicMock()},
         )
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "unknown_role")]
         context.abort.side_effect = grpc.aio.AbortError(
@@ -354,7 +354,7 @@ class TestREQ617RoleSelectionViaMetadata:
         from provisa.federation.runtime import EngineRuntime
 
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -428,7 +428,7 @@ class TestREQ617RoleSelectionViaMetadata:
     async def test_mutation_rpc_is_unary(self):
         # REQ-617: Mutation RPCs are unary (return a single response, not a stream).
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         request = MagicMock()
         # _handle_insert is a coroutine (unary), not an async generator (streaming).
