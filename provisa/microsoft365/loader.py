@@ -348,14 +348,13 @@ def make_microsoft365_loader(connect: Connect) -> Any:
         if name not in TABLES:
             raise UnknownMailTable(name)
         reading = await connect(source)
-        at = datetime.now(UTC)  # one whole read lands together, under one stamp
         async for rows in _read_mailboxes(
             reading,
             lambda mailbox: mailbox.rows(name, unreadable),
             [] if left_out is None else left_out,
         ):
             if rows:
-                yield cm.stamped(rows, at)
+                yield rows
 
     async def _load(source: Any, table: Any) -> list[dict]:
         return [row async for rows in _batches(source, table) for row in rows]
@@ -366,11 +365,13 @@ def make_microsoft365_loader(connect: Connect) -> Any:
         unreadable: list[str] = []
         left_out: list[str] = []
 
-        def read(_batch_rows: int) -> AsyncIterator[list[dict]]:
+        async def read(_batch_rows: int) -> AsyncIterator[list[dict]]:
             # A build reads once; a read begun again counts again.
             unreadable.clear()
             left_out.clear()
-            return _batches(source, table, unreadable, left_out)
+            at = datetime.now(UTC)  # one whole build lands together, under one stamp
+            async for rows in _batches(source, table, unreadable, left_out):
+                yield cm.stamped(rows, at)
 
         # The notes are the ones every mail source gives (same codes and particulars).
         return CursorSource(read, columns, notes=lambda: _notes(unreadable, left_out))
