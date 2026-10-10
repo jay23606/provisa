@@ -7,6 +7,7 @@
     "progressAbout": "लगभग {{percent}}%: लगभग {{total}} में से {{rows}} पंक्तियाँ",
     "progressPast": "{{rows}} पंक्तियाँ कॉपी हुईं; पिछले बिल्ड में {{total}} थीं",
     "progressRows": "{{rows}} पंक्तियाँ कॉपी हुईं",
+    "progressWaiting": "{{seconds}} सेकंड प्रतीक्षा: {{by}} पढ़ने को सीमित कर रहा है",
     "building": "रेप्लिका बन रही है: {{rows}} पंक्तियाँ कॉपी हुईं, {{rate}} पंक्तियाँ/सेकंड ({{how}})।",
     "buildingNoRate": "रेप्लिका बन रही है ({{how}})।",
     "buildingWaiting": "रेप्लिका बन रही है; {{seconds}} सेकंड प्रतीक्षा: {{by}} पढ़ने को थ्रॉटल कर रहा है ({{how}})।",

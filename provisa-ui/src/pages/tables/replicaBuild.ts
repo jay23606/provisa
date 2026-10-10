@@ -45,12 +45,29 @@ export interface ReplicaProgress {
   exact: boolean;
   /** What the mark says of it: the wording's key under `replicaBuild`, and the numbers in it
    * (each is formatted for the reader's language where it is shown). */
-  said: { key: string; numbers: Record<string, number> };
+  said: { key: string; numbers: Record<string, number>; words?: Record<string, string> };
 }
 
 /** How far `build`, which is running, has got. Today the one measure is the rows of the last
  * build that copied the whole table: an estimate, since the table may have grown or shrunk. */
 export function replicaProgress(build: ReplicaBuild): ReplicaProgress {
+  const measured = measuredProgress(build);
+  // Its source's service asked the read to wait: the ring keeps what it had measured, and
+  // says that -- how far a build has got matters less than why it is standing still.
+  if (build.wait) {
+    return {
+      ...measured,
+      said: {
+        key: "progressWaiting",
+        numbers: { seconds: Math.round(build.wait.seconds) },
+        words: { by: build.wait.by },
+      },
+    };
+  }
+  return measured;
+}
+
+function measuredProgress(build: ReplicaBuild): ReplicaProgress {
   const rows = build.rowsCopied ?? 0;
   const total = build.completedRows ?? 0;
   // A delta applies changes only: its rows are not a share of the table's.

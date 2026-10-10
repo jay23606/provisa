@@ -89,6 +89,7 @@ export function ReplicatingMark({
   const progress = replicaProgress(build);
   const said = t(`replicaBuild.${progress.said.key}`, {
     percent: progress.percent,
+    ...progress.said.words,
     ...Object.fromEntries(
       Object.entries(progress.said.numbers).map(([name, n]) => [name, numbers.format(n)]),
     ),

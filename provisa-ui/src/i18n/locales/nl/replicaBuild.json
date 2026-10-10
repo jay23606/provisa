@@ -7,6 +7,7 @@
     "progressAbout": "Ongeveer {{percent}}%: {{rows}} van ongeveer {{total}} rijen",
     "progressPast": "{{rows}} rijen gekopieerd; de laatste build had er {{total}}",
     "progressRows": "{{rows}} rijen gekopieerd",
+    "progressWaiting": "Wacht {{seconds}} s: {{by}} beperkt het lezen",
     "building": "Replica wordt gebouwd: {{rows}} rijen gekopieerd, {{rate}} rijen/s ({{how}}).",
     "buildingNoRate": "Replica wordt gebouwd ({{how}}).",
     "buildingWaiting": "Replica wordt opgebouwd; wacht {{seconds}} s: {{by}} beperkt het lezen ({{how}}).",

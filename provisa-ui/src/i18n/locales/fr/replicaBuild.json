@@ -7,6 +7,7 @@
     "progressAbout": "Environ {{percent}} % : {{rows}} sur environ {{total}} lignes",
     "progressPast": "{{rows}} lignes copiées ; la dernière construction en comptait {{total}}",
     "progressRows": "{{rows}} lignes copiées",
+    "progressWaiting": "En attente {{seconds}} s : {{by}} limite la lecture",
     "building": "Réplique en construction : {{rows}} lignes copiées, {{rate}} lignes/s ({{how}}).",
     "buildingNoRate": "Réplique en construction ({{how}}).",
     "buildingWaiting": "Réplica en cours de création ; attente de {{seconds}} s : {{by}} limite la lecture ({{how}}).",
