@@ -297,8 +297,9 @@ def _page(**choices):
 
 
 def _governed(routing) -> str:
-    """Everything routing was handed: the governed statement and its bound values."""
-    return " ".join(str(a) for a in routing.await_args.args) + str(routing.await_args.kwargs)
+    """The statement routing was handed to run: governed, and addressed at what it reads. Only
+    the statement -- never the role's context, which names every rule whether applied or not."""
+    return str(routing.await_args.args[0])
 
 
 @pytest.fixture
@@ -558,3 +559,79 @@ async def test_only_the_previews_view_has_a_draft_judged_for_a_replica(monkeypat
     assert [t.id for t in ordinary] == [1, 2]
     previewing = await registry_view.tables_a_read_judges(SimpleNamespace(previewed_draft_id=9))
     assert [t.id for t in previewing] == [1, 2, 9]  # that draft, and no other
+
+
+# --- a draft VIEW: expanded for this read as a view in service is, and for no other ---------------
+
+_REFUNDS_VIEW = 10
+
+
+@pytest.fixture
+def draft_view(state):
+    """``big_orders``: a view over the table in service, registered and still a draft."""
+    view = _refunds(
+        id=_REFUNDS_VIEW,
+        source_id="__derived__",
+        schema_name="sales",
+        table_name="big_orders",
+        view_sql='SELECT id FROM "sales"."orders" WHERE id > 5;',
+        columns=[_refunds()["columns"][0]],
+    )
+    state.role_build_inputs["draft_tables"] = [_refunds(), view]
+    return state
+
+
+async def test_a_draft_view_is_expanded_for_its_stewards_read_alone(draft_view, monkeypatch):
+    from provisa.pgwire import _pipeline
+
+    seen: list = []
+
+    async def _govern(sql, role_id, **kw):
+        seen.append((sql, kw["state"]))
+        return "the plan"
+
+    async def _execute(plan, state):
+        return SimpleNamespace(column_names=["id"], rows=[])
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route_compiled", _govern)
+    monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
+    published = dict(draft_view.view_sql_map)
+    await table_read.read_as_caller(draft_view, _REFUNDS_VIEW, "r", limit=5)
+
+    sql, view = seen[0]
+    assert sql == 'SELECT * FROM "sales"."big_orders" LIMIT 5'
+    assert view.view_sql_map["big_orders"] == 'SELECT id FROM "sales"."orders" WHERE id > 5'
+    # The published map -- what every other statement is expanded from -- never held it.
+    assert "big_orders" not in draft_view.view_sql_map
+    assert dict(draft_view.view_sql_map) == published
+
+
+async def test_a_draft_table_adds_nothing_to_the_view_map(state, monkeypatch):
+    from provisa.pgwire import _pipeline
+
+    seen: list = []
+
+    async def _govern(sql, role_id, **kw):
+        seen.append(kw["state"])
+        return "the plan"
+
+    async def _execute(plan, _state):
+        return SimpleNamespace(column_names=["id"], rows=[])
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route_compiled", _govern)
+    monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
+    await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
+    assert seen[0].view_sql_map is state.view_sql_map
+
+
+async def test_a_draft_views_body_reaches_routing_under_the_callers_rules(draft_view, routing):
+    from provisa.compiler.rls import RLSContext
+
+    draft_view.rls_contexts["r"] = RLSContext(
+        rules={SALES: "id > 100"}, domain_rules={}, action_rules={}
+    )
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(draft_view, _REFUNDS_VIEW, "r", limit=5)
+    governed = _governed(routing).replace('"', "")
+    assert "id > 5" in governed, "the view's own body was expanded for this read"
+    assert "id > 100" in governed, "under the caller's row rule on the table it reads"

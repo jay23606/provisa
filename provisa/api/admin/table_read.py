@@ -63,6 +63,12 @@ class _WithDraft:
         self.routing_cache = CompiledQueryCache()
         self.response_cache_store = NoopCacheStore()
         self.previewed_draft_id = draft["id"]
+        if draft.get("view_sql"):
+            # A draft VIEW is in no published view map, so no other statement expands it. This
+            # read expands it as a view in service is expanded: its body, cut to what the
+            # caller may read of every table it names (mv/view_read.py).
+            body = draft["view_sql"].rstrip().rstrip(";")
+            self.view_sql_map = {**state.view_sql_map, draft["table_name"]: body}
         self.replica_routes = routes
         real = state.federation_engine
         self.federation_engine = type(real)(real.engine, self)
