@@ -8,14 +8,13 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Integration: a source created through the admin API can be replicated and read (REQ-1695).
+"""Integration: a source created through the admin API can be replicated and read.
 
-A source created through the admin API keeps its password in the org's vault and carries a
-``${secret:...}`` reference to it. Building its replica has to resolve that reference, under the
-org the source belongs to, at the point the build runs — the build is not always reached through
-a path that already bound the org's vault. Before the fix every read after replication was turned
-on answered 500: ``Cannot resolve ${secret:source_src_password}: no organization is bound to this
-context``.
+A source created through the admin API keeps its password as its operator entered it: a value,
+or a reference they typed. Building its replica resolves that field, under the org the source
+belongs to, at the point the build runs — the build is not always reached through a path that
+already bound the org's vault, which a ``${secret:...}`` reference needs. (The read once
+answered 500: "Cannot resolve ${secret:…}: no organization is bound to this context".)
 
 A real server per engine (pg and DuckDB) over the test's own source Postgres: the source and its
 table are created through ``/admin/graphql``, read live, set to replicate through the admin API,
