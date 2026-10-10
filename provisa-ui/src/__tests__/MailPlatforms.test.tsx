@@ -118,9 +118,10 @@ describe("the organisation's mail platforms", () => {
     expect(address).toHaveValue(REDIRECT);
     expect(address).toHaveAttribute("readonly");
     expect(screen.getByTestId(tid("-copy"))).toHaveTextContent(en.mailPlatforms.copy);
-    expect(
-      screen.getByText(/Google Cloud console, under Authorized redirect URIs/),
-    ).toBeInTheDocument();
+    // Where it goes is the field's help, behind its (?).
+    expect(address.getAttribute("aria-description")).toMatch(
+      /Google Cloud console, under Authorized redirect URIs/,
+    );
   });
 
   it("says which address people must open Provisa at, and that another name will not work", async () => {
@@ -243,8 +244,15 @@ describe("the organisation's mail platforms", () => {
     expect(await screen.findByText("Microsoft 365")).toBeInTheDocument();
     expect(screen.getByTestId("mail-platform-microsoft_365-setting-tenant")).toBeInTheDocument();
     expect(screen.getByText(en.mailPlatforms.setting.tenant)).toBeInTheDocument();
-    expect(screen.getByText(en.mailPlatforms.settingHelp.tenant)).toBeInTheDocument();
-    expect(screen.getByText(en.mailPlatforms.redirectHelp.microsoft_365)).toBeInTheDocument();
+    // Each explanation is its field's help, behind the (?).
+    expect(screen.getByTestId("mail-platform-microsoft_365-setting-tenant")).toHaveAttribute(
+      "aria-description",
+      en.mailPlatforms.settingHelp.tenant,
+    );
+    expect(screen.getByTestId("mail-platform-microsoft_365-redirect")).toHaveAttribute(
+      "aria-description",
+      en.mailPlatforms.redirectHelp.microsoft_365,
+    );
   });
 
   it("has a switch, off until an administrator turns it on, for reading the organisation's mailboxes", async () => {
@@ -278,10 +286,14 @@ describe("the organisation's mail platforms", () => {
       ],
     });
     render(<MailPlatformsSection />);
+    // The grant is said in the switch's help, behind its (?).
+    const microsoft = await screen.findByTestId(
+      "mail-platform-microsoft_365-organisation-mailboxes",
+    );
+    expect(microsoft.getAttribute("aria-description")).toContain("Mail.Read and User.Read.All");
     expect(
-      await screen.findByTestId("mail-platform-microsoft_365-organisation-grant"),
-    ).toHaveTextContent("Mail.Read and User.Read.All");
-    expect(screen.queryByTestId("mail-platform-another_platform-organisation-grant")).toBeNull();
+      screen.getByTestId("mail-platform-another_platform-organisation-mailboxes"),
+    ).toHaveAttribute("aria-description", en.mailPlatforms.organisationMailboxesHelp);
   });
 
   describe("Google Workspace's own credential for the organisation's mailboxes", () => {
@@ -309,14 +321,16 @@ describe("the organisation's mail platforms", () => {
       expect(key).toHaveAttribute("type", "password");
       expect(document.querySelector('input[type="file"]')).toBeNull();
       expect(screen.getByText(en.mailPlatforms.setting.admin_address)).toBeInTheDocument();
-      expect(screen.getByText(en.mailPlatforms.organisationKeyHelp)).toBeInTheDocument();
+      expect(key).toHaveAttribute("aria-description", en.mailPlatforms.organisationKeyHelp);
       expect(screen.getByTestId(tid("-organisation-scopes"))).toHaveValue(SCOPES.join(","));
       expect(screen.getByTestId(tid("-organisation-scopes-copy"))).toBeInTheDocument();
-      const grant = screen.getByTestId(tid("-organisation-grant"));
-      expect(grant).toHaveTextContent("Manage Domain Wide Delegation");
+      const grant = screen
+        .getByTestId(tid("-organisation-mailboxes"))
+        .getAttribute("aria-description");
+      expect(grant).toContain("Manage Domain Wide Delegation");
       // Said plainly: Google has no way to narrow the delegation.
-      expect(grant).toHaveTextContent("Google cannot limit this to some mailboxes");
-      expect(grant).toHaveTextContent("covers every user of the domain");
+      expect(grant).toContain("Google cannot limit this to some mailboxes");
+      expect(grant).toContain("covers every user of the domain");
     });
 
     it("cannot be allowed before the key and the administrator address are given", () => {
@@ -363,7 +377,10 @@ describe("the organisation's mail platforms", () => {
     it("says the client is only for one person's sign-in", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);
-      expect(await screen.findByText(en.mailPlatforms.clientOptional)).toBeInTheDocument();
+      expect(await screen.findByTestId(tid("-client-id"))).toHaveAttribute(
+        "aria-description",
+        en.mailPlatforms.clientOptional,
+      );
     });
 
     it("sends the key as it was typed", async () => {
