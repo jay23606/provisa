@@ -1648,6 +1648,7 @@
   "hi/loginPage.json::loginPage.signingIn": "Signing in...",
   "hi/loginPage.json::loginPage.username": "Username",
   "hi/mailPlatforms.json::mailPlatforms.clientId": "Client ID",
+  "hi/mailPlatforms.json::mailPlatforms.clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes.",
   "hi/mailPlatforms.json::mailPlatforms.clientSecret": "Client secret",
   "hi/mailPlatforms.json::mailPlatforms.clientSecretKeep": "Leave empty to keep the one already entered.",
   "hi/mailPlatforms.json::mailPlatforms.connected": "Connected",

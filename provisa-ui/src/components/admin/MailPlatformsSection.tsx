@@ -40,7 +40,7 @@ import {
   type MailPlatforms,
 } from "../../api/mailPlatforms";
 import { useAuth } from "../../context/AuthContext";
-import { draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
+import { clientEntered, draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 export function MailPlatformsSection() {
@@ -136,15 +136,18 @@ export function MailPlatformsSection() {
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <TextInput
                   label={t("mailPlatforms.clientId")}
-                  required
+                  description={
+                    p.organisation_key_field ? t("mailPlatforms.clientOptional") : undefined
+                  }
+                  required={!p.organisation_key_field}
                   value={draft.client_id}
                   onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
                   data-testid={`${id}-client-id`}
                 />
                 <PasswordInput
                   label={t("mailPlatforms.clientSecret")}
-                  description={p.configured ? t("mailPlatforms.clientSecretKeep") : undefined}
-                  required={!p.configured}
+                  description={clientEntered(p) ? t("mailPlatforms.clientSecretKeep") : undefined}
+                  required={!p.organisation_key_field && !clientEntered(p)}
                   value={draft.client_secret}
                   onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
                   data-testid={`${id}-client-secret`}

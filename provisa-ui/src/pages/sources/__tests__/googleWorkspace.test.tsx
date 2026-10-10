@@ -413,6 +413,18 @@ describe("a source of the organisation's mailboxes", () => {
     expect(shown("found")).toBeNull();
   });
 
+  it("needs no client of the organisation's: its mailboxes are read with its own credential", async () => {
+    signIn.signInStatus.mockResolvedValue({
+      configured: false,
+      may_configure: true,
+      organisation_mailboxes: true,
+    });
+    form({ ...ORG, gw_choice: "everyone" });
+    await waitFor(() => expect(shown("check")).toBeEnabled());
+    expect(shown("not-set-up")).toBeNull();
+    expect(shown("not-allowed")).toBeNull();
+  });
+
   it("says so when the organisation has not allowed such sources, and offers no check", async () => {
     signIn.signInStatus.mockResolvedValue({
       configured: true,

@@ -1648,6 +1648,7 @@
   "nl/loginPage.json::loginPage.signingIn": "Signing in...",
   "nl/loginPage.json::loginPage.username": "Username",
   "nl/mailPlatforms.json::mailPlatforms.clientId": "Client ID",
+  "nl/mailPlatforms.json::mailPlatforms.clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes.",
   "nl/mailPlatforms.json::mailPlatforms.clientSecret": "Client secret",
   "nl/mailPlatforms.json::mailPlatforms.clientSecretKeep": "Leave empty to keep the one already entered.",
   "nl/mailPlatforms.json::mailPlatforms.connected": "Connected",

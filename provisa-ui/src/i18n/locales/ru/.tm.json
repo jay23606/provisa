@@ -1682,6 +1682,7 @@
   "ru/loginPage.json::loginPage.signingIn": "Signing in...",
   "ru/loginPage.json::loginPage.username": "Username",
   "ru/mailPlatforms.json::mailPlatforms.clientId": "Client ID",
+  "ru/mailPlatforms.json::mailPlatforms.clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes.",
   "ru/mailPlatforms.json::mailPlatforms.clientSecret": "Client secret",
   "ru/mailPlatforms.json::mailPlatforms.clientSecretKeep": "Leave empty to keep the one already entered.",
   "ru/mailPlatforms.json::mailPlatforms.connected": "Connected",

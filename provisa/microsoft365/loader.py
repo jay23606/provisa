@@ -489,7 +489,7 @@ async def organisation_token(admin_db: Any, org_id: str) -> Callable[[], str]:
     client = await mail_platforms.require_organisation(admin_db, org_id, SOURCE_TYPE)
     return directory.ClientToken(
         m365.token_url(client.settings.get("tenant")),
-        client.client_id,
+        client.client,
         resolve_secrets(client.client_secret),
     )
 
@@ -566,7 +566,7 @@ def make_connect(state: Any) -> Connect:
         def exchange(refresh_token: str) -> oauth_store.Grant:
             answered = exchange_refresh_token(
                 ApiAuthOAuth2RefreshToken(
-                    client_id=client.client_id,
+                    client_id=client.client,
                     client_secret=client_secret,
                     refresh_token=refresh_token,
                     token_url=url,

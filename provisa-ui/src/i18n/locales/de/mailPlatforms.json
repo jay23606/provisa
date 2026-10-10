@@ -22,6 +22,7 @@
     "clientId": "Client-ID",
     "clientSecret": "Clientschlüssel",
     "clientSecretKeep": "Leer lassen, um den bereits eingetragenen zu behalten.",
+    "clientOptional": "Nur für Quellen nötig, bei denen eine Person ihr eigenes Postfach verbindet. Lassen Sie beide Felder leer, wenn jede Quelle die Postfächer der Organisation liest.",
     "setting": {
       "tenant": "Verzeichnis-ID (Mandant)",
       "admin_address": "Administratoradresse"

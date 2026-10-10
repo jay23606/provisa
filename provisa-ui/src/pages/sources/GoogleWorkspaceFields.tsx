@@ -143,9 +143,10 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
     }
   };
 
-  const notSetUp = status !== null && !status.configured;
-  const notAllowed =
-    organisation && status !== null && status.configured && !status.organisation_mailboxes;
+  // One mailbox is signed in to with the organisation's client; the organisation's mailboxes are
+  // read with its service account, which an entry may hold with no client at all.
+  const notSetUp = !organisation && status !== null && !status.configured;
+  const notAllowed = organisation && status !== null && !status.organisation_mailboxes;
   // Where an administrator sets it up, named as the menu names it in this language.
   const where = `${t("navBar.groupAdmin")} › ${t("navBar.itemEmail")}`;
   return (

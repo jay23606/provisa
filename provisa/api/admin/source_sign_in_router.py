@@ -135,7 +135,8 @@ async def status(request: Request, kind: str) -> dict:
     except MailPlatformRefused as refused:
         raise ApiError(refused.status, refused.code, str(refused), None, **refused.params) from None
     return {
-        "configured": configured is not None,
+        # A client to sign in with; an entry may stand without one (organisation mailboxes).
+        "configured": configured is not None and configured.client_id is not None,
         "may_configure": _holds_org_settings(request),
         # Whether the administrator allows sources that read the organisation's mailboxes.
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
@@ -171,7 +172,7 @@ async def start(request: Request, body: StartRequest) -> dict:
             kind_id=body.kind,
             account=body.account.strip(),
             scopes=body.scopes,
-            client_id=client.client_id,
+            client_id=client.client,
             client_secret_name=mail_platforms.secret_name(body.kind),
             refresh_token_name=source_mapping_secret_name(
                 body.source_id.strip(), "refresh_token", env

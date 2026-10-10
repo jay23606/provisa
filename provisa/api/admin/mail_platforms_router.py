@@ -68,6 +68,7 @@ async def _entry(org_id: str, platform: mail_platforms.Platform) -> dict:
         "platform": platform.id,
         "settings_fields": list(platform.settings),
         "configured": configured is not None,
+        # None with an entry: it holds no client, and its sources read with its own credential.
         "client_id": None if configured is None else configured.client_id,
         "settings": {} if configured is None else configured.settings,
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
@@ -97,7 +98,7 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
     """Enter or replace the organisation's client for one platform."""
     actor = await _org_guard(request, org_id)
     try:
-        await mail_platforms.put(
+        kept = await mail_platforms.put(
             _admin_pool(),
             org_id,
             platform,
@@ -108,6 +109,14 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
             organisation_key=body.organisation_key or None,
             actor=actor,
         )
+        name, owner = mail_platforms.secret_name(platform), secrets_store.ORG_OWNER
+        if (
+            kept.client_id is None
+            and await secrets_store.describe(_admin_pool(), org_id, name, owner_id=owner)
+            is not None
+        ):
+            # A client taken off the entry: nothing names its secret now, so it goes too.
+            await _drop(org_id, owner, name, actor)
         return await _entry(org_id, mail_platforms.platform(platform))
     except MailPlatformRefused as refused:
         raise _refusal(refused) from None

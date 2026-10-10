@@ -22,6 +22,7 @@
     "clientId": "Client-ID",
     "clientSecret": "Clientgeheim",
     "clientSecretKeep": "Laat leeg om het al ingevulde geheim te behouden.",
+    "clientOptional": "Alleen nodig voor bronnen waarbij één persoon het eigen postvak verbindt. Laat beide velden leeg als elke bron de postvakken van de organisatie leest.",
     "setting": {
       "tenant": "Map-id (tenant)",
       "admin_address": "Adres van de beheerder"

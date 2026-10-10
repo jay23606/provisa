@@ -218,6 +218,44 @@ class TestTheOrganisationsOwnCredential:
             await mail_platforms.require_organisation(plane, "acme", GOOGLE)
         assert raised.value.code == "mail_platform.organisation_mailboxes_off"
 
+    async def test_it_needs_no_client_once_such_sources_are_allowed(self, plane):
+        """An organisation that only reads its mailboxes creates no OAuth client."""
+        kept = await _put(plane, client_id="", client_secret=None, organisation_key=KEY, **ORG)
+        assert kept.client_id is None and kept.organisation_mailboxes
+        (row,) = _stored(plane)
+        assert row["client_id"] is None and row["client_secret"] is None
+        assert "mail_platform_google_workspace_client_secret" not in await _vault(plane, "acme")
+        assert await mail_platforms.require_organisation(plane, "acme", GOOGLE) == kept
+        # One person's sign-in says by name what it lacks.
+        with pytest.raises(MailPlatformRefused) as raised:
+            await mail_platforms.require(plane, "acme", GOOGLE)
+        assert raised.value.code == "mail_platform.not_configured"
+
+    async def test_without_such_sources_allowed_an_entry_needs_its_client(self, plane):
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(plane, client_id="", client_secret=None, organisation_key=KEY)
+        assert raised.value.params == {"missing": "client_id, client_secret"}
+
+    async def test_half_a_client_is_refused(self, plane):
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(plane, client_id="", organisation_key=KEY, **ORG)
+        assert raised.value.params == {"missing": "client_id"}
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(plane, client_secret=None, organisation_key=KEY, **ORG)
+        assert raised.value.params == {"missing": "client_secret"}
+
+    async def test_a_platform_whose_credential_is_its_client_always_needs_it(self, plane):
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(
+                plane,
+                platform=TENANTED,
+                client_id="",
+                client_secret=None,
+                settings={"tenant": "contoso"},
+                organisation_mailboxes=True,
+            )
+        assert raised.value.params == {"missing": "client_id, client_secret"}
+
     async def test_an_entry_without_a_key_names_none(self, plane):
         assert (await _put(plane)).organisation_key is None
 
@@ -329,6 +367,24 @@ class TestTheAdminSurface:
         assert said["settings"] == {"admin_address": "admin@example.test"}
         for answer in (said, listed):
             assert "made-up" not in str(answer) and "secret:" not in str(answer)
+
+    async def test_a_client_taken_off_the_entry_takes_its_secret_out_of_the_vault(
+        self, wired, plane
+    ):
+        await _put(plane, organisation_key=KEY, **ORG)
+        said = await router.put_platform(
+            None, "acme", GOOGLE, router.PlatformBody(client_id="", **ORG)
+        )
+        assert (said["configured"], said["client_id"]) == (True, None)
+        assert said["organisation_key_entered"] is True
+        assert [name for _o, _w, name, _a in wired["dropped"]] == [
+            "mail_platform_google_workspace_client_secret"
+        ]
+        # An entry that never had a client has no secret to take out.
+        wired["dropped"].clear()
+        body = router.PlatformBody(client_id="", organisation_key=KEY, **ORG)
+        await router.put_platform(None, "globex", GOOGLE, body)
+        assert wired["dropped"] == []
 
     async def test_removing_takes_the_key_out_of_the_vault_too(self, wired, plane):
         await _put(plane, organisation_key=KEY, **ORG)

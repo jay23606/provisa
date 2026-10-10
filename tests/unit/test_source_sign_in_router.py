@@ -143,6 +143,15 @@ class TestStatus:
         wired["client"] = None
         assert (await router.status(_request(), KIND))["configured"] is False
 
+    async def test_an_entry_with_no_client_is_not_one_to_sign_in_with(self, wired):
+        """An organisation may hold only what reads its mailboxes; nobody signs in with that."""
+        wired["client"] = Configured(KIND, None, {}, organisation_mailboxes=True)
+        assert await router.status(_request(), KIND) == {
+            "configured": False,
+            "may_configure": False,
+            "organisation_mailboxes": True,
+        }
+
     async def test_it_says_whether_the_caller_is_one_who_may_enter_it(self, wired):
         wired["client"], wired["org_admin"] = None, True
         assert await router.status(_request(), KIND) == {

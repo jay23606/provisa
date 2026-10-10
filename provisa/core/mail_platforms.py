@@ -70,10 +70,12 @@ class Platform:
 
 @dataclass(frozen=True)
 class Configured:
-    """An organisation's client for one platform. The secret is named, never held."""
+    """An organisation's entry for one platform. The secret is named, never held."""
 
     platform: str
-    client_id: str
+    #: None where the organisation entered no client: its sources read the organisation's
+    #: mailboxes with the platform's own credential, and nobody signs in.
+    client_id: str | None
     settings: dict[str, str] = field(default_factory=dict)
     #: Whether the administrator allows sources that read the organisation's mailboxes with
     #: this client's own credential.
@@ -81,6 +83,13 @@ class Configured:
     #: The reference that names the organisation's own credential in its vault, where the
     #: platform has one and one was entered; None otherwise. Never the credential.
     organisation_key: str | None = None
+
+    @property
+    def client(self) -> str:
+        """The client's id, refused by name where the entry holds no client."""
+        if self.client_id is None:
+            raise _not_configured(self.platform)
+        return self.client_id
 
     @property
     def client_secret(self) -> str:
@@ -153,21 +162,28 @@ async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configure
 async def require(admin_db: "Database", org_id: str, platform_id: str) -> Configured:
     """``org_id``'s client for the platform, refused by name when it has entered none."""
     configured = await read(admin_db, org_id, platform_id)
-    if configured is None:
-        raise MailPlatformRefused(
-            "not_configured",
-            f"This organisation has not connected {platform_id} yet; an administrator enters "
-            "its client once, under Admin > Email.",
-            platform=platform_id,
-        )
+    if configured is None or configured.client_id is None:
+        raise _not_configured(platform_id)
     return configured
 
 
+def _not_configured(platform_id: str) -> MailPlatformRefused:
+    return MailPlatformRefused(
+        "not_configured",
+        f"This organisation has not connected {platform_id} yet; an administrator enters "
+        "its client once, under Admin > Email.",
+        platform=platform_id,
+    )
+
+
 async def require_organisation(admin_db: "Database", org_id: str, platform_id: str) -> Configured:
-    """``org_id``'s client for the platform, for a source that reads the ORGANISATION's
-    mailboxes with the client's own credential: refused by name when the organisation has
-    entered none, and when its administrator has not allowed such sources."""
-    configured = await require(admin_db, org_id, platform_id)
+    """``org_id``'s entry for the platform, for a source that reads the ORGANISATION's
+    mailboxes with the platform's own credential: refused by name when the organisation has
+    entered nothing, and when its administrator has not allowed such sources. An entry that
+    allows them holds what they read with (:func:`put`), which need not be a client."""
+    configured = await read(admin_db, org_id, platform_id)
+    if configured is None:
+        raise _not_configured(platform_id)
     if not configured.organisation_mailboxes:
         raise MailPlatformRefused(
             "organisation_mailboxes_off",
@@ -192,7 +208,9 @@ async def put(
     organisation_key: str | None = None,
 ) -> Configured:
     """Keep ``org_id``'s client for the platform. ``client_secret`` None keeps the secret already
-    in the vault, which there must then be: a client is never kept without its secret.
+    in the vault, which there must then be: a client is never kept without its secret. A
+    platform that reads the organisation's mailboxes with a credential of its own may be kept
+    with no client at all once such sources are allowed; a sign-in then refuses by name.
     ``organisation_mailboxes`` is stated at every save: whether sources may read the
     organisation's mailboxes with the platform's own credential. ``organisation_key`` is that
     credential where the platform has one of its own (None keeps the one already entered); once
@@ -210,12 +228,18 @@ async def put(
             setting=", ".join(unknown),
         )
     missing = [key for key in declared.settings if not settings.get(key)]
-    if not client_id:
+    # No client at all: only where the platform's own credential reads the mailboxes, and only
+    # with such sources allowed -- an entry is never kept that nothing can read with.
+    no_client = (
+        declared.organisation_key and organisation_mailboxes and not client_id and not client_secret
+    )
+    if not client_id and not no_client:
         missing.insert(0, "client_id")
     name = secret_name(platform_id)
     owner = secrets_store.ORG_OWNER
     if (
-        not client_secret
+        not no_client
+        and not client_secret
         and await secrets_store.describe(admin_db, org_id, name, owner_id=owner) is None
     ):
         missing.append("client_secret")
@@ -255,8 +279,8 @@ async def put(
     values = {
         "org_id": org_id,
         "platform": platform_id,
-        "client_id": client_id,
-        "client_secret": Configured(platform_id, client_id).client_secret,
+        "client_id": None if no_client else client_id,
+        "client_secret": None if no_client else Configured(platform_id, client_id).client_secret,
         "settings": json.dumps(settings, sort_keys=True),
         "organisation_mailboxes": organisation_mailboxes,
         "organisation_key": (f"${{secret:{key_name}}}" if organisation_key or key_kept else None),

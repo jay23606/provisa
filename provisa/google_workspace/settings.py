@@ -152,7 +152,7 @@ class Settings:
             raise InvalidGoogleWorkspaceSource(f"{account} is not the mailbox of this source")
         assert self.refresh_token is not None  # parse: a connected mailbox states it
         return ApiAuthOAuth2RefreshToken(
-            client_id=client.client_id,
+            client_id=client.client,
             client_secret=client.client_secret,
             refresh_token=self.refresh_token,
             token_url=TOKEN_URL,

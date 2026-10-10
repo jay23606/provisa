@@ -805,11 +805,13 @@ org_mail_platforms = Table(
     metadata,
     Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
     Column("platform", Text, primary_key=True),
-    Column("client_id", Text, nullable=False),
+    # NULL: no client entered, which only a platform that reads the organisation's mailboxes
+    # with a credential of its own allows (core/mail_platforms.put).
+    Column("client_id", Text, nullable=True),
     # The reference that names the client's secret in the organisation's vault, as text, so the
     # vault's reference search (core/secret_references.py) finds the entry and refuses to let
-    # the secret go while the entry stands.
-    Column("client_secret", Text, nullable=False),
+    # the secret go while the entry stands. NULL with the client.
+    Column("client_secret", Text, nullable=True),
     Column("settings", Text, nullable=False),
     # REQ-1923: whether the organisation's administrator allows sources that read the
     # organisation's mailboxes with this client's own credential, nobody signing in. Off until

@@ -300,6 +300,41 @@ describe("the organisation's mail platforms", () => {
       expect(platformMissing(workspace({ organisation_key_entered: true }), given)).toEqual([]);
     });
 
+    it("needs no client once such sources are allowed, and half a client is still refused", () => {
+      const none = {
+        client_id: "",
+        client_secret: "",
+        settings: { admin_address: "admin@example.test" },
+        organisation_mailboxes: true,
+        organisation_key: KEY,
+      };
+      const fresh = workspace({ configured: false, client_id: null });
+      expect(platformMissing(fresh, none)).toEqual([]);
+      expect(platformMissing(fresh, { ...none, client_id: "c" })).toEqual(["client_secret"]);
+      expect(platformMissing(fresh, { ...none, client_secret: "s" })).toEqual(["client_id"]);
+      // Only with such sources allowed: otherwise nothing could read with the entry.
+      expect(platformMissing(fresh, { ...none, organisation_mailboxes: false })).toEqual([
+        "client_id",
+        "client_secret",
+      ]);
+      // An entry kept with no client holds no secret to keep.
+      const kept = workspace({ client_id: null, organisation_key_entered: true });
+      expect(platformMissing(kept, { ...none, client_id: "c", organisation_key: "" })).toEqual([
+        "client_secret",
+      ]);
+      // A platform whose credential is its client always needs it.
+      expect(platformMissing(google({ configured: false, client_id: null }), none)).toEqual([
+        "client_id",
+        "client_secret",
+      ]);
+    });
+
+    it("says the client is only for one person's sign-in", async () => {
+      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+      render(<MailPlatformsSection />);
+      expect(await screen.findByText(en.mailPlatforms.clientOptional)).toBeInTheDocument();
+    });
+
     it("sends the chosen file's text once, and never shows it", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);

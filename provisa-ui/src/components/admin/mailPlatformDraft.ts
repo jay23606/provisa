@@ -31,11 +31,23 @@ export const draftOf = (p: MailPlatform): Draft => ({
   organisation_key: "",
 });
 
+/** Whether the organisation's entry holds a client, whose secret is then kept in its vault. */
+export const clientEntered = (p: MailPlatform): boolean => p.configured && p.client_id !== null;
+
 /** What is still needed before a platform's client can be saved. */
 export function platformMissing(p: MailPlatform, draft: Draft): string[] {
   const missing: string[] = [];
-  if (!draft.client_id.trim()) missing.push("client_id");
-  if (!p.configured && !draft.client_secret) missing.push("client_secret");
+  // A platform that reads the organisation's mailboxes with a credential of its own needs no
+  // client once such sources are allowed: the client is for one person's sign-in.
+  const noClient =
+    p.organisation_key_field &&
+    draft.organisation_mailboxes &&
+    !draft.client_id.trim() &&
+    !draft.client_secret;
+  if (!noClient) {
+    if (!draft.client_id.trim()) missing.push("client_id");
+    if (!clientEntered(p) && !draft.client_secret) missing.push("client_secret");
+  }
   for (const field of p.settings_fields) {
     if (!draft.settings[field]?.trim()) missing.push(field);
   }
