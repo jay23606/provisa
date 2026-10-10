@@ -24,7 +24,6 @@ import {
   CopyButton,
   Group,
   PasswordInput,
-  SimpleGrid,
   Stack,
   Switch,
   Text,
@@ -40,7 +39,7 @@ import {
 } from "../../api/mailPlatforms";
 import { useAuth } from "../../context/AuthContext";
 import { draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
-import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
+import { FieldGroup, FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 export function MailPlatformsSection() {
   const { t, i18n } = useTranslation();
@@ -101,18 +100,19 @@ export function MailPlatformsSection() {
                 {p.configured ? t("mailPlatforms.connected") : t("mailPlatforms.notConnected")}
               </Badge>
             </Group>
-            <Stack gap="sm">
+            <FormLayout>
               {state.redirect_address ? (
                 <>
-                  <Group align="flex-end" gap="sm">
-                    <TextInput
-                      label={t("mailPlatforms.redirectAddress")}
-                      description={t(`mailPlatforms.redirectHelp.${p.platform}`)}
-                      value={state.redirect_address}
-                      readOnly
-                      style={{ flex: 1 }}
-                      data-testid={`${id}-redirect`}
-                    />
+                  {/* The address to copy into the platform, with Copy at its end. */}
+                  <FieldGroup row>
+                    <FormField size="long" help={t(`mailPlatforms.redirectHelp.${p.platform}`)}>
+                      <TextInput
+                        label={t("mailPlatforms.redirectAddress")}
+                        value={state.redirect_address}
+                        readOnly
+                        data-testid={`${id}-redirect`}
+                      />
+                    </FormField>
                     <CopyButton value={state.redirect_address}>
                       {({ copied, copy }) => (
                         <Button variant="default" onClick={copy} data-testid={`${id}-copy`}>
@@ -120,41 +120,50 @@ export function MailPlatformsSection() {
                         </Button>
                       )}
                     </CopyButton>
-                  </Group>
-                  <Text size="xs" c="dimmed" data-testid={`${id}-same-address`}>
-                    {t("mailPlatforms.sameAddressNote", {
-                      origin: new URL(state.redirect_address).origin,
-                    })}
-                  </Text>
+                  </FieldGroup>
+                  <FormField size="full">
+                    <Text size="xs" c="dimmed" data-testid={`${id}-same-address`}>
+                      {t("mailPlatforms.sameAddressNote", {
+                        origin: new URL(state.redirect_address).origin,
+                      })}
+                    </Text>
+                  </FormField>
                 </>
               ) : (
-                <Alert color="yellow" variant="light" data-testid={`${id}-no-redirect`}>
-                  {t("mailPlatforms.redirectUnknown")}
-                </Alert>
+                <FormField size="full">
+                  <Alert color="yellow" variant="light" data-testid={`${id}-no-redirect`}>
+                    {t("mailPlatforms.redirectUnknown")}
+                  </Alert>
+                </FormField>
               )}
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                <TextInput
-                  label={t("mailPlatforms.clientId")}
-                  description={
-                    p.organisation_key_field ? t("mailPlatforms.clientOptional") : undefined
-                  }
-                  required={!p.organisation_key_field}
-                  value={draft.client_id}
-                  onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
-                  data-testid={`${id}-client-id`}
-                />
-                <PasswordInput
-                  label={t("mailPlatforms.clientSecret")}
-                  required={!p.organisation_key_field}
-                  value={draft.client_secret}
-                  onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
-                  data-testid={`${id}-client-secret`}
-                />
-                {p.settings_fields.map((field) => (
+              {/* The client: its ID and its secret together. */}
+              <FieldGroup>
+                <FormField
+                  size="medium"
+                  help={p.organisation_key_field ? t("mailPlatforms.clientOptional") : undefined}
+                >
                   <TextInput
-                    key={field}
+                    label={t("mailPlatforms.clientId")}
+                    required={!p.organisation_key_field}
+                    value={draft.client_id}
+                    onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
+                    data-testid={`${id}-client-id`}
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <PasswordInput
+                    label={t("mailPlatforms.clientSecret")}
+                    required={!p.organisation_key_field}
+                    value={draft.client_secret}
+                    onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
+                    data-testid={`${id}-client-secret`}
+                  />
+                </FormField>
+              </FieldGroup>
+              {p.settings_fields.map((field) => (
+                <FormField size="medium" key={field} help={t(`mailPlatforms.settingHelp.${field}`)}>
+                  <TextInput
                     label={t(`mailPlatforms.setting.${field}`)}
-                    description={t(`mailPlatforms.settingHelp.${field}`)}
                     required
                     value={draft.settings[field] ?? ""}
                     onChange={(e) =>
@@ -164,115 +173,106 @@ export function MailPlatformsSection() {
                     }
                     data-testid={`${id}-setting-${field}`}
                   />
-                ))}
-              </SimpleGrid>
-              <Switch
-                label={t("mailPlatforms.organisationMailboxes")}
-                description={
-                  <>
-                    {t("mailPlatforms.organisationMailboxesHelp")}
-                    {/* What the administrator grants at the platform for it, where it has
-                        wording: a platform whose organisation form is not built has none. */}
-                    {i18n.exists(`mailPlatforms.organisationGrant.${p.platform}`) && (
-                      <span data-testid={`${id}-organisation-grant`}>
-                        {" "}
-                        {t(`mailPlatforms.organisationGrant.${p.platform}`)}
-                      </span>
-                    )}
-                  </>
-                }
-                checked={draft.organisation_mailboxes}
-                onChange={(e) =>
-                  change(p.platform, { organisation_mailboxes: e.currentTarget.checked })
-                }
-                data-testid={`${id}-organisation-mailboxes`}
-              />
+                </FormField>
+              ))}
+              {/* Whether sources may read the organization's mailboxes; what the administrator
+                  grants at the platform for it is in the same help, where the platform has
+                  wording. */}
+              <FormChecks>
+                <FormField
+                  size="short"
+                  help={
+                    i18n.exists(`mailPlatforms.organisationGrant.${p.platform}`)
+                      ? `${t("mailPlatforms.organisationMailboxesHelp")} ${t(`mailPlatforms.organisationGrant.${p.platform}`)}`
+                      : t("mailPlatforms.organisationMailboxesHelp")
+                  }
+                >
+                  <Switch
+                    label={t("mailPlatforms.organisationMailboxes")}
+                    checked={draft.organisation_mailboxes}
+                    onChange={(e) =>
+                      change(p.platform, { organisation_mailboxes: e.currentTarget.checked })
+                    }
+                    data-testid={`${id}-organisation-mailboxes`}
+                  />
+                </FormField>
+              </FormChecks>
               {/* What the platform is entered with for those sources, where it has anything of
-                  its own: a credential file, the settings beside it, what to authorise. */}
-              {(p.organisation_key_field || p.organisation_settings_fields.length > 0) && (
-                <FormLayout>
-                  {p.organisation_settings_fields.map((field) => (
-                    <FormField size="long" key={field}>
-                      <TextInput
-                        label={t(`mailPlatforms.setting.${field}`)}
-                        description={t(`mailPlatforms.settingHelp.${field}`)}
-                        required={draft.organisation_mailboxes}
-                        value={draft.settings[field] ?? ""}
-                        onChange={(e) =>
-                          change(p.platform, {
-                            settings: { ...draft.settings, [field]: e.currentTarget.value },
-                          })
-                        }
-                        data-testid={`${id}-setting-${field}`}
-                      />
-                    </FormField>
-                  ))}
-                  {p.organisation_key_field && (
-                    <FormField size="long">
-                      <PasswordInput
-                        label={t("mailPlatforms.organisationKey")}
-                        description={t("mailPlatforms.organisationKeyHelp")}
-                        required={draft.organisation_mailboxes}
-                        value={draft.organisation_key}
-                        onChange={(e) =>
-                          change(p.platform, { organisation_key: e.currentTarget.value })
-                        }
-                        data-testid={`${id}-organisation-key`}
-                      />
-                    </FormField>
-                  )}
-                </FormLayout>
+                  its own: the settings beside it, a credential, what to authorise. */}
+              {p.organisation_settings_fields.map((field) => (
+                <FormField size="medium" key={field} help={t(`mailPlatforms.settingHelp.${field}`)}>
+                  <TextInput
+                    label={t(`mailPlatforms.setting.${field}`)}
+                    required={draft.organisation_mailboxes}
+                    value={draft.settings[field] ?? ""}
+                    onChange={(e) =>
+                      change(p.platform, {
+                        settings: { ...draft.settings, [field]: e.currentTarget.value },
+                      })
+                    }
+                    data-testid={`${id}-setting-${field}`}
+                  />
+                </FormField>
+              ))}
+              {p.organisation_key_field && (
+                <FormField size="long" help={t("mailPlatforms.organisationKeyHelp")}>
+                  <PasswordInput
+                    label={t("mailPlatforms.organisationKey")}
+                    required={draft.organisation_mailboxes}
+                    value={draft.organisation_key}
+                    onChange={(e) =>
+                      change(p.platform, { organisation_key: e.currentTarget.value })
+                    }
+                    data-testid={`${id}-organisation-key`}
+                  />
+                </FormField>
               )}
               {p.organisation_scopes.length > 0 && (
-                <FormLayout>
-                  <FieldGroup>
-                    <FormField size="long">
-                      <TextInput
-                        label={t("mailPlatforms.organisationScopes")}
-                        value={p.organisation_scopes.join(",")}
-                        readOnly
-                        data-testid={`${id}-organisation-scopes`}
-                      />
-                    </FormField>
-                    <CopyButton value={p.organisation_scopes.join(",")}>
-                      {({ copied, copy }) => (
-                        <Button
-                          variant="default"
-                          onClick={copy}
-                          style={{ alignSelf: "flex-end" }}
-                          data-testid={`${id}-organisation-scopes-copy`}
-                        >
-                          {copied ? t("mailPlatforms.copied") : t("mailPlatforms.copy")}
-                        </Button>
-                      )}
-                    </CopyButton>
-                  </FieldGroup>
-                </FormLayout>
+                <FieldGroup row>
+                  <FormField size="long">
+                    <TextInput
+                      label={t("mailPlatforms.organisationScopes")}
+                      value={p.organisation_scopes.join(",")}
+                      readOnly
+                      data-testid={`${id}-organisation-scopes`}
+                    />
+                  </FormField>
+                  <CopyButton value={p.organisation_scopes.join(",")}>
+                    {({ copied, copy }) => (
+                      <Button
+                        variant="default"
+                        onClick={copy}
+                        data-testid={`${id}-organisation-scopes-copy`}
+                      >
+                        {copied ? t("mailPlatforms.copied") : t("mailPlatforms.copy")}
+                      </Button>
+                    )}
+                  </CopyButton>
+                </FieldGroup>
               )}
-              <Group gap="sm">
-                <Button
-                  onClick={() =>
-                    run(
-                      p.platform,
-                      () =>
-                        putMailPlatform(activeOrgId, p.platform, {
-                          client_id: draft.client_id.trim(),
-                          ...(draft.client_secret ? { client_secret: draft.client_secret } : {}),
-                          settings: draft.settings,
-                          organisation_mailboxes: draft.organisation_mailboxes,
-                          ...(draft.organisation_key
-                            ? { organisation_key: draft.organisation_key }
-                            : {}),
-                        }),
-                      t("mailPlatforms.saved"),
-                    )
-                  }
-                  loading={busy === p.platform}
-                  disabled={platformMissing(p, draft).length > 0}
-                  data-testid={`${id}-save`}
-                >
-                  {t("mailPlatforms.save")}
-                </Button>
+              <FormFooter
+                onSave={() =>
+                  run(
+                    p.platform,
+                    () =>
+                      putMailPlatform(activeOrgId, p.platform, {
+                        client_id: draft.client_id.trim(),
+                        ...(draft.client_secret ? { client_secret: draft.client_secret } : {}),
+                        settings: draft.settings,
+                        organisation_mailboxes: draft.organisation_mailboxes,
+                        ...(draft.organisation_key
+                          ? { organisation_key: draft.organisation_key }
+                          : {}),
+                      }),
+                    t("mailPlatforms.saved"),
+                  )
+                }
+                saving={busy === p.platform}
+                saveProps={{
+                  "data-testid": `${id}-save`,
+                  disabled: platformMissing(p, draft).length > 0,
+                }}
+              >
                 {p.configured && (
                   <Button
                     variant="default"
@@ -295,8 +295,8 @@ export function MailPlatformsSection() {
                     {said.text}
                   </Text>
                 )}
-              </Group>
-            </Stack>
+              </FormFooter>
+            </FormLayout>
           </Card>
         );
       })}
