@@ -712,8 +712,8 @@ async def test_the_form_is_told_which_kinds_state_the_clock(monkeypatch):
     monkeypatch.setattr(
         kinds, "require_capability_request", lambda request, capability: asked.append(capability)
     )
-    assert await kinds.source_kind(None, "microsoft_365") == {"cache_ttl_required": True}
-    assert await kinds.source_kind(None, "postgresql") == {"cache_ttl_required": False}
+    assert (await kinds.source_kind(None, "microsoft_365"))["cache_ttl_required"] is True
+    assert (await kinds.source_kind(None, "postgresql"))["cache_ttl_required"] is False
     assert asked == ["source_registration"] * 2
 
 
@@ -726,6 +726,7 @@ def test_every_locale_words_both_landing_clock_refusals():
     wanted = {
         "source_cache_ttl_required": {"source", "signal"},
         "landing_ttl_required": {"table", "source"},
+        "sentinel_path_not_applicable": {"source", "type"},
     }
     catalogs = sorted(locales.glob("*/serverErrors.json"))
     assert len(catalogs) == 13

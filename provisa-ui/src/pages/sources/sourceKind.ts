@@ -1,11 +1,24 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: 03c5a85e-46e1-49a5-a2ca-b0ceed9c235e
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // What the server says of a source kind before anything is saved (/admin/source-kinds/{kind}).
-// One fact: whether a source of the kind must state its Cache TTL itself -- every table of it
-// lands and refreshes by that one clock (REQ-1907). The rule is the server's; the form asks.
+// Each fact is a rule the server owns; the form asks rather than keep its own list of kinds:
+// - cache_ttl_required: a source of the kind must state its Cache TTL itself -- every table of
+//   it lands and refreshes by that one clock (REQ-1907);
+// - sentinel_path: a source of the kind can have a sentinel marker (REQ-1148).
 
 import { useEffect, useState } from "react";
 
 export interface SourceKind {
   cache_ttl_required: boolean;
+  sentinel_path: boolean;
 }
 
 const asked = new Map<string, Promise<SourceKind>>();
@@ -25,20 +38,26 @@ export function sourceKind(kind: string): Promise<SourceKind> {
   return answer;
 }
 
-/** Whether a source of `kind` must state its Cache TTL. False until the server has said so: the
- * server refuses the save by name either way (schema.source_cache_ttl_required). */
-export function useCacheTtlRequired(kind: string): boolean {
-  const [known, setKnown] = useState<{ kind: string; required: boolean } | null>(null);
+/** The kind's facts, or null until the server has said them (and when it could not be asked:
+ * the server states each rule again when the source is saved). */
+export function useSourceKind(kind: string): SourceKind | null {
+  const [known, setKnown] = useState<{ kind: string; said: SourceKind } | null>(null);
   useEffect(() => {
     if (!kind) return;
     let current = true;
     sourceKind(kind).then(
-      (said) => current && setKnown({ kind, required: said.cache_ttl_required }),
+      (said) => current && setKnown({ kind, said }),
       () => undefined,
     );
     return () => {
       current = false;
     };
   }, [kind]);
-  return known !== null && known.kind === kind && known.required;
+  return known !== null && known.kind === kind ? known.said : null;
+}
+
+/** Whether a source of `kind` must state its Cache TTL. False until the server has said so: the
+ * server refuses the save by name either way (schema.source_cache_ttl_required). */
+export function useCacheTtlRequired(kind: string): boolean {
+  return useSourceKind(kind)?.cache_ttl_required === true;
 }

@@ -297,6 +297,7 @@
       "relationship_not_found": "Relationship '{{relationship}}' not found",
       "relationship_saved": "Relationship '{{relationship}}' saved",
       "remigrated": "Re-migrated {{source}}.{{table}}",
+      "sentinel_path_not_applicable": "A {{type}} source cannot have a sentinel path: no producer of yours can mark a change in its data, or the source is not probed. Remove the sentinel path from source '{{source}}'.",
       "source_cache_ttl_required": "Source '{{source}}' needs a Cache TTL: every table of it is a replica, refreshed on that clock under the {{signal}} change signal. Set it under Load Management and Timeliness on the source.",
       "landing_ttl_required": "Table '{{table}}' is a replica refreshed on a Cache TTL, and neither it nor its source '{{source}}' has one. Set the Cache TTL under Load Management and Timeliness on the source, or on the table itself once it is registered.",
       "replicate_contradicts_load_protected": "Load protection cannot be combined with Replicate = Never: a load-protected table is never read live",

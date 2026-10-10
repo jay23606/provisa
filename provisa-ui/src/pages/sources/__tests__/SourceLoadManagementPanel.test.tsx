@@ -199,10 +199,11 @@ describe("SourceLoadManagementPanel", () => {
 
   // #208: the server says every table of a mail source lands, so the source states the clock.
   describe("for a kind the server says must state its Cache TTL", () => {
-    function kinds(required: Record<string, boolean>) {
+    function kinds(mail: Record<string, boolean>) {
       return vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
         const kind = decodeURIComponent(String(url).split("/admin/source-kinds/")[1]);
-        return new Response(JSON.stringify({ cache_ttl_required: required[kind] ?? false }));
+        const isMail = mail[kind] ?? false;
+        return new Response(JSON.stringify({ cache_ttl_required: isMail, sentinel_path: !isMail }));
       });
     }
 
@@ -233,6 +234,33 @@ describe("SourceLoadManagementPanel", () => {
       asked.mockRestore();
     });
 
+    // REQ-1148: nothing of the operator's produces a mailbox's data, so there is no marker.
+    it("offers no sentinel path, and drops one typed for another kind", async () => {
+      const asked = kinds({ google_workspace: true });
+      const seen: SourceFormState[] = [];
+      function Mail() {
+        const [form, setForm] = useState<SourceFormState>({
+          ...FORM,
+          type: "google_workspace",
+          sentinelPath: "https://example.com/_SUCCESS",
+        });
+        return (
+          <SourceLoadManagementPanel
+            form={form}
+            setForm={(f) => {
+              seen.push(f);
+              setForm(f);
+            }}
+          />
+        );
+      }
+      render(<Mail />);
+      await vi.waitFor(() => expect(screen.queryByTestId("sentinel-path-input")).toBeNull());
+      await vi.waitFor(() => expect(seen.at(-1)?.sentinelPath).toBe(""));
+      expect(screen.getByTestId("change-signal-select")).toBeInTheDocument();
+      asked.mockRestore();
+    });
+
     it("leaves another kind as it was: collapsed, the Cache TTL optional", async () => {
       const asked = kinds({ microsoft_365: true });
       render(
@@ -244,6 +272,7 @@ describe("SourceLoadManagementPanel", () => {
       await vi.waitFor(() => expect(asked).toHaveBeenCalled());
       await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
       expect(await screen.findByTestId("cache-ttl-input")).not.toBeRequired();
+      expect(screen.getByTestId("sentinel-path-input")).toBeInTheDocument();
       expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
       asked.mockRestore();
     });

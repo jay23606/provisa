@@ -88,6 +88,15 @@ def platforms() -> list[Platform]:
     return list(_PLATFORMS.values())
 
 
+def source_types() -> frozenset[str]:
+    """The source kinds that are mail platforms. Each declares itself where it is defined, so
+    they are loaded here before they are counted."""
+    import provisa.google_workspace  # noqa: F401  (declares the Google Workspace platform)
+    import provisa.microsoft365  # noqa: F401  (declares the Microsoft 365 platform)
+
+    return frozenset(_PLATFORMS)
+
+
 def platform(platform_id: str) -> Platform:
     if platform_id not in _PLATFORMS:
         raise MailPlatformRefused(

@@ -754,8 +754,18 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
             "reads use replicate 0 (always) or load_protected)",
         )
     if input.sentinel_path:
-        from provisa.events.sentinel_probe import build_sentinel_probe
+        from provisa.events.sentinel_probe import applies_to, build_sentinel_probe
 
+        if not applies_to(input.type):
+            return MutationResult(
+                success=False,
+                message=(
+                    f"Source {input.id!r}: a {input.type} source has no sentinel: nothing of "
+                    "yours produces its data and could mark a change, or the source is not probed"
+                ),
+                code="schema.sentinel_path_not_applicable",
+                params={"source": input.id, "type": input.type},
+            )
         try:
             build_sentinel_probe(input.sentinel_path)
         except ValueError as e:

@@ -112,3 +112,53 @@ _PANEL_FIELDS = (
     "off_peak_tz",
     "max_live_concurrency",
 )
+
+
+# --- a sentinel path only where a source can have one (REQ-1148) ---
+
+
+def test_a_sentinel_applies_where_the_operators_producer_can_mark_a_probed_source():
+    from provisa.events.sentinel_probe import applies_to
+
+    for kind in ("postgresql", "openapi", "files", "csv", "mongodb"):
+        assert applies_to(kind) is True, kind
+    # Not probed at all: rows arrive by push, or are written where they are read.
+    for kind in ("kafka", "websocket", "ingest", "data_profiler"):
+        assert applies_to(kind) is False, kind
+    # A mailbox's data is produced inside the provider's service: nothing of the operator's
+    # could drop a marker.
+    for kind in ("microsoft_365", "google_workspace"):
+        assert applies_to(kind) is False, kind
+
+
+@pytest.mark.parametrize(
+    ("kind", "signal"), [("microsoft_365", "ttl"), ("google_workspace", "ttl"), ("kafka", "kafka")]
+)
+def test_a_sentinel_path_on_a_kind_that_cannot_have_one_is_refused_by_name(kind, signal):
+    refused = _validate_source_load_management(
+        SourceInput(
+            id="s", type=kind, change_signal=signal, sentinel_path="https://example.com/marker"
+        )
+    )
+    assert refused is not None and refused.success is False
+    assert refused.code == "schema.sentinel_path_not_applicable"
+    assert refused.params == {"source": "s", "type": kind}
+    # Without one the same source is not refused for it.
+    assert (
+        _validate_source_load_management(SourceInput(id="s", type=kind, change_signal=signal))
+        is None
+    )
+
+
+async def test_the_form_is_told_whether_a_kind_can_have_a_sentinel(monkeypatch):
+    from provisa.api.admin import source_kinds_router as kinds
+
+    monkeypatch.setattr(kinds, "require_capability_request", lambda request, capability: None)
+    assert await kinds.source_kind(None, "microsoft_365") == {
+        "cache_ttl_required": True,
+        "sentinel_path": False,
+    }
+    assert await kinds.source_kind(None, "postgresql") == {
+        "cache_ttl_required": False,
+        "sentinel_path": True,
+    }

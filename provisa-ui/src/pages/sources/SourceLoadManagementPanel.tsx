@@ -12,6 +12,7 @@
 // governs how hard Provisa leans on this source and how fresh its data is — caching, the change
 // signal, replication and load protection (REQ-826/1141), grouped and collapsed by default.
 
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Checkbox, Group, NumberInput, Select, Text, TextInput, Tooltip } from "@mantine/core";
 import { sourceChangeSignals } from "../../liveCapability";
@@ -26,14 +27,23 @@ import {
   sourceFormLanded,
   ttlSignalMissingCacheTtl,
 } from "./loadManagement";
-import { useCacheTtlRequired } from "./sourceKind";
+import { useSourceKind } from "./sourceKind";
 
 export function SourceLoadManagementPanel({
   form,
   setForm,
 }: Pick<SourceFormFieldsProps, "form" | "setForm">) {
   const { t } = useTranslation();
-  const kindLands = useCacheTtlRequired(form.type);
+  const kind = useSourceKind(form.type);
+  const kindLands = kind?.cache_ttl_required === true;
+  // Offered unless the server says a source of this kind can have no sentinel (REQ-1148).
+  const sentinelApplies = kind?.sentinel_path !== false;
+  const staleSentinel = !sentinelApplies && form.sentinelPath !== "";
+  useEffect(() => {
+    // A value typed for another kind is not carried into one that cannot have it.
+    if (staleSentinel) setForm({ ...form, sentinelPath: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the value turns stale
+  }, [staleSentinel]);
   return (
     <CollapsibleSection
       // Opened when the kind needs a Cache TTL, so the field that must be filled is in view.
@@ -99,20 +109,22 @@ export function SourceLoadManagementPanel({
           data-testid="change-signal-select"
         />
       </Tooltip>
-      <Tooltip label={t("sourceFormFieldsExtended.sentinelPathTooltip")} multiline w={280}>
-        <TextInput
-          label={t("sourceFormFieldsExtended.sentinelPath")}
-          value={form.sentinelPath}
-          onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
-          placeholder="https://example.com/data/_SUCCESS"
-          error={
-            sentinelPathValid(form.sentinelPath)
-              ? undefined
-              : t("sourceFormFieldsExtended.sentinelPathInvalid")
-          }
-          data-testid="sentinel-path-input"
-        />
-      </Tooltip>
+      {sentinelApplies && (
+        <Tooltip label={t("sourceFormFieldsExtended.sentinelPathTooltip")} multiline w={280}>
+          <TextInput
+            label={t("sourceFormFieldsExtended.sentinelPath")}
+            value={form.sentinelPath}
+            onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
+            placeholder="https://example.com/data/_SUCCESS"
+            error={
+              sentinelPathValid(form.sentinelPath)
+                ? undefined
+                : t("sourceFormFieldsExtended.sentinelPathInvalid")
+            }
+            data-testid="sentinel-path-input"
+          />
+        </Tooltip>
+      )}
       <Tooltip label={t("sourceFormFieldsExtended.freshnessGateTooltip")} multiline w={280}>
         <Checkbox
           label={t("sourceFormFieldsExtended.freshnessGate")}

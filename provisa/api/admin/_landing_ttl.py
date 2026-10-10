@@ -181,11 +181,9 @@ def source_states_the_clock(source_type: str | None) -> bool:
     are one fixed set that always lands, read together by one read of the source, so the one
     clock they refresh by is the source's. The source form asks it of this function
     (``/admin/source-kinds/{kind}``); nothing else names those kinds."""
-    import provisa.google_workspace  # noqa: F401  (declares the Google Workspace platform)
-    import provisa.microsoft365  # noqa: F401  (declares the Microsoft 365 platform)
     from provisa.core import mail_platforms
 
-    return source_type in {p.id for p in mail_platforms.platforms()}
+    return source_type in mail_platforms.source_types()
 
 
 async def landing_ttl_refusal(
