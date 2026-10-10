@@ -2316,3 +2316,7 @@ main {
   > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout) {
   flex: 1 1 100%;
 }
+/* A field whose control renders nothing (a region picker with no regions) takes no cell. */
+.form-field:empty {
+  display: none;
+}

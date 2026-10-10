@@ -10,6 +10,7 @@
 
 import { TextInput, PasswordInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 
 /** Reusable auth fields for username/password */
 export function AuthUserPass({
@@ -22,18 +23,24 @@ export function AuthUserPass({
   const { t } = useTranslation();
   return (
     <>
-      <TextInput
-        label={t("authUserPass.username")}
-        required
-        value={authFields.username ?? ""}
-        onChange={(e) => setAuthFields({ ...authFields, username: e.currentTarget.value })}
-      />
-      <PasswordInput
-        label={t("authUserPass.password")}
-        required
-        value={authFields.password ?? ""}
-        onChange={(e) => setAuthFields({ ...authFields, password: e.currentTarget.value })}
-      />
+      <FieldGroup>
+        <FormField size="medium">
+          <TextInput
+            label={t("authUserPass.username")}
+            required
+            value={authFields.username ?? ""}
+            onChange={(e) => setAuthFields({ ...authFields, username: e.currentTarget.value })}
+          />
+        </FormField>
+        <FormField size="medium">
+          <PasswordInput
+            label={t("authUserPass.password")}
+            required
+            value={authFields.password ?? ""}
+            onChange={(e) => setAuthFields({ ...authFields, password: e.currentTarget.value })}
+          />
+        </FormField>
+      </FieldGroup>
     </>
   );
 }

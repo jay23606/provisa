@@ -12,6 +12,7 @@ import { useSetSourceRegion, useRegionChoices } from "../hooks/useRegionQueries"
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
 import { RegionSelector } from "../components/RegionSelector";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -1583,7 +1584,8 @@ export function SourcesPage() {
           act on — see TablesPage.tsx's RegisterTableForm wrapper for the full explanation. */}
       {showForm && !editingSourceId && (
         <div className="page-aux">
-          <form
+          <FormLayout
+            component="form"
             data-tour="sources-form"
             className="form-card"
             onSubmit={
@@ -1602,48 +1604,58 @@ export function SourcesPage() {
                       : handleCreate
             }
           >
-            <TextInput
-              label={t("sourcesPage.idLabel")}
-              required
-              value={form.id}
-              onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
-              placeholder={t("sourcesPage.idPlaceholder")}
-              data-testid="sources-id-input"
-            />
-            <label>
-              {t("sourcesPage.typeLabel")}
-              <select
-                data-tour="sources-type"
-                data-testid="sources-type-select"
-                value={form.type}
-                onChange={(e) => handleTypeChange(e.target.value)}
-                // REQ-1938: clicking the field, or opening it from the keyboard, shows the picker
-                // dialog instead of the long native list. The select still holds the value, so
-                // setting it programmatically (selectOption) works unchanged.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setTypePickerOpen(true);
-                }}
-                // A click that was not preceded by a mouse press (the guided tour's) opens it too.
-                onClick={() => setTypePickerOpen(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " " || (e.altKey && e.key === "ArrowDown")) {
-                    e.preventDefault();
-                    setTypePickerOpen(true);
-                  }
-                }}
-              >
-                {typeSelectData().map((group) => (
-                  <optgroup key={group.group} label={group.group}>
-                    {group.items.map((item) => (
-                      <option key={item.value} value={item.value} disabled={item.disabled}>
-                        {item.label}
-                      </option>
+            <FormIdentifiers>
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourcesPage.idLabel")}
+                  required
+                  value={form.id}
+                  onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
+                  placeholder={t("sourcesPage.idPlaceholder")}
+                  data-testid="sources-id-input"
+                />
+              </FormField>
+              <FormField size="medium">
+                <label>
+                  {t("sourcesPage.typeLabel")}
+                  <select
+                    data-tour="sources-type"
+                    data-testid="sources-type-select"
+                    value={form.type}
+                    onChange={(e) => handleTypeChange(e.target.value)}
+                    // REQ-1938: clicking the field, or opening it from the keyboard, shows the picker
+                    // dialog instead of the long native list. The select still holds the value, so
+                    // setting it programmatically (selectOption) works unchanged.
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setTypePickerOpen(true);
+                    }}
+                    // A click that was not preceded by a mouse press (the guided tour's) opens it too.
+                    onClick={() => setTypePickerOpen(true)}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" ||
+                        e.key === " " ||
+                        (e.altKey && e.key === "ArrowDown")
+                      ) {
+                        e.preventDefault();
+                        setTypePickerOpen(true);
+                      }
+                    }}
+                  >
+                    {typeSelectData().map((group) => (
+                      <optgroup key={group.group} label={group.group}>
+                        {group.items.map((item) => (
+                          <option key={item.value} value={item.value} disabled={item.disabled}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+                  </select>
+                </label>
+              </FormField>
+            </FormIdentifiers>
             <SourceTypePicker
               opened={typePickerOpen}
               onClose={() => setTypePickerOpen(false)}
@@ -1655,7 +1667,7 @@ export function SourcesPage() {
             {/* The same two actions, in the same place and order, as the edit form below: Save first,
                 Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
                 is created by its own section's button, so it gets Cancel alone. */}
-            <Group gap="sm" style={{ gridColumn: "1 / -1", justifySelf: "start" }}>
+            <FormFooter>
               {form.type !== "kaggle" && (
                 <Button
                   type="submit"
@@ -1675,8 +1687,8 @@ export function SourcesPage() {
               >
                 {t("sourcesPage.cancelEdit")}
               </Button>
-            </Group>
-          </form>
+            </FormFooter>
+          </FormLayout>
         </div>
       )}
 
@@ -1802,7 +1814,8 @@ export function SourcesPage() {
                         <ListExpandRow colSpan={hasRegions ? 10 : 9}>
                           <ListDetail>
                             {isEditing ? (
-                              <form
+                              <FormLayout
+                                component="form"
                                 className="form-card"
                                 onSubmit={
                                   carrierOf(form.type) === "openapi"
@@ -1815,25 +1828,28 @@ export function SourcesPage() {
                                 }
                                 style={{ margin: 0 }}
                               >
-                                <TextInput
-                                  label={t("sourcesPage.idLabel")}
-                                  required
-                                  value={form.id}
-                                  onChange={(e) => setForm({ ...form, id: e.target.value })}
-                                />
-                                <Select
-                                  label={t("sourcesPage.typeLabel")}
-                                  value={form.type}
-                                  onChange={(v) => v && handleTypeChange(v)}
-                                  data={typeSelectData()}
-                                  allowDeselect={false}
-                                  searchable
-                                />
+                                <FormIdentifiers>
+                                  <FormField size="medium">
+                                    <TextInput
+                                      label={t("sourcesPage.idLabel")}
+                                      required
+                                      value={form.id}
+                                      onChange={(e) => setForm({ ...form, id: e.target.value })}
+                                    />
+                                  </FormField>
+                                  <FormField size="medium">
+                                    <Select
+                                      label={t("sourcesPage.typeLabel")}
+                                      value={form.type}
+                                      onChange={(v) => v && handleTypeChange(v)}
+                                      data={typeSelectData()}
+                                      allowDeselect={false}
+                                      searchable
+                                    />
+                                  </FormField>
+                                </FormIdentifiers>
                                 <SourceFormFields {...sourceFormFieldsProps} />
-                                <Group
-                                  gap="sm"
-                                  style={{ gridColumn: "1 / -1", justifySelf: "start" }}
-                                >
+                                <FormFooter>
                                   <Button
                                     variant="filled"
                                     type="submit"
@@ -1849,8 +1865,8 @@ export function SourcesPage() {
                                   >
                                     {t("sourcesPage.cancelEdit")}
                                   </Button>
-                                </Group>
-                              </form>
+                                </FormFooter>
+                              </FormLayout>
                             ) : (
                               <SourceDetailPanel
                                 s={s}

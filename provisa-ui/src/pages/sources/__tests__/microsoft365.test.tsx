@@ -13,7 +13,7 @@
 // nothing about how Provisa signs in to Microsoft is in front of them.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "../../../test-utils/render";
+import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/render";
 import en from "../../../i18n/locales/en/microsoft365Fields.json";
 import { BRAND_CARRIER, SOURCE_TYPES } from "../constants";
 import { SourceFormFieldsExtended } from "../SourceFormFieldsExtended";
@@ -74,7 +74,7 @@ function form(authFields: Record<string, string>, id = "mail") {
     setAuthFields,
     domains: [],
   } as unknown as SourceFormFieldsProps;
-  render(<SourceFormFieldsExtended {...props} />);
+  renderInForm(<SourceFormFieldsExtended {...props} />);
   return setAuthFields;
 }
 
