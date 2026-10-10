@@ -269,7 +269,8 @@
     "draftHelp": "Hors service tant que la case est cochée : lue et écrite nulle part, proposée dans aucun schéma et copiée nulle part ; les copies existantes dans chaque région sont supprimées. Une table ou une vue enregistrée ici commence en brouillon ; décochez pour la publier.",
     "delta": {
       "legend": "Rechargement incrémental (delta)",
-      "enable": "Rafraîchir cette réplique de façon incrémentale (delta) au lieu de la recopier entièrement",
+      "enable": "Rechargement incrémental",
+      "enableHelp": "Rafraîchir cette réplique de façon incrémentale (delta) au lieu de la recopier entièrement",
       "needsWatermark": "Un delta nécessite une colonne watermark (le curseur au-delà duquel il lit). Définissez-la sous Diffusion en direct.",
       "cursorNote": "Champ curseur : la colonne watermark de la table ({{watermark}}). Chaque rafraîchissement ne lit que les lignes au-delà du watermark enregistré, puis l'avance.",
       "apply": "Application",

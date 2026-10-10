@@ -269,7 +269,8 @@
     "draftHelp": "Fora de serviço enquanto marcado: não é lida nem escrita em lugar algum, não é oferecida em nenhum esquema e não é copiada — as cópias existentes em todas as regiões são removidas. Uma tabela ou visão registrada aqui começa como rascunho; desmarque para liberá-la.",
     "delta": {
       "legend": "Recarga incremental (delta)",
-      "enable": "Atualizar esta réplica de forma incremental (delta) em vez de copiá-la inteira novamente",
+      "enable": "Recarga incremental",
+      "enableHelp": "Atualizar esta réplica de forma incremental (delta) em vez de copiá-la inteira novamente",
       "needsWatermark": "Um delta precisa de uma coluna de watermark (o cursor a partir do qual lê). Defina-a em Entrega ao vivo.",
       "cursorNote": "Campo cursor: a coluna de watermark da tabela ({{watermark}}). Cada atualização lê apenas as linhas após o watermark armazenado e o avança.",
       "apply": "Aplicar",

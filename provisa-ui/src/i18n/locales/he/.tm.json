@@ -5557,5 +5557,7 @@
   "sourceFormFieldsExtended.json::sourceFormFieldsExtended.freshnessGateTooltip": "When on, a query that reads this source's tables first checks whether the copy is still fresh (by the change signal and Cache TTL) and, if it is stale, refreshes it before answering — so a reader never gets a copy older than the Cache TTL, and a query may wait for that refresh. When off, the copy is refreshed in the background and queries never wait. Needs a Cache TTL when the change signal re-reads on a schedule; has no effect for pushed change signals.",
   "tableEditForm.json::tableEditForm.dataProductDesc": "Published to the catalog and exported to Atlas, Atlan and others.",
   "tablesPage.json::tablesPage.modelingRole.impliedDimensionTitle": "Implied dimension — Enable Group By is on for this table",
-  "tablesPage.json::tablesPage.modelingRole.impliedFactTitle": "Implied fact — Enable Aggregates is on for this table"
+  "tablesPage.json::tablesPage.modelingRole.impliedFactTitle": "Implied fact — Enable Aggregates is on for this table",
+  "tableEditForm.json::tableEditForm.delta.enableHelp": "Refresh this replica incrementally (delta) instead of re-copying it whole",
+  "tableEditForm.json::tableEditForm.delta.enable": "Incremental reload"
 }
