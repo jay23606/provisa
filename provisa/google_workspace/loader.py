@@ -246,7 +246,12 @@ async def table_rows(
     if table == "folders":
         rows = []
         for label in await gmail.labels():
-            rows.append(_folder(gmail.account, await gmail.label(label["id"])))
+            try:
+                rows.append(_folder(gmail.account, await gmail.label(label["id"])))
+            except GmailNotFound:
+                # Deleted between its listing and its reading: no longer in the mailbox, and
+                # not a row -- as a message deleted meanwhile is not.
+                continue
         yield rows
         return
     unreadable = [] if unreadable is None else unreadable
@@ -328,20 +333,26 @@ async def _read_mailboxes(
     started in address order, ``at_once`` at a time; one Google will not let be read at all
     (:func:`_not_readable`, at its profile) is added to ``left_out`` and the others go on.
     Throttling Google does not lift, the project's allowance, a scope the domain has not
-    delegated, and any refusal after a mailbox began to be read, fail the read."""
+    delegated, and any refusal once a mailbox has answered its profile -- a "not found" for
+    a label or a message inside it among them -- fail the read."""
     async with httpx.AsyncClient() as client:
 
-        async def rows_of(account: str) -> AsyncIterator[Any]:
+        async def opened(account: str) -> tuple[Gmail, str]:
+            """The mailbox and its current history id: its profile, the first thing asked of
+            it and the proof that Google lets it be read."""
             gmail = _mailbox(reading, account, client)
-            history = (await gmail.profile())["historyId"]
+            return gmail, str((await gmail.profile())["historyId"])
+
+        async def rows_of(gmail: Gmail, account: str, history: str) -> AsyncIterator[Any]:
             async for item in read(gmail):
                 yield item
             if reached is not None:
-                reached[account] = str(history)
+                reached[account] = history
 
         if not reading.organisation:
             (account,) = reading.accounts
-            async for item in rows_of(account):
+            gmail, history = await opened(account)
+            async for item in rows_of(gmail, account, history):
                 yield item
             return
 
@@ -352,17 +363,20 @@ async def _read_mailboxes(
         async def worker() -> None:
             while waiting:
                 account = waiting.pop(0)
-                began = False
                 try:
-                    async for item in rows_of(account):
-                        began = True
-                        await arrived.put(item)
+                    gmail, history = await opened(account)
                 except Exception as refused:  # allow-ble: only a mailbox Google will not let be read at all is taken here; every other failure is re-raised unchanged
-                    why = None if began else _not_readable(refused)
+                    why = _not_readable(refused)
                     if why is None:
                         raise
                     left_out.append(account)
                     last_refusal[:] = [why]
+                    continue
+                # The mailbox answered its profile: it is there and may be read. Whatever
+                # Google refuses of a thing inside it from here on fails the read -- a "not
+                # found" for a label or a message is never a mailbox that cannot be read.
+                async for item in rows_of(gmail, account, history):
+                    await arrived.put(item)
 
         workers = [
             asyncio.ensure_future(worker())

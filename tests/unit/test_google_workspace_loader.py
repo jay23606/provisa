@@ -339,6 +339,19 @@ class TestFolders:
         assert (inbox["is_hidden"], inbox["label_list_visibility"]) == (False, "show")
         assert inbox["parent_id"] is None and inbox["child_count"] is None
 
+    async def test_a_label_deleted_between_its_listing_and_its_reading_is_not_a_folder(self):
+        """It is no longer in the mailbox, as a message deleted meanwhile is not: the others
+        are read, and the read does not fail."""
+
+        class OneGone(FakeGmail):
+            async def label(self, label_id: str) -> dict:
+                if label_id == "Label_7":
+                    raise GmailNotFound(ACCOUNT, "labels.get", 404, "notFound")
+                return await super().label(label_id)
+
+        rows = await _rows("folders", OneGone())
+        assert [r["id"] for r in rows] == [key for key in LABELS if key != "Label_7"]
+
     async def test_a_label_of_the_users_own_has_no_role(self):
         clients = {f["id"]: f for f in await _rows("folders")}["Label_7"]
         assert (clients["kind"], clients["role"], clients["name"]) == ("user", None, "Clients")

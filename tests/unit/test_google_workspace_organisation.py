@@ -238,6 +238,8 @@ class OrgGmail(FakeGmail):
         OrgGmail.most_at_once = max(OrgGmail.most_at_once, OrgGmail.reading_now)
         try:
             await asyncio.sleep(0)
+            if self._box.get("fail_at_start") is not None:
+                raise self._box["fail_at_start"]
             if self._box.get("fail_midway") is not None:
                 yield list(MAILBOX)[:1]
                 raise self._box["fail_midway"]
@@ -335,6 +337,18 @@ async def test_a_mailbox_google_will_not_let_be_read_is_left_out_and_reported(or
     assert note.code == "replication.mailboxes_left_out"
     assert note.params == {"count": 1, "accounts": ["bo@example.test"], "more": 0}
     assert "1 of 3 mailbox(es) were left out" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_something_not_found_inside_a_mailbox_is_not_a_mailbox_that_cannot_be_read(org):
+    """Google answered the mailbox's profile, so the mailbox is there and may be read. A "not
+    found" for a thing inside it, even before any row of it has arrived, is a failed read --
+    never a mailbox left out as if it did not exist."""
+    org.boxes["bo@example.test"]["fail_at_start"] = loader.GmailNotFound(
+        "bo@example.test", "messages.list", 404, "notFound"
+    )
+    with pytest.raises(loader.GmailNotFound):
+        await _group(org)
 
 
 @pytest.mark.asyncio
