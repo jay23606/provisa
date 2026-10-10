@@ -142,6 +142,9 @@ describe("LocalUsersTab", () => {
 
   it("creates a user via the required fields and clears the form", async () => {
     render(<LocalUsersTab allRoles={["admin"]} allDomains={["sales"]} />);
+    // The form opens from the button above the list, which is hidden while the form is open.
+    fireEvent.click(screen.getByTestId("local-user-add"));
+    expect(screen.queryByTestId("local-user-add")).toBeNull();
     const username = screen.getByRole("textbox", { name: t("localUsers.username") });
     fireEvent.change(username, { target: { value: "bob" } });
     // PasswordInput hides the input from the textbox role; target it by its
@@ -150,11 +153,13 @@ describe("LocalUsersTab", () => {
       target: { value: "secret" },
     });
     mockUsers = [makeUser({ id: "u2", username: "bob" })];
-    fireEvent.click(screen.getByRole("button", { name: t("localUsers.createButton") }));
+    fireEvent.click(screen.getByTestId("local-user-save"));
     await waitFor(() =>
       expect(createSpy).toHaveBeenCalledWith(
         expect.objectContaining({ username: "bob", password: "secret" }),
       ),
     );
+    // Created: the form closes and the opener is back.
+    expect(await screen.findByTestId("local-user-add")).toBeInTheDocument();
   });
 });
