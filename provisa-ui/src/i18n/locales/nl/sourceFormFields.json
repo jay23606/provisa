@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "Niets ouder dan",
+    "mailSinceHelp": "Laat leeg om e-mail van elke datum te lezen.",
     "description": "Beschrijving",
     "descriptionPlaceholder": "Korte beschrijving van deze databron",
     "host": "Host",

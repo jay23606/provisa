@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "Ничего старше",
+    "mailSinceHelp": "Оставьте пустым, чтобы читать почту за любое время.",
     "description": "Описание",
     "descriptionPlaceholder": "Краткое описание этого источника данных",
     "host": "Хост",

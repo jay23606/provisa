@@ -13,8 +13,6 @@
     "mailSearch": "要包含的邮件",
     "mailSearchHelp": "与您在 Gmail 搜索框中输入的搜索条件完全相同。留空表示所有邮件。",
     "mailSearchCost": "使用搜索的数据源在每次刷新时都会整体重新读取。",
-    "mailSince": "不早于",
-    "mailSinceHelp": "留空表示读取任何日期的邮件。",
     "mailLabels": "标签",
     "mailLabelsHelp": "每行一个标签名称。仅读取带有全部标签的邮件。留空表示所有邮件。",
     "mailSpamTrash": "包含垃圾邮件和已删除邮件",

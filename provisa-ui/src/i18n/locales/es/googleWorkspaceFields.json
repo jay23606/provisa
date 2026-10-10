@@ -13,8 +13,6 @@
     "mailSearch": "Correo que se incluye",
     "mailSearchHelp": "Una búsqueda tal como la escribiría en el cuadro de búsqueda de Gmail. Déjelo vacío para todo el correo.",
     "mailSearchCost": "Un origen que busca se vuelve a leer por completo en cada actualización.",
-    "mailSince": "Nada anterior a",
-    "mailSinceHelp": "Déjelo vacío para leer correo de cualquier fecha.",
     "mailLabels": "Etiquetas",
     "mailLabelsHelp": "Un nombre de etiqueta por línea. Solo se lee el correo que las lleva todas. Déjelo vacío para todo el correo.",
     "mailSpamTrash": "Incluir Spam y Papelera",

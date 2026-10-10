@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "これより古いものは除外",
+    "mailSinceHelp": "日付を問わず読み取る場合は空欄にします。",
     "description": "説明",
     "descriptionPlaceholder": "このデータソースの簡単な説明",
     "host": "ホスト",

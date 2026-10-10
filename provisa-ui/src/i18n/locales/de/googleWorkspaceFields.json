@@ -13,8 +13,6 @@
     "mailSearch": "Einzubeziehende E-Mails",
     "mailSearchHelp": "Eine Suche, genau wie Sie sie in das Suchfeld von Gmail eingeben würden. Leer lassen für alle E-Mails.",
     "mailSearchCost": "Eine Quelle mit Suche wird bei jeder Aktualisierung vollständig neu gelesen.",
-    "mailSince": "Nichts Älteres als",
-    "mailSinceHelp": "Leer lassen, um E-Mails jeden Alters zu lesen.",
     "mailLabels": "Labels",
     "mailLabelsHelp": "Ein Labelname pro Zeile. Es werden nur E-Mails gelesen, die alle tragen. Leer lassen für alle E-Mails.",
     "mailSpamTrash": "Spam und Papierkorb einbeziehen",
