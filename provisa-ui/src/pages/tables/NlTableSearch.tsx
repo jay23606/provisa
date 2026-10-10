@@ -14,10 +14,11 @@
 // none — choosing one only fills in the table the register form is about to register.
 
 import { useEffect, useRef, useState } from "react";
-import { Badge, Button, Group, Stack, Table, Text, TextInput } from "@mantine/core";
+import { Badge, Button, Stack, Table, Text, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { searchSourceTables } from "../../api/admin";
 import type { TableSearchAnswer } from "../../api/admin";
+import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
 
 // While a schema's column names are still loading, the same search is asked again until they
 // are in: every few seconds, a bounded number of times.
@@ -75,93 +76,107 @@ export function NlTableSearch({ sourceId, schemaName, isRegistered, onPick }: Pr
   }, [answer, sourceId, schemaName]);
 
   return (
-    <Stack gap="xs" style={{ gridColumn: "1 / -1" }} data-testid="register-table-nl-search">
-      <Group gap="xs" align="flex-end" wrap="nowrap">
-        <TextInput
-          style={{ flex: 1 }}
-          label={t("registerTableForm.nlSearchLabel")}
-          placeholder={t("registerTableForm.nlSearchPlaceholder")}
-          value={query}
-          onChange={(e) => setQuery(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && query.trim()) {
-              e.preventDefault();
-              void search();
-            }
-          }}
-          data-testid="register-table-nl-query"
-        />
-        <Button
-          variant="default"
-          onClick={() => void search()}
-          loading={busy}
-          disabled={!query.trim()}
-          data-testid="register-table-nl-run"
-        >
-          {t("registerTableForm.nlSearchButton")}
-        </Button>
-      </Group>
-      {error && (
-        <Text size="xs" c="red">
-          {error}
-        </Text>
-      )}
-      {answer?.column_names === "loading" && (
-        <Text size="xs" c="dimmed" data-testid="register-table-nl-columns-loading">
-          {t("registerTableForm.nlSearchColumnsLoading")}
-        </Text>
-      )}
-      {answer?.column_names === "unavailable" && (
-        <Text size="xs" c="dimmed" data-testid="register-table-nl-columns-unavailable">
-          {t("registerTableForm.nlSearchColumnsUnavailable")}
-        </Text>
-      )}
-      {found !== null && found.length === 0 && (
-        <Text size="xs" c="dimmed">
-          {t("registerTableForm.nlSearchNone")}
-        </Text>
-      )}
-      {found !== null && found.length > 0 && (
-        <Table withTableBorder verticalSpacing={4} fz="xs" data-testid="register-table-nl-results">
-          <Table.Tbody>
-            {found.map((c) => {
-              const registered = isRegistered({ name: c.table_name });
-              return (
-                <Table.Tr key={`${c.schema_name}.${c.table_name}`}>
-                  <Table.Td>
-                    <Text fz="xs" fw={600}>
-                      {c.table_name}
-                    </Text>
-                    {(c.reasoning || c.comment) && (
-                      <Text fz="xs" c="dimmed">
-                        {c.reasoning || c.comment}
+    <FormField size="full">
+      <Stack gap="xs" data-testid="register-table-nl-search">
+        <FormLayout>
+          <FieldGroup>
+            <FormField size="long">
+              <TextInput
+                label={t("registerTableForm.nlSearchLabel")}
+                placeholder={t("registerTableForm.nlSearchPlaceholder")}
+                value={query}
+                onChange={(e) => setQuery(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && query.trim()) {
+                    e.preventDefault();
+                    void search();
+                  }
+                }}
+                data-testid="register-table-nl-query"
+              />
+            </FormField>
+            <Button
+              variant="default"
+              onClick={() => void search()}
+              loading={busy}
+              disabled={!query.trim()}
+              data-testid="register-table-nl-run"
+            >
+              {t("registerTableForm.nlSearchButton")}
+            </Button>
+          </FieldGroup>
+        </FormLayout>
+        {error && (
+          <Text size="xs" c="red">
+            {error}
+          </Text>
+        )}
+        {answer?.column_names === "loading" && (
+          <Text size="xs" c="dimmed" data-testid="register-table-nl-columns-loading">
+            {t("registerTableForm.nlSearchColumnsLoading")}
+          </Text>
+        )}
+        {answer?.column_names === "unavailable" && (
+          <Text size="xs" c="dimmed" data-testid="register-table-nl-columns-unavailable">
+            {t("registerTableForm.nlSearchColumnsUnavailable")}
+          </Text>
+        )}
+        {found !== null && found.length === 0 && (
+          <Text size="xs" c="dimmed">
+            {t("registerTableForm.nlSearchNone")}
+          </Text>
+        )}
+        {found !== null && found.length > 0 && (
+          <Table
+            withTableBorder
+            verticalSpacing={4}
+            fz="xs"
+            data-testid="register-table-nl-results"
+          >
+            <Table.Tbody>
+              {found.map((c) => {
+                const registered = isRegistered({ name: c.table_name });
+                return (
+                  <Table.Tr key={`${c.schema_name}.${c.table_name}`}>
+                    <Table.Td>
+                      <Text fz="xs" fw={600}>
+                        {c.table_name}
                       </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td w={90}>
-                    <Badge variant="light" size="sm">
-                      {t("registerTableForm.nlSearchConfidence", {
-                        percent: Math.round(c.confidence * 100),
-                      })}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td w={110}>
-                    {registered ? (
-                      <Text fz="xs" c="dimmed">
-                        {t("registerTableForm.nlSearchRegistered")}
-                      </Text>
-                    ) : (
-                      <Button size="compact-xs" variant="light" onClick={() => onPick(c.table_name)}>
-                        {t("registerTableForm.nlSearchUse")}
-                      </Button>
-                    )}
-                  </Table.Td>
-                </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
-      )}
-    </Stack>
+                      {(c.reasoning || c.comment) && (
+                        <Text fz="xs" c="dimmed">
+                          {c.reasoning || c.comment}
+                        </Text>
+                      )}
+                    </Table.Td>
+                    <Table.Td w={90}>
+                      <Badge variant="light" size="sm">
+                        {t("registerTableForm.nlSearchConfidence", {
+                          percent: Math.round(c.confidence * 100),
+                        })}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td w={110}>
+                      {registered ? (
+                        <Text fz="xs" c="dimmed">
+                          {t("registerTableForm.nlSearchRegistered")}
+                        </Text>
+                      ) : (
+                        <Button
+                          size="compact-xs"
+                          variant="light"
+                          onClick={() => onPick(c.table_name)}
+                        >
+                          {t("registerTableForm.nlSearchUse")}
+                        </Button>
+                      )}
+                    </Table.Td>
+                  </Table.Tr>
+                );
+              })}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
+    </FormField>
   );
 }

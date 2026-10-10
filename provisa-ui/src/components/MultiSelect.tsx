@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { MultiSelect as MantineMultiSelect } from "@mantine/core";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 /** Multi-value picker backed by Mantine MultiSelect — provides the ARIA
@@ -24,15 +25,22 @@ export function MultiSelect({
   ariaLabel,
   placeholder,
   disabled,
+  description,
+  required,
+  withAsterisk,
 }: {
   options: { id: string; label: string }[];
   value: string[];
   onChange: (selected: string[]) => void;
   className?: string;
-  label?: string;
+  // A form field gives the label with its (?) and the explanation shown under the control.
+  label?: ReactNode;
   ariaLabel?: string;
   placeholder?: string;
   disabled?: boolean;
+  description?: ReactNode;
+  required?: boolean;
+  withAsterisk?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -42,9 +50,17 @@ export function MultiSelect({
       value={value}
       onChange={onChange}
       label={label}
+      description={description}
+      required={required}
+      withAsterisk={withAsterisk}
       // Callers historically render this with no visible label; supply an
       // accessible name so the combobox is never anonymous to screen readers.
-      aria-label={ariaLabel ?? label ?? placeholder ?? t("multiSelect.defaultLabel")}
+      aria-label={
+        ariaLabel ??
+        (typeof label === "string" ? label : undefined) ??
+        placeholder ??
+        t("multiSelect.defaultLabel")
+      }
       placeholder={value.length === 0 ? (placeholder ?? t("multiSelect.all")) : undefined}
       searchable
       clearable={!disabled}

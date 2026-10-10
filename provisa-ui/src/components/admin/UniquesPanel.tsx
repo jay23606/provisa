@@ -18,7 +18,6 @@ import {
   Button,
   Group,
   MultiSelect,
-  Stack,
   Text,
   TextInput,
   Tooltip,
@@ -26,6 +25,7 @@ import {
 import { Info, Plus, X } from "lucide-react";
 import type { UniqueConstraint } from "../../types/admin";
 import { usePanelState } from "../../hooks/usePanelState";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 interface Props {
   uniques: UniqueConstraint[];
@@ -77,33 +77,29 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
           </Group>
         </Accordion.Control>
         <Accordion.Panel>
-          <Stack gap="sm">
+          <FormLayout>
             {uniques.map((u, i) => (
-              <Group
-                key={i}
-                gap="sm"
-                align="flex-end"
-                wrap="nowrap"
-                data-testid={`unique-row-${i}`}
-              >
-                <TextInput
-                  label={t("uniquesPanel.nameLabel")}
-                  placeholder={t("uniquesPanel.namePlaceholder")}
-                  value={u.name}
-                  onChange={(e) => update(i, { name: e.currentTarget.value })}
-                  style={{ flex: 1 }}
-                  data-testid={`unique-name-${i}`}
-                />
-                <MultiSelect
-                  label={t("uniquesPanel.columnsLabel")}
-                  placeholder={t("uniquesPanel.columnsPlaceholder")}
-                  data={columns.map((c) => ({ value: c, label: c }))}
-                  value={u.columns}
-                  onChange={(cols) => update(i, { columns: cols })}
-                  searchable
-                  style={{ flex: 2 }}
-                  data-testid={`unique-columns-${i}`}
-                />
+              <FieldGroup row key={i} data-testid={`unique-row-${i}`}>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("uniquesPanel.nameLabel")}
+                    placeholder={t("uniquesPanel.namePlaceholder")}
+                    value={u.name}
+                    onChange={(e) => update(i, { name: e.currentTarget.value })}
+                    data-testid={`unique-name-${i}`}
+                  />
+                </FormField>
+                <FormField size="long">
+                  <MultiSelect
+                    label={t("uniquesPanel.columnsLabel")}
+                    placeholder={t("uniquesPanel.columnsPlaceholder")}
+                    data={columns.map((c) => ({ value: c, label: c }))}
+                    value={u.columns}
+                    onChange={(cols) => update(i, { columns: cols })}
+                    searchable
+                    data-testid={`unique-columns-${i}`}
+                  />
+                </FormField>
                 <ActionIcon
                   variant="subtle"
                   color="gray"
@@ -113,9 +109,9 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
                 >
                   <X size={16} />
                 </ActionIcon>
-              </Group>
+              </FieldGroup>
             ))}
-            <Group>
+            <FormField size="full">
               <Button
                 variant="light"
                 size="xs"
@@ -125,8 +121,8 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
               >
                 {t("uniquesPanel.addConstraint")}
               </Button>
-            </Group>
-          </Stack>
+            </FormField>
+          </FormLayout>
         </Accordion.Panel>
       </Accordion.Item>
     </Accordion>

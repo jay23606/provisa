@@ -8,13 +8,13 @@
 // the parameters that type reads, or a connection table's max rows — and nothing else.
 
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "../../../test-utils/render";
+import { fireEvent, renderInForm, screen } from "../../../test-utils/render";
 import { PagingField } from "../PagingField";
 import { NO_PAGING } from "../paging";
 
 describe("PagingField (REQ-318)", () => {
   it("shows an offset endpoint's parameters with the names sent when left empty", () => {
-    render(
+    renderInForm(
       <PagingField
         kind="endpoint"
         paging={{ ...NO_PAGING, type: "offset", maxPages: 3 }}
@@ -35,7 +35,7 @@ describe("PagingField (REQ-318)", () => {
   });
 
   it("names what paging after the last row reads, with the names sent when left empty", () => {
-    render(
+    renderInForm(
       <PagingField
         kind="endpoint"
         paging={{ ...NO_PAGING, type: "last_row", cursorParam: "starting_after" }}
@@ -58,7 +58,7 @@ describe("PagingField (REQ-318)", () => {
   });
 
   it("lets a cursor-paged table name its page-size parameter, sending none when left empty", () => {
-    render(
+    renderInForm(
       <PagingField
         kind="endpoint"
         paging={{ ...NO_PAGING, type: "cursor", cursorParam: "page", pageSizeParam: "limit" }}
@@ -75,7 +75,7 @@ describe("PagingField (REQ-318)", () => {
 
   it("lets the steward say where the rows are when registering (REQ-316)", () => {
     const onChange = vi.fn();
-    render(
+    renderInForm(
       <PagingField
         kind="endpoint"
         paging={{ ...NO_PAGING, rowsField: "values" }}
@@ -94,7 +94,7 @@ describe("PagingField (REQ-318)", () => {
   });
 
   it("shows where a registered table's rows are without letting it be edited", () => {
-    const { rerender } = render(
+    const { rerender } = renderInForm(
       <PagingField
         kind="endpoint"
         paging={{ ...NO_PAGING, type: "offset", rowsField: "values" }}
@@ -115,7 +115,7 @@ describe("PagingField (REQ-318)", () => {
   });
 
   it("shows a connection table its row bound only", () => {
-    render(
+    renderInForm(
       <PagingField kind="connection" paging={null} onChange={vi.fn()} ceilingRows={1000} />,
     );
     expect(screen.getByRole("textbox", { name: "Max rows per read" })).toHaveAttribute(

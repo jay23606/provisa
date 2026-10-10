@@ -13,12 +13,13 @@
 // resolved TTL (table, else source, else global) and is the operator's floor.
 
 import { useTranslation } from "react-i18next";
-import { Button, Group, NumberInput, Select, Text } from "@mantine/core";
+import { Button, NumberInput, Select, Text } from "@mantine/core";
 import { X } from "lucide-react";
 import type { RoleTtl } from "../../types/admin";
 import type { Role } from "../../types/auth";
 import { FieldLabel } from "./FieldLabel";
 import { roleTtlRowError } from "./roleTtl";
+import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface RoleTtlFieldProps {
   rows: RoleTtl[];
@@ -39,8 +40,10 @@ export function RoleTtlField({ rows, onChange, roles, floorTtl }: RoleTtlFieldPr
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
 
   return (
-    <div data-testid="role-ttl-field">
-      <FieldLabel text={t("tableEditForm.roleTtlLabel")} help={t("tableEditForm.roleTtlHelp")} />
+    <FormLayout data-testid="role-ttl-field">
+      <FormField size="full">
+        <FieldLabel text={t("tableEditForm.roleTtlLabel")} help={t("tableEditForm.roleTtlHelp")} />
+      </FormField>
       {rows.map((row, i) => {
         const error = roleTtlRowError(rows, i);
         // A role may pick itself or any role not already listed — never a duplicate.
@@ -48,34 +51,40 @@ export function RoleTtlField({ rows, onChange, roles, floorTtl }: RoleTtlFieldPr
           .filter((r) => r.id === row.role || !listed.has(r.id))
           .map((r) => ({ value: r.id, label: r.id }));
         return (
-          <div key={i} data-testid="role-ttl-row">
-            <Group gap="xs" align="flex-start" wrap="nowrap">
-              <Select
-                aria-label={t("tableEditForm.roleTtlRole")}
-                data={options}
-                value={row.role}
-                onChange={(v) => v != null && update(i, { role: v })}
-                allowDeselect={false}
-                comboboxProps={{ withinPortal: true }}
-              />
-              <NumberInput
-                aria-label={t("tableEditForm.roleTtlSeconds")}
-                min={0}
-                allowDecimal={false}
-                allowNegative={false}
-                value={Number.isNaN(row.ttl) ? "" : row.ttl}
-                onChange={(v) => update(i, { ttl: v === "" ? Number.NaN : Number(v) })}
-                error={error ? t(error) : undefined}
-              />
-              <Button
-                variant="subtle"
-                color="red"
-                aria-label={t("tableEditForm.roleTtlRemove", { role: row.role })}
-                onClick={() => onChange(rows.filter((_, j) => j !== i))}
-              >
-                <X size={14} />
-              </Button>
-            </Group>
+          <FormField size="full" key={i} data-testid="role-ttl-row">
+            <FormLayout>
+              <FieldGroup row>
+                <FormField size="medium">
+                  <Select
+                    aria-label={t("tableEditForm.roleTtlRole")}
+                    data={options}
+                    value={row.role}
+                    onChange={(v) => v != null && update(i, { role: v })}
+                    allowDeselect={false}
+                    comboboxProps={{ withinPortal: true }}
+                  />
+                </FormField>
+                <FormField size="short">
+                  <NumberInput
+                    aria-label={t("tableEditForm.roleTtlSeconds")}
+                    min={0}
+                    allowDecimal={false}
+                    allowNegative={false}
+                    value={Number.isNaN(row.ttl) ? "" : row.ttl}
+                    onChange={(v) => update(i, { ttl: v === "" ? Number.NaN : Number(v) })}
+                    error={error ? t(error) : undefined}
+                  />
+                </FormField>
+                <Button
+                  variant="subtle"
+                  color="red"
+                  aria-label={t("tableEditForm.roleTtlRemove", { role: row.role })}
+                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                >
+                  <X size={14} />
+                </Button>
+              </FieldGroup>
+            </FormLayout>
             {error === null && (
               <Text size="xs" c="dimmed" data-testid="role-ttl-effective">
                 {t("tableEditForm.roleTtlEffective", { sec: Math.max(floorTtl ?? 0, row.ttl) })}
@@ -87,23 +96,27 @@ export function RoleTtlField({ rows, onChange, roles, floorTtl }: RoleTtlFieldPr
                 )}
               </Text>
             )}
-          </div>
+          </FormField>
         );
       })}
-      <Button
-        variant="light"
-        size="xs"
-        mt={4}
-        disabled={unlisted.length === 0}
-        onClick={() => onChange([...rows, { role: unlisted[0].id, ttl: floorTtl ?? 0 }])}
-      >
-        {t("tableEditForm.roleTtlAdd")}
-      </Button>
+      <FormField size="full">
+        <Button
+          variant="light"
+          size="xs"
+          mt={4}
+          disabled={unlisted.length === 0}
+          onClick={() => onChange([...rows, { role: unlisted[0].id, ttl: floorTtl ?? 0 }])}
+        >
+          {t("tableEditForm.roleTtlAdd")}
+        </Button>
+      </FormField>
       {floorTtl !== null && (
-        <Text size="xs" c="dimmed" data-testid="role-ttl-unlisted">
-          {t("tableEditForm.roleTtlUnlisted", { sec: floorTtl })}
-        </Text>
+        <FormField size="full">
+          <Text size="xs" c="dimmed" data-testid="role-ttl-unlisted">
+            {t("tableEditForm.roleTtlUnlisted", { sec: floorTtl })}
+          </Text>
+        </FormField>
       )}
-    </div>
+    </FormLayout>
   );
 }

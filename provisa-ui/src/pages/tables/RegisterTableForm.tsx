@@ -50,6 +50,7 @@ import { useDomainFilter } from "../../context/DomainFilterContext";
 import { PagingField } from "./PagingField";
 import { declaredPaging, pagingInput, pagingProblem } from "./paging";
 import {
+  FormChecks,
   FormField,
   FormFooter,
   FormIdentifiers,
@@ -670,6 +671,7 @@ export function RegisterTableForm({
           <label>
             {t("registerTableForm.sourceLabel")}
             <select
+              className="form-select"
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
               data-testid="register-table-source-select"
@@ -694,6 +696,7 @@ export function RegisterTableForm({
             <label>
               {t("registerTableForm.domainLabel")}
               <select
+                className="form-select"
                 value={domainId}
                 onChange={(e) => setDomainId(e.target.value)}
                 data-testid="register-table-domain-select"
@@ -746,6 +749,7 @@ export function RegisterTableForm({
             <label>
               {t("registerTableForm.profilerResultLabel")}
               <select
+                className="form-select"
                 value={tableName}
                 onChange={(e) => setTableName(e.target.value)}
                 disabled={profilerCatalog == null}
@@ -778,6 +782,7 @@ export function RegisterTableForm({
               <label>
                 {t("registerTableForm.schemaLabel")}
                 <select
+                  className="form-select"
                   value={schemaName}
                   onChange={(e) => setSchemaName(e.target.value)}
                   disabled={!sourceId || loadingSchemas || isFixedSchema}
@@ -800,6 +805,7 @@ export function RegisterTableForm({
               <label>
                 {t("registerTableForm.tableLabel")}
                 <select
+                  className="form-select"
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
                   disabled={!schemaName || loadingTables || allTablesRegistered}
@@ -840,14 +846,7 @@ export function RegisterTableForm({
         <FormField size="medium">
           <TextInput
             data-testid="register-table-alias"
-            label={
-              <>
-                {t("registerTableForm.aliasLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t("registerTableForm.aliasOptional")}
-                </Text>
-              </>
-            }
+            label={t("registerTableForm.aliasLabel")}
             value={tableAlias}
             onChange={(e) => setTableAlias(e.currentTarget.value)}
             placeholder={t("registerTableForm.aliasPlaceholder")}
@@ -855,11 +854,10 @@ export function RegisterTableForm({
         </FormField>
       </FormIdentifiers>
       {needsCacheTtl && (
-        <FormField size="short">
+        <FormField help={t("registerTableForm.cacheTtlHint")} size="short">
           <NumberInput
             data-testid="register-table-cache-ttl"
             label={t("registerTableForm.cacheTtlLabel")}
-            description={t("registerTableForm.cacheTtlHint")}
             min={0}
             required
             value={cacheTtl === "" ? "" : Number(cacheTtl)}
@@ -983,14 +981,7 @@ export function RegisterTableForm({
       )}
       <FormField size="long">
         <TextInput
-          label={
-            <>
-              {t("registerTableForm.descriptionLabel")}{" "}
-              <Text span fw="normal" c="dimmed" fz="xs">
-                {t("registerTableForm.descriptionOptional")}
-              </Text>
-            </>
-          }
+          label={t("registerTableForm.descriptionLabel")}
           value={tableDescription}
           onChange={(e) => setTableDescription(e.currentTarget.value)}
           placeholder={t("registerTableForm.descriptionPlaceholder")}
@@ -1005,36 +996,17 @@ export function RegisterTableForm({
           rowsFieldEditable
         />
       )}
-      {!isChecker && !isQueryApi && (
-        <FormField size="long">
-          <Checkbox
-            checked={discover}
-            onChange={(e) => setDiscover(e.currentTarget.checked)}
-            data-testid="discover-columns-checkbox"
-            label={
-              <>
-                {t("registerTableForm.discoverLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t("registerTableForm.discoverHint")}
-                </Text>
-              </>
-            }
-          />
-        </FormField>
-      )}
       {sourceId && !isChecker && !isQueryApi && (
-        <FormField size="medium">
+        <FormField
+          size="medium"
+          hint={
+            isCdcSource
+              ? t("registerTableForm.watermarkHintOptional")
+              : t("registerTableForm.watermarkHintRequired")
+          }
+        >
           <Select
-            label={
-              <>
-                {t("registerTableForm.watermarkLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {isCdcSource
-                    ? t("registerTableForm.watermarkHintOptional")
-                    : t("registerTableForm.watermarkHintRequired")}
-                </Text>
-              </>
-            }
+            label={t("registerTableForm.watermarkLabel")}
             placeholder={
               isCdcSource
                 ? t("registerTableForm.watermarkNoneTriggers")
@@ -1059,7 +1031,21 @@ export function RegisterTableForm({
           setSourceFileColumn={setSourceFileColumn}
         />
       )}
-      {!isChecker && (
+      {/* The ticks sit together beneath the fields. */}
+      <FormChecks>
+        {!isChecker && !isQueryApi && (
+          <FormField size="short" help={t("registerTableForm.discoverHint")}>
+            <Checkbox
+              checked={discover}
+              onChange={(e) => setDiscover(e.currentTarget.checked)}
+              data-testid="discover-columns-checkbox"
+              label={t("registerTableForm.discoverLabel")}
+            />
+          </FormField>
+        )}
+      </FormChecks>
+      {/* The heading shows once there is something under it: columns, or their loading. */}
+      {!isChecker && (columns.length > 0 || loadingColumns) && (
         <FormField size="full">
           <Stack gap="xs">
             <Text fw={600} fz="sm">
@@ -1088,14 +1074,12 @@ export function RegisterTableForm({
         </FormField>
       )}
       {/* Save registers the table, Cancel closes the form. (The page's "+ Table" only opens it.) */}
-      <FormFooter>
-        <Button onClick={handleSubmit} data-testid="register-table-submit">
-          {t("registerTableForm.submitButton")}
-        </Button>
-        <Button variant="default" onClick={onCancel} data-testid="register-table-cancel">
-          {t("registerTableForm.cancelButton")}
-        </Button>
-      </FormFooter>
+      <FormFooter
+        onSave={handleSubmit}
+        onCancel={onCancel}
+        saveProps={{ "data-testid": "register-table-submit" }}
+        cancelProps={{ "data-testid": "register-table-cancel" }}
+      />
     </FormLayout>
   );
 }

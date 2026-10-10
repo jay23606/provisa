@@ -13,7 +13,8 @@
 
 import { useState, type ReactNode } from "react";
 import { ActionIcon, Badge, Collapse, Group, Text, Tooltip } from "@mantine/core";
-import { Info } from "lucide-react";
+import { CircleHelp } from "lucide-react";
+import { FormLayout } from "../../components/form/FormLayout";
 
 export function CollapsibleSection({
   title,
@@ -36,7 +37,7 @@ export function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ gridColumn: "1 / -1" }} data-tour={tourId}>
+    <div className="form-section" data-tour={tourId}>
       <Group
         gap="xs"
         wrap="nowrap"
@@ -77,22 +78,20 @@ export function CollapsibleSection({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >
-              <Info size={12} aria-hidden />
+              <CircleHelp size={14} aria-hidden />
             </ActionIcon>
           </Tooltip>
         )}
       </Group>
       <Collapse in={open}>
-        <div
+        <FormLayout
           style={{
-            display: "grid",
-            gap: "var(--mantine-spacing-sm)",
             paddingTop: "var(--mantine-spacing-xs)",
             paddingInline: "var(--mantine-spacing-md)",
           }}
         >
           {children}
-        </div>
+        </FormLayout>
       </Collapse>
     </div>
   );

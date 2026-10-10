@@ -15,17 +15,7 @@
 // Admin › Email. A source keeps only its owner's approval, or only which mailboxes.
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Alert,
-  Anchor,
-  Button,
-  Checkbox,
-  Group,
-  Select,
-  Text,
-  TextInput,
-  Textarea,
-} from "@mantine/core";
+import { Alert, Anchor, Button, Checkbox, Select, Text, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { serverMessage } from "../../i18n/serverMessage";
@@ -219,21 +209,36 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       )}
       {organisation && (
         <>
-          <FormField size="short">
-            <Select
-              label={t("googleWorkspaceFields.choice")}
-              data={[
-                { value: GW_EVERYONE, label: t("googleWorkspaceFields.choiceEveryone") },
-                { value: GW_GROUP, label: t("googleWorkspaceFields.choiceGroup") },
-                { value: GW_LIST, label: t("googleWorkspaceFields.choiceList") },
-              ]}
-              value={fields.gw_choice ?? null}
-              onChange={(value) => choose({ gw_choice: value ?? "" })}
-              required
-              allowDeselect={false}
-              data-testid="google-workspace-gw_choice"
-            />
-          </FormField>
+          {/* The button that checks the choice sits at its end. */}
+          <FieldGroup>
+            <FormField size="medium">
+              <Select
+                label={t("googleWorkspaceFields.choice")}
+                data={[
+                  { value: GW_EVERYONE, label: t("googleWorkspaceFields.choiceEveryone") },
+                  { value: GW_GROUP, label: t("googleWorkspaceFields.choiceGroup") },
+                  { value: GW_LIST, label: t("googleWorkspaceFields.choiceList") },
+                ]}
+                value={fields.gw_choice ?? null}
+                onChange={(value) => choose({ gw_choice: value ?? "" })}
+                required
+                allowDeselect={false}
+                data-testid="google-workspace-gw_choice"
+              />
+            </FormField>
+            {!notSetUp && !notAllowed && (
+              <Button
+                type="button"
+                variant="default"
+                onClick={check}
+                loading={checking}
+                disabled={status === null || chosen === null}
+                data-testid="google-workspace-check"
+              >
+                {t("googleWorkspaceFields.check")}
+              </Button>
+            )}
+          </FieldGroup>
           {fields.gw_choice === GW_GROUP && (
             <FormField hint={t("googleWorkspaceFields.groupHelp")} size="medium">
               <TextInput
@@ -321,31 +326,11 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </Alert>
         </FormField>
       )}
-      {organisation && !notSetUp && !notAllowed && (
+      {organisation && !notSetUp && !notAllowed && found !== null && (
         <FormField size="full">
-          <Group gap="sm" align="center">
-            <Button
-              type="button"
-              variant="default"
-              onClick={check}
-              loading={checking}
-              disabled={status === null || chosen === null}
-              data-testid="google-workspace-check"
-            >
-              {t("googleWorkspaceFields.check")}
-            </Button>
-            {found !== null && (
-              <Alert
-                color="green"
-                variant="light"
-                py={4}
-                px="sm"
-                data-testid="google-workspace-found"
-              >
-                {t("googleWorkspaceFields.found", { count: found })}
-              </Alert>
-            )}
-          </Group>
+          <Alert color="green" variant="light" py={4} px="sm" data-testid="google-workspace-found">
+            {t("googleWorkspaceFields.found", { count: found })}
+          </Alert>
         </FormField>
       )}
       {!organisation && !notSetUp && fields.gw_connected_as && (

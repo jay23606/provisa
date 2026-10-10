@@ -865,9 +865,9 @@ export function SourceFormFieldsExtended({
             />
           </FormField>
           {domainsEnabled && (
-            <FormField size="long">
+            <FormField size="long" hint={t("sourceFormFieldsExtended.allowedDomainsHint")}>
               <MultiSelect
-                label={`${t("sourceFormFieldsExtended.allowedDomains")} ${t("sourceFormFieldsExtended.allowedDomainsHint")}`}
+                label={t("sourceFormFieldsExtended.allowedDomains")}
                 options={domains.map((d) => ({ id: d.id, label: d.id }))}
                 value={form.allowedDomains
                   .split(",")

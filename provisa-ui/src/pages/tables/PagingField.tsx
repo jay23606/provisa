@@ -14,10 +14,11 @@
 // may lower the operator's graphql_remote.max_rows, never raise it.
 
 import { useTranslation } from "react-i18next";
-import { Group, NumberInput, Select, Text, TextInput } from "@mantine/core";
+import { NumberInput, Select, Text, TextInput } from "@mantine/core";
 import type { Paging, PagingKind, PagingType } from "../../types/admin";
 import { FieldLabel } from "./FieldLabel";
 import { NO_PAGING, pagingProblem } from "./paging";
+import { FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface PagingFieldProps {
   kind: PagingKind;
@@ -81,27 +82,31 @@ export function PagingField({
 
   if (kind === "connection") {
     return (
-      <div data-testid="paging-field">
+      <FormField size="full" data-testid="paging-field">
         <FieldLabel
           text={t("tableEditForm.pagingLabel")}
           help={t("tableEditForm.pagingConnectionHelp")}
         />
-        <NumberInput
-          aria-label={t("tableEditForm.pagingMaxRows")}
-          label={t("tableEditForm.pagingMaxRows")}
-          min={1}
-          allowDecimal={false}
-          allowNegative={false}
-          value={staged.maxRows ?? ""}
-          placeholder={
-            ceilingRows === null
-              ? undefined
-              : t("tableEditForm.pagingMaxRowsDefault", { ceiling: ceilingRows })
-          }
-          onChange={number("maxRows")}
-          error={error}
-        />
-      </div>
+        <FormLayout>
+          <FormField size="short">
+            <NumberInput
+              aria-label={t("tableEditForm.pagingMaxRows")}
+              label={t("tableEditForm.pagingMaxRows")}
+              min={1}
+              allowDecimal={false}
+              allowNegative={false}
+              value={staged.maxRows ?? ""}
+              placeholder={
+                ceilingRows === null
+                  ? undefined
+                  : t("tableEditForm.pagingMaxRowsDefault", { ceiling: ceilingRows })
+              }
+              onChange={number("maxRows")}
+              error={error}
+            />
+          </FormField>
+        </FormLayout>
+      </FormField>
     );
   }
 
@@ -114,82 +119,99 @@ export function PagingField({
   };
 
   return (
-    <div data-testid="paging-field">
+    <FormField size="full" data-testid="paging-field">
       <FieldLabel
         text={t("tableEditForm.pagingLabel")}
         help={t("tableEditForm.pagingEndpointHelp")}
       />
-      <Select
-        aria-label={t("tableEditForm.pagingType")}
-        label={t("tableEditForm.pagingType")}
-        data={TYPES.map((type) => ({ value: type, label: t(`tableEditForm.pagingTypes.${type}`) }))}
-        value={staged.type}
-        onChange={pickType}
-        clearable
-        placeholder={t("tableEditForm.pagingNone")}
-        comboboxProps={{ withinPortal: true }}
-        error={error}
-      />
-      {staged.type !== null && (
-        <Group gap="xs" mt={4} align="flex-start" grow>
-          {READS[staged.type].map(({ field, fallback, label = field }) =>
-            NUMERIC.has(field) ? (
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            aria-label={t("tableEditForm.pagingType")}
+            label={t("tableEditForm.pagingType")}
+            data={TYPES.map((type) => ({
+              value: type,
+              label: t(`tableEditForm.pagingTypes.${type}`),
+            }))}
+            value={staged.type}
+            onChange={pickType}
+            clearable
+            placeholder={t("tableEditForm.pagingNone")}
+            comboboxProps={{ withinPortal: true }}
+            error={error}
+          />
+        </FormField>
+        {staged.type !== null && (
+          <>
+            {READS[staged.type].map(({ field, fallback, label = field }) =>
+              NUMERIC.has(field) ? (
+                <FormField size="short" key={field}>
+                  <NumberInput
+                    aria-label={t(`tableEditForm.pagingFields.${label}`)}
+                    label={t(`tableEditForm.pagingFields.${label}`)}
+                    min={1}
+                    allowDecimal={false}
+                    allowNegative={false}
+                    value={(staged[field] as number | null) ?? ""}
+                    placeholder="100"
+                    onChange={number(field)}
+                  />
+                </FormField>
+              ) : (
+                <FormField size="medium" key={field}>
+                  <TextInput
+                    aria-label={t(`tableEditForm.pagingFields.${label}`)}
+                    label={t(`tableEditForm.pagingFields.${label}`)}
+                    value={(staged[field] as string | null) ?? ""}
+                    placeholder={fallback}
+                    onChange={(e) =>
+                      set({ [field]: e.currentTarget.value || null } as Partial<Paging>)
+                    }
+                  />
+                </FormField>
+              ),
+            )}
+            <FormField size="short">
               <NumberInput
-                key={field}
-                aria-label={t(`tableEditForm.pagingFields.${label}`)}
-                label={t(`tableEditForm.pagingFields.${label}`)}
+                aria-label={t("tableEditForm.pagingFields.maxPages")}
+                label={t("tableEditForm.pagingFields.maxPages")}
                 min={1}
                 allowDecimal={false}
                 allowNegative={false}
-                value={(staged[field] as number | null) ?? ""}
-                placeholder="100"
-                onChange={number(field)}
+                value={staged.maxPages ?? ""}
+                placeholder="10"
+                onChange={number("maxPages")}
               />
-            ) : (
-              <TextInput
-                key={field}
-                aria-label={t(`tableEditForm.pagingFields.${label}`)}
-                label={t(`tableEditForm.pagingFields.${label}`)}
-                value={(staged[field] as string | null) ?? ""}
-                placeholder={fallback}
-                onChange={(e) =>
-                  set({ [field]: e.currentTarget.value || null } as Partial<Paging>)
-                }
-              />
-            ),
-          )}
-          <NumberInput
-            aria-label={t("tableEditForm.pagingFields.maxPages")}
-            label={t("tableEditForm.pagingFields.maxPages")}
-            min={1}
-            allowDecimal={false}
-            allowNegative={false}
-            value={staged.maxPages ?? ""}
-            placeholder="10"
-            onChange={number("maxPages")}
-          />
-        </Group>
-      )}
-      {staged.type !== null && (
-        <Text size="xs" c="dimmed" data-testid="paging-cut-note">
-          {t("tableEditForm.pagingCutNote")}
-        </Text>
-      )}
-      {(rowsFieldEditable || staged.rowsField !== null) && (
-        <TextInput
-          mt={4}
-          aria-label={t("tableEditForm.pagingFields.rowsField")}
-          label={t("tableEditForm.pagingFields.rowsField")}
-          description={t(
-            rowsFieldEditable
-              ? "tableEditForm.pagingRowsFieldHelp"
-              : "tableEditForm.pagingRowsFieldFixed",
-          )}
-          value={staged.rowsField ?? ""}
-          readOnly={!rowsFieldEditable}
-          onChange={(e) => set({ rowsField: e.currentTarget.value || null })}
-        />
-      )}
-    </div>
+            </FormField>
+          </>
+        )}
+        {staged.type !== null && (
+          <FormField size="full">
+            <Text size="xs" c="dimmed" data-testid="paging-cut-note">
+              {t("tableEditForm.pagingCutNote")}
+            </Text>
+          </FormField>
+        )}
+        {(rowsFieldEditable || staged.rowsField !== null) && (
+          <FormField
+            hint={t(
+              rowsFieldEditable
+                ? "tableEditForm.pagingRowsFieldHelp"
+                : "tableEditForm.pagingRowsFieldFixed",
+            )}
+            size="medium"
+          >
+            <TextInput
+              mt={4}
+              aria-label={t("tableEditForm.pagingFields.rowsField")}
+              label={t("tableEditForm.pagingFields.rowsField")}
+              value={staged.rowsField ?? ""}
+              readOnly={!rowsFieldEditable}
+              onChange={(e) => set({ rowsField: e.currentTarget.value || null })}
+            />
+          </FormField>
+        )}
+      </FormLayout>
+    </FormField>
   );
 }

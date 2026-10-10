@@ -12,7 +12,7 @@
 // candidates; choosing one only fills in the table to register.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "../../../test-utils/render";
+import { renderInForm, screen, fireEvent, waitFor } from "../../../test-utils/render";
 
 const search = vi.fn();
 vi.mock("../../../api/admin", () => ({
@@ -49,7 +49,7 @@ beforeEach(() => search.mockReset());
 
 function setup(registered: string[] = []) {
   const onPick = vi.fn();
-  render(
+  renderInForm(
     <NlTableSearch
       sourceId="erp"
       schemaName="public"

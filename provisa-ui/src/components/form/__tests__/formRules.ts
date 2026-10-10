@@ -28,7 +28,9 @@ export type FormRule =
    */
   | "explanation-misplaced"
   /** A tick or switch outside the form's group of ticks. */
-  | "tick-ungrouped";
+  | "tick-ungrouped"
+  /** A Save or Cancel button that is not the shared footer's: its look and its saving state differ. */
+  | "save-cancel-not-shared";
 
 export interface FormViolation {
   rule: FormRule;
@@ -79,7 +81,7 @@ const CHOICE_GROUPS = new Set(["Checkbox.Group", "Radio.Group", "Switch.Group"])
 const MULTI_LINE = new Set(["Textarea", "JsonInput", "textarea"]);
 const TABLE_CELLS = new Set(["Table.Td", "Table.Th", "td", "th"]);
 /** Elements that render their child in place, so the child's layout parent is theirs. */
-const TRANSPARENT = new Set(["Tooltip", "CapabilityGate"]);
+const TRANSPARENT = new Set(["Tooltip", "CapabilityGate", "Fragment", "React.Fragment"]);
 /** Containers that set their own column count and breakpoints. */
 const OWN_GRIDS = new Set(["SimpleGrid", "Grid"]);
 const END_JUSTIFY = /^(flex-end|end|right)$/;
@@ -213,6 +215,20 @@ export function checkFormRules(
       report("full-width-single-line", n, `<${tag}> spans the row`);
     }
     if (options.notAForm || hasAncestor(n, TABLE_CELLS)) return;
+    if (tag === "select" && !/\bform-select\b/.test(attr(n, "className") ?? "")) {
+      report(
+        "outside-shared-layout",
+        n,
+        `a native <select> in a form without className="form-select"`,
+      );
+    }
+    if (tag === "NativeSelect") {
+      report(
+        "outside-shared-layout",
+        n,
+        '<NativeSelect>: use Select, or a native <select className="form-select">',
+      );
+    }
     if (attr(n, "description") !== undefined) {
       report(
         "explanation-misplaced",
@@ -221,7 +237,14 @@ export function checkFormRules(
       );
     }
     const grouped = hasAncestor(n, new Set(["FormChecks"]));
-    if (TICKS.has(tag) && !grouped && !hasAncestor(n, CHOICE_GROUPS)) {
+    // A tick that is the whole of a small component (its FormField is what the component
+    // returns) is placed by the form that mounts it, inside that form's FormChecks.
+    const ownField = layoutParent(n);
+    const placedByMount =
+      ownField !== undefined &&
+      tagOf(ownField) === "FormField" &&
+      layoutParent(ownField) === undefined;
+    if (TICKS.has(tag) && !grouped && !placedByMount && !hasAncestor(n, CHOICE_GROUPS)) {
       report("tick-ungrouped", n, `<${tag}> is not in the form's <FormChecks>`);
     }
     if (!grouped && !hasAncestor(n, new Set(["FormField"]))) {
@@ -297,7 +320,31 @@ export function checkFormRules(
     }
   };
 
+  /** The one text a button shows, when it is a literal or `t("key")`. */
+  const buttonWord = (n: JsxEl): string | undefined => {
+    if (!ts.isJsxElement(n)) return undefined;
+    const parts = n.children.filter((c) => !(ts.isJsxText(c) && c.containsOnlyTriviaWhiteSpaces));
+    if (parts.length !== 1) return undefined;
+    const only = parts[0];
+    if (ts.isJsxText(only)) return only.text.trim();
+    const e = ts.isJsxExpression(only) ? only.expression : undefined;
+    if (e && ts.isStringLiteralLike(e)) return e.text;
+    if (e && ts.isCallExpression(e) && e.expression.getText() === "t") {
+      const key = e.arguments[0];
+      if (key && ts.isStringLiteralLike(key)) return options.textOf?.(key.text);
+    }
+    return undefined;
+  };
+
   const checkButton = (n: JsxEl) => {
+    const word = buttonWord(n);
+    if (word === "Save" || word === "Cancel") {
+      report(
+        "save-cancel-not-shared",
+        n,
+        `a "${word}" button outside <FormFooter onSave onCancel>`,
+      );
+    }
     if (isExceptedButton(n)) return;
     if (attr(n, "fullWidth") !== undefined && attr(n, "fullWidth") !== "false") {
       report("button-stretched", n, "<Button fullWidth>");

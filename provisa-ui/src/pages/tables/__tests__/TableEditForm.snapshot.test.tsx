@@ -174,7 +174,7 @@ describe("TableEditForm — Snapshot Schedule panel (REQ-962/1168)", () => {
     // off by default → turning it on defaults the store mode to delta (append revisions)
     const setEditingTable = vi.fn();
     renderForm(makeTable(), setEditingTable);
-    fireEvent.click(screen.getByRole("checkbox", { name: /time travel/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^time travel/i }));
     expect(setEditingTable).toHaveBeenCalledWith(
       expect.objectContaining({ mvBitemporalMode: "delta" }),
     );
@@ -182,7 +182,7 @@ describe("TableEditForm — Snapshot Schedule panel (REQ-962/1168)", () => {
 
   it("reflects a set bitemporal mode as time-travel on, with a history key field", () => {
     renderForm(makeTable({ mvBitemporalMode: "snapshot" }));
-    expect(screen.getByRole("checkbox", { name: /time travel/i })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /^time travel/i })).toBeChecked();
     expect(screen.getByTestId("mv-bitemporal-key")).toBeInTheDocument();
   });
 

@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "../../../test-utils/render";
+import { renderInForm, screen, fireEvent } from "../../../test-utils/render";
 import { DeltaFieldset } from "../DeltaFieldset";
 import type { DeltaConfig, RegisteredTable } from "../../../types/admin";
 
@@ -29,7 +29,7 @@ function Harness({ watermark, delta }: { watermark: string | null; delta: DeltaC
 
 describe("DeltaFieldset (REQ-874)", () => {
   it("hides the delta controls until it is enabled, then shows them", () => {
-    render(<Harness watermark="updated_at" delta={null} />);
+    renderInForm(<Harness watermark="updated_at" delta={null} />);
     expect(screen.queryByTestId("delta-apply")).toBeNull();
     fireEvent.click(screen.getByTestId("delta-enable"));
     expect(screen.getByTestId("delta-apply")).toBeTruthy();
@@ -37,17 +37,17 @@ describe("DeltaFieldset (REQ-874)", () => {
   });
 
   it("warns when the table has no watermark column (the cursor a delta reads past)", () => {
-    render(<Harness watermark={null} delta={{ apply: "upsert", deletes: "none" }} />);
+    renderInForm(<Harness watermark={null} delta={{ apply: "upsert", deletes: "none" }} />);
     expect(screen.getByTestId("delta-no-watermark")).toBeTruthy();
   });
 
   it("does not warn once a watermark column is set", () => {
-    render(<Harness watermark="updated_at" delta={{ apply: "upsert", deletes: "none" }} />);
+    renderInForm(<Harness watermark="updated_at" delta={{ apply: "upsert", deletes: "none" }} />);
     expect(screen.queryByTestId("delta-no-watermark")).toBeNull();
   });
 
   it("shows the tombstone column field only for tombstone deletes", () => {
-    render(
+    renderInForm(
       <Harness
         watermark="updated_at"
         delta={{ apply: "upsert", deletes: "tombstone", tombstoneColumn: "_deleted" }}
@@ -57,7 +57,7 @@ describe("DeltaFieldset (REQ-874)", () => {
   });
 
   it("has no tombstone column field for deletes=none", () => {
-    render(<Harness watermark="updated_at" delta={{ apply: "upsert", deletes: "none" }} />);
+    renderInForm(<Harness watermark="updated_at" delta={{ apply: "upsert", deletes: "none" }} />);
     expect(screen.queryByTestId("delta-tombstone-column")).toBeNull();
   });
 });

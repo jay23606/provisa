@@ -16,20 +16,22 @@ import { useTranslation } from "react-i18next";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import type { RegisteredTable } from "../../types/admin";
+import { FormField } from "../../components/form/FormLayout";
 
-export function TablePlacementFields({
+type PlacementProps = {
+  table: RegisteredTable;
+  onChange: (table: RegisteredTable) => void;
+};
+
+/** The table's region: a field among the form's fields. */
+export function TableRegionField({
   table,
   isView,
   onChange,
-}: {
-  table: RegisteredTable;
-  isView: boolean;
-  onChange: (table: RegisteredTable) => void;
-}) {
-  const { t } = useTranslation();
+}: PlacementProps & { isView: boolean }) {
   const regionChoices = useRegionChoices();
   return (
-    <>
+    <FormField size="medium">
       <RegionSelect
         value={table.region}
         onChange={(region) => onChange({ ...table, region })}
@@ -37,14 +39,21 @@ export function TablePlacementFields({
         scope={isView ? "view" : "table"}
         testId="table-region-select"
       />
-      {/* Out of service while checked. */}
+    </FormField>
+  );
+}
+
+/** Out of service while checked: a tick among the form's ticks. */
+export function TableDraftTick({ table, onChange }: PlacementProps) {
+  const { t } = useTranslation();
+  return (
+    <FormField help={t("tableEditForm.draftHelp")} size="short">
       <Checkbox
         label={t("tableEditForm.draftLabel")}
-        description={t("tableEditForm.draftHelp")}
         checked={table.draft}
         onChange={(e) => onChange({ ...table, draft: e.currentTarget.checked })}
         data-testid="table-draft-checkbox"
       />
-    </>
+    </FormField>
   );
 }
