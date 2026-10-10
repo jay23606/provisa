@@ -570,7 +570,11 @@ def organisation(plane, monkeypatch):
 
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
     monkeypatch.setattr(secrets, "resolve_secrets", lambda value: "the-secret")
-    monkeypatch.setattr(settings_registry, "value", lambda key: {"mail.mailboxes_at_once": 3}[key])
+    monkeypatch.setattr(
+        settings_registry,
+        "value",
+        lambda key: {"mail.mailboxes_at_once": 3, "mail.throttle_wait_seconds": 900}[key],
+    )
     made: list = []
 
     class Token:

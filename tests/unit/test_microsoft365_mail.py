@@ -467,6 +467,68 @@ def test_a_call_throttled_past_the_bound_fails_by_name_with_no_part_of_the_answe
     assert "skiptoken" not in str(refused.value)  # the paging token is not in the message
 
 
+def test_a_wait_of_87_seconds_is_waited_out_under_the_builds_bound_and_the_read_goes_on():
+    """From a live build: Graph asked for 87 s and the read was refused having waited 0 s of
+    the 60 s a call may. A replica's build takes the operator's bound (15 minutes unless it
+    is changed), waits as asked, and reads on."""
+    from provisa.core import settings_registry
+
+    setting = settings_registry.setting("mail.throttle_wait_seconds")
+    assert (setting.type, setting.effect, setting.default, setting.unit) == (
+        "int",
+        "live",
+        900,
+        "seconds",
+    )
+    graph, fake, slept = _graph(
+        {"/x": [[{"id": 1}], [{"id": 2}]]}, wait_seconds=float(setting.default)
+    )
+    fake.queued = [_throttled("87")]
+    assert [p for p in graph.pages("/x")] == [[{"id": 1}], [{"id": 2}]]
+    assert slept == [87.0]
+
+
+def test_a_wait_past_the_bound_fails_by_name_and_says_what_to_change():
+    graph, fake, slept = _graph({"/x": {"id": 1}}, wait_seconds=900.0)
+    fake.queued = [_throttled("901")]
+    with pytest.raises(GraphThrottled) as refused:
+        graph.get("/x")
+    said = str(refused.value)
+    assert slept == [] and "Retry-After: 901" in said and "of the 900s it may" in said
+    assert "Longest wait when a mail service is throttling" in said
+    assert "Mailboxes read at once" in said
+
+
+def test_whoever_watches_the_read_is_told_of_a_wait_and_of_its_end():
+    told: list[float] = []
+    fake = FakeGraph({"/x": {"id": 1}})
+    graph = Graph(
+        fake.send,
+        lambda: "t",
+        wait_seconds=900.0,
+        sleep=lambda s: told.append(-s),
+        waiting=told.append,
+    )
+    fake.queued = [_throttled("87")]
+    graph.get("/x")
+    assert told == [87.0, -87.0, 0.0]  # said, waited, said to be over
+
+
+def test_a_throttled_request_of_a_batch_says_it_is_waiting_too():
+    told: list[float] = []
+    fake = FakeGraph({"/a": {"id": 1}})
+    graph = Graph(fake.send, lambda: "t", sleep=lambda s: None, waiting=told.append)
+    fake.queued = [
+        Answer(
+            200,
+            {},
+            {"responses": [{"id": "0", "status": 429, "headers": {"Retry-After": "30"}}]},
+        )
+    ]
+    assert graph.batch(["/a"]) == [{"id": 1}]
+    assert told == [30.0, 0.0]
+
+
 def test_a_throttled_call_that_names_no_wait_fails_by_name():
     graph, fake, slept = _graph({"/x": {"id": 1}})
     fake.queued = [_throttled(None)]

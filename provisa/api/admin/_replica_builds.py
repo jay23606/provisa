@@ -55,6 +55,9 @@ def build_view(record: Any, now: datetime) -> dict:
         "started_at": _iso(record.build_started_at),
         "rows_copied": record.rows_copied,
         "rows_per_second": rate,
+        # What a running build is waiting out: {"by", "seconds", "until"} while its source's
+        # service is throttling the read. None when it is not waiting.
+        "wait": record.build_wait if building else None,
         # The rows of the last build that copied the whole table: what a running build's
         # progress is shown against, as an estimate. None before the first such build.
         "completed_rows": record.completed_rows,

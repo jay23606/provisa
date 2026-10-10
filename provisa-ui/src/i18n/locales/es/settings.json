@@ -139,6 +139,10 @@
       }
     },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Espera máxima cuando un servicio de correo limita",
+        "help": "Cuando Microsoft o Google pide a la lectura de una réplica que espere, esta espera y continúa. Este es el máximo que pueden sumar las esperas de una solicitud, en segundos; una más larga hace fallar la creación, que se reintenta más tarde. Auméntelo para superar limitaciones largas; para que le limiten menos, reduzca los buzones leídos a la vez."
+      },
       "mailboxes_at_once": {
         "label": "Buzones leídos a la vez",
         "help": "Cuántos buzones lee a la vez un origen de los buzones de una organización. Un número mayor acorta una compilación y consume más del límite del servicio de correo para toda la aplicación."

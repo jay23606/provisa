@@ -139,6 +139,10 @@
       }
     },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Längste Wartezeit, wenn ein Maildienst drosselt",
+        "help": "Wenn Microsoft oder Google das Lesen für ein Replikat warten lässt, wartet es und fährt fort. Dies ist die längste Summe der Wartezeiten einer Anfrage in Sekunden; eine längere lässt die Erstellung fehlschlagen, die später erneut versucht wird. Erhöhen Sie den Wert, um lange Drosselungen zu überstehen; um seltener gedrosselt zu werden, senken Sie „Gleichzeitig gelesene Postfächer“."
+      },
       "mailboxes_at_once": {
         "label": "Gleichzeitig gelesene Postfächer",
         "help": "Wie viele Postfächer eine Quelle der Postfächer einer Organisation gleichzeitig liest. Mehr verkürzt einen Build und beansprucht das Limit des E-Mail-Dienstes für die gesamte Anwendung stärker."

@@ -139,6 +139,10 @@
       }
     },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Attente maximale lorsqu'un service de messagerie limite",
+        "help": "Lorsque Microsoft ou Google demande à la lecture d'un réplica d'attendre, elle attend puis reprend. C'est le total maximal des attentes d'une requête, en secondes ; au-delà, la création échoue et est retentée plus tard. Augmentez-le pour traverser de longues limitations ; pour être moins limité, réduisez le nombre de boîtes aux lettres lues à la fois."
+      },
       "mailboxes_at_once": {
         "label": "Boîtes aux lettres lues en même temps",
         "help": "Combien de boîtes aux lettres une source des boîtes d’une organisation lit en même temps. Un nombre plus élevé raccourcit une construction et sollicite davantage la limite du service de messagerie pour toute l’application."

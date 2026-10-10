@@ -9,6 +9,7 @@
     "progressRows": "{{rows}} Zeilen kopiert",
     "building": "Replikat wird gebaut: {{rows}} Zeilen kopiert, {{rate}} Zeilen/s ({{how}}).",
     "buildingNoRate": "Replikat wird gebaut ({{how}}).",
+    "buildingWaiting": "Replikat wird erstellt; wartet {{seconds}} s: {{by}} drosselt das Lesen ({{how}}).",
     "built": "Replikat gebaut {{when}}: {{rows}} Zeilen ({{how}}).",
     "builtChecked": "Replikat gebaut {{when}}: {{rows}} Zeilen ({{how}}). Geprüft {{checked}}, seitdem unverändert.",
     "failed": "Replikat-Build fehlgeschlagen (Versuch {{attempts}}; wird erneut versucht): {{error}}",

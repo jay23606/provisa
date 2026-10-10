@@ -9,6 +9,7 @@
     "progressRows": "{{rows}} rijen gekopieerd",
     "building": "Replica wordt gebouwd: {{rows}} rijen gekopieerd, {{rate}} rijen/s ({{how}}).",
     "buildingNoRate": "Replica wordt gebouwd ({{how}}).",
+    "buildingWaiting": "Replica wordt opgebouwd; wacht {{seconds}} s: {{by}} beperkt het lezen ({{how}}).",
     "built": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}).",
     "builtChecked": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}). Gecontroleerd {{checked}}, sindsdien ongewijzigd.",
     "failed": "Replica-build mislukt (poging {{attempts}}; wordt opnieuw geprobeerd): {{error}}",

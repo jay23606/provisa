@@ -240,6 +240,8 @@ class ReplicaRecord:
     build_notes: list = field(default_factory=list)
     #: When the table's probe last found the source unchanged since the build; None: not since.
     verified_at: datetime | None = None
+    #: What a running build is waiting out: {"by", "seconds", "until"}; None when it is not.
+    build_wait: dict | None = None
     #: The rows of the last build that copied the whole table; None: there has been none. It
     #: outlives the start of the next build, whose progress is measured against it.
     completed_rows: int | None = None
@@ -298,6 +300,7 @@ _COLUMNS = (
     _t.build_notes,
     _t.verified_at,
     _t.completed_rows,
+    _t.build_wait,
 )
 
 
@@ -342,6 +345,7 @@ def _record(row: Any) -> ReplicaRecord:
         build_notes=row[29] if row[29] is not None else [],
         verified_at=_aware(row[30]),
         completed_rows=row[31],
+        build_wait=row[32],
     )
 
 
@@ -676,6 +680,25 @@ async def record_progress(conn: "Connection", key: ReplicaKey, *, rows_copied: i
     )
 
 
+async def record_throttled(
+    conn: "Connection", source_id: str, *, seconds: float, by: str, now: datetime | None = None
+) -> None:
+    """The running builds of ``source_id``'s tables are waiting ``seconds`` because ``by``
+    (the source's service) is throttling the read, or are no longer waiting (``seconds`` 0).
+    One read feeds every table of the source it is building, so each says the same."""
+    at = now if now is not None else datetime.now(UTC)
+    wait = (
+        {"by": by, "seconds": seconds, "until": (at + timedelta(seconds=seconds)).isoformat()}
+        if seconds > 0
+        else None
+    )
+    await conn.execute_core(
+        update(replica_state)
+        .where(_t.source_id == source_id, _t.build_state == BUILDING)
+        .values(build_wait=wait)
+    )
+
+
 async def record_verified(conn: "Connection", key: ReplicaKey, *, now: datetime) -> bool:
     """The table's probe found its source unchanged since the copy was built (REQ-855): the
     copy is current as of ``now``. True when there is a copy to say so of; a table never built,
@@ -748,6 +771,7 @@ async def record_completed(
                 last_error_code=None,
                 last_error_params=None,
                 build_notes=[{"code": note.code, "params": note.params} for note in notes],
+                build_wait=None,
                 failed_at=None,
                 failed_attempts=0,
                 waiting_on=None,
@@ -784,6 +808,7 @@ async def record_failed(
         .values(
             build_state=FAILED,
             build_holder=None,
+            build_wait=None,
             last_error=error,
             last_error_code=code,
             last_error_params=params,

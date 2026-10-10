@@ -9,6 +9,7 @@
     "progressRows": "{{rows}} righe copiate",
     "building": "Build della replica in corso: {{rows}} righe copiate, {{rate}} righe/s ({{how}}).",
     "buildingNoRate": "Build della replica in corso ({{how}}).",
+    "buildingWaiting": "Replica in costruzione; in attesa per {{seconds}} s: {{by}} sta limitando la lettura ({{how}}).",
     "built": "Replica creata {{when}}: {{rows}} righe ({{how}}).",
     "builtChecked": "Replica creata {{when}}: {{rows}} righe ({{how}}). Verificata {{checked}}, invariata da allora.",
     "failed": "Build della replica non riuscita (tentativo {{attempts}}; viene ritentata): {{error}}",

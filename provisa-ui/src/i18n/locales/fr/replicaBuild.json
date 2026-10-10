@@ -9,6 +9,7 @@
     "progressRows": "{{rows}} lignes copiées",
     "building": "Réplique en construction : {{rows}} lignes copiées, {{rate}} lignes/s ({{how}}).",
     "buildingNoRate": "Réplique en construction ({{how}}).",
+    "buildingWaiting": "Réplica en cours de création ; attente de {{seconds}} s : {{by}} limite la lecture ({{how}}).",
     "built": "Réplique construite {{when}} : {{rows}} lignes ({{how}}).",
     "builtChecked": "Réplique construite {{when}} : {{rows}} lignes ({{how}}). Vérifié {{checked}}, inchangé depuis.",
     "failed": "La construction de la réplique a échoué (tentative {{attempts}} ; elle est retentée) : {{error}}",

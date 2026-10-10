@@ -1599,6 +1599,9 @@ export interface ReplicaBuild {
   rowsCopied: number | null;
   /** A running build's rate so far. */
   rowsPerSecond: number | null;
+  /** A running build waiting out a throttle: who asked it to wait, for how many seconds, and
+   * until when (ISO 8601). Null when it is not waiting. */
+  wait?: { by: string; seconds: number; until: string } | null;
   /** The rows of the last build that copied the whole table: an estimate of its size for a
    * running build's progress. Null before the first such build. */
   completedRows: number | null;

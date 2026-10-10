@@ -117,6 +117,15 @@ export function replicaBuildLine(
           })
         : t("replicaBuild.requested");
     case "building":
+      // Its source's service asked the read to wait: say so, in place of a rate that stands
+      // still.
+      if (build.wait) {
+        return t("replicaBuild.buildingWaiting", {
+          seconds: formatNumber(Math.round(build.wait.seconds)),
+          by: build.wait.by,
+          how: how(build, t),
+        });
+      }
       return build.rowsPerSecond !== null
         ? t("replicaBuild.building", {
             rows,

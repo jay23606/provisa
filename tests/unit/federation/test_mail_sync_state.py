@@ -87,3 +87,36 @@ def test_it_is_state_of_one_environment_and_region_not_part_of_the_model():
     assert "mail_sync_state" in store_sides.STATE
     assert "mail_sync_state" in env_classes.NEVER_RUNTIME
     assert "mail_sync_state" not in env_classes.CARRIED
+
+
+async def test_every_table_a_source_is_building_says_what_its_read_is_waiting_out(db):
+    """One read feeds every table of the source it builds: while its service is throttling
+    it, each running build says so, and stops saying so when the wait is over or it ends."""
+    from datetime import UTC, datetime
+
+    from provisa.federation import replica_state
+    from provisa.federation.replica_state import RetryPolicy
+
+    now = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    building = [("mail", "default", "messages"), ("mail", "default", "threads")]
+    idle = ("mail", "default", "folders")
+    other = ("crm", "public", "accounts")
+    async with db.acquire() as conn:
+        for key in (*building, idle, other):
+            await replica_state.request_build(conn, key, replica_state.REASON_MODEL)
+        for key in (*building, other):
+            await replica_state.claim(conn, key, holder="h:1", now=now, retry=RetryPolicy(60, 3600))
+        await replica_state.record_throttled(conn, "mail", seconds=87, by="Microsoft", now=now)
+        for key in building:
+            assert (await replica_state.read(conn, key)).build_wait == {
+                "by": "Microsoft",
+                "seconds": 87,
+                "until": "2026-10-10T12:01:27+00:00",
+            }
+        assert (await replica_state.read(conn, idle)).build_wait is None  # not being built
+        assert (await replica_state.read(conn, other)).build_wait is None  # another source's
+        await replica_state.record_throttled(conn, "mail", seconds=0, by="Microsoft", now=now)
+        assert (await replica_state.read(conn, building[0])).build_wait is None
+        await replica_state.record_throttled(conn, "mail", seconds=30, by="Microsoft", now=now)
+        await replica_state.record_failed(conn, building[1], error="stopped", now=now)
+        assert (await replica_state.read(conn, building[1])).build_wait is None

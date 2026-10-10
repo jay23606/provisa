@@ -9,6 +9,7 @@
     "progressRows": "已复制 {{rows}} 行",
     "building": "副本构建中：已复制 {{rows}} 行，{{rate}} 行/秒（{{how}}）。",
     "buildingNoRate": "副本构建中（{{how}}）。",
+    "buildingWaiting": "副本正在构建；等待 {{seconds}} 秒：{{by}} 正在限制读取（{{how}}）。",
     "built": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。",
     "builtChecked": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。检查于 {{checked}},此后未变化。",
     "failed": "副本构建失败（第 {{attempts}} 次尝试；将重试）：{{error}}",

@@ -139,6 +139,10 @@
       }
     },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Attesa massima quando un servizio di posta limita",
+        "help": "Quando Microsoft o Google chiede alla lettura di una replica di attendere, questa attende e prosegue. È il massimo a cui possono sommarsi le attese di una richiesta, in secondi; un'attesa più lunga fa fallire la costruzione, che viene ritentata più tardi. Aumentalo per superare limitazioni lunghe; per essere limitato meno, riduci le caselle di posta lette contemporaneamente."
+      },
       "mailboxes_at_once": {
         "label": "Caselle di posta lette contemporaneamente",
         "help": "Quante caselle di posta legge contemporaneamente un'origine delle caselle di un'organizzazione. Un numero maggiore accorcia una build e impegna di più il limite del servizio di posta per l'intera applicazione."

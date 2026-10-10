@@ -34,7 +34,7 @@ from typing import Any
 import httpx
 
 from provisa.microsoft365 import mail
-from provisa.microsoft365.graph import Graph, GraphRefused, http_send
+from provisa.microsoft365.graph import WAIT_SECONDS, Graph, GraphRefused, http_send
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +64,12 @@ class Reading:
     #: nothing to report: the check's next answer is then compared with that, and a read just
     #: made is not asked for again. None where no check is kept.
     settle: Callable[[tuple[str, ...]], Awaitable[None]] | None = None
+    #: The most the waits one throttled call is asked for may add up to (the operator's
+    #: ``mail.throttle_wait_seconds`` for a replica's read).
+    wait_seconds: float = WAIT_SECONDS
+    #: Told, from the thread that reads Graph, how long a throttled call is about to wait and
+    #: 0 when the wait is over, so the build's record can say what it is waiting on.
+    throttled: Callable[[float], None] | None = None
 
 
 Connect = Callable[[Any], Awaitable[Reading]]
@@ -124,7 +130,7 @@ async def _asked_unchanged(connect: Connect, source: Any) -> str | None:
 
     def asked() -> bool:
         with httpx.Client() as client:
-            graph = Graph(http_send(client), reading.token)
+            graph = Graph(http_send(client), reading.token, wait_seconds=reading.wait_seconds)
             if any(mail.Mailbox(graph, account).readable() for account in sorted(left_out)):
                 return True
             return any(
@@ -219,7 +225,15 @@ async def _read_mailboxes(
         send = http_send(client)
 
         def rows_of(account: str) -> Iterator[Any]:
-            mailbox = mail.Mailbox(Graph(send, reading.token), account)
+            mailbox = mail.Mailbox(
+                Graph(
+                    send,
+                    reading.token,
+                    wait_seconds=reading.wait_seconds,
+                    waiting=reading.throttled,
+                ),
+                account,
+            )
             yield from read(mailbox)
             # Where this mailbox's read reached, once it has been read to its end.
             if reached is not None and mailbox.links is not None:
@@ -529,6 +543,22 @@ def make_connect(state: Any) -> Connect:
             async with state.tenant_db.acquire() as conn:
                 return await mail_sync_state.read_all(conn, source.id)
 
+        loop = asyncio.get_running_loop()
+        wait_seconds = float(settings_registry.value("mail.throttle_wait_seconds"))
+
+        def throttled(seconds: float) -> None:
+            # Called from the thread that reads Graph; the state store is the loop's. The
+            # record of every table this source is building says what it waits on.
+            from provisa.federation import replica_state
+
+            async def say() -> None:
+                async with state.tenant_db.acquire() as conn:
+                    await replica_state.record_throttled(
+                        conn, source.id, seconds=seconds, by="Microsoft"
+                    )
+
+            asyncio.run_coroutine_threadsafe(say(), loop).result()
+
         async def settle(tables: tuple[str, ...]) -> None:
             # What the poll node of each table compares its check's answer with
             # (events.injector.check_node): set to "unchanged" by the read that just completed,
@@ -555,6 +585,8 @@ def make_connect(state: Any) -> Connect:
                 keep=keep,
                 kept=kept,
                 settle=settle,
+                wait_seconds=wait_seconds,
+                throttled=throttled,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         # Resolved here, in the entry's own organisation's vault whatever the caller has bound
@@ -608,6 +640,14 @@ def make_connect(state: Any) -> Connect:
                 loop,
             ).result()
 
-        return Reading((settings.account,), signed_in, keep=keep, kept=kept, settle=settle)
+        return Reading(
+            (settings.account,),
+            signed_in,
+            keep=keep,
+            kept=kept,
+            settle=settle,
+            wait_seconds=wait_seconds,
+            throttled=throttled,
+        )
 
     return connect

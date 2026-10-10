@@ -9,6 +9,7 @@
     "progressRows": "{{rows}} rows copied",
     "building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
     "buildingNoRate": "Replica building ({{how}}).",
+    "buildingWaiting": "Replica building; waiting {{seconds}} s: {{by}} is throttling the read ({{how}}).",
     "built": "Replica built {{when}}: {{rows}} rows ({{how}}).",
     "builtChecked": "Replica built {{when}}: {{rows}} rows ({{how}}). Checked {{checked}}, unchanged since.",
     "failed": "Replica build failed (attempt {{attempts}}; it is tried again): {{error}}",
