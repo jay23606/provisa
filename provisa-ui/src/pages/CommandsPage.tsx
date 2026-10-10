@@ -28,7 +28,7 @@ import {
 } from "@mantine/core";
 import { useAuth } from "../context/AuthContext";
 import { useDomainFilter } from "../context/DomainFilterContext";
-import { Trash2, Pencil, Check, X, Plus } from "lucide-react";
+import { Trash2, Pencil, Plus } from "lucide-react";
 import { FilterInput } from "../components/admin/FilterInput";
 import {
   fetchActions,
@@ -70,6 +70,7 @@ import {
   ListItems,
 } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 
 export function CommandsPage() {
   const { t } = useTranslation();
@@ -420,16 +421,13 @@ export function CommandsPage() {
           placeholder={t("commandsPage.filterPlaceholder")}
         />
         <Group>
-          {!editingName && (
+          {!editingName && !showForm && (
             <Button
-              leftSection={showForm ? <X size={14} /> : <Plus size={14} />}
+              leftSection={<Plus size={14} />}
               data-testid="commands-toggle-form"
-              onClick={() => {
-                setShowForm(!showForm);
-                if (showForm) handleCancel();
-              }}
+              onClick={() => setShowForm(true)}
             >
-              {showForm ? t("commandsPage.closeForm") : t("commandsPage.addCommand")}
+              {t("commandsPage.addCommand")}
             </Button>
           )}
         </Group>
@@ -449,61 +447,68 @@ export function CommandsPage() {
       {showForm && !editingName && (
         <Card component="form" withBorder onSubmit={handleSave}>
           <Stack gap="sm">
-            <Group grow align="flex-end">
-              <Select
-                label={t("commandsPage.typeLabel")}
-                data={[
-                  { value: "function", label: t("commandsPage.typeFunction") },
-                  { value: "webhook", label: t("commandsPage.typeWebhook") },
-                ]}
-                value={form.actionType}
-                onChange={(v) =>
-                  setForm({ ...EMPTY_FORM, actionType: (v ?? "function") as ActionType })
-                }
-                allowDeselect={false}
-              />
-              <TextInput
-                label={t("commandsPage.nameLabel")}
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder={t("commandsPage.namePlaceholder")}
-              />
-            </Group>
+            <FormLayout>
+              <FormIdentifiers>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("commandsPage.nameLabel")}
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder={t("commandsPage.namePlaceholder")}
+                  />
+                </FormField>
+              </FormIdentifiers>
+              <FormField size="medium">
+                <Select
+                  label={t("commandsPage.typeLabel")}
+                  data={[
+                    { value: "function", label: t("commandsPage.typeFunction") },
+                    { value: "webhook", label: t("commandsPage.typeWebhook") },
+                  ]}
+                  value={form.actionType}
+                  onChange={(v) =>
+                    setForm({ ...EMPTY_FORM, actionType: (v ?? "function") as ActionType })
+                  }
+                  allowDeselect={false}
+                />
+              </FormField>
+            </FormLayout>
             <CommandFormFields {...formFieldsProps} />
-            <Group justify="flex-end">
-              <Button type="submit" disabled={saving} loading={saving}>
-                {saving ? t("commandsPage.savingButton") : t("commandsPage.createButton")}
-              </Button>
-            </Group>
+            <FormFooter
+              submit
+              saving={saving}
+              onCancel={handleCancel}
+              saveProps={{ "data-testid": "commands-save" }}
+            />
           </Stack>
         </Card>
       )}
 
       <Title order={3}>{t("commandsPage.dbFunctionsHeading")}</Title>
       <ListTable minWidth={720}>
-          <ListHead
-            sortGroup={fnSortGroup}
-            columns={[
-              { col: "name" },
-              { col: "source" },
-              { col: "domain" },
-              { col: "function" },
-              { col: "returns" },
-              { col: "args" },
-              { col: "visibleTo" },
-            ]}
-          />
-          <Table.Tbody>
-            {filteredFunctions.length === 0 && (
-              <ListEmpty colSpan={7}>{t("commandsPage.noFunctions")}</ListEmpty>
-            )}
-            <ListItems
-              state={fnSortGroup}
-              items={pageItems(fnSortGroup, fnPage - 1, PAGE_SIZE)}
-              colSpan={7}
-              rowKey={(fn) => fn.name}
-              render={(fn) => {
+        <ListHead
+          sortGroup={fnSortGroup}
+          columns={[
+            { col: "name" },
+            { col: "source" },
+            { col: "domain" },
+            { col: "function" },
+            { col: "returns" },
+            { col: "args" },
+            { col: "visibleTo" },
+          ]}
+        />
+        <Table.Tbody>
+          {filteredFunctions.length === 0 && (
+            <ListEmpty colSpan={7}>{t("commandsPage.noFunctions")}</ListEmpty>
+          )}
+          <ListItems
+            state={fnSortGroup}
+            items={pageItems(fnSortGroup, fnPage - 1, PAGE_SIZE)}
+            colSpan={7}
+            rowKey={(fn) => fn.name}
+            render={(fn) => {
               const isExpanded = expandedFn === fn.name;
               const isEditing = editingName === fn.name;
               return (
@@ -538,24 +543,7 @@ export function CommandsPage() {
                         {isEditing ? (
                           <Stack component="form" gap="sm" onSubmit={handleSave}>
                             <CommandFormFields {...formFieldsProps} />
-                            <Group justify="flex-end">
-                              <Button
-                                type="button"
-                                variant="default"
-                                leftSection={<X size={14} />}
-                                onClick={handleCancel}
-                              >
-                                {t("commandsPage.cancelAria")}
-                              </Button>
-                              <Button
-                                type="submit"
-                                variant="filled"
-                                leftSection={<Check size={14} />}
-                                disabled={saving}
-                              >
-                                {t("commandsPage.saveAria")}
-                              </Button>
-                            </Group>
+                            <FormFooter submit saving={saving} onCancel={handleCancel} />
                           </Stack>
                         ) : (
                           <Stack gap="sm">
@@ -692,9 +680,9 @@ export function CommandsPage() {
                   )}
                 </React.Fragment>
               );
-              }}
-            />
-          </Table.Tbody>
+            }}
+          />
+        </Table.Tbody>
       </ListTable>
       {fnTotalPages > 1 && fnSortGroup.groupBy.length === 0 && (
         <Group justify="flex-end">
@@ -704,30 +692,30 @@ export function CommandsPage() {
 
       <Title order={3}>{t("commandsPage.webhooksHeading")}</Title>
       <ListTable minWidth={720}>
-          <ListHead
-            sortGroup={whSortGroup}
-            columns={[
-              { col: "name" },
-              { col: "status" },
-              { col: "domain" },
-              { col: "url" },
-              { col: "method" },
-              { col: "timeout" },
-              { col: "returns" },
-              { col: "args" },
-              { col: "visibleTo" },
-            ]}
-          />
-          <Table.Tbody>
-            {filteredWebhooks.length === 0 && (
-              <ListEmpty colSpan={9}>{t("commandsPage.noWebhooks")}</ListEmpty>
-            )}
-            <ListItems
-              state={whSortGroup}
-              items={pageItems(whSortGroup, whPage - 1, PAGE_SIZE)}
-              colSpan={9}
-              rowKey={(wh) => wh.name}
-              render={(wh) => {
+        <ListHead
+          sortGroup={whSortGroup}
+          columns={[
+            { col: "name" },
+            { col: "status" },
+            { col: "domain" },
+            { col: "url" },
+            { col: "method" },
+            { col: "timeout" },
+            { col: "returns" },
+            { col: "args" },
+            { col: "visibleTo" },
+          ]}
+        />
+        <Table.Tbody>
+          {filteredWebhooks.length === 0 && (
+            <ListEmpty colSpan={9}>{t("commandsPage.noWebhooks")}</ListEmpty>
+          )}
+          <ListItems
+            state={whSortGroup}
+            items={pageItems(whSortGroup, whPage - 1, PAGE_SIZE)}
+            colSpan={9}
+            rowKey={(wh) => wh.name}
+            render={(wh) => {
               const isExpanded = expandedWh === wh.name;
               const isEditing = editingName === wh.name;
               return (
@@ -777,24 +765,7 @@ export function CommandsPage() {
                         {isEditing ? (
                           <Stack component="form" gap="sm" onSubmit={handleSave}>
                             <CommandFormFields {...formFieldsProps} />
-                            <Group justify="flex-end">
-                              <Button
-                                type="button"
-                                variant="default"
-                                leftSection={<X size={14} />}
-                                onClick={handleCancel}
-                              >
-                                {t("commandsPage.cancelAria")}
-                              </Button>
-                              <Button
-                                type="submit"
-                                variant="filled"
-                                leftSection={<Check size={14} />}
-                                disabled={saving}
-                              >
-                                {t("commandsPage.saveAria")}
-                              </Button>
-                            </Group>
+                            <FormFooter submit saving={saving} onCancel={handleCancel} />
                           </Stack>
                         ) : (
                           <Stack gap="sm">
@@ -958,9 +929,9 @@ export function CommandsPage() {
                   )}
                 </React.Fragment>
               );
-              }}
-            />
-          </Table.Tbody>
+            }}
+          />
+        </Table.Tbody>
       </ListTable>
       {whTotalPages > 1 && whSortGroup.groupBy.length === 0 && (
         <Group justify="flex-end">
@@ -972,14 +943,18 @@ export function CommandsPage() {
         <Text size="sm" c="dimmed">
           {t("commandsPage.testAsRole")}
         </Text>
-        <Select
-          aria-label={t("commandsPage.testAsRole")}
-          size="xs"
-          data={roles.map((r) => ({ value: r.id, label: r.id }))}
-          value={testRoleId || null}
-          onChange={(v) => setTestRoleId(v ?? "")}
-          allowDeselect={false}
-        />
+        <FormLayout>
+          <FormField size="medium">
+            <Select
+              aria-label={t("commandsPage.testAsRole")}
+              size="xs"
+              data={roles.map((r) => ({ value: r.id, label: r.id }))}
+              value={testRoleId || null}
+              onChange={(v) => setTestRoleId(v ?? "")}
+              allowDeselect={false}
+            />
+          </FormField>
+        </FormLayout>
       </Group>
 
       <Modal
