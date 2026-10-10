@@ -21,8 +21,9 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { Info, Plus, X } from "lucide-react";
+import { CircleHelp, Plus, X } from "lucide-react";
 import type { ColumnPreset } from "../../types/admin";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 interface Props {
   presets: ColumnPreset[];
@@ -84,72 +85,84 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
     const n = colType ? normalizeType(colType) : null;
     if (n && NUMERIC_TYPES.has(n)) {
       return (
-        <TextInput
-          type="number"
-          aria-label={t("columnPresetsEditor.numericValuePlaceholder")}
-          placeholder={t("columnPresetsEditor.numericValuePlaceholder")}
-          value={value ?? ""}
-          onChange={(e) => onChangeValue(e.currentTarget.value || null)}
-          data-testid="column-presets-literal-input"
-        />
+        <FormField size="medium">
+          <TextInput
+            type="number"
+            label={t("columnPresetsEditor.valueHeader")}
+            placeholder={t("columnPresetsEditor.numericValuePlaceholder")}
+            value={value ?? ""}
+            onChange={(e) => onChangeValue(e.currentTarget.value || null)}
+            data-testid="column-presets-literal-input"
+          />
+        </FormField>
       );
     }
     if (n && TIMESTAMP_TYPES.has(n)) {
       return (
-        <TextInput
-          type="datetime-local"
-          aria-label={t("columnPresetsEditor.valueHeader")}
-          value={value ?? ""}
-          onChange={(e) => onChangeValue(e.currentTarget.value || null)}
-          data-testid="column-presets-literal-input"
-        />
+        <FormField size="medium">
+          <TextInput
+            type="datetime-local"
+            label={t("columnPresetsEditor.valueHeader")}
+            value={value ?? ""}
+            onChange={(e) => onChangeValue(e.currentTarget.value || null)}
+            data-testid="column-presets-literal-input"
+          />
+        </FormField>
       );
     }
     if (n && DATE_TYPES.has(n)) {
       return (
-        <TextInput
-          type="date"
-          aria-label={t("columnPresetsEditor.valueHeader")}
-          value={value ?? ""}
-          onChange={(e) => onChangeValue(e.currentTarget.value || null)}
-          data-testid="column-presets-literal-input"
-        />
+        <FormField size="medium">
+          <TextInput
+            type="date"
+            label={t("columnPresetsEditor.valueHeader")}
+            value={value ?? ""}
+            onChange={(e) => onChangeValue(e.currentTarget.value || null)}
+            data-testid="column-presets-literal-input"
+          />
+        </FormField>
       );
     }
     if (n && TIME_TYPES.has(n)) {
       return (
-        <TextInput
-          type="time"
-          aria-label={t("columnPresetsEditor.valueHeader")}
-          value={value ?? ""}
-          onChange={(e) => onChangeValue(e.currentTarget.value || null)}
-          data-testid="column-presets-literal-input"
-        />
+        <FormField size="medium">
+          <TextInput
+            type="time"
+            label={t("columnPresetsEditor.valueHeader")}
+            value={value ?? ""}
+            onChange={(e) => onChangeValue(e.currentTarget.value || null)}
+            data-testid="column-presets-literal-input"
+          />
+        </FormField>
       );
     }
     if (n && BOOL_TYPES.has(n)) {
       return (
-        <Select
-          aria-label={t("columnPresetsEditor.valueHeader")}
-          placeholder={t("columnPresetsEditor.selectPlaceholder")}
-          value={value ?? null}
-          onChange={(v) => onChangeValue(v)}
-          data={[
-            { value: "true", label: t("columnPresetsEditor.trueLabel") },
-            { value: "false", label: t("columnPresetsEditor.falseLabel") },
-          ]}
-          data-testid="column-presets-literal-input"
-        />
+        <FormField size="medium">
+          <Select
+            label={t("columnPresetsEditor.valueHeader")}
+            placeholder={t("columnPresetsEditor.selectPlaceholder")}
+            value={value ?? null}
+            onChange={(v) => onChangeValue(v)}
+            data={[
+              { value: "true", label: t("columnPresetsEditor.trueLabel") },
+              { value: "false", label: t("columnPresetsEditor.falseLabel") },
+            ]}
+            data-testid="column-presets-literal-input"
+          />
+        </FormField>
       );
     }
     return (
-      <TextInput
-        aria-label={t("columnPresetsEditor.literalValuePlaceholder")}
-        placeholder={t("columnPresetsEditor.literalValuePlaceholder")}
-        value={value ?? ""}
-        onChange={(e) => onChangeValue(e.currentTarget.value || null)}
-        data-testid="column-presets-literal-input"
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("columnPresetsEditor.valueHeader")}
+          placeholder={t("columnPresetsEditor.literalValuePlaceholder")}
+          value={value ?? ""}
+          onChange={(e) => onChangeValue(e.currentTarget.value || null)}
+          data-testid="column-presets-literal-input"
+        />
+      </FormField>
     );
   }
 
@@ -177,7 +190,7 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
             size="xs"
             aria-label={t("columnPresetsEditor.infoTooltip")}
           >
-            <Info size={12} />
+            <CircleHelp size={14} />
           </ActionIcon>
         </Tooltip>
       </Group>
@@ -215,74 +228,82 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
           </Table.Tbody>
         </Table>
       )}
-      <Group gap="sm" align="center" wrap="wrap">
-        <Select
-          aria-label={t("columnPresetsEditor.columnHeader")}
-          placeholder={t("columnPresetsEditor.columnPlaceholder")}
-          value={draft.column || null}
-          onChange={(col) => {
-            const colValue = col ?? "";
-            const colType = columnTypes?.[colValue] ?? null;
-            const temporal = colType ? isTemporalType(colType) : true;
-            const nextSource = draft.source === "now" && !temporal ? "literal" : draft.source;
-            setDraft((d) => ({
-              ...d,
-              column: colValue,
-              source: nextSource as ColumnPreset["source"],
-              name: null,
-              value: null,
-              dataType: colType,
-            }));
-          }}
-          data={columns.map((c) => ({ value: c, label: c }))}
-          data-testid="column-presets-column-select"
-        />
-        <Select
-          aria-label={t("columnPresetsEditor.sourceHeader")}
-          value={draft.source}
-          onChange={(v) =>
-            setDraft((d) => ({
-              ...d,
-              source: (v ?? "now") as ColumnPreset["source"],
-              name: null,
-              value: null,
-            }))
-          }
-          data={SOURCES.filter((s) => {
-            if (s.value === "now" && draft.column && columnTypes?.[draft.column]) {
-              return isTemporalType(columnTypes[draft.column]);
-            }
-            return true;
-          }).map((s) => ({ value: s.value, label: s.label }))}
-          data-testid="column-presets-source-select"
-        />
-        {draft.source === "header" && (
-          <TextInput
-            aria-label={t("columnPresetsEditor.headerNamePlaceholder")}
-            placeholder={t("columnPresetsEditor.headerNamePlaceholder")}
-            value={draft.name ?? ""}
-            onChange={(e) => {
-              const next = e.currentTarget.value || null;
-              setDraft((d) => ({ ...d, name: next }));
-            }}
-            data-testid="column-presets-header-name-input"
-          />
-        )}
-        {draft.source === "literal" &&
-          getLiteralInput(
-            draft.column ? columnTypes?.[draft.column] : undefined,
-            draft.value,
-            (v) => setDraft((d) => ({ ...d, value: v })),
+      <FormLayout>
+        <FieldGroup row>
+          <FormField size="medium">
+            <Select
+              label={t("columnPresetsEditor.columnHeader")}
+              placeholder={t("columnPresetsEditor.columnPlaceholder")}
+              value={draft.column || null}
+              onChange={(col) => {
+                const colValue = col ?? "";
+                const colType = columnTypes?.[colValue] ?? null;
+                const temporal = colType ? isTemporalType(colType) : true;
+                const nextSource = draft.source === "now" && !temporal ? "literal" : draft.source;
+                setDraft((d) => ({
+                  ...d,
+                  column: colValue,
+                  source: nextSource as ColumnPreset["source"],
+                  name: null,
+                  value: null,
+                  dataType: colType,
+                }));
+              }}
+              data={columns.map((c) => ({ value: c, label: c }))}
+              data-testid="column-presets-column-select"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("columnPresetsEditor.sourceHeader")}
+              value={draft.source}
+              onChange={(v) =>
+                setDraft((d) => ({
+                  ...d,
+                  source: (v ?? "now") as ColumnPreset["source"],
+                  name: null,
+                  value: null,
+                }))
+              }
+              data={SOURCES.filter((s) => {
+                if (s.value === "now" && draft.column && columnTypes?.[draft.column]) {
+                  return isTemporalType(columnTypes[draft.column]);
+                }
+                return true;
+              }).map((s) => ({ value: s.value, label: s.label }))}
+              data-testid="column-presets-source-select"
+            />
+          </FormField>
+          {draft.source === "header" && (
+            <FormField size="medium">
+              <TextInput
+                label={t("columnPresetsEditor.headerNamePlaceholder")}
+                placeholder={t("columnPresetsEditor.headerNamePlaceholder")}
+                value={draft.name ?? ""}
+                onChange={(e) => {
+                  const next = e.currentTarget.value || null;
+                  setDraft((d) => ({ ...d, name: next }));
+                }}
+                data-testid="column-presets-header-name-input"
+              />
+            </FormField>
           )}
-        <Button
-          onClick={add}
-          disabled={!draft.column}
-          leftSection={<Plus size={14} />}
-          data-testid="column-presets-add-button"
-        >
-          {t("columnPresetsEditor.addAction")}
-        </Button>
-      </Group>
+          {draft.source === "literal" &&
+            getLiteralInput(
+              draft.column ? columnTypes?.[draft.column] : undefined,
+              draft.value,
+              (v) => setDraft((d) => ({ ...d, value: v })),
+            )}
+          <Button
+            onClick={add}
+            disabled={!draft.column}
+            leftSection={<Plus size={14} />}
+            data-testid="column-presets-add-button"
+          >
+            {t("columnPresetsEditor.addAction")}
+          </Button>
+        </FieldGroup>
+      </FormLayout>
     </Stack>
   );
 }

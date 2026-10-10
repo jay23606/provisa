@@ -90,7 +90,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/TableMappingBuilder.tsx",
   "components/TagControl.tsx",
   "components/UserProfileModal.tsx",
-  "components/admin/ColumnPresetsEditor.tsx",
   "components/admin/EnvironmentsTab.tsx",
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
