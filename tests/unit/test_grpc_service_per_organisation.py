@@ -471,3 +471,52 @@ def test_a_model_edit_that_rebuilds_a_meta_role_is_described_by_the_next_call(bu
     assert "QueryPurchases" in member and "QueryOrders" not in member
     other, _ = _service(_reflected(channel, (("x-provisa-role", "finance_reader"),)))
     assert "QueryLedger" in other and "QueryPurchases" not in other
+
+
+# --- a role's service calls what its GraphQL root offers -----------------------------------------
+
+
+@pytest.fixture
+def meta_reach(monkeypatch):
+    """The real role build: one role that reaches only ``sales``, one that reaches the meta
+    (catalog) domain as well."""
+    from tests.unit.test_empty_domain_access_reaches_nothing import _built_roles
+
+    monkeypatch.setenv("PROVISA_SINGLE_DOMAIN", "false")
+    return _built_roles(
+        monkeypatch,
+        [
+            {"id": "sales_reader", "capabilities": ["usage"], "domain_access": ["sales"]},
+            {"id": "cataloguer", "capabilities": ["usage"], "domain_access": ["sales", "meta"]},
+        ],
+    )
+
+
+def _rpcs(proto: str) -> set[str]:
+    import re
+
+    return set(re.findall(r"rpc (\w+)\(", proto))
+
+
+def test_a_table_only_traversed_to_has_no_rpc_as_it_has_no_root_field(meta_reach):
+    """Every role's surface holds the catalog tables, to be read through each type's ``_meta``.
+    A role that does not reach the catalog domain has no root field for them in its GraphQL
+    Query type -- and no RPC for them in its service, whose Query message already says so."""
+    state = meta_reach
+    without, with_reach = state.proto_files["sales_reader"], state.proto_files["cataloguer"]
+    assert sorted(state.schemas["sales_reader"].query_type.fields) == ["orders"]
+    assert {r for r in _rpcs(without) if "Meta" in r} == set()
+    assert {"QueryOrders", "QueryOrdersBatch"} <= _rpcs(without)
+    assert "message RegisteredTablesMeta {" in without, "its message stays: it is traversed to"
+
+    roots = sorted(state.schemas["cataloguer"].query_type.fields)
+    assert "registeredTablesMeta" in roots and "orders" in roots
+    assert {"QueryRegisteredTablesMeta", "QueryRegisteredTablesMetaBatch"} <= _rpcs(with_reach)
+    # The wire every role's bytes are encoded with has the method, for the role that has it.
+    assert "QueryRegisteredTablesMeta" in _rpcs(state.wire_proto)
+
+
+def test_the_generic_command_rpc_is_every_roles(meta_reach):
+    """REQ-1156: commands are invocable on every surface; the generic entry is always there."""
+    for role in ("sales_reader", "cataloguer"):
+        assert "CallCommand" in _rpcs(meta_reach.proto_files[role])
