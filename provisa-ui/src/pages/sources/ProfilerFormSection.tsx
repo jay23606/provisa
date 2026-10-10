@@ -48,10 +48,9 @@ export function ProfilerFormSection({
     if (missing.length > 0) setAuthFields({ ...authFields, ...Object.fromEntries(missing) });
   }, [authFields, setAuthFields]);
   const numberInput = (f: NumberField) => (
-    <FormField size="medium" key={f.key}>
+    <FormField help={t(`profilerFormSection.${f.stem}Description`)} size="medium" key={f.key}>
       <NumberInput
         label={t(`profilerFormSection.${f.stem}Label`)}
-        description={t(`profilerFormSection.${f.stem}Description`)}
         required
         min={f.min}
         allowDecimal={!f.whole}
@@ -77,10 +76,9 @@ export function ProfilerFormSection({
           <Accordion.Control>{t("profilerFormSection.groupSchedule")}</Accordion.Control>
           <Accordion.Panel>
             <FormLayout>
-              <FormField size="medium">
+              <FormField hint={t("profilerFormSection.cronDescription")} size="medium">
                 <TextInput
                   label={t("profilerFormSection.cronLabel")}
-                  description={t("profilerFormSection.cronDescription")}
                   placeholder="0 3 * * *"
                   required
                   value={authFields.cron ?? ""}
@@ -88,10 +86,9 @@ export function ProfilerFormSection({
                   data-testid="profiler-cron-input"
                 />
               </FormField>
-              <FormField size="medium">
+              <FormField help={t("profilerFormSection.sampleDescription")} size="medium">
                 <NumberInput
                   label={t("profilerFormSection.sampleLabel")}
-                  description={t("profilerFormSection.sampleDescription")}
                   placeholder={t("profilerFormSection.samplePlaceholder")}
                   min={1}
                   allowDecimal={false}
@@ -115,10 +112,9 @@ export function ProfilerFormSection({
           <Accordion.Control>{t("profilerFormSection.groupDrift")}</Accordion.Control>
           <Accordion.Panel>
             <FormLayout>
-              <FormField size="medium">
+              <FormField help={t("profilerFormSection.driftSeasonDescription")} size="medium">
                 <Select
                   label={t("profilerFormSection.driftSeasonLabel")}
-                  description={t("profilerFormSection.driftSeasonDescription")}
                   required
                   allowDeselect={false}
                   data={DRIFT_SEASONS.map((s) => ({

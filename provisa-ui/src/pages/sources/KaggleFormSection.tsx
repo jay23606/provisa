@@ -152,11 +152,10 @@ export function KaggleFormSection({ sourceIdHint, onSourcesRegistered }: KaggleF
 
   return (
     <>
-      <FormField size="long">
+      <FormField hint={t("kaggleFormSection.tokenDescription")} size="long">
         <TextInput
           required
           label={t("kaggleFormSection.tokenLabel")}
-          description={t("kaggleFormSection.tokenDescription")}
           value={token}
           onChange={(e) => {
             setToken(e.target.value);

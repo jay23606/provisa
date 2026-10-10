@@ -61,10 +61,9 @@ export function IcebergCatalogFields({ fields, setFields }: Props) {
   };
   return (
     <>
-      <FormField size="medium">
+      <FormField help={t("sourceFormFields.icebergCatalogTypeHelp")} size="medium">
         <Select
           label={t("sourceFormFields.icebergCatalogType")}
-          description={t("sourceFormFields.icebergCatalogTypeHelp")}
           data={ICEBERG_CATALOG_TYPES.map((v) => ({ value: v, label: v }))}
           value={type ?? null}
           onChange={(v) => setFields({ ...fields, iceberg_catalog_type: v ?? "" })}

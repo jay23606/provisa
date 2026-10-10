@@ -12,6 +12,7 @@
 // and GCP. Each secret may be a ${secret:…} reference.
 
 import { Alert, Divider, PasswordInput, TextInput } from "@mantine/core";
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CLOUDOPS_CLOUD_ORDER,
@@ -49,7 +50,7 @@ export function CloudopsFields({ fields, setFields }: Props) {
         </Alert>
       </FormField>
       {CLOUDOPS_CLOUD_ORDER.map((cloud) => (
-        <div key={cloud} style={{ display: "contents" }}>
+        <Fragment key={cloud}>
           <FormField size="full">
             <Divider label={CLOUD_LABEL[cloud]} labelPosition="left" />
           </FormField>
@@ -76,15 +77,14 @@ export function CloudopsFields({ fields, setFields }: Props) {
               </FormField>
             );
           })}
-        </div>
+        </Fragment>
       ))}
       <FormField size="full">
         <Divider />
       </FormField>
-      <FormField size="short">
+      <FormField hint={t("sourceFormFieldsExtended.coCacheTtlMinutesHelp")} size="short">
         <TextInput
           label={t("sourceFormFieldsExtended.coCacheTtlMinutes")}
-          description={t("sourceFormFieldsExtended.coCacheTtlMinutesHelp")}
           value={fields.cache_ttl_minutes ?? ""}
           onChange={(e) => setFields({ ...fields, cache_ttl_minutes: e.currentTarget.value })}
           placeholder="5"

@@ -49,7 +49,7 @@ import { SplunkFields } from "./SplunkFields";
 import { SourceLoadManagementPanel } from "./SourceLoadManagementPanel";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import type { SourceFormFieldsProps } from "./SourceFormFields";
-import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
+import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 export function SourceFormFieldsExtended({
   form,
@@ -242,11 +242,10 @@ export function SourceFormFieldsExtended({
       )}
       {/* REQ-1923: a brand asks for the credential it states (BRAND_AUTH), never one by default. */}
       {BRAND_AUTH[form.type] === "token" && (
-        <FormField size="long">
+        <FormField hint={t("sourceFormFieldsExtended.accessTokenHint")} size="long">
           <PasswordInput
             required
             label={t("sourceFormFieldsExtended.accessToken")}
-            description={t("sourceFormFieldsExtended.accessTokenHint")}
             value={authFields.token ?? ""}
             onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
             data-testid="brand-token-input"
@@ -256,10 +255,9 @@ export function SourceFormFieldsExtended({
       {/* A table name prefix is the remote GraphQL source's; an OpenAPI table is named for its
           operation. */}
       {BRAND_CARRIER[form.type] === "graphql" && (
-        <FormField size="medium">
+        <FormField hint={t("sourceFormFieldsExtended.brandNamespaceHint")} size="medium">
           <TextInput
             label={t("sourceFormFieldsExtended.namespace")}
-            description={t("sourceFormFieldsExtended.brandNamespaceHint")}
             value={gqlNamespace}
             onChange={(e) => setGqlNamespace(e.target.value)}
             data-testid="brand-namespace-input"
@@ -372,15 +370,17 @@ export function SourceFormFieldsExtended({
               data-testid="grpc-cache-ttl-input"
             />
           </FormField>
-          <FormField size="short">
-            <Checkbox
-              label={t("sourceFormFieldsExtended.tls")}
-              checked={grpcTls}
-              onChange={(e) => setGrpcTls(e.currentTarget.checked)}
-              mt="1.5rem"
-              data-testid="grpc-tls-checkbox"
-            />
-          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.tls")}
+                checked={grpcTls}
+                onChange={(e) => setGrpcTls(e.currentTarget.checked)}
+                mt="1.5rem"
+                data-testid="grpc-tls-checkbox"
+              />
+            </FormField>
+          </FormChecks>
           <FormField size="long">
             <TextInput
               label={
@@ -483,20 +483,22 @@ export function SourceFormFieldsExtended({
               data-testid="neo4j-database-input"
             />
           </FormField>
-          <FormField size="short">
-            <Checkbox
-              label={t("sourceFormFieldsExtended.https")}
-              checked={authFields.use_https === "true"}
-              onChange={(e) =>
-                setAuthFields({
-                  ...authFields,
-                  use_https: e.currentTarget.checked ? "true" : "false",
-                })
-              }
-              mt="1.5rem"
-              data-testid="neo4j-https-checkbox"
-            />
-          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.https")}
+                checked={authFields.use_https === "true"}
+                onChange={(e) =>
+                  setAuthFields({
+                    ...authFields,
+                    use_https: e.currentTarget.checked ? "true" : "false",
+                  })
+                }
+                mt="1.5rem"
+                data-testid="neo4j-https-checkbox"
+              />
+            </FormField>
+          </FormChecks>
           <FieldGroup>
             <FormField size="medium">
               <TextInput

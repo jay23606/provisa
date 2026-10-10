@@ -15,7 +15,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Checkbox, NumberInput, TextInput } from "@mantine/core";
-import { FormField } from "../../components/form/FormLayout";
+import { FormChecks, FormField } from "../../components/form/FormLayout";
 
 interface PushFeedFormSectionProps {
   formType: string;
@@ -57,14 +57,16 @@ export function PushFeedFormSection({
     <>
       {formType === "websocket" && (
         <>
-          <FormField size="short">
-            <Checkbox
-              label={t("sourceFormFieldsExtended.useSsl")}
-              checked={wsUseSsl}
-              onChange={(e) => setWsUseSsl(e.currentTarget.checked)}
-              data-testid="websocket-use-ssl-checkbox"
-            />
-          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.useSsl")}
+                checked={wsUseSsl}
+                onChange={(e) => setWsUseSsl(e.currentTarget.checked)}
+                data-testid="websocket-use-ssl-checkbox"
+              />
+            </FormField>
+          </FormChecks>
           <FormField size="long">
             <TextInput
               label={t("sourceFormFieldsExtended.eventPath")}
@@ -114,14 +116,16 @@ export function PushFeedFormSection({
               placeholder="300"
             />
           </FormField>
-          <FormField size="short">
-            <Checkbox
-              label={t("sourceFormFieldsExtended.useSsl")}
-              checked={rssUseSsl}
-              onChange={(e) => setRssUseSsl(e.currentTarget.checked)}
-              data-testid="rss-use-ssl-checkbox"
-            />
-          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.useSsl")}
+                checked={rssUseSsl}
+                onChange={(e) => setRssUseSsl(e.currentTarget.checked)}
+                data-testid="rss-use-ssl-checkbox"
+              />
+            </FormField>
+          </FormChecks>
         </>
       )}
     </>

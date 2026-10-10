@@ -52,7 +52,7 @@ import {
   gwOrganisation,
   gwScopes,
 } from "./googleWorkspace";
-import { FormField } from "../../components/form/FormLayout";
+import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 
 interface Props {
   sourceId: string;
@@ -151,10 +151,9 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
   const where = `${t("navBar.groupAdmin")} › ${t("navBar.itemEmail")}`;
   return (
     <>
-      <FormField size="medium">
+      <FormField help={t("googleWorkspaceFields.whoseHelp")} size="medium">
         <Select
           label={t("googleWorkspaceFields.whose")}
-          description={t("googleWorkspaceFields.whoseHelp")}
           data={[
             { value: GW_ONE, label: t("googleWorkspaceFields.whoseOne") },
             { value: GW_ORGANISATION, label: t("googleWorkspaceFields.whoseOrganisation") },
@@ -166,15 +165,28 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
         />
       </FormField>
       {!organisation && (
-        <FormField size="long">
-          <TextInput
-            label={t("googleWorkspaceFields.account")}
-            description={t("googleWorkspaceFields.accountHelp")}
-            placeholder="ada@example.com"
-            required
-            {...text("gw_account", setAsked)}
-          />
-        </FormField>
+        <FieldGroup>
+          {/* The button that connects the mailbox sits at the end of its address. */}
+          <FormField hint={t("googleWorkspaceFields.accountHelp")} size="medium">
+            <TextInput
+              label={t("googleWorkspaceFields.account")}
+              placeholder="ada@example.com"
+              required
+              {...text("gw_account", setAsked)}
+            />
+          </FormField>
+          {!notSetUp && (
+            <Button
+              type="button"
+              onClick={connect}
+              loading={connecting}
+              disabled={status === null || gwConnectMissing(fields, sourceId).length > 0}
+              data-testid="google-workspace-connect"
+            >
+              {t("googleWorkspaceFields.connect")}
+            </Button>
+          )}
+        </FieldGroup>
       )}
       {organisation && (
         <>
@@ -194,10 +206,9 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
             />
           </FormField>
           {fields.gw_choice === GW_GROUP && (
-            <FormField size="medium">
+            <FormField hint={t("googleWorkspaceFields.groupHelp")} size="medium">
               <TextInput
                 label={t("googleWorkspaceFields.group")}
-                description={t("googleWorkspaceFields.groupHelp")}
                 placeholder="sales@example.com"
                 required
                 value={fields.gw_group ?? ""}
@@ -207,10 +218,9 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
             </FormField>
           )}
           {fields.gw_choice === GW_LIST && (
-            <FormField size="full">
+            <FormField hint={t("googleWorkspaceFields.listHelp")} size="full">
               <Textarea
                 label={t("googleWorkspaceFields.list")}
-                description={t("googleWorkspaceFields.listHelp")}
                 placeholder={"ada@example.com\ngrace@example.com"}
                 autosize
                 minRows={3}
@@ -228,10 +238,9 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </FormField>
         </>
       )}
-      <FormField size="medium">
+      <FormField hint={t("googleWorkspaceFields.mailContentHelp")} size="medium">
         <Select
           label={t("googleWorkspaceFields.mailContent")}
-          description={t("googleWorkspaceFields.mailContentHelp")}
           data={[
             { value: GW_MAIL_FULL, label: t("googleWorkspaceFields.mailContentFull") },
             { value: GW_MAIL_HEADERS, label: t("googleWorkspaceFields.mailContentHeaders") },
@@ -310,30 +319,17 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </Group>
         </FormField>
       )}
-      {!organisation && !notSetUp && (
+      {!organisation && !notSetUp && fields.gw_connected_as && fields.gw_refresh_token && (
         <FormField size="full">
-          <Group gap="sm" align="center">
-            <Button
-              type="button"
-              onClick={connect}
-              loading={connecting}
-              disabled={status === null || gwConnectMissing(fields, sourceId).length > 0}
-              data-testid="google-workspace-connect"
-            >
-              {t("googleWorkspaceFields.connect")}
-            </Button>
-            {fields.gw_connected_as && fields.gw_refresh_token && (
-              <Alert
-                color="green"
-                variant="light"
-                py={4}
-                px="sm"
-                data-testid="google-workspace-connected"
-              >
-                {t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
-              </Alert>
-            )}
-          </Group>
+          <Alert
+            color="green"
+            variant="light"
+            py={4}
+            px="sm"
+            data-testid="google-workspace-connected"
+          >
+            {t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
+          </Alert>
         </FormField>
       )}
       {problem && (
@@ -346,42 +342,43 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       {/* Google does not search mail it serves as headers and labels only. */}
       {!gwHeadersOnly(fields) && (
         <>
-          <FormField size="long">
+          <FormField hint={t("googleWorkspaceFields.mailSearchHelp")} size="long">
             <TextInput
               label={t("googleWorkspaceFields.mailSearch")}
-              description={t("googleWorkspaceFields.mailSearchHelp")}
               placeholder="from:orders@example.com"
               {...text("gw_mail_search")}
             />
           </FormField>
-          <FormField size="short">
+          <FormField hint={t("googleWorkspaceFields.mailSinceHelp")} size="short">
             <TextInput
               type="date"
               label={t("googleWorkspaceFields.mailSince")}
-              description={t("googleWorkspaceFields.mailSinceHelp")}
               {...text("gw_mail_since")}
             />
           </FormField>
         </>
       )}
-      <FormField size="full">
+      <FormField hint={t("googleWorkspaceFields.mailLabelsHelp")} size="full">
         <Textarea
           label={t("googleWorkspaceFields.mailLabels")}
-          description={t("googleWorkspaceFields.mailLabelsHelp")}
           placeholder={"Clients\nInvoices"}
           autosize
           minRows={2}
           {...text("gw_mail_labels")}
         />
       </FormField>
-      <FormField size="long">
-        <Checkbox
-          label={t("googleWorkspaceFields.mailSpamTrash")}
-          checked={fields.gw_mail_include_spam_trash === "true"}
-          onChange={(e) => set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")}
-          data-testid="google-workspace-gw_mail_include_spam_trash"
-        />
-      </FormField>
+      <FormChecks>
+        <FormField size="long">
+          <Checkbox
+            label={t("googleWorkspaceFields.mailSpamTrash")}
+            checked={fields.gw_mail_include_spam_trash === "true"}
+            onChange={(e) =>
+              set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")
+            }
+            data-testid="google-workspace-gw_mail_include_spam_trash"
+          />
+        </FormField>
+      </FormChecks>
     </>
   );
 }

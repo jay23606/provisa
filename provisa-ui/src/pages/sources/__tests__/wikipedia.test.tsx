@@ -102,7 +102,8 @@ describe("the Wikipedia setup form", () => {
     expect(screen.queryByTestId("wikipedia-wp_see_also_heading")).not.toBeInTheDocument();
     rerender(<WikipediaFields fields={{ wp_language: "fr" }} setFields={setFields} />);
     expect(screen.getByTestId("wikipedia-wp_see_also_heading")).toBeInTheDocument();
-    expect(screen.getByText(/as it appears on a page/)).toBeInTheDocument();
+    // The explanation is longer than a line: it is behind the (?) beside the label.
+    expect(screen.getByRole("img", { name: /as it appears on a page/ })).toBeInTheDocument();
     rerender(
       <WikipediaFields fields={{ wp_language: "fr", wp_follow_see_also: "true" }} setFields={setFields} />,
     );

@@ -552,18 +552,20 @@ main {
    * show above it. */
   overflow: auto;
 }
-/* The candidates block yields its height to the table and scrolls within what is left,
- * rather than being clipped by the page's overflow. min-height: 0 let the flex algorithm
- * squeeze an open form (Register Table/Source/Relationship) down to a sliver whenever the
- * table below it was tall — verified live: Schema/Table fields cut off mid-row, only
- * reachable by scrolling inside a barely-visible internal scrollport nobody would think to
- * look for. A generous floor guarantees the form a real, usable share of the viewport
- * before the table claims the rest; it can still shrink (and scroll internally) below that
- * on a genuinely short viewport. */
+/* An open form (Register Table/Source/Relationship) takes its natural height and is never an
+ * inner scroll box: squeezed between the header and the table it hid its own first and last rows
+ * (the identity section, Save and Cancel). While a form is open the whole page scrolls instead,
+ * and the table beneath it is as tall as its rows. */
 .page-sticky-head > .page-aux {
-  flex: 0 1 auto;
-  min-height: min(60vh, 520px);
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.page-sticky-head:has(> .page-aux) {
   overflow: auto;
+}
+.page-sticky-head:has(> .page-aux) > .table-scroll {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 .page-sticky-head .data-table {
   overflow: visible;
@@ -2225,25 +2227,32 @@ main {
   gap: 0.75rem 1rem;
 }
 .form-field {
-  flex: 1 1 var(--form-field-min);
+  flex: 0 1 var(--form-field-width);
   /* An explicit minimum wins over max-width, so a label longer than the class maximum is held. */
   min-width: min-content;
   max-width: var(--form-field-max);
 }
+/* One rhythm: every field of a class has the same width, two short fields and the gap between
+ * them are as wide as a medium one, and two medium as a long one, so rows line up in columns.
+ * A field narrows towards its minimum only when the row cannot hold it. */
 .form-field--short {
-  --form-field-min: 9rem;
-  --form-field-max: 14rem;
+  --form-field-min: 7rem;
+  --form-field-width: 9.5rem;
+  --form-field-max: 9.5rem;
 }
 .form-field--medium {
   --form-field-min: 14rem;
-  --form-field-max: 24rem;
+  --form-field-width: 20rem;
+  --form-field-max: 20rem;
 }
 .form-field--long {
-  --form-field-min: 24rem;
-  --form-field-max: 40rem;
+  --form-field-min: 20rem;
+  --form-field-width: 41rem;
+  --form-field-max: 41rem;
 }
 .form-field--full {
   --form-field-min: 100%;
+  --form-field-width: 100%;
   --form-field-max: 100%;
   min-width: 0;
 }
@@ -2300,7 +2309,14 @@ main {
 }
 .form-field-group > .form-field {
   flex: 0 0 auto;
-  width: var(--form-field-min);
+  width: var(--form-field-width);
+}
+/* An action at the end of a field (Connect, Copy, a preview) lines up with the field's control:
+ * below the label's line, whatever sits under the control. */
+.form-field-group > .mantine-Button-root,
+.form-field-group > .mantine-ActionIcon-root {
+  flex: 0 0 auto;
+  margin-top: calc(var(--mantine-font-size-sm) * var(--mantine-line-height));
 }
 .form-identifiers {
   flex: 1 1 100%;

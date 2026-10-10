@@ -1615,7 +1615,7 @@ export function SourcesPage() {
                   data-testid="sources-id-input"
                 />
               </FormField>
-              <FormField size="medium">
+              <FormField size="long">
                 <label>
                   {t("sourcesPage.typeLabel")}
                   <select
@@ -1837,7 +1837,7 @@ export function SourcesPage() {
                                       onChange={(e) => setForm({ ...form, id: e.target.value })}
                                     />
                                   </FormField>
-                                  <FormField size="medium">
+                                  <FormField size="long">
                                     <Select
                                       label={t("sourcesPage.typeLabel")}
                                       value={form.type}

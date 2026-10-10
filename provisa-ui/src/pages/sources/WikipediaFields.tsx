@@ -14,7 +14,7 @@
 import { Accordion, Checkbox, NumberInput, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { WIKIPEDIA_CRAWL_FIELDS, WIKIPEDIA_KNOWN_SEE_ALSO, wikipediaMissing } from "./wikipedia";
-import { FormField, FormLayout } from "../../components/form/FormLayout";
+import { FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface Props {
   fields: Record<string, string>;
@@ -41,10 +41,9 @@ export function WikipediaFields({ fields, setFields }: Props) {
   const followSeeAlso = fields.wp_follow_see_also === "true";
   return (
     <>
-      <FormField size="full">
+      <FormField hint={t("sourceFormFieldsExtended.wpPagesHelp")} size="full">
         <Textarea
           label={t("sourceFormFieldsExtended.wpPages")}
-          description={t("sourceFormFieldsExtended.wpPagesHelp")}
           placeholder={"List of tallest buildings\nhttps://en.wikipedia.org/wiki/Dubai"}
           required
           autosize
@@ -55,54 +54,50 @@ export function WikipediaFields({ fields, setFields }: Props) {
           {...text("wp_pages")}
         />
       </FormField>
-      <FormField size="medium">
+      <FormField hint={t("sourceFormFieldsExtended.wpLanguageHelp")} size="medium">
         <TextInput
           label={t("sourceFormFieldsExtended.wpLanguage")}
-          description={t("sourceFormFieldsExtended.wpLanguageHelp")}
           placeholder="en"
           {...text("wp_language")}
         />
       </FormField>
-      <FormField size="short">
+      <FormField help={t("sourceFormFieldsExtended.wpMaxDepthHelp")} size="short">
         <NumberInput
           label={t("sourceFormFieldsExtended.wpMaxDepth")}
-          description={t("sourceFormFieldsExtended.wpMaxDepthHelp")}
           placeholder="1"
           {...number("wp_max_depth")}
         />
       </FormField>
-      <FormField size="short">
+      <FormField hint={t("sourceFormFieldsExtended.wpMaxPagesHelp")} size="short">
         <NumberInput
           label={t("sourceFormFieldsExtended.wpMaxPages")}
-          description={t("sourceFormFieldsExtended.wpMaxPagesHelp")}
           placeholder="25"
           {...number("wp_max_pages")}
         />
       </FormField>
-      <FormField size="medium">
+      <FormField hint={t("sourceFormFieldsExtended.wpContactHelp")} size="medium">
         <TextInput
           label={t("sourceFormFieldsExtended.wpContact")}
-          description={t("sourceFormFieldsExtended.wpContactHelp")}
           placeholder="data-team@example.com"
           {...text("wp_contact")}
         />
       </FormField>
-      <FormField size="long">
-        <Checkbox
-          label={t("sourceFormFieldsExtended.wpFollowSeeAlso")}
-          description={t("sourceFormFieldsExtended.wpFollowSeeAlsoHelp")}
-          checked={followSeeAlso}
-          onChange={(e) => set("wp_follow_see_also", e.currentTarget.checked ? "true" : "")}
-          data-testid="wikipedia-wp_follow_see_also"
-        />
-      </FormField>
+      <FormChecks>
+        <FormField help={t("sourceFormFieldsExtended.wpFollowSeeAlsoHelp")} size="long">
+          <Checkbox
+            label={t("sourceFormFieldsExtended.wpFollowSeeAlso")}
+            checked={followSeeAlso}
+            onChange={(e) => set("wp_follow_see_also", e.currentTarget.checked ? "true" : "")}
+            data-testid="wikipedia-wp_follow_see_also"
+          />
+        </FormField>
+      </FormChecks>
       {/* Asked only of an edition whose "See also" section Provisa cannot name, and in the
           operator's terms: the section's title as a page shows it. */}
       {!followSeeAlso && !WIKIPEDIA_KNOWN_SEE_ALSO.has(language) && (
-        <FormField size="long">
+        <FormField help={t("sourceFormFieldsExtended.wpSeeAlsoHeadingHelp")} size="long">
           <TextInput
             label={t("sourceFormFieldsExtended.wpSeeAlsoHeading")}
-            description={t("sourceFormFieldsExtended.wpSeeAlsoHeadingHelp")}
             placeholder="Voir aussi"
             required
             error={
@@ -114,10 +109,9 @@ export function WikipediaFields({ fields, setFields }: Props) {
           />
         </FormField>
       )}
-      <FormField size="long">
+      <FormField help={t("sourceFormFieldsExtended.wpDirectoryHelp")} size="long">
         <TextInput
           label={t("sourceFormFieldsExtended.wpDirectory")}
-          description={t("sourceFormFieldsExtended.wpDirectoryHelp")}
           placeholder="/data/wikipedia"
           {...text("wp_directory")}
         />
@@ -135,10 +129,9 @@ export function WikipediaFields({ fields, setFields }: Props) {
                   const description = t(`sourceFormFieldsExtended.wpCrawlHelp.${f.key}`);
                   if (f.kind === "list") {
                     return (
-                      <FormField size="full" key={key}>
+                      <FormField help={description} size="full" key={key}>
                         <Textarea
                           label={label}
-                          description={description}
                           placeholder={f.placeholder}
                           autosize
                           minRows={2}
@@ -148,22 +141,12 @@ export function WikipediaFields({ fields, setFields }: Props) {
                     );
                   }
                   return f.kind === "number" ? (
-                    <FormField size="short" key={key}>
-                      <NumberInput
-                        label={label}
-                        description={description}
-                        placeholder={f.placeholder}
-                        {...number(key)}
-                      />
+                    <FormField help={description} size="short" key={key}>
+                      <NumberInput label={label} placeholder={f.placeholder} {...number(key)} />
                     </FormField>
                   ) : (
-                    <FormField size="medium" key={key}>
-                      <TextInput
-                        label={label}
-                        description={description}
-                        placeholder={f.placeholder}
-                        {...text(key)}
-                      />
+                    <FormField help={description} size="medium" key={key}>
+                      <TextInput label={label} placeholder={f.placeholder} {...text(key)} />
                     </FormField>
                   );
                 })}

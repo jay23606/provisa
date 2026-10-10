@@ -14,7 +14,7 @@
 
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Checkbox, NumberInput, Select, Text, TextInput, Tooltip } from "@mantine/core";
+import { Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
 import { SOURCE_PROBE_SOURCE_TYPES, sourceChangeSignals } from "../../liveCapability";
 import { CHANGE_SIGNAL_LABELS } from "./constants";
 import { CollapsibleSection } from "../tables/CollapsibleSection";
@@ -28,7 +28,7 @@ import {
   ttlSignalMissingCacheTtl,
 } from "./loadManagement";
 import { useSourceKind } from "./sourceKind";
-import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
+import { FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 export function SourceLoadManagementPanel({
   form,
@@ -64,14 +64,6 @@ export function SourceLoadManagementPanel({
           {t("sourceFormFieldsExtended.loadManagementHelp")}
         </Text>
         <FormLayout>
-          <FormField size="short">
-            <Checkbox
-              label={t("sourceFormFieldsExtended.cacheEnabled")}
-              checked={form.cacheEnabled}
-              onChange={(e) => setForm({ ...form, cacheEnabled: e.currentTarget.checked })}
-              data-testid="cache-enabled-checkbox"
-            />
-          </FormField>
           <FormField size="medium">
             <ReplicateSelect
               value={form.replicate}
@@ -81,7 +73,8 @@ export function SourceLoadManagementPanel({
               testId="source-replicate-select"
             />
           </FormField>
-          <FormField size="short">
+          {/* Medium, not short: its error is a sentence. */}
+          <FormField size="medium">
             <NumberInput
               label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
               min={0}
@@ -103,56 +96,41 @@ export function SourceLoadManagementPanel({
               data-testid="cache-ttl-input"
             />
           </FormField>
-          <FormField size="medium">
-            <Tooltip label={t("sourceFormFieldsExtended.changeSignalTooltip")} multiline w={280}>
-              <Select
-                label={t("sourceFormFieldsExtended.changeSignal")}
-                value={form.changeSignal}
-                onChange={(v) => setForm({ ...form, changeSignal: v ?? "" })}
-                data={sourceChangeSignals(form.type).map((cs) => ({
-                  value: cs,
-                  // A source that asks its provider whether it changed says the choice in words.
-                  label: SOURCE_PROBE_SOURCE_TYPES.has(form.type)
-                    ? t(`sourceFormFieldsExtended.sourceProbeSignal.${cs}`)
-                    : (CHANGE_SIGNAL_LABELS[cs] ?? cs),
-                }))}
-                allowDeselect={false}
-                data-testid="change-signal-select"
-              />
-            </Tooltip>
+          <FormField help={t("sourceFormFieldsExtended.changeSignalTooltip")} size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.changeSignal")}
+              value={form.changeSignal}
+              onChange={(v) => setForm({ ...form, changeSignal: v ?? "" })}
+              data={sourceChangeSignals(form.type).map((cs) => ({
+                value: cs,
+                // A source that asks its provider whether it changed says the choice in words.
+                label: SOURCE_PROBE_SOURCE_TYPES.has(form.type)
+                  ? t(`sourceFormFieldsExtended.sourceProbeSignal.${cs}`)
+                  : (CHANGE_SIGNAL_LABELS[cs] ?? cs),
+              }))}
+              allowDeselect={false}
+              data-testid="change-signal-select"
+            />
           </FormField>
           {sentinelApplies && (
-            <FormField size="long">
-              <Tooltip label={t("sourceFormFieldsExtended.sentinelPathTooltip")} multiline w={280}>
-                <TextInput
-                  label={t("sourceFormFieldsExtended.sentinelPath")}
-                  value={form.sentinelPath}
-                  onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
-                  placeholder="https://example.com/data/_SUCCESS"
-                  error={
-                    sentinelPathValid(form.sentinelPath)
-                      ? undefined
-                      : t("sourceFormFieldsExtended.sentinelPathInvalid")
-                  }
-                  data-testid="sentinel-path-input"
-                />
-              </Tooltip>
+            <FormField help={t("sourceFormFieldsExtended.sentinelPathTooltip")} size="long">
+              <TextInput
+                label={t("sourceFormFieldsExtended.sentinelPath")}
+                value={form.sentinelPath}
+                onChange={(e) => setForm({ ...form, sentinelPath: e.currentTarget.value })}
+                placeholder="https://example.com/data/_SUCCESS"
+                error={
+                  sentinelPathValid(form.sentinelPath)
+                    ? undefined
+                    : t("sourceFormFieldsExtended.sentinelPathInvalid")
+                }
+                data-testid="sentinel-path-input"
+              />
             </FormField>
           )}
-          <FormField size="short">
-            <Tooltip label={t("sourceFormFieldsExtended.freshnessGateTooltip")} multiline w={280}>
-              <Checkbox
-                label={t("sourceFormFieldsExtended.freshnessGate")}
-                checked={form.freshnessGate}
-                onChange={(e) => setForm({ ...form, freshnessGate: e.currentTarget.checked })}
-                data-testid="freshness-gate-checkbox"
-              />
-            </Tooltip>
-          </FormField>
-          <FormField size="short">
+          <FormField help={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")} size="short">
             <NumberInput
               label={t("sourceFormFieldsExtended.maxLiveConcurrency")}
-              description={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")}
               min={1}
               allowDecimal={false}
               allowNegative={false}
@@ -167,41 +145,56 @@ export function SourceLoadManagementPanel({
               data-testid="max-live-concurrency-input"
             />
           </FormField>
-          {/* REQ-1141: source-level load protection (scheduled-refresh-only, off-peak window). */}
-          <FieldGroup>
-            <FormField size="short">
-              <Tooltip label={t("sourceFormFieldsExtended.loadProtectedTooltip")} multiline w={280}>
-                <Checkbox
-                  label={t("sourceFormFieldsExtended.loadProtected")}
-                  checked={form.loadProtected}
-                  onChange={(e) => setForm({ ...form, loadProtected: e.currentTarget.checked })}
-                  data-testid="load-protected-checkbox"
+          {/* REQ-1141: the off-peak window of a load-protected source. */}
+          {form.loadProtected && (
+            <>
+              <FormField size="short">
+                <TextInput
+                  label={t("sourceFormFieldsExtended.offPeakWindow")}
+                  value={form.offPeakWindow}
+                  onChange={(e) => setForm({ ...form, offPeakWindow: e.currentTarget.value })}
+                  placeholder="01:00-05:00"
+                  data-testid="off-peak-window-input"
                 />
-              </Tooltip>
+              </FormField>
+              <FormField size="short">
+                <TextInput
+                  label={t("sourceFormFieldsExtended.offPeakTz")}
+                  value={form.offPeakTz}
+                  onChange={(e) => setForm({ ...form, offPeakTz: e.currentTarget.value })}
+                  placeholder="UTC"
+                  data-testid="off-peak-tz-input"
+                />
+              </FormField>
+            </>
+          )}
+          {/* The ticks sit together beneath the fields: caching, the freshness gate, load protection. */}
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.cacheEnabled")}
+                checked={form.cacheEnabled}
+                onChange={(e) => setForm({ ...form, cacheEnabled: e.currentTarget.checked })}
+                data-testid="cache-enabled-checkbox"
+              />
             </FormField>
-            {form.loadProtected && (
-              <>
-                <FormField size="short">
-                  <TextInput
-                    label={t("sourceFormFieldsExtended.offPeakWindow")}
-                    value={form.offPeakWindow}
-                    onChange={(e) => setForm({ ...form, offPeakWindow: e.currentTarget.value })}
-                    placeholder="01:00-05:00"
-                    data-testid="off-peak-window-input"
-                  />
-                </FormField>
-                <FormField size="short">
-                  <TextInput
-                    label={t("sourceFormFieldsExtended.offPeakTz")}
-                    value={form.offPeakTz}
-                    onChange={(e) => setForm({ ...form, offPeakTz: e.currentTarget.value })}
-                    placeholder="UTC"
-                    data-testid="off-peak-tz-input"
-                  />
-                </FormField>
-              </>
-            )}
-          </FieldGroup>
+            <FormField help={t("sourceFormFieldsExtended.freshnessGateTooltip")} size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.freshnessGate")}
+                checked={form.freshnessGate}
+                onChange={(e) => setForm({ ...form, freshnessGate: e.currentTarget.checked })}
+                data-testid="freshness-gate-checkbox"
+              />
+            </FormField>
+            <FormField help={t("sourceFormFieldsExtended.loadProtectedTooltip")} size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.loadProtected")}
+                checked={form.loadProtected}
+                onChange={(e) => setForm({ ...form, loadProtected: e.currentTarget.checked })}
+                data-testid="load-protected-checkbox"
+              />
+            </FormField>
+          </FormChecks>
         </FormLayout>
       </CollapsibleSection>
     </FormField>

@@ -12,7 +12,7 @@
 
 import { Checkbox, NumberInput, PasswordInput, Select, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { FieldGroup, FormField } from "../../components/form/FormLayout";
+import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 import type { SourceFormFieldsProps } from "./SourceFormFields";
 
 export function SplunkFields({
@@ -111,14 +111,16 @@ export function SplunkFields({
           data-testid="splunk-app-input"
         />
       </FormField>
-      <FormField size="short">
-        <Checkbox
-          label={t("sourceFormFieldsExtended.disableSslValidation")}
-          checked={splunkDisableSsl}
-          onChange={(e) => setSplunkDisableSsl(e.currentTarget.checked)}
-          data-testid="splunk-disable-ssl-checkbox"
-        />
-      </FormField>
+      <FormChecks>
+        <FormField size="short">
+          <Checkbox
+            label={t("sourceFormFieldsExtended.disableSslValidation")}
+            checked={splunkDisableSsl}
+            onChange={(e) => setSplunkDisableSsl(e.currentTarget.checked)}
+            data-testid="splunk-disable-ssl-checkbox"
+          />
+        </FormField>
+      </FormChecks>
     </>
   );
 }

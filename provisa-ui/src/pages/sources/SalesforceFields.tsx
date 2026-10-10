@@ -53,11 +53,10 @@ export function SalesforceFields<F extends ConnectionForm>({
     setFields({ ...fields, [key]: e.currentTarget.value });
   return (
     <>
-      <FormField size="long">
+      <FormField hint={t("sourceFormFieldsExtended.sfLoginUrlHelp")} size="long">
         <TextInput
           required
           label={t("sourceFormFieldsExtended.sfLoginUrl")}
-          description={t("sourceFormFieldsExtended.sfLoginUrlHelp")}
           value={form.host}
           onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
           error={
@@ -129,10 +128,9 @@ export function SalesforceFields<F extends ConnectionForm>({
               />
             </FormField>
           </FieldGroup>
-          <FormField size="medium">
+          <FormField hint={t("sourceFormFieldsExtended.sfSecurityTokenHelp")} size="medium">
             <PasswordInput
               label={t("sourceFormFieldsExtended.sfSecurityToken")}
-              description={t("sourceFormFieldsExtended.sfSecurityTokenHelp")}
               value={fields.security_token ?? ""}
               onChange={set("security_token")}
               placeholder="${secret:salesforce_security_token}"
@@ -165,10 +163,9 @@ export function SalesforceFields<F extends ConnectionForm>({
           </FormField>
         </>
       )}
-      <FormField size="medium">
+      <FormField hint={t("sourceFormFieldsExtended.sfApiVersionHelp")} size="medium">
         <TextInput
           label={t("sourceFormFieldsExtended.sfApiVersion")}
-          description={t("sourceFormFieldsExtended.sfApiVersionHelp")}
           value={fields.api_version ?? ""}
           onChange={set("api_version")}
           placeholder="v61.0"
