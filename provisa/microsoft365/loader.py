@@ -29,7 +29,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -78,6 +78,14 @@ class Reading:
     #: Told, from the thread that reads Graph, how long a throttled call is about to wait and
     #: 0 when the wait is over, so the build's record can say what it is waiting on.
     throttled: Callable[[float], None] | None = None
+    #: Nothing received before this date is held (the source's ``mail_since``); None: any age.
+    since: date | None = None
+
+    @property
+    def since_marker(self) -> str:
+        """The date as it is kept beside what a mailbox's read reached (:data:`SINCE`)."""
+        return ANY_AGE if self.since is None else self.since.isoformat()
+
     #: For a read that lands a part at a time (``federation.mail_units``): keeps where the
     #: read of one mailbox reached, once that part's rows are written; and keeps nothing of
     #: what an earlier read of a mailbox reached. ``kind`` is the state store's (delta, probe).
@@ -100,6 +108,13 @@ _AT_QUOTA_CODE = "ErrorQuotaExceeded"
 
 #: What is kept for a mailbox the last completed read left out, in place of links.
 LEFT_OUT = "left_out"
+#: Under this scope the date a mailbox was read with is kept beside where its read reached
+#: (as a probe-kind row): a mailbox read with another date than the source states now holds
+#: the wrong mail -- too little if the date moved back, too much if it moved on -- and where
+#: its read reached says nothing of the difference. It is read again from its start.
+SINCE = "mail_since"
+#: What is kept under :data:`SINCE` for a source that states no date.
+ANY_AGE = "any"
 #: What the check for changes answers while nothing changed (``events.check_node`` compares it
 #: with the last one it kept; "cannot tell" is None, which is never taken for unchanged).
 UNCHANGED = "unchanged"
@@ -133,13 +148,18 @@ async def _asked_unchanged(connect: Connect, source: Any) -> str | None:
         return None
     links: dict[str, dict[str, str]] = {}
     left_out: set[str] = set()
+    dated: dict[str, str] = {}
     for (account, scope, kind), token in (await reading.kept()).items():
         if kind == DELTA:
             links.setdefault(account, {})[scope] = token
+        elif scope == SINCE:
+            dated[account] = token
         elif token == LEFT_OUT:
             left_out.add(account)
     if not links or set(links) | left_out != {a.lower() for a in reading.accounts}:
         return None
+    if any(dated.get(account, ANY_AGE) != reading.since_marker for account in links):
+        return None  # read with another date than the source states now: it is read again
     if any(mail.MAILBOX not in scopes for scopes in links.values()):
         return None  # a mailbox whose read did not reach its end: the read goes on
 
@@ -251,6 +271,7 @@ async def _read_mailboxes(
                     waiting=reading.throttled,
                 ),
                 account,
+                since=reading.since,
             )
             yield from read(mailbox)
             # Where this mailbox's read reached, once it has been read to its end.
@@ -475,6 +496,8 @@ class _MessagesRead:
         # A mailbox left out is kept as that: the next check asks whether it can be read now,
         # instead of taking it for one added to the source since.
         rows.update({(account, mail.MAILBOX, PROBE): LEFT_OUT for account in gone})
+        # The date each mailbox was read with, beside where its read reached.
+        rows.update({(account, SINCE, PROBE): reading.since_marker for account in self._reached})
         await reading.keep(rows)
         if reading.settle is not None:
             await reading.settle(self._tables)
@@ -537,8 +560,13 @@ class _UnitsRead:
     async def keep(self, account: str, links: dict[str, str]) -> None:
         from provisa.federation.mail_sync_state import DELTA
 
+        from provisa.federation.mail_sync_state import PROBE
+
         assert self._reading is not None and self._reading.keep_part is not None
         await self._reading.keep_part(account, links, DELTA)
+        if mail.MAILBOX in links:
+            # The mailbox was read to its end: the date it was read with is kept with that.
+            await self._reading.keep_part(account, {SINCE: self._reading.since_marker}, PROBE)
 
     async def forget(self, account: str) -> None:
         assert self._reading is not None and self._reading.forget_mailbox is not None
@@ -554,11 +582,20 @@ class _UnitsRead:
         if reading.kept is None or reading.keep_part is None or reading.forget_mailbox is None:
             raise RuntimeError("a read in units needs somewhere to keep where it reached")
         kept: dict[str, dict[str, str]] = {}
+        dated: dict[str, str] = {}
         for (account, scope, kind), token in (await reading.kept()).items():
             if kind == DELTA:
                 kept.setdefault(account, {})[scope] = token
             else:
                 kept.setdefault(account, {})
+                if scope == SINCE:
+                    dated[account] = token
+        for account, links in kept.items():
+            if links and dated.get(account, ANY_AGE) != reading.since_marker:
+                # Read with another date than the source states now: what it holds is not
+                # what the date asks for, so it is read again from its start, which replaces
+                # its rows.
+                links.clear()
         accounts = {a.lower() for a in reading.accounts}
         self.total = len(accounts)
         # A mailbox the source no longer names: its rows go, and what was kept for it.
@@ -724,6 +761,7 @@ def make_connect(state: Any) -> Connect:
                 settle=settle,
                 wait_seconds=wait_seconds,
                 throttled=throttled,
+                since=settings.since,
                 keep_part=keep_part,
                 forget_mailbox=forget_mailbox,
             )
@@ -787,6 +825,7 @@ def make_connect(state: Any) -> Connect:
             settle=settle,
             wait_seconds=wait_seconds,
             throttled=throttled,
+            since=settings.since,
             keep_part=keep_part,
             forget_mailbox=forget_mailbox,
         )

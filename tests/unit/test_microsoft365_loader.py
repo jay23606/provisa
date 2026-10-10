@@ -221,9 +221,14 @@ def test_a_completed_build_keeps_each_folders_link_and_the_mailboxs(monkeypatch)
     asyncio.run(build())
     (rows,) = kept
     # Kept under the address as the tables' account column has it (lowercased).
-    assert {(account, kind) for account, _scope, kind in rows} == {(ACCOUNT.lower(), "delta")}
-    assert {scope for _a, scope, _k in rows} == {"f-inbox", ""}
-    assert all("$deltatoken=" in link for link in rows.values())
+    links = {key: link for key, link in rows.items() if key[2] == "delta"}
+    assert {account for account, _scope, _kind in links} == {ACCOUNT.lower()}
+    assert {scope for _a, scope, _k in links} == {"f-inbox", ""}
+    assert all("$deltatoken=" in link for link in links.values())
+    # Beside them, the date the mailbox was read with (this source states none).
+    assert {k: v for k, v in rows.items() if k[2] != "delta"} == {
+        (ACCOUNT.lower(), loader.SINCE, "probe"): loader.ANY_AGE
+    }
 
 
 def test_a_read_that_did_not_end_keeps_nothing(monkeypatch):

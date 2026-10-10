@@ -294,6 +294,16 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
           </FormField>
         </>
       )}
+      {/* Whichever mailboxes are read: nothing received before this date is held. */}
+      <FormField hint={t("microsoft365Fields.mailSinceHelp")} size="short">
+        <TextInput
+          type="date"
+          label={t("microsoft365Fields.mailSince")}
+          value={fields.m365_mail_since ?? ""}
+          onChange={(e) => setFields({ ...fields, m365_mail_since: e.currentTarget.value })}
+          data-testid="microsoft-365-m365_mail_since"
+        />
+      </FormField>
       {notSetUp && (
         <FormField size="full">
           <Alert color="yellow" variant="light" data-testid="microsoft-365-not-set-up">

@@ -15,6 +15,7 @@ Graph is the stand-in of ``test_microsoft365_mail``; no secret is in any message
 from __future__ import annotations
 
 import asyncio
+from datetime import date as dt_date
 import json
 import logging
 import threading
@@ -929,11 +930,16 @@ def test_a_completed_read_of_several_mailboxes_keeps_each_ones_links(org_read, m
     org_read.graph.table.update({**_box(A, 1), **_box(B, 2)})
     _source, kept = _org_group(org_read, monkeypatch, {})
     (rows,) = kept
-    assert {(account, scope) for account, scope, _kind in rows} == {
+    assert {(account, scope) for account, scope, kind in rows if kind == "delta"} == {
         (A, "f-inbox"),
         (A, ""),
         (B, "f-inbox"),
         (B, ""),
+    }
+    # And the date each was read with (none here), beside where its read reached.
+    assert {k: v for k, v in rows.items() if k[2] == "probe"} == {
+        (A, loader.SINCE, "probe"): loader.ANY_AGE,
+        (B, loader.SINCE, "probe"): loader.ANY_AGE,
     }
     assert rows[(A, "f-inbox", "delta")] != rows[(B, "f-inbox", "delta")]
 
@@ -1109,7 +1115,8 @@ def test_a_completed_read_settles_the_check_of_the_tables_it_fed(org_read, monke
         await source.committed()
 
     asyncio.run(build())
-    assert did == [("keep", 2), ("settle", tuple(tables))]
+    # Two links (the folder's and the mailbox's) and the date the mailbox was read with.
+    assert did == [("keep", 3), ("settle", tuple(tables))]
 
 
 async def test_settling_sets_what_each_tables_poll_node_compares_its_check_with(
@@ -1256,10 +1263,12 @@ def test_a_pass_reads_every_mailbox_and_keeps_where_each_reached(org_read):
     assert read.total == 2 and sum(unit.last for unit in units) == 2
     assert {u.account for u in units} == {A.lower(), B.lower()}
     # Each mailbox's folders and its list of folders have a place kept, as a position.
-    assert {(account, kind) for account, _scope, kind in kept.rows} == {
+    assert {(account, kind) for account, scope, kind in kept.rows if scope != loader.SINCE} == {
         (A.lower(), "delta"),
         (B.lower(), "delta"),
     }
+    # The date each mailbox was read with is kept once it has been read to its end.
+    assert kept.rows[(A.lower(), loader.SINCE, "probe")] == loader.ANY_AGE
     assert (A.lower(), "", "delta") in kept.rows
 
 
@@ -1357,3 +1366,76 @@ def test_a_check_for_changes_asks_for_a_read_while_a_mailboxs_read_has_not_reach
         return loader.Reading((A,), lambda: "t", organisation=True, kept=kept)
 
     assert asyncio.run(loader.unchanged(connect, SOURCE)) is None
+
+
+# --- nothing received before the source's date ---
+
+
+def _dated_read(org_read, kept: _Kept, accounts, since):
+    async def connect(source):
+        return loader.Reading(
+            tuple(accounts),
+            lambda: "t",
+            organisation=True,
+            at_once=2,
+            kept=kept.kept,
+            keep_part=kept.keep_part,
+            forget_mailbox=kept.forget_mailbox,
+            settle=kept.settle,
+            since=since,
+        )
+
+    made = loader.make_microsoft365_loader(connect)
+    return made.replica_unit_source(SOURCE, ("messages", "message_recipients")), connect
+
+
+def test_a_pass_holds_nothing_received_before_the_date_and_keeps_the_date_it_read_with(org_read):
+    import datetime as dt
+
+    org_read.graph.table.update(_box(A, 1, 2, 3))
+    kept = _Kept()
+    read, _connect = _dated_read(org_read, kept, (A,), dt.date(2026, 1, 2))
+    units = asyncio.run(_pass(read))
+    assert {r["id"] for u in units for r in u.rows.get("messages", [])} == {"m2", "m3"}
+    assert kept.rows[(A.lower(), loader.SINCE, "probe")] == "2026-01-02"
+
+
+@pytest.mark.parametrize(
+    ("was", "now", "held"),
+    [
+        (None, dt_date(2026, 1, 3), {"m3"}),  # a date is set: the older mail goes
+        (dt_date(2026, 1, 3), dt_date(2026, 1, 2), {"m2", "m3"}),  # moved back: more is read
+        (dt_date(2026, 1, 2), None, {"m1", "m2", "m3"}),  # taken away: mail of any age
+    ],
+)
+def test_changing_the_date_reads_the_mailbox_again_from_its_start(org_read, was, now, held):
+    """Where a mailbox's read reached says what changed since, not what a different date
+    would have held: too little if the date moved back, too much if it moved on. So a mailbox
+    read with another date is read again from its start, which replaces its rows."""
+    org_read.graph.table.update(_box(A, 1, 2, 3))
+    kept = _Kept()
+    first, _ = _dated_read(org_read, kept, (A,), was)
+    asyncio.run(_pass(first))
+    again, connect = _dated_read(org_read, kept, (A,), now)
+    # The check for changes asks for a read: nothing in the mailbox changed, the date did.
+    assert asyncio.run(loader.unchanged(connect, SOURCE)) is None
+    units = asyncio.run(_pass(again))
+    assert units[0].forget and units[0].removed["messages"] == [
+        {"provider": "microsoft", "account": A.lower()}
+    ]
+    assert {r["id"] for u in units for r in u.rows.get("messages", [])} == held
+    marker = loader.ANY_AGE if now is None else now.isoformat()
+    assert kept.rows[(A.lower(), loader.SINCE, "probe")] == marker
+
+
+def test_the_same_date_asks_each_mailbox_only_what_changed(org_read):
+    import datetime as dt
+
+    org_read.graph.table.update(_box(A, 1, 2, 3))
+    kept = _Kept()
+    since = dt.date(2026, 1, 2)
+    asyncio.run(_pass(_dated_read(org_read, kept, (A,), since)[0]))
+    read, connect = _dated_read(org_read, kept, (A,), since)
+    (unit,) = asyncio.run(_pass(read))
+    assert unit.last and not unit.forget and not any(unit.rows.values())
+    assert asyncio.run(loader.unchanged(connect, SOURCE)) == loader.UNCHANGED

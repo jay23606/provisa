@@ -6,6 +6,8 @@
     "readsMailHelp": "このメールボックスのメッセージ、フォルダー、添付ファイルの情報を読み取ります。メールボックスの内容は変更されません。",
     "connect": "Microsoft アカウントを接続",
     "connected": "{{account}} として接続済み",
+    "mailSince": "これより古いものは除外",
+    "mailSinceHelp": "日付を問わず読み取る場合は空欄にします。",
     "connectedOn": "{{account}} として {{date}} に接続済み",
     "connectFailed": "ログインを完了できませんでした。",
     "notSetUp": "組織でまだ Microsoft 365 が接続されていません。",

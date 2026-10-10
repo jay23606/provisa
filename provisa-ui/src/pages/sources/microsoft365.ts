@@ -76,12 +76,18 @@ export function m365ConnectMissing(fields: Record<string, string>, sourceId: str
  * part of it: a source of one mailbox keeps only its owner's approval, and a source of the
  * organisation's mailboxes keeps only which ones. */
 export function m365Mapping(fields: Record<string, string>): Record<string, unknown> {
+  // Nothing received before this date is held, whichever mailboxes are read; left out, mail
+  // of any age is. The same setting, by the same name, as a Google Workspace source's.
+  const since = stated(fields, "m365_mail_since")
+    ? { mail_since: stated(fields, "m365_mail_since") }
+    : {};
   if (m365Organisation(fields)) {
-    return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {} };
+    return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {}, ...since };
   }
   const mapping: Record<string, unknown> = {
     accounts: [stated(fields, "m365_account")],
     resources: ["mail"],
+    ...since,
   };
   // The owner's approval is kept by the server, not in the source. A source connected before
   // that still names it here; it is carried through unchanged until the server has taken it.
@@ -95,8 +101,10 @@ export function m365Mapping(fields: Record<string, string>): Record<string, unkn
 export function m365FieldsFromMapping(mappingJson: string): Record<string, string> {
   const mapping = JSON.parse(mappingJson) as Record<string, unknown>;
   const chosen = mapping.mailboxes as Record<string, unknown> | undefined;
+  const since: Record<string, string> =
+    typeof mapping.mail_since === "string" ? { m365_mail_since: mapping.mail_since } : {};
   if (chosen !== undefined) {
-    const fields: Record<string, string> = { m365_whose: M365_ORGANISATION };
+    const fields: Record<string, string> = { m365_whose: M365_ORGANISATION, ...since };
     if (chosen.everyone === true) fields.m365_choice = M365_EVERYONE;
     if (typeof chosen.group === "string") {
       fields.m365_choice = M365_GROUP;
@@ -109,6 +117,7 @@ export function m365FieldsFromMapping(mappingJson: string): Record<string, strin
     return fields;
   }
   const fields: Record<string, string> = {
+    ...since,
     m365_whose: M365_ONE,
     m365_account: ((mapping.accounts as string[] | undefined) ?? []).join(""),
   };

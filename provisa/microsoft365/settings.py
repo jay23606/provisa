@@ -19,6 +19,7 @@ reference that names the refresh token the approval produced in the organisation
 # Requirements: REQ-1923
 from __future__ import annotations
 
+import datetime as dt
 import re
 from dataclasses import dataclass
 
@@ -35,7 +36,7 @@ BASE_SCOPES: tuple[str, ...] = ("offline_access", f"{_GRAPH}User.Read")
 
 #: The mapping keys that hold a credential, kept as references into the vault.
 SECRET_KEYS: tuple[str, ...] = ("refresh_token",)
-_KEYS = frozenset({"accounts", "resources", "refresh_token", "mailboxes"})
+_KEYS = frozenset({"accounts", "resources", "refresh_token", "mailboxes", "mail_since"})
 #: What the organisation's own credential is asked for (the client-credentials grant): every
 #: permission an administrator consented to for the application.
 ORGANISATION_SCOPE = f"{_GRAPH}.default"
@@ -74,6 +75,8 @@ class Settings:
     #: reference that named its owner's approval. None on every source connected since.
     refresh_token: str | None = None
     mailboxes: Mailboxes | None = None
+    #: Nothing received before this date is held (``mail_since``); None: mail of any age.
+    since: dt.date | None = None
 
     @property
     def organisation(self) -> bool:
@@ -154,6 +157,22 @@ def _mailboxes(stated: object) -> Mailboxes:
     )
 
 
+def _since(mapping: dict) -> dt.date | None:
+    """``mail_since``: the date before which nothing received is held, as YYYY-MM-DD; None
+    where the source states none. Stated and validated as a Google Workspace source's is."""
+    stated = mapping.get("mail_since")
+    if stated is None or (isinstance(stated, str) and not stated.strip()):
+        return None
+    if not isinstance(stated, str):
+        raise InvalidMicrosoft365Source(f"mail_since must be a date as YYYY-MM-DD, not {stated!r}")
+    try:
+        return dt.date.fromisoformat(stated.strip())
+    except ValueError:
+        raise InvalidMicrosoft365Source(
+            f"mail_since must be a date as YYYY-MM-DD, not {stated!r}"
+        ) from None
+
+
 def parse(mapping: dict) -> Settings:
     """The settings ``mapping`` states, or a refusal naming what is wrong with it."""
     unknown = sorted(set(mapping) - _KEYS)
@@ -166,7 +185,9 @@ def parse(mapping: dict) -> Settings:
                 f"a source of the organisation's mailboxes states no {' or '.join(own)}: "
                 "nobody connects it"
             )
-        return Settings(_resources(mapping), mailboxes=_mailboxes(mapping["mailboxes"]))
+        return Settings(
+            _resources(mapping), mailboxes=_mailboxes(mapping["mailboxes"]), since=_since(mapping)
+        )
     accounts = mapping.get("accounts")
     if not isinstance(accounts, list) or len(accounts) != 1 or not isinstance(accounts[0], str):
         raise InvalidMicrosoft365Source("accounts must name one mailbox, by its address")
@@ -178,4 +199,9 @@ def parse(mapping: dict) -> Settings:
     token = mapping.get("refresh_token")
     if token is not None and not isinstance(token, str):
         raise InvalidMicrosoft365Source("refresh_token, where a source still has one, is text")
-    return Settings(resources, account=account, refresh_token=(token or "").strip() or None)
+    return Settings(
+        resources,
+        account=account,
+        refresh_token=(token or "").strip() or None,
+        since=_since(mapping),
+    )
