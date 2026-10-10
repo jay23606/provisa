@@ -267,8 +267,8 @@ async def _stage_kaggle_if_needed(input: SourceInput) -> Optional[MutationResult
     KaggleFormSection.tsx at creation, or set the same way by an MCP proposal) — not by
     input.type, since a caller could set anything there.
 
-    Must run inside `bound_to_request_org()` (same requirement as search_kaggle_datasets) — the
-    fixed KAGGLE_TOKEN_SECRET_NAME secret resolves against whichever org's vault is bound."""
+    Must run inside `bound_to_request_org()` (same requirement as search_kaggle_datasets) — a
+    reference the Kaggle token setting holds resolves against whichever org's vault is bound."""
     import json as _json
 
     hints = _json.loads(input.federation_hints_json or "{}")
@@ -276,14 +276,9 @@ async def _stage_kaggle_if_needed(input: SourceInput) -> Optional[MutationResult
     if not owner or not ref:
         return None
 
-    from provisa.core.secrets import resolve_secrets
-    from provisa.kaggle.downloader import (
-        KAGGLE_TOKEN_SECRET_NAME,
-        UnsupportedKaggleDataset,
-        stage_dataset,
-    )
+    from provisa.kaggle.downloader import UnsupportedKaggleDataset, api_token, stage_dataset
 
-    token = resolve_secrets(f"${{secret:{KAGGLE_TOKEN_SECRET_NAME}}}")
+    token = api_token()
     try:
         staged_root = await stage_dataset(token, owner, ref)
     except UnsupportedKaggleDataset as exc:

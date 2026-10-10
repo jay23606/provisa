@@ -132,6 +132,12 @@
         "help": "How many worker processes the server runs. Restart required because processes are started by the launcher."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API token",
+        "help": "The token Kaggle searches and dataset downloads sign in with: the token itself, or a reference to a secret you created, such as ${secret:NAME}."
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "Mailboxes read at once",

@@ -132,6 +132,12 @@
         "help": "Wie viele Worker-Prozesse der Server ausführt. Neustart erforderlich, da die Prozesse vom Launcher gestartet werden."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle-API-Token",
+        "help": "Das Token, mit dem sich Kaggle-Suchen und Dataset-Downloads anmelden: das Token selbst oder ein Verweis auf ein von Ihnen angelegtes Secret, etwa ${secret:NAME}."
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "Gleichzeitig gelesene Postfächer",

@@ -296,11 +296,12 @@ _TOOLS: list[Any] = [
         "name": "search_kaggle_datasets",
         "description": (
             "Check Kaggle SECOND (after search_govdata_subjects) for a topic-matching "
-            "public dataset, before web_search or propose_source. Reads the user's Kaggle API "
-            "token from a FIXED secret name — 'kaggle_api_token' — never a raw token argument and "
-            "never a name you choose or ask the user to choose. If this tool errors saying that "
-            "secret doesn't exist, tell the user to create one on the Secrets page (/admin/secrets) "
-            "named EXACTLY 'kaggle_api_token' with their Kaggle API token as its value, then retry."
+            "public dataset, before web_search or propose_source. Reads the Kaggle API "
+            "token from the operator setting 'Kaggle API token' — never a raw token argument and "
+            "never a secret name you choose or ask the user to choose. If this tool errors "
+            "because the token cannot be read, tell the user to enter it in that setting (Admin "
+            "> Settings > Security): the token itself, or a reference to a secret they created, "
+            "then retry."
         ),
         "input_schema": {
             "type": "object",
@@ -664,11 +665,11 @@ _SYSTEM = (
     "search_govdata_subjects AND search_kaggle_datasets — never stop after the first one finds a "
     "match and ask the user whether to check the other; check both unconditionally, in the same "
     "turn, then present whichever option(s) you found (there may be one, both, or neither). "
-    "search_kaggle_datasets reads the user's Kaggle API token from a secret named exactly "
-    "'kaggle_api_token'. Never ask the user to paste a token into chat or to choose a secret name; "
-    "if the tool errors because that secret doesn't exist, just tell them to create one on the "
-    "Secrets page (/admin/secrets) named 'kaggle_api_token' with their Kaggle API token as the "
-    "value, then retry. Only once GovData and Kaggle have both been checked and neither has a "
+    "search_kaggle_datasets reads the Kaggle API token from the operator setting 'Kaggle API "
+    "token'. Never ask the user to paste a token into chat or to choose a secret name; if the "
+    "tool errors because the token cannot be read, just tell them to enter it in that setting "
+    "(Admin > Settings > Security), as the token itself or a reference to a secret they "
+    "created, then retry. Only once GovData and Kaggle have both been checked and neither has a "
     "match, fall back to web_search/web_fetch to find real connection "
     "details (API base URL, auth scheme, official docs) for a brand-new external source. If more "
     "than one candidate was found (multiple GovData subjects, multiple Kaggle datasets, or a mix "

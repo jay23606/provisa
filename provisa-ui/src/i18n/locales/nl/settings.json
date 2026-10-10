@@ -132,6 +132,12 @@
         "help": "Hoeveel workerprocessen de server draait. Opnieuw opstarten vereist omdat de processen door de launcher worden gestart."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API-token",
+        "help": "Het token waarmee Kaggle-zoekopdrachten en dataset-downloads zich aanmelden: het token zelf of een verwijzing naar een geheim dat u hebt aangemaakt, zoals ${secret:NAME}."
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "Tegelijk gelezen postvakken",

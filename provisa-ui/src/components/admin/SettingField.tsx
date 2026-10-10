@@ -315,6 +315,20 @@ export function SettingField({
         </Text>
       </Stack>
     );
+  } else if (s.credential) {
+    // A credential field keeps what was typed (a value, or a reference to a secret) and shows
+    // it again, behind the reveal control.
+    control = (
+      <PasswordInput
+        label={label}
+        description={description}
+        value={draft}
+        disabled={readOnly}
+        onChange={(e) => onChange(e.currentTarget.value)}
+        error={errorNode}
+        data-testid={id}
+      />
+    );
   } else {
     control = (
       <TextInput

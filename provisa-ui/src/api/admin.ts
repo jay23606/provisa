@@ -2160,6 +2160,9 @@ export interface CatalogSetting {
   restart_required: boolean;
   pending_restart: boolean;
   secret: boolean;
+  /** A credential field that keeps what was typed (a value, or a reference to a secret) and
+   * shows it again in a masked input. */
+  credential?: boolean;
   /** Secrets only: whether a value is stored. A secret never carries a value. */
   set?: boolean;
   editable: boolean;

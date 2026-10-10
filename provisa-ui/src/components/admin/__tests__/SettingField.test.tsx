@@ -71,6 +71,39 @@ describe("SettingField", () => {
     expect(onChange).toHaveBeenCalledWith("30");
   });
 
+  it("shows a credential field's text again, masked, and edits it like any text", () => {
+    // What was typed is what the field holds: a value, or a reference to a secret. It is not
+    // a write-only secret: there is no set / not set, and the text comes back.
+    const held = "${secret:kaggle_api_token}";
+    const credential = mk({
+      key: "kaggle.api_token",
+      type: "str",
+      credential: true,
+      value: held,
+      default: held,
+      stored: null,
+      min: undefined,
+      max: undefined,
+    });
+    const onChange = vi.fn();
+    wrap(
+      <SettingField
+        setting={credential}
+        draft={held}
+        error=""
+        cleared={false}
+        onChange={onChange}
+        onClear={noop}
+      />,
+    );
+    const input = screen.getByTestId(id(credential.key));
+    expect(input).toHaveValue(held);
+    expect(input).toHaveAttribute("type", "password");
+    expect(screen.queryByTestId(`${id(credential.key)}-secret-state`)).toBeNull();
+    fireEvent.change(input, { target: { value: "KGAT_typed" } });
+    expect(onChange).toHaveBeenCalledWith("KGAT_typed");
+  });
+
   it("shows the restart-required badge only for restart settings", () => {
     const { rerender } = wrap(
       <SettingField

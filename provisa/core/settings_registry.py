@@ -98,6 +98,11 @@ class Setting:
     # A stored value is still the whole list.
     env_adds_to_config: bool = False
     secret: bool = False
+    # A credential field that keeps what the operator typed -- a value, or a reference such as
+    # ``${secret:NAME}`` to a secret they created -- and shows it again, in a masked input. It is
+    # resolved where it is used (``core.secrets.resolve_secrets``); unlike ``secret`` it is not
+    # sealed and not write-only.
+    credential: bool = False
     guard: str | None = None  # "confirm": needs explicit confirmation and an authenticated caller
     editable: bool = True
     readonly_reason: str | None = None
@@ -764,6 +769,7 @@ def describe(key: str) -> dict[str, Any]:
         "restart_required": s.effect == "restart",
         "pending_restart": state["pending_restart"],
         "secret": s.secret,
+        "credential": s.credential,
         "editable": s.editable,
         "guard": s.guard,
     }

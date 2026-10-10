@@ -618,6 +618,7 @@ def test_the_description_carries_value_source_range_and_effect(control_plane, mo
         "restart_required": False,
         "pending_restart": False,
         "secret": False,
+        "credential": False,
         "editable": True,
         "guard": None,
     }

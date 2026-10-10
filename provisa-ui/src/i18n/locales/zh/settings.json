@@ -132,6 +132,12 @@
         "help": "服务器运行的工作进程数量。需要重启，因为进程由启动器启动。"
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API 令牌",
+        "help": "Kaggle 搜索和数据集下载登录时使用的令牌：令牌本身，或对您创建的密钥的引用，例如 ${secret:NAME}。"
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "同时读取的邮箱数",

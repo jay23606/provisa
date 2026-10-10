@@ -132,6 +132,12 @@
         "help": "Le nombre de processus worker que le serveur exécute. Redémarrage requis car les processus sont lancés par le lanceur."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Jeton d'API Kaggle",
+        "help": "Le jeton avec lequel les recherches et les téléchargements de jeux de données Kaggle s'authentifient : le jeton lui-même ou une référence à un secret que vous avez créé, par exemple ${secret:NAME}."
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "Boîtes aux lettres lues en même temps",

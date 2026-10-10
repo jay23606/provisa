@@ -211,6 +211,19 @@ DECLARED: list[Setting] = [
         unit="jobs",
     ),
     Setting(
+        key="kaggle.api_token",
+        card="security",
+        type="str",
+        effect="live",  # read at each Kaggle search and each staging
+        req="REQ-1819",
+        # The default is a reference in a visible, editable field, not a name hidden in code
+        # (maintainer ruling, 2026-10-10: the product resolves what a field holds and makes up
+        # no secret names): an operator who already created a secret of this name keeps
+        # working, and any other value or reference may be typed over it.
+        default="${secret:kaggle_api_token}",
+        credential=True,
+    ),
+    Setting(
         key="mail.mailboxes_at_once",
         card="concurrency",
         type="int",

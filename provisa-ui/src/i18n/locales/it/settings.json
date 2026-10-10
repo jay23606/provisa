@@ -132,6 +132,12 @@
         "help": "Quanti processi worker esegue il server. Richiede un riavvio perché i processi vengono avviati dal launcher."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Token API di Kaggle",
+        "help": "Il token con cui accedono le ricerche e i download di dataset di Kaggle: il token stesso oppure un riferimento a un segreto che hai creato, ad esempio ${secret:NAME}."
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "Caselle di posta lette contemporaneamente",

@@ -3746,6 +3746,8 @@
   "hi/settings.json::settings.grpc.allow_unsecured_reflection.label": "Allow unsecured gRPC reflection",
   "hi/settings.json::settings.grpc.max_message_bytes.help": "The largest single gRPC message the server sends or accepts; restart required because it is a server option set when the gRPC server is built.",
   "hi/settings.json::settings.grpc.max_message_bytes.label": "gRPC maximum message size",
+  "hi/settings.json::settings.kaggle.api_token.help": "The token Kaggle searches and dataset downloads sign in with: the token itself, or a reference to a secret you created, such as ${secret:NAME}.",
+  "hi/settings.json::settings.kaggle.api_token.label": "Kaggle API token",
   "hi/settings.json::settings.limits.default_row_limit.help": "The most rows a query returns when the caller sets no limit of its own.",
   "hi/settings.json::settings.limits.default_row_limit.label": "Default row limit",
   "hi/settings.json::settings.limits.engine_query_timeout.help": "How long the federation engine may run one query before it is cancelled.",

@@ -132,6 +132,12 @@
         "help": "伺服器執行的工作程序數目。需要重新啟動，因為程序由啟動器啟動。"
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API 權杖",
+        "help": "Kaggle 搜尋和資料集下載登入時使用的權杖：權杖本身，或對您建立的密鑰的引用，例如 ${secret:NAME}。"
+      }
+    },
     "mail": {
       "mailboxes_at_once": {
         "label": "同時讀取的信箱數",
