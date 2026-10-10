@@ -9,21 +9,12 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import {
-  Button,
-  Card,
-  Checkbox,
-  Group,
-  NumberInput,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Card, Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
 import type { RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelForm } from "./relationship-types";
 import { JunctionPanel } from "./JunctionPanel";
+import { FormChecks, FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 interface AddRelationshipFormProps {
   form: RelForm;
@@ -32,6 +23,7 @@ interface AddRelationshipFormProps {
   functions: TrackedFunction[];
   saving: string | null;
   onSave: () => void;
+  onCancel: () => void;
 }
 
 export function AddRelationshipForm({
@@ -41,6 +33,7 @@ export function AddRelationshipForm({
   functions,
   saving,
   onSave,
+  onCancel,
 }: AddRelationshipFormProps) {
   const { t } = useTranslation();
 
@@ -55,15 +48,19 @@ export function AddRelationshipForm({
 
   return (
     <Card withBorder padding="md" data-testid="add-relationship-form">
-      <Stack gap="md">
-        <Group align="flex-end" wrap="wrap">
-          <TextInput
-            label={t("addRelationshipForm.idLabel")}
-            placeholder={t("addRelationshipForm.idPlaceholder")}
-            value={form.id}
-            onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
-            data-testid="rel-form-id"
-          />
+      <FormLayout>
+        <FormIdentifiers>
+          <FormField size="medium">
+            <TextInput
+              label={t("addRelationshipForm.idLabel")}
+              placeholder={t("addRelationshipForm.idPlaceholder")}
+              value={form.id}
+              onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
+              data-testid="rel-form-id"
+            />
+          </FormField>
+        </FormIdentifiers>
+        <FormField size="medium">
           <TextInput
             label={t("addRelationshipForm.aliasLabel")}
             placeholder={t("addRelationshipForm.aliasPlaceholder")}
@@ -71,6 +68,8 @@ export function AddRelationshipForm({
             onChange={(e) => setForm({ ...form, alias: e.currentTarget.value })}
             data-testid="rel-form-alias"
           />
+        </FormField>
+        <FormField size="medium">
           <TextInput
             label={t("addRelationshipForm.graphqlAliasLabel")}
             placeholder={t("addRelationshipForm.graphqlAliasPlaceholder")}
@@ -78,6 +77,8 @@ export function AddRelationshipForm({
             onChange={(e) => setForm({ ...form, graphqlAlias: e.currentTarget.value })}
             data-testid="rel-form-graphql-alias"
           />
+        </FormField>
+        <FormField size="medium">
           <Select
             label={t("addRelationshipForm.sourceTableLabel")}
             placeholder={t("addRelationshipForm.selectPlaceholder")}
@@ -86,6 +87,8 @@ export function AddRelationshipForm({
             onChange={(v) => setForm({ ...form, sourceTableId: v ?? "" })}
             data-testid="rel-form-source-table"
           />
+        </FormField>
+        <FormField size="medium">
           <Select
             label={t("addRelationshipForm.sourceColumnLabel")}
             placeholder={t("addRelationshipForm.selectPlaceholder")}
@@ -94,8 +97,8 @@ export function AddRelationshipForm({
             onChange={(v) => setForm({ ...form, sourceColumn: v ?? "" })}
             data-testid="rel-form-source-column"
           />
-        </Group>
-        <Group align="flex-end" wrap="wrap">
+        </FormField>
+        <FormField size="medium">
           <Select
             label={t("addRelationshipForm.targetTypeLabel")}
             data={[
@@ -116,8 +119,10 @@ export function AddRelationshipForm({
             }
             data-testid="rel-form-target-type"
           />
-          {form.targetType === "table" ? (
-            <>
+        </FormField>
+        {form.targetType === "table" ? (
+          <>
+            <FormField size="medium">
               <Select
                 label={t("addRelationshipForm.targetTableLabel")}
                 placeholder={t("addRelationshipForm.selectPlaceholder")}
@@ -126,6 +131,8 @@ export function AddRelationshipForm({
                 onChange={(v) => setForm({ ...form, targetTableId: v ?? "" })}
                 data-testid="rel-form-target-table"
               />
+            </FormField>
+            <FormField size="medium">
               <Select
                 label={t("addRelationshipForm.targetColumnLabel")}
                 placeholder={t("addRelationshipForm.selectPlaceholder")}
@@ -134,9 +141,11 @@ export function AddRelationshipForm({
                 onChange={(v) => setForm({ ...form, targetColumn: v ?? "" })}
                 data-testid="rel-form-target-column"
               />
-            </>
-          ) : (
-            <>
+            </FormField>
+          </>
+        ) : (
+          <>
+            <FormField size="medium">
               <Select
                 label={t("addRelationshipForm.functionLabel")}
                 placeholder={t("addRelationshipForm.selectPlaceholder")}
@@ -145,6 +154,8 @@ export function AddRelationshipForm({
                 onChange={(v) => setForm({ ...form, targetFunctionName: v ?? "" })}
                 data-testid="rel-form-function"
               />
+            </FormField>
+            <FormField size="medium">
               <TextInput
                 label={t("addRelationshipForm.functionArgLabel")}
                 placeholder={t("addRelationshipForm.functionArgPlaceholder")}
@@ -152,58 +163,73 @@ export function AddRelationshipForm({
                 onChange={(e) => setForm({ ...form, functionArg: e.currentTarget.value })}
                 data-testid="rel-form-function-arg"
               />
-            </>
-          )}
-        </Group>
+            </FormField>
+          </>
+        )}
         {form.targetType === "table" && (
-          <Stack gap={4} maw={240}>
-            <Select
-              label={t("addRelationshipForm.cardinalityLabel")}
-              data={[
-                { value: "many-to-one", label: t("addRelationshipForm.cardinalityManyToOne") },
-                { value: "one-to-many", label: t("addRelationshipForm.cardinalityOneToMany") },
-              ]}
-              value={form.cardinality}
-              allowDeselect={false}
-              onChange={(v) => setForm({ ...form, cardinality: v ?? "many-to-one" })}
-              data-testid="rel-form-cardinality"
-            />
+          <>
+            <FormField size="medium">
+              <Select
+                label={t("addRelationshipForm.cardinalityLabel")}
+                data={[
+                  { value: "many-to-one", label: t("addRelationshipForm.cardinalityManyToOne") },
+                  { value: "one-to-many", label: t("addRelationshipForm.cardinalityOneToMany") },
+                ]}
+                value={form.cardinality}
+                allowDeselect={false}
+                onChange={(v) => setForm({ ...form, cardinality: v ?? "many-to-one" })}
+                data-testid="rel-form-cardinality"
+              />
+            </FormField>
             {form.cardinality === "many-to-one" && (
-              <Text c="var(--warning, #b45309)" fz="xs">
-                {t("addRelationshipForm.cardinalityWarning")}
-              </Text>
+              <FormField size="full">
+                <Text c="var(--warning, #b45309)" fz="xs">
+                  {t("addRelationshipForm.cardinalityWarning")}
+                </Text>
+              </FormField>
             )}
-          </Stack>
+          </>
         )}
         {form.targetType === "table" && (
-          <JunctionPanel form={form} setForm={setForm} tables={tables} testIdPrefix="rel-form" />
+          <FormField size="full">
+            <JunctionPanel form={form} setForm={setForm} tables={tables} testIdPrefix="rel-form" />
+          </FormField>
         )}
-        <Group align="flex-end" wrap="wrap">
-          <Checkbox
-            label={t("addRelationshipForm.materializeLabel")}
-            checked={form.materialize}
-            onChange={(e) => setForm({ ...form, materialize: e.currentTarget.checked })}
-            data-testid="rel-form-materialize"
-          />
-          <Checkbox
-            label={t("addRelationshipForm.disableCypherLabel")}
-            checked={form.disableCypher}
-            onChange={(e) => setForm({ ...form, disableCypher: e.currentTarget.checked })}
-            data-testid="rel-form-disable-cypher"
-          />
-          {form.materialize && (
+        <FormChecks>
+          <FormField size="long">
+            <Checkbox
+              label={t("addRelationshipForm.materializeLabel")}
+              checked={form.materialize}
+              onChange={(e) => setForm({ ...form, materialize: e.currentTarget.checked })}
+              data-testid="rel-form-materialize"
+            />
+          </FormField>
+          <FormField size="short">
+            <Checkbox
+              label={t("addRelationshipForm.disableCypherLabel")}
+              checked={form.disableCypher}
+              onChange={(e) => setForm({ ...form, disableCypher: e.currentTarget.checked })}
+              data-testid="rel-form-disable-cypher"
+            />
+          </FormField>
+        </FormChecks>
+        {form.materialize && (
+          <FormField size="short">
             <NumberInput
               label={t("addRelationshipForm.refreshIntervalLabel")}
               value={form.refreshInterval}
               onChange={(v) => setForm({ ...form, refreshInterval: String(v) })}
               data-testid="rel-form-refresh-interval"
             />
-          )}
-          <Button onClick={onSave} disabled={saving === "new"} data-testid="rel-form-save">
-            {t("addRelationshipForm.save")}
-          </Button>
-        </Group>
-      </Stack>
+          </FormField>
+        )}
+        <FormFooter
+          onSave={onSave}
+          saving={saving === "new"}
+          onCancel={onCancel}
+          saveProps={{ "data-testid": "rel-form-save" }}
+        />
+      </FormLayout>
     </Card>
   );
 }

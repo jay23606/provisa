@@ -538,6 +538,7 @@ export function RelationshipsPage() {
             functions={functions}
             saving={saving}
             onSave={handleAdd}
+            onCancel={() => setShowForm(false)}
           />
         </div>
       )}
