@@ -461,3 +461,100 @@ async def test_the_viewer_request_of_a_table_in_service_is_an_ordinary_bound_sta
     assert seen == [
         ('SELECT * FROM "sales"."orders" WHERE "id" = $1 LIMIT 51 OFFSET 0', "r", {"params": [3]})
     ]
+
+
+# --- a draft whose source the engine reaches only through a replica: landed the ordinary way -------
+
+
+class _Face:
+    """The engine face as the state binds it: an engine, and the state it reads routes from."""
+
+    def __init__(self, engine, bound_to) -> None:
+        self.engine, self._state = engine, bound_to
+
+
+@pytest.fixture
+def replica_only(state, monkeypatch):
+    """The draft's source is one the bound engine cannot read in place: its rows are reached
+    through its replica, at the address the engine's store gives it."""
+    from provisa.federation import registry_view, replica_routing
+    from provisa.federation.replica_address import ReplicaAddress, ReplicaRoutes
+
+    source = SimpleNamespace(id="pg", type=SimpleNamespace(value="postgresql"))
+    backend = SimpleNamespace(
+        replica_address=lambda _state, *, source_id, schema_name, table_name: ReplicaAddress(
+            "replicas", f"{source_id}__{schema_name}__{table_name}"
+        ),
+        replica_read_catalog=lambda _state: "store",
+    )
+    engine = SimpleNamespace(name="e", backend=backend)
+
+    async def _sources(_state):
+        return [source]
+
+    monkeypatch.setattr(registry_view, "registered_sources", _sources)
+    monkeypatch.setattr(replica_routing, "reads_replica", lambda *a, **kw: True)
+    monkeypatch.setattr(replica_routing, "table_floor", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        replica_routing, "engine_table_keys", lambda _e, _c, schema, name: [(None, schema, name)]
+    )
+    runtime = state._active_runtime()
+    monkeypatch.setattr(runtime, "federation_engine", _Face(engine, state), raising=False)
+    monkeypatch.setattr(runtime, "replica_routes", ReplicaRoutes(engine_name="e"), raising=False)
+    monkeypatch.setattr(runtime, "source_catalogs", {"pg": "pg"}, raising=False)
+    return state
+
+
+async def test_a_replica_only_draft_is_read_at_its_replica_by_this_read_alone(
+    replica_only, monkeypatch
+):
+    from provisa.pgwire import _pipeline
+
+    seen: list = []
+
+    async def _govern(sql, role_id, **kw):
+        seen.append(kw["state"])
+        return "the plan"
+
+    async def _execute(plan, state):
+        seen.append(state)
+        return SimpleNamespace(column_names=["id"], rows=[])
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route_compiled", _govern)
+    monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
+    published = replica_only.replica_routes
+    await table_read.read_as_caller(replica_only, _REFUNDS, "r", limit=5)
+
+    governed_in, executed_in = seen
+    assert governed_in is executed_in
+    key = (None, "public", "refunds")
+    route = governed_in.replica_routes.routes[key]
+    assert route.target == ("store", "replicas", "pg__public__refunds")
+    # Both stages address the statement through an engine face that reads THIS view's routes,
+    # and the read's residency step is told which draft it may wait on a replica of.
+    assert governed_in.federation_engine._state is governed_in
+    assert governed_in.previewed_draft_id == _REFUNDS
+    # The published routes -- every other statement's -- hold no draft, before or after.
+    assert replica_only.replica_routes is published and key not in published.routes
+    assert replica_only.federation_engine._state is replica_only
+    assert not hasattr(replica_only, "previewed_draft_id")
+
+
+async def test_only_the_previews_view_has_a_draft_judged_for_a_replica(monkeypatch):
+    from provisa.federation import registry_view
+
+    in_service = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+    drafts = [SimpleNamespace(id=9), SimpleNamespace(id=10)]
+
+    async def _served(_state, conn=None):
+        return in_service
+
+    async def _drafts(_state):
+        return drafts
+
+    monkeypatch.setattr(registry_view, "registered_tables", _served)
+    monkeypatch.setattr(registry_view, "draft_tables", _drafts)
+    ordinary = await registry_view.tables_a_read_judges(SimpleNamespace())
+    assert [t.id for t in ordinary] == [1, 2]
+    previewing = await registry_view.tables_a_read_judges(SimpleNamespace(previewed_draft_id=9))
+    assert [t.id for t in previewing] == [1, 2, 9]  # that draft, and no other

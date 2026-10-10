@@ -451,7 +451,7 @@ async def ensure_resident(
         or db is None
     ):
         return Residency(answered_in=only_there)
-    from provisa.federation.registry_view import registered_sources, registered_tables
+    from provisa.federation.registry_view import registered_sources, tables_a_read_judges
 
     # REQ-1674: the registry, not the config file — see registry_view. A built-in source
     # (provisa-admin, ...) is never landed and is not in it: a statement's read of one of its
@@ -490,7 +490,7 @@ async def ensure_resident(
     tables_by_source: dict[str, list[Any]] = {}
     elsewhere: list[tuple[Any, str]] = []
     read_here = 0  # tables this statement reads in this region (live or from its own replica)
-    for t in await registered_tables(state):
+    for t in await tables_a_read_judges(state):
         if t.source_id not in wanted or t.id not in read:
             continue
         home = home_region(t)

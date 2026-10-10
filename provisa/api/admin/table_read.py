@@ -37,10 +37,20 @@ from provisa.api.role_surface import RoleSurface, role_surface
 class _WithDraft:
     """The application state as a statement that may read ONE draft sees it: everything is the
     real state's, except that the table is among the registered tables, the caller's role has
-    it in its compilation context, and nothing the read produces is kept anywhere the real
-    state reads from."""
+    it in its compilation context, and no plan or response the read produces is kept anywhere
+    the real state reads from.
 
-    def __init__(self, state: Any, draft: dict, role_id: str, surface: RoleSurface) -> None:
+    The table's ROWS are reached the way a table in service's are. Where the engine reads its
+    source in place, it is read there. Where the engine reaches it only through a replica, the
+    read asks for the replica and waits on it as any read does (``query_residency``, which
+    judges the draft this view names) and is addressed at it by ``routes`` — the published
+    routes and this draft's own. The replica is kept: a draft is offered to no reader, and it
+    may hold its data. The engine face is bound to this view, so only this read is addressed
+    there."""
+
+    def __init__(
+        self, state: Any, draft: dict, role_id: str, surface: RoleSurface, routes: Any
+    ) -> None:
         from provisa.cache.store import NoopCacheStore
         from provisa.compiler.compiled_query_cache import CompiledQueryCache
 
@@ -52,6 +62,10 @@ class _WithDraft:
         self.compiled_query_cache = CompiledQueryCache(expires=False)
         self.routing_cache = CompiledQueryCache()
         self.response_cache_store = NoopCacheStore()
+        self.previewed_draft_id = draft["id"]
+        self.replica_routes = routes
+        real = state.federation_engine
+        self.federation_engine = type(real)(real.engine, self)
 
     @property
     def contexts(self) -> dict:
@@ -148,6 +162,8 @@ async def read_as_caller(
     (:func:`table_for_steward`)."""
     from provisa.compiler.directives import NO_CACHE_HINT
     from provisa.federation.query_residency import require_draft_read_in_its_region
+    from provisa.federation.registry_view import registered_sources
+    from provisa.federation.replica_routing import routes_with_draft
     from provisa.pgwire._pipeline import (
         _execute_plan,
         _govern_and_route,
@@ -171,7 +187,11 @@ async def read_as_caller(
     sql, params = _statement(draft, limit, request)
     # Where a regional table may be read is the regions' rule, in its own module.
     require_draft_read_in_its_region(draft["table_name"], draft.get("region"))
-    seen = _WithDraft(state, draft, role_id, _surface_with(state, role_id, draft))
+    # A built-in source (a view's) is not among the registered sources and owns no replica
+    # (registry_view.registered_sources): a draft of one is read under the published routes.
+    source = next((s for s in await registered_sources(state) if s.id == draft["source_id"]), None)
+    routes = state.replica_routes if source is None else routes_with_draft(state, draft, source)
+    seen = _WithDraft(state, draft, role_id, _surface_with(state, role_id, draft), routes)
     plan = await _govern_and_route_compiled(
         sql,
         role_id,

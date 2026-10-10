@@ -178,6 +178,32 @@ async def registered_tables(state: Any, conn: Any | None = None) -> list[Any]:  
     return out
 
 
+async def draft_tables(state: Any) -> list[Any]:  # REQ-1921
+    """Every DRAFT table, in the shape :func:`registered_tables` gives a table in service. A
+    draft is offered to no reader and is in none of the lists a read is planned from; it may hold
+    a replica, landed for its steward's preview, which the replicator finds it by. Read from the
+    model store each time: asked only by a preview and by a build of a draft."""
+    from provisa.api.admin.db_queries import fetch_tables
+
+    db = getattr(state, "model_db", None)
+    if db is None:
+        return []
+    async with db.acquire() as conn:
+        return _build_registered_tables(await fetch_tables(conn, draft=True))
+
+
+async def tables_a_read_judges(state: Any) -> list[Any]:
+    """The tables a read through ``state`` may wait on a replica of: those in service — and,
+    through the one-table view a steward's preview of a draft reads (admin/table_read.py, which
+    names it ``previewed_draft_id``), that draft (REQ-1921). No other state names one."""
+    tables = await registered_tables(state)
+    # Absent on every state but the preview's view: the application state names no draft.
+    draft_id = getattr(state, "previewed_draft_id", None)
+    if draft_id is None:
+        return tables
+    return [*tables, *(t for t in await draft_tables(state) if t.id == draft_id)]
+
+
 def _delta_of(raw: Any) -> Any:
     """Reconstruct a table's DeltaConfig from its stored dict (REQ-874); None when unset. A string
     is JSON (a backend that stores JSONB as text); a dict is used directly."""

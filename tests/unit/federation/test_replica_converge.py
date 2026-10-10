@@ -106,6 +106,7 @@ class _Model:
         self.parameters: dict[tuple, tuple] = {}  # key -> its parameter columns
         self.regions: dict[tuple, str] = {}  # key -> the region the table names (REQ-1921)
         self.attaches: set[str] = set()  # source types the engine reads in place
+        self.drafts: set[tuple] = set()  # declared, and draft: offered to no reader (REQ-1921)
         self.kicks = 0
         model = self
         backend = SimpleNamespace(
@@ -123,7 +124,7 @@ class _Model:
             model_stamp=stamp,
         )
 
-        async def replica_tables(engine, state):
+        async def replica_tables(engine, state, *, draft=False):
             return [
                 (
                     src,
@@ -140,20 +141,33 @@ class _Model:
                     },
                 )
                 for key, (src, cols, _pk) in model.tables.items()
+                if (key in model.drafts) == draft
             ]
 
-        async def landing_worklist(engine, state):
+        async def draft_replica_tables(engine, state):
+            return await replica_tables(engine, state, draft=True)
+
+        async def landing_worklist(engine, state, *, draft=False):
             return [
                 (src, key[1], key[2], cols, pk)
                 for key, (src, cols, pk) in model.tables.items()
-                if key not in model.unresolved
+                if key not in model.unresolved and (key in model.drafts) == draft
             ]
+
+        async def draft_landing_worklist(engine, state):
+            return await landing_worklist(engine, state, draft=True)
 
         def kick(org_id):
             model.kicks += 1
 
         monkeypatch.setattr("provisa.federation.replica_routing.replica_tables", replica_tables)
         monkeypatch.setattr("provisa.federation.replica_routing.landing_worklist", landing_worklist)
+        monkeypatch.setattr(
+            "provisa.federation.replica_routing.draft_replica_tables", draft_replica_tables
+        )
+        monkeypatch.setattr(
+            "provisa.federation.replica_routing.draft_landing_worklist", draft_landing_worklist
+        )
         monkeypatch.setattr("provisa.federation.replica_builds.store_identity", lambda s: STORE)
         monkeypatch.setattr("provisa.federation.replica_builds.kick", kick)
         monkeypatch.setattr(replica_converge, "last_error", {})
@@ -537,3 +551,61 @@ async def test_an_older_model_node_does_not_retire_a_copy_a_newer_model_wants_he
     older.regions[key] = "us"  # the model before: the table was us's
     assert (await converge_replicas(older.state)).retired == []
     assert (await older.record(key)).retired_at is None
+
+
+# --- REQ-1921: a draft may hold a replica; it is kept, and never built on the model's word -------
+
+
+async def test_a_draft_table_has_no_build_asked_for_by_the_model(model):
+    served, draft = model.declare("orders"), model.declare("refunds")
+    model.drafts.add(draft)
+    done = await converge_replicas(model.state)
+    assert done.requested == [served]
+    assert await model.record(draft) is None
+
+
+async def test_a_table_made_draft_keeps_the_replica_it_has(model, monkeypatch):
+    key = model.declare("orders")
+    await converge_replicas(model.state)
+    await model.build(key)
+    model.drafts.add(key)  # taken out of service: offered to no reader, its data still landed
+
+    done = await converge_replicas(model.state)
+    assert (done.retired, done.requested) == ([], [])
+    assert (await model.record(key)).retired_at is None
+    monkeypatch.setattr(replica_converge, "drop_grace_seconds", lambda: 0.0)
+    assert await drop_retired(model.state, BuildLocks(model.url), ORG) == []
+    assert model.store.dropped == []
+
+
+async def test_a_build_asked_for_a_draft_by_its_preview_is_not_retired(model):
+    key = model.declare("refunds")
+    model.drafts.add(key)
+    async with model.db.acquire() as conn:  # as a steward's preview asks (query_residency)
+        assert await replica_state.request_build(
+            conn, key, replica_state.REASON_MODEL, model_stamp=10, now=datetime.now(UTC)
+        )
+    done = await converge_replicas(model.state)
+    assert done.retired == []
+    await model.build(key)
+    assert (await converge_replicas(model.state)).retired == []
+    assert (await model.record(key)).retired_at is None
+
+
+async def test_a_draft_whose_definition_changed_is_rebuilt_only_when_previewed(model):
+    key = model.declare("refunds")
+    await converge_replicas(model.state)
+    await model.build(key)
+    model.drafts.add(key)
+    model.declare("refunds", columns=[*COLUMNS, ("note", "text")])
+    kicks = model.kicks
+    done = await converge_replicas(model.state)
+    assert done.requested == [] and model.kicks == kicks
+
+
+async def test_a_draft_released_is_built_and_kept_as_any_table(model):
+    key = model.declare("refunds")
+    model.drafts.add(key)
+    await converge_replicas(model.state)
+    model.drafts.discard(key)
+    assert (await converge_replicas(model.state)).requested == [key]
