@@ -584,11 +584,14 @@ export function CatalogCard({
             settings: (pending?.guarded ?? []).map((k) => t(`settings.${k}.label`)).join(", "),
           })}
         </Text>
-        <FormFooter onCancel={() => setPending(null)}>
-          <Button onClick={() => pending && send(pending.values, pending.guarded)}>
-            {t("adminPage.setting.confirm")}
-          </Button>
-        </FormFooter>
+        <FormFooter
+          onCancel={() => setPending(null)}
+          action={
+            <Button onClick={() => pending && send(pending.values, pending.guarded)}>
+              {t("adminPage.setting.confirm")}
+            </Button>
+          }
+        />
       </Modal>
     </Card>
   );

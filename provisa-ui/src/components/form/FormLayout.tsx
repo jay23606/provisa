@@ -246,7 +246,9 @@ type ButtonExtras = { "data-testid"?: string; disabled?: boolean };
  * From the press until the save settles Save shows a spinner in place of its icon and both buttons
  * are disabled. A form says it is saving in one of two ways: `onSave` returns the save's promise,
  * or the form passes `saving` (a form that submits through `<form onSubmit>` sets `submit`).
- * Other actions of the row go in as children, after the two.
+ * Other actions of the row go in as children, after the two. A form whose first action is not a
+ * save (Generate, Run, Delete) passes it as `action`: it takes Save's place, before Cancel, and
+ * keeps its own word.
  */
 export function FormFooter({
   onSave,
@@ -255,9 +257,11 @@ export function FormFooter({
   saving = false,
   saveProps,
   cancelProps,
+  action,
   children,
   ...rest
 }: HTMLAttributes<HTMLDivElement> & {
+  action?: ReactNode;
   onSave?: () => unknown;
   onCancel?: () => void;
   submit?: boolean;
@@ -293,6 +297,7 @@ export function FormFooter({
           {t("common.save")}
         </Button>
       )}
+      {action}
       {onCancel !== undefined && (
         <Button
           {...cancelProps}

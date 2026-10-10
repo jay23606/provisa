@@ -398,20 +398,24 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
               username: removing?.username,
             })}
           </Text>
-          <FormFooter onCancel={() => setRemoving(null)} cancelProps={{ disabled: removeBusy }}>
-            <Button
-              color="red"
-              onClick={handleDeleteUser}
-              loading={removeBusy}
-              data-testid="remove-user-confirm"
-            >
-              {t(
-                deletesAccount
-                  ? "localUsers.confirmDeleteButton"
-                  : "localUsers.confirmRemoveButton",
-              )}
-            </Button>
-          </FormFooter>
+          <FormFooter
+            onCancel={() => setRemoving(null)}
+            cancelProps={{ disabled: removeBusy }}
+            action={
+              <Button
+                color="red"
+                onClick={handleDeleteUser}
+                loading={removeBusy}
+                data-testid="remove-user-confirm"
+              >
+                {t(
+                  deletesAccount
+                    ? "localUsers.confirmDeleteButton"
+                    : "localUsers.confirmRemoveButton",
+                )}
+              </Button>
+            }
+          />
         </Stack>
       </Modal>
     </Stack>
