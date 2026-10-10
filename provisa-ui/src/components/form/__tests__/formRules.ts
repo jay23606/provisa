@@ -54,6 +54,8 @@ const MULTI_LINE = new Set(["Textarea", "JsonInput", "textarea"]);
 const TABLE_CELLS = new Set(["Table.Td", "Table.Th", "td", "th"]);
 /** Elements that render their child in place, so the child's layout parent is theirs. */
 const TRANSPARENT = new Set(["Tooltip", "CapabilityGate"]);
+/** Containers that set their own column count and breakpoints. */
+const OWN_GRIDS = new Set(["SimpleGrid", "Grid"]);
 const END_JUSTIFY = /^(flex-end|end|right)$/;
 const SPREAD_JUSTIFY = /^(space-between|space-around|space-evenly|center)$/;
 const ROW_SPAN = /gridColumn:\s*["'`]1\s*\/\s*-1["'`]/;
@@ -161,6 +163,20 @@ export function checkFormRules(
     return found;
   };
 
+  const holdsControl = (parent: ts.JsxElement): boolean => {
+    let found = false;
+    const look = (n: ts.Node) => {
+      if (found) return;
+      if (isJsxEl(n) && (SINGLE_LINE.has(tagOf(n)) || MULTI_LINE.has(tagOf(n)))) {
+        found = !hasAncestor(n, TABLE_CELLS);
+        return;
+      }
+      ts.forEachChild(n, look);
+    };
+    ts.forEachChild(parent, look);
+    return found;
+  };
+
   const isExceptedButton = (n: JsxEl): boolean =>
     (options.stretchedButtonExceptions ?? []).some((marker) => n.getText().includes(marker));
 
@@ -248,6 +264,9 @@ export function checkFormRules(
       const isControl = SINGLE_LINE.has(tag) || MULTI_LINE.has(tag);
       if (!isControl && tag !== "Button" && spansRow(n)) {
         report("outside-shared-layout", n, `<${tag}> placed with gridColumn`);
+      }
+      if (OWN_GRIDS.has(tag) && ts.isJsxElement(n) && !options.notAForm && holdsControl(n)) {
+        report("outside-shared-layout", n, `fields laid out by a <${tag}> with its own columns`);
       }
     }
     ts.forEachChild(n, visit);

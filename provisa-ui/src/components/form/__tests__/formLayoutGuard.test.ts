@@ -250,6 +250,12 @@ describe("the form rules fail what they are meant to fail", () => {
     ]);
     expect(
       rules(
+        `<FormLayout><SimpleGrid cols={2}><FormField size="short"><NumberInput /></FormField></SimpleGrid></FormLayout>`,
+      ),
+    ).toEqual(["outside-shared-layout"]);
+    expect(rules(`<SimpleGrid cols={3}><Card /><Card /></SimpleGrid>`)).toEqual([]);
+    expect(
+      rules(
         `<FormLayout component="form" className="form-card"><FormField size="short"><Switch /></FormField></FormLayout>`,
       ),
     ).toEqual([]);
