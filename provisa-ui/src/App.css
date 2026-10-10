@@ -2316,7 +2316,8 @@ main {
 .form-field-group > .mantine-Button-root,
 .form-field-group > .mantine-ActionIcon-root {
   flex: 0 0 auto;
-  margin-top: calc(var(--mantine-font-size-sm) * var(--mantine-line-height));
+  /* the label's line, and the hairline the control's own border adds */
+  margin-top: calc(var(--mantine-font-size-sm) * var(--mantine-line-height) + 3px);
 }
 .form-identifiers {
   flex: 1 1 100%;
