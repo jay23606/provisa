@@ -407,7 +407,8 @@ class ProvisaServicer:  # REQ-045, REQ-143
         from provisa.core.request_context import reset_current_org
 
         metadata = dict(context.invocation_metadata())
-        if not _rpc_role(metadata):
+        role_id = _rpc_role(metadata)
+        if not role_id:
             await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Missing x-provisa-role metadata")
         try:
             org_token = await self._bind_org(metadata)
@@ -424,7 +425,7 @@ class ProvisaServicer:  # REQ-045, REQ-143
         try:
             service = self._pb2
             described = service.method(method)
-            if described is None:
+            if described is None or not self._offered(role_id, method):
                 await context.abort(grpc.StatusCode.UNIMPLEMENTED, "Method not found!")
             try:
                 request = service.request_class(described).FromString(raw)
@@ -436,13 +437,29 @@ class ProvisaServicer:  # REQ-045, REQ-143
             raise
         return request, reset
 
+    def _offered(self, role_id: str | None, method: str) -> bool:
+        """Whether ``method`` is one the service of ``role_id`` has: the service its role is
+        described (reflection) and downloads. A method only another role's service has is not
+        this caller's to call — it is unimplemented for it, exactly as it is undiscoverable.
+        This reads the role's own proto; what a call may read is decided, as ever, by the
+        handler from the role's context. A role with no service of its own is answered by the
+        handler (it has no schema)."""
+        from provisa.grpc.descriptor import role_descriptor
+
+        if role_id is None:
+            return True
+        own = role_descriptor(self._state, role_id)
+        return own is None or own.method(method) is not None
+
     def _unary_rpc(self, method: str, body):
         """The unary handler of ``method``: request bytes in, the bound organisation's message
         out as bytes."""
 
         async def received(raw, context):
             if not isinstance(raw, bytes):
-                # Already a message: a servicer of one compiled service, handed its own.
+                # Already a message — the path UNIT TESTS use: a servicer built over one
+                # compiled module and called with its messages. The server passes bytes. To be
+                # removed with those tests' rewrite to bytes.
                 return await body(raw, context)
             request, reset = await self._received(method, raw, context)
             try:
