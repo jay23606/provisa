@@ -10,18 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Button,
-  Group,
-  NativeSelect,
-  NumberInput,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Alert, Button, NumberInput, Stack, Table, Text, TextInput, Title } from "@mantine/core";
 import { fetchOrgs, type Org } from "../../api/admin";
 import {
   fetchDebugTrace,
@@ -31,6 +20,7 @@ import {
   type DebugTraceScope,
   type DebugTraceState,
 } from "../../api/debugTrace";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 /**
  * REQ-1910: the operator's control over debug tracing.
@@ -164,49 +154,77 @@ export function DebugTracePanel() {
       )}
 
       <Title order={5}>{t("debugTracePanel.startTitle")}</Title>
-      <Group align="end" wrap="wrap">
-        <NativeSelect
-          label={t("debugTracePanel.scopeLabel")}
-          data={SCOPES.map((s) => ({ value: s, label: t(SCOPE_LABEL[s]) }))}
-          value={scope}
-          onChange={(e) => setScope(e.currentTarget.value as DebugTraceScope)}
-          data-testid="debug-trace-scope"
-        />
-        <NativeSelect
-          label={t("debugTracePanel.orgLabel")}
-          data={orgOptions}
-          value={orgId}
-          onChange={(e) => setOrgId(e.currentTarget.value)}
-          data-testid="debug-trace-org"
-        />
-        {scope !== "org" && (
-          <TextInput
-            label={t(
-              scope === "role" ? "debugTracePanel.roleLabel" : "debugTracePanel.sourceLabel",
-            )}
-            value={target}
-            onChange={(e) => setTarget(e.currentTarget.value)}
-            data-testid="debug-trace-target"
-          />
-        )}
-        <NumberInput
-          label={t("debugTracePanel.minutesLabel")}
-          description={
-            maxMinutes === undefined
-              ? undefined
-              : t("debugTracePanel.minutesHelp", { max: maxMinutes })
-          }
-          min={1}
-          max={maxMinutes}
-          allowDecimal={false}
-          value={minutes}
-          onChange={(v) => setMinutes(typeof v === "number" ? v : 0)}
-          data-testid="debug-trace-minutes"
-        />
-        <Button onClick={start} disabled={busy || !canStart} data-testid="debug-trace-start">
-          {t("debugTracePanel.start")}
-        </Button>
-      </Group>
+      <FormLayout>
+        <FieldGroup row>
+          <FormField size="medium">
+            <label>
+              {t("debugTracePanel.scopeLabel")}
+              <select
+                className="form-select"
+                value={scope}
+                onChange={(e) => setScope(e.currentTarget.value as DebugTraceScope)}
+                data-testid="debug-trace-scope"
+              >
+                {SCOPES.map((s) => ({ value: s, label: t(SCOPE_LABEL[s]) })).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FormField>
+          <FormField size="medium">
+            <label>
+              {t("debugTracePanel.orgLabel")}
+              <select
+                className="form-select"
+                value={orgId}
+                onChange={(e) => setOrgId(e.currentTarget.value)}
+                data-testid="debug-trace-org"
+              >
+                {orgOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FormField>
+          {scope !== "org" && (
+            <FormField size="medium">
+              <TextInput
+                label={t(
+                  scope === "role" ? "debugTracePanel.roleLabel" : "debugTracePanel.sourceLabel",
+                )}
+                value={target}
+                onChange={(e) => setTarget(e.currentTarget.value)}
+                data-testid="debug-trace-target"
+              />
+            </FormField>
+          )}
+          <FormField
+            hint={
+              maxMinutes === undefined
+                ? undefined
+                : t("debugTracePanel.minutesHelp", { max: maxMinutes })
+            }
+            size="short"
+          >
+            <NumberInput
+              label={t("debugTracePanel.minutesLabel")}
+              min={1}
+              max={maxMinutes}
+              allowDecimal={false}
+              value={minutes}
+              onChange={(v) => setMinutes(typeof v === "number" ? v : 0)}
+              data-testid="debug-trace-minutes"
+            />
+          </FormField>
+          <Button onClick={start} disabled={busy || !canStart} data-testid="debug-trace-start">
+            {t("debugTracePanel.start")}
+          </Button>
+        </FieldGroup>
+      </FormLayout>
 
       <Title order={5}>{t("debugTracePanel.activeTitle")}</Title>
       {loaded && windows.length === 0 && (
@@ -257,28 +275,42 @@ export function DebugTracePanel() {
       <Text c="dimmed" size="sm">
         {t("debugTracePanel.hintIntro")}
       </Text>
-      <Group align="end" wrap="wrap">
-        <NativeSelect
-          label={t("debugTracePanel.orgLabel")}
-          data={orgOptions}
-          value={hintOrgId}
-          onChange={(e) => setHintOrgId(e.currentTarget.value)}
-          data-testid="debug-trace-hint-org"
-        />
-        <TextInput
-          label={t("debugTracePanel.roleLabel")}
-          value={hintRole}
-          onChange={(e) => setHintRole(e.currentTarget.value)}
-          data-testid="debug-trace-hint-role"
-        />
-        <Button
-          onClick={permit}
-          disabled={busy || hintOrgId === "" || trimmedHintRole === ""}
-          data-testid="debug-trace-hint-permit"
-        >
-          {t("debugTracePanel.permit")}
-        </Button>
-      </Group>
+      <FormLayout>
+        <FieldGroup row>
+          <FormField size="medium">
+            <label>
+              {t("debugTracePanel.orgLabel")}
+              <select
+                className="form-select"
+                value={hintOrgId}
+                onChange={(e) => setHintOrgId(e.currentTarget.value)}
+                data-testid="debug-trace-hint-org"
+              >
+                {orgOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("debugTracePanel.roleLabel")}
+              value={hintRole}
+              onChange={(e) => setHintRole(e.currentTarget.value)}
+              data-testid="debug-trace-hint-role"
+            />
+          </FormField>
+          <Button
+            onClick={permit}
+            disabled={busy || hintOrgId === "" || trimmedHintRole === ""}
+            data-testid="debug-trace-hint-permit"
+          >
+            {t("debugTracePanel.permit")}
+          </Button>
+        </FieldGroup>
+      </FormLayout>
       {loaded && hintRoles.length === 0 && (
         <Text c="dimmed" size="sm" data-testid="debug-trace-no-hint-roles">
           {t("debugTracePanel.noHintRoles")}
