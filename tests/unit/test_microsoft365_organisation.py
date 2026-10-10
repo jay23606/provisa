@@ -164,8 +164,11 @@ async def test_the_admin_route_reads_and_sets_the_switch(plane, monkeypatch):
     )
     entry = await router.put_platform(None, "acme", SOURCE_TYPE, body)
     assert entry["organisation_mailboxes"] is True
+    # Saved again with the secret's field left out, the entry keeps what it held, and the form
+    # is answered the field's own text.
     listed = await router.list_platforms(None, "acme")
-    assert SECRET not in json.dumps(listed)
+    kept = next(p for p in listed["platforms"] if p["platform"] == SOURCE_TYPE)
+    assert kept["client_secret"] == entry["client_secret"] == SECRET
 
 
 async def test_saving_a_source_of_the_organisations_mailboxes_needs_the_switch(plane, monkeypatch):
