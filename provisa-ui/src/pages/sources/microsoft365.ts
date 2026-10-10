@@ -12,7 +12,7 @@
 // mapping, under the names provisa/microsoft365/settings.py reads; that module is the
 // authority on what is valid, and this one only says what is still missing from the form.
 
-import { SignInRefused } from "../../lib/sourceSignIn";
+import { SignInRefused, shapesOffered, type SignInStatus } from "../../lib/sourceSignIn";
 
 export const MICROSOFT_365 = "microsoft_365";
 /** Where an administrator enters the organisation's Microsoft client. */
@@ -40,6 +40,15 @@ const lines = (text: string | undefined) =>
  * credential, and not one mailbox its owner connects. */
 export const m365Organisation = (fields: Record<string, string>) =>
   stated(fields, "m365_whose") === M365_ORGANISATION;
+
+/** Which of the two a Microsoft 365 source's form offers and a new source opens on
+ * (`shapesOffered`). The organisation's client serves both: it signs one mailbox's owner in, and
+ * reads the organisation's mailboxes once that is allowed -- so only the switch tells them apart. */
+export const m365Shapes = (entry: SignInStatus | null, saved: string) =>
+  shapesOffered(entry, saved, {
+    one: entry?.configured === true,
+    organisation: entry?.configured === true && entry.organisation_mailboxes === true,
+  });
 
 /** Which mailboxes of the organisation, as the source's mapping states it; null while the
  * form does not yet say. */

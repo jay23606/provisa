@@ -37,6 +37,7 @@ import {
   m365ConnectMissing,
   m365Mailboxes,
   m365Organisation,
+  m365Shapes,
 } from "./microsoft365";
 import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 
@@ -76,6 +77,14 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
       live = false;
     };
   }, [refused]);
+
+  // A new source opens on a shape the organisation's entry can do. A stored source states its
+  // shape (m365FieldsFromMapping) and keeps it, with everything else it holds.
+  useEffect(() => {
+    if (status === null || fields.m365_whose) return;
+    setFields({ ...fields, m365_whose: m365Shapes(status, "").opensOn });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- decided once, when the entry is known
+  }, [status]);
 
   // Whether this mailbox's owner has signed in is the server's to say: it keeps the approval.
   const account = (fields.m365_account ?? "").trim();
@@ -141,6 +150,8 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
     }
   };
 
+  // What the form offers follows what the organisation's entry can do.
+  const shapes = m365Shapes(status, fields.m365_whose ?? "");
   const notSetUp = status !== null && !status.configured;
   const notAllowed =
     organisation && status !== null && status.configured && !status.organisation_mailboxes;
@@ -154,7 +165,7 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
           data={[
             { value: M365_ONE, label: t("microsoft365Fields.whoseOne") },
             { value: M365_ORGANISATION, label: t("microsoft365Fields.whoseOrganisation") },
-          ]}
+          ].filter((choice) => shapes.offered.includes(choice.value))}
           value={organisation ? M365_ORGANISATION : M365_ONE}
           onChange={(value) => choose({ m365_whose: value ?? M365_ONE })}
           allowDeselect={false}

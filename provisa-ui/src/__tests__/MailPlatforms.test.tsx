@@ -34,7 +34,7 @@ vi.mock("../api/mailPlatforms", () => ({
 import { deleteMailPlatform, fetchMailPlatforms, putMailPlatform } from "../api/mailPlatforms";
 import { EmailTab } from "../components/admin/EmailTab";
 import { MailPlatformsSection } from "../components/admin/MailPlatformsSection";
-import { platformMissing } from "../components/admin/mailPlatformDraft";
+import { draftOf, platformMissing } from "../components/admin/mailPlatformDraft";
 import { NAV_GROUPS } from "../components/navGroups";
 
 const list = vi.mocked(fetchMailPlatforms);
@@ -372,6 +372,22 @@ describe("the organisation's mail platforms", () => {
         "client_id",
         "client_secret",
       ]);
+    });
+
+    it("asks a browser to fill none of the credential fields itself", async () => {
+      // A text field before a password field reads to a browser as a sign-in. A client id
+      // nobody typed is half a client, and an entry with half a client cannot be saved.
+      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+      render(<MailPlatformsSection />);
+      expect(await screen.findByTestId(tid("-client-id"))).toHaveAttribute("autocomplete", "off");
+      for (const field of ["-client-secret", "-organisation-key"]) {
+        expect(screen.getByTestId(tid(field))).toHaveAttribute("autocomplete", "new-password");
+      }
+    });
+
+    it("starts a new entry with nothing in the client's fields", () => {
+      const fresh = workspace({ configured: false, client_id: null, client_secret: null });
+      expect(draftOf(fresh)).toMatchObject({ client_id: "", client_secret: "" });
     });
 
     it("says the client is only for one person's sign-in", async () => {
