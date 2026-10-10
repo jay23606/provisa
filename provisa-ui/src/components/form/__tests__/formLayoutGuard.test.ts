@@ -158,7 +158,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sources/IcebergCatalogFields.tsx",
   "pages/sources/KaggleFormSection.tsx",
   "pages/sources/Microsoft365Fields.tsx",
-  "pages/sources/OpenApiFormSection.tsx",
   "pages/sources/ProfilerFormSection.tsx",
   "pages/sources/PushFeedFormSection.tsx",
   "pages/sources/SalesforceFields.tsx",
