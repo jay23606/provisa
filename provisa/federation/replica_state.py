@@ -337,6 +337,14 @@ def _record(row: Any) -> ReplicaRecord:
     )
 
 
+async def add_note(conn: "Connection", key: ReplicaKey, note: "BuildNote") -> None:
+    """Add ``note`` to what the last completed build of ``key`` had to say: something learnt of
+    the build after its completion was recorded."""
+    kept = (await conn.execute_core(select(_t.build_notes).where(_is(key)))).scalar_one_or_none()
+    said = [*(kept or []), {"code": note.code, "params": note.params}]
+    await conn.execute_core(update(replica_state).where(_is(key)).values(build_notes=said))
+
+
 def _is(key: ReplicaKey) -> Any:
     return and_(_t.source_id == key[0], _t.schema_name == key[1], _t.table_name == key[2])
 

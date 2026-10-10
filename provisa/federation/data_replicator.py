@@ -263,6 +263,10 @@ def mailboxes_left_out_note(accounts: list[str]) -> BuildNote | None:
 
 MAILBOXES_AT_QUOTA = "replication.mailboxes_at_quota"
 
+#: The build completed, but its source could not keep where the read reached (its
+#: ``committed`` failed): the copy is whole, and the next check will ask for the read again.
+PLACE_NOT_KEPT = "replication.place_not_kept"
+
 
 def mailboxes_at_quota_note(accounts: list[str]) -> BuildNote | None:
     """The build's note for the mailboxes left out because they are at their storage quota,

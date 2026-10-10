@@ -46,7 +46,13 @@ from typing import Any
 
 from provisa.core import process_mode, request_deadline
 from provisa.federation import replica_state as build_state
-from provisa.federation.data_replicator import BuildOutcome, GroupReadFailed, Progress
+from provisa.federation.data_replicator import (
+    PLACE_NOT_KEPT,
+    BuildNote,
+    BuildOutcome,
+    GroupReadFailed,
+    Progress,
+)
 from provisa.federation.replica_errors import WAITING_ENGINE, WAITING_SOURCE, coded
 from provisa.federation.replica_locks import BuildClaim, BuildLocks
 from provisa.federation.replica_state import ReplicaKey
@@ -306,20 +312,25 @@ class ReplicaRunner:
             )
         _log_failure(key, exc, failure, self._retry(), failed_at)
 
-    async def _committed(self, key: ReplicaKey, outcome: BuildOutcome) -> None:
-        """Tell the source its build is recorded as completed, when it asked to be told
-        (``BuildOutcome.committed``). The build stays completed whatever this does: a source
-        that could not keep where its read reached keeps what it had, which is behind the copy,
-        never ahead of it -- its next check finds a change and the read is made again."""
+    async def _committed(self, keys: list[ReplicaKey], outcome: BuildOutcome) -> None:
+        """Tell the source the build of ``keys`` is recorded as completed, when it asked to be
+        told (``BuildOutcome.committed``). The build stays completed whatever this does: a
+        source that could not keep where its read reached keeps what it had, which is behind
+        the copy, never ahead of it -- its next check finds a change and the read is made
+        again. That is said on each table's record, as a note of its build, and logged."""
         if outcome.committed is None:
             return
         try:
             await outcome.committed()
-        except Exception:  # allow-ble: the copy is built and recorded; what the source keeps for its next read is its own, and a failure to keep it must not undo or fail a completed build
+        except Exception as failed:  # allow-ble: the copy is built and recorded; what the source keeps for its next read is its own, and a failure to keep it must not undo or fail a completed build -- it is put on the record for the operator instead
             log.exception(
                 "replica of %s is built, but its source could not keep where the read reached",
-                ".".join(key),
+                ", ".join(".".join(key) for key in keys),
             )
+            note = BuildNote(PLACE_NOT_KEPT, {"reason": str(failed) or type(failed).__name__})
+            async with self._db.acquire() as conn:
+                for key in keys:
+                    await build_state.add_note(conn, key, note)
 
     async def _run_group(self, job: _Job) -> None:
         """Run one read that builds ``job.key`` and its claimed siblings, record each table's
@@ -383,7 +394,7 @@ class ReplicaRunner:
                 done = [o for o in outcomes.values() if not isinstance(o, BaseException)]
                 if len(done) == len(keys):
                     # One read, one source: its ``committed`` is the same on every outcome.
-                    await self._committed(keys[0], done[0])
+                    await self._committed(keys, done[0])
         finally:
             with shield.lock:
                 shield.settle()
@@ -452,7 +463,7 @@ class ReplicaRunner:
                     outcome.rows_copied,
                     outcome.method,
                 )
-                await self._committed(job.key, outcome)
+                await self._committed([job.key], outcome)
         finally:
             with shield.lock:
                 shield.settle()

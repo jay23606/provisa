@@ -320,6 +320,15 @@ describe("replicaNoteLines", () => {
     ]);
   });
 
+  it("says a completed copy's place could not be kept, with the reason", () => {
+    const noted = build({
+      buildNotes: [{ code: "replication.place_not_kept", params: { reason: "store is away" } }],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.place_not_kept {"reason":"store is away"}',
+    ]);
+  });
+
   it("gives a line for each thing the build had to say, in the order it said them", () => {
     const noted = build({
       buildNotes: [

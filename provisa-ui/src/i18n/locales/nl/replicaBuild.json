@@ -39,6 +39,7 @@
       "unreadable_messages": "Berichten die zonder hun tekst zijn bewaard omdat een onderdeel niet is wat het aangeeft: {{total}}. Hun ID’s: {{ids}}",
       "mailboxes_left_out": "Weggelaten postvakken, omdat ze volgens Microsoft of Google niet bestaan of niet gelezen mogen worden: {{total}}. Het zijn: {{accounts}}",
       "mailboxes_at_quota": "Weggelaten postvakken, omdat ze hun opslagquotum hebben bereikt en Microsoft hun wijzigingen pas weer volgt als er ruimte is vrijgemaakt: {{total}}. Het zijn: {{accounts}}",
+      "place_not_kept": "Deze kopie is volledig, maar er kon niet worden vastgehouden tot waar de leesactie kwam, dus de volgende controle op wijzigingen vraagt de leesactie opnieuw aan: {{reason}}",
       "andMore": "{{ids}} en nog {{more}}",
       "other": "De laatste build meldde: {{code}}"
     }

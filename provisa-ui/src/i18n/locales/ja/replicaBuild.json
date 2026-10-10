@@ -39,6 +39,7 @@
       "unreadable_messages": "パートが宣言どおりの内容でないため、本文なしで保持されたメッセージ: {{total}} 件。ID: {{ids}}",
       "mailboxes_left_out": "Microsoft または Google から、存在しない、または読み取れないと示されたため除外されたメールボックス: {{total}} 件。対象: {{accounts}}",
       "mailboxes_at_quota": "ストレージ クォータに達しており、空き容量ができるまで Microsoft が変更を追跡しないため除外されたメールボックス: {{total}} 件。対象: {{accounts}}",
+      "place_not_kept": "このコピーは完了していますが、読み取りの到達位置を保存できなかったため、次回の変更確認で再度読み取りが要求されます: {{reason}}",
       "andMore": "{{ids}} ほか {{more}} 件",
       "other": "前回のビルドの注記: {{code}}"
     }

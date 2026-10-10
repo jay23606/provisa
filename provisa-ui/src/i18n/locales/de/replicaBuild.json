@@ -39,6 +39,7 @@
       "unreadable_messages": "Nachrichten, die ohne ihren Text übernommen wurden, weil ein Teil nicht das ist, was er angibt: {{total}}. Ihre IDs: {{ids}}",
       "mailboxes_left_out": "Ausgelassene Postfächer, weil sie laut Microsoft oder Google nicht vorhanden sind oder nicht gelesen werden dürfen: {{total}}. Es sind: {{accounts}}",
       "mailboxes_at_quota": "Ausgelassene Postfächer, weil ihr Speicherkontingent erreicht ist und Microsoft ihre Änderungen erst wieder nachverfolgt, wenn Platz frei wird: {{total}}. Es sind: {{accounts}}",
+      "place_not_kept": "Diese Kopie ist vollständig, aber es konnte nicht festgehalten werden, wie weit ihr Lesevorgang kam; die nächste Änderungsprüfung fordert den Lesevorgang daher erneut an: {{reason}}",
       "andMore": "{{ids}} und {{more}} weitere",
       "other": "Der letzte Build hat vermerkt: {{code}}"
     }

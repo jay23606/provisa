@@ -464,6 +464,11 @@ async def test_a_source_that_cannot_keep_its_place_leaves_the_build_completed(pl
     await asyncio.wait_for(node.drain(), 10)
     records = await _records(db)
     assert {records[key].build_state for key in GROUP} == {build_state.IDLE}
+    # It is said on every table of the read, for the operator: a note of the build.
+    for key in GROUP:
+        assert records[key].build_notes == [
+            {"code": "replication.place_not_kept", "params": {"reason": "the state store is away"}}
+        ]
 
 
 async def test_a_table_built_alone_tells_its_source_when_it_completed(plane, tmp_path):

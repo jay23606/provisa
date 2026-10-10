@@ -133,6 +133,9 @@ export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate):
         accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
       });
     }
+    if (code === "replication.place_not_kept") {
+      return t("replicaBuild.note.place_not_kept", { reason: String(params.reason ?? "") });
+    }
     return t("replicaBuild.note.other", { code });
   });
 }
