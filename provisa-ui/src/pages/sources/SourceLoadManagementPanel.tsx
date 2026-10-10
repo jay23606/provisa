@@ -170,7 +170,7 @@ export function SourceLoadManagementPanel({
           )}
           {/* The ticks sit together beneath the fields: caching, the freshness gate, load protection. */}
           <FormChecks>
-            <FormField size="short">
+            <FormField size="short" help={t("sourceFormFieldsExtended.cacheEnabledHelp")}>
               <Checkbox
                 label={t("sourceFormFieldsExtended.cacheEnabled")}
                 checked={form.cacheEnabled}

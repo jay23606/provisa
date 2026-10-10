@@ -841,14 +841,7 @@ export function RegisterTableForm({
         <FormField size="medium">
           <TextInput
             data-testid="register-table-alias"
-            label={
-              <>
-                {t("registerTableForm.aliasLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t("registerTableForm.aliasOptional")}
-                </Text>
-              </>
-            }
+            label={t("registerTableForm.aliasLabel")}
             value={tableAlias}
             onChange={(e) => setTableAlias(e.currentTarget.value)}
             placeholder={t("registerTableForm.aliasPlaceholder")}
@@ -983,14 +976,7 @@ export function RegisterTableForm({
       )}
       <FormField size="long">
         <TextInput
-          label={
-            <>
-              {t("registerTableForm.descriptionLabel")}{" "}
-              <Text span fw="normal" c="dimmed" fz="xs">
-                {t("registerTableForm.descriptionOptional")}
-              </Text>
-            </>
-          }
+          label={t("registerTableForm.descriptionLabel")}
           value={tableDescription}
           onChange={(e) => setTableDescription(e.currentTarget.value)}
           placeholder={t("registerTableForm.descriptionPlaceholder")}

@@ -5543,5 +5543,11 @@
   "zh/viewDefinitionForm.json::viewDefinitionForm.save": "Save view",
   "zh/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "zh/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "zh/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
+  "zh/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "sourceFormFieldsExtended.json::sourceFormFieldsExtended.freshnessGate": "Freshness Query Guarantee",
+  "sourceFormFieldsExtended.json::sourceFormFieldsExtended.freshnessGateTooltip": "When on, a query that reads this source's tables first checks whether the copy is still fresh (by the change signal and Cache TTL) and, if it is stale, refreshes it before answering — so a reader never gets a copy older than the Cache TTL, and a query may wait for that refresh. When off, the copy is refreshed in the background and queries never wait. Needs a Cache TTL when the change signal re-reads on a schedule; has no effect for pushed change signals.",
+  "sourceFormFieldsExtended.json::sourceFormFieldsExtended.allowedDomainsHint": "None selected means all domains.",
+  "sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabledHelp": "When on, the answer to a query that reads this source may be kept and reused for the Cache TTL, but only for requests that ask for caching. When off, results that touch this source are never cached.",
+  "registerTableForm.json::registerTableForm.watermarkHintOptional": "Used for polling when triggers are unavailable.",
+  "registerTableForm.json::registerTableForm.watermarkHintRequired": "Required for subscriptions."
 }
