@@ -44,6 +44,7 @@ def _record(**kw):
         delta_skipped=None,
         delta_cursor=None,
         build_notes=[],
+        verified_at=None,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -139,6 +140,12 @@ def test_a_build_that_had_something_to_say_shows_its_note():
         NOW,
     )
     assert view["build_notes"] == [{"code": "replication.unreadable_messages", "params": params}]
+
+
+def test_a_copy_its_probe_found_unchanged_shows_when_it_was_checked():
+    view = build_view(_record(completed_at=NOW, verified_at=NOW), NOW)
+    assert view["verified_at"] == view["completed_at"] and view["verified_at"] is not None
+    assert build_view(_record(completed_at=NOW), NOW)["verified_at"] is None
 
 
 def test_a_build_with_nothing_to_say_shows_no_note():

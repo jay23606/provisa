@@ -1364,6 +1364,7 @@ class ReplicaBuildType:  # REQ-1915
     rows_copied: float | None
     rows_per_second: float | None  # a running build's rate so far
     completed_at: str | None  # None: there is no replica yet
+    verified_at: str | None  # REQ-855: its probe last found the source unchanged; None: not since
     next_refresh_at: str | None
     # The last failure: its English text, and (REQ-1350) the code and params the UI renders
     # in its own language when the cause is one Provisa names.

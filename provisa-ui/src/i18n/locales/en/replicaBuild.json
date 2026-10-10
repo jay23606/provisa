@@ -6,6 +6,7 @@
     "building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
     "buildingNoRate": "Replica building ({{how}}).",
     "built": "Replica built {{when}}: {{rows}} rows ({{how}}).",
+    "builtChecked": "Replica built {{when}}: {{rows}} rows ({{how}}). Checked {{checked}}, unchanged since.",
     "failed": "Replica build failed (attempt {{attempts}}; it is tried again): {{error}}",
     "failedNextAt": "Replica build failed (attempt {{attempts}}; it is tried again {{when}}): {{error}}",
     "retired": "This table is no longer replicated; its replica is being removed.",

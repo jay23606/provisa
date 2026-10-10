@@ -59,6 +59,31 @@ async def test_unchanged_posts_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_an_unchanged_token_tells_whoever_keeps_the_copy(tmp_path):
+    """REQ-855: an unchanged token keeps the rows, and the copy is current as of the probe."""
+    told: list[str] = []
+
+    async def verified() -> None:
+        told.append("verified")
+
+    async with _conn(tmp_path) as conn:
+        await queue.set_node_state(conn, "s.orders", probe_token="tok")
+        given = {
+            "node": "s.orders",
+            "change_signal": "probe",
+            "watermark_column": None,
+            "dependents": ["mv.daily"],
+            "on_unchanged": verified,
+        }
+        assert await check_node(conn, probe=_probe("tok"), **given) is None
+        assert told == ["verified"]
+        # A changed token, and a probe that could not answer, verify nothing.
+        assert await check_node(conn, probe=_probe("tok2"), **given) is not None
+        assert await check_node(conn, probe=_probe(None), **given) is not None
+        assert told == ["verified"]
+
+
+@pytest.mark.asyncio
 async def test_none_token_degrades_to_ttl_and_posts(tmp_path):
     # a source with no token capability (None) is not gated — it re-posts every cadence (TTL degrade)
     async with _conn(tmp_path) as conn:

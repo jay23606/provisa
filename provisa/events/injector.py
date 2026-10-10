@@ -52,18 +52,24 @@ async def check_node(
     probe: Probe,
     dependents: list[str],
     probe_type: str | None = None,
+    on_unchanged: Callable[[], Awaitable[None]] | None = None,
 ) -> int | None:
     """Run the injector action for one poll ``node``: probe for the current token, compare it to the
     persisted baseline, and if it differs (or is None → TTL degrade) post the change event (shape from
     ``probe_type``, else ``change_signal``) + fan it out to ``dependents``; then persist the new token.
     Returns the event id, or None when the token matched the baseline (the guard against no-op events
-    rippling the DAG)."""
+    rippling the DAG). ``on_unchanged`` is awaited when a real token matched: the probe verified
+    the node's copy current."""
     token = await probe()
     prior = await queue.get_node_state(conn, node)
     prior_token = prior["probe_token"] if prior else None
     # A real token equal to the baseline → unchanged. A None token has no capability → do not gate
     # (degrade to the TTL cadence: re-fetch, and let the REQ-981 output hash suppress an idle ripple).
     if token is not None and token == prior_token:
+        # REQ-855: the source said it holds what it held. Whoever keeps the node's copy is told,
+        # so the copy's age is measured from now.
+        if on_unchanged is not None:
+            await on_unchanged()
         return None
     shape = (
         probes.probe_shape(probe_type)

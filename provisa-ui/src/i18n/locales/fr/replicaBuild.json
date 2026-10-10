@@ -6,6 +6,7 @@
     "building": "Réplique en construction : {{rows}} lignes copiées, {{rate}} lignes/s ({{how}}).",
     "buildingNoRate": "Réplique en construction ({{how}}).",
     "built": "Réplique construite {{when}} : {{rows}} lignes ({{how}}).",
+    "builtChecked": "Réplique construite {{when}} : {{rows}} lignes ({{how}}). Vérifié {{checked}}, inchangé depuis.",
     "failed": "La construction de la réplique a échoué (tentative {{attempts}} ; elle est retentée) : {{error}}",
     "failedNextAt": "La construction du réplica a échoué (tentative {{attempts}} ; nouvelle tentative {{when}}) : {{error}}",
     "retired": "Cette table n'est plus répliquée ; sa réplique est en cours de suppression.",

@@ -56,6 +56,8 @@ def build_view(record: Any, now: datetime) -> dict:
         "rows_copied": record.rows_copied,
         "rows_per_second": rate,
         "completed_at": _iso(record.completed_at),
+        # REQ-855: when its probe last found the source unchanged since that build.
+        "verified_at": _iso(record.verified_at),
         "next_refresh_at": _iso(record.next_refresh_at),
         # REQ-1350: the English text, and the code and params the UI renders in its own
         # language when the cause is one Provisa names.

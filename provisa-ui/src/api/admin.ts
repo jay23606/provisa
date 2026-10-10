@@ -1562,6 +1562,8 @@ export interface ReplicaBuild {
   rowsPerSecond: number | null;
   /** null: there is no replica yet. */
   completedAt: string | null;
+  /** When its probe last found the source unchanged since that build; null: not since. */
+  verifiedAt: string | null;
   nextRefreshAt: string | null;
   /** The last failure, in English; with (REQ-1350) its code and params when the cause is a named one. */
   lastError: string | null;

@@ -1587,6 +1587,7 @@ CREATE TABLE IF NOT EXISTS replica_state (
     last_error_code  TEXT,          -- REQ-1350: the failure's code, when its cause is a named one
     last_error_params JSONB,        -- and its params
     build_notes      JSONB,         -- what the last completed build had to say of its copy: [{code, params}]
+    verified_at      TIMESTAMPTZ,   -- REQ-855: when its probe last found the source unchanged since the build
     failed_at        TIMESTAMPTZ,
     failed_attempts  INTEGER NOT NULL DEFAULT 0,  -- builds failed in a row since the last completed
     waiting_on       TEXT,          -- why a requested build did not start on the last pass (a code)

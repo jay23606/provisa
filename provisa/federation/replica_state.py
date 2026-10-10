@@ -235,6 +235,17 @@ class ReplicaRecord:
     #: What the last completed build had to say of the copy it made, when it had anything.
     #: What the last completed build had to say: [{"code", "params"}], empty when nothing.
     build_notes: list = field(default_factory=list)
+    #: When the table's probe last found the source unchanged since the build; None: not since.
+    verified_at: datetime | None = None
+
+    @property
+    def current_at(self) -> datetime | None:
+        """As of when the copy is known to hold what its source holds: its build's completion,
+        or the later moment its probe found the source unchanged (REQ-855). What a reader's
+        tolerance of age is measured from. None: there is no copy."""
+        if self.completed_at is None or self.verified_at is None:
+            return self.completed_at
+        return max(self.completed_at, self.verified_at)
 
     @property
     def exists(self) -> bool:
@@ -279,6 +290,7 @@ _COLUMNS = (
     _t.delta_cursor,
     _t.delta_skipped,
     _t.build_notes,
+    _t.verified_at,
 )
 
 
@@ -321,6 +333,7 @@ def _record(row: Any) -> ReplicaRecord:
         delta_skipped=row[28],
         # NULL is a replica no build has completed for, which has no notes.
         build_notes=row[29] if row[29] is not None else [],
+        verified_at=_aware(row[30]),
     )
 
 
@@ -647,6 +660,18 @@ async def record_progress(conn: "Connection", key: ReplicaKey, *, rows_copied: i
     )
 
 
+async def record_verified(conn: "Connection", key: ReplicaKey, *, now: datetime) -> bool:
+    """The table's probe found its source unchanged since the copy was built (REQ-855): the
+    copy is current as of ``now``. True when there is a copy to say so of; a table never built,
+    or retired, is not verified."""
+    result = await conn.execute_core(
+        update(replica_state)
+        .where(_is(key), _t.completed_at.is_not(None), _t.retired_at.is_(None))
+        .values(verified_at=now)
+    )
+    return (result.rowcount or 0) > 0
+
+
 async def record_completed(
     conn: "Connection",
     key: ReplicaKey,
@@ -694,6 +719,7 @@ async def record_completed(
                 rows_copied=rows_copied,
                 build_method=method,
                 completed_at=now,
+                verified_at=None,
                 next_refresh_at=next_refresh_at,
                 content_hash=content_hash,
                 built_store=store,

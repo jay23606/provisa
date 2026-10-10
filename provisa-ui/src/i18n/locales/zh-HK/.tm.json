@@ -2876,6 +2876,7 @@
   "zh-HK/replicaBuild.json::replicaBuild.building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
   "zh-HK/replicaBuild.json::replicaBuild.buildingNoRate": "Replica building ({{how}}).",
   "zh-HK/replicaBuild.json::replicaBuild.built": "Replica built {{when}}: {{rows}} rows ({{how}}).",
+  "zh-HK/replicaBuild.json::replicaBuild.builtChecked": "Replica built {{when}}: {{rows}} rows ({{how}}). Checked {{checked}}, unchanged since.",
   "zh-HK/replicaBuild.json::replicaBuild.convergenceError": "Replicas are not being brought in line with the model: {{error}}",
   "zh-HK/replicaBuild.json::replicaBuild.delta.applied": "Last refresh applied the delta since the stored watermark ({{cursor}}).",
   "zh-HK/replicaBuild.json::replicaBuild.delta.skip.definition_changed": "the table definition changed",

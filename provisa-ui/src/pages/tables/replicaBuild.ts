@@ -69,13 +69,20 @@ export function replicaBuildLine(
           })
         : t("replicaBuild.buildingNoRate", { how: how(build, t) });
     default:
-      return build.completedAt
-        ? t("replicaBuild.built", {
+      if (!build.completedAt) return t("replicaBuild.none");
+      // REQ-855: a copy its probe has since found unchanged says when it was last checked.
+      return build.verifiedAt
+        ? t("replicaBuild.builtChecked", {
             when: formatWhen(build.completedAt),
+            checked: formatWhen(build.verifiedAt),
             rows,
             how: how(build, t),
           })
-        : t("replicaBuild.none");
+        : t("replicaBuild.built", {
+            when: formatWhen(build.completedAt),
+            rows,
+            how: how(build, t),
+          });
   }
 }
 

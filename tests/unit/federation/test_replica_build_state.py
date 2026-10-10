@@ -384,3 +384,47 @@ async def test_a_build_with_several_things_to_say_records_each(conn):
     record = await build_state.read(conn, KEY)
     assert [note["code"] for note in record.build_notes] == [_NOTE.code, left_out.code]
     assert record.build_notes[1]["params"] == {"count": 2}
+
+
+# ── REQ-855: an unchanged probe verifies the copy current, and its age is measured from that ──
+
+
+async def test_a_copy_verified_unchanged_is_current_as_of_the_verification(conn):
+    await _completed_saying(conn)
+    built = (await build_state.read(conn, KEY)).completed_at
+    assert (await build_state.read(conn, KEY)).current_at == built
+    later = built + timedelta(minutes=10)
+    assert await build_state.record_verified(conn, KEY, now=later) is True
+    record = await build_state.read(conn, KEY)
+    assert (record.completed_at, record.verified_at, record.current_at) == (built, later, later)
+
+
+async def test_a_new_build_is_current_as_of_its_own_completion(conn):
+    await _completed_saying(conn)
+    first = (await build_state.read(conn, KEY)).completed_at
+    await build_state.record_verified(conn, KEY, now=first + timedelta(hours=1))
+    await _completed_saying(conn)
+    record = await build_state.read(conn, KEY)
+    assert record.verified_at is None and record.current_at == record.completed_at
+
+
+async def test_a_table_never_built_is_not_verified(conn):
+    await build_state.request_build(conn, KEY, build_state.REASON_MODEL)
+    assert await build_state.record_verified(conn, KEY, now=datetime.now(UTC)) is False
+    record = await build_state.read(conn, KEY)
+    assert record.verified_at is None and record.current_at is None
+
+
+async def test_a_readers_age_is_measured_from_the_verification(conn):
+    """The defect: a reader past its tolerance asked for a rebuild of a copy its probe had just
+    found unchanged, because age was measured from the build alone."""
+    from provisa.federation.query_residency import _freshness_state
+
+    await _completed_saying(conn)
+    record = await build_state.read(conn, KEY)
+    verified = record.completed_at + timedelta(minutes=10)
+    await build_state.record_verified(conn, KEY, now=verified)
+    record = await build_state.read(conn, KEY)
+    state = _freshness_state(record, "store-a")
+    assert state["last_refresh_at"] == verified.timestamp()
+    assert _freshness_state(record, "another-store")["last_refresh_at"] is None

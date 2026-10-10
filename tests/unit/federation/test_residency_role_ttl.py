@@ -334,9 +334,11 @@ def wiring(monkeypatch):
             return None
         at = held["last_refresh_at"] if held else None
         failed = held is not None and not held.get("last_refresh_ok", True)
+        built = datetime.fromtimestamp(at, UTC) if at is not None else None
         return SimpleNamespace(
             build_state="requested" if building else "failed" if failed else "idle",
-            completed_at=datetime.fromtimestamp(at, UTC) if at is not None else None,
+            completed_at=built,
+            current_at=built,  # never verified by a probe since its build
             last_error=None,
             exists_in=lambda store: at is not None,
         )

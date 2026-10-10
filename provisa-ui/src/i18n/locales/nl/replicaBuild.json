@@ -6,6 +6,7 @@
     "building": "Replica wordt gebouwd: {{rows}} rijen gekopieerd, {{rate}} rijen/s ({{how}}).",
     "buildingNoRate": "Replica wordt gebouwd ({{how}}).",
     "built": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}).",
+    "builtChecked": "Replica gebouwd {{when}}: {{rows}} rijen ({{how}}). Gecontroleerd {{checked}}, sindsdien ongewijzigd.",
     "failed": "Replica-build mislukt (poging {{attempts}}; wordt opnieuw geprobeerd): {{error}}",
     "failedNextAt": "Replicabuild mislukt (poging {{attempts}}; nieuwe poging {{when}}): {{error}}",
     "retired": "Deze tabel wordt niet meer gerepliceerd; de replica wordt verwijderd.",

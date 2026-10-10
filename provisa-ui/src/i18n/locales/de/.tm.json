@@ -2839,6 +2839,7 @@
   "de/replicaBuild.json::replicaBuild.building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
   "de/replicaBuild.json::replicaBuild.buildingNoRate": "Replica building ({{how}}).",
   "de/replicaBuild.json::replicaBuild.built": "Replica built {{when}}: {{rows}} rows ({{how}}).",
+  "de/replicaBuild.json::replicaBuild.builtChecked": "Replica built {{when}}: {{rows}} rows ({{how}}). Checked {{checked}}, unchanged since.",
   "de/replicaBuild.json::replicaBuild.convergenceError": "Replicas are not being brought in line with the model: {{error}}",
   "de/replicaBuild.json::replicaBuild.delta.applied": "Last refresh applied the delta since the stored watermark ({{cursor}}).",
   "de/replicaBuild.json::replicaBuild.delta.skip.definition_changed": "the table definition changed",

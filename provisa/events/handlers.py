@@ -32,6 +32,7 @@ computes the SELECT). A very large MV is the separate MPP-native materialization
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -236,7 +237,14 @@ def make_source_build(
         kick()
         return None
 
+    async def verified() -> None:
+        """REQ-855: the node's probe found the source unchanged; the replica is current as of
+        now, and a reader's tolerance of its age is measured from now."""
+        async with db.acquire() as conn:
+            await replica_state.record_verified(conn, key, now=datetime.now(UTC))
+
     land.replica_key = key  # type: ignore[attr-defined]
+    land.verified = verified  # type: ignore[attr-defined]
     return land
 
 

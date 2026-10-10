@@ -6,6 +6,7 @@
     "building": "副本构建中：已复制 {{rows}} 行，{{rate}} 行/秒（{{how}}）。",
     "buildingNoRate": "副本构建中（{{how}}）。",
     "built": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。",
+    "builtChecked": "副本已于 {{when}} 构建：{{rows}} 行（{{how}}）。检查于 {{checked}},此后未变化。",
     "failed": "副本构建失败（第 {{attempts}} 次尝试；将重试）：{{error}}",
     "failedNextAt": "副本构建失败（第 {{attempts}} 次尝试；将于 {{when}} 重试）：{{error}}",
     "retired": "此表不再复制；其副本正在移除。",

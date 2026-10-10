@@ -599,10 +599,11 @@ async def ensure_resident(
     replicas_read: dict[ReplicaKey, datetime] = {}
 
     def _read_from(key: ReplicaKey, record: Any) -> None:
-        """The statement reads this replica: keep the completion time of its build."""
+        """The statement reads this replica: keep the time its copy is current as of (its
+        build's completion, or its probe's later finding that the source had not changed)."""
         if record is None or not record.exists_in(_store()):
             raise ReplicaAgeUnknown(".".join(key))
-        replicas_read[key] = record.completed_at
+        replicas_read[key] = record.current_at
 
     for source in sources:
         tables = tables_by_source.get(source.id)
@@ -713,7 +714,8 @@ def _freshness_state(record: Any, store: str) -> dict | None:
     if record is None:
         return None
     return {
-        "last_refresh_at": record.completed_at.timestamp() if record.exists_in(store) else None,
+        # REQ-855: a copy its probe found unchanged is current as of that finding.
+        "last_refresh_at": record.current_at.timestamp() if record.exists_in(store) else None,
         "last_refresh_ok": record.build_state != FAILED,
     }
 

@@ -6,6 +6,7 @@
     "building": "Compilando réplica: {{rows}} linhas copiadas, {{rate}} linhas/s ({{how}}).",
     "buildingNoRate": "Compilando réplica ({{how}}).",
     "built": "Réplica compilada {{when}}: {{rows}} linhas ({{how}}).",
+    "builtChecked": "Réplica compilada {{when}}: {{rows}} linhas ({{how}}). Verificada {{checked}}, sem alterações desde então.",
     "failed": "A compilação da réplica falhou (tentativa {{attempts}}; será tentada novamente): {{error}}",
     "failedNextAt": "A compilação da réplica falhou (tentativa {{attempts}}; nova tentativa {{when}}): {{error}}",
     "retired": "Esta tabela não é mais replicada; sua réplica está sendo removida.",

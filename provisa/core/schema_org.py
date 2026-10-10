@@ -1467,6 +1467,10 @@ replica_state = Table(
     # language, and its particulars. Empty: it had nothing to say; NULL: no build has
     # completed. Set by each completed build; a failed build leaves it as it was.
     Column("build_notes", JSON(none_as_null=True)),
+    # When the table's probe last found the source unchanged since this copy was built
+    # (REQ-855: an unchanged token keeps the rows). The copy is current as of then; cleared by
+    # each completed build. NULL: not verified since the build.
+    Column("verified_at", DateTime(timezone=True)),
     Column("failed_at", DateTime(timezone=True)),
     # Builds that have failed in a row since the last one that completed. A replica that keeps
     # failing is retried for as long as it is declared, after ``replication.retry_interval``

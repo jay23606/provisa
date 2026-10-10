@@ -6,6 +6,7 @@
     "building": "複本建置中：已複製 {{rows}} 列，{{rate}} 列/秒（{{how}}）。",
     "buildingNoRate": "複本建置中（{{how}}）。",
     "built": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。",
+    "builtChecked": "複本已於 {{when}} 建置：{{rows}} 列（{{how}}）。檢查於 {{checked}},此後沒有變更。",
     "failed": "複本建置失敗（第 {{attempts}} 次嘗試；將會重試）：{{error}}",
     "failedNextAt": "複本建置失敗（第 {{attempts}} 次嘗試；將於 {{when}} 重試）：{{error}}",
     "retired": "此表不再複製；其複本正在移除。",

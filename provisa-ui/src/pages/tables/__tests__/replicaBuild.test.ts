@@ -48,6 +48,7 @@ function build(over: Partial<ReplicaBuild>): ReplicaBuild {
     rowsCopied: null,
     rowsPerSecond: null,
     completedAt: null,
+    verifiedAt: null,
     nextRefreshAt: null,
     lastError: null,
     lastErrorCode: null,
@@ -235,6 +236,27 @@ describe("replicaDeltaLine (REQ-874)", () => {
   it("renders an applied delta with no cursor without throwing", () => {
     expect(replicaDeltaLine(build({ method: "delta", deltaCursor: null }), t)).toBe(
       'replicaBuild.delta.applied {"cursor":""}',
+    );
+  });
+});
+
+describe("a replica its probe found unchanged", () => {
+  it("says when it was last checked and that it has not changed since the build", () => {
+    const line = replicaBuildLine(
+      build({
+        completedAt: "2026-10-02T12:00:00+00:00",
+        verifiedAt: "2026-10-02T12:30:00+00:00",
+        rowsCopied: 500,
+        method: "stream_batches",
+        loadKind: "bulk_stream",
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.builtChecked {"when":"@2026-10-02T12:00:00+00:00","checked":"@2026-10-02T12:30:00+00:00","rows":"#500","how":"replicaBuild.method.stream_batches, replicaBuild.loadKind.bulk_stream"}',
     );
   });
 });

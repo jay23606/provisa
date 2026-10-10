@@ -277,7 +277,12 @@ class TableProcessor(ABC):
                 probe=probe,
                 dependents=self._dependents_of(self.node),
                 probe_type=self.probe_type,
+                on_unchanged=self._on_unchanged(),
             )
+
+    def _on_unchanged(self) -> Callable[[], Awaitable[None]] | None:
+        """What an unchanged probe tells: nothing, for a node that keeps no copy to verify."""
+        return None
 
     # -- processor side (claim → handle → complete → re-post) ------------------
     async def process_pending(self, conn: Any) -> int | None:
@@ -619,6 +624,11 @@ class SourceTableProcessor(TableProcessor):
         # None is valid for a push-only (kafka/debezium) source that drains via consume_kafka and
         # never reaches handle; a poll/land source supplies the write-face callable.
         self._land = land  # async (pending, *, prior_hash) -> (event_type, payload, hash) | None
+
+    def _on_unchanged(self) -> Callable[[], Awaitable[None]] | None:
+        # REQ-855: a source whose copy is a replica has it stamped verified (handlers
+        # make_source_build's ``verified``); a land that keeps no replica record has nothing to.
+        return getattr(self._land, "verified", None)
 
     async def handle(
         self, pending: list[dict], *, prior_hash: str | None, ctx: NodeContext | None = None
