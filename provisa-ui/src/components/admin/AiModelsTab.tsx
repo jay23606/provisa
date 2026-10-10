@@ -29,7 +29,7 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { Check, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import {
   fetchAiModels,
   fetchVendorModels,
@@ -43,6 +43,7 @@ import {
 } from "../../api/aiModels";
 import { usePanelState } from "../../hooks/usePanelState";
 import { ListTable, ListRow } from "../list/ListTable";
+import { FieldGroup, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-464, REQ-419, REQ-500, REQ-370, REQ-1790: configure per-operation AI model assignments, the
 // embedding-model registry, custom AI endpoints (openai/anthropic style), and the NL rate limit.
@@ -305,7 +306,7 @@ export function AiModelsTab() {
     );
 
   return (
-    <Stack maw={860} gap="md">
+    <Stack gap="md">
       <Panel testId="ai-models-keys-panel" title={t("aiModelsTab.apiKeysHeading")}>
         <Text c="dimmed" size="sm">
           {t("aiModelsTab.apiKeysIntro")}
@@ -327,33 +328,37 @@ export function AiModelsTab() {
                     {isSet ? t("aiModelsTab.apiKeySet") : t("aiModelsTab.apiKeyNotSet")}
                   </Badge>
                 </Group>
-                <Group gap="sm" align="flex-end">
-                  <PasswordInput
-                    aria-label={t("aiModelsTab.apiKeyLabel", { vendor })}
-                    placeholder={t("aiModelsTab.apiKeyPlaceholder")}
-                    data-testid={`ai-models-${vendor}-key-input`}
-                    value={apiKeyInputs[vendor] ?? ""}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value;
-                      setApiKeyInputs((prev) => ({ ...prev, [vendor]: value }));
-                      setClearApiKeys((prev) => ({ ...prev, [vendor]: false }));
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                  {isSet && (
-                    <Button
-                      variant="subtle"
-                      color="red"
-                      data-testid={`ai-models-${vendor}-key-clear`}
-                      onClick={() => {
-                        setApiKeyInputs((prev) => ({ ...prev, [vendor]: "" }));
-                        setClearApiKeys((prev) => ({ ...prev, [vendor]: true }));
-                      }}
-                    >
-                      {t("aiModelsTab.apiKeyClear")}
-                    </Button>
-                  )}
-                </Group>
+                <FormLayout>
+                  <FieldGroup row style={{ alignItems: "center" }}>
+                    <FormField size="long">
+                      <PasswordInput
+                        aria-label={t("aiModelsTab.apiKeyLabel", { vendor })}
+                        placeholder={t("aiModelsTab.apiKeyPlaceholder")}
+                        data-testid={`ai-models-${vendor}-key-input`}
+                        value={apiKeyInputs[vendor] ?? ""}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value;
+                          setApiKeyInputs((prev) => ({ ...prev, [vendor]: value }));
+                          setClearApiKeys((prev) => ({ ...prev, [vendor]: false }));
+                        }}
+                      />
+                    </FormField>
+                    {isSet && (
+                      <Button
+                        variant="subtle"
+                        color="red"
+                        data-testid={`ai-models-${vendor}-key-clear`}
+                        style={{ marginTop: 0 }}
+                        onClick={() => {
+                          setApiKeyInputs((prev) => ({ ...prev, [vendor]: "" }));
+                          setClearApiKeys((prev) => ({ ...prev, [vendor]: true }));
+                        }}
+                      >
+                        {t("aiModelsTab.apiKeyClear")}
+                      </Button>
+                    )}
+                  </FieldGroup>
+                </FormLayout>
                 {clearing && (
                   <Text c="orange" size="sm">
                     {t("aiModelsTab.apiKeyWillClear")}
@@ -379,29 +384,29 @@ export function AiModelsTab() {
                 <Text size="sm" fw={500}>
                   {t(`aiModelsTab.role_${k}`)}
                 </Text>
-                <Group gap="sm" align="flex-end">
-                  <Autocomplete
-                    label={t("aiModelsTab.vendorLabel")}
-                    data-testid={`ai-model-${k}-vendor`}
-                    data={vendorOptions}
-                    value={vendor}
-                    onChange={(val) => setRoleVendor(k, val)}
-                    style={{ width: 200 }}
-                  />
-                  <Autocomplete
-                    label={t("aiModelsTab.modelLabel")}
-                    data-testid={`ai-model-${k}`}
-                    data={vendorModels[vendor] ?? []}
-                    value={model}
-                    onChange={(val) => setRoleModel(k, val)}
-                    rightSection={loadingVendors[vendor] ? <Loader size="xs" /> : undefined}
-                    // A vendor that publishes no listing, or has no key yet, leaves the field a
-                    // plain typed input — the reason is stated under it rather than marking the
-                    // value invalid, since typing a model name by hand stays valid.
-                    description={vendorModelErrors[vendor]}
-                    style={{ flex: 1 }}
-                  />
-                </Group>
+                <FormLayout>
+                  <FieldGroup row>
+                    <FormField size="medium">
+                      <Autocomplete
+                        label={t("aiModelsTab.vendorLabel")}
+                        data-testid={`ai-model-${k}-vendor`}
+                        data={vendorOptions}
+                        value={vendor}
+                        onChange={(val) => setRoleVendor(k, val)}
+                      />
+                    </FormField>
+                    <FormField hint={vendorModelErrors[vendor]} size="medium">
+                      <Autocomplete
+                        label={t("aiModelsTab.modelLabel")}
+                        data-testid={`ai-model-${k}`}
+                        data={vendorModels[vendor] ?? []}
+                        value={model}
+                        onChange={(val) => setRoleModel(k, val)}
+                        rightSection={loadingVendors[vendor] ? <Loader size="xs" /> : undefined}
+                      />
+                    </FormField>
+                  </FieldGroup>
+                </FormLayout>
               </Stack>
             );
           })}
@@ -412,12 +417,18 @@ export function AiModelsTab() {
         <Text c="dimmed" size="sm">
           {t("aiModelsTab.nlIntro")}
         </Text>
-        <NumberInput
-          label={t("aiModelsTab.rateLimitLabel")}
-          data-testid="ai-models-rate-limit"
-          value={s.nl.rate_limit ?? ""}
-          onChange={(val) => setS({ ...s, nl: { rate_limit: val === "" ? null : Number(val) } })}
-        />
+        <FormLayout>
+          <FormField size="short">
+            <NumberInput
+              label={t("aiModelsTab.rateLimitLabel")}
+              data-testid="ai-models-rate-limit"
+              value={s.nl.rate_limit ?? ""}
+              onChange={(val) =>
+                setS({ ...s, nl: { rate_limit: val === "" ? null : Number(val) } })
+              }
+            />
+          </FormField>
+        </FormLayout>
       </Panel>
 
       <Panel testId="ai-models-vector-panel" title={t("aiModelsTab.vectorHeading")}>
@@ -563,9 +574,7 @@ export function AiModelsTab() {
                     data-testid={`ai-models-endpoint-${i}-key-env`}
                     placeholder="${secret:openrouter_key}"
                     value={ep.api_key_env ?? ""}
-                    onChange={(e) =>
-                      setEndpoint(i, { api_key_env: e.currentTarget.value || null })
-                    }
+                    onChange={(e) => setEndpoint(i, { api_key_env: e.currentTarget.value || null })}
                   />
                 </Table.Td>
                 <Table.Td>
@@ -617,33 +626,36 @@ export function AiModelsTab() {
               {s.api_keys_set[JEV_KEY] ? t("aiModelsTab.apiKeySet") : t("aiModelsTab.apiKeyNotSet")}
             </Badge>
           </Group>
-          <Group gap="sm" align="flex-end">
-            <PasswordInput
-              aria-label={t("aiModelsTab.apiKeyLabel", { vendor: "Jev" })}
-              placeholder={t("aiModelsTab.apiKeyPlaceholder")}
-              data-testid="ai-models-jev-key-input"
-              value={apiKeyInputs[JEV_KEY] ?? ""}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setApiKeyInputs((prev) => ({ ...prev, [JEV_KEY]: value }));
-                setClearApiKeys((prev) => ({ ...prev, [JEV_KEY]: false }));
-              }}
-              style={{ flex: 1 }}
-            />
-            {s.api_keys_set[JEV_KEY] && (
-              <Button
-                variant="subtle"
-                color="red"
-                data-testid="ai-models-jev-key-clear"
-                onClick={() => {
-                  setApiKeyInputs((prev) => ({ ...prev, [JEV_KEY]: "" }));
-                  setClearApiKeys((prev) => ({ ...prev, [JEV_KEY]: true }));
-                }}
-              >
-                {t("aiModelsTab.apiKeyClear")}
-              </Button>
-            )}
-          </Group>
+          <FormLayout>
+            <FieldGroup row>
+              <FormField size="long">
+                <PasswordInput
+                  aria-label={t("aiModelsTab.apiKeyLabel", { vendor: "Jev" })}
+                  placeholder={t("aiModelsTab.apiKeyPlaceholder")}
+                  data-testid="ai-models-jev-key-input"
+                  value={apiKeyInputs[JEV_KEY] ?? ""}
+                  onChange={(e) => {
+                    const value = e.currentTarget.value;
+                    setApiKeyInputs((prev) => ({ ...prev, [JEV_KEY]: value }));
+                    setClearApiKeys((prev) => ({ ...prev, [JEV_KEY]: false }));
+                  }}
+                />
+              </FormField>
+              {s.api_keys_set[JEV_KEY] && (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  data-testid="ai-models-jev-key-clear"
+                  onClick={() => {
+                    setApiKeyInputs((prev) => ({ ...prev, [JEV_KEY]: "" }));
+                    setClearApiKeys((prev) => ({ ...prev, [JEV_KEY]: true }));
+                  }}
+                >
+                  {t("aiModelsTab.apiKeyClear")}
+                </Button>
+              )}
+            </FieldGroup>
+          </FormLayout>
           {clearApiKeys[JEV_KEY] && (
             <Text c="orange" size="sm">
               {t("aiModelsTab.apiKeyWillClear")}
@@ -656,18 +668,7 @@ export function AiModelsTab() {
         {s.restart_required_note}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          disabled={saving}
-          loading={saving}
-          title={t("aiModelsTab.saveButtonLabel")}
-          aria-label={t("aiModelsTab.saveButtonLabel")}
-          data-testid="ai-models-save"
-          leftSection={saving ? undefined : <Check size={14} />}
-        >
-          {t("aiModelsTab.saveButtonLabel")}
-        </Button>
+      <FormFooter onSave={save} saving={saving} saveProps={{ "data-testid": "ai-models-save" }}>
         {msg && (
           <Text c="green" size="sm">
             {msg}
@@ -678,7 +679,7 @@ export function AiModelsTab() {
             {error}
           </Text>
         )}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }
