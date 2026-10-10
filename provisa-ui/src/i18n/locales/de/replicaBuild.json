@@ -7,6 +7,7 @@
     "progressAbout": "Etwa {{percent}} %: {{rows}} von etwa {{total}} Zeilen",
     "progressPast": "{{rows}} Zeilen kopiert; der letzte Aufbau hatte {{total}}",
     "progressRows": "{{rows}} Zeilen kopiert",
+    "progressMailboxes": "{{done}} von {{total}} Postfächern gelesen",
     "progressWaiting": "Wartet {{seconds}} s: {{by}} drosselt das Lesen",
     "building": "Replikat wird gebaut: {{rows}} Zeilen kopiert, {{rate}} Zeilen/s ({{how}}).",
     "buildingNoRate": "Replikat wird gebaut ({{how}}).",

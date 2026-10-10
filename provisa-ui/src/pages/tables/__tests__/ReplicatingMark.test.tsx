@@ -101,6 +101,19 @@ describe("ReplicatingMark", () => {
     expect(ring()).toHaveAttribute("aria-valuenow", "62");
   });
 
+  it("fills by mailboxes read where the build lands a mailbox at a time", () => {
+    render(
+      <ReplicatingMark
+        build={build({
+          state: "building",
+          progress: { done: 3, total: 40, unit: "mailboxes", first: false },
+        })}
+      />,
+    );
+    expect(ring()).toHaveAttribute("aria-valuenow", "7");
+    expect(ring()).toHaveAttribute("aria-label", "3 of 40 mailboxes read");
+  });
+
   it("never shows a running build as complete", () => {
     render(
       <ReplicatingMark
@@ -240,11 +253,36 @@ describe("how far a running build has got", () => {
     expect(of({ rowsCopied: 500, wait: null }).said.key).toBe("progressRows");
   });
 
+  it("measures a build that lands a mailbox at a time by its mailboxes, which it knows", () => {
+    const progress = { done: 3, total: 40, unit: "mailboxes", first: true };
+    expect(of({ rowsCopied: 12400, completedRows: 20000, progress })).toEqual({
+      percent: 7,
+      // A count of what the build itself reads, not the last build's rows.
+      exact: true,
+      said: { key: "progressMailboxes", numbers: { done: 3, total: 40 } },
+    });
+    // Its last mailbox read, the build is still not complete until it says so.
+    expect(of({ progress: { ...progress, done: 40 } }).percent).toBe(MOST_SHOWN_PERCENT);
+    expect(of({ progress: { ...progress, done: 0 } }).percent).toBe(0);
+    // No mailboxes to read measures nothing; the rows do, where they can.
+    expect(of({ rowsCopied: 5, progress: { ...progress, total: 0 } }).said.key).toBe(
+      "progressRows",
+    );
+    // Waiting out a throttle is still what it says first.
+    const wait = { by: "Google", seconds: 30, until: "2026-10-10T12:00:30+00:00" };
+    expect(of({ progress, wait })).toMatchObject({
+      percent: 7,
+      exact: true,
+      said: { key: "progressWaiting" },
+    });
+  });
+
   it("has wording for everything it says", () => {
     const keys = [
       "progressAbout",
       "progressPast",
       "progressRows",
+      "progressMailboxes",
       "progressWaiting",
       "replicating",
     ] as const;

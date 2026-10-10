@@ -7,6 +7,7 @@
     "progressAbout": "約 {{percent}}%: 約 {{total}} 行中 {{rows}} 行",
     "progressPast": "{{rows}} 行をコピー済み。前回のビルドは {{total}} 行でした",
     "progressRows": "{{rows}} 行をコピー済み",
+    "progressMailboxes": "{{total}} 件中 {{done}} 件のメールボックスを読み取り済み",
     "progressWaiting": "{{seconds}} 秒待機中: {{by}} が読み取りを制限しています",
     "building": "レプリカをビルド中: {{rows}} 行をコピー済み、{{rate}} 行/秒 ({{how}})。",
     "buildingNoRate": "レプリカをビルド中 ({{how}})。",
