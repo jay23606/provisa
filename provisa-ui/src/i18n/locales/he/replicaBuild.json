@@ -7,6 +7,7 @@
     "progressAbout": "כ-{{percent}}%: {{rows}} מתוך כ-{{total}} שורות",
     "progressPast": "הועתקו {{rows}} שורות; בבנייה האחרונה היו {{total}}",
     "progressRows": "הועתקו {{rows}} שורות",
+    "progressWaiting": "ממתין {{seconds}} שניות: {{by}} מגביל את הקריאה",
     "building": "הרפליקה נבנית: {{rows}} שורות הועתקו, {{rate}} שורות/שנייה ({{how}}).",
     "buildingNoRate": "הרפליקה נבנית ({{how}}).",
     "buildingWaiting": "העותק המשוכפל נבנה; ממתין {{seconds}} שניות: {{by}} מגביל את הקריאה ({{how}}).",

@@ -7,6 +7,7 @@
     "progressAbout": "Aproximadamente {{percent}} %: {{rows}} de unas {{total}} filas",
     "progressPast": "{{rows}} filas copiadas; la última compilación tenía {{total}}",
     "progressRows": "{{rows}} filas copiadas",
+    "progressWaiting": "En espera {{seconds}} s: {{by}} está limitando la lectura",
     "building": "Compilando réplica: {{rows}} filas copiadas, {{rate}} filas/s ({{how}}).",
     "buildingNoRate": "Compilando réplica ({{how}}).",
     "buildingWaiting": "Réplica en creación; esperando {{seconds}} s: {{by}} está limitando la lectura ({{how}}).",

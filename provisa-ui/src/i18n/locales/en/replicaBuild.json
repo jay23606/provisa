@@ -7,6 +7,7 @@
     "progressAbout": "About {{percent}}%: {{rows}} of about {{total}} rows",
     "progressPast": "{{rows}} rows copied; the last build had {{total}}",
     "progressRows": "{{rows}} rows copied",
+    "progressWaiting": "Waiting {{seconds}} s: {{by}} is throttling the read",
     "building": "Replica building: {{rows}} rows copied, {{rate}} rows/s ({{how}}).",
     "buildingNoRate": "Replica building ({{how}}).",
     "buildingWaiting": "Replica building; waiting {{seconds}} s: {{by}} is throttling the read ({{how}}).",

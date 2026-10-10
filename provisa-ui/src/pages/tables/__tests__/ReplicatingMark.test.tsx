@@ -86,6 +86,21 @@ describe("ReplicatingMark", () => {
     expect(ring()).toHaveAttribute("aria-label", "About 62%: 12,400 of about 20,000 rows");
   });
 
+  it("says on the ring that the build is waiting, and on whom", () => {
+    render(
+      <ReplicatingMark
+        build={build({
+          state: "building",
+          rowsCopied: 12400,
+          completedRows: 20000,
+          wait: { by: "Microsoft", seconds: 87, until: "2026-10-10T12:01:27+00:00" },
+        })}
+      />,
+    );
+    expect(ring()).toHaveAttribute("aria-label", "Waiting 87 s: Microsoft is throttling the read");
+    expect(ring()).toHaveAttribute("aria-valuenow", "62");
+  });
+
   it("never shows a running build as complete", () => {
     render(
       <ReplicatingMark
@@ -212,8 +227,27 @@ describe("how far a running build has got", () => {
     });
   });
 
+  it("says a build is waiting out its source's throttle, and keeps what it had measured", () => {
+    const wait = { by: "Google", seconds: 86.6, until: "2026-10-10T12:01:27+00:00" };
+    expect(of({ rowsCopied: 12400, completedRows: 20000, wait })).toEqual({
+      percent: 62,
+      exact: false,
+      said: { key: "progressWaiting", numbers: { seconds: 87 }, words: { by: "Google" } },
+    });
+    // With nothing measured the ring still turns; it says why nothing is arriving.
+    expect(of({ wait })).toMatchObject({ percent: null, said: { key: "progressWaiting" } });
+    // A wait that is over says nothing more.
+    expect(of({ rowsCopied: 500, wait: null }).said.key).toBe("progressRows");
+  });
+
   it("has wording for everything it says", () => {
-    const keys = ["progressAbout", "progressPast", "progressRows", "replicating"] as const;
+    const keys = [
+      "progressAbout",
+      "progressPast",
+      "progressRows",
+      "progressWaiting",
+      "replicating",
+    ] as const;
     for (const key of keys) expect(en.replicaBuild[key]).toBeTruthy();
   });
 });

@@ -7,6 +7,7 @@
     "progressAbout": "约 {{percent}}%:约 {{total}} 行中的 {{rows}} 行",
     "progressPast": "已复制 {{rows}} 行;上次构建有 {{total}} 行",
     "progressRows": "已复制 {{rows}} 行",
+    "progressWaiting": "等待 {{seconds}} 秒:{{by}} 正在限制读取",
     "building": "副本构建中：已复制 {{rows}} 行，{{rate}} 行/秒（{{how}}）。",
     "buildingNoRate": "副本构建中（{{how}}）。",
     "buildingWaiting": "副本正在构建；等待 {{seconds}} 秒：{{by}} 正在限制读取（{{how}}）。",

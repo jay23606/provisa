@@ -2902,6 +2902,7 @@
   "he/replicaBuild.json::replicaBuild.progressAbout": "About {{percent}}%: {{rows}} of about {{total}} rows",
   "he/replicaBuild.json::replicaBuild.progressPast": "{{rows}} rows copied; the last build had {{total}}",
   "he/replicaBuild.json::replicaBuild.progressRows": "{{rows}} rows copied",
+  "he/replicaBuild.json::replicaBuild.progressWaiting": "Waiting {{seconds}} s: {{by}} is throttling the read",
   "he/replicaBuild.json::replicaBuild.replicating": "Replicating",
   "he/replicaBuild.json::replicaBuild.requested": "Replica build requested.",
   "he/replicaBuild.json::replicaBuild.retired": "This table is no longer replicated; its replica is being removed.",
