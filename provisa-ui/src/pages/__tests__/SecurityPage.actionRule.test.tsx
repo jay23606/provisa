@@ -116,4 +116,21 @@ describe("SecurityPage — RLS rules on actions (REQ-1679)", () => {
       filterExpr: "1 = 1",
     });
   });
+
+  it("asks before it deletes a rule, and deletes only on confirm", async () => {
+    deleteRlsRuleSpy.mockClear();
+    render(<SecurityRlsPage />);
+    // The delete action is in the rule's expanded row.
+    fireEvent.click(screen.getByTestId("rule-scope-9"));
+    fireEvent.click(await screen.findByTestId("delete-rule-9"));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("Delete this RLS rule?");
+    expect(dialog.textContent).toContain('Role "analyst" is no longer limited by this rule.');
+    expect(deleteRlsRuleSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(deleteRlsRuleSpy).toHaveBeenCalledWith("analyst", null, null, "customer_lookup"),
+    );
+  });
 });

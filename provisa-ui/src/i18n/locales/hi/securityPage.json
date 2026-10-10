@@ -65,6 +65,10 @@
     "action": "एक्शन",
     "actionPrefix": "एक्शन:",
     "loadActionsFailed": "एक्शन लोड नहीं हो सके: {{message}}",
-    "labelAction": "एक्शन:"
+    "labelAction": "एक्शन:",
+    "deleteRoleTitle": "भूमिका \"{{id}}\" हटाएँ?",
+    "deleteRoleConsequence": "भूमिका हटा दी जाएगी। जो भूमिका अभी उपयोग में है उसे हटाया नहीं जा सकता।",
+    "deleteRuleTitle": "यह RLS नियम हटाएँ?",
+    "deleteRuleConsequence": "भूमिका \"{{role}}\" अब इस नियम से सीमित नहीं रहेगी।"
   }
 }

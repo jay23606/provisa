@@ -18,7 +18,13 @@ import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
 const deleteRoleSpy = vi.fn();
 
 const ROLES = [
-  { id: "seller", capabilities: [], demonstrated: [], domain_access: ["sales"], parentRoleId: null },
+  {
+    id: "seller",
+    capabilities: [],
+    demonstrated: [],
+    domain_access: ["sales"],
+    parentRoleId: null,
+  },
 ];
 
 vi.mock("../../context/DomainFilterContext", () => ({
@@ -54,7 +60,26 @@ async function openRole() {
   fireEvent.click(await screen.findByText("seller"));
 }
 
+// The trash icon asks first (the shared confirmation, naming the role); Confirm deletes.
+async function confirmDelete() {
+  fireEvent.click(await screen.findByTestId("delete-role-seller"));
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog.textContent).toContain('Delete role "seller"?');
+  expect(deleteRoleSpy).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+}
+
 describe("deleting a role on the Security page", () => {
+  it("asks before it deletes, and deletes nothing on cancel", async () => {
+    render(<SecurityRolesPage />);
+    await openRole();
+    fireEvent.click(await screen.findByTestId("delete-role-seller"));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(deleteRoleSpy).not.toHaveBeenCalled();
+  });
+
   it("shows what still refers to a role whose delete is refused", async () => {
     deleteRoleSpy.mockResolvedValue({
       success: false,
@@ -63,7 +88,12 @@ describe("deleting a role on the Security page", () => {
       params: {
         role: "seller",
         dependents: [
-          { kind: "role_assignment", id: 7, name: "alice holds seller", via: ["user_role_assignments.role_id"] },
+          {
+            kind: "role_assignment",
+            id: 7,
+            name: "alice holds seller",
+            via: ["user_role_assignments.role_id"],
+          },
           { kind: "column", id: 41, name: "orders.amount", via: ["table_columns.visible_to"] },
         ],
       },
@@ -71,7 +101,7 @@ describe("deleting a role on the Security page", () => {
     render(<SecurityRolesPage />);
 
     await openRole();
-    fireEvent.click(await screen.findByTestId("delete-role-seller"));
+    await confirmDelete();
 
     expect(await screen.findByText("Cannot delete seller yet")).toBeInTheDocument();
     expect(screen.getByText("alice holds seller")).toBeInTheDocument();
@@ -92,7 +122,7 @@ describe("deleting a role on the Security page", () => {
     render(<SecurityRolesPage />);
 
     await openRole();
-    fireEvent.click(await screen.findByTestId("delete-role-seller"));
+    await confirmDelete();
 
     expect(await screen.findByTestId("security-roles-error")).toHaveTextContent(
       "Role 'seller' is a system role and cannot be deleted",

@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Trash2, Pencil } from "lucide-react";
 import {
   Alert,
@@ -468,18 +469,26 @@ export function SecurityRolesPage() {
                             >
                               <Pencil size={14} />
                             </ActionIcon>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={t("securityPage.delete")}
-                              data-testid={`delete-role-${r.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRole(r.id);
-                              }}
+                            <ConfirmDialog
+                              title={t("securityPage.deleteRoleTitle", { id: r.id })}
+                              consequence={t("securityPage.deleteRoleConsequence")}
+                              onConfirm={() => handleDeleteRole(r.id)}
                             >
-                              <Trash2 size={14} />
-                            </ActionIcon>
+                              {(open) => (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={t("securityPage.delete")}
+                                  data-testid={`delete-role-${r.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    open();
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                </ActionIcon>
+                              )}
+                            </ConfirmDialog>
                           </Group>
                         </Stack>
                       ) : (
@@ -1002,18 +1011,28 @@ export function SecurityRlsPage() {
                             >
                               <Pencil size={14} />
                             </ActionIcon>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={t("securityPage.delete")}
-                              data-testid={`delete-rule-${r.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRule(r);
-                              }}
+                            <ConfirmDialog
+                              title={t("securityPage.deleteRuleTitle")}
+                              consequence={t("securityPage.deleteRuleConsequence", {
+                                role: r.roleId,
+                              })}
+                              onConfirm={() => handleDeleteRule(r)}
                             >
-                              <Trash2 size={14} />
-                            </ActionIcon>
+                              {(open) => (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={t("securityPage.delete")}
+                                  data-testid={`delete-rule-${r.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    open();
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                </ActionIcon>
+                              )}
+                            </ConfirmDialog>
                           </Group>
                         </Stack>
                       ) : (

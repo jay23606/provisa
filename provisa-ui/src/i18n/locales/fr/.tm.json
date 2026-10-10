@@ -5534,5 +5534,11 @@
   "fr/rolesTab.json::rolesTab.deleteRoleTitle": "Delete role \"{{roleId}}\"?",
   "fr/rolesTab.json::rolesTab.deleteRoleConsequence": "The role is removed from this organization.",
   "fr/scheduledTasks.json::scheduledTasks.deleteTitle": "Delete scheduled task \"{{name}}\"?",
-  "fr/scheduledTasks.json::scheduledTasks.deleteConsequence": "The task is removed and no longer runs."
+  "fr/scheduledTasks.json::scheduledTasks.deleteConsequence": "The task is removed and no longer runs.",
+  "fr/securityPage.json::securityPage.deleteRoleTitle": "Delete role \"{{id}}\"?",
+  "fr/securityPage.json::securityPage.deleteRoleConsequence": "The role is removed. A role that is still in use cannot be deleted.",
+  "fr/securityPage.json::securityPage.deleteRuleTitle": "Delete this RLS rule?",
+  "fr/securityPage.json::securityPage.deleteRuleConsequence": "Role \"{{role}}\" is no longer limited by this rule.",
+  "fr/relationshipRow.json::relationshipRow.deleteTitle": "Delete relationship \"{{id}}\"?",
+  "fr/relationshipRow.json::relationshipRow.deleteConsequence": "The relationship is removed from the model. Queries can no longer join through it."
 }

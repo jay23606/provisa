@@ -42,6 +42,8 @@
     "save": "Salva",
     "toggleDetails": "Mostra/nascondi dettagli della relazione",
     "junctionBadge": "tramite",
-    "junctionBadgeTitle": "Relazione basata su giunzione tramite {{table}}"
+    "junctionBadgeTitle": "Relazione basata su giunzione tramite {{table}}",
+    "deleteTitle": "Eliminare la relazione \"{{id}}\"?",
+    "deleteConsequence": "La relazione viene rimossa dal modello. Le query non possono più eseguire join attraverso di essa."
   }
 }

@@ -42,6 +42,8 @@
     "save": "सहेजें",
     "toggleDetails": "संबंध विवरण टॉगल करें",
     "junctionBadge": "के माध्यम से",
-    "junctionBadgeTitle": "{{table}} के माध्यम से जंक्शन-आधारित संबंध"
+    "junctionBadgeTitle": "{{table}} के माध्यम से जंक्शन-आधारित संबंध",
+    "deleteTitle": "संबंध \"{{id}}\" हटाएँ?",
+    "deleteConsequence": "संबंध मॉडल से हटा दिया जाएगा। क्वेरी अब इसके माध्यम से जॉइन नहीं कर सकेंगी।"
   }
 }

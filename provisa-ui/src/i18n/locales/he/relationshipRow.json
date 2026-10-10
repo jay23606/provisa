@@ -42,6 +42,8 @@
     "save": "שמירה",
     "toggleDetails": "הצגה/הסתרה של פרטי הקשר",
     "junctionBadge": "דרך",
-    "junctionBadgeTitle": "קשר מבוסס טבלת צומת דרך {{table}}"
+    "junctionBadgeTitle": "קשר מבוסס טבלת צומת דרך {{table}}",
+    "deleteTitle": "למחוק את הקשר \"{{id}}\"?",
+    "deleteConsequence": "הקשר יוסר מהמודל. שאילתות לא יוכלו עוד לבצע צירוף דרכו."
   }
 }

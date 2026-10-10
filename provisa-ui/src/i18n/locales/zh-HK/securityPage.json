@@ -65,6 +65,10 @@
     "action": "動作",
     "actionPrefix": "動作：",
     "loadActionsFailed": "無法載入動作：{{message}}",
-    "labelAction": "動作："
+    "labelAction": "動作：",
+    "deleteRoleTitle": "刪除角色「{{id}}」？",
+    "deleteRoleConsequence": "該角色將被移除。仍在使用中的角色無法刪除。",
+    "deleteRuleTitle": "刪除此 RLS 規則？",
+    "deleteRuleConsequence": "角色「{{role}}」將不再受此規則限制。"
   }
 }

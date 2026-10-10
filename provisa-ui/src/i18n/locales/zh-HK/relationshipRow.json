@@ -42,6 +42,8 @@
     "save": "儲存",
     "toggleDetails": "切換關係詳細資訊",
     "junctionBadge": "經由",
-    "junctionBadgeTitle": "經由 {{table}} 的聯結資料表關係"
+    "junctionBadgeTitle": "經由 {{table}} 的聯結資料表關係",
+    "deleteTitle": "刪除關聯「{{id}}」？",
+    "deleteConsequence": "該關聯將從模型中移除。查詢將無法再透過它進行聯結。"
   }
 }

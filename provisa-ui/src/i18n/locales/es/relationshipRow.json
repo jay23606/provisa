@@ -42,6 +42,8 @@
     "save": "Guardar",
     "toggleDetails": "Alternar detalles de la relación",
     "junctionBadge": "vía",
-    "junctionBadgeTitle": "Relación respaldada por una tabla de unión a través de {{table}}"
+    "junctionBadgeTitle": "Relación respaldada por una tabla de unión a través de {{table}}",
+    "deleteTitle": "¿Eliminar la relación \"{{id}}\"?",
+    "deleteConsequence": "La relación se elimina del modelo. Las consultas ya no pueden unir a través de ella."
   }
 }

@@ -65,6 +65,10 @@
     "action": "Azione",
     "actionPrefix": "azione:",
     "loadActionsFailed": "Impossibile caricare le azioni: {{message}}",
-    "labelAction": "Azione:"
+    "labelAction": "Azione:",
+    "deleteRoleTitle": "Eliminare il ruolo \"{{id}}\"?",
+    "deleteRoleConsequence": "Il ruolo viene rimosso. Un ruolo ancora in uso non può essere eliminato.",
+    "deleteRuleTitle": "Eliminare questa regola RLS?",
+    "deleteRuleConsequence": "Il ruolo \"{{role}}\" non è più limitato da questa regola."
   }
 }

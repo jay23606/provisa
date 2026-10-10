@@ -65,6 +65,10 @@
     "action": "פעולה",
     "actionPrefix": "פעולה:",
     "loadActionsFailed": "טעינת הפעולות נכשלה: {{message}}",
-    "labelAction": "פעולה:"
+    "labelAction": "פעולה:",
+    "deleteRoleTitle": "למחוק את התפקיד \"{{id}}\"?",
+    "deleteRoleConsequence": "התפקיד יוסר. לא ניתן למחוק תפקיד שעדיין בשימוש.",
+    "deleteRuleTitle": "למחוק את כלל ה-RLS הזה?",
+    "deleteRuleConsequence": "התפקיד \"{{role}}\" לא יוגבל עוד על ידי הכלל הזה."
   }
 }

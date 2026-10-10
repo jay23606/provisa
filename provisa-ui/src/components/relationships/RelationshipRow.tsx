@@ -10,6 +10,7 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "../ConfirmDialog";
 import {
   ActionIcon,
   Badge,
@@ -253,18 +254,26 @@ export function RelationshipRow({
                     >
                       <ArrowLeftRight size={14} />
                     </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label={t("relationshipRow.delete")}
-                      title={t("relationshipRow.delete")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                      }}
+                    <ConfirmDialog
+                      title={t("relationshipRow.deleteTitle", { id: r.id })}
+                      consequence={t("relationshipRow.deleteConsequence")}
+                      onConfirm={onDelete}
                     >
-                      <Trash2 size={14} />
-                    </ActionIcon>
+                      {(open) => (
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={t("relationshipRow.delete")}
+                          title={t("relationshipRow.delete")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            open();
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </ActionIcon>
+                      )}
+                    </ConfirmDialog>
                   </Group>
                 )}
               </Stack>

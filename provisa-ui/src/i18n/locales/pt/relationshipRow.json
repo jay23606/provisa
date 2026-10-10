@@ -42,6 +42,8 @@
     "save": "Salvar",
     "toggleDetails": "Alternar detalhes do relacionamento",
     "junctionBadge": "via",
-    "junctionBadgeTitle": "Relacionamento baseado em junção por meio de {{table}}"
+    "junctionBadgeTitle": "Relacionamento baseado em junção por meio de {{table}}",
+    "deleteTitle": "Excluir o relacionamento \"{{id}}\"?",
+    "deleteConsequence": "O relacionamento é removido do modelo. As consultas não podem mais fazer junções por ele."
   }
 }

@@ -65,6 +65,10 @@
     "action": "Acción",
     "actionPrefix": "acción:",
     "loadActionsFailed": "No se pudieron cargar las acciones: {{message}}",
-    "labelAction": "Acción:"
+    "labelAction": "Acción:",
+    "deleteRoleTitle": "¿Eliminar el rol \"{{id}}\"?",
+    "deleteRoleConsequence": "El rol se elimina. No se puede eliminar un rol que sigue en uso.",
+    "deleteRuleTitle": "¿Eliminar esta regla RLS?",
+    "deleteRuleConsequence": "El rol \"{{role}}\" deja de estar limitado por esta regla."
   }
 }

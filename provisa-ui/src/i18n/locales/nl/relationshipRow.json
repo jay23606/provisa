@@ -42,6 +42,8 @@
     "save": "Opslaan",
     "toggleDetails": "Relatiedetails in-/uitklappen",
     "junctionBadge": "via",
-    "junctionBadgeTitle": "Relatie via koppeltabel {{table}}"
+    "junctionBadgeTitle": "Relatie via koppeltabel {{table}}",
+    "deleteTitle": "Relatie \"{{id}}\" verwijderen?",
+    "deleteConsequence": "De relatie wordt uit het model verwijderd. Query's kunnen er niet meer via joinen."
   }
 }

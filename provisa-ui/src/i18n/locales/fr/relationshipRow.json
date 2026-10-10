@@ -42,6 +42,8 @@
     "save": "Enregistrer",
     "toggleDetails": "Afficher/masquer les détails de la relation",
     "junctionBadge": "via",
-    "junctionBadgeTitle": "Relation reposant sur une table de jonction via {{table}}"
+    "junctionBadgeTitle": "Relation reposant sur une table de jonction via {{table}}",
+    "deleteTitle": "Supprimer la relation « {{id}} » ?",
+    "deleteConsequence": "La relation est supprimée du modèle. Les requêtes ne peuvent plus joindre par elle."
   }
 }

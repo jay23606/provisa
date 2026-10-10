@@ -42,6 +42,8 @@
     "save": "保存",
     "toggleDetails": "切换关系详情",
     "junctionBadge": "经由",
-    "junctionBadgeTitle": "经由 {{table}} 的联接表关系"
+    "junctionBadgeTitle": "经由 {{table}} 的联接表关系",
+    "deleteTitle": "删除关系“{{id}}”？",
+    "deleteConsequence": "该关系将从模型中移除。查询将无法再通过它进行联接。"
   }
 }
