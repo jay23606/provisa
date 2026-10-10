@@ -15,6 +15,7 @@
 import { useTranslation } from "react-i18next";
 import { Select } from "@mantine/core";
 import { FieldLabel } from "../../pages/tables/FieldLabel";
+import { useHelpNaming } from "../form/useHelpNaming";
 import {
   REPLICATE_ALWAYS,
   REPLICATE_NEVER,
@@ -47,19 +48,18 @@ export function ReplicateSelect({
     if (replicate === REPLICATE_ALWAYS) return t("replicateSelect.always");
     return t("replicateSelect.hot", { threshold: replicate });
   };
+  // One sentence for the setting and its Default, which differ by scope, then each other option
+  // once.
+  const help = [
+    t(scope === "table" ? "replicateSelect.helpTable" : "replicateSelect.helpSource"),
+    t("replicateSelect.helpOptions"),
+  ].join(" ");
+  // Named by the label's text alone; the help is its description.
+  const { textId, naming } = useHelpNaming(help);
   return (
     <Select
-      label={
-        <FieldLabel
-          text={t("replicateSelect.label")}
-          // One sentence for the setting and its Default, which differ by scope, then each other
-          // option once.
-          help={[
-            t(scope === "table" ? "replicateSelect.helpTable" : "replicateSelect.helpSource"),
-            t("replicateSelect.helpOptions"),
-          ].join(" ")}
-        />
-      }
+      {...naming}
+      label={<FieldLabel text={t("replicateSelect.label")} help={help} textId={textId} />}
       data={replicateValues(value).map((replicate) => ({
         value: replicateOptionValue(replicate),
         label: label(replicate),

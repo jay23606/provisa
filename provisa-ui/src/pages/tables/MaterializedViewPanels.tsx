@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import type { RegisteredTable } from "../../types/admin";
 import { useMaterializeStoreInfo } from "../../hooks/useAdminOpsQueries";
 import { CollapsibleSection } from "./CollapsibleSection";
-import { FieldLabel } from "./FieldLabel";
 import { SnapshotSchedulePanel } from "./SnapshotSchedulePanel";
 import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 
@@ -44,14 +43,9 @@ export function MaterializedViewPanels({
           testId="mv-refresh-panel"
           defaultOpen
         >
-          <FormField size="short">
+          <FormField help={t("tableEditForm.refreshIntervalHelp")} size="short">
             <NumberInput
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.refreshIntervalLabel")}
-                  help={t("tableEditForm.refreshIntervalHelp")}
-                />
-              }
+              label={t("tableEditForm.refreshIntervalLabel")}
               min={30}
               value={editingTable.mvRefreshInterval}
               onChange={(v) =>
@@ -127,14 +121,9 @@ export function MaterializedViewPanels({
           when on. In the engine a bitemporal mode SUPERSEDES the persist axis, so this is one decision,
           not two overlapping panels (REQ-965/1162). Incremental is the separate compute optimization. */}
       {editingTable.materialize && (
-        <FormField size="medium">
+        <FormField help={t("tableEditForm.persistHelp")} size="medium">
           <Select
-            label={
-              <FieldLabel
-                text={t("tableEditForm.persistLabel")}
-                help={t("tableEditForm.persistHelp")}
-              />
-            }
+            label={t("tableEditForm.persistLabel")}
             aria-label={t("tableEditForm.persistAria")}
             data-testid="mv-persist"
             data={
@@ -164,17 +153,12 @@ export function MaterializedViewPanels({
       )}
       <FormChecks>
         {editingTable.materialize && (
-          <FormField size="short">
+          <FormField help={t("tableEditForm.bitemporalHelp")} size="short">
             <Checkbox
               mt="1.75rem"
               data-testid="mv-timetravel"
               checked={timeTravel}
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.timeTravelToggleLabel")}
-                  help={t("tableEditForm.bitemporalHelp")}
-                />
-              }
+              label={t("tableEditForm.timeTravelToggleLabel")}
               onChange={(e) =>
                 setEditingTable({
                   ...editingTable,
@@ -189,17 +173,12 @@ export function MaterializedViewPanels({
           </FormField>
         )}
         {editingTable.materialize && !timeTravel && (
-          <FormField size="short">
+          <FormField help={t("tableEditForm.incrementalHelp")} size="short">
             <Checkbox
               mt="1.75rem"
               data-testid="mv-incremental"
               checked={editingTable.mvIncremental}
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.incrementalLabel")}
-                  help={t("tableEditForm.incrementalHelp")}
-                />
-              }
+              label={t("tableEditForm.incrementalLabel")}
               onChange={(e) =>
                 setEditingTable({ ...editingTable, mvIncremental: e.currentTarget.checked })
               }
@@ -208,14 +187,9 @@ export function MaterializedViewPanels({
         )}
       </FormChecks>
       {editingTable.materialize && timeTravel && (
-        <FormField size="medium">
+        <FormField help={t("tableEditForm.bitemporalKeyHelp")} size="medium">
           <TextInput
-            label={
-              <FieldLabel
-                text={t("tableEditForm.bitemporalKeyLabel")}
-                help={t("tableEditForm.bitemporalKeyHelp")}
-              />
-            }
+            label={t("tableEditForm.bitemporalKeyLabel")}
             aria-label={t("tableEditForm.bitemporalKeyAria")}
             data-testid="mv-bitemporal-key"
             placeholder={t("tableEditForm.bitemporalKeyPlaceholder")}
@@ -285,14 +259,9 @@ export function MaterializedViewPanels({
         </FormField>
       )}
       {editingTable.materialize && (
-        <FormField size="full">
+        <FormField help={t("tableEditForm.preprocessHelp")} size="full">
           <Textarea
-            label={
-              <FieldLabel
-                text={t("tableEditForm.preprocessLabel")}
-                help={t("tableEditForm.preprocessHelp")}
-              />
-            }
+            label={t("tableEditForm.preprocessLabel")}
             aria-label={t("tableEditForm.preprocessAria")}
             data-testid="mv-preprocess"
             placeholder={t("tableEditForm.preprocessPlaceholder")}

@@ -29,6 +29,7 @@ import {
 import { Button, Loader, Tooltip } from "@mantine/core";
 import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useHelpNaming } from "./useHelpNaming";
 
 const FormLayoutContext = createContext(false);
 
@@ -72,20 +73,26 @@ export type FormFieldSize = "short" | "medium" | "long" | "full";
 /**
  * A label with its longer explanation: the text, the required mark right after the text, then a
  * (?) opened by hover, focus or touch. The one help glyph of every form.
+ *
+ * The control is NAMED by the text alone and DESCRIBED by the help: its owner points
+ * `aria-labelledby` at `textId` and gives the help as its description, so the (?) inside the
+ * label is not read as part of the name.
  */
 export function LabelWithHelp({
   label,
   help,
   required = false,
+  textId,
 }: {
   label: ReactNode;
   help: string;
   required?: boolean;
+  textId?: string;
 }) {
   return (
     <span className="form-label">
       <span>
-        {label}
+        <span id={textId}>{label}</span>
         {required && (
           <span className="form-required" aria-hidden>
             {" *"}
@@ -106,6 +113,7 @@ type Explainable = {
   description?: ReactNode;
   required?: boolean;
   withAsterisk?: boolean;
+  "aria-label"?: string;
 };
 
 /**
@@ -129,6 +137,7 @@ export function FormField({
   children: ReactNode;
 }) {
   useInsideFormLayout("FormField");
+  const { textId, naming } = useHelpNaming(help);
   let content = children;
   if (hint !== undefined || help !== undefined) {
     const only = Children.toArray(children);
@@ -149,9 +158,13 @@ export function FormField({
                 label={control.props.label}
                 help={help}
                 required={control.props.required === true}
+                textId={textId}
               />
             ),
             withAsterisk: false,
+            // A control that states its own accessible name keeps it; the help is still its
+            // description.
+            ...(control.props["aria-label"] === undefined ? naming : { "aria-description": help }),
           }
         : {}),
     });
