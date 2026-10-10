@@ -65,6 +65,14 @@ class RegisteredType(str):
     __slots__ = ()
 
 
+class Underived(str):
+    """In a READ's shape (``derive_result_shape(..., each=True)``), the place of a result column
+    whose type cannot be derived from registered metadata; its text is why. The columns beside
+    it keep their types. No reader types a column by it."""
+
+    __slots__ = ()
+
+
 class UnderivableColumn(ValueError):
     """A result column's type cannot be derived from registered metadata."""
 
@@ -147,13 +155,24 @@ def _untyped_is_text(node: exp.Expr) -> bool:
 
 
 def derive_result_shape(
-    governed_sql: str, table_map: dict[str, int], ctx: Any, column_types: dict
+    governed_sql: str,
+    table_map: dict[str, int],
+    ctx: Any,
+    column_types: dict,
+    *,
+    each: bool = False,
 ) -> list[tuple[str, str]]:
     """(column name, type) for every result column of ``governed_sql`` (the governed semantic SQL),
     in order. An empty list is a statement that returns no rows (a write without RETURNING).
 
     ``table_map`` is the governance context's name -> table id resolution, ``ctx`` the role's
-    compilation context and ``column_types`` the registry's per-table column types."""
+    compilation context and ``column_types`` the registry's per-table column types.
+
+    A column whose type cannot be derived raises :class:`UnderivableColumn` — a description of
+    the result must be whole (pgwire's Describe). With ``each``, that one column is
+    :class:`Underived` and every other column keeps its type (REQ-1961: a read types each
+    registered column by the model, whatever stands beside it); a statement that cannot be
+    described at all still raises."""
     tree = sqlglot.parse_one(governed_sql, read="postgres")
     if isinstance(tree, exp.TruncateTable):
         return []  # REQ-1942: a TRUNCATE returns no rows
@@ -166,7 +185,7 @@ def derive_result_shape(
     fast = _single_table_shape(tree, table_map, ctx, column_types)
     if fast is not None:
         return fast
-    return _annotated_shape(tree, table_map, ctx, column_types)
+    return _annotated_shape(tree, table_map, ctx, column_types, each=each)
 
 
 def _returning_shape(
@@ -225,7 +244,7 @@ def _single_table_shape(
 
 
 def _annotated_shape(
-    tree: exp.Query, table_map: dict[str, int], ctx: Any, column_types: dict
+    tree: exp.Query, table_map: dict[str, int], ctx: Any, column_types: dict, *, each: bool = False
 ) -> list[tuple[str, str]]:
     from sqlglot.optimizer.annotate_types import annotate_types
     from sqlglot.optimizer.qualify import qualify
@@ -301,10 +320,13 @@ def _annotated_shape(
             elif _untyped_is_text(inner):
                 col_type = "text"
         if col_type is None:
-            raise UnderivableColumn(
+            why = (
                 f"cannot describe result column {name!r}: the type of "
                 f"{inner.sql(dialect='postgres')} cannot be derived from registered metadata — "
                 "CAST the expression to state its type"
             )
+            if not each:
+                raise UnderivableColumn(why)
+            col_type = Underived(why)
         shape.append((name, col_type))
     return shape

@@ -158,3 +158,33 @@ def test_only_columns_the_role_can_see_are_described_under_their_exposed_names()
         ("region", "varchar"),
         ("_source", "varchar"),
     ]
+
+
+# --- a read's shape: each column on its own (REQ-1961) ----------------------------------------------
+
+
+def test_a_read_keeps_the_registered_columns_beside_one_that_cannot_be_typed():
+    """One untypable expression does not lose the typing of the registered columns beside it:
+    in a read's shape it is ``Underived``, saying why, and the rest are as they would be."""
+    from provisa.compiler.result_shape import RegisteredType, Underived
+
+    sql = "SELECT order_id, date_trunc('day', placed) AS d, amount FROM sales.orders"
+    with pytest.raises(UnderivableColumn, match="result column 'd'"):
+        _shape(sql)  # a description of the result must be whole
+    shape = derive_result_shape(sql, _TABLES, _CTX, _COLUMNS, each=True)
+    assert [name for name, _ in shape] == ["order_id", "d", "amount"]
+    assert shape[0] == ("order_id", "integer") and isinstance(shape[0][1], RegisteredType)
+    assert isinstance(shape[1][1], Underived) and "cannot describe result column 'd'" in shape[1][1]
+    assert shape[2] == ("amount", "numeric(18,2)") and isinstance(shape[2][1], RegisteredType)
+
+
+def test_a_read_of_a_statement_every_column_of_which_is_typed_is_the_whole_description():
+    sql = (
+        "SELECT o.order_id, c.name FROM sales.orders AS o JOIN customers AS c ON c.id = o.order_id"
+    )
+    assert derive_result_shape(sql, _TABLES, _CTX, _COLUMNS, each=True) == _shape(sql)
+
+
+def test_a_statement_that_cannot_be_described_at_all_still_raises_for_a_read():
+    with pytest.raises(UnderivableColumn):
+        derive_result_shape("SET search_path TO x", _TABLES, _CTX, _COLUMNS, each=True)

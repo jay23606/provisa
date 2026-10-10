@@ -223,6 +223,23 @@ def test_a_computed_column_keeps_the_type_its_engine_gives_it():
     assert next(batches).column(0).to_pylist() == [Decimal("156.2500")]
 
 
+def test_a_registered_column_is_typed_beside_a_column_whose_type_cannot_be_derived():
+    """Each column on its own: the underivable one keeps its values' type, the registered one
+    beside it is read as the model declares."""
+    from provisa.compiler.result_shape import Underived
+
+    rows = [("x", Decimal("12.50"))]
+
+    class _Two(_Stream):
+        def __init__(self) -> None:
+            self._rows, self.column_names, self.column_types = rows, ["d", "amount"], None
+
+    shape = [("d", Underived("why")), ("amount", RegisteredType("numeric(18,2)"))]
+    schema, _batches = arrow_batches_from_rows(_Two(), shape=shape)
+    assert schema.field("d").type == pa.string()
+    assert schema.field("amount").type == pa.decimal128(18, 2)
+
+
 def test_the_shape_marks_which_result_columns_are_registered_columns():
     from tests.unit.test_result_shape import _shape
 

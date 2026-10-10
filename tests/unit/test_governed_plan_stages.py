@@ -402,6 +402,38 @@ async def test_a_statement_whose_columns_cannot_be_typed_says_so_once(pipeline, 
     assert await plan.result_shape() is None and derived["n"] == 1
 
 
+async def test_a_plans_shape_types_each_column_on_its_own(pipeline):
+    """REQ-1961: an expression whose type cannot be derived does not lose the typing of the
+    registered column beside it, and why it could not be typed is kept with the statement."""
+    from provisa.compiler.result_shape import RegisteredType, Underived
+
+    _registered_types(pipeline)
+    plan = await pipeline.mod._govern_and_route(
+        "SELECT o.id, date_trunc('day', now()) AS d FROM sales.orders o", "analyst"
+    )
+    shape = await plan.result_shape()
+    assert shape is not None and [name for name, _type in shape] == ["id", "d"]
+    assert isinstance(shape[0][1], RegisteredType) and shape[0][1] == "integer"
+    assert isinstance(shape[1][1], Underived)
+
+
+async def test_a_plans_shape_is_the_description_pgwire_already_made(pipeline, monkeypatch):
+    """A statement Describe has described whole is not derived again for a read."""
+    from provisa.compiler import result_shape
+
+    _registered_types(pipeline)
+    sql = "SELECT o.id FROM sales.orders o"
+    governed = await pipeline.mod.govern_statement(sql, "analyst")
+    governed.memo["result_shape"] = [("id", "integer")]
+
+    def _derive(*args, **kwargs):
+        raise AssertionError("derived again")
+
+    monkeypatch.setattr(result_shape, "derive_result_shape", _derive)
+    plan = await pipeline.mod._govern_and_route(sql, "analyst")
+    assert await plan.result_shape() == [("id", "integer")]
+
+
 async def test_the_two_stages_never_share_a_plan_for_the_same_text(pipeline):
     await pipeline.mod._govern_and_route(_SQL, "analyst")
     await _compiled(pipeline)

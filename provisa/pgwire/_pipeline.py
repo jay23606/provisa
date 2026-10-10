@@ -1263,10 +1263,13 @@ async def _govern_and_route_planned(
 
 
 class _KeptResultShape:
-    """What a plan carries as ``result_shape``: the governed statement's result columns, derived
-    on the first ask and kept in the statement's ``memo`` (the key pgwire's Describe keeps its
-    own under). A statement whose columns cannot be typed from registered metadata answers None;
-    why is kept beside it (``result_shape_underivable``).
+    """What a plan carries as ``result_shape``: the governed statement's result columns as a READ
+    types them — each column on its own, so one whose type cannot be derived
+    (``result_shape.Underived``) does not lose the typing of the registered columns beside it.
+    Derived on the first ask and kept in the statement's ``memo``; where pgwire's Describe has
+    already described the statement whole, that description is the shape. A statement that
+    cannot be described at all answers None. Why a column or the statement could not be typed is
+    kept beside it (``read_shape_underivable``).
 
     Awaited (``await plan.result_shape()``) by a caller on the event loop: the derivation, which
     parses the statement, runs off the loop. Read with :meth:`now` by a caller that is already
@@ -1287,26 +1290,37 @@ class _KeptResultShape:
         self._args = (governed_sql, table_map, ctx, state)
 
     def _derive(self) -> list[tuple[str, str]] | None:
-        from provisa.compiler.result_shape import UnderivableColumn, derive_result_shape
+        from provisa.compiler.result_shape import (
+            Underived,
+            UnderivableColumn,
+            derive_result_shape,
+        )
 
+        described = self._memo.get("result_shape")  # pgwire's Describe: whole, or not there
+        if described is not None:
+            return described
         governed_sql, table_map, ctx, state = self._args
         try:
-            return derive_result_shape(
-                governed_sql, table_map, ctx, state.schema_build_cache["column_types"]
+            shape = derive_result_shape(
+                governed_sql, table_map, ctx, state.schema_build_cache["column_types"], each=True
             )
         except UnderivableColumn as underivable:
-            self._memo["result_shape_underivable"] = str(underivable)
+            self._memo["read_shape_underivable"] = [str(underivable)]
             return None
+        untyped = [str(declared) for _name, declared in shape if isinstance(declared, Underived)]
+        if untyped:
+            self._memo["read_shape_underivable"] = untyped
+        return shape
 
     def now(self) -> list[tuple[str, str]] | None:
-        if "result_shape" not in self._memo:
-            self._memo["result_shape"] = self._derive()
-        return self._memo["result_shape"]
+        if "read_shape" not in self._memo:
+            self._memo["read_shape"] = self._derive()
+        return self._memo["read_shape"]
 
     async def __call__(self) -> list[tuple[str, str]] | None:
-        if "result_shape" not in self._memo:
-            self._memo["result_shape"] = await _off_loop(self._derive)
-        return self._memo["result_shape"]
+        if "read_shape" not in self._memo:
+            self._memo["read_shape"] = await _off_loop(self._derive)
+        return self._memo["read_shape"]
 
 
 def _kept_result_shape(
