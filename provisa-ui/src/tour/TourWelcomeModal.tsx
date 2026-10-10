@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Checkbox, Group, Modal, Stack, Text, Title } from "@mantine/core";
 import { BrandMark } from "../components/BrandMark";
 import { declineTour, tourResumeStep, useTour } from "./useTour";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 
 /**
  * Offers the guided tour instead of launching it unasked.
@@ -55,14 +56,26 @@ export function TourWelcomeModal({ onClose }: { onClose: () => void }) {
     >
       <Stack gap="md">
         <Text size="sm">{t("tour.welcome.body")}</Text>
-        <Checkbox
-          label={t("tour.welcome.never")}
-          checked={never}
-          onChange={(e) => setNever(e.currentTarget.checked)}
-        />
-        <Group justify="flex-end">
-          <Button variant="subtle" onClick={close}>
-            {t("tour.welcome.later")}
+        <FormLayout>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("tour.welcome.never")}
+                checked={never}
+                onChange={(e) => setNever(e.currentTarget.checked)}
+              />
+            </FormField>
+          </FormChecks>
+        </FormLayout>
+        <FormFooter>
+          <Button
+            onClick={() => {
+              close();
+              // A saved step resumes; otherwise this is a fresh run from the top.
+              startTour(resumeStep === null ? { restart: true } : undefined);
+            }}
+          >
+            {resumeStep === null ? t("tour.welcome.start") : t("tour.welcome.resume")}
           </Button>
           {resumeStep !== null && (
             <Button
@@ -75,16 +88,10 @@ export function TourWelcomeModal({ onClose }: { onClose: () => void }) {
               {t("tour.welcome.restart")}
             </Button>
           )}
-          <Button
-            onClick={() => {
-              close();
-              // A saved step resumes; otherwise this is a fresh run from the top.
-              startTour(resumeStep === null ? { restart: true } : undefined);
-            }}
-          >
-            {resumeStep === null ? t("tour.welcome.start") : t("tour.welcome.resume")}
+          <Button variant="subtle" onClick={close}>
+            {t("tour.welcome.later")}
           </Button>
-        </Group>
+        </FormFooter>
       </Stack>
     </Modal>
   );

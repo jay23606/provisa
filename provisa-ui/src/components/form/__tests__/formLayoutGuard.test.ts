@@ -54,7 +54,6 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
   "plugins/provisa-tools.tsx": "controls of the GraphiQL tools plugin",
   "pages/tables/ProfileChecksBar.tsx": "the action bar above the profile results",
   "pages/tables/ProfilerPanel.tsx": "the add-metric picker above the profile results",
-  "tour/TourWelcomeModal.tsx": "the do-not-show-again tick of the tour dialog",
 };
 
 /**
@@ -138,7 +137,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/tables/ViewDefinitionForm.tsx",
   "pages/tables/testdata/ColumnFakeDialog.tsx",
   "pages/tables/testdata/FakePicker.tsx",
-  "tour/TourWelcomeModal.tsx",
 ];
 
 function componentFiles(dir: string, found: string[] = []): string[] {
