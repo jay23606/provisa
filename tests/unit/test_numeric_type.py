@@ -267,3 +267,23 @@ async def test_a_size_no_numeric_can_have_is_refused_naming_the_column(tmp_path,
         ValueError, match=r"column orders\.amount is declared .* precision is 1 to 76"
     ):
         await _registered_types(tmp_path, {"amount": declared})
+
+
+def test_both_table_mutations_answer_an_impossible_size_with_a_code():
+    """The registrar is told which column, by a coded refusal — not by a server error."""
+    import inspect
+
+    from provisa.api.admin import schema_mutation, schema_mutation_ops
+    from provisa.core.repositories.table import NumericSizeRefused
+
+    refused = NumericSizeRefused("orders", "amount", "numeric(5,9)")
+    assert isinstance(refused, ValueError)
+    assert (refused.table_name, refused.column, refused.declared) == (
+        "orders",
+        "amount",
+        "numeric(5,9)",
+    )
+    for module in (schema_mutation, schema_mutation_ops):
+        source = inspect.getsource(module)
+        assert "except table_repo.NumericSizeRefused as _size:" in source
+        assert 'code="schema.numeric_size_invalid"' in source

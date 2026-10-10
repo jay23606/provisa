@@ -174,6 +174,19 @@ async def load_columns(conn: "Connection", table_id: int) -> list[dict]:
     return await _load_columns(conn, table_id)
 
 
+class NumericSizeRefused(ValueError):
+    """A column declared with a numeric size no numeric can have (REQ-1961)."""
+
+    def __init__(self, table_name: str, column: str, declared: str) -> None:
+        self.table_name = table_name
+        self.column = column
+        self.declared = declared
+        super().__init__(
+            f"column {table_name}.{column} is declared {declared!r}, which is not a numeric "
+            "type a column can have: precision is 1 to 76 and scale is 0 to the precision"
+        )
+
+
 class TableDeleteRefused(Exception):
     """A table or view that may not be deleted because other objects refer to it;
     ``dependents`` lists them."""
@@ -570,11 +583,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         try:
             _data_type = stored_type_of(_data_type)
         except ReportedNumericMalformed as malformed:
-            raise ValueError(
-                f"column {table.table_name}.{col.name} is declared {_data_type!r}, which is not "
-                "a numeric type a column can have: precision is 1 to 76 and scale is 0 to the "
-                "precision"
-            ) from malformed
+            raise NumericSizeRefused(table.table_name, col.name, _data_type) from malformed
         await conn.execute_core(
             table_columns.insert().values(
                 table_id=table_id,
