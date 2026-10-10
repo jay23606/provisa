@@ -23,24 +23,22 @@ import { useTranslation } from "react-i18next";
 import {
   Accordion,
   Alert,
-  Button,
   Checkbox,
   Code,
-  Group,
   NumberInput,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
-import { Check, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { fetchCacheStorage, setCacheStorage, type CacheStorageState } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
 import { useSettingsBlocks } from "./useSettingsBlocks";
 import { usePanelState } from "../../hooks/usePanelState";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 type StorageBlock = "cache" | "hot_tables" | "replication" | "materialized_views" | "materialize";
 
@@ -95,9 +93,7 @@ function SettingsPanel({ testId, children }: { testId: string; children: React.R
           <Title order={4}>{t("adminPage.settingsPanel")}</Title>
         </Accordion.Control>
         <Accordion.Panel>
-          <Stack maw={720} gap="md">
-            {children}
-          </Stack>
+          <Stack gap="md">{children}</Stack>
         </Accordion.Panel>
       </Accordion.Item>
     </Accordion>
@@ -117,24 +113,12 @@ function StorageSaveRow({
   error: string;
   note: string;
 }) {
-  const { t } = useTranslation();
   return (
     <>
       <Alert color="yellow" icon={<TriangleAlert size={16} />}>
         {note}
       </Alert>
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          disabled={saving}
-          loading={saving}
-          title={t("cacheStorageTab.saveButtonLabel")}
-          aria-label={t("cacheStorageTab.saveButtonLabel")}
-          data-testid="cache-storage-save"
-          leftSection={saving ? undefined : <Check size={14} />}
-        >
-          {t("cacheStorageTab.saveButtonLabel")}
-        </Button>
+      <FormFooter onSave={save} saving={saving} saveProps={{ "data-testid": "cache-storage-save" }}>
         {msg && (
           <Text c="green" size="sm">
             {msg}
@@ -145,7 +129,7 @@ function StorageSaveRow({
             {error}
           </Text>
         )}
-      </Group>
+      </FormFooter>
     </>
   );
 }
@@ -175,45 +159,56 @@ export function ResponseCacheSettingsPanel({ platform }: { platform: boolean }) 
 
   return (
     <SettingsPanel testId="cache-ttl-settings">
-      <NumberInput
-        label={t("adminPage.defaultTtl")}
-        description={t("adminPage.defaultTtlHint")}
-        value={settings.cache.default_ttl}
-        onChange={(v) =>
-          setSettings({ ...settings, cache: { default_ttl: typeof v === "number" ? v : 0 } })
-        }
-      />
-      {platform && s && (
-        <>
-          <Title order={5}>{t("cacheStorageTab.hotCacheHeading")}</Title>
-          <Text c="dimmed" size="sm">
-            {t("cacheStorageTab.hotCacheIntro")}
-          </Text>
-          <Checkbox
-            label={t("cacheStorageTab.enableHotCache")}
-            checked={s.cache.enabled}
-            onChange={(e) =>
-              setS({ ...s, cache: { ...s.cache, enabled: e.currentTarget.checked } })
+      <FormLayout>
+        <FormField help={t("adminPage.defaultTtlHint")} size="short">
+          <NumberInput
+            label={t("adminPage.defaultTtl")}
+            value={settings.cache.default_ttl}
+            onChange={(v) =>
+              setSettings({ ...settings, cache: { default_ttl: typeof v === "number" ? v : 0 } })
             }
           />
-          <TextInput
-            label={t("cacheStorageTab.redisUrlLabel")}
-            placeholder={t("cacheStorageTab.redisUrlPlaceholder")}
-            value={s.cache.redis_url}
-            onChange={(e) =>
-              setS({ ...s, cache: { ...s.cache, redis_url: e.currentTarget.value } })
-            }
-          />
-          <Alert color="yellow" icon={<TriangleAlert size={16} />}>
-            {s.restart_required_note}
-          </Alert>
-          {(storageMsg || error) && (
-            <Text c={error ? "red" : "green"} size="sm">
-              {error || storageMsg}
+        </FormField>
+        {platform && s && (
+          <>
+            <Title order={5}>{t("cacheStorageTab.hotCacheHeading")}</Title>
+            <Text c="dimmed" size="sm">
+              {t("cacheStorageTab.hotCacheIntro")}
             </Text>
-          )}
-        </>
-      )}
+            <FormLayout>
+              <FormChecks>
+                <FormField size="short">
+                  <Checkbox
+                    label={t("cacheStorageTab.enableHotCache")}
+                    checked={s.cache.enabled}
+                    onChange={(e) =>
+                      setS({ ...s, cache: { ...s.cache, enabled: e.currentTarget.checked } })
+                    }
+                  />
+                </FormField>
+              </FormChecks>
+              <FormField size="long">
+                <TextInput
+                  label={t("cacheStorageTab.redisUrlLabel")}
+                  placeholder={t("cacheStorageTab.redisUrlPlaceholder")}
+                  value={s.cache.redis_url}
+                  onChange={(e) =>
+                    setS({ ...s, cache: { ...s.cache, redis_url: e.currentTarget.value } })
+                  }
+                />
+              </FormField>
+            </FormLayout>
+            <Alert color="yellow" icon={<TriangleAlert size={16} />}>
+              {s.restart_required_note}
+            </Alert>
+            {(storageMsg || error) && (
+              <Text c={error ? "red" : "green"} size="sm">
+                {error || storageMsg}
+              </Text>
+            )}
+          </>
+        )}
+      </FormLayout>
       <SaveRow save={save} saving={saving || savingStorage} msg={msg} />
     </SettingsPanel>
   );
@@ -234,59 +229,71 @@ export function HotTablesSettingsPanel() {
 
   return (
     <SettingsPanel testId="hot-tables-settings">
-      <SimpleGrid cols={{ base: 1, sm: 3 }}>
-        <NumberInput
-          label={t("cacheStorageTab.promoteThresholdLabel")}
-          value={s.hot_tables.auto_threshold}
-          onChange={(v) =>
-            setS({ ...s, hot_tables: { ...s.hot_tables, auto_threshold: Number(v) } })
-          }
-        />
-        <NumberInput
-          label={t("cacheStorageTab.maxRowsLabel")}
-          value={s.hot_tables.max_rows}
-          onChange={(v) => setS({ ...s, hot_tables: { ...s.hot_tables, max_rows: Number(v) } })}
-        />
-        <NumberInput
-          label={t("cacheStorageTab.maxBytesLabel")}
-          value={s.hot_tables.max_bytes}
-          onChange={(v) => setS({ ...s, hot_tables: { ...s.hot_tables, max_bytes: Number(v) } })}
-        />
-      </SimpleGrid>
+      <FormLayout>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.promoteThresholdLabel")}
+            value={s.hot_tables.auto_threshold}
+            onChange={(v) =>
+              setS({ ...s, hot_tables: { ...s.hot_tables, auto_threshold: Number(v) } })
+            }
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.maxRowsLabel")}
+            value={s.hot_tables.max_rows}
+            onChange={(v) => setS({ ...s, hot_tables: { ...s.hot_tables, max_rows: Number(v) } })}
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.maxBytesLabel")}
+            value={s.hot_tables.max_bytes}
+            onChange={(v) => setS({ ...s, hot_tables: { ...s.hot_tables, max_bytes: Number(v) } })}
+          />
+        </FormField>
+      </FormLayout>
 
       <Title order={5}>{t("cacheStorageTab.hotReplicationHeading")}</Title>
       <Text c="dimmed" size="sm">
         {t("cacheStorageTab.hotReplicationIntro")}
       </Text>
-      <SimpleGrid cols={{ base: 1, sm: 3 }}>
-        <NumberInput
-          label={t("cacheStorageTab.hotThresholdLabel")}
-          data-testid="replication-hot-threshold"
-          min={1}
-          value={s.replication.hot_threshold}
-          onChange={(v) =>
-            setS({ ...s, replication: { ...s.replication, hot_threshold: Number(v) } })
-          }
-        />
-        <NumberInput
-          label={t("cacheStorageTab.hotIntervalLabel")}
-          data-testid="replication-hot-interval"
-          min={1}
-          value={s.replication.hot_interval}
-          onChange={(v) =>
-            setS({ ...s, replication: { ...s.replication, hot_interval: Number(v) } })
-          }
-        />
-        <NumberInput
-          label={t("cacheStorageTab.hotMaxRowsLabel")}
-          data-testid="replication-hot-max-rows"
-          min={1}
-          value={s.replication.hot_max_rows}
-          onChange={(v) =>
-            setS({ ...s, replication: { ...s.replication, hot_max_rows: Number(v) } })
-          }
-        />
-      </SimpleGrid>
+      <FormLayout>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.hotThresholdLabel")}
+            data-testid="replication-hot-threshold"
+            min={1}
+            value={s.replication.hot_threshold}
+            onChange={(v) =>
+              setS({ ...s, replication: { ...s.replication, hot_threshold: Number(v) } })
+            }
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.hotIntervalLabel")}
+            data-testid="replication-hot-interval"
+            min={1}
+            value={s.replication.hot_interval}
+            onChange={(v) =>
+              setS({ ...s, replication: { ...s.replication, hot_interval: Number(v) } })
+            }
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("cacheStorageTab.hotMaxRowsLabel")}
+            data-testid="replication-hot-max-rows"
+            min={1}
+            value={s.replication.hot_max_rows}
+            onChange={(v) =>
+              setS({ ...s, replication: { ...s.replication, hot_max_rows: Number(v) } })
+            }
+          />
+        </FormField>
+      </FormLayout>
 
       <StorageSaveRow
         save={save}
@@ -311,14 +318,17 @@ export function MaterializedSettingsPanel() {
 
   return (
     <SettingsPanel testId="materialized-settings">
-      <NumberInput
-        label={t("cacheStorageTab.mvDefaultTtlLabel")}
-        description={t("cacheStorageTab.mvDefaultTtlHint")}
-        value={s.materialized_views.default_ttl ?? ""}
-        onChange={(v) =>
-          setS({ ...s, materialized_views: { default_ttl: v === "" ? null : Number(v) } })
-        }
-      />
+      <FormLayout>
+        <FormField help={t("cacheStorageTab.mvDefaultTtlHint")} size="short">
+          <NumberInput
+            label={t("cacheStorageTab.mvDefaultTtlLabel")}
+            value={s.materialized_views.default_ttl ?? ""}
+            onChange={(v) =>
+              setS({ ...s, materialized_views: { default_ttl: v === "" ? null : Number(v) } })
+            }
+          />
+        </FormField>
+      </FormLayout>
 
       <Title order={5}>{t("cacheStorageTab.materializeHeading")}</Title>
       <Text c="dimmed" size="sm">
@@ -333,20 +343,24 @@ export function MaterializedSettingsPanel() {
         )}
         {t("cacheStorageTab.materializeIntroSuffix")}
       </Text>
-      <TextInput
-        label={t("cacheStorageTab.storeUrlLabel")}
-        placeholder={
-          s.materialize.default_store_url
-            ? t("cacheStorageTab.storeUrlPlaceholderDefault", {
-                url: s.materialize.default_store_url,
-              })
-            : t("cacheStorageTab.storeUrlPlaceholderRequired")
-        }
-        value={s.materialize.store_url}
-        onChange={(e) =>
-          setS({ ...s, materialize: { ...s.materialize, store_url: e.currentTarget.value } })
-        }
-      />
+      <FormLayout>
+        <FormField size="long">
+          <TextInput
+            label={t("cacheStorageTab.storeUrlLabel")}
+            placeholder={
+              s.materialize.default_store_url
+                ? t("cacheStorageTab.storeUrlPlaceholderDefault", {
+                    url: s.materialize.default_store_url,
+                  })
+                : t("cacheStorageTab.storeUrlPlaceholderRequired")
+            }
+            value={s.materialize.store_url}
+            onChange={(e) =>
+              setS({ ...s, materialize: { ...s.materialize, store_url: e.currentTarget.value } })
+            }
+          />
+        </FormField>
+      </FormLayout>
       <StorageSaveRow
         save={save}
         saving={saving}

@@ -271,4 +271,14 @@ describe("FormLayout", () => {
     expect(save).toBeDisabled();
     expect(screen.getByRole("button", { name: t("common.cancel") })).toBeDisabled();
   });
+
+  it("puts a first action that is not a save in Save's place, before Cancel", () => {
+    render(
+      <FormFooter onCancel={() => {}} action={<button type="button">Generate invite</button>}>
+        <span>after</span>
+      </FormFooter>,
+    );
+    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(names).toEqual(["Generate invite", "Cancel"]);
+  });
 });

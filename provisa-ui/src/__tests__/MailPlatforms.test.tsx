@@ -34,7 +34,7 @@ vi.mock("../api/mailPlatforms", () => ({
 import { deleteMailPlatform, fetchMailPlatforms, putMailPlatform } from "../api/mailPlatforms";
 import { EmailTab } from "../components/admin/EmailTab";
 import { MailPlatformsSection } from "../components/admin/MailPlatformsSection";
-import { draftOf, platformMissing } from "../components/admin/mailPlatformDraft";
+import { platformMissing } from "../components/admin/mailPlatformDraft";
 import { NAV_GROUPS } from "../components/navGroups";
 
 const list = vi.mocked(fetchMailPlatforms);
@@ -114,7 +114,8 @@ describe("the organisation's mail platforms", () => {
 
   it("shows the redirect address ready to copy, with where it goes, and nothing to type", async () => {
     render(<MailPlatformsSection />);
-    const address = await screen.findByTestId(tid("-redirect"));
+    fireEvent.click(await screen.findByTestId(tid("-own-mailbox")));
+    const address = screen.getByTestId(tid("-redirect"));
     expect(address).toHaveValue(REDIRECT);
     expect(address).toHaveAttribute("readonly");
     expect(screen.getByTestId(tid("-copy"))).toHaveTextContent(en.mailPlatforms.copy);
@@ -126,7 +127,8 @@ describe("the organisation's mail platforms", () => {
 
   it("says which address people must open Provisa at, and that another name will not work", async () => {
     render(<MailPlatformsSection />);
-    const note = await screen.findByTestId(tid("-same-address"));
+    fireEvent.click(await screen.findByTestId(tid("-own-mailbox")));
+    const note = screen.getByTestId(tid("-same-address"));
     expect(note).toHaveTextContent("http://localhost:3000");
     expect(note).toHaveTextContent("127.0.0.1 in place of localhost");
   });
@@ -138,7 +140,8 @@ describe("the organisation's mail platforms", () => {
       platforms: [google()],
     });
     render(<MailPlatformsSection />);
-    expect(await screen.findByTestId(tid("-no-redirect"))).toHaveTextContent(
+    fireEvent.click(await screen.findByTestId(tid("-own-mailbox")));
+    expect(screen.getByTestId(tid("-no-redirect"))).toHaveTextContent(
       en.mailPlatforms.redirectUnknown,
     );
     expect(screen.getByTestId(tid("-client-id"))).toBeInTheDocument();
@@ -148,6 +151,9 @@ describe("the organisation's mail platforms", () => {
     render(<MailPlatformsSection />);
     const save = await screen.findByTestId(tid("-save"));
     expect(save).toBeDisabled();
+    // What the entry is for is chosen first; its fields follow.
+    expect(screen.queryByTestId(tid("-client-id"))).toBeNull();
+    fireEvent.click(screen.getByTestId(tid("-own-mailbox")));
     fireEvent.change(screen.getByTestId(tid("-client-id")), { target: { value: " client-1 " } });
     expect(save).toBeDisabled();
     const secret = screen.getByTestId(tid("-client-secret"));
@@ -229,7 +235,8 @@ describe("the organisation's mail platforms", () => {
   it("shows a refusal beside the platform it concerns", async () => {
     put.mockRejectedValue(new Error("google_workspace needs client_secret"));
     render(<MailPlatformsSection />);
-    fireEvent.change(await screen.findByTestId(tid("-client-id")), { target: { value: "c" } });
+    fireEvent.click(await screen.findByTestId(tid("-own-mailbox")));
+    fireEvent.change(screen.getByTestId(tid("-client-id")), { target: { value: "c" } });
     fireEvent.change(screen.getByTestId(tid("-client-secret")), { target: { value: "s" } });
     fireEvent.click(screen.getByTestId(tid("-save")));
     expect(await screen.findByTestId(tid("-said"))).toHaveTextContent("needs client_secret");
@@ -242,6 +249,7 @@ describe("the organisation's mail platforms", () => {
     });
     render(<MailPlatformsSection />);
     expect(await screen.findByText("Microsoft 365")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("mail-platform-microsoft_365-own-mailbox"));
     expect(screen.getByTestId("mail-platform-microsoft_365-setting-tenant")).toBeInTheDocument();
     expect(screen.getByText(en.mailPlatforms.setting.tenant)).toBeInTheDocument();
     // Each explanation is its field's help, behind the (?).
@@ -255,7 +263,7 @@ describe("the organisation's mail platforms", () => {
     );
   });
 
-  it("has a switch, off until an administrator turns it on, for reading the organisation's mailboxes", async () => {
+  it("has a tick, off until an administrator turns it on, for reading the organisation's mailboxes", async () => {
     list.mockResolvedValue({
       redirect_address: REDIRECT,
       platforms: [google({ configured: true, client_id: "client-1" })],
@@ -316,7 +324,8 @@ describe("the organisation's mail platforms", () => {
     it("asks for the key as a text field and the administrator address, and says what to authorise", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);
-      const key = await screen.findByTestId(tid("-organisation-key"));
+      fireEvent.click(await screen.findByTestId(tid("-organisation-mailboxes")));
+      const key = screen.getByTestId(tid("-organisation-key"));
       // What was typed, never a file chosen: a reference or the key's JSON.
       expect(key).toHaveAttribute("type", "password");
       expect(document.querySelector('input[type="file"]')).toBeNull();
@@ -339,6 +348,7 @@ describe("the organisation's mail platforms", () => {
         client_secret: "s",
         settings: { admin_address: "" },
         organisation_mailboxes: true,
+        own_mailbox: true,
         organisation_key: "",
       };
       expect(platformMissing(workspace(), on)).toEqual(["admin_address", "organisation_key"]);
@@ -353,20 +363,26 @@ describe("the organisation's mail platforms", () => {
         client_secret: "",
         settings: { admin_address: "admin@example.test" },
         organisation_mailboxes: true,
+        own_mailbox: false,
         organisation_key: KEY,
       };
       const fresh = workspace({ configured: false, client_id: null });
       expect(platformMissing(fresh, none)).toEqual([]);
-      expect(platformMissing(fresh, { ...none, client_id: "c" })).toEqual(["client_secret"]);
-      expect(platformMissing(fresh, { ...none, client_secret: "s" })).toEqual(["client_id"]);
-      // Only with such sources allowed: otherwise nothing could read with the entry.
+      // With people connecting their own mailbox as well, the client is needed whole.
+      const both = { ...none, own_mailbox: true };
+      expect(platformMissing(fresh, { ...both, client_id: "c" })).toEqual(["client_secret"]);
+      expect(platformMissing(fresh, { ...both, client_secret: "s" })).toEqual(["client_id"]);
+      // Nothing chosen is nothing to save: nothing could read with the entry.
       expect(platformMissing(fresh, { ...none, organisation_mailboxes: false })).toEqual([
+        "choice",
+      ]);
+      expect(platformMissing(fresh, { ...both, organisation_mailboxes: false })).toEqual([
         "client_id",
         "client_secret",
       ]);
       // An entry kept with no client holds no secret to keep.
       const kept = workspace({ client_id: null, organisation_key: KEY });
-      expect(platformMissing(kept, { ...none, client_id: "c" })).toEqual(["client_secret"]);
+      expect(platformMissing(kept, { ...both, client_id: "c" })).toEqual(["client_secret"]);
       // A platform whose credential is its client always needs it.
       expect(platformMissing(google({ configured: false, client_id: null }), none)).toEqual([
         "client_id",
@@ -374,41 +390,89 @@ describe("the organisation's mail platforms", () => {
       ]);
     });
 
-    it("asks a browser to fill none of the credential fields itself", async () => {
-      // A text field before a password field reads to a browser as a sign-in. A client id
-      // nobody typed is half a client, and an entry with half a client cannot be saved.
-      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+    it("shows only the fields of what is ticked, the two choices first", async () => {
+      list.mockResolvedValue({
+        redirect_address: REDIRECT,
+        platforms: [
+          workspace({
+            client_id: null,
+            organisation_key: KEY,
+            organisation_mailboxes: true,
+            settings: { admin_address: "admin@example.test" },
+          }),
+        ],
+      });
       render(<MailPlatformsSection />);
-      expect(await screen.findByTestId(tid("-client-id"))).toHaveAttribute("autocomplete", "off");
-      for (const field of ["-client-secret", "-organisation-key"]) {
-        expect(screen.getByTestId(tid(field))).toHaveAttribute("autocomplete", "new-password");
-      }
-    });
-
-    it("starts a new entry with nothing in the client's fields", () => {
-      const fresh = workspace({ configured: false, client_id: null, client_secret: null });
-      expect(draftOf(fresh)).toMatchObject({ client_id: "", client_secret: "" });
-    });
-
-    it("says the client is only for one person's sign-in", async () => {
-      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
-      render(<MailPlatformsSection />);
-      expect(await screen.findByTestId(tid("-client-id"))).toHaveAttribute(
-        "aria-description",
-        en.mailPlatforms.clientOptional,
+      // An entry with no client is one nobody signs in to: only the organisation's fields show.
+      expect(await screen.findByTestId(tid("-organisation-mailboxes"))).toBeChecked();
+      expect(screen.getByTestId(tid("-own-mailbox"))).not.toBeChecked();
+      expect(screen.getByText(en.mailPlatforms.ownMailbox)).toBeInTheDocument();
+      expect(screen.getByTestId(tid("-setting-admin_address"))).toBeInTheDocument();
+      expect(screen.getByTestId(tid("-organisation-key"))).toBeInTheDocument();
+      expect(screen.getByTestId(tid("-organisation-scopes"))).toBeInTheDocument();
+      expect(screen.queryByTestId(tid("-client-id"))).toBeNull();
+      expect(screen.queryByTestId(tid("-client-secret"))).toBeNull();
+      expect(screen.queryByTestId(tid("-redirect"))).toBeNull();
+      // It is saved with an empty client, which the server keeps as no client.
+      fireEvent.click(screen.getByTestId(tid("-save")));
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
+          client_id: "",
+          settings: { admin_address: "admin@example.test" },
+          organisation_mailboxes: true,
+          organisation_key: KEY,
+        }),
       );
+      // People connecting their own mailbox: the address to register and the client appear.
+      fireEvent.click(screen.getByTestId(tid("-own-mailbox")));
+      expect(screen.getByTestId(tid("-redirect"))).toHaveValue(REDIRECT);
+      expect(screen.getByTestId(tid("-client-id"))).toBeRequired();
+      expect(screen.getByTestId(tid("-save"))).toBeDisabled();
+      // Neither: no field at all, and nothing to save.
+      fireEvent.click(screen.getByTestId(tid("-own-mailbox")));
+      fireEvent.click(screen.getByTestId(tid("-organisation-mailboxes")));
+      expect(screen.queryByTestId(tid("-organisation-key"))).toBeNull();
+      expect(screen.queryByTestId(tid("-setting-admin_address"))).toBeNull();
+      expect(screen.getByTestId(tid("-save"))).toBeDisabled();
+    });
+
+    it("shows the client for the organisation's mailboxes where the platform has no credential of its own", async () => {
+      list.mockResolvedValue({
+        redirect_address: REDIRECT,
+        platforms: [
+          google({
+            platform: "microsoft_365",
+            settings_fields: ["tenant"],
+            configured: true,
+            client_id: "client-1",
+            settings: { tenant: "contoso" },
+            organisation_mailboxes: true,
+          }),
+        ],
+      });
+      render(<MailPlatformsSection />);
+      const at = (suffix: string) => `mail-platform-microsoft_365${suffix}`;
+      fireEvent.click(await screen.findByTestId(at("-own-mailbox")));
+      expect(screen.getByTestId(at("-own-mailbox"))).not.toBeChecked();
+      // The organisation's mailboxes are read with the client: it and the tenant stay, and the
+      // address one person's sign-in returns to goes.
+      expect(screen.getByTestId(at("-client-id"))).toHaveValue("client-1");
+      expect(screen.getByTestId(at("-client-secret"))).toHaveValue(KEPT);
+      expect(screen.getByTestId(at("-setting-tenant"))).toHaveValue("contoso");
+      expect(screen.queryByTestId(at("-redirect"))).toBeNull();
+      expect(screen.getByTestId(at("-save"))).toBeEnabled();
     });
 
     it("sends the key as it was typed", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);
-      fireEvent.change(await screen.findByTestId(tid("-organisation-key")), {
+      fireEvent.click(await screen.findByTestId(tid("-organisation-mailboxes")));
+      fireEvent.change(screen.getByTestId(tid("-organisation-key")), {
         target: { value: "${secret:my_google_key}" },
       });
       fireEvent.change(screen.getByTestId(tid("-setting-admin_address")), {
         target: { value: "admin@example.test" },
       });
-      fireEvent.click(screen.getByTestId(tid("-organisation-mailboxes")));
       await waitFor(() => expect(screen.getByTestId(tid("-save"))).toBeEnabled());
       fireEvent.click(screen.getByTestId(tid("-save")));
       await waitFor(() =>
@@ -499,6 +563,7 @@ describe("the organisation's mail platforms", () => {
       client_secret: "s",
       settings: { tenant: "" },
       organisation_mailboxes: false,
+      own_mailbox: true,
       organisation_key: "",
     };
     expect(platformMissing(tenanted, draft)).toEqual(["tenant"]);

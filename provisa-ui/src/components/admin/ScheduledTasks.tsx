@@ -23,7 +23,7 @@ import {
   TextInput,
   Textarea,
 } from "@mantine/core";
-import { X } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   useScheduledTasks,
   useToggleScheduledTask,
@@ -34,6 +34,7 @@ import { useRoles } from "../../hooks/useAdminQueries";
 import { fetchActions, type TrackedWebhook } from "../../api/actions";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
 
@@ -148,128 +149,145 @@ export function ScheduledTasks() {
 
   return (
     <Stack gap="md">
-      <Group justify="flex-end">
-        <Button
-          data-testid="scheduled-tasks-toggle-form"
-          onClick={() => {
-            setShowForm((v) => !v);
-            setFormMsg("");
-          }}
-          leftSection={showForm ? <X size={14} /> : undefined}
-          aria-expanded={showForm}
-        >
-          {showForm ? t("scheduledTasks.close") : t("scheduledTasks.addButton")}
-        </Button>
-      </Group>
+      {!showForm && (
+        <FormFooter>
+          <Button
+            data-testid="scheduled-tasks-toggle-form"
+            onClick={() => {
+              setShowForm(true);
+              setFormMsg("");
+            }}
+            leftSection={<Plus size={14} />}
+          >
+            {t("scheduledTasks.addButton")}
+          </Button>
+        </FormFooter>
+      )}
 
       {showForm && (
         <Card withBorder padding="md">
-          <Stack gap="sm" maw={480}>
-            <Select
-              label={t("scheduledTasks.kindLabel")}
-              aria-label={t("scheduledTasks.kindLabel")}
-              data={[
-                { value: "webhook", label: t("scheduledTasks.kindWebhook") },
-                { value: "sql", label: t("scheduledTasks.kindSql") },
-              ]}
-              value={newKind}
-              onChange={(v) => {
-                setNewKind((v as TriggerKind) ?? "webhook");
-                setFormMsg("");
-              }}
-              allowDeselect={false}
-            />
-            <TextInput
-              label={t("scheduledTasks.idLabel")}
-              value={newId}
-              onChange={(e) => setNewId(e.currentTarget.value)}
-              placeholder={t("scheduledTasks.idPlaceholder")}
-            />
-            <TextInput
-              label={t("scheduledTasks.nameLabel")}
-              value={newName}
-              onChange={(e) => setNewName(e.currentTarget.value)}
-              placeholder={t("scheduledTasks.namePlaceholder")}
-            />
-            <TextInput
-              label={t("scheduledTasks.cronLabel")}
-              value={newCron}
-              onChange={(e) => setNewCron(e.currentTarget.value)}
-              placeholder={t("scheduledTasks.cronPlaceholder")}
-            />
+          <FormLayout>
+            <FormIdentifiers>
+              <FormField size="medium">
+                <TextInput
+                  label={t("scheduledTasks.idLabel")}
+                  value={newId}
+                  onChange={(e) => setNewId(e.currentTarget.value)}
+                  placeholder={t("scheduledTasks.idPlaceholder")}
+                />
+              </FormField>
+              <FormField size="medium">
+                <TextInput
+                  label={t("scheduledTasks.nameLabel")}
+                  value={newName}
+                  onChange={(e) => setNewName(e.currentTarget.value)}
+                  placeholder={t("scheduledTasks.namePlaceholder")}
+                />
+              </FormField>
+            </FormIdentifiers>
+            <FormField size="medium">
+              <Select
+                label={t("scheduledTasks.kindLabel")}
+                aria-label={t("scheduledTasks.kindLabel")}
+                data={[
+                  { value: "webhook", label: t("scheduledTasks.kindWebhook") },
+                  { value: "sql", label: t("scheduledTasks.kindSql") },
+                ]}
+                value={newKind}
+                onChange={(v) => {
+                  setNewKind((v as TriggerKind) ?? "webhook");
+                  setFormMsg("");
+                }}
+                allowDeselect={false}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("scheduledTasks.cronLabel")}
+                value={newCron}
+                onChange={(e) => setNewCron(e.currentTarget.value)}
+                placeholder={t("scheduledTasks.cronPlaceholder")}
+              />
+            </FormField>
 
             {newKind === "webhook" ? (
               <>
-                <Select
-                  label={t("scheduledTasks.webhookLabel")}
-                  placeholder={t("scheduledTasks.webhookPlaceholder")}
-                  data={webhooks.map((w) => ({ value: w.name, label: w.name }))}
-                  value={newWebhookName || null}
-                  onChange={(v) => {
-                    setNewWebhookName(v ?? "");
-                    setArgValues({});
-                  }}
-                />
-                {selectedWebhook?.arguments.map((arg) => (
-                  <TextInput
-                    key={arg.name}
-                    label={
-                      <>
-                        {arg.name}{" "}
-                        <Text span c="dimmed" fz="xs">
-                          ({arg.type})
-                        </Text>
-                      </>
-                    }
-                    value={argValues[arg.name] ?? ""}
-                    onChange={(e) => {
-                      const next = e.currentTarget.value;
-                      setArgValues((prev) => ({ ...prev, [arg.name]: next }));
+                <FormField size="medium">
+                  <Select
+                    label={t("scheduledTasks.webhookLabel")}
+                    placeholder={t("scheduledTasks.webhookPlaceholder")}
+                    data={webhooks.map((w) => ({ value: w.name, label: w.name }))}
+                    value={newWebhookName || null}
+                    onChange={(v) => {
+                      setNewWebhookName(v ?? "");
+                      setArgValues({});
                     }}
-                    placeholder={arg.type}
                   />
+                </FormField>
+                {selectedWebhook?.arguments.map((arg) => (
+                  <FormField size="medium" key={arg.name}>
+                    <TextInput
+                      label={
+                        <>
+                          {arg.name}{" "}
+                          <Text span c="dimmed" fz="xs">
+                            ({arg.type})
+                          </Text>
+                        </>
+                      }
+                      value={argValues[arg.name] ?? ""}
+                      onChange={(e) => {
+                        const next = e.currentTarget.value;
+                        setArgValues((prev) => ({ ...prev, [arg.name]: next }));
+                      }}
+                      placeholder={arg.type}
+                    />
+                  </FormField>
                 ))}
               </>
             ) : (
-              <Stack gap={4}>
-                <Textarea
-                  label={t("scheduledTasks.sqlLabel")}
-                  aria-label={t("scheduledTasks.sqlLabel")}
-                  value={newSql}
-                  onChange={(e) => setNewSql(e.currentTarget.value)}
-                  placeholder={t("scheduledTasks.sqlPlaceholder")}
-                  rows={4}
-                  styles={{ input: { fontFamily: "monospace" } }}
-                />
-                <Text c="dimmed" fz="xs">
-                  {t("scheduledTasks.sqlTokensHint")}
-                </Text>
-                <Select
-                  label={t("scheduledTasks.roleLabel")}
-                  aria-label={t("scheduledTasks.roleLabel")}
-                  data={roles.map((r) => r.id)}
-                  value={newRole}
-                  onChange={setNewRole}
-                  data-testid="scheduled-task-role"
-                />
-              </Stack>
+              <>
+                <FormField size="full" hint={t("scheduledTasks.sqlTokensHint")}>
+                  <Textarea
+                    label={t("scheduledTasks.sqlLabel")}
+                    aria-label={t("scheduledTasks.sqlLabel")}
+                    value={newSql}
+                    onChange={(e) => setNewSql(e.currentTarget.value)}
+                    placeholder={t("scheduledTasks.sqlPlaceholder")}
+                    rows={4}
+                    styles={{ input: { fontFamily: "monospace" } }}
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <Select
+                    label={t("scheduledTasks.roleLabel")}
+                    aria-label={t("scheduledTasks.roleLabel")}
+                    data={roles.map((r) => r.id)}
+                    value={newRole}
+                    onChange={setNewRole}
+                    data-testid="scheduled-task-role"
+                  />
+                </FormField>
+              </>
             )}
 
             {formMsg && (
-              <Text c="red" fz="sm">
-                {formMsg}
-              </Text>
+              <FormField size="full">
+                <Text c="red" fz="sm">
+                  {formMsg}
+                </Text>
+              </FormField>
             )}
-            <Group>
-              <Button
-                data-testid="scheduled-tasks-submit"
-                onClick={handleCreate}
-                disabled={creating}
-              >
-                {creating ? t("scheduledTasks.creating") : t("scheduledTasks.addButton")}
-              </Button>
-            </Group>
-          </Stack>
+            <FormFooter
+              onSave={handleCreate}
+              saving={creating}
+              onCancel={() => {
+                setShowForm(false);
+                setFormMsg("");
+              }}
+              saveProps={{ "data-testid": "scheduled-tasks-submit" }}
+            />
+          </FormLayout>
         </Card>
       )}
 
@@ -278,107 +296,129 @@ export function ScheduledTasks() {
       ) : (
         <>
           <SortGroupTable
-          testPrefix="scheduled-tasks"
-          minWidth={800}
-          rows={tasks}
-          columns={[
-            { key: "id", label: t("scheduledTasks.colId"), sortValue: (k) => k.id },
-            { key: "name", label: t("scheduledTasks.colName"), sortValue: (k) => k.name },
-            { key: "cron", label: t("scheduledTasks.colCron"), sortValue: (k) => k.cronExpression },
-            { key: "kind", label: t("scheduledTasks.colKind"), sortValue: (k) => k.kind, groupValue: (k) => k.kind },
-            { key: "enabled", label: t("scheduledTasks.colEnabled"), sortValue: (k) => (k.enabled ? 1 : 0), groupValue: (k) => String(k.enabled) },
-            { key: "lastRun", label: t("scheduledTasks.colLastRun"), sortValue: (k) => k.lastRunAt ?? "" },
-            { key: "nextRun", label: t("scheduledTasks.colNextRun"), sortValue: (k) => k.nextRunAt ?? "" },
-          ]}
-          headers={[
-            { col: "id" },
-            { col: "name" },
-            { col: "cron" },
-            { col: "kind" },
-            t("scheduledTasks.colTarget"),
-            { col: "enabled" },
-            { col: "lastRun" },
-            { col: "nextRun" },
-            t("scheduledTasks.colActions"),
-          ]}
-          colSpan={9}
-          rowKey={(task) => task.id}
-          page={{ index: taskPage - 1, size: PAGE_SIZE }}
-          onGroupedChange={setGrouped}
-          render={(task) => (
-                  <ListRow key={task.id}>
-                    <Table.Td>
+            testPrefix="scheduled-tasks"
+            minWidth={800}
+            rows={tasks}
+            columns={[
+              { key: "id", label: t("scheduledTasks.colId"), sortValue: (k) => k.id },
+              { key: "name", label: t("scheduledTasks.colName"), sortValue: (k) => k.name },
+              {
+                key: "cron",
+                label: t("scheduledTasks.colCron"),
+                sortValue: (k) => k.cronExpression,
+              },
+              {
+                key: "kind",
+                label: t("scheduledTasks.colKind"),
+                sortValue: (k) => k.kind,
+                groupValue: (k) => k.kind,
+              },
+              {
+                key: "enabled",
+                label: t("scheduledTasks.colEnabled"),
+                sortValue: (k) => (k.enabled ? 1 : 0),
+                groupValue: (k) => String(k.enabled),
+              },
+              {
+                key: "lastRun",
+                label: t("scheduledTasks.colLastRun"),
+                sortValue: (k) => k.lastRunAt ?? "",
+              },
+              {
+                key: "nextRun",
+                label: t("scheduledTasks.colNextRun"),
+                sortValue: (k) => k.nextRunAt ?? "",
+              },
+            ]}
+            headers={[
+              { col: "id" },
+              { col: "name" },
+              { col: "cron" },
+              { col: "kind" },
+              t("scheduledTasks.colTarget"),
+              { col: "enabled" },
+              { col: "lastRun" },
+              { col: "nextRun" },
+              t("scheduledTasks.colActions"),
+            ]}
+            colSpan={9}
+            rowKey={(task) => task.id}
+            page={{ index: taskPage - 1, size: PAGE_SIZE }}
+            onGroupedChange={setGrouped}
+            render={(task) => (
+              <ListRow key={task.id}>
+                <Table.Td>
+                  <Text ff="monospace" fz="sm">
+                    {task.id}
+                  </Text>
+                </Table.Td>
+                <Table.Td>{task.name}</Table.Td>
+                <Table.Td>
+                  <Text ff="monospace" fz="sm">
+                    {task.cronExpression}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Badge variant="light">{task.kind}</Badge>
+                </Table.Td>
+                <Table.Td maw={300}>
+                  {task.kind === "sql" ? (
+                    <Stack gap={2}>
                       <Text ff="monospace" fz="sm">
-                        {task.id}
+                        {task.sql}
                       </Text>
-                    </Table.Td>
-                    <Table.Td>{task.name}</Table.Td>
-                    <Table.Td>
-                      <Text ff="monospace" fz="sm">
-                        {task.cronExpression}
+                      <Text c="dimmed" fz="xs">
+                        {t("scheduledTasks.runsAs", { role: task.role })}
                       </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge variant="light">{task.kind}</Badge>
-                    </Table.Td>
-                    <Table.Td maw={300}>
-                      {task.kind === "sql" ? (
-                        <Stack gap={2}>
-                          <Text ff="monospace" fz="sm">
-                            {task.sql}
-                          </Text>
-                          <Text c="dimmed" fz="xs">
-                            {t("scheduledTasks.runsAs", { role: task.role })}
-                          </Text>
-                        </Stack>
-                      ) : (
-                        task.webhookUrl || t("scheduledTasks.noTarget")
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge color={task.enabled ? "green" : "gray"} variant="light">
-                        {task.enabled ? t("scheduledTasks.enabled") : t("scheduledTasks.disabled")}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      {task.lastRunAt
-                        ? new Date(task.lastRunAt).toLocaleString()
-                        : t("scheduledTasks.never")}
-                    </Table.Td>
-                    <Table.Td>
-                      {task.nextRunAt
-                        ? new Date(task.nextRunAt).toLocaleString()
-                        : t("scheduledTasks.noNextRun")}
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap="xs" wrap="nowrap">
-                        <Button
-                          size="compact-xs"
-                          onClick={() => handleToggle(task.id, !task.enabled)}
-                          disabled={toggling === task.id}
-                        >
-                          {toggling === task.id
-                            ? t("scheduledTasks.working")
-                            : task.enabled
-                              ? t("scheduledTasks.disable")
-                              : t("scheduledTasks.enable")}
-                        </Button>
-                        <Button
-                          size="compact-xs"
-                          color="red"
-                          variant="light"
-                          onClick={() => handleDelete(task.id)}
-                          disabled={deleting === task.id}
-                        >
-                          {deleting === task.id
-                            ? t("scheduledTasks.working")
-                            : t("scheduledTasks.delete")}
-                        </Button>
-                      </Group>
-                    </Table.Td>
-                  </ListRow>
-                )}
-        />
+                    </Stack>
+                  ) : (
+                    task.webhookUrl || t("scheduledTasks.noTarget")
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Badge color={task.enabled ? "green" : "gray"} variant="light">
+                    {task.enabled ? t("scheduledTasks.enabled") : t("scheduledTasks.disabled")}
+                  </Badge>
+                </Table.Td>
+                <Table.Td>
+                  {task.lastRunAt
+                    ? new Date(task.lastRunAt).toLocaleString()
+                    : t("scheduledTasks.never")}
+                </Table.Td>
+                <Table.Td>
+                  {task.nextRunAt
+                    ? new Date(task.nextRunAt).toLocaleString()
+                    : t("scheduledTasks.noNextRun")}
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs" wrap="nowrap">
+                    <Button
+                      size="compact-xs"
+                      onClick={() => handleToggle(task.id, !task.enabled)}
+                      disabled={toggling === task.id}
+                    >
+                      {toggling === task.id
+                        ? t("scheduledTasks.working")
+                        : task.enabled
+                          ? t("scheduledTasks.disable")
+                          : t("scheduledTasks.enable")}
+                    </Button>
+                    <Button
+                      size="compact-xs"
+                      color="red"
+                      variant="light"
+                      onClick={() => handleDelete(task.id)}
+                      disabled={deleting === task.id}
+                    >
+                      {deleting === task.id
+                        ? t("scheduledTasks.working")
+                        : t("scheduledTasks.delete")}
+                    </Button>
+                  </Group>
+                </Table.Td>
+              </ListRow>
+            )}
+          />
           {totalPages > 1 && !grouped && (
             <Group justify="flex-end">
               <Pagination total={totalPages} value={taskPage} onChange={setTaskPage} size="sm" />

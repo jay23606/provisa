@@ -43,6 +43,7 @@ import { FilterInput } from "./FilterInput";
 import { inviteUrl } from "../../lib/authHost";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
 
@@ -200,147 +201,148 @@ export function OrgsTab() {
           }}
           placeholder={t("orgsTab.orgsFilterPlaceholder")}
         />
-        <Button
-          variant={showCreateOrg ? "default" : "filled"}
-          onClick={() => setShowCreateOrg((v) => !v)}
-          data-testid="org-create-toggle"
-        >
-          {showCreateOrg ? t("orgsTab.closeForm") : t("orgsTab.addOrg")}
-        </Button>
+        {!showCreateOrg && (
+          <Button onClick={() => setShowCreateOrg(true)} data-testid="org-create-toggle">
+            {t("orgsTab.addOrg")}
+          </Button>
+        )}
       </Group>
 
       {showCreateOrg && (
-        <Stack gap="sm" maw={480}>
-          <TextInput
-            label={t("orgsTab.orgIdLabel")}
-            description={t("orgsTab.orgIdDesc")}
-            placeholder={t("orgsTab.orgIdPlaceholder")}
-            value={newOrgId}
-            onChange={(e) => setNewOrgId(e.currentTarget.value)}
+        <FormLayout>
+          <FormIdentifiers>
+            <FormField help={t("orgsTab.orgIdDesc")} size="medium">
+              <TextInput
+                label={t("orgsTab.orgIdLabel")}
+                placeholder={t("orgsTab.orgIdPlaceholder")}
+                value={newOrgId}
+                onChange={(e) => setNewOrgId(e.currentTarget.value)}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("orgsTab.orgNameLabel")}
+                placeholder={t("orgsTab.orgNamePlaceholder")}
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.currentTarget.value)}
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormFooter
+            onSave={handleCreateOrg}
+            onCancel={() => {
+              setShowCreateOrg(false);
+              setNewOrgId("");
+              setNewOrgName("");
+            }}
+            saveProps={{
+              "data-testid": "org-create-save",
+              disabled: !newOrgId.trim() || !newOrgName.trim(),
+            }}
           />
-          <TextInput
-            label={t("orgsTab.orgNameLabel")}
-            placeholder={t("orgsTab.orgNamePlaceholder")}
-            value={newOrgName}
-            onChange={(e) => setNewOrgName(e.currentTarget.value)}
-          />
-          <Button
-            onClick={handleCreateOrg}
-            disabled={!newOrgId.trim() || !newOrgName.trim()}
-            style={{ alignSelf: "flex-start" }}
-          >
-            {t("orgsTab.createButton")}
-          </Button>
-        </Stack>
+        </FormLayout>
       )}
 
       <SortGroupTable
-          testPrefix="orgs"
-          minWidth={640}
-          rows={filteredOrgs}
-          columns={[
-            { key: "id", label: t("orgsTab.colId"), sortValue: (o) => o.id },
-            { key: "name", label: t("orgsTab.colName"), sortValue: (o) => o.name },
-          ]}
-          headers={[
-            { col: "id" },
-            { col: "name" },
-            t("orgsTab.colMembers"),
-            t("orgsTab.colActions"),
-          ]}
-          colSpan={4}
-          rowKey={(org) => org.id}
-          empty={t("orgsTab.empty")}
-          page={{ index: orgSafePage - 1, size: PAGE_SIZE }}
-          onGroupedChange={setOrgsGrouped}
-          render={(org) => {
-              const expanded = expandedOrgId === org.id;
-              return (
-                <ListRow key={org.id}>
-                  <Table.Td>{org.id}</Table.Td>
-                  <Table.Td>{org.name}</Table.Td>
-                  <Table.Td>
-                    <Button
-                      variant="subtle"
-                      size="compact-xs"
-                      leftSection={
-                        expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-                      }
-                      aria-expanded={expanded}
-                      aria-label={t("orgsTab.expandOrg", { name: org.name })}
-                      onClick={() => handleExpandOrg(org.id)}
-                    >
-                      {expanded ? t("orgsTab.hideButton") : t("orgsTab.membersButton")}
-                    </Button>
-                    <Collapse in={expanded}>
-                      <Stack gap="xs" pl="md" py="sm">
-                        <Text fw={600} fz="sm">
-                          {t("orgsTab.membersHeading")}
+        testPrefix="orgs"
+        minWidth={640}
+        rows={filteredOrgs}
+        columns={[
+          { key: "id", label: t("orgsTab.colId"), sortValue: (o) => o.id },
+          { key: "name", label: t("orgsTab.colName"), sortValue: (o) => o.name },
+        ]}
+        headers={[{ col: "id" }, { col: "name" }, t("orgsTab.colMembers"), t("orgsTab.colActions")]}
+        colSpan={4}
+        rowKey={(org) => org.id}
+        empty={t("orgsTab.empty")}
+        page={{ index: orgSafePage - 1, size: PAGE_SIZE }}
+        onGroupedChange={setOrgsGrouped}
+        render={(org) => {
+          const expanded = expandedOrgId === org.id;
+          return (
+            <ListRow key={org.id}>
+              <Table.Td>{org.id}</Table.Td>
+              <Table.Td>{org.name}</Table.Td>
+              <Table.Td>
+                <Button
+                  variant="subtle"
+                  size="compact-xs"
+                  leftSection={expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  aria-expanded={expanded}
+                  aria-label={t("orgsTab.expandOrg", { name: org.name })}
+                  onClick={() => handleExpandOrg(org.id)}
+                >
+                  {expanded ? t("orgsTab.hideButton") : t("orgsTab.membersButton")}
+                </Button>
+                <Collapse in={expanded}>
+                  <Stack gap="xs" pl="md" py="sm">
+                    <Text fw={600} fz="sm">
+                      {t("orgsTab.membersHeading")}
+                    </Text>
+                    <Group gap="xs">
+                      {(orgMembers[org.id] ?? []).length === 0 && (
+                        <Text c="dimmed" fz="sm">
+                          {t("orgsTab.noMembers")}
                         </Text>
-                        <Group gap="xs">
-                          {(orgMembers[org.id] ?? []).length === 0 && (
-                            <Text c="dimmed" fz="sm">
-                              {t("orgsTab.noMembers")}
-                            </Text>
-                          )}
-                          {(orgMembers[org.id] ?? []).map((m) => {
-                            const label = m.display_name ?? m.email ?? m.user_id;
-                            return (
-                              <Badge
-                                key={m.user_id}
-                                variant="light"
-                                rightSection={
-                                  <ActionIcon
-                                    variant="transparent"
-                                    size="xs"
-                                    color="red"
-                                    aria-label={t("orgsTab.removeMember", { member: label })}
-                                    onClick={() => handleRemoveOrgMember(org.id, m.user_id)}
-                                  >
-                                    <X size={12} />
-                                  </ActionIcon>
-                                }
+                      )}
+                      {(orgMembers[org.id] ?? []).map((m) => {
+                        const label = m.display_name ?? m.email ?? m.user_id;
+                        return (
+                          <Badge
+                            key={m.user_id}
+                            variant="light"
+                            rightSection={
+                              <ActionIcon
+                                variant="transparent"
+                                size="xs"
+                                color="red"
+                                aria-label={t("orgsTab.removeMember", { member: label })}
+                                onClick={() => handleRemoveOrgMember(org.id, m.user_id)}
                               >
-                                {label}
-                              </Badge>
-                            );
-                          })}
-                        </Group>
-                        <Group gap="xs" align="flex-end">
-                          <TextInput
-                            aria-label={t("orgsTab.userIdPlaceholder")}
-                            placeholder={t("orgsTab.userIdPlaceholder")}
-                            size="xs"
-                            value={addMemberUserId}
-                            onChange={(e) => setAddMemberUserId(e.currentTarget.value)}
-                          />
-                          <Button
-                            size="xs"
-                            onClick={() => handleAddOrgMember(org.id)}
-                            disabled={!addMemberUserId.trim()}
+                                <X size={12} />
+                              </ActionIcon>
+                            }
                           >
-                            {t("orgsTab.addMemberButton")}
-                          </Button>
-                        </Group>
-                      </Stack>
-                    </Collapse>
-                  </Table.Td>
-                  <Table.Td>
-                    {org.id !== "root" && (
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={t("orgsTab.deleteOrg", { name: org.name })}
-                        onClick={() => handleDeleteOrg(org.id)}
+                            {label}
+                          </Badge>
+                        );
+                      })}
+                    </Group>
+                    <Group gap="xs" align="flex-end">
+                      <TextInput
+                        aria-label={t("orgsTab.userIdPlaceholder")}
+                        placeholder={t("orgsTab.userIdPlaceholder")}
+                        size="xs"
+                        value={addMemberUserId}
+                        onChange={(e) => setAddMemberUserId(e.currentTarget.value)}
+                      />
+                      <Button
+                        size="xs"
+                        onClick={() => handleAddOrgMember(org.id)}
+                        disabled={!addMemberUserId.trim()}
                       >
-                        <Trash2 size={14} />
-                      </ActionIcon>
-                    )}
-                  </Table.Td>
-                </ListRow>
-              );
-            }}
-        />
+                        {t("orgsTab.addMemberButton")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Collapse>
+              </Table.Td>
+              <Table.Td>
+                {org.id !== "root" && (
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    aria-label={t("orgsTab.deleteOrg", { name: org.name })}
+                    onClick={() => handleDeleteOrg(org.id)}
+                  >
+                    <Trash2 size={14} />
+                  </ActionIcon>
+                )}
+              </Table.Td>
+            </ListRow>
+          );
+        }}
+      />
       {orgTotalPages > 1 && !orgsGrouped && (
         <Group justify="flex-end">
           <Pagination
@@ -363,123 +365,153 @@ export function OrgsTab() {
           }}
           placeholder={t("orgsTab.invitesFilterPlaceholder")}
         />
-        <Button
-          variant={showInviteForm ? "default" : "filled"}
-          onClick={() => setShowInviteForm((v) => !v)}
-          data-testid="invite-create-toggle"
-        >
-          {showInviteForm ? t("orgsTab.closeForm") : t("orgsTab.addInvite")}
-        </Button>
+        {!showInviteForm && (
+          <Button onClick={() => setShowInviteForm(true)} data-testid="invite-create-toggle">
+            {t("orgsTab.addInvite")}
+          </Button>
+        )}
       </Group>
 
-      <Text size="sm" c="dimmed" maw={720}>
+      <Text size="sm" c="dimmed">
         {t("orgsTab.invitesIntro")}
       </Text>
 
       {showInviteForm && (
-        <Stack gap="sm" maw={480}>
-          <Select
-            label={t("orgsTab.orgSelectLabel")}
-            placeholder={t("orgsTab.orgSelectPlaceholder")}
-            data={orgSelectData}
-            value={inviteOrgId}
-            onChange={(v) => void handleSelectInviteOrg(v)}
+        <FormLayout>
+          <FormField size="medium">
+            <Select
+              label={t("orgsTab.orgSelectLabel")}
+              placeholder={t("orgsTab.orgSelectPlaceholder")}
+              data={orgSelectData}
+              value={inviteOrgId}
+              onChange={(v) => void handleSelectInviteOrg(v)}
+            />
+          </FormField>
+          <FormField help={t("orgsTab.inviteRoleDescription")} size="medium">
+            <Select
+              label={t("orgsTab.inviteRoleLabel")}
+              data={inviteRoles}
+              value={inviteRoleId}
+              onChange={(v) => v && setInviteRoleId(v)}
+              disabled={!inviteOrgId}
+            />
+          </FormField>
+          <FormFooter
+            onCancel={() => setShowInviteForm(false)}
+            action={
+              <Button
+                onClick={handleCreateInvite}
+                disabled={!inviteOrgId}
+                data-testid="invite-generate"
+              >
+                {t("orgsTab.generateInvite")}
+              </Button>
+            }
           />
-          <Select
-            label={t("orgsTab.inviteRoleLabel")}
-            description={t("orgsTab.inviteRoleDescription")}
-            data={inviteRoles}
-            value={inviteRoleId}
-            onChange={(v) => v && setInviteRoleId(v)}
-            disabled={!inviteOrgId}
-          />
-          <Button
-            onClick={handleCreateInvite}
-            disabled={!inviteOrgId}
-            style={{ alignSelf: "flex-start" }}
-          >
-            {t("orgsTab.generateInvite")}
-          </Button>
-        </Stack>
+        </FormLayout>
       )}
 
       <SortGroupTable
-          testPrefix="org-invites"
-          minWidth={640}
-          rows={filteredInvites}
-          columns={[
-            { key: "org", label: t("orgsTab.colOrg"), sortValue: (i) => i.org_name ?? "", groupValue: (i) => i.org_name ?? "" },
-            { key: "role", label: t("orgsTab.colRole"), sortValue: (i) => i.role_id ?? "", groupValue: (i) => i.role_id ?? "" },
-            { key: "token", label: t("orgsTab.colToken"), sortValue: (i) => i.token },
-            { key: "createdBy", label: t("orgsTab.colCreatedBy"), sortValue: (i) => i.created_by ?? "", groupValue: (i) => i.created_by ?? "" },
-            { key: "expires", label: t("orgsTab.colExpires"), sortValue: (i) => new Date(i.expires_at).getTime() },
-            { key: "status", label: t("orgsTab.colStatus"), sortValue: (i) => (i.used_at ? 1 : 0), groupValue: (i) => (i.used_at ? "used" : "unused") },
-          ]}
-          headers={[
-            { col: "org" },
-            { col: "role" },
-            { col: "token" },
-            { col: "createdBy" },
-            { col: "expires" },
-            { col: "status" },
-            t("orgsTab.colActions"),
-          ]}
-          colSpan={7}
-          rowKey={(inv) => inv.token}
-          empty={t("orgsTab.noInvites")}
-          page={{ index: invSafePage - 1, size: PAGE_SIZE }}
-          onGroupedChange={setInvitesGrouped}
-          render={(inv) => (
-              <ListRow key={inv.token}>
-                <Table.Td>{inv.org_name}</Table.Td>
-                <Table.Td>
-                  <Badge variant="light" color={inv.role_id === "org_admin" ? "blue" : "gray"}>
-                    {inv.role_id}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text ff="monospace" span>
-                    {inv.token.slice(0, 8)}…
-                  </Text>
-                </Table.Td>
-                <Table.Td>{inv.created_by}</Table.Td>
-                <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
-                <Table.Td>
-                  {isSpent(inv)
-                    ? t("orgsTab.spentStatus")
-                    : inv.used_at
-                    ? t("orgsTab.usedStatus", { date: new Date(inv.used_at).toLocaleDateString() })
-                    : t("orgsTab.activeStatus")}
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    {!isSpent(inv) && (
-                      <Button
-                        size="compact-xs"
-                        variant="default"
-                        onClick={() => handleCopyInvite(inv.org_id, inv.token)}
-                      >
-                        {copiedToken === inv.token
-                          ? t("orgsTab.copiedButton")
-                          : t("orgsTab.copyButton")}
-                      </Button>
-                    )}
-                    {!isSpent(inv) && (
-                      <Button
-                        size="compact-xs"
-                        color="red"
-                        variant="light"
-                        aria-label={t("orgsTab.revokeInvite", { org: inv.org_name })}
-                        onClick={() => handleRevokeInvite(inv.token)}
-                      >
-                        {t("orgsTab.revokeButton")}
-                      </Button>
-                    )}
-                  </Group>
-                </Table.Td>
-              </ListRow>
-            )}
-        />
+        testPrefix="org-invites"
+        minWidth={640}
+        rows={filteredInvites}
+        columns={[
+          {
+            key: "org",
+            label: t("orgsTab.colOrg"),
+            sortValue: (i) => i.org_name ?? "",
+            groupValue: (i) => i.org_name ?? "",
+          },
+          {
+            key: "role",
+            label: t("orgsTab.colRole"),
+            sortValue: (i) => i.role_id ?? "",
+            groupValue: (i) => i.role_id ?? "",
+          },
+          { key: "token", label: t("orgsTab.colToken"), sortValue: (i) => i.token },
+          {
+            key: "createdBy",
+            label: t("orgsTab.colCreatedBy"),
+            sortValue: (i) => i.created_by ?? "",
+            groupValue: (i) => i.created_by ?? "",
+          },
+          {
+            key: "expires",
+            label: t("orgsTab.colExpires"),
+            sortValue: (i) => new Date(i.expires_at).getTime(),
+          },
+          {
+            key: "status",
+            label: t("orgsTab.colStatus"),
+            sortValue: (i) => (i.used_at ? 1 : 0),
+            groupValue: (i) => (i.used_at ? "used" : "unused"),
+          },
+        ]}
+        headers={[
+          { col: "org" },
+          { col: "role" },
+          { col: "token" },
+          { col: "createdBy" },
+          { col: "expires" },
+          { col: "status" },
+          t("orgsTab.colActions"),
+        ]}
+        colSpan={7}
+        rowKey={(inv) => inv.token}
+        empty={t("orgsTab.noInvites")}
+        page={{ index: invSafePage - 1, size: PAGE_SIZE }}
+        onGroupedChange={setInvitesGrouped}
+        render={(inv) => (
+          <ListRow key={inv.token}>
+            <Table.Td>{inv.org_name}</Table.Td>
+            <Table.Td>
+              <Badge variant="light" color={inv.role_id === "org_admin" ? "blue" : "gray"}>
+                {inv.role_id}
+              </Badge>
+            </Table.Td>
+            <Table.Td>
+              <Text ff="monospace" span>
+                {inv.token.slice(0, 8)}…
+              </Text>
+            </Table.Td>
+            <Table.Td>{inv.created_by}</Table.Td>
+            <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
+            <Table.Td>
+              {isSpent(inv)
+                ? t("orgsTab.spentStatus")
+                : inv.used_at
+                  ? t("orgsTab.usedStatus", { date: new Date(inv.used_at).toLocaleDateString() })
+                  : t("orgsTab.activeStatus")}
+            </Table.Td>
+            <Table.Td>
+              <Group gap="xs">
+                {!isSpent(inv) && (
+                  <Button
+                    size="compact-xs"
+                    variant="default"
+                    onClick={() => handleCopyInvite(inv.org_id, inv.token)}
+                  >
+                    {copiedToken === inv.token
+                      ? t("orgsTab.copiedButton")
+                      : t("orgsTab.copyButton")}
+                  </Button>
+                )}
+                {!isSpent(inv) && (
+                  <Button
+                    size="compact-xs"
+                    color="red"
+                    variant="light"
+                    aria-label={t("orgsTab.revokeInvite", { org: inv.org_name })}
+                    onClick={() => handleRevokeInvite(inv.token)}
+                  >
+                    {t("orgsTab.revokeButton")}
+                  </Button>
+                )}
+              </Group>
+            </Table.Td>
+          </ListRow>
+        )}
+      />
       {invTotalPages > 1 && !invitesGrouped && (
         <Group justify="flex-end">
           <Pagination

@@ -21,13 +21,14 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   CopyButton,
   Group,
   PasswordInput,
   Stack,
-  Switch,
   Text,
   TextInput,
+  Textarea,
   Title,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
@@ -38,7 +39,7 @@ import {
   type MailPlatforms,
 } from "../../api/mailPlatforms";
 import { useAuth } from "../../context/AuthContext";
-import { draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
+import { draftOf, needsClient, platformMissing, type Draft } from "./mailPlatformDraft";
 import { FieldGroup, FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 export function MailPlatformsSection() {
@@ -92,6 +93,8 @@ export function MailPlatformsSection() {
       {state.platforms.map((p) => {
         const draft = drafts[p.platform] ?? draftOf(p);
         const id = `mail-platform-${p.platform}`;
+        const chosen = draft.own_mailbox || draft.organisation_mailboxes;
+        const client = needsClient(p, draft);
         return (
           <Card key={p.platform} withBorder data-testid={id}>
             <Group justify="space-between" mb="sm">
@@ -101,88 +104,7 @@ export function MailPlatformsSection() {
               </Badge>
             </Group>
             <FormLayout>
-              {state.redirect_address ? (
-                <>
-                  {/* The address to copy into the platform, with Copy at its end. */}
-                  <FieldGroup row>
-                    <FormField size="long" help={t(`mailPlatforms.redirectHelp.${p.platform}`)}>
-                      <TextInput
-                        label={t("mailPlatforms.redirectAddress")}
-                        value={state.redirect_address}
-                        readOnly
-                        data-testid={`${id}-redirect`}
-                      />
-                    </FormField>
-                    <CopyButton value={state.redirect_address}>
-                      {({ copied, copy }) => (
-                        <Button variant="default" onClick={copy} data-testid={`${id}-copy`}>
-                          {copied ? t("mailPlatforms.copied") : t("mailPlatforms.copy")}
-                        </Button>
-                      )}
-                    </CopyButton>
-                  </FieldGroup>
-                  <FormField size="full">
-                    <Text size="xs" c="dimmed" data-testid={`${id}-same-address`}>
-                      {t("mailPlatforms.sameAddressNote", {
-                        origin: new URL(state.redirect_address).origin,
-                      })}
-                    </Text>
-                  </FormField>
-                </>
-              ) : (
-                <FormField size="full">
-                  <Alert color="yellow" variant="light" data-testid={`${id}-no-redirect`}>
-                    {t("mailPlatforms.redirectUnknown")}
-                  </Alert>
-                </FormField>
-              )}
-              {/* The client: its ID and its secret together. */}
-              <FieldGroup>
-                <FormField
-                  size="medium"
-                  help={p.organisation_key_field ? t("mailPlatforms.clientOptional") : undefined}
-                >
-                  <TextInput
-                    label={t("mailPlatforms.clientId")}
-                    required={!p.organisation_key_field}
-                    value={draft.client_id}
-                    onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
-                    // Not a sign-in: a browser that takes a text field before a password field
-                    // for a user name and password must fill neither. A value nobody typed
-                    // makes half a client, which cannot be saved.
-                    autoComplete="off"
-                    data-testid={`${id}-client-id`}
-                  />
-                </FormField>
-                <FormField size="medium">
-                  <PasswordInput
-                    label={t("mailPlatforms.clientSecret")}
-                    required={!p.organisation_key_field}
-                    value={draft.client_secret}
-                    onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
-                    autoComplete="new-password"
-                    data-testid={`${id}-client-secret`}
-                  />
-                </FormField>
-              </FieldGroup>
-              {p.settings_fields.map((field) => (
-                <FormField size="medium" key={field} help={t(`mailPlatforms.settingHelp.${field}`)}>
-                  <TextInput
-                    label={t(`mailPlatforms.setting.${field}`)}
-                    required
-                    value={draft.settings[field] ?? ""}
-                    onChange={(e) =>
-                      change(p.platform, {
-                        settings: { ...draft.settings, [field]: e.currentTarget.value },
-                      })
-                    }
-                    data-testid={`${id}-setting-${field}`}
-                  />
-                </FormField>
-              ))}
-              {/* Whether sources may read the organization's mailboxes; what the administrator
-                  grants at the platform for it is in the same help, where the platform has
-                  wording. */}
+              {/* What the entry is for comes first; only the fields of what is ticked follow. */}
               <FormChecks>
                 <FormField
                   size="short"
@@ -192,7 +114,7 @@ export function MailPlatformsSection() {
                       : t("mailPlatforms.organisationMailboxesHelp")
                   }
                 >
-                  <Switch
+                  <Checkbox
                     label={t("mailPlatforms.organisationMailboxes")}
                     checked={draft.organisation_mailboxes}
                     onChange={(e) =>
@@ -201,45 +123,65 @@ export function MailPlatformsSection() {
                     data-testid={`${id}-organisation-mailboxes`}
                   />
                 </FormField>
+                <FormField size="short">
+                  <Checkbox
+                    label={t("mailPlatforms.ownMailbox")}
+                    checked={draft.own_mailbox}
+                    onChange={(e) => change(p.platform, { own_mailbox: e.currentTarget.checked })}
+                    data-testid={`${id}-own-mailbox`}
+                  />
+                </FormField>
               </FormChecks>
-              {/* What the platform is entered with for those sources, where it has anything of
-                  its own: the settings beside it, a credential, what to authorise. */}
-              {p.organisation_settings_fields.map((field) => (
-                <FormField size="medium" key={field} help={t(`mailPlatforms.settingHelp.${field}`)}>
-                  <TextInput
-                    label={t(`mailPlatforms.setting.${field}`)}
-                    required={draft.organisation_mailboxes}
-                    value={draft.settings[field] ?? ""}
-                    onChange={(e) =>
-                      change(p.platform, {
-                        settings: { ...draft.settings, [field]: e.currentTarget.value },
-                      })
-                    }
-                    data-testid={`${id}-setting-${field}`}
-                  />
-                </FormField>
-              ))}
-              {p.organisation_key_field && (
-                <FormField size="long" help={t("mailPlatforms.organisationKeyHelp")}>
-                  <PasswordInput
-                    label={t("mailPlatforms.organisationKey")}
-                    required={draft.organisation_mailboxes}
-                    value={draft.organisation_key}
-                    onChange={(e) =>
-                      change(p.platform, { organisation_key: e.currentTarget.value })
-                    }
-                    autoComplete="new-password"
-                    data-testid={`${id}-organisation-key`}
-                  />
-                </FormField>
-              )}
-              {p.organisation_scopes.length > 0 && (
+              {/* What the platform is entered with for the organisation's mailboxes, where it has
+                  anything of its own: the settings beside it, a credential, what to authorise. */}
+              {draft.organisation_mailboxes &&
+                (p.organisation_settings_fields.length > 0 || p.organisation_key_field) && (
+                  <FieldGroup row>
+                    {p.organisation_settings_fields.map((field) => (
+                      <FormField
+                        size="medium"
+                        key={field}
+                        help={t(`mailPlatforms.settingHelp.${field}`)}
+                      >
+                        <TextInput
+                          label={t(`mailPlatforms.setting.${field}`)}
+                          required
+                          value={draft.settings[field] ?? ""}
+                          onChange={(e) =>
+                            change(p.platform, {
+                              settings: { ...draft.settings, [field]: e.currentTarget.value },
+                            })
+                          }
+                          data-testid={`${id}-setting-${field}`}
+                        />
+                      </FormField>
+                    ))}
+                    {p.organisation_key_field && (
+                      <FormField size="long" help={t("mailPlatforms.organisationKeyHelp")}>
+                        <PasswordInput
+                          label={t("mailPlatforms.organisationKey")}
+                          required
+                          value={draft.organisation_key}
+                          onChange={(e) =>
+                            change(p.platform, { organisation_key: e.currentTarget.value })
+                          }
+                          autoComplete="new-password"
+                          data-testid={`${id}-organisation-key`}
+                        />
+                      </FormField>
+                    )}
+                  </FieldGroup>
+                )}
+              {/* Every scope readable at once: the line wraps, and Copy takes it whole. */}
+              {draft.organisation_mailboxes && p.organisation_scopes.length > 0 && (
                 <FieldGroup row>
                   <FormField size="long">
-                    <TextInput
+                    <Textarea
                       label={t("mailPlatforms.organisationScopes")}
                       value={p.organisation_scopes.join(",")}
                       readOnly
+                      autosize
+                      minRows={1}
                       data-testid={`${id}-organisation-scopes`}
                     />
                   </FormField>
@@ -256,14 +198,100 @@ export function MailPlatformsSection() {
                   </CopyButton>
                 </FieldGroup>
               )}
+              {/* One person signing in returns to this address: it goes into the platform. */}
+              {draft.own_mailbox &&
+                (state.redirect_address ? (
+                  <>
+                    <FieldGroup row>
+                      <FormField size="long" help={t(`mailPlatforms.redirectHelp.${p.platform}`)}>
+                        <TextInput
+                          label={t("mailPlatforms.redirectAddress")}
+                          value={state.redirect_address}
+                          readOnly
+                          data-testid={`${id}-redirect`}
+                        />
+                      </FormField>
+                      <CopyButton value={state.redirect_address}>
+                        {({ copied, copy }) => (
+                          <Button variant="default" onClick={copy} data-testid={`${id}-copy`}>
+                            {copied ? t("mailPlatforms.copied") : t("mailPlatforms.copy")}
+                          </Button>
+                        )}
+                      </CopyButton>
+                    </FieldGroup>
+                    <FormField size="full">
+                      <Text size="xs" c="dimmed" data-testid={`${id}-same-address`}>
+                        {t("mailPlatforms.sameAddressNote", {
+                          origin: new URL(state.redirect_address).origin,
+                        })}
+                      </Text>
+                    </FormField>
+                  </>
+                ) : (
+                  <FormField size="full">
+                    <Alert color="yellow" variant="light" data-testid={`${id}-no-redirect`}>
+                      {t("mailPlatforms.redirectUnknown")}
+                    </Alert>
+                  </FormField>
+                ))}
+              {/* The client: its ID and its secret together. A platform with no credential of its
+                  own for the organisation's mailboxes reads them with this client too. */}
+              {client && (
+                <FieldGroup>
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("mailPlatforms.clientId")}
+                      required
+                      value={draft.client_id}
+                      onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
+                      autoComplete="off"
+                      data-testid={`${id}-client-id`}
+                    />
+                  </FormField>
+                  <FormField size="medium">
+                    <PasswordInput
+                      label={t("mailPlatforms.clientSecret")}
+                      required
+                      value={draft.client_secret}
+                      onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
+                      autoComplete="new-password"
+                      data-testid={`${id}-client-secret`}
+                    />
+                  </FormField>
+                </FieldGroup>
+              )}
+              {/* The platform's own settings are needed by every entry. */}
+              {chosen &&
+                p.settings_fields.map((field) => (
+                  <FormField
+                    size="medium"
+                    key={field}
+                    help={t(`mailPlatforms.settingHelp.${field}`)}
+                  >
+                    <TextInput
+                      label={t(`mailPlatforms.setting.${field}`)}
+                      required
+                      value={draft.settings[field] ?? ""}
+                      onChange={(e) =>
+                        change(p.platform, {
+                          settings: { ...draft.settings, [field]: e.currentTarget.value },
+                        })
+                      }
+                      data-testid={`${id}-setting-${field}`}
+                    />
+                  </FormField>
+                ))}
               <FormFooter
                 onSave={() =>
                   run(
                     p.platform,
                     () =>
                       putMailPlatform(activeOrgId, p.platform, {
-                        client_id: draft.client_id.trim(),
-                        ...(draft.client_secret ? { client_secret: draft.client_secret } : {}),
+                        // An entry with no client is sent an empty one, as the server has it.
+                        client_id: client ? draft.client_id.trim() : "",
+                        ...(client && draft.client_secret
+                          ? { client_secret: draft.client_secret }
+                          : {}),
                         settings: draft.settings,
                         organisation_mailboxes: draft.organisation_mailboxes,
                         ...(draft.organisation_key

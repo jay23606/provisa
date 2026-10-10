@@ -10,9 +10,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Button, Group, Select, Stack, Text } from "@mantine/core";
-import { Check } from "lucide-react";
+import { Alert, Select, Stack, Text } from "@mantine/core";
 import { fetchSecurity, setSecurity, type SecurityState } from "../../api/security";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-693: manage the platform security posture (security.mode). The posture binds at startup, so
 // changes take effect on restart. mode=high is zero-trust: pgwire off, REST/GraphQL data 403.
@@ -59,24 +59,28 @@ export function SecurityTab() {
   const modeData = s.modes.map((m) => ({ value: m.key, label: m.label }));
 
   return (
-    <Stack gap="md" maw={720}>
+    <Stack gap="md">
       <Text c="dimmed">{t("securityTab.intro")}</Text>
 
-      <Stack gap="sm">
-        <Select
-          label={t("securityTab.modeLabel")}
-          data={modeData}
-          value={mode}
-          onChange={(v) => v && setMode(v)}
-          allowDeselect={false}
-          data-testid="security-mode-select"
-        />
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            label={t("securityTab.modeLabel")}
+            data={modeData}
+            value={mode}
+            onChange={(v) => v && setMode(v)}
+            allowDeselect={false}
+            data-testid="security-mode-select"
+          />
+        </FormField>
         {current && (
-          <Text c="dimmed" fz="xs">
-            {current.description}
-          </Text>
+          <FormField size="full">
+            <Text c="dimmed" fz="xs">
+              {current.description}
+            </Text>
+          </FormField>
         )}
-      </Stack>
+      </FormLayout>
 
       {mode === "high" && (
         <Alert
@@ -93,19 +97,10 @@ export function SecurityTab() {
         {s.restart_required_note}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          loading={saving}
-          title={t("securityTab.saveTitle")}
-          aria-label={t("securityTab.saveTitle")}
-          data-testid="security-save"
-        >
-          <Check size={14} />
-        </Button>
+      <FormFooter onSave={save} saving={saving} saveProps={{ "data-testid": "security-save" }}>
         {msg && <Text c="green">{msg}</Text>}
         {error && <Text c="red">{error}</Text>}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }

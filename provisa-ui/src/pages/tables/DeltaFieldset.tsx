@@ -52,7 +52,7 @@ export function DeltaFieldset({ editingTable, setEditingTable, part }: DeltaFiel
   // The tick sits with the form's other ticks; its settings are a section that shows once it is
   // ticked. `part` lets a form place the two; without it both render together.
   const tick = (
-    <FormField size="short">
+    <FormField size="short" help={t("tableEditForm.delta.enableHelp")}>
       <Checkbox
         label={t("tableEditForm.delta.enable")}
         checked={delta !== null}

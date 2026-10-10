@@ -21,7 +21,6 @@
     "redirectUnknown": "No se puede mostrar la dirección de redireccionamiento porque la dirección pública de este despliegue no está definida.",
     "clientId": "ID de cliente",
     "clientSecret": "Secreto del cliente",
-    "clientOptional": "Solo es necesario para los orígenes en los que una persona conecta su propio buzón. Deje ambos campos vacíos si todos los orígenes leen los buzones de la organización.",
     "setting": {
       "tenant": "Id. de directorio (inquilino)",
       "admin_address": "Dirección del administrador"
@@ -30,7 +29,8 @@
       "tenant": "El directorio donde están las cuentas de Microsoft 365 de su organización: su id. o su dominio, tal como Microsoft Entra lo muestra en la página Información general del registro de la aplicación.",
       "admin_address": "Un superadministrador de su dominio de Google Workspace. El directorio se lista como este usuario; su correo solo se lee si un origen lo nombra."
     },
-    "organisationMailboxes": "Permitir orígenes que leen los buzones de la organización",
+    "organisationMailboxes": "Leer los buzones de la organización",
+    "ownMailbox": "Permitir que cada persona conecte su propio buzón",
     "organisationMailboxesHelp": "Desactivado: un origen lee solo el buzón que una persona conecta. Activado: un origen puede leer muchos buzones de la organización con la credencial del administrador, y quien pueda leer sus tablas lee todos los buzones salvo que una regla de filas lo limite.",
     "organisationGrant": {
       "microsoft_365": "Para los orígenes que leen los buzones de la organización, conceda al registro de la aplicación los permisos de aplicación Mail.Read y User.Read.All y otorgue el consentimiento del administrador.",

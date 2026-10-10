@@ -70,6 +70,30 @@ body {
   display: flex;
   gap: 0.75rem;
   flex: 1;
+  /* The bar always fits its window: the links give way first (they may shrink below their
+     content), and when one line cannot hold them they take a second, under the first. The
+     controls at the end keep their size and stay on the first line. */
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+.navbar-links a,
+.navbar-links .nav-group-label {
+  white-space: nowrap;
+}
+.navbar-brand,
+.navbar-role {
+  flex: 0 0 auto;
+}
+/* A laptop-width window: closer spacing holds every link on one line for longer. */
+@media (max-width: 90em) {
+  .navbar {
+    gap: 0.5rem;
+    padding-inline: 1rem;
+  }
+  .navbar-links {
+    gap: 0.125rem;
+  }
 }
 .navbar-links a {
   color: var(--text-muted);
@@ -2222,6 +2246,26 @@ main {
   padding: 0.3rem 0.625rem;
   opacity: 0.45;
   cursor: default;
+}
+
+/* What a field says about its value beneath the control (where it comes from, that a change
+   needs a restart, an action on it): the size and colour of a hint, its parts spaced, wrapping
+   inside the field's own width. */
+.form-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.5rem;
+  margin-top: calc(var(--mantine-spacing-xs) / 2);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.3;
+  color: var(--mantine-color-dimmed);
+}
+/* A tick with an action of its own: the action sits after the label, on the tick's line. */
+.form-field--action {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 /* REQ-1968: the shared form layout (components/form/FormLayout.tsx). A wrapping flex row, so the

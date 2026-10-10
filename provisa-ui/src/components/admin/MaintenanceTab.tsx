@@ -29,6 +29,7 @@ import { shutdownAllServices } from "../../api/lifecycle";
  * so the deployment says the same thing every time without an administrator having to compose it.
  */
 import { ConfigFileSection } from "./settingsCards";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 export function MaintenanceTab() {
   const [notice, setNotice] = useState<MaintenanceNotice | null>(null);
@@ -121,26 +122,31 @@ export function MaintenanceTab() {
       )}
 
       <Card withBorder padding="md">
-        <Stack gap="sm">
-          <Textarea
-            label="Message"
-            description="Leave empty for the standard wording."
-            placeholder="Provisa is undergoing scheduled maintenance…"
-            autosize
-            minRows={2}
-            value={message}
-            onChange={(e) => setMessage(e.currentTarget.value)}
-            data-testid="maintenance-message"
-          />
-          <TextInput
-            type="datetime-local"
-            label="Expected back by"
-            description="Leave empty to say no estimate is being offered rather than to imply one."
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.currentTarget.value)}
-            data-testid="maintenance-ends-at"
-          />
-          <Group>
+        <FormLayout>
+          <FormField hint="Leave empty for the standard wording." size="full">
+            <Textarea
+              label="Message"
+              placeholder="Provisa is undergoing scheduled maintenance…"
+              autosize
+              minRows={2}
+              value={message}
+              onChange={(e) => setMessage(e.currentTarget.value)}
+              data-testid="maintenance-message"
+            />
+          </FormField>
+          <FormField
+            hint="Leave empty to say no estimate is being offered rather than to imply one."
+            size="medium"
+          >
+            <TextInput
+              type="datetime-local"
+              label="Expected back by"
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.currentTarget.value)}
+              data-testid="maintenance-ends-at"
+            />
+          </FormField>
+          <FormFooter>
             <Button
               color="orange"
               loading={busy}
@@ -157,8 +163,8 @@ export function MaintenanceTab() {
             >
               Clear banner
             </Button>
-          </Group>
-        </Stack>
+          </FormFooter>
+        </FormLayout>
       </Card>
 
       {/* REQ-1349: exporting, diffing and re-applying the config file is deployment maintenance,

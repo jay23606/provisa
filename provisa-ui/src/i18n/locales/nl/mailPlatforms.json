@@ -21,7 +21,6 @@
     "redirectUnknown": "Het omleidingsadres kan niet worden getoond omdat het openbare adres van deze installatie niet is ingesteld.",
     "clientId": "Client-ID",
     "clientSecret": "Clientgeheim",
-    "clientOptional": "Alleen nodig voor bronnen waarbij één persoon het eigen postvak verbindt. Laat beide velden leeg als elke bron de postvakken van de organisatie leest.",
     "setting": {
       "tenant": "Map-id (tenant)",
       "admin_address": "Adres van de beheerder"
@@ -30,7 +29,8 @@
       "tenant": "De map waarin de Microsoft 365-accounts van uw organisatie staan: de id of het domein ervan, zoals Microsoft Entra die toont op de pagina Overzicht van de app-registratie.",
       "admin_address": "Een superbeheerder van uw Google Workspace-domein. De directory wordt als deze gebruiker opgevraagd; zijn e-mail wordt alleen gelezen als een bron hem noemt."
     },
-    "organisationMailboxes": "Bronnen toestaan die de postvakken van de organisatie lezen",
+    "organisationMailboxes": "De postvakken van de organisatie lezen",
+    "ownMailbox": "Mensen hun eigen postvak laten verbinden",
     "organisationMailboxesHelp": "Uit: een bron leest alleen het ene postvak dat iemand koppelt. Aan: een bron mag met de inloggegevens van de beheerder veel postvakken van de organisatie lezen, en wie de tabellen mag lezen, leest elk postvak, tenzij een rijregel dat beperkt.",
     "organisationGrant": {
       "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming.",

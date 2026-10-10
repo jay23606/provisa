@@ -41,6 +41,7 @@ import { FilterInput } from "./FilterInput";
 import { HelpBubble } from "../HelpBubble";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
 
@@ -119,12 +120,12 @@ export function TagsTab() {
     setFormParamPolicy("none");
   };
 
+  const closeForm = () => {
+    setShowForm(false);
+    resetForm();
+  };
+
   const openCreate = () => {
-    if (showForm && !editingId) {
-      setShowForm(false);
-      resetForm();
-      return;
-    }
     resetForm();
     setFormScopes([scope]);
     setShowForm(true);
@@ -209,14 +210,15 @@ export function TagsTab() {
           placeholder={t("tagsTab.filterPlaceholder")}
         />
         <Group gap="xs">
-          <Button
-            variant={showForm ? "default" : "filled"}
-            leftSection={<Plus size={14} />}
-            onClick={openCreate}
-            data-testid="tags-create-button"
-          >
-            {showForm ? t("tagsTab.closeForm") : t("tagsTab.addTag")}
-          </Button>
+          {!showForm && (
+            <Button
+              leftSection={<Plus size={14} />}
+              onClick={openCreate}
+              data-testid="tags-create-button"
+            >
+              {t("tagsTab.addTag")}
+            </Button>
+          )}
           <HelpBubble
             title={t("tagsTab.purposeTitle")}
             paragraphs={[t("tagsTab.purposeBody"), t("tagsTab.purposeAdd")]}
@@ -238,36 +240,41 @@ export function TagsTab() {
       />
 
       {showForm && (
-        <Stack gap="sm" maw={480}>
-          <TextInput
-            label={t("tagsTab.idLabel")}
-            description={t("tagsTab.idDesc")}
-            placeholder={t("tagsTab.idPlaceholder")}
-            value={formId}
-            disabled={editingId !== null}
-            onChange={(e) => setFormId(e.currentTarget.value)}
-          />
-          <TextInput
-            label={t("tagsTab.descriptionLabel")}
-            placeholder={t("tagsTab.descriptionPlaceholder")}
-            value={formDescription}
-            onChange={(e) => setFormDescription(e.currentTarget.value)}
-          />
-          <Checkbox.Group
-            label={t("tagsTab.appliesToLabel")}
-            description={t("tagsTab.appliesToDesc")}
-            value={formScopes}
-            onChange={setFormScopes}
-          >
-            <Group gap="md" mt="xs">
-              {SCOPES.map((s) => (
-                <Checkbox key={s} value={s} label={scopeLabel(s)} />
-              ))}
-            </Group>
-          </Checkbox.Group>
-          <Group gap="md" grow>
+        <FormLayout>
+          <FormIdentifiers>
+            <FormField hint={t("tagsTab.idDesc")} size="medium">
+              <TextInput
+                label={t("tagsTab.idLabel")}
+                placeholder={t("tagsTab.idPlaceholder")}
+                value={formId}
+                disabled={editingId !== null}
+                onChange={(e) => setFormId(e.currentTarget.value)}
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="long">
+            <TextInput
+              label={t("tagsTab.descriptionLabel")}
+              placeholder={t("tagsTab.descriptionPlaceholder")}
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.currentTarget.value)}
+            />
+          </FormField>
+          <FormField hint={t("tagsTab.appliesToDesc")} size="full">
+            <Checkbox.Group
+              label={t("tagsTab.appliesToLabel")}
+              value={formScopes}
+              onChange={setFormScopes}
+            >
+              <Group gap="md" mt="xs">
+                {SCOPES.map((s) => (
+                  <Checkbox key={s} value={s} label={scopeLabel(s)} />
+                ))}
+              </Group>
+            </Checkbox.Group>
+          </FormField>
+          <FormField size="medium">
             <Select
-              size="xs"
               label={t("tagsTab.reasonPolicyLabel")}
               data={policyOptions}
               value={formReasonPolicy}
@@ -275,8 +282,9 @@ export function TagsTab() {
               onChange={(v) => setFormReasonPolicy(v as TagFieldPolicy)}
               data-testid="tags-reason-policy"
             />
+          </FormField>
+          <FormField size="medium">
             <Select
-              size="xs"
               label={t("tagsTab.expiresPolicyLabel")}
               data={policyOptions}
               value={formExpiresPolicy}
@@ -284,205 +292,219 @@ export function TagsTab() {
               onChange={(v) => setFormExpiresPolicy(v as TagFieldPolicy)}
               data-testid="tags-expires-policy"
             />
+          </FormField>
+          <FormField hint={t("tagsTab.paramPolicyDesc")} size="medium">
             <Select
-              size="xs"
               label={t("tagsTab.paramPolicyLabel")}
-              description={t("tagsTab.paramPolicyDesc")}
               data={paramPolicyOptions}
               value={formParamPolicy}
               allowDeselect={false}
               onChange={(v) => setFormParamPolicy(v as TagParamPolicy)}
               data-testid="tags-param-policy"
             />
-          </Group>
-          <Button
-            onClick={handleSubmit}
-            disabled={!formId.trim() || formScopes.length === 0}
-            style={{ alignSelf: "flex-start" }}
-          >
-            {editingId ? t("tagsTab.saveButton") : t("tagsTab.createButton")}
-          </Button>
-        </Stack>
+          </FormField>
+          <FormFooter
+            onSave={handleSubmit}
+            onCancel={closeForm}
+            saveProps={{
+              "data-testid": "tags-save",
+              disabled: !formId.trim() || formScopes.length === 0,
+            }}
+          />
+        </FormLayout>
       )}
 
       <SortGroupTable
-          testPrefix="tags"
-          minWidth={640}
-          rows={filtered}
-          columns={[
-            { key: "id", label: t("tagsTab.colId"), sortValue: (g) => g.id },
-            { key: "description", label: t("tagsTab.colDescription"), sortValue: (g) => g.description },
-            { key: "appliesTo", label: t("tagsTab.colAppliesTo"), sortValue: (g) => g.appliesTo.join(", "), groupValue: (g) => g.appliesTo.join(", ") },
-            { key: "assignments", label: t("tagsTab.colAssignments"), sortValue: (g) => assignmentCounts[baseTagId(g.id)] ?? 0 },
-          ]}
-          headers={[
-            { col: "id" },
-            { col: "description" },
-            { col: "appliesTo" },
-            { col: "assignments" },
-            t("tagsTab.colActions"),
-          ]}
-          colSpan={5}
-          rowKey={(tag) => tag.id}
-          empty={t("tagsTab.empty")}
-          page={{ index: safePage - 1, size: PAGE_SIZE }}
-          onGroupedChange={setGrouped}
-          render={(tag) => [
-              <ListRow key={tag.id} testId={`tags-row-${tag.id}`}>
-                <Table.Td>
-                  {tag.id}
-                  {(tag.reasonPolicy !== "optional" || tag.expiresPolicy !== "optional") && (
-                    <Group gap={4} mt={2}>
-                      {tag.reasonPolicy !== "optional" && (
-                        <Badge size="xs" variant="light" color="gray">
-                          {t("tagsTab.reasonPolicyBadge", {
-                            policy: policyLabel(tag.reasonPolicy),
-                          })}
-                        </Badge>
-                      )}
-                      {tag.expiresPolicy !== "optional" && (
-                        <Badge size="xs" variant="light" color="gray">
-                          {t("tagsTab.expiresPolicyBadge", {
-                            policy: policyLabel(tag.expiresPolicy),
-                          })}
-                        </Badge>
-                      )}
-                    </Group>
+        testPrefix="tags"
+        minWidth={640}
+        rows={filtered}
+        columns={[
+          { key: "id", label: t("tagsTab.colId"), sortValue: (g) => g.id },
+          {
+            key: "description",
+            label: t("tagsTab.colDescription"),
+            sortValue: (g) => g.description,
+          },
+          {
+            key: "appliesTo",
+            label: t("tagsTab.colAppliesTo"),
+            sortValue: (g) => g.appliesTo.join(", "),
+            groupValue: (g) => g.appliesTo.join(", "),
+          },
+          {
+            key: "assignments",
+            label: t("tagsTab.colAssignments"),
+            sortValue: (g) => assignmentCounts[baseTagId(g.id)] ?? 0,
+          },
+        ]}
+        headers={[
+          { col: "id" },
+          { col: "description" },
+          { col: "appliesTo" },
+          { col: "assignments" },
+          t("tagsTab.colActions"),
+        ]}
+        colSpan={5}
+        rowKey={(tag) => tag.id}
+        empty={t("tagsTab.empty")}
+        page={{ index: safePage - 1, size: PAGE_SIZE }}
+        onGroupedChange={setGrouped}
+        render={(tag) => [
+          <ListRow key={tag.id} testId={`tags-row-${tag.id}`}>
+            <Table.Td>
+              {tag.id}
+              {(tag.reasonPolicy !== "optional" || tag.expiresPolicy !== "optional") && (
+                <Group gap={4} mt={2}>
+                  {tag.reasonPolicy !== "optional" && (
+                    <Badge size="xs" variant="light" color="gray">
+                      {t("tagsTab.reasonPolicyBadge", {
+                        policy: policyLabel(tag.reasonPolicy),
+                      })}
+                    </Badge>
                   )}
-                </Table.Td>
-                <Table.Td>{tag.description || "—"}</Table.Td>
-                <Table.Td>
+                  {tag.expiresPolicy !== "optional" && (
+                    <Badge size="xs" variant="light" color="gray">
+                      {t("tagsTab.expiresPolicyBadge", {
+                        policy: policyLabel(tag.expiresPolicy),
+                      })}
+                    </Badge>
+                  )}
+                </Group>
+              )}
+            </Table.Td>
+            <Table.Td>{tag.description || "—"}</Table.Td>
+            <Table.Td>
+              <Group gap={4}>
+                {tag.appliesTo.map((s) => (
+                  <Badge key={s} size="xs" variant="light">
+                    {scopeLabel(s)}
+                  </Badge>
+                ))}
+              </Group>
+            </Table.Td>
+            {/* REQ-1443: a derived tag is computed off each table's registration and is never
+                    assigned, so a count of stored assignments would read as "unused" when the tag
+                    may hold on every table in the estate. */}
+            <Table.Td>
+              {tag.derived ? (
+                <Badge size="xs" variant="light" color="teal" data-testid="tags-derived">
+                  {t("tagsTab.derivedTag")}
+                </Badge>
+              ) : (
+                (assignmentCounts[tag.id] ?? 0)
+              )}
+            </Table.Td>
+            <Table.Td>
+              <Group gap="xs">
+                {/* REQ-1467: the value list is editable even on a system tag — the tag itself
+                        is code-defined, but which values it admits is the maintainer's call. */}
+                {tag.paramPolicy === "required" && (
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={t("tagsTab.editValues", { id: tag.id })}
+                    data-testid={`tags-values-${tag.id}`}
+                    onClick={() => toggleValues(tag.id)}
+                  >
+                    <List size={14} />
+                  </ActionIcon>
+                )}
+                {tag.isSystem ? (
+                  <Tooltip label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}>
+                    <Lock
+                      size={13}
+                      aria-label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}
+                    />
+                  </Tooltip>
+                ) : (
+                  <>
+                    <ActionIcon
+                      variant="subtle"
+                      aria-label={t("tagsTab.editTag", { id: tag.id })}
+                      onClick={() => openEdit(tag)}
+                    >
+                      <Pencil size={14} />
+                    </ActionIcon>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={t("tagsTab.deleteTag", { id: tag.id })}
+                      data-testid={`tags-delete-${tag.id}`}
+                      onClick={() => handleDelete(tag)}
+                    >
+                      <Trash2 size={14} />
+                    </ActionIcon>
+                  </>
+                )}
+              </Group>
+            </Table.Td>
+          </ListRow>,
+          valuesTagId === tag.id && (
+            <Table.Tr
+              className="list-expand"
+              key={`${tag.id}-values`}
+              data-testid={`tags-values-row-${tag.id}`}
+            >
+              <Table.Td colSpan={5}>
+                <Stack gap="xs">
                   <Group gap={4}>
-                    {tag.appliesTo.map((s) => (
-                      <Badge key={s} size="xs" variant="light">
-                        {scopeLabel(s)}
+                    {tag.paramValues.length === 0 && (
+                      <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        {t("tagsTab.noValues")}
+                      </span>
+                    )}
+                    {tag.paramValues.map((v) => (
+                      <Badge
+                        key={v.value}
+                        size="sm"
+                        variant="light"
+                        title={v.description}
+                        rightSection={
+                          <ActionIcon
+                            size="xs"
+                            variant="transparent"
+                            color="gray"
+                            aria-label={t("tagsTab.deleteValue", { value: v.value })}
+                            data-testid={`tags-value-delete-${tag.id}-${v.value}`}
+                            onClick={() => handleDeleteValue(tag.id, v.value)}
+                          >
+                            <X size={10} />
+                          </ActionIcon>
+                        }
+                      >
+                        {v.value}
                       </Badge>
                     ))}
                   </Group>
-                </Table.Td>
-                {/* REQ-1443: a derived tag is computed off each table's registration and is never
-                    assigned, so a count of stored assignments would read as "unused" when the tag
-                    may hold on every table in the estate. */}
-                <Table.Td>
-                  {tag.derived ? (
-                    <Badge size="xs" variant="light" color="teal" data-testid="tags-derived">
-                      {t("tagsTab.derivedTag")}
-                    </Badge>
-                  ) : (
-                    (assignmentCounts[tag.id] ?? 0)
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    {/* REQ-1467: the value list is editable even on a system tag — the tag itself
-                        is code-defined, but which values it admits is the maintainer's call. */}
-                    {tag.paramPolicy === "required" && (
-                      <ActionIcon
-                        variant="subtle"
-                        aria-label={t("tagsTab.editValues", { id: tag.id })}
-                        data-testid={`tags-values-${tag.id}`}
-                        onClick={() => toggleValues(tag.id)}
-                      >
-                        <List size={14} />
-                      </ActionIcon>
-                    )}
-                    {tag.isSystem ? (
-                      <Tooltip
-                        label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}
-                      >
-                        <Lock
-                          size={13}
-                          aria-label={t(
-                            tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag",
-                          )}
-                        />
-                      </Tooltip>
-                    ) : (
-                      <>
-                        <ActionIcon
-                          variant="subtle"
-                          aria-label={t("tagsTab.editTag", { id: tag.id })}
-                          onClick={() => openEdit(tag)}
-                        >
-                          <Pencil size={14} />
-                        </ActionIcon>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          aria-label={t("tagsTab.deleteTag", { id: tag.id })}
-                          data-testid={`tags-delete-${tag.id}`}
-                          onClick={() => handleDelete(tag)}
-                        >
-                          <Trash2 size={14} />
-                        </ActionIcon>
-                      </>
-                    )}
+                  <Group gap="xs" align="flex-end">
+                    <TextInput
+                      size="xs"
+                      label={t("tagsTab.newValueLabel")}
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.currentTarget.value)}
+                      data-testid={`tags-new-value-${tag.id}`}
+                    />
+                    <TextInput
+                      size="xs"
+                      label={t("tagsTab.newValueDescriptionLabel")}
+                      value={newValueDescription}
+                      onChange={(e) => setNewValueDescription(e.currentTarget.value)}
+                      data-testid={`tags-new-value-desc-${tag.id}`}
+                    />
+                    <Button
+                      size="compact-xs"
+                      disabled={newValue.trim() === ""}
+                      onClick={() => void handleAddValue(tag.id)}
+                      data-testid={`tags-add-value-${tag.id}`}
+                    >
+                      {t("tagsTab.addValue")}
+                    </Button>
                   </Group>
-                </Table.Td>
-              </ListRow>,
-              valuesTagId === tag.id && (
-                <Table.Tr className="list-expand" key={`${tag.id}-values`} data-testid={`tags-values-row-${tag.id}`}>
-                  <Table.Td colSpan={5}>
-                    <Stack gap="xs">
-                      <Group gap={4}>
-                        {tag.paramValues.length === 0 && (
-                          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                            {t("tagsTab.noValues")}
-                          </span>
-                        )}
-                        {tag.paramValues.map((v) => (
-                          <Badge
-                            key={v.value}
-                            size="sm"
-                            variant="light"
-                            title={v.description}
-                            rightSection={
-                              <ActionIcon
-                                size="xs"
-                                variant="transparent"
-                                color="gray"
-                                aria-label={t("tagsTab.deleteValue", { value: v.value })}
-                                data-testid={`tags-value-delete-${tag.id}-${v.value}`}
-                                onClick={() => handleDeleteValue(tag.id, v.value)}
-                              >
-                                <X size={10} />
-                              </ActionIcon>
-                            }
-                          >
-                            {v.value}
-                          </Badge>
-                        ))}
-                      </Group>
-                      <Group gap="xs" align="flex-end">
-                        <TextInput
-                          size="xs"
-                          label={t("tagsTab.newValueLabel")}
-                          value={newValue}
-                          onChange={(e) => setNewValue(e.currentTarget.value)}
-                          data-testid={`tags-new-value-${tag.id}`}
-                        />
-                        <TextInput
-                          size="xs"
-                          label={t("tagsTab.newValueDescriptionLabel")}
-                          value={newValueDescription}
-                          onChange={(e) => setNewValueDescription(e.currentTarget.value)}
-                          data-testid={`tags-new-value-desc-${tag.id}`}
-                        />
-                        <Button
-                          size="compact-xs"
-                          disabled={newValue.trim() === ""}
-                          onClick={() => void handleAddValue(tag.id)}
-                          data-testid={`tags-add-value-${tag.id}`}
-                        >
-                          {t("tagsTab.addValue")}
-                        </Button>
-                      </Group>
-                    </Stack>
-                  </Table.Td>
-                </Table.Tr>
-              ),
-            ]}
-        />
+                </Stack>
+              </Table.Td>
+            </Table.Tr>
+          ),
+        ]}
+      />
       {totalPages > 1 && !grouped && (
         <Group justify="flex-end">
           <Pagination

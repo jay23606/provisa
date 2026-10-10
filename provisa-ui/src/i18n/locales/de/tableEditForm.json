@@ -269,7 +269,8 @@
     "draftHelp": "Außer Betrieb, solange aktiviert: nirgends gelesen oder geschrieben, in keinem Schema angeboten und nirgends kopiert – vorhandene Kopien in allen Regionen werden entfernt. Eine hier registrierte Tabelle oder Ansicht beginnt als Entwurf; zum Freigeben deaktivieren.",
     "delta": {
       "legend": "Inkrementelles Nachladen (Delta)",
-      "enable": "Dieses Replikat inkrementell (Delta) aktualisieren, statt es vollständig neu zu kopieren",
+      "enable": "Inkrementelles Nachladen",
+      "enableHelp": "Dieses Replikat inkrementell (Delta) aktualisieren, statt es vollständig neu zu kopieren",
       "needsWatermark": "Ein Delta braucht eine Wasserzeichen-Spalte (den Cursor, ab dem es liest). Legen Sie sie unter Live-Zustellung fest.",
       "cursorNote": "Cursor-Feld: die Wasserzeichen-Spalte der Tabelle ({{watermark}}). Jede Aktualisierung liest nur Zeilen jenseits des gespeicherten Wasserzeichens und schiebt es weiter.",
       "apply": "Anwenden",

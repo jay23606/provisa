@@ -125,7 +125,7 @@ export function ColumnsTable({
                   options={roles.map((r) => ({ id: r.id, label: r.id }))}
                   value={col.visibleTo}
                   onChange={(selected) => updateCol(i, "visibleTo", selected)}
-                  label={t("registerTableForm.colHeaderVisibleTo")}
+                  ariaLabel={t("registerTableForm.colHeaderVisibleTo")}
                 />
               </Table.Td>
               <Table.Td>
@@ -133,7 +133,7 @@ export function ColumnsTable({
                   options={roles.map((r) => ({ id: r.id, label: r.id }))}
                   value={col.writableBy}
                   onChange={(selected) => updateCol(i, "writableBy", selected)}
-                  label={t("registerTableForm.colHeaderWritableBy")}
+                  ariaLabel={t("registerTableForm.colHeaderWritableBy")}
                 />
               </Table.Td>
               <Table.Td>

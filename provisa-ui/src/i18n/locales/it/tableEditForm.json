@@ -269,7 +269,8 @@
     "draftHelp": "Fuori servizio finché è selezionato: non viene letta né scritta da nessuna parte, non è offerta in alcuno schema e non viene copiata — le copie esistenti in ogni regione vengono rimosse. Una tabella o vista registrata qui inizia come bozza; deselezionare per rilasciarla.",
     "delta": {
       "legend": "Ricaricamento incrementale (delta)",
-      "enable": "Aggiorna questa replica in modo incrementale (delta) invece di ricopiarla per intero",
+      "enable": "Ricaricamento incrementale",
+      "enableHelp": "Aggiorna questa replica in modo incrementale (delta) invece di ricopiarla per intero",
       "needsWatermark": "Un delta richiede una colonna watermark (il cursore oltre il quale legge). Impostala in Consegna live.",
       "cursorNote": "Campo cursore: la colonna watermark della tabella ({{watermark}}). Ogni aggiornamento legge solo le righe oltre il watermark memorizzato e lo fa avanzare.",
       "apply": "Applicazione",

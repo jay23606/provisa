@@ -10,18 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Button,
-  Group,
-  NumberInput,
-  Radio,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
-import { Check } from "lucide-react";
+import { Alert, NumberInput, Radio, Select, Stack, Text, TextInput } from "@mantine/core";
 import { Link } from "react-router-dom";
 import {
   fetchOrgEngine,
@@ -29,6 +18,7 @@ import {
   type OrgEngineMode,
   type OrgEngineState,
 } from "../../api/admin";
+import { FieldGroup, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 /**
  * REQ-1512: on a hosted deployment the engine is REPORTED, not chosen.
@@ -62,7 +52,7 @@ function HostedEngineReport({ state }: { state: OrgEngineState }) {
               : t("orgEngineTab.hostedStateOther", { state: engineState });
 
   return (
-    <Stack gap="md" maw={720} data-testid="org-engine-hosted">
+    <Stack gap="md" data-testid="org-engine-hosted">
       <Text c="dimmed" size="sm">
         {t("orgEngineTab.hostedIntro")}
       </Text>
@@ -173,7 +163,7 @@ export function OrgEngineTab() {
   if (state.plan_derived) return <HostedEngineReport state={state} />;
 
   return (
-    <Stack gap="md" maw={720}>
+    <Stack gap="md">
       <Text c="dimmed" size="sm">
         {t("orgEngineTab.intro", { engine: state.engine_name })}
       </Text>
@@ -226,72 +216,78 @@ export function OrgEngineTab() {
       </Radio.Group>
 
       {mode === "external" && (
-        <Stack gap="sm">
-          <Select
-            label={t("orgEngineTab.kindLabel")}
-            description={t("orgEngineTab.kindHelp")}
-            required
-            value={kind}
-            onChange={setKind}
-            data={state.external_kinds.map((k) => ({ value: k.key, label: k.label }))}
-            data-testid="org-engine-kind"
-          />
+        <FormLayout>
+          <FormField help={t("orgEngineTab.kindHelp")} size="medium">
+            <Select
+              label={t("orgEngineTab.kindLabel")}
+              required
+              value={kind}
+              onChange={setKind}
+              data={state.external_kinds.map((k) => ({ value: k.key, label: k.label }))}
+              data-testid="org-engine-kind"
+            />
+          </FormField>
           {kind && (
-            <Text c="dimmed" size="xs">
-              {state.external_kinds.find((k) => k.key === kind)?.description}
-            </Text>
+            <FormField size="full">
+              <Text c="dimmed" size="xs">
+                {state.external_kinds.find((k) => k.key === kind)?.description}
+              </Text>
+            </FormField>
           )}
           {addressing === "endpoint" && (
             <>
-              <TextInput
-                label={t("orgEngineTab.hostLabel")}
-                required
-                placeholder={t("orgEngineTab.hostPlaceholder")}
-                value={host}
-                onChange={(e) => setHost(e.currentTarget.value)}
-                data-testid="org-engine-host"
-              />
-              <NumberInput
-                label={t("orgEngineTab.portLabel")}
-                required
-                value={port === "" ? "" : Number(port)}
-                onChange={(v) => setPort(String(v ?? ""))}
-                data-testid="org-engine-port"
-              />
+              <FieldGroup>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("orgEngineTab.hostLabel")}
+                    required
+                    placeholder={t("orgEngineTab.hostPlaceholder")}
+                    value={host}
+                    onChange={(e) => setHost(e.currentTarget.value)}
+                    data-testid="org-engine-host"
+                  />
+                </FormField>
+                <FormField size="short">
+                  <NumberInput
+                    label={t("orgEngineTab.portLabel")}
+                    required
+                    value={port === "" ? "" : Number(port)}
+                    onChange={(v) => setPort(String(v ?? ""))}
+                    data-testid="org-engine-port"
+                  />
+                </FormField>
+              </FieldGroup>
             </>
           )}
           {addressing === "url" && (
-            <TextInput
-              label={t("orgEngineTab.urlLabel")}
-              required={!state.external_url_set}
-              description={
+            <FormField
+              hint={
                 state.external_url_set ? t("orgEngineTab.urlStored") : t("orgEngineTab.urlHelp")
               }
-              placeholder={t("orgEngineTab.urlPlaceholder")}
-              value={url}
-              onChange={(e) => setUrl(e.currentTarget.value)}
-              data-testid="org-engine-url"
-            />
+              size="long"
+            >
+              <TextInput
+                label={t("orgEngineTab.urlLabel")}
+                required={!state.external_url_set}
+                placeholder={t("orgEngineTab.urlPlaceholder")}
+                value={url}
+                onChange={(e) => setUrl(e.currentTarget.value)}
+                data-testid="org-engine-url"
+              />
+            </FormField>
           )}
-        </Stack>
+        </FormLayout>
       )}
 
       <Alert color="yellow" variant="light">
         {t("orgEngineTab.applyNote")}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          disabled={saving || externalIncomplete}
-          title={t("orgEngineTab.saveButton")}
-          aria-label={t("orgEngineTab.saveButton")}
-          loading={saving}
-          leftSection={saving ? undefined : <Check size={14} />}
-          data-testid="org-engine-save-button"
-        >
-          {t("orgEngineTab.saveButton")}
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        saveProps={{ "data-testid": "org-engine-save-button", disabled: externalIncomplete }}
+      >
         {msg && (
           <Text c="green" size="sm">
             {msg}
@@ -302,7 +298,7 @@ export function OrgEngineTab() {
             {error}
           </Text>
         )}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }

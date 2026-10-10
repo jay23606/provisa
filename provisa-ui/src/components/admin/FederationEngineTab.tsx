@@ -10,18 +10,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  NumberInput,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
-import { Check } from "lucide-react";
+import { Alert, Checkbox, NumberInput, Select, Stack, Text, TextInput } from "@mantine/core";
 import {
   fetchFederationEngine,
   setFederationEngine,
@@ -30,6 +19,7 @@ import {
 import { FederationSettingsCards } from "./settingsCards";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-916: select + configure the federation engine. Changes persist to the platform config and
 // take effect on the next service restart (the engine is bound once at boot).
@@ -117,6 +107,7 @@ export function FederationEngineTab() {
   if (error && !state) return <Alert color="red">{error}</Alert>;
   if (!state) return <Text>{t("federationEngineTab.loading")}</Text>;
 
+  const fields = currentEngine?.config_fields ?? [];
   const engineOptions = state.engines.map((e) => ({
     value: e.key,
     label: `${e.label}${e.managed ? ` (${e.managed})` : ""}${
@@ -125,74 +116,95 @@ export function FederationEngineTab() {
   }));
 
   return (
-    <Stack gap="md" maw={720}>
+    <Stack gap="md">
       <Text c="dimmed" size="sm">
         {t("federationEngineTab.intro")}
       </Text>
 
-      <Stack gap="sm">
-        <Select
-          label={t("federationEngineTab.engineLabel")}
-          data={engineOptions}
-          value={selected}
-          onChange={(v) => {
-            if (!v) return;
-            setSelected(v);
-            setMsg("");
-          }}
-          allowDeselect={false}
-          data-testid="federation-engine-select"
-        />
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            label={t("federationEngineTab.engineLabel")}
+            data={engineOptions}
+            value={selected}
+            onChange={(v) => {
+              if (!v) return;
+              setSelected(v);
+              setMsg("");
+            }}
+            allowDeselect={false}
+            data-testid="federation-engine-select"
+          />
+        </FormField>
         {currentEngine && (
-          <Text c="dimmed" size="xs">
-            {currentEngine.description}
-          </Text>
+          <FormField size="full">
+            <Text c="dimmed" size="xs">
+              {currentEngine.description}
+            </Text>
+          </FormField>
         )}
 
-        {(currentEngine?.config_fields ?? []).map((f) =>
-          f.type === "boolean" ? (
-            <Checkbox
-              key={f.config_key}
-              label={f.label}
-              checked={values[f.config_key] === true}
-              onChange={(e) => {
-                const next = e.currentTarget.checked;
-                setValues((v) => ({ ...v, [f.config_key]: next }));
-              }}
-            />
-          ) : f.type === "select" ? (
-            <Select
-              key={f.config_key}
-              label={f.label}
-              required={f.required}
-              data={(f.options ?? []).map((o) => ({ value: o.value, label: o.label }))}
-              value={String(values[f.config_key] ?? "")}
-              onChange={(v) => setValues((cur) => ({ ...cur, [f.config_key]: v ?? "" }))}
-            />
-          ) : f.type === "number" ? (
-            <NumberInput
-              key={f.config_key}
-              label={f.label}
-              required={f.required}
-              placeholder={f.placeholder}
-              value={String(values[f.config_key] ?? "") === "" ? "" : Number(values[f.config_key])}
-              onChange={(v) => setValues((cur) => ({ ...cur, [f.config_key]: String(v ?? "") }))}
-            />
-          ) : (
-            <TextInput
-              key={f.config_key}
-              label={f.label}
-              required={f.required}
-              placeholder={f.placeholder}
-              value={String(values[f.config_key] ?? "")}
-              onChange={(e) => {
-                const next = e.currentTarget.value;
-                setValues((v) => ({ ...v, [f.config_key]: next }));
-              }}
-            />
-          ),
+        {fields
+          .filter((f) => f.type !== "boolean")
+          .map((f) =>
+            f.type === "select" ? (
+              <FormField size="medium" key={f.config_key}>
+                <Select
+                  label={f.label}
+                  required={f.required}
+                  data={(f.options ?? []).map((o) => ({ value: o.value, label: o.label }))}
+                  value={String(values[f.config_key] ?? "")}
+                  onChange={(v) => setValues((cur) => ({ ...cur, [f.config_key]: v ?? "" }))}
+                />
+              </FormField>
+            ) : f.type === "number" ? (
+              <FormField size="short" key={f.config_key}>
+                <NumberInput
+                  label={f.label}
+                  required={f.required}
+                  placeholder={f.placeholder}
+                  value={
+                    String(values[f.config_key] ?? "") === "" ? "" : Number(values[f.config_key])
+                  }
+                  onChange={(v) =>
+                    setValues((cur) => ({ ...cur, [f.config_key]: String(v ?? "") }))
+                  }
+                />
+              </FormField>
+            ) : (
+              <FormField size="medium" key={f.config_key}>
+                <TextInput
+                  label={f.label}
+                  required={f.required}
+                  placeholder={f.placeholder}
+                  value={String(values[f.config_key] ?? "")}
+                  onChange={(e) => {
+                    const next = e.currentTarget.value;
+                    setValues((v) => ({ ...v, [f.config_key]: next }));
+                  }}
+                />
+              </FormField>
+            ),
+          )}
+        {fields.some((f) => f.type === "boolean") && (
+          <FormChecks>
+            {fields
+              .filter((f) => f.type === "boolean")
+              .map((f) => (
+                <FormField size="short" key={f.config_key}>
+                  <Checkbox
+                    label={f.label}
+                    checked={values[f.config_key] === true}
+                    onChange={(e) => {
+                      const next = e.currentTarget.checked;
+                      setValues((v) => ({ ...v, [f.config_key]: next }));
+                    }}
+                  />
+                </FormField>
+              ))}
+          </FormChecks>
         )}
-      </Stack>
+      </FormLayout>
 
       {state.env_pinned_engine && (
         <Alert color="orange" variant="light" data-testid="federation-engine-env-pin">
@@ -213,18 +225,11 @@ export function FederationEngineTab() {
         {state.restart_required_note}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          disabled={saving || incomplete}
-          title={t("federationEngineTab.saveButton")}
-          aria-label={t("federationEngineTab.saveButton")}
-          loading={saving}
-          leftSection={saving ? undefined : <Check size={14} />}
-          data-testid="federation-engine-save-button"
-        >
-          {t("federationEngineTab.saveButton")}
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        saveProps={{ "data-testid": "federation-engine-save-button", disabled: incomplete }}
+      >
         {msg && (
           <Text c="green" size="sm">
             {msg}
@@ -235,7 +240,7 @@ export function FederationEngineTab() {
             {error}
           </Text>
         )}
-      </Group>
+      </FormFooter>
 
       {/* REQ-1349: sampling, CDC and remote-GraphQL limits govern how this engine reaches sources,
           so they sit with the engine rather than on the Admin overview. */}

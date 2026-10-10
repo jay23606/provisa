@@ -62,7 +62,7 @@
     "certificatePfx": "Zertifikat (PFX)",
     "pfxCertificatePath": "PFX-Zertifikatspfad",
     "namingConvention": "Namenskonvention",
-    "cacheEnabled": "Cache aktiviert",
+    "cacheEnabled": "Ergebnis-Cache erlaubt",
     "cacheEnabledHelp": "Wenn aktiviert, darf die Antwort auf eine Abfrage, die diese Quelle liest, für die Dauer der Cache-TTL aufbewahrt und wiederverwendet werden, jedoch nur für Anfragen, die Caching verlangen. Wenn deaktiviert, werden Ergebnisse, die diese Quelle berühren, nie zwischengespeichert.",
     "loadProtected": "Lastgeschützt",
     "loadProtectedTooltip": "Diese Quelle nie live abfragen — immer den letzten materialisierten Snapshot ausliefern und ihn nur im Nebenzeiten-Fenster aktualisieren. Schützt eine fragile oder ratenbegrenzte Quelle vor Abfragelast. Eine Einstellung pro Tabelle kann diesen Standard überschreiben.",

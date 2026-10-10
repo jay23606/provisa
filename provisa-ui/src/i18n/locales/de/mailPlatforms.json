@@ -21,7 +21,6 @@
     "redirectUnknown": "Die Weiterleitungsadresse kann nicht angezeigt werden, weil die öffentliche Adresse dieser Installation nicht festgelegt ist.",
     "clientId": "Client-ID",
     "clientSecret": "Clientschlüssel",
-    "clientOptional": "Nur für Quellen nötig, bei denen eine Person ihr eigenes Postfach verbindet. Lassen Sie beide Felder leer, wenn jede Quelle die Postfächer der Organisation liest.",
     "setting": {
       "tenant": "Verzeichnis-ID (Mandant)",
       "admin_address": "Administratoradresse"
@@ -30,7 +29,8 @@
       "tenant": "Das Verzeichnis, in dem sich die Microsoft 365-Konten Ihrer Organisation befinden: seine ID oder seine Domäne, wie Microsoft Entra sie auf der Seite „Übersicht“ der App-Registrierung anzeigt.",
       "admin_address": "Ein Super Admin Ihrer Google Workspace-Domain. Das Verzeichnis wird als dieser Benutzer aufgelistet; seine E-Mails werden nur gelesen, wenn eine Quelle ihn nennt."
     },
-    "organisationMailboxes": "Quellen erlauben, die die Postfächer der Organisation lesen",
+    "organisationMailboxes": "Postfächer der Organisation lesen",
+    "ownMailbox": "Personen ihr eigenes Postfach verbinden lassen",
     "organisationMailboxesHelp": "Aus: Eine Quelle liest nur das eine Postfach, das eine Person verbindet. Ein: Eine Quelle darf mit den Anmeldedaten des Administrators viele Postfächer der Organisation lesen, und wer ihre Tabellen lesen darf, liest jedes Postfach, sofern keine Zeilenregel dies einschränkt.",
     "organisationGrant": {
       "microsoft_365": "Geben Sie der App-Registrierung für Quellen, die die Postfächer der Organisation lesen, die Anwendungsberechtigungen Mail.Read und User.Read.All und erteilen Sie die Administratoreinwilligung.",

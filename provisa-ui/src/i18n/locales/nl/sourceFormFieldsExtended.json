@@ -62,7 +62,7 @@
     "certificatePfx": "Certificaat (PFX)",
     "pfxCertificatePath": "Pad naar PFX-certificaat",
     "namingConvention": "Naamgevingsconventie",
-    "cacheEnabled": "Cache ingeschakeld",
+    "cacheEnabled": "Resultaatcache toegestaan",
     "cacheEnabledHelp": "Indien aan, mag het antwoord op een query die deze bron leest worden bewaard en hergebruikt gedurende de Cache-TTL, maar alleen voor verzoeken die om caching vragen. Indien uit, worden resultaten die deze bron raken nooit gecachet.",
     "loadProtected": "Beschermd tegen belasting",
     "loadProtectedTooltip": "Deze bron nooit live bevragen — altijd de laatste gematerialiseerde snapshot serveren en die alleen binnen het dalurenvenster vernieuwen. Beschermt een fragiele of rate-limited bron tegen querybelasting. Een instelling per tabel kan deze standaard overschrijven.",

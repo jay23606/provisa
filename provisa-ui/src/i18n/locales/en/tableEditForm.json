@@ -267,7 +267,8 @@
     "pagingFixErrors": "Fix the paging errors before saving.",
     "delta": {
       "legend": "Incremental reload (delta)",
-      "enable": "Refresh this replica incrementally (delta) instead of re-copying it whole",
+      "enable": "Incremental reload",
+      "enableHelp": "Refresh this replica incrementally (delta) instead of re-copying it whole",
       "needsWatermark": "A delta needs a watermark column (the cursor it reads past). Set one under Live Delivery.",
       "cursorNote": "Cursor field: the table's watermark column ({{watermark}}). Each refresh reads only rows past the stored watermark and advances it.",
       "apply": "Apply",

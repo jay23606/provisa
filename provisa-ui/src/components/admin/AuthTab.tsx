@@ -13,9 +13,7 @@ import { useTranslation } from "react-i18next";
 import { missingRequired, secretPlaceholder } from "./secretFields";
 import {
   Alert,
-  Button,
   Checkbox,
-  Group,
   PasswordInput,
   Select,
   Stack,
@@ -23,10 +21,10 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { Check } from "lucide-react";
 import { fetchAuthConfig, setAuthConfig, type AuthConfigState } from "../../api/admin";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-919: configure the authentication provider (firebase/keycloak/oauth/simple) + role settings.
 // The provider binds at startup, so changes take effect on restart.
@@ -101,120 +99,144 @@ export function AuthTab() {
     label: p.key === s.provider ? `${p.label}${t("authTab.current")}` : p.label,
   }));
 
+  const fields = current?.config_fields ?? [];
   return (
-    <Stack gap="md" maw={720}>
+    <Stack gap="md">
       <Text c="dimmed" size="sm">
         {t("authTab.intro")}
       </Text>
 
-      <Stack gap="sm">
-        <Select
-          label={t("authTab.providerLabel")}
-          data={providerOptions}
-          value={provider}
-          onChange={(v) => v && setProvider(v)}
-          allowDeselect={false}
-          data-testid="auth-provider-select"
-        />
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            label={t("authTab.providerLabel")}
+            data={providerOptions}
+            value={provider}
+            onChange={(v) => v && setProvider(v)}
+            allowDeselect={false}
+            data-testid="auth-provider-select"
+          />
+        </FormField>
         {current && (
-          <Text c="dimmed" size="xs">
-            {current.description}
-          </Text>
+          <FormField size="full">
+            <Text c="dimmed" size="xs">
+              {current.description}
+            </Text>
+          </FormField>
         )}
 
-        {(current?.config_fields ?? []).map((f) =>
-          f.type === "boolean" ? (
-            <Checkbox
-              key={f.config_key}
-              label={f.label}
-              checked={config[provider]?.[f.config_key] === "true"}
-              onChange={(e) => setField(f.config_key, String(e.currentTarget.checked))}
-            />
-          ) : f.secret ? (
-            <PasswordInput
-              key={f.config_key}
-              label={f.label}
-              required={f.required}
-              value={config[provider]?.[f.config_key] ?? ""}
-              placeholder={
-                secretPlaceholder(f, s.secret_set?.[provider], {
-                  set: t("authTab.secretOnFile"),
-                  unset: t("authTab.secretNotSet"),
-                }) ?? f.placeholder
-              }
-              autoComplete="new-password"
-              onChange={(e) => setField(f.config_key, e.currentTarget.value)}
-            />
-          ) : (
-            <TextInput
-              key={f.config_key}
-              label={f.label}
-              required={f.required}
-              value={config[provider]?.[f.config_key] ?? ""}
-              placeholder={f.placeholder}
-              autoComplete="off"
-              onChange={(e) => setField(f.config_key, e.currentTarget.value)}
-            />
-          ),
-        )}
+        {fields
+          .filter((f) => f.type !== "boolean")
+          .map((f) =>
+            f.secret ? (
+              <FormField size="medium" key={f.config_key}>
+                <PasswordInput
+                  label={f.label}
+                  required={f.required}
+                  value={config[provider]?.[f.config_key] ?? ""}
+                  placeholder={
+                    secretPlaceholder(f, s.secret_set?.[provider], {
+                      set: t("authTab.secretOnFile"),
+                      unset: t("authTab.secretNotSet"),
+                    }) ?? f.placeholder
+                  }
+                  autoComplete="new-password"
+                  onChange={(e) => setField(f.config_key, e.currentTarget.value)}
+                />
+              </FormField>
+            ) : (
+              <FormField size="medium" key={f.config_key}>
+                <TextInput
+                  label={f.label}
+                  required={f.required}
+                  value={config[provider]?.[f.config_key] ?? ""}
+                  placeholder={f.placeholder}
+                  autoComplete="off"
+                  onChange={(e) => setField(f.config_key, e.currentTarget.value)}
+                />
+              </FormField>
+            ),
+          )}
 
-        {provider === "basic" && (
-          <Checkbox
-            label={t("authTab.allowRegistration")}
-            checked={common.allow_registration}
-            onChange={(e) => setCommon({ ...common, allow_registration: e.currentTarget.checked })}
-            data-testid="auth-allow-registration"
-          />
-        )}
-        {provider === "simple" && (
-          <Checkbox
-            label={t("authTab.allowSimpleAuth")}
-            checked={common.allow_simple_auth}
-            onChange={(e) => setCommon({ ...common, allow_simple_auth: e.currentTarget.checked })}
-          />
-        )}
-      </Stack>
+        <FormChecks>
+          {fields
+            .filter((f) => f.type === "boolean")
+            .map((f) => (
+              <FormField size="short" key={f.config_key}>
+                <Checkbox
+                  label={f.label}
+                  checked={config[provider]?.[f.config_key] === "true"}
+                  onChange={(e) => setField(f.config_key, String(e.currentTarget.checked))}
+                />
+              </FormField>
+            ))}
+          {provider === "basic" && (
+            <FormField size="short">
+              <Checkbox
+                label={t("authTab.allowRegistration")}
+                checked={common.allow_registration}
+                onChange={(e) =>
+                  setCommon({ ...common, allow_registration: e.currentTarget.checked })
+                }
+                data-testid="auth-allow-registration"
+              />
+            </FormField>
+          )}
+          {provider === "simple" && (
+            <FormField size="short">
+              <Checkbox
+                label={t("authTab.allowSimpleAuth")}
+                checked={common.allow_simple_auth}
+                onChange={(e) =>
+                  setCommon({ ...common, allow_simple_auth: e.currentTarget.checked })
+                }
+              />
+            </FormField>
+          )}
+        </FormChecks>
+      </FormLayout>
 
       <Title order={4}>{t("authTab.roles")}</Title>
-      <Stack gap="sm">
-        <TextInput
-          label={t("authTab.defaultRole")}
-          value={common.default_role}
-          onChange={(e) => setCommon({ ...common, default_role: e.currentTarget.value })}
-        />
-        <Select
-          label={t("authTab.assignmentsFrom")}
-          data={[
-            { value: "claims", label: t("authTab.assignmentsSourceClaims") },
-            { value: "provisa", label: t("authTab.assignmentsSourceProvisa") },
-          ]}
-          value={common.assignments_source}
-          onChange={(v) => v && setCommon({ ...common, assignments_source: v })}
-          allowDeselect={false}
-        />
-        <Checkbox
-          label={t("authTab.trustUpstream")}
-          checked={common.trust_upstream}
-          onChange={(e) => setCommon({ ...common, trust_upstream: e.currentTarget.checked })}
-        />
-      </Stack>
+      <FormLayout>
+        <FormField size="medium">
+          <TextInput
+            label={t("authTab.defaultRole")}
+            value={common.default_role}
+            onChange={(e) => setCommon({ ...common, default_role: e.currentTarget.value })}
+          />
+        </FormField>
+        <FormField size="medium">
+          <Select
+            label={t("authTab.assignmentsFrom")}
+            data={[
+              { value: "claims", label: t("authTab.assignmentsSourceClaims") },
+              { value: "provisa", label: t("authTab.assignmentsSourceProvisa") },
+            ]}
+            value={common.assignments_source}
+            onChange={(v) => v && setCommon({ ...common, assignments_source: v })}
+            allowDeselect={false}
+          />
+        </FormField>
+        <FormChecks>
+          <FormField size="short">
+            <Checkbox
+              label={t("authTab.trustUpstream")}
+              checked={common.trust_upstream}
+              onChange={(e) => setCommon({ ...common, trust_upstream: e.currentTarget.checked })}
+            />
+          </FormField>
+        </FormChecks>
+      </FormLayout>
 
       <Alert color="yellow" variant="light">
         {s.restart_required_note}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          disabled={saving || incomplete}
-          title={t("authTab.saveButton")}
-          aria-label={t("authTab.saveButton")}
-          loading={saving}
-          leftSection={saving ? undefined : <Check size={14} />}
-          data-testid="auth-save-button"
-        >
-          {t("authTab.saveButton")}
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        saveProps={{ "data-testid": "auth-save-button", disabled: incomplete }}
+      >
         {msg && (
           <Text c="green" size="sm">
             {msg}
@@ -225,7 +247,7 @@ export function AuthTab() {
             {error}
           </Text>
         )}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }

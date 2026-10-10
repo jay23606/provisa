@@ -269,7 +269,8 @@
     "draftHelp": "Buiten gebruik zolang aangevinkt: nergens gelezen of geschreven, in geen enkel schema aangeboden en nergens gekopieerd — bestaande kopieën in elke regio worden verwijderd. Een hier geregistreerde tabel of view begint als concept; vink uit om haar vrij te geven.",
     "delta": {
       "legend": "Incrementeel herladen (delta)",
-      "enable": "Deze replica incrementeel (delta) verversen in plaats van hem volledig opnieuw te kopiëren",
+      "enable": "Incrementeel herladen",
+      "enableHelp": "Deze replica incrementeel (delta) verversen in plaats van hem volledig opnieuw te kopiëren",
       "needsWatermark": "Een delta heeft een watermarkkolom nodig (de cursor waarvoorbij hij leest). Stel die in onder Live levering.",
       "cursorNote": "Cursorveld: de watermarkkolom van de tabel ({{watermark}}). Elke verversing leest alleen rijen voorbij de opgeslagen watermark en schuift die op.",
       "apply": "Toepassen",
