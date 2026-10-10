@@ -245,6 +245,7 @@ def build_source_node_spec(
     # REQ-957/1165: a landed source may also declare a preflight(streams, ctx) CHECK (run after
     # fetch, before land). A source's own fetched rows ARE its single input — the gate runs the
     # hook over ``{node: rows}`` (no engine streaming; the adapter already materialized to land).
+    from provisa.federation.role_ttl import declared_cache_ttl
     from provisa.mv.preflight_eval import make_rows_evaluator
 
     return NodeSpec(
@@ -253,7 +254,9 @@ def build_source_node_spec(
         change_signal=args.change_signal,
         watermark_column=args.watermark_column,
         handle=handle,
-        poll_seconds=getattr(tbl, "cache_ttl", None),
+        # REQ-1907: the table's TTL is its own, else its source's. A table that inherits it is
+        # polled like one that states it: the timer is what runs a probing table's probe.
+        poll_seconds=declared_cache_ttl(tbl, src),
         # Poll sources refresh on their own cadence (register_runtime schedules the injector);
         # push sources are driven by their listener. Boot lands the first copy either way.
         probe_factory=factory,

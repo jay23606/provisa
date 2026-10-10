@@ -229,3 +229,25 @@ async def test_boot_create_seeds_one_replace_event_per_source(monkeypatch):
     assert posted == [("s.a", "replace"), ("s.b", "replace")]
     # each source's boot event is enqueued as work for the source node itself (self-dependent)
     assert fanned == [(1, ["s.a"]), (2, ["s.b"])]
+
+
+def test_a_table_that_inherits_its_sources_ttl_is_polled_at_that_ttl():
+    """REQ-1907: a table's TTL is its own, else its source's. The poll timer is what runs a
+    probing table's probe (REQ-855, REQ-982), so a table that inherits its source's TTL must
+    have one: without it the table's probe never runs."""
+    source = _src("api", "openapi")
+    source.cache_ttl = 120
+    inherits = _tbl("api", "events", [_col("id", "bigint", pk=True)], cache_ttl=None)
+    own = _tbl("api", "orders", [_col("id", "bigint", pk=True)], cache_ttl=30)
+    specs = specs_from_config(
+        sources=[source],
+        tables=[inherits, own],
+        mvs=[],
+        engine=build_duckdb_engine(),
+        engine_runtime=_DsnEngine("sqlite://"),
+        source_fetch=lambda s, t: _fetch,
+        mv_columns=lambda m: [],
+        mv_run_query=lambda m: _run_query,
+    )
+    polled = {spec.node: spec.poll_seconds for spec in specs}
+    assert polled == {"api/default.events": 120, "api/default.orders": 30}
