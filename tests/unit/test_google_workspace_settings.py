@@ -121,7 +121,7 @@ class TestSignIn:
         auth = parse(_person()).auth("ada@example.test", client)
         assert auth == ApiAuthOAuth2RefreshToken(
             client_id="org-client-1",
-            client_secret="as-entered",  # the entry's field as its administrator entered it
+            client_secret="as-entered",
             refresh_token="${secret:gw_refresh_token}",
             token_url="https://oauth2.googleapis.com/token",
         )
@@ -131,7 +131,7 @@ class TestSignIn:
         assert said == "client_id, client_secret is not a setting of a Google Workspace source"
 
     def test_an_account_the_source_does_not_name_is_not_signed_in(self):
-        client = Configured("google_workspace", "org-client-1", {}, client_secret="as-entered")
+        client = Configured("google_workspace", "org-client-1", {})
         with pytest.raises(
             InvalidGoogleWorkspaceSource, match="bo@example.test is not the mailbox"
         ):
@@ -151,7 +151,6 @@ class TestSignIn:
         """The key is the organisation's, on its platform entry, and nowhere else."""
         said = _refused(_person(service_account_key="${secret:k}"))
         assert said == "service_account_key is not a setting of a Google Workspace source"
-        assert gw.SECRET_KEYS == ("refresh_token",)
 
 
 class TestTheOrganisationsMailboxes:

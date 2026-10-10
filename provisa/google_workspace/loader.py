@@ -84,18 +84,18 @@ def source_settings(source: Any) -> Settings:
 
 
 async def _resolved(admin_db: Any, org_id: str, auth: Any) -> Any:
-    """``auth`` with its vault references resolved in ``org_id``'s vault, here on the event
-    loop: the token exchange runs in a worker thread, which holds no vault. The vault is the
-    organisation's whoever calls (``mail_platforms.resolved``), never one the caller bound."""
+    """``auth`` ready to use: the organisation's client secret and the owner's approval as their
+    fields hold them -- a value, or a reference someone typed -- resolved in ``org_id``'s vault,
+    here on the event loop: the token exchange runs in a worker thread, which holds no vault.
+    The vault is bound for these reads and never taken from the caller."""
     from provisa.core import mail_platforms
+    from provisa.google_workspace import SOURCE_TYPE
 
-    return auth.model_copy(
-        update={
-            name: await mail_platforms.resolved(admin_db, org_id, value)
-            for name, value in auth.model_dump().items()
-            if isinstance(value, str)
-        }
+    client_secret = await mail_platforms.credential(
+        admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, auth.client_secret
     )
+    refresh_token = await mail_platforms.resolved(admin_db, org_id, auth.refresh_token)
+    return auth.model_copy(update={"client_secret": client_secret, "refresh_token": refresh_token})
 
 
 def _folder(account: str, label: dict) -> dict[str, Any]:
@@ -615,7 +615,9 @@ async def organisation_account(admin_db: Any, org_id: str) -> tuple[Any, str]:
             f"{SOURCE_TYPE} needs organisation_key, admin_address",
             missing="organisation_key, admin_address",
         )
-    key = await mail_platforms.resolved(admin_db, org_id, entry.organisation_key)
+    key = await mail_platforms.credential(
+        admin_db, org_id, SOURCE_TYPE, mail_platforms.ORGANISATION_KEY, entry.organisation_key
+    )
     return ServiceAccount(key), admin
 
 

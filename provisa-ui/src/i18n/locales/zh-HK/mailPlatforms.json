@@ -37,9 +37,8 @@
       "microsoft_365": "對於讀取組織信箱的數據來源,請為應用程式註冊授予應用程式權限 Mail.Read 和 User.Read.All,並授予管理員同意。",
       "google_workspace": "超級管理員在 Google 管理控制台的「安全性 › 存取權和資料控制 › API 控制項 › 管理全網域委派」之下,為服務帳戶的用戶端 ID 授權以下範圍。對於只讀取標頭和標籤的數據來源,請加入 gmail.metadata。Google 無法將其限制於部分信箱:它涵蓋網域中的每位使用者。"
     },
-    "organisationKey": "服務帳戶金鑰檔案 (JSON)",
-    "organisationKeyHelp": "Google Cloud 為該服務帳戶建立的金鑰檔案。它儲存在你組織的保管庫中,之後不再顯示。",
-    "organisationKeyKeep": "已填寫金鑰。只在需要取代時選擇檔案。",
+    "organisationKey": "服務帳戶金鑰",
+    "organisationKeyHelp": "Google Cloud 為該服務帳戶建立的金鑰的 JSON,或對儲存該金鑰的密鑰項目的參照。",
     "organisationScopes": "需要授權的範圍",
     "save": "儲存",
     "remove": "移除",

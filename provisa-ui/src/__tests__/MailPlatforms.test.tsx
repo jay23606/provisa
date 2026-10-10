@@ -51,7 +51,7 @@ const google = (over = {}) => ({
   organisation_mailboxes: false,
   organisation_settings_fields: [] as string[],
   organisation_key_field: false,
-  organisation_key_entered: false,
+  organisation_key: null as string | null,
   organisation_scopes: [] as string[],
   ...over,
 });
@@ -269,10 +269,13 @@ describe("the organisation's mail platforms", () => {
       });
     const KEY = '{"made-up": "service account key"}';
 
-    it("asks for the key as a file and the administrator address, and says what to authorise", async () => {
+    it("asks for the key as a text field and the administrator address, and says what to authorise", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);
-      expect(await screen.findByTestId(tid("-organisation-key"))).toBeInTheDocument();
+      const key = await screen.findByTestId(tid("-organisation-key"));
+      // What was typed, never a file chosen: a reference or the key's JSON.
+      expect(key).toHaveAttribute("type", "password");
+      expect(document.querySelector('input[type="file"]')).toBeNull();
       expect(screen.getByText(en.mailPlatforms.setting.admin_address)).toBeInTheDocument();
       expect(screen.getByText(en.mailPlatforms.organisationKeyHelp)).toBeInTheDocument();
       expect(screen.getByTestId(tid("-organisation-scopes"))).toHaveValue(SCOPES.join(","));
@@ -296,8 +299,6 @@ describe("the organisation's mail platforms", () => {
       expect(platformMissing(workspace(), { ...on, organisation_mailboxes: false })).toEqual([]);
       const given = { ...on, settings: { admin_address: "admin@example.test" } };
       expect(platformMissing(workspace(), { ...given, organisation_key: KEY })).toEqual([]);
-      // A key already entered is kept when no file is chosen.
-      expect(platformMissing(workspace({ organisation_key_entered: true }), given)).toEqual([]);
     });
 
     it("needs no client once such sources are allowed, and half a client is still refused", () => {
@@ -318,10 +319,8 @@ describe("the organisation's mail platforms", () => {
         "client_secret",
       ]);
       // An entry kept with no client holds no secret to keep.
-      const kept = workspace({ client_id: null, organisation_key_entered: true });
-      expect(platformMissing(kept, { ...none, client_id: "c", organisation_key: "" })).toEqual([
-        "client_secret",
-      ]);
+      const kept = workspace({ client_id: null, organisation_key: KEY });
+      expect(platformMissing(kept, { ...none, client_id: "c" })).toEqual(["client_secret"]);
       // A platform whose credential is its client always needs it.
       expect(platformMissing(google({ configured: false, client_id: null }), none)).toEqual([
         "client_id",
@@ -335,16 +334,12 @@ describe("the organisation's mail platforms", () => {
       expect(await screen.findByText(en.mailPlatforms.clientOptional)).toBeInTheDocument();
     });
 
-    it("sends the chosen file's text once, and never shows it", async () => {
+    it("sends the key as it was typed", async () => {
       list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
       render(<MailPlatformsSection />);
-      const file = new File([KEY], "key.json", { type: "application/json" });
-      // jsdom's File has no text(); the section reads the file as a browser does.
-      Object.defineProperty(file, "text", { value: () => Promise.resolve(KEY) });
-      await screen.findByTestId(tid("-organisation-key"));
-      // Mantine keeps the real file input beside the button it shows.
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(await screen.findByTestId(tid("-organisation-key")), {
+        target: { value: "${secret:my_google_key}" },
+      });
       fireEvent.change(screen.getByTestId(tid("-setting-admin_address")), {
         target: { value: "admin@example.test" },
       });
@@ -356,28 +351,27 @@ describe("the organisation's mail platforms", () => {
           client_id: "client-1",
           settings: { admin_address: "admin@example.test" },
           organisation_mailboxes: true,
-          organisation_key: KEY,
+          organisation_key: "${secret:my_google_key}",
         }),
       );
-      expect(document.body.textContent).not.toContain("made-up");
     });
 
-    it("says a key is entered and keeps it when no file is chosen", async () => {
+    it("shows again what the field holds, and sends it unchanged", async () => {
       list.mockResolvedValue({
         redirect_address: REDIRECT,
         platforms: [
           workspace({
-            organisation_key_entered: true,
+            organisation_key: KEY,
             organisation_mailboxes: true,
             settings: { admin_address: "admin@example.test" },
           }),
         ],
       });
       render(<MailPlatformsSection />);
-      expect(await screen.findByText(en.mailPlatforms.organisationKeyKeep)).toBeInTheDocument();
+      expect(await screen.findByTestId(tid("-organisation-key"))).toHaveValue(KEY);
       fireEvent.click(screen.getByTestId(tid("-save")));
       await waitFor(() => expect(put).toHaveBeenCalled());
-      expect(put.mock.calls[0][2]).not.toHaveProperty("organisation_key");
+      expect(put.mock.calls[0][2]).toHaveProperty("organisation_key", KEY);
     });
 
     it("shows none of it for a platform whose credential is its client", async () => {

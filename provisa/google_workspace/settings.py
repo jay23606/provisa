@@ -68,7 +68,6 @@ GOOGLE_ACCOUNT = "google_account"
 #: The settings that are credentials: kept in the org's vault, the source holding a reference.
 #: A source of the organisation's mailboxes has none: the service account's key is the
 #: organisation's, on its platform entry.
-SECRET_KEYS: tuple[str, ...] = ("refresh_token",)
 
 EVERYONE, GROUP, LIST = "everyone", "group", "list"
 _ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
@@ -126,7 +125,7 @@ class Settings:
     resources: tuple[str, ...]
     mail: MailSettings | None  # None when mail is not ticked
     accounts: tuple[str, ...] = ()  # the one mailbox's address
-    refresh_token: str | None = None  # a ${secret:NAME} reference
+    refresh_token: str | None = None  # as the source holds it: the token, or a reference
     mailboxes: Mailboxes | None = None
 
     @property

@@ -37,9 +37,8 @@
       "microsoft_365": "Para los orígenes que leen los buzones de la organización, conceda al registro de la aplicación los permisos de aplicación Mail.Read y User.Read.All y otorgue el consentimiento del administrador.",
       "google_workspace": "Un superadministrador autoriza el ID de cliente de la cuenta de servicio para los permisos siguientes en la consola de administración de Google, en Seguridad › Control de acceso y de datos › Controles de API › Gestionar la delegación de todo el dominio. Añada gmail.metadata para los orígenes que solo leen encabezados y etiquetas. Google no puede limitarlo a algunos buzones: abarca a todos los usuarios del dominio."
     },
-    "organisationKey": "Archivo de clave de la cuenta de servicio (JSON)",
-    "organisationKeyHelp": "El archivo de clave que Google Cloud creó para la cuenta de servicio. Se guarda en el almacén de su organización y no vuelve a mostrarse.",
-    "organisationKeyKeep": "Hay una clave introducida. Elija un archivo solo para sustituirla.",
+    "organisationKey": "Clave de la cuenta de servicio",
+    "organisationKeyHelp": "El JSON de la clave que Google Cloud creó para la cuenta de servicio, o una referencia a un secreto que la contiene.",
     "organisationScopes": "Permisos que se deben autorizar",
     "save": "Guardar",
     "remove": "Quitar",

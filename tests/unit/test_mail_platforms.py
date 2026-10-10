@@ -342,6 +342,7 @@ class TestTheAdminSurface:
             "organisation_key_field": True,
             "organisation_scopes": list(mail_platforms.platform(GOOGLE).organisation_scopes),
             "organisation_key_entered": False,
+            "organisation_key": None,
         }
         assert before["redirect_address"] == "http://localhost:3000/source-sign-in.html"
         await _put(plane)
@@ -349,16 +350,21 @@ class TestTheAdminSurface:
         google = next(p for p in after["platforms"] if p["platform"] == GOOGLE)
         assert (google["configured"], google["client_id"]) == (True, "client-1")
 
-    async def test_the_key_is_said_as_entered_and_no_answer_carries_it(self, wired, plane):
+    @pytest.mark.parametrize("typed", [KEY, "${secret:my_google_key}"])
+    async def test_the_key_field_is_answered_as_it_was_entered(self, wired, plane, typed):
+        """The form shows again what the field holds: the value, or the reference typed. The
+        client's secret is not part of an answer."""
         body = router.PlatformBody(
-            client_id="client-1", client_secret=SECRET, organisation_key=KEY, **ORG
+            client_id="client-1", client_secret=SECRET, organisation_key=typed, **ORG
         )
         said = await router.put_platform(None, "acme", GOOGLE, body)
         listed = await router.list_platforms(None, "acme")
         assert said["organisation_key_entered"] is True and said["organisation_mailboxes"] is True
         assert said["settings"] == {"admin_address": "admin@example.test"}
+        google = next(p for p in listed["platforms"] if p["platform"] == GOOGLE)
+        assert said["organisation_key"] == google["organisation_key"] == typed
         for answer in (said, listed):
-            assert "made-up" not in str(answer) and "secret:" not in str(answer)
+            assert SECRET not in str(answer)
 
     async def test_a_client_taken_off_the_entry_leaves_the_vault_as_it_is(self, wired, plane):
         """The entry's row holds its credentials; a secret the administrator created and named

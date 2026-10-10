@@ -17,7 +17,7 @@ export interface Draft {
   client_secret: string;
   settings: Record<string, string>;
   organisation_mailboxes: boolean;
-  /** The text of the credential file chosen; empty to keep the one entered. */
+  /** The platform's own credential as typed: the value, or a reference to a secret. */
   organisation_key: string;
 }
 
@@ -28,7 +28,8 @@ export const draftOf = (p: MailPlatform): Draft => ({
     [...p.settings_fields, ...p.organisation_settings_fields].map((f) => [f, p.settings[f] ?? ""]),
   ),
   organisation_mailboxes: p.organisation_mailboxes,
-  organisation_key: "",
+  // The field shows again what it holds.
+  organisation_key: p.organisation_key ?? "",
 });
 
 /** Whether the organisation's entry holds a client, whose secret is then kept in its vault. */
@@ -56,7 +57,7 @@ export function platformMissing(p: MailPlatform, draft: Draft): string[] {
     for (const field of p.organisation_settings_fields) {
       if (!draft.settings[field]?.trim()) missing.push(field);
     }
-    if (p.organisation_key_field && !p.organisation_key_entered && !draft.organisation_key) {
+    if (p.organisation_key_field && !draft.organisation_key.trim()) {
       missing.push("organisation_key");
     }
   }

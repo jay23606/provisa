@@ -37,9 +37,8 @@
       "microsoft_365": "संगठन के मेलबॉक्स पढ़ने वाले स्रोतों के लिए, ऐप रजिस्ट्रेशन को एप्लिकेशन अनुमतियाँ Mail.Read और User.Read.All दें और एडमिन सहमति दें।",
       "google_workspace": "सुपर एडमिन Google Admin console में Security › Access and data control › API controls › Manage Domain Wide Delegation के अंतर्गत सर्विस अकाउंट की क्लाइंट आईडी को नीचे दिए गए स्कोप के लिए अनुमति देता है। केवल हेडर और लेबल पढ़ने वाले स्रोतों के लिए gmail.metadata जोड़ें। Google इसे कुछ मेलबॉक्स तक सीमित नहीं कर सकता: यह डोमेन के हर उपयोगकर्ता पर लागू होता है।"
     },
-    "organisationKey": "सर्विस अकाउंट की कुंजी फ़ाइल (JSON)",
-    "organisationKeyHelp": "वह कुंजी फ़ाइल जो Google Cloud ने सर्विस अकाउंट के लिए बनाई। यह आपके संगठन के वॉल्ट में रखी जाती है और दोबारा नहीं दिखाई जाती।",
-    "organisationKeyKeep": "कुंजी दर्ज है। केवल बदलने के लिए फ़ाइल चुनें।",
+    "organisationKey": "सर्विस अकाउंट की कुंजी",
+    "organisationKeyHelp": "Google Cloud द्वारा सर्विस अकाउंट के लिए बनाई गई कुंजी का JSON, या उसे रखने वाले सीक्रेट का संदर्भ।",
     "organisationScopes": "अनुमति देने वाले स्कोप",
     "save": "सेव करें",
     "remove": "हटाएँ",

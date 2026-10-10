@@ -37,9 +37,8 @@
       "microsoft_365": "Pour les sources qui lisent les boîtes aux lettres de l’organisation, accordez à l’inscription d’application les autorisations d’application Mail.Read et User.Read.All, puis donnez le consentement administrateur.",
       "google_workspace": "Un super-administrateur autorise l’ID client du compte de service pour les champs d’application ci-dessous dans la console d’administration Google, sous Sécurité › Contrôle des accès et des données › Commandes des API › Gérer la délégation au niveau du domaine. Ajoutez gmail.metadata pour les sources qui ne lisent que les en-têtes et les libellés. Google ne peut pas limiter cela à certaines boîtes aux lettres : cela couvre tous les utilisateurs du domaine."
     },
-    "organisationKey": "Fichier de clé du compte de service (JSON)",
-    "organisationKeyHelp": "Le fichier de clé que Google Cloud a créé pour le compte de service. Il est conservé dans le coffre de votre organisation et n’est plus jamais affiché.",
-    "organisationKeyKeep": "Une clé est saisie. Ne choisissez un fichier que pour la remplacer.",
+    "organisationKey": "Clé du compte de service",
+    "organisationKeyHelp": "Le JSON de la clé que Google Cloud a créée pour le compte de service, ou une référence à un secret qui la contient.",
     "organisationScopes": "Champs d’application à autoriser",
     "save": "Enregistrer",
     "remove": "Supprimer",

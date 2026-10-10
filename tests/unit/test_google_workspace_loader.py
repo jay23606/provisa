@@ -36,16 +36,18 @@ from provisa.google_workspace.loader import (
     message_table_rows,
     table_rows,
 )
-from provisa.google_workspace.settings import SECRET_KEYS, MailSettings
+from provisa.google_workspace.settings import MailSettings
 
 pytestmark = pytest.mark.asyncio
 
 
 def _in_vault(resolve):
-    """The organisation's vault, standing in for ``mail_platforms.resolved``."""
+    """The organisation's vault, standing in for the reader's resolution of a one-mailbox
+    credential (read against a real vault in test_google_workspace_organisation.py)."""
 
-    async def resolved(_admin_db, _org_id, value):
-        return resolve(value)
+    async def resolved(_admin_db, _org_id, auth):
+        fields = ("client_secret", "refresh_token")
+        return auth.model_copy(update={f: resolve(getattr(auth, f)) for f in fields})
 
     return resolved
 
@@ -365,13 +367,11 @@ class TestTheSourceKind:
         assert SourceType(SOURCE_TYPE) is SourceType.google_workspace
         assert SOURCE_TYPE in _ADAPTER_FETCH_ONLY and SOURCE_TYPE in _MATERIALIZE_ONLY
 
-    async def test_its_credential_is_a_field_of_the_source_kept_as_typed(self):
-        """The owner's approval is the source's own ``refresh_token`` field; nothing lists
-        it for a vault, and no name is made up for it."""
-        from provisa.api.admin import schema_common
+    async def test_its_credential_is_kept_as_the_source_holds_it(self):
+        """A source's fields are stored as given; the kind names none to be moved anywhere."""
+        from provisa.google_workspace import settings
 
-        assert SECRET_KEYS == ("refresh_token",)
-        assert not hasattr(schema_common, "SOURCE_MAPPING_SECRET_KEYS")
+        assert not hasattr(settings, "SECRET_KEYS")
 
     async def test_settings_that_cannot_be_a_source_are_refused_in_the_setups_terms(self):
         import json
@@ -417,8 +417,8 @@ class TestTheLoader:
         seen["state"] = SimpleNamespace(admin_db="admin-plane")
         monkeypatch.setattr(loader, "Gmail", Recording)
         monkeypatch.setattr(
-            mail_platforms,
-            "resolved",
+            loader,
+            "_resolved",
             _in_vault(lambda v: v.replace("${secret:k}", "resolved-key")),
         )
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", token_for)
@@ -445,22 +445,19 @@ class TestTheLoader:
     async def test_an_owners_approval_is_renewed_with_the_organisations_client(
         self, read, monkeypatch
     ):
-        from provisa.core import mail_platforms, request_context
+        from provisa.core import request_context
         from provisa.core.mail_platforms import Configured
 
         asked: list[tuple] = []
 
         async def require(admin_db, org_id, platform_id):
             asked.append((admin_db, org_id, platform_id))
-            # The client's secret as its administrator entered it: here a reference they typed.
-            return Configured(
-                platform_id, "org-client-1", {}, client_secret="${secret:the_admins_own_name}"
-            )
+            return Configured(platform_id, "org-client-1", {}, client_secret="${secret:typed}")
 
         monkeypatch.setattr(mail_platforms, "require", require)
         monkeypatch.setattr(
-            mail_platforms,
-            "resolved",
+            loader,
+            "_resolved",
             _in_vault(lambda v: v.replace("${secret:", "resolved:").rstrip("}")),
         )
         token = request_context.set_current_org("acme")
@@ -481,7 +478,7 @@ class TestTheLoader:
         assert await reading.token(ACCOUNT) == "made-up-access-token"
         auth = read["auth"]
         assert auth.client_id == "org-client-1"
-        assert auth.client_secret == "resolved:the_admins_own_name"  # theirs, resolved
+        assert auth.client_secret == "resolved:typed"
         assert auth.refresh_token == "resolved:source_mail__refresh_token"
 
     async def test_a_replicas_build_notes_the_messages_kept_without_text(self, read, monkeypatch):
@@ -602,7 +599,7 @@ class TestTheGroupBuild:
                 gmails.append(self)
 
         monkeypatch.setattr(loader, "Gmail", Recording)
-        monkeypatch.setattr(mail_platforms, "resolved", _in_vault(lambda v: v))
+        monkeypatch.setattr(loader, "_resolved", _in_vault(lambda v: v))
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
         made = _connected_loader()
         made.gmails = gmails
@@ -679,7 +676,7 @@ class TestTheMailboxProbe:
                 raise AssertionError("a probe reads no message")
 
         monkeypatch.setattr(loader, "Gmail", Probed)
-        monkeypatch.setattr(mail_platforms, "resolved", _in_vault(lambda v: v))
+        monkeypatch.setattr(loader, "_resolved", _in_vault(lambda v: v))
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
         made = _connected_loader()
         made.mailbox = mailbox

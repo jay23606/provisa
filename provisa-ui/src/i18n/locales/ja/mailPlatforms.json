@@ -37,9 +37,8 @@
       "microsoft_365": "組織のメールボックスを読み取るソースのために、アプリの登録にアプリケーションのアクセス許可 Mail.Read と User.Read.All を付与し、管理者の同意を与えてください。",
       "google_workspace": "特権管理者が、Google 管理コンソールの [セキュリティ] › [アクセスとデータ管理] › [API の制御] › [ドメイン全体の委任を管理] で、サービス アカウントのクライアント ID に以下のスコープを承認します。ヘッダーとラベルのみを読み取るソースには gmail.metadata を追加してください。Google ではこれを一部のメールボックスに限定できません。ドメインのすべてのユーザーが対象になります。"
     },
-    "organisationKey": "サービス アカウントのキー ファイル (JSON)",
-    "organisationKeyHelp": "Google Cloud がサービス アカウント用に作成したキー ファイル。組織の保管庫に保存され、再び表示されることはありません。",
-    "organisationKeyKeep": "キーは入力済みです。置き換える場合にのみファイルを選択してください。",
+    "organisationKey": "サービス アカウントのキー",
+    "organisationKeyHelp": "Google Cloud がサービス アカウント用に作成したキーの JSON、またはそれを保持するシークレットへの参照。",
     "organisationScopes": "承認するスコープ",
     "save": "保存",
     "remove": "削除",

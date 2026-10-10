@@ -37,9 +37,8 @@
       "microsoft_365": "Per le origini che leggono le caselle di posta dell’organizzazione, assegna alla registrazione dell’app le autorizzazioni dell’applicazione Mail.Read e User.Read.All e concedi il consenso dell’amministratore.",
       "google_workspace": "Un super amministratore autorizza l’ID client dell’account di servizio per gli ambiti seguenti nella Console di amministrazione Google, in Sicurezza › Controllo di accesso e dati › Controlli API › Gestisci delega a livello di dominio. Aggiungi gmail.metadata per le origini che leggono solo intestazioni ed etichette. Google non può limitarlo ad alcune caselle: riguarda tutti gli utenti del dominio."
     },
-    "organisationKey": "File della chiave dell’account di servizio (JSON)",
-    "organisationKeyHelp": "Il file della chiave che Google Cloud ha creato per l’account di servizio. Viene conservato nel vault della tua organizzazione e non viene più mostrato.",
-    "organisationKeyKeep": "Una chiave è inserita. Scegli un file solo per sostituirla.",
+    "organisationKey": "Chiave dell’account di servizio",
+    "organisationKeyHelp": "Il JSON della chiave che Google Cloud ha creato per l’account di servizio, oppure un riferimento a un segreto che la contiene.",
     "organisationScopes": "Ambiti da autorizzare",
     "save": "Salva",
     "remove": "Rimuovi",

@@ -22,7 +22,6 @@ import {
   Button,
   Card,
   CopyButton,
-  FileInput,
   Group,
   PasswordInput,
   SimpleGrid,
@@ -210,25 +209,15 @@ export function MailPlatformsSection() {
                     </FormField>
                   ))}
                   {p.organisation_key_field && (
-                    <FormField size="medium">
-                      <FileInput
+                    <FormField size="long">
+                      <PasswordInput
                         label={t("mailPlatforms.organisationKey")}
-                        description={
-                          p.organisation_key_entered
-                            ? t("mailPlatforms.organisationKeyKeep")
-                            : t("mailPlatforms.organisationKeyHelp")
+                        description={t("mailPlatforms.organisationKeyHelp")}
+                        required={draft.organisation_mailboxes}
+                        value={draft.organisation_key}
+                        onChange={(e) =>
+                          change(p.platform, { organisation_key: e.currentTarget.value })
                         }
-                        accept="application/json,.json"
-                        required={draft.organisation_mailboxes && !p.organisation_key_entered}
-                        clearable
-                        // The file's text is held for the save and never shown.
-                        onChange={(file) => {
-                          if (file === null) change(p.platform, { organisation_key: "" });
-                          else
-                            void file
-                              .text()
-                              .then((key) => change(p.platform, { organisation_key: key }));
-                        }}
                         data-testid={`${id}-organisation-key`}
                       />
                     </FormField>

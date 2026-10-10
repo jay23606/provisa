@@ -519,6 +519,66 @@ async def test_the_key_is_read_from_the_organisations_vault_with_none_bound_by_t
 
 
 @pytest.mark.asyncio
+async def test_a_key_the_administrator_named_by_reference_is_read_from_the_vault(plane):  # noqa: F811
+    """The field holds what was typed. A reference is resolved where the key is used -- which
+    is also how an entry saved before the product stopped naming secrets keeps building: its
+    field holds a reference to the secret it was moved to then."""
+    from provisa.core import secrets_store
+
+    old = "mail_platform_google_workspace_organisation_key"
+    await secrets_store.put(plane, "acme", old, KEY, owner_id=secrets_store.ORG_OWNER)
+    await _put(plane, **{**ENTRY, "organisation_key": f"${{secret:{old}}}"})
+    assert secrets_store.bound_org_id() is None
+    account, _admin = await loader.organisation_account(plane, "acme")
+    assert account._key == KEY
+
+
+@pytest.mark.asyncio
+async def test_a_key_that_cannot_be_resolved_is_refused_by_the_fields_name(plane):  # noqa: F811
+    await _put(plane, **{**ENTRY, "organisation_key": "${secret:never_created}"})
+    with pytest.raises(MailPlatformRefused) as raised:
+        await loader.organisation_account(plane, "acme")
+    assert raised.value.code == "mail_platform.credential_unresolved"
+    assert raised.value.params["field"] == "organisation_key"
+    assert "made-up-private-key" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+async def test_one_mailboxes_credential_is_resolved_as_its_fields_hold_it(plane):  # noqa: F811
+    """The client's secret as the administrator entered it and the owner's approval as the
+    source holds it: a value is used as it is, a typed reference is read from the vault, and
+    no caller need have bound one."""
+    from provisa.core import mail_platforms, secrets_store
+    from provisa.google_workspace.settings import parse
+
+    one = {
+        "accounts": ["ada@example.test"],
+        "resources": ["mail"],
+        "sign_in": "google_account",
+        "mail_content": "full",
+    }
+    await secrets_store.put(
+        plane, "acme", "typed", "from-the-vault", owner_id=secrets_store.ORG_OWNER
+    )
+    for entered, token, expected in (
+        (
+            "made-up-client-secret",
+            "made-up-refresh-token",
+            ("made-up-client-secret", "made-up-refresh-token"),
+        ),
+        ("${secret:typed}", "${secret:typed}", ("from-the-vault", "from-the-vault")),
+    ):
+        client = await _put(plane, client_secret=entered)
+        auth = parse({**one, "refresh_token": token}).auth("ada@example.test", client)
+        assert secrets_store.bound_org_id() is None
+        ready = await loader._resolved(plane, "acme", auth)
+        assert (ready.client_secret, ready.refresh_token) == expected
+        assert (
+            await mail_platforms.read(plane, "acme", "google_workspace")
+        ).client_secret == entered
+
+
+@pytest.mark.asyncio
 async def test_a_build_reads_as_the_organisation_and_lists_its_mailboxes(organisation, monkeypatch):
     await _put(organisation.plane, **ENTRY)
     asked: list[tuple] = []

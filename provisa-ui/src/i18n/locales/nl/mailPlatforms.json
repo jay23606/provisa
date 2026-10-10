@@ -37,9 +37,8 @@
       "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming.",
       "google_workspace": "Een superbeheerder autoriseert de client-ID van het serviceaccount voor de onderstaande bereiken in de Google Beheerdersconsole, onder Beveiliging › Toegangs- en gegevenscontrole › API-beheer › Domeinbrede delegatie beheren. Voeg gmail.metadata toe voor bronnen die alleen kopteksten en labels lezen. Google kan dit niet tot enkele postvakken beperken: het geldt voor elke gebruiker van het domein."
     },
-    "organisationKey": "Sleutelbestand van het serviceaccount (JSON)",
-    "organisationKeyHelp": "Het sleutelbestand dat Google Cloud voor het serviceaccount heeft gemaakt. Het wordt bewaard in de kluis van uw organisatie en nooit meer getoond.",
-    "organisationKeyKeep": "Er is een sleutel ingevuld. Kies alleen een bestand om die te vervangen.",
+    "organisationKey": "Sleutel van het serviceaccount",
+    "organisationKeyHelp": "De JSON van de sleutel die Google Cloud voor het serviceaccount heeft gemaakt, of een verwijzing naar een geheim dat die bevat.",
     "organisationScopes": "Te autoriseren bereiken",
     "save": "Opslaan",
     "remove": "Verwijderen",

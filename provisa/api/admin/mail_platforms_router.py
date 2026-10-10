@@ -72,13 +72,15 @@ async def _entry(org_id: str, platform: mail_platforms.Platform) -> dict:
         "client_id": None if configured is None else configured.client_id,
         "settings": {} if configured is None else configured.settings,
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
-        # What the platform is entered with for the organisation's mailboxes. The key is said
-        # only as entered or not; no answer carries it.
+        # What the platform is entered with for the organisation's mailboxes.
         "organisation_settings_fields": list(platform.organisation_settings),
         "organisation_key_field": platform.organisation_key,
         "organisation_scopes": list(platform.organisation_scopes),
         "organisation_key_entered": configured is not None
         and configured.organisation_key is not None,
+        # The key field as the administrator entered it -- the value, or a reference they typed
+        # -- so the form shows again what it holds. Read only by who may enter it (_org_guard).
+        "organisation_key": None if configured is None else configured.organisation_key,
     }
 
 

@@ -37,9 +37,8 @@
       "microsoft_365": "Para fontes que leem as caixas de correio da organização, dê ao registro do aplicativo as permissões de aplicativo Mail.Read e User.Read.All e conceda o consentimento do administrador.",
       "google_workspace": "Um superadministrador autoriza o ID do cliente da conta de serviço para os escopos abaixo no Google Admin Console, em Segurança › Controle de dados e acesso › Controles de API › Gerenciar a delegação em todo o domínio. Adicione gmail.metadata para fontes que leem apenas cabeçalhos e marcadores. O Google não consegue limitar isso a algumas caixas de correio: abrange todos os usuários do domínio."
     },
-    "organisationKey": "Arquivo de chave da conta de serviço (JSON)",
-    "organisationKeyHelp": "O arquivo de chave que o Google Cloud criou para a conta de serviço. Ele fica no cofre da sua organização e nunca mais é exibido.",
-    "organisationKeyKeep": "Há uma chave informada. Escolha um arquivo apenas para substituí-la.",
+    "organisationKey": "Chave da conta de serviço",
+    "organisationKeyHelp": "O JSON da chave que o Google Cloud criou para a conta de serviço, ou uma referência a um segredo que a contém.",
     "organisationScopes": "Escopos a autorizar",
     "save": "Salvar",
     "remove": "Remover",

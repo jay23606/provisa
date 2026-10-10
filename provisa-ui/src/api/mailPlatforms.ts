@@ -28,10 +28,10 @@ export interface MailPlatform {
   organisation_mailboxes: boolean;
   /** What the platform is entered with for those sources, beside its client. */
   organisation_settings_fields: string[];
-  /** Whether those sources read with a credential of the platform's own, entered as a file. */
+  /** Whether those sources read with a credential of the platform's own (Google's key). */
   organisation_key_field: boolean;
-  /** Whether that credential is entered. It is never part of an answer. */
-  organisation_key_entered: boolean;
+  /** That credential as it was entered: the value, or a reference someone typed. */
+  organisation_key: string | null;
   /** What an administrator authorises at the platform for it (Google's delegation scopes). */
   organisation_scopes: string[];
 }
@@ -49,7 +49,7 @@ export interface MailPlatformBody {
   client_secret?: string;
   settings: Record<string, string>;
   organisation_mailboxes: boolean;
-  /** Left out to keep the credential already entered. */
+  /** The credential as entered; left out to keep the one the entry holds. */
   organisation_key?: string;
 }
 

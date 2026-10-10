@@ -37,9 +37,8 @@
       "microsoft_365": "Geben Sie der App-Registrierung für Quellen, die die Postfächer der Organisation lesen, die Anwendungsberechtigungen Mail.Read und User.Read.All und erteilen Sie die Administratoreinwilligung.",
       "google_workspace": "Ein Super Admin autorisiert die Client-ID des Dienstkontos für die folgenden Bereiche in der Google Admin-Konsole unter Sicherheit › Zugriffs- und Datenkontrolle › API-Steuerung › Domainweite Delegierung verwalten. Fügen Sie gmail.metadata für Quellen hinzu, die nur Kopfzeilen und Labels lesen. Google kann dies nicht auf einzelne Postfächer beschränken: Es gilt für jeden Benutzer der Domain."
     },
-    "organisationKey": "Schlüsseldatei des Dienstkontos (JSON)",
-    "organisationKeyHelp": "Die Schlüsseldatei, die Google Cloud für das Dienstkonto erstellt hat. Sie wird im Tresor Ihrer Organisation aufbewahrt und nie wieder angezeigt.",
-    "organisationKeyKeep": "Ein Schlüssel ist eingetragen. Wählen Sie nur dann eine Datei, wenn Sie ihn ersetzen möchten.",
+    "organisationKey": "Schlüssel des Dienstkontos",
+    "organisationKeyHelp": "Das JSON des Schlüssels, den Google Cloud für das Dienstkonto erstellt hat, oder ein Verweis auf ein Secret, das ihn enthält.",
     "organisationScopes": "Zu autorisierende Bereiche",
     "save": "Speichern",
     "remove": "Entfernen",

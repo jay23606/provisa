@@ -37,9 +37,8 @@
       "microsoft_365": "For sources that read the organization's mailboxes, give the app registration the application permissions Mail.Read and User.Read.All and grant admin consent.",
       "google_workspace": "A super administrator authorizes the service account's client ID for the scopes below in the Google Admin console, under Security › Access and data control › API controls › Manage Domain Wide Delegation. Add gmail.metadata for sources that read headers and labels only. Google cannot limit this to some mailboxes: it covers every user of the domain."
     },
-    "organisationKey": "Service account key file (JSON)",
-    "organisationKeyHelp": "The key file Google Cloud created for the service account. It is kept in your organization's vault and never shown again.",
-    "organisationKeyKeep": "A key is entered. Choose a file only to replace it.",
+    "organisationKey": "Service account key",
+    "organisationKeyHelp": "The JSON of the key Google Cloud created for the service account, or a reference to a secret that holds it.",
     "organisationScopes": "Scopes to authorize",
     "save": "Save",
     "remove": "Remove",
