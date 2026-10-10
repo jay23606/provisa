@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: ed348491-54da-4c25-9f29-5d2dc3ca7eb7
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // REQ-1907 (#208): a table that will be a replica, registered under a ttl signal, needs a Cache
 // TTL -- its own or its source's -- or the server refuses it. The form asks for the table's own
 // exactly when it is needed: the server says the kind's tables land here, and the source states
