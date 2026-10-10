@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: 261df2be-c6b0-43c2-9586-8723c5b8e103
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """A mail platform's client secret is resolved for the organisation that owns it, whoever
 calls (the reader of a Microsoft 365 source on a replica build, its check for changes, a
 preview that builds the replica on demand).
