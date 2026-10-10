@@ -62,7 +62,7 @@
     "certificatePfx": "憑證（PFX）",
     "pfxCertificatePath": "PFX 憑證路徑",
     "namingConvention": "命名慣例",
-    "cacheEnabled": "啟用快取",
+    "cacheEnabled": "允許結果快取",
     "cacheEnabledHelp": "開啟後，讀取此數據來源的查詢結果可在快取 TTL 內保留並重用，但僅限於要求快取的請求。關閉時，涉及此數據來源的結果絕不快取。",
     "loadProtected": "負載保護",
     "loadProtectedTooltip": "永不即時查詢此數據來源——一律提供最後一次具體化的快照，並僅在離峰時段重新整理。保護脆弱或受速率限制的數據來源免受查詢負載影響。可透過個別資料表設定覆寫此預設值。",

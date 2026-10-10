@@ -4146,7 +4146,7 @@
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.authentication": "Authentication",
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.bootstrapServers": "Bootstrap Servers",
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.brandNamespaceHint": "Prefix of this source's table names. Leave blank for the default.",
-  "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabled": "Cache Enabled",
+  "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabled": "Result Cache Allowed",
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheTtlPlaceholder": "inherit global",
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheTtlRequiredForSignal": "The {{signal}} change signal judges staleness by the Cache TTL, so set a Cache TTL.",
   "fr/sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheTtlSeconds": "Cache TTL (seconds)",

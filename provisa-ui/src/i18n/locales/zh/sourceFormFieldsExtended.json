@@ -62,7 +62,7 @@
     "certificatePfx": "证书（PFX）",
     "pfxCertificatePath": "PFX 证书路径",
     "namingConvention": "命名约定",
-    "cacheEnabled": "启用缓存",
+    "cacheEnabled": "允许结果缓存",
     "cacheEnabledHelp": "开启后，读取此数据源的查询结果可在缓存 TTL 内保留并复用，但仅限于要求缓存的请求。关闭时，涉及此数据源的结果绝不缓存。",
     "loadProtected": "负载保护",
     "loadProtectedTooltip": "从不实时查询此数据源——始终提供最近一次物化的快照，并仅在非高峰窗口内刷新。保护脆弱或受速率限制的数据源免受查询负载影响。表级设置可以覆盖此默认值。",

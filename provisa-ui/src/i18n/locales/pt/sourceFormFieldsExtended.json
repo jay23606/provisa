@@ -62,7 +62,7 @@
     "certificatePfx": "Certificado (PFX)",
     "pfxCertificatePath": "Caminho do certificado PFX",
     "namingConvention": "Convenção de nomenclatura",
-    "cacheEnabled": "Cache habilitado",
+    "cacheEnabled": "Cache de resultados permitido",
     "cacheEnabledHelp": "Quando ativado, a resposta a uma consulta que lê esta fonte pode ser mantida e reutilizada durante o TTL do cache, mas apenas para solicitações que pedem cache. Quando desativado, resultados que tocam esta fonte nunca são armazenados em cache.",
     "loadProtected": "Protegido contra carga",
     "loadProtectedTooltip": "Nunca consulta esta fonte ao vivo — sempre serve o último snapshot materializado e o atualiza apenas dentro da janela fora de pico. Protege contra a carga de consultas uma fonte frágil ou com limite de taxa. Uma configuração por tabela pode substituir este padrão.",

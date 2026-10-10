@@ -62,7 +62,7 @@
     "certificatePfx": "Certificate (PFX)",
     "pfxCertificatePath": "PFX Certificate Path",
     "namingConvention": "Naming Convention",
-    "cacheEnabled": "Cache Enabled",
+    "cacheEnabled": "Result Cache Allowed",
     "cacheEnabledHelp": "When on, the answer to a query that reads this source may be kept and reused for the Cache TTL, but only for requests that ask for caching. When off, results that touch this source are never cached.",
     "loadProtected": "Load Protected",
     "loadProtectedTooltip": "Never query this source live — always serve the last materialized snapshot, and refresh it only inside the off-peak window. Protects a fragile or rate-limited source from query load. A per-table setting can override this default.",
