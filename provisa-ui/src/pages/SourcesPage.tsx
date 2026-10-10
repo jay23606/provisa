@@ -1036,6 +1036,10 @@ export function SourcesPage() {
         type: backendType(form.type),
         offPeakWindow: coreForm.offPeakWindow?.trim() || null,
         // SourceInput is a full upsert: every load/timeliness field is sent with its current value.
+        // The Cache TTL goes with it: the server judges the source's change signal against the TTL
+        // in THIS input, so a source whose tables always land (a mail source) was refused at the
+        // save although its TTL was filled in — it used to travel only in the call that follows.
+        cacheTtl: _ct.trim() === "" ? null : Number(_ct),
         sentinelPath: coreForm.sentinelPath.trim() || null,
         maxLiveConcurrency:
           coreForm.maxLiveConcurrency.trim() === "" ? null : Number(coreForm.maxLiveConcurrency),
