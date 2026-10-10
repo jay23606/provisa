@@ -93,6 +93,14 @@ _MESSAGE_FIELDS = (
     "parentFolderId,categories,inferenceClassification,isReadReceiptRequested,"
     "isDeliveryReceiptRequested,body,internetMessageHeaders,changeKey,webLink"
 )
+#: What a folder's change tracking is asked for where the source holds nothing received
+#: before a date: only what says whether a message is held. A source with a date usually
+#: holds a small part of a mailbox, and the full fields of a message (its text and its
+#: headers among them) are then asked for only for the messages held, in batches, as their
+#: HTML bodies already are -- so reading past years of old mail costs a line a message, not
+#: the message. ``id`` is always returned. Without a date every message is held, and asking
+#: for the fields with the listing is the cheaper way.
+_DATED_FIELDS = "id,receivedDateTime"
 _ATTACHMENT_FIELDS = "id,name,contentType,size,isInline,lastModifiedDateTime"
 _RECIPIENT_LISTS = (
     ("to", "toRecipients"),
@@ -364,6 +372,27 @@ class Mailbox:
         received = message.get("receivedDateTime")
         return self._not_before is None or received is None or received[:10] >= self._not_before
 
+    def _taken(self, items: list[dict], fields: str, prefer: tuple[str, ...]) -> list[dict]:
+        """The messages of ``items`` this source holds, with ``fields``. Where the source has
+        a date, ``items`` carry only what says whether each is held (:data:`_DATED_FIELDS`)
+        and the fields of the held ones are asked for here, in batches; one removed since it
+        was listed is no longer there to hold."""
+        held = [m for m in items if self._held(m)]
+        if self._not_before is None or not held:
+            return held
+        answers = self._graph.batch_each(
+            [f"{self._root}/messages/{quote(m['id'], safe='')}?$select={fields}" for m in held],
+            prefer=(IMMUTABLE_IDS, *prefer),
+        )
+        taken = []
+        for answer in answers:
+            if isinstance(answer, GraphRefused):
+                if not_there(answer):
+                    continue
+                raise answer
+            taken.append(answer)
+        return taken
+
     def _messages(self, fields: str, *, prefer: tuple[str, ...]) -> Iterator[list[dict]]:
         """Every message of the mailbox, a page at a time, read folder by folder as the first
         round of Graph's change tracking: a first round gives everything in the folder and
@@ -380,18 +409,15 @@ class Mailbox:
         for folder in [f["id"] for page in self._folders() for f in page]:
             changes = self._graph.delta(
                 f"{self._root}/mailFolders/{quote(folder, safe='')}/messages/delta",
-                {"$select": fields},
+                {"$select": fields if self._not_before is None else _DATED_FIELDS},
                 prefer=(IMMUTABLE_IDS, size, *prefer),
             )
             try:
                 for page in changes:
                     # A first round has no removals; one replayed into it is not a message.
-                    fresh = [
-                        m
-                        for m in page
-                        if "@removed" not in m and m["id"] not in seen and self._held(m)
-                    ]
-                    seen.update(m["id"] for m in fresh)
+                    listed = [m for m in page if "@removed" not in m and m["id"] not in seen]
+                    seen.update(m["id"] for m in listed)
+                    fresh = self._taken(listed, fields, prefer)
                     if fresh:
                         yield fresh
             except GraphRefused as refused:
@@ -629,10 +655,20 @@ class Mailbox:
         prefer += (_TEXT_BODY,) if whole else ()
         if link is not None:
             return self._graph.delta(link, prefer=prefer)
+        fields = _MESSAGE_FIELDS if whole else _OTHER_FIELDS
         return self._graph.delta(
             f"{self._root}/mailFolders/{quote(folder, safe='')}/messages/delta",
-            {"$select": _MESSAGE_FIELDS if whole else _OTHER_FIELDS},
+            {"$select": fields if self._not_before is None else _DATED_FIELDS},
             prefer=prefer,
+        )
+
+    def _held_of(self, items: list[dict], whole: bool) -> list[dict]:
+        """The messages of a round's ``items`` this source holds, with the fields its tables
+        are made from."""
+        return self._taken(
+            items,
+            _MESSAGE_FIELDS if whole else _OTHER_FIELDS,
+            (_TEXT_BODY,) if whole else (),
         )
 
     def _folders_link(self, link: str | None) -> str:
@@ -659,7 +695,7 @@ class Mailbox:
                 for page in changes:
                     # A first round removes none; a message older than the source's date is
                     # not held.
-                    page = [m for m in page if "@removed" not in m and self._held(m)]
+                    page = self._held_of([m for m in page if "@removed" not in m], whole)
                     if not page:
                         continue
                     rows, removed = self._changes(tables, page, unread)
@@ -691,11 +727,9 @@ class Mailbox:
             changes = self._round(folder, kept.get(folder), whole)
             try:
                 for page in changes:
-                    for message in page:
-                        if "@removed" in message:
-                            gone.add(message["id"])
-                        elif self._held(message):
-                            changed[message["id"]] = message
+                    gone.update(m["id"] for m in page if "@removed" in m)
+                    for message in self._held_of([m for m in page if "@removed" not in m], whole):
+                        changed[message["id"]] = message
             except GraphRefused as refused:
                 if not not_there(refused):
                     raise

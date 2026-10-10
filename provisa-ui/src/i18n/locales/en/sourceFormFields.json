@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "Nothing older than",
+    "mailSinceHelp": "Leave empty to read mail of any age.",
     "description": "Description",
     "descriptionPlaceholder": "Brief description of this data source",
     "host": "Host",

@@ -6,8 +6,6 @@
     "readsMailHelp": "读取此邮箱的邮件、文件夹和附件信息。不会更改邮箱中的任何内容。",
     "connect": "连接 Microsoft 账号",
     "connected": "已以 {{account}} 的身份连接",
-    "mailSince": "不早于",
-    "mailSinceHelp": "留空表示读取任何日期的邮件。",
     "connectedOn": "已于 {{date}} 以 {{account}} 的身份连接",
     "connectFailed": "无法完成登录。",
     "notSetUp": "您的组织尚未连接 Microsoft 365。",

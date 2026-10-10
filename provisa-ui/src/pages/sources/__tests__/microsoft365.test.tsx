@@ -16,6 +16,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/render";
 import en from "../../../i18n/locales/en/microsoft365Fields.json";
 import google from "../../../i18n/locales/en/googleWorkspaceFields.json";
+import shared from "../../../i18n/locales/en/sourceFormFields.json";
 import { BRAND_CARRIER, SOURCE_TYPES } from "../constants";
 import { SourceFormFieldsExtended } from "../SourceFormFieldsExtended";
 import type { SourceFormFieldsProps } from "../SourceFormFields";
@@ -287,9 +288,14 @@ describe("nothing received before a date", () => {
     );
   });
 
-  it("is worded as the Google source's field is", () => {
-    expect(en.microsoft365Fields.mailSince).toBe(google.googleWorkspaceFields.mailSince);
-    expect(en.microsoft365Fields.mailSinceHelp).toBe(google.googleWorkspaceFields.mailSinceHelp);
+  it("is the one field both mail sources show, with one label and one hint", async () => {
+    form(FILLED);
+    await screen.findByTestId("microsoft-365-m365_mail_since");
+    expect(screen.getByLabelText(shared.sourceFormFields.mailSince)).toBeInTheDocument();
+    expect(screen.getByText(shared.sourceFormFields.mailSinceHelp)).toBeInTheDocument();
+    // Neither source keeps wording of its own for it.
+    expect(en.microsoft365Fields).not.toHaveProperty("mailSince");
+    expect(google.googleWorkspaceFields).not.toHaveProperty("mailSince");
   });
 });
 

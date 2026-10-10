@@ -44,6 +44,7 @@ import {
   gwShapes,
 } from "./googleWorkspace";
 import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
+import { MailSinceField } from "./MailSinceField";
 
 interface Props {
   sourceId: string;
@@ -389,13 +390,11 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
               {...text("gw_mail_search")}
             />
           </FormField>
-          <FormField hint={t("googleWorkspaceFields.mailSinceHelp")} size="short">
-            <TextInput
-              type="date"
-              label={t("googleWorkspaceFields.mailSince")}
-              {...text("gw_mail_since")}
-            />
-          </FormField>
+          <MailSinceField
+            value={fields.gw_mail_since ?? ""}
+            onChange={(value) => set("gw_mail_since", value)}
+            testId="google-workspace-gw_mail_since"
+          />
         </>
       )}
       <FormField hint={t("googleWorkspaceFields.mailLabelsHelp")} size="full">

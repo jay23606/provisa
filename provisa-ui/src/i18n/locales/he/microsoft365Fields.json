@@ -6,8 +6,6 @@
     "readsMailHelp": "הודעות, תיקיות ופרטי קבצים מצורפים של תיבת דואר זו. דבר אינו משתנה בה.",
     "connect": "חיבור חשבון Microsoft",
     "connected": "מחובר בתור {{account}}",
-    "mailSince": "שום דבר ישן מ-",
-    "mailSinceHelp": "יש להשאיר ריק כדי לקרוא דואר מכל תאריך.",
     "connectedOn": "מחובר בתור {{account}} מתאריך {{date}}",
     "connectFailed": "לא ניתן היה להשלים את הכניסה.",
     "notSetUp": "הארגון שלך עדיין לא חיבר את Microsoft 365.",

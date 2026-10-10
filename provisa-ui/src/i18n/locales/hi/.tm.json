@@ -4109,6 +4109,8 @@
   "hi/sourceFormFields.json::sourceFormFields.icebergCatalogWarehouse": "Catalog Warehouse",
   "hi/sourceFormFields.json::sourceFormFields.icebergTableId": "Table Identifier",
   "hi/sourceFormFields.json::sourceFormFields.keyPair": "Key Pair",
+  "hi/sourceFormFields.json::sourceFormFields.mailSince": "Nothing older than",
+  "hi/sourceFormFields.json::sourceFormFields.mailSinceHelp": "Leave empty to read mail of any age.",
   "hi/sourceFormFields.json::sourceFormFields.metastoreUri": "Metastore URI",
   "hi/sourceFormFields.json::sourceFormFields.noAuth": "No Auth",
   "hi/sourceFormFields.json::sourceFormFields.noneInstanceRoleLocal": "None (instance role / local)",

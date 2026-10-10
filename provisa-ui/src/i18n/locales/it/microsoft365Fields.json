@@ -6,8 +6,6 @@
     "readsMailHelp": "Messaggi, cartelle e dettagli degli allegati di questa casella di posta. Nulla viene modificato.",
     "connect": "Collega account Microsoft",
     "connected": "Collegato come {{account}}",
-    "mailSince": "Niente di più vecchio di",
-    "mailSinceHelp": "Lascia vuoto per leggere posta di qualsiasi data.",
     "connectedOn": "Collegato come {{account}} il {{date}}",
     "connectFailed": "Non è stato possibile completare l’accesso.",
     "notSetUp": "La tua organizzazione non ha ancora collegato Microsoft 365.",

@@ -90,6 +90,8 @@ class FakeGraph:
         self.answers: dict[str, object] = {}
         #: delta paths whose kept link Graph no longer honours.
         self.gone: set[str] = set()
+        #: The requests of each batch asked, in order.
+        self.batches: list[list[dict]] = []
         #: The mailbox's messages as they are now (pages), where a test changes them after a
         #: first read; None while they are as the table states them.
         self.now: list | None = None
@@ -139,6 +141,12 @@ class FakeGraph:
         elif path not in self.table and path.endswith("/mailFolders"):
             folders = self._folders_of(path.removesuffix("/mailFolders"))
             answer = [folders] if folders else None
+        elif "/messages/" in path and query.get("$select", ["body"])[0] != "body":
+            # One message with its fields (not its HTML body, which the table states apart).
+            root, wanted = path.rsplit("/messages/", 1)
+            held = self.now if self.now is not None else self.table.get(f"{root}/messages", [])
+            found = [m for page in held for m in page if m["id"] == wanted]
+            answer = found[0] if found else None
         elif path.endswith("/messages") and "$filter" in query:
             # The messages of one conversation, as the mailbox holds them now.
             wanted = query["$filter"][0].removeprefix("conversationId eq '").removesuffix("'")
@@ -163,6 +171,7 @@ class FakeGraph:
         if self.queued:
             return self.queued.pop(0)
         if method == "POST":
+            self.batches.append(list(body["requests"]))
             responses = []
             for request in body["requests"]:
                 status, answer = self._one(BASE_URL + request["url"])
@@ -1303,3 +1312,60 @@ def test_every_message_is_asked_for_and_the_older_ones_left_out_here():
     mailbox, fake = _mailbox(_two_folders(), since=_since(2))
     _units(mailbox)
     assert _rounds(fake) and not any("$filter" in c[2] or "filter" in c[1] for c in _rounds(fake))
+
+
+def _asked_for_fields(fake: FakeGraph) -> list[str]:
+    """The ids of the messages whose fields were asked for one by one (in batches)."""
+    return [
+        request["url"].split("/messages/")[1].split("?")[0]
+        for call in fake.batches
+        for request in call
+        if "/messages/" in request["url"] and "$select=body" not in request["url"]
+    ]
+
+
+def test_with_a_date_the_listing_asks_only_what_says_whether_a_message_is_held():
+    """A source with a date usually holds a small part of a mailbox. Reading past the old mail
+    costs a line a message: the listing asks for its id and when it was received, and the
+    fields of a message (its text and headers among them) only for the ones held."""
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    units = _units(mailbox)
+    selects = {c[2].get("$select") for c in _rounds(fake) if "$select" in c[2]}
+    assert selects == {"id,receivedDateTime"}
+    assert sorted(_asked_for_fields(fake)) == ["m2", "m3"]  # never the one before the date
+    held = {r["id"]: r for u in units for r in u.rows.get("messages", [])}
+    assert held["m2"]["subject"] == "Subject 2" and held["m2"]["body_html"] == "<p>2</p>"
+
+
+def test_with_a_date_what_changed_is_fetched_only_for_the_messages_held():
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    kept = _links(_units(mailbox))
+    fake.batches.clear()
+    old, new = _message(1, subject="touched"), _message(4)
+    fake.since = {f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [old, new]}
+    fake.table.update(_html(4))
+    fake.now = [[old, _message(2, parentFolderId=_SENT), new]]
+    (unit,) = _units(mailbox, kept)
+    assert _asked_for_fields(fake) == ["m4"]
+    assert [r["subject"] for r in unit.rows["messages"]] == ["Subject 4"]
+
+
+def test_a_held_message_removed_between_its_listing_and_its_fields_is_not_held():
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    one = fake._one
+
+    def gone(url: str):
+        if "/messages/m3" in url and "$select=body" not in url:
+            return 404, {"error": {"code": "ErrorItemNotFound", "message": "gone"}}
+        return one(url)
+
+    fake._one = gone
+    assert sorted(r["id"] for r in _all(mailbox, "messages")) == ["m2"]
+
+
+def test_without_a_date_the_listing_carries_the_fields_and_no_message_is_asked_for_alone():
+    """Every message is held, so asking for the fields with the listing is the cheaper way."""
+    mailbox, fake = _mailbox(_two_folders())
+    _units(mailbox)
+    assert all("subject" in c[2]["$select"] for c in _rounds(fake) if "$select" in c[2])
+    assert _asked_for_fields(fake) == []

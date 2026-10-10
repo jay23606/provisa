@@ -6,8 +6,6 @@
     "readsMailHelp": "Messages, folders and attachment details of this mailbox. Nothing is changed in it.",
     "connect": "Connect Microsoft account",
     "connected": "Connected as {{account}}",
-    "mailSince": "Nothing older than",
-    "mailSinceHelp": "Leave empty to read mail of any age.",
     "connectedOn": "Connected as {{account}} on {{date}}",
     "connectFailed": "The sign-in could not be completed.",
     "notSetUp": "Your organization has not connected Microsoft 365 yet.",

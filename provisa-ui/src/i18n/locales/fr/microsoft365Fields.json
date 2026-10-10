@@ -6,8 +6,6 @@
     "readsMailHelp": "Messages, dossiers et informations sur les pièces jointes de cette boîte aux lettres. Rien n’y est modifié.",
     "connect": "Connecter le compte Microsoft",
     "connected": "Connecté en tant que {{account}}",
-    "mailSince": "Rien de plus ancien que",
-    "mailSinceHelp": "Laissez vide pour lire les messages de toute date.",
     "connectedOn": "Connecté en tant que {{account}} le {{date}}",
     "connectFailed": "La connexion n’a pas pu aboutir.",
     "notSetUp": "Votre organisation n’a pas encore connecté Microsoft 365.",
