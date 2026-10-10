@@ -169,24 +169,26 @@ async def test_the_form_is_told_whether_a_kind_can_have_a_sentinel(monkeypatch):
 
 @pytest.mark.parametrize("kind", ["microsoft_365", "google_workspace"])
 @pytest.mark.parametrize("signal", ["probe", "ttl_probe"])
-def test_a_probing_signal_on_a_mail_source_is_refused_until_its_check_is_wired(
+def test_a_probing_signal_on_a_mail_source_is_taken_because_its_kind_can_be_checked(
     kind, signal, monkeypatch
 ):
+    """Both mail kinds have their check for changes wired (probes.LOADER_PROBE_TYPES): Gmail's
+    history id, Graph's delta links. A kind without one is still refused by name."""
     from provisa.events import probes
 
+    assert kind in probes.LOADER_PROBE_TYPES
     asked = SourceInput(id="mail", type=kind, change_signal=signal, cache_ttl=300)
-    refused = _validate_source_load_management(asked)
-    assert refused is not None and refused.code == "schema.change_signal_not_honoured"
-    assert refused.params == {"source": "mail", "type": kind, "signal": signal}
-    # The plain timer is taken, and so is the probing signal once the kind's check is wired.
+    assert _validate_source_load_management(asked) is None
     assert (
         _validate_source_load_management(
             SourceInput(id="mail", type=kind, change_signal="ttl", cache_ttl=300)
         )
         is None
     )
-    monkeypatch.setattr(probes, "LOADER_PROBE_TYPES", frozenset({kind}))
-    assert _validate_source_load_management(asked) is None
+    monkeypatch.setattr(probes, "LOADER_PROBE_TYPES", frozenset())
+    refused = _validate_source_load_management(asked)
+    assert refused is not None and refused.code == "schema.change_signal_not_honoured"
+    assert refused.params == {"source": "mail", "type": kind, "signal": signal}
 
 
 def test_a_probing_signal_on_another_kind_of_source_is_as_it_was():

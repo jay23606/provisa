@@ -98,8 +98,8 @@ const PUSH_SIGNAL_BY_SOURCE_TYPE: Record<string, string> = {
 // The one exception is a source whose probe is the SOURCE's own, not a table's: a mail source asks
 // its provider whether the mailbox changed (backend: the adapter's freshness_probe), so checking
 // before re-reading is a choice for the whole source. Only a kind whose adapter has that probe is
-// here; Microsoft 365 has none yet, so it offers the schedule alone.
-export const SOURCE_PROBE_SOURCE_TYPES = new Set(["google_workspace"]);
+// here (server: probes.LOADER_PROBE_TYPES, which refuses the signal on any other mail kind).
+export const SOURCE_PROBE_SOURCE_TYPES = new Set(["google_workspace", "microsoft_365"]);
 
 export function sourceChangeSignals(sourceType: string | null | undefined): string[] {
   const push = PUSH_SIGNAL_BY_SOURCE_TYPE[(sourceType ?? "").toLowerCase()];

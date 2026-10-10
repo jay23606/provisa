@@ -71,8 +71,8 @@ describe("a mail source's change signal", () => {
     expect(chosen.at(-1)?.changeSignal).toBe("ttl_probe");
   });
 
-  it("offers Microsoft 365, which has no such probe yet, the schedule alone", async () => {
-    expect(words(await openChoices("microsoft_365"))).toEqual(["ttl (timer)"]);
+  it("offers Microsoft 365 the same two choices", async () => {
+    expect(words(await openChoices("microsoft_365"))).toEqual([WORDS.ttl, WORDS.ttl_probe]);
   });
 
   it("leaves every other source's list as it was", async () => {

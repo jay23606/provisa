@@ -71,10 +71,10 @@ _ALL = frozenset({WATERMARK, HASH, COUNT, NONE})
 
 
 #: The source kinds whose loader is asked, as a whole, whether the source changed (its
-#: ``freshness_probe``), so that a ``probe`` / ``ttl_probe`` signal set on the SOURCE means
-#: something for tables that have no probe query of their own. None until the poll node asks a
-#: loader's probe; each kind is added here when its probe is wired.
-LOADER_PROBE_TYPES: frozenset[str] = frozenset()
+#: ``freshness_probe``, which :func:`build_probe` uses under the hash probe type), so that a
+#: ``probe`` / ``ttl_probe`` signal set on the SOURCE means something for tables that have no
+#: probe query of their own. The mail kinds: Gmail's history id, Microsoft Graph's delta links.
+LOADER_PROBE_TYPES: frozenset[str] = _MAIL_TYPES
 
 
 def probe_capabilities(source_type: str) -> frozenset[str]:

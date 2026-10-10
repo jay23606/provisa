@@ -101,8 +101,7 @@ describe("sourceChangeSignals (REQ-929/REQ-1907)", () => {
 
   it("offers a mail source whose provider can be asked the choice to check before re-reading", () => {
     expect(sourceChangeSignals("google_workspace")).toEqual(["ttl", "ttl_probe"]);
-    // No probe of its own yet: the schedule alone.
-    expect(sourceChangeSignals("microsoft_365")).toEqual(["ttl"]);
+    expect(sourceChangeSignals("microsoft_365")).toEqual(["ttl", "ttl_probe"]);
   });
 
   it("offers a polled source ttl first, then its transport push signals", () => {
