@@ -7,6 +7,7 @@
     "never": "永不",
     "always": "一律",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N 設定該閾值：Hot-50 表示每個間隔 50 條語句。",
     "neverWithLoadProtection": "「永不」不能與負載保護同時使用：受負載保護的數據表永不被即時讀取。"
   }
 }

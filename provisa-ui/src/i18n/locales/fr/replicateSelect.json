@@ -7,6 +7,7 @@
     "never": "Jamais",
     "always": "Toujours",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N fixe ce seuil : Hot-50 correspond à 50 instructions par intervalle.",
     "neverWithLoadProtection": "« Jamais » ne peut pas être combiné avec la protection de charge : une table protégée contre la charge n'est jamais lue en direct."
   }
 }

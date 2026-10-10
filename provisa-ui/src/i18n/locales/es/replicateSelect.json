@@ -7,6 +7,7 @@
     "never": "Nunca",
     "always": "Siempre",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N fija ese umbral: Hot-50 son 50 sentencias por intervalo.",
     "neverWithLoadProtection": "«Nunca» no puede combinarse con la protección de carga: una tabla protegida contra carga nunca se lee en vivo."
   }
 }

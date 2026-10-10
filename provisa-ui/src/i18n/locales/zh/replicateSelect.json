@@ -7,6 +7,7 @@
     "never": "从不",
     "always": "始终",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N 设置该阈值：Hot-50 表示每个间隔 50 条语句。",
     "neverWithLoadProtection": "“从不”不能与负载保护同时使用：受负载保护的表从不被实时读取。"
   }
 }

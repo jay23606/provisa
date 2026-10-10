@@ -2897,6 +2897,7 @@
   "pt/replicateSelect.json::replicateSelect.default": "Default",
   "pt/replicateSelect.json::replicateSelect.helpSource": "When this source's tables are served from their replicas: copies kept in the engine's store and refreshed on each table's timeliness settings. A table with no value of its own uses this one. Default applies the global threshold. Only Always is a guarantee; Default, Never and the Hot entries are best effort.",
   "pt/replicateSelect.json::replicateSelect.helpTable": "When this table is served from its replica: a copy kept in the engine's store and refreshed on the table's timeliness settings (TTL, freshness check, change feed). It is not a continuous change stream. Default uses the source's value, or the global threshold when the source has none. Only Always is a guarantee; Default, Never and the Hot entries are best effort.",
+  "pt/replicateSelect.json::replicateSelect.hotExample": "Hot-N sets that threshold: Hot-50 is 50 statements per interval.",
   "pt/replicateSelect.json::replicateSelect.hot": "Hot-{{threshold}}",
   "pt/replicateSelect.json::replicateSelect.label": "Replicate",
   "pt/replicateSelect.json::replicateSelect.never": "Never",

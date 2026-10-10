@@ -7,6 +7,7 @@
     "never": "Mai",
     "always": "Sempre",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N imposta quella soglia: Hot-50 significa 50 istruzioni per intervallo.",
     "neverWithLoadProtection": "«Mai» non può essere combinato con la protezione dal carico: una tabella protetta dal carico non viene mai letta in tempo reale."
   }
 }

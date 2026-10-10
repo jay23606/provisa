@@ -7,6 +7,7 @@
     "never": "しない",
     "always": "常に",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N はそのしきい値を指定します。Hot-50 は 1 間隔あたり 50 ステートメントです。",
     "neverWithLoadProtection": "「しない」は負荷保護と併用できません。負荷保護されたテーブルはライブで読まれることがありません。"
   }
 }

@@ -52,7 +52,13 @@ export function ReplicateSelect({
       label={
         <FieldLabel
           text={t("replicateSelect.label")}
-          help={t(scope === "table" ? "replicateSelect.helpTable" : "replicateSelect.helpSource")}
+          // The (?) also says what a Hot entry does — the same words as the "Replicate when busy"
+          // card in Admin, where its interval and default threshold are set — and what the N is.
+          help={[
+            t(scope === "table" ? "replicateSelect.helpTable" : "replicateSelect.helpSource"),
+            t("cacheStorageTab.hotReplicationIntro"),
+            t("replicateSelect.hotExample"),
+          ].join(" ")}
         />
       }
       data={replicateValues(value).map((replicate) => ({

@@ -7,6 +7,7 @@
     "never": "Nie",
     "always": "Immer",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N legt diesen Schwellenwert fest: Hot-50 bedeutet 50 Anweisungen pro Intervall.",
     "neverWithLoadProtection": "„Nie“ lässt sich nicht mit Lastschutz kombinieren: Eine lastgeschützte Tabelle wird nie live gelesen."
   }
 }

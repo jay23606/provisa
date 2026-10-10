@@ -7,6 +7,7 @@
     "never": "Nooit",
     "always": "Altijd",
     "hot": "Hot-{{threshold}}",
+    "hotExample": "Hot-N stelt die drempel in: Hot-50 is 50 statements per interval.",
     "neverWithLoadProtection": "'Nooit' kan niet worden gecombineerd met belastingsbescherming: een tabel met belastingsbescherming wordt nooit live gelezen."
   }
 }
