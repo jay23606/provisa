@@ -112,7 +112,10 @@ test.describe("source to query through the UI: exasol (REQ-1731, REQ-1763)", () 
     // Exasol always serves TLS with a self-signed, per-boot certificate — pin the fingerprint
     // THIS run's container actually presents (read back from prime.py's output file above),
     // exactly the same pin ExasolDriver.connect() (executor/drivers/exasol.py) needs to validate.
-    await page.getByLabel(/^Authentication/).selectOption("tls_fingerprint");
+    // The field is not a native <select>: its label names both the input and its option list,
+    // so it is opened and the option picked (as engine-swap-registrars.ts's exasol does).
+    await page.getByRole("textbox", { name: "Authentication" }).click();
+    await page.getByRole("option", { name: "TLS Fingerprint Pin", exact: true }).click();
     await page.getByLabel(/TLS Fingerprint/).fill(exasolFingerprint);
     await submitSourceAndExpectListed(page, sourceId);
 
