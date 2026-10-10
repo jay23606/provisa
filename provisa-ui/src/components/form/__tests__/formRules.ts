@@ -237,7 +237,14 @@ export function checkFormRules(
       );
     }
     const grouped = hasAncestor(n, new Set(["FormChecks"]));
-    if (TICKS.has(tag) && !grouped && !hasAncestor(n, CHOICE_GROUPS)) {
+    // A tick that is the whole of a small component (its FormField is what the component
+    // returns) is placed by the form that mounts it, inside that form's FormChecks.
+    const ownField = layoutParent(n);
+    const placedByMount =
+      ownField !== undefined &&
+      tagOf(ownField) === "FormField" &&
+      layoutParent(ownField) === undefined;
+    if (TICKS.has(tag) && !grouped && !placedByMount && !hasAncestor(n, CHOICE_GROUPS)) {
       report("tick-ungrouped", n, `<${tag}> is not in the form's <FormChecks>`);
     }
     if (!grouped && !hasAncestor(n, new Set(["FormField"]))) {

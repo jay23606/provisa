@@ -8,7 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { TablePlacementFields } from "./TablePlacementFields";
+import { TableDraftTick, TableRegionField } from "./TablePlacementFields";
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Checkbox, Select, Table, Text, TextInput } from "@mantine/core";
@@ -216,6 +216,7 @@ export function TableEditForm({
                 />
               </FormField>
             </FormIdentifiers>
+            {/* The fields first, on shared lines; then every tick together; then the description and the sections. */}
             <FormField size="medium">
               <Select
                 label={
@@ -239,72 +240,6 @@ export function TableEditForm({
                 allowDeselect={false}
               />
             </FormField>
-            {/* REQ-1921: its region and its draft flag, each saved on its own. */}
-            <TablePlacementFields table={editingTable} isView={isView} onChange={setEditingTable} />
-            {!isView && (
-              <TableLoadManagementFields
-                editingTable={editingTable}
-                setEditingTable={setEditingTable}
-                editSource={editSource}
-                roles={roles}
-                cacheTtlEdits={cacheTtlEdits}
-                setCacheTtlEdits={setCacheTtlEdits}
-                floorTtl={floorTtl}
-                ttlSignalError={Boolean(ttlSignalError)}
-                effLoadProtected={Boolean(effLoadProtected)}
-              />
-            )}
-            <FormField size="full">
-              <div>
-                <FieldLabel
-                  text={t("tableEditForm.descriptionLabel")}
-                  help={t("tableEditForm.descriptionHelp")}
-                />
-                <DescriptionField
-                  value={editingTable.description || ""}
-                  onChange={(v) => setEditingTable({ ...editingTable, description: v || null })}
-                  placeholder={t("tableEditForm.descriptionPlaceholder")}
-                  rows={2}
-                  generating={generatingDesc}
-                  onGenerate={async () => {
-                    setGeneratingDesc(true);
-                    try {
-                      const desc = await generateTableDescription(editingTable.id);
-                      if (desc) setEditingTable({ ...editingTable, description: desc });
-                    } finally {
-                      setGeneratingDesc(false);
-                    }
-                  }}
-                />
-              </div>
-            </FormField>
-            {editingTable.viewSql && (
-              <>
-                <FormChecks>
-                  <FormField
-                    size="short"
-                    help={`${t("tableEditForm.materializedViewDesc")} ${t("tableEditForm.materializedViewHelp")}`}
-                  >
-                    <Checkbox
-                      checked={editingTable.materialize}
-                      onChange={(e) =>
-                        setEditingTable({
-                          ...editingTable,
-                          materialize: e.currentTarget.checked,
-                        })
-                      }
-                      label={t("tableEditForm.materializedViewLabel")}
-                    />
-                  </FormField>
-                </FormChecks>
-                {editingTable.materialize && (
-                  <MaterializedViewPanels
-                    editingTable={editingTable}
-                    setEditingTable={setEditingTable}
-                  />
-                )}
-              </>
-            )}
             {isCheckerTable ? (
               // REQ-1443 clause 10: a checker table's membership is inherited from the table its
               // contract scans — the server derives it, so it is shown, never chosen.
@@ -343,43 +278,6 @@ export function TableEditForm({
                 />
               </FormField>
             )}
-            <FormChecks>
-              <FormField size="short" help={t("tableEditForm.enableAggregatesDesc")}>
-                <Checkbox
-                  checked={editingTable.enableAggregates}
-                  onChange={(e) =>
-                    setEditingTable({
-                      ...editingTable,
-                      enableAggregates: e.currentTarget.checked,
-                    })
-                  }
-                  label={t("tableEditForm.enableAggregatesLabel")}
-                />
-              </FormField>
-
-              <FormField size="short" help={t("tableEditForm.enableGroupByDesc")}>
-                <Checkbox
-                  checked={editingTable.enableGroupBy}
-                  onChange={(e) =>
-                    setEditingTable({
-                      ...editingTable,
-                      enableGroupBy: e.currentTarget.checked,
-                    })
-                  }
-                  label={t("tableEditForm.enableGroupByLabel")}
-                />
-              </FormField>
-            </FormChecks>
-            {editingTable.apiEndpoint && (
-              <FormField size="long">
-                <TextInput
-                  label={t("tableEditForm.apiEndpointLabel")}
-                  readOnly
-                  value={editingTable.apiEndpoint}
-                  styles={{ input: { color: "var(--text-muted)", cursor: "default" } }}
-                />
-              </FormField>
-            )}
             <FormField size="medium">
               <Select
                 label={
@@ -408,6 +306,76 @@ export function TableEditForm({
                 allowDeselect={false}
               />
             </FormField>
+            {(editingTable.changeSignal === "probe" || editingTable.changeSignal === "ttl_probe") &&
+              (() => {
+                const src = sources.find((s) => s.id === editingTable.sourceId);
+                const caps = sourceProbeTypes(src?.type);
+                if (caps.length === 0) return null;
+                return (
+                  <FormField size="medium">
+                    <Select
+                      label={
+                        <FieldLabel
+                          text={t("tableEditForm.probeTypeLabel")}
+                          help={t("tableEditForm.probeTypeHelp")}
+                        />
+                      }
+                      data={[
+                        { value: "", label: t("tableEditForm.probeTypeAuto") },
+                        ...caps.map((pt) => ({
+                          value: pt,
+                          label:
+                            pt +
+                            (pt === "watermark"
+                              ? t("tableEditForm.probeAppendSuffix")
+                              : t("tableEditForm.probeReplaceSuffix")),
+                        })),
+                      ]}
+                      value={editingTable.probeType ?? ""}
+                      onChange={(v) =>
+                        setEditingTable({
+                          ...editingTable,
+                          probeType: v || null,
+                        })
+                      }
+                      comboboxProps={{ withinPortal: true }}
+                      allowDeselect={false}
+                    />
+                  </FormField>
+                );
+              })()}
+            {(editingTable.changeSignal === "probe" ||
+              editingTable.changeSignal === "ttl_probe") && (
+              <FormField size="medium">
+                <TextInput
+                  label={
+                    <FieldLabel
+                      text={t("tableEditForm.freshnessProbeLabel")}
+                      help={t("tableEditForm.freshnessProbeHelp")}
+                    />
+                  }
+                  value={editingTable.probeQuery ?? ""}
+                  onChange={(e) =>
+                    setEditingTable({
+                      ...editingTable,
+                      probeQuery: e.target.value || null,
+                    })
+                  }
+                  placeholder={t("tableEditForm.freshnessProbePlaceholder")}
+                />
+              </FormField>
+            )}
+            <TableRegionField table={editingTable} isView={isView} onChange={setEditingTable} />
+            {editingTable.apiEndpoint && (
+              <FormField size="long">
+                <TextInput
+                  label={t("tableEditForm.apiEndpointLabel")}
+                  readOnly
+                  value={editingTable.apiEndpoint}
+                  styles={{ input: { color: "var(--text-muted)", cursor: "default" } }}
+                />
+              </FormField>
+            )}
             {(editingTable.changeSignal === "ttl" || editingTable.changeSignal === "ttl_probe") &&
               (() => {
                 // A __derived__ view has no Cache TTL — its ttl cadence is the materialized view's
@@ -507,64 +475,93 @@ export function TableEditForm({
                   </>
                 );
               })()}
-            {(editingTable.changeSignal === "probe" || editingTable.changeSignal === "ttl_probe") &&
-              (() => {
-                const src = sources.find((s) => s.id === editingTable.sourceId);
-                const caps = sourceProbeTypes(src?.type);
-                if (caps.length === 0) return null;
-                return (
-                  <FormField size="medium">
-                    <Select
-                      label={
-                        <FieldLabel
-                          text={t("tableEditForm.probeTypeLabel")}
-                          help={t("tableEditForm.probeTypeHelp")}
-                        />
-                      }
-                      data={[
-                        { value: "", label: t("tableEditForm.probeTypeAuto") },
-                        ...caps.map((pt) => ({
-                          value: pt,
-                          label:
-                            pt +
-                            (pt === "watermark"
-                              ? t("tableEditForm.probeAppendSuffix")
-                              : t("tableEditForm.probeReplaceSuffix")),
-                        })),
-                      ]}
-                      value={editingTable.probeType ?? ""}
-                      onChange={(v) =>
-                        setEditingTable({
-                          ...editingTable,
-                          probeType: v || null,
-                        })
-                      }
-                      comboboxProps={{ withinPortal: true }}
-                      allowDeselect={false}
-                    />
-                  </FormField>
-                );
-              })()}
-            {(editingTable.changeSignal === "probe" ||
-              editingTable.changeSignal === "ttl_probe") && (
-              <FormField size="medium">
-                <TextInput
-                  label={
-                    <FieldLabel
-                      text={t("tableEditForm.freshnessProbeLabel")}
-                      help={t("tableEditForm.freshnessProbeHelp")}
-                    />
-                  }
-                  value={editingTable.probeQuery ?? ""}
+            <FormChecks>
+              <TableDraftTick table={editingTable} onChange={setEditingTable} />
+              {editingTable.viewSql && (
+                <FormField
+                  size="short"
+                  help={`${t("tableEditForm.materializedViewDesc")} ${t("tableEditForm.materializedViewHelp")}`}
+                >
+                  <Checkbox
+                    checked={editingTable.materialize}
+                    onChange={(e) =>
+                      setEditingTable({
+                        ...editingTable,
+                        materialize: e.currentTarget.checked,
+                      })
+                    }
+                    label={t("tableEditForm.materializedViewLabel")}
+                  />
+                </FormField>
+              )}
+              <FormField size="short" help={t("tableEditForm.enableAggregatesDesc")}>
+                <Checkbox
+                  checked={editingTable.enableAggregates}
                   onChange={(e) =>
                     setEditingTable({
                       ...editingTable,
-                      probeQuery: e.target.value || null,
+                      enableAggregates: e.currentTarget.checked,
                     })
                   }
-                  placeholder={t("tableEditForm.freshnessProbePlaceholder")}
+                  label={t("tableEditForm.enableAggregatesLabel")}
                 />
               </FormField>
+
+              <FormField size="short" help={t("tableEditForm.enableGroupByDesc")}>
+                <Checkbox
+                  checked={editingTable.enableGroupBy}
+                  onChange={(e) =>
+                    setEditingTable({
+                      ...editingTable,
+                      enableGroupBy: e.currentTarget.checked,
+                    })
+                  }
+                  label={t("tableEditForm.enableGroupByLabel")}
+                />
+              </FormField>
+            </FormChecks>
+            <FormField size="full">
+              <div>
+                <FieldLabel
+                  text={t("tableEditForm.descriptionLabel")}
+                  help={t("tableEditForm.descriptionHelp")}
+                />
+                <DescriptionField
+                  value={editingTable.description || ""}
+                  onChange={(v) => setEditingTable({ ...editingTable, description: v || null })}
+                  placeholder={t("tableEditForm.descriptionPlaceholder")}
+                  rows={2}
+                  generating={generatingDesc}
+                  onGenerate={async () => {
+                    setGeneratingDesc(true);
+                    try {
+                      const desc = await generateTableDescription(editingTable.id);
+                      if (desc) setEditingTable({ ...editingTable, description: desc });
+                    } finally {
+                      setGeneratingDesc(false);
+                    }
+                  }}
+                />
+              </div>
+            </FormField>
+            {!isView && (
+              <TableLoadManagementFields
+                editingTable={editingTable}
+                setEditingTable={setEditingTable}
+                editSource={editSource}
+                roles={roles}
+                cacheTtlEdits={cacheTtlEdits}
+                setCacheTtlEdits={setCacheTtlEdits}
+                floorTtl={floorTtl}
+                ttlSignalError={Boolean(ttlSignalError)}
+                effLoadProtected={Boolean(effLoadProtected)}
+              />
+            )}
+            {editingTable.viewSql && editingTable.materialize && (
+              <MaterializedViewPanels
+                editingTable={editingTable}
+                setEditingTable={setEditingTable}
+              />
             )}
             <LiveDeliveryFieldset
               editingTable={editingTable}
@@ -852,7 +849,8 @@ export function TableEditForm({
         />
       </div>
       <FormFooter
-        style={{ padding: "0.75rem 0.5rem" }}
+        // Starts where the form's fields start: the card's own inset.
+        style={{ padding: "0.75rem 1.5rem" }}
         onSave={handleSaveEdit}
         saving={saving}
         onCancel={cancelEditing}

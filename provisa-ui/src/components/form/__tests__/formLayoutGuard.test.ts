@@ -374,6 +374,12 @@ describe("the form rules hold where an explanation sits and where ticks sit", ()
   });
 
   it("ticks in the group, with help behind a (?), and the options of one choice, pass", () => {
+    // a tick that is a component of its own: the form that mounts it groups it
+    expect(
+      rules(
+        `const Draft = () => (<FormField size="short" help="Why."><Checkbox label="Draft" /></FormField>);`,
+      ),
+    ).toEqual([]);
     expect(
       rules(
         `<FormLayout><FormChecks><Checkbox label="TLS" /><FormField size="short" help="Why."><Switch label="Cache" /></FormField></FormChecks></FormLayout>`,
