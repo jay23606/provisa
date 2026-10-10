@@ -152,6 +152,30 @@ def require_inputs_in_service(view_sql: str, state: Any) -> None:
             raise TableIsDraft(out_of_service[qualified])
 
 
+def require_inputs_reached(view_sql: str, gov: "GovernanceContext") -> None:
+    """Through a view a reader sees only what it could see in the view's inputs — and a table
+    of which it may read nothing, it does not read through a view either. Governing the view's
+    body for such a reader removes every column of that table, which leaves a statement the
+    engine can only fail. So it is refused here, where the body is chosen, naming the table, in
+    the words a statement that names a table outside the role's reach is refused with
+    (``pgwire._pipeline``, V000).
+
+    Judged from the reader's own governance context: a table it holds with no visible column,
+    and that publishes none to it (REQ-1959). A table the reader sees some columns of is
+    governed as ever — the hidden ones removed."""
+    import sqlglot  # noqa: PLC0415
+    from sqlglot import exp  # noqa: PLC0415
+
+    tree = sqlglot.parse_one(view_sql, read="postgres")
+    for table in tree.find_all(exp.Table):
+        named = f"{table.db}.{table.name}" if table.db else table.name
+        table_id = gov.table_map.get(named, gov.table_map.get(table.name))
+        if table_id is None or table_id in gov.public_tables:
+            continue
+        if gov.visible_columns.get(table_id) == frozenset():
+            raise PermissionError(f"[V000] Table {named!r} not accessible for role {gov.role_id!r}")
+
+
 def view_bodies(
     sql: str,
     view_sql_map: dict[str, str],
@@ -179,6 +203,7 @@ def view_bodies(
             elif stored is not None and sees_everything(view, view_sql_map, gov):
                 body = stored
             else:
+                require_inputs_reached(view_sql, gov)
                 body = govern_fragment(view_sql, gov)
                 pending.append(view_sql)
             bodies[view] = _with_own_rules(view, body, gov)
@@ -231,6 +256,7 @@ def split_for_whole_statement_governance(
             if stored is not None and sees_everything(view, view_sql_map, gov):
                 after[view] = stored
             else:
+                require_inputs_reached(view_sql, gov)
                 before[view] = _with_own_rules(view, view_sql, gov)
                 pending.append(view_sql)
     return before, after

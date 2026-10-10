@@ -51,7 +51,7 @@ def _view(view_sql: str, **over) -> dict:
     )
 
 
-def _build(monkeypatch, *, view: dict, drafts: list[dict]):
+def _build(monkeypatch, *, view: dict, drafts: list[dict], role: dict | None = None):
     """The real role build over the tables in service, the view among them, and the drafts."""
     import provisa.api.app as appmod
     from provisa.api.app_loaders import _build_and_register_schemas
@@ -79,7 +79,7 @@ def _build(monkeypatch, *, view: dict, drafts: list[dict]):
         ColumnMetadata(column_name="note", data_type="varchar", is_nullable=True),
     ]
     _build_and_register_schemas(
-        roles=[{"id": "r", "capabilities": ["usage"], "domain_access": ["sales"]}],
+        roles=[role or {"id": "r", "capabilities": ["usage"], "domain_access": ["sales"]}],
         tables=tables,
         relationships=[],
         col_types_converted=columns,
@@ -180,3 +180,60 @@ async def test_a_draft_views_preview_follows_the_same_rule(monkeypatch):
     with pytest.raises(TableIsDraft) as refused:
         await table_read.read_as_caller(state, _VIEW, "r", limit=5)
     assert refused.value.table == "refunds"
+
+
+# --- a table the reader may not read is not read through a view either (#222) ---------------------
+
+_OVER_ANOTHER_DOMAIN = 'SELECT id FROM "finance"."ledger"'
+
+
+async def test_a_view_over_a_table_its_reader_does_not_reach_is_refused_naming_it(monkeypatch):
+    """The reader reaches ``sales`` and the view is in ``sales``; the view reads ``finance``.
+    Refused where the view's body is chosen, by the rule and in the words a statement naming
+    the table is refused with -- no statement is written for the engine."""
+    state = _build(monkeypatch, view=_view(_OVER_ANOTHER_DOMAIN), drafts=[])
+    with pytest.raises(PermissionError) as refused:
+        await _read_the_view(state)
+    assert str(refused.value) == "[V000] Table 'finance.ledger' not accessible for role 'r'"
+
+
+async def test_a_view_over_tables_its_reader_reaches_is_answered_under_its_rules(monkeypatch):
+    from provisa.compiler.rls import RLSContext
+
+    state = _build(monkeypatch, view=_view(_OVER_A_SERVED_TABLE), drafts=[])
+    state.rls_contexts["r"] = RLSContext(rules={1: "id > 100"}, domain_rules={}, action_rules={})
+    routed = (await _read_the_view(state)).replace('"', "")
+    assert "FROM sales.orders" in routed and "orders.id > 100" in routed
+
+
+async def test_a_reader_who_reaches_the_other_domain_reads_the_same_view(monkeypatch):
+    state = _build(
+        monkeypatch,
+        view=_view(_OVER_ANOTHER_DOMAIN),
+        drafts=[],
+        role={"id": "r", "capabilities": ["usage"], "domain_access": ["sales", "finance"]},
+    )
+    assert '"finance"."ledger"' in await _read_the_view(state)
+
+
+def test_a_table_the_reader_sees_part_of_is_governed_not_refused():
+    """Only a table of which the reader may read nothing is refused; hidden columns of a table
+    it does read are removed by governance, as before."""
+    from provisa.compiler.stage2 import GovernanceContext
+    from provisa.mv.view_read import require_inputs_reached
+
+    gov = GovernanceContext(
+        table_map={"sales.orders": 1, "orders": 1, "finance.ledger": 2, "ops.queries": 4},
+        visible_columns={1: frozenset({"id"}), 2: frozenset(), 4: frozenset()},
+        public_tables=frozenset({4}),
+    )
+    gov.role_id = "r"
+    require_inputs_reached('SELECT id FROM "sales"."orders"', gov)  # sees some of it
+    require_inputs_reached("SELECT 1 FROM unknown_relation", gov)  # not this rule's to judge
+    require_inputs_reached('SELECT id FROM "ops"."queries"', gov)  # publishes to the role
+    for sql in (
+        'SELECT o.id FROM "sales"."orders" o JOIN finance.ledger l ON l.id = o.id',
+        'SELECT id FROM "sales"."orders" WHERE id IN (SELECT id FROM "finance"."ledger")',
+    ):
+        with pytest.raises(PermissionError, match="'finance.ledger' not accessible for role 'r'"):
+            require_inputs_reached(sql, gov)
