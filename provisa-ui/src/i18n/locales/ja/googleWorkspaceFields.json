@@ -12,6 +12,7 @@
     "connectFailed": "ログインを完了できませんでした。",
     "mailSearch": "含めるメール",
     "mailSearchHelp": "Gmail の検索ボックスに入力するとおりの検索条件。すべてのメールを対象にする場合は空欄にします。",
+    "mailSearchCost": "検索を使うソースは、更新のたびに全体が読み直されます。",
     "mailSince": "これより古いものは除外",
     "mailSinceHelp": "日付を問わず読み取る場合は空欄にします。",
     "mailLabels": "ラベル",

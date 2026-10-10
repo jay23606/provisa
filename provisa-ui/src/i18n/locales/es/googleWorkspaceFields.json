@@ -12,6 +12,7 @@
     "connectFailed": "No se pudo completar el inicio de sesión.",
     "mailSearch": "Correo que se incluye",
     "mailSearchHelp": "Una búsqueda tal como la escribiría en el cuadro de búsqueda de Gmail. Déjelo vacío para todo el correo.",
+    "mailSearchCost": "Un origen que busca se vuelve a leer por completo en cada actualización.",
     "mailSince": "Nada anterior a",
     "mailSinceHelp": "Déjelo vacío para leer correo de cualquier fecha.",
     "mailLabels": "Etiquetas",

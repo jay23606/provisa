@@ -73,7 +73,12 @@ function measuredProgress(build: ReplicaBuild): ReplicaProgress {
   const parts = build.progress;
   if (parts && parts.unit === "mailboxes" && parts.total > 0) {
     return {
-      percent: Math.min(MOST_SHOWN_PERCENT, Math.floor((parts.done / parts.total) * 100)),
+      // Until its first mailbox is read to its end the ring turns: a still, empty ring would
+      // look stuck for the whole first read of a one-mailbox source. It says the count.
+      percent:
+        parts.done > 0
+          ? Math.min(MOST_SHOWN_PERCENT, Math.floor((parts.done / parts.total) * 100))
+          : null,
       exact: true,
       said: { key: "progressMailboxes", numbers: { done: parts.done, total: parts.total } },
     };

@@ -12,6 +12,7 @@
     "connectFailed": "Não foi possível concluir o login.",
     "mailSearch": "E-mails a incluir",
     "mailSearchHelp": "Uma pesquisa exatamente como você digitaria na caixa de pesquisa do Gmail. Deixe em branco para todos os e-mails.",
+    "mailSearchCost": "Uma fonte que pesquisa é relida por inteiro a cada atualização.",
     "mailSince": "Nada anterior a",
     "mailSinceHelp": "Deixe em branco para ler e-mails de qualquer data.",
     "mailLabels": "Marcadores",

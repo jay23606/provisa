@@ -1270,6 +1270,7 @@
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailLabels": "Labels",
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailLabelsHelp": "One label name per line. Only mail carrying every one is read. Leave empty for all mail.",
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailSearch": "Mail to include",
+  "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailSearchCost": "A source that searches is read again whole on every refresh.",
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailSearchHelp": "A search exactly as you would type it in Gmail's search box. Leave empty for all mail.",
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailSince": "Nothing older than",
   "zh/googleWorkspaceFields.json::googleWorkspaceFields.mailSinceHelp": "Leave empty to read mail of any age.",

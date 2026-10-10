@@ -373,7 +373,16 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       {/* Google does not search mail it serves as headers and labels only. */}
       {!gwHeadersOnly(fields) && (
         <>
-          <FormField hint={t("googleWorkspaceFields.mailSearchHelp")} size="long">
+          <FormField
+            // What a search costs is said once one is typed: only Google can say what a search
+            // matches, so such a source cannot be asked what changed and is read again whole.
+            hint={t(
+              (fields.gw_mail_search ?? "").trim()
+                ? "googleWorkspaceFields.mailSearchCost"
+                : "googleWorkspaceFields.mailSearchHelp",
+            )}
+            size="long"
+          >
             <TextInput
               label={t("googleWorkspaceFields.mailSearch")}
               placeholder="from:orders@example.com"
