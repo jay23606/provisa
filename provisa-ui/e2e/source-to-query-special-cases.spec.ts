@@ -72,6 +72,7 @@ import {
   pickSchemaAndTable,
   registerOfferedTable,
   runSqlOnPage,
+  setSourceCacheTtl,
   submitRegisterAndExpectListed,
   submitSourceAndExpectListed,
   waitForSourceServing,
@@ -244,6 +245,9 @@ test.describe("grpc_remote: source to query through the UI (REQ-1742)", () => {
     await page.getByTestId("grpc-proto-path-input").fill(protoPath);
     await page.getByTestId("grpc-server-address-input").fill(`localhost:${PORT}`);
     await page.getByTestId("grpc-namespace-input").fill(namespace);
+    // A gRPC table lands, and a landed table whose change signal is the TTL needs a landing
+    // clock on the table or its source (REQ-1907); without one the registration is refused.
+    await setSourceCacheTtl(page, 300);
     await submitSourceAndExpectListed(page, sourceId);
 
     // 2. Register the one table wanted, with the columns wanted.
