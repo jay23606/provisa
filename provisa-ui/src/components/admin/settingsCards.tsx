@@ -35,7 +35,6 @@ import {
   MultiSelect,
   NumberInput,
   Select,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -54,7 +53,7 @@ import {
 } from "../../api/admin";
 import type { PlatformSettings } from "../../api/admin";
 import { ConfigDiffView } from "./ConfigDiffView";
-import { FormFooter } from "../form/FormLayout";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 const FORMAT_OPTIONS = ["parquet", "orc", "json", "ndjson", "csv", "arrow"];
 
@@ -236,30 +235,34 @@ export function ServerLimitsCard() {
         {t("adminPage.serverLimitsHint")}
       </Text>
       <Stack gap="sm">
-        <TextInput
-          label={t("adminPage.rowLimit")}
-          description={t("adminPage.rowLimitHint")}
-          value={rowLimit}
-          onChange={(e) => setRowLimit(e.currentTarget.value)}
-          error={
-            errors.rowLimit && (
-              <span data-testid="limit-default-row-limit-error">{errors.rowLimit}</span>
-            )
-          }
-          data-testid="limit-default-row-limit"
-        />
-        <TextInput
-          label={t("adminPage.requestTimeoutDefault")}
-          description={t("adminPage.requestTimeoutDefaultHint")}
-          value={def}
-          onChange={(e) => setDef(e.currentTarget.value)}
-          error={
-            errors.default && (
-              <span data-testid="limit-request-timeout-error">{errors.default}</span>
-            )
-          }
-          data-testid="limit-request-timeout"
-        />
+        <FormLayout>
+          <FormField help={t("adminPage.rowLimitHint")} size="short">
+            <TextInput
+              label={t("adminPage.rowLimit")}
+              value={rowLimit}
+              onChange={(e) => setRowLimit(e.currentTarget.value)}
+              error={
+                errors.rowLimit && (
+                  <span data-testid="limit-default-row-limit-error">{errors.rowLimit}</span>
+                )
+              }
+              data-testid="limit-default-row-limit"
+            />
+          </FormField>
+          <FormField help={t("adminPage.requestTimeoutDefaultHint")} size="short">
+            <TextInput
+              label={t("adminPage.requestTimeoutDefault")}
+              value={def}
+              onChange={(e) => setDef(e.currentTarget.value)}
+              error={
+                errors.default && (
+                  <span data-testid="limit-request-timeout-error">{errors.default}</span>
+                )
+              }
+              data-testid="limit-request-timeout"
+            />
+          </FormField>
+        </FormLayout>
         <Accordion
           variant="contained"
           value={perOpen || TRANSPORTS.some((k) => Boolean(errors[k])) ? "per-transport" : null}
@@ -275,45 +278,42 @@ export function ServerLimitsCard() {
               <Text fz="xs" c="dimmed" mb="xs">
                 {t("settings.limits.request_timeouts.help")}
               </Text>
-              <SimpleGrid
-                cols={{ base: 1, sm: 2, lg: 3 }}
-                spacing="sm"
-                data-testid="limit-timeouts-grid"
-              >
+              <FormLayout data-testid="limit-timeouts-grid">
                 {TRANSPORTS.map((k) => (
-                  <TextInput
-                    key={k}
-                    label={t(`adminPage.transport.${k}`)}
-                    description={
-                      <>
-                        {k in TRANSPORT_HELP && (
-                          <span data-testid={`limit-timeout-${k}-help`}>
-                            {t(`adminPage.transportHelp.${k}`)}{" "}
+                  <FormField size="short" key={k}>
+                    <TextInput
+                      label={t(`adminPage.transport.${k}`)}
+                      value={per[k] ?? ""}
+                      onChange={(e) => setPer({ ...per, [k]: e.currentTarget.value })}
+                      error={
+                        errors[k] && (
+                          <span data-testid={`limit-timeout-${k}-error`}>{errors[k]}</span>
+                        )
+                      }
+                      data-testid={`limit-timeout-${k}`}
+                    />
+                    <div className="form-status">
+                      {k in TRANSPORT_HELP && (
+                        <span data-testid={`limit-timeout-${k}-help`}>
+                          {t(`adminPage.transportHelp.${k}`)}{" "}
+                        </span>
+                      )}
+                      {(per[k] ?? "").trim() === "" && shipped[k] !== undefined && (
+                        <span data-testid={`limit-timeout-${k}-shipped`}>
+                          {t("adminPage.requestTimeoutUsesShipped", { seconds: shipped[k] })}
+                        </span>
+                      )}
+                      {(per[k] ?? "").trim() === "" &&
+                        shipped[k] === undefined &&
+                        effective !== null && (
+                          <span data-testid={`limit-timeout-${k}-effective`}>
+                            {t("adminPage.requestTimeoutUsesDefault", { seconds: effective })}
                           </span>
                         )}
-                        {(per[k] ?? "").trim() === "" && shipped[k] !== undefined && (
-                          <span data-testid={`limit-timeout-${k}-shipped`}>
-                            {t("adminPage.requestTimeoutUsesShipped", { seconds: shipped[k] })}
-                          </span>
-                        )}
-                        {(per[k] ?? "").trim() === "" &&
-                          shipped[k] === undefined &&
-                          effective !== null && (
-                            <span data-testid={`limit-timeout-${k}-effective`}>
-                              {t("adminPage.requestTimeoutUsesDefault", { seconds: effective })}
-                            </span>
-                          )}
-                      </>
-                    }
-                    value={per[k] ?? ""}
-                    onChange={(e) => setPer({ ...per, [k]: e.currentTarget.value })}
-                    error={
-                      errors[k] && <span data-testid={`limit-timeout-${k}-error`}>{errors[k]}</span>
-                    }
-                    data-testid={`limit-timeout-${k}`}
-                  />
+                    </div>
+                  </FormField>
                 ))}
-              </SimpleGrid>
+              </FormLayout>
             </Accordion.Panel>
           </Accordion.Item>
         </Accordion>
@@ -336,34 +336,40 @@ export function RedirectSettingsCard() {
       <Title order={4} mb="sm">
         {t("adminPage.redirect")}
       </Title>
-      <Stack gap="sm">
-        <Checkbox
-          label={t("adminPage.enabled")}
-          description={t("adminPage.enabledHint")}
-          checked={settings.redirect.enabled}
-          onChange={(e) => update("enabled", e.currentTarget.checked)}
-        />
-        <NumberInput
-          label={t("adminPage.defaultThreshold")}
-          description={t("adminPage.defaultThresholdHint")}
-          value={settings.redirect.threshold}
-          onChange={(v) => update("threshold", typeof v === "number" ? v : 0)}
-        />
-        <Select
-          label={t("adminPage.defaultFormat")}
-          description={t("adminPage.defaultFormatHint")}
-          data={FORMAT_OPTIONS}
-          value={settings.redirect.default_format}
-          onChange={(v) => v && update("default_format", v)}
-          allowDeselect={false}
-        />
-        <NumberInput
-          label={t("adminPage.presignedUrlTtl")}
-          description={t("adminPage.presignedUrlTtlHint")}
-          value={settings.redirect.ttl}
-          onChange={(v) => update("ttl", typeof v === "number" ? v : 0)}
-        />
-      </Stack>
+      <FormLayout>
+        <FormField help={t("adminPage.defaultThresholdHint")} size="short">
+          <NumberInput
+            label={t("adminPage.defaultThreshold")}
+            value={settings.redirect.threshold}
+            onChange={(v) => update("threshold", typeof v === "number" ? v : 0)}
+          />
+        </FormField>
+        <FormField hint={t("adminPage.defaultFormatHint")} size="medium">
+          <Select
+            label={t("adminPage.defaultFormat")}
+            data={FORMAT_OPTIONS}
+            value={settings.redirect.default_format}
+            onChange={(v) => v && update("default_format", v)}
+            allowDeselect={false}
+          />
+        </FormField>
+        <FormField help={t("adminPage.presignedUrlTtlHint")} size="short">
+          <NumberInput
+            label={t("adminPage.presignedUrlTtl")}
+            value={settings.redirect.ttl}
+            onChange={(v) => update("ttl", typeof v === "number" ? v : 0)}
+          />
+        </FormField>
+        <FormChecks>
+          <FormField help={t("adminPage.enabledHint")} size="short">
+            <Checkbox
+              label={t("adminPage.enabled")}
+              checked={settings.redirect.enabled}
+              onChange={(e) => update("enabled", e.currentTarget.checked)}
+            />
+          </FormField>
+        </FormChecks>
+      </FormLayout>
       <SaveRow save={save} saving={saving} msg={msg} />
     </Card>
   );
@@ -394,39 +400,44 @@ export function NamingConventionsCard() {
       <Title order={4} mb="sm">
         {t("adminPage.naming")}
       </Title>
-      <Stack gap="sm">
-        <Checkbox
-          label={t("adminPage.domainPrefix")}
-          description={t("adminPage.domainPrefixHint")}
-          checked={settings.naming.domain_prefix ?? false}
-          onChange={(e) =>
-            setSettings({
-              ...settings,
-              naming: { ...settings.naming, domain_prefix: e.currentTarget.checked },
-            })
-          }
-        />
-        <Select
-          label={t("adminPage.namingConvention")}
-          description={t("adminPage.namingConventionHint")}
-          data={conventionData}
-          value={settings.naming.convention}
-          onChange={(v) =>
-            v && setSettings({ ...settings, naming: { ...settings.naming, convention: v } })
-          }
-          allowDeselect={false}
-        />
-        <Select
-          label={t("adminPage.sqlNamingConvention")}
-          description={t("adminPage.sqlNamingConventionHint")}
-          data={conventionData}
-          value={settings.naming.sql_convention}
-          onChange={(v) =>
-            v && setSettings({ ...settings, naming: { ...settings.naming, sql_convention: v } })
-          }
-          allowDeselect={false}
-        />
-      </Stack>
+      <FormLayout>
+        <FormField help={t("adminPage.namingConventionHint")} size="medium">
+          <Select
+            label={t("adminPage.namingConvention")}
+            data={conventionData}
+            value={settings.naming.convention}
+            onChange={(v) =>
+              v && setSettings({ ...settings, naming: { ...settings.naming, convention: v } })
+            }
+            allowDeselect={false}
+          />
+        </FormField>
+        <FormField help={t("adminPage.sqlNamingConventionHint")} size="medium">
+          <Select
+            label={t("adminPage.sqlNamingConvention")}
+            data={conventionData}
+            value={settings.naming.sql_convention}
+            onChange={(v) =>
+              v && setSettings({ ...settings, naming: { ...settings.naming, sql_convention: v } })
+            }
+            allowDeselect={false}
+          />
+        </FormField>
+        <FormChecks>
+          <FormField help={t("adminPage.domainPrefixHint")} size="long">
+            <Checkbox
+              label={t("adminPage.domainPrefix")}
+              checked={settings.naming.domain_prefix ?? false}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  naming: { ...settings.naming, domain_prefix: e.currentTarget.checked },
+                })
+              }
+            />
+          </FormField>
+        </FormChecks>
+      </FormLayout>
       <SaveRow save={save} saving={saving} msg={msg} />
     </Card>
   );
@@ -480,39 +491,44 @@ export function DomainModeCard({ onApplied }: { onApplied?: () => void }) {
         <Title order={4} mb="sm">
           {t("adminPage.domainMode")}
         </Title>
-        <Stack gap="sm">
-          <Select
-            label={t("adminPage.domainMode")}
-            description={t("adminPage.domainModeHint")}
-            // Two states, because there are only two: every table carries a domain, or none does.
-            // A deployment that never set the policy is already in the second one -- it stores
-            // every registration under a single implicit domain -- so it is shown as Single rather
-            // than as a third, unset choice.
-            data={[
-              { value: "single", label: t("adminPage.domainModeSingle") },
-              { value: "namespaced", label: t("adminPage.domainModeNamespaced") },
-            ]}
-            value={useDomains === true ? "namespaced" : "single"}
-            onChange={(v) => setUseDomains(v === "namespaced")}
-            allowDeselect={false}
-          />
-          <Group gap="sm" align="center">
-            <Button
-              variant="default"
-              data-testid="apply-domain-policy"
-              onClick={apply}
-              loading={applying}
-            >
-              {t("adminPage.applyDomainPolicy")}
-            </Button>
-            {appliedMsg && <Text fz="sm">{appliedMsg}</Text>}
-          </Group>
+        <FormLayout>
+          <FormField help={t("adminPage.domainModeHint")} size="medium">
+            <Select
+              label={t("adminPage.domainMode")}
+              // Two states, because there are only two: every table carries a domain, or none does.
+              // A deployment that never set the policy is already in the second one -- it stores
+              // every registration under a single implicit domain -- so it is shown as Single rather
+              // than as a third, unset choice.
+              data={[
+                { value: "single", label: t("adminPage.domainModeSingle") },
+                { value: "namespaced", label: t("adminPage.domainModeNamespaced") },
+              ]}
+              value={useDomains === true ? "namespaced" : "single"}
+              onChange={(v) => setUseDomains(v === "namespaced")}
+              allowDeselect={false}
+            />
+          </FormField>
+          <FormField size="full">
+            <Group gap="sm" align="center">
+              <Button
+                variant="default"
+                data-testid="apply-domain-policy"
+                onClick={apply}
+                loading={applying}
+              >
+                {t("adminPage.applyDomainPolicy")}
+              </Button>
+              {appliedMsg && <Text fz="sm">{appliedMsg}</Text>}
+            </Group>
+          </FormField>
           {error && (
-            <Alert color="red" variant="light" data-testid="domain-policy-refused">
-              {error}
-            </Alert>
+            <FormField size="full">
+              <Alert color="red" variant="light" data-testid="domain-policy-refused">
+                {error}
+              </Alert>
+            </FormField>
           )}
-        </Stack>
+        </FormLayout>
       </Card>
     </>
   );
@@ -545,47 +561,55 @@ export function FederationSettingsCards() {
         </Accordion.Control>
         <Accordion.Panel>
           <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              <Card withBorder padding="md">
-                <Title order={4} mb="sm">
-                  {t("adminPage.sampling")}
-                </Title>
-                <NumberInput
-                  label={t("adminPage.defaultSampleSize")}
-                  description={t("adminPage.defaultSampleSizeHint")}
-                  value={sampling.default_sample_size}
-                  onChange={(v) =>
-                    setSettings({
-                      ...settings,
-                      sampling: { default_sample_size: typeof v === "number" ? v : 0 },
-                    })
-                  }
-                />
-              </Card>
+            <Card withBorder padding="md">
+              <Title order={4} mb="sm">
+                {t("adminPage.sampling")}
+              </Title>
+              <FormLayout>
+                <FormField help={t("adminPage.defaultSampleSizeHint")} size="short">
+                  <NumberInput
+                    label={t("adminPage.defaultSampleSize")}
+                    value={sampling.default_sample_size}
+                    onChange={(v) =>
+                      setSettings({
+                        ...settings,
+                        sampling: { default_sample_size: typeof v === "number" ? v : 0 },
+                      })
+                    }
+                  />
+                </FormField>
+              </FormLayout>
+            </Card>
 
-              <Card withBorder padding="md">
-                <Title order={4} mb="sm">
-                  {t("adminPage.cdc")}
-                </Title>
-                <TextInput
-                  label={t("adminPage.consumerGroupId")}
-                  placeholder={t("adminPage.consumerGroupIdPlaceholder")}
-                  description={t("adminPage.consumerGroupIdHint")}
-                  value={cdc.consumer_group_id}
-                  onChange={(e) =>
-                    setSettings({ ...settings, cdc: { consumer_group_id: e.currentTarget.value } })
-                  }
-                />
-              </Card>
+            <Card withBorder padding="md">
+              <Title order={4} mb="sm">
+                {t("adminPage.cdc")}
+              </Title>
+              <FormLayout>
+                <FormField help={t("adminPage.consumerGroupIdHint")} size="medium">
+                  <TextInput
+                    label={t("adminPage.consumerGroupId")}
+                    placeholder={t("adminPage.consumerGroupIdPlaceholder")}
+                    value={cdc.consumer_group_id}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        cdc: { consumer_group_id: e.currentTarget.value },
+                      })
+                    }
+                  />
+                </FormField>
+              </FormLayout>
+            </Card>
 
-              <Card withBorder padding="md">
-                <Title order={4} mb="sm">
-                  {t("adminPage.graphqlRemote")}
-                </Title>
-                <Stack gap="sm">
+            <Card withBorder padding="md">
+              <Title order={4} mb="sm">
+                {t("adminPage.graphqlRemote")}
+              </Title>
+              <FormLayout>
+                <FormField help={t("adminPage.maxObjectDepthHint")} size="short">
                   <NumberInput
                     label={t("adminPage.maxObjectDepth")}
-                    description={t("adminPage.maxObjectDepthHint")}
                     min={1}
                     value={remote.max_object_depth}
                     onChange={(v) =>
@@ -598,9 +622,10 @@ export function FederationSettingsCards() {
                       })
                     }
                   />
+                </FormField>
+                <FormField help={t("adminPage.maxListDepthHint")} size="short">
                   <NumberInput
                     label={t("adminPage.maxListDepth")}
-                    description={t("adminPage.maxListDepthHint")}
                     min={1}
                     value={remote.max_list_depth}
                     onChange={(v) =>
@@ -613,9 +638,10 @@ export function FederationSettingsCards() {
                       })
                     }
                   />
+                </FormField>
+                <FormField help={t("adminPage.maxListItemsHint")} size="short">
                   <NumberInput
                     label={t("adminPage.maxListItems")}
-                    description={t("adminPage.maxListItemsHint")}
                     min={1}
                     value={remote.max_list_items}
                     onChange={(v) =>
@@ -628,9 +654,10 @@ export function FederationSettingsCards() {
                       })
                     }
                   />
+                </FormField>
+                <FormField help={t("adminPage.maxRowsHint")} size="short">
                   <NumberInput
                     label={t("adminPage.maxRows")}
-                    description={t("adminPage.maxRowsHint")}
                     min={1}
                     value={remote.max_rows}
                     onChange={(v) =>
@@ -643,10 +670,10 @@ export function FederationSettingsCards() {
                       })
                     }
                   />
-                </Stack>
-              </Card>
-              <ServerLimitsCard />
-            </SimpleGrid>
+                </FormField>
+              </FormLayout>
+            </Card>
+            <ServerLimitsCard />
             <SaveRow save={save} saving={saving} msg={msg} />
           </Stack>
         </Accordion.Panel>
@@ -769,17 +796,23 @@ export function ConfigFileSection() {
         {t("adminPage.uploadAppliesOnce")}
       </Text>
       <Group gap="sm" align="flex-end">
-        <MultiSelect
-          label={t("adminPage.exportSections")}
-          placeholder={exportSections.length === 0 ? t("adminPage.exportWholeModel") : undefined}
-          data={[...MODEL_SECTIONS]}
-          value={exportSections}
-          onChange={setExportSections}
-          clearable
-          searchable
-          w={420}
-          data-testid="export-sections"
-        />
+        <FormLayout>
+          <FormField size="long">
+            <MultiSelect
+              label={t("adminPage.exportSections")}
+              placeholder={
+                exportSections.length === 0 ? t("adminPage.exportWholeModel") : undefined
+              }
+              data={[...MODEL_SECTIONS]}
+              value={exportSections}
+              onChange={setExportSections}
+              clearable
+              searchable
+              w={420}
+              data-testid="export-sections"
+            />
+          </FormField>
+        </FormLayout>
         <Button variant="default" onClick={handleExportModel} data-testid="export-model">
           {t("adminPage.exportModel")}
         </Button>
