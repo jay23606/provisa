@@ -13,9 +13,13 @@
 // unredacted pipeline CONFIG; only the chosen type's fields are saved.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { renderInForm, screen } from "../../../test-utils/render";
 import { IcebergCatalogFields } from "../IcebergCatalogFields";
-import { ICEBERG_CATALOG_FIELDS, ICEBERG_CATALOG_TYPES, icebergCatalogHints } from "../icebergCatalog";
+import {
+  ICEBERG_CATALOG_FIELDS,
+  ICEBERG_CATALOG_TYPES,
+  icebergCatalogHints,
+} from "../icebergCatalog";
 
 describe("icebergCatalogHints", () => {
   it("saves the chosen type's filled fields and none of another type's", () => {
@@ -42,7 +46,9 @@ describe("icebergCatalogHints", () => {
 
 describe("IcebergCatalogFields", () => {
   it.each(ICEBERG_CATALOG_TYPES)("%s shows the table id and its own catalog fields", (type) => {
-    render(<IcebergCatalogFields fields={{ iceberg_catalog_type: type }} setFields={vi.fn()} />);
+    renderInForm(
+      <IcebergCatalogFields fields={{ iceberg_catalog_type: type }} setFields={vi.fn()} />,
+    );
     expect(screen.getByTestId("iceberg-iceberg_table_id")).toBeInTheDocument();
     for (const { key } of ICEBERG_CATALOG_FIELDS[type]) {
       expect(screen.getByTestId(`iceberg-${key}`)).toBeInTheDocument();
@@ -56,7 +62,7 @@ describe("IcebergCatalogFields", () => {
   });
 
   it("shows only the type select before a type is chosen", () => {
-    render(<IcebergCatalogFields fields={{}} setFields={vi.fn()} />);
+    renderInForm(<IcebergCatalogFields fields={{}} setFields={vi.fn()} />);
     expect(screen.queryByTestId("iceberg-iceberg_table_id")).toBeNull();
   });
 });
