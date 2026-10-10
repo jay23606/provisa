@@ -435,3 +435,39 @@ def test_a_client_built_from_its_roles_proto_round_trips_against_the_wire(deploy
     (row,) = call(client.OrdersRequest(limit=5), metadata=_as("acme"))
     assert row.id == 5
     assert [f.name for f in row.DESCRIPTOR.fields] == ["id"]  # its proto names no other column
+
+
+def test_a_model_edit_that_rebuilds_a_meta_role_is_described_by_the_next_call(built, monkeypatch):
+    """A caller is acting as a meta-role when the model changes: a table one of its members
+    reads is given another name. The rebuild rebuilds the members, then the meta-role from them
+    (``rebuild_meta_roles``), its proto with its surface -- and the next reflection call, on
+    the same running server, describes the table by its new name."""
+    import tests.unit.test_empty_domain_access_reaches_nothing as model
+    from provisa.security.meta_role import ensure_meta_role, rebuild_meta_roles
+
+    state, channel = built
+    for name in ("meta_roles", "meta_resolved_at", "masking_rules"):
+        monkeypatch.setattr(state._active_runtime(), name, {}, raising=False)
+    roles = [dict(state.roles[r]) for r in ("sales_reader", "finance_reader")]
+    meta = ensure_meta_role(state, ["sales_reader", "finance_reader"])
+    as_meta = (("x-provisa-role", meta),)
+    before, _messages = _service(_reflected(channel, as_meta))
+    assert {"QueryOrders", "QueryLedger"} <= before and "QueryPurchases" not in before
+
+    # The model edit: ``orders`` is served as ``purchases``.
+    tables = model._tables()
+    (orders,) = [t for t in tables if t["table_name"] == "orders"]
+    orders["alias"] = "purchases"
+    monkeypatch.setattr(model, "_tables", lambda: tables)
+    model._built_roles(monkeypatch, roles)
+    rebuild_meta_roles(state, {r["id"] for r in roles})
+
+    after, messages = _service(_reflected(channel, as_meta))
+    assert "QueryPurchases" in after and "QueryOrders" not in after
+    assert "Purchases" in messages and "QueryLedger" in after
+    assert sorted(state.schemas[meta].query_type.fields) == ["ledger", "purchases"]
+    # ... and so is the member that reads the table, while the other member is as it was.
+    member, _ = _service(_reflected(channel, (("x-provisa-role", "sales_reader"),)))
+    assert "QueryPurchases" in member and "QueryOrders" not in member
+    other, _ = _service(_reflected(channel, (("x-provisa-role", "finance_reader"),)))
+    assert "QueryLedger" in other and "QueryPurchases" not in other
