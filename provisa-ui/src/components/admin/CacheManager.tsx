@@ -50,6 +50,7 @@ import { RegionSelector } from "../RegionSelector";
 import { displayMvName } from "./mvDisplay";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormFooter } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
 
@@ -463,11 +464,11 @@ function MaterializedStoreTab({ platform }: { platform: boolean }) {
           {t("cacheManager.materialized.storeLabel")} <code>{info.storeRef}</code>
         </Text>
       )}
-      <Group justify="flex-end">
+      <FormFooter>
         <Button variant="light" onClick={() => navigate("/sql")} data-testid="mv-view-btn">
           {t("cacheManager.materialized.viewButton")}
         </Button>
-      </Group>
+      </FormFooter>
       {mvList.length === 0 ? (
         <Text c="dimmed">{t("cacheManager.materialized.empty")}</Text>
       ) : (
