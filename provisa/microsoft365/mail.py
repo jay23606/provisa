@@ -38,6 +38,7 @@ from provisa.microsoft365.graph import (
     Graph,
     GraphRefused,
     graph_address,
+    not_there,
 )
 
 log = logging.getLogger(__name__)
@@ -52,7 +53,12 @@ MAIL_TABLES = (
     "threads",
     "attachments",
 )
-#: Graph's well-known folder names (the mailFolder resource's table of them).
+#: Microsoft's own names for the folders Outlook makes, whatever the mailbox's language calls
+#: them: the "Well-known folder names" table of the mailFolder resource type (Microsoft Graph
+#: v1.0, learn.microsoft.com/graph/api/resources/mailfolder), all seventeen, as checked against
+#: that page on 2026-10-10. A folder's role is told only by asking for it under one of these
+#: names: v1.0's mailFolder has no property that says it, so a listing cannot. A mailbox has
+#: only some of them.
 WELL_KNOWN_FOLDERS = (
     "archive",
     "clutter",
@@ -341,12 +347,22 @@ class Mailbox:
                 {"$select": fields},
                 prefer=(IMMUTABLE_IDS, size, *prefer),
             )
-            for page in changes:
-                # A first round has no removals; one replayed into it is not a message.
-                fresh = [m for m in page if "@removed" not in m and m["id"] not in seen]
-                seen.update(m["id"] for m in fresh)
-                if fresh:
-                    yield fresh
+            try:
+                for page in changes:
+                    # A first round has no removals; one replayed into it is not a message.
+                    fresh = [m for m in page if "@removed" not in m and m["id"] not in seen]
+                    seen.update(m["id"] for m in fresh)
+                    if fresh:
+                        yield fresh
+            except GraphRefused as refused:
+                if not not_there(refused):
+                    raise
+                # The folder was removed after the folders were listed: its messages are no
+                # longer there to read. It keeps no link, and the others are read.
+                log.info(
+                    "microsoft_365 %s: folder %s is no longer there; skipped", self.account, folder
+                )
+                continue
             assert changes.link is not None  # the round was read to its end
             links[folder] = changes.link
         # The list of folders has a link of its own: a folder made, renamed or removed since.
@@ -409,12 +425,19 @@ class Mailbox:
         return bodies
 
     def _well_known(self) -> dict[str, str]:
-        """Folder id -> the well-known name Graph knows it by, for those this mailbox has."""
+        """Folder id -> the well-known name Graph knows it by, for those this mailbox has.
+        Asked in one batch. Which of the names a mailbox has depends on the mailbox: one it
+        lacks answers that there is no such folder, and has no role to give."""
+        answers = self._graph.batch_each(
+            [f"{self._root}/mailFolders/{name}?$select=id" for name in WELL_KNOWN_FOLDERS]
+        )
         known = {}
-        for name in WELL_KNOWN_FOLDERS:
-            found = self._graph.find(f"{self._root}/mailFolders/{name}", {"$select": "id"})
-            if found is not None:
-                known[found["id"]] = name
+        for name, answer in zip(WELL_KNOWN_FOLDERS, answers):
+            if isinstance(answer, GraphRefused):
+                if not_there(answer):
+                    continue
+                raise answer
+            known[answer["id"]] = name
         return known
 
     def _folders(self) -> Iterator[list[dict]]:

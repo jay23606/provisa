@@ -34,7 +34,13 @@ from typing import Any
 import httpx
 
 from provisa.microsoft365 import mail
-from provisa.microsoft365.graph import WAIT_SECONDS, Graph, GraphRefused, http_send
+from provisa.microsoft365.graph import (
+    FOLDER_NOT_THERE,
+    WAIT_SECONDS,
+    Graph,
+    GraphRefused,
+    http_send,
+)
 
 log = logging.getLogger(__name__)
 
@@ -204,9 +210,11 @@ def _at_quota(refused: BaseException) -> bool:
 
 
 def _not_readable(refused: BaseException) -> bool:
-    return isinstance(refused, GraphRefused) and (
-        refused.status in _NOT_READABLE_STATUS or refused.code in _NOT_READABLE_CODES
-    )
+    """Whether Graph refused the MAILBOX: it is not there, or may not be read. A FOLDER the
+    mailbox says it does not have is the mailbox answering, and is never that."""
+    if not isinstance(refused, GraphRefused) or refused.code == FOLDER_NOT_THERE:
+        return False
+    return refused.status in _NOT_READABLE_STATUS or refused.code in _NOT_READABLE_CODES
 
 
 async def _read_mailboxes(

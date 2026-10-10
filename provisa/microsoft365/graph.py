@@ -60,6 +60,17 @@ class GraphThrottled(RuntimeError):
         self.retry_after = asked
 
 
+#: What Graph answers (with 404) for an item, or a folder, that is not in the mailbox: the
+#: mailbox answered, and says it has no such thing. Never a refusal of the mailbox itself.
+FOLDER_NOT_THERE = "ErrorFolderNotFound"
+NOT_THERE_CODES = frozenset({"ErrorItemNotFound", FOLDER_NOT_THERE})
+
+
+def not_there(refused: "GraphRefused") -> bool:
+    """Whether ``refused`` says an item or a folder asked for is not in the mailbox."""
+    return refused.status == 404 and refused.code in NOT_THERE_CODES
+
+
 @dataclass(frozen=True)
 class Answer:
     status: int
@@ -197,7 +208,7 @@ class Graph:
         try:
             return self.get(path, params)
         except GraphRefused as refused:
-            if refused.status == 404 and refused.code == "ErrorItemNotFound":
+            if not_there(refused):
                 return None
             raise
 
