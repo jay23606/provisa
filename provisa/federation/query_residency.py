@@ -598,6 +598,11 @@ async def ensure_resident(
         check does not report it fresh (REQ-1907; the whole gate is ``is_stale_of``). The plan
         applies the rest: a load-protected table that has a replica is never rebuilt by a read
         (REQ-1141: its refresh is the runner's alone)."""
+        if source.freshness_gate and record is not None and record.partial:
+            # A replica read while its first build fills it holds only the parts landed so
+            # far. A source whose reads are gated on freshness promises more than that: its
+            # reader waits for the pass in progress, as for any build.
+            return True
         node = _node(table)
         key_ = (source.id, table.schema_name, table.table_name)
         # A standing replica that can no longer answer the model (convergence found a column
