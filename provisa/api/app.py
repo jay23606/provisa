@@ -231,8 +231,6 @@ class AppState:
     approval_hook_config: Any | None = None  # REQ-247: ApprovalHookConfig
     table_approval_hooks: dict[int, bool] = {}  # table_id → approval_hook flag
     source_approval_hooks: dict[str, bool] = {}  # source_id → approval_hook flag
-    api_endpoints: dict[tuple[str, str], Any] = {}  # (source_id, table_name) → ApiEndpoint
-    api_sources: dict[str, Any] = {}  # source_id → ApiSource
     hot_manager: HotTableManager | None = None
     _hot_refresh_task: LongLived | None = None
     _replica_hot_task: LongLived | None = None  # REQ-826: the Hot promotion evaluation
@@ -738,6 +736,26 @@ class AppState:
     def meta_roles(self) -> dict:
         """meta-role id → the held roles it acts as (OrgRuntime.meta_roles)."""
         return self._active_runtime().meta_roles
+
+    @property
+    def api_sources(self) -> dict[str, Any]:
+        """source id → ApiSource: the organisation's API sources, with their addresses and
+        credentials (OrgRuntime.api_sources)."""
+        return self._active_runtime().api_sources
+
+    @api_sources.setter
+    def api_sources(self, value: dict[str, Any]) -> None:
+        self._active_runtime().api_sources = value
+
+    @property
+    def api_endpoints(self) -> dict[tuple[str, str], Any]:
+        """(source id, table name) → ApiEndpoint: the endpoints the organisation's API tables are
+        served from (OrgRuntime.api_endpoints)."""
+        return self._active_runtime().api_endpoints
+
+    @api_endpoints.setter
+    def api_endpoints(self, value: dict[tuple[str, str], Any]) -> None:
+        self._active_runtime().api_endpoints = value
 
     @property
     def meta_resolved_at(self) -> dict:

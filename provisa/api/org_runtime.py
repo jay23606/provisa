@@ -251,6 +251,12 @@ class OrgRuntime:
     # live config runs once promoted. None until the runtime is built, and for an environment.
     live_engine: Any = None
     relationships: list[dict] = field(default_factory=list)
+    # The organisation's API sources (source id → ApiSource: its address and credential) and the
+    # endpoints its API tables are served from ((source id, table name) → ApiEndpoint). Loaded
+    # from this organisation's control plane by its own build; source ids repeat across
+    # organisations, so these are the runtime's and never the process's.
+    api_sources: dict[str, Any] = field(default_factory=dict)
+    api_endpoints: dict[tuple[str, str], Any] = field(default_factory=dict)
     # REQ-1317: config-declared metric registry (name → Metric), published alongside tables
     # so the raw-SQL path can expand `metrics.<name>` queries before governance.
     metrics: dict[str, Any] = field(default_factory=dict)
