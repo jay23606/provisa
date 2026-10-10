@@ -427,6 +427,12 @@ X-Provisa-Redirect-Threshold: 1000
 
 כל טבלה רשומה מפיקה `message` פרוטו. קשרים מפיקים שדות הודעה מקוננים. מיפוי סוגים: `integer → int32`, `bigint → int64`, `varchar → string`, `decimal → double`, `boolean → bool`, `timestamp → google.protobuf.Timestamp`. (REQ-538)
 
+השירות מפרט קריאות RPC רק לטבלאות שבשורש הסכמה של התפקיד, אותן טבלאות שבטיפוס `Query` של GraphQL שלו; לטבלה מקושרת יש הודעה משלה והיא נגישה דרך הקשר שלה. [tool-verified: `provisa/grpc/proto_gen.py`]
+
+הוסיפו `?domains=a,b` כדי להגביל את הקובץ לדומיינים האלה. השירות מפרט אז קריאות RPC לטבלאות של הדומיינים שנבחרו עצמם; טבלאות המקושרות אליהן מופיעות כהודעות. [tool-verified: `provisa/api/data/endpoint_dev.py`]
+
+הקובץ עוקב אחר המודל. הוא נבנה מחדש יחד עם הסכמה של התפקיד בכל שינוי במודל או בתפקיד, גם עבור מטא-תפקיד.
+
 ---
 
 ### `GET /data/subscribe/{table}`
@@ -1182,17 +1188,21 @@ service ProvisaService {
 }
 ```
 
-כל טבלה מפיקה RPC זרם בשם `Query{TypeName}`. RPCs מסוג `Insert{TypeName}` קיימים לצורך סימטריית Schema אך מבוטלים עם `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+כל טבלה בשורש הסכמה של התפקיד מייצרת RPC זורם `Query{TypeName}`. אלה הטבלאות שהטיפוס `Query` של GraphQL של התפקיד מפרט. לטבלה שהתפקיד מגיע אליה רק דרך קשר אין RPC משלה, כשם שאין לה שדה שורש ב-GraphQL. קריאות `Insert{TypeName}` קיימות לשם סימטריית הסכמה אך נכשלות עם `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
-`grpc_reflection.v1alpha` מופעל עבור גילוי שירות ללא Proto מהודר מראש. (REQ-529) [tool-verified: `provisa/grpc/reflection.py`]
+מתודה שאינה חלק מהשירות של תפקיד הקורא משיבה `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+
+`grpc_reflection.v1alpha` מופעל לגילוי שירותים ללא proto מקומפל מראש. (REQ-529) הרפלקציה מתארת לכל קורא את השירות של התפקיד שבשמו הוא פועל: אותו `.proto` שהתפקיד מוריד מ-`GET /data/proto/{role_id}`. היא מפרטת בשמם את שירות Provisa ואת שירות הרפלקציה, ומתארת את הקובץ של שירות Provisa. [tool-verified: `provisa/grpc/server.py`]
+
+קריאת רפלקציה מזוהה כמו כל קריאת gRPC אחרת. כשהאימות פעיל, התפקיד נגזר מאישורי הקורא. כשהאימות כבוי, ציינו את התפקיד ב-`x-provisa-role`; בפריסה שמשרתת יותר מארגון אחד, ציינו גם את הארגון ב-`x-provisa-org`. קריאה בלעדיהם נדחית עם `UNAUTHENTICATED`. כשהאימות כבוי, הרפלקציה נשארת מושבתת אלא אם הוגדר `server.grpc_allow_unsecured_reflection`. [tool-verified: `provisa/grpc/server.py`]
 
 ```bash
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
 grpcurl -plaintext -H 'x-provisa-role: analyst' \
-  -d '{}' localhost:50051 ProvisaService/QueryOrders
+  -d '{}' localhost:50051 provisa.v1.ProvisaService/QueryOrders
 ```
 
-שרת ה-gRPC מתחיל רק כאשר ניתן להדר Proto תקף באתחול. אם בניית ה-Schema נכשלת, שרת ה-gRPC אינו מתחיל. (REQ-529)
+שרת ה-gRPC עולה כאשר המודל שנטען בעת ההפעלה מגדיר שירות gRPC. (REQ-529) מכאן כל קריאה מוגשת מהמודל כפי שהוא: טבלה שנרשמה או שונתה בזמן שהשרת פועל מוגשת ומתוארת כבר בקריאה הבאה, ללא הפעלה מחדש. [tool-verified: `provisa/api/app_startup.py`, `provisa/grpc/descriptor.py`]
 
 #### RPCs לאגרגציה וקיבוץ (REQ-1359, REQ-1361, REQ-1405)
 

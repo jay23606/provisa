@@ -76,7 +76,7 @@ El resultado completo nunca se materializa en la memoria de Provisa: los lotes s
 
 ### Protobuf gRPC (puerto 50051)
 
-`.proto` autogenerado a partir del esquema de datos, generado por rol. (REQ-525) Consultas en flujo (streaming) (un mensaje por fila), mutaciones unarias. Reflexión del servidor habilitada. (REQ-526) El rol se transmite mediante la clave de metadatos `x-provisa-role`.
+`.proto` autogenerado a partir del esquema de datos, generado por rol. (REQ-525) Consultas en flujo (streaming) (un mensaje por fila), mutaciones unarias. Reflexión del servidor habilitada. (REQ-526) El rol se transmite mediante la clave de metadatos `x-provisa-role`. La reflexión describe a cada llamante el servicio de su propio rol.
 
 ### Protocolo de cable de PostgreSQL / pgwire (puerto configurable)
 

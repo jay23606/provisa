@@ -76,7 +76,7 @@ O resultado completo nunca é materializado na memória do Provisa — os batche
 
 ### Protobuf gRPC (porta 50051)
 
-`.proto` auto-gerado a partir do esquema de dados, gerado por função. (REQ-525) Consultas em streaming (uma mensagem por linha), mutações unárias. Reflexão de servidor habilitada. (REQ-526) Função via chave de metadados `x-provisa-role`.
+`.proto` auto-gerado a partir do esquema de dados, gerado por função. (REQ-525) Consultas em streaming (uma mensagem por linha), mutações unárias. Reflexão de servidor habilitada. (REQ-526) Função via chave de metadados `x-provisa-role`. A reflexão descreve a cada chamador o serviço da sua própria função.
 
 ### Protocolo de fio PostgreSQL / pgwire (porta configurável)
 

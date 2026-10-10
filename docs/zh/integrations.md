@@ -193,15 +193,19 @@ spark = SparkSession.builder \
 
 ## Protobuf gRPC（端口 50051）
 
-服务到服务方式。Provisa 在启动时按角色生成 `.proto` —— 每个角色只能看到其有权访问的表和列。
+服务到服务方式。Provisa 按角色生成 `.proto`，并在模型或角色变化时重新生成 —— 每个角色只能看到其有权访问的表和列。服务为角色架构根部的每张表提供一个 RPC；关联表与 GraphQL 中一样，通过其关系访问。
 
 下载你角色的 proto：
 
 ```bash
-curl http://localhost:8001/proto/analyst > provisa_analyst.proto
+curl http://localhost:8001/data/proto/analyst > provisa_analyst.proto
 ```
 
-使用 `grpc_server_reflection` 以编程方式发现架构。
+使用 `grpc_server_reflection` 以编程方式发现架构。反射描述的是调用所充当角色的服务，与上面下载的文件相同。未启用认证时，反射调用与其他调用一样指明其角色：
+
+```bash
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
+```
 
 每次 RPC 都必须在 `authorization` 元数据键中携带凭据——提供程序令牌或个人访问令牌。`x-provisa-role` 是从该身份获准的集合中请求一个角色；它不是凭据，而且从来都不是。支持客户端证书。参见[安全模型](security.md#_16)。
 

@@ -427,6 +427,12 @@ JSON:API 探索工具頁面（`/app/jsonapi`）是這些端點之上的瀏覽器
 
 每個已註冊的資料表會產生一個 proto `message`。關聯會產生巢狀 message 欄位。類型對映：`integer → int32`、`bigint → int64`、`varchar → string`、`decimal → double`、`boolean → bool`、`timestamp → google.protobuf.Timestamp`。(REQ-538)
 
+服務只為角色結構描述根部的資料表列出 RPC，即其 GraphQL `Query` 類型所列的那些資料表；關聯資料表有自己的訊息，並透過其關聯存取。 [tool-verified: `provisa/grpc/proto_gen.py`]
+
+加入 `?domains=a,b` 可將檔案限制在這些網域內。此時服務為所選網域自身的資料表列出 RPC；與之關聯的資料表以訊息形式出現。 [tool-verified: `provisa/api/data/endpoint_dev.py`]
+
+該檔案跟隨模型。每當模型或角色有變，它會隨角色的結構描述一併重新產生，元角色亦然。
+
 ---
 
 ### `GET /data/subscribe/{table}`
@@ -1180,17 +1186,21 @@ service ProvisaService {
 }
 ```
 
-每個資料表會產生一個 `Query{TypeName}` 串流 RPC。`Insert{TypeName}` RPC 為結構描述對稱性而存在，但會以 `UNIMPLEMENTED` 中止。[tool-verified: `provisa/grpc/server.py`]
+角色結構描述根部的每張資料表會產生一個 `Query{TypeName}` 串流 RPC。這些就是該角色的 GraphQL `Query` 類型所列出的資料表。角色只能透過關聯到達的資料表沒有自己的 RPC，正如它在 GraphQL 中沒有根欄位。`Insert{TypeName}` RPC 是為結構描述對稱性而存在，會以 `UNIMPLEMENTED` 中止。 [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
-已啟用 `grpc_reflection.v1alpha`，可在沒有預先編譯 proto 的情況下探索服務。(REQ-529) [tool-verified: `provisa/grpc/reflection.py`]
+不屬於呼叫方角色的服務的方法會回應 `UNIMPLEMENTED`。 [tool-verified: `provisa/grpc/server.py`]
+
+已啟用 `grpc_reflection.v1alpha`，無需預先編譯的 proto 即可進行服務探索。(REQ-529) 反射向每個呼叫方描述其所擔任角色的服務：與該角色從 `GET /data/proto/{role_id}` 下載的 `.proto` 相同。它按名稱列出 Provisa 服務和反射服務，並描述 Provisa 服務的檔案。 [tool-verified: `provisa/grpc/server.py`]
+
+反射呼叫與其他 gRPC 呼叫一樣需要識別身分。啟用驗證時，角色來自呼叫方的憑證。未啟用驗證時，請在 `x-provisa-role` 中指明角色；在為多於一個組織提供服務的部署中，還需在 `x-provisa-org` 中指明組織。缺少這些中繼資料的呼叫會以 `UNAUTHENTICATED` 被拒絕。未啟用驗證時，除非設定了 `server.grpc_allow_unsecured_reflection`，否則反射保持停用。 [tool-verified: `provisa/grpc/server.py`]
 
 ```bash
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
 grpcurl -plaintext -H 'x-provisa-role: analyst' \
-  -d '{}' localhost:50051 ProvisaService/QueryOrders
+  -d '{}' localhost:50051 provisa.v1.ProvisaService/QueryOrders
 ```
 
-gRPC 伺服器只在啟動時能編譯出有效 proto 的情況下才會啟動。若結構描述建置失敗，gRPC 伺服器不會啟動。(REQ-529)
+當啟動時載入的模型定義了 gRPC 服務時，gRPC 伺服器才會啟動。(REQ-529) 此後每次呼叫都按模型的現況提供服務：伺服器執行期間註冊或變更的資料表，會在下一次呼叫時即被提供和描述，無需重新啟動。 [tool-verified: `provisa/api/app_startup.py`, `provisa/grpc/descriptor.py`]
 
 #### 彙總與分組 RPC (REQ-1359, REQ-1361, REQ-1405)
 
