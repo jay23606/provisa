@@ -103,7 +103,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/graph/Inspector.tsx",
   "components/graph/Neo4jExportModal.tsx",
   "components/graph/graph-context-menus.tsx",
-  "components/relationships/AddRelationshipForm.tsx",
   "components/relationships/JunctionPanel.tsx",
   "components/relationships/RelationshipModals.tsx",
   "components/relationships/RelationshipRow.tsx",
