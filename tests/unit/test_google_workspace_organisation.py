@@ -589,6 +589,43 @@ async def test_one_mailboxes_client_secret_is_resolved_as_its_field_holds_it(pla
 
 
 @pytest.mark.asyncio
+async def test_a_read_waits_out_googles_throttle_as_the_operator_set_and_says_so(
+    organisation, monkeypatch
+):
+    """The bound is the operator's setting; a wait is said on the record of every table the
+    source is building, by the name of who is throttling, and unsaid when it is over."""
+    from contextlib import asynccontextmanager
+
+    from provisa.federation import replica_state
+
+    said: list[tuple] = []
+
+    async def record_throttled(conn, source_id, *, seconds, by):
+        said.append((conn, source_id, seconds, by))
+
+    @asynccontextmanager
+    async def acquire():
+        yield "state-conn"
+
+    monkeypatch.setattr(replica_state, "record_throttled", record_throttled)
+    await _put(organisation.plane, **ENTRY)
+    state = SimpleNamespace(admin_db=organisation.plane, tenant_db=SimpleNamespace(acquire=acquire))
+    reading = await loader.make_connect(state)(ORG_SOURCE)
+    assert reading.wait_seconds == 5.0  # the fixture's value of every setting
+    await reading.throttled(40.0)
+    await reading.throttled(0)
+    assert said == [
+        ("state-conn", "org-mail", 40.0, "Google"),
+        ("state-conn", "org-mail", 0, "Google"),
+    ]
+    # Each mailbox's calls are bounded and reported by what the reading says.
+    captured: dict = {}
+    monkeypatch.setattr(loader, "Gmail", lambda *a, **kw: captured.update(kw))
+    loader._mailbox(reading, "ada@example.test", None)
+    assert (captured["wait_seconds"], captured["waiting"]) == (5.0, reading.throttled)
+
+
+@pytest.mark.asyncio
 async def test_a_build_reads_as_the_organisation_and_lists_its_mailboxes(organisation, monkeypatch):
     await _put(organisation.plane, **ENTRY)
     asked: list[tuple] = []
