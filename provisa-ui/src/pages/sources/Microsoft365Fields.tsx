@@ -14,17 +14,7 @@
 // Microsoft: the client is the organisation's, entered once under Admin › Email.
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Alert,
-  Anchor,
-  Button,
-  Checkbox,
-  Group,
-  Select,
-  Text,
-  TextInput,
-  Textarea,
-} from "@mantine/core";
+import { Alert, Anchor, Button, Checkbox, Select, Text, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { serverMessage } from "../../i18n/serverMessage";
@@ -220,21 +210,36 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
       )}
       {organisation && (
         <>
-          <FormField size="medium">
-            <Select
-              label={t("microsoft365Fields.choice")}
-              data={[
-                { value: M365_EVERYONE, label: t("microsoft365Fields.choiceEveryone") },
-                { value: M365_GROUP, label: t("microsoft365Fields.choiceGroup") },
-                { value: M365_LIST, label: t("microsoft365Fields.choiceList") },
-              ]}
-              value={fields.m365_choice ?? null}
-              onChange={(value) => choose({ m365_choice: value ?? "" })}
-              required
-              allowDeselect={false}
-              data-testid="microsoft-365-m365_choice"
-            />
-          </FormField>
+          {/* The button that checks the choice sits at its end. */}
+          <FieldGroup>
+            <FormField size="medium">
+              <Select
+                label={t("microsoft365Fields.choice")}
+                data={[
+                  { value: M365_EVERYONE, label: t("microsoft365Fields.choiceEveryone") },
+                  { value: M365_GROUP, label: t("microsoft365Fields.choiceGroup") },
+                  { value: M365_LIST, label: t("microsoft365Fields.choiceList") },
+                ]}
+                value={fields.m365_choice ?? null}
+                onChange={(value) => choose({ m365_choice: value ?? "" })}
+                required
+                allowDeselect={false}
+                data-testid="microsoft-365-m365_choice"
+              />
+            </FormField>
+            {!notSetUp && !notAllowed && (
+              <Button
+                type="button"
+                variant="default"
+                onClick={check}
+                loading={checking}
+                disabled={status === null || chosen === null}
+                data-testid="microsoft-365-check"
+              >
+                {t("microsoft365Fields.check")}
+              </Button>
+            )}
+          </FieldGroup>
           {fields.m365_choice === M365_GROUP && (
             <FormField help={t("microsoft365Fields.groupHelp")} size="medium">
               <TextInput
@@ -318,25 +323,11 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
           </Alert>
         </FormField>
       )}
-      {organisation && !notSetUp && !notAllowed && (
+      {organisation && !notSetUp && !notAllowed && found !== null && (
         <FormField size="full">
-          <Group gap="sm" align="center">
-            <Button
-              type="button"
-              variant="default"
-              onClick={check}
-              loading={checking}
-              disabled={status === null || chosen === null}
-              data-testid="microsoft-365-check"
-            >
-              {t("microsoft365Fields.check")}
-            </Button>
-            {found !== null && (
-              <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-found">
-                {t("microsoft365Fields.found", { count: found })}
-              </Alert>
-            )}
-          </Group>
+          <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-found">
+            {t("microsoft365Fields.found", { count: found })}
+          </Alert>
         </FormField>
       )}
       {!organisation && !notSetUp && fields.m365_connected_as && (
