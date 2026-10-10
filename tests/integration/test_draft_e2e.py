@@ -354,3 +354,70 @@ def test_a_views_inputs_are_in_service_for_its_readers(server):
     again = through_the_view()
     assert again.status_code == 200, again.text
     assert again.json() == answered.json()
+
+
+def _view_builds(srv) -> dict[str, dict]:
+    response = httpx.post(
+        f"{srv.base_url}/admin/graphql",
+        json={"query": "query { mvList { id status lastError } }"},
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=60,
+    )
+    assert response.status_code == 200, response.text
+    assert "errors" not in response.json(), response.text
+    return {mv["id"]: mv for mv in response.json()["data"]["mvList"]}
+
+
+def test_a_materialized_draft_view_is_built_by_its_stewards_preview_and_kept(server):
+    """A draft view is offered to no reader and is built on no schedule. Its steward's preview
+    answers from the view's inputs at once and starts its build; the build lands while the view
+    is still a draft, is kept, and the view is read by its readers once released."""
+    srv, pg = server
+    _mutate(
+        srv,
+        'createSource(input: {id: "src", type: "postgresql", host: "127.0.0.1", '
+        f'port: {pg.source_port}, database: "shop", username: "provisa", password: "provisa"}})',
+    )
+    registered = _mutate(
+        srv,
+        'registerTable(input: {sourceId: "src", domainId: "shop", schemaName: "public", '
+        'tableName: "orders", columns: ['
+        '{name: "id", visibleTo: ["org_admin"], dataType: "integer", isPrimaryKey: true}, '
+        '{name: "amount", visibleTo: ["org_admin"], dataType: "double"}]})',
+    )
+    _mutate(srv, f"setTableDraft(tableId: {registered_id(registered['message'])}, draft: false)")
+    view = _mutate(
+        srv,
+        'registerTable(input: {sourceId: "__derived__", domainId: "shop", schemaName: "views", '
+        'tableName: "order_amounts", alias: "order_amounts", materialize: true, '
+        'viewSql: "SELECT id, amount FROM orders", columns: ['
+        '{name: "id", visibleTo: ["org_admin"]}, {name: "amount", visibleTo: ["org_admin"]}]})',
+    )
+    view_id = registered_id(view["message"])
+
+    # Registered, a draft: its build is known and nothing has built it.
+    time.sleep(_KEPT_S / 2)
+    assert _view_builds(srv)["view-order_amounts"]["status"] != "fresh"
+    refused = _sql(srv, "SELECT id FROM order_amounts")
+    assert refused.status_code != 200 and "is a draft" in refused.text, refused.text
+
+    # Its steward's preview: answered from its inputs, and its build started.
+    previewed = _previewed(srv, view_id, {"sorts": [{"col": "id", "dir": "asc"}]})
+    assert [(r["id"], r["amount"]) for r in previewed["rows"]] == _ID_AMOUNT
+    _wait(
+        lambda: _view_builds(srv)["view-order_amounts"]["status"] == "fresh",
+        seconds=90,
+        what="the build the preview started",
+    )
+    assert _view_builds(srv)["view-order_amounts"]["lastError"] is None
+
+    # Still a draft, and kept through the reloads and sweeps that follow.
+    time.sleep(_KEPT_S)
+    assert "view-order_amounts" in _view_builds(srv)
+    refused = _sql(srv, "SELECT id FROM order_amounts")
+    assert refused.status_code != 200 and "is a draft" in refused.text, refused.text
+
+    # Released: read by its readers.
+    _mutate(srv, f"setTableDraft(tableId: {view_id}, draft: false)")
+    read = _sql(srv, "SELECT id, amount FROM order_amounts ORDER BY id")
+    assert read.status_code == 200, read.text

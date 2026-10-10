@@ -49,7 +49,13 @@ class _WithDraft:
     there."""
 
     def __init__(
-        self, state: Any, draft: dict, role_id: str, surface: RoleSurface, routes: Any
+        self,
+        state: Any,
+        draft: dict,
+        role_id: str,
+        surface: RoleSurface,
+        routes: Any,
+        view_body: str | None,
     ) -> None:
         from provisa.cache.store import NoopCacheStore
         from provisa.compiler.compiled_query_cache import CompiledQueryCache
@@ -63,12 +69,11 @@ class _WithDraft:
         self.routing_cache = CompiledQueryCache()
         self.response_cache_store = NoopCacheStore()
         self.previewed_draft_id = draft["id"]
-        if draft.get("view_sql"):
+        if view_body is not None:
             # A draft VIEW is in no published view map, so no other statement expands it. This
             # read expands it as a view in service is expanded: its body, cut to what the
             # caller may read of every table it names (mv/view_read.py).
-            body = draft["view_sql"].rstrip().rstrip(";")
-            self.view_sql_map = {**state.view_sql_map, draft["table_name"]: body}
+            self.view_sql_map = {**state.view_sql_map, draft["table_name"]: view_body}
         self.replica_routes = routes
         real = state.federation_engine
         self.federation_engine = type(real)(real.engine, self)
@@ -146,6 +151,57 @@ def _surface_with(state: Any, role_id: str, draft: dict) -> RoleSurface:
     return replace(surface, context=ctx)
 
 
+#: The builds a preview started, held until each ends (a task nothing holds may be collected).
+_builds_started: set = set()
+
+
+def _view_body(state: Any, draft: dict) -> str | None:
+    """What a draft VIEW's reference becomes for its steward's read; None for a table.
+
+    A view that is not materialized, and an ordinary materialized one, is its SQL: read live, as
+    a materialized view in service is while its build is not fresh. A materialized draft view's
+    build is kept registered and disabled (app_rebuild): nothing schedules it, so this read asks
+    for it — started here and not waited for — and the view is landed for its release.
+
+    A bitemporal materialized view has no live reading: its rows are what its stored log says
+    was true (mv/bitemporal.py). Until that log has been built once the read answers as any
+    read does whose copy is still being built; after, it is read from the log."""
+    if not draft.get("view_sql"):
+        return None
+    body = draft["view_sql"].rstrip().rstrip(";")
+    # A draft view is materialized exactly when its build is registered (app_rebuild).
+    mv = state.mv_registry.get(f"view-{draft['table_name']}")
+    if mv is None:
+        return body
+    import asyncio
+
+    from provisa.mv.models import MVStatus
+    from provisa.mv.refresh import refresh_mv
+
+    if mv.status not in (MVStatus.FRESH, MVStatus.REFRESHING):
+        build = asyncio.create_task(
+            refresh_mv(
+                state.federation_engine,
+                mv,
+                state.mv_registry,
+                store=state.model_db,
+                ledger=state.tenant_db,
+            )
+        )
+        _builds_started.add(build)
+        build.add_done_callback(_builds_started.discard)
+    if mv.bitemporal is None:
+        return body
+    if mv.last_refresh_at is None:
+        from provisa.federation.replica_state import ReplicaBuilding
+
+        raise ReplicaBuilding(draft["table_name"], 0.0)
+    from provisa.mv.bitemporal import view_read_sql
+
+    stored = f'"{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    return view_read_sql(stored, mv.bitemporal)
+
+
 def _statement(table: dict, limit: int | None, request: Any) -> tuple[str, list]:
     """The one statement the read is: the table's first ``limit`` rows, or the page the viewer
     asked for (``request``: its filters, sorts, grouping and page), written here from the
@@ -197,7 +253,14 @@ async def read_as_caller(
     # (registry_view.registered_sources): a draft of one is read under the published routes.
     source = next((s for s in await registered_sources(state) if s.id == draft["source_id"]), None)
     routes = state.replica_routes if source is None else routes_with_draft(state, draft, source)
-    seen = _WithDraft(state, draft, role_id, _surface_with(state, role_id, draft), routes)
+    seen = _WithDraft(
+        state,
+        draft,
+        role_id,
+        _surface_with(state, role_id, draft),
+        routes,
+        _view_body(state, draft),
+    )
     plan = await _govern_and_route_compiled(
         sql,
         role_id,
