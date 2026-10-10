@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: 4d5379c8-6687-494a-9b74-3f90c624f24c
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """No requirement id is user-facing.
 
 A requirement id (``REQ-1234``) belongs to the people who build the product. It must not be in
