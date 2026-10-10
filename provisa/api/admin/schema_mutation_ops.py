@@ -17,7 +17,7 @@ bodies live here as free functions to keep that module under the length gate.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import delete, select, update
 
@@ -186,6 +186,21 @@ async def reprovision_source_after_registration(pool, state, source_id: str) -> 
         )
 
 
+def default_mail_watermark(model: Any, source_type: str | None) -> None:
+    """A mail table's rows land mailbox by mailbox, in no order of the provider's own times:
+    what a subscriber is sent next is told by when a row landed, not by the provider's
+    ``updated_at``. So a mail table registered with the landing's stamp takes it as its
+    watermark, unless the operator named another column."""
+    from provisa.core import canonical_mail as mail
+
+    if (
+        source_type in ("microsoft_365", "google_workspace")
+        and model.watermark_column is None
+        and any(column.name == mail.LANDED_AT for column in model.columns)
+    ):
+        model.watermark_column = mail.LANDED_AT
+
+
 async def register_table(
     info: StrawberryInfo, input: TableInput
 ) -> (
@@ -295,6 +310,8 @@ async def register_table(
             )
         model.cache_ttl = input.cache_ttl
     from provisa.api.app import state as _reg_state
+
+    default_mail_watermark(model, _reg_state.source_types.get(input.source_id))
 
     if _reg_state.source_types.get(input.source_id) in ("ingest", "data_profiler"):  # REQ-1771/1934
         # ingest's Register-Table picker offers only a synthetic "default" schema (REQ-1745, a

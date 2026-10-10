@@ -328,3 +328,49 @@ def test_the_loader_is_given_to_the_product():
     assert 'loaders["microsoft_365"] = make_microsoft365_loader(make_connect(state))' in (
         inspect.getsource(app_wiring)
     )
+
+
+def test_the_column_picker_marks_each_tables_key_and_offers_when_a_row_landed(monkeypatch):
+    """A mail table is kept by key (rows are added, changed and removed in place), so the
+    picker marks its key columns; and it ends with the landing's own stamp, the table's
+    watermark for live delivery."""
+    from provisa.api.admin import schema_query
+    from provisa.core import canonical_mail as cm
+
+    src = inspect_source(schema_query)
+    assert src.count("is_primary_key=name in key_columns(table_name)") == 2  # both mail kinds
+    assert src.count("for name, ir_type in landing_columns(table_name)") == 2
+    assert cm.landing_columns("messages")[-1] == (cm.LANDED_AT, "timestamp")
+
+
+def inspect_source(module) -> str:
+    import inspect
+
+    return inspect.getsource(module)
+
+
+def test_a_whole_build_stamps_every_row_with_when_it_landed(signed_in, monkeypatch):
+    """One whole build writes its copy at once: every row of every table carries one stamp."""
+    from provisa.core import canonical_mail as cm
+
+    async def read_mailboxes(reading, per_mailbox, *rest):
+        yield "messages", [{"id": "m1"}, {"id": "m2"}]
+        yield "message_recipients", [{"message_id": "m1"}]
+
+    async def connect(source):
+        return SimpleNamespace(keep=None)
+
+    monkeypatch.setattr(loader, "_read_mailboxes", read_mailboxes)
+    columns = {
+        "messages": [("id", "text"), (cm.LANDED_AT, "timestamp")],
+        "message_recipients": [("message_id", "text"), (cm.LANDED_AT, "timestamp")],
+    }
+    read = loader._MessagesRead(connect, SimpleNamespace(id="m365"), tuple(columns), columns)
+
+    async def run():
+        return [(table, batch.to_pylist()) async for table, batch in read.batches(100)]
+
+    landed = asyncio.run(run())
+    stamps = {row[cm.LANDED_AT] for _table, rows in landed for row in rows}
+    assert len(stamps) == 1 and None not in stamps
+    assert [table for table, _ in landed] == ["messages", "message_recipients"]

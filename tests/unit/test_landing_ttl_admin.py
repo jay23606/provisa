@@ -822,3 +822,29 @@ def test_every_locale_words_both_landing_clock_refusals():
         said = json.loads(catalog.read_text())["serverErrors"]["schema"]
         for key, particulars in wanted.items():
             assert set(re.findall(r"{{(\w+)}}", said[key])) == particulars, (catalog, key)
+
+
+@pytest.mark.parametrize(
+    ("source_type", "columns", "named", "watermark"),
+    [
+        ("microsoft_365", ["id", "landed_at"], None, "landed_at"),
+        ("google_workspace", ["id", "landed_at"], None, "landed_at"),
+        ("microsoft_365", ["id", "landed_at"], "received_at", "received_at"),  # the operator's
+        ("microsoft_365", ["id"], None, None),  # registered without the stamp
+        ("postgresql", ["id", "landed_at"], None, None),  # another kind's column of that name
+    ],
+)
+def test_a_mail_table_registered_with_the_landing_stamp_takes_it_as_its_watermark(
+    source_type, columns, named, watermark
+):
+    """Rows land mailbox by mailbox, in no order of the provider's own times, so live delivery
+    goes by when a row landed."""
+    from types import SimpleNamespace
+
+    from provisa.api.admin.schema_mutation_ops import default_mail_watermark
+
+    model = SimpleNamespace(
+        watermark_column=named, columns=[SimpleNamespace(name=name) for name in columns]
+    )
+    default_mail_watermark(model, source_type)
+    assert model.watermark_column == watermark

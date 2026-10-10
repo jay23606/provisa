@@ -29,10 +29,12 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from provisa.core import canonical_mail as cm
 from provisa.microsoft365 import mail
 from provisa.microsoft365.graph import (
     FOLDER_NOT_THERE,
@@ -346,13 +348,14 @@ def make_microsoft365_loader(connect: Connect) -> Any:
         if name not in TABLES:
             raise UnknownMailTable(name)
         reading = await connect(source)
+        at = datetime.now(UTC)  # one whole read lands together, under one stamp
         async for rows in _read_mailboxes(
             reading,
             lambda mailbox: mailbox.rows(name, unreadable),
             [] if left_out is None else left_out,
         ):
             if rows:
-                yield rows
+                yield cm.stamped(rows, at)
 
     async def _load(source: Any, table: Any) -> list[dict]:
         return [row async for rows in _batches(source, table) for row in rows]
@@ -469,6 +472,9 @@ class _MessagesRead:
         self._at_quota.clear()
         self._reached.clear()
         schemas = {table: arrow_schema(self._columns[table]) for table in self._tables}
+        # A whole build writes its copy at once: every row of it lands together, under one
+        # stamp (a table registered before the stamp existed has no such column and gets none).
+        at = datetime.now(UTC)
         reading = self._reading = await self._connect(self._source)
         async for table, rows in _read_mailboxes(
             reading,
@@ -477,6 +483,7 @@ class _MessagesRead:
             self._reached,
             self._at_quota,
         ):
+            cm.stamped(rows, at)
             for start in range(0, len(rows), batch_rows):
                 yield (
                     table,
