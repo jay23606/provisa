@@ -376,7 +376,8 @@
       "registry_field_required": "Source '{{source}}': schema registry authentication '{{method}}' requires {{field}}",
       "registry_path_not_absolute": "Source '{{source}}': {{field}} must be an absolute path, got '{{path}}'",
       "column_scope_invalid": "Column '{{column}}' has scope '{{scope}}'; a column's scope is one of {{scopes}}",
-      "microsoft_365_invalid": "Microsoft 365 source {{source}}: {{error}}"
+      "microsoft_365_invalid": "Microsoft 365 source {{source}}: {{error}}",
+      "draft_read_needs_replica": "Table '{{table}}' is read through a replica on this engine, and a draft has none: its rows can be read once it is released"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

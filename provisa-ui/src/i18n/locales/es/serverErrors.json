@@ -376,7 +376,8 @@
       "registry_field_required": "Origen '{{source}}': la autenticación del registro de esquemas '{{method}}' requiere {{field}}",
       "registry_path_not_absolute": "Origen '{{source}}': {{field}} debe ser una ruta absoluta, se recibió '{{path}}'",
       "column_scope_invalid": "La columna '{{column}}' tiene el ámbito '{{scope}}'; el ámbito de una columna es uno de {{scopes}}",
-      "microsoft_365_invalid": "Origen de Microsoft 365 {{source}}: {{error}}"
+      "microsoft_365_invalid": "Origen de Microsoft 365 {{source}}: {{error}}",
+      "draft_read_needs_replica": "La tabla '{{table}}' se lee a través de una réplica en este motor y un borrador no tiene ninguna: sus filas podrán leerse cuando se publique"
     },
     "secrets": {
       "name_refused": "{{name}} no es un nombre dentro de los secretos de esta organización en {{service}}: un nombre es relativo a la organización y no puede salir de ella",

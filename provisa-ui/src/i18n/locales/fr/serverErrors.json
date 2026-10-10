@@ -376,7 +376,8 @@
       "registry_field_required": "Source '{{source}}' : l'authentification du registre de schémas '{{method}}' exige {{field}}",
       "registry_path_not_absolute": "Source '{{source}}' : {{field}} doit être un chemin absolu, reçu '{{path}}'",
       "column_scope_invalid": "La colonne '{{column}}' a la portée '{{scope}}' ; la portée d'une colonne est l'une de {{scopes}}",
-      "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}"
+      "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}",
+      "draft_read_needs_replica": "La table '{{table}}' est lue via une réplique sur ce moteur, et un brouillon n'en a pas : ses lignes pourront être lues une fois la table publiée"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

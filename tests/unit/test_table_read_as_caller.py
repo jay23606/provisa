@@ -1,0 +1,312 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""A table's Preview and Profile are read as their caller, in the table's own domain — and a
+draft can be previewed by the people who decide to release it (REQ-1921, REQ-452).
+
+A draft is out of service: in no role's schema, refused to every statement that names it. The
+table detail's Preview and Profile read it all the same, for a caller who holds the right its
+release needs, through one entry point that writes the statement itself and governs it against
+the caller's role with that one table added. These tests run that on the real role build and the
+real governance stage, with routing stood in for: what reaches routing is what would be read.
+"""
+
+# Requirements: REQ-1921, REQ-452
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from provisa.api.admin import table_read
+from provisa.api.errors import ApiError
+from tests.unit.test_empty_domain_access_reaches_nothing import SALES, _built_roles, _tables
+
+_REFUNDS = 9
+_ROLE = {"id": "r", "capabilities": ["usage"], "domain_access": ["sales"]}
+
+
+def _refunds(**over) -> dict:
+    """A registered table of the sales domain that is a draft."""
+    return {
+        "id": _REFUNDS,
+        "domain_id": "sales",
+        "source_id": "pg",
+        "schema_name": "public",
+        "table_name": "refunds",
+        "alias": None,
+        "draft": True,
+        "region": None,
+        "columns": [
+            {
+                "column_name": "id",
+                "data_type": "integer",
+                "visible_to": [],
+                "native_filter_type": None,
+            },
+            {
+                "column_name": "note",
+                "data_type": "varchar",
+                "visible_to": [],
+                "native_filter_type": None,
+            },
+        ],
+        "write_ops": [],
+        "write_returns_rows": False,
+        "write_refused_forms": [],
+        **over,
+    }
+
+
+class _Routed(Exception):
+    """The statement cleared governance and reached routing; ``sql`` is what it would read."""
+
+    def __init__(self, sql: str) -> None:
+        super().__init__(sql)
+        self.sql = sql
+
+
+@pytest.fixture
+def multi_domain(monkeypatch):
+    monkeypatch.setenv("PROVISA_SINGLE_DOMAIN", "false")
+
+
+@pytest.fixture
+def state(multi_domain, monkeypatch):
+    """The real state after the real role build, with ``refunds`` registered as a draft."""
+    import provisa.api.app as appmod
+
+    for name in ("meta_roles", "meta_resolved_at", "masking_rules"):
+        monkeypatch.setattr(appmod.state._active_runtime(), name, {}, raising=False)
+    built = _built_roles(monkeypatch, [dict(_ROLE)])
+    # As a rebuild publishes them beside the role build: the tables in service.
+    monkeypatch.setattr(built, "tables", _tables(), raising=False)
+    built.role_build_inputs["draft_tables"] = [_refunds()]
+    # The draft's source, as the control plane lists it; the engine reads it in place.
+    from provisa.federation import registry_view, replica_routing
+
+    async def _sources(_state, *_conn):
+        return [SimpleNamespace(id="pg", type="postgresql")]
+
+    monkeypatch.setattr(registry_view, "registered_sources", _sources)
+    monkeypatch.setattr(replica_routing, "reads_replica", lambda source, table, engine, **k: False)
+    # The replica decision is asked of the engine's own object; governance below asks nothing
+    # of it in these tests.
+    monkeypatch.setattr(table_read, "_engine_of", lambda _state: object())
+    # The role's own context names the draft only to refuse it, as the build leaves it.
+    built.surfaces["r"].context.draft_names['"sales"."refunds"'] = "refunds"
+    built.surfaces["r"].context.draft_names["sales.refunds"] = "refunds"
+    return built
+
+
+@pytest.fixture
+def routing():
+    """Routing stood in for: raises ``_Routed`` with the governed statement it was handed."""
+    from provisa.pgwire import _pipeline
+
+    async def _route(*args, **kwargs):
+        raise _Routed(str(kwargs.get("governed_sql") or (args[0] if args else "")))
+
+    with patch.object(_pipeline, "_optimize_and_route", new=AsyncMock(side_effect=_route)) as mock:
+        yield mock
+
+
+async def _ordinary(sql: str) -> None:
+    from provisa.pgwire import _pipeline
+
+    await _pipeline._govern_and_route(sql, "r")
+
+
+_STATEMENT = 'SELECT * FROM "sales"."refunds" LIMIT 5'
+
+
+async def test_an_ordinary_statement_naming_the_draft_is_refused(state, routing):
+    with pytest.raises(PermissionError, match="draft"):
+        await _ordinary(_STATEMENT)
+    routing.assert_not_awaited()
+
+
+async def test_the_steward_read_of_a_draft_reaches_routing_governed(state, routing):
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+    routing.assert_awaited_once()
+
+
+async def test_the_same_words_are_still_refused_after_a_steward_read(state, routing):
+    """Nothing of the steward's read is kept where an ordinary statement would find it: not a
+    governed plan, not a validation, not the table among the role's tables."""
+    tables_before, surface_before = list(state.tables), state.surfaces["r"]
+    kept_before = (
+        len(state.compiled_query_cache._store)
+        if hasattr(state.compiled_query_cache, "_store")
+        else None
+    )
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+    routing.reset_mock()
+
+    with pytest.raises(PermissionError, match="draft"):
+        await _ordinary(_STATEMENT)
+    routing.assert_not_awaited()
+    assert state.tables == tables_before and _REFUNDS not in [t["id"] for t in state.tables]
+    assert state.surfaces["r"] is surface_before
+    assert "refunds" not in state.surfaces["r"].context.tables
+    if kept_before is not None:
+        assert len(state.compiled_query_cache._store) == kept_before
+
+
+async def test_a_draft_is_read_under_the_callers_own_masks(state, routing):
+    from provisa.security.masking import MaskingRule, MaskType
+
+    state.masking_rules = {
+        (_REFUNDS, "r"): {
+            "note": (MaskingRule(mask_type=MaskType.constant, value="MASKED"), "varchar")
+        }
+    }
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+    governed = " ".join(str(a) for a in routing.await_args.args) + str(routing.await_args.kwargs)
+    assert "MASKED" in governed
+
+
+async def test_a_draft_kept_in_another_region_is_not_read_here(state, routing, monkeypatch):
+    from provisa.core import process_region
+    from provisa.core.read_refusal import ReadRefused
+
+    monkeypatch.setattr(process_region, "_region", "us")
+    state.role_build_inputs["draft_tables"] = [_refunds(region="eu")]
+    with pytest.raises(ReadRefused) as refused:
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+    assert refused.value.code == "query.home_region_unavailable"
+    assert refused.value.params == {"table": "refunds", "region": "eu"}
+    routing.assert_not_awaited()
+
+    state.role_build_inputs["draft_tables"] = [_refunds(region="us")]
+    with pytest.raises(_Routed):
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+
+
+async def test_a_draft_the_engine_reaches_only_through_a_replica_is_not_read(
+    state, routing, monkeypatch
+):
+    """A draft is copied nowhere: where reading it would need a replica, the preview is refused
+    by name and nothing is built."""
+    from provisa.federation import replica_routing
+
+    monkeypatch.setattr(replica_routing, "reads_replica", lambda *a, **k: True)
+    with pytest.raises(ApiError) as err:
+        await table_read.read_as_caller(state, _REFUNDS, "r", 5)
+    assert (err.value.status_code, err.value.code) == (409, "schema.draft_read_needs_replica")
+    assert err.value.params == {"table": "refunds"}
+    routing.assert_not_awaited()
+
+
+async def test_a_table_in_service_is_read_as_any_statement_reads_it(state, monkeypatch):
+    from provisa.pgwire import _pipeline
+
+    seen: list[tuple[str, str]] = []
+
+    async def _govern(sql, role_id):
+        seen.append((sql, role_id))
+        return "the plan"
+
+    async def _execute(plan, _state):
+        return SimpleNamespace(column_names=["id"], rows=[(1,)], plan=plan)
+
+    monkeypatch.setattr(_pipeline, "_govern_and_route", _govern)
+    monkeypatch.setattr(_pipeline, "_execute_plan", _execute)
+    result = await table_read.read_as_caller(state, SALES, "r", 2000)
+    assert seen == [('SELECT * FROM "sales"."orders" LIMIT 2000', "r")]
+    assert result.plan == "the plan"
+
+
+async def test_a_table_that_is_not_registered_is_not_found(state):
+    with pytest.raises(ApiError) as err:
+        await table_read.read_as_caller(state, 404404, "r", 5)
+    assert (err.value.status_code, err.value.code) == (404, "schema.table_not_found")
+
+
+# --- the right: registering tables, in the table's own domain ---------------------------------------
+
+
+def test_the_caller_needs_the_right_a_release_needs_in_the_tables_domain(state, monkeypatch):
+    from provisa.api.admin import capabilities
+
+    asked: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        capabilities,
+        "require_capability_request",
+        lambda request, cap: asked.append(("right", cap)),
+    )
+    monkeypatch.setattr(
+        capabilities,
+        "require_domain_request",
+        lambda request, domain: asked.append(("domain", domain)),
+    )
+    request = object()
+    assert table_read.table_for_steward(request, state, _REFUNDS)["table_name"] == "refunds"
+    assert table_read.table_for_steward(request, state, SALES)["table_name"] == "orders"
+    assert asked == [
+        ("right", "table_registration"),
+        ("domain", "sales"),
+        ("right", "table_registration"),
+        ("domain", "sales"),
+    ]
+    with pytest.raises(ApiError) as err:
+        table_read.table_for_steward(request, state, 404404)
+    assert err.value.code == "schema.table_not_found"
+
+
+def test_a_caller_without_the_right_or_outside_the_domain_is_refused(state, monkeypatch):
+    from provisa.api.admin import capabilities
+
+    def _no_right(request, cap):
+        raise ApiError(403, "auth.missing_capability", f"Missing capability: {cap!r}")
+
+    monkeypatch.setattr(capabilities, "require_capability_request", _no_right)
+    with pytest.raises(ApiError) as err:
+        table_read.table_for_steward(object(), state, _REFUNDS)
+    assert err.value.code == "auth.missing_capability"
+
+    monkeypatch.setattr(capabilities, "require_capability_request", lambda request, cap: None)
+
+    def _other_domain(request, domain):
+        raise ApiError(403, "auth.domain_denied", f"No access to domain {domain!r}")
+
+    monkeypatch.setattr(capabilities, "require_domain_request", _other_domain)
+    with pytest.raises(ApiError) as err:
+        table_read.table_for_steward(object(), state, SALES)
+    assert err.value.code == "auth.domain_denied"
+
+
+def test_the_release_and_the_read_ask_for_the_same_right():
+    """set_table_draft requires table_registration in the table's domain; so does the read."""
+    import inspect
+
+    from provisa.api.admin import schema_mutation
+
+    release = inspect.getsource(schema_mutation.Mutation.set_table_draft)
+    assert 'require_capability(info, "table_registration", domain_id=row.domain_id)' in release
+    read = inspect.getsource(table_read.table_for_steward)
+    assert 'require_capability_request(request, "table_registration")' in read
+    assert 'require_domain_request(request, table["domain_id"])' in read
+
+
+def test_both_routes_read_through_the_one_function_and_nothing_else():
+    import inspect
+
+    from provisa.api.admin import table_profile_router as routes
+
+    source = inspect.getsource(routes)
+    assert source.count("await read_as_caller(") == 1
+    assert "run_admin_catalog_sql" not in source and "TABLESAMPLE" not in source
+    for route in (routes.profile_table, routes.preview_table):
+        assert "await _rows(request, table_id, x_provisa_role," in inspect.getsource(route)

@@ -376,7 +376,8 @@
       "registry_field_required": "Origine '{{source}}': l'autenticazione del registro degli schemi '{{method}}' richiede {{field}}",
       "registry_path_not_absolute": "Origine '{{source}}': {{field}} deve essere un percorso assoluto, ricevuto '{{path}}'",
       "column_scope_invalid": "La colonna '{{column}}' ha ambito '{{scope}}'; l'ambito di una colonna è uno tra {{scopes}}",
-      "microsoft_365_invalid": "Origine Microsoft 365 {{source}}: {{error}}"
+      "microsoft_365_invalid": "Origine Microsoft 365 {{source}}: {{error}}",
+      "draft_read_needs_replica": "La tabella '{{table}}' viene letta tramite una replica su questo motore e una bozza non ne ha: le sue righe potranno essere lette dopo il rilascio"
     },
     "secrets": {
       "name_refused": "{{name}} non è un nome all'interno dei segreti di questa organizzazione in {{service}}: un nome è relativo all'organizzazione e non può uscirne",

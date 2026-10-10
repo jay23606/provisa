@@ -238,6 +238,21 @@ async def require_home_replica(state: Any, table: Any, home: str) -> Any:
     return record
 
 
+def require_draft_read_in_its_region(table_name: str, home: str | None) -> None:
+    """A table that names a region is read in that region. One in service is read there from
+    its replica (:func:`require_home_replica`); a draft has no replica, so it is read live, and
+    only by the cluster of its own region — refused elsewhere as a table in service whose
+    replica is not there is refused (``query.home_region_unavailable``). A draft that names no
+    region is read where the caller is."""
+    from provisa.core import process_region
+    from provisa.core.region_stores import HomeRegionUnavailable
+
+    if home and home != process_region.region():
+        raise HomeRegionUnavailable(
+            table_name, home, "a draft does not have: preview it from that region"
+        )
+
+
 async def read_home_replica(state: Any, backend: Any, table: Any, home: str) -> None:
     """Make the read of ``table`` from its replica in region ``home`` possible (REQ-1922): that
     replica is built there (``require_home_replica``), and the engine has attached it for that
