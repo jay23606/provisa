@@ -142,7 +142,7 @@ One row per message per container. Google: many per message. Microsoft: one.
 
 ## threads
 
-Derived by both sources from the messages they hold, grouped by `thread_id`.
+Derived by both sources from the messages they hold, grouped by `thread_id`. Where a replica is kept up to date in place, a thread is worked out again whenever one of its messages is added or changes; Microsoft does not say which thread a removed message was in, so after a removal that thread's counts stand until another of its messages changes or the table is built whole again.
 
 | # | column | type | P | Google | Microsoft |
 |---|---|---|---|---|---|
