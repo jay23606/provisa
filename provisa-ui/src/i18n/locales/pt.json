@@ -5,7 +5,8 @@
     "save": "Salvar",
     "delete": "Excluir",
     "confirm": "Confirmar",
-    "processing": "Processando..."
+    "processing": "Processando...",
+    "identity": "Identidade"
   },
   "app": {
     "apiUnreachable": "Não foi possível conectar à API do Provisa.",

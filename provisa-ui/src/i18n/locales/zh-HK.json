@@ -5,7 +5,8 @@
     "save": "儲存",
     "delete": "刪除",
     "confirm": "確認",
-    "processing": "處理中..."
+    "processing": "處理中...",
+    "identity": "識別"
   },
   "app": {
     "apiUnreachable": "無法連接 Provisa API。",

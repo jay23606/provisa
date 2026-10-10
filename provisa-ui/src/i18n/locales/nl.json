@@ -5,7 +5,8 @@
     "save": "Opslaan",
     "delete": "Verwijderen",
     "confirm": "Bevestigen",
-    "processing": "Verwerken..."
+    "processing": "Verwerken...",
+    "identity": "Identiteit"
   },
   "app": {
     "apiUnreachable": "Kan de Provisa API niet bereiken.",

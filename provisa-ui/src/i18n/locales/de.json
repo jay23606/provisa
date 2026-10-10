@@ -5,7 +5,8 @@
     "save": "Speichern",
     "delete": "Löschen",
     "confirm": "Bestätigen",
-    "processing": "Wird verarbeitet..."
+    "processing": "Wird verarbeitet...",
+    "identity": "Identität"
   },
   "app": {
     "apiUnreachable": "Die Provisa-API ist nicht erreichbar.",

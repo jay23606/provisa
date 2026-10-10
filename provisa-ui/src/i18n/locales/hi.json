@@ -5,7 +5,8 @@
     "save": "सहेजें",
     "delete": "हटाएँ",
     "confirm": "पुष्टि करें",
-    "processing": "प्रोसेस हो रहा है..."
+    "processing": "प्रोसेस हो रहा है...",
+    "identity": "पहचान"
   },
   "app": {
     "apiUnreachable": "Provisa API तक नहीं पहुँच सके।",

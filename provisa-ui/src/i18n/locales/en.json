@@ -5,7 +5,8 @@
     "save": "Save",
     "delete": "Delete",
     "confirm": "Confirm",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "identity": "Identity"
   },
   "app": {
     "apiUnreachable": "Could not reach the Provisa API.",

@@ -5,7 +5,8 @@
     "save": "Salva",
     "delete": "Elimina",
     "confirm": "Conferma",
-    "processing": "Elaborazione in corso..."
+    "processing": "Elaborazione in corso...",
+    "identity": "Identità"
   },
   "app": {
     "apiUnreachable": "Impossibile raggiungere l'API Provisa.",

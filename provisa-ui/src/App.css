@@ -2211,3 +2211,94 @@ main {
   opacity: 0.45;
   cursor: default;
 }
+
+/* REQ-1968: the shared form layout (components/form/FormLayout.tsx). A wrapping flex row, so the
+ * number of columns follows the container with no breakpoint, and the DOM order is the visual and
+ * keyboard order. A field's cell is at least its class minimum and at least its own label (field
+ * labels do not wrap), so the minimum holds the label in every locale; the control inside is capped
+ * at the class maximum. */
+.form-layout,
+.form-card.form-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+}
+.form-field {
+  flex: 1 1 var(--form-field-min);
+  /* An explicit minimum wins over max-width, so a label longer than the class maximum is held. */
+  min-width: min-content;
+  max-width: var(--form-field-max);
+}
+.form-field--short {
+  --form-field-min: 9rem;
+  --form-field-max: 14rem;
+}
+.form-field--medium {
+  --form-field-min: 14rem;
+  --form-field-max: 24rem;
+}
+.form-field--long {
+  --form-field-min: 24rem;
+  --form-field-max: 40rem;
+}
+.form-field--full {
+  --form-field-min: 100%;
+  --form-field-max: 100%;
+  min-width: 0;
+}
+.form-field .mantine-Input-wrapper,
+.form-field select,
+.form-field input:not([type="checkbox"]):not([type="radio"]) {
+  max-width: var(--form-field-max);
+}
+/* A checkbox or switch has no label above it: sit it on the line of its neighbours' controls. */
+.form-field:has(> .mantine-Checkbox-root, > .mantine-Switch-root) {
+  align-self: flex-end;
+  padding-bottom: 0.4rem;
+}
+/* Field labels stay on one line; a checkbox or switch sentence wraps. Below phone width the
+ * container can be narrower than a label, so there a label may wrap. */
+@media (min-width: 30em) {
+  .form-field:not(.form-field--full) .mantine-InputWrapper-label,
+  .form-field:not(.form-field--full) > label {
+    white-space: nowrap;
+  }
+}
+/* Grouped fields keep their class minimum (or their label) and move to the next line together. */
+.form-field-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.form-field-group > .form-field {
+  flex: 0 0 auto;
+  width: var(--form-field-min);
+}
+.form-identifiers {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.form-identifiers__heading {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* Transitional: a child a form has not wrapped in a FormField yet keeps a row to itself. Goes when
+ * the guard's not-yet-converted list is empty. */
+.form-layout
+  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout) {
+  flex: 1 1 100%;
+}

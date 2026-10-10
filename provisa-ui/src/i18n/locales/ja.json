@@ -5,7 +5,8 @@
     "save": "保存",
     "delete": "削除",
     "confirm": "確認",
-    "processing": "処理中..."
+    "processing": "処理中...",
+    "identity": "識別"
   },
   "app": {
     "apiUnreachable": "Provisa APIに接続できませんでした。",

@@ -5,7 +5,8 @@
     "save": "שמירה",
     "delete": "מחיקה",
     "confirm": "אישור",
-    "processing": "בעיבוד..."
+    "processing": "בעיבוד...",
+    "identity": "זהות"
   },
   "app": {
     "apiUnreachable": "לא ניתן להגיע ל-API של Provisa.",
