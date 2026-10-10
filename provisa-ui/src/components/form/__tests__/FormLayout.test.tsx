@@ -89,6 +89,19 @@ describe("FormLayout", () => {
     expect(inputs).toEqual([screen.getByLabelText("Host"), screen.getByLabelText("Port")]);
   });
 
+  it("gives a list entry a line to itself", () => {
+    render(
+      <FormLayout>
+        <FieldGroup row data-testid="entry">
+          <FormField size="medium">
+            <TextInput label="Role" />
+          </FormField>
+        </FieldGroup>
+      </FormLayout>,
+    );
+    expect(screen.getByTestId("entry")).toHaveClass("form-field-group", "form-field-group--row");
+  });
+
   it("puts a brief explanation below the control, and nothing between label and control", () => {
     render(
       <FormLayout>

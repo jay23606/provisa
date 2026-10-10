@@ -145,11 +145,25 @@ export function FormChecks({ children, ...rest }: HTMLAttributes<HTMLDivElement>
   );
 }
 
-/** Fields that belong together (host and port, precision and scale): they wrap as one. */
-export function FieldGroup({ children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+/**
+ * Fields that belong together (host and port, precision and scale): they wrap as one. With `row`
+ * the group takes a line to itself: one entry of a list the form edits.
+ */
+export function FieldGroup({
+  row = false,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLDivElement> & { row?: boolean }) {
   useInsideFormLayout("FieldGroup");
   return (
-    <div {...rest} className={classes("form-field-group", rest.className)}>
+    <div
+      {...rest}
+      className={classes(
+        "form-field-group",
+        row ? "form-field-group--row" : undefined,
+        rest.className,
+      )}
+    >
       {children}
     </div>
   );

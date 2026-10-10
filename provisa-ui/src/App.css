@@ -2317,6 +2317,14 @@ main {
   flex: 0 1 auto;
   max-width: 100%;
 }
+.form-field-group--row {
+  flex: 1 1 100%;
+}
+/* A titled section of a form, and a layout nested in another, take the full row. */
+.form-section,
+.form-layout > .form-layout {
+  flex: 1 1 100%;
+}
 .form-field-group > .form-field {
   flex: 0 0 auto;
   width: var(--form-field-width);
@@ -2364,7 +2372,7 @@ main {
 /* Transitional: a child a form has not wrapped in a FormField yet keeps a row to itself. Goes when
  * the guard's not-yet-converted list is empty. */
 .form-layout
-  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout):not(.form-checks),
+  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout):not(.form-checks):not(.form-section),
 .form-identifiers > :not(.form-field):not(.form-field-group):not(.form-identifiers__heading) {
   flex: 1 1 100%;
 }
