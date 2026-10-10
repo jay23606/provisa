@@ -28,6 +28,7 @@ import type { Domain, RegisteredTable, TableColumn } from "../../types/admin";
 import { DERIVED_SOURCE_ID } from "../../types/admin";
 import { FieldLabel } from "./FieldLabel";
 import { relationName } from "../../naming";
+import { serverMessage } from "../../i18n/serverMessage";
 
 // REQ-1164: declarative entity/fact modeling. The form collects the spec and the backend lowers it
 // to the underlying MV (+ relationships) — the star dimension/fact or Data Vault hub/satellite/link.
@@ -156,7 +157,7 @@ export function ModelingForm({ domains, onSuccess, onCancel }: ModelingFormProps
         });
       }
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       setCreated({

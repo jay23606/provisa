@@ -28,6 +28,7 @@ import { discoverSourceSchema, fetchIrTypes } from "../api/admin";
 import type { DiscoveredColumn } from "../api/admin";
 import { useRegisterTable, useRoles } from "../hooks/useAdminQueries";
 import { IR_TYPES_FALLBACK, toIrType } from "../irTypes";
+import { refusalError } from "../i18n/serverMessage";
 
 interface ColumnRow {
   selected: boolean;
@@ -280,7 +281,7 @@ export function SchemaDiscovery({
           isPrimaryKey: c.isPrimaryKey || undefined,
         })),
       });
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw refusalError(result);
       onRegistered?.();
       onClose();
     } catch (e) {

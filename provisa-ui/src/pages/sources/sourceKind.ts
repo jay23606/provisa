@@ -26,6 +26,12 @@ export interface SourceKind {
 
 const asked = new Map<string, Promise<SourceKind>>();
 
+/** Forget what was asked, so each kind is asked again (its facts follow the engine the server is
+ * bound to, which a running deployment may change). */
+export function forgetSourceKinds(): void {
+  asked.clear();
+}
+
 /** The kind's facts, asked of the server once per kind. */
 export function sourceKind(kind: string): Promise<SourceKind> {
   let answer = asked.get(kind);

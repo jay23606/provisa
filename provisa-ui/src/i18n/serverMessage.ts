@@ -45,3 +45,10 @@ export function requestFailed(op: string, status: number | string): string {
   if (!i18n.isInitialized) return `${op} failed (${status})`;
   return i18n.t("serverErrors._requestFailed", { op, status });
 }
+
+/** The Error to throw for a mutation the server refused: its message is the refusal as the
+ * reader's language words it (by code and params), and the server's own text only where this
+ * build of the UI has no wording for the code. */
+export function refusalError(result: ServerMessageShape): Error {
+  return new Error(serverMessage(result, result.message ?? ""));
+}

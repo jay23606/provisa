@@ -33,6 +33,7 @@ import type { CalendarSummary } from "../../hooks/useAdminQueries";
 import { IANA_TIME_ZONES } from "./constants";
 import { FieldLabel } from "./FieldLabel";
 import { presetHolidays, type HolidayPreset } from "./holidayPresets";
+import { serverMessage } from "../../i18n/serverMessage";
 
 // Localized month names for the fiscal-anchor picker (value = 1..12), no per-month i18n keys needed.
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
@@ -115,7 +116,7 @@ export function CalendarCreateModal({
     const result = (res.data as { createCalendar?: { success: boolean; message: string } } | null)
       ?.createCalendar;
     if (result && !result.success) {
-      setError(result.message);
+      setError(serverMessage(result, result.message));
       return;
     }
     onCreated?.(name);
@@ -128,7 +129,7 @@ export function CalendarCreateModal({
     const result = (res.data as { deleteCalendar?: { success: boolean; message: string } } | null)
       ?.deleteCalendar;
     if (result && !result.success) {
-      setError(result.message); // e.g. "in use by N materialized view(s)"
+      setError(serverMessage(result, result.message)); // e.g. "in use by N materialized view(s)"
       return;
     }
     onDeleted?.(name);

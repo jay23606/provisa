@@ -80,7 +80,7 @@ import { TableEditForm } from "./tables/TableEditForm";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { roleTtlValid, tableTtlSignalError } from "./tables/roleTtl";
 import { declaredPaging, pagingChanged, pagingProblem } from "./tables/paging";
-import { serverMessage } from "../i18n/serverMessage";
+import { refusalError, serverMessage } from "../i18n/serverMessage";
 import {
   replicateContradictsLoadProtection,
   resolvedReplicate,
@@ -341,7 +341,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       const ttlValue = edit.value.trim() === "" ? null : parseInt(edit.value, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const result = await updateTableCache(tableId, ttlValue);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw refusalError(result);
       setCacheTtlEdits((prev) => ({
         ...prev,
         [tableId]: { ...prev[tableId], dirty: false, saving: false },
@@ -358,7 +358,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     setError(null);
     try {
       const result = await purgeCacheByTable(tableId);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw refusalError(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -373,7 +373,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     setError(null);
     try {
       const result = await forceRegen(table.id, regenReason);
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw refusalError(result);
       setRegenQueued(
         translate("tablesPage.runNowQueued", {
           table: `${table.schemaName}.${table.tableName}`,
@@ -424,7 +424,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       const name = tables.find((tbl) => tbl.id === id)?.tableName ?? String(id);
       if (refusal.refused(result, name)) return;
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       reload();
@@ -583,7 +583,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     try {
       const result = await updateTable(buildTableUpdateInput(editingTable));
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       if (hidingOnly) {
@@ -601,7 +601,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         _namingVal === "" ? null : _namingVal,
       );
       if (!namingResult.success) {
-        setError(namingResult.message);
+        setError(serverMessage(namingResult, namingResult.message));
         return;
       }
       const ttlEdit = cacheTtlEdits[editingTable.id];
@@ -614,7 +614,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       if (roleTtlChanged) {
         const roleTtlResult = await updateTableRoleTtl(editingTable.id, editingTable.roleTtl);
         if (!roleTtlResult.success) {
-          setError(roleTtlResult.message);
+          setError(serverMessage(roleTtlResult, roleTtlResult.message));
           return;
         }
       }
@@ -670,7 +670,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       for (const save of saves) {
         const saved = await save();
         if (!saved.success) {
-          setError(saved.message);
+          setError(serverMessage(saved, saved.message));
           return;
         }
       }

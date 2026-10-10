@@ -50,7 +50,7 @@ import { schemasForSubjects, subjectsOfSchemas } from "./sources/govdataSubjects
 import { useAuth } from "../context/AuthContext";
 import { SchemaDiscovery } from "../components/SchemaDiscovery";
 import { TagControl } from "../components/TagControl";
-import { serverMessage, requestFailed } from "../i18n/serverMessage";
+import { refusalError, requestFailed, serverMessage } from "../i18n/serverMessage";
 import { TableMappingBuilder } from "../components/TableMappingBuilder";
 import type { TableMapping } from "../components/TableMappingBuilder";
 import type { Source } from "../types/admin";
@@ -85,7 +85,7 @@ import { cloudopsFieldsFromMapping, cloudopsMappingJson } from "./sources/cloudo
 import { GOOGLE_WORKSPACE, gwFieldsFromMapping, gwMapping } from "./sources/googleWorkspace";
 import { MICROSOFT_365, m365FieldsFromMapping, m365Mapping } from "./sources/microsoft365";
 import { WIKIPEDIA, wikipediaFieldsFromHints, wikipediaHints } from "./sources/wikipedia";
-import { sourceLoadFieldsValid } from "./sources/loadManagement";
+import { sourceFormCacheTtl, sourceLoadFieldsValid } from "./sources/loadManagement";
 import { useCacheTtlRequired } from "./sources/sourceKind";
 import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
@@ -1040,7 +1040,7 @@ export function SourcesPage() {
         // The Cache TTL goes with it: the server judges the source's change signal against the TTL
         // in THIS input, so a source whose tables always land (a mail source) was refused at the
         // save although its TTL was filled in — it used to travel only in the call that follows.
-        cacheTtl: _ct.trim() === "" ? null : Number(_ct),
+        cacheTtl: sourceFormCacheTtl(_ct),
         sentinelPath: coreForm.sentinelPath.trim() || null,
         maxLiveConcurrency:
           coreForm.maxLiveConcurrency.trim() === "" ? null : Number(coreForm.maxLiveConcurrency),
@@ -1097,20 +1097,20 @@ export function SourcesPage() {
         const effectiveId = form.id.trim() || editingSourceId;
         if (effectiveId !== editingSourceId) {
           const renameResult = await renameSource(editingSourceId, effectiveId);
-          if (!renameResult.success) throw new Error(renameResult.message);
+          if (!renameResult.success) throw refusalError(renameResult);
         }
         const result = await updateSource({ ...sourcePayload, id: effectiveId });
-        if (!result.success) throw new Error(result.message);
+        if (!result.success) throw refusalError(result);
         const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
         if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
         const cacheResult = await updateSourceCache(effectiveId, form.cacheEnabled, ttlValue);
-        if (!cacheResult.success) throw new Error(cacheResult.message);
+        if (!cacheResult.success) throw refusalError(cacheResult);
         // REQ-826: the server refuses load protection with Replicate = Never, judged against what
         // is stored at each save. Turning load protection off goes first, so a following Never is
         // accepted; turning it on goes last, after the Replicate value it is compatible with.
         const saveReplicate = async () => {
           const replicateResult = await updateSourceReplicate(effectiveId, form.replicate);
-          if (!replicateResult.success) throw new Error(replicateResult.message);
+          if (!replicateResult.success) throw refusalError(replicateResult);
         };
         const saveLoadProtection = async () => {
           const loadProtResult = await updateSourceLoadProtection(
@@ -1119,7 +1119,7 @@ export function SourcesPage() {
             form.offPeakWindow.trim() || null,
             form.offPeakTz.trim() || "UTC",
           );
-          if (!loadProtResult.success) throw new Error(loadProtResult.message);
+          if (!loadProtResult.success) throw refusalError(loadProtResult);
         };
         if (form.loadProtected) {
           await saveReplicate();
@@ -1132,19 +1132,19 @@ export function SourcesPage() {
           effectiveId,
           form.gqlNamingConvention === "" ? null : form.gqlNamingConvention,
         );
-        if (!namingResult.success) throw new Error(namingResult.message);
+        if (!namingResult.success) throw refusalError(namingResult);
         // REQ-1921: the region its new tables start in, saved on its own when it changed.
         const savedRegion = sources.find((s) => s.id === effectiveId)?.region ?? null;
         if (form.region !== savedRegion) {
           const regionResult = await setSourceRegion(effectiveId, form.region);
-          if (!regionResult.success) throw new Error(regionResult.message);
+          if (!regionResult.success) throw refusalError(regionResult);
         }
         const parsedDomains = form.allowedDomains
           .split(",")
           .map((d) => d.trim())
           .filter(Boolean);
         const domainsResult = await updateSourceAllowedDomains(effectiveId, parsedDomains);
-        if (!domainsResult.success) throw new Error(domainsResult.message);
+        if (!domainsResult.success) throw refusalError(domainsResult);
       } else {
         const { allowedDomains: _ad, ...createPayload } = sourcePayload as typeof sourcePayload & {
           allowedDomains?: unknown;
@@ -1153,17 +1153,17 @@ export function SourcesPage() {
         const createResult = await createSource(
           createPayload as Parameters<typeof createSource>[0],
         );
-        if (!createResult.success) throw new Error(createResult.message);
+        if (!createResult.success) throw refusalError(createResult);
         // REQ-1907: the cache and Replicate settings offered at create are saved with it.
         const createTtl = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
         if (createTtl !== null && isNaN(createTtl)) throw new Error("TTL must be a number");
         const createCache = await updateSourceCache(form.id, form.cacheEnabled, createTtl);
-        if (!createCache.success) throw new Error(createCache.message);
+        if (!createCache.success) throw refusalError(createCache);
         const createReplicate = await updateSourceReplicate(form.id, form.replicate);
-        if (!createReplicate.success) throw new Error(createReplicate.message);
+        if (!createReplicate.success) throw refusalError(createReplicate);
         if (form.region !== null) {
           const createRegion = await setSourceRegion(form.id, form.region); // REQ-1921
-          if (!createRegion.success) throw new Error(createRegion.message);
+          if (!createRegion.success) throw refusalError(createRegion);
         }
         if (form.loadProtected) {
           const lp = await updateSourceLoadProtection(
@@ -1172,7 +1172,7 @@ export function SourcesPage() {
             form.offPeakWindow.trim() || null,
             form.offPeakTz.trim() || "UTC",
           );
-          if (!lp.success) throw new Error(lp.message);
+          if (!lp.success) throw refusalError(lp);
         }
         const parsedDomainsCreate = form.allowedDomains
           .split(",")
@@ -1180,7 +1180,7 @@ export function SourcesPage() {
           .filter(Boolean);
         if (parsedDomainsCreate.length > 0) {
           const domainsResult = await updateSourceAllowedDomains(form.id, parsedDomainsCreate);
-          if (!domainsResult.success) throw new Error(domainsResult.message);
+          if (!domainsResult.success) throw refusalError(domainsResult);
         }
       }
       handleCancelForm();
@@ -1315,7 +1315,7 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
       handleCancelForm();
       load();
     } catch (err) {
@@ -1359,7 +1359,7 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
       handleCancelForm();
       load();
     } catch (err) {
@@ -1405,20 +1405,20 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
       const loadProtResult = await updateSourceLoadProtection(
         form.id,
         form.loadProtected,
         form.offPeakWindow.trim() || null,
         form.offPeakTz.trim() || "UTC",
       );
-      if (!loadProtResult.success) throw new Error(loadProtResult.message);
+      if (!loadProtResult.success) throw refusalError(loadProtResult);
       const parsedDomains = form.allowedDomains
         .split(",")
         .map((d) => d.trim())
         .filter(Boolean);
       const domainsResult = await updateSourceAllowedDomains(form.id, parsedDomains);
-      if (!domainsResult.success) throw new Error(domainsResult.message);
+      if (!domainsResult.success) throw refusalError(domainsResult);
       handleCancelForm();
       load();
     } catch (err) {

@@ -60,6 +60,7 @@ import {
 } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { relationName } from "../naming";
+import { serverMessage } from "../i18n/serverMessage";
 
 /** A role may be saved once it lists a domain — its own, or one a parent role hands down. */
 function listsADomain(form: { domainAccess: string[]; parentRoleId: string }): boolean {
@@ -163,7 +164,7 @@ export function SecurityRolesPage() {
           : [],
       });
       if (!res.success) {
-        setError(res.message);
+        setError(serverMessage(res, res.message));
         return;
       }
       setShowRoleForm(false);
@@ -184,7 +185,7 @@ export function SecurityRolesPage() {
       const result = await deleteRole(id);
       if (refusal.refused(result, id)) return;
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       if (expandedRole === id) setExpandedRole(null);
@@ -637,7 +638,7 @@ export function SecurityRlsPage() {
         filterExpr: ruleForm.filterExpr,
       });
       if (!res.success) {
-        setError(res.message);
+        setError(serverMessage(res, res.message));
         return;
       }
       setShowRuleForm(false);

@@ -57,6 +57,7 @@ import {
 } from "../../components/form/FormLayout";
 import { useSourceKind } from "../sources/sourceKind";
 import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
+import { serverMessage } from "../../i18n/serverMessage";
 
 // REQ-1663: a checker table's results land under this schema, the same one the shipped demo uses
 // (config/provisa-install.yaml `schema: quality`). It is the schema of record only when domains are
@@ -547,7 +548,7 @@ export function RegisterTableForm({
           .map((u) => ({ name: u.name.trim(), columns: u.columns })),
       });
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       // A table registered into a domain the filter has not seen (one with no tables until now)
@@ -635,7 +636,7 @@ export function RegisterTableForm({
         dqContract,
       });
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       // A table registered into a domain the filter has not seen (one with no tables until now)
