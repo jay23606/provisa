@@ -42,6 +42,7 @@ import {
 } from "../../api/billing";
 import { useCheckoutAppearance } from "../../api/checkoutAppearance";
 import { formatMoney, planName } from "../../lib/planDisplay";
+import { FormFooter } from "../form/FormLayout";
 
 const GIB = 1024 ** 3;
 
@@ -199,6 +200,7 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
                   {!current && (
                     <Button
                       variant="light"
+                      style={{ alignSelf: "flex-start" }}
                       onClick={() => setTarget(offer)}
                       data-testid={`billing-choose-${offer.plan}`}
                     >
@@ -242,14 +244,15 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
                 </Text>
               </Group>
             )}
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setTarget(null)} disabled={changing}>
-                Cancel
-              </Button>
-              <Button onClick={confirm} loading={changing} data-testid="billing-plan-confirm">
-                Change plan
-              </Button>
-            </Group>
+            <FormFooter
+              onCancel={() => setTarget(null)}
+              cancelProps={{ disabled: changing }}
+              action={
+                <Button onClick={confirm} loading={changing} data-testid="billing-plan-confirm">
+                  Change plan
+                </Button>
+              }
+            />
           </Stack>
         )}
       </Modal>
