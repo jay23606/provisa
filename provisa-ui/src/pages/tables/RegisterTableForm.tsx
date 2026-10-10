@@ -1053,7 +1053,8 @@ export function RegisterTableForm({
           </FormField>
         )}
       </FormChecks>
-      {!isChecker && (
+      {/* The heading shows once there is something under it: columns, or their loading. */}
+      {!isChecker && (columns.length > 0 || loadingColumns) && (
         <FormField size="full">
           <Stack gap="xs">
             <Text fw={600} fz="sm">
