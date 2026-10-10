@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy import select
 
 from provisa.api.admin._landing_ttl import SourceTtl, TableTtl
-from provisa.api.admin.types import ColumnInput, SourceInput, TableInput
+from provisa.api.admin.types import ColumnInput, MutationResult, SourceInput, TableInput
 from provisa.core.database import Database, create_engine_from_url
 from provisa.core.schema_org import registered_tables, roles, sources, table_columns
 
@@ -428,6 +428,76 @@ async def test_register_table_refuses_inheriting_a_ttl_signal_with_no_cache_ttl(
             result = await ops.register_table(MagicMock(), _table_input(table_name="payments"))
         assert result.success is False and result.code == "schema.landing_ttl_required"
         assert "payments" in result.message
+
+
+@pytest.mark.asyncio
+async def test_register_table_takes_the_cache_ttl_the_registration_states(tmp_path):
+    """The same table that is refused for want of a clock passes the landing check when the
+    registration states its own (#208); a negative one is refused by name."""
+    from provisa.api.admin import schema_mutation_ops as ops
+    from provisa.core.models import Column
+
+    async with _db(tmp_path, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
+        judged: list[TableTtl] = []
+
+        async def judge(conn, source_id, *, table=None, **kw):
+            judged.append(table)
+            return MutationResult(success=False, message="stop here", code="test.stop")
+
+        with (
+            patch.object(ops, "_get_pool", new=AsyncMock(return_value=_Pool(db))),
+            patch("provisa.api.admin.capabilities.require_capability", return_value=None),
+            patch.object(
+                ops,
+                "_build_columns_for_input",
+                new=AsyncMock(
+                    return_value=(
+                        [Column(name="id", data_type="integer", visible_to=["analyst"])],
+                        None,
+                    )
+                ),
+            ),
+        ):
+            negative = await ops.register_table(
+                MagicMock(), _table_input(table_name="payments", cache_ttl=-1)
+            )
+            with patch("provisa.api.admin._landing_ttl.landing_ttl_refusal", new=judge):
+                await ops.register_table(
+                    MagicMock(), _table_input(table_name="payments", cache_ttl=120)
+                )
+        assert negative.success is False and negative.code == "schema.invalid_cache_ttl"
+        # The landing check judged the table with the clock the registration stated ...
+        assert [t.cache_ttl for t in judged] == [120]
+        async with db.acquire() as conn:
+            # ... and that clock satisfies it.
+            assert await landing_ttl_refusal_of(conn, judged[0]) is None
+
+
+async def landing_ttl_refusal_of(conn, table):
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    return await landing_ttl_refusal(conn, "s", table=table)
+
+
+def test_the_registration_input_carries_a_cache_ttl():
+    assert _table_input().cache_ttl is None
+    assert _table_input(cache_ttl=120).cache_ttl == 120
+
+
+@pytest.mark.asyncio
+async def test_the_form_is_told_whether_a_kinds_tables_land(monkeypatch):
+    import provisa.api.app as appmod
+    from provisa.api.admin import source_kinds_router as kinds
+    from provisa.federation.engine import build_engine
+
+    monkeypatch.setattr(kinds, "require_capability_request", lambda request, capability: None)
+    monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
+    # DuckDB attaches postgresql and reads it in place; it has no connector for these.
+    assert (await kinds.source_kind(None, "postgresql"))["tables_land"] is False
+    for kind in ("elasticsearch", "redis", "microsoft_365"):
+        assert (await kinds.source_kind(None, kind))["tables_land"] is True, kind
+    # A kind that owns no replica is read where it is written.
+    assert (await kinds.source_kind(None, "ingest"))["tables_land"] is False
 
 
 @pytest.mark.asyncio

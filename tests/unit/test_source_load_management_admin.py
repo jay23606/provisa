@@ -151,17 +151,16 @@ def test_a_sentinel_path_on_a_kind_that_cannot_have_one_is_refused_by_name(kind,
 
 
 async def test_the_form_is_told_whether_a_kind_can_have_a_sentinel(monkeypatch):
+    import provisa.api.app as appmod
     from provisa.api.admin import source_kinds_router as kinds
+    from provisa.federation.engine import build_engine
 
     monkeypatch.setattr(kinds, "require_capability_request", lambda request, capability: None)
-    assert await kinds.source_kind(None, "microsoft_365") == {
-        "cache_ttl_required": True,
-        "sentinel_path": False,
-    }
-    assert await kinds.source_kind(None, "postgresql") == {
-        "cache_ttl_required": False,
-        "sentinel_path": True,
-    }
+    monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
+    mail = await kinds.source_kind(None, "microsoft_365")
+    assert (mail["cache_ttl_required"], mail["sentinel_path"]) == (True, False)
+    database = await kinds.source_kind(None, "postgresql")
+    assert (database["cache_ttl_required"], database["sentinel_path"]) == (False, True)
 
 
 # --- a probing signal on a source whose kind cannot yet be checked for changes ---

@@ -283,6 +283,17 @@ async def register_table(
         model = _table_model_from_input(input, columns, presets, alias)
     except ValueError as _map_err:  # REQ-1318: view_sql+view_metrics conflict / invalid spec
         return MutationResult(success=False, message=str(_map_err))
+    # REQ-1907: a table that lands needs its clock to be registered at all, so the registration
+    # may state the table's own cache_ttl (#208). Afterwards updateTableCache changes it.
+    if input.cache_ttl is not None:
+        if input.cache_ttl < 0:
+            return MutationResult(
+                success=False,
+                message="cache_ttl must be 0 or more seconds",
+                code="schema.invalid_cache_ttl",
+                params={"table": input.table_name},
+            )
+        model.cache_ttl = input.cache_ttl
     from provisa.api.app import state as _reg_state
 
     if _reg_state.source_types.get(input.source_id) in ("ingest", "data_profiler"):  # REQ-1771/1934

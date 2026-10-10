@@ -184,6 +184,16 @@ def _engine_reads_in_place(source_type: str | None) -> bool:
     return engine_attaches(state.federation_engine, source_type)
 
 
+def kind_lands(source_type: str) -> bool:
+    """Whether every table of a source of ``source_type`` is served from a replica here: the
+    bound engine cannot read the kind in place, and the kind owns a replica at all. Such a
+    table needs a landing cache_ttl, its own or its source's, to be registered under a ttl
+    signal -- the judgment :func:`landing_ttl_refusal` makes at the save."""
+    from provisa.federation.replica_routing import NO_REPLICA_TYPES
+
+    return source_type not in NO_REPLICA_TYPES and not _engine_reads_in_place(source_type)
+
+
 def source_states_the_clock(source_type: str | None) -> bool:
     """Whether a source of ``source_type`` must state the landing cache_ttl itself, rather than
     leave it to each table. True for the mail kinds (every declared mail platform): their tables

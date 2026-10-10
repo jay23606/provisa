@@ -10,14 +10,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ColumnsTable } from "./ColumnsTable";
+import { QueryPreviewRows } from "./QueryPreviewRows";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { useTranslation } from "react-i18next";
 import {
   Button,
   Checkbox,
+  NumberInput,
   Select,
   Stack,
-  Table,
   Text,
   TextInput,
   Textarea,
@@ -54,6 +55,8 @@ import {
   FormIdentifiers,
   FormLayout,
 } from "../../components/form/FormLayout";
+import { useSourceKind } from "../sources/sourceKind";
+import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 
 // REQ-1663: a checker table's results land under this schema, the same one the shipped demo uses
 // (config/provisa-install.yaml `schema: quality`). It is the schema of record only when domains are
@@ -127,6 +130,9 @@ export function RegisterTableForm({
   const [columns, setColumns] = useState<ColumnForm[]>([]);
   const [uniqueConstraints, setUniqueConstraints] = useState<UniqueConstraint[]>([]); // REQ-1093
   const [watermarkColumn, setWatermarkColumn] = useState<string>("");
+  // REQ-1907 (#208): the table's own Cache TTL, asked for when the table will be a replica and
+  // its source states none -- without one the registration is refused.
+  const [cacheTtl, setCacheTtl] = useState<string>("");
   const [fileGlob, setFileGlob] = useState(""); // REQ-788
   const [sourceFileColumn, setSourceFileColumn] = useState(""); // REQ-788
   const [discover, setDiscover] = useState(false); // REQ-252: infer columns from the live source
@@ -154,6 +160,13 @@ export function RegisterTableForm({
 
   const sourceType = sources.find((s) => s.id === sourceId)?.type?.toLowerCase() ?? "";
   const isChecker = (DQ_CHECKERS as readonly string[]).includes(sourceType);
+  const chosenSource = sources.find((s) => s.id === sourceId);
+  // The server says whether a table of this kind is served from a replica under the engine
+  // bound here; then a ttl signal with no Cache TTL on the source needs one on the table.
+  const needsCacheTtl =
+    useSourceKind(sourceType)?.tables_land === true &&
+    chosenSource !== undefined &&
+    ttlSignalMissingCacheTtl(chosenSource.changeSignal, chosenSource.cacheTtl, true);
   // REQ-1934: a Data Profiler source's tables are the result relations it produces per member;
   // its catalog lists them, so the source is never introspected.
   const isProfiler = sourceType === "data_profiler";
@@ -497,6 +510,10 @@ export function RegisterTableForm({
       setError(t("tableEditForm.pagingFixErrors"));
       return;
     }
+    if (needsCacheTtl && cacheTtl.trim() === "") {
+      setError(t("registerTableForm.errorCacheTtlRequired"));
+      return;
+    }
     try {
       const result = await registerTable({
         sourceId,
@@ -512,6 +529,7 @@ export function RegisterTableForm({
         alias: tableAlias || undefined,
         description: tableDescription || undefined,
         watermarkColumn: isQueryApi ? null : watermarkColumn || null,
+        cacheTtl: needsCacheTtl && cacheTtl.trim() !== "" ? Number(cacheTtl) : undefined,
         discover: isQueryApi ? false : discover, // REQ-252
         queryTemplate: isQueryApi ? cypher.trim() : undefined, // REQ-1670/REQ-1683
         fileGlob: isFilesSource && fileGlob.trim() ? fileGlob.trim() : undefined, // REQ-788
@@ -572,6 +590,7 @@ export function RegisterTableForm({
     setCypher("");
     setPreviewRows([]);
     setWatermarkColumn("");
+    setCacheTtl("");
     setDiscover(false);
     setDqContract("");
     setDqScanned(null);
@@ -834,6 +853,19 @@ export function RegisterTableForm({
           />
         </FormField>
       </FormIdentifiers>
+      {needsCacheTtl && (
+        <FormField size="short">
+          <NumberInput
+            data-testid="register-table-cache-ttl"
+            label={t("registerTableForm.cacheTtlLabel")}
+            description={t("registerTableForm.cacheTtlHint")}
+            min={0}
+            required
+            value={cacheTtl === "" ? "" : Number(cacheTtl)}
+            onChange={(v) => setCacheTtl(v === "" ? "" : String(v))}
+          />
+        </FormField>
+      )}
       {sourceId && (
         <FormField size="medium">
           <RegionSelect
@@ -917,31 +949,7 @@ export function RegisterTableForm({
           </FormField>
           {previewRows.length > 0 && (
             <FormField size="full">
-              <Stack gap="xs">
-                <Text fw={600} fz="sm">
-                  {t("registerTableForm.neo4jPreviewRows", { count: previewRows.length })}
-                </Text>
-                <Table.ScrollContainer minWidth={400}>
-                  <Table striped withTableBorder verticalSpacing="xs" fz="xs">
-                    <Table.Thead>
-                      <Table.Tr>
-                        {columns.map((c) => (
-                          <Table.Th key={c.name}>{c.name}</Table.Th>
-                        ))}
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody data-testid={`register-table-${sourceType}-preview-rows`}>
-                      {previewRows.map((row, i) => (
-                        <Table.Tr key={i}>
-                          {columns.map((c) => (
-                            <Table.Td key={c.name}>{String(row[c.name] ?? "")}</Table.Td>
-                          ))}
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
-              </Stack>
+              <QueryPreviewRows rows={previewRows} columns={columns} sourceType={sourceType} />
             </FormField>
           )}
         </>

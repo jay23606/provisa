@@ -5503,5 +5503,8 @@
   "regionSelector.json::regionSelector.noRegion": "No region",
   "tablesPage.json::tablesPage.modelingRole.impliedDimensionTitle": "Implied dimension — Enable Group By is on for this table",
   "tablesPage.json::tablesPage.modelingRole.impliedFactTitle": "Implied fact — Enable Aggregates is on for this table",
-  "pt.json::common.identity": "Identity"
+  "pt.json::common.identity": "Identity",
+  "pt/registerTableForm.json::registerTableForm.cacheTtlHint": "This table will be a replica, refreshed on this clock. Its source states no Cache TTL, so the table states its own.",
+  "pt/registerTableForm.json::registerTableForm.cacheTtlLabel": "Cache TTL (seconds)",
+  "pt/registerTableForm.json::registerTableForm.errorCacheTtlRequired": "Set a Cache TTL: this table will be a replica, and its source states none."
 }

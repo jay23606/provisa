@@ -965,6 +965,9 @@ class TableInput:  # REQ-013, REQ-016, REQ-133, REQ-135, REQ-252
     off_peak_window: str | None = None  # REQ-1141: per-table "HH:MM-HH:MM" window override
     off_peak_tz: str | None = None  # REQ-1141: per-table window zone override
     change_signal: str | None = None  # REQ-929: override source change signal; None = inherit
+    # REQ-1907: the table's own landing cache_ttl, stated when it is registered. A table that
+    # already has one keeps it (updateTableCache is what changes it); None = the source's.
+    cache_ttl: int | None = None
     probe_query: str | None = None  # REQ-929: source-native freshness probe
     probe_type: str | None = None  # REQ-982: input-probe method; None = resolve per source class
     materialize: bool = False
