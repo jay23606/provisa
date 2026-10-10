@@ -155,7 +155,7 @@ def signed_in(monkeypatch):
 
     monkeypatch.setattr(mail_platforms, "require", require)
     monkeypatch.setattr(oauth_grants, "exchange_refresh_token", exchange_refresh_token)
-    monkeypatch.setattr(mail_platforms, "resolved", resolved)
+    monkeypatch.setattr(mail_platforms, "credential", resolved)
     monkeypatch.setattr(secrets_store, "bound", bound)
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
     return calls

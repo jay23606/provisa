@@ -131,29 +131,34 @@ CLIENT_SECRET = "client_secret"
 ORGANISATION_KEY = "organisation_key"
 
 
-async def resolved(
-    admin_db: "Database", org_id: str, platform_id: str, field: str, value: str | None
-) -> str:
-    """``org_id``'s ``field`` of its ``platform_id`` entry, ready to use: ``value`` as the
-    administrator entered it, with a ``${secret:NAME}`` / ``${env:NAME}`` reference they typed
-    resolved by the product's one resolver (``core.secrets.resolve_secrets``) -- IN THAT
-    ORGANISATION'S vault. A value that is no reference is used as it is.
+async def resolved(admin_db: "Database", org_id: str, value: str) -> str:
+    """``value`` as entered for ``org_id`` -- a value, or a ``${secret:NAME}`` / ``${env:NAME}``
+    reference its operator typed -- resolved by the product's one resolver
+    (``core.secrets.resolve_secrets``) IN THAT ORGANISATION'S vault. A value that is no
+    reference is used as it is.
 
     The vault is bound here, for this read alone, and never taken from the caller: a reader of a
     mail source is reached from a replica build, a check for changes and a preview, and those
     bind a vault only for a source whose own fields name a secret -- a source of the
     organisation's mailboxes names none. A caller's own binding, whoever's it is, is put back
-    when the read ends, so an entry is never resolved in another organisation's vault.
-
-    Refused by the field's name when nothing was entered for it, or when what was entered
-    cannot be resolved; the reason is the resolver's own."""
+    when the read ends, so nothing is resolved in another organisation's vault."""
     from provisa.core.secrets import resolve_secrets
 
+    async with secrets_store.bound(admin_db, org_id):
+        return resolve_secrets(value)
+
+
+async def credential(
+    admin_db: "Database", org_id: str, platform_id: str, field: str, value: str | None
+) -> str:
+    """``org_id``'s ``field`` of its ``platform_id`` entry, ready to use (:func:`resolved`).
+    Refused by the field's name when nothing was entered for it, or when what was entered
+    cannot be resolved; the reason is the resolver's own, which names only a reference the
+    administrator typed."""
     if not value:
         raise _not_configured(platform_id)
     try:
-        async with secrets_store.bound(admin_db, org_id):
-            return resolve_secrets(value)
+        return await resolved(admin_db, org_id, value)
     except (KeyError, ValueError) as unresolved:
         reason = unresolved.args[0] if unresolved.args else type(unresolved).__name__
         raise MailPlatformRefused(

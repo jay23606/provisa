@@ -290,7 +290,7 @@ async def _exchange(admin_db: "Database", kind: SignInKind, pending: dict, code:
     # The organisation's entry as it stands now: its client secret as its administrator entered
     # it, resolved in that organisation's vault.
     entry = await mail_platforms.require(admin_db, pending["org_id"], kind.id)
-    client_secret = await mail_platforms.resolved(
+    client_secret = await mail_platforms.credential(
         admin_db, pending["org_id"], kind.id, mail_platforms.CLIENT_SECRET, entry.client_secret
     )
     form = {

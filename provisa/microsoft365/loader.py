@@ -524,7 +524,7 @@ async def organisation_token(admin_db: Any, org_id: str) -> Callable[[], str]:
         m365.token_url(client.settings.get("tenant")),
         client.client,
         # In the entry's own organisation's vault, whatever the caller has bound.
-        await mail_platforms.resolved(
+        await mail_platforms.credential(
             admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, client.client_secret
         ),
     )
@@ -589,7 +589,7 @@ def make_connect(state: Any) -> Connect:
         # Resolved here, in the entry's own organisation's vault whatever the caller has bound
         # (a replica build binds one only for a source whose own fields name a secret): the
         # exchange runs in a worker thread, which holds none.
-        client_secret = await mail_platforms.resolved(
+        client_secret = await mail_platforms.credential(
             state.admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, client.client_secret
         )
         assert settings.account is not None  # the one-mailbox shape names it (settings.parse)

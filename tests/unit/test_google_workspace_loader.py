@@ -365,10 +365,13 @@ class TestTheSourceKind:
         assert SourceType(SOURCE_TYPE) is SourceType.google_workspace
         assert SOURCE_TYPE in _ADAPTER_FETCH_ONLY and SOURCE_TYPE in _MATERIALIZE_ONLY
 
-    async def test_its_credentials_are_the_ones_kept_in_the_vault(self):
-        from provisa.api.admin.schema_common import SOURCE_MAPPING_SECRET_KEYS
+    async def test_its_credential_is_a_field_of_the_source_kept_as_typed(self):
+        """The owner's approval is the source's own ``refresh_token`` field; nothing lists
+        it for a vault, and no name is made up for it."""
+        from provisa.api.admin import schema_common
 
-        assert SOURCE_MAPPING_SECRET_KEYS[SOURCE_TYPE] == SECRET_KEYS
+        assert SECRET_KEYS == ("refresh_token",)
+        assert not hasattr(schema_common, "SOURCE_MAPPING_SECRET_KEYS")
 
     async def test_settings_that_cannot_be_a_source_are_refused_in_the_setups_terms(self):
         import json
@@ -449,7 +452,10 @@ class TestTheLoader:
 
         async def require(admin_db, org_id, platform_id):
             asked.append((admin_db, org_id, platform_id))
-            return Configured(platform_id, "org-client-1", {})
+            # The client's secret as its administrator entered it: here a reference they typed.
+            return Configured(
+                platform_id, "org-client-1", {}, client_secret="${secret:the_admins_own_name}"
+            )
 
         monkeypatch.setattr(mail_platforms, "require", require)
         monkeypatch.setattr(
@@ -475,7 +481,7 @@ class TestTheLoader:
         assert await reading.token(ACCOUNT) == "made-up-access-token"
         auth = read["auth"]
         assert auth.client_id == "org-client-1"
-        assert auth.client_secret == "resolved:mail_platform_google_workspace_client_secret"
+        assert auth.client_secret == "resolved:the_admins_own_name"  # theirs, resolved
         assert auth.refresh_token == "resolved:source_mail__refresh_token"
 
     async def test_a_replicas_build_notes_the_messages_kept_without_text(self, read, monkeypatch):

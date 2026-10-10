@@ -117,11 +117,11 @@ class TestAccounts:
 
 class TestSignIn:
     def test_a_person_signs_in_with_their_approval_of_the_organisations_client(self):
-        client = Configured("google_workspace", "org-client-1", {})
+        client = Configured("google_workspace", "org-client-1", {}, client_secret="as-entered")
         auth = parse(_person()).auth("ada@example.test", client)
         assert auth == ApiAuthOAuth2RefreshToken(
             client_id="org-client-1",
-            client_secret="${secret:mail_platform_google_workspace_client_secret}",
+            client_secret="as-entered",  # the entry's field as its administrator entered it
             refresh_token="${secret:gw_refresh_token}",
             token_url="https://oauth2.googleapis.com/token",
         )
@@ -131,7 +131,7 @@ class TestSignIn:
         assert said == "client_id, client_secret is not a setting of a Google Workspace source"
 
     def test_an_account_the_source_does_not_name_is_not_signed_in(self):
-        client = Configured("google_workspace", "org-client-1", {})
+        client = Configured("google_workspace", "org-client-1", {}, client_secret="as-entered")
         with pytest.raises(
             InvalidGoogleWorkspaceSource, match="bo@example.test is not the mailbox"
         ):

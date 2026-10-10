@@ -114,7 +114,7 @@ def vault(monkeypatch):
 
     monkeypatch.setattr(secrets_store, "_cipher", lambda *, mint: _Sealer())
     monkeypatch.setattr(mail_platforms, "require", require)
-    monkeypatch.setattr(mail_platforms, "resolved", resolved)
+    monkeypatch.setattr(mail_platforms, "credential", resolved)
     return written
 
 
