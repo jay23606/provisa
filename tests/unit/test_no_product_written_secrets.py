@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: a6eddc9f-5944-431b-b665-0e1090e4617d
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """The product never makes up a secret's name and never writes an operator's vault.
 
 A credential field holds exactly what the operator entered -- a value, or a ``${secret:NAME}``
