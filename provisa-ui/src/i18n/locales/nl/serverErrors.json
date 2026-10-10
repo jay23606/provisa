@@ -488,7 +488,8 @@
       "unknown": "Er bestaat geen e-mailplatform met de naam {{platform}}.",
       "not_configured": "Uw organisatie heeft dit e-mailplatform ({{platform}}) nog niet gekoppeld. Een beheerder vult de client één keer in onder Beheer › E-mail.",
       "unknown_setting": "{{setting}} is geen instelling van dit e-mailplatform.",
-      "incomplete": "Nog nodig voordat dit kan worden opgeslagen: {{missing}}."
+      "incomplete": "Nog nodig voordat dit kan worden opgeslagen: {{missing}}.",
+      "credential_unresolved": "De voor dit mailplatform ({{platform}}) ingevoerde waarde van {{field}} kon niet worden omgezet: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "De keuze van postvakken kan niet worden gelezen: {{error}}",

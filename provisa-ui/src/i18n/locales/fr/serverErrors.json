@@ -488,7 +488,8 @@
       "unknown": "Aucune plateforme de messagerie nommée {{platform}} n’existe.",
       "not_configured": "Votre organisation n’a pas encore connecté cette plateforme de messagerie ({{platform}}). Un administrateur saisit son client une fois sous Admin › E-mail.",
       "unknown_setting": "{{setting}} n’est pas un paramètre de cette plateforme de messagerie.",
-      "incomplete": "Encore nécessaire avant l’enregistrement : {{missing}}."
+      "incomplete": "Encore nécessaire avant l’enregistrement : {{missing}}.",
+      "credential_unresolved": "La valeur de {{field}} saisie pour cette plateforme de messagerie ({{platform}}) n’a pas pu être résolue : {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "Le choix des boîtes aux lettres ne peut pas être interprété : {{error}}",

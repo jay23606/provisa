@@ -488,7 +488,8 @@
       "unknown": "Não existe nenhuma plataforma de e-mail chamada {{platform}}.",
       "not_configured": "Sua organização ainda não conectou esta plataforma de e-mail ({{platform}}). Um administrador informa o cliente dela uma vez em Administração › E-mail.",
       "unknown_setting": "{{setting}} não é uma configuração desta plataforma de e-mail.",
-      "incomplete": "Ainda necessário antes de salvar: {{missing}}."
+      "incomplete": "Ainda necessário antes de salvar: {{missing}}.",
+      "credential_unresolved": "Não foi possível resolver o valor de {{field}} introduzido para esta plataforma de correio ({{platform}}): {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "A escolha das caixas de correio não pode ser interpretada: {{error}}",

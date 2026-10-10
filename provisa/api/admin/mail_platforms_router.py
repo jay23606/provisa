@@ -26,9 +26,9 @@ from pydantic import BaseModel
 
 import provisa.google_workspace  # noqa: F401  (declares the Google Workspace platform)
 import provisa.microsoft365  # noqa: F401  (declares the Microsoft 365 platform)
-from provisa.api.admin.secrets_router import _admin_pool, _drop, _org_guard
+from provisa.api.admin.secrets_router import _admin_pool, _org_guard
 from provisa.api.errors import ApiError
-from provisa.core import mail_platforms, secrets_store, source_sign_in
+from provisa.core import mail_platforms, source_sign_in
 from provisa.core.mail_platforms import MailPlatformRefused
 from provisa.core.source_sign_in import SignInRefused
 
@@ -98,7 +98,7 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
     """Enter or replace the organisation's client for one platform."""
     actor = await _org_guard(request, org_id)
     try:
-        kept = await mail_platforms.put(
+        await mail_platforms.put(
             _admin_pool(),
             org_id,
             platform,
@@ -109,14 +109,6 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
             organisation_key=body.organisation_key or None,
             actor=actor,
         )
-        name, owner = mail_platforms.secret_name(platform), secrets_store.ORG_OWNER
-        if (
-            kept.client_id is None
-            and await secrets_store.describe(_admin_pool(), org_id, name, owner_id=owner)
-            is not None
-        ):
-            # A client taken off the entry: nothing names its secret now, so it goes too.
-            await _drop(org_id, owner, name, actor)
         return await _entry(org_id, mail_platforms.platform(platform))
     except MailPlatformRefused as refused:
         raise _refusal(refused) from None
@@ -124,21 +116,14 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
 
 @router.delete("/{platform}")
 async def delete_platform(request: Request, org_id: str, platform: str) -> dict:
-    """Remove the organisation's client for one platform, and its secret from the vault. Sources
-    already signed in keep their own approvals but cannot renew them until a client is entered
-    again."""
-    actor = await _org_guard(request, org_id)
+    """Remove the organisation's entry for one platform. Sources already signed in keep their
+    own approvals but cannot renew them until a client is entered again. A secret the
+    administrator named in the entry is theirs and is not touched."""
+    await _org_guard(request, org_id)
     try:
         if await mail_platforms.read(_admin_pool(), org_id, platform) is None:
             return {"removed": False}
     except MailPlatformRefused as refused:
         raise _refusal(refused) from None
-    # The client first: it names its secret, and the vault lets no named secret go.
-    kept = await mail_platforms.read(_admin_pool(), org_id, platform)
     await mail_platforms.forget(_admin_pool(), org_id, platform)
-    await _drop(org_id, secrets_store.ORG_OWNER, mail_platforms.secret_name(platform), actor)
-    if kept is not None and kept.organisation_key is not None:
-        await _drop(
-            org_id, secrets_store.ORG_OWNER, mail_platforms.organisation_key_name(platform), actor
-        )
     return {"removed": True}

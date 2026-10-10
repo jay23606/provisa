@@ -488,7 +488,8 @@
       "unknown": "No mail platform named {{platform}} exists.",
       "not_configured": "Your organization has not connected this mail platform ({{platform}}) yet. An administrator enters its client once under Admin › Email.",
       "unknown_setting": "{{setting}} is not a setting of this mail platform.",
-      "incomplete": "Still needed before this can be saved: {{missing}}."
+      "incomplete": "Still needed before this can be saved: {{missing}}.",
+      "credential_unresolved": "The {{field}} entered for this mail platform ({{platform}}) could not be resolved: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "The choice of mailboxes cannot be read: {{error}}",

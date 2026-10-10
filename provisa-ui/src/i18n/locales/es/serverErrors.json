@@ -488,7 +488,8 @@
       "unknown": "No existe ninguna plataforma de correo llamada {{platform}}.",
       "not_configured": "Su organización aún no ha conectado esta plataforma de correo ({{platform}}). Un administrador introduce su cliente una vez en Administración › Correo electrónico.",
       "unknown_setting": "{{setting}} no es un ajuste de esta plataforma de correo.",
-      "incomplete": "Aún falta para poder guardar: {{missing}}."
+      "incomplete": "Aún falta para poder guardar: {{missing}}.",
+      "credential_unresolved": "No se pudo resolver el valor de {{field}} introducido para esta plataforma de correo ({{platform}}): {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "No se puede interpretar la selección de buzones: {{error}}",

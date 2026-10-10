@@ -143,7 +143,7 @@ async def test_a_declared_set_is_removed_without_the_guard(plane):
 
 @pytest.fixture
 def served(plane, monkeypatch) -> dict[str, list]:
-    seen: dict[str, list] = {"rebuilds": [], "dropped": [], "forgotten": []}
+    seen: dict[str, list] = {"rebuilds": [], "dropped": []}
 
     async def _pool():
         return plane
@@ -151,12 +151,8 @@ def served(plane, monkeypatch) -> dict[str, list]:
     async def _rebuild() -> None:
         seen["rebuilds"].append(1)
 
-    async def _forget(source_id, _ref) -> None:
-        seen["forgotten"].append(source_id)
-
     monkeypatch.setattr(schema_mutation, "_get_pool", _pool)
     monkeypatch.setattr(schema_mutation, "_rebuild_schemas", _rebuild)
-    monkeypatch.setattr(schema_mutation, "forget_source_password", _forget)
     monkeypatch.setattr(
         schema_mutation, "_drop_source_on_engine", lambda _state, sid: seen["dropped"].append(sid)
     )
@@ -179,13 +175,14 @@ async def test_the_mutation_refuses_with_the_list_and_leaves_the_engine_alone(pl
         ("table", "registered_tables.source_id"),
     }
     assert "crm" in await _source_ids(plane)
-    assert served == {"rebuilds": [], "dropped": [], "forgotten": []}
+    assert served == {"rebuilds": [], "dropped": []}
 
 
 async def test_the_mutation_deletes_drops_the_catalog_and_rebuilds(plane, served):
     result = await _delete_source("api")
     assert (result.success, result.code) == (True, "schema.source_deleted")
-    assert served == {"rebuilds": [1], "dropped": ["api"], "forgotten": ["api"]}
+    # The source's row goes with its credentials in it; nothing is removed from a vault.
+    assert served == {"rebuilds": [1], "dropped": ["api"]}
 
 
 async def test_the_mutation_answers_not_found(plane, served):

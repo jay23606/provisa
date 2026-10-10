@@ -112,13 +112,10 @@ class SourceType:  # REQ-012
     # overwrites federation_hints when the input actually carries a federation_hints_json). Also
     # the channel rss's feed_url and websocket's subscribe_payload round-trip through (REQ-1739).
     federation_hints_json: str | None = "{}"
-    # REQ-1730: the ``${secret:NAME}`` reference persist_source_password (REQ-1695) wrote — never
-    # the plaintext credential, which the vault holds "unreadable by name" by design. Exposed so a
-    # caller re-registering an ALREADY-VALIDATED source on a second engine (the cross-engine swap
-    # replay) can carry the same credential forward without ever seeing it: SourceInput.password
-    # already treats a value containing ``${`` as a reference and stores it verbatim rather than
-    # re-vaulting it, so round-tripping this field through create_source resolves correctly via
-    # resolve_secrets() on the target engine's own process, sharing the same org vault.
+    # What the source's password field holds, as its operator entered it: the value, or a
+    # reference they typed. Exposed so the form shows the field's own text again, and so a caller
+    # re-registering an already-validated source on a second engine (the cross-engine swap
+    # replay) can carry the same field forward.
     password_ref: str | None = ""
     change_signal: str = "ttl"  # REQ-929: source default change signal (inherited by its tables)
     cdc: SourceCdcConfigType | None = None  # REQ-824: source-level CDC transport

@@ -120,10 +120,6 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _upsert_source_with_domains,
     _another_govdata_source,
     _validate_govdata_api_key,
-    forget_source_mapping_secrets,
-    forget_source_password,
-    persist_source_mapping_secrets,
-    persist_source_password,
 )
 
 
@@ -1247,17 +1243,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         if _feed_refusal is not None:
             return _feed_refusal
 
-        # REQ-1695: the connection answered, so this credential is worth keeping. A literal goes
-        # into the org vault and the row keeps the reference that names it; the row never holds a
-        # credential. Done after the validation so a rejected source leaves no vault entry behind.
+        # Each credential is kept as the operator entered it (a value, or a reference they
+        # typed) and resolved where it is used.
         _registry_refusal = refuse_registry_settings(input)  # REQ-1951
         if _registry_refusal is not None:
             return _registry_refusal
-        password_ref = await persist_source_password(info, input.id, input.password)
-        # A credential the type keeps in its mapping is kept the same way.
-        _mapping = await persist_source_mapping_secrets(
-            info, input.id, input.type, _parse_mapping_json(input.mapping_json)
-        )
+        password_ref = input.password or ""
+        _mapping = _parse_mapping_json(input.mapping_json)
         _profiler_refusal = _refuse_invalid_profiler(input.id, input.type, _mapping)  # REQ-1934
         if _profiler_refusal is not None:
             return _profiler_refusal
@@ -1609,13 +1601,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             ) or await microsoft_365_organisation_refusal(input)  # REQ-1923
             if _m365_refusal is not None:
                 return _m365_refusal
-            # REQ-1695: the literal a person retyped into the form replaces the vault entry under
-            # the same name -- a rotation, not a second secret -- and the row keeps the reference.
-            password_ref = await persist_source_password(info, input.id, input.password)
-            # A credential the type keeps in its mapping is kept the same way.
-            _stored_mapping = await persist_source_mapping_secrets(
-                info, input.id, input.type, _parse_mapping_json(input.mapping_json)
-            )
+            # As entered: a value, or a reference the operator typed.
+            password_ref = input.password or ""
+            _stored_mapping = _parse_mapping_json(input.mapping_json)
             _profiler_refusal = _refuse_invalid_profiler(  # REQ-1934
                 input.id, input.type, _stored_mapping
             )
@@ -1838,8 +1826,6 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 )
         if deleted:
             assert _existing is not None  # delete reported a row, so get found one
-            await forget_source_password(id, _existing["password_ref"])
-            await forget_source_mapping_secrets(id, _existing["type"], _existing["mapping"] or {})
             state.graphql_remote_sources.pop(id, None)
             # REQ-1730: was never called here at all — see _drop_source_on_engine's own comment for
             # the exact orphaned-catalog accumulation this closes.

@@ -41,7 +41,6 @@ _KEYS = frozenset({"accounts", "resources", "refresh_token", "mailboxes"})
 ORGANISATION_SCOPE = f"{_GRAPH}.default"
 EVERYONE, GROUP, LIST = "everyone", "group", "list"
 _ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
-_SECRET_REFERENCE = re.compile(r"\$\{secret:([^}#]+)\}")
 # A directory is named by its id (a GUID) or by one of its domains.
 _TENANT = re.compile(
     r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
@@ -71,17 +70,14 @@ class Settings:
 
     resources: tuple[str, ...]
     account: str | None = None  # the mailbox's address
-    refresh_token: str | None = None  # a ${secret:NAME} reference
+    #: The mailbox owner's approval, as the source's field holds it: the token the sign-in
+    #: gave, or a reference the operator typed. Resolved where it is used.
+    refresh_token: str | None = None
     mailboxes: Mailboxes | None = None
 
     @property
     def organisation(self) -> bool:
         return self.mailboxes is not None
-
-    @property
-    def refresh_token_name(self) -> str:
-        """The name the refresh token has in the organisation's vault."""
-        return _SECRET_REFERENCE.fullmatch(self.refresh_token or "").group(1)  # type: ignore[union-attr]  # checked by parse
 
     def scopes(self) -> list[str]:
         return scopes(self.resources)
@@ -180,9 +176,5 @@ def parse(mapping: dict) -> Settings:
     if not isinstance(token, str) or not token.strip():
         raise InvalidMicrosoft365Source(
             "the mailbox is not connected: its owner has not approved the sign-in"
-        )
-    if not _SECRET_REFERENCE.fullmatch(token.strip()):
-        raise InvalidMicrosoft365Source(
-            "refresh_token must be a reference to the organisation's vault (${secret:NAME})"
         )
     return Settings(resources, account=account, refresh_token=token.strip())

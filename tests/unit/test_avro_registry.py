@@ -391,23 +391,10 @@ def test_a_save_with_settings_that_do_not_reach_the_registry_is_refused_with_its
     assert refuse_registry_settings(type("Input", (), {"id": "s", "cdc": None})()) is None
 
 
-async def test_a_typed_registry_credential_goes_to_the_vault_and_the_block_names_it(monkeypatch):
-    """REQ-1695: the row never holds a credential. A literal is stored under a name of the
-    source's own; a reference is kept as written."""
-    from provisa.api.admin import _cdc_registry, capabilities, schema_common
-    from provisa.core import request_context
-
-    stored: list[tuple[str, str]] = []
-
-    async def _store(_actor, name, value, _description):
-        if "${" in value:
-            return value
-        stored.append((name, value))
-        return f"${{secret:{name}}}"
-
-    monkeypatch.setattr(schema_common, "_store_source_secret", _store)
-    monkeypatch.setattr(capabilities, "_identity_from_info", lambda _info: None)
-    monkeypatch.setattr(request_context, "active_env", lambda: "prod")
+async def test_a_registry_credential_is_kept_as_typed():
+    """Each credential of the block holds what the operator entered -- a value, or a reference
+    they wrote -- and nothing is put in a vault or named for it."""
+    from provisa.api.admin import _cdc_registry
 
     cdc = await _cdc_registry.stored_cdc(
         None,
@@ -419,8 +406,6 @@ async def test_a_typed_registry_credential_goes_to_the_vault_and_the_block_names
             schema_registry_token="${secret:already_there}",
         ),
     )
-    name = schema_common.source_mapping_secret_name("orders-db", "schema_registry_password", "prod")
-    assert stored == [(name, "typed-in")]
-    assert cdc.schema_registry_password == f"${{secret:{name}}}"
+    assert cdc.schema_registry_password == "typed-in"
     assert cdc.schema_registry_token == "${secret:already_there}"
-    assert cdc.schema_registry_username == "reader"  # not a credential: kept as typed
+    assert cdc.schema_registry_username == "reader"

@@ -240,10 +240,17 @@ def test_a_cloud_inventory_table_takes_no_writes(build):
     )
 
 
-def test_its_cloud_secrets_are_kept_in_the_org_vault():
-    from provisa.api.admin.schema_common import SOURCE_MAPPING_SECRET_KEYS
+def test_its_cloud_secrets_are_fields_of_the_source_kept_as_typed(monkeypatch):
+    """A cloud's secret is a field of the source's mapping: it holds what the operator entered
+    (a value, or a reference they wrote) and is resolved by the one resolver where it is used."""
+    from provisa.core.secrets import resolve_secrets_in_dict
 
-    assert set(SOURCE_MAPPING_SECRET_KEYS["cloudops"]) == {
-        "azure_client_secret",
-        "aws_secret_access_key",
+    monkeypatch.setenv("PROVISA_TEST_AZURE_SECRET", "from-the-environment")
+    typed = {
+        "azure_client_secret": "${env:PROVISA_TEST_AZURE_SECRET}",
+        "aws_secret_access_key": "typed-as-a-value",
+    }
+    assert resolve_secrets_in_dict(typed) == {
+        "azure_client_secret": "from-the-environment",
+        "aws_secret_access_key": "typed-as-a-value",
     }

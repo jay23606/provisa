@@ -784,6 +784,8 @@ source_sign_ins = Table(
     Column("account", Text, nullable=False),
     Column("scopes", Text, nullable=False),  # space separated, as the issuer is asked
     Column("client_id", Text, nullable=False),
+    # Of an earlier design, which named vault entries: read by nothing and written empty. Kept
+    # because an existing control plane holds them NOT NULL and a schema is only ever added to.
     Column("client_secret_name", Text, nullable=False),
     Column("refresh_token_name", Text, nullable=False),
     Column("verifier", LargeBinary, nullable=False),

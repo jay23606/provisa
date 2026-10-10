@@ -488,7 +488,8 @@
       "unknown": "{{platform}} という名前のメール プラットフォームはありません。",
       "not_configured": "組織はこのメール プラットフォーム ({{platform}}) をまだ接続していません。管理者が 「管理 › メール」 でクライアントを一度入力します。",
       "unknown_setting": "{{setting}} はこのメール プラットフォームの設定ではありません。",
-      "incomplete": "保存するには、次の項目がまだ必要です: {{missing}}。"
+      "incomplete": "保存するには、次の項目がまだ必要です: {{missing}}。",
+      "credential_unresolved": "このメール プラットフォーム ({{platform}}) に入力された {{field}} を解決できませんでした: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "メールボックスの選択を解釈できません: {{error}}",

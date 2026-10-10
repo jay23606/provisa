@@ -114,35 +114,35 @@ class TestTheStore:
         assert raised.value.code == "mail_platform.not_configured"
         assert raised.value.params == {"platform": GOOGLE}
 
-    async def test_the_client_is_kept_and_its_secret_goes_to_the_vault(self, plane):
+    async def test_the_client_is_kept_with_its_secret_as_entered(self, plane):
+        """What the administrator typed is what the entry holds: nothing is written to the
+        organisation's vault for it, and no name is made up."""
         kept = await _put(plane)
-        assert kept == Configured(GOOGLE, "client-1", {})
-        assert kept.client_secret == "${secret:mail_platform_google_workspace_client_secret}"
+        assert kept == Configured(GOOGLE, "client-1", {}, client_secret=SECRET)
         assert await mail_platforms.read(plane, "acme", GOOGLE) == kept
         (row,) = _stored(plane)
-        assert SECRET not in map(str, row.values())
-        assert await _vault(plane, "acme") == {
-            "mail_platform_google_workspace_client_secret": SECRET
-        }
+        assert row["client_secret"] == SECRET
+        assert await _vault(plane, "acme") == {}
+
+    async def test_a_reference_the_administrator_typed_is_kept_verbatim(self, plane):
+        kept = await _put(plane, client_secret="${secret:my_google_client}")
+        assert kept.client_secret == "${secret:my_google_client}"
+        assert _stored(plane)[0]["client_secret"] == "${secret:my_google_client}"
+        assert await _vault(plane, "acme") == {}  # the secret is theirs to create, by that name
 
     async def test_one_organisations_client_is_not_anothers(self, plane):
         await _put(plane, org="acme")
         assert await mail_platforms.read(plane, "globex", GOOGLE) is None
-        assert await _vault(plane, "globex") == {}
         await _put(plane, org="globex", client_id="client-g", client_secret="made-up-other")
-        assert (await mail_platforms.read(plane, "acme", GOOGLE)).client_id == "client-1"
-        assert (await _vault(plane, "acme"))[
-            "mail_platform_google_workspace_client_secret"
-        ] == SECRET
+        acme = await mail_platforms.read(plane, "acme", GOOGLE)
+        assert (acme.client_id, acme.client_secret) == ("client-1", SECRET)
+        assert (await mail_platforms.read(plane, "globex", GOOGLE)).client_secret == "made-up-other"
 
     async def test_a_client_is_replaced_keeping_its_secret_when_none_is_given(self, plane):
         await _put(plane)
         again = await _put(plane, client_id="client-2", client_secret=None)
-        assert again.client_id == "client-2"
+        assert (again.client_id, again.client_secret) == ("client-2", SECRET)
         assert len(_stored(plane)) == 1
-        assert (await _vault(plane, "acme"))[
-            "mail_platform_google_workspace_client_secret"
-        ] == SECRET
 
     async def test_a_client_is_never_kept_without_a_secret(self, plane):
         with pytest.raises(MailPlatformRefused) as raised:
@@ -195,21 +195,18 @@ class TestTheOrganisationsOwnCredential:
         assert raised.value.params == {"missing": "organisation_key"}
         assert await mail_platforms.read(plane, "acme", GOOGLE) is None
 
-    async def test_the_key_goes_to_the_vault_and_the_entry_keeps_only_its_name(self, plane):
+    async def test_the_key_is_kept_as_entered(self, plane):
         kept = await _put(plane, organisation_key=KEY, **ORG)
-        name = "mail_platform_google_workspace_organisation_key"
-        assert kept.organisation_key == f"${{secret:{name}}}" and kept.organisation_mailboxes
+        assert kept.organisation_key == KEY and kept.organisation_mailboxes
         assert kept.settings == {"admin_address": "admin@example.test"}
-        assert (await _vault(plane, "acme"))[name] == KEY
         (row,) = _stored(plane)
-        assert KEY not in str(row) and "made-up" not in str(row)
-        assert row["organisation_key"] == f"${{secret:{name}}}"
+        assert row["organisation_key"] == KEY
+        assert await _vault(plane, "acme") == {}  # nothing is written to the vault for it
 
     async def test_leaving_the_key_out_keeps_the_one_entered(self, plane):
         await _put(plane, organisation_key=KEY, **ORG)
         kept = await _put(plane, client_secret=None, **ORG)
-        assert kept.organisation_key is not None
-        assert (await _vault(plane, "acme"))[kept.organisation_key[9:-1]] == KEY
+        assert kept.organisation_key == KEY
 
     async def test_the_key_may_be_entered_before_such_sources_are_allowed(self, plane):
         kept = await _put(plane, organisation_key=KEY)
@@ -267,22 +264,23 @@ class TestTheOrganisationsOwnCredential:
         assert raised.value.code == "mail_platform.unknown_setting"
         assert raised.value.params == {"setting": "organisation_key"}
 
-    async def test_the_vault_keeps_a_key_its_entry_names(self, plane):
+    async def test_the_vault_keeps_a_secret_the_key_field_names(self, plane):
+        """A reference the administrator typed is found by the vault's own reference search."""
         from provisa.core import secret_references
 
         with plane.engine.begin() as conn:
             schema_admin.metadata.create_all(conn)
-        kept = await _put(plane, organisation_key=KEY, **ORG)
-        assert kept.organisation_key is not None
-        name = kept.organisation_key[9:-1]
-        found = await secret_references.references(plane, "acme", name, environments={})
+        await _put(plane, organisation_key="${secret:my_service_account}", **ORG)
+        found = await secret_references.references(
+            plane, "acme", "my_service_account", environments={}
+        )
         assert [(r.table, r.column) for r in found] == [("org_mail_platforms", "organisation_key")]
 
 
 class TestTheAdminSurface:
     @pytest.fixture
     def wired(self, plane, monkeypatch):
-        seen: dict = {"guarded": [], "dropped": []}
+        seen: dict = {"guarded": []}
 
         async def guard(request, org_id):
             seen["guarded"].append(org_id)
@@ -290,15 +288,10 @@ class TestTheAdminSurface:
                 raise ApiError(403, "secrets.org_settings_in_org_required", "no")
             return "uid-ada"
 
-        async def drop(org_id, owner_id, name, actor):
-            seen["dropped"].append((org_id, owner_id, name, actor))
-            return {}
-
         from provisa.api.admin import source_sign_in_router
 
         monkeypatch.setattr(router, "_org_guard", guard)
         monkeypatch.setattr(router, "_admin_pool", lambda: plane)
-        monkeypatch.setattr(router, "_drop", drop)
         monkeypatch.setattr(
             source_sign_in_router, "_public_address", lambda: "http://localhost:3000"
         )
@@ -332,7 +325,6 @@ class TestTheAdminSurface:
                 await call()
             assert raised.value.status_code == 403
         assert (await mail_platforms.read(plane, "acme", GOOGLE)).client_id == "client-1"
-        assert wired["dropped"] == []
 
     async def test_the_list_says_what_is_entered_and_gives_the_address_to_register(
         self, wired, plane
@@ -368,31 +360,29 @@ class TestTheAdminSurface:
         for answer in (said, listed):
             assert "made-up" not in str(answer) and "secret:" not in str(answer)
 
-    async def test_a_client_taken_off_the_entry_takes_its_secret_out_of_the_vault(
-        self, wired, plane
-    ):
-        await _put(plane, organisation_key=KEY, **ORG)
+    async def test_a_client_taken_off_the_entry_leaves_the_vault_as_it_is(self, wired, plane):
+        """The entry's row holds its credentials; a secret the administrator created and named
+        in it is theirs, and taking the client off the entry removes nothing of theirs."""
+        await secrets_store.put(
+            plane, "acme", "my_google_client", "x", owner_id=secrets_store.ORG_OWNER
+        )
+        await _put(plane, client_secret="${secret:my_google_client}", organisation_key=KEY, **ORG)
         said = await router.put_platform(
             None, "acme", GOOGLE, router.PlatformBody(client_id="", **ORG)
         )
         assert (said["configured"], said["client_id"]) == (True, None)
         assert said["organisation_key_entered"] is True
-        assert [name for _o, _w, name, _a in wired["dropped"]] == [
-            "mail_platform_google_workspace_client_secret"
-        ]
-        # An entry that never had a client has no secret to take out.
-        wired["dropped"].clear()
-        body = router.PlatformBody(client_id="", organisation_key=KEY, **ORG)
-        await router.put_platform(None, "globex", GOOGLE, body)
-        assert wired["dropped"] == []
+        assert _stored(plane)[0]["client_secret"] is None
+        assert await _vault(plane, "acme") == {"my_google_client": "x"}
 
-    async def test_removing_takes_the_key_out_of_the_vault_too(self, wired, plane):
-        await _put(plane, organisation_key=KEY, **ORG)
+    async def test_removing_an_entry_removes_its_row_and_nothing_from_the_vault(self, wired, plane):
+        await secrets_store.put(
+            plane, "acme", "my_google_client", "x", owner_id=secrets_store.ORG_OWNER
+        )
+        await _put(plane, client_secret="${secret:my_google_client}", organisation_key=KEY, **ORG)
         assert await router.delete_platform(None, "acme", GOOGLE) == {"removed": True}
-        assert [name for _o, _w, name, _a in wired["dropped"]] == [
-            "mail_platform_google_workspace_client_secret",
-            "mail_platform_google_workspace_organisation_key",
-        ]
+        assert await mail_platforms.read(plane, "acme", GOOGLE) is None
+        assert await _vault(plane, "acme") == {"my_google_client": "x"}
 
     async def test_no_answer_carries_the_secret(self, wired):
         kept = await router.put_platform(
@@ -432,39 +422,17 @@ class TestTheAdminSurface:
         assert listed["redirect_problem"] == "source_sign_in.public_address_not_set"
         assert listed["platforms"]
 
-    async def test_removing_takes_the_client_and_then_its_secret(self, wired, plane):
-        await _put(plane)
-        assert await router.delete_platform(None, "acme", GOOGLE) == {"removed": True}
-        assert wired["dropped"] == [
-            (
-                "acme",
-                secrets_store.ORG_OWNER,
-                "mail_platform_google_workspace_client_secret",
-                "uid-ada",
-            )
-        ]
-        assert await mail_platforms.read(plane, "acme", GOOGLE) is None
-
-    async def test_a_vault_that_will_not_let_the_secret_go_says_so(self, wired, plane, monkeypatch):
-        await _put(plane)
-
-        async def refused(org_id, owner_id, name, actor):
-            raise ApiError(409, "secrets.still_referenced", "in use")
-
-        monkeypatch.setattr(router, "_drop", refused)
-        with pytest.raises(ApiError) as raised:
-            await router.delete_platform(None, "acme", GOOGLE)
-        assert raised.value.code == "secrets.still_referenced"
-
-    async def test_the_vault_keeps_a_secret_the_client_names(self, plane):
+    async def test_the_vault_keeps_a_secret_the_client_secret_field_names(self, plane):
         """The Secrets screen's delete asks the vault's reference search, which finds the
-        organisation's platform entry and no other organisation's."""
+        organisation's platform entry and no other organisation's -- for a reference the
+        administrator typed into the field."""
         from provisa.core import secret_references
 
         with plane.engine.begin() as conn:  # the search reads every table of the plane
             schema_admin.metadata.create_all(conn)
-        await _put(plane, org="acme")
-        name = mail_platforms.secret_name(GOOGLE)
+        name = "my_google_client"
+        await secrets_store.put(plane, "acme", name, "x", owner_id=secrets_store.ORG_OWNER)
+        await _put(plane, org="acme", client_secret=f"${{secret:{name}}}")
         found = await secret_references.references(plane, "acme", name, environments={})
         assert [(r.table, r.column, r.id) for r in found] == [
             ("org_mail_platforms", "client_secret", ["acme", GOOGLE])
@@ -481,4 +449,3 @@ class TestTheAdminSurface:
 
     async def test_removing_what_was_never_entered_removes_nothing(self, wired):
         assert await router.delete_platform(None, "acme", GOOGLE) == {"removed": False}
-        assert wired["dropped"] == []

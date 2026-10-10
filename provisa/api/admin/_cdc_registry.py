@@ -20,7 +20,6 @@ from __future__ import annotations
 from provisa.api.admin._row_mappers import _REGISTRY_FIELDS, _cdc_model_from_input
 from provisa.api.admin.types import MutationResult, SourceInput
 from provisa.kafka.avro_registry import (
-    SECRET_FIELDS,
     RegistrySettingRefused,
     validate_settings,
 )
@@ -44,25 +43,6 @@ def refuse_registry_settings(input: SourceInput) -> MutationResult | None:
 
 
 async def stored_cdc(info, input: SourceInput):
-    """The source's CDC block as the row holds it: each registry credential typed as a literal is
-    in the org vault, and the block names it."""
-    from provisa.api.admin.capabilities import _identity_from_info
-    from provisa.api.admin.schema_common import _store_source_secret, source_mapping_secret_name
-    from provisa.core.request_context import active_env
-
-    cdc = _cdc_model_from_input(input)
-    if cdc is None:
-        return None
-    identity = _identity_from_info(info)
-    actor = getattr(identity, "user_id", None) if identity is not None else None
-    stored: dict[str, str] = {}
-    for name in SECRET_FIELDS:
-        value = getattr(cdc, name)
-        if value:
-            stored[name] = await _store_source_secret(
-                actor,
-                source_mapping_secret_name(input.id, name, active_env()),
-                value,
-                f"Schema registry credential ({name}) of source {input.id}",
-            )
-    return cdc.model_copy(update=stored)
+    """The source's CDC block as the row holds it: each registry credential exactly as the
+    operator entered it (a value, or a reference they typed), resolved where it is used."""
+    return _cdc_model_from_input(input)

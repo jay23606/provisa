@@ -21,7 +21,7 @@ import pytest
 
 from provisa.api.admin import source_sign_in_router as router
 from provisa.api.errors import ApiError
-from provisa.core import mail_platforms, request_context
+from provisa.core import request_context
 from provisa.core.mail_platforms import Configured, MailPlatformRefused
 from provisa.core.source_sign_in import Completed, SignInRefused, Started
 
@@ -174,7 +174,8 @@ class TestStart:
         (given,) = wired["started"]
         assert wired["read"] == [("admin-plane", ORG, KIND)]
         assert given["client_id"] == "org-client-1"
-        assert given["client_secret_name"] == mail_platforms.secret_name(KIND)
+        # Only the client's id is recorded: its secret is read from the entry at completion.
+        assert "client_secret_name" not in given and "client_secret" not in given
         assert given["settings"] == {"tenant": "contoso"}
 
     async def test_an_organisation_with_no_client_is_refused_by_name_before_anything(self, wired):
@@ -194,13 +195,10 @@ class TestStart:
         assert given["public_address"] == "https://acme.provisa.test"
         assert given["kind_id"] == KIND
 
-    async def test_the_refresh_token_will_go_under_the_sources_own_name(self, wired):
-        from provisa.api.admin.schema_common import source_mapping_secret_name
-
+    async def test_a_sign_in_names_no_secret_of_its_own_making(self, wired):
+        """Nothing is told where a token will be kept: the answer carries it to the form."""
         await router.start(_request(), _start_body())
-        assert wired["started"][0]["refresh_token_name"] == source_mapping_secret_name(
-            "mail", "refresh_token", "prod"
-        )
+        assert "refresh_token_name" not in wired["started"][0]
 
     async def test_the_organisations_abandoned_sign_ins_are_swept_first(self, wired):
         await router.start(_request(), _start_body())
@@ -221,20 +219,11 @@ class TestStart:
 
 
 class TestComplete:
-    async def test_the_refresh_token_is_written_under_the_lock_its_refreshes_take(self, wired):
+    async def test_completing_writes_nothing_anywhere(self, wired):
+        """The approval the issuer gave is the answer's, for the source's own field; no secret
+        store is written on the operator's behalf."""
         await router.complete(_request(), router.CompleteRequest(state="s", code=CODE))
-        writer = wired["completed"][0]["store_refresh_token"]
-        reference = await writer("mail", "source_mail__refresh_token", "made-up-refresh-token")
-        assert reference == "${secret:source_mail__refresh_token}"
-        ((admin_db, platform_url, org_id, given),) = wired["locked"]
-        assert (admin_db, platform_url, org_id) == ("admin-plane", "platform-of:provisa.yaml", ORG)
-        assert given == {
-            "source_id": "mail",
-            "secret_name": "source_mail__refresh_token",
-            "refresh_token": "made-up-refresh-token",
-            "actor": "uid-ada",
-        }
-        assert "made-up" not in reference
+        assert "store_refresh_token" not in wired["completed"][0]
 
     async def test_the_caller_and_their_organisation_are_what_the_state_is_checked_against(
         self, wired
@@ -244,7 +233,7 @@ class TestComplete:
         assert (given["org_id"], given["user_id"]) == (ORG, "uid-ada")
         assert (given["state"], given["code"], given["error"]) == ("made-up-state", CODE, None)
 
-    async def test_the_answer_is_a_reference_never_a_credential(self, wired):
+    async def test_the_answer_carries_the_approval_for_the_sources_field(self, wired):
         answer = await router.complete(_request(), router.CompleteRequest(state="s", code=CODE))
         assert answer == {
             "source_id": "mail",

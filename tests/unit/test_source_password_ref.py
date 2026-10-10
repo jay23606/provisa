@@ -8,24 +8,21 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""REQ-1695: a control-plane source row carries its password as a REFERENCE, and reads it back.
+"""A control-plane source row carries its password as the operator entered it, and reads it back.
 
-Before this, ``sources`` had no column for a password at all, so a source registered through the
-Sources form reached its connector with an empty credential: Register Table listed no schema for
-every connector that authenticates (the Splunk case that motivated the requirement). The column
-holds ``${provider:name}``, never a credential, and the mapper below is the one place the column
-name and the model field name are tied together.
+``sources.password_ref`` holds the text typed into the field: the value itself, or a
+``${secret:NAME}`` / ``${env:NAME}`` reference the operator wrote. It is resolved where it is
+used by the one resolver; nothing derives a name for it or stores it anywhere else. The mapper
+below is the one place the column name and the model field name are tied together.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from provisa.api.admin.schema_common import source_password_secret_name
 from provisa.core.models import Source, SourceType
 from provisa.core.repositories.source import _source_values, source_from_row
 from provisa.core.schema_org import sources as sources_table
-from provisa.core.secrets_store import NAME
 
 
 def test_write_projection_carries_the_password_as_password_ref():
@@ -39,7 +36,7 @@ def test_write_projection_carries_the_password_as_password_ref():
         )
     )
     assert values["password_ref"] == "${secret:source_splunk_demo_password}"
-    # The credential never has a column of its own to land in.
+    # One column holds what was entered; the model's field is its name there.
     assert "password" not in values
 
 
@@ -53,9 +50,9 @@ def test_password_ref_is_a_real_column_on_the_sources_table():
 
 @pytest.mark.parametrize(
     "password",
-    ["", "${env:PROVISA_DEMO_SPLUNK_PASSWORD}", "${secret:source_ui_splunk_password}"],
+    ["", "hunter2", "${env:PROVISA_DEMO_SPLUNK_PASSWORD}", "${secret:my_splunk_password}"],
 )
-def test_row_round_trip_preserves_the_reference(password):
+def test_row_round_trip_preserves_what_was_typed(password):
     original = Source(
         id="ui_splunk",
         type=SourceType.splunk,
@@ -81,30 +78,60 @@ def test_the_mapper_refuses_a_row_with_no_password_ref():
         source_from_row({"id": "x", "type": "splunk"})
 
 
+# --- the credential is what was typed; nothing is named or stored on the operator's behalf ---
+
+
 @pytest.mark.parametrize(
-    ("source_id", "expected"),
+    ("typed", "used"),
     [
-        ("splunk", "source_splunk_password"),
-        ("splunk-demo", "source_splunk_demo_password"),
-        ("e2e_splunk_1757500000000", "source_e2e_splunk_1757500000000_password"),
-        ("sales/crm.prod", "source_sales_crm_prod_password"),
-        ("9lives", "source_9lives_password"),
+        ("hunter2", "hunter2"),  # a value is used as it is
+        ("", ""),  # a source that needs no password
+        ("${env:PROVISA_TEST_SOURCE_PASSWORD}", "from-the-environment"),
     ],
 )
-def test_secret_name_is_derived_from_the_source_id(source_id, expected):
-    assert source_password_secret_name(source_id, "prod") == expected
+def test_what_was_typed_is_resolved_by_the_one_resolver(typed, used, monkeypatch):
+    from provisa.core.secrets import resolve_secrets
+
+    monkeypatch.setenv("PROVISA_TEST_SOURCE_PASSWORD", "from-the-environment")
+    row = {**_source_values(_source(typed)), "binding": "own", "cache_enabled": True}
+    assert row["password_ref"] == typed  # the row holds the text entered
+    assert resolve_secrets(source_from_row(row).password) == used
 
 
-def test_a_password_typed_in_another_environment_is_named_for_it():
-    """REQ-1942: typing a password in an environment never rotates its parent's credential."""
-    assert source_password_secret_name("sales-pg", "dev") == "source_sales_pg__env_dev_password"
-    assert source_password_secret_name("sales-pg", "dev") != source_password_secret_name(
-        "sales-pg", "prod"
+def test_a_typed_secret_reference_is_the_operators_own_name_and_needs_their_vault():
+    from provisa.core.secrets import resolve_secrets
+
+    row = _source_values(_source("${secret:my_own_name}"))
+    assert row["password_ref"] == "${secret:my_own_name}"
+    with pytest.raises(KeyError, match="my_own_name"):
+        resolve_secrets(row["password_ref"])  # no organisation's vault is bound here
+
+
+def test_nothing_derives_a_secret_name_from_a_source():
+    """The builders of ``source_<id>_password`` and its mapping-key variant are gone, with the
+    vault write they named entries for."""
+    from provisa.api.admin import schema_common
+
+    for gone in (
+        "source_password_secret_name",
+        "source_mapping_secret_name",
+        "persist_source_password",
+        "store_source_password",
+        "store_source_mapping_secrets",
+        "forget_source_password",
+        "forget_source_mapping_secrets",
+        "_store_source_secret",
+        "_forget_source_secret",
+    ):
+        assert not hasattr(schema_common, gone), gone
+
+
+def _source(password: str) -> Source:
+    return Source(
+        id="ui_splunk",
+        type=SourceType.splunk,
+        host="localhost",
+        port=8089,
+        username="admin",
+        password=password,
     )
-
-
-@pytest.mark.parametrize("source_id", ["splunk-demo", "sales/crm.prod", "9lives", "_x", "A.B-C"])
-def test_every_derived_name_is_storable(source_id):
-    """The vault's own grammar accepts it -- including a source id that starts with a digit, which
-    the ``source_`` prefix is there to make legal."""
-    assert NAME.match(source_password_secret_name(source_id, "prod"))

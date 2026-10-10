@@ -70,7 +70,10 @@ class Platform:
 
 @dataclass(frozen=True)
 class Configured:
-    """An organisation's entry for one platform. The secret is named, never held."""
+    """An organisation's entry for one platform, each credential as its administrator entered
+    it: the value itself, or a ``${secret:NAME}`` / ``${env:NAME}`` reference they typed. It is
+    resolved where it is used (:func:`resolved`); nothing here names or keeps a secret of its
+    own making."""
 
     platform: str
     #: None where the organisation entered no client: its sources read the organisation's
@@ -80,9 +83,11 @@ class Configured:
     #: Whether the administrator allows sources that read the organisation's mailboxes with
     #: this client's own credential.
     organisation_mailboxes: bool = False
-    #: The reference that names the organisation's own credential in its vault, where the
-    #: platform has one and one was entered; None otherwise. Never the credential.
+    #: The organisation's own credential for its mailboxes, as entered, where the platform has
+    #: one and one was entered; None otherwise.
     organisation_key: str | None = None
+    #: The client's secret, as entered; None where the entry holds no client.
+    client_secret: str | None = None
 
     @property
     def client(self) -> str:
@@ -90,11 +95,6 @@ class Configured:
         if self.client_id is None:
             raise _not_configured(self.platform)
         return self.client_id
-
-    @property
-    def client_secret(self) -> str:
-        """The reference that names the client's secret in the organisation's vault."""
-        return f"${{secret:{secret_name(self.platform)}}}"
 
 
 _PLATFORMS: dict[str, Platform] = {}
@@ -126,31 +126,43 @@ def platform(platform_id: str) -> Platform:
     return _PLATFORMS[platform_id]
 
 
-def secret_name(platform_id: str) -> str:
-    """The name of the platform's client secret in an organisation's vault."""
-    return secrets_store.validate_name(f"mail_platform_{platform_id}_client_secret")
+#: The credentials an entry holds, by the name the form gives each field.
+CLIENT_SECRET = "client_secret"
+ORGANISATION_KEY = "organisation_key"
 
 
-def organisation_key_name(platform_id: str) -> str:
-    """The name, in an organisation's vault, of the credential of its own a platform reads the
-    organisation's mailboxes with."""
-    return secrets_store.validate_name(f"mail_platform_{platform_id}_organisation_key")
-
-
-async def resolved(admin_db: "Database", org_id: str, value: str) -> str:
-    """``value`` of ``org_id``'s platform entry (its client secret, its organisation key) with
-    any secret reference in it resolved IN THAT ORGANISATION'S vault.
+async def resolved(
+    admin_db: "Database", org_id: str, platform_id: str, field: str, value: str | None
+) -> str:
+    """``org_id``'s ``field`` of its ``platform_id`` entry, ready to use: ``value`` as the
+    administrator entered it, with a ``${secret:NAME}`` / ``${env:NAME}`` reference they typed
+    resolved by the product's one resolver (``core.secrets.resolve_secrets``) -- IN THAT
+    ORGANISATION'S vault. A value that is no reference is used as it is.
 
     The vault is bound here, for this read alone, and never taken from the caller: a reader of a
     mail source is reached from a replica build, a check for changes and a preview, and those
     bind a vault only for a source whose own fields name a secret -- a source of the
     organisation's mailboxes names none. A caller's own binding, whoever's it is, is put back
-    when the read ends, so an entry is never resolved in another organisation's vault."""
-    from provisa.core import secrets_store
+    when the read ends, so an entry is never resolved in another organisation's vault.
+
+    Refused by the field's name when nothing was entered for it, or when what was entered
+    cannot be resolved; the reason is the resolver's own."""
     from provisa.core.secrets import resolve_secrets
 
-    async with secrets_store.bound(admin_db, org_id):
-        return resolve_secrets(value)
+    if not value:
+        raise _not_configured(platform_id)
+    try:
+        async with secrets_store.bound(admin_db, org_id):
+            return resolve_secrets(value)
+    except (KeyError, ValueError) as unresolved:
+        reason = unresolved.args[0] if unresolved.args else type(unresolved).__name__
+        raise MailPlatformRefused(
+            "credential_unresolved",
+            f"The {platform_id} {field} could not be resolved: {reason}",
+            platform=platform_id,
+            field=field,
+            reason=str(reason),
+        ) from None
 
 
 async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configured | None:
@@ -164,6 +176,7 @@ async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configure
                     org_mail_platforms.c.settings,
                     org_mail_platforms.c.organisation_mailboxes,
                     org_mail_platforms.c.organisation_key,
+                    org_mail_platforms.c.client_secret,
                 ).where(
                     org_mail_platforms.c.org_id == org_id,
                     org_mail_platforms.c.platform == platform_id,
@@ -172,7 +185,7 @@ async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configure
         ).fetchone()
     if row is None:
         return None
-    return Configured(platform_id, row[0], json.loads(row[1]), bool(row[2]), row[3])
+    return Configured(platform_id, row[0], json.loads(row[1]), bool(row[2]), row[3], row[4])
 
 
 async def require(admin_db: "Database", org_id: str, platform_id: str) -> Configured:
@@ -223,8 +236,10 @@ async def put(
     organisation_mailboxes: bool,
     organisation_key: str | None = None,
 ) -> Configured:
-    """Keep ``org_id``'s client for the platform. ``client_secret`` None keeps the secret already
-    in the vault, which there must then be: a client is never kept without its secret. A
+    """Keep ``org_id``'s client for the platform. Each credential is kept exactly as entered --
+    the value, or a reference the administrator typed -- in the entry's own row; nothing is
+    written to a vault and no name is made up for it. ``client_secret`` None keeps the one the
+    entry already holds, which there must then be: a client is never kept without its secret. A
     platform that reads the organisation's mailboxes with a credential of its own may be kept
     with no client at all once such sources are allowed; a sign-in then refuses by name.
     ``organisation_mailboxes`` is stated at every save: whether sources may read the
@@ -251,55 +266,29 @@ async def put(
     )
     if not client_id and not no_client:
         missing.insert(0, "client_id")
-    name = secret_name(platform_id)
-    owner = secrets_store.ORG_OWNER
-    if (
-        not no_client
-        and not client_secret
-        and await secrets_store.describe(admin_db, org_id, name, owner_id=owner) is None
-    ):
+    held = await read(admin_db, org_id, platform_id)
+    # What is not entered again is what the entry already holds.
+    client_secret = client_secret or (None if held is None else held.client_secret)
+    if declared.organisation_key:
+        organisation_key = organisation_key or (None if held is None else held.organisation_key)
+    if not no_client and not client_secret:
         missing.append("client_secret")
-    key_name = organisation_key_name(platform_id)
-    key_kept = (
-        declared.organisation_key
-        and await secrets_store.describe(admin_db, org_id, key_name, owner_id=owner) is not None
-    )
     if organisation_mailboxes:
         missing += [key for key in declared.organisation_settings if not settings.get(key)]
-        if declared.organisation_key and not organisation_key and not key_kept:
+        if declared.organisation_key and not organisation_key:
             missing.append("organisation_key")
     if missing:
         raise MailPlatformRefused(
             "incomplete", f"{platform_id} needs {', '.join(missing)}", missing=", ".join(missing)
         )
-    if organisation_key:
-        await secrets_store.put(
-            admin_db,
-            org_id,
-            key_name,
-            organisation_key,
-            owner_id=owner,
-            description=f"the organisation's own {platform_id} credential for its mailboxes",
-            actor=actor,
-        )
-    if client_secret:
-        await secrets_store.put(
-            admin_db,
-            org_id,
-            name,
-            client_secret,
-            owner_id=owner,
-            description=f"client secret of the organisation's {platform_id} client",
-            actor=actor,
-        )
     values = {
         "org_id": org_id,
         "platform": platform_id,
         "client_id": None if no_client else client_id,
-        "client_secret": None if no_client else Configured(platform_id, client_id).client_secret,
+        "client_secret": None if no_client else client_secret,
         "settings": json.dumps(settings, sort_keys=True),
         "organisation_mailboxes": organisation_mailboxes,
-        "organisation_key": (f"${{secret:{key_name}}}" if organisation_key or key_kept else None),
+        "organisation_key": organisation_key if declared.organisation_key else None,
         "updated_by": actor,
     }
     async with admin_db.acquire() as conn:
@@ -324,9 +313,8 @@ async def put(
 
 
 async def forget(admin_db: "Database", org_id: str, platform_id: str) -> bool:
-    """Remove ``org_id``'s client for the platform: True when there was one. Its secret is the
-    caller's to remove from the vault afterwards, by the vault's own rules: while the client
-    stands it names the secret, and the vault lets no named secret go."""
+    """Remove ``org_id``'s entry for the platform: True when there was one. Its credentials go
+    with its row; a secret the administrator named in it is theirs and is left as it is."""
     platform(platform_id)
     async with admin_db.acquire() as conn:
         result = await conn.execute_core(

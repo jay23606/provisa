@@ -488,7 +488,8 @@
       "unknown": "Non esiste alcuna piattaforma di posta chiamata {{platform}}.",
       "not_configured": "La tua organizzazione non ha ancora collegato questa piattaforma di posta ({{platform}}). Un amministratore ne inserisce il client una volta in Amministrazione › Email.",
       "unknown_setting": "{{setting}} non è un’impostazione di questa piattaforma di posta.",
-      "incomplete": "Ancora necessario prima di salvare: {{missing}}."
+      "incomplete": "Ancora necessario prima di salvare: {{missing}}.",
+      "credential_unresolved": "Non è stato possibile risolvere il valore di {{field}} inserito per questa piattaforma di posta ({{platform}}): {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "La scelta delle caselle di posta non può essere interpretata: {{error}}",

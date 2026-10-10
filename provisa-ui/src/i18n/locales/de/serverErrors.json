@@ -488,7 +488,8 @@
       "unknown": "Es gibt keine E-Mail-Plattform namens {{platform}}.",
       "not_configured": "Ihre Organisation hat diese E-Mail-Plattform ({{platform}}) noch nicht verbunden. Ein Administrator trägt ihren Client einmal unter Admin › E-Mail ein.",
       "unknown_setting": "{{setting}} ist keine Einstellung dieser E-Mail-Plattform.",
-      "incomplete": "Vor dem Speichern noch erforderlich: {{missing}}."
+      "incomplete": "Vor dem Speichern noch erforderlich: {{missing}}.",
+      "credential_unresolved": "Der für diese E-Mail-Plattform ({{platform}}) eingegebene Wert für {{field}} konnte nicht aufgelöst werden: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "Die Auswahl der Postfächer kann nicht gelesen werden: {{error}}",

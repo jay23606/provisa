@@ -26,6 +26,8 @@ ids as the build's note on the replica, the one every mail source gives.
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
@@ -133,6 +135,38 @@ async def _asked_unchanged(connect: Connect, source: Any) -> str | None:
             )
 
     return None if await asyncio.to_thread(asked) else UNCHANGED
+
+
+class _MailboxToken:
+    """One mailbox's access token, exchanged from its owner's approval (a refresh token) and
+    asked for again as it nears its end. Safe to call from the threads that read Graph.
+
+    Microsoft answers each exchange with a newer refresh token and lets the one sent stand
+    until its own life ends. The newer one is not kept anywhere: the source holds the approval
+    it was given, and when that lapses its owner approves again."""
+
+    _MARGIN = 60.0
+
+    def __init__(self, auth: Any) -> None:
+        self._auth = auth
+        self._guard = threading.Lock()
+        self._token: str | None = None
+        self._until = 0.0
+
+    def __repr__(self) -> str:
+        return "_MailboxToken()"
+
+    def __call__(self) -> str:
+        from provisa.api_source.oauth_grants import exchange_refresh_token
+
+        with self._guard:
+            if self._token is not None and time.monotonic() < self._until - self._MARGIN:
+                return self._token
+            grant = exchange_refresh_token(self._auth)
+            self._token = grant.access_token
+            # A token whose life is not stated is used for this call and asked for again.
+            self._until = time.monotonic() + (grant.expires_in or 0.0)
+            return grant.access_token
 
 
 class NoMailboxRead(RuntimeError):
@@ -490,22 +524,20 @@ async def organisation_token(admin_db: Any, org_id: str) -> Callable[[], str]:
         m365.token_url(client.settings.get("tenant")),
         client.client,
         # In the entry's own organisation's vault, whatever the caller has bound.
-        await mail_platforms.resolved(admin_db, org_id, client.client_secret),
+        await mail_platforms.resolved(
+            admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, client.client_secret
+        ),
     )
 
 
 def make_connect(state: Any) -> Connect:
-    """How a source is signed in for a read: the organisation's Microsoft client
-    (``core.mail_platforms``, for the organisation the build runs in) and the source's own
-    refresh token, exchanged under the lock every refresh of the source takes
-    (``api_source.oauth_store``) because Microsoft replaces a refresh token each time it is
-    used."""
-    from provisa.api_source import oauth_store
-    from provisa.api_source.oauth_grants import exchange_refresh_token
-    from provisa.core import mail_platforms, settings_registry
+    """How a source is signed in for a read: with the organisation's Microsoft client
+    (``core.mail_platforms``, for the organisation the build runs in) and, for one mailbox, its
+    owner's approval as the source holds it. Each credential is what was entered, resolved by
+    the one resolver in that organisation's vault."""
+    from provisa.core import mail_platforms, secrets_store, settings_registry
     from provisa.core.auth_models import ApiAuthOAuth2RefreshToken
-    from provisa.core.config_loader import load_control_plane
-    from provisa.core.config_location import config_path_str
+    from provisa.core.secrets import resolve_secrets
     from provisa.core.request_context import require_current_org
     from provisa.microsoft365 import SOURCE_TYPE
     from provisa.microsoft365 import settings as m365
@@ -557,41 +589,24 @@ def make_connect(state: Any) -> Connect:
         # Resolved here, in the entry's own organisation's vault whatever the caller has bound
         # (a replica build binds one only for a source whose own fields name a secret): the
         # exchange runs in a worker thread, which holds none.
-        client_secret = await mail_platforms.resolved(state.admin_db, org_id, client.client_secret)
-        url = m365.token_url(client.settings.get("tenant"))
-        platform_url = load_control_plane(config_path_str()).resolved_platform_url()
-        loop = asyncio.get_running_loop()
+        client_secret = await mail_platforms.resolved(
+            state.admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, client.client_secret
+        )
         assert settings.account is not None  # the one-mailbox shape names it (settings.parse)
-
-        def exchange(refresh_token: str) -> oauth_store.Grant:
-            answered = exchange_refresh_token(
-                ApiAuthOAuth2RefreshToken(
-                    client_id=client.client,
-                    client_secret=client_secret,
-                    refresh_token=refresh_token,
-                    token_url=url,
-                    scope=" ".join(settings.scopes()),
-                )
+        assert settings.refresh_token is not None
+        # The owner's approval as the source's field holds it -- the token the sign-in gave, or
+        # a reference the operator typed -- resolved in this organisation's vault.
+        async with secrets_store.bound(state.admin_db, org_id):
+            refresh_token = resolve_secrets(settings.refresh_token)
+        signed_in = _MailboxToken(
+            ApiAuthOAuth2RefreshToken(
+                client_id=client.client,
+                client_secret=client_secret,
+                refresh_token=refresh_token,
+                token_url=m365.token_url(client.settings.get("tenant")),
+                scope=" ".join(settings.scopes()),
             )
-            return oauth_store.Grant(
-                answered.access_token, answered.expires_in, answered.replacement
-            )
-
-        def signed_in() -> str:
-            # Called from the thread that reads Graph; the store is the loop's.
-            return asyncio.run_coroutine_threadsafe(
-                oauth_store.stored_access_token(
-                    state.admin_db,
-                    platform_url,
-                    org_id,
-                    source_id=source.id,
-                    secret_name=settings.refresh_token_name,
-                    exchange=exchange,
-                    replaces=True,
-                ),
-                loop,
-            ).result()
-
+        )
         return Reading((settings.account,), signed_in, keep=keep, kept=kept, settle=settle)
 
     return connect

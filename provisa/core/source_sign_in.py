@@ -51,7 +51,6 @@ from sqlalchemy import delete, insert, select, update
 
 from provisa.core import secrets_store
 from provisa.core.schema_admin import source_sign_ins
-from provisa.core.secrets import resolve_secrets
 
 if TYPE_CHECKING:
     from provisa.core.database import Database
@@ -124,15 +123,9 @@ class Started:
 class Completed:
     source_id: str
     account: str
-    #: What the source's settings hold for its credential: a reference into the vault.
+    #: The refresh token the issuer gave: the value the source's ``refresh_token`` field then
+    #: holds, as any credential field holds what was entered.
     refresh_token: str
-
-
-#: Stores a source's refresh token (source id, vault name, token) where its refreshes read it,
-#: under the lock they take, and returns the reference that names it.
-StoreRefreshToken = Callable[[str, str, str], Awaitable[str]]
-#: Removes a vault entry this sign-in wrote, unless a stored value still names it.
-ForgetSecret = Callable[[str], Awaitable[None]]
 
 
 def redirect_address(public_address: str | None) -> str:
@@ -190,23 +183,19 @@ async def start(
     account: str,
     scopes: list[str],
     client_id: str,
-    client_secret_name: str,
-    refresh_token_name: str,
     public_address: str | None,
     settings: Mapping[str, str] | None = None,
 ) -> Started:
     """Record a sign-in and make the address the operator's browser is sent to.
 
-    The client is the organisation's (``core.mail_platforms``): ``client_id``, and the vault
-    name its secret is kept under, which is all that is recorded of it. ``refresh_token_name``
-    is the vault name the source's refresh token will be kept under."""
+    The client is the organisation's (``core.mail_platforms``): only its ``client_id`` is
+    recorded. Its secret is read from the organisation's entry when the sign-in is completed."""
     kind = _kind(kind_id)
     settings = dict(settings or {})
-    if not (source_id and account and client_id and client_secret_name and scopes):
+    if not (source_id and account and client_id and scopes):
         raise SignInRefused("incomplete", "A sign-in needs the source, the account and a client")
     address = redirect_address(public_address)
     authorization_endpoint = _address(kind.authorization_endpoint, settings)
-    secret_name, token_name = client_secret_name, refresh_token_name
     state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     async with admin_db.acquire() as conn:
         await conn.execute_core(
@@ -220,8 +209,11 @@ async def start(
                 account=account,
                 scopes=" ".join(scopes),
                 client_id=client_id,
-                client_secret_name=secret_name,
-                refresh_token_name=token_name,
+                # Two columns of an earlier design, which named vault entries. Nothing reads
+                # them; they are written empty because an existing control plane holds them
+                # NOT NULL and its schema is only ever added to (no migration in V1).
+                client_secret_name="",
+                refresh_token_name="",
                 verifier=secrets_store.seal(verifier),
                 redirect_address=address,
                 settings=json.dumps(settings, sort_keys=True),
@@ -293,8 +285,14 @@ def _issuer_error(answer: httpx.Response) -> str:
 
 
 async def _exchange(admin_db: "Database", kind: SignInKind, pending: dict, code: str) -> dict:
-    async with secrets_store.bound(admin_db, pending["org_id"]):
-        client_secret = resolve_secrets(_reference(pending["client_secret_name"]))
+    from provisa.core import mail_platforms
+
+    # The organisation's entry as it stands now: its client secret as its administrator entered
+    # it, resolved in that organisation's vault.
+    entry = await mail_platforms.require(admin_db, pending["org_id"], kind.id)
+    client_secret = await mail_platforms.resolved(
+        admin_db, pending["org_id"], kind.id, mail_platforms.CLIENT_SECRET, entry.client_secret
+    )
     form = {
         "grant_type": "authorization_code",
         "code": code,
@@ -316,10 +314,6 @@ async def _exchange(admin_db: "Database", kind: SignInKind, pending: dict, code:
     return answer.json()
 
 
-def _reference(name: str) -> str:
-    return f"${{secret:{name}}}"
-
-
 async def complete(
     admin_db: "Database",
     *,
@@ -328,7 +322,6 @@ async def complete(
     state: str,
     code: str | None,
     error: str | None,
-    store_refresh_token: StoreRefreshToken,
 ) -> Completed:
     """Finish the sign-in ``state`` names with the issuer's answer: a code, or its refusal."""
     pending = await _consume(admin_db, state, org_id=org_id, user_id=user_id)
@@ -354,14 +347,7 @@ async def complete(
             approved=approved,
             account=pending["account"],
         )
-    reference = await store_refresh_token(
-        pending["source_id"], pending["refresh_token_name"], refresh_token
-    )
-    return Completed(
-        source_id=pending["source_id"],
-        account=approved,
-        refresh_token=reference,
-    )
+    return Completed(source_id=pending["source_id"], account=approved, refresh_token=refresh_token)
 
 
 async def sweep(
@@ -369,15 +355,9 @@ async def sweep(
     *,
     org_id: str,
     env: str,
-    source_exists: Callable[[str], Awaitable[bool]],
-    forget_secret: ForgetSecret,
 ) -> None:
     """Forget the organisation's sign-ins that came to nothing: never completed in time, or
-    completed for a source that was not saved within :data:`UNSAVED_LIFETIME`.
-
-    Only the refresh token a sign-in recorded is removed, and only while no source of its id
-    exists; a sign-in whose source was saved just loses its row. The client's secret is the
-    organisation's and is never removed here."""
+    completed longer ago than :data:`UNSAVED_LIFETIME`. Only the sign-in's own row goes."""
     now = _now()
     async with admin_db.acquire() as conn:
         rows = (
@@ -395,14 +375,9 @@ async def sweep(
             return _aware(pending["expires_at"]) <= now
         return _aware(used) + dt.timedelta(seconds=UNSAVED_LIFETIME) <= now
 
-    # A source being signed in again shares its vault names with the attempt before it.
-    live = {p["source_id"] for p in sign_ins if not over(p)}
     for pending in sign_ins:
         if not over(pending):
             continue
-        if pending["source_id"] not in live and not await source_exists(pending["source_id"]):
-            # The client's secret is the organisation's and is not this sign-in's to remove.
-            await forget_secret(pending["refresh_token_name"])
         async with admin_db.acquire() as conn:
             await conn.execute_core(
                 delete(source_sign_ins).where(

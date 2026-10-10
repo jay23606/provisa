@@ -305,12 +305,8 @@ async def set_source_binding(
                 org=org_id,
                 env=name,
             )
-        from provisa.api.admin.schema_common import store_source_password
-
-        # The environment's own credential, under a name of its own: the parent's is untouched.
-        connection["password_ref"] = await store_source_password(
-            actor, source_id, body.password or "", env=name
-        )
+        # The environment's own credential, as entered; the parent's row is untouched.
+        connection["password_ref"] = body.password or ""
     elif connection or body.password is not None:
         raise ApiError(
             422,

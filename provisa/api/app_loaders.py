@@ -390,9 +390,9 @@ async def _build_source_pools_and_enums(
     # run before load_config so physical registration uses the org-prefixed name).
     _populate_source_catalog_names(config, extra_sources=extra_sources)
 
-    # REQ-1730: a control-plane-only source's password is a ${secret:NAME} vault reference
-    # (persist_source_password writes it that way — see StoredSecretsProvider), unlike a YAML
-    # source's password, which is a literal or a ${env:...} ref that needs no org binding at all.
+    # REQ-1730: a control-plane-only source's password may be a ${secret:NAME} reference its
+    # operator typed, which needs its organisation's vault bound; a value or a ${env:...}
+    # reference needs no binding at all.
     # Nothing bound an org here before because nothing calling resolve_secrets during BOOT ever
     # held a vault-backed reference until extra_sources started flowing through this loop —
     # reproduced live: KeyError "no organization is bound to this context", uncaught, crashing the

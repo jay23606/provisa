@@ -100,29 +100,6 @@ def _holds_org_settings(request: Request) -> bool:
     return has_capability_request(request, "org_settings")
 
 
-def _store_refresh_token(org_id: str, actor: str | None):
-    """The refresh token goes to the vault under the lock the source's refreshes take
-    (``oauth_store``), so a sign-in and a refresh never write one source's token at once."""
-
-    async def store(source_id: str, secret_name: str, refresh_token: str) -> str:
-        from provisa.api_source import oauth_store
-        from provisa.core.config_loader import load_control_plane
-        from provisa.core.config_location import config_path_str
-
-        await oauth_store.store_refresh_token(
-            _admin_db(),
-            load_control_plane(config_path_str()).resolved_platform_url(),
-            org_id,
-            source_id=source_id,
-            secret_name=secret_name,
-            refresh_token=refresh_token,
-            actor=actor,
-        )
-        return f"${{secret:{secret_name}}}"
-
-    return store
-
-
 @router.get("/status")
 async def status(request: Request, kind: str) -> dict:
     """Whether the caller's organisation has entered a client for ``kind``, so the Sources
@@ -146,7 +123,6 @@ async def status(request: Request, kind: str) -> dict:
 @router.post("/start")
 async def start(request: Request, body: StartRequest) -> dict:
     require_capability_request(request, "source_registration")
-    from provisa.api.admin.schema_common import _forget_source_secret, source_mapping_secret_name
     from provisa.core.request_context import active_env, require_current_org
 
     org_id, env, user_id = require_current_org(), active_env(), _starter(request)
@@ -160,8 +136,6 @@ async def start(request: Request, body: StartRequest) -> dict:
             _admin_db(),
             org_id=org_id,
             env=env,
-            source_exists=_source_exists,
-            forget_secret=_forget_source_secret,
         )
         started = await source_sign_in.start(
             _admin_db(),
@@ -173,10 +147,6 @@ async def start(request: Request, body: StartRequest) -> dict:
             account=body.account.strip(),
             scopes=body.scopes,
             client_id=client.client,
-            client_secret_name=mail_platforms.secret_name(body.kind),
-            refresh_token_name=source_mapping_secret_name(
-                body.source_id.strip(), "refresh_token", env
-            ),
             public_address=_public_address(),
             settings=client.settings,
         )
@@ -204,7 +174,6 @@ async def complete(request: Request, body: CompleteRequest) -> dict:
             state=body.state,
             code=body.code,
             error=body.error,
-            store_refresh_token=_store_refresh_token(org_id, _caller_user_id(request)),
         )
     except SignInRefused as refused:
         raise _refusal(refused) from None
