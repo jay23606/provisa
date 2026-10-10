@@ -159,7 +159,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sources/ProfilerFormSection.tsx",
   "pages/sources/SourceDetailPanel.tsx",
   "pages/sources/SourceLoadManagementPanel.tsx",
-  "pages/sources/WikipediaFields.tsx",
   "pages/sql/ColumnFilterMenu.tsx",
   "pages/sql/ViewModal.tsx",
   "pages/tables/CalendarCreateModal.tsx",
