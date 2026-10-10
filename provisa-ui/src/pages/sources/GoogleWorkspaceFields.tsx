@@ -91,10 +91,37 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
     };
   }, [refused]);
 
+  // Whether this mailbox's owner has signed in is the server's to say: it keeps the approval.
+  const account = (fields.gw_account ?? "").trim();
+  useEffect(() => {
+    if (!sourceId.trim() || !account) return;
+    let live = true;
+    signInStatus(GOOGLE_WORKSPACE, { source_id: sourceId, account })
+      .then((answered) => {
+        if (!live || !answered.connected) return;
+        setFields({
+          ...fields,
+          gw_connected_as: account,
+          gw_connected_at: answered.connected_at ?? "",
+        });
+      })
+      .catch(() => undefined); // the organisation's status above already says what is wrong
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked when the mailbox named changes
+  }, [sourceId, account]);
+
   const set = (key: string, value: string) => setFields({ ...fields, [key]: value });
   // A change to what Google was asked for is not what was approved: the approval is asked again.
   const setAsked = (key: string, value: string) =>
-    setFields({ ...fields, [key]: value, gw_refresh_token: "", gw_connected_as: "" });
+    setFields({
+      ...fields,
+      [key]: value,
+      gw_connected_as: "",
+      gw_connected_at: "",
+      gw_earlier_approval: "",
+    });
   const text = (key: string, change = set) => ({
     value: fields[key] ?? "",
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -119,9 +146,10 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       });
       setFields({
         ...fields,
-        // The approval is kept by the server; gmail's reader takes it from there next.
-        gw_refresh_token: "",
+        // The approval is kept by the server; the source holds none.
         gw_connected_as: done.account,
+        gw_connected_at: new Date().toISOString(),
+        gw_earlier_approval: "", // superseded by the approval just given
       });
     } catch (err) {
       setProblem(refused(err));
@@ -320,7 +348,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </Group>
         </FormField>
       )}
-      {!organisation && !notSetUp && fields.gw_connected_as && fields.gw_refresh_token && (
+      {!organisation && !notSetUp && fields.gw_connected_as && (
         <FormField size="full">
           <Alert
             color="green"
@@ -329,7 +357,12 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
             px="sm"
             data-testid="google-workspace-connected"
           >
-            {t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
+            {fields.gw_connected_at
+              ? t("googleWorkspaceFields.connectedOn", {
+                  account: fields.gw_connected_as,
+                  date: new Date(fields.gw_connected_at).toLocaleDateString(),
+                })
+              : t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
           </Alert>
         </FormField>
       )}

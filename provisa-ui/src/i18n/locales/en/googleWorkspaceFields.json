@@ -8,6 +8,7 @@
     "mailContentHeaders": "Headers and labels only, no message text",
     "connect": "Connect Google account",
     "connected": "Connected as {{account}}",
+    "connectedOn": "Connected as {{account}} on {{date}}",
     "connectFailed": "The sign-in could not be completed.",
     "mailSearch": "Mail to include",
     "mailSearchHelp": "A search exactly as you would type it in Gmail's search box. Leave empty for all mail.",

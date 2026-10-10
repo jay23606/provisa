@@ -8,6 +8,7 @@
     "mailContentHeaders": "Solo intestazioni ed etichette, senza il testo dei messaggi",
     "connect": "Collega account Google",
     "connected": "Collegato come {{account}}",
+    "connectedOn": "Collegato come {{account}} il {{date}}",
     "connectFailed": "Non è stato possibile completare l’accesso.",
     "mailSearch": "Posta da includere",
     "mailSearchHelp": "Una ricerca esattamente come la scriveresti nella casella di ricerca di Gmail. Lascia vuoto per tutta la posta.",

@@ -125,7 +125,10 @@ class Settings:
     resources: tuple[str, ...]
     mail: MailSettings | None  # None when mail is not ticked
     accounts: tuple[str, ...] = ()  # the one mailbox's address
-    refresh_token: str | None = None  # as the source holds it: the token, or a reference
+    #: Only on a source connected before approvals were kept in the organisation's state
+    #: store: the approval as the source then held it. Taken into the state store at the
+    #: source's next read (loader), and never written by a sign-in now.
+    refresh_token: str | None = None
     mailboxes: Mailboxes | None = None
 
     @property
@@ -143,17 +146,19 @@ class Settings:
                 scopes.extend(RESOURCE_SCOPES[resource])
         return scopes
 
-    def auth(self, account: str, client: "Configured") -> ApiAuthOAuth2RefreshToken:
-        """The credential the one mailbox is read with: its owner's approval of ``client``,
-        the organisation's Google client, which the approval was given to and is renewed
-        with."""
+    def auth(
+        self, account: str, client: "Configured", refresh_token: str
+    ) -> ApiAuthOAuth2RefreshToken:
+        """The credential the one mailbox is read with: ``refresh_token``, its owner's approval
+        of ``client`` -- the organisation's Google client, which the approval was given to and
+        is renewed with. The approval is kept for the source in the organisation's state store
+        and is the caller's to read; the source's settings do not hold it."""
         if self.organisation or account not in self.accounts:
             raise InvalidGoogleWorkspaceSource(f"{account} is not the mailbox of this source")
-        assert self.refresh_token is not None  # parse: a connected mailbox states it
         return ApiAuthOAuth2RefreshToken(
             client_id=client.client,
             client_secret=client.client_secret,
-            refresh_token=self.refresh_token,
+            refresh_token=refresh_token,
             token_url=TOKEN_URL,
         )
 
@@ -209,8 +214,10 @@ def _resources(mapping: dict) -> tuple[str, ...]:
     return tuple(r for r in RESOURCES if r in ticked)
 
 
-def _connected(mapping: dict) -> str:
-    """The reference to the refresh token of a mailbox its owner connected."""
+def _connected(mapping: dict) -> str | None:
+    """How a source of one mailbox is connected, checked; and the approval a source connected
+    before approvals were kept in the state store still names here, or None. A source with no
+    approval at all is refused where it is read (not connected), not here."""
     sign_in = _text(mapping, "sign_in")
     if sign_in != GOOGLE_ACCOUNT:
         raise InvalidGoogleWorkspaceSource(
@@ -218,10 +225,7 @@ def _connected(mapping: dict) -> str:
             "connected by its owner; the organisation's mailboxes are read by a source that "
             "states mailboxes"
         )
-    token = _text(mapping, "refresh_token")
-    if token is None:
-        raise InvalidGoogleWorkspaceSource(f"{GOOGLE_ACCOUNT} sign-in needs refresh_token")
-    return token
+    return _text(mapping, "refresh_token")
 
 
 def _mailboxes(stated: object) -> Mailboxes:

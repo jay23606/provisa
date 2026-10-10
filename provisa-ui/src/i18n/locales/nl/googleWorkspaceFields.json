@@ -8,6 +8,7 @@
     "mailContentHeaders": "Alleen headers en labels, geen berichttekst",
     "connect": "Google-account koppelen",
     "connected": "Gekoppeld als {{account}}",
+    "connectedOn": "Gekoppeld als {{account}} op {{date}}",
     "connectFailed": "Het inloggen kon niet worden voltooid.",
     "mailSearch": "Op te nemen e-mail",
     "mailSearchHelp": "Een zoekopdracht precies zoals u die in het zoekvak van Gmail zou typen. Laat leeg voor alle e-mail.",

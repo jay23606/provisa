@@ -46,8 +46,7 @@ def _in_vault(resolve):
     credential (read against a real vault in test_google_workspace_organisation.py)."""
 
     async def resolved(_admin_db, _org_id, auth):
-        fields = ("client_secret", "refresh_token")
-        return auth.model_copy(update={f: resolve(getattr(auth, f)) for f in fields})
+        return auth.model_copy(update={"client_secret": resolve(auth.client_secret)})
 
     return resolved
 
@@ -442,44 +441,97 @@ class TestTheLoader:
         assert read["account"] == ACCOUNT
         assert await read["token"]() == "made-up-access-token"
 
-    async def test_an_owners_approval_is_renewed_with_the_organisations_client(
-        self, read, monkeypatch
-    ):
+    @pytest.fixture
+    def signed_in(self, read, monkeypatch, tmp_path):
+        """What ``connect`` reaches for one mailbox: the organisation's client, its vault and
+        its state store, where the owner's approval is kept."""
         from provisa.core import request_context
+        from provisa.core.database import Database, create_engine_from_url
         from provisa.core.mail_platforms import Configured
+        from provisa.core.schema_org import mail_sync_state as table
+        from provisa.core.schema_org import metadata
 
-        asked: list[tuple] = []
+        engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
+        with engine.begin() as conn:
+            metadata.create_all(conn, tables=[table])
+        seen = SimpleNamespace(asked=[], vault=[], read=read)
+        seen.state = SimpleNamespace(admin_db="admin-plane", tenant_db=Database(engine, name="s"))
 
         async def require(admin_db, org_id, platform_id):
-            asked.append((admin_db, org_id, platform_id))
+            seen.asked.append((admin_db, org_id, platform_id))
             return Configured(platform_id, "org-client-1", {}, client_secret="${secret:typed}")
 
+        async def in_vault(admin_db, org_id, value):
+            seen.vault.append((org_id, value))
+            return value.replace("${secret:", "resolved:").rstrip("}")
+
         monkeypatch.setattr(mail_platforms, "require", require)
+        monkeypatch.setattr(mail_platforms, "resolved", in_vault)
         monkeypatch.setattr(
             loader,
             "_resolved",
             _in_vault(lambda v: v.replace("${secret:", "resolved:").rstrip("}")),
         )
         token = request_context.set_current_org("acme")
-        try:
-            source = self._source()
-            source.mapping = {
-                "accounts": [ACCOUNT],
-                "resources": ["mail"],
-                "sign_in": "google_account",
-                "refresh_token": "${secret:source_mail__refresh_token}",
-                "mail_content": "full",
-            }
-            reading = await loader.make_connect(read["state"])(source)
-        finally:
-            request_context.reset_current_org(token)
-        assert asked == [("admin-plane", "acme", "google_workspace")]
+        yield seen
+        request_context.reset_current_org(token)
+        engine.dispose()
+
+    def _one(self, **more):
+        source = self._source()
+        source.mapping = {
+            "accounts": [ACCOUNT],
+            "resources": ["mail"],
+            "sign_in": "google_account",
+            "mail_content": "full",
+            **more,
+        }
+        return source
+
+    @staticmethod
+    async def _kept(state) -> str | None:
+        from provisa.federation import mail_sync_state
+
+        async with state.tenant_db.acquire() as conn:
+            return await mail_sync_state.grant(conn, "mail", ACCOUNT)
+
+    async def test_an_owners_approval_is_renewed_with_the_organisations_client(self, signed_in):
+        """The approval is the one kept for the source and mailbox in the organisation's state
+        store; the source's settings hold none, and no vault is read for it."""
+        from provisa.federation import mail_sync_state
+
+        async with signed_in.state.tenant_db.acquire() as conn:
+            await mail_sync_state.keep_grant(conn, "mail", ACCOUNT, "the-kept-approval")
+        reading = await loader.make_connect(signed_in.state)(self._one())
+        assert signed_in.asked == [("admin-plane", "acme", "google_workspace")]
         assert (reading.accounts, reading.organisation, reading.at_once) == ((ACCOUNT,), False, 1)
         assert await reading.token(ACCOUNT) == "made-up-access-token"
-        auth = read["auth"]
+        auth = signed_in.read["auth"]
         assert auth.client_id == "org-client-1"
         assert auth.client_secret == "resolved:typed"
-        assert auth.refresh_token == "resolved:source_mail__refresh_token"
+        assert auth.refresh_token == "the-kept-approval"
+        assert signed_in.vault == []
+        # Google does not replace an approval when it is used: what is kept is left as it is.
+        assert await self._kept(signed_in.state) == "the-kept-approval"
+
+    async def test_a_mailbox_nobody_signed_in_to_is_refused_by_name(self, signed_in):
+        from provisa.api_source.oauth_store import NotConnected
+
+        with pytest.raises(NotConnected, match=f"{ACCOUNT} is not connected"):
+            await loader.make_connect(signed_in.state)(self._one())
+        assert "auth" not in signed_in.read  # nothing was exchanged
+
+    async def test_a_source_connected_the_earlier_way_keeps_reading(self, signed_in):
+        """Its settings still name the approval by a reference: resolved once in the
+        organisation's vault, kept in the state store, and read from there afterwards."""
+        old = self._one(refresh_token="${secret:source_mail__refresh_token}")
+        connect = loader.make_connect(signed_in.state)
+        await (await connect(old)).token(ACCOUNT)
+        assert signed_in.read["auth"].refresh_token == "resolved:source_mail__refresh_token"
+        assert signed_in.vault == [("acme", "${secret:source_mail__refresh_token}")]
+        assert await self._kept(signed_in.state) == "resolved:source_mail__refresh_token"
+        await connect(old)
+        assert len(signed_in.vault) == 1  # the state store answers from then on
 
     async def test_a_replicas_build_notes_the_messages_kept_without_text(self, read, monkeypatch):
         broken = _mail("m9", "t9", T0, "Kept")

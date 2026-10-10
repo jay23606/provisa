@@ -8,6 +8,7 @@
     "mailContentHeaders": "כותרות ותוויות בלבד, ללא תוכן ההודעה",
     "connect": "חיבור חשבון Google",
     "connected": "מחובר בתור {{account}}",
+    "connectedOn": "מחובר בתור {{account}} מתאריך {{date}}",
     "connectFailed": "לא ניתן היה להשלים את הכניסה.",
     "mailSearch": "דואר לכלול",
     "mailSearchHelp": "חיפוש בדיוק כפי שהיית מקליד בתיבת החיפוש של Gmail. יש להשאיר ריק עבור כל הדואר.",

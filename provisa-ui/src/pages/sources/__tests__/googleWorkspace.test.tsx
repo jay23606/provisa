@@ -178,11 +178,11 @@ describe("connecting a Google account", () => {
     expect(gwConnectMissing(FILLED, "mail")).toEqual([]);
   });
 
-  it("sends Google's scope for what is read, and no client, and keeps only a reference", async () => {
+  it("sends Google's scope for what is read, and no client, and holds no approval", async () => {
     signIn.signInSource.mockResolvedValue({
       source_id: "mail",
       account: "ada@example.test",
-      refresh_token: "${secret:source_mail__refresh_token}",
+      connected: true,
     });
     const setAuthFields = form(FILLED);
     await connectReady();
@@ -194,31 +194,76 @@ describe("connecting a Google account", () => {
       account: "ada@example.test",
       scopes: [READONLY],
     });
-    expect(setAuthFields).toHaveBeenLastCalledWith({
+    // The server keeps the approval; the form holds who connected and when, and no token.
+    const kept = setAuthFields.mock.calls.at(-1)![0] as Record<string, string>;
+    expect(kept).toMatchObject({
       ...FILLED,
-      gw_refresh_token: "${secret:source_mail__refresh_token}",
       gw_connected_as: "ada@example.test",
+      gw_earlier_approval: "",
     });
+    expect(Number.isNaN(Date.parse(kept.gw_connected_at))).toBe(false);
+    expect(Object.keys(kept)).not.toContain("gw_refresh_token");
   });
 
   it("says who approved once connected", async () => {
-    form({ ...FILLED, gw_refresh_token: "${secret:t}", gw_connected_as: "ada@example.test" });
+    form({ ...FILLED, gw_connected_as: "ada@example.test" });
     await connectReady();
     expect(shown("connected")).toHaveTextContent("Connected as ada@example.test");
+  });
+
+  it("asks the server whether this mailbox's owner has signed in, and says since when", async () => {
+    signIn.signInStatus.mockImplementation(async (_kind: string, of?: object) =>
+      of
+        ? {
+            configured: true,
+            may_configure: false,
+            connected: true,
+            connected_at: "2026-10-01T09:00:00Z",
+          }
+        : { configured: true, may_configure: false },
+    );
+    const setAuthFields = form(FILLED);
+    await waitFor(() =>
+      expect(signIn.signInStatus).toHaveBeenCalledWith("google_workspace", {
+        source_id: "mail",
+        account: "ada@example.test",
+      }),
+    );
+    await waitFor(() =>
+      expect(setAuthFields).toHaveBeenLastCalledWith({
+        ...FILLED,
+        gw_connected_as: "ada@example.test",
+        gw_connected_at: "2026-10-01T09:00:00Z",
+      }),
+    );
+  });
+
+  it("says when it was connected where the server said", async () => {
+    form({
+      ...FILLED,
+      gw_connected_as: "ada@example.test",
+      gw_connected_at: "2026-10-01T09:00:00Z",
+    });
+    await connectReady();
+    expect(shown("connected")).toHaveTextContent(
+      `Connected as ada@example.test on ${new Date("2026-10-01T09:00:00Z").toLocaleDateString()}`,
+    );
   });
 
   it("asks again when what Google was asked for changes", () => {
     const setAuthFields = form({
       ...FILLED,
-      gw_refresh_token: "${secret:t}",
+      gw_earlier_approval: "${secret:t}",
       gw_connected_as: "ada@example.test",
+      gw_connected_at: "2026-10-01T09:00:00Z",
     });
     fireEvent.change(shown("gw_account")!, { target: { value: "bo@example.test" } });
     expect(setAuthFields).toHaveBeenLastCalledWith(
       expect.objectContaining({
         gw_account: "bo@example.test",
-        gw_refresh_token: "",
         gw_connected_as: "",
+        gw_connected_at: "",
+        gw_earlier_approval: "",
       }),
     );
   });
@@ -235,7 +280,7 @@ describe("connecting a Google account", () => {
 });
 
 describe("what a Google Workspace setup saves", () => {
-  const connected = { ...FILLED, gw_refresh_token: "${secret:t}" };
+  const connected = { ...FILLED, gw_connected_as: "ada@example.test" };
 
   it("is the settings the server reads, by their names, and no client", () => {
     expect(
@@ -251,7 +296,6 @@ describe("what a Google Workspace setup saves", () => {
       resources: ["mail"],
       sign_in: "google_account",
       mail_content: "full",
-      refresh_token: "${secret:t}",
       mail_search: "from:bo@example.test",
       mail_labels: ["Clients", "Invoices"],
       mail_since: "2026-01-01",
@@ -274,19 +318,39 @@ describe("what a Google Workspace setup saves", () => {
   });
 
   it("is not complete until the account is connected", () => {
-    expect(gwMissing({})).toEqual(["gw_account", "gw_mail_content", "gw_refresh_token"]);
-    expect(gwMissing(FILLED)).toEqual(["gw_refresh_token"]);
+    expect(gwMissing({})).toEqual(["gw_account", "gw_mail_content", "gw_connected_as"]);
+    expect(gwMissing(FILLED)).toEqual(["gw_connected_as"]);
     expect(gwMissing(connected)).toEqual([]);
+  });
+
+  it("holds no approval: the server keeps it", () => {
+    expect(gwMapping(connected)).not.toHaveProperty("refresh_token");
+  });
+
+  it("carries through the approval of a source connected the earlier way, unchanged", () => {
+    const saved = {
+      accounts: ["ada@example.test"],
+      resources: ["mail"],
+      sign_in: "google_account",
+      mail_content: "full",
+      refresh_token: "${secret:source_mail__refresh_token}",
+    };
+    const fields = gwFieldsFromMapping(JSON.stringify(saved));
+    expect(fields).toMatchObject({
+      gw_earlier_approval: "${secret:source_mail__refresh_token}",
+      gw_connected_as: "ada@example.test",
+    });
+    expect(gwMissing(fields)).toEqual([]);
+    // An edit of anything else does not drop it before the server has taken it.
+    expect(gwMapping(fields)).toEqual(saved);
   });
 
   it("reads back into the form what was saved", () => {
     const saved = gwMapping({ ...connected, gw_mail_labels: "Clients" });
     const fields = gwFieldsFromMapping(JSON.stringify(saved));
-    expect(fields).toMatchObject({
-      ...connected,
-      gw_mail_labels: "Clients",
-      gw_connected_as: "ada@example.test",
-    });
+    // Whether its owner has signed in is asked of the server when the form opens.
+    expect(fields).toMatchObject({ ...FILLED, gw_mail_labels: "Clients" });
+    expect(fields).not.toHaveProperty("gw_connected_as");
     expect(gwMapping(fields)).toEqual(saved);
   });
 
@@ -301,7 +365,7 @@ describe("what a Google Workspace setup saves", () => {
       }),
     );
     expect(JSON.stringify(gwMapping(fields))).not.toContain("service_account");
-    expect(gwMissing(fields)).toEqual(["gw_refresh_token"]);
+    expect(gwMissing(fields)).toEqual(["gw_connected_as"]);
   });
 });
 

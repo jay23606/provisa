@@ -8,6 +8,7 @@
     "mailContentHeaders": "En-têtes et libellés uniquement, sans le texte des messages",
     "connect": "Connecter le compte Google",
     "connected": "Connecté en tant que {{account}}",
+    "connectedOn": "Connecté en tant que {{account}} le {{date}}",
     "connectFailed": "La connexion n’a pas pu aboutir.",
     "mailSearch": "Messages à inclure",
     "mailSearchHelp": "Une recherche telle que vous la saisiriez dans le champ de recherche de Gmail. Laissez vide pour tous les messages.",

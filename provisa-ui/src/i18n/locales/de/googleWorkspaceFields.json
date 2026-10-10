@@ -8,6 +8,7 @@
     "mailContentHeaders": "Nur Header und Labels, kein Nachrichtentext",
     "connect": "Google-Konto verbinden",
     "connected": "Verbunden als {{account}}",
+    "connectedOn": "Verbunden als {{account}} am {{date}}",
     "connectFailed": "Die Anmeldung konnte nicht abgeschlossen werden.",
     "mailSearch": "Einzubeziehende E-Mails",
     "mailSearchHelp": "Eine Suche, genau wie Sie sie in das Suchfeld von Gmail eingeben würden. Leer lassen für alle E-Mails.",

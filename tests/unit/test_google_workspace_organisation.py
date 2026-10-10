@@ -544,10 +544,10 @@ async def test_a_key_that_cannot_be_resolved_is_refused_by_the_fields_name(plane
 
 
 @pytest.mark.asyncio
-async def test_one_mailboxes_credential_is_resolved_as_its_fields_hold_it(plane):  # noqa: F811
-    """The client's secret as the administrator entered it and the owner's approval as the
-    source holds it: a value is used as it is, a typed reference is read from the vault, and
-    no caller need have bound one."""
+async def test_one_mailboxes_client_secret_is_resolved_as_its_field_holds_it(plane):  # noqa: F811
+    """The client's secret as the administrator entered it: a value is used as it is, a typed
+    reference is read from the vault, and no caller need have bound one. The owner's approval
+    is not resolved: it is the value the state store keeps."""
     from provisa.core import mail_platforms, secrets_store
     from provisa.google_workspace.settings import parse
 
@@ -560,19 +560,15 @@ async def test_one_mailboxes_credential_is_resolved_as_its_fields_hold_it(plane)
     await secrets_store.put(
         plane, "acme", "typed", "from-the-vault", owner_id=secrets_store.ORG_OWNER
     )
-    for entered, token, expected in (
-        (
-            "made-up-client-secret",
-            "made-up-refresh-token",
-            ("made-up-client-secret", "made-up-refresh-token"),
-        ),
-        ("${secret:typed}", "${secret:typed}", ("from-the-vault", "from-the-vault")),
+    for entered, expected in (
+        ("made-up-client-secret", "made-up-client-secret"),
+        ("${secret:typed}", "from-the-vault"),
     ):
         client = await _put(plane, client_secret=entered)
-        auth = parse({**one, "refresh_token": token}).auth("ada@example.test", client)
+        auth = parse(one).auth("ada@example.test", client, "the-kept-approval")
         assert secrets_store.bound_org_id() is None
         ready = await loader._resolved(plane, "acme", auth)
-        assert (ready.client_secret, ready.refresh_token) == expected
+        assert (ready.client_secret, ready.refresh_token) == (expected, "the-kept-approval")
         assert (
             await mail_platforms.read(plane, "acme", "google_workspace")
         ).client_secret == entered

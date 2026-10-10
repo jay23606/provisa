@@ -84,18 +84,17 @@ def source_settings(source: Any) -> Settings:
 
 
 async def _resolved(admin_db: Any, org_id: str, auth: Any) -> Any:
-    """``auth`` ready to use: the organisation's client secret and the owner's approval as their
-    fields hold them -- a value, or a reference someone typed -- resolved in ``org_id``'s vault,
-    here on the event loop: the token exchange runs in a worker thread, which holds no vault.
-    The vault is bound for these reads and never taken from the caller."""
+    """``auth`` ready to use: the organisation's client secret as its field holds it -- a value,
+    or a reference someone typed -- resolved in ``org_id``'s vault, here on the event loop: the
+    token exchange runs in a worker thread, which holds no vault. The vault is bound for this
+    read and never taken from the caller."""
     from provisa.core import mail_platforms
     from provisa.google_workspace import SOURCE_TYPE
 
     client_secret = await mail_platforms.credential(
         admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, auth.client_secret
     )
-    refresh_token = await mail_platforms.resolved(admin_db, org_id, auth.refresh_token)
-    return auth.model_copy(update={"client_secret": client_secret, "refresh_token": refresh_token})
+    return auth.model_copy(update={"client_secret": client_secret})
 
 
 def _folder(account: str, label: dict) -> dict[str, Any]:
@@ -639,6 +638,7 @@ def make_connect(state: Any) -> Connect:
     """How a source is signed in for a read: one mailbox with its owner's approval of the
     organisation's Google client; the organisation's mailboxes with its service account,
     reading as each user."""
+    from provisa.api_source import oauth_store
     from provisa.api_source.oauth_grants import access_token
     from provisa.core import mail_platforms, settings_registry
     from provisa.core.request_context import require_current_org
@@ -676,9 +676,24 @@ def make_connect(state: Any) -> Connect:
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         (address,) = settings.accounts
+
+        async def earlier() -> str | None:
+            # A source connected before approvals were kept in the state store names its
+            # owner's approval in its own settings: resolved once, in the organisation's
+            # vault, and kept in the state store from then on.
+            if settings.refresh_token is None:
+                return None
+            return await mail_platforms.resolved(state.admin_db, org_id, settings.refresh_token)
+
+        # The owner's approval, kept for this source and mailbox in the organisation's state
+        # store; refused by name when its owner has not signed in. Google does not replace an
+        # approval when it is used, so it is read and nothing is written back.
+        approval = await oauth_store.kept_refresh_token(
+            state.tenant_db, source_id=source.id, account=address, earlier=earlier
+        )
         # Resolved here, in the organisation's vault: the exchange runs in a worker thread,
         # which holds none.
-        auth = await _resolved(state.admin_db, org_id, settings.auth(address, client))
+        auth = await _resolved(state.admin_db, org_id, settings.auth(address, client, approval))
 
         async def signed_in(_address: str) -> str:
             return await asyncio.to_thread(access_token, auth)

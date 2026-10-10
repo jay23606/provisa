@@ -8,6 +8,7 @@
     "mailContentHeaders": "仅邮件标头和标签,不含正文",
     "connect": "连接 Google 账号",
     "connected": "已以 {{account}} 的身份连接",
+    "connectedOn": "已于 {{date}} 以 {{account}} 的身份连接",
     "connectFailed": "无法完成登录。",
     "mailSearch": "要包含的邮件",
     "mailSearchHelp": "与您在 Gmail 搜索框中输入的搜索条件完全相同。留空表示所有邮件。",

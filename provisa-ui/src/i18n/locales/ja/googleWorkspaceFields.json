@@ -8,6 +8,7 @@
     "mailContentHeaders": "ヘッダーとラベルのみ(本文なし)",
     "connect": "Google アカウントを接続",
     "connected": "{{account}} として接続済み",
+    "connectedOn": "{{account}} として {{date}} に接続済み",
     "connectFailed": "ログインを完了できませんでした。",
     "mailSearch": "含めるメール",
     "mailSearchHelp": "Gmail の検索ボックスに入力するとおりの検索条件。すべてのメールを対象にする場合は空欄にします。",

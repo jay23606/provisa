@@ -92,7 +92,8 @@ export function gwMissing(fields: Record<string, string>): string[] {
   for (const key of ["gw_account", "gw_mail_content"]) {
     if (!stated(fields, key)) missing.push(key);
   }
-  if (!stated(fields, "gw_refresh_token")) missing.push("gw_refresh_token");
+  // Its owner has signed in: the server keeps the approval and says so (the form asks it).
+  if (!stated(fields, "gw_connected_as")) missing.push("gw_connected_as");
   return missing;
 }
 
@@ -106,8 +107,12 @@ export function gwMapping(fields: Record<string, string>): Record<string, unknow
         accounts: [stated(fields, "gw_account")],
         resources: ["mail"],
         sign_in: GW_GOOGLE_ACCOUNT,
-        refresh_token: stated(fields, "gw_refresh_token"),
       };
+  // The owner's approval is kept by the server, not in the source. A source connected before
+  // that still names it here; it is carried through unchanged until the server has taken it.
+  if (!gwOrganisation(fields) && stated(fields, "gw_earlier_approval")) {
+    mapping.refresh_token = stated(fields, "gw_earlier_approval");
+  }
   mapping.mail_content = stated(fields, "gw_mail_content");
   if (lines(fields.gw_mail_labels).length) mapping.mail_labels = lines(fields.gw_mail_labels);
   if (fields.gw_mail_include_spam_trash === "true") mapping.mail_include_spam_trash = true;
@@ -144,8 +149,10 @@ export function gwFieldsFromMapping(mappingJson: string): Record<string, string>
   }
   fields.gw_whose = GW_ONE;
   fields.gw_account = ((mapping.accounts as string[] | undefined) ?? []).join("");
-  if (mapping.refresh_token !== undefined) fields.gw_refresh_token = String(mapping.refresh_token);
-  if (fields.gw_refresh_token) fields.gw_connected_as = fields.gw_account;
+  if (typeof mapping.refresh_token === "string" && mapping.refresh_token !== "") {
+    fields.gw_earlier_approval = mapping.refresh_token;
+    fields.gw_connected_as = fields.gw_account; // connected the earlier way
+  }
   return fields;
 }
 

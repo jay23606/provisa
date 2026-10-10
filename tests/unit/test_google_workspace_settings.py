@@ -118,11 +118,12 @@ class TestAccounts:
 class TestSignIn:
     def test_a_person_signs_in_with_their_approval_of_the_organisations_client(self):
         client = Configured("google_workspace", "org-client-1", {}, client_secret="as-entered")
-        auth = parse(_person()).auth("ada@example.test", client)
+        auth = parse(_person()).auth("ada@example.test", client, "the-kept-approval")
         assert auth == ApiAuthOAuth2RefreshToken(
             client_id="org-client-1",
             client_secret="as-entered",
-            refresh_token="${secret:gw_refresh_token}",
+            # The approval the caller read from the state store, not anything of the source's.
+            refresh_token="the-kept-approval",
             token_url="https://oauth2.googleapis.com/token",
         )
 
@@ -135,7 +136,7 @@ class TestSignIn:
         with pytest.raises(
             InvalidGoogleWorkspaceSource, match="bo@example.test is not the mailbox"
         ):
-            parse(_person()).auth("bo@example.test", client)
+            parse(_person()).auth("bo@example.test", client, "the-kept-approval")
 
     def test_a_connected_mailbox_signs_in_as_its_owner_and_no_other_way(self):
         assert "sign_in must be google_account, not None" in _refused(_person(sign_in=None))
@@ -143,9 +144,15 @@ class TestSignIn:
         assert "sign_in must be google_account, not 'service_account'" in said
         assert "the organisation's mailboxes are read by a source that states mailboxes" in said
 
-    def test_a_person_sign_in_needs_the_approval(self):
-        said = _refused(_person(refresh_token=None))
-        assert said == "google_account sign-in needs refresh_token"
+    def test_a_source_holds_no_approval_and_is_a_source_without_one(self):
+        """The owner's approval is kept in the organisation's state store. A source that has
+        none is refused where it is read (not connected), not as an invalid source."""
+        assert parse(_person(refresh_token=None)).refresh_token is None
+
+    def test_a_source_connected_the_earlier_way_still_names_its_approval(self):
+        """Carried as text until the reader has taken it into the state store."""
+        assert parse(_person()).refresh_token == "${secret:gw_refresh_token}"
+        assert "refresh_token must be text" in _refused(_person(refresh_token=7))
 
     def test_a_source_holds_no_service_account_key(self):
         """The key is the organisation's, on its platform entry, and nowhere else."""

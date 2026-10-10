@@ -8,6 +8,7 @@
     "mailContentHeaders": "Apenas cabeçalhos e marcadores, sem o texto das mensagens",
     "connect": "Conectar conta Google",
     "connected": "Conectado como {{account}}",
+    "connectedOn": "Conectado como {{account}} em {{date}}",
     "connectFailed": "Não foi possível concluir o login.",
     "mailSearch": "E-mails a incluir",
     "mailSearchHelp": "Uma pesquisa exatamente como você digitaria na caixa de pesquisa do Gmail. Deixe em branco para todos os e-mails.",

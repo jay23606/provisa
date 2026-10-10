@@ -8,6 +8,7 @@
     "mailContentHeaders": "Solo encabezados y etiquetas, sin el texto del mensaje",
     "connect": "Conectar cuenta de Google",
     "connected": "Conectado como {{account}}",
+    "connectedOn": "Conectado como {{account}} el {{date}}",
     "connectFailed": "No se pudo completar el inicio de sesión.",
     "mailSearch": "Correo que se incluye",
     "mailSearchHelp": "Una búsqueda tal como la escribiría en el cuadro de búsqueda de Gmail. Déjelo vacío para todo el correo.",

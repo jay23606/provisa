@@ -8,6 +8,7 @@
     "mailContentHeaders": "सिर्फ़ हेडर और लेबल, संदेश का पाठ नहीं",
     "connect": "Google खाता कनेक्ट करें",
     "connected": "{{account}} के रूप में कनेक्ट है",
+    "connectedOn": "{{account}} के रूप में {{date}} को कनेक्ट हुआ",
     "connectFailed": "साइन इन पूरा नहीं हो सका।",
     "mailSearch": "शामिल की जाने वाली मेल",
     "mailSearchHelp": "ठीक वैसी खोज जैसी आप Gmail के खोज बॉक्स में लिखते हैं। सारी मेल के लिए खाली छोड़ें।",

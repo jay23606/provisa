@@ -1263,6 +1263,7 @@
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.connect": "Connect Google account",
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.connectFailed": "The sign-in could not be completed.",
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.connected": "Connected as {{account}}",
+  "hi/googleWorkspaceFields.json::googleWorkspaceFields.connectedOn": "Connected as {{account}} on {{date}}",
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.everyMailbox": "One table holds every mailbox's rows. A role that may read the table reads every mailbox, unless a row rule on the account column says otherwise.",
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.found": "Mailboxes found: {{count}}",
   "hi/googleWorkspaceFields.json::googleWorkspaceFields.group": "Group",
