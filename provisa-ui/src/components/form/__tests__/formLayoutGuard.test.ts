@@ -156,7 +156,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sources/GoogleWorkspaceFields.tsx",
   "pages/sources/KaggleFormSection.tsx",
   "pages/sources/Microsoft365Fields.tsx",
-  "pages/sources/ProfilerFormSection.tsx",
   "pages/sources/SourceDetailPanel.tsx",
   "pages/sources/SourceLoadManagementPanel.tsx",
   "pages/sql/ColumnFilterMenu.tsx",
