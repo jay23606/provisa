@@ -50,6 +50,7 @@ import {
 } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { PageLoading } from "../components/PageLoading";
+import { FormFooter } from "../components/form/FormLayout";
 
 // Exported for the tour, which clears it so the page mounts collapsed and its click on the first
 // row deterministically EXPANDS rather than toggling whatever a prior visit left open.
@@ -537,7 +538,8 @@ export function DataProductsPage() {
           placeholder={t("dataProductsTab.filterPlaceholder")}
         />
         <Group gap="xs">
-          {canEdit && (
+          {/* Hidden while its form is open: the form ends with Save and Cancel. */}
+          {canEdit && !creating && (
             <Button
               size="xs"
               leftSection={<Plus size={13} />}
@@ -697,19 +699,20 @@ export function DataProductsPage() {
         <Text mb="lg" size="sm">
           {t("dataProductsTab.deleteConfirm", { id: deleteTarget ?? "" })}
         </Text>
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={() => setDeleteTarget(null)}>
-            {t("dataProductsTab.cancel")}
-          </Button>
-          <Button
-            color="red"
-            onClick={handleDelete}
-            loading={deleting}
-            data-testid="data-product-delete-confirm"
-          >
-            {t("dataProductsTab.delete")}
-          </Button>
-        </Group>
+        <FormFooter
+          onCancel={() => setDeleteTarget(null)}
+          cancelProps={{ disabled: deleting }}
+          action={
+            <Button
+              color="red"
+              onClick={handleDelete}
+              loading={deleting}
+              data-testid="data-product-delete-confirm"
+            >
+              {t("dataProductsTab.delete")}
+            </Button>
+          }
+        />
       </Modal>
       {refusal.dialog}
     </div>

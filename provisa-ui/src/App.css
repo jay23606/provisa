@@ -2397,6 +2397,21 @@ main {
   /* the label's line, and the hairline the control's own border adds */
   margin-top: calc(var(--mantine-font-size-sm) * var(--mantine-line-height) + 3px);
 }
+/* A row whose boxes carry no label above them (one entry of a list): its action sits level with
+   the boxes, and the boxes share the row. */
+.form-field-group--bare {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.form-field-group--bare > .form-field {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+.form-field-group--bare > .mantine-Button-root,
+.form-field-group--bare > .mantine-ActionIcon-root {
+  margin-top: 0;
+}
 .form-identifiers {
   flex: 1 1 100%;
   display: flex;
