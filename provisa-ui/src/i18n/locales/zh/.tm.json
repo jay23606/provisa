@@ -5549,5 +5549,6 @@
   "sourceFormFieldsExtended.json::sourceFormFieldsExtended.allowedDomainsHint": "None selected means all domains.",
   "sourceFormFieldsExtended.json::sourceFormFieldsExtended.cacheEnabledHelp": "When on, the answer to a query that reads this source may be kept and reused for the Cache TTL, but only for requests that ask for caching. When off, results that touch this source are never cached.",
   "registerTableForm.json::registerTableForm.watermarkHintOptional": "Used for polling when triggers are unavailable.",
-  "registerTableForm.json::registerTableForm.watermarkHintRequired": "Required for subscriptions."
+  "registerTableForm.json::registerTableForm.watermarkHintRequired": "Required for subscriptions.",
+  "tableEditForm.json::tableEditForm.dataProductDesc": "Published to the catalog and exported to Atlas, Atlan and others."
 }

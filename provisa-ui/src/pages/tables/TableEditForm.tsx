@@ -519,6 +519,19 @@ export function TableEditForm({
                   label={t("tableEditForm.enableGroupByLabel")}
                 />
               </FormField>
+              <LiveDeliveryFieldset
+                part="tick"
+                editingTable={editingTable}
+                setEditingTable={setEditingTable}
+                editingColumnTypes={editingColumnTypes}
+                sources={sources}
+                settings={settings}
+              />
+              <DeltaFieldset
+                part="tick"
+                editingTable={editingTable}
+                setEditingTable={setEditingTable}
+              />
             </FormChecks>
             <FormField size="full">
               <div>
@@ -564,13 +577,18 @@ export function TableEditForm({
               />
             )}
             <LiveDeliveryFieldset
+              part="settings"
               editingTable={editingTable}
               setEditingTable={setEditingTable}
               editingColumnTypes={editingColumnTypes}
               sources={sources}
               settings={settings}
             />
-            <DeltaFieldset editingTable={editingTable} setEditingTable={setEditingTable} />
+            <DeltaFieldset
+              part="settings"
+              editingTable={editingTable}
+              setEditingTable={setEditingTable}
+            />
           </FormLayout>
           {/* REQ-1443 clause 7: a checker source's table lands that checker's scans, so its contract is
           edited here. Only a checker source has one — every other table has no contract to build. */}

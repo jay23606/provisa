@@ -150,7 +150,7 @@
     "preprocessPlaceholder": "def preflight(streams, ctx):\n    if any(r[\"quantity\"] < 0 for r in streams[\"sales.orders\"]):\n        return ctx.abort(\"negative quantity\")\n    return ctx.ok()",
     "dataProductLabel": "Продукт данных",
     "dataProductNone": "Нет",
-    "dataProductDesc": "(публикация в каталог / экспорт в Atlas, Atlan и т.д.)",
+    "dataProductDesc": "Публикуется в каталоге и экспортируется в Atlas, Atlan и другие.",
     "dataProductInherited": "Унаследовано от таблицы, которую сканирует этот контракт",
     "enableAggregatesLabel": "Включить агрегаты",
     "enableAggregatesDesc": "(открыть корневое поле _aggregate в GraphQL)",
