@@ -379,3 +379,59 @@ def test_a_meta_role_is_described_what_its_members_are_served_together(built, mo
     # Each member alone is still described its own.
     alone, _ = _service(_reflected(channel, (("x-provisa-role", "sales_reader"),)))
     assert "QueryLedger" not in alone
+
+
+# --- a role's service is what it may call, and its own proto reads the wire -----------------------
+
+
+def _wider(proto: str) -> str:
+    """``proto`` with a column and a table only a wider role is served."""
+    return proto.replace(
+        "message Orders { int32 id = 1; }", "message Orders { int32 id = 1; int32 cost = 2; }"
+    ).replace(
+        "service ProvisaService {",
+        "message Ledger { int32 id = 1; }\nmessage LedgerRequest { int32 limit = 1; }\n"
+        "service ProvisaService { rpc QueryLedger (LedgerRequest) returns (stream Ledger);",
+    )
+
+
+def test_a_method_only_another_roles_service_has_is_unimplemented_for_this_role(deployment):
+    state, channel = deployment
+    union = _wider(_proto("Orders", "id"))
+    state.protos["acme"] = union
+    state.roles["acme"] = {"analyst": _proto("Orders", "id"), "auditor": union}
+    compiled = OrgDescriptor(union)
+    call = channel.unary_stream(
+        "/provisa.v1.ProvisaService/QueryLedger",
+        request_serializer=lambda raw: raw,
+        response_deserializer=lambda raw: raw,
+    )
+    request = compiled.LedgerRequest(limit=2).SerializeToString()
+    (row,) = call(request, metadata=_as("acme", "auditor"))  # its service has the method
+    assert compiled.Ledger.FromString(row).id == 2
+    with pytest.raises(grpc.RpcError) as refused:
+        list(call(request, metadata=_as("acme", "analyst")))  # and this role's has not
+    assert refused.value.code() == grpc.StatusCode.UNIMPLEMENTED
+
+
+def test_a_client_built_from_its_roles_proto_round_trips_against_the_wire(deployment, monkeypatch):
+    """Field numbers are shared across every role's proto and the wire's: a role's proto is a
+    subset that reads the same bytes. The request a role's client encodes is decoded by the
+    server, and the answer -- encoded with the organisation's wire message, which carries a
+    column this role's proto does not name -- is decoded by the role's client."""
+    state, channel = deployment
+    state.protos["acme"] = _wider(_proto("Orders", "id"))
+
+    async def _rows(self, request, context, type_name, role_id):
+        yield self._pb2.Orders(id=request.limit, cost=99)  # the wire's own message
+
+    monkeypatch.setattr(grpc_server.ProvisaServicer, "_handle_query_bound", _rows)
+    client = OrgDescriptor(state.roles["acme"]["analyst"])  # what the role downloaded
+    call = channel.unary_stream(
+        "/provisa.v1.ProvisaService/QueryOrders",
+        request_serializer=lambda message: message.SerializeToString(),
+        response_deserializer=client.Orders.FromString,
+    )
+    (row,) = call(client.OrdersRequest(limit=5), metadata=_as("acme"))
+    assert row.id == 5
+    assert [f.name for f in row.DESCRIPTOR.fields] == ["id"]  # its proto names no other column
