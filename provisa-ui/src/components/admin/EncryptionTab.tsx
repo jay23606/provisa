@@ -11,7 +11,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Badge, Button, Code, Group, Select, Stack, Text, TextInput } from "@mantine/core";
-import { Check } from "lucide-react";
 import { missingRequired, secretPlaceholder, seedFields } from "./secretFields";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
@@ -21,6 +20,7 @@ import {
   generateEncryptionKey,
   type EncryptionState,
 } from "../../api/admin";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 // REQ-918: manage the encryption provider + master key. Switching PROVIDER (Save) binds at
 // startup, so that change takes effect on restart. Generating/rotating a master key under the
@@ -124,111 +124,116 @@ export function EncryptionTab() {
   }));
 
   return (
-    <Stack gap="md" maw={720}>
+    <Stack gap="md">
       <Text c="dimmed">{t("encryptionTab.intro")}</Text>
 
-      <Stack gap="sm">
-        <Select
-          label={t("encryptionTab.providerLabel")}
-          data={providerData}
-          value={provider}
-          onChange={(v) => v && setProvider(v)}
-          allowDeselect={false}
-          data-testid="encryption-provider-select"
-        />
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            label={t("encryptionTab.providerLabel")}
+            data={providerData}
+            value={provider}
+            onChange={(v) => v && setProvider(v)}
+            allowDeselect={false}
+            data-testid="encryption-provider-select"
+          />
+        </FormField>
         {current && (
-          <Text c="dimmed" fz="xs">
-            {current.description}
-          </Text>
+          <FormField size="full">
+            <Text c="dimmed" fz="xs">
+              {current.description}
+            </Text>
+          </FormField>
         )}
 
         {unavailable && (
-          <Alert color="yellow" variant="light" data-testid="encryption-unavailable">
-            {t("encryptionTab.unavailableNote")}
-          </Alert>
+          <FormField size="full">
+            <Alert color="yellow" variant="light" data-testid="encryption-unavailable">
+              {t("encryptionTab.unavailableNote")}
+            </Alert>
+          </FormField>
         )}
 
         {/* Generic per-provider config fields (e.g. KMS key ARN / region) driven by the registry. */}
         {(current?.config_fields ?? []).map((f) => (
-          <TextInput
-            key={f.config_key}
-            label={f.label}
-            required={f.required}
-            placeholder={
-              secretPlaceholder(f, s.secret_set?.[provider], {
-                set: t("encryptionTab.secretOnFile"),
-                unset: t("encryptionTab.secretNotSet"),
-              }) ?? f.placeholder
-            }
-            type={f.secret ? "password" : "text"}
-            value={config[provider]?.[f.config_key] ?? ""}
-            onChange={(e) => setField(f.config_key, e.currentTarget.value)}
-            data-testid={`encryption-field-${f.config_key}`}
-          />
+          <FormField size="medium" key={f.config_key}>
+            <TextInput
+              label={f.label}
+              required={f.required}
+              placeholder={
+                secretPlaceholder(f, s.secret_set?.[provider], {
+                  set: t("encryptionTab.secretOnFile"),
+                  unset: t("encryptionTab.secretNotSet"),
+                }) ?? f.placeholder
+              }
+              type={f.secret ? "password" : "text"}
+              value={config[provider]?.[f.config_key] ?? ""}
+              onChange={(e) => setField(f.config_key, e.currentTarget.value)}
+              data-testid={`encryption-field-${f.config_key}`}
+            />
+          </FormField>
         ))}
 
         {provider === "local" && (
           <>
-            <TextInput
-              label={t("encryptionTab.keyIdLabel")}
-              placeholder={t("encryptionTab.keyIdPlaceholder")}
-              value={keyId}
-              onChange={(e) => setKeyId(e.currentTarget.value)}
-            />
+            <FormField size="medium">
+              <TextInput
+                label={t("encryptionTab.keyIdLabel")}
+                placeholder={t("encryptionTab.keyIdPlaceholder")}
+                value={keyId}
+                onChange={(e) => setKeyId(e.currentTarget.value)}
+              />
+            </FormField>
 
-            <Group gap="sm" align="center">
-              <Text>
-                {t("encryptionTab.masterKeyLabel")}{" "}
-                {s.key_present ? (
-                  <Badge color="green" variant="light">
-                    {t("encryptionTab.masterKeyPresent")}
-                  </Badge>
-                ) : (
-                  <Badge color="red" variant="light">
-                    {t("encryptionTab.masterKeyMissing")}
-                  </Badge>
-                )}
-              </Text>
-              {/* REQ-918: a key is provisioned, never replaced. Once one is in use it is shown by
+            <FormField size="full">
+              <Group gap="sm" align="center">
+                <Text>
+                  {t("encryptionTab.masterKeyLabel")}{" "}
+                  {s.key_present ? (
+                    <Badge color="green" variant="light">
+                      {t("encryptionTab.masterKeyPresent")}
+                    </Badge>
+                  ) : (
+                    <Badge color="red" variant="light">
+                      {t("encryptionTab.masterKeyMissing")}
+                    </Badge>
+                  )}
+                </Text>
+                {/* REQ-918: a key is provisioned, never replaced. Once one is in use it is shown by
                   its fingerprint and there is nothing to generate: a new key would open nothing
                   written under the first. */}
-              {s.key_fingerprint ? (
-                <Text data-testid="master-key-fingerprint">
-                  {t("encryptionTab.fingerprintLabel")} <Code>{s.key_fingerprint}</Code>
-                </Text>
-              ) : (
-                <Button
-                  variant="default"
-                  onClick={generate}
-                  loading={generating}
-                  data-testid="generate-key-button"
-                >
-                  {t("encryptionTab.generateKey")}
-                </Button>
-              )}
-            </Group>
+                {s.key_fingerprint ? (
+                  <Text data-testid="master-key-fingerprint">
+                    {t("encryptionTab.fingerprintLabel")} <Code>{s.key_fingerprint}</Code>
+                  </Text>
+                ) : (
+                  <Button
+                    variant="default"
+                    onClick={generate}
+                    loading={generating}
+                    data-testid="generate-key-button"
+                  >
+                    {t("encryptionTab.generateKey")}
+                  </Button>
+                )}
+              </Group>
+            </FormField>
           </>
         )}
-      </Stack>
+      </FormLayout>
 
       <Alert color="yellow" variant="light">
         {s.restart_required_note}
       </Alert>
 
-      <Group gap="sm" align="center">
-        <Button
-          onClick={save}
-          loading={saving}
-          disabled={unavailable || incomplete}
-          title={t("encryptionTab.saveTitle")}
-          aria-label={t("encryptionTab.saveTitle")}
-          data-testid="save-encryption-button"
-        >
-          <Check size={14} />
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        saveProps={{ "data-testid": "save-encryption-button", disabled: unavailable || incomplete }}
+      >
         {msg && <Text c="green">{msg}</Text>}
         {error && <Text c="red">{error}</Text>}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }
