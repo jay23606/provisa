@@ -25,6 +25,7 @@ import {
   gwMapping,
   gwMissing,
   gwScopes,
+  gwShapes,
 } from "../googleWorkspace";
 
 const signIn = vi.hoisted(() => ({
@@ -39,6 +40,9 @@ vi.mock("../../../lib/sourceSignIn", async (original) => ({
 
 const READONLY = "https://www.googleapis.com/auth/gmail.readonly";
 const FILLED = { gw_account: "ada@example.test", gw_mail_content: "full" };
+// The same, in a form that has already settled on one mailbox (a new form settles when it
+// learns what the organisation's entry can do).
+const ON_ONE = { ...FILLED, gw_whose: "one" };
 
 function form(authFields: Record<string, string>, id = "mail") {
   const setAuthFields = vi.fn();
@@ -222,7 +226,7 @@ describe("connecting a Google account", () => {
           }
         : { configured: true, may_configure: false },
     );
-    const setAuthFields = form(FILLED);
+    const setAuthFields = form(ON_ONE);
     await waitFor(() =>
       expect(signIn.signInStatus).toHaveBeenCalledWith("google_workspace", {
         source_id: "mail",
@@ -231,7 +235,7 @@ describe("connecting a Google account", () => {
     );
     await waitFor(() =>
       expect(setAuthFields).toHaveBeenLastCalledWith({
-        ...FILLED,
+        ...ON_ONE,
         gw_connected_as: "ada@example.test",
         gw_connected_at: "2026-10-01T09:00:00Z",
       }),
@@ -270,7 +274,7 @@ describe("connecting a Google account", () => {
 
   it("shows a refusal and connects nothing", async () => {
     signIn.signInSource.mockRejectedValue(new Error("refused"));
-    const setAuthFields = form(FILLED);
+    const setAuthFields = form(ON_ONE);
     await connectReady();
     fireEvent.click(shown("connect")!);
     expect(await screen.findByTestId("google-workspace-problem")).toBeInTheDocument();
@@ -366,6 +370,85 @@ describe("what a Google Workspace setup saves", () => {
     );
     expect(JSON.stringify(gwMapping(fields))).not.toContain("service_account");
     expect(gwMissing(fields)).toEqual(["gw_connected_as"]);
+  });
+});
+
+describe("what the form offers follows what the organisation's Google entry can do", () => {
+  // `admin`: whether the person at the form may set the entry up (Admin › Email).
+  const entry = (configured: boolean, organisation_mailboxes: boolean, admin = false) => ({
+    configured,
+    may_configure: admin,
+    organisation_mailboxes,
+  });
+  const offered = async () => {
+    const input = await screen.findByTestId("google-workspace-gw_whose");
+    fireEvent.click(input);
+    const list = document.getElementById(input.getAttribute("aria-controls")!)!;
+    return [...list.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+  };
+  const ONE = en.googleWorkspaceFields.whoseOne;
+  const ORGANISATION = en.googleWorkspaceFields.whoseOrganisation;
+
+  it("no sign-in client, the organisation's mailboxes allowed: a new source opens on those", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(false, true));
+    const setAuthFields = form({});
+    await waitFor(() => expect(setAuthFields).toHaveBeenCalledWith({ gw_whose: "organisation" }));
+    expect(gwShapes(entry(false, true), "")).toEqual({
+      offered: ["organisation"],
+      opensOn: "organisation",
+    });
+  });
+
+  it("and that form has no word of nothing being set up, and offers no one mailbox", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(false, true));
+    form({ gw_whose: "organisation" });
+    expect(await offered()).toEqual([ORGANISATION]);
+    expect(shown("not-set-up")).toBeNull();
+    expect(shown("not-allowed")).toBeNull();
+    expect(shown("gw_choice")).toBeInTheDocument();
+  });
+
+  it("a client, the organisation's mailboxes not allowed: one mailbox only", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, false));
+    const setAuthFields = form({});
+    await waitFor(() => expect(setAuthFields).toHaveBeenCalledWith({ gw_whose: "one" }));
+    expect(await offered()).toEqual([ONE]);
+    expect(shown("not-set-up")).toBeNull();
+  });
+
+  it("an entry that can do both offers both and opens on one mailbox, as before", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, true));
+    const setAuthFields = form({});
+    await waitFor(() => expect(setAuthFields).toHaveBeenCalledWith({ gw_whose: "one" }));
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+  });
+
+  it("an entry that can do neither offers both and says what is missing", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(false, false));
+    form({});
+    expect(await screen.findByTestId("google-workspace-not-set-up")).toBeInTheDocument();
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+  });
+
+  it("someone who may set the entry up is still offered what it cannot do yet, and told where", async () => {
+    // The form still opens on what works; the other choice is where they learn it exists.
+    signIn.signInStatus.mockResolvedValue(entry(false, true, true));
+    const setAuthFields = form({});
+    await waitFor(() => expect(setAuthFields).toHaveBeenCalledWith({ gw_whose: "organisation" }));
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+    expect(gwShapes(entry(true, false, true), "").offered).toEqual(["one", "organisation"]);
+  });
+
+  it("a stored source keeps the shape it was saved with, whatever the entry can do now", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(false, true));
+    const setAuthFields = form({ ...FILLED, gw_whose: "one" });
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+    // It is not moved to another shape; it is told what its own shape lacks.
+    expect(await screen.findByTestId("google-workspace-not-set-up")).toBeInTheDocument();
+    expect(setAuthFields).not.toHaveBeenCalledWith(
+      expect.objectContaining({ gw_whose: "organisation" }),
+    );
+    expect(gwShapes(entry(true, false), "organisation").offered).toEqual(["one", "organisation"]);
   });
 });
 

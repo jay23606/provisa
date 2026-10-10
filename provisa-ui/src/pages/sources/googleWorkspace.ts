@@ -12,7 +12,7 @@
 // mapping, under the names provisa/google_workspace/settings.py reads; that module is the
 // authority on what is valid, and this one only says what is still missing from the form.
 
-import { SignInRefused } from "../../lib/sourceSignIn";
+import { SignInRefused, shapesOffered, type SignInStatus } from "../../lib/sourceSignIn";
 
 export const GOOGLE_WORKSPACE = "google_workspace";
 /** Where an administrator enters the organisation's Google client. */
@@ -55,6 +55,16 @@ export const gwHeadersOnly = (fields: Record<string, string>) =>
  * credential, and not one mailbox its owner connects. */
 export const gwOrganisation = (fields: Record<string, string>) =>
   stated(fields, "gw_whose") === GW_ORGANISATION;
+
+/** Which of the two a Google Workspace source's form offers and a new source opens on
+ * (`shapesOffered`). One mailbox is signed in to with the organisation's client (`configured`);
+ * the organisation's mailboxes are read with its service account once that is allowed
+ * (`organisation_mailboxes`) -- an entry may have either without the other. */
+export const gwShapes = (entry: SignInStatus | null, saved: string) =>
+  shapesOffered(entry, saved, {
+    one: entry?.configured === true,
+    organisation: entry?.organisation_mailboxes === true,
+  });
 
 /** Which mailboxes of the organisation, as the source's mapping states it; null while the
  * form does not yet say. */

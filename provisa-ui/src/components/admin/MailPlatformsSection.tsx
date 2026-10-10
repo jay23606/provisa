@@ -147,6 +147,10 @@ export function MailPlatformsSection() {
                     required={!p.organisation_key_field}
                     value={draft.client_id}
                     onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
+                    // Not a sign-in: a browser that takes a text field before a password field
+                    // for a user name and password must fill neither. A value nobody typed
+                    // makes half a client, which cannot be saved.
+                    autoComplete="off"
                     data-testid={`${id}-client-id`}
                   />
                 </FormField>
@@ -156,6 +160,7 @@ export function MailPlatformsSection() {
                     required={!p.organisation_key_field}
                     value={draft.client_secret}
                     onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
+                    autoComplete="new-password"
                     data-testid={`${id}-client-secret`}
                   />
                 </FormField>
@@ -223,6 +228,7 @@ export function MailPlatformsSection() {
                     onChange={(e) =>
                       change(p.platform, { organisation_key: e.currentTarget.value })
                     }
+                    autoComplete="new-password"
                     data-testid={`${id}-organisation-key`}
                   />
                 </FormField>

@@ -41,6 +41,7 @@ import {
   gwMailboxes,
   gwOrganisation,
   gwScopes,
+  gwShapes,
 } from "./googleWorkspace";
 import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 
@@ -80,6 +81,15 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       live = false;
     };
   }, [refused]);
+
+  // A new source opens on what the organisation's entry can do: an organisation that entered
+  // no sign-in client reads its mailboxes, and is not told it has set nothing up. A stored
+  // source states its shape and keeps it.
+  useEffect(() => {
+    if (status === null || fields.gw_whose) return;
+    setFields({ ...fields, gw_whose: gwShapes(status, "").opensOn });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- decided once, when the entry is known
+  }, [status]);
 
   // Whether this mailbox's owner has signed in is the server's to say: it keeps the approval.
   const account = (fields.gw_account ?? "").trim();
@@ -164,6 +174,8 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
 
   // One mailbox is signed in to with the organisation's client; the organisation's mailboxes are
   // read with its service account, which an entry may hold with no client at all.
+  // What the form offers follows what the organisation's entry can do.
+  const shapes = gwShapes(status, fields.gw_whose ?? "");
   const notSetUp = !organisation && status !== null && !status.configured;
   const notAllowed = organisation && status !== null && !status.organisation_mailboxes;
   // Where an administrator sets it up, named as the menu names it in this language.
@@ -176,7 +188,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           data={[
             { value: GW_ONE, label: t("googleWorkspaceFields.whoseOne") },
             { value: GW_ORGANISATION, label: t("googleWorkspaceFields.whoseOrganisation") },
-          ]}
+          ].filter((choice) => shapes.offered.includes(choice.value))}
           value={organisation ? GW_ORGANISATION : GW_ONE}
           onChange={(value) => choose({ gw_whose: value ?? GW_ONE })}
           allowDeselect={false}
