@@ -113,3 +113,13 @@ def test_a_development_starter_names_the_mounts_from_its_own_checkout():
         assert text.index("PROVISA_E2E_FILE_LAKE_HOST") < text.index(
             "docker compose $COMPOSE_FILES"
         )
+
+
+def test_trino_in_a_test_stack_can_name_the_host_and_an_install_is_not_given_it():
+    """The e2e harness addresses a host-published source from inside Trino as
+    host.docker.internal, which a Linux container resolves only when given it."""
+    overlay = yaml.safe_load((REPO / OVERLAY).read_text())["services"]
+    for service in ("trino", "trino-worker"):
+        assert overlay[service]["extra_hosts"] == ["host.docker.internal:host-gateway"], service
+    for name in INSTALL_FILES:
+        assert "extra_hosts" not in _code(name), name
