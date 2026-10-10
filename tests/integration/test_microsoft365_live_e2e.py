@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: a3ede9d4-3959-4e60-a3a1-c0ff509a6b30
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """Live Microsoft 365 source of the organisation's mailboxes (REQ-1923), against a real tenant.
 
 What it proves that a stand-in Graph cannot: Microsoft issues the client a token by the
