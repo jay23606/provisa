@@ -15,7 +15,7 @@
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { render, screen, within } from "../../../test-utils/render";
+import { renderInForm, screen, within } from "../../../test-utils/render";
 import { SourceLoadManagementPanel } from "../SourceLoadManagementPanel";
 import type { SourceFormState } from "../SourceFormFields";
 import en from "../../../i18n/locales/en/sourceFormFieldsExtended.json";
@@ -49,7 +49,7 @@ function Harness({ type, seen }: { type: string; seen: (f: SourceFormState) => v
 }
 
 async function openChoices(type: string, seen: (f: SourceFormState) => void = () => undefined) {
-  render(<Harness type={type} seen={seen} />);
+  renderInForm(<Harness type={type} seen={seen} />);
   await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
   const input = await screen.findByTestId("change-signal-select");
   await userEvent.click(input);
