@@ -548,7 +548,8 @@ export function SourcesPage() {
       port: s.port ?? getDefaultPort(uiType(s.type)),
       database: s.database ?? "",
       username: s.username ?? "",
-      password: "",
+      // The field shows again what it holds: the value typed, or the reference typed.
+      password: s.passwordRef ?? "",
       gqlNamingConvention: s.gqlNamingConvention ?? "",
       cacheTtl: s.cacheTtl != null ? String(s.cacheTtl) : "",
       cacheEnabled: s.cacheEnabled,
@@ -605,9 +606,9 @@ export function SourcesPage() {
     }
     // delta_lake/iceberg S3 creds and snowflake/databricks/bigquery warehouse extras all live in
     // federation_hints (never mapping — see the submit-side comment above `federationHints`).
-    // Secrets themselves (password/access_token/private key) are never sent back by the read
-    // query, same as every other source type's password field — only the non-secret extras
-    // (warehouse/schema/role/http_path/credentials_path/access_key_id/endpoint) round-trip.
+    // A credential field comes back as it was entered (the value, or a reference someone typed)
+    // beside the other extras (warehouse/schema/role/http_path/credentials_path/access_key_id/
+    // endpoint), so the form shows again what each field holds.
     // REQ-990: a CSV/Parquet file's object-store credentials come back into the form's fields for
     // the store its path names.
     if (CLOUD_FILE_TYPES.has(s.type) && objectStoreOf(s.path) && s.federationHintsJson) {
@@ -647,8 +648,19 @@ export function SourcesPage() {
         } else {
           setAuthType("password");
         }
+        // The credential these two kinds keep in the source's password field is shown again as
+        // that field holds it, like any other.
+        const held: Record<string, string> = !s.passwordRef
+          ? {}
+          : s.type === "snowflake"
+            ? { password: s.passwordRef }
+            : s.type === "databricks"
+              ? { access_token: s.passwordRef }
+              : {};
         setAuthFields(
-          hints.credentials_path ? { credentials_json: hints.credentials_path } : hints,
+          hints.credentials_path
+            ? { credentials_json: hints.credentials_path }
+            : { ...hints, ...held },
         );
       } catch {
         setAuthType("none");

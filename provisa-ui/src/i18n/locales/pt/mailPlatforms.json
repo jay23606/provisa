@@ -21,7 +21,6 @@
     "redirectUnknown": "O endereço de redirecionamento não pode ser exibido porque o endereço público desta implantação não está definido.",
     "clientId": "ID do cliente",
     "clientSecret": "Chave secreta do cliente",
-    "clientSecretKeep": "Deixe em branco para manter a que já foi informada.",
     "clientOptional": "Necessário apenas para fontes em que uma pessoa conecta a própria caixa de correio. Deixe os dois campos vazios se todas as fontes leem as caixas de correio da organização.",
     "setting": {
       "tenant": "ID do diretório (locatário)",

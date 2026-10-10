@@ -21,7 +21,6 @@
     "redirectUnknown": "L’indirizzo di reindirizzamento non può essere mostrato perché l’indirizzo pubblico di questa installazione non è impostato.",
     "clientId": "ID client",
     "clientSecret": "Client secret",
-    "clientSecretKeep": "Lascia vuoto per mantenere quello già inserito.",
     "clientOptional": "Serve solo per le origini in cui una persona collega la propria casella di posta. Lascia vuoti entrambi i campi se ogni origine legge le caselle dell’organizzazione.",
     "setting": {
       "tenant": "ID della directory (tenant)",

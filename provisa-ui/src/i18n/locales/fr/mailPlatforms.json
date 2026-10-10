@@ -21,7 +21,6 @@
     "redirectUnknown": "L’adresse de redirection ne peut pas être affichée, car l’adresse publique de ce déploiement n’est pas définie.",
     "clientId": "ID client",
     "clientSecret": "Code secret du client",
-    "clientSecretKeep": "Laissez vide pour conserver celui déjà saisi.",
     "clientOptional": "Nécessaire uniquement pour les sources où une personne connecte sa propre boîte aux lettres. Laissez les deux champs vides si chaque source lit les boîtes aux lettres de l’organisation.",
     "setting": {
       "tenant": "ID de l’annuaire (locataire)",

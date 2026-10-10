@@ -21,7 +21,6 @@
     "redirectUnknown": "No se puede mostrar la dirección de redireccionamiento porque la dirección pública de este despliegue no está definida.",
     "clientId": "ID de cliente",
     "clientSecret": "Secreto del cliente",
-    "clientSecretKeep": "Déjelo vacío para conservar el que ya está introducido.",
     "clientOptional": "Solo es necesario para los orígenes en los que una persona conecta su propio buzón. Deje ambos campos vacíos si todos los orígenes leen los buzones de la organización.",
     "setting": {
       "tenant": "Id. de directorio (inquilino)",

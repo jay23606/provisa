@@ -177,6 +177,31 @@ describe("saving a source sends its Cache TTL with the source", () => {
     expect(updateSourceCache).not.toHaveBeenCalled(); // nothing is saved after a refused save
   });
 
+  it.each(["pw-as-typed", "${secret:my_warehouse_password}"])(
+    "shows a source's password field again as it was entered (%s) and sends it back unchanged",
+    async (entered) => {
+      SOURCES = [
+        source({
+          id: "sales-pg",
+          type: "postgresql",
+          host: "db",
+          port: 5432,
+          database: "sales",
+          username: "u",
+          cacheTtl: null,
+          mappingJson: null,
+          passwordRef: entered,
+        } as Partial<Source>),
+      ];
+      await openForEdit("sales-pg");
+      const field = await screen.findByLabelText(/^Password/);
+      expect(field).toHaveValue(entered);
+      expect(field).toHaveAttribute("type", "password"); // behind the reveal control
+      const sent = (await save()) as unknown as { password: string };
+      expect(sent.password).toBe(entered);
+    },
+  );
+
   it("saves a database source with or without a Cache TTL, as before", async () => {
     SOURCES = [
       source({

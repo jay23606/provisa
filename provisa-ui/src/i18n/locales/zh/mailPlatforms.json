@@ -21,7 +21,6 @@
     "redirectUnknown": "无法显示重定向地址,因为此部署的公开地址尚未设置。",
     "clientId": "客户端 ID",
     "clientSecret": "客户端密钥",
-    "clientSecretKeep": "留空则保留已填写的密钥。",
     "clientOptional": "仅在由个人连接自己邮箱的数据源中需要。如果每个数据源都读取组织的邮箱,请将两项都留空。",
     "setting": {
       "tenant": "目录(租户)ID",

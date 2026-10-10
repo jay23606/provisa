@@ -12,8 +12,8 @@
 // administrator enters the client the organisation registered with it, once; the address to
 // register there is shown ready to copy. Nobody adding a source sees any of this.
 //
-// The client's secret never comes back: its field starts empty, and leaving it empty keeps the
-// one already entered.
+// A credential field keeps what was typed -- the value, or a reference to a secret the
+// administrator created -- and shows it again, behind the reveal control.
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -39,7 +39,7 @@ import {
   type MailPlatforms,
 } from "../../api/mailPlatforms";
 import { useAuth } from "../../context/AuthContext";
-import { clientEntered, draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
+import { draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 export function MailPlatformsSection() {
@@ -145,8 +145,7 @@ export function MailPlatformsSection() {
                 />
                 <PasswordInput
                   label={t("mailPlatforms.clientSecret")}
-                  description={clientEntered(p) ? t("mailPlatforms.clientSecretKeep") : undefined}
-                  required={!p.organisation_key_field && !clientEntered(p)}
+                  required={!p.organisation_key_field}
                   value={draft.client_secret}
                   onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
                   data-testid={`${id}-client-secret`}

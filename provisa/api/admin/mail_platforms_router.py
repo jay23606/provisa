@@ -70,6 +70,10 @@ async def _entry(org_id: str, platform: mail_platforms.Platform) -> dict:
         "configured": configured is not None,
         # None with an entry: it holds no client, and its sources read with its own credential.
         "client_id": None if configured is None else configured.client_id,
+        # The client's secret as the administrator entered it -- the value, or a reference they
+        # typed -- so the form shows again what it holds. Read only by who may enter it
+        # (_org_guard).
+        "client_secret": None if configured is None else configured.client_secret,
         "settings": {} if configured is None else configured.settings,
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
         # What the platform is entered with for the organisation's mailboxes.

@@ -25,6 +25,8 @@ from provisa.core import mail_platforms, schema_admin, secrets_store
 from provisa.core.database import Database, create_engine_from_url
 from provisa.core.mail_platforms import Configured, MailPlatformRefused, Platform
 
+OFF = {"organisation_mailboxes": False}
+
 pytestmark = pytest.mark.asyncio
 
 GOOGLE = "google_workspace"
@@ -342,6 +344,7 @@ class TestTheAdminSurface:
             "organisation_key_field": True,
             "organisation_scopes": list(mail_platforms.platform(GOOGLE).organisation_scopes),
             "organisation_key_entered": False,
+            "client_secret": None,
             "organisation_key": None,
         }
         assert before["redirect_address"] == "http://localhost:3000/source-sign-in.html"
@@ -352,8 +355,7 @@ class TestTheAdminSurface:
 
     @pytest.mark.parametrize("typed", [KEY, "${secret:my_google_key}"])
     async def test_the_key_field_is_answered_as_it_was_entered(self, wired, plane, typed):
-        """The form shows again what the field holds: the value, or the reference typed. The
-        client's secret is not part of an answer."""
+        """The form shows again what the field holds: the value, or the reference typed."""
         body = router.PlatformBody(
             client_id="client-1", client_secret=SECRET, organisation_key=typed, **ORG
         )
@@ -363,8 +365,6 @@ class TestTheAdminSurface:
         assert said["settings"] == {"admin_address": "admin@example.test"}
         google = next(p for p in listed["platforms"] if p["platform"] == GOOGLE)
         assert said["organisation_key"] == google["organisation_key"] == typed
-        for answer in (said, listed):
-            assert SECRET not in str(answer)
 
     async def test_a_client_taken_off_the_entry_leaves_the_vault_as_it_is(self, wired, plane):
         """The entry's row holds its credentials; a secret the administrator created and named
@@ -390,17 +390,28 @@ class TestTheAdminSurface:
         assert await mail_platforms.read(plane, "acme", GOOGLE) is None
         assert await _vault(plane, "acme") == {"my_google_client": "x"}
 
-    async def test_no_answer_carries_the_secret(self, wired):
+    @pytest.mark.parametrize("typed", [SECRET, "${secret:my_google_client}"])
+    async def test_the_clients_secret_field_is_answered_as_it_was_entered(self, wired, typed):
+        """What was typed is what the entry holds and what the form shows back: the value, or
+        the reference typed, never a resolved value and never a name of the product's."""
         kept = await router.put_platform(
             None,
             "acme",
             GOOGLE,
-            router.PlatformBody(
-                client_id="client-1", client_secret=SECRET, organisation_mailboxes=False
-            ),
+            router.PlatformBody(client_id="client-1", client_secret=typed, **OFF),
         )
         listed = await router.list_platforms(None, "acme")
-        assert SECRET not in repr(kept) and SECRET not in repr(listed)
+        google = next(p for p in listed["platforms"] if p["platform"] == GOOGLE)
+        assert kept["client_secret"] == google["client_secret"] == typed
+        # Saved again with the field left out, the entry keeps what it holds.
+        again = await router.put_platform(
+            None, "acme", GOOGLE, router.PlatformBody(client_id="client-2", **OFF)
+        )
+        assert again["client_secret"] == typed
+
+    async def test_an_entry_with_no_client_answers_no_secret(self, wired):
+        listed = await router.list_platforms(None, "acme")
+        assert all(p["client_secret"] is None for p in listed["platforms"])
 
     async def test_a_platform_with_settings_lists_them_for_the_form(self, wired):
         listed = await router.list_platforms(None, "acme")

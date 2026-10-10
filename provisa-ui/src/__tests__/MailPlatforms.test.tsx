@@ -42,7 +42,9 @@ const put = vi.mocked(putMailPlatform);
 const remove = vi.mocked(deleteMailPlatform);
 
 const REDIRECT = "http://localhost:3000/source-sign-in.html";
-const google = (over = {}) => ({
+// An entry that holds a client holds its secret as entered, and the form is handed it.
+const KEPT = "client-secret-as-entered";
+const google = (over: Record<string, unknown> = {}) => ({
   platform: "google_workspace",
   settings_fields: [] as string[],
   configured: false,
@@ -54,6 +56,7 @@ const google = (over = {}) => ({
   organisation_key: null as string | null,
   organisation_scopes: [] as string[],
   ...over,
+  client_secret: (over.client_secret ?? (over.client_id ? KEPT : null)) as string | null,
 });
 const tid = (suffix: string) => `mail-platform-google_workspace${suffix}`;
 
@@ -161,23 +164,51 @@ describe("the organisation's mail platforms", () => {
     expect(await screen.findByTestId(tid("-said"))).toHaveTextContent(en.mailPlatforms.saved);
   });
 
-  it("never shows a stored secret, and leaving it empty keeps the one entered", async () => {
+  it.each(["the-secret-as-typed", "${secret:my_google_client}"])(
+    "shows the client's secret field again as it was entered (%s), behind the reveal control",
+    async (entered) => {
+      list.mockResolvedValue({
+        redirect_address: REDIRECT,
+        platforms: [google({ configured: true, client_id: "client-1", client_secret: entered })],
+      });
+      render(<MailPlatformsSection />);
+      expect(await screen.findByTestId(tid("-state"))).toHaveTextContent(
+        en.mailPlatforms.connected,
+      );
+      const field = screen.getByTestId(tid("-client-secret"));
+      expect(field).toHaveValue(entered);
+      expect(field).toHaveAttribute("type", "password");
+      // Saved with another field changed, the secret goes back exactly as the field holds it.
+      fireEvent.change(screen.getByTestId(tid("-client-id")), { target: { value: "client-2" } });
+      fireEvent.click(screen.getByTestId(tid("-save")));
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
+          client_id: "client-2",
+          client_secret: entered,
+          settings: {},
+          organisation_mailboxes: false,
+        }),
+      );
+    },
+  );
+
+  it("keeps a value typed over what the field held", async () => {
     list.mockResolvedValue({
       redirect_address: REDIRECT,
-      platforms: [google({ configured: true, client_id: "client-1" })],
+      platforms: [
+        google({ configured: true, client_id: "client-1", client_secret: "${secret:earlier}" }),
+      ],
     });
     render(<MailPlatformsSection />);
-    expect(await screen.findByTestId(tid("-state"))).toHaveTextContent(en.mailPlatforms.connected);
-    expect(screen.getByTestId(tid("-client-secret"))).toHaveValue("");
-    expect(screen.getByText(en.mailPlatforms.clientSecretKeep)).toBeInTheDocument();
-    fireEvent.change(screen.getByTestId(tid("-client-id")), { target: { value: "client-2" } });
+    const field = await screen.findByTestId(tid("-client-secret"));
+    fireEvent.change(field, { target: { value: "typed-now" } });
     fireEvent.click(screen.getByTestId(tid("-save")));
     await waitFor(() =>
-      expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
-        client_id: "client-2",
-        settings: {},
-        organisation_mailboxes: false,
-      }),
+      expect(put).toHaveBeenCalledWith(
+        "acme",
+        "google_workspace",
+        expect.objectContaining({ client_secret: "typed-now" }),
+      ),
     );
   });
 
@@ -231,6 +262,7 @@ describe("the organisation's mail platforms", () => {
     await waitFor(() =>
       expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
         client_id: "client-1",
+        client_secret: KEPT,
         settings: {},
         organisation_mailboxes: true,
       }),
@@ -290,7 +322,7 @@ describe("the organisation's mail platforms", () => {
     it("cannot be allowed before the key and the administrator address are given", () => {
       const on = {
         client_id: "c",
-        client_secret: "",
+        client_secret: "s",
         settings: { admin_address: "" },
         organisation_mailboxes: true,
         organisation_key: "",
@@ -349,6 +381,7 @@ describe("the organisation's mail platforms", () => {
       await waitFor(() =>
         expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
           client_id: "client-1",
+          client_secret: KEPT,
           settings: { admin_address: "admin@example.test" },
           organisation_mailboxes: true,
           organisation_key: "${secret:my_google_key}",

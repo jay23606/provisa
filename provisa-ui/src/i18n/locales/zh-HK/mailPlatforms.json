@@ -21,7 +21,6 @@
     "redirectUnknown": "無法顯示重新導向地址,因為此部署的公開地址尚未設定。",
     "clientId": "用戶端 ID",
     "clientSecret": "用戶端密鑰",
-    "clientSecretKeep": "留空則保留已填寫的密鑰。",
     "clientOptional": "只在由個人連接自己信箱的數據來源中需要。如果每個數據來源都讀取組織的信箱,請將兩項都留空。",
     "setting": {
       "tenant": "目錄(租用戶)識別碼",

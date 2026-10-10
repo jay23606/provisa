@@ -92,6 +92,7 @@ query SourcesQuery {
     description
     mappingJson
     federationHintsJson
+    passwordRef
     changeSignal
     cdc {
       bootstrapServers

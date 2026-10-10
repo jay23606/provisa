@@ -21,7 +21,6 @@
     "redirectUnknown": "The redirect address cannot be shown because this deployment's public address is not set.",
     "clientId": "Client ID",
     "clientSecret": "Client secret",
-    "clientSecretKeep": "Leave empty to keep the one already entered.",
     "clientOptional": "Needed only for sources where one person connects their own mailbox. Leave both empty if every source reads the organization's mailboxes.",
     "setting": {
       "tenant": "Directory (tenant) ID",
