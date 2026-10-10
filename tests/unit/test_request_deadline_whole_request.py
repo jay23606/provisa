@@ -90,11 +90,20 @@ def test_a_blocking_call_within_the_deadline_is_untouched(deadline_clock):
             pass
 
 
-def test_a_failure_after_the_deadline_is_reported_as_the_timeout():
+def test_a_failure_after_the_deadline_is_reported_as_the_timeout(deadline_clock):
+    # The budget passes on the deadline's own clock, and the request is settled before it
+    # fails, as an answered request is: nothing but the failure itself reaches the scope's exit.
+    # On the wall clock this slept 0.25 s — the 0.2 s budget plus the watchdog's 0.05 s grace,
+    # the very instant its raise falls due — and left the shield with the raise still to come:
+    # whenever it landed before the scope's exit had settled, the timeout was reported with the
+    # watchdog's raise as its cause, the failure one link further down.
     with pytest.raises(RequestTimedOut) as raised:
-        with request_deadline.request("bolt"):
-            with request_deadline.shielded().lock:
-                time.sleep(0.25)
+        with request_deadline.request("bolt") as deadline:
+            shield = request_deadline.shielded()
+            with shield.lock:
+                deadline_clock.advance(0.25)
+                shield.settle()
+                deadline.stop()
                 raise ValueError("what the request happened to fail with")
     _names(raised.value, "bolt")
     assert isinstance(raised.value.__cause__, ValueError)
