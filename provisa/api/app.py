@@ -742,6 +742,12 @@ class AppState:
         self._active_runtime().grpc_descriptor = value
 
     @property
+    def grpc_role_descriptors(self) -> dict[str, Any]:
+        """Each role's compiled service, of the bound organisation
+        (OrgRuntime.grpc_role_descriptors)."""
+        return self._active_runtime().grpc_role_descriptors
+
+    @property
     def role_build_inputs(self) -> dict:
         """What any role's surface is built from (OrgRuntime.role_build_inputs)."""
         return self._active_runtime().role_build_inputs

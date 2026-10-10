@@ -483,27 +483,38 @@ class ProvisaServicer:  # REQ-045, REQ-143
         return grpc.unary_unary_rpc_method_handler(behaviour)
 
     def reflection_handler(self) -> grpc.RpcMethodHandler:
-        """Server reflection, answered from the service of the organisation the call is bound
-        to: each organisation's callers are described their own service."""
+        """Server reflection, answered from the service of the ROLE the call runs as, in the
+        organisation it is bound to: a caller is described what its role is served — the proto
+        its role downloads, the tables and columns its GraphQL schema has — and nothing of
+        another role's or another organisation's."""
         from grpc_reflection.v1alpha import reflection, reflection_pb2
 
         from provisa.core.request_context import reset_current_org
-        from provisa.grpc.descriptor import SERVICE_NAME, bound_descriptor
+        from provisa.grpc.descriptor import SERVICE_NAME, role_descriptor
         from provisa.grpc.rpc_scope import rpc_scope
 
         async def described(context):
+            metadata = dict(context.invocation_metadata())
+            role_id = _rpc_role(metadata)
+            if not role_id:
+                await context.abort(
+                    grpc.StatusCode.UNAUTHENTICATED, "Missing x-provisa-role metadata"
+                )
+                raise RuntimeError("abort ends the RPC by raising")
             try:
-                token = await self._bind_org(dict(context.invocation_metadata()))
+                token = await self._bind_org(metadata)
             except ValueError as exc:
                 await context.abort(grpc.StatusCode.UNAUTHENTICATED, str(exc))
                 raise
             try:
-                found = bound_descriptor(self._state)
+                found = role_descriptor(self._state, role_id)
             finally:
                 if token is not None:
                     reset_current_org(token)
             if found is None:
-                await context.abort(grpc.StatusCode.NOT_FOUND, "no gRPC service is defined")
+                await context.abort(
+                    grpc.StatusCode.NOT_FOUND, f"role {role_id!r} has no gRPC service"
+                )
                 raise RuntimeError("abort ends the RPC by raising")
             return found
 

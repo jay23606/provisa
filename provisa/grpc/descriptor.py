@@ -10,12 +10,18 @@
 
 """An organisation's gRPC service, compiled: its messages, its methods, its reflection.
 
-Each organisation's schema build writes its service as proto text (``OrgRuntime.wire_proto``).
-What is served is compiled from that text here, per organisation, into a descriptor pool of its
-own — every organisation's file is ``provisa.v1``, so no two fit in one pool — and kept on the
-organisation's runtime for as long as the text it was compiled from is the text the runtime
-holds. A request is decoded, answered and described from the descriptor of the organisation it
-is bound to, and a model change is served as soon as its build has written the new text."""
+An organisation's schema build writes two kinds of proto text. One for the WIRE
+(``OrgRuntime.wire_proto``): the union of every role's surface, which requests are decoded and
+answers encoded with. And one per ROLE (``proto_files``, a part of each role's surface, meta-roles
+included): what that role is served, as its GraphQL schema is — the file a client of that role
+downloads. Field numbers are shared, so a role's proto is a subset of the wire's that reads the
+same bytes.
+
+Each is compiled here into a descriptor pool of its own — every file is ``provisa.v1``, so no
+two fit in one pool — and kept on the organisation's runtime for as long as the text it was
+compiled from is the text the runtime holds. A call is decoded and answered with its
+organisation's wire descriptor; what a caller is DESCRIBED (server reflection) is its role's.
+A model change is served as soon as its build has written the new text."""
 
 # Requirements: REQ-045, REQ-051, REQ-1266
 
@@ -41,7 +47,6 @@ class OrgDescriptor:
         files = descriptor_pb2.FileDescriptorSet.FromString(compile_descriptor_set(proto))
         for file in files.file:  # protoc writes a set in dependency order
             self.pool.Add(file)
-        self.service = self.pool.FindServiceByName(SERVICE_NAME)
         self._classes: dict[str, Any] = {}
 
     def __getattr__(self, name: str) -> Any:
@@ -60,7 +65,7 @@ class OrgDescriptor:
 
     def method(self, name: str) -> Any | None:
         """The service's method ``name`` (its descriptor), or None when the service has none."""
-        return self.service.methods_by_name.get(name)
+        return self.pool.FindServiceByName(SERVICE_NAME).methods_by_name.get(name)
 
     def request_class(self, method: Any) -> Any:
         return self._class_of(method.input_type)
@@ -81,4 +86,20 @@ def bound_descriptor(state: Any) -> OrgDescriptor | None:
     held = state.grpc_descriptor
     if held is None or held.proto != proto:
         held = state.grpc_descriptor = OrgDescriptor(proto)
+    return held
+
+
+def role_descriptor(state: Any, role_id: str) -> OrgDescriptor | None:
+    """The compiled service ``role_id`` is served in the organisation ``state`` is bound to —
+    from the role's own proto, the text its clients download (``proto_files``) — or None for a
+    role with none (no data surface, or not a role of this organisation). Compiled when first
+    asked for and again when the role's proto has changed: a rebuilt role, a meta-role whose
+    members changed."""
+    proto = state.proto_files.get(role_id)
+    if not proto:
+        return None
+    kept = state.grpc_role_descriptors
+    held = kept.get(role_id)
+    if held is None or held.proto != proto:
+        held = kept[role_id] = OrgDescriptor(proto)
     return held

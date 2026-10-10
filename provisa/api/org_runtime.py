@@ -270,6 +270,8 @@ class OrgRuntime:
     # compiled from it (grpc/descriptor.OrgDescriptor): its own, read by its own callers.
     wire_proto: str | None = None
     grpc_descriptor: Any = None
+    # Each role's own proto, compiled for what that role is described (grpc/descriptor.py).
+    grpc_role_descriptors: dict[str, Any] = field(default_factory=dict)
     # meta-role id → the held roles it acts as (security/meta_role.py), this generation.
     meta_roles: dict = field(default_factory=dict)
     # meta-role id -> when a request last resolved it (time.monotonic): what a rebuild reads to
