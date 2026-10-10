@@ -105,7 +105,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/graph/graph-context-menus.tsx",
   "components/relationships/RelationshipModals.tsx",
   "components/relationships/RelationshipRow.tsx",
-  "pages/CommandsPage.tsx",
   "pages/JsonApiPage.tsx",
   "pages/LineagePage.tsx",
   "pages/LoginPage.tsx",
