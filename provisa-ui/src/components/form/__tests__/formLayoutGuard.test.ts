@@ -113,7 +113,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/relationships/JunctionPanel.tsx",
   "components/relationships/RelationshipModals.tsx",
   "components/relationships/RelationshipRow.tsx",
-  "pages/AdminPage.tsx",
   "pages/CommandsPage.tsx",
   "pages/DataProductsPage.tsx",
   "pages/JsonApiPage.tsx",
