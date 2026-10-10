@@ -479,10 +479,9 @@ async def listed_mailboxes(token: Callable[[], str], chosen: Any) -> list[str]:
 async def organisation_token(admin_db: Any, org_id: str) -> Callable[[], str]:
     """The token of the organisation's Microsoft client, for reading the organisation's
     mailboxes: refused by name unless its administrator has allowed such sources. The client's
-    secret is resolved here, where the organisation's vault is bound, and held only by the
+    secret is resolved here, in that organisation's vault, and held only by the
     token's own renewal."""
     from provisa.core import mail_platforms
-    from provisa.core.secrets import resolve_secrets
     from provisa.microsoft365 import SOURCE_TYPE, directory
     from provisa.microsoft365 import settings as m365
 
@@ -490,7 +489,8 @@ async def organisation_token(admin_db: Any, org_id: str) -> Callable[[], str]:
     return directory.ClientToken(
         m365.token_url(client.settings.get("tenant")),
         client.client,
-        resolve_secrets(client.client_secret),
+        # In the entry's own organisation's vault, whatever the caller has bound.
+        await mail_platforms.resolved(admin_db, org_id, client.client_secret),
     )
 
 
@@ -507,7 +507,6 @@ def make_connect(state: Any) -> Connect:
     from provisa.core.config_loader import load_control_plane
     from provisa.core.config_location import config_path_str
     from provisa.core.request_context import require_current_org
-    from provisa.core.secrets import resolve_secrets
     from provisa.microsoft365 import SOURCE_TYPE
     from provisa.microsoft365 import settings as m365
 
@@ -555,9 +554,10 @@ def make_connect(state: Any) -> Connect:
                 settle=settle,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
-        # Resolved here, where the organisation's vault is bound: the exchange runs in a
-        # worker thread, which holds none.
-        client_secret = resolve_secrets(client.client_secret)
+        # Resolved here, in the entry's own organisation's vault whatever the caller has bound
+        # (a replica build binds one only for a source whose own fields name a secret): the
+        # exchange runs in a worker thread, which holds none.
+        client_secret = await mail_platforms.resolved(state.admin_db, org_id, client.client_secret)
         url = m365.token_url(client.settings.get("tenant"))
         platform_url = load_control_plane(config_path_str()).resolved_platform_url()
         loop = asyncio.get_running_loop()

@@ -137,6 +137,22 @@ def organisation_key_name(platform_id: str) -> str:
     return secrets_store.validate_name(f"mail_platform_{platform_id}_organisation_key")
 
 
+async def resolved(admin_db: "Database", org_id: str, value: str) -> str:
+    """``value`` of ``org_id``'s platform entry (its client secret, its organisation key) with
+    any secret reference in it resolved IN THAT ORGANISATION'S vault.
+
+    The vault is bound here, for this read alone, and never taken from the caller: a reader of a
+    mail source is reached from a replica build, a check for changes and a preview, and those
+    bind a vault only for a source whose own fields name a secret -- a source of the
+    organisation's mailboxes names none. A caller's own binding, whoever's it is, is put back
+    when the read ends, so an entry is never resolved in another organisation's vault."""
+    from provisa.core import secrets_store
+    from provisa.core.secrets import resolve_secrets
+
+    async with secrets_store.bound(admin_db, org_id):
+        return resolve_secrets(value)
+
+
 async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configured | None:
     """``org_id``'s client for the platform, or None when it has entered none."""
     platform(platform_id)

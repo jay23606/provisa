@@ -125,7 +125,7 @@ def test_the_person_is_offered_the_account_the_source_names():
 def signed_in(monkeypatch):
     """What `connect` reaches: the organisation's client, the vault, the store, the exchange."""
     from provisa.api_source import oauth_grants, oauth_store
-    from provisa.core import config_loader, request_context, secrets
+    from provisa.core import config_loader, request_context
 
     calls = SimpleNamespace(required=[], stored=[], exchanged=[])
 
@@ -145,7 +145,14 @@ def signed_in(monkeypatch):
     monkeypatch.setattr(mail_platforms, "require", require)
     monkeypatch.setattr(oauth_store, "stored_access_token", stored_access_token)
     monkeypatch.setattr(oauth_grants, "exchange_refresh_token", exchange_refresh_token)
-    monkeypatch.setattr(secrets, "resolve_secrets", lambda value: "the-client-secret")
+    calls.resolved = []
+
+    async def resolved(admin_db, org_id, value):
+        # The entry's secret, read in the vault of the organisation it is asked for.
+        calls.resolved.append(org_id)
+        return "the-client-secret"
+
+    monkeypatch.setattr(mail_platforms, "resolved", resolved)
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
     monkeypatch.setattr(
         config_loader,
@@ -168,6 +175,7 @@ def test_a_source_is_signed_in_with_the_organisations_client_through_the_store(s
     account, token = asyncio.run(run())
     assert (account, token) == ("megan@contoso.com", "access-1")
     assert signed_in.required == [("acme", SOURCE_TYPE)]
+    assert signed_in.resolved == ["acme"]  # the client's secret, in that organisation's vault
     (stored,) = signed_in.stored
     assert stored["org_id"] == "acme" and stored["source_id"] == "m365"
     assert stored["secret_name"] == "source_m365_refresh_token"
