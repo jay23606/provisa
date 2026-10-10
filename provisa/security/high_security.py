@@ -117,7 +117,7 @@ def high_security_wire_reject(state: Any, kms_key: str | None) -> str | None:
     return (
         "high-security mode: data calls require a client-side decryption key. Connect with a "
         "KMS-configured client (kms_provider + kms_key_arn) so the "
-        f"{KMS_KEY_HEADER} call header is sent. (REQ-693)"
+        f"{KMS_KEY_HEADER} call header is sent."
     )
 
 
@@ -143,7 +143,7 @@ def high_security_reject(path: str, headers: Any) -> JSONResponse | None:
             "detail": (
                 "high-security mode: REST/GraphQL data endpoints require a client-side "
                 "decryption key. Connect with a KMS-configured JDBC/Python client "
-                "(kms_provider + kms_key_arn). (REQ-693)"
+                "(kms_provider + kms_key_arn)."
             )
         },
     )

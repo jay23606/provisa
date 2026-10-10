@@ -710,7 +710,7 @@ def _validate_load_protection(
             success=False,
             message=(
                 f"{who}: load protection requires at least one refresh gate — set an off-peak "
-                "window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe) (REQ-1141)"
+                "window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe)"
             ),
             code="schema.load_protection_gate_required",
             params={"who": who},

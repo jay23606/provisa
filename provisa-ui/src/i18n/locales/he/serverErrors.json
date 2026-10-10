@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}}: הארגומנט '{{argument}}' לא נמסר",
       "argument_not_declared": "{{signature}}: הארגומנט '{{argument}}' אינו מוצהר",
       "binding_missing_key": "לקישור הפונקציה עבור kind '{{kind}}' חסר מפתח חובה '{{key}}'",
-      "egress_denied": "יציאה אל '{{endpoint}}' נדחתה: המארח אינו ברשימת ההיתרים ליציאת UDF (REQ-885 deny-by-default). הוסיפו אותו ל-udf_egress_allowlist כדי להתיר.",
+      "egress_denied": "יציאה אל '{{endpoint}}' נדחתה: המארח אינו ברשימת ההיתרים ליציאת UDF (נדחה כברירת מחדל). הוסיפו אותו ל-udf_egress_allowlist כדי להתיר.",
       "grpc_call_failed": "קריאת grpc {{target}}{{path}} נכשלה: {{status}}: {{details}}",
       "grpc_method_invalid": "מתודת grpc '{{method}}' חייבת להיות 'Service/Method' או 'pkg.Service.Method'",
       "json_argument_invalid": "הארגומנט '{{argument}}' של '{{name}}' אינו ליטרל JSON",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "python callable '{{spec}}' חייב להיות 'module:attr'",
       "remote_refused": "{{source_id}} דחה את {{operation}}: {{answer}}",
       "result_set_ref_invalid": "הפניית result_set '{{ref}}' חייבת להיות source.schema.table",
-      "rowwise_external": "הפונקציה '{{name}}' (kind={{impl_kind}}) היא חיצונית ברמת שורה: כל הארגומנטים הם column_value סקלרי. הצהירו על ארגומנט יחס table_ref/result_set כדי שהקריאות יהיו ברמת קבוצה ובאצוות (REQ-885).",
+      "rowwise_external": "הפונקציה '{{name}}' (kind={{impl_kind}}) היא חיצונית ברמת שורה: כל הארגומנטים הם column_value סקלרי. הצהירו על ארגומנט יחס table_ref/result_set כדי שהקריאות יהיו ברמת קבוצה ובאצוות.",
       "script_failed": "הסקריפט הסתיים בקוד {{returncode}}: {{stderr}}",
       "source_not_connected": "המקור '{{source_id}}' אינו מחובר",
       "unknown_arg_kind": "arg_kind לא מוכר '{{arg_kind}}' עבור '{{name}}'",
@@ -214,7 +214,7 @@
       "org_id_reserved": "מזהה הארגון '{{org}}' שמור. מזהים שמורים: {{reserved}}.",
       "platform_admin_required": "נדרש platform_admin",
       "retry_not_failed": "הארגון '{{org}}' נמצא במצב '{{state}}', לא 'failed' — אין מה לנסות שוב.",
-      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר (REQ-1308).",
+      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר.",
       "view_not_permitted": "אין הרשאה לצפות בארגון זה"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "לוח שנה לא תקין: {{error}}",
       "invalid_cardinality": "קרדינליות לא תקינה: '{{cardinality}}'",
       "invalid_off_peak_window": "חלון שפל לא תקין: {{error}}",
-      "load_protection_gate_required": "{{who}}: הגנת עומס דורשת לפחות שער רענון אחד — הגדירו חלון שפל, קצב cache_ttl, או change_signal מסוג בדיקה (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: הגנת עומס דורשת לפחות שער רענון אחד — הגדירו חלון שפל, קצב cache_ttl, או change_signal מסוג בדיקה (probe/ttl_probe)",
       "metric_deleted": "המדד '{{metric}}' נמחק",
       "metric_not_found": "המדד '{{metric}}' לא נמצא",
       "metric_saved": "המדד '{{metric}}' נשמר",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} הוא מנהל הפלטפורמה האחרון של פריסה זו. יש להעניק תחילה את התפקיד למשתמש אחר.",
       "no_active_org": "אין ארגון המקושר לבקשה זו. יש להתחבר תחילה לארגון.",
       "no_fields_to_update": "אין שדות לעדכון",
-      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר (REQ-1308).",
+      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר.",
       "user_not_found": "המשתמש לא נמצא"
     },
     "cypher": {

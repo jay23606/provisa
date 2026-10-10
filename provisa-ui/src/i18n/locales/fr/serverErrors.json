@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}} : l'argument '{{argument}}' n'a pas été fourni",
       "argument_not_declared": "{{signature}} : l'argument '{{argument}}' n'est pas déclaré",
       "binding_missing_key": "la liaison de fonction pour le type « {{kind}} » n'a pas la clé requise « {{key}} »",
-      "egress_denied": "sortie vers « {{endpoint}} » refusée : hôte absent de la liste d'autorisation de sortie UDF (REQ-885, refus par défaut). Ajoutez-le à udf_egress_allowlist pour l'autoriser.",
+      "egress_denied": "sortie vers « {{endpoint}} » refusée : hôte absent de la liste d'autorisation de sortie UDF (refus par défaut). Ajoutez-le à udf_egress_allowlist pour l'autoriser.",
       "grpc_call_failed": "échec de l'appel grpc {{target}}{{path}} : {{status}} : {{details}}",
       "grpc_method_invalid": "la méthode grpc « {{method}} » doit être « Service/Method » ou « pkg.Service.Method »",
       "json_argument_invalid": "l'argument '{{argument}}' de '{{name}}' n'est pas un littéral JSON",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "le callable python « {{spec}} » doit être « module:attr »",
       "remote_refused": "{{source_id}} a refusé {{operation}} : {{answer}}",
       "result_set_ref_invalid": "la référence result_set « {{ref}} » doit être source.schema.table",
-      "rowwise_external": "la fonction « {{name}} » (kind={{impl_kind}}) est externe ligne par ligne : tous ses arguments sont des column_value scalaires. Déclarez un argument de relation table_ref/result_set pour que les appels soient ensemblistes et regroupés (REQ-885).",
+      "rowwise_external": "la fonction « {{name}} » (kind={{impl_kind}}) est externe ligne par ligne : tous ses arguments sont des column_value scalaires. Déclarez un argument de relation table_ref/result_set pour que les appels soient ensemblistes et regroupés.",
       "script_failed": "le script s'est terminé avec le code {{returncode}} : {{stderr}}",
       "source_not_connected": "Source « {{source_id}} » non connectée",
       "unknown_arg_kind": "arg_kind « {{arg_kind}} » inconnu pour « {{name}} »",
@@ -214,7 +214,7 @@
       "org_id_reserved": "L'identifiant d'organisation « {{org}} » est réservé. Identifiants réservés : {{reserved}}.",
       "platform_admin_required": "platform_admin requis",
       "retry_not_failed": "L'organisation « {{org}} » est « {{state}} », pas « failed » — rien à réessayer.",
-      "self_role_change": "Un utilisateur ne peut pas changer son propre rôle. Demandez à un autre administrateur (REQ-1308).",
+      "self_role_change": "Un utilisateur ne peut pas changer son propre rôle. Demandez à un autre administrateur.",
       "view_not_permitted": "Vous n'êtes pas autorisé à consulter cette organisation"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "calendrier invalide : {{error}}",
       "invalid_cardinality": "Cardinalité invalide : « {{cardinality}} »",
       "invalid_off_peak_window": "fenêtre creuse invalide : {{error}}",
-      "load_protection_gate_required": "{{who}} : la protection de charge requiert au moins une condition d'actualisation — définissez une fenêtre creuse, une cadence cache_ttl ou un change_signal de sondage (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}} : la protection de charge requiert au moins une condition d'actualisation — définissez une fenêtre creuse, une cadence cache_ttl ou un change_signal de sondage (probe/ttl_probe)",
       "metric_deleted": "Métrique « {{metric}} » supprimée",
       "metric_not_found": "Métrique « {{metric}} » introuvable",
       "metric_saved": "Métrique « {{metric}} » enregistrée",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} est le dernier administrateur de plateforme de ce déploiement. Accordez d'abord ce rôle à un autre utilisateur.",
       "no_active_org": "Aucune organisation n'est liée à cette requête. Connectez-vous d'abord à une organisation.",
       "no_fields_to_update": "Aucun champ à mettre à jour",
-      "self_role_change": "Un utilisateur ne peut pas changer son propre rôle. Demandez à un autre administrateur (REQ-1308).",
+      "self_role_change": "Un utilisateur ne peut pas changer son propre rôle. Demandez à un autre administrateur.",
       "user_not_found": "Utilisateur introuvable"
     },
     "cypher": {

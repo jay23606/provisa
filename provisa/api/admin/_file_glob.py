@@ -47,7 +47,7 @@ async def table_file_glob_refusal(conn: Any, model: Any) -> MutationResult | Non
         return MutationResult(
             success=False,
             message=f"table {model.table_name!r}: file_glob is defined only for a files source, "
-            f"not {(source or {}).get('type')!r} (REQ-788)",
+            f"not {(source or {}).get('type')!r}",
             code="schema.file_glob_not_files_source",
             params={"table": model.table_name, "source": model.source_id},
         )

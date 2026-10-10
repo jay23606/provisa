@@ -331,8 +331,8 @@ def _check_egress(state, endpoint: str, kind: str) -> None:
         403,
         "functions.egress_denied",
         (
-            f"egress to {endpoint!r} is denied: host not on the UDF egress allow-list "
-            f"(REQ-885 deny-by-default). Add it to udf_egress_allowlist to permit."
+            f"egress to {endpoint!r} is denied: host not on the UDF egress allow-list, and "
+            "egress is denied by default. Add it to udf_egress_allowlist to permit."
         ),
         endpoint=endpoint,
     )
@@ -370,7 +370,7 @@ def _reject_rowwise_external(fn: dict) -> None:
         (
             f"function {fn.get('name', '')!r} (kind={fn.get('impl_kind')}) is row-wise external: "
             "all arguments are scalar column_value. Declare a table_ref/result_set relation "
-            "argument so calls are set-wise and batched (REQ-885)."
+            "argument so calls are set-wise and batched."
         ),
         name=fn.get("name", ""),
         impl_kind=str(fn.get("impl_kind")),

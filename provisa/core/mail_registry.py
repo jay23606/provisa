@@ -192,8 +192,7 @@ def _BUILTIN(mail) -> list[MailProviderSpec]:
             "Exchange Online. The app registration needs the Mail.Send application permission, and "
             "the sender is the mailbox the message is sent as. Exchange rewrites the sender from "
             "that mailbox, so every message shows the mailbox's own name: invitations reach the "
-            "inviter on reply but do not name the inviting organization in the sender column "
-            "(REQ-1577).",
+            "inviter on reply but do not name the inviting organization in the sender column.",
             build=mail.Microsoft365EmailSender,
             config_fields=[
                 _f("tenant_id", "Directory (tenant) id", required=True),

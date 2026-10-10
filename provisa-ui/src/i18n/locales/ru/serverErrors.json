@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}}: аргумент '{{argument}}' не передан",
       "argument_not_declared": "{{signature}}: аргумент '{{argument}}' не объявлен",
       "binding_missing_key": "в привязке функции для типа '{{kind}}' отсутствует обязательный ключ '{{key}}'",
-      "egress_denied": "исходящее подключение к '{{endpoint}}' запрещено: хост не входит в список разрешенных для исходящего трафика UDF (REQ-885, запрет по умолчанию). Добавьте его в udf_egress_allowlist, чтобы разрешить.",
+      "egress_denied": "исходящее подключение к '{{endpoint}}' запрещено: хост не входит в список разрешенных для исходящего трафика UDF (запрет по умолчанию). Добавьте его в udf_egress_allowlist, чтобы разрешить.",
       "grpc_call_failed": "вызов grpc {{target}}{{path}} завершился ошибкой: {{status}}: {{details}}",
       "grpc_method_invalid": "метод grpc '{{method}}' должен иметь вид 'Service/Method' или 'pkg.Service.Method'",
       "json_argument_invalid": "аргумент '{{argument}}' для '{{name}}' не является литералом JSON",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "вызываемый объект python '{{spec}}' должен иметь вид 'module:attr'",
       "remote_refused": "{{source_id}} отклонил {{operation}}: {{answer}}",
       "result_set_ref_invalid": "ссылка result_set '{{ref}}' должна иметь вид source.schema.table",
-      "rowwise_external": "функция '{{name}}' (kind={{impl_kind}}) является построчной внешней: все аргументы — скалярные column_value. Объявите аргумент-отношение table_ref/result_set, чтобы вызовы выполнялись помножественно и пакетно (REQ-885).",
+      "rowwise_external": "функция '{{name}}' (kind={{impl_kind}}) является построчной внешней: все аргументы — скалярные column_value. Объявите аргумент-отношение table_ref/result_set, чтобы вызовы выполнялись помножественно и пакетно.",
       "script_failed": "скрипт завершился с кодом {{returncode}}: {{stderr}}",
       "source_not_connected": "Источник '{{source_id}}' не подключен",
       "unknown_arg_kind": "Неизвестный arg_kind '{{arg_kind}}' для '{{name}}'",
@@ -214,7 +214,7 @@
       "org_id_reserved": "Идентификатор организации '{{org}}' зарезервирован. Зарезервированные идентификаторы: {{reserved}}.",
       "platform_admin_required": "требуется platform_admin",
       "retry_not_failed": "Организация '{{org}}' в состоянии '{{state}}', а не 'failed' — повторять нечего.",
-      "self_role_change": "Пользователь не может изменить собственную роль. Обратитесь к другому администратору (REQ-1308).",
+      "self_role_change": "Пользователь не может изменить собственную роль. Обратитесь к другому администратору.",
       "view_not_permitted": "Просмотр этой организации не разрешен"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "недействительный календарь: {{error}}",
       "invalid_cardinality": "Недопустимая кардинальность: '{{cardinality}}'",
       "invalid_off_peak_window": "недопустимое окно внепиковой нагрузки: {{error}}",
-      "load_protection_gate_required": "{{who}}: защита от нагрузки требует хотя бы одного шлюза обновления — задайте окно внепиковой нагрузки, каденцию cache_ttl или зондирующий change_signal (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: защита от нагрузки требует хотя бы одного шлюза обновления — задайте окно внепиковой нагрузки, каденцию cache_ttl или зондирующий change_signal (probe/ttl_probe)",
       "metric_deleted": "Метрика '{{metric}}' удалена",
       "metric_not_found": "Метрика '{{metric}}' не найдена",
       "metric_saved": "Метрика '{{metric}}' сохранена",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} — последний администратор платформы в этом развёртывании. Сначала выдайте эту роль другому пользователю.",
       "no_active_org": "К этому запросу не привязана организация. Сначала войдите в организацию.",
       "no_fields_to_update": "Нет полей для обновления",
-      "self_role_change": "Пользователь не может изменить собственную роль. Обратитесь к другому администратору (REQ-1308).",
+      "self_role_change": "Пользователь не может изменить собственную роль. Обратитесь к другому администратору.",
       "user_not_found": "Пользователь не найден"
     },
     "cypher": {

@@ -90,7 +90,7 @@ def missing_landing_ttl(
     if signal in CLOCKED_SIGNALS and table_ttl is None and source_ttl is None:
         return (
             f"change_signal {signal!r} re-reads or checks the source on the table's cache_ttl and "
-            "the table lands, so add a cache_ttl to the table or its source (REQ-1907); the "
+            "the table lands, so add a cache_ttl to the table or its source; the "
             "global response-cache default_ttl is not a landing TTL"
         )
     return None

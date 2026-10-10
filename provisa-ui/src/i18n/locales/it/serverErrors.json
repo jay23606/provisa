@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}}: l'argomento '{{argument}}' non è stato fornito",
       "argument_not_declared": "{{signature}}: l'argomento '{{argument}}' non è dichiarato",
       "binding_missing_key": "al binding di funzione per il kind '{{kind}}' manca la chiave obbligatoria '{{key}}'",
-      "egress_denied": "uscita verso '{{endpoint}}' negata: host non presente nell'elenco consentiti di uscita UDF (REQ-885 rifiuto predefinito). Aggiungerlo a udf_egress_allowlist per consentirlo.",
+      "egress_denied": "uscita verso '{{endpoint}}' negata: host non presente nell'elenco consentiti di uscita UDF (rifiuto predefinito). Aggiungerlo a udf_egress_allowlist per consentirlo.",
       "grpc_call_failed": "chiamata grpc {{target}}{{path}} non riuscita: {{status}}: {{details}}",
       "grpc_method_invalid": "il metodo grpc '{{method}}' deve essere 'Service/Method' o 'pkg.Service.Method'",
       "json_argument_invalid": "l'argomento '{{argument}}' di '{{name}}' non è un letterale JSON",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "il callable python '{{spec}}' deve essere 'module:attr'",
       "remote_refused": "{{source_id}} ha rifiutato {{operation}}: {{answer}}",
       "result_set_ref_invalid": "il riferimento result_set '{{ref}}' deve essere source.schema.table",
-      "rowwise_external": "la funzione '{{name}}' (kind={{impl_kind}}) è esterna riga per riga: tutti gli argomenti sono column_value scalari. Dichiarare un argomento relazione table_ref/result_set affinché le chiamate siano per insiemi e raggruppate in batch (REQ-885).",
+      "rowwise_external": "la funzione '{{name}}' (kind={{impl_kind}}) è esterna riga per riga: tutti gli argomenti sono column_value scalari. Dichiarare un argomento relazione table_ref/result_set affinché le chiamate siano per insiemi e raggruppate in batch.",
       "script_failed": "script terminato con codice {{returncode}}: {{stderr}}",
       "source_not_connected": "Origine '{{source_id}}' non connessa",
       "unknown_arg_kind": "arg_kind '{{arg_kind}}' sconosciuto per '{{name}}'",
@@ -214,7 +214,7 @@
       "org_id_reserved": "L'id organizzazione '{{org}}' è riservato. Id riservati: {{reserved}}.",
       "platform_admin_required": "platform_admin richiesto",
       "retry_not_failed": "L'organizzazione '{{org}}' è in stato '{{state}}', non 'failed' — nulla da ritentare.",
-      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore (REQ-1308).",
+      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
       "view_not_permitted": "Visualizzazione di questa organizzazione non consentita"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "calendario non valido: {{error}}",
       "invalid_cardinality": "Cardinalità non valida: '{{cardinality}}'",
       "invalid_off_peak_window": "finestra fuori picco non valida: {{error}}",
-      "load_protection_gate_required": "{{who}}: la protezione dal carico richiede almeno un gate di aggiornamento — impostare una finestra fuori picco, una cadenza cache_ttl o un change_signal di sondaggio (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: la protezione dal carico richiede almeno un gate di aggiornamento — impostare una finestra fuori picco, una cadenza cache_ttl o un change_signal di sondaggio (probe/ttl_probe)",
       "metric_deleted": "Metrica '{{metric}}' eliminata",
       "metric_not_found": "Metrica '{{metric}}' non trovata",
       "metric_saved": "Metrica '{{metric}}' salvata",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} è l'ultimo amministratore della piattaforma di questa installazione. Assegna prima il ruolo a un altro utente.",
       "no_active_org": "Nessuna organizzazione è associata a questa richiesta. Accedi prima a un'organizzazione.",
       "no_fields_to_update": "Nessun campo da aggiornare",
-      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore (REQ-1308).",
+      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
       "user_not_found": "Utente non trovato"
     },
     "cypher": {

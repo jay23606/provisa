@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}}: Argument '{{argument}}' wurde nicht angegeben",
       "argument_not_declared": "{{signature}}: Argument '{{argument}}' ist nicht deklariert",
       "binding_missing_key": "Funktionsbindung für Art '{{kind}}' fehlt der erforderliche Schlüssel '{{key}}'",
-      "egress_denied": "Ausgehender Zugriff auf '{{endpoint}}' verweigert: Host steht nicht auf der UDF-Egress-Zulassungsliste (REQ-885 deny-by-default). Fügen Sie ihn zu udf_egress_allowlist hinzu, um ihn zuzulassen.",
+      "egress_denied": "Ausgehender Zugriff auf '{{endpoint}}' verweigert: Host steht nicht auf der UDF-Egress-Zulassungsliste (standardmäßig verweigert). Fügen Sie ihn zu udf_egress_allowlist hinzu, um ihn zuzulassen.",
       "grpc_call_failed": "gRPC-Aufruf {{target}}{{path}} fehlgeschlagen: {{status}}: {{details}}",
       "grpc_method_invalid": "gRPC-Methode '{{method}}' muss dem Format 'Service/Method' oder 'pkg.Service.Method' entsprechen",
       "json_argument_invalid": "Argument '{{argument}}' von '{{name}}' ist kein JSON-Literal",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "Python-Callable '{{spec}}' muss dem Format 'module:attr' entsprechen",
       "remote_refused": "{{source_id}} hat {{operation}} abgelehnt: {{answer}}",
       "result_set_ref_invalid": "result_set-Referenz '{{ref}}' muss dem Format source.schema.table entsprechen",
-      "rowwise_external": "Funktion '{{name}}' (kind={{impl_kind}}) ist zeilenweise extern: alle Argumente sind skalare column_value. Deklarieren Sie ein table_ref-/result_set-Relationsargument, damit Aufrufe mengenweise und gebündelt erfolgen (REQ-885).",
+      "rowwise_external": "Funktion '{{name}}' (kind={{impl_kind}}) ist zeilenweise extern: alle Argumente sind skalare column_value. Deklarieren Sie ein table_ref-/result_set-Relationsargument, damit Aufrufe mengenweise und gebündelt erfolgen.",
       "script_failed": "Skript wurde mit {{returncode}} beendet: {{stderr}}",
       "source_not_connected": "Quelle '{{source_id}}' nicht verbunden",
       "unknown_arg_kind": "Unbekanntes arg_kind '{{arg_kind}}' für '{{name}}'",
@@ -214,7 +214,7 @@
       "org_id_reserved": "Organisations-ID '{{org}}' ist reserviert. Reservierte IDs: {{reserved}}.",
       "platform_admin_required": "platform_admin erforderlich",
       "retry_not_failed": "Organisation '{{org}}' ist '{{state}}', nicht 'failed' — nichts zu wiederholen.",
-      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator (REQ-1308).",
+      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
       "view_not_permitted": "Keine Berechtigung, diese Organisation anzuzeigen"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "ungültiger Kalender: {{error}}",
       "invalid_cardinality": "Ungültige Kardinalität: '{{cardinality}}'",
       "invalid_off_peak_window": "ungültiges Nebenzeiten-Fenster: {{error}}",
-      "load_protection_gate_required": "{{who}}: Lastschutz erfordert mindestens ein Aktualisierungs-Gate — legen Sie ein Nebenzeiten-Fenster, eine cache_ttl-Kadenz oder ein prüfendes change_signal (probe/ttl_probe) fest (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: Lastschutz erfordert mindestens ein Aktualisierungs-Gate — legen Sie ein Nebenzeiten-Fenster, eine cache_ttl-Kadenz oder ein prüfendes change_signal (probe/ttl_probe) fest",
       "metric_deleted": "Metrik '{{metric}}' gelöscht",
       "metric_not_found": "Metrik '{{metric}}' nicht gefunden",
       "metric_saved": "Metrik '{{metric}}' gespeichert",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} ist der letzte Plattformadministrator dieser Bereitstellung. Weisen Sie die Rolle zuerst einem anderen Benutzer zu.",
       "no_active_org": "An diese Anfrage ist keine Organisation gebunden. Melden Sie sich zuerst bei einer Organisation an.",
       "no_fields_to_update": "Keine Felder zu aktualisieren",
-      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator (REQ-1308).",
+      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
       "user_not_found": "Benutzer nicht gefunden"
     },
     "cypher": {

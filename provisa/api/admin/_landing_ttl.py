@@ -250,7 +250,7 @@ async def landing_ttl_refusal(
             message=(
                 f"Source {source_id!r}: change_signal {source.change_signal!r} is TTL-based and "
                 "every table of this source lands, so set the source's Cache TTL (Load "
-                "Management and Timeliness) (REQ-1907)"
+                "Management and Timeliness)"
             ),
             code="schema.source_cache_ttl_required",
             params={"source": source_id, "signal": source.change_signal},

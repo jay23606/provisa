@@ -135,7 +135,7 @@
       "argument_missing": "{{signature}}: o argumento '{{argument}}' não foi informado",
       "argument_not_declared": "{{signature}}: o argumento '{{argument}}' não está declarado",
       "binding_missing_key": "a vinculação de função para o tipo '{{kind}}' está sem a chave obrigatória '{{key}}'",
-      "egress_denied": "saída para '{{endpoint}}' negada: host não está na lista de permissões de saída de UDF (REQ-885 negar por padrão). Adicione-o a udf_egress_allowlist para permitir.",
+      "egress_denied": "saída para '{{endpoint}}' negada: host não está na lista de permissões de saída de UDF (negar por padrão). Adicione-o a udf_egress_allowlist para permitir.",
       "grpc_call_failed": "chamada grpc {{target}}{{path}} falhou: {{status}}: {{details}}",
       "grpc_method_invalid": "o método grpc '{{method}}' deve ser 'Service/Method' ou 'pkg.Service.Method'",
       "json_argument_invalid": "o argumento '{{argument}}' de '{{name}}' não é um literal JSON",
@@ -145,7 +145,7 @@
       "python_callable_invalid": "o callable python '{{spec}}' deve ser 'module:attr'",
       "remote_refused": "{{source_id}} recusou {{operation}}: {{answer}}",
       "result_set_ref_invalid": "a ref de result_set '{{ref}}' deve ser source.schema.table",
-      "rowwise_external": "a função '{{name}}' (kind={{impl_kind}}) é externa por linha: todos os argumentos são column_value escalares. Declare um argumento de relação table_ref/result_set para que as chamadas sejam por conjunto e em lote (REQ-885).",
+      "rowwise_external": "a função '{{name}}' (kind={{impl_kind}}) é externa por linha: todos os argumentos são column_value escalares. Declare um argumento de relação table_ref/result_set para que as chamadas sejam por conjunto e em lote.",
       "script_failed": "o script saiu com {{returncode}}: {{stderr}}",
       "source_not_connected": "Fonte '{{source_id}}' não conectada",
       "unknown_arg_kind": "arg_kind desconhecido '{{arg_kind}}' para '{{name}}'",
@@ -214,7 +214,7 @@
       "org_id_reserved": "O id de organização '{{org}}' é reservado. Ids reservados: {{reserved}}.",
       "platform_admin_required": "platform_admin necessário",
       "retry_not_failed": "A organização '{{org}}' está em '{{state}}', não em 'failed' — nada a repetir.",
-      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador (REQ-1308).",
+      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
       "view_not_permitted": "Sem permissão para exibir esta organização"
     },
     "platform": {
@@ -271,7 +271,7 @@
       "invalid_calendar": "calendário inválido: {{error}}",
       "invalid_cardinality": "Cardinalidade inválida: '{{cardinality}}'",
       "invalid_off_peak_window": "janela fora de pico inválida: {{error}}",
-      "load_protection_gate_required": "{{who}}: a proteção de carga requer pelo menos um portão de atualização — defina uma janela fora de pico, uma cadência de cache_ttl ou um change_signal de sondagem (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: a proteção de carga requer pelo menos um portão de atualização — defina uma janela fora de pico, uma cadência de cache_ttl ou um change_signal de sondagem (probe/ttl_probe)",
       "metric_deleted": "Métrica '{{metric}}' excluída",
       "metric_not_found": "Métrica '{{metric}}' não encontrada",
       "metric_saved": "Métrica '{{metric}}' salva",
@@ -440,7 +440,7 @@
       "last_platform_admin": "{{user}} é o último administrador de plataforma desta implantação. Conceda primeiro o papel a outro usuário.",
       "no_active_org": "Nenhuma organização está vinculada a esta solicitação. Entre primeiro em uma organização.",
       "no_fields_to_update": "Nenhum campo para atualizar",
-      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador (REQ-1308).",
+      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
       "user_not_found": "Usuário não encontrado"
     },
     "cypher": {
