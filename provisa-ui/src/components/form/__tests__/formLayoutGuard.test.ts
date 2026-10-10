@@ -163,7 +163,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sources/SalesforceFields.tsx",
   "pages/sources/SourceDetailPanel.tsx",
   "pages/sources/SourceLoadManagementPanel.tsx",
-  "pages/sources/SparqlFormSection.tsx",
   "pages/sources/WikipediaFields.tsx",
   "pages/sql/ColumnFilterMenu.tsx",
   "pages/sql/ViewModal.tsx",

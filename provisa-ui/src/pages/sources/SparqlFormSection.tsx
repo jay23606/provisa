@@ -16,6 +16,7 @@ import { Select, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { AuthUserPass } from "./AuthUserPass";
 import type { SourceFormState } from "./SourceFormFields";
+import { FormField } from "../../components/form/FormLayout";
 
 export function SparqlFormSection({
   form,
@@ -35,51 +36,55 @@ export function SparqlFormSection({
   const { t } = useTranslation();
   return (
     <>
-      <TextInput
-        required
-        label={t("sourceFormFieldsExtended.endpointUrl")}
-        value={form.host}
-        onChange={(e) => setForm({ ...form, host: e.target.value })}
-        placeholder="https://dbpedia.org/sparql"
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="sparql-endpoint-input"
-      />
-      {/* REQ-1740: optional named-graph restriction, rides in federation_hints. */}
-      <TextInput
-        label={t("sourceFormFieldsExtended.defaultGraphUri")}
-        value={authFields.default_graph_uri ?? ""}
-        onChange={(e) => setAuthFields({ ...authFields, default_graph_uri: e.target.value })}
-        placeholder="http://example.org/graph (optional)"
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="sparql-default-graph-uri-input"
-      />
-      <Select
-        label={t("sourceFormFieldsExtended.authentication")}
-        value={authType}
-        onChange={(v) => {
-          setAuthType(v ?? "");
-          // Keep default_graph_uri — it's orthogonal to auth mode.
-          setAuthFields({ default_graph_uri: authFields.default_graph_uri ?? "" });
-        }}
-        data={[
-          { value: "none", label: t("sourceFormFieldsExtended.authNone") },
-          { value: "bearer", label: t("sourceFormFieldsExtended.authBearer") },
-          { value: "basic", label: t("sourceFormFieldsExtended.authBasic") },
-        ]}
-        allowDeselect={false}
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="sparql-auth-type-select"
-      />
-      {authType === "bearer" && (
+      <FormField size="long">
         <TextInput
           required
-          label={t("sourceFormFieldsExtended.token")}
-          value={authFields.token ?? ""}
-          onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-          placeholder="${env:SPARQL_TOKEN}"
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="sparql-token-input"
+          label={t("sourceFormFieldsExtended.endpointUrl")}
+          value={form.host}
+          onChange={(e) => setForm({ ...form, host: e.target.value })}
+          placeholder="https://dbpedia.org/sparql"
+          data-testid="sparql-endpoint-input"
         />
+      </FormField>
+      {/* REQ-1740: optional named-graph restriction, rides in federation_hints. */}
+      <FormField size="long">
+        <TextInput
+          label={t("sourceFormFieldsExtended.defaultGraphUri")}
+          value={authFields.default_graph_uri ?? ""}
+          onChange={(e) => setAuthFields({ ...authFields, default_graph_uri: e.target.value })}
+          placeholder="http://example.org/graph (optional)"
+          data-testid="sparql-default-graph-uri-input"
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("sourceFormFieldsExtended.authentication")}
+          value={authType}
+          onChange={(v) => {
+            setAuthType(v ?? "");
+            // Keep default_graph_uri — it's orthogonal to auth mode.
+            setAuthFields({ default_graph_uri: authFields.default_graph_uri ?? "" });
+          }}
+          data={[
+            { value: "none", label: t("sourceFormFieldsExtended.authNone") },
+            { value: "bearer", label: t("sourceFormFieldsExtended.authBearer") },
+            { value: "basic", label: t("sourceFormFieldsExtended.authBasic") },
+          ]}
+          allowDeselect={false}
+          data-testid="sparql-auth-type-select"
+        />
+      </FormField>
+      {authType === "bearer" && (
+        <FormField size="long">
+          <TextInput
+            required
+            label={t("sourceFormFieldsExtended.token")}
+            value={authFields.token ?? ""}
+            onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+            placeholder="${env:SPARQL_TOKEN}"
+            data-testid="sparql-token-input"
+          />
+        </FormField>
       )}
       {authType === "basic" && (
         <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
