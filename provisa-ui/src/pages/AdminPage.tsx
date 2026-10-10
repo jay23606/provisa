@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   Accordion,
   ActionIcon,
@@ -69,6 +69,7 @@ import { usePanelState } from "../hooks/usePanelState";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 
 const ROUTE_TO_SECTION: Record<string, string> = {
   // Both routes open the merged dashboard; /admin/system-health keeps working as a deep link.
@@ -135,6 +136,7 @@ export function AdminPage() {
       ? "Platform Secrets"
       : activeTab;
   const [stats, setStats] = useState<Record<string, number>>({});
+  const [addingDomain, setAddingDomain] = useState(false);
   const [newDomainId, setNewDomainId] = useState("");
   const [newDomainDesc, setNewDomainDesc] = useState("");
   const [newDomainAlias, setNewDomainAlias] = useState("");
@@ -224,13 +226,18 @@ export function AdminPage() {
   ];
   const domainSortGroup = useListSortGroup(userDomains, domainColumns, "domains");
 
+  const closeAddDomain = () => {
+    setAddingDomain(false);
+    setNewDomainId("");
+    setNewDomainDesc("");
+    setNewDomainAlias("");
+  };
+
   const handleAddDomain = async () => {
     if (!newDomainId.trim()) return;
     await createDomain(newDomainId.trim(), newDomainDesc.trim(), newDomainAlias.trim() || null);
     await refetchDomains();
-    setNewDomainId("");
-    setNewDomainDesc("");
-    setNewDomainAlias("");
+    closeAddDomain();
     setDomainMsg(t("adminPage.domainAdded", { id: newDomainId.trim() }));
   };
 
@@ -335,36 +342,89 @@ export function AdminPage() {
                 {domainMsg}
               </Alert>
             )}
+            {/* The opener sits above the list it adds to and is hidden while its form is open. */}
+            {domainsEnabled &&
+              (addingDomain ? (
+                <FormLayout data-testid="new-domain-form">
+                  <FormIdentifiers>
+                    <FormField size="medium">
+                      <TextInput
+                        label={t("adminPage.colId")}
+                        data-testid="new-domain-id"
+                        value={newDomainId}
+                        onChange={(e) => setNewDomainId(e.currentTarget.value)}
+                        placeholder={t("adminPage.domainIdPlaceholder")}
+                      />
+                    </FormField>
+                  </FormIdentifiers>
+                  <FormField size="long">
+                    <TextInput
+                      label={t("adminPage.colDescription")}
+                      data-testid="new-domain-desc"
+                      value={newDomainDesc}
+                      onChange={(e) => setNewDomainDesc(e.currentTarget.value)}
+                    />
+                  </FormField>
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("adminPage.colGqlAlias")}
+                      data-testid="new-domain-alias"
+                      value={newDomainAlias}
+                      onChange={(e) => setNewDomainAlias(e.currentTarget.value)}
+                      placeholder={
+                        newDomainId.trim()
+                          ? t("adminPage.domainAliasPlaceholderDefault", {
+                              alias: domainGqlAlias({ id: newDomainId.trim(), graphqlAlias: null }),
+                            })
+                          : undefined
+                      }
+                    />
+                  </FormField>
+                  <FormFooter
+                    onSave={handleAddDomain}
+                    onCancel={closeAddDomain}
+                    saveProps={{ "data-testid": "new-domain-save", disabled: !newDomainId.trim() }}
+                  />
+                </FormLayout>
+              ) : (
+                <FormFooter>
+                  <Button
+                    leftSection={<Plus size={14} />}
+                    onClick={() => setAddingDomain(true)}
+                    data-testid="new-domain-open"
+                  >
+                    {t("adminPage.addDomain")}
+                  </Button>
+                </FormFooter>
+              ))}
             {domainsEnabled &&
               (() => {
                 const totalPages = Math.max(1, Math.ceil(userDomains.length / PAGE_SIZE));
                 return (
                   <Stack gap="sm">
                     <ListTable minWidth={480} testId="domains-list">
-                        <ListHead
-                          sortGroup={domainSortGroup}
-                          columns={[
-                            { col: "id" },
-                            { col: "description" },
-                            { col: "alias" },
-                            { col: "steward" },
-                            t("adminPage.colActions"),
-                          ]}
-                        />
-                        <Table.Tbody>
-                          {userDomains.length === 0 && (
-                            <ListEmpty colSpan={5}>{t("adminPage.noDomains")}</ListEmpty>
-                          )}
-                          <ListItems
-                            state={domainSortGroup}
-                            items={pageItems(domainSortGroup, domainPage, PAGE_SIZE)}
-                            colSpan={5}
-                            rowKey={(d) => d.id}
-                            render={(d) => (
+                      <ListHead
+                        sortGroup={domainSortGroup}
+                        columns={[
+                          { col: "id" },
+                          { col: "description" },
+                          { col: "alias" },
+                          { col: "steward" },
+                          t("adminPage.colActions"),
+                        ]}
+                      />
+                      <Table.Tbody>
+                        {userDomains.length === 0 && (
+                          <ListEmpty colSpan={5}>{t("adminPage.noDomains")}</ListEmpty>
+                        )}
+                        <ListItems
+                          state={domainSortGroup}
+                          items={pageItems(domainSortGroup, domainPage, PAGE_SIZE)}
+                          colSpan={5}
+                          rowKey={(d) => d.id}
+                          render={(d) => (
                             <ListRow>
-                              <Table.Td>
-                                {d.id}
-                              </Table.Td>
+                              <Table.Td>{d.id}</Table.Td>
                               <Table.Td>{d.description || "—"}</Table.Td>
                               <Table.Td>
                                 <Text c="dimmed" ff="monospace" fz="sm">
@@ -393,9 +453,9 @@ export function AdminPage() {
                                 </ActionIcon>
                               </Table.Td>
                             </ListRow>
-                            )}
-                          />
-                        </Table.Tbody>
+                          )}
+                        />
+                      </Table.Tbody>
                     </ListTable>
                     {totalPages > 1 && domainSortGroup.groupBy.length === 0 && (
                       <Group justify="flex-end">
@@ -410,40 +470,6 @@ export function AdminPage() {
                   </Stack>
                 );
               })()}
-            {domainsEnabled && (
-              <Group gap="sm" align="flex-end">
-                <TextInput
-                  data-testid="new-domain-id"
-                  value={newDomainId}
-                  onChange={(e) => setNewDomainId(e.currentTarget.value)}
-                  placeholder={t("adminPage.domainIdPlaceholder")}
-                  w={160}
-                />
-                <TextInput
-                  data-testid="new-domain-desc"
-                  value={newDomainDesc}
-                  onChange={(e) => setNewDomainDesc(e.currentTarget.value)}
-                  placeholder={t("adminPage.domainDescPlaceholder")}
-                  style={{ flex: 1 }}
-                />
-                <TextInput
-                  data-testid="new-domain-alias"
-                  value={newDomainAlias}
-                  onChange={(e) => setNewDomainAlias(e.currentTarget.value)}
-                  placeholder={
-                    newDomainId.trim()
-                      ? t("adminPage.domainAliasPlaceholderDefault", {
-                          alias: domainGqlAlias({ id: newDomainId.trim(), graphqlAlias: null }),
-                        })
-                      : t("adminPage.domainAliasPlaceholder")
-                  }
-                  w={180}
-                />
-                <Button onClick={handleAddDomain} disabled={!newDomainId.trim()}>
-                  {t("adminPage.addDomain")}
-                </Button>
-              </Group>
-            )}
           </>
         )}
         {activeTab === "Cache" && <CacheManager />}
