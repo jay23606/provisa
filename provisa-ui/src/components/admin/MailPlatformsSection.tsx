@@ -165,6 +165,7 @@ export function MailPlatformsSection() {
                           onChange={(e) =>
                             change(p.platform, { organisation_key: e.currentTarget.value })
                           }
+                          autoComplete="new-password"
                           data-testid={`${id}-organisation-key`}
                         />
                       </FormField>
@@ -243,6 +244,7 @@ export function MailPlatformsSection() {
                       required
                       value={draft.client_id}
                       onChange={(e) => change(p.platform, { client_id: e.currentTarget.value })}
+                      autoComplete="off"
                       data-testid={`${id}-client-id`}
                     />
                   </FormField>
@@ -252,6 +254,7 @@ export function MailPlatformsSection() {
                       required
                       value={draft.client_secret}
                       onChange={(e) => change(p.platform, { client_secret: e.currentTarget.value })}
+                      autoComplete="new-password"
                       data-testid={`${id}-client-secret`}
                     />
                   </FormField>
