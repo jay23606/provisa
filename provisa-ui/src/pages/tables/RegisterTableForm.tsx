@@ -833,14 +833,6 @@ export function RegisterTableForm({
                 )}
               </label>
             </FormField>
-            {sourceId && schemaName && !allTablesRegistered && (
-              <NlTableSearch
-                sourceId={sourceId}
-                schemaName={schemaName}
-                isRegistered={isRegistered}
-                onPick={setTableName}
-              />
-            )}
           </>
         )}
         <FormField size="medium">
@@ -852,6 +844,20 @@ export function RegisterTableForm({
             placeholder={t("registerTableForm.aliasPlaceholder")}
           />
         </FormField>
+        {/* The describe-a-table search comes after the five fields it helps to fill, not between them. */}
+        {!isChecker &&
+          !isQueryApi &&
+          !isProfiler &&
+          sourceId &&
+          schemaName &&
+          !allTablesRegistered && (
+            <NlTableSearch
+              sourceId={sourceId}
+              schemaName={schemaName}
+              isRegistered={isRegistered}
+              onPick={setTableName}
+            />
+          )}
       </FormIdentifiers>
       {needsCacheTtl && (
         <FormField help={t("registerTableForm.cacheTtlHint")} size="short">
