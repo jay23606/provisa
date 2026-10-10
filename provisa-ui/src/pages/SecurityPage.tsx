@@ -399,6 +399,7 @@ export function SecurityRolesPage() {
             saving={saving}
             onCancel={() => setShowRoleForm(false)}
             saveProps={{ "data-testid": "save-role", disabled: !listsADomain(roleForm) }}
+            cancelProps={{ "data-testid": "cancel-role" }}
           />
         </FormLayout>
       )}
