@@ -20,6 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from provisa.core.models import SourceType
 from provisa.federation import replica_builds
 
 pytestmark = pytest.mark.asyncio
@@ -37,7 +38,7 @@ def _column(name: str, data_type: str = "bigint", pk: bool = False) -> SimpleNam
 def _wired(monkeypatch, *, signal, watermark=None, source_type="postgresql", sentinel=None):
     source = SimpleNamespace(
         id="pg",
-        type=SimpleNamespace(value=source_type),
+        type=SourceType(source_type),  # as a registered source carries it
         change_signal=signal,
         cache_ttl=300,
         sentinel_path=sentinel,
@@ -93,4 +94,26 @@ async def test_a_probing_table_whose_probe_cannot_answer_keeps_the_ttl_clock(mon
 async def test_a_replica_no_node_probes_keeps_the_ttl_clock(monkeypatch):
     state = _wired(monkeypatch, signal="probe", watermark="updated_at")
     state.replica_nodes = {}
+    assert await _due(state) == NOW + timedelta(seconds=300)
+
+
+async def test_a_mail_tables_replica_follows_its_mailbox_probe(monkeypatch):
+    """A source whose adapter asks its provider (Gmail's history id) has a probe that answers,
+    so its replica is not re-read every TTL; a table the adapter has no probe for is."""
+    from provisa.events import app_wiring
+
+    async def token() -> str:
+        return "t"
+
+    def loader(*_a):
+        return []
+
+    loader.freshness_probe = lambda source, table: token if table.table_name == "orders" else None
+    monkeypatch.setattr(
+        app_wiring, "build_adapter_loaders", lambda *_a: {"google_workspace": loader}
+    )
+    state = _wired(monkeypatch, signal="probe", source_type="google_workspace")
+    assert await _due(state) is None
+
+    loader.freshness_probe = lambda source, table: None
     assert await _due(state) == NOW + timedelta(seconds=300)

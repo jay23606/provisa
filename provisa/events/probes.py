@@ -62,6 +62,11 @@ _DQ_CHECKER_TYPES = frozenset({"soda", "great_expectations"})
 # read in place: there is no upstream to probe.
 _DIRECT_WRITE_TYPES = frozenset({"data_profiler"})
 
+# Mail sources: the provider says whether a mailbox changed (Gmail's history id); there is no
+# cursor to watermark by and no count that sees an edit, so only hash | none. The token comes
+# from the source's own adapter (``loader_probe``).
+_MAIL_TYPES = frozenset({"google_workspace", "microsoft_365"})
+
 _ALL = frozenset({WATERMARK, HASH, COUNT, NONE})
 
 
@@ -72,7 +77,7 @@ def probe_capabilities(source_type: str) -> frozenset[str]:
     (not on the probe axis)."""
     if source_type in _STREAMING_TYPES or source_type in _DIRECT_WRITE_TYPES:
         return frozenset()
-    if source_type in _FILE_TYPES:
+    if source_type in _FILE_TYPES or source_type in _MAIL_TYPES:
         return frozenset({HASH, NONE})
     if source_type in _DQ_CHECKER_TYPES:
         return frozenset({WATERMARK, NONE})
@@ -131,7 +136,7 @@ def resolve_probe_type(
         return explicit
 
     # default per capability class
-    if source_type in _FILE_TYPES or source_type in _HTTP_API_TYPES:
+    if source_type in _FILE_TYPES or source_type in _HTTP_API_TYPES or source_type in _MAIL_TYPES:
         return HASH
     return WATERMARK if has_watermark else COUNT
 
@@ -183,6 +188,7 @@ def can_probe(
     sentinel_path: str | None = None,
     source_path: str | None = None,
     file_glob: str | None = None,
+    loader_probe: bool = False,
 ) -> bool:
     """Whether :func:`build_probe` has a transport that asks the source for a token, given a
     SQL scalar runner and table ref for the types that need them. False is the cases
@@ -194,7 +200,15 @@ def can_probe(
         return watermark_column is not None
     if probe_type == COUNT:
         return True
-    return probe_type == HASH and bool(sentinel_path)
+    return probe_type == HASH and (bool(sentinel_path) or loader_probe)
+
+
+def loader_probe(loaders: dict[str, Any], source: Any, table: Any) -> "Transport | None":
+    """The token transport ``source``'s own adapter gives for ``table``: an adapter loader may
+    carry ``freshness_probe(source, table)``, answering the transport, or None for a table it
+    has no cheap token for. None also for a source whose adapter carries none."""
+    make = getattr(loaders.get(source.type), "freshness_probe", None)
+    return make(source, table) if make is not None else None
 
 
 def build_probe(
@@ -206,6 +220,7 @@ def build_probe(
     sentinel_path: str | None = None,
     source_path: str | None = None,
     file_glob: str | None = None,
+    loader_probe: Transport | None = None,
 ) -> Transport:
     """Build the ``freshness_token`` transport for a node from its ``probe_type`` (REQ-982).
 
@@ -236,5 +251,7 @@ def build_probe(
         from provisa.events.sentinel_probe import build_sentinel_probe
 
         return build_sentinel_probe(sentinel_path)
+    if probe_type == HASH and loader_probe is not None:
+        return loader_probe  # the source's own adapter asks its provider (a mailbox's history id)
     # hash with no sentinel (no cheap token) and none → TTL degrade; REQ-981 output gate covers it.
     return _none

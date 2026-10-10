@@ -32,6 +32,7 @@ log, and the count with the first of their ids as the build's note on the replic
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -43,7 +44,7 @@ from provisa.core import canonical_mail as cm
 from provisa.core.secrets import resolve_secrets
 from provisa.federation.data_replicator import noted, unreadable_messages_note
 from provisa.google_workspace import settings as gw_settings
-from provisa.google_workspace.gmail import Gmail, GmailNotFound
+from provisa.google_workspace.gmail import Gmail, GmailNotFound, GmailRefused
 from provisa.google_workspace.mail_rows import PROVIDER, MessageFacts, message_facts
 from provisa.google_workspace.settings import MAIL_HEADERS, MailSettings, Settings
 
@@ -293,6 +294,33 @@ class _MailboxRead:
                     )
 
 
+async def mailbox_token(connect: Any, source: Any) -> str | None:
+    """The opaque token of the source's mailbox as it stands now: a digest of its address and
+    the id of its current history record (Gmail's ``users.getProfile``, one quota unit). Gmail
+    records a history entry when a message is added or deleted and when its labels change, so
+    an equal token is a mailbox nothing has happened to.
+
+    None when Gmail cannot be asked -- refused, throttled past the client's retries, the
+    sign-in not renewable, the organisation's client not entered. None is never "unchanged":
+    the caller then asks for a read, and the read reports the reason on the replica."""
+    from provisa.api_source.caller import ApiCallError
+    from provisa.core.mail_platforms import MailPlatformRefused
+
+    try:
+        async with connect(source) as (gmail, _mail):
+            profile = await gmail.profile()
+    except (GmailRefused, ApiCallError, MailPlatformRefused, httpx.HTTPError) as cannot:
+        log.warning(
+            "Google Workspace source %s: its mailbox could not be asked whether it changed "
+            "(%s); a read is asked for instead",
+            source.id,
+            cannot,
+        )
+        return None
+    lines = [f"{gmail.account}\x00{profile['historyId']}"]
+    return hashlib.sha256("\n".join(sorted(lines)).encode()).hexdigest()
+
+
 def make_google_workspace_loader(state: Any) -> Any:
     """The row-fetch of a Google Workspace source: one of its tables, whole, read from Gmail
     with the source's own credential -- its owner's approval of the organisation's Google
@@ -355,7 +383,19 @@ def make_google_workspace_loader(state: Any) -> Any:
     ) -> Any:
         return _MailboxRead(_connect, source, tuple(tables), columns)
 
+    def _freshness_probe(source: Any, table: Any) -> Any:
+        """The table's change probe (REQ-855, REQ-982), for a table read from the mailbox: its
+        messages or its labels. None for any other table: it has no cheap token."""
+        if table.table_name not in TABLES:
+            return None
+
+        async def token() -> str | None:
+            return await mailbox_token(_connect, source)
+
+        return token
+
     _load.replica_source = _replica_source  # type: ignore[attr-defined]
+    _load.freshness_probe = _freshness_probe  # type: ignore[attr-defined]
     _load.replica_group = _replica_group  # type: ignore[attr-defined]
     _load.replica_group_source = _replica_group_source  # type: ignore[attr-defined]
     return _load

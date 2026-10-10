@@ -134,6 +134,27 @@ def _build_subscribers_of(
     return subscribers_of
 
 
+def make_source_probe(state: Any, loaders: dict[str, Any], sources: list[Any]) -> Any:
+    """``(source, table) -> probe | None``: the token transport a source's own adapter gives for
+    a table (``probes.loader_probe``), run with the vault of the org the sources are registered
+    in bound -- the probe dials the source with the source's own credential (REQ-1695)."""
+    from provisa.events.probes import loader_probe
+    from provisa.federation.source_vault import org_vault
+
+    def source_probe(src: Any, tbl: Any) -> Any:
+        transport = loader_probe(loaders, src, tbl)
+        if transport is None:
+            return None
+
+        async def probe() -> str | None:
+            async with org_vault(state, sources):
+                return await transport()
+
+        return probe
+
+    return source_probe
+
+
 def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     """The per-type row fetchers for sources the engine cannot scan (REQ-1660): one dict shared by
     the event loop's source nodes and the query path's residency prep, so both land the same rows.
@@ -640,6 +661,7 @@ async def wire_event_loop(scheduler: Any, *, state: Any, log: Any, seed: bool = 
             mv_columns=mv_columns,
             mv_run_query=mv_run_query,
             probe_scalar=probe_scalar,
+            source_probe=make_source_probe(state, _adapter_loaders, all_sources),
             replica_build=_replica_build_factory(state, db),  # REQ-1915
             write_lock=replica_write_lock_factory(state),  # REQ-1915
             subscribers_of=subscribers_of,  # REQ-965 demand routing
@@ -817,6 +839,7 @@ async def wire_new_poll_jobs(*, state: Any, log: Any) -> int:
                 engine_runtime=engine,
                 source_fetch=source_fetch,
                 probe_scalar=probe_scalar,
+                source_probe=make_source_probe(state, _adapter_loaders, all_sources),
                 replica_build=_replica_build_factory(state, db),  # REQ-1915
                 write_lock=replica_write_lock_factory(state),  # REQ-1915
             )

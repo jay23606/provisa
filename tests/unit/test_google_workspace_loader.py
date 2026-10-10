@@ -19,13 +19,15 @@ import datetime as dt
 import logging
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from provisa.core import canonical_mail as cm
 from provisa.core.ir_arrow import arrow_schema, rows_to_batch
 from provisa.core.models import SourceType
 from provisa.google_workspace import SOURCE_TYPE, loader
-from provisa.google_workspace.gmail import GmailNotFound
+from provisa.api_source.oauth_grants import CredentialRefused
+from provisa.google_workspace.gmail import GmailNotFound, QuotaExhausted
 from provisa.google_workspace.loader import (
     MESSAGE_TABLES,
     TABLES,
@@ -613,3 +615,78 @@ class TestTheGroupBuild:
             [batch async for batch in source.batches(1000)]
             (note,) = source.notes()
             assert note.params == {"count": 1, "ids": ["m9"], "more": 0}
+
+
+class TestTheMailboxProbe:
+    """REQ-855, REQ-982: a mail table's change probe asks Gmail for the mailbox's current
+    history id, one small call, and never reads a message."""
+
+    @pytest.fixture
+    def fetch(self, monkeypatch):
+        mailbox = {"historyId": "1000", "refuse": None, "profiles": 0}
+
+        class Probed(FakeGmail):
+            def __init__(self, account, token, client) -> None:
+                super().__init__()
+
+            async def profile(self) -> dict:
+                mailbox["profiles"] += 1
+                if mailbox["refuse"] is not None:
+                    raise mailbox["refuse"]
+                return {"emailAddress": ACCOUNT, "historyId": mailbox["historyId"]}
+
+            async def message(self, message_id, mail):
+                raise AssertionError("a probe reads no message")
+
+        monkeypatch.setattr(loader, "Gmail", Probed)
+        monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
+        monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
+        made = loader.make_google_workspace_loader(SimpleNamespace(admin_db=None))
+        made.mailbox = mailbox
+        return made
+
+    SOURCE = TestTheGroupBuild.SOURCE
+
+    def _probe(self, fetch, table="messages"):
+        return fetch.freshness_probe(self.SOURCE, SimpleNamespace(table_name=table))
+
+    async def test_a_mailbox_nothing_happened_to_gives_the_same_token(self, fetch):
+        probe = self._probe(fetch)
+        first = await probe()
+        assert first is not None and "1000" not in first and ACCOUNT not in first  # opaque
+        assert await probe() == first
+        assert fetch.mailbox["profiles"] == 2
+
+    async def test_a_new_history_record_gives_another_token(self, fetch):
+        probe = self._probe(fetch)
+        before = await probe()
+        fetch.mailbox["historyId"] = "1001"
+        assert await probe() != before
+
+    async def test_every_table_read_from_the_mailbox_has_the_probe_and_shares_its_token(
+        self, fetch
+    ):
+        tokens = {table: await self._probe(fetch, table)() for table in TABLES}
+        assert len(set(tokens.values())) == 1
+        assert self._probe(fetch, "events") is None  # a calendar table: no cheap token
+        assert self._probe(fetch, "tasks") is None
+
+    @pytest.mark.parametrize(
+        "refusal",
+        [
+            loader.GmailRefused(ACCOUNT, "getProfile", 403, "forbidden"),
+            QuotaExhausted(ACCOUNT, "getProfile", 429, "rateLimitExceeded, tried 6 times"),
+            CredentialRefused("The sign-in approved for client c", "invalid_grant"),
+            httpx.ConnectError("no route"),
+        ],
+        ids=["refused", "throttled", "sign-in refused", "unreachable"],
+    )
+    async def test_a_mailbox_that_cannot_be_asked_gives_no_token_never_the_old_one(
+        self, fetch, refusal, caplog
+    ):
+        probe = self._probe(fetch)
+        assert await probe() is not None
+        fetch.mailbox["refuse"] = refusal
+        with caplog.at_level(logging.WARNING):
+            assert await probe() is None
+        assert "could not be asked whether it changed" in caplog.text

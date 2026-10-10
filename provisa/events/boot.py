@@ -76,6 +76,7 @@ def _probe_factory(
     sentinel_path: str | None = None,
     source_path: str | None = None,
     file_glob: str | None = None,
+    loader_probe: Probe | None = None,
 ) -> Callable[[], Probe]:
     """Build a node's probe factory from its resolved ``probe_type`` (REQ-982). Each fire yields a
     fresh transport (``() -> str | None``) via :func:`probes.build_probe`; ``check_node`` compares the
@@ -93,6 +94,7 @@ def _probe_factory(
             sentinel_path=sentinel_path,
             source_path=source_path,
             file_glob=file_glob,
+            loader_probe=loader_probe,
         )
 
     return factory
@@ -145,6 +147,7 @@ def build_source_node_spec(
     engine_runtime: Any,
     source_fetch: Callable[[Any, Any], Any],
     probe_scalar: Callable[[Any, Any], Any] | None = None,
+    source_probe: Callable[[Any, Any], Probe | None] | None = None,
     replica_build: Callable[[tuple[str, str, str]], Any] | None = None,
     write_lock: Callable[[tuple[str, str, str]], Any] | None = None,
 ) -> NodeSpec | None:
@@ -238,6 +241,8 @@ def build_source_node_spec(
             sentinel_path=getattr(src, "sentinel_path", None),  # REQ-1148
             source_path=resolve_secrets(getattr(src, "path", "") or "") or None,  # REQ-788
             file_glob=getattr(tbl, "file_glob", None),  # REQ-788
+            # The source's own adapter may ask its provider whether the table changed.
+            loader_probe=source_probe(src, tbl) if source_probe is not None else None,
         )
         if is_poll(args.change_signal)
         else None
@@ -276,6 +281,7 @@ def specs_from_config(
     mv_columns: Callable[[Any], list[tuple[str, str]] | None],
     mv_run_query: Callable[[Any], Any],
     probe_scalar: Callable[[Any, Any], Any] | None = None,
+    source_probe: Callable[[Any, Any], Probe | None] | None = None,
     subscribers_of: Callable[[str, str], list[str]] | None = None,
     calendar_registry: Any | None = None,
     freshness_of: Callable[[str], Any] | None = None,
@@ -308,6 +314,7 @@ def specs_from_config(
             engine_runtime=engine_runtime,
             source_fetch=source_fetch,
             probe_scalar=probe_scalar,
+            source_probe=source_probe,
             replica_build=replica_build,
             write_lock=write_lock,
         )

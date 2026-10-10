@@ -368,3 +368,39 @@ def test_an_unresolved_input_is_not_taken_for_a_lineage_cycle():
     with pytest.raises(InputUnresolved):
         _lineage(st.mv_registry.get_enabled(), st, _LOG)
     assert list(failed) == ["daily"]
+
+
+@pytest.mark.asyncio
+async def test_a_sources_own_probe_runs_with_its_orgs_vault_bound(monkeypatch):
+    """REQ-1695: the probe dials the source with the source's own credential."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from provisa.events import app_wiring
+    from provisa.federation import source_vault
+
+    order: list[str] = []
+
+    @asynccontextmanager
+    async def vault(state, sources):
+        order.append(f"bound:{len(sources)}")
+        yield
+        order.append("released")
+
+    async def token() -> str:
+        order.append("asked")
+        return "t"
+
+    def loader(*_a):
+        return []
+
+    loader.freshness_probe = lambda source, table: token if table.table_name == "messages" else None
+    monkeypatch.setattr(source_vault, "org_vault", vault)
+    source = SimpleNamespace(id="mail", type="google_workspace")
+    source_probe = app_wiring.make_source_probe(
+        SimpleNamespace(), {"google_workspace": loader}, [source]
+    )
+    probe = source_probe(source, SimpleNamespace(table_name="messages"))
+    assert await probe() == "t"
+    assert order == ["bound:1", "asked", "released"]
+    assert source_probe(source, SimpleNamespace(table_name="events")) is None
