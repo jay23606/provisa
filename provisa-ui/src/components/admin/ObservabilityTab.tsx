@@ -15,17 +15,15 @@ import {
   Button,
   Checkbox,
   Group,
-  Loader,
   Modal,
   NumberInput,
-  Stack,
   Switch,
   Text,
   TextInput,
   Tabs,
   Title,
 } from "@mantine/core";
-import { Check, Pause, Play, Maximize2, X } from "lucide-react";
+import { Pause, Play, Maximize2, X } from "lucide-react";
 import {
   updateSettings,
   reloadQueryEngineCatalog,
@@ -35,6 +33,8 @@ import {
 import { SUBSYSTEM_TRACE_KEYS } from "../../api/admin";
 import type { PlatformSettings } from "../../api/admin";
 import { DebugTracePanel } from "./DebugTracePanel";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
+import { FilterInput } from "./FilterInput";
 
 interface ObsTabProps {
   settings: PlatformSettings;
@@ -164,15 +164,16 @@ function TraceFeed() {
   const headerContent = (
     <>
       <span style={{ flex: 1 }}>{t("observabilityTab.traces")}</span>
-      <TextInput
-        className="trace-filter"
-        placeholder={t("observabilityTab.filterPlaceholder")}
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        aria-label={t("observabilityTab.filterPlaceholder")}
-        size="xs"
-      />
+      {/* The list’s filter is the shared one; a click in it must not fold the panel. */}
+      <span onClick={(e) => e.stopPropagation()}>
+        <FilterInput
+          value={filter}
+          onChange={setFilter}
+          placeholder={t("observabilityTab.filterPlaceholder")}
+          testId="trace-filter"
+        />
+      </span>
+
       <Group flex={1} justify="flex-end" align="center" gap="0.4rem">
         <ActionIcon
           className="trace-pause-btn"
@@ -298,38 +299,42 @@ function OtelSettingsSection({
         </Tabs.List>
 
         <Tabs.Panel value="exporter">
-          <Stack gap="md">
-            <TextInput
-              label={t("observabilityTab.endpointLabel")}
-              value={otel.endpoint}
-              onChange={(e) => update("endpoint", e.target.value)}
-              placeholder="http://otel-collector:4317"
-              description={t("observabilityTab.endpointHelp")}
-            />
-            <TextInput
-              label={t("observabilityTab.serviceNameLabel")}
-              value={otel.service_name}
-              onChange={(e) => update("service_name", e.target.value)}
-              placeholder="provisa"
-              description={t("observabilityTab.serviceNameHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.sampleRateLabel")}
-              min={0}
-              max={1}
-              step={0.01}
-              value={otel.sample_rate}
-              onChange={(v) => update("sample_rate", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.sampleRateHelp")}
-            />
-            <TextInput
-              label={t("observabilityTab.logLevelLabel")}
-              value={otel.log_level}
-              onChange={(e) => update("log_level", e.target.value)}
-              placeholder="WARNING"
-              description={t("observabilityTab.logLevelHelp")}
-            />
-          </Stack>
+          <FormLayout>
+            <FormField help={t("observabilityTab.endpointHelp")} size="long">
+              <TextInput
+                label={t("observabilityTab.endpointLabel")}
+                value={otel.endpoint}
+                onChange={(e) => update("endpoint", e.target.value)}
+                placeholder="http://otel-collector:4317"
+              />
+            </FormField>
+            <FormField hint={t("observabilityTab.serviceNameHelp")} size="medium">
+              <TextInput
+                label={t("observabilityTab.serviceNameLabel")}
+                value={otel.service_name}
+                onChange={(e) => update("service_name", e.target.value)}
+                placeholder="provisa"
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.sampleRateHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.sampleRateLabel")}
+                min={0}
+                max={1}
+                step={0.01}
+                value={otel.sample_rate}
+                onChange={(v) => update("sample_rate", typeof v === "number" ? v : 0)}
+              />
+            </FormField>
+            <FormField hint={t("observabilityTab.logLevelHelp")} size="medium">
+              <TextInput
+                label={t("observabilityTab.logLevelLabel")}
+                value={otel.log_level}
+                onChange={(e) => update("log_level", e.target.value)}
+                placeholder="WARNING"
+              />
+            </FormField>
+          </FormLayout>
         </Tabs.Panel>
 
         {/* REQ-1432: which subsystems emit spans. The catalog database is off by default —
@@ -338,122 +343,142 @@ function OtelSettingsSection({
           <Text c="dimmed" size="sm" mb="md">
             {t("observabilityTab.subsystemsIntro")}
           </Text>
-          <Stack gap="xs">
-            {SUBSYSTEM_TRACE_KEYS.map((key) => (
-              <Switch
-                key={key}
-                data-testid={`subsystem-trace-${key}`}
-                label={t(`observabilityTab.subsystem.${key}`)}
-                description={t(`observabilityTab.subsystemHelp.${key}`)}
-                checked={otel.subsystem_traces[key]}
-                onChange={(e) =>
-                  update("subsystem_traces", {
-                    ...otel.subsystem_traces,
-                    [key]: e.currentTarget.checked,
-                  })
-                }
-              />
-            ))}
-          </Stack>
+          <FormLayout>
+            <FormChecks>
+              {SUBSYSTEM_TRACE_KEYS.map((key) => (
+                <FormField help={t(`observabilityTab.subsystemHelp.${key}`)} size="short" key={key}>
+                  <Switch
+                    data-testid={`subsystem-trace-${key}`}
+                    label={t(`observabilityTab.subsystem.${key}`)}
+                    checked={otel.subsystem_traces[key]}
+                    onChange={(e) =>
+                      update("subsystem_traces", {
+                        ...otel.subsystem_traces,
+                        [key]: e.currentTarget.checked,
+                      })
+                    }
+                  />
+                </FormField>
+              ))}
+            </FormChecks>
+          </FormLayout>
         </Tabs.Panel>
 
         <Tabs.Panel value="pipeline">
           <Text c="dimmed" size="sm" mb="md">
             {t("observabilityTab.pipelineIntro")}
           </Text>
-          <Stack gap="md">
-            <TextInput
-              label={t("observabilityTab.s3EndpointLabel")}
-              value={otel.s3_endpoint}
-              onChange={(e) => update("s3_endpoint", e.target.value)}
-              placeholder="http://minio:9000"
-              description={t("observabilityTab.s3EndpointHelp")}
-            />
-            <TextInput
-              label={t("observabilityTab.compactCronLabel")}
-              value={otel.compact_cron}
-              onChange={(e) => update("compact_cron", e.target.value)}
-              placeholder="* * * * *"
-              description={t("observabilityTab.compactCronHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.compactBatchSizeLabel")}
-              min={1}
-              value={otel.compact_batch_size}
-              onChange={(v) => update("compact_batch_size", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.compactBatchSizeHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.compactFileChunkLabel")}
-              min={1}
-              value={otel.compact_file_chunk}
-              onChange={(v) => update("compact_file_chunk", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.compactFileChunkHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.opsSnapshotRetentionLabel")}
-              min={0}
-              value={otel.ops_snapshot_retention_hours ?? ""}
-              onChange={(v) => update("ops_snapshot_retention_hours", v === "" ? null : Number(v))}
-              description={t("observabilityTab.opsSnapshotRetentionHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.spanExportDelayLabel")}
-              min={0}
-              value={otel.span_export_delay_millis}
-              onChange={(v) => update("span_export_delay_millis", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.spanExportDelayHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.otlp2parquetMaxAgeLabel")}
-              min={0}
-              value={otel.otlp2parquet_max_age_secs}
-              onChange={(v) => update("otlp2parquet_max_age_secs", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.otlp2parquetMaxAgeHelp")}
-            />
-            <NumberInput
-              label={t("observabilityTab.collectorBatchTimeoutLabel")}
-              min={0}
-              value={otel.collector_batch_timeout_ms}
-              onChange={(v) => update("collector_batch_timeout_ms", typeof v === "number" ? v : 0)}
-              description={t("observabilityTab.collectorBatchTimeoutHelp")}
-            />
-          </Stack>
+          <FormLayout>
+            <FormField hint={t("observabilityTab.s3EndpointHelp")} size="long">
+              <TextInput
+                label={t("observabilityTab.s3EndpointLabel")}
+                value={otel.s3_endpoint}
+                onChange={(e) => update("s3_endpoint", e.target.value)}
+                placeholder="http://minio:9000"
+              />
+            </FormField>
+            <FormField hint={t("observabilityTab.compactCronHelp")} size="medium">
+              <TextInput
+                label={t("observabilityTab.compactCronLabel")}
+                value={otel.compact_cron}
+                onChange={(e) => update("compact_cron", e.target.value)}
+                placeholder="* * * * *"
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.compactBatchSizeHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.compactBatchSizeLabel")}
+                min={1}
+                value={otel.compact_batch_size}
+                onChange={(v) => update("compact_batch_size", typeof v === "number" ? v : 0)}
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.compactFileChunkHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.compactFileChunkLabel")}
+                min={1}
+                value={otel.compact_file_chunk}
+                onChange={(v) => update("compact_file_chunk", typeof v === "number" ? v : 0)}
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.opsSnapshotRetentionHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.opsSnapshotRetentionLabel")}
+                min={0}
+                value={otel.ops_snapshot_retention_hours ?? ""}
+                onChange={(v) =>
+                  update("ops_snapshot_retention_hours", v === "" ? null : Number(v))
+                }
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.spanExportDelayHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.spanExportDelayLabel")}
+                min={0}
+                value={otel.span_export_delay_millis}
+                onChange={(v) => update("span_export_delay_millis", typeof v === "number" ? v : 0)}
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.otlp2parquetMaxAgeHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.otlp2parquetMaxAgeLabel")}
+                min={0}
+                value={otel.otlp2parquet_max_age_secs}
+                onChange={(v) => update("otlp2parquet_max_age_secs", typeof v === "number" ? v : 0)}
+              />
+            </FormField>
+            <FormField help={t("observabilityTab.collectorBatchTimeoutHelp")} size="short">
+              <NumberInput
+                label={t("observabilityTab.collectorBatchTimeoutLabel")}
+                min={0}
+                value={otel.collector_batch_timeout_ms}
+                onChange={(v) =>
+                  update("collector_batch_timeout_ms", typeof v === "number" ? v : 0)
+                }
+              />
+            </FormField>
+          </FormLayout>
         </Tabs.Panel>
 
         <Tabs.Panel value="support">
           <Text c="dimmed" size="sm" mb="md">
             {t("observabilityTab.supportIntro")}
           </Text>
-          <Stack gap="md">
-            <TextInput
-              label={t("observabilityTab.supportEndpointLabel")}
-              value={otel.support_endpoint}
-              onChange={(e) => update("support_endpoint", e.target.value)}
-              placeholder="https://otel.provisa.io:4318"
-              description={t("observabilityTab.supportEndpointHelp")}
-            />
-            <Checkbox
-              checked={otel.support_redact_sql_literals}
-              onChange={(e) => update("support_redact_sql_literals", e.target.checked)}
-              label={t("observabilityTab.redactSqlLabel")}
-            />
-            <TextInput
-              label={t("observabilityTab.redactAttrsLabel")}
-              value={(otel.support_redact_attributes ?? []).join(", ")}
-              onChange={(e) =>
-                update(
-                  "support_redact_attributes",
-                  e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                )
-              }
-              placeholder="user.id, db.user, ..."
-              description={t("observabilityTab.redactAttrsHelp")}
-            />
-          </Stack>
+          <FormLayout>
+            <FormField help={t("observabilityTab.supportEndpointHelp")} size="long">
+              <TextInput
+                label={t("observabilityTab.supportEndpointLabel")}
+                value={otel.support_endpoint}
+                onChange={(e) => update("support_endpoint", e.target.value)}
+                placeholder="https://otel.provisa.io:4318"
+              />
+            </FormField>
+            <FormChecks>
+              <FormField size="long">
+                <Checkbox
+                  checked={otel.support_redact_sql_literals}
+                  onChange={(e) => update("support_redact_sql_literals", e.target.checked)}
+                  label={t("observabilityTab.redactSqlLabel")}
+                />
+              </FormField>
+            </FormChecks>
+            <FormField hint={t("observabilityTab.redactAttrsHelp")} size="medium">
+              <TextInput
+                label={t("observabilityTab.redactAttrsLabel")}
+                value={(otel.support_redact_attributes ?? []).join(", ")}
+                onChange={(e) =>
+                  update(
+                    "support_redact_attributes",
+                    e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  )
+                }
+                placeholder="user.id, db.user, ..."
+              />
+            </FormField>
+          </FormLayout>
         </Tabs.Panel>
 
         {/* REQ-1910: debug-trace windows and the per-role hint permission. Its changes apply as
@@ -464,29 +489,20 @@ function OtelSettingsSection({
       </Tabs>
 
       {/* One save for the whole tab: every panel edits the same otel settings object. */}
-      <Group mt="md" gap="0.75rem" align="center">
-        <Button
-          className="btn-primary"
-          onClick={save}
-          disabled={saving}
-          leftSection={saving ? <Loader size={14} /> : <Check size={14} />}
-        >
-          {t("observabilityTab.saveButton")}
-        </Button>
-        <Button
-          variant="default"
-          onClick={cancel}
-          disabled={saving || !dirty}
-          leftSection={<X size={14} />}
-        >
-          {t("observabilityTab.cancelButton")}
-        </Button>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        onCancel={cancel}
+        cancelProps={{ disabled: !dirty }}
+        saveProps={{ "data-testid": "observability-save" }}
+        style={{ marginTop: "1rem" }}
+      >
         {msg && (
           <Text className="upload-msg" size="sm">
             {msg}
           </Text>
         )}
-      </Group>
+      </FormFooter>
       <Text mt="sm" size="xs" c="dimmed">
         {t("observabilityTab.restartNote")}
       </Text>
