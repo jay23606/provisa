@@ -26,6 +26,14 @@ export interface MailPlatform {
   settings: Record<string, string>;
   /** Whether sources may read the organisation's mailboxes through this platform. */
   organisation_mailboxes: boolean;
+  /** What the platform is entered with for those sources, beside its client. */
+  organisation_settings_fields: string[];
+  /** Whether those sources read with a credential of the platform's own, entered as a file. */
+  organisation_key_field: boolean;
+  /** Whether that credential is entered. It is never part of an answer. */
+  organisation_key_entered: boolean;
+  /** What an administrator authorises at the platform for it (Google's delegation scopes). */
+  organisation_scopes: string[];
 }
 
 export interface MailPlatforms {
@@ -41,6 +49,8 @@ export interface MailPlatformBody {
   client_secret?: string;
   settings: Record<string, string>;
   organisation_mailboxes: boolean;
+  /** Left out to keep the credential already entered. */
+  organisation_key?: string;
 }
 
 async function ok<T>(res: Response, op: string): Promise<T> {

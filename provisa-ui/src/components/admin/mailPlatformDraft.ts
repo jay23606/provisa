@@ -17,13 +17,18 @@ export interface Draft {
   client_secret: string;
   settings: Record<string, string>;
   organisation_mailboxes: boolean;
+  /** The text of the credential file chosen; empty to keep the one entered. */
+  organisation_key: string;
 }
 
 export const draftOf = (p: MailPlatform): Draft => ({
   client_id: p.client_id ?? "",
   client_secret: "",
-  settings: Object.fromEntries(p.settings_fields.map((f) => [f, p.settings[f] ?? ""])),
+  settings: Object.fromEntries(
+    [...p.settings_fields, ...p.organisation_settings_fields].map((f) => [f, p.settings[f] ?? ""]),
+  ),
   organisation_mailboxes: p.organisation_mailboxes,
+  organisation_key: "",
 });
 
 /** What is still needed before a platform's client can be saved. */
@@ -33,6 +38,15 @@ export function platformMissing(p: MailPlatform, draft: Draft): string[] {
   if (!p.configured && !draft.client_secret) missing.push("client_secret");
   for (const field of p.settings_fields) {
     if (!draft.settings[field]?.trim()) missing.push(field);
+  }
+  // Needed once sources that read the organisation's mailboxes are allowed, as the server has it.
+  if (draft.organisation_mailboxes) {
+    for (const field of p.organisation_settings_fields) {
+      if (!draft.settings[field]?.trim()) missing.push(field);
+    }
+    if (p.organisation_key_field && !p.organisation_key_entered && !draft.organisation_key) {
+      missing.push("organisation_key");
+    }
   }
   return missing;
 }

@@ -23,16 +23,23 @@
     "clientSecret": "Clientgeheim",
     "clientSecretKeep": "Laat leeg om het al ingevulde geheim te behouden.",
     "setting": {
-      "tenant": "Map-id (tenant)"
+      "tenant": "Map-id (tenant)",
+      "admin_address": "Adres van de beheerder"
     },
     "settingHelp": {
-      "tenant": "De map waarin de Microsoft 365-accounts van uw organisatie staan: de id of het domein ervan, zoals Microsoft Entra die toont op de pagina Overzicht van de app-registratie."
+      "tenant": "De map waarin de Microsoft 365-accounts van uw organisatie staan: de id of het domein ervan, zoals Microsoft Entra die toont op de pagina Overzicht van de app-registratie.",
+      "admin_address": "Een superbeheerder van uw Google Workspace-domein. De directory wordt als deze gebruiker opgevraagd; zijn e-mail wordt alleen gelezen als een bron hem noemt."
     },
     "organisationMailboxes": "Bronnen toestaan die de postvakken van de organisatie lezen",
     "organisationMailboxesHelp": "Uit: een bron leest alleen het ene postvak dat iemand koppelt. Aan: een bron mag met de inloggegevens van de beheerder veel postvakken van de organisatie lezen, en wie de tabellen mag lezen, leest elk postvak, tenzij een rijregel dat beperkt.",
     "organisationGrant": {
-      "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming."
+      "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming.",
+      "google_workspace": "Een superbeheerder autoriseert de client-ID van het serviceaccount voor de onderstaande bereiken in de Google Beheerdersconsole, onder Beveiliging › Toegangs- en gegevenscontrole › API-beheer › Domeinbrede delegatie beheren. Voeg gmail.metadata toe voor bronnen die alleen kopteksten en labels lezen. Google kan dit niet tot enkele postvakken beperken: het geldt voor elke gebruiker van het domein."
     },
+    "organisationKey": "Sleutelbestand van het serviceaccount (JSON)",
+    "organisationKeyHelp": "Het sleutelbestand dat Google Cloud voor het serviceaccount heeft gemaakt. Het wordt bewaard in de kluis van uw organisatie en nooit meer getoond.",
+    "organisationKeyKeep": "Er is een sleutel ingevuld. Kies alleen een bestand om die te vervangen.",
+    "organisationScopes": "Te autoriseren bereiken",
     "save": "Opslaan",
     "remove": "Verwijderen",
     "saved": "Opgeslagen.",

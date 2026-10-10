@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "No role named {{role}} exists."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "That is not a way to choose mailboxes: {{error}}",
+      "scope_not_delegated": "The organization's Google service account is not authorized for {{scopes}}. A super administrator adds its client ID with that scope in the Google Admin console, under Security › Access and data control › API controls › Manage Domain Wide Delegation; a new authorization can take up to 24 hours to apply.",
+      "admin_not_a_user": "{{address}} is not a user of the organization's Google Workspace domain, so the directory cannot be listed as it. An administrator corrects the administrator address under Admin › Email.",
+      "directory_refused": "Google's directory would not be read: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google refused the organization's service account: {{reason}}"
     }
   }
 }

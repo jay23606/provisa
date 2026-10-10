@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "不存在名为 {{role}} 的角色。"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "这不是选择邮箱的方式:{{error}}",
+      "scope_not_delegated": "组织的 Google 服务账号未获得 {{scopes}} 的授权。超级用户在 Google 管理控制台的“安全性 › 访问权限和数据控件 › API 控件 › 管理全网域授权”下,为其客户端 ID 添加该范围;新的授权最长可能需要 24 小时才能生效。",
+      "admin_not_a_user": "{{address}} 不是组织的 Google Workspace 网域中的用户,因此无法以其身份列出目录。管理员在“管理 › 电子邮件”下更正管理员地址。",
+      "directory_refused": "无法读取 Google 的目录:{{reason}}(HTTP {{status}})。",
+      "credential_refused": "Google 拒绝了组织的服务账号:{{reason}}"
     }
   }
 }

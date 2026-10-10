@@ -8,12 +8,24 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 // REQ-1923: a Google Workspace source -- whose mailbox, how much of it to read, which mail to
-// hold, and one button to connect it. The person adding a source is asked nothing about how
-// Provisa signs in to Google: the client is the organisation's, entered once by an
-// administrator under Admin › Email, and a source keeps only its owner's approval.
+// hold, and one button to connect it; or the organisation's mailboxes (everyone, a group, a
+// list), read with the organisation's own access once an administrator has allowed it. The
+// person adding a source is asked nothing about how Provisa signs in to Google: the client and
+// the service account are the organisation's, entered once by an administrator under
+// Admin › Email. A source keeps only its owner's approval, or only which mailboxes.
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Anchor, Button, Checkbox, Group, Select, TextInput, Textarea } from "@mantine/core";
+import {
+  Alert,
+  Anchor,
+  Button,
+  Checkbox,
+  Group,
+  Select,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { serverMessage } from "../../i18n/serverMessage";
@@ -25,13 +37,19 @@ import {
 } from "../../lib/sourceSignIn";
 import {
   GOOGLE_WORKSPACE,
-  MAIL_PLATFORMS_ROUTE,
+  GW_EVERYONE,
+  GW_GROUP,
+  GW_LIST,
   GW_MAIL_FULL,
   GW_MAIL_HEADERS,
-  gwByApproval,
+  GW_ONE,
+  GW_ORGANISATION,
+  MAIL_PLATFORMS_ROUTE,
+  gwCheckMailboxes,
   gwConnectMissing,
   gwHeadersOnly,
-  gwMissing,
+  gwMailboxes,
+  gwOrganisation,
   gwScopes,
 } from "./googleWorkspace";
 import { FormField } from "../../components/form/FormLayout";
@@ -47,8 +65,10 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
   const [status, setStatus] = useState<SignInStatus | null>(null);
   const [problem, setProblem] = useState("");
   const [connecting, setConnecting] = useState(false);
-  const byApproval = gwByApproval(fields);
-  const missing = new Set(gwMissing(fields));
+  const [checking, setChecking] = useState(false);
+  const [found, setFound] = useState<number | null>(null);
+  const organisation = gwOrganisation(fields);
+  const chosen = gwMailboxes(fields);
   const refused = useCallback(
     (err: unknown) =>
       serverMessage(
@@ -62,7 +82,6 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
 
   // Whether the organisation has connected Google Workspace decides what the form offers.
   useEffect(() => {
-    if (!byApproval) return;
     let live = true;
     signInStatus(GOOGLE_WORKSPACE)
       .then((answered) => live && setStatus(answered))
@@ -70,7 +89,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
     return () => {
       live = false;
     };
-  }, [byApproval, refused]);
+  }, [refused]);
 
   const set = (key: string, value: string) => setFields({ ...fields, [key]: value });
   // A change to what Google was asked for is not what was approved: the approval is asked again.
@@ -82,6 +101,11 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       change(key, e.currentTarget.value),
     "data-testid": `google-workspace-${key}`,
   });
+  // Another choice of mailboxes is not the one that was counted.
+  const choose = (changed: Record<string, string>) => {
+    setFound(null);
+    setFields({ ...fields, ...changed });
+  };
 
   const connect = async () => {
     setProblem("");
@@ -105,20 +129,104 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
     }
   };
 
-  const notConnected = byApproval && status !== null && !status.configured;
+  const check = async () => {
+    if (chosen === null) return;
+    setProblem("");
+    setFound(null);
+    setChecking(true);
+    try {
+      setFound(await gwCheckMailboxes(chosen));
+    } catch (err) {
+      setProblem(refused(err));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const notSetUp = status !== null && !status.configured;
+  const notAllowed =
+    organisation && status !== null && status.configured && !status.organisation_mailboxes;
   // Where an administrator sets it up, named as the menu names it in this language.
   const where = `${t("navBar.groupAdmin")} › ${t("navBar.itemEmail")}`;
   return (
     <>
       <FormField size="medium">
-        <TextInput
-          label={t("googleWorkspaceFields.account")}
-          description={t("googleWorkspaceFields.accountHelp")}
-          placeholder="ada@example.com"
-          required
-          {...text("gw_account", setAsked)}
+        <Select
+          label={t("googleWorkspaceFields.whose")}
+          description={t("googleWorkspaceFields.whoseHelp")}
+          data={[
+            { value: GW_ONE, label: t("googleWorkspaceFields.whoseOne") },
+            { value: GW_ORGANISATION, label: t("googleWorkspaceFields.whoseOrganisation") },
+          ]}
+          value={organisation ? GW_ORGANISATION : GW_ONE}
+          onChange={(value) => choose({ gw_whose: value ?? GW_ONE })}
+          allowDeselect={false}
+          data-testid="google-workspace-gw_whose"
         />
       </FormField>
+      {!organisation && (
+        <FormField size="long">
+          <TextInput
+            label={t("googleWorkspaceFields.account")}
+            description={t("googleWorkspaceFields.accountHelp")}
+            placeholder="ada@example.com"
+            required
+            {...text("gw_account", setAsked)}
+          />
+        </FormField>
+      )}
+      {organisation && (
+        <>
+          <FormField size="short">
+            <Select
+              label={t("googleWorkspaceFields.choice")}
+              data={[
+                { value: GW_EVERYONE, label: t("googleWorkspaceFields.choiceEveryone") },
+                { value: GW_GROUP, label: t("googleWorkspaceFields.choiceGroup") },
+                { value: GW_LIST, label: t("googleWorkspaceFields.choiceList") },
+              ]}
+              value={fields.gw_choice ?? null}
+              onChange={(value) => choose({ gw_choice: value ?? "" })}
+              required
+              allowDeselect={false}
+              data-testid="google-workspace-gw_choice"
+            />
+          </FormField>
+          {fields.gw_choice === GW_GROUP && (
+            <FormField size="medium">
+              <TextInput
+                label={t("googleWorkspaceFields.group")}
+                description={t("googleWorkspaceFields.groupHelp")}
+                placeholder="sales@example.com"
+                required
+                value={fields.gw_group ?? ""}
+                onChange={(e) => choose({ gw_group: e.currentTarget.value })}
+                data-testid="google-workspace-gw_group"
+              />
+            </FormField>
+          )}
+          {fields.gw_choice === GW_LIST && (
+            <FormField size="full">
+              <Textarea
+                label={t("googleWorkspaceFields.list")}
+                description={t("googleWorkspaceFields.listHelp")}
+                placeholder={"ada@example.com\ngrace@example.com"}
+                autosize
+                minRows={3}
+                required
+                value={fields.gw_list ?? ""}
+                onChange={(e) => choose({ gw_list: e.currentTarget.value })}
+                data-testid="google-workspace-gw_list"
+              />
+            </FormField>
+          )}
+          <FormField size="full">
+            <Text size="sm" c="dimmed" data-testid="google-workspace-every-mailbox">
+              {t("googleWorkspaceFields.everyMailbox")}
+            </Text>
+          </FormField>
+        </>
+      )}
       <FormField size="medium">
         <Select
           label={t("googleWorkspaceFields.mailContent")}
@@ -134,7 +242,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           data-testid="google-workspace-gw_mail_content"
         />
       </FormField>
-      {notConnected && (
+      {notSetUp && (
         <FormField size="full">
           <Alert color="yellow" variant="light" data-testid="google-workspace-not-set-up">
             {status.may_configure ? (
@@ -154,7 +262,54 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </Alert>
         </FormField>
       )}
-      {byApproval && !notConnected && (
+      {notAllowed && (
+        <FormField size="full">
+          <Alert color="yellow" variant="light" data-testid="google-workspace-not-allowed">
+            {status.may_configure ? (
+              <>
+                {t("googleWorkspaceFields.notAllowed")}{" "}
+                <Anchor
+                  component={Link}
+                  to={MAIL_PLATFORMS_ROUTE}
+                  data-testid="google-workspace-allow"
+                >
+                  {t("googleWorkspaceFields.allowLink", { where })}
+                </Anchor>
+              </>
+            ) : (
+              t("googleWorkspaceFields.notAllowedAsk", { where })
+            )}
+          </Alert>
+        </FormField>
+      )}
+      {organisation && !notSetUp && !notAllowed && (
+        <FormField size="full">
+          <Group gap="sm" align="center">
+            <Button
+              type="button"
+              variant="default"
+              onClick={check}
+              loading={checking}
+              disabled={status === null || chosen === null}
+              data-testid="google-workspace-check"
+            >
+              {t("googleWorkspaceFields.check")}
+            </Button>
+            {found !== null && (
+              <Alert
+                color="green"
+                variant="light"
+                py={4}
+                px="sm"
+                data-testid="google-workspace-found"
+              >
+                {t("googleWorkspaceFields.found", { count: found })}
+              </Alert>
+            )}
+          </Group>
+        </FormField>
+      )}
+      {!organisation && !notSetUp && (
         <FormField size="full">
           <Group gap="sm" align="center">
             <Button
@@ -166,7 +321,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
             >
               {t("googleWorkspaceFields.connect")}
             </Button>
-            {fields.gw_connected_as && !missing.has("gw_refresh_token") && (
+            {fields.gw_connected_as && fields.gw_refresh_token && (
               <Alert
                 color="green"
                 variant="light"

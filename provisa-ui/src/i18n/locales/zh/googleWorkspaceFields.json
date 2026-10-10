@@ -18,6 +18,24 @@
     "mailSpamTrash": "包含垃圾邮件和已删除邮件",
     "notSetUp": "您的组织尚未连接 Google Workspace。",
     "setUpLink": "在{{where}}中进行设置",
-    "notSetUpAsk": "您的组织尚未连接 Google Workspace。请让管理员在{{where}}中进行设置。"
+    "notSetUpAsk": "您的组织尚未连接 Google Workspace。请让管理员在{{where}}中进行设置。",
+    "whose": "读取谁的邮件",
+    "whoseHelp": "单个邮箱由其所有者连接。组织的邮箱在管理员允许后，使用组织自身的访问权限读取。",
+    "whoseOne": "单个邮箱",
+    "whoseOrganisation": "组织的邮箱",
+    "choice": "哪些邮箱",
+    "choiceGroup": "某个组的成员",
+    "choiceList": "以下地址",
+    "group": "组",
+    "list": "邮箱地址",
+    "listHelp": "每行一个地址。",
+    "everyMailbox": "一张表保存所有邮箱的行。可读取该表的角色可读取每个邮箱，除非 account 列上的行规则另有规定。",
+    "notAllowed": "您的组织尚未允许读取其邮箱的数据源。",
+    "allowLink": "在 {{where}} 中允许",
+    "notAllowedAsk": "您的组织尚未允许读取其邮箱的数据源。请让管理员在 {{where}} 中允许。",
+    "check": "检查",
+    "found": "找到的邮箱：{{count}}",
+    "choiceEveryone": "域中的所有用户",
+    "groupHelp": "群组的地址或其 ID。其中包含的群组的成员也包括在内。"
   }
 }

@@ -49,6 +49,10 @@ const google = (over = {}) => ({
   client_id: null as string | null,
   settings: {} as Record<string, string>,
   organisation_mailboxes: false,
+  organisation_settings_fields: [] as string[],
+  organisation_key_field: false,
+  organisation_key_entered: false,
+  organisation_scopes: [] as string[],
   ...over,
 });
 const tid = (suffix: string) => `mail-platform-google_workspace${suffix}`;
@@ -236,13 +240,117 @@ describe("the organisation's mail platforms", () => {
   it("says what the administrator grants at Microsoft for it, and nothing for a platform with no wording", async () => {
     list.mockResolvedValue({
       redirect_address: REDIRECT,
-      platforms: [google(), google({ platform: "microsoft_365", settings_fields: ["tenant"] })],
+      platforms: [
+        google({ platform: "another_platform" }),
+        google({ platform: "microsoft_365", settings_fields: ["tenant"] }),
+      ],
     });
     render(<MailPlatformsSection />);
     expect(
       await screen.findByTestId("mail-platform-microsoft_365-organisation-grant"),
     ).toHaveTextContent("Mail.Read and User.Read.All");
-    expect(screen.queryByTestId(tid("-organisation-grant"))).toBeNull();
+    expect(screen.queryByTestId("mail-platform-another_platform-organisation-grant")).toBeNull();
+  });
+
+  describe("Google Workspace's own credential for the organisation's mailboxes", () => {
+    const SCOPES = [
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/admin.directory.user.readonly",
+      "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
+    ];
+    const workspace = (over = {}) =>
+      google({
+        configured: true,
+        client_id: "client-1",
+        organisation_settings_fields: ["admin_address"],
+        organisation_key_field: true,
+        organisation_scopes: SCOPES,
+        ...over,
+      });
+    const KEY = '{"made-up": "service account key"}';
+
+    it("asks for the key as a file and the administrator address, and says what to authorise", async () => {
+      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+      render(<MailPlatformsSection />);
+      expect(await screen.findByTestId(tid("-organisation-key"))).toBeInTheDocument();
+      expect(screen.getByText(en.mailPlatforms.setting.admin_address)).toBeInTheDocument();
+      expect(screen.getByText(en.mailPlatforms.organisationKeyHelp)).toBeInTheDocument();
+      expect(screen.getByTestId(tid("-organisation-scopes"))).toHaveValue(SCOPES.join(","));
+      expect(screen.getByTestId(tid("-organisation-scopes-copy"))).toBeInTheDocument();
+      const grant = screen.getByTestId(tid("-organisation-grant"));
+      expect(grant).toHaveTextContent("Manage Domain Wide Delegation");
+      // Said plainly: Google has no way to narrow the delegation.
+      expect(grant).toHaveTextContent("Google cannot limit this to some mailboxes");
+      expect(grant).toHaveTextContent("covers every user of the domain");
+    });
+
+    it("cannot be allowed before the key and the administrator address are given", () => {
+      const on = {
+        client_id: "c",
+        client_secret: "",
+        settings: { admin_address: "" },
+        organisation_mailboxes: true,
+        organisation_key: "",
+      };
+      expect(platformMissing(workspace(), on)).toEqual(["admin_address", "organisation_key"]);
+      expect(platformMissing(workspace(), { ...on, organisation_mailboxes: false })).toEqual([]);
+      const given = { ...on, settings: { admin_address: "admin@example.test" } };
+      expect(platformMissing(workspace(), { ...given, organisation_key: KEY })).toEqual([]);
+      // A key already entered is kept when no file is chosen.
+      expect(platformMissing(workspace({ organisation_key_entered: true }), given)).toEqual([]);
+    });
+
+    it("sends the chosen file's text once, and never shows it", async () => {
+      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+      render(<MailPlatformsSection />);
+      const file = new File([KEY], "key.json", { type: "application/json" });
+      // jsdom's File has no text(); the section reads the file as a browser does.
+      Object.defineProperty(file, "text", { value: () => Promise.resolve(KEY) });
+      await screen.findByTestId(tid("-organisation-key"));
+      // Mantine keeps the real file input beside the button it shows.
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      fireEvent.change(screen.getByTestId(tid("-setting-admin_address")), {
+        target: { value: "admin@example.test" },
+      });
+      fireEvent.click(screen.getByTestId(tid("-organisation-mailboxes")));
+      await waitFor(() => expect(screen.getByTestId(tid("-save"))).toBeEnabled());
+      fireEvent.click(screen.getByTestId(tid("-save")));
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith("acme", "google_workspace", {
+          client_id: "client-1",
+          settings: { admin_address: "admin@example.test" },
+          organisation_mailboxes: true,
+          organisation_key: KEY,
+        }),
+      );
+      expect(document.body.textContent).not.toContain("made-up");
+    });
+
+    it("says a key is entered and keeps it when no file is chosen", async () => {
+      list.mockResolvedValue({
+        redirect_address: REDIRECT,
+        platforms: [
+          workspace({
+            organisation_key_entered: true,
+            organisation_mailboxes: true,
+            settings: { admin_address: "admin@example.test" },
+          }),
+        ],
+      });
+      render(<MailPlatformsSection />);
+      expect(await screen.findByText(en.mailPlatforms.organisationKeyKeep)).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId(tid("-save")));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0][2]).not.toHaveProperty("organisation_key");
+    });
+
+    it("shows none of it for a platform whose credential is its client", async () => {
+      render(<MailPlatformsSection />);
+      await screen.findByTestId(tid("-save"));
+      expect(screen.queryByTestId(tid("-organisation-key"))).toBeNull();
+      expect(screen.queryByTestId(tid("-organisation-scopes"))).toBeNull();
+    });
   });
 
   it("shows the switch as the organisation left it", async () => {
@@ -261,6 +369,7 @@ describe("the organisation's mail platforms", () => {
       client_secret: "s",
       settings: { tenant: "" },
       organisation_mailboxes: false,
+      organisation_key: "",
     };
     expect(platformMissing(tenanted, draft)).toEqual(["tenant"]);
     expect(platformMissing(tenanted, { ...draft, settings: { tenant: "contoso" } })).toEqual([]);

@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "{{role}} नाम की कोई भूमिका मौजूद नहीं है।"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "मेलबॉक्स चुनने का यह तरीका नहीं है: {{error}}",
+      "scope_not_delegated": "संगठन के Google सर्विस अकाउंट को {{scopes}} की अनुमति नहीं है। सुपर एडमिन Google Admin console में Security › Access and data control › API controls › Manage Domain Wide Delegation के अंतर्गत उसकी क्लाइंट आईडी को इस स्कोप के साथ जोड़ता है; नई अनुमति लागू होने में 24 घंटे तक लग सकते हैं।",
+      "admin_not_a_user": "{{address}} संगठन के Google Workspace डोमेन का उपयोगकर्ता नहीं है, इसलिए डायरेक्टरी उसके रूप में सूचीबद्ध नहीं हो सकती। एडमिनिस्ट्रेटर एडमिन › ईमेल में एडमिनिस्ट्रेटर का पता ठीक करता है।",
+      "directory_refused": "Google की डायरेक्टरी नहीं पढ़ी जा सकी: {{reason}} (HTTP {{status}})।",
+      "credential_refused": "Google ने संगठन का सर्विस अकाउंट अस्वीकार कर दिया: {{reason}}"
     }
   }
 }

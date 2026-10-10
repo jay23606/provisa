@@ -23,16 +23,23 @@
     "clientSecret": "Clientschlüssel",
     "clientSecretKeep": "Leer lassen, um den bereits eingetragenen zu behalten.",
     "setting": {
-      "tenant": "Verzeichnis-ID (Mandant)"
+      "tenant": "Verzeichnis-ID (Mandant)",
+      "admin_address": "Administratoradresse"
     },
     "settingHelp": {
-      "tenant": "Das Verzeichnis, in dem sich die Microsoft 365-Konten Ihrer Organisation befinden: seine ID oder seine Domäne, wie Microsoft Entra sie auf der Seite „Übersicht“ der App-Registrierung anzeigt."
+      "tenant": "Das Verzeichnis, in dem sich die Microsoft 365-Konten Ihrer Organisation befinden: seine ID oder seine Domäne, wie Microsoft Entra sie auf der Seite „Übersicht“ der App-Registrierung anzeigt.",
+      "admin_address": "Ein Super Admin Ihrer Google Workspace-Domain. Das Verzeichnis wird als dieser Benutzer aufgelistet; seine E-Mails werden nur gelesen, wenn eine Quelle ihn nennt."
     },
     "organisationMailboxes": "Quellen erlauben, die die Postfächer der Organisation lesen",
     "organisationMailboxesHelp": "Aus: Eine Quelle liest nur das eine Postfach, das eine Person verbindet. Ein: Eine Quelle darf mit den Anmeldedaten des Administrators viele Postfächer der Organisation lesen, und wer ihre Tabellen lesen darf, liest jedes Postfach, sofern keine Zeilenregel dies einschränkt.",
     "organisationGrant": {
-      "microsoft_365": "Geben Sie der App-Registrierung für Quellen, die die Postfächer der Organisation lesen, die Anwendungsberechtigungen Mail.Read und User.Read.All und erteilen Sie die Administratoreinwilligung."
+      "microsoft_365": "Geben Sie der App-Registrierung für Quellen, die die Postfächer der Organisation lesen, die Anwendungsberechtigungen Mail.Read und User.Read.All und erteilen Sie die Administratoreinwilligung.",
+      "google_workspace": "Ein Super Admin autorisiert die Client-ID des Dienstkontos für die folgenden Bereiche in der Google Admin-Konsole unter Sicherheit › Zugriffs- und Datenkontrolle › API-Steuerung › Domainweite Delegierung verwalten. Fügen Sie gmail.metadata für Quellen hinzu, die nur Kopfzeilen und Labels lesen. Google kann dies nicht auf einzelne Postfächer beschränken: Es gilt für jeden Benutzer der Domain."
     },
+    "organisationKey": "Schlüsseldatei des Dienstkontos (JSON)",
+    "organisationKeyHelp": "Die Schlüsseldatei, die Google Cloud für das Dienstkonto erstellt hat. Sie wird im Tresor Ihrer Organisation aufbewahrt und nie wieder angezeigt.",
+    "organisationKeyKeep": "Ein Schlüssel ist eingetragen. Wählen Sie nur dann eine Datei, wenn Sie ihn ersetzen möchten.",
+    "organisationScopes": "Zu autorisierende Bereiche",
     "save": "Speichern",
     "remove": "Entfernen",
     "saved": "Gespeichert.",

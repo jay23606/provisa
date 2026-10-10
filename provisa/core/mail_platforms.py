@@ -63,6 +63,9 @@ class Platform:
     #: Whether those sources read with a credential of the platform's own, entered as a secret
     #: (Google: a service account's key), and not with the client's.
     organisation_key: bool = False
+    #: What the administrator authorises at the platform for that credential, to copy from the
+    #: admin section (Google: the scopes of its domain-wide delegation line). Not secret.
+    organisation_scopes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

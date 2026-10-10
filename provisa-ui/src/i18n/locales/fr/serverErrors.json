@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "Aucun rôle nommé {{role}} n’existe."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Ce n’est pas une façon de choisir des boîtes aux lettres : {{error}}",
+      "scope_not_delegated": "Le compte de service Google de l’organisation n’est pas autorisé pour {{scopes}}. Un super-administrateur ajoute son ID client avec ce champ d’application dans la console d’administration Google, sous Sécurité › Contrôle des accès et des données › Commandes des API › Gérer la délégation au niveau du domaine ; une nouvelle autorisation peut prendre jusqu’à 24 heures.",
+      "admin_not_a_user": "{{address}} n’est pas un utilisateur du domaine Google Workspace de l’organisation ; l’annuaire ne peut donc pas être listé en son nom. Un administrateur corrige l’adresse de l’administrateur sous Admin › E-mail.",
+      "directory_refused": "L’annuaire Google n’a pas pu être lu : {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google a refusé le compte de service de l’organisation : {{reason}}"
     }
   }
 }

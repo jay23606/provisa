@@ -75,6 +75,7 @@ async def _entry(org_id: str, platform: mail_platforms.Platform) -> dict:
         # only as entered or not; no answer carries it.
         "organisation_settings_fields": list(platform.organisation_settings),
         "organisation_key_field": platform.organisation_key,
+        "organisation_scopes": list(platform.organisation_scopes),
         "organisation_key_entered": configured is not None
         and configured.organisation_key is not None,
     }

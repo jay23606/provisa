@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "Er bestaat geen rol met de naam {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Zo kunnen geen postvakken worden gekozen: {{error}}",
+      "scope_not_delegated": "Het Google-serviceaccount van de organisatie is niet geautoriseerd voor {{scopes}}. Een superbeheerder voegt de client-ID ervan met dat bereik toe in de Google Beheerdersconsole, onder Beveiliging › Toegangs- en gegevenscontrole › API-beheer › Domeinbrede delegatie beheren; een nieuwe autorisatie kan tot 24 uur duren.",
+      "admin_not_a_user": "{{address}} is geen gebruiker van het Google Workspace-domein van de organisatie, dus de directory kan niet namens dit adres worden opgevraagd. Een beheerder corrigeert het adres van de beheerder onder Beheer › E-mail.",
+      "directory_refused": "De directory van Google kon niet worden gelezen: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google heeft het serviceaccount van de organisatie geweigerd: {{reason}}"
     }
   }
 }

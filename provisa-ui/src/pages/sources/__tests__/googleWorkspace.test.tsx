@@ -12,7 +12,7 @@
 // adding a source is asked for the mailbox, how much to read and which mail, and is given one
 // button; nothing about how Provisa signs in to Google is in front of them.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/render";
 import en from "../../../i18n/locales/en/googleWorkspaceFields.json";
 import { BRAND_CARRIER, SOURCE_TYPES } from "../constants";
@@ -290,19 +290,140 @@ describe("what a Google Workspace setup saves", () => {
     expect(gwMapping(fields)).toEqual(saved);
   });
 
-  it("keeps a source set up by hand with a service account as it is, and offers no button", async () => {
-    const byHand = {
-      accounts: ["ada@example.test"],
-      resources: ["mail"],
-      sign_in: "service_account",
-      service_account_key: "${secret:k}",
-      mail_content: "full",
-    };
-    const fields = gwFieldsFromMapping(JSON.stringify(byHand));
-    expect(gwMapping(fields)).toEqual(byHand);
-    expect(gwMissing(fields)).toEqual([]);
-    form(fields);
+  it("holds no service account key: the key is the organisation's alone", () => {
+    const fields = gwFieldsFromMapping(
+      JSON.stringify({
+        accounts: ["ada@example.test"],
+        resources: ["mail"],
+        sign_in: "service_account",
+        service_account_key: "${secret:k}",
+        mail_content: "full",
+      }),
+    );
+    expect(JSON.stringify(gwMapping(fields))).not.toContain("service_account");
+    expect(gwMissing(fields)).toEqual(["gw_refresh_token"]);
+  });
+});
+
+describe("a source of the organisation's mailboxes", () => {
+  const ORG = { gw_whose: "organisation", gw_mail_content: "full" };
+  const allowed = () =>
+    signIn.signInStatus.mockResolvedValue({
+      configured: true,
+      may_configure: false,
+      organisation_mailboxes: true,
+    });
+  // The form's own questions of the server go on as they do; the check's answer is set here.
+  const check = vi.fn();
+  const answering = (reply: { ok: boolean; json: () => Promise<unknown> }) => {
+    const real = globalThis.fetch;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (!String(url).endsWith("/mailboxes/check")) return real(url, init);
+      check(url, init);
+      return Promise.resolve(reply);
+    });
+  };
+
+  beforeEach(() => check.mockReset());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("asks whose mail first, one mailbox being the choice a new source starts with", async () => {
+    form(FILLED);
+    await connectReady();
+    expect(shown("gw_whose")).toHaveValue(en.googleWorkspaceFields.whoseOne);
+    expect(shown("gw_choice")).toBeNull();
+  });
+
+  it("asks which mailboxes, and for no account and no approval", async () => {
+    allowed();
+    form({ ...ORG, gw_choice: "group" });
+    await waitFor(() => expect(shown("check")).toBeInTheDocument());
+    expect(shown("gw_group")).toBeInTheDocument();
+    expect(shown("gw_account")).toBeNull();
     expect(shown("connect")).toBeNull();
-    expect(signIn.signInStatus).not.toHaveBeenCalled();
+    expect(shown("every-mailbox")).toHaveTextContent("reads every mailbox");
+    // How much of each message is read is asked of either shape.
+    expect(shown("gw_mail_content")).toBeInTheDocument();
+  });
+
+  it("saves which mailboxes and no credential at all", () => {
+    expect(gwMapping({ ...ORG, gw_choice: "everyone" })).toEqual({
+      resources: ["mail"],
+      mailboxes: { everyone: true },
+      mail_content: "full",
+    });
+    expect(gwMapping({ ...ORG, gw_choice: "group", gw_group: " sales@example.test " })).toEqual({
+      resources: ["mail"],
+      mailboxes: { group: "sales@example.test" },
+      mail_content: "full",
+    });
+    const listed = gwMapping({ ...ORG, gw_choice: "list", gw_list: "a@x.test\n\n b@x.test " });
+    expect(listed.mailboxes).toEqual({ list: ["a@x.test", "b@x.test"] });
+    expect(JSON.stringify(listed)).not.toMatch(/token|accounts|sign_in/);
+  });
+
+  it("is not complete until it says which mailboxes", () => {
+    expect(gwMissing(ORG)).toEqual(["gw_choice"]);
+    expect(gwMissing({ ...ORG, gw_choice: "group" })).toEqual(["gw_choice"]);
+    expect(gwMissing({ ...ORG, gw_choice: "list", gw_list: "a@x.test" })).toEqual([]);
+    expect(gwMissing({ gw_whose: "organisation", gw_choice: "everyone" })).toEqual([
+      "gw_mail_content",
+    ]);
+  });
+
+  it("reads back into the form what was saved", () => {
+    for (const fields of [
+      { ...ORG, gw_choice: "everyone" },
+      { ...ORG, gw_choice: "group", gw_group: "sales@example.test" },
+      { ...ORG, gw_choice: "list", gw_list: "a@x.test\nb@x.test", gw_mail_labels: "Clients" },
+    ]) {
+      const saved = gwMapping(fields);
+      const back = gwFieldsFromMapping(JSON.stringify(saved));
+      expect(back).toMatchObject(fields);
+      expect(gwMapping(back)).toEqual(saved);
+    }
+  });
+
+  it("counts the mailboxes a choice names, and forgets the count when the choice changes", async () => {
+    allowed();
+    answering({ ok: true, json: async () => ({ count: 42 }) });
+    const setAuthFields = form({ ...ORG, gw_choice: "everyone" });
+    await waitFor(() => expect(shown("check")).toBeEnabled());
+    fireEvent.click(shown("check")!);
+    expect(await screen.findByTestId("google-workspace-found")).toHaveTextContent("42");
+    expect(check).toHaveBeenCalledWith(
+      "/admin/google-workspace/mailboxes/check",
+      expect.objectContaining({ body: JSON.stringify({ mailboxes: { everyone: true } }) }),
+    );
+    expect(setAuthFields).not.toHaveBeenCalled();
+  });
+
+  it("shows a refusal of the check in its own words", async () => {
+    allowed();
+    answering({
+      ok: false,
+      json: async () => ({ code: "x.unknown", detail: "the scope is not delegated", params: {} }),
+    });
+    form({ ...ORG, gw_choice: "everyone" });
+    await waitFor(() => expect(shown("check")).toBeEnabled());
+    fireEvent.click(shown("check")!);
+    expect(await screen.findByTestId("google-workspace-problem")).toHaveTextContent(
+      "the scope is not delegated",
+    );
+    expect(shown("found")).toBeNull();
+  });
+
+  it("says so when the organisation has not allowed such sources, and offers no check", async () => {
+    signIn.signInStatus.mockResolvedValue({
+      configured: true,
+      may_configure: true,
+      organisation_mailboxes: false,
+    });
+    form({ ...ORG, gw_choice: "everyone" });
+    expect(await screen.findByTestId("google-workspace-not-allowed")).toHaveTextContent(
+      en.googleWorkspaceFields.notAllowed,
+    );
+    expect(shown("allow")).toHaveAttribute("href", "/admin/email");
+    expect(shown("check")).toBeNull();
   });
 });

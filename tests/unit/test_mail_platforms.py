@@ -91,9 +91,20 @@ class TestTheStore:
         as."""
         import provisa.google_workspace  # noqa: F401
 
+        from provisa.google_workspace import DELEGATED_SCOPES, directory, settings
+
         assert mail_platforms.platform(GOOGLE) == Platform(
-            GOOGLE, organisation_settings=("admin_address",), organisation_key=True
+            GOOGLE,
+            organisation_settings=("admin_address",),
+            organisation_key=True,
+            organisation_scopes=DELEGATED_SCOPES,
         )
+        # The scopes the administrator is told to authorise are the ones the reader asks for.
+        assert set(DELEGATED_SCOPES) == {
+            settings.MAIL_SCOPES[settings.MAIL_FULL],
+            directory.USERS_SCOPE,
+            directory.MEMBERS_SCOPE,
+        }
         assert GOOGLE in [p.id for p in mail_platforms.platforms()]
 
     async def test_an_organisation_that_entered_nothing_has_nothing(self, plane):
@@ -299,6 +310,7 @@ class TestTheAdminSurface:
             "organisation_mailboxes": False,
             "organisation_settings_fields": ["admin_address"],
             "organisation_key_field": True,
+            "organisation_scopes": list(mail_platforms.platform(GOOGLE).organisation_scopes),
             "organisation_key_entered": False,
         }
         assert before["redirect_address"] == "http://localhost:3000/source-sign-in.html"

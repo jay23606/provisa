@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "沒有名為 {{role}} 的角色。"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "這不是選擇信箱的方式:{{error}}",
+      "scope_not_delegated": "組織的 Google 服務帳戶未獲 {{scopes}} 的授權。超級管理員在 Google 管理控制台的「安全性 › 存取權和資料控制 › API 控制項 › 管理全網域委派」之下,為其用戶端 ID 加入該範圍;新的授權最長可能需要 24 小時才生效。",
+      "admin_not_a_user": "{{address}} 並非組織的 Google Workspace 網域中的使用者,因此無法以其身分列出目錄。管理員在「管理 › 電郵」之下更正管理員地址。",
+      "directory_refused": "無法讀取 Google 的目錄:{{reason}}(HTTP {{status}})。",
+      "credential_refused": "Google 拒絕了組織的服務帳戶:{{reason}}"
     }
   }
 }

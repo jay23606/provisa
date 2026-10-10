@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "אין תפקיד בשם {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "זו אינה דרך לבחור תיבות דואר: {{error}}",
+      "scope_not_delegated": "חשבון השירות של Google של הארגון אינו מורשה עבור {{scopes}}. סופר-אדמין מוסיף את מזהה הלקוח שלו עם ההיקף הזה במסוף Google Admin, תחת אבטחה › בקרת גישה ונתונים › בקרות API › ניהול הענקת גישה ברמת הדומיין; הרשאה חדשה עשויה להיכנס לתוקף תוך עד 24 שעות.",
+      "admin_not_a_user": "{{address}} אינו משתמש בדומיין Google Workspace של הארגון, ולכן לא ניתן לקרוא את הספרייה בשמו. מנהל מערכת מתקן את כתובת מנהל המערכת תחת ניהול › דוא\"ל.",
+      "directory_refused": "לא ניתן היה לקרוא את הספרייה של Google: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google דחתה את חשבון השירות של הארגון: {{reason}}"
     }
   }
 }

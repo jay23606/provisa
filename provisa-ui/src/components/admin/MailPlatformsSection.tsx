@@ -22,6 +22,7 @@ import {
   Button,
   Card,
   CopyButton,
+  FileInput,
   Group,
   PasswordInput,
   SimpleGrid,
@@ -40,6 +41,7 @@ import {
 } from "../../api/mailPlatforms";
 import { useAuth } from "../../context/AuthContext";
 import { draftOf, platformMissing, type Draft } from "./mailPlatformDraft";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 export function MailPlatformsSection() {
   const { t, i18n } = useTranslation();
@@ -184,6 +186,78 @@ export function MailPlatformsSection() {
                 }
                 data-testid={`${id}-organisation-mailboxes`}
               />
+              {/* What the platform is entered with for those sources, where it has anything of
+                  its own: a credential file, the settings beside it, what to authorise. */}
+              {(p.organisation_key_field || p.organisation_settings_fields.length > 0) && (
+                <FormLayout>
+                  {p.organisation_settings_fields.map((field) => (
+                    <FormField size="long" key={field}>
+                      <TextInput
+                        label={t(`mailPlatforms.setting.${field}`)}
+                        description={t(`mailPlatforms.settingHelp.${field}`)}
+                        required={draft.organisation_mailboxes}
+                        value={draft.settings[field] ?? ""}
+                        onChange={(e) =>
+                          change(p.platform, {
+                            settings: { ...draft.settings, [field]: e.currentTarget.value },
+                          })
+                        }
+                        data-testid={`${id}-setting-${field}`}
+                      />
+                    </FormField>
+                  ))}
+                  {p.organisation_key_field && (
+                    <FormField size="medium">
+                      <FileInput
+                        label={t("mailPlatforms.organisationKey")}
+                        description={
+                          p.organisation_key_entered
+                            ? t("mailPlatforms.organisationKeyKeep")
+                            : t("mailPlatforms.organisationKeyHelp")
+                        }
+                        accept="application/json,.json"
+                        required={draft.organisation_mailboxes && !p.organisation_key_entered}
+                        clearable
+                        // The file's text is held for the save and never shown.
+                        onChange={(file) => {
+                          if (file === null) change(p.platform, { organisation_key: "" });
+                          else
+                            void file
+                              .text()
+                              .then((key) => change(p.platform, { organisation_key: key }));
+                        }}
+                        data-testid={`${id}-organisation-key`}
+                      />
+                    </FormField>
+                  )}
+                </FormLayout>
+              )}
+              {p.organisation_scopes.length > 0 && (
+                <FormLayout>
+                  <FieldGroup>
+                    <FormField size="long">
+                      <TextInput
+                        label={t("mailPlatforms.organisationScopes")}
+                        value={p.organisation_scopes.join(",")}
+                        readOnly
+                        data-testid={`${id}-organisation-scopes`}
+                      />
+                    </FormField>
+                    <CopyButton value={p.organisation_scopes.join(",")}>
+                      {({ copied, copy }) => (
+                        <Button
+                          variant="default"
+                          onClick={copy}
+                          style={{ alignSelf: "flex-end" }}
+                          data-testid={`${id}-organisation-scopes-copy`}
+                        >
+                          {copied ? t("mailPlatforms.copied") : t("mailPlatforms.copy")}
+                        </Button>
+                      )}
+                    </CopyButton>
+                  </FieldGroup>
+                </FormLayout>
+              )}
               <Group gap="sm">
                 <Button
                   onClick={() =>
@@ -195,6 +269,9 @@ export function MailPlatformsSection() {
                           ...(draft.client_secret ? { client_secret: draft.client_secret } : {}),
                           settings: draft.settings,
                           organisation_mailboxes: draft.organisation_mailboxes,
+                          ...(draft.organisation_key
+                            ? { organisation_key: draft.organisation_key }
+                            : {}),
                         }),
                       t("mailPlatforms.saved"),
                     )

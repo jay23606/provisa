@@ -23,16 +23,23 @@
     "clientSecret": "Code secret du client",
     "clientSecretKeep": "Laissez vide pour conserver celui déjà saisi.",
     "setting": {
-      "tenant": "ID de l’annuaire (locataire)"
+      "tenant": "ID de l’annuaire (locataire)",
+      "admin_address": "Adresse de l’administrateur"
     },
     "settingHelp": {
-      "tenant": "L’annuaire où se trouvent les comptes Microsoft 365 de votre organisation : son ID ou son domaine, tel que Microsoft Entra l’affiche sur la page Vue d’ensemble de l’inscription d’application."
+      "tenant": "L’annuaire où se trouvent les comptes Microsoft 365 de votre organisation : son ID ou son domaine, tel que Microsoft Entra l’affiche sur la page Vue d’ensemble de l’inscription d’application.",
+      "admin_address": "Un super-administrateur de votre domaine Google Workspace. L’annuaire est listé en tant que cet utilisateur ; ses e-mails ne sont lus que si une source le nomme."
     },
     "organisationMailboxes": "Autoriser les sources qui lisent les boîtes aux lettres de l’organisation",
     "organisationMailboxesHelp": "Désactivé : une source ne lit que la boîte aux lettres qu’une personne connecte. Activé : une source peut lire de nombreuses boîtes aux lettres de l’organisation avec les identifiants de l’administrateur, et quiconque peut lire ses tables lit toutes les boîtes, sauf si une règle de ligne le limite.",
     "organisationGrant": {
-      "microsoft_365": "Pour les sources qui lisent les boîtes aux lettres de l’organisation, accordez à l’inscription d’application les autorisations d’application Mail.Read et User.Read.All, puis donnez le consentement administrateur."
+      "microsoft_365": "Pour les sources qui lisent les boîtes aux lettres de l’organisation, accordez à l’inscription d’application les autorisations d’application Mail.Read et User.Read.All, puis donnez le consentement administrateur.",
+      "google_workspace": "Un super-administrateur autorise l’ID client du compte de service pour les champs d’application ci-dessous dans la console d’administration Google, sous Sécurité › Contrôle des accès et des données › Commandes des API › Gérer la délégation au niveau du domaine. Ajoutez gmail.metadata pour les sources qui ne lisent que les en-têtes et les libellés. Google ne peut pas limiter cela à certaines boîtes aux lettres : cela couvre tous les utilisateurs du domaine."
     },
+    "organisationKey": "Fichier de clé du compte de service (JSON)",
+    "organisationKeyHelp": "Le fichier de clé que Google Cloud a créé pour le compte de service. Il est conservé dans le coffre de votre organisation et n’est plus jamais affiché.",
+    "organisationKeyKeep": "Une clé est saisie. Ne choisissez un fichier que pour la remplacer.",
+    "organisationScopes": "Champs d’application à autoriser",
     "save": "Enregistrer",
     "remove": "Supprimer",
     "saved": "Enregistré.",

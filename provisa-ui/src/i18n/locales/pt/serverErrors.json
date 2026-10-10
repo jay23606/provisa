@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "Não existe nenhuma função chamada {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Essa não é uma forma de escolher caixas de correio: {{error}}",
+      "scope_not_delegated": "A conta de serviço do Google da organização não está autorizada para {{scopes}}. Um superadministrador adiciona o ID do cliente dela com esse escopo no Google Admin Console, em Segurança › Controle de dados e acesso › Controles de API › Gerenciar a delegação em todo o domínio; uma nova autorização pode levar até 24 horas.",
+      "admin_not_a_user": "{{address}} não é um usuário do domínio do Google Workspace da organização; por isso o diretório não pode ser listado em nome dele. Um administrador corrige o endereço do administrador em Administração › E-mail.",
+      "directory_refused": "Não foi possível ler o diretório do Google: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "O Google recusou a conta de serviço da organização: {{reason}}"
     }
   }
 }

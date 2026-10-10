@@ -500,6 +500,13 @@
     },
     "dbt_sources": {
       "unknown_role": "{{role}} という名前のロールはありません。"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "その方法ではメールボックスを選択できません: {{error}}",
+      "scope_not_delegated": "組織の Google サービス アカウントは {{scopes}} について承認されていません。特権管理者が、Google 管理コンソールの [セキュリティ] › [アクセスとデータ管理] › [API の制御] › [ドメイン全体の委任を管理] で、そのクライアント ID にこのスコープを追加します。新しい承認が反映されるまで最大 24 時間かかることがあります。",
+      "admin_not_a_user": "{{address}} は組織の Google Workspace ドメインのユーザーではないため、このアドレスとしてディレクトリを一覧表示できません。管理者が「管理 › メール」で管理者のアドレスを修正します。",
+      "directory_refused": "Google のディレクトリを読み取れませんでした: {{reason}} (HTTP {{status}})。",
+      "credential_refused": "Google が組織のサービス アカウントを拒否しました: {{reason}}"
     }
   }
 }
