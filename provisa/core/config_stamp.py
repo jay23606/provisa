@@ -207,7 +207,7 @@ def install(
         _seed(conn, "config_stamp", set(tables.values()) | set(advanced))
     else:
         raise NotImplementedError(
-            f"the config stamp (REQ-1914) is not implemented for a {dialect} control plane; "
+            f"the config stamp is not implemented for a {dialect} control plane; "
             "PostgreSQL, SQLite and (single-process) DuckDB are supported"
         )
 
@@ -223,7 +223,7 @@ async def advance(conn: "Connection", kind: str) -> None:
     )
     if result.rowcount != 1:
         raise RuntimeError(
-            f"config stamp {kind!r} has no row on this control plane (REQ-1914): the plane was "
+            f"config stamp {kind!r} has no row on this control plane: the plane was "
             "set up without it, so no process would learn of this change"
         )
 

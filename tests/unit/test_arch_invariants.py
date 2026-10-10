@@ -173,7 +173,7 @@ class TestReq889MetadataHomeTierInvariant:
             with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
                 yaml.safe_dump(spec, fh)
                 bad = Path(fh.name)
-            with pytest.raises(ValueError, match="REQ-889"):
+            with pytest.raises(ValueError, match="is a compute-only tier addition"):
                 load_profile("native", data_dir=tmp_path, capabilities_path=bad)
 
 

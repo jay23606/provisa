@@ -81,7 +81,7 @@ class CredentialLiteralError(ValueError):
         self.reason = reason
         super().__init__(
             f"{table}.{column} looks like it contains {reason}. A carried field is committed to the "
-            f"environment's git history (REQ-1524), where a credential cannot be taken back -- write "
+            f"environment's git history, where a credential cannot be taken back -- write "
             f"a reference instead: {REFERENCE_FORM}"
         )
 

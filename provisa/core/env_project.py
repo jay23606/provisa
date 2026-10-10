@@ -386,7 +386,7 @@ async def project(conn: "Connection", schema: str) -> dict[str, dict[str, Any]]:
             if path in tree:
                 raise FileLayoutError(
                     f"the command name {row['name']!r} is registered as both a function and a "
-                    f"webhook; REQ-1385 gives commands ONE address space, so the two registries "
+                    f"webhook; commands have ONE address space, so the two registries "
                     f"cannot both claim {path!r}"
                 )
             tree[path] = entity(

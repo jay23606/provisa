@@ -66,7 +66,7 @@ class ModelChangeOutsideScope(RuntimeError):
     def __init__(self, plane: ModelPlane, table: str) -> None:
         super().__init__(
             f"{table} of {plane.org_id}/{plane.env} was written outside a model change scope; "
-            "every model change commits (REQ-1524), so the surface that wrote it opens one "
+            "every model change commits, so the surface that wrote it opens one "
             "(provisa.core.model_change.scope)"
         )
 
