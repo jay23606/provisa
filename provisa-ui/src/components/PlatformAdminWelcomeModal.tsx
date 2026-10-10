@@ -11,7 +11,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Button, Group, List, Modal, Stack, Text, Title } from "@mantine/core";
+import { Button, List, Modal, Stack, Text, Title } from "@mantine/core";
+import { FormFooter } from "./form/FormLayout";
 
 /** Set by LoginPage when POST /auth/claim-bootstrap reports the slot was taken by this sign-in. */
 export const CLAIMED_ADMIN_FLAG = "provisa_claimed_platform_admin";
@@ -75,10 +76,8 @@ export function PlatformAdminWelcomeModal() {
           </Text>
           <Text>{t("platformAdminWelcome.openBody")}</Text>
         </div>
-        <Group justify="flex-end">
-          <Button variant="subtle" onClick={close} data-testid="platform-admin-welcome-dismiss">
-            {t("platformAdminWelcome.dismiss")}
-          </Button>
+        {/* The action first, then the way out: the order of every form’s last row. */}
+        <FormFooter>
           <Button
             data-testid="platform-admin-welcome-team"
             onClick={() => {
@@ -88,7 +87,10 @@ export function PlatformAdminWelcomeModal() {
           >
             {t("platformAdminWelcome.goToTeam")}
           </Button>
-        </Group>
+          <Button variant="subtle" onClick={close} data-testid="platform-admin-welcome-dismiss">
+            {t("platformAdminWelcome.dismiss")}
+          </Button>
+        </FormFooter>
       </Stack>
     </Modal>
   );
