@@ -13,6 +13,7 @@ import {
   SettingsCatalogPanel,
 } from "../SettingField";
 import { networkTransport } from "../settingGroups";
+import { FormLayout } from "../../form/FormLayout";
 import type { CatalogSetting, SettingsCatalog } from "../../../api/admin";
 import * as api from "../../../api/admin";
 
@@ -48,7 +49,12 @@ const num = mk({ key: "limits.engine_query_timeout" });
 const id = (k: string) => `setting-${k}`;
 
 function wrap(ui: React.ReactElement) {
-  return render(<MantineProvider>{ui}</MantineProvider>);
+  // A setting is a field of a form: it is mounted in the layout every form uses.
+  return render(
+    <MantineProvider>
+      <FormLayout>{ui}</FormLayout>
+    </MantineProvider>,
+  );
 }
 const noop = () => {};
 
@@ -118,14 +124,16 @@ describe("SettingField", () => {
     expect(screen.queryByTestId(`${id(num.key)}-restart`)).toBeNull();
     rerender(
       <MantineProvider>
-        <SettingField
-          setting={{ ...num, restart_required: true }}
-          draft="120"
-          error=""
-          cleared={false}
-          onChange={noop}
-          onClear={noop}
-        />
+        <FormLayout>
+          <SettingField
+            setting={{ ...num, restart_required: true }}
+            draft="120"
+            error=""
+            cleared={false}
+            onChange={noop}
+            onClear={noop}
+          />
+        </FormLayout>
       </MantineProvider>,
     );
     expect(screen.getByTestId(`${id(num.key)}-restart`)).toBeInTheDocument();
@@ -145,14 +153,16 @@ describe("SettingField", () => {
     expect(screen.queryByTestId(`${id(num.key)}-source`)).toBeNull();
     rerender(
       <MantineProvider>
-        <SettingField
-          setting={{ ...num, source: "env", stored: null }}
-          draft="120"
-          error=""
-          cleared={false}
-          onChange={noop}
-          onClear={noop}
-        />
+        <FormLayout>
+          <SettingField
+            setting={{ ...num, source: "env", stored: null }}
+            draft="120"
+            error=""
+            cleared={false}
+            onChange={noop}
+            onClear={noop}
+          />
+        </FormLayout>
       </MantineProvider>,
     );
     expect(screen.getByTestId(`${id(num.key)}-source`)).toHaveTextContent(/environment/i);
@@ -291,17 +301,15 @@ describe("SettingField", () => {
 });
 
 describe("CatalogCard", () => {
-  it("lays an ungrouped card out as a container-query grid; lists and maps take the full row", () => {
-    // jsdom does no layout: this proves the structure, not the column count at a given width.
+  it("flows an ungrouped card in the shared form layout; a number is a short field, a list a long one", () => {
+    // jsdom does no layout: this proves the structure, not the row a field lands on at a width.
     const list = mk({ key: "limits.allowed_hosts", type: "list", value: ["a"], stored: ["a"] });
     wrap(<CatalogCard title="Limits" settings={[num, list]} onSave={vi.fn()} />);
     const grid = screen.getByTestId("settings-card-grid");
-    expect(grid.className).toMatch(/SimpleGrid/);
+    expect(grid).toHaveClass("form-layout");
     expect(grid).toContainElement(screen.getByTestId(id(num.key)));
-    expect(screen.getByTestId(`settings-card-grid-full-${list.key}`).style.gridColumn).toBe(
-      "1 / -1",
-    );
-    expect(screen.queryByTestId(`settings-card-grid-full-${num.key}`)).toBeNull();
+    expect(screen.getByTestId(`${id(list.key)}-field`)).toHaveClass("form-field--long");
+    expect(screen.getByTestId(`${id(num.key)}-field`)).toHaveClass("form-field--short");
   });
 
   it("refuses bad numbers before calling save", async () => {
@@ -532,13 +540,13 @@ describe("map settings with map_keys", () => {
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("lays the rows out in columns inside the panel", () => {
+  it("lays the rows out in the shared form layout inside the panel", () => {
     wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
     const grid = screen.getByTestId("setting-limits.request_timeouts-grid");
     for (const k of ["graphql", "flight", "pgwire"]) {
       expect(grid).toContainElement(screen.getByTestId(row(k)));
     }
-    expect(grid.className).toMatch(/SimpleGrid/);
+    expect(grid).toHaveClass("form-layout");
   });
 
   it("opens the panel when one of its rows has an error", async () => {
@@ -705,8 +713,8 @@ describe("network settings grouped by transport", () => {
     expect(flow("general")).toContainElement(screen.getByTestId("setting-server.hostname"));
     expect(flow("general")).toContainElement(screen.getByTestId("setting-tls.cert"));
     expect(flow("grpc")).not.toContainElement(screen.getByTestId("setting-server.flight_port"));
-    // The panel is a container-query grid, so its columns follow the panel's own width.
-    expect(flow("grpc").className).toMatch(/SimpleGrid/);
+    // The panel is the shared form layout, so its rows follow the panel's own width.
+    expect(flow("grpc")).toHaveClass("form-layout");
   });
 
   it("opens the panel of the transport whose setting has an error", async () => {

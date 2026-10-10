@@ -119,7 +119,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/ScheduledTasks.tsx",
   "components/admin/SecretsTab.tsx",
   "components/admin/SecurityTab.tsx",
-  "components/admin/SettingField.tsx",
   "components/admin/SyntheticDatasetsPanel.tsx",
   "components/admin/SyntheticSeedFields.tsx",
   "components/admin/TagsTab.tsx",

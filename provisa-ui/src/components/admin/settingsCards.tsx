@@ -24,7 +24,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsBlocks } from "./useSettingsBlocks";
 import { usePanelState } from "../../hooks/usePanelState";
-import { Check } from "lucide-react";
 import {
   Accordion,
   Alert,
@@ -55,20 +54,17 @@ import {
 } from "../../api/admin";
 import type { PlatformSettings } from "../../api/admin";
 import { ConfigDiffView } from "./ConfigDiffView";
+import { FormFooter } from "../form/FormLayout";
 
 const FORMAT_OPTIONS = ["parquet", "orc", "json", "ndjson", "csv", "arrow"];
 
 const CONVENTIONS = ["snake", "hasura_graphql", "apollo_graphql"] as const;
 
 export function SaveRow({ save, saving, msg }: { save: () => void; saving: boolean; msg: string }) {
-  const { t } = useTranslation();
   return (
-    <Group gap="sm" align="center" mt="sm">
-      <Button variant="filled" leftSection={<Check size={14} />} onClick={save} loading={saving}>
-        {t("adminPage.saveSettings")}
-      </Button>
+    <FormFooter onSave={save} saving={saving} style={{ marginTop: "0.75rem" }}>
       {msg && <Text fz="sm">{msg}</Text>}
-    </Group>
+    </FormFooter>
   );
 }
 

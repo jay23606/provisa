@@ -23,15 +23,12 @@ import {
   Accordion,
   Alert,
   Badge,
-  Box,
   Button,
   Checkbox,
-  Group,
   Loader,
   Modal,
   PasswordInput,
   Select,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -42,10 +39,10 @@ import { fetchSettingsCatalog, updateSettingsCatalog } from "../../api/admin";
 import type { CatalogSetting, SettingsCatalog } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
 import { CARD_GROUPS } from "./settingGroups";
+import { FormChecks, FormField, FormFooter, FormLayout, LabelWithHelp } from "../form/FormLayout";
+import { useHelpNaming } from "../form/useHelpNaming";
 
-const SETTING_COLS = { base: 1, "30rem": 2, "46rem": 3 };
-const FULL_ROW = { gridColumn: "1 / -1" } as const;
-const isFullRow = (s: CatalogSetting) => s.type === "list" || s.type === "map";
+const isLong = (s: CatalogSetting) => s.type === "list" || s.type === "map";
 
 const present = (v: unknown) => v !== null && v !== undefined;
 
@@ -174,38 +171,33 @@ function MapRows({
           <Text fz="xs" c="dimmed" mb="xs">
             {t(`settings.${s.key}.help`)}
           </Text>
-          <SimpleGrid
-            cols={{ base: 1, sm: 2, lg: 3 }}
-            spacing="sm"
-            data-testid={`setting-${s.key}-grid`}
-          >
+          <FormLayout data-testid={`setting-${s.key}-grid`}>
             {keys.map((mk) => {
               const id = `setting-${rowId(s, mk)}`;
               const source = s.sources?.[mk];
               const error = errors[rowId(s, mk)];
               return (
-                <TextInput
-                  key={mk}
-                  label={t(`settings.${s.key}.keys.${mk}`)}
-                  placeholder={toDraft(value[mk], "str")}
-                  description={
-                    source && source !== "stored" ? (
-                      <span data-testid={`${id}-source`}>
-                        {t("adminPage.setting.sourceLabel", {
-                          source: t(`adminPage.setting.source.${source}`),
-                        })}
-                      </span>
-                    ) : undefined
-                  }
-                  value={drafts[rowId(s, mk)] ?? ""}
-                  disabled={!s.editable}
-                  onChange={(e) => onChange(rowId(s, mk), e.currentTarget.value)}
-                  error={error ? <span data-testid={`${id}-error`}>{error}</span> : undefined}
-                  data-testid={id}
-                />
+                <FormField size="short" key={mk}>
+                  <TextInput
+                    label={t(`settings.${s.key}.keys.${mk}`)}
+                    placeholder={toDraft(value[mk], "str")}
+                    value={drafts[rowId(s, mk)] ?? ""}
+                    disabled={!s.editable}
+                    onChange={(e) => onChange(rowId(s, mk), e.currentTarget.value)}
+                    error={error ? <span data-testid={`${id}-error`}>{error}</span> : undefined}
+                    data-testid={id}
+                  />
+                  {source && source !== "stored" && (
+                    <div className="form-status" data-testid={`${id}-source`}>
+                      {t("adminPage.setting.sourceLabel", {
+                        source: t(`adminPage.setting.source.${source}`),
+                      })}
+                    </div>
+                  )}
+                </FormField>
               );
             })}
-          </SimpleGrid>
+          </FormLayout>
         </Accordion.Panel>
       </Accordion.Item>
     </Accordion>
@@ -236,73 +228,107 @@ export function SettingField({
     present(s.stored) &&
     present(s.value) &&
     String(s.stored) !== String(s.value);
-  const description = (
-    <>
-      {t(`settings.${s.key}.help`)}
-      {s.unit && (
-        <Text span fz="xs" c="dimmed" ml={4}>
-          ({s.unit})
-        </Text>
-      )}
+  const help = t(`settings.${s.key}.help`);
+  const { textId, naming } = useHelpNaming(help);
+  const sourceText =
+    s.source !== "stored"
+      ? t("adminPage.setting.sourceLabel", { source: t(`adminPage.setting.source.${s.source}`) })
+      : "";
+  const runningText = showRunning
+    ? t("adminPage.setting.runningValue", { value: toDraft(s.value, s.type) })
+    : "";
+  const reasonText =
+    readOnly && s.readonly_reason ? t(`settings.readonlyReasons.${s.readonly_reason}`) : "";
+  // The name, with its unit, then the (?) that holds the explanation: nothing sits between a
+  // field's label and its control.
+  const name = t(`settings.${s.key}.label`);
+  const label = (
+    <LabelWithHelp label={s.unit ? `${name} (${s.unit})` : name} help={help} textId={textId} />
+  );
+  const canReset = s.editable && s.type !== "secret" && present(s.stored);
+  const reset = canReset && (
+    <Button
+      variant="subtle"
+      size="compact-xs"
+      onClick={onClear}
+      disabled={cleared}
+      data-testid={`${id}-reset`}
+    >
+      {cleared ? t("adminPage.setting.resetPending") : t("adminPage.setting.reset")}
+    </Button>
+  );
+  // Where the value comes from and what a change needs, under the control.
+  const status = (
+    <div className="form-status">
       {s.restart_required && (
-        <Badge size="xs" color="orange" ml={4} data-testid={`${id}-restart`}>
+        <Badge size="xs" color="orange" data-testid={`${id}-restart`}>
           {t("adminPage.setting.restartRequired")}
         </Badge>
       )}
-      {s.source !== "stored" && (
-        <Text span fz="xs" c="dimmed" ml={4} data-testid={`${id}-source`}>
-          {t("adminPage.setting.sourceLabel", {
-            source: t(`adminPage.setting.source.${s.source}`),
-          })}
-        </Text>
+      {sourceText && <span data-testid={`${id}-source`}>{sourceText}</span>}
+      {runningText && <span data-testid={`${id}-running`}>{runningText}</span>}
+      {reasonText && <span data-testid={`${id}-reason`}>{reasonText}</span>}
+      {s.type === "secret" && (
+        <span data-testid={`${id}-secret-state`}>
+          {s.set ? t("adminPage.setting.secretSet") : t("adminPage.setting.secretNotSet")}
+        </span>
       )}
-      {showRunning && (
-        <Text span fz="xs" c="dimmed" ml={4} data-testid={`${id}-running`}>
-          {t("adminPage.setting.runningValue", { value: toDraft(s.value, s.type) })}
-        </Text>
-      )}
-      {readOnly && s.readonly_reason && (
-        <Text span fz="xs" c="dimmed" ml={4} data-testid={`${id}-reason`}>
-          {t(`settings.readonlyReasons.${s.readonly_reason}`)}
-        </Text>
-      )}
-    </>
+      {reset}
+    </div>
   );
-  const label = t(`settings.${s.key}.label`);
 
-  let control: React.ReactNode;
   if (s.type === "bool") {
-    control = (
-      <Checkbox
-        label={label}
-        description={description}
-        checked={draft === "true"}
-        disabled={readOnly}
-        onChange={(e) => onChange(String(e.currentTarget.checked))}
-        error={errorNode}
-        data-testid={id}
-      />
+    // A tick is its label and its (?): what a field shows beneath it is said in the help.
+    const told = [
+      help,
+      s.restart_required ? t("adminPage.setting.restartRequired") : "",
+      sourceText,
+      runningText,
+      reasonText,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <FormField size="short" className="form-field--action">
+        <Checkbox
+          label={<LabelWithHelp label={name} help={told} textId={textId} />}
+          aria-labelledby={textId}
+          aria-description={told}
+          checked={draft === "true"}
+          disabled={readOnly}
+          onChange={(e) => onChange(String(e.currentTarget.checked))}
+          error={errorNode}
+          data-testid={id}
+        />
+        {reset}
+      </FormField>
     );
-  } else if (s.type === "enum") {
-    control = (
-      <Select
-        label={label}
-        description={description}
-        data={s.choices ?? []}
-        value={draft}
-        disabled={readOnly}
-        onChange={(v) => v !== null && onChange(v)}
-        allowDeselect={false}
-        error={errorNode}
-        data-testid={id}
-      />
+  }
+
+  if (s.type === "enum") {
+    return (
+      <FormField size="medium" data-testid={`${id}-field`}>
+        <Select
+          label={label}
+          {...naming}
+          data={s.choices ?? []}
+          value={draft}
+          disabled={readOnly}
+          onChange={(v) => v !== null && onChange(v)}
+          allowDeselect={false}
+          error={errorNode}
+          data-testid={id}
+        />
+        {status}
+      </FormField>
     );
-  } else if (s.type === "secret") {
-    control = (
-      <Stack gap={2}>
+  }
+  if (s.type === "secret") {
+    return (
+      <FormField size="medium" data-testid={`${id}-field`}>
         <PasswordInput
           label={label}
-          description={description}
+          {...naming}
           placeholder={t("adminPage.setting.secretPlaceholder")}
           value={draft}
           disabled={readOnly}
@@ -310,55 +336,43 @@ export function SettingField({
           error={errorNode}
           data-testid={id}
         />
-        <Text fz="xs" data-testid={`${id}-secret-state`}>
-          {s.set ? t("adminPage.setting.secretSet") : t("adminPage.setting.secretNotSet")}
-        </Text>
-      </Stack>
-    );
-  } else if (s.credential) {
-    // A credential field keeps what was typed (a value, or a reference to a secret) and shows
-    // it again, behind the reveal control.
-    control = (
-      <PasswordInput
-        label={label}
-        description={description}
-        value={draft}
-        disabled={readOnly}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        error={errorNode}
-        data-testid={id}
-      />
-    );
-  } else {
-    control = (
-      <TextInput
-        label={label}
-        description={description}
-        value={draft}
-        disabled={readOnly}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        error={errorNode}
-        data-testid={id}
-      />
+        {status}
+      </FormField>
     );
   }
-
-  const canReset = s.editable && s.type !== "secret" && present(s.stored);
+  if (s.credential) {
+    // A credential field keeps what was typed (a value, or a reference to a secret) and shows
+    // it again, behind the reveal control.
+    return (
+      <FormField size="medium" data-testid={`${id}-field`}>
+        <PasswordInput
+          label={label}
+          {...naming}
+          value={draft}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.currentTarget.value)}
+          error={errorNode}
+          data-testid={id}
+        />
+        {status}
+      </FormField>
+    );
+  }
+  // A number is a short field, a list or a document a long one, the rest medium.
+  const size = s.type === "int" || s.type === "float" ? "short" : isLong(s) ? "long" : "medium";
   return (
-    <Stack gap={2}>
-      {control}
-      {canReset && (
-        <Button
-          variant="subtle"
-          size="compact-xs"
-          onClick={onClear}
-          disabled={cleared}
-          data-testid={`${id}-reset`}
-        >
-          {cleared ? t("adminPage.setting.resetPending") : t("adminPage.setting.reset")}
-        </Button>
-      )}
-    </Stack>
+    <FormField size={size} data-testid={`${id}-field`}>
+      <TextInput
+        label={label}
+        {...naming}
+        value={draft}
+        disabled={readOnly}
+        onChange={(e) => onChange(e.currentTarget.value)}
+        error={errorNode}
+        data-testid={id}
+      />
+      {status}
+    </FormField>
   );
 }
 
@@ -499,20 +513,24 @@ export function CatalogCard({
   // A setting has an error when its own field has one or, for a map, when one of its rows has.
   const hasError = (s: CatalogSetting) =>
     Boolean(errors[s.key]) || (rowKeys(s) ?? []).some((mk) => Boolean(errors[rowId(s, mk)]));
-  // Fields flow into columns by the card's own width (a container query), the way the data product
-  // form's panels do; long-valued settings (lists, maps) take the whole row.
+  // The shared form layout: fields in rows by their size, an expandable map on a line of its own,
+  // then the ticks together.
+  const isTick = (s: CatalogSetting) => s.type === "bool";
   const fieldGrid = (list: CatalogSetting[], testId: string) => (
-    <SimpleGrid type="container" cols={SETTING_COLS} spacing="md" data-testid={testId}>
-      {list.map((s) => (
-        <Box
-          key={s.key}
-          style={isFullRow(s) ? FULL_ROW : undefined}
-          data-testid={isFullRow(s) ? `${testId}-full-${s.key}` : undefined}
-        >
-          {field(s)}
-        </Box>
-      ))}
-    </SimpleGrid>
+    <FormLayout data-testid={testId}>
+      {list
+        .filter((s) => !isTick(s))
+        .map((s) =>
+          rowKeys(s) ? (
+            <FormField size="full" key={s.key}>
+              {field(s)}
+            </FormField>
+          ) : (
+            field(s)
+          ),
+        )}
+      {list.some(isTick) && <FormChecks>{list.filter(isTick).map(field)}</FormChecks>}
+    </FormLayout>
   );
   const groups: { id: string; settings: CatalogSetting[] }[] = [];
   if (groupBy) {
@@ -566,14 +584,11 @@ export function CatalogCard({
             settings: (pending?.guarded ?? []).map((k) => t(`settings.${k}.label`)).join(", "),
           })}
         </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setPending(null)}>
-            {t("adminPage.setting.cancel")}
-          </Button>
+        <FormFooter onCancel={() => setPending(null)}>
           <Button onClick={() => pending && send(pending.values, pending.guarded)}>
             {t("adminPage.setting.confirm")}
           </Button>
-        </Group>
+        </FormFooter>
       </Modal>
     </Card>
   );
