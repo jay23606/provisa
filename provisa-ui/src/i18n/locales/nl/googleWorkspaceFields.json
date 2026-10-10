@@ -12,6 +12,7 @@
     "connectFailed": "Het inloggen kon niet worden voltooid.",
     "mailSearch": "Op te nemen e-mail",
     "mailSearchHelp": "Een zoekopdracht precies zoals u die in het zoekvak van Gmail zou typen. Laat leeg voor alle e-mail.",
+    "mailSearchCost": "Een bron die zoekt, wordt bij elke vernieuwing opnieuw volledig gelezen.",
     "mailSince": "Niets ouder dan",
     "mailSinceHelp": "Laat leeg om e-mail van elke datum te lezen.",
     "mailLabels": "Labels",

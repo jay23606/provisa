@@ -12,6 +12,7 @@
     "connectFailed": "The sign-in could not be completed.",
     "mailSearch": "Mail to include",
     "mailSearchHelp": "A search exactly as you would type it in Gmail's search box. Leave empty for all mail.",
+    "mailSearchCost": "A source that searches is read again whole on every refresh.",
     "mailSince": "Nothing older than",
     "mailSinceHelp": "Leave empty to read mail of any age.",
     "mailLabels": "Labels",

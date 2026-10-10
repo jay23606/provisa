@@ -12,6 +12,7 @@
     "connectFailed": "Non è stato possibile completare l’accesso.",
     "mailSearch": "Posta da includere",
     "mailSearchHelp": "Una ricerca esattamente come la scriveresti nella casella di ricerca di Gmail. Lascia vuoto per tutta la posta.",
+    "mailSearchCost": "Un’origine che usa una ricerca viene riletta per intero a ogni aggiornamento.",
     "mailSince": "Niente di più vecchio di",
     "mailSinceHelp": "Lascia vuoto per leggere posta di qualsiasi data.",
     "mailLabels": "Etichette",

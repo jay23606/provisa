@@ -373,6 +373,24 @@ describe("what a Google Workspace setup saves", () => {
   });
 });
 
+describe("what a search costs", () => {
+  it("is said under the field once a search is typed, in place of how to write one", async () => {
+    form({ ...FILLED, gw_whose: "one" });
+    await connectReady();
+    expect(screen.getByText(en.googleWorkspaceFields.mailSearchHelp)).toBeInTheDocument();
+    expect(screen.queryByText(en.googleWorkspaceFields.mailSearchCost)).toBeNull();
+  });
+
+  it("a source that searches is read again whole on every refresh", async () => {
+    form({ ...FILLED, gw_whose: "one", gw_mail_search: "from:orders@example.com" });
+    await connectReady();
+    expect(screen.getByText(en.googleWorkspaceFields.mailSearchCost)).toHaveTextContent(
+      "A source that searches is read again whole on every refresh.",
+    );
+    expect(screen.queryByText(en.googleWorkspaceFields.mailSearchHelp)).toBeNull();
+  });
+});
+
 describe("what the form offers follows what the organisation's Google entry can do", () => {
   // `admin`: whether the person at the form may set the entry up (Admin › Email).
   const entry = (configured: boolean, organisation_mailboxes: boolean, admin = false) => ({
