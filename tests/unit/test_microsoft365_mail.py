@@ -1218,3 +1218,88 @@ def test_what_changed_since_skips_a_folder_removed_and_keeps_no_link_for_it():
     _refuses(fake, f"/mailFolders/{_SENT}/messages/delta", "ErrorFolderNotFound")
     (unit,) = _units(mailbox, kept)
     assert unit.last and set(unit.links) == {_INBOX, mail.MAILBOX}
+
+
+# --------------------------------------------- nothing received before a date
+
+
+def _since(day: int):
+    import datetime as dt
+
+    return dt.date(2026, 1, day)
+
+
+def test_a_first_read_holds_nothing_received_before_the_date():
+    """Message n was received on 2026-01-0n. With the date at the 2nd, message 1 is not held
+    in any table, by a whole read or by a read in units."""
+    mailbox, _ = _mailbox(_two_folders(), since=_since(2))
+    assert sorted(r["id"] for r in _all(mailbox, "messages")) == ["m2", "m3"]
+    assert {r["message_id"] for r in _all(mailbox, "message_recipients")} == {"m2", "m3"}
+    units = _units(mailbox)
+    for table, key in (("messages", "id"), ("message_recipients", "message_id")):
+        assert {r[key] for u in units for r in u.rows.get(table, [])} == {"m2", "m3"}
+    assert {r["message_id"] for u in units for r in u.rows.get("message_folders", [])} == {
+        "m2",
+        "m3",
+    }
+
+
+def test_a_message_received_on_the_date_itself_is_held():
+    mailbox, _ = _mailbox(_two_folders(), since=_since(1))
+    assert sorted(r["id"] for r in _all(mailbox, "messages")) == ["m1", "m2", "m3"]
+
+
+def test_threads_are_counted_from_the_messages_held():
+    mailbox, _ = _mailbox(_two_folders(), since=_since(3))
+    (whole,) = _all(mailbox, "threads")
+    assert whole["message_count"] == 1
+    (row,) = _units(mailbox)[-1].rows["threads"]
+    assert row["message_count"] == 1
+
+
+def test_what_changed_holds_nothing_received_before_the_date():
+    """An older message that changes (it is read, or moved) is still not one this source
+    holds; a new one is. Its thread is counted from the messages held."""
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    kept = _links(_units(mailbox))
+    old_changed = _message(1, subject="touched")
+    new = _message(4)
+    fake.since = {f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [old_changed, new]}
+    fake.table.update(_html(4))
+    fake.now = [[old_changed, _message(2, parentFolderId=_SENT), new]]
+    (unit,) = _units(mailbox, kept)
+    assert [r["id"] for r in unit.rows["messages"]] == ["m4"]
+    assert {r["message_id"] for r in unit.rows["message_recipients"]} == {"m4"}
+    (thread,) = unit.rows["threads"]
+    assert thread["message_count"] == 2  # m2 and m4; m1 is not held
+
+
+def test_a_removal_is_passed_on_whatever_the_removed_messages_age():
+    """A removed message says only its id. Removing a row that was never held changes nothing,
+    so the removal is applied as it comes."""
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    kept = _links(_units(mailbox))
+    fake.since = {
+        f"{ROOT}/mailFolders/{_INBOX}/messages/delta": [
+            {"id": "m1", "@removed": {"reason": "deleted"}}
+        ]
+    }
+    (unit,) = _units(mailbox, kept)
+    assert unit.removed["messages"] == [_mine(id="m1")]
+
+
+def test_a_source_with_no_date_holds_mail_of_any_age():
+    mailbox, _ = _mailbox(_two_folders())
+    assert sorted(r["id"] for u in _units(mailbox) for r in u.rows.get("messages", [])) == [
+        "m1",
+        "m2",
+        "m3",
+    ]
+
+
+def test_every_message_is_asked_for_and_the_older_ones_left_out_here():
+    """Graph's change tracking takes a filter on the received time, but then gives only up to
+    5,000 messages of a folder: it is not used, so a large folder is not cut short."""
+    mailbox, fake = _mailbox(_two_folders(), since=_since(2))
+    _units(mailbox)
+    assert _rounds(fake) and not any("$filter" in c[2] or "filter" in c[1] for c in _rounds(fake))

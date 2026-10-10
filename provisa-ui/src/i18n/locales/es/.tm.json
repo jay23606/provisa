@@ -1842,6 +1842,8 @@
   "es/microsoft365Fields.json::microsoft365Fields.groupHelp": "The group's address, or its ID as Microsoft Entra shows it. Members of groups inside it are included.",
   "es/microsoft365Fields.json::microsoft365Fields.list": "Mailbox addresses",
   "es/microsoft365Fields.json::microsoft365Fields.listHelp": "One address per line.",
+  "es/microsoft365Fields.json::microsoft365Fields.mailSince": "Nothing older than",
+  "es/microsoft365Fields.json::microsoft365Fields.mailSinceHelp": "Leave empty to read mail of any age.",
   "es/microsoft365Fields.json::microsoft365Fields.notAllowed": "Your organization has not allowed sources that read its mailboxes.",
   "es/microsoft365Fields.json::microsoft365Fields.notAllowedAsk": "Your organization has not allowed sources that read its mailboxes. Ask an administrator to allow it under {{where}}.",
   "es/microsoft365Fields.json::microsoft365Fields.notSetUp": "Your organization has not connected Microsoft 365 yet.",

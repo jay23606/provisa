@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/render";
 import en from "../../../i18n/locales/en/microsoft365Fields.json";
+import google from "../../../i18n/locales/en/googleWorkspaceFields.json";
 import { BRAND_CARRIER, SOURCE_TYPES } from "../constants";
 import { SourceFormFieldsExtended } from "../SourceFormFieldsExtended";
 import type { SourceFormFieldsProps } from "../SourceFormFields";
@@ -241,6 +242,54 @@ describe("the source's mapping", () => {
     const fields = m365FieldsFromMapping(JSON.stringify(stored));
     expect(fields.m365_connected_as).toBe("megan@contoso.test");
     expect(m365Mapping({ ...FILLED, ...fields })).toEqual(stored);
+  });
+});
+
+describe("nothing received before a date", () => {
+  it.each([[FILLED], [{ m365_whose: "organisation" }]])(
+    "offers the date and keeps what is typed, whichever mailboxes are read (%j)",
+    async (whose) => {
+      const setAuthFields = form(whose);
+      const field = await screen.findByTestId("microsoft-365-m365_mail_since");
+      expect(field).toHaveAttribute("type", "date");
+      fireEvent.change(field, { target: { value: "2026-10-01" } });
+      expect(setAuthFields).toHaveBeenCalledWith({ ...whose, m365_mail_since: "2026-10-01" });
+    },
+  );
+
+  it("is the source's mail_since, as a Google Workspace source's is, for either shape", () => {
+    const one = m365Mapping({ ...FILLED, m365_mail_since: "2026-10-01" });
+    expect(one).toEqual({
+      accounts: ["megan@contoso.test"],
+      resources: ["mail"],
+      mail_since: "2026-10-01",
+    });
+    const organisation = m365Mapping({
+      m365_whose: "organisation",
+      m365_choice: "everyone",
+      m365_mail_since: "2026-10-01",
+    });
+    expect(organisation).toEqual({
+      resources: ["mail"],
+      mailboxes: { everyone: true },
+      mail_since: "2026-10-01",
+    });
+    // A stored source shows its date again, whichever shape it is.
+    expect(m365FieldsFromMapping(JSON.stringify(one)).m365_mail_since).toBe("2026-10-01");
+    expect(m365FieldsFromMapping(JSON.stringify(organisation)).m365_mail_since).toBe("2026-10-01");
+  });
+
+  it("left empty, the source states no date and holds mail of any age", () => {
+    expect(m365Mapping(FILLED)).toEqual({ accounts: ["megan@contoso.test"], resources: ["mail"] });
+    expect(m365Mapping({ ...FILLED, m365_mail_since: "" })).not.toHaveProperty("mail_since");
+    expect(m365FieldsFromMapping(JSON.stringify(m365Mapping(FILLED)))).not.toHaveProperty(
+      "m365_mail_since",
+    );
+  });
+
+  it("is worded as the Google source's field is", () => {
+    expect(en.microsoft365Fields.mailSince).toBe(google.googleWorkspaceFields.mailSince);
+    expect(en.microsoft365Fields.mailSinceHelp).toBe(google.googleWorkspaceFields.mailSinceHelp);
   });
 });
 

@@ -26,6 +26,7 @@ What Graph gives and how it is asked:
 
 from __future__ import annotations
 
+import datetime as dt
 import logging
 from collections.abc import Iterator
 from typing import Any
@@ -333,16 +334,35 @@ def _nothing_since(answer: Any) -> bool:
 class Mailbox:
     """One account's mail, read through Graph."""
 
-    def __init__(self, graph: Graph, account: str, *, page_size: int = PAGE_SIZE) -> None:
+    def __init__(
+        self,
+        graph: Graph,
+        account: str,
+        *,
+        page_size: int = PAGE_SIZE,
+        since: dt.date | None = None,
+    ) -> None:
         # Every request of this mailbox's reader counts against the mailbox, whatever its
         # address looks like (Graph's four concurrent requests for an app and a mailbox).
         self._graph = graph.for_mailbox(account)
         self.account = account.lower()
         self._root = f"/users/{quote(account, safe='@')}"
         self._page_size = page_size
+        #: Nothing received before this date is held; None: mail of any age. Graph's change
+        #: tracking of a folder takes a filter on the received time but then "returns only up
+        #: to 5,000 messages" (Microsoft Graph, "Get incremental changes to messages in a
+        #: folder"), which would cut a folder short without saying so. So every message is
+        #: asked for and the older ones are left out here.
+        self._not_before = None if since is None else since.isoformat()
         #: Where the last whole read of the messages reached: a link for each folder, by its
         #: id, and one for the list of folders (:data:`MAILBOX`). None until such a read ends.
         self.links: dict[str, str] | None = None
+
+    def _held(self, message: dict) -> bool:
+        """Whether ``message`` is one this source holds: received on or after its date. A
+        message Graph gives no received time for was not received before anything."""
+        received = message.get("receivedDateTime")
+        return self._not_before is None or received is None or received[:10] >= self._not_before
 
     def _messages(self, fields: str, *, prefer: tuple[str, ...]) -> Iterator[list[dict]]:
         """Every message of the mailbox, a page at a time, read folder by folder as the first
@@ -366,7 +386,11 @@ class Mailbox:
             try:
                 for page in changes:
                     # A first round has no removals; one replayed into it is not a message.
-                    fresh = [m for m in page if "@removed" not in m and m["id"] not in seen]
+                    fresh = [
+                        m
+                        for m in page
+                        if "@removed" not in m and m["id"] not in seen and self._held(m)
+                    ]
                     seen.update(m["id"] for m in fresh)
                     if fresh:
                         yield fresh
@@ -633,7 +657,9 @@ class Mailbox:
             changes = self._round(folder, None, whole)
             try:
                 for page in changes:
-                    page = [m for m in page if "@removed" not in m]  # a first round removes none
+                    # A first round removes none; a message older than the source's date is
+                    # not held.
+                    page = [m for m in page if "@removed" not in m and self._held(m)]
                     if not page:
                         continue
                     rows, removed = self._changes(tables, page, unread)
@@ -668,7 +694,7 @@ class Mailbox:
                     for message in page:
                         if "@removed" in message:
                             gone.add(message["id"])
-                        else:
+                        elif self._held(message):
                             changed[message["id"]] = message
             except GraphRefused as refused:
                 if not not_there(refused):
@@ -721,6 +747,7 @@ class Mailbox:
                 prefer=(IMMUTABLE_IDS,),
             )
             for m in page
+            if self._held(m)  # a thread is counted from the messages the source holds
         ]
 
     def _attachments(self, message_id: str) -> list[dict[str, Any]]:

@@ -61,6 +61,8 @@ def test_the_settings_a_source_keeps():
         ({"resources": []}, "what is read"),
         ({"resources": ["calendar"]}, "cannot read calendar"),
         ({"refresh_token": 7}, "is text"),
+        ({"mail_since": "10/01/2026"}, "mail_since must be a date as YYYY-MM-DD"),
+        ({"mail_since": 20261001}, "mail_since must be a date as YYYY-MM-DD"),
         ({"client_secret": "x"}, "unknown setting"),
     ],
 )
@@ -374,3 +376,19 @@ def test_a_whole_build_stamps_every_row_with_when_it_landed(signed_in, monkeypat
     stamps = {row[cm.LANDED_AT] for _table, rows in landed for row in rows}
     assert len(stamps) == 1 and None not in stamps
     assert [table for table, _ in landed] == ["messages", "message_recipients"]
+
+
+def test_a_source_may_state_a_date_before_which_nothing_received_is_held():
+    """``mail_since``, as a Google Workspace source states it: a date as YYYY-MM-DD, for one
+    mailbox or the organisation's. Left out, or empty, the source holds mail of any age."""
+    import datetime as dt
+
+    from provisa.google_workspace import settings as google
+
+    assert parse(GOOD).since is None
+    assert parse({**GOOD, "mail_since": ""}).since is None
+    assert parse({**GOOD, "mail_since": "2026-10-01"}).since == dt.date(2026, 10, 1)
+    organisation = {"resources": ["mail"], "mailboxes": {"everyone": True}}
+    assert parse({**organisation, "mail_since": " 2026-10-01 "}).since == dt.date(2026, 10, 1)
+    # The same name the Google source's setting has.
+    assert "mail_since" in google._MAIL_KEYS

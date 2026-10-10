@@ -99,9 +99,15 @@ def _secrets(token: directory.ClientToken) -> tuple[str, str]:
     return os.environ["M365_CLIENT_SECRET"], token()
 
 
-def _read(accounts: tuple[str, ...], token: directory.ClientToken, kept: list | None = None):
+def _read(
+    accounts: tuple[str, ...],
+    token: directory.ClientToken,
+    kept: list | None = None,
+    since=None,
+):
     """One group read of ``accounts``: (rows per table as arrow batches, the build's notes).
-    With ``kept``, the read is then told its build completed, and what it keeps is added."""
+    With ``kept``, the read is then told its build completed, and what it keeps is added.
+    With ``since`` (a date), nothing received before it is held."""
 
     async def keep(rows):
         assert kept is not None
@@ -109,7 +115,12 @@ def _read(accounts: tuple[str, ...], token: directory.ClientToken, kept: list | 
 
     async def connect(_source):
         return loader.Reading(
-            accounts, token, organisation=True, at_once=2, keep=None if kept is None else keep
+            accounts,
+            token,
+            organisation=True,
+            at_once=2,
+            keep=None if kept is None else keep,
+            since=since,
         )
 
     load = loader.make_microsoft365_loader(connect)
@@ -166,6 +177,36 @@ def test_one_read_of_a_mailbox_feeds_the_five_tables_with_the_canonical_columns(
         assert counts[table] > 0, f"{table}: no rows from a mailbox said to hold a message"
     assert counts["threads"] <= counts["messages"]
     assert not [n for n in notes if n.code == MAILBOXES_LEFT_OUT], "the test mailbox was left out"
+
+
+def test_nothing_received_before_the_sources_date_is_held(token):
+    """``mail_since``: with the date set at the received day of the mailbox's newest message,
+    every message held was received on or after it, the older ones are in no table, and a
+    date after every message holds none. Written against the reader; not run here."""
+    import datetime as dt
+
+    account = _inside()[0]
+    everything, _notes = _read((account,), token)
+    received = sorted(
+        row["received_at"]
+        for batch in everything["messages"]
+        for row in batch.to_pylist()
+        if row["received_at"] is not None
+    )
+    assert received, "the test mailbox holds no message with a received time"
+    newest = received[-1].date()
+    held, _notes = _read((account,), token, since=newest)
+    rows = [row for batch in held["messages"] for row in batch.to_pylist()]
+    assert rows, "the newest message is received on the date itself, and is held"
+    assert all(r["received_at"] is None or r["received_at"].date() >= newest for r in rows)
+    ids = {row["id"] for row in rows}
+    for table in ("message_recipients", "message_folders", "attachments"):
+        others = {r["message_id"] for b in held[table] for r in b.to_pylist()}
+        assert others <= ids, f"{table}: rows of a message older than the date"
+    assert sum(r["message_count"] for b in held["threads"] for r in b.to_pylist()) == len(rows)
+    print(f"held with mail_since={newest}: {len(rows)} of {len(received)} messages")
+    none, _notes = _read((account,), token, since=newest + dt.timedelta(days=1))
+    assert sum(b.num_rows for b in none["messages"]) == 0
 
 
 # The outside mailbox is optional: the test exists only when one is named. It is not a skip,
