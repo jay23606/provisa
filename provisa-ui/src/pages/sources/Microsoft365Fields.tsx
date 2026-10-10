@@ -87,6 +87,27 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
     };
   }, [refused]);
 
+  // Whether this mailbox's owner has signed in is the server's to say: it keeps the approval.
+  const account = (fields.m365_account ?? "").trim();
+  useEffect(() => {
+    if (!sourceId.trim() || !account) return;
+    let live = true;
+    signInStatus(MICROSOFT_365, { source_id: sourceId, account })
+      .then((answered) => {
+        if (!live || !answered.connected) return;
+        setFields({
+          ...fields,
+          m365_connected_as: account,
+          m365_connected_at: answered.connected_at ?? "",
+        });
+      })
+      .catch(() => undefined); // the organisation's status above already says what is wrong
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked when the mailbox named changes
+  }, [sourceId, account]);
+
   const connect = async () => {
     setProblem("");
     setConnecting(true);
@@ -99,8 +120,9 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
       });
       setFields({
         ...fields,
-        m365_refresh_token: done.refresh_token,
         m365_connected_as: done.account,
+        m365_connected_at: new Date().toISOString(),
+        m365_earlier_approval: "", // superseded by the approval just given
       });
     } catch (err) {
       setProblem(refused(err));
@@ -164,8 +186,9 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
                   setFields({
                     ...fields,
                     m365_account: e.currentTarget.value,
-                    m365_refresh_token: "",
+                    m365_earlier_approval: "",
                     m365_connected_as: "",
+                    m365_connected_at: "",
                   })
                 }
                 data-testid="microsoft-365-m365_account"
@@ -316,10 +339,15 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
           </Group>
         </FormField>
       )}
-      {!organisation && !notSetUp && fields.m365_connected_as && fields.m365_refresh_token && (
+      {!organisation && !notSetUp && fields.m365_connected_as && (
         <FormField size="full">
           <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-connected">
-            {t("microsoft365Fields.connected", { account: fields.m365_connected_as })}
+            {fields.m365_connected_at
+              ? t("microsoft365Fields.connectedOn", {
+                  account: fields.m365_connected_as,
+                  date: new Date(fields.m365_connected_at).toLocaleDateString(),
+                })
+              : t("microsoft365Fields.connected", { account: fields.m365_connected_as })}
           </Alert>
         </FormField>
       )}

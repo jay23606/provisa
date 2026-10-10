@@ -706,7 +706,13 @@ async def test_the_form_is_told_whether_the_organisation_shape_is_allowed(check,
         check.plane, platform=SOURCE_TYPE, settings={"tenant": TENANT}, organisation_mailboxes=True
     )
     answered = await sign_in.status(None, SOURCE_TYPE)
-    assert answered == {"configured": True, "may_configure": False, "organisation_mailboxes": True}
+    assert answered == {
+        "connected": False,  # asked of no mailbox
+        "connected_at": None,
+        "configured": True,
+        "may_configure": False,
+        "organisation_mailboxes": True,
+    }
 
 
 def test_mailboxes_at_once_is_a_live_operator_setting():

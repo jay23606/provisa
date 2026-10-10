@@ -119,7 +119,8 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       });
       setFields({
         ...fields,
-        gw_refresh_token: done.refresh_token,
+        // The approval is kept by the server; gmail's reader takes it from there next.
+        gw_refresh_token: "",
         gw_connected_as: done.account,
       });
     } catch (err) {

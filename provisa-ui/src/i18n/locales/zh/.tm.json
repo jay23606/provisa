@@ -1876,6 +1876,7 @@
   "zh/microsoft365Fields.json::microsoft365Fields.connect": "Connect Microsoft account",
   "zh/microsoft365Fields.json::microsoft365Fields.connectFailed": "The sign-in could not be completed.",
   "zh/microsoft365Fields.json::microsoft365Fields.connected": "Connected as {{account}}",
+  "zh/microsoft365Fields.json::microsoft365Fields.connectedOn": "Connected as {{account}} on {{date}}",
   "zh/microsoft365Fields.json::microsoft365Fields.everyMailbox": "One table holds every mailbox's rows. A role that may read the table reads every mailbox, unless a row rule on the account column says otherwise.",
   "zh/microsoft365Fields.json::microsoft365Fields.found": "Mailboxes found: {{count}}",
   "zh/microsoft365Fields.json::microsoft365Fields.group": "Group",

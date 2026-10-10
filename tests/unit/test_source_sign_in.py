@@ -161,6 +161,25 @@ def _asked(started) -> dict[str, str]:
     return {k: v[0] for k, v in parse_qs(urlsplit(started.authorization_url).query).items()}
 
 
+#: The approvals kept for (source, account): what stands in for the organisation's state store.
+GRANTS: dict[tuple[str, str], str] = {}
+
+
+@pytest.fixture(autouse=True)
+def _no_grants():
+    GRANTS.clear()
+    yield
+    GRANTS.clear()
+
+
+async def _keep_grant(source_id: str, account: str, refresh_token: str) -> None:
+    GRANTS[(source_id, account)] = refresh_token
+
+
+async def _forget_grant(source_id: str, account: str) -> None:
+    GRANTS.pop((source_id, account), None)
+
+
 async def _complete(control_plane, vault, state, **changed):
     given = {
         "org_id": ORG,
@@ -168,6 +187,7 @@ async def _complete(control_plane, vault, state, **changed):
         "state": state,
         "code": CODE,
         "error": None,
+        "keep_grant": _keep_grant,
     }
     given.update(changed)
     return await source_sign_in.complete(control_plane, **given)
@@ -293,7 +313,7 @@ class TestStart:
 
 
 class TestComplete:
-    async def test_the_code_is_exchanged_with_the_verifier_and_the_token_goes_to_the_vault(
+    async def test_the_code_is_exchanged_with_the_verifier_and_the_approval_is_kept_as_state(
         self, control_plane, vault, issuer
     ):
         asked = _asked(await _start(control_plane, vault))
@@ -307,20 +327,16 @@ class TestComplete:
             hashlib.sha256(form["code_verifier"].encode()).digest()
         )
         assert sent_challenge.rstrip(b"=").decode() == asked["code_challenge"]
-        # The approval the issuer gave is the answer's: the value the source's field then
-        # holds. Nothing is written anywhere on the operator's behalf.
+        # The approval the issuer gave is sign-in state: kept for the source's account, in no
+        # vault and in no answer.
         assert vault == {}
-        assert done == source_sign_in.Completed(
-            source_id="mail", account=ACCOUNT, refresh_token=REFRESH
-        )
+        assert GRANTS == {("mail", ACCOUNT): REFRESH}
+        assert done == source_sign_in.Completed(source_id="mail", account=ACCOUNT)
 
-    async def test_what_it_answers_carries_the_approval_and_no_other_credential(
-        self, control_plane, vault, issuer
-    ):
+    async def test_what_it_answers_carries_no_credential(self, control_plane, vault, issuer):
         asked = _asked(await _start(control_plane, vault))
         done = await _complete(control_plane, vault, asked["state"])
-        assert done.refresh_token == REFRESH
-        assert not any(secret in repr(done) for secret in (CLIENT_SECRET, CODE, ACCESS))
+        assert not any(secret in repr(done) for secret in (REFRESH, CLIENT_SECRET, CODE, ACCESS))
 
     async def test_a_state_is_good_once(self, control_plane, vault, issuer):
         state = _asked(await _start(control_plane, vault))["state"]
@@ -480,26 +496,57 @@ class TestAnIssuerWhoseAddressesDependOnTheSource:
 
 
 class TestWhereTheRefreshTokenGoes:
-    async def test_it_is_the_answers_and_nothing_is_written_for_it(
+    async def test_it_is_kept_as_sign_in_state_and_nowhere_else(self, control_plane, vault, issuer):
+        state = _asked(await _start(control_plane, vault))["state"]
+        done = await _complete(control_plane, vault, state)
+        assert GRANTS == {("mail", ACCOUNT): REFRESH}
+        assert vault == {} and REFRESH not in repr(done)
+        assert not any(
+            REFRESH in str(value) for row in _rows(control_plane) for value in row.values()
+        )
+
+    async def test_a_refused_sign_in_keeps_nothing(self, control_plane, vault, issuer):
+        state = _asked(await _start(control_plane, vault))["state"]
+        with pytest.raises(SignInRefused):
+            await _complete(control_plane, vault, state, code=None, error="access_denied")
+        assert GRANTS == {}
+
+    async def test_an_approval_that_cannot_be_kept_fails_the_sign_in(
         self, control_plane, vault, issuer
     ):
+        async def refuse(*_: str) -> None:
+            raise RuntimeError("the state store cannot be written")
+
         state = _asked(await _start(control_plane, vault))["state"]
-        done = await source_sign_in.complete(
-            control_plane, org_id=ORG, user_id=USER, state=state, code=CODE, error=None
-        )
-        assert done.refresh_token == REFRESH and vault == {}
+        with pytest.raises(RuntimeError, match="cannot be written"):
+            await _complete(control_plane, vault, state, keep_grant=refuse)
 
 
 # -- sign-ins that came to nothing --------------------------------------------------------------
 
 
 class TestSweep:
-    """Only a sign-in's own row is swept. Nothing of the operator's is removed."""
+    """A sign-in's own row is swept, and the approval it kept only while no source of its id
+    was saved. Nothing of the operator's is removed."""
+
+    #: The sources that exist, by id.
+    saved: set[str]
 
     @pytest.fixture
     def swept(self, control_plane, vault):
+        self.saved = set()
+
+        async def exists(source_id: str) -> bool:
+            return source_id in self.saved
+
         async def run() -> None:
-            await source_sign_in.sweep(control_plane, org_id=ORG, env=ENV)
+            await source_sign_in.sweep(
+                control_plane,
+                org_id=ORG,
+                env=ENV,
+                source_exists=exists,
+                forget_grant=_forget_grant,
+            )
 
         return run
 
@@ -529,9 +576,34 @@ class TestSweep:
         self._later(monkeypatch, 3600)
         await swept()
         assert len(_rows(control_plane)) == 1
+        assert GRANTS == {("mail", ACCOUNT): REFRESH}
         self._later(monkeypatch, 24 * 3600 + 1)
         await swept()
         assert _rows(control_plane) == [] and vault == {}
+        # Its source was never saved: the approval kept for it goes with the sign-in.
+        assert GRANTS == {}
+
+    async def test_the_approval_of_a_source_that_was_saved_stands(
+        self, control_plane, vault, issuer, swept, monkeypatch
+    ):
+        state = _asked(await _start(control_plane, vault))["state"]
+        await _complete(control_plane, vault, state)
+        self.saved.add("mail")
+        self._later(monkeypatch, 24 * 3600 + 1)
+        await swept()
+        assert _rows(control_plane) == []
+        assert GRANTS == {("mail", ACCOUNT): REFRESH}
+
+    async def test_an_approval_is_not_forgotten_while_its_source_is_being_signed_in_again(
+        self, control_plane, vault, issuer, swept, monkeypatch
+    ):
+        state = _asked(await _start(control_plane, vault))["state"]
+        await _complete(control_plane, vault, state)
+        self._later(monkeypatch, 24 * 3600 + 1)
+        await _start(control_plane, vault)  # the operator signs the same source in again
+        await swept()
+        assert len(_rows(control_plane)) == 1
+        assert GRANTS == {("mail", ACCOUNT): REFRESH}
 
     async def test_a_source_being_signed_in_again_keeps_its_new_sign_in(
         self, control_plane, vault, issuer, swept, monkeypatch

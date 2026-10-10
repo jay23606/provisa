@@ -6,6 +6,7 @@
     "readsMailHelp": "Messages, folders and attachment details of this mailbox. Nothing is changed in it.",
     "connect": "Connect Microsoft account",
     "connected": "Connected as {{account}}",
+    "connectedOn": "Connected as {{account}} on {{date}}",
     "connectFailed": "The sign-in could not be completed.",
     "notSetUp": "Your organization has not connected Microsoft 365 yet.",
     "setUpLink": "Set it up under {{where}}",

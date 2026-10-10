@@ -47,7 +47,6 @@ MAY_SPELL = frozenset(
 
 #: Known offenders, each being removed. file -> why it is still here.
 STILL_TO_REMOVE: dict[str, str] = {
-    "provisa/api_source/oauth_store.py": "writes a replaced refresh token to the vault",
     "provisa/api/admin/schema_common.py": "reads the Kaggle token under a name the product chose",
     "provisa/api/mcp/tools.py": "reads the Kaggle token under a name the product chose",
     "provisa/google_sheets/source.py": "builds a reference from a key name",

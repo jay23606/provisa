@@ -27,8 +27,10 @@ TENANT = "0a1b2c3d-1111-2222-3333-444455556666"
 GOOD = {
     "accounts": ["megan@contoso.com"],
     "resources": ["mail"],
-    "refresh_token": "${secret:source_m365_refresh_token}",
 }
+#: A source connected before approvals were kept in the state store: it still names its
+#: owner's approval by a reference of that time.
+EARLIER = {**GOOD, "refresh_token": "${secret:source_m365_refresh_token}"}
 
 
 # -------------------------------------------------------------------------------- settings
@@ -37,10 +39,11 @@ GOOD = {
 def test_the_settings_a_source_keeps():
     read = parse(GOOD)
     assert read.account == "megan@contoso.com" and read.resources == ("mail",)
-    # The owner's approval as the field holds it: the token the sign-in gave, or a reference
-    # the operator typed. Either is kept as it is.
-    assert read.refresh_token == GOOD["refresh_token"]
-    assert parse({**GOOD, "refresh_token": "a-token-as-given"}).refresh_token == "a-token-as-given"
+    # The owner's approval is sign-in state and no setting of the source. Only a source
+    # connected before that still names one, and it is read as it stands.
+    assert read.refresh_token is None
+    assert parse(EARLIER).refresh_token == EARLIER["refresh_token"]
+    assert parse({**GOOD, "refresh_token": " "}).refresh_token is None
     assert read.scopes() == [
         "https://graph.microsoft.com/Mail.Read",
         "offline_access",
@@ -57,7 +60,7 @@ def test_the_settings_a_source_keeps():
         ({"accounts": ["not an address"]}, "not a mailbox address"),
         ({"resources": []}, "what is read"),
         ({"resources": ["calendar"]}, "cannot read calendar"),
-        ({"refresh_token": ""}, "not connected"),
+        ({"refresh_token": 7}, "is text"),
         ({"client_secret": "x"}, "unknown setting"),
     ],
 )
@@ -73,10 +76,12 @@ def test_a_save_is_refused_in_the_setups_terms():
     def source(mapping) -> SimpleNamespace:
         return SimpleNamespace(id="m365", type=SOURCE_TYPE, mapping_json=json.dumps(mapping))
 
-    refused = microsoft_365_refusal(source({**GOOD, "refresh_token": ""}))
+    refused = microsoft_365_refusal(source({**GOOD, "accounts": []}))
     assert refused is not None and refused.code == "schema.microsoft_365_invalid"
-    assert "not connected" in refused.message and refused.params["source"] == "m365"
+    assert "one mailbox" in refused.message and refused.params["source"] == "m365"
+    # A source is saved before or after its owner signs in: the approval is no part of it.
     assert microsoft_365_refusal(source(GOOD)) is None
+    assert microsoft_365_refusal(source(EARLIER)) is None
     other = SimpleNamespace(id="pg", type="postgresql", mapping_json="{}")
     assert microsoft_365_refusal(other) is None
 
@@ -123,14 +128,31 @@ def test_the_person_is_offered_the_account_the_source_names():
 
 
 @pytest.fixture
-def signed_in(monkeypatch):
-    """What `connect` reaches: the organisation's client, its vault, and the exchange."""
+def signed_in(monkeypatch, tmp_path):
+    """What `connect` reaches: the organisation's client, its vault, its state store (where
+    the owner's approval is kept) and the exchange."""
     from contextlib import asynccontextmanager
 
-    from provisa.api_source import oauth_grants
-    from provisa.core import request_context, secrets_store
+    from provisa.api_source import oauth_grants, oauth_store
+    from provisa.core import config_loader, config_location, request_context, secrets_store
+    from provisa.core.database import Database, create_engine_from_url
+    from provisa.core.schema_org import mail_sync_state as table
+    from provisa.core.schema_org import metadata
 
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
+    with engine.begin() as conn:
+        metadata.create_all(conn, tables=[table])
     calls = SimpleNamespace(required=[], exchanged=[], resolved=[], bound=[])
+    calls.state = SimpleNamespace(admin_db=object(), tenant_db=Database(engine, name="state"))
+    oauth_store._held.clear()
+    monkeypatch.setattr(config_location, "config_path_str", lambda: "provisa.yaml")
+    monkeypatch.setattr(
+        config_loader,
+        "load_control_plane",
+        lambda path: SimpleNamespace(
+            resolved_platform_url=lambda: f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
+        ),
+    )
 
     async def require(admin_db, org_id, platform_id):
         calls.required.append((org_id, platform_id))
@@ -140,8 +162,10 @@ def signed_in(monkeypatch):
 
     def exchange_refresh_token(auth):
         calls.exchanged.append(auth)
-        # Microsoft answers with a newer refresh token; it is not kept anywhere.
-        return oauth_grants.RefreshGrant("access-1", 3600.0, "rt-replacement")
+        # Microsoft answers every exchange with a newer approval.
+        return oauth_grants.RefreshGrant(
+            f"access-{len(calls.exchanged)}", calls.__dict__.get("lifetime", 3600.0), "rt-newer"
+        )
 
     async def resolved(admin_db, org_id, platform_id, field, value):
         # The entry's secret, read in the vault of the organisation it is asked for.
@@ -158,34 +182,97 @@ def signed_in(monkeypatch):
     monkeypatch.setattr(mail_platforms, "credential", resolved)
     monkeypatch.setattr(secrets_store, "bound", bound)
     monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
-    return calls
+    yield calls
+    oauth_store._held.clear()
+    engine.dispose()
+
+
+async def _kept(state) -> str | None:
+    from provisa.federation import mail_sync_state
+
+    async with state.tenant_db.acquire() as conn:
+        return await mail_sync_state.grant(conn, "m365", "megan@contoso.com")
+
+
+async def _keep(state, token: str) -> None:
+    from provisa.federation import mail_sync_state
+
+    async with state.tenant_db.acquire() as conn:
+        await mail_sync_state.keep_grant(conn, "m365", "megan@contoso.com", token)
 
 
 def test_a_source_is_signed_in_with_the_organisations_client_and_its_owners_approval(signed_in):
-    state = SimpleNamespace(admin_db=object())
-    source = SimpleNamespace(id="m365", mapping={**GOOD, "refresh_token": "rt-as-entered"})
+    state = signed_in.state
+    source = SimpleNamespace(id="m365", mapping=GOOD)
 
     async def run():
+        await _keep(state, "rt-from-the-sign-in")
         reading = await loader.make_connect(state)(source)
         assert reading.organisation is False and reading.at_once == 1
         (account,) = reading.accounts
         first = await asyncio.to_thread(reading.token)  # Graph is read off the loop
         again = await asyncio.to_thread(reading.token)
-        return account, first, again
+        return account, first, again, await _kept(state)
 
-    account, token, again = asyncio.run(run())
+    account, token, again, kept = asyncio.run(run())
     assert (account, token, again) == ("megan@contoso.com", "access-1", "access-1")
     assert signed_in.required == [("acme", SOURCE_TYPE)]
     # The client's secret as its administrator entered it, resolved in that organisation's vault.
     assert signed_in.resolved == [("acme", SOURCE_TYPE, "client_secret", "as-entered")]
-    assert signed_in.bound == ["acme"]  # the approval is resolved in the same vault
+    assert signed_in.bound == []  # the approval is state: no vault is read for it
     (auth,) = signed_in.exchanged  # exchanged once; the access token is held to its end
-    assert auth.refresh_token == "rt-as-entered"  # the field's own value, used as it is
+    assert auth.refresh_token == "rt-from-the-sign-in"  # what the state store kept
     assert auth.client_id == "client-id" and auth.client_secret == "the-client-secret"
     assert auth.token_url == f"https://login.microsoftonline.com/{TENANT}/oauth2/v2.0/token"
     assert auth.scope == (
         "https://graph.microsoft.com/Mail.Read offline_access https://graph.microsoft.com/User.Read"
     )
+    # The newer approval Microsoft answered with is what the next exchange sends.
+    assert kept == "rt-newer"
+
+
+def test_each_renewal_sends_the_approval_the_one_before_it_was_answered_with(signed_in):
+    """Microsoft replaces the approval at every use; a source goes on reading past the first
+    one's lifetime because each replacement is kept."""
+    state, signed_in.lifetime = signed_in.state, 0.0  # no access token is held: every read renews
+
+    async def run():
+        await _keep(state, "rt-from-the-sign-in")
+        reading = await loader.make_connect(state)(SimpleNamespace(id="m365", mapping=GOOD))
+        return [await asyncio.to_thread(reading.token) for _ in range(2)]
+
+    assert asyncio.run(run()) == ["access-1", "access-2"]
+    assert [auth.refresh_token for auth in signed_in.exchanged] == [
+        "rt-from-the-sign-in",
+        "rt-newer",
+    ]
+
+
+def test_a_source_connected_the_earlier_way_still_reads_with_nothing_done_to_it(
+    signed_in, monkeypatch
+):
+    """Its settings name the approval by a reference of that time, still in the organisation's
+    vault. The first read resolves it there, in the source's own organisation, and keeps it in
+    the state store; the reference is not read again."""
+    from provisa.core import secrets as core_secrets
+
+    state = signed_in.state
+    seen: list[str] = []
+
+    def resolve(value: str) -> str:
+        seen.append(value)
+        return "rt-the-vault-held"
+
+    monkeypatch.setattr(core_secrets, "resolve_secrets", resolve)
+
+    async def run():
+        reading = await loader.make_connect(state)(SimpleNamespace(id="m365", mapping=EARLIER))
+        first = await asyncio.to_thread(reading.token)
+        return first, await _kept(state)
+
+    assert asyncio.run(run()) == ("access-1", "rt-newer")
+    assert seen == [EARLIER["refresh_token"]] and signed_in.bound == ["acme"]
+    assert signed_in.exchanged[0].refresh_token == "rt-the-vault-held"
 
 
 def test_an_organisation_with_no_client_is_refused_by_name(signed_in, monkeypatch):
@@ -199,11 +286,18 @@ def test_an_organisation_with_no_client_is_refused_by_name(signed_in, monkeypatc
     assert signed_in.exchanged == []  # nothing was asked of Microsoft
 
 
-def test_a_source_that_is_not_connected_is_not_read(signed_in):
-    connect = loader.make_connect(SimpleNamespace(admin_db=object()))
-    with pytest.raises(InvalidMicrosoft365Source, match="not connected"):
-        asyncio.run(connect(SimpleNamespace(id="m365", mapping={**GOOD, "refresh_token": ""})))
-    assert signed_in.required == []
+def test_a_source_that_is_not_connected_is_refused_by_name_and_asks_nothing_of_microsoft(signed_in):
+    from provisa.api_source.oauth_store import NotConnected
+
+    async def run():
+        reading = await loader.make_connect(signed_in.state)(
+            SimpleNamespace(id="m365", mapping=GOOD)
+        )
+        await asyncio.to_thread(reading.token)
+
+    with pytest.raises(NotConnected, match="megan@contoso.com is not connected"):
+        asyncio.run(run())
+    assert signed_in.exchanged == []
 
 
 # ------------------------------------------------------------------------ the table picker

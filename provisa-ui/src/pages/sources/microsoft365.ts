@@ -70,11 +70,16 @@ export function m365Mapping(fields: Record<string, string>): Record<string, unkn
   if (m365Organisation(fields)) {
     return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {} };
   }
-  return {
+  const mapping: Record<string, unknown> = {
     accounts: [stated(fields, "m365_account")],
     resources: ["mail"],
-    refresh_token: stated(fields, "m365_refresh_token"),
   };
+  // The owner's approval is kept by the server, not in the source. A source connected before
+  // that still names it here; it is carried through unchanged until the server has taken it.
+  if (stated(fields, "m365_earlier_approval")) {
+    mapping.refresh_token = stated(fields, "m365_earlier_approval");
+  }
+  return mapping;
 }
 
 /** The fields a stored source's mapping carries, for the form that edits it. */
@@ -98,10 +103,10 @@ export function m365FieldsFromMapping(mappingJson: string): Record<string, strin
     m365_whose: M365_ONE,
     m365_account: ((mapping.accounts as string[] | undefined) ?? []).join(""),
   };
-  if (mapping.refresh_token !== undefined) {
-    fields.m365_refresh_token = String(mapping.refresh_token);
+  if (typeof mapping.refresh_token === "string" && mapping.refresh_token !== "") {
+    fields.m365_earlier_approval = mapping.refresh_token;
+    fields.m365_connected_as = fields.m365_account; // connected the earlier way
   }
-  if (fields.m365_refresh_token) fields.m365_connected_as = fields.m365_account;
   return fields;
 }
 

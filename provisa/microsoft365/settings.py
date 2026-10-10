@@ -70,8 +70,8 @@ class Settings:
 
     resources: tuple[str, ...]
     account: str | None = None  # the mailbox's address
-    #: The mailbox owner's approval, as the source's field holds it: the token the sign-in
-    #: gave, or a reference the operator typed. Resolved where it is used.
+    #: Only on a source connected before approvals were kept in the state store: the
+    #: reference that named its owner's approval. None on every source connected since.
     refresh_token: str | None = None
     mailboxes: Mailboxes | None = None
 
@@ -172,9 +172,10 @@ def parse(mapping: dict) -> Settings:
         raise InvalidMicrosoft365Source("accounts must name one mailbox, by its address")
     account = _address(accounts[0])
     resources = _resources(mapping)
+    # The owner's approval is sign-in state, kept in the organisation's state store, and is no
+    # setting of the source. A source connected before that holds a reference to it here, which
+    # its reader takes once (``api_source.oauth_store``); nothing else reads this key.
     token = mapping.get("refresh_token")
-    if not isinstance(token, str) or not token.strip():
-        raise InvalidMicrosoft365Source(
-            "the mailbox is not connected: its owner has not approved the sign-in"
-        )
-    return Settings(resources, account=account, refresh_token=token.strip())
+    if token is not None and not isinstance(token, str):
+        raise InvalidMicrosoft365Source("refresh_token, where a source still has one, is text")
+    return Settings(resources, account=account, refresh_token=(token or "").strip() or None)

@@ -38,6 +38,26 @@ def _request(user_id: str | None = "uid-ada"):
     return SimpleNamespace(state=SimpleNamespace(identity=identity))
 
 
+#: What the issuer gave at the sign-in; it is kept as state and is in no answer.
+APPROVAL = "made-up-refresh-token"
+
+
+class _StateStore:
+    """Stands in for the organisation's state store: answers when a mailbox was connected."""
+
+    def __init__(self, seen: dict) -> None:
+        self._seen = seen
+
+    def acquire(self):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+
 @pytest.fixture
 def wired(monkeypatch):
     seen: dict = {"asked": [], "read": [], "swept": [], "started": [], "completed": []}
@@ -72,10 +92,12 @@ def wired(monkeypatch):
         seen["completed"].append(given)
         if seen.get("refusal"):
             raise seen["refusal"]
-        return Completed("mail", "ada@example.test", "${secret:b}")
+        await given["keep_grant"]("mail", "ada@example.test", APPROVAL)
+        return Completed("mail", "ada@example.test")
 
     monkeypatch.setattr(router, "require_capability_request", gate)
     monkeypatch.setattr(router, "_admin_db", lambda: "admin-plane")
+    monkeypatch.setattr(router, "_state_db", lambda: _StateStore(seen))
     monkeypatch.setattr(router, "_public_address", lambda: "https://acme.provisa.test")
     monkeypatch.setattr(router, "_holds_org_settings", lambda request: seen.get("org_admin", False))
     monkeypatch.setattr(router.mail_platforms, "read", read)
@@ -91,6 +113,14 @@ def wired(monkeypatch):
         seen.setdefault("locked", []).append((admin_db, platform_url, org_id, given))
 
     monkeypatch.setattr(oauth_store, "store_refresh_token", store_refresh_token)
+
+    from provisa.federation import mail_sync_state
+
+    async def granted_at(conn, source_id, account):
+        seen.setdefault("asked_connected", []).append((source_id, account))
+        return seen.get("connected_at")
+
+    monkeypatch.setattr(mail_sync_state, "granted_at", granted_at)
     monkeypatch.setattr(config_location, "config_path_str", lambda: "provisa.yaml")
     monkeypatch.setattr(
         config_loader,
@@ -135,6 +165,8 @@ class TestWhoMayAsk:
 class TestStatus:
     async def test_it_says_whether_the_callers_organisation_has_a_client(self, wired):
         assert await router.status(_request(), KIND) == {
+            "connected": False,
+            "connected_at": None,
             "configured": True,
             "may_configure": False,
             "organisation_mailboxes": False,
@@ -147,6 +179,8 @@ class TestStatus:
         """An organisation may hold only what reads its mailboxes; nobody signs in with that."""
         wired["client"] = Configured(KIND, None, {}, organisation_mailboxes=True)
         assert await router.status(_request(), KIND) == {
+            "connected": False,
+            "connected_at": None,
             "configured": False,
             "may_configure": False,
             "organisation_mailboxes": True,
@@ -155,10 +189,24 @@ class TestStatus:
     async def test_it_says_whether_the_caller_is_one_who_may_enter_it(self, wired):
         wired["client"], wired["org_admin"] = None, True
         assert await router.status(_request(), KIND) == {
+            "connected": False,
+            "connected_at": None,
             "configured": False,
             "may_configure": True,
             "organisation_mailboxes": False,
         }
+
+    async def test_asked_of_a_mailbox_it_says_whether_its_owner_signed_in_and_when(self, wired):
+        import datetime as dt
+
+        assert "asked_connected" not in wired  # not asked of a mailbox: the store is not read
+        answer = await router.status(_request(), KIND, " mail ", "ada@example.test")
+        assert (answer["connected"], answer["connected_at"]) == (False, None)
+        wired["connected_at"] = dt.datetime(2026, 10, 1, 9, tzinfo=dt.timezone.utc)
+        answer = await router.status(_request(), KIND, "mail", "ada@example.test")
+        assert (answer["connected"], answer["connected_at"]) == (True, "2026-10-01T09:00:00+00:00")
+        assert wired["asked_connected"] == [("mail", "ada@example.test")] * 2
+        assert APPROVAL not in repr(answer)
 
     async def test_it_carries_nothing_of_the_client(self, wired):
         assert "org-client-1" not in repr(await router.status(_request(), KIND))
@@ -219,11 +267,18 @@ class TestStart:
 
 
 class TestComplete:
-    async def test_completing_writes_nothing_anywhere(self, wired):
-        """The approval the issuer gave is the answer's, for the source's own field; no secret
-        store is written on the operator's behalf."""
+    async def test_the_approval_is_kept_in_the_state_store_under_the_refresh_lock(self, wired):
+        """The approval the issuer gave is sign-in state: kept for the source's account where
+        its reads take it from, under the lock a renewal takes, in the caller's organisation."""
         await router.complete(_request(), router.CompleteRequest(state="s", code=CODE))
-        assert "store_refresh_token" not in wired["completed"][0]
+        ((store, platform_url, org_id, given),) = wired["locked"]
+        assert isinstance(store, _StateStore)
+        assert (platform_url, org_id) == ("platform-of:provisa.yaml", ORG)
+        assert given == {
+            "source_id": "mail",
+            "account": "ada@example.test",
+            "refresh_token": APPROVAL,
+        }
 
     async def test_the_caller_and_their_organisation_are_what_the_state_is_checked_against(
         self, wired
@@ -233,14 +288,10 @@ class TestComplete:
         assert (given["org_id"], given["user_id"]) == (ORG, "uid-ada")
         assert (given["state"], given["code"], given["error"]) == ("made-up-state", CODE, None)
 
-    async def test_the_answer_carries_the_approval_for_the_sources_field(self, wired):
+    async def test_the_answer_says_who_approved_and_carries_no_approval(self, wired):
         answer = await router.complete(_request(), router.CompleteRequest(state="s", code=CODE))
-        assert answer == {
-            "source_id": "mail",
-            "account": "ada@example.test",
-            "refresh_token": "${secret:b}",
-        }
-        assert CODE not in repr(answer)
+        assert answer == {"source_id": "mail", "account": "ada@example.test", "connected": True}
+        assert CODE not in repr(answer) and APPROVAL not in repr(answer)
 
     @pytest.mark.parametrize(
         ("code", "status"),

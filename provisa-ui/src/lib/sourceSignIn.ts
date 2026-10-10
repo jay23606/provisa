@@ -78,7 +78,8 @@ export function answerOpener(answer: IssuerAnswer, win: Window = window): () => 
 export interface SignedIn {
   source_id: string;
   account: string;
-  refresh_token: string; // a reference into the organisation's vault, never the credential
+  /** The owner's approval is kept by the server for the source's reads; the form never holds it. */
+  connected: boolean;
 }
 
 /** What the person adding a source gives. The client is the organisation's (Admin › Email) and
@@ -96,6 +97,9 @@ export interface SignInStatus {
   may_configure: boolean;
   /** Whether an administrator allows sources that read the organisation's mailboxes. */
   organisation_mailboxes?: boolean;
+  /** Asked with a source and an account: whether that mailbox's owner has signed in, and when. */
+  connected?: boolean;
+  connected_at?: string | null;
 }
 
 /** A refusal by the server, with the code its message is localised by. */
@@ -120,8 +124,16 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return said as T;
 }
 
-export async function signInStatus(kind: string): Promise<SignInStatus> {
-  return call<SignInStatus>(`status?kind=${encodeURIComponent(kind)}`);
+export async function signInStatus(
+  kind: string,
+  of?: { source_id: string; account: string },
+): Promise<SignInStatus> {
+  const asked = new URLSearchParams({ kind });
+  if (of && of.source_id.trim() && of.account.trim()) {
+    asked.set("source_id", of.source_id.trim());
+    asked.set("account", of.account.trim());
+  }
+  return call<SignInStatus>(`status?${asked.toString()}`);
 }
 
 const HELLO_EVERY_MS = 500;

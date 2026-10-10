@@ -151,3 +151,109 @@ async def test_a_reference_that_cannot_be_resolved_is_refused_by_the_fields_name
     assert refused.value.params["platform"] == SOURCE_TYPE
     # The reference named is the administrator's own; no name of the product's appears.
     assert "never_created" in str(refused.value) and "mail_platform_" not in str(refused.value)
+
+
+# --- what was saved before credentials were kept as typed still works, with nothing done ---
+
+#: The name the product gave the client's secret before it stopped naming anything: an entry
+#: saved then holds a reference to it, and the secret is still in the organisation's vault.
+FORMER = f"mail_platform_{SOURCE_TYPE}_client_secret"
+
+
+async def _entry_saved_the_former_way(control, value: str) -> None:
+    """The row and the vault entry exactly as a save left them before the change."""
+    from sqlalchemy import update
+
+    from provisa.core.schema_admin import org_mail_platforms
+
+    await secrets_store.put(control, "acme", FORMER, value, owner_id=secrets_store.ORG_OWNER)
+    await _put(
+        control, platform=SOURCE_TYPE, settings={"tenant": TENANT}, organisation_mailboxes=True
+    )
+    async with control.acquire() as conn:
+        await conn.execute_core(
+            update(org_mail_platforms)
+            .where(org_mail_platforms.c.org_id == "acme")
+            .values(client_secret=f"${{secret:{FORMER}}}")
+        )
+
+
+async def test_an_entry_saved_before_the_change_still_reads_the_organisations_mailboxes(
+    plane,  # noqa: F811
+    made,
+):
+    """To the resolver the entry holds a reference like any an administrator typed: it is
+    resolved in the entry's organisation's vault, on a build that bound none, and neither the
+    row nor the secret it names is rewritten, converted or removed."""
+    await _entry_saved_the_former_way(plane, "the-secret-entered-back-then")
+    assert secrets_store.bound_org_id() is None  # as on a replica build of this source
+    await loader.organisation_token(plane, "acme")
+    assert made[-1] == (
+        f"https://login.microsoftonline.com/{TENANT}/oauth2/v2.0/token",
+        "client-1",
+        "the-secret-entered-back-then",
+    )
+    entry = await mail_platforms.require_organisation(plane, "acme", SOURCE_TYPE)
+    assert entry.client_secret == f"${{secret:{FORMER}}}"  # what the form shows back
+    assert await _vault_names(plane) == [FORMER]
+    held = await secrets_store.value_of(plane, "acme", FORMER, owner_id=secrets_store.ORG_OWNER)
+    assert held == "the-secret-entered-back-then"
+
+
+async def test_saving_such_an_entry_again_without_its_secret_keeps_the_reference(
+    plane,  # noqa: F811
+    made,
+):
+    await _entry_saved_the_former_way(plane, "the-secret-entered-back-then")
+    await _put(
+        plane,
+        platform=SOURCE_TYPE,
+        client_secret=None,  # the form sent no new one
+        settings={"tenant": TENANT},
+        organisation_mailboxes=True,
+    )
+    entry = await mail_platforms.require_organisation(plane, "acme", SOURCE_TYPE)
+    assert entry.client_secret == f"${{secret:{FORMER}}}"
+    await loader.organisation_token(plane, "acme")
+    assert made[-1][2] == "the-secret-entered-back-then"
+
+
+async def test_a_value_typed_over_such_a_reference_is_what_is_kept_and_the_secret_stands(
+    plane,  # noqa: F811
+    made,
+):
+    await _entry_saved_the_former_way(plane, "the-secret-entered-back-then")
+    await _put(
+        plane,
+        platform=SOURCE_TYPE,
+        client_secret="typed-now",
+        settings={"tenant": TENANT},
+        organisation_mailboxes=True,
+    )
+    await loader.organisation_token(plane, "acme")
+    assert made[-1][2] == "typed-now"
+    assert await _vault_names(plane) == [FORMER]  # nothing of the vault's is removed for him
+
+
+async def test_a_source_saved_before_the_change_binds_its_organisations_vault_for_a_build(
+    plane,  # noqa: F811
+):
+    """An ordinary source saved then holds ``${secret:source_<id>_password}``, the secret still
+    in the vault. A build started with no vault bound binds the source's organisation's for
+    it (``org_vault``), and the one resolver answers the password. The same holds for a
+    reference to a secret the operator named themselves."""
+    from provisa.core.secrets import resolve_secrets
+    from provisa.federation.source_vault import org_vault
+
+    former, own = "source_pg__password", "my_warehouse_password"
+    await secrets_store.put(plane, "acme", former, "pw-then", owner_id=secrets_store.ORG_OWNER)
+    await secrets_store.put(plane, "acme", own, "pw-own", owner_id=secrets_store.ORG_OWNER)
+    state = SimpleNamespace(admin_db=plane, active_org_id="acme")
+    for name, value in ((former, "pw-then"), (own, "pw-own")):
+        source = SimpleNamespace(id="pg", type="postgresql", password=f"${{secret:{name}}}")
+        assert names_org_secret(source) is True
+        assert secrets_store.bound_org_id() is None
+        async with org_vault(state, [source]):
+            assert resolve_secrets(source.password) == value
+        assert secrets_store.bound_org_id() is None
+    assert await _vault_names(plane) == sorted([former, own])

@@ -6,6 +6,7 @@
     "readsMailHelp": "Mensagens, pastas e detalhes dos anexos desta caixa de correio. Nada é alterado nela.",
     "connect": "Conectar conta Microsoft",
     "connected": "Conectado como {{account}}",
+    "connectedOn": "Conectado como {{account}} em {{date}}",
     "connectFailed": "Não foi possível concluir o login.",
     "notSetUp": "Sua organização ainda não conectou o Microsoft 365.",
     "setUpLink": "Configurar em {{where}}",

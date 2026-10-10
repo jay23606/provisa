@@ -5,8 +5,8 @@
 # found in the LICENSE file in the root directory of this source tree.
 
 """The refresh of a credential whose issuer replaces the refresh token on every use: one refresh
-of a source at a time, the token sent is the one the vault holds, and the replacement is stored
-before the access token is handed out."""
+of a source at a time, the token sent is the one the organisation's state store holds, and the
+replacement is kept there before the access token is handed out."""
 
 from __future__ import annotations
 
@@ -21,19 +21,19 @@ import pytest
 from provisa.api_source import oauth_store
 from provisa.api_source.oauth_store import (
     Grant,
+    NotConnected,
     RefreshBusy,
     RefreshTimedOut,
     ReplacementMissing,
     stored_access_token,
     store_refresh_token,
 )
-from provisa.core import secrets_store
-from provisa.core.secrets_store import ORG_OWNER
 from provisa.encryption.runtime import reset_encryption
+from provisa.federation import mail_sync_state
 
 ORG = "acme"
 SOURCE = "m365"
-NAME = "M365_REFRESH"
+ACCOUNT = "megan@contoso.test"
 
 
 @pytest.fixture(autouse=True)
@@ -50,31 +50,34 @@ def _isolated(tmp_path, monkeypatch):
 
 @pytest.fixture
 def plane(tmp_path):
-    """A platform control plane (SQLite) holding the vault, and its URL (where its locks go)."""
+    """The organisation's state store (SQLite), where an approval is kept, and the platform
+    control plane's URL (where the refresh locks go)."""
     from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import deployment_encryption_key, metadata
-    from provisa.core.schema_admin import secrets_store as table
+    from provisa.core.schema_org import mail_sync_state as table
+    from provisa.core.schema_org import metadata
 
     url = f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
-    engine = create_engine_from_url(url)
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
     with engine.begin() as conn:
-        metadata.create_all(conn, tables=[table, deployment_encryption_key])
-    db = Database(engine, name="admin")
+        metadata.create_all(conn, tables=[table])
+    db = Database(engine, name="state")
     yield db, url
     engine.dispose()
 
 
 async def _seed(db, value: str = "rt-0") -> None:
-    await secrets_store.put(db, ORG, NAME, value, owner_id=ORG_OWNER, description="sign-in")
+    async with db.acquire() as conn:
+        await mail_sync_state.keep_grant(conn, SOURCE, ACCOUNT, value)
 
 
-async def _stored(db) -> str:
-    return await secrets_store.value_of(db, ORG, NAME, owner_id=ORG_OWNER)
+async def _stored(db) -> str | None:
+    async with db.acquire() as conn:
+        return await mail_sync_state.grant(conn, SOURCE, ACCOUNT)
 
 
-def _token(db, url, exchange, **kw):
+def _token(db, url, exchange, *, replaces: bool = True, **kw):
     return stored_access_token(
-        db, url, ORG, source_id=SOURCE, secret_name=NAME, exchange=exchange, replaces=True, **kw
+        db, url, ORG, source_id=SOURCE, account=ACCOUNT, exchange=exchange, replaces=replaces, **kw
     )
 
 
@@ -102,7 +105,7 @@ class Issuer:
         return Grant(f"at-for-{refresh_token}", self.expires_in, f"rt-{n}")
 
 
-def test_a_refresh_stores_the_replacement_and_keeps_the_description(plane):
+def test_a_refresh_keeps_the_replacement_in_the_state_store(plane):
     db, url = plane
 
     async def run():
@@ -110,9 +113,6 @@ def test_a_refresh_stores_the_replacement_and_keeps_the_description(plane):
         issuer = Issuer()
         assert await _token(db, url, issuer) == "at-for-rt-0"
         assert await _stored(db) == "rt-1"
-        found = await secrets_store.describe(db, ORG, NAME, owner_id=ORG_OWNER)
-        assert found.description == "sign-in"
-        assert found.updated_by == f"source:{SOURCE}"
         # A second read is served from what the process holds: the issuer is not asked again.
         assert await _token(db, url, issuer) == "at-for-rt-0"
         assert issuer.sent == ["rt-0"]
@@ -136,7 +136,7 @@ def test_concurrent_reads_make_one_exchange(plane):
 
 def test_refreshes_never_overlap_and_each_sends_what_the_last_one_stored(plane):
     """Tokens that expire at once force every read to refresh. However they interleave, one
-    exchange runs at a time, each sends the token the one before it stored, and the vault ends
+    exchange runs at a time, each sends the token the one before it kept, and the store ends
     holding the last one issued: a newer token is never overwritten by an older."""
     db, url = plane
 
@@ -152,23 +152,25 @@ def test_refreshes_never_overlap_and_each_sends_what_the_last_one_stored(plane):
 
 
 def test_a_process_holding_no_access_token_sends_the_token_another_process_stored(plane):
-    """Another process refreshed: the vault holds its replacement, and this process holds no
-    access token of its own. It refreshes with what the vault holds now."""
+    """Another process refreshed: the store holds its replacement, and this process holds no
+    access token of its own. It refreshes with what the store holds now."""
     db, url = plane
 
     async def run():
         await _seed(db)
         issuer = Issuer()
         await _token(db, url, issuer)  # this process: rt-0 sent, rt-1 stored
-        await secrets_store.put(db, ORG, NAME, "rt-from-elsewhere", owner_id=ORG_OWNER)
-        oauth_store.forget(ORG, SOURCE)  # as a second process: nothing held in memory
+        await _seed(db, "rt-from-elsewhere")
+        oauth_store.forget(ORG, SOURCE, ACCOUNT)  # as a second process: nothing held in memory
         assert await _token(db, url, issuer) == "at-for-rt-from-elsewhere"
         assert issuer.sent == ["rt-0", "rt-from-elsewhere"]
 
     asyncio.run(run())
 
 
-def test_a_failed_vault_write_fails_the_read_and_holds_no_access_token(plane, monkeypatch):
+def test_a_replacement_that_cannot_be_kept_fails_the_read_and_holds_no_access_token(
+    plane, monkeypatch
+):
     db, url = plane
 
     async def run():
@@ -176,10 +178,10 @@ def test_a_failed_vault_write_fails_the_read_and_holds_no_access_token(plane, mo
         issuer = Issuer()
 
         async def refuse(*a, **kw):
-            raise RuntimeError("the vault cannot be written")
+            raise RuntimeError("the store cannot be written")
 
         with monkeypatch.context() as patched:
-            patched.setattr(secrets_store, "put", refuse)
+            patched.setattr(mail_sync_state, "keep_grant", refuse)
             with pytest.raises(RuntimeError, match="cannot be written"):
                 await _token(db, url, issuer)
         assert oauth_store._held == {}
@@ -209,18 +211,13 @@ def test_an_issuer_that_does_not_replace_writes_nothing(plane):
 
     async def run():
         await _seed(db)
-        token = await stored_access_token(
-            db,
-            url,
-            ORG,
-            source_id=SOURCE,
-            secret_name=NAME,
-            exchange=lambda rt: Grant("at", 3600.0, None),
-            replaces=False,
-        )
+        async with db.acquire() as conn:
+            before = await mail_sync_state.granted_at(conn, SOURCE, ACCOUNT)
+        token = await _token(db, url, lambda rt: Grant("at", 3600.0, None), replaces=False)
         assert token == "at"
-        found = await secrets_store.describe(db, ORG, NAME, owner_id=ORG_OWNER)
-        assert found.updated_by is None
+        async with db.acquire() as conn:
+            assert await mail_sync_state.granted_at(conn, SOURCE, ACCOUNT) == before
+        assert await _stored(db) == "rt-0"
 
     asyncio.run(run())
 
@@ -237,18 +234,7 @@ def test_a_token_of_unstated_lifetime_is_not_held(plane):
             return Grant("at", None, None)
 
         for _ in range(2):
-            assert (
-                await stored_access_token(
-                    db,
-                    url,
-                    ORG,
-                    source_id=SOURCE,
-                    secret_name=NAME,
-                    exchange=exchange,
-                    replaces=False,
-                )
-                == "at"
-            )
+            assert await _token(db, url, exchange, replaces=False) == "at"
         assert asked == ["rt-0", "rt-0"]
         assert oauth_store._held == {}
 
@@ -304,9 +290,8 @@ def test_a_sign_in_takes_the_refresh_lock_and_drops_the_held_access_token(plane)
                     url,
                     ORG,
                     source_id=SOURCE,
-                    secret_name=NAME,
+                    account=ACCOUNT,
                     refresh_token="rt-signed-in",
-                    actor="steward",
                     lock_wait_seconds=0.2,
                 )
         finally:
@@ -316,12 +301,105 @@ def test_a_sign_in_takes_the_refresh_lock_and_drops_the_held_access_token(plane)
             url,
             ORG,
             source_id=SOURCE,
-            secret_name=NAME,
+            account=ACCOUNT,
             refresh_token="rt-signed-in",
-            actor="steward",
         )
         assert await _stored(db) == "rt-signed-in"
         assert await _token(db, url, issuer) == "at-for-rt-signed-in"
+
+    asyncio.run(run())
+
+
+def test_a_mailbox_nobody_signed_in_for_is_refused_by_name(plane):
+    db, url = plane
+
+    async def run():
+        issuer = Issuer()
+        with pytest.raises(NotConnected, match=f"{ACCOUNT} is not connected"):
+            await _token(db, url, issuer)
+        assert issuer.sent == []
+        with pytest.raises(NotConnected):
+            await oauth_store.kept_refresh_token(db, source_id=SOURCE, account=ACCOUNT)
+
+    asyncio.run(run())
+
+
+def test_a_source_connected_the_earlier_way_is_taken_once_and_kept(plane):
+    """Before approvals were kept in the state store a source named its owner's approval by a
+    reference in its own settings. Its first read takes that approval and keeps it; from then
+    on the store is what is read and the reference is not asked again."""
+    db, url = plane
+
+    async def run():
+        asked: list[int] = []
+
+        async def earlier() -> str | None:
+            asked.append(1)
+            return "rt-from-the-old-reference"
+
+        issuer = Issuer(expires_in=0.0)
+        assert await _token(db, url, issuer, earlier=earlier) == "at-for-rt-from-the-old-reference"
+        assert await _stored(db) == "rt-1"  # the issuer's replacement, over what was taken
+        assert await _token(db, url, issuer, earlier=earlier) == "at-for-rt-1"
+        assert asked == [1]
+        assert issuer.sent == ["rt-from-the-old-reference", "rt-1"]
+
+    asyncio.run(run())
+
+
+def test_a_source_with_neither_an_approval_nor_an_earlier_one_is_refused(plane):
+    db, url = plane
+
+    async def run():
+        async def earlier() -> str | None:
+            return None
+
+        with pytest.raises(NotConnected):
+            await _token(db, url, Issuer(), earlier=earlier)
+        assert await _stored(db) is None
+
+    asyncio.run(run())
+
+
+def test_each_mailbox_of_a_source_has_its_own_approval_whatever_its_case(plane):
+    db, url = plane
+
+    async def run():
+        await _seed(db)
+        async with db.acquire() as conn:
+            await mail_sync_state.keep_grant(conn, SOURCE, "Other@Contoso.test", "rt-other")
+        other = stored_access_token(
+            db,
+            url,
+            ORG,
+            source_id=SOURCE,
+            account="other@contoso.test",
+            exchange=lambda rt: Grant(f"at-for-{rt}", 3600.0, None),
+            replaces=False,
+        )
+        assert await other == "at-for-rt-other"
+        assert await _token(db, url, Issuer()) == "at-for-rt-0"
+
+    asyncio.run(run())
+
+
+def test_a_completed_read_leaves_the_approval_alone(plane):
+    """What a read reached is replaced whole when it completes; an approval is not part of it."""
+    db, _ = plane
+
+    async def run():
+        await _seed(db)
+        async with db.acquire() as conn:
+            await mail_sync_state.replace(conn, SOURCE, {(ACCOUNT, "inbox", "delta"): "link"})
+            assert await mail_sync_state.read_all(conn, SOURCE) == {
+                (ACCOUNT, "inbox", "delta"): "link"
+            }
+            await mail_sync_state.forget(conn, SOURCE)
+            assert await mail_sync_state.read_all(conn, SOURCE) == {}
+        assert await _stored(db) == "rt-0"
+        async with db.acquire() as conn:
+            await mail_sync_state.forget_grant(conn, SOURCE)
+        assert await _stored(db) is None
 
     asyncio.run(run())
 
@@ -334,7 +412,7 @@ def test_no_token_reaches_a_log_record_or_an_error(plane, caplog):
         await _seed(db)
         said: list[str] = [repr(Grant("at-for-rt-0", 1.0, "rt-1"))]
         await _token(db, url, Issuer())
-        oauth_store.forget(ORG, SOURCE)
+        oauth_store.forget(ORG, SOURCE, ACCOUNT)
         for exchange, kw in (
             (lambda rt: Grant("at-for-rt-0", 3600.0, None), {}),
             (Issuer(delay=0.3), {"exchange_seconds": 0.05}),

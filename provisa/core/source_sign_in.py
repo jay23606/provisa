@@ -123,9 +123,13 @@ class Started:
 class Completed:
     source_id: str
     account: str
-    #: The refresh token the issuer gave: the value the source's ``refresh_token`` field then
-    #: holds, as any credential field holds what was entered.
-    refresh_token: str
+
+
+#: Keeps the approval a sign-in produced (source id, account, refresh token) where the source's
+#: reads take it from: the organisation's state store, under the lock a renewal takes.
+KeepGrant = Callable[[str, str, str], Awaitable[None]]
+#: Forgets the approval kept for (source id, account).
+ForgetGrant = Callable[[str, str], Awaitable[None]]
 
 
 def redirect_address(public_address: str | None) -> str:
@@ -322,8 +326,11 @@ async def complete(
     state: str,
     code: str | None,
     error: str | None,
+    keep_grant: KeepGrant,
 ) -> Completed:
-    """Finish the sign-in ``state`` names with the issuer's answer: a code, or its refusal."""
+    """Finish the sign-in ``state`` names with the issuer's answer: a code, or its refusal.
+    The approval the issuer gives is sign-in state: it is handed to ``keep_grant`` and is in
+    no answer."""
     pending = await _consume(admin_db, state, org_id=org_id, user_id=user_id)
     if error or not code:
         named = error if error and _ISSUER_ERROR.fullmatch(error) else "no_code"
@@ -347,7 +354,8 @@ async def complete(
             approved=approved,
             account=pending["account"],
         )
-    return Completed(source_id=pending["source_id"], account=approved, refresh_token=refresh_token)
+    await keep_grant(pending["source_id"], approved, refresh_token)
+    return Completed(source_id=pending["source_id"], account=approved)
 
 
 async def sweep(
@@ -355,9 +363,14 @@ async def sweep(
     *,
     org_id: str,
     env: str,
+    source_exists: Callable[[str], Awaitable[bool]],
+    forget_grant: ForgetGrant,
 ) -> None:
     """Forget the organisation's sign-ins that came to nothing: never completed in time, or
-    completed longer ago than :data:`UNSAVED_LIFETIME`. Only the sign-in's own row goes."""
+    completed for a source that was not saved within :data:`UNSAVED_LIFETIME`.
+
+    The approval a sign-in kept goes with it only while no source of its id exists and the
+    source is not being signed in again; a sign-in whose source was saved just loses its row."""
     now = _now()
     async with admin_db.acquire() as conn:
         rows = (
@@ -375,9 +388,13 @@ async def sweep(
             return _aware(pending["expires_at"]) <= now
         return _aware(used) + dt.timedelta(seconds=UNSAVED_LIFETIME) <= now
 
+    # A source being signed in again shares its approval with the attempt before it.
+    live = {p["source_id"] for p in sign_ins if not over(p)}
     for pending in sign_ins:
         if not over(pending):
             continue
+        if pending["source_id"] not in live and not await source_exists(pending["source_id"]):
+            await forget_grant(pending["source_id"], pending["account"])
         async with admin_db.acquire() as conn:
             await conn.execute_core(
                 delete(source_sign_ins).where(
