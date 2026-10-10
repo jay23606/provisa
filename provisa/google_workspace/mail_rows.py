@@ -119,11 +119,12 @@ def _received_at(internal_date: str | None) -> dt.datetime | None:
     return _utc(dt.datetime.fromtimestamp(int(internal_date) / 1000, dt.timezone.utc))
 
 
-def _parts(part: dict) -> list[dict]:
-    """``part`` and every part under it, depth first, in the message's order."""
-    found = [part]
-    for child in part.get("parts") or []:
-        found.extend(_parts(child))
+def _parts(part: dict, place: tuple[int, ...] = ()) -> list[tuple[tuple[int, ...], dict]]:
+    """``part`` and every part under it, depth first, in the message's order, each with its
+    place: the positions that lead to it from the message's own part."""
+    found = [(place, part)]
+    for position, child in enumerate(part.get("parts") or []):
+        found.extend(_parts(child, (*place, position)))
     return found
 
 
@@ -157,10 +158,21 @@ def _is_inline(part: dict) -> bool:
     return disposition.split(";")[0].strip().lower() == "inline"
 
 
-def _attachment(part: dict) -> dict[str, Any]:
+def _attachment_id(place: tuple[int, ...], part: dict) -> str:
+    """What names an attachment within its message: Google's part id, which is never reused
+    in a message. Google gives the message's own part an empty one, and may give none, so the
+    part's place is written then -- worded so it cannot be mistaken for a part id of Google's.
+    The id is part of the row's key, so it is never empty."""
+    given = part.get("partId")
+    if given:
+        return given
+    return "part-" + ".".join(str(position) for position in place) if place else "message"
+
+
+def _attachment(place: tuple[int, ...], part: dict) -> dict[str, Any]:
     content_id = _header(part.get("headers") or [], "Content-ID")
     return {
-        "id": part.get("partId"),
+        "id": _attachment_id(place, part),
         "name": part["filename"],
         "content_type": part.get("mimeType"),
         "size_bytes": (part.get("body") or {}).get("size"),
@@ -181,8 +193,8 @@ def message_facts(account: str, answered: dict) -> MessageFacts:
     key = {"provider": PROVIDER, "account": account}
 
     people = {kind: _addresses(_header(headers, name)) for kind, name in _RECIPIENT_HEADERS}
-    files = [_attachment(p) for p in parts if p.get("filename")]
-    bodies = [p for p in parts if not p.get("filename")]
+    files = [_attachment(place, p) for place, p in parts if p.get("filename")]
+    bodies = [p for _, p in parts if not p.get("filename")]
 
     unreadable: list[str] = []
 
@@ -257,7 +269,8 @@ def message_facts(account: str, answered: dict) -> MessageFacts:
             "name": name,
         }
         for kind, _ in _RECIPIENT_HEADERS
-        for position, (name, address) in enumerate(people[kind])
+        # From 1, as the other provider's rows count: the column means one thing in the union.
+        for position, (name, address) in enumerate(people[kind], 1)
     ]
     folders = [{**key, "message_id": message_id, "folder_id": label} for label in labels]
     attachments = [{**key, "message_id": message_id, **f} for f in files]

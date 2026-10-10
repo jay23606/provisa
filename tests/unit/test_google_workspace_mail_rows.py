@@ -290,10 +290,10 @@ class TestItsOtherRows:
     def test_each_person_is_a_row_with_their_name_in_the_headers_order(self):
         recipients = message_facts(ACCOUNT, _message()).recipients
         assert [(r["kind"], r["position"], r["address"], r["name"]) for r in recipients] == [
-            ("from", 0, "bo@example.test", "Bo Example"),
-            ("to", 0, "ada@example.test", "Ada"),
-            ("to", 1, "cy@example.test", None),
-            ("cc", 0, "dee@example.test", None),
+            ("from", 1, "bo@example.test", "Bo Example"),
+            ("to", 1, "ada@example.test", "Ada"),
+            ("to", 2, "cy@example.test", None),
+            ("cc", 1, "dee@example.test", None),
         ]
         assert all(r["message_id"] == "m1" and r["provider"] == "google" for r in recipients)
 
@@ -319,6 +319,27 @@ class TestItsOtherRows:
             "updated_at": None,
         }
         assert "made-up-attachment-handle" not in repr(attachment)
+
+    def test_an_attachment_always_has_an_id_and_no_two_of_a_message_share_one(self):
+        """The id is part of the row's key. Google gives the message's own part an empty part
+        id, and a part may come with none."""
+
+        def named(part_id=None, **more):
+            part = {"mimeType": "application/pdf", "filename": "a.pdf", "body": {"size": 1}}
+            return {**part, **({} if part_id is None else {"partId": part_id}), **more}
+
+        whole = _message()
+        whole["payload"] = named("")
+        assert [a["id"] for a in message_facts(ACCOUNT, whole).attachments] == ["message"]
+        nested = _message()
+        nested["payload"]["parts"] = [
+            named("0"),
+            named(),
+            {"mimeType": "multipart/mixed", "partId": "2", "parts": [named(), named("2.1")]},
+        ]
+        ids = [a["id"] for a in message_facts(ACCOUNT, nested).attachments]
+        assert ids == ["0", "part-1", "part-2.0", "2.1"]
+        assert all(ids) and len(set(ids)) == len(ids)
 
     def test_an_inline_image_is_an_attachment_row_and_does_not_count_as_one(self):
         message = _message()
