@@ -289,7 +289,7 @@ async def load_org_settings(rt: "OrgRuntime") -> None:
     """Read ``rt``'s org settings rows, recording the ``settings`` stamp they were read at."""
     from provisa.core.org_settings import read_org_overrides_stamped
 
-    assert rt.model_db is not None, "an org's settings are its model (REQ-1919)"
+    assert rt.model_db is not None, "an org's settings are its model"
     rt.settings_stamp, rt.settings_overrides = await read_org_overrides_stamped(rt.model_db)
 
 

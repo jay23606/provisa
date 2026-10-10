@@ -42,17 +42,6 @@ _LOG_CALLS = {"debug", "info", "warning", "error", "exception", "critical", "log
 
 NOT_YET_SWEPT: frozenset[str] = frozenset(
     {
-        "provisa/api/_catalog_descriptions.py",
-        "provisa/api/_meta_views.py",
-        "provisa/api/admin/_live_mappers.py",
-        "provisa/api/admin/_refresh_summary.py",
-        "provisa/api/app_loaders.py",
-        "provisa/api/app_startup.py",
-        "provisa/api/mcp/chat.py",
-        "provisa/api/mcp/model_tool_specs.py",
-        "provisa/api/model_reload.py",
-        "provisa/api/rest/openapi_spec.py",
-        "provisa/api/sandbox_org.py",
         "provisa/api_source/engine_cache.py",
         "provisa/cassandra/fetch.py",
         "provisa/cli.py",

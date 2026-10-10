@@ -27,7 +27,7 @@ def table_model_from_input(inp, columns, presets, alias):  # REQ-929, REQ-982
         # the spec is the source of truth and the server generates the SQL from it.
         if inp.view_sql:
             raise ValueError(
-                "view_sql and view_metrics are mutually exclusive (REQ-1318): a metric-composed "
+                "view_sql and view_metrics are mutually exclusive: a metric-composed "
                 "view's SQL is generated from the spec"
             )
         view_metrics = ViewMetricsSpec(

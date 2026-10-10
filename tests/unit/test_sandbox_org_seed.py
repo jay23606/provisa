@@ -173,7 +173,7 @@ class TestStartupHook:
 
         monkeypatch.setattr("provisa.core.commerce.enabled", lambda: True)
         monkeypatch.setattr("provisa.api.app.state", SimpleNamespace(admin_db=None), raising=False)
-        with pytest.raises(RuntimeError, match="REQ-1598"):
+        with pytest.raises(RuntimeError, match="The sandbox org needs the control-plane registry"):
             await _seed_sandbox_org(logging.getLogger("test"))
 
 

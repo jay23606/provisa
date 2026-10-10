@@ -1336,8 +1336,8 @@ async def _load_masking_rules(  # REQ-040, REQ-263, REQ-1677
         if mrow["mask_type"] == MaskType.fake.value:
             raise RuntimeError(
                 f"table {mrow['table_id']} column {mrow['column_name']!r} is masked with a fake; "
-                "a fake is the column's own declaration, read in a Test (fake) environment "
-                "(REQ-1942), never a role mask"
+                "a fake is the column's own declaration, read in a Test (fake) environment"
+                ", never a role mask"
             )
         if faking and mrow["fake"] is not None:
             fake_rule = MaskingRule(

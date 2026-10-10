@@ -696,7 +696,7 @@ async def _seed_sandbox_org(_log: logging.Logger) -> None:  # REQ-1598
         return
     if state.admin_db is None:
         raise RuntimeError(
-            "REQ-1598: the sandbox org needs the control-plane registry, which is "
+            "The sandbox org needs the control-plane registry, which is "
             "not bound — a commercial deployment always has one"
         )
     from provisa.api.sandbox_org import SANDBOX_ORG_ID, ensure_sandbox_org
