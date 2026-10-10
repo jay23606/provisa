@@ -69,7 +69,13 @@ describe("source load/timeliness client validation", () => {
     expect(sourceLoadFieldsValid(mail)).toBe(true); // not known to land
     expect(sourceLoadFieldsValid(mail, true)).toBe(false);
     expect(sourceLoadFieldsValid({ ...mail, cacheTtl: "300" }, true)).toBe(true);
-    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe" }, true)).toBe(true);
+    // #212: a probe is asked on the Cache TTL, so it needs one as ttl does; a signal with its own
+    // clock (a change feed) does not.
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe" }, true)).toBe(false);
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe", cacheTtl: "300" }, true)).toBe(
+      true,
+    );
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "native" }, true)).toBe(true);
   });
 
   it("combines every rule", () => {
