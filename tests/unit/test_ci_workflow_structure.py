@@ -316,8 +316,10 @@ def test_the_core_ui_lanes_credential_files_are_private_and_removed():
             assert line.strip().startswith(("if [ -n", "printf '%s' \"$")), line
     assert "az login" not in prepare and "az login" not in after
     assert 'rm -rf "${RUNNER_TEMP:?}/lane-credentials"' in after
-    # The Fabric capacity the lane resumed is paused again whatever the lane's outcome.
-    assert "suspend_capacity()" in after
+    # The Fabric capacity is left paused whatever the lane's outcome -- by reading its state,
+    # not by a bare suspend, which is refused in every state but Active (run 38050265191).
+    assert "ensure_capacity_paused" in after and "suspend_capacity()" not in after
+    assert "it may be billing" in after
     lane = yaml.safe_load((REPO / ".github/workflows/lane.yml").read_text())["jobs"]["lane"]
     after_step = next(s for s in lane["steps"] if s.get("name") == "After the lane")
     assert "always()" in after_step["if"]
