@@ -19,10 +19,13 @@ page>"}``; the next page is that address used as it is. A refusal carries
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import unquote
 
 import httpx
 
@@ -90,6 +93,78 @@ def http_send(client: httpx.Client) -> Send:
         return Answer(reply.status_code, reply.headers, reply.json() if reply.content else None)
 
     return send
+
+
+#: The most requests one app may have in flight for ONE mailbox: "Four concurrent requests",
+#: for each app ID and mailbox combination, in Microsoft's "Outlook service limits" (Microsoft
+#: Graph throttling limits, learn.microsoft.com/graph/throttling-limits), as read 2026-10-10. It
+#: is Microsoft's figure, not a choice of ours, so it is no setting. A JSON batch is sent to
+#: Outlook up to four requests at a time, so a batch counts as that many.
+MAILBOX_CONCURRENCY = 4
+
+
+class _MailboxGates:
+    """Keeps this process's requests for one mailbox within :data:`MAILBOX_CONCURRENCY`,
+    whoever makes them: the read of a mailbox's messages, the separate read of its folders
+    and the check for changes each read it on their own, and together passed the limit and
+    were throttled. A request waits here for room instead of being sent and refused.
+
+    It counts this process only; another process or node reading the same mailbox is told to
+    wait by Graph, which the reader then waits out."""
+
+    def __init__(self) -> None:
+        self._room = threading.Condition()
+        self._in_flight: dict[str, int] = {}
+
+    @contextmanager
+    def of(self, mailbox: str, weight: int = 1) -> Iterator[None]:
+        weight = max(1, min(weight, MAILBOX_CONCURRENCY))
+        with self._room:
+            while self._in_flight.get(mailbox, 0) + weight > MAILBOX_CONCURRENCY:
+                self._room.wait()
+            self._in_flight[mailbox] = self._in_flight.get(mailbox, 0) + weight
+        try:
+            yield
+        finally:
+            with self._room:
+                left = self._in_flight[mailbox] - weight
+                if left:
+                    self._in_flight[mailbox] = left
+                else:
+                    del self._in_flight[mailbox]
+                self._room.notify_all()
+
+    def in_flight(self, mailbox: str) -> int:
+        with self._room:
+            return self._in_flight.get(mailbox, 0)
+
+
+MAILBOX_GATES = _MailboxGates()
+_USERS = "/users/"
+
+
+def _mailbox_of(path: str) -> str | None:
+    """The mailbox a request is for: the address or id after ``/users/``, lowercased; None
+    for a request that is for no one mailbox (the directory)."""
+    start = path.find(_USERS)
+    if start < 0:
+        return None
+    rest = path[start + len(_USERS) :]
+    who = rest.split("/", 1)[0].split("?", 1)[0]
+    # ``/users`` with a query, or ``/users/{id}`` alone, is the directory, not a mailbox.
+    return unquote(who).lower() if who and "/" in rest else None
+
+
+def _gated(url: str, body: Any) -> tuple[str | None, int]:
+    """The mailbox a call counts against, and how many requests it is: a batch is as many as
+    it holds (they are one mailbox's in this reader), any other call one."""
+    if url.endswith("/$batch") and isinstance(body, dict):
+        requests = body.get("requests") or []
+        mailboxes = {_mailbox_of(str(r.get("url", ""))) for r in requests} - {None}
+        if len(mailboxes) == 1:
+            return mailboxes.pop(), len(requests)
+        return None, 0
+    return _mailbox_of(_path(url)), 1
 
 
 def _path(url: str) -> str:
@@ -179,7 +254,13 @@ class Graph:
             headers = {**(also or {}), "Authorization": f"Bearer {self._token()}"}
             if prefer:
                 headers["Prefer"] = ", ".join(prefer)
-            answer = self._send(method, url, params, headers, body)
+            mailbox, weight = _gated(url, body)
+            if mailbox is None:
+                answer = self._send(method, url, params, headers, body)
+            else:
+                # Room is held only while the request is in flight, never across a wait.
+                with MAILBOX_GATES.of(mailbox, weight):
+                    answer = self._send(method, url, params, headers, body)
             asked = answer.headers.get("Retry-After")
             if answer.status == 429 or (answer.status == 503 and asked is not None):
                 if asked is None or not asked.strip().isdigit():

@@ -879,3 +879,112 @@ def test_a_folder_removed_between_the_walk_and_its_read_is_skipped(code):
     rows = _all(mailbox, "messages")
     assert [r["id"] for r in rows] == ["m1"]
     assert mailbox.links is not None and _SENT not in mailbox.links
+
+
+# ------------------------------------- no more than four requests for one mailbox
+
+
+def test_three_readers_of_one_mailbox_never_have_more_than_four_requests_in_flight():
+    """Microsoft allows an app four concurrent requests for one mailbox. The read of the
+    messages, the read of the folders and the check for changes each read a mailbox on their
+    own; together they passed four and were throttled. However many readers there are, and
+    whether they ask one request or a batch (which Graph runs four at a time), the requests
+    in flight for one mailbox stay at four or under, and another mailbox is not held up."""
+    import threading
+    import time as clock
+
+    from provisa.microsoft365 import graph as graph_module
+
+    guard = threading.Lock()
+    flying = {"megan": 0, "sam": 0}
+    most = {"megan": 0, "sam": 0}
+    overlapped: list[bool] = []
+
+    def send(method, url, params, headers, body) -> Answer:
+        if url.endswith("/$batch"):
+            who = body["requests"][0]["url"].split("/users/")[1].split("@")[0]
+            weight = len(body["requests"])
+        else:
+            who, weight = url.split("/users/")[1].split("@")[0], 1
+        with guard:
+            flying[who] += weight
+            most[who] = max(most[who], flying[who])
+            overlapped.append(flying["megan"] > 0 and flying["sam"] > 0)
+        clock.sleep(0.01)
+        with guard:
+            flying[who] -= weight
+        if url.endswith("/$batch"):
+            answers = [{"id": r["id"], "status": 200, "body": {"id": 1}} for r in body["requests"]]
+            return Answer(200, {}, {"responses": answers})
+        return Answer(200, {}, {"value": []})
+
+    def messages(who: str) -> None:  # one request at a time
+        client = Graph(send, lambda: "t")
+        for _ in range(6):
+            client.get(f"/users/{who}@contoso.com/mailFolders/inbox/messages")
+
+    def folders(who: str) -> None:  # the well-known names, in a batch of four at a time
+        client = Graph(send, lambda: "t")
+        for _ in range(3):
+            client.batch([f"/users/{who}@contoso.com/mailFolders/{n}" for n in "abcd"])
+
+    def check(who: str) -> None:  # a batch of kept links
+        client = Graph(send, lambda: "t")
+        for _ in range(3):
+            client.batch(
+                [f"/users/{who}@contoso.com/mailFolders/f{n}/messages/delta" for n in "ab"]
+            )
+
+    readers = [
+        threading.Thread(target=reader, args=(who,))
+        for who in ("megan", "megan", "sam")
+        for reader in (messages, folders, check)
+    ]
+    for reader in readers:
+        reader.start()
+    for reader in readers:
+        reader.join(timeout=30)
+    assert not any(reader.is_alive() for reader in readers)
+    assert 1 < most["megan"] <= graph_module.MAILBOX_CONCURRENCY
+    assert most["sam"] <= graph_module.MAILBOX_CONCURRENCY
+    assert any(overlapped)  # one mailbox's readers did not hold another's up
+    assert graph_module.MAILBOX_GATES.in_flight("megan@contoso.com") == 0  # all room given back
+    assert graph_module.MAILBOX_CONCURRENCY == 4  # Microsoft's figure
+
+
+def test_room_for_a_mailbox_is_given_back_when_a_request_fails_and_not_held_while_waiting():
+    from provisa.microsoft365 import graph as graph_module
+
+    held: list[int] = []
+
+    def send(method, url, params, headers, body) -> Answer:
+        held.append(graph_module.MAILBOX_GATES.in_flight("megan@contoso.com"))
+        raise OSError("the connection dropped")
+
+    with pytest.raises(OSError):
+        Graph(send, lambda: "t").get("/users/Megan@Contoso.com/mailFolders")
+    assert held == [1] and graph_module.MAILBOX_GATES.in_flight("megan@contoso.com") == 0
+
+    slept: list[int] = []
+    fake = FakeGraph({"/users/megan@contoso.com/x": {"id": 1}})
+    fake.queued = [_throttled("5")]
+    waiting = Graph(
+        fake.send,
+        lambda: "t",
+        sleep=lambda s: slept.append(graph_module.MAILBOX_GATES.in_flight("megan@contoso.com")),
+    )
+    waiting.get("/users/megan@contoso.com/x")
+    assert slept == [0]  # nothing is held across the wait Graph asked for
+
+
+def test_a_request_for_no_one_mailbox_is_not_counted():
+    from provisa.microsoft365.graph import _gated
+
+    assert _gated(BASE_URL + "/users?$filter=x", None) == (None, 1)
+    assert _gated(BASE_URL + "/groups/g/members", None) == (None, 1)
+    assert _gated(BASE_URL + "/users/Megan%40Contoso.com/mailFolders", None) == (
+        "megan@contoso.com",
+        1,
+    )
+    batch = {"requests": [{"url": "/users/a@x.co/m/1"}, {"url": "/users/a@x.co/m/2"}]}
+    assert _gated(BASE_URL + "/$batch", batch) == ("a@x.co", 2)
