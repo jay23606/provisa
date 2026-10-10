@@ -24,7 +24,6 @@ import {
   Loader,
   Modal,
   NavLink,
-  Stack,
   Text,
   TextInput,
   Textarea,
@@ -36,6 +35,7 @@ import { useDeleteTable, useRegisterTable, useTables } from "../../hooks/useAdmi
 import { DERIVED_SOURCE_ID } from "../../types/admin";
 import type { RegisteredTable } from "../../types/admin";
 import { GovernedTableViewer } from "../GovernedTableViewer";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 export function ReportsTab() {
   const { t } = useTranslation();
@@ -234,52 +234,60 @@ export function ReportsTab() {
         title={t("reportsTab.addTitle")}
         size="lg"
       >
-        <Stack gap="sm">
-          <Text size="xs" c="dimmed">
-            {t("reportsTab.addHint")}
-          </Text>
-          <TextInput
-            label={t("reportsTab.nameLabel")}
-            value={addName}
-            onChange={(e) => setAddName(e.currentTarget.value)}
-            data-testid="report-name-input"
-            required
-          />
-          <TextInput
-            label={t("reportsTab.descriptionLabel")}
-            value={addDescription}
-            onChange={(e) => setAddDescription(e.currentTarget.value)}
-            data-testid="report-description-input"
-          />
-          <Textarea
-            label={t("reportsTab.sqlLabel")}
-            value={addSql}
-            onChange={(e) => setAddSql(e.currentTarget.value)}
-            autosize
-            minRows={5}
-            styles={{ input: { fontFamily: "monospace" } }}
-            data-testid="report-sql-input"
-            required
-          />
+        <FormLayout>
+          <FormField size="full">
+            <Text size="xs" c="dimmed">
+              {t("reportsTab.addHint")}
+            </Text>
+          </FormField>
+          <FormIdentifiers>
+            <FormField size="medium">
+              <TextInput
+                label={t("reportsTab.nameLabel")}
+                value={addName}
+                onChange={(e) => setAddName(e.currentTarget.value)}
+                data-testid="report-name-input"
+                required
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="long">
+            <TextInput
+              label={t("reportsTab.descriptionLabel")}
+              value={addDescription}
+              onChange={(e) => setAddDescription(e.currentTarget.value)}
+              data-testid="report-description-input"
+            />
+          </FormField>
+          <FormField size="full">
+            <Textarea
+              label={t("reportsTab.sqlLabel")}
+              value={addSql}
+              onChange={(e) => setAddSql(e.currentTarget.value)}
+              autosize
+              minRows={5}
+              styles={{ input: { fontFamily: "monospace" } }}
+              data-testid="report-sql-input"
+              required
+            />
+          </FormField>
           {addError && (
-            <Alert color="red" data-testid="report-add-error">
-              {addError}
-            </Alert>
+            <FormField size="full">
+              <Alert color="red" data-testid="report-add-error">
+                {addError}
+              </Alert>
+            </FormField>
           )}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setAddOpen(false)}>
-              {t("reportsTab.cancel")}
-            </Button>
-            <Button
-              onClick={() => void handleAdd()}
-              loading={addSaving}
-              disabled={!addName.trim() || !addSql.trim()}
-              data-testid="report-save-btn"
-            >
-              {t("reportsTab.save")}
-            </Button>
-          </Group>
-        </Stack>
+          <FormFooter
+            onSave={() => void handleAdd()}
+            saving={addSaving}
+            onCancel={() => setAddOpen(false)}
+            saveProps={{
+              "data-testid": "report-save-btn",
+              disabled: !addName.trim() || !addSql.trim(),
+            }}
+          />
+        </FormLayout>
       </Modal>
     </div>
   );
