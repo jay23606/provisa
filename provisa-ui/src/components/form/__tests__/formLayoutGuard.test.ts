@@ -119,7 +119,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/TeamPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
   "pages/commands/CommandFormFields.tsx",
-  "pages/data-products/CustomPropertiesEditor.tsx",
   "pages/metrics/OssieInterchangePanel.tsx",
   "pages/security/RoleFormParts.tsx",
   "pages/sources/SourceDetailPanel.tsx",
