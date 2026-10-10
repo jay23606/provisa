@@ -78,6 +78,11 @@ class Reading:
     #: Told, from the thread that reads Graph, how long a throttled call is about to wait and
     #: 0 when the wait is over, so the build's record can say what it is waiting on.
     throttled: Callable[[float], None] | None = None
+    #: For a read that lands a part at a time (``federation.mail_units``): keeps where the
+    #: read of one mailbox reached, once that part's rows are written; and keeps nothing of
+    #: what an earlier read of a mailbox reached. ``kind`` is the state store's (delta, probe).
+    keep_part: Callable[[str, dict[str, str], str], Awaitable[None]] | None = None
+    forget_mailbox: Callable[[str], Awaitable[None]] | None = None
 
 
 Connect = Callable[[Any], Awaitable[Reading]]
@@ -135,6 +140,8 @@ async def _asked_unchanged(connect: Connect, source: Any) -> str | None:
             left_out.add(account)
     if not links or set(links) | left_out != {a.lower() for a in reading.accounts}:
         return None
+    if any(mail.MAILBOX not in scopes for scopes in links.values()):
+        return None  # a mailbox whose read did not reach its end: the read goes on
 
     def asked() -> bool:
         with httpx.Client() as client:
@@ -225,6 +232,7 @@ async def _read_mailboxes(
     left_out: list[str],
     reached: dict[str, dict[str, str]] | None = None,
     at_quota: list[str] | None = None,
+    failed: dict[str, str] | None = None,
 ) -> AsyncIterator[Any]:
     """What ``read`` gives for each mailbox of ``reading``, as it arrives. One mailbox is read
     as it stands: whatever Graph refuses fails the read. The organisation's mailboxes are
@@ -268,6 +276,10 @@ async def _read_mailboxes(
                         began = True
                         await arrived.put(item)
                 except GraphRefused as refused:
+                    if began and failed is not None:
+                        # What it gave before it failed is written and stays; the others go on.
+                        failed[account] = f"{refused.status} {refused.code}"
+                        continue
                     if began or not (_not_readable(refused) or _at_quota(refused)):
                         raise
                     if _at_quota(refused) and at_quota is not None:
@@ -403,6 +415,9 @@ def make_microsoft365_loader(connect: Connect) -> Any:
     _load.freshness_probe = _freshness_probe  # type: ignore[attr-defined]
     _load.replica_group = _replica_group  # type: ignore[attr-defined]
     _load.replica_group_source = _replica_group_source  # type: ignore[attr-defined]
+    _load.replica_unit_source = lambda source, tables: _UnitsRead(  # type: ignore[attr-defined]
+        connect, source, tuple(tables)
+    )
     return _load
 
 
@@ -494,6 +509,100 @@ class _MessagesRead:
                 )
 
 
+class _UnitsRead:
+    """One pass over a source's mailboxes that gives their messages as units to be written in
+    place (``federation.mail_units.ReplicaUnitJob``): each mailbox from where its last read
+    reached, or from its start. ``total`` is how many mailboxes the pass reads, known once it
+    has begun."""
+
+    def __init__(self, connect: Connect, source: Any, tables: tuple[str, ...]) -> None:
+        self._connect = connect
+        self._source = source
+        self._tables = tables
+        self._unreadable: list[str] = []
+        self._left_out: list[str] = []
+        self._at_quota: list[str] = []
+        self._failed: dict[str, str] = {}
+        self._reading: Reading | None = None
+        self.total = 0
+
+    def notes(self) -> list[Any]:
+        from provisa.federation.data_replicator import mailboxes_failed_note
+
+        return [
+            *_notes(self._unreadable, self._left_out, self._at_quota),
+            *([note] if (note := mailboxes_failed_note(sorted(self._failed))) else []),
+        ]
+
+    async def keep(self, account: str, links: dict[str, str]) -> None:
+        from provisa.federation.mail_sync_state import DELTA
+
+        assert self._reading is not None and self._reading.keep_part is not None
+        await self._reading.keep_part(account, links, DELTA)
+
+    async def forget(self, account: str) -> None:
+        assert self._reading is not None and self._reading.forget_mailbox is not None
+        await self._reading.forget_mailbox(account)
+
+    async def units(self) -> AsyncIterator[cm.Unit]:
+        from provisa.federation.mail_sync_state import DELTA
+
+        for said in (self._unreadable, self._left_out, self._at_quota):
+            said.clear()
+        self._failed.clear()
+        reading = self._reading = await self._connect(self._source)
+        if reading.kept is None or reading.keep_part is None or reading.forget_mailbox is None:
+            raise RuntimeError("a read in units needs somewhere to keep where it reached")
+        kept: dict[str, dict[str, str]] = {}
+        for (account, scope, kind), token in (await reading.kept()).items():
+            if kind == DELTA:
+                kept.setdefault(account, {})[scope] = token
+            else:
+                kept.setdefault(account, {})
+        accounts = {a.lower() for a in reading.accounts}
+        self.total = len(accounts)
+        # A mailbox the source no longer names: its rows go, and what was kept for it.
+        for account in sorted(set(kept) - accounts):
+            yield cm.Unit(
+                account,
+                removed={
+                    t: [{"provider": mail.PROVIDER, "account": account}] for t in self._tables
+                },
+                forget=True,
+            )
+        async for unit in _read_mailboxes(
+            reading,
+            lambda mailbox: mailbox.units(
+                self._tables, kept.get(mailbox.account), self._unreadable
+            ),
+            self._left_out,
+            None,
+            self._at_quota,
+            self._failed,
+        ):
+            yield unit
+        if accounts and len(self._failed) == len(accounts):
+            raise RuntimeError(
+                f"none of the {len(accounts)} mailbox(es) could be read to its end; the last "
+                f"refusal: {next(reversed(self._failed.values()))}"
+            )
+
+    async def committed(self) -> None:
+        """Once the pass is recorded as completed: a mailbox left out is kept as that, so the
+        next check asks whether it can be read now; and the tables' check for changes is told
+        it has nothing to report."""
+        from provisa.federation.mail_sync_state import PROBE
+
+        reading = self._reading
+        if reading is None or reading.keep_part is None or reading.forget_mailbox is None:
+            return
+        for account in sorted({a.lower() for a in (*self._left_out, *self._at_quota)}):
+            await reading.forget_mailbox(account)
+            await reading.keep_part(account, {mail.MAILBOX: LEFT_OUT}, PROBE)
+        if reading.settle is not None and not self._failed:
+            await reading.settle(self._tables)
+
+
 async def listed_mailboxes(token: Callable[[], str], chosen: Any) -> list[str]:
     """The mailboxes ``chosen`` names, as the directory lists them now, read off the event loop
     with the organisation's own token."""
@@ -575,6 +684,18 @@ def make_connect(state: Any) -> Connect:
 
             asyncio.run_coroutine_threadsafe(say(), loop).result()
 
+        async def keep_part(account: str, links: dict[str, str], kind: str) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.keep_links(conn, source.id, account, links, kind=kind)
+
+        async def forget_mailbox(account: str) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.forget_account(conn, source.id, account)
+
         async def settle(tables: tuple[str, ...]) -> None:
             # What the poll node of each table compares its check's answer with
             # (events.injector.check_node): set to "unchanged" by the read that just completed,
@@ -603,6 +724,8 @@ def make_connect(state: Any) -> Connect:
                 settle=settle,
                 wait_seconds=wait_seconds,
                 throttled=throttled,
+                keep_part=keep_part,
+                forget_mailbox=forget_mailbox,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         # Resolved here, in the entry's own organisation's vault whatever the caller has bound
@@ -664,6 +787,8 @@ def make_connect(state: Any) -> Connect:
             settle=settle,
             wait_seconds=wait_seconds,
             throttled=throttled,
+            keep_part=keep_part,
+            forget_mailbox=forget_mailbox,
         )
 
     return connect

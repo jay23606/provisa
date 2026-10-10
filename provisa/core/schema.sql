@@ -1599,6 +1599,9 @@ CREATE TABLE IF NOT EXISTS replica_state (
     -- What a running build is waiting out: {"by", "seconds", "until"} while its source's
     -- service is throttling the read. NULL: it is not waiting.
     build_wait       JSONB,
+    -- How far a running build that lands a part at a time has got: {"done", "total", "unit",
+    -- "first"} (mailboxes read to their end). NULL: not such a build.
+    build_progress   JSONB,
     retired_at       TIMESTAMPTZ,   -- set when the model stops declaring it; dropped after a grace
     last_error       TEXT,
     last_error_code  TEXT,          -- REQ-1350: the failure's code, when its cause is a named one

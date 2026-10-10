@@ -284,6 +284,26 @@ def mailboxes_at_quota_note(accounts: list[str]) -> BuildNote | None:
     )
 
 
+#: The note of a mail source's pass in which mailboxes began to be read and then failed:
+#: what they gave before is written and stays, and the others were read.
+MAILBOXES_FAILED = "replication.mailboxes_failed"
+
+
+def mailboxes_failed_note(accounts: list[str]) -> BuildNote | None:
+    """The pass's note for the mailboxes whose read failed part way: how many, the first
+    :data:`NOTED_IDS` of their addresses, and how many more. None when there is none."""
+    if not accounts:
+        return None
+    return BuildNote(
+        MAILBOXES_FAILED,
+        {
+            "count": len(accounts),
+            "accounts": accounts[:NOTED_IDS],
+            "more": max(len(accounts) - NOTED_IDS, 0),
+        },
+    )
+
+
 @dataclass(frozen=True)
 class BuildOutcome:
     """What a finished build reports. ``changed`` is False when the copy's content hash equals

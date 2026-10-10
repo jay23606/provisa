@@ -1191,3 +1191,169 @@ def test_a_mailbox_with_no_archive_folder_has_its_folders_read(org_read):
     (row,) = asyncio.run(read())
     assert (row["account"], row["id"], row["role"]) == (A.lower(), "f-inbox", "inbox")
     assert source.notes() == []  # no mailbox was left out
+
+
+# --- a pass that lands a part at a time ---
+
+
+class _Kept:
+    """Stands in for the state store: what a read reached, by (account, scope, kind)."""
+
+    def __init__(self, rows=None):
+        self.rows: dict[tuple[str, str, str], str] = dict(rows or {})
+        self.order: list[str] = []
+
+    async def kept(self):
+        return dict(self.rows)
+
+    async def keep_part(self, account, links, kind):
+        self.order.append(f"keep {account} {kind}")
+        for scope, link in links.items():
+            self.rows[(account.lower(), scope, kind)] = link
+
+    async def forget_mailbox(self, account):
+        self.order.append(f"forget {account}")
+        self.rows = {k: v for k, v in self.rows.items() if k[0] != account.lower()}
+
+    async def settle(self, tables):
+        self.order.append(f"settle {','.join(tables)}")
+
+
+def _units_read(org_read, kept: _Kept, accounts):
+    async def connect(source):
+        return loader.Reading(
+            tuple(accounts),
+            lambda: "t",
+            organisation=True,
+            at_once=2,
+            kept=kept.kept,
+            keep_part=kept.keep_part,
+            forget_mailbox=kept.forget_mailbox,
+            settle=kept.settle,
+        )
+
+    made = loader.make_microsoft365_loader(connect)
+    return made.replica_unit_source(SOURCE, ("messages", "message_recipients"))
+
+
+async def _pass(read) -> list:
+    """What the job does with a read's units: its rows are written, then its place kept."""
+    units = []
+    async for unit in read.units():
+        if unit.forget:
+            await read.forget(unit.account)
+        if unit.links:
+            await read.keep(unit.account, unit.links)
+        units.append(unit)
+    return units
+
+
+def test_a_pass_reads_every_mailbox_and_keeps_where_each_reached(org_read):
+    org_read.graph.table.update({**_box(A, 1, 2), **_box(B, 3)})
+    kept = _Kept()
+    read = _units_read(org_read, kept, (A, B))
+    units = asyncio.run(_pass(read))
+    assert read.total == 2 and sum(unit.last for unit in units) == 2
+    assert {u.account for u in units} == {A.lower(), B.lower()}
+    # Each mailbox's folders and its list of folders have a place kept, as a position.
+    assert {(account, kind) for account, _scope, kind in kept.rows} == {
+        (A.lower(), "delta"),
+        (B.lower(), "delta"),
+    }
+    assert (A.lower(), "", "delta") in kept.rows
+
+
+def test_the_next_pass_asks_each_mailbox_only_what_changed(org_read):
+    org_read.graph.table.update({**_box(A, 1, 2), **_box(B, 3)})
+    kept = _Kept()
+    asyncio.run(_pass(_units_read(org_read, kept, (A, B))))
+    units = asyncio.run(_pass(_units_read(org_read, kept, (A, B))))
+    assert len(units) == 2 and all(unit.last for unit in units)  # one unit a mailbox
+    assert not any(any(unit.rows.values()) or unit.forget for unit in units)
+
+
+def test_a_mailbox_the_source_no_longer_names_has_its_rows_removed_and_its_place_forgotten(
+    org_read,
+):
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 3)})
+    kept = _Kept()
+    asyncio.run(_pass(_units_read(org_read, kept, (A, B))))
+    units = asyncio.run(_pass(_units_read(org_read, kept, (A,))))
+    gone = units[0]
+    assert gone.account == B.lower() and gone.forget and not gone.last
+    assert gone.removed == {
+        table: [{"provider": "microsoft", "account": B.lower()}]
+        for table in ("messages", "message_recipients")
+    }
+    assert not any(account == B.lower() for account, _s, _k in kept.rows)
+
+
+def test_a_mailbox_that_fails_part_way_is_named_and_the_others_are_read(org_read):
+    """What it gave before it failed is written and stays; its place is not kept past that,
+    so its read goes on from there next time."""
+    org_read.graph.table.update({**_box(A, 1), **_box(B, 3)})
+    send = org_read.graph.send
+    answered: list[str] = []
+
+    def refusing(method, url, params, headers, body):
+        if f"/users/{B}/" in url and "/messages/delta" in url:
+            return Answer(503, {}, {"error": {"code": "serviceNotAvailable", "message": "no"}})
+        answered.append(url)
+        return send(method, url, params, headers, body)
+
+    org_read.graph.send = refusing
+    kept = _Kept()
+    read = _units_read(org_read, kept, (A, B))
+    units = asyncio.run(_pass(read))
+    assert sum(unit.last for unit in units) == 1  # A's
+    (note,) = [n for n in read.notes() if n.code == "replication.mailboxes_failed"]
+    assert note.params == {"count": 1, "accounts": [B], "more": 0}
+    asyncio.run(read.committed())
+    # A mailbox failed: the check for changes is not told there is nothing to report.
+    assert not any(said.startswith("settle") for said in kept.order)
+
+
+def test_when_every_mailbox_fails_part_way_the_pass_fails(org_read):
+    org_read.graph.table.update(_box(A, 1))
+
+    def refusing(method, url, params, headers, body):
+        if "/messages/delta" in url:
+            return Answer(503, {}, {"error": {"code": "serviceNotAvailable", "message": "no"}})
+        return org_read_send(method, url, params, headers, body)
+
+    org_read_send = org_read.graph.send
+    org_read.graph.send = refusing
+    with pytest.raises(RuntimeError, match="none of the 1 mailbox"):
+        asyncio.run(_pass(_units_read(org_read, _Kept(), (A,))))
+
+
+def test_a_completed_pass_keeps_a_mailbox_left_out_as_that_and_settles_the_check(org_read):
+    org_read.graph.table.update(_box(A, 1))
+    send = org_read.graph.send
+
+    def refusing(method, url, params, headers, body):
+        if f"/users/{B}/" in url:
+            return Answer(404, {}, {"error": {"code": "ErrorItemNotFound", "message": "no"}})
+        return send(method, url, params, headers, body)
+
+    org_read.graph.send = refusing
+    kept = _Kept()
+    read = _units_read(org_read, kept, (A, B))
+    asyncio.run(_pass(read))
+    asyncio.run(read.committed())
+    assert kept.rows[(B.lower(), "", "probe")] == loader.LEFT_OUT
+    assert kept.order[-1] == "settle messages,message_recipients"
+
+
+def test_a_check_for_changes_asks_for_a_read_while_a_mailboxs_read_has_not_reached_its_end():
+    """Folders of a mailbox may have their place kept while the mailbox's own is not: its
+    read stopped part way. The check must not say "unchanged" of it."""
+    partial = {(A.lower(), "inbox", "delta"): "https://graph.microsoft.com/v1.0/x"}
+
+    async def kept():
+        return partial
+
+    async def connect(source):
+        return loader.Reading((A,), lambda: "t", organisation=True, kept=kept)
+
+    assert asyncio.run(loader.unchanged(connect, SOURCE)) is None

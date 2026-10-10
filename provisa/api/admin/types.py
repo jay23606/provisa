@@ -1368,6 +1368,10 @@ class ReplicaBuildType:  # REQ-1915
     # The rows of the last build that copied the whole table; None before the first. An
     # estimate of the table's size for a running build's progress, never a promise.
     completed_rows: float | None
+    # A running build that lands a part at a time: {"done", "total", "unit", "first"}.
+    progress: JsonScalar | None
+    # The replica is read while its first build is still filling it.
+    partial: bool
     completed_at: str | None  # None: there is no replica yet
     verified_at: str | None  # REQ-855: its probe last found the source unchanged; None: not since
     next_refresh_at: str | None

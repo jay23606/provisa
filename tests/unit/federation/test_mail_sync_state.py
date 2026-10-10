@@ -120,3 +120,115 @@ async def test_every_table_a_source_is_building_says_what_its_read_is_waiting_ou
         await replica_state.record_throttled(conn, "mail", seconds=30, by="Microsoft", now=now)
         await replica_state.record_failed(conn, building[1], error="stopped", now=now)
         assert (await replica_state.read(conn, building[1])).build_wait is None
+
+
+# --- a read that lands a part at a time keeps each mailbox's place as it goes ---
+
+
+async def test_a_parts_place_is_kept_beside_what_the_mailbox_already_had(db):
+    async with db.acquire() as conn:
+        await kept.keep_links(conn, "mail", A, {"inbox": "l1"})
+        await kept.keep_links(conn, "mail", "Megan@Contoso.com", {"sent": "l2", "inbox": "l1b"})
+        await kept.keep_links(conn, "mail", B, {"": kept_left_out()}, kind=kept.PROBE)
+        assert await kept.links_of(conn, "mail") == {A: {"inbox": "l1b", "sent": "l2"}}
+        assert (await kept.read_all(conn, "mail"))[(B, "", kept.PROBE)] == kept_left_out()
+        with pytest.raises(ValueError, match="no kind"):
+            await kept.keep_links(conn, "mail", A, {"x": "y"}, kind="grant")
+
+
+def kept_left_out() -> str:
+    return "left_out"
+
+
+async def test_a_mailbox_read_again_from_its_start_keeps_nothing_and_its_approval_stands(db):
+    async with db.acquire() as conn:
+        await kept.keep_links(conn, "mail", A, {"inbox": "l1", "": "l0"})
+        await kept.keep_links(conn, "mail", B, {"inbox": "l9"})
+        await kept.keep_grant(conn, "mail", A, "the-owners-approval")
+        await kept.forget_account(conn, "mail", "MEGAN@contoso.com")
+        assert await kept.links_of(conn, "mail") == {B: {"inbox": "l9"}}
+        assert await kept.grant(conn, "mail", A) == "the-owners-approval"
+
+
+async def test_a_first_build_is_a_replica_once_its_first_part_has_landed(db):
+    """The record says there is a copy to read in this store while the build goes on, and how
+    many of the source's mailboxes have been read to their end; the completion ends both."""
+    from datetime import UTC, datetime
+
+    from provisa.federation import replica_state
+    from provisa.federation.replica_state import RetryPolicy
+
+    key = ("mail", "default", "messages")
+    now = datetime.now(UTC)
+    async with db.acquire() as conn:
+        await replica_state.request_build(conn, key, replica_state.REASON_MODEL)
+        await replica_state.claim(conn, key, holder="h:1", now=now, retry=RetryPolicy(60, 3600))
+        assert (await replica_state.read(conn, key)).exists_in("store-a") is False
+        made = await replica_state.record_partial(
+            conn,
+            key,
+            store="store-a",
+            now=now,
+            definition_hash="d1",
+            built_columns=[["id", "text"]],
+        )
+        again = await replica_state.record_partial(
+            conn, key, store="store-a", now=now, definition_hash="d1", built_columns=[]
+        )
+        await replica_state.record_parts(conn, key, done=1, total=40, unit="mailboxes", first=True)
+        record = await replica_state.read(conn, key)
+        assert (made, again) == (True, False)  # said once
+        assert record.exists_in("store-a") and record.build_state == "building"
+        assert record.partial and record.build_progress == {
+            "done": 1,
+            "total": 40,
+            "unit": "mailboxes",
+            "first": True,
+        }
+        assert record.built_columns == [["id", "text"]]
+        await replica_state.record_completed(
+            conn,
+            key,
+            rows_copied=10,
+            method="apply_units",
+            content_hash=None,
+            store="store-a",
+            next_refresh_at=None,
+            now=now,
+        )
+        done = await replica_state.read(conn, key)
+        assert done.build_progress is None and not done.partial and done.build_state == "idle"
+
+
+async def test_a_later_pass_over_a_replica_that_exists_is_not_partial(db):
+    from datetime import UTC, datetime
+
+    from provisa.federation import replica_state
+    from provisa.federation.replica_state import RetryPolicy
+
+    key = ("mail", "default", "messages")
+    now = datetime.now(UTC)
+    retry = RetryPolicy(60, 3600)
+    async with db.acquire() as conn:
+        await replica_state.request_build(conn, key, replica_state.REASON_MODEL)
+        await replica_state.claim(conn, key, holder="h:1", now=now, retry=retry)
+        await replica_state.record_completed(
+            conn,
+            key,
+            rows_copied=10,
+            method="apply_units",
+            content_hash=None,
+            store="store-a",
+            next_refresh_at=None,
+            now=now,
+        )
+        await replica_state.request_build(conn, key, replica_state.REASON_REFRESH)
+        await replica_state.claim(conn, key, holder="h:1", now=now, retry=retry)
+        assert (
+            await replica_state.record_partial(
+                conn, key, store="store-a", now=now, definition_hash="d", built_columns=[]
+            )
+            is False
+        )
+        await replica_state.record_parts(conn, key, done=2, total=40, unit="mailboxes", first=False)
+        assert (await replica_state.read(conn, key)).partial is False

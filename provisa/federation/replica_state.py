@@ -245,6 +245,20 @@ class ReplicaRecord:
     #: The rows of the last build that copied the whole table; None: there has been none. It
     #: outlives the start of the next build, whose progress is measured against it.
     completed_rows: int | None = None
+    #: How far a running build that lands a part at a time has got: {"done", "total", "unit"}.
+    #: None for any other build, and once the build has ended.
+    build_progress: dict | None = None
+
+    @property
+    def partial(self) -> bool:
+        """Whether the replica can be read while its first build is still filling it: it
+        holds the parts landed so far and says how far it has got."""
+        return (
+            self.build_state == BUILDING
+            and self.completed_at is not None
+            and self.build_progress is not None
+            and bool(self.build_progress.get("first"))
+        )
 
     @property
     def current_at(self) -> datetime | None:
@@ -301,6 +315,7 @@ _COLUMNS = (
     _t.verified_at,
     _t.completed_rows,
     _t.build_wait,
+    _t.build_progress,
 )
 
 
@@ -346,6 +361,7 @@ def _record(row: Any) -> ReplicaRecord:
         verified_at=_aware(row[30]),
         completed_rows=row[31],
         build_wait=row[32],
+        build_progress=row[33],
     )
 
 
@@ -699,6 +715,56 @@ async def record_throttled(
     )
 
 
+async def record_parts(
+    conn: "Connection", key: ReplicaKey, *, done: int, total: int, unit: str, first: bool
+) -> None:
+    """How far a running build that lands a part at a time has got: ``done`` of ``total``
+    ``unit`` (mailboxes). ``first`` says the replica had no copy before this build, so what it
+    holds until the build ends is only the parts landed so far."""
+    await conn.execute_core(
+        update(replica_state)
+        .where(_is(key), _t.build_state == BUILDING)
+        .values(build_progress={"done": done, "total": total, "unit": unit, "first": first})
+    )
+
+
+async def record_partial(
+    conn: "Connection",
+    key: ReplicaKey,
+    *,
+    store: str,
+    now: datetime,
+    definition_hash: str | None,
+    built_columns: list | None,
+) -> bool:
+    """The first part of a replica that had no copy in ``store`` has landed: there is now a
+    replica to read there, and its build goes on. Reads move onto it as they do at a
+    completion (``mark_first_completion``), in the same transaction. True when this made the
+    replica readable; False when it already was, or the build is no longer running."""
+    async with conn.transaction():
+        found = await conn.execute_core(
+            select(_t.build_state, _t.completed_at, _t.built_store).where(_is(key))
+        )
+        row = found.fetchone()
+        if row is None or row[0] != BUILDING or (row[1] is not None and row[2] == store):
+            return False
+        # Before the copy is recorded, as at a completion: the stamp says "a replica that was
+        # not there to read now is".
+        await mark_first_completion(conn, key, store)
+        await conn.execute_core(
+            update(replica_state)
+            .where(_is(key), _t.build_state == BUILDING)
+            .values(
+                completed_at=now,
+                verified_at=None,
+                built_store=store,
+                definition_hash=definition_hash,
+                built_columns=built_columns,
+            )
+        )
+        return True
+
+
 async def record_verified(conn: "Connection", key: ReplicaKey, *, now: datetime) -> bool:
     """The table's probe found its source unchanged since the copy was built (REQ-855): the
     copy is current as of ``now``. True when there is a copy to say so of; a table never built,
@@ -772,6 +838,7 @@ async def record_completed(
                 last_error_params=None,
                 build_notes=[{"code": note.code, "params": note.params} for note in notes],
                 build_wait=None,
+                build_progress=None,
                 failed_at=None,
                 failed_attempts=0,
                 waiting_on=None,

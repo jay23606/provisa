@@ -95,17 +95,22 @@ async def forget(conn: Any, source_id: str) -> None:
     )
 
 
-async def keep_links(conn: Any, source_id: str, account: str, links: dict[str, str]) -> None:
+async def keep_links(
+    conn: Any, source_id: str, account: str, links: dict[str, str], *, kind: str = DELTA
+) -> None:
     """Keep where a read of ``account`` reached in each of ``links``' scopes, in place of what
     was kept for those scopes; every other scope of the mailbox stands. For a read that lands
-    a part at a time: each part's position is kept once its rows are written."""
+    a part at a time: each part's position is kept once its rows are written. ``kind`` is
+    :data:`DELTA` for a position, :data:`PROBE` for what a check for changes compares."""
+    if kind not in KINDS:
+        raise ValueError(f"mail sync state has no kind {kind!r}")
     async with conn.transaction():
         for scope, link in links.items():
             where = (
                 (mail_sync_state.c.source_id == source_id)
                 & (mail_sync_state.c.account == account.lower())
                 & (mail_sync_state.c.scope == scope)
-                & (mail_sync_state.c.kind == DELTA)
+                & (mail_sync_state.c.kind == kind)
             )
             await conn.execute_core(delete(mail_sync_state).where(where))
             await conn.execute_core(
@@ -113,7 +118,7 @@ async def keep_links(conn: Any, source_id: str, account: str, links: dict[str, s
                     source_id=source_id,
                     account=account.lower(),
                     scope=scope,
-                    kind=DELTA,
+                    kind=kind,
                     token=link,
                     updated_at=datetime.now(UTC),
                 )

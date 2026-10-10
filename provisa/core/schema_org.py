@@ -1478,6 +1478,9 @@ replica_state = Table(
     # What a running build is waiting out, when it is: {"by", "seconds", "until"} -- its
     # source's service is throttling it and asked for that long. NULL: it is not waiting.
     Column("build_wait", JSON(none_as_null=True)),
+    # How far a running build that lands a part at a time has got: {"done", "total", "unit"}
+    # (mailboxes read to their end, of the mailboxes the source names). NULL: not such a build.
+    Column("build_progress", JSON(none_as_null=True)),
     # Set when the model stops declaring this replica; it is dropped once every node has had
     # time to reload and every statement already addressed at it has ended. NULL: in use.
     Column("retired_at", DateTime(timezone=True)),

@@ -47,6 +47,8 @@ def _record(**kw):
         build_notes=[],
         verified_at=None,
         build_wait=None,
+        build_progress=None,
+        partial=False,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -179,3 +181,20 @@ def test_a_build_waiting_out_a_throttle_says_who_asked_and_for_how_long():
     assert build_view(_record(build_state="building", build_wait=wait), now)["wait"] == wait
     # A build that is not running is not waiting, whatever its record was left holding.
     assert build_view(_record(build_state="idle", build_wait=wait), now)["wait"] is None
+
+
+def test_a_build_that_lands_a_part_at_a_time_says_how_far_it_has_got():
+    """A mail source's first build can be read while it runs: the view says it is partial and
+    how many of the source's mailboxes have been read to their end."""
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    progress = {"done": 3, "total": 40, "unit": "mailboxes", "first": True}
+    running = build_view(
+        _record(build_state="building", build_progress=progress, partial=True, completed_at=now),
+        now,
+    )
+    assert running["progress"] == progress and running["partial"] is True
+    # Once it has ended, and for any other build, there is nothing to say.
+    done = build_view(_record(build_state="idle", build_progress=progress, completed_at=now), now)
+    assert done["progress"] is None and done["partial"] is False
