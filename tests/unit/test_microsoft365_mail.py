@@ -929,17 +929,17 @@ def test_three_readers_of_one_mailbox_never_have_more_than_four_requests_in_flig
         return Answer(200, {}, {"value": []})
 
     def messages(who: str) -> None:  # one request at a time
-        client = Graph(send, lambda: "t")
+        client = Graph(send, lambda: "t").for_mailbox(f"{who}@contoso.com")
         for _ in range(6):
             client.get(f"/users/{who}@contoso.com/mailFolders/inbox/messages")
 
     def folders(who: str) -> None:  # the well-known names, in a batch of four at a time
-        client = Graph(send, lambda: "t")
+        client = Graph(send, lambda: "t").for_mailbox(f"{who}@contoso.com")
         for _ in range(3):
             client.batch([f"/users/{who}@contoso.com/mailFolders/{n}" for n in "abcd"])
 
     def check(who: str) -> None:  # a batch of kept links
-        client = Graph(send, lambda: "t")
+        client = Graph(send, lambda: "t").for_mailbox(f"{who}@contoso.com")
         for _ in range(3):
             client.batch(
                 [f"/users/{who}@contoso.com/mailFolders/f{n}/messages/delta" for n in "ab"]
@@ -972,7 +972,9 @@ def test_room_for_a_mailbox_is_given_back_when_a_request_fails_and_not_held_whil
         raise OSError("the connection dropped")
 
     with pytest.raises(OSError):
-        Graph(send, lambda: "t").get("/users/Megan@Contoso.com/mailFolders")
+        Graph(send, lambda: "t").for_mailbox("Megan@Contoso.com").get(
+            "/users/Megan@Contoso.com/mailFolders"
+        )
     assert held == [1] and graph_module.MAILBOX_GATES.in_flight("megan@contoso.com") == 0
 
     slept: list[int] = []
@@ -982,22 +984,59 @@ def test_room_for_a_mailbox_is_given_back_when_a_request_fails_and_not_held_whil
         fake.send,
         lambda: "t",
         sleep=lambda s: slept.append(graph_module.MAILBOX_GATES.in_flight("megan@contoso.com")),
-    )
+    ).for_mailbox("megan@contoso.com")
     waiting.get("/users/megan@contoso.com/x")
     assert slept == [0]  # nothing is held across the wait Graph asked for
 
 
-def test_a_request_for_no_one_mailbox_is_not_counted():
-    from provisa.microsoft365.graph import _gated
+def test_a_request_is_counted_for_the_mailbox_its_reader_reads_whatever_its_address_says():
+    """A link Graph gave to continue from is opaque: it may name the mailbox by an id, or in
+    another form (Microsoft's examples answer ``mailFolders/{id}`` with ``mailfolders('{id}')``).
+    The mailbox is the reader's to say, so such a request is counted with the rest."""
+    from provisa.microsoft365 import graph as graph_module
 
-    assert _gated(BASE_URL + "/users?$filter=x", None) == (None, 1)
-    assert _gated(BASE_URL + "/groups/g/members", None) == (None, 1)
-    assert _gated(BASE_URL + "/users/Megan%40Contoso.com/mailFolders", None) == (
-        "megan@contoso.com",
-        1,
-    )
-    batch = {"requests": [{"url": "/users/a@x.co/m/1"}, {"url": "/users/a@x.co/m/2"}]}
-    assert _gated(BASE_URL + "/$batch", batch) == ("a@x.co", 2)
+    seen: list[tuple[str, int]] = []
+
+    def send(method, url, params, headers, body) -> Answer:
+        seen.append((url, graph_module.MAILBOX_GATES.in_flight("megan@contoso.com")))
+        return Answer(200, {}, {"value": [], "@odata.deltaLink": BASE_URL + "/x"})
+
+    reader = Graph(send, lambda: "t").for_mailbox("Megan@Contoso.com")
+    kept = BASE_URL + "/users('5d3a-a-guid')/mailfolders('f1')/messages/delta?$deltatoken=t"
+    list(reader.delta(kept))
+    reader.get("/users/megan@contoso.com/mailFolders")
+    assert [counted for _url, counted in seen] == [1, 1]
+    assert graph_module.MAILBOX_GATES.in_flight("megan@contoso.com") == 0
+
+
+def test_a_client_that_reads_no_one_mailbox_is_not_counted():
+    from provisa.microsoft365 import graph as graph_module
+
+    counted: list[int] = []
+
+    def send(method, url, params, headers, body) -> Answer:
+        counted.append(sum(graph_module.MAILBOX_GATES._in_flight.values()))
+        return Answer(200, {}, {"value": []})
+
+    Graph(send, lambda: "t").get("/users?$filter=x")  # the directory
+    assert counted == [0]
+
+
+def test_a_mailboxs_reader_counts_every_request_it_makes(monkeypatch):
+    from provisa.microsoft365 import graph as graph_module
+
+    mailbox, fake = _mailbox(_two_folders())
+    counted: list[int] = []
+    send = fake.send
+
+    def watching(method, url, params, headers, body):
+        counted.append(graph_module.MAILBOX_GATES.in_flight(ACCOUNT.lower()))
+        return send(method, url, params, headers, body)
+
+    fake.send = watching
+    mailbox._graph._send = watching
+    _all(mailbox, "messages")
+    assert counted and all(1 <= n <= graph_module.MAILBOX_CONCURRENCY for n in counted)
 
 
 # ------------------------------------------------------------------ a read in units

@@ -334,7 +334,9 @@ class Mailbox:
     """One account's mail, read through Graph."""
 
     def __init__(self, graph: Graph, account: str, *, page_size: int = PAGE_SIZE) -> None:
-        self._graph = graph
+        # Every request of this mailbox's reader counts against the mailbox, whatever its
+        # address looks like (Graph's four concurrent requests for an app and a mailbox).
+        self._graph = graph.for_mailbox(account)
         self.account = account.lower()
         self._root = f"/users/{quote(account, safe='@')}"
         self._page_size = page_size

@@ -19,13 +19,13 @@ page>"}``; the next page is that address used as it is. A refusal carries
 
 from __future__ import annotations
 
+import copy
 import threading
 import time
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import unquote
 
 import httpx
 
@@ -140,31 +140,13 @@ class _MailboxGates:
 
 
 MAILBOX_GATES = _MailboxGates()
-_USERS = "/users/"
 
 
-def _mailbox_of(path: str) -> str | None:
-    """The mailbox a request is for: the address or id after ``/users/``, lowercased; None
-    for a request that is for no one mailbox (the directory)."""
-    start = path.find(_USERS)
-    if start < 0:
-        return None
-    rest = path[start + len(_USERS) :]
-    who = rest.split("/", 1)[0].split("?", 1)[0]
-    # ``/users`` with a query, or ``/users/{id}`` alone, is the directory, not a mailbox.
-    return unquote(who).lower() if who and "/" in rest else None
-
-
-def _gated(url: str, body: Any) -> tuple[str | None, int]:
-    """The mailbox a call counts against, and how many requests it is: a batch is as many as
-    it holds (they are one mailbox's in this reader), any other call one."""
+def _requests_in(url: str, body: Any) -> int:
+    """How many requests a call is: a batch is as many as it holds, any other call one."""
     if url.endswith("/$batch") and isinstance(body, dict):
-        requests = body.get("requests") or []
-        mailboxes = {_mailbox_of(str(r.get("url", ""))) for r in requests} - {None}
-        if len(mailboxes) == 1:
-            return mailboxes.pop(), len(requests)
-        return None, 0
-    return _mailbox_of(_path(url)), 1
+        return len(body.get("requests") or [])
+    return 1
 
 
 def _path(url: str) -> str:
@@ -229,6 +211,19 @@ class Graph:
         self._sleep = sleep
         #: Told how long a throttled call is about to wait, and 0 when the wait is over.
         self._waiting = waiting
+        #: The mailbox this client's requests are for, where it reads one (:meth:`for_mailbox`):
+        #: they then wait for room among every request this process has in flight for it.
+        self._mailbox: str | None = None
+
+    def for_mailbox(self, mailbox: str) -> "Graph":
+        """This client, reading ``mailbox``: every request it makes counts against that
+        mailbox's :data:`MAILBOX_CONCURRENCY`. The mailbox is the reader's to say, never read
+        from an address: a link Graph gave to continue from is opaque, and need not name the
+        mailbox the way the request that earned it did (Microsoft's own examples answer
+        ``/mailFolders/{id}`` with ``mailfolders('{id}')``)."""
+        bound = copy.copy(self)
+        bound._mailbox = mailbox.lower()
+        return bound
 
     def _wait(self, seconds: float) -> None:
         """Wait out what Graph asked for, saying so to whoever watches the read."""
@@ -254,12 +249,11 @@ class Graph:
             headers = {**(also or {}), "Authorization": f"Bearer {self._token()}"}
             if prefer:
                 headers["Prefer"] = ", ".join(prefer)
-            mailbox, weight = _gated(url, body)
-            if mailbox is None:
+            if self._mailbox is None:  # the directory: for no one mailbox
                 answer = self._send(method, url, params, headers, body)
             else:
                 # Room is held only while the request is in flight, never across a wait.
-                with MAILBOX_GATES.of(mailbox, weight):
+                with MAILBOX_GATES.of(self._mailbox, _requests_in(url, body)):
                     answer = self._send(method, url, params, headers, body)
             asked = answer.headers.get("Retry-After")
             if answer.status == 429 or (answer.status == 503 and asked is not None):
