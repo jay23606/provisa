@@ -2248,6 +2248,19 @@ main {
   cursor: default;
 }
 
+/* A form made of titled panels: the panels flow into columns by the width of the form itself
+   (two once it holds two of 22rem), and each panel lays its own fields out in rows. */
+.form-panels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-md);
+}
+.form-panels > * {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
 /* What a field says about its value beneath the control (where it comes from, that a change
    needs a restart, an action on it): the size and colour of a hint, its parts spaced, wrapping
    inside the field's own width. */
