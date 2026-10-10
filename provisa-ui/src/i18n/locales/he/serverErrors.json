@@ -379,8 +379,7 @@
       "registry_field_required": "מקור '{{source}}': שיטת האימות '{{method}}' של רישום הסכמות דורשת {{field}}",
       "registry_path_not_absolute": "מקור '{{source}}': {{field}} חייב להיות נתיב מוחלט, התקבל '{{path}}'",
       "column_scope_invalid": "לעמודה '{{column}}' יש היקף '{{scope}}'; היקף של עמודה הוא אחד מ-{{scopes}}",
-      "microsoft_365_invalid": "מקור Microsoft 365 {{source}}: {{error}}",
-      "draft_read_needs_replica": "הטבלה '{{table}}' נקראת דרך העתק במנוע זה, ולטיוטה אין העתק: אפשר יהיה לקרוא את השורות שלה לאחר שתשוחרר"
+      "microsoft_365_invalid": "מקור Microsoft 365 {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",

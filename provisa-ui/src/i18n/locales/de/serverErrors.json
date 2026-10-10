@@ -379,8 +379,7 @@
       "registry_field_required": "Quelle '{{source}}': Die Schema-Registry-Authentifizierung '{{method}}' erfordert {{field}}",
       "registry_path_not_absolute": "Quelle '{{source}}': {{field}} muss ein absoluter Pfad sein, erhalten: '{{path}}'",
       "column_scope_invalid": "Spalte '{{column}}' hat den Geltungsbereich '{{scope}}'; zulässig ist einer von {{scopes}}",
-      "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}",
-      "draft_read_needs_replica": "Die Tabelle '{{table}}' wird auf dieser Engine über ein Replikat gelesen, und ein Entwurf hat keines: Ihre Zeilen können gelesen werden, sobald sie freigegeben ist"
+      "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",

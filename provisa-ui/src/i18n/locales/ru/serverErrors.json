@@ -379,8 +379,7 @@
       "registry_field_required": "Источник '{{source}}': для аутентификации в реестре схем '{{method}}' требуется {{field}}",
       "registry_path_not_absolute": "Источник '{{source}}': {{field}} должен быть абсолютным путём, получено '{{path}}'",
       "column_scope_invalid": "У столбца '{{column}}' область '{{scope}}'; область столбца — одна из {{scopes}}",
-      "microsoft_365_invalid": "Источник Microsoft 365 {{source}}: {{error}}",
-      "draft_read_needs_replica": "Таблица '{{table}}' читается на этом движке через реплику, а у черновика её нет: строки можно будет прочитать после выпуска таблицы"
+      "microsoft_365_invalid": "Источник Microsoft 365 {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

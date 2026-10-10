@@ -379,8 +379,7 @@
       "registry_field_required": "数据源“{{source}}”：模式注册表认证“{{method}}”需要 {{field}}",
       "registry_path_not_absolute": "数据源“{{source}}”：{{field}} 必须是绝对路径，实际为“{{path}}”",
       "column_scope_invalid": "列 '{{column}}' 的范围为 '{{scope}}'；列的范围必须是 {{scopes}} 之一",
-      "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}",
-      "draft_read_needs_replica": "表“{{table}}”在此引擎上通过副本读取，而草稿没有副本：发布后即可读取其行"
+      "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",

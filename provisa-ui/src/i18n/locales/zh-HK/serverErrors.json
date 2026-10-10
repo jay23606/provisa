@@ -379,8 +379,7 @@
       "registry_field_required": "資料來源「{{source}}」：綱要註冊表驗證「{{method}}」需要 {{field}}",
       "registry_path_not_absolute": "資料來源「{{source}}」：{{field}} 必須是絕對路徑，實際為「{{path}}」",
       "column_scope_invalid": "欄位「{{column}}」的範圍為「{{scope}}」；欄位的範圍須為 {{scopes}} 其中之一",
-      "microsoft_365_invalid": "Microsoft 365 數據來源 {{source}}：{{error}}",
-      "draft_read_needs_replica": "資料表「{{table}}」在此引擎上經副本讀取，而草稿沒有副本：發佈後即可讀取其資料列"
+      "microsoft_365_invalid": "Microsoft 365 數據來源 {{source}}：{{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} 並非 {{service}} 中本組織密鑰範圍內的名稱：名稱相對於組織，不能超出組織範圍",

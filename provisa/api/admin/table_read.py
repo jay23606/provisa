@@ -125,32 +125,6 @@ def _surface_with(state: Any, role_id: str, draft: dict) -> RoleSurface:
     return replace(surface, context=ctx)
 
 
-def _engine_of(state: Any) -> Any:
-    """The engine the organisation's statements run on, as the replica decision takes it."""
-    return state.federation_engine.engine
-
-
-async def _require_read_in_place(state: Any, draft: dict) -> None:
-    """A draft is copied nowhere, so it can be read only where the engine reads its source in
-    place. A table the engine reaches through a replica alone (the one decision,
-    ``replica_routing.reads_replica``) has none while it is a draft: its preview is refused, and
-    says that releasing it is what builds one."""
-    from provisa.federation.registry_view import registered_sources
-    from provisa.federation.replica_routing import reads_replica
-
-    for source in await registered_sources(state):
-        if source.id != draft["source_id"]:
-            continue
-        if reads_replica(source, draft, _engine_of(state), promoted=False):
-            raise ApiError(
-                409,
-                "schema.draft_read_needs_replica",
-                f"table {draft['table_name']!r} is read through a replica on this engine, and a "
-                "draft has none: its rows can be read once it is released",
-                table=draft["table_name"],
-            )
-
-
 def _statement(table: dict, limit: int | None, request: Any) -> tuple[str, list]:
     """The one statement the read is: the table's first ``limit`` rows, or the page the viewer
     asked for (``request``: its filters, sorts, grouping and page), written here from the
@@ -196,7 +170,6 @@ async def read_as_caller(
     sql, params = _statement(draft, limit, request)
     # Where a regional table may be read is the regions' rule, in its own module.
     require_draft_read_in_its_region(draft["table_name"], draft.get("region"))
-    await _require_read_in_place(state, draft)
     seen = _WithDraft(state, draft, role_id, _surface_with(state, role_id, draft))
     plan = await _govern_and_route_compiled(
         sql,

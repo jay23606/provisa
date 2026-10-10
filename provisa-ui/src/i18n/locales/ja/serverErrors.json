@@ -379,8 +379,7 @@
       "registry_field_required": "ソース '{{source}}': スキーマレジストリ認証 '{{method}}' には {{field}} が必要です",
       "registry_path_not_absolute": "ソース '{{source}}': {{field}} は絶対パスである必要があります（指定値: '{{path}}'）",
       "column_scope_invalid": "列「{{column}}」のスコープは「{{scope}}」です。列のスコープは {{scopes}} のいずれかです",
-      "microsoft_365_invalid": "Microsoft 365 ソース {{source}}: {{error}}",
-      "draft_read_needs_replica": "テーブル '{{table}}' はこのエンジンではレプリカ経由で読み取られますが、ドラフトにはレプリカがありません。公開後に行を読み取れます"
+      "microsoft_365_invalid": "Microsoft 365 ソース {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",

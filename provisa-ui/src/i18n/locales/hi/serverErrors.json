@@ -379,8 +379,7 @@
       "registry_field_required": "स्रोत '{{source}}': स्कीमा रजिस्ट्री प्रमाणीकरण '{{method}}' के लिए {{field}} आवश्यक है",
       "registry_path_not_absolute": "स्रोत '{{source}}': {{field}} निरपेक्ष पथ होना चाहिए, मिला '{{path}}'",
       "column_scope_invalid": "कॉलम '{{column}}' का स्कोप '{{scope}}' है; कॉलम का स्कोप इनमें से एक होता है: {{scopes}}",
-      "microsoft_365_invalid": "Microsoft 365 स्रोत {{source}}: {{error}}",
-      "draft_read_needs_replica": "तालिका '{{table}}' इस इंजन पर प्रतिकृति के माध्यम से पढ़ी जाती है, और ड्राफ़्ट की कोई प्रतिकृति नहीं होती: जारी होने के बाद इसकी पंक्तियाँ पढ़ी जा सकेंगी"
+      "microsoft_365_invalid": "Microsoft 365 स्रोत {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} {{service}} में इस संगठन के सीक्रेट्स के भीतर का नाम नहीं है: नाम संगठन के सापेक्ष होता है और उससे बाहर नहीं जा सकता",

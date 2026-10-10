@@ -90,17 +90,6 @@ def state(multi_domain, monkeypatch):
     # As a rebuild publishes them beside the role build: the tables in service.
     monkeypatch.setattr(built, "tables", _tables(), raising=False)
     built.role_build_inputs["draft_tables"] = [_refunds()]
-    # The draft's source, as the control plane lists it; the engine reads it in place.
-    from provisa.federation import registry_view, replica_routing
-
-    async def _sources(_state, *_conn):
-        return [SimpleNamespace(id="pg", type="postgresql")]
-
-    monkeypatch.setattr(registry_view, "registered_sources", _sources)
-    monkeypatch.setattr(replica_routing, "reads_replica", lambda source, table, engine, **k: False)
-    # The replica decision is asked of the engine's own object; governance below asks nothing
-    # of it in these tests.
-    monkeypatch.setattr(table_read, "_engine_of", lambda _state: object())
     # The role's own context names the draft only to refuse it, as the build leaves it.
     built.surfaces["r"].context.draft_names['"sales"."refunds"'] = "refunds"
     built.surfaces["r"].context.draft_names["sales.refunds"] = "refunds"
@@ -192,21 +181,6 @@ async def test_a_draft_kept_in_another_region_is_not_read_here(state, routing, m
     state.role_build_inputs["draft_tables"] = [_refunds(region="us")]
     with pytest.raises(_Routed):
         await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
-
-
-async def test_a_draft_the_engine_reaches_only_through_a_replica_is_not_read(
-    state, routing, monkeypatch
-):
-    """A draft is copied nowhere: where reading it would need a replica, the preview is refused
-    by name and nothing is built."""
-    from provisa.federation import replica_routing
-
-    monkeypatch.setattr(replica_routing, "reads_replica", lambda *a, **k: True)
-    with pytest.raises(ApiError) as err:
-        await table_read.read_as_caller(state, _REFUNDS, "r", limit=5)
-    assert (err.value.status_code, err.value.code) == (409, "schema.draft_read_needs_replica")
-    assert err.value.params == {"table": "refunds"}
-    routing.assert_not_awaited()
 
 
 async def test_a_table_in_service_is_read_as_any_statement_reads_it(state, monkeypatch):

@@ -379,8 +379,7 @@
       "registry_field_required": "Bron '{{source}}': schema-registryauthenticatie '{{method}}' vereist {{field}}",
       "registry_path_not_absolute": "Bron '{{source}}': {{field}} moet een absoluut pad zijn, ontvangen '{{path}}'",
       "column_scope_invalid": "Kolom '{{column}}' heeft bereik '{{scope}}'; het bereik van een kolom is een van {{scopes}}",
-      "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}",
-      "draft_read_needs_replica": "Tabel '{{table}}' wordt op deze engine via een replica gelezen en een concept heeft er geen: de rijen kunnen worden gelezen zodra de tabel is vrijgegeven"
+      "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",
