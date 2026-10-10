@@ -27,6 +27,7 @@ from provisa.api.role_surface import role_surface
 
 from types import SimpleNamespace
 import contextvars
+import functools
 import importlib.util
 import json
 import logging
@@ -41,9 +42,12 @@ import concurrent.futures
 from starlette.exceptions import HTTPException
 import grpc
 from google.protobuf.descriptor import FieldDescriptor
+from google.protobuf.message import DecodeError
 
 from provisa.compiler.directives import cache_hint_from_grpc_metadata
 from provisa.core import request_deadline
+from provisa.core.request_context import reset_current_org
+from provisa.grpc.descriptor import SERVICE_NAME, bound_descriptor, role_descriptor
 from provisa.core.read_refusal import ReadRefused
 from provisa.core.ir_types import iso8601_duration
 
@@ -291,6 +295,10 @@ def _streaming(body):
     return handler
 
 
+# How many method names' handlers a servicer keeps (ProvisaServicer.rpc_handler).
+_HANDLERS_KEPT = 4096
+_REFLECTION_METHOD = ("grpc.reflection.v1alpha.ServerReflection", "ServerReflectionInfo")
+
 # Whether the RPC running in this context had its organisation bound where it was received
 # (ProvisaServicer._received): the handlers' own binding then has nothing to do.
 _org_bound_for_rpc: contextvars.ContextVar[bool] = contextvars.ContextVar(
@@ -307,17 +315,10 @@ class _OrgBoundService(grpc.GenericRpcHandler):
         self._reflection = reflection
 
     def service(self, handler_call_details):
-        from grpc_reflection.v1alpha import reflection
-
-        from provisa.grpc.descriptor import SERVICE_NAME
-
         service, _, method = (handler_call_details.method or "").lstrip("/").partition("/")
         if service == SERVICE_NAME:
             return self._servicer.rpc_handler(method)
-        if self._reflection and (service, method) == (
-            reflection.SERVICE_NAME,
-            "ServerReflectionInfo",
-        ):
+        if self._reflection and (service, method) == _REFLECTION_METHOD:
             return self._servicer.reflection_handler()
         return None
 
@@ -336,8 +337,6 @@ class ProvisaServicer:  # REQ-045, REQ-143
         """The compiled service this RPC's messages belong to: the bound organisation's own."""
         if self._messages is not None:
             return self._messages
-        from provisa.grpc.descriptor import bound_descriptor
-
         found = bound_descriptor(self._state)
         if found is None:
             raise RuntimeError("the bound organisation has no gRPC service")
@@ -402,10 +401,6 @@ class ProvisaServicer:  # REQ-045, REQ-143
         method the organisation's service does not have is unimplemented for this caller,
         whatever another organisation's has. Refused as the handlers refuse: no role, then no
         organisation."""
-        from google.protobuf.message import DecodeError
-
-        from provisa.core.request_context import reset_current_org
-
         metadata = dict(context.invocation_metadata())
         role_id = _rpc_role(metadata)
         if not role_id:
@@ -444,8 +439,6 @@ class ProvisaServicer:  # REQ-045, REQ-143
         This reads the role's own proto; what a call may read is decided, as ever, by the
         handler from the role's context. A role with no service of its own is answered by the
         handler (it has no schema)."""
-        from provisa.grpc.descriptor import role_descriptor
-
         if role_id is None:
             return True
         own = role_descriptor(self._state, role_id)
@@ -487,10 +480,15 @@ class ProvisaServicer:  # REQ-045, REQ-143
 
         return _streaming(received)
 
+    @functools.lru_cache(maxsize=_HANDLERS_KEPT)  # noqa: B019 -- one servicer, for the server's life
     def rpc_handler(self, method: str) -> grpc.RpcMethodHandler | None:
         """What serves ``method`` of the Provisa service, taking and giving bytes; None for a
         name no organisation's service could have. Whether a method streams is its name's rule
-        (:meth:`__getattr__`), since the organisation is not known until the call is read."""
+        (:meth:`__getattr__`), since the organisation is not known until the call is read.
+
+        Built once per method name and kept, as a generated registration builds each handler
+        once: a handler holds nothing of a call or of an organisation. The names are a caller's
+        to send, so only the most recently used are kept."""
         try:
             behaviour = getattr(self, method)
         except AttributeError:
@@ -507,7 +505,6 @@ class ProvisaServicer:  # REQ-045, REQ-143
         from grpc_reflection.v1alpha import reflection, reflection_pb2
 
         from provisa.core.request_context import reset_current_org
-        from provisa.grpc.descriptor import SERVICE_NAME, role_descriptor
         from provisa.grpc.rpc_scope import rpc_scope
 
         async def described(context):
@@ -1669,7 +1666,6 @@ def start_grpc_server(
     from grpc_health.v1 import health, health_pb2, health_pb2_grpc
 
     from provisa.grpc.auth import auth_active
-    from provisa.grpc.descriptor import SERVICE_NAME
 
     reflected = auth_active(state) or _allow_unsecured_reflection()
     server.add_generic_rpc_handlers((_OrgBoundService(servicer, reflection=reflected),))
