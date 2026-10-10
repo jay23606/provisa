@@ -350,7 +350,7 @@ tables:
     - org_admin
   - description: Sale price of the pet in USD
     name: price
-    data_type: decimal
+    data_type: numeric(10,2)
     visible_to:
     - org_admin
   - description: Whether the pet is currently available for purchase

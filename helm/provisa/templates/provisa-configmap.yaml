@@ -61,7 +61,7 @@ data:
             data_type: integer
             visible_to: [org_admin]
           - name: amount
-            data_type: numeric
+            data_type: numeric(10,2)
             visible_to: [org_admin]
           - name: region
             data_type: varchar
@@ -103,7 +103,7 @@ data:
             data_type: varchar
             visible_to: [org_admin, analyst]
           - name: price
-            data_type: numeric
+            data_type: numeric(10,2)
             visible_to: [org_admin]
           - name: category
             data_type: varchar
