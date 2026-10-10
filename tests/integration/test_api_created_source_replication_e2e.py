@@ -127,19 +127,61 @@ def _read(srv) -> httpx.Response:
     )
 
 
+#: The organisation of a deployment with one organisation.
+_ORG = "default"
+
+#: What the password field holds, and the organisation secret (if any) its operator created
+#: for it beforehand: the value itself; a reference to a secret the operator named; and a
+#: reference in the form a save left before credentials were kept as typed, its secret still in
+#: the vault. To the resolver the last two are the same thing: a reference in a field.
+_PASSWORD_FIELDS = [
+    pytest.param("provisa", None, id="a-value"),
+    pytest.param("${secret:my_shop_password}", "my_shop_password", id="the-operators-own-secret"),
+    pytest.param("${secret:source_src_password}", "source_src_password", id="saved-the-former-way"),
+]
+
+
+def _create_secret(srv, name: str, value: str) -> None:
+    """The operator's own act, on the one route where a secret is created."""
+    response = httpx.put(
+        f"{srv.base_url}/admin/orgs/{_ORG}/secrets/{name}",
+        json={"value": value},
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=srv.request_timeout + 10,
+    )
+    assert response.status_code == 200, response.text
+
+
+def _secret_names(srv) -> list[str]:
+    response = httpx.get(
+        f"{srv.base_url}/admin/orgs/{_ORG}/secrets",
+        headers={"X-Provisa-Role": _ROLE},
+        timeout=srv.request_timeout + 10,
+    )
+    assert response.status_code == 200, response.text
+    return sorted(secret["name"] for secret in response.json()["secrets"])
+
+
 @pytest.mark.parametrize("engine", ["pg", "duckdb"])
-def test_a_source_created_through_the_admin_api_is_replicated_and_read(databases, engine):
+@pytest.mark.parametrize(("typed", "secret"), _PASSWORD_FIELDS)
+def test_a_source_created_through_the_admin_api_is_replicated_and_read(
+    databases, engine, typed, secret
+):
     pg = databases
     with tempfile.TemporaryDirectory() as workdir:
         srv = _server(pg, engine, workdir)
         try:
             srv.start()
+            if secret is not None:
+                _create_secret(srv, secret, "provisa")
             _admin(
                 srv,
                 'createSource(input: {id: "src", type: "postgresql", host: "127.0.0.1", '
                 f'port: {pg.source_port}, database: "shop", username: "provisa", '
-                'password: "provisa"})',
+                f'password: "{typed}"}})',
             )
+            # Saving the source put nothing in the vault and took nothing out of it.
+            assert _secret_names(srv) == ([] if secret is None else [secret])
             registered = _admin(
                 srv,
                 'registerTable(input: {sourceId: "src", domainId: "shop", schemaName: "public", '
@@ -165,5 +207,9 @@ def test_a_source_created_through_the_admin_api_is_replicated_and_read(databases
             again = _read(srv)
             assert again.status_code == 200, again.text
             assert sorted(again.json()["data"]["orders"], key=lambda r: r["id"]) == _ID_AMOUNT
+            # The replica was built by the runner, which no request's vault binding reaches:
+            # the field was resolved in the source's own organisation, and the vault is as the
+            # operator left it.
+            assert _secret_names(srv) == ([] if secret is None else [secret])
         finally:
             srv.stop_process()
