@@ -353,7 +353,8 @@ export const TOUR_STEPS: TourStep[] = [
     capability: "access_config",
     readySelector: '[data-testid="toggle-role-form"]',
     clickBefore: '[data-testid="toggle-role-form"]',
-    clickAfterNext: '[data-testid="toggle-role-form"]',
+    // The opener is hidden while its form is open: the form's own Cancel closes it.
+    clickAfterNext: '[data-testid="cancel-role"]',
     element: '[data-testid="role-parent-select"]',
     key: "stepRoleInherit",
   },
@@ -644,7 +645,14 @@ export type TourScope = "core" | TopicId;
 export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
   core: ["step0", "stepPolly", "step1", "step2", "stepQuery", "step14"],
   connect: ["step3", "step4", "step5", "stepPreview"],
-  relationships: ["step15", "stepRelsAgents", "step16", "stepRelsSuggest", "stepRelsList", "step17"],
+  relationships: [
+    "step15",
+    "stepRelsAgents",
+    "step16",
+    "stepRelsSuggest",
+    "stepRelsList",
+    "step17",
+  ],
   model: ["step20", "step21", "stepMetrics", "stepCommands", "step22"],
   govern: ["step18", "stepRoleInherit", "step19", "stepDomains", "stepTags", "stepRequests"],
   query: ["step6", "step7", "step8", "step9", "step10", "step11", "step12", "step13"],
@@ -664,7 +672,13 @@ export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
     "stepSynthetic",
     "stepSyntheticPrivacy",
   ],
-  publish: ["stepDataProducts", "stepProductForm", "stepGlossary", "stepGlossaryTerm", "stepPublish"],
+  publish: [
+    "stepDataProducts",
+    "stepProductForm",
+    "stepGlossary",
+    "stepGlossaryTerm",
+    "stepPublish",
+  ],
   operate: ["stepReports", "stepObservability", "stepCache", "stepScheduled", "step23"],
 };
 
