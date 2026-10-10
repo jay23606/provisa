@@ -356,6 +356,41 @@ describe("the organisation's mail platforms", () => {
       );
     });
 
+    it("sends a key file's text pasted into the field as the same JSON", async () => {
+      // A key file as Google Cloud writes it: one member a line, the private key's own line
+      // breaks escaped inside its string. A one-line field drops the breaks between members.
+      const original = {
+        type: "service_account",
+        project_id: "made-up-project",
+        private_key:
+          "-----BEGIN PRIVATE KEY-----\nmade-up-line-1\nmade-up-line-2\n-----END PRIVATE KEY-----\n",
+        client_email: "reader@made-up-project.iam.gserviceaccount.com",
+        token_uri: "https://oauth2.googleapis.com/token",
+      };
+      const file = JSON.stringify(original, null, 2) + "\n";
+      expect(file.split("\n").length).toBeGreaterThan(5);
+      list.mockResolvedValue({
+        redirect_address: REDIRECT,
+        platforms: [
+          workspace({
+            organisation_mailboxes: true,
+            settings: { admin_address: "admin@example.test" },
+          }),
+        ],
+      });
+      render(<MailPlatformsSection />);
+      const field = await screen.findByTestId(tid("-organisation-key"));
+      fireEvent.paste(field, { clipboardData: { getData: () => file } });
+      fireEvent.change(field, { target: { value: file } });
+      await waitFor(() => expect(screen.getByTestId(tid("-save"))).toBeEnabled());
+      fireEvent.click(screen.getByTestId(tid("-save")));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      const sent = put.mock.calls[0][2].organisation_key as string;
+      // What the input holds is one line, and it parses to the key file's own content.
+      expect(sent).not.toContain("\n");
+      expect(JSON.parse(sent)).toEqual(original);
+    });
+
     it("shows again what the field holds, and sends it unchanged", async () => {
       list.mockResolvedValue({
         redirect_address: REDIRECT,
