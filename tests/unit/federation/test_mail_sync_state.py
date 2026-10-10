@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: 31577376-c354-445d-8eb8-1feb9f598231
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """Where the last completed read of a mail source reached (REQ-1923): one token for each
 (source, mailbox, scope, kind), kept in the org's state store and gone with its source."""
 

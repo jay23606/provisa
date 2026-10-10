@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: fedb0629-21bb-4b6f-9715-0a529f6d7c33
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """Where the last completed read of a mail source reached (REQ-1923).
 
 One row for each (source, mailbox, scope, kind):
