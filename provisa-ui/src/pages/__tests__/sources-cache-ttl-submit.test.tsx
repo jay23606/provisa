@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: b43bd0ac-06e1-4aa2-bf20-1f320df5ee73
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // #208: the server judges a source's change signal against the Cache TTL in the SAME input that
 // saves the source. The form used to send the Cache TTL only in a second call, so a mail source
 // (whose every table lands, and must therefore state its Cache TTL) could not be saved from the
