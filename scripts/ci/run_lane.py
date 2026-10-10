@@ -71,9 +71,11 @@ LANES: dict[str, Lane] = {
     # test skipping itself. The live Salesforce test is in no nightly lane: a cold run costs
     # about 2,450 API calls of an org allowed 15,000 a day. The live Microsoft 365 test is in no
     # CI lane at all: its tenant is the maintainer's own and no job declares M365 secrets.
+    # Nor is the live Google Workspace test: its domain is the maintainer's own too.
     "warehouse": Lane(
         ("tests/integration", "tests/steps"),
-        "requires_warehouse and not requires_salesforce and not requires_microsoft_365",
+        "requires_warehouse and not requires_salesforce and not requires_microsoft_365 "
+        "and not requires_google_workspace",
         clear_addopts=True,
     ),
     # The live Salesforce org: on demand only (workflow_dispatch, include_salesforce), its own job.

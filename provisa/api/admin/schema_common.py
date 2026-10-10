@@ -381,6 +381,34 @@ async def microsoft_365_organisation_refusal(
     return None
 
 
+async def google_workspace_organisation_refusal(
+    input: SourceInput,
+) -> Optional[MutationResult]:  # REQ-1923
+    """Why a Google Workspace source of the ORGANISATION's mailboxes cannot be saved, or None:
+    for another source type, for a source of one mailbox, and when the organisation's
+    administrator has allowed such sources. Asked again where a build asks for its credential."""
+    import json as _json
+
+    from provisa.api.app import state
+    from provisa.core import mail_platforms
+    from provisa.core.request_context import require_current_org
+    from provisa.google_workspace import SOURCE_TYPE
+    from provisa.google_workspace.settings import parse
+
+    if input.type != SOURCE_TYPE or not parse(_json.loads(input.mapping_json or "{}")).organisation:
+        return None
+    assert state.admin_db is not None  # set before any request is served
+    try:
+        await mail_platforms.require_organisation(
+            state.admin_db, require_current_org(), SOURCE_TYPE
+        )
+    except mail_platforms.MailPlatformRefused as refused:
+        return MutationResult(
+            success=False, message=str(refused), code=refused.code, params=dict(refused.params)
+        )
+    return None
+
+
 def _expand_wikipedia_if_needed(input: SourceInput) -> Optional[MutationResult]:  # REQ-1960
     """The ONE place a Wikipedia source becomes the ``files`` source that carries it -- called
     from inside create_source, as Kaggle staging is, so every creation path gets the same crawl.
@@ -877,7 +905,7 @@ SOURCE_MAPPING_SECRET_KEYS: dict[str, tuple[str, ...]] = {
     "salesforce": ("sf_password", "security_token", "access_token"),
     "cloudops": ("azure_client_secret", "aws_secret_access_key"),  # REQ-1947
     # REQ-1923: the same names provisa/google_workspace/settings.py reads (SECRET_KEYS).
-    "google_workspace": ("refresh_token", "service_account_key"),
+    "google_workspace": ("refresh_token",),
     # REQ-1923: the same names provisa/microsoft365/settings.py reads (SECRET_KEYS).
     "microsoft_365": ("refresh_token",),
 }

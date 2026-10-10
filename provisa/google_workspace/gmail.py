@@ -147,13 +147,19 @@ class Gmail:
         *,
         pacer: Pacer | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        quota_user: bool = False,
     ) -> None:
         self.account = account
         self._token, self._client, self._sleep = access_token, client, sleep
         self._pacer = pacer if pacer is not None else Pacer(sleep=sleep)
+        # A service account reading as many users: each call says whose allowance it is
+        # counted against (Google's ``quotaUser`` system parameter).
+        self._quota_user = quota_user
 
     async def _call(self, call: str, path: str, params: dict[str, Any] | None = None) -> dict:
         url = f"{BASE_URL}{self.account}/{path}"
+        if self._quota_user:
+            params = {**(params or {}), "quotaUser": self.account}
         wait = _FIRST_WAIT
         for attempt in range(1, _TRIES + 1):
             await self._pacer.spend(COST[call])

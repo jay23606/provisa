@@ -3781,6 +3781,9 @@ def create_app() -> FastAPI:
     from provisa.api.admin.microsoft365_router import router as microsoft365_router
 
     app.include_router(microsoft365_router)  # REQ-1923
+    from provisa.api.admin.google_workspace_router import router as google_workspace_router
+
+    app.include_router(google_workspace_router)  # REQ-1923
     from provisa.api.admin.source_kinds_router import router as source_kinds_router
 
     app.include_router(source_kinds_router)  # REQ-1907

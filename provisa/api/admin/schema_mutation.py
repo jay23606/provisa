@@ -110,6 +110,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _remove_view_mv,
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
+    google_workspace_organisation_refusal,
     microsoft_365_organisation_refusal,
     microsoft_365_refusal,
     _stage_kaggle_if_needed,
@@ -1217,7 +1218,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 if _wikipedia_refusal is not None:
                     return _wikipedia_refusal
                 # REQ-1923: a Google Workspace source's settings are checked before it exists.
-                _workspace_refusal = google_workspace_refusal(input)
+                _workspace_refusal = google_workspace_refusal(
+                    input
+                ) or await google_workspace_organisation_refusal(input)
                 if _workspace_refusal is not None:
                     return _workspace_refusal
                 _m365_refusal = microsoft_365_refusal(
@@ -1596,7 +1599,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _wikipedia_refusal = _expand_wikipedia_if_needed(input)
             if _wikipedia_refusal is not None:
                 return _wikipedia_refusal
-            _workspace_refusal = google_workspace_refusal(input)  # REQ-1923
+            _workspace_refusal = google_workspace_refusal(
+                input
+            ) or await google_workspace_organisation_refusal(input)  # REQ-1923
             if _workspace_refusal is not None:
                 return _workspace_refusal
             _m365_refusal = microsoft_365_refusal(

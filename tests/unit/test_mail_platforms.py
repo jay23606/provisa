@@ -85,10 +85,15 @@ async def _put(plane, org="acme", platform=GOOGLE, **changed):
 
 
 class TestTheStore:
-    async def test_google_workspace_is_a_platform_with_nothing_beside_its_client(self):
+    async def test_google_workspace_is_a_platform_whose_organisation_credential_is_its_own(self):
+        """Its client is entered with nothing beside it; for the organisation's mailboxes it
+        takes a service account's key and the administrator address directory calls are made
+        as."""
         import provisa.google_workspace  # noqa: F401
 
-        assert mail_platforms.platform(GOOGLE) == Platform(GOOGLE)
+        assert mail_platforms.platform(GOOGLE) == Platform(
+            GOOGLE, organisation_settings=("admin_address",), organisation_key=True
+        )
         assert GOOGLE in [p.id for p in mail_platforms.platforms()]
 
     async def test_an_organisation_that_entered_nothing_has_nothing(self, plane):
@@ -164,6 +169,67 @@ class TestTheStore:
         assert await mail_platforms.read(plane, "globex", GOOGLE) is not None
 
 
+KEY = '{"made-up": "service account key"}'
+ORG = {"organisation_mailboxes": True, "settings": {"admin_address": "admin@example.test"}}
+
+
+class TestTheOrganisationsOwnCredential:
+    async def test_allowing_organisation_sources_needs_the_key_and_the_administrator(self, plane):
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(plane, organisation_mailboxes=True)
+        assert raised.value.code == "mail_platform.incomplete"
+        assert raised.value.params == {"missing": "admin_address, organisation_key"}
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(plane, **ORG)
+        assert raised.value.params == {"missing": "organisation_key"}
+        assert await mail_platforms.read(plane, "acme", GOOGLE) is None
+
+    async def test_the_key_goes_to_the_vault_and_the_entry_keeps_only_its_name(self, plane):
+        kept = await _put(plane, organisation_key=KEY, **ORG)
+        name = "mail_platform_google_workspace_organisation_key"
+        assert kept.organisation_key == f"${{secret:{name}}}" and kept.organisation_mailboxes
+        assert kept.settings == {"admin_address": "admin@example.test"}
+        assert (await _vault(plane, "acme"))[name] == KEY
+        (row,) = _stored(plane)
+        assert KEY not in str(row) and "made-up" not in str(row)
+        assert row["organisation_key"] == f"${{secret:{name}}}"
+
+    async def test_leaving_the_key_out_keeps_the_one_entered(self, plane):
+        await _put(plane, organisation_key=KEY, **ORG)
+        kept = await _put(plane, client_secret=None, **ORG)
+        assert kept.organisation_key is not None
+        assert (await _vault(plane, "acme"))[kept.organisation_key[9:-1]] == KEY
+
+    async def test_the_key_may_be_entered_before_such_sources_are_allowed(self, plane):
+        kept = await _put(plane, organisation_key=KEY)
+        assert kept.organisation_key is not None and not kept.organisation_mailboxes
+        with pytest.raises(MailPlatformRefused) as raised:
+            await mail_platforms.require_organisation(plane, "acme", GOOGLE)
+        assert raised.value.code == "mail_platform.organisation_mailboxes_off"
+
+    async def test_an_entry_without_a_key_names_none(self, plane):
+        assert (await _put(plane)).organisation_key is None
+
+    async def test_a_platform_with_no_credential_of_its_own_takes_none(self, plane):
+        with pytest.raises(MailPlatformRefused) as raised:
+            await _put(
+                plane, platform=TENANTED, settings={"tenant": "contoso"}, organisation_key=KEY
+            )
+        assert raised.value.code == "mail_platform.unknown_setting"
+        assert raised.value.params == {"setting": "organisation_key"}
+
+    async def test_the_vault_keeps_a_key_its_entry_names(self, plane):
+        from provisa.core import secret_references
+
+        with plane.engine.begin() as conn:
+            schema_admin.metadata.create_all(conn)
+        kept = await _put(plane, organisation_key=KEY, **ORG)
+        assert kept.organisation_key is not None
+        name = kept.organisation_key[9:-1]
+        found = await secret_references.references(plane, "acme", name, environments={})
+        assert [(r.table, r.column) for r in found] == [("org_mail_platforms", "organisation_key")]
+
+
 class TestTheAdminSurface:
     @pytest.fixture
     def wired(self, plane, monkeypatch):
@@ -231,12 +297,34 @@ class TestTheAdminSurface:
             "client_id": None,
             "settings": {},
             "organisation_mailboxes": False,
+            "organisation_settings_fields": ["admin_address"],
+            "organisation_key_field": True,
+            "organisation_key_entered": False,
         }
         assert before["redirect_address"] == "http://localhost:3000/source-sign-in.html"
         await _put(plane)
         after = await router.list_platforms(None, "acme")
         google = next(p for p in after["platforms"] if p["platform"] == GOOGLE)
         assert (google["configured"], google["client_id"]) == (True, "client-1")
+
+    async def test_the_key_is_said_as_entered_and_no_answer_carries_it(self, wired, plane):
+        body = router.PlatformBody(
+            client_id="client-1", client_secret=SECRET, organisation_key=KEY, **ORG
+        )
+        said = await router.put_platform(None, "acme", GOOGLE, body)
+        listed = await router.list_platforms(None, "acme")
+        assert said["organisation_key_entered"] is True and said["organisation_mailboxes"] is True
+        assert said["settings"] == {"admin_address": "admin@example.test"}
+        for answer in (said, listed):
+            assert "made-up" not in str(answer) and "secret:" not in str(answer)
+
+    async def test_removing_takes_the_key_out_of_the_vault_too(self, wired, plane):
+        await _put(plane, organisation_key=KEY, **ORG)
+        assert await router.delete_platform(None, "acme", GOOGLE) == {"removed": True}
+        assert [name for _o, _w, name, _a in wired["dropped"]] == [
+            "mail_platform_google_workspace_client_secret",
+            "mail_platform_google_workspace_organisation_key",
+        ]
 
     async def test_no_answer_carries_the_secret(self, wired):
         kept = await router.put_platform(

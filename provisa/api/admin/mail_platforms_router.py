@@ -43,6 +43,9 @@ class PlatformBody(BaseModel):
     # Whether sources may read the organisation's mailboxes with this client's own credential:
     # stated at every save.
     organisation_mailboxes: bool
+    #: The platform's own credential for the organisation's mailboxes, where it has one
+    #: (Google: a service account's key, as its JSON). Left out to keep the one entered.
+    organisation_key: str | None = None
 
 
 def _refusal(refused: MailPlatformRefused) -> ApiError:
@@ -68,6 +71,12 @@ async def _entry(org_id: str, platform: mail_platforms.Platform) -> dict:
         "client_id": None if configured is None else configured.client_id,
         "settings": {} if configured is None else configured.settings,
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
+        # What the platform is entered with for the organisation's mailboxes. The key is said
+        # only as entered or not; no answer carries it.
+        "organisation_settings_fields": list(platform.organisation_settings),
+        "organisation_key_field": platform.organisation_key,
+        "organisation_key_entered": configured is not None
+        and configured.organisation_key is not None,
     }
 
 
@@ -95,6 +104,7 @@ async def put_platform(request: Request, org_id: str, platform: str, body: Platf
             client_secret=body.client_secret or None,
             settings=body.settings,
             organisation_mailboxes=body.organisation_mailboxes,
+            organisation_key=body.organisation_key or None,
             actor=actor,
         )
         return await _entry(org_id, mail_platforms.platform(platform))
@@ -114,6 +124,11 @@ async def delete_platform(request: Request, org_id: str, platform: str) -> dict:
     except MailPlatformRefused as refused:
         raise _refusal(refused) from None
     # The client first: it names its secret, and the vault lets no named secret go.
+    kept = await mail_platforms.read(_admin_pool(), org_id, platform)
     await mail_platforms.forget(_admin_pool(), org_id, platform)
     await _drop(org_id, secrets_store.ORG_OWNER, mail_platforms.secret_name(platform), actor)
+    if kept is not None and kept.organisation_key is not None:
+        await _drop(
+            org_id, secrets_store.ORG_OWNER, mail_platforms.organisation_key_name(platform), actor
+        )
     return {"removed": True}

@@ -815,6 +815,10 @@ org_mail_platforms = Table(
     # organisation's mailboxes with this client's own credential, nobody signing in. Off until
     # the administrator turns it on.
     Column("organisation_mailboxes", Boolean, nullable=False, server_default=false()),
+    # REQ-1923: the reference that names, in the organisation's vault, the credential of its own
+    # a platform reads the organisation's mailboxes with where that is not the client's (Google:
+    # a service account's key). As text, for the vault's reference search. NULL: none entered.
+    Column("organisation_key", Text, nullable=True),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_by", Text, nullable=True),
 )

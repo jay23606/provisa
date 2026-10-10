@@ -132,6 +132,9 @@ class FakeGmail:
         self.pages = pages or [list(self.mailbox)]
         self.asked: list[tuple[str, str]] = []
 
+    async def profile(self) -> dict:
+        return {"emailAddress": self.account, "historyId": "1000"}
+
     async def labels(self) -> list[dict]:
         return [{"id": label["id"], "name": label["name"]} for label in self.label_rows.values()]
 
@@ -153,6 +156,21 @@ async def _rows(
     table: str, gmail: FakeGmail | None = None, mail: MailSettings = FULL
 ) -> list[dict]:
     return [row async for batch in table_rows(gmail or FakeGmail(), mail, table) for row in batch]
+
+
+def _connected_loader():
+    """The loader, signed in by nothing: each mailbox of the source is read with a made-up
+    token, as ``loader.make_connect`` would hand it one."""
+
+    async def connect(source) -> loader.Reading:
+        settings = loader.source_settings(source)
+
+        async def token(_account: str) -> str:
+            return "made-up-access-token"
+
+        return loader.Reading(settings.accounts, settings.mail, token)
+
+    return loader.make_google_workspace_loader(connect)
 
 
 class TestEveryTableIsItsCanonicalTable:
@@ -353,15 +371,17 @@ class TestTheSourceKind:
             source(accounts=["ada@example.test"], resources=["mail"])
         )
         assert refused is not None and refused.code == "schema.google_workspace_invalid"
-        assert "sign_in must be one of" in refused.message
+        assert "sign_in must be google_account" in refused.message
         good = source(
             accounts=["ada@example.test"],
             resources=["mail"],
-            sign_in="service_account",
-            service_account_key="${secret:k}",
+            sign_in="google_account",
+            refresh_token="${secret:k}",
             mail_content="full",
         )
         assert google_workspace_refusal(good) is None
+        organisation = source(resources=["mail"], mailboxes={"everyone": True}, mail_content="full")
+        assert google_workspace_refusal(organisation) is None
         other = SimpleNamespace(id="pg", type="postgresql", mapping_json="{}")
         assert google_workspace_refusal(other) is None
 
@@ -372,7 +392,7 @@ class TestTheLoader:
         seen: dict = {}
 
         class Recording(FakeGmail):
-            def __init__(self, account, token, client) -> None:
+            def __init__(self, account, token, client, **_kw) -> None:
                 super().__init__()
                 seen["account"], seen["token"] = account, token
 
@@ -393,19 +413,18 @@ class TestTheLoader:
         mapping = {
             "accounts": [ACCOUNT],
             "resources": ["mail"],
-            "sign_in": "service_account",
-            "service_account_key": "${secret:k}",
+            "sign_in": "google_account",
+            "refresh_token": "${secret:k}",
             "mail_content": "full",
         }
         return SimpleNamespace(id="mail", mapping=mapping)
 
-    async def test_a_table_is_read_with_the_sources_own_credential(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+    async def test_a_table_is_read_from_the_sources_mailbox(self, read):
+        fetch = _connected_loader()
         rows = await fetch(self._source(), SimpleNamespace(table_name="messages"))
         assert [r["id"] for r in rows] == ["m1", "m2", "m3"]
         assert read["account"] == ACCOUNT
         assert await read["token"]() == "made-up-access-token"
-        assert (read["auth"].key, read["auth"].subject) == ("resolved-key", ACCOUNT)
 
     async def test_an_owners_approval_is_renewed_with_the_organisations_client(
         self, read, monkeypatch
@@ -433,12 +452,12 @@ class TestTheLoader:
                 "refresh_token": "${secret:source_mail__refresh_token}",
                 "mail_content": "full",
             }
-            fetch = loader.make_google_workspace_loader(read["state"])
-            await fetch(source, SimpleNamespace(table_name="folders"))
+            reading = await loader.make_connect(read["state"])(source)
         finally:
             request_context.reset_current_org(token)
         assert asked == [("admin-plane", "acme", "google_workspace")]
-        await read["token"]()
+        assert (reading.accounts, reading.organisation, reading.at_once) == ((ACCOUNT,), False, 1)
+        assert await reading.token(ACCOUNT) == "made-up-access-token"
         auth = read["auth"]
         assert auth.client_id == "org-client-1"
         assert auth.client_secret == "resolved:mail_platform_google_workspace_client_secret"
@@ -450,7 +469,7 @@ class TestTheLoader:
             {"name": "Content-Type", "value": "text/plain; charset=x-made-up"}
         ]
         monkeypatch.setitem(MAILBOX, "m9", broken)
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("messages")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="messages"), columns
@@ -463,7 +482,7 @@ class TestTheLoader:
         assert note.params == {"count": 1, "ids": ["m9"], "more": 0}
 
     async def test_a_clean_read_leaves_no_note(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("messages")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="messages"), columns
@@ -478,7 +497,7 @@ class TestTheLoader:
         assert loader.unreadable_note([]) is None
 
     async def test_a_replica_is_built_from_the_same_read_in_the_canonical_columns(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("threads")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="threads"), columns
@@ -557,14 +576,14 @@ class TestTheGroupBuild:
         gmails: list[FakeGmail] = []
 
         class Recording(FakeGmail):
-            def __init__(self, account, token, client) -> None:
+            def __init__(self, account, token, client, **_kw) -> None:
                 super().__init__()
                 gmails.append(self)
 
         monkeypatch.setattr(loader, "Gmail", Recording)
         monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
-        made = loader.make_google_workspace_loader(SimpleNamespace(admin_db=None))
+        made = _connected_loader()
         made.gmails = gmails
         return made
 
@@ -573,8 +592,8 @@ class TestTheGroupBuild:
         mapping={
             "accounts": [ACCOUNT],
             "resources": ["mail"],
-            "sign_in": "service_account",
-            "service_account_key": "${secret:k}",
+            "sign_in": "google_account",
+            "refresh_token": "${secret:k}",
             "mail_content": "full",
         },
     )
@@ -626,7 +645,7 @@ class TestTheMailboxProbe:
         mailbox = {"historyId": "1000", "refuse": None, "profiles": 0}
 
         class Probed(FakeGmail):
-            def __init__(self, account, token, client) -> None:
+            def __init__(self, account, token, client, **_kw) -> None:
                 super().__init__()
 
             async def profile(self) -> dict:
@@ -641,7 +660,7 @@ class TestTheMailboxProbe:
         monkeypatch.setattr(loader, "Gmail", Probed)
         monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
-        made = loader.make_google_workspace_loader(SimpleNamespace(admin_db=None))
+        made = _connected_loader()
         made.mailbox = mailbox
         return made
 
@@ -689,4 +708,4 @@ class TestTheMailboxProbe:
         fetch.mailbox["refuse"] = refusal
         with caplog.at_level(logging.WARNING):
             assert await probe() is None
-        assert "could not be asked whether it changed" in caplog.text
+        assert "could not be asked whether they changed" in caplog.text

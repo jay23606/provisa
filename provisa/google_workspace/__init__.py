@@ -15,5 +15,11 @@ from provisa.core import mail_platforms
 #: The source type's name, as a source row records it.
 SOURCE_TYPE = "google_workspace"
 
-# REQ-1923: an organisation enters its Google client once; every source of it signs in with it.
-mail_platforms.declare(mail_platforms.Platform(SOURCE_TYPE))
+# REQ-1923: an organisation enters its Google client once; every source of one mailbox signs in
+# with it. Sources of the organisation's mailboxes read with a service account the domain has
+# delegated to: its key, and the administrator address directory calls are made as.
+mail_platforms.declare(
+    mail_platforms.Platform(
+        SOURCE_TYPE, organisation_settings=("admin_address",), organisation_key=True
+    )
+)

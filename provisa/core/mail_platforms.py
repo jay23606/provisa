@@ -57,6 +57,12 @@ class Platform:
 
     id: str
     settings: tuple[str, ...] = ()
+    #: What the platform is entered with, beside the client, for sources that read the
+    #: ORGANISATION's mailboxes: needed once the administrator allows such sources.
+    organisation_settings: tuple[str, ...] = ()
+    #: Whether those sources read with a credential of the platform's own, entered as a secret
+    #: (Google: a service account's key), and not with the client's.
+    organisation_key: bool = False
 
 
 @dataclass(frozen=True)
@@ -69,6 +75,9 @@ class Configured:
     #: Whether the administrator allows sources that read the organisation's mailboxes with
     #: this client's own credential.
     organisation_mailboxes: bool = False
+    #: The reference that names the organisation's own credential in its vault, where the
+    #: platform has one and one was entered; None otherwise. Never the credential.
+    organisation_key: str | None = None
 
     @property
     def client_secret(self) -> str:
@@ -110,6 +119,12 @@ def secret_name(platform_id: str) -> str:
     return secrets_store.validate_name(f"mail_platform_{platform_id}_client_secret")
 
 
+def organisation_key_name(platform_id: str) -> str:
+    """The name, in an organisation's vault, of the credential of its own a platform reads the
+    organisation's mailboxes with."""
+    return secrets_store.validate_name(f"mail_platform_{platform_id}_organisation_key")
+
+
 async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configured | None:
     """``org_id``'s client for the platform, or None when it has entered none."""
     platform(platform_id)
@@ -120,6 +135,7 @@ async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configure
                     org_mail_platforms.c.client_id,
                     org_mail_platforms.c.settings,
                     org_mail_platforms.c.organisation_mailboxes,
+                    org_mail_platforms.c.organisation_key,
                 ).where(
                     org_mail_platforms.c.org_id == org_id,
                     org_mail_platforms.c.platform == platform_id,
@@ -128,7 +144,7 @@ async def read(admin_db: "Database", org_id: str, platform_id: str) -> Configure
         ).fetchone()
     if row is None:
         return None
-    return Configured(platform_id, row[0], json.loads(row[1]), bool(row[2]))
+    return Configured(platform_id, row[0], json.loads(row[1]), bool(row[2]), row[3])
 
 
 async def require(admin_db: "Database", org_id: str, platform_id: str) -> Configured:
@@ -170,15 +186,20 @@ async def put(
     settings: dict[str, str],
     actor: str | None,
     organisation_mailboxes: bool,
+    organisation_key: str | None = None,
 ) -> Configured:
     """Keep ``org_id``'s client for the platform. ``client_secret`` None keeps the secret already
     in the vault, which there must then be: a client is never kept without its secret.
     ``organisation_mailboxes`` is stated at every save: whether sources may read the
-    organisation's mailboxes with this client's own credential."""
+    organisation's mailboxes with the platform's own credential. ``organisation_key`` is that
+    credential where the platform has one of its own (None keeps the one already entered); once
+    such sources are allowed, it and the platform's organisation settings must be there."""
     declared = platform(platform_id)
     client_id = client_id.strip()
     settings = {key: value.strip() for key, value in settings.items()}
-    unknown = sorted(set(settings) - set(declared.settings))
+    unknown = sorted(set(settings) - set(declared.settings) - set(declared.organisation_settings))
+    if organisation_key and not declared.organisation_key:
+        unknown.append("organisation_key")
     if unknown:
         raise MailPlatformRefused(
             "unknown_setting",
@@ -195,9 +216,28 @@ async def put(
         and await secrets_store.describe(admin_db, org_id, name, owner_id=owner) is None
     ):
         missing.append("client_secret")
+    key_name = organisation_key_name(platform_id)
+    key_kept = (
+        declared.organisation_key
+        and await secrets_store.describe(admin_db, org_id, key_name, owner_id=owner) is not None
+    )
+    if organisation_mailboxes:
+        missing += [key for key in declared.organisation_settings if not settings.get(key)]
+        if declared.organisation_key and not organisation_key and not key_kept:
+            missing.append("organisation_key")
     if missing:
         raise MailPlatformRefused(
             "incomplete", f"{platform_id} needs {', '.join(missing)}", missing=", ".join(missing)
+        )
+    if organisation_key:
+        await secrets_store.put(
+            admin_db,
+            org_id,
+            key_name,
+            organisation_key,
+            owner_id=owner,
+            description=f"the organisation's own {platform_id} credential for its mailboxes",
+            actor=actor,
         )
     if client_secret:
         await secrets_store.put(
@@ -216,6 +256,7 @@ async def put(
         "client_secret": Configured(platform_id, client_id).client_secret,
         "settings": json.dumps(settings, sort_keys=True),
         "organisation_mailboxes": organisation_mailboxes,
+        "organisation_key": (f"${{secret:{key_name}}}" if organisation_key or key_kept else None),
         "updated_by": actor,
     }
     async with admin_db.acquire() as conn:
@@ -228,6 +269,7 @@ async def put(
                 "client_secret",
                 "settings",
                 "organisation_mailboxes",
+                "organisation_key",
                 "updated_by",
             ],
             set_extra={"updated_at": func.now()},

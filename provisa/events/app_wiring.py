@@ -219,13 +219,14 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     # engine_attaches-gated entries below (which exist for types some engine DOES attach live).
     loaders["rss"] = make_rss_loader()
     # REQ-1923: a Google Workspace mailbox is read through Google's API on every engine.
+    from provisa.google_workspace.loader import make_connect as google_connect
     from provisa.google_workspace.loader import make_google_workspace_loader
 
     # REQ-1923: likewise a Microsoft 365 mailbox, through Microsoft Graph.
     from provisa.microsoft365.loader import make_connect, make_microsoft365_loader
 
     loaders["microsoft_365"] = make_microsoft365_loader(make_connect(state))
-    loaders["google_workspace"] = make_google_workspace_loader(state)
+    loaders["google_workspace"] = make_google_workspace_loader(google_connect(state))
     bare_engine = getattr(engine, "engine", engine)
     # REQ-1672: an engine that does not read Elasticsearch LIVE (every native engine — its
     # completed reach carries only a land-into-store entry for the type) reads the index over HTTP;

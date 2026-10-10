@@ -92,6 +92,24 @@ class TestCalls:
         assert str(request.url) == f"https://gmail.googleapis.com/gmail/v1/users/{ACCOUNT}/profile"
         assert request.headers["authorization"] == "Bearer made-up-access-token"
 
+    async def test_a_service_account_says_whose_allowance_each_call_is_counted_against(self):
+        """Google's ``quotaUser``: one service account reads as many users."""
+        google = Google({"historyId": "1"}, {"labels": []}, {"historyId": "2"})
+
+        async def token() -> str:
+            return "made-up-access-token"
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(google.handle))
+        waits = Waits()
+        pacer = Pacer(clock=waits.clock, sleep=waits.sleep)
+        many = Gmail(ACCOUNT, token, client, pacer=pacer, sleep=waits.sleep, quota_user=True)
+        await many.profile()
+        await many.labels()
+        one = Gmail(ACCOUNT, token, client, pacer=pacer, sleep=waits.sleep)
+        await one.profile()
+        asked = [dict(request.url.params) for request in google.requests]
+        assert asked == [{"quotaUser": ACCOUNT}, {"quotaUser": ACCOUNT}, {}]
+
     async def test_a_message_is_asked_for_whole_or_as_headers_only(self):
         mailbox, google, _ = _mailbox({"id": "m1"}, {"id": "m1"})
         await mailbox.message("m1", ALL_MAIL)
