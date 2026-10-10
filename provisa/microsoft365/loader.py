@@ -69,11 +69,29 @@ class NoMailboxRead(RuntimeError):
     """Not one of the organisation's mailboxes could be read: the client's permission, not a
     mailbox, is what is wrong."""
 
-    def __init__(self, count: int, reason: str) -> None:
-        super().__init__(
-            f"none of the {count} mailboxes could be read ({reason}): the organisation's "
-            "Microsoft 365 client has not been granted reading of mail"
-        )
+    def __init__(self, count: int, reason: str, mail_read: bool | None = None) -> None:
+        """``mail_read``: whether the client's token carries Mail.Read; None when it cannot
+        be told. Without it the client reads only what Exchange lets it (a role assignment
+        over a scope of mailboxes), which is a setup that works -- so it is not called a
+        fault, and the scope is what is pointed at."""
+        if mail_read is True:
+            why = (
+                "the organisation's Microsoft 365 client's token carries Mail.Read, so the "
+                "permission is granted: check that these addresses are mailboxes of this "
+                "tenant, and whether an application access policy in Exchange keeps the "
+                "client from them"
+            )
+        elif mail_read is False:
+            why = (
+                "the organisation's Microsoft 365 client's token does not carry Mail.Read. "
+                "Either grant the application permission Mail.Read with admin consent, or, "
+                "where the client is given mail through Exchange (a role assignment over a "
+                "scope of mailboxes), put these mailboxes in that scope; a new or changed "
+                "assignment can take up to two hours to apply"
+            )
+        else:
+            why = "the organisation's Microsoft 365 client has not been granted reading of mail"
+        super().__init__(f"none of the {count} mailboxes could be read ({reason}): {why}")
 
 
 _END = object()
@@ -175,7 +193,14 @@ async def _read_mailboxes(
                 task.cancel()
             await asyncio.gather(*workers, return_exceptions=True)
         if reading.accounts and len(left_out) == len(reading.accounts):
-            raise NoMailboxRead(len(left_out), last_refusal[0])
+            from provisa.microsoft365 import directory
+
+            roles = await asyncio.to_thread(lambda: directory.carried(reading.token()))
+            raise NoMailboxRead(
+                len(left_out),
+                last_refusal[0],
+                None if roles is None else not directory.lacks(roles, directory.MAIL_READ),
+            )
         if left_out:
             log.warning(
                 "microsoft_365: %d of %d mailbox(es) were left out, not there or not permitted: %s",

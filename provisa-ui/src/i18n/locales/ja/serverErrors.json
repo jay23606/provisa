@@ -489,7 +489,10 @@
       "mailboxes_invalid": "メールボックスの選択を解釈できません: {{error}}",
       "client_refused": "Microsoft が組織の Microsoft 365 クライアントを拒否しました: {{reason}}",
       "throttled": "Microsoft が現在リクエストを制限しています。{{retry_after}} 秒後にもう一度お試しください。",
-      "directory_refused": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントにはディレクトリのユーザーを読み取るアクセス許可が必要です。"
+      "directory_refused": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントにはディレクトリのユーザーを読み取るアクセス許可が必要です。",
+      "directory_no_permissions": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントのトークンにはアプリケーションのアクセス許可が含まれていません。必要なのは {{missing}} です。(委任ではなく) アプリケーションのアクセス許可として追加し、管理者の同意を付与してください。",
+      "directory_permission_missing": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントのトークンには {{carries}} が含まれています。不足: {{missing}}。(委任ではなく) アプリケーションのアクセス許可として追加し、管理者の同意を付与してください。",
+      "directory_refused_granted": "クライアントのトークンには一覧表示に必要なもの ({{carries}}) が含まれていますが、Microsoft は組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。"
     },
     "dbt_sources": {
       "unknown_role": "{{role}} という名前のロールはありません。"

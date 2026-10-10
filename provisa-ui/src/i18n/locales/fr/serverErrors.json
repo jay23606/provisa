@@ -489,7 +489,10 @@
       "mailboxes_invalid": "Le choix des boîtes aux lettres ne peut pas être interprété : {{error}}",
       "client_refused": "Microsoft a refusé le client Microsoft 365 de votre organisation : {{reason}}",
       "throttled": "Microsoft limite les requêtes pour le moment. Réessayez dans {{retry_after}} secondes.",
-      "directory_refused": "Microsoft n’a pas voulu lister les boîtes aux lettres de l’organisation ({{status}} {{reason}}). Le client a besoin de l’autorisation de lire les utilisateurs de l’annuaire."
+      "directory_refused": "Microsoft n’a pas voulu lister les boîtes aux lettres de l’organisation ({{status}} {{reason}}). Le client a besoin de l’autorisation de lire les utilisateurs de l’annuaire.",
+      "directory_no_permissions": "Microsoft n’a pas voulu lister les boîtes aux lettres de l’organisation ({{status}} {{reason}}). Le jeton du client ne porte aucune autorisation d’application ; il faut {{missing}}. Ajoutez-la comme autorisation d’application (et non déléguée) et accordez le consentement de l’administrateur.",
+      "directory_permission_missing": "Microsoft n’a pas voulu lister les boîtes aux lettres de l’organisation ({{status}} {{reason}}). Le jeton du client porte {{carries}} ; il manque : {{missing}}. Ajoutez-la comme autorisation d’application (et non déléguée) et accordez le consentement de l’administrateur.",
+      "directory_refused_granted": "Microsoft n’a pas voulu lister les boîtes aux lettres de l’organisation ({{status}} {{reason}}), bien que le jeton du client porte ce dont la liste a besoin ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Aucun rôle nommé {{role}} n’existe."

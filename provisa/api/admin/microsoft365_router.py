@@ -20,6 +20,8 @@ client, and when the directory cannot be read. No secret and no token is part of
 # Requirements: REQ-1923
 from __future__ import annotations
 
+import asyncio
+
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -49,6 +51,25 @@ def _admin_db() -> Any:
     return state.admin_db
 
 
+def _directory_refusal(refused: GraphRefused, token: str, chosen: Any) -> tuple[str, dict]:
+    """The refusal of a listing, saying what the client's token carries where Microsoft
+    answered that it may not: which permissions the listing needs are missing, or that none
+    is. The permissions' names are not secrets; the token is never said."""
+    from provisa.microsoft365 import directory
+
+    params: dict[str, Any] = {"status": refused.status, "reason": refused.code}
+    held = directory.granted(token, directory.needed(chosen)) if refused.status == 403 else None
+    if held is None:
+        return "microsoft_365.directory_refused", params
+    carries = ", ".join(held.carries)
+    if not held.missing:
+        return "microsoft_365.directory_refused_granted", {**params, "carries": carries}
+    params["missing"] = ", ".join(held.missing)
+    if not held.carries:
+        return "microsoft_365.directory_no_permissions", params
+    return "microsoft_365.directory_permission_missing", {**params, "carries": carries}
+
+
 @router.post("/mailboxes/check")
 async def check_mailboxes(request: Request, body: MailboxesBody) -> dict:
     """How many mailboxes the choice names in the organisation's directory now."""
@@ -66,7 +87,12 @@ async def check_mailboxes(request: Request, body: MailboxesBody) -> dict:
         # The client's secret is the organisation's: its vault is bound for this request.
         async with bound_to_request_org():
             token = await organisation_token(_admin_db(), require_current_org())
-        found = await listed_mailboxes(token, chosen)
+        try:
+            found = await listed_mailboxes(token, chosen)
+        except GraphRefused as refused:
+            # The token is the one the listing was just refused with (it is held to its end).
+            code, params = _directory_refusal(refused, await asyncio.to_thread(token), chosen)
+            raise ApiError(400, code, str(refused), None, **params) from None
     except MailPlatformRefused as refused:
         raise ApiError(refused.status, refused.code, str(refused), None, **refused.params) from None
     except CredentialRefused as refused:
@@ -80,15 +106,6 @@ async def check_mailboxes(request: Request, body: MailboxesBody) -> dict:
             str(throttled),
             None,
             retry_after=throttled.retry_after,
-        ) from None
-    except GraphRefused as refused:
-        raise ApiError(
-            400,
-            "microsoft_365.directory_refused",
-            str(refused),
-            None,
-            status=refused.status,
-            reason=refused.code,
         ) from None
     except DirectoryRefused as refused:
         raise ApiError(

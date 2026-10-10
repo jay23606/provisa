@@ -489,7 +489,10 @@
       "mailboxes_invalid": "No se puede interpretar la selección de buzones: {{error}}",
       "client_refused": "Microsoft rechazó el cliente de Microsoft 365 de su organización: {{reason}}",
       "throttled": "Microsoft está limitando las solicitudes por ahora. Inténtelo de nuevo en {{retry_after}} segundos.",
-      "directory_refused": "Microsoft no quiso enumerar los buzones de la organización ({{status}} {{reason}}). El cliente necesita permiso para leer los usuarios del directorio."
+      "directory_refused": "Microsoft no quiso enumerar los buzones de la organización ({{status}} {{reason}}). El cliente necesita permiso para leer los usuarios del directorio.",
+      "directory_no_permissions": "Microsoft no quiso enumerar los buzones de la organización ({{status}} {{reason}}). El token del cliente no lleva ningún permiso de aplicación; esto necesita {{missing}}. Añádalo como permiso de aplicación (no delegado) y conceda el consentimiento del administrador.",
+      "directory_permission_missing": "Microsoft no quiso enumerar los buzones de la organización ({{status}} {{reason}}). El token del cliente lleva {{carries}}; falta: {{missing}}. Añádalo como permiso de aplicación (no delegado) y conceda el consentimiento del administrador.",
+      "directory_refused_granted": "Microsoft no quiso enumerar los buzones de la organización ({{status}} {{reason}}), aunque el token del cliente lleva lo que la enumeración necesita ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "No existe ningún rol llamado {{role}}."

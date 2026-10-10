@@ -489,7 +489,10 @@
       "mailboxes_invalid": "Die Auswahl der Postfächer kann nicht gelesen werden: {{error}}",
       "client_refused": "Microsoft hat den Microsoft-365-Client Ihrer Organisation abgelehnt: {{reason}}",
       "throttled": "Microsoft begrenzt derzeit die Anfragen. Versuchen Sie es in {{retry_after}} Sekunden erneut.",
-      "directory_refused": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Der Client benötigt die Berechtigung, die Benutzer des Verzeichnisses zu lesen."
+      "directory_refused": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Der Client benötigt die Berechtigung, die Benutzer des Verzeichnisses zu lesen.",
+      "directory_no_permissions": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Das Token des Clients enthält keine Anwendungsberechtigung; benötigt wird {{missing}}. Fügen Sie sie als Anwendungsberechtigung (nicht als delegierte) hinzu und erteilen Sie die Administratoreinwilligung.",
+      "directory_permission_missing": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Das Token des Clients enthält {{carries}}; es fehlt: {{missing}}. Fügen Sie sie als Anwendungsberechtigung (nicht als delegierte) hinzu und erteilen Sie die Administratoreinwilligung.",
+      "directory_refused_granted": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}), obwohl das Token des Clients enthält, was die Auflistung benötigt ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Es gibt keine Rolle namens {{role}}."

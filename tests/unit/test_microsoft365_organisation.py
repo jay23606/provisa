@@ -344,7 +344,9 @@ def org_read(monkeypatch):
     """The loader over a stand-in Graph, signed in as the organisation with mailboxes A, B, C."""
     fake = FakeGraph({})
     monkeypatch.setattr(loader, "http_send", lambda _client: fake.send)
-    seen = SimpleNamespace(graph=fake, accounts=(A, B, C), at_once=2, running=0, most=0)
+    seen = SimpleNamespace(
+        graph=fake, accounts=(A, B, C), at_once=2, running=0, most=0, token="access-token"
+    )
     guard = threading.Lock()
     send = fake.send
 
@@ -358,7 +360,7 @@ def org_read(monkeypatch):
 
     async def connect(source):
         return loader.Reading(
-            seen.accounts, lambda: "access-token", organisation=True, at_once=seen.at_once
+            seen.accounts, lambda: seen.token, organisation=True, at_once=seen.at_once
         )
 
     seen.loader = loader.make_microsoft365_loader(connect)
@@ -572,12 +574,13 @@ def organisation(plane, monkeypatch):
             made.append((url, client_id, client_secret))
 
         def __call__(self):
-            return "access-token"
+            return held.token
 
     monkeypatch.setattr(directory, "ClientToken", Token)
     fake = FakeGraph({"/users": [[_user(B), _user(A)]]})
     monkeypatch.setattr(loader, "http_send", lambda _client: fake.send)
-    return SimpleNamespace(plane=plane, made=made, graph=fake)
+    held = SimpleNamespace(plane=plane, made=made, graph=fake, token="access-token")
+    return held
 
 
 async def test_a_build_signs_in_as_the_organisation_and_lists_its_mailboxes(organisation):
@@ -711,3 +714,139 @@ def test_mailboxes_at_once_is_a_live_operator_setting():
     setting = settings_registry.setting("mail.mailboxes_at_once")
     assert (setting.type, setting.effect, setting.default, setting.min) == ("int", "live", 4, 1)
     assert setting.card == "concurrency" and settings.ORGANISATION_SCOPE.endswith("/.default")
+
+
+# --- a refusal says what the client's token carries ---
+
+
+def _jwt(*roles: str, claim: bool = True) -> str:
+    """An access token as Microsoft shapes one: its payload names the application permissions
+    it carries (``roles``); a client granted none has no such claim."""
+    import base64
+    import json
+
+    def part(value: dict) -> str:
+        return base64.urlsafe_b64encode(json.dumps(value).encode()).decode().rstrip("=")
+
+    payload = {"aud": "https://graph.microsoft.com", **({"roles": list(roles)} if claim else {})}
+    return f"{part({'alg': 'RS256'})}.{part(payload)}.signature-not-read"
+
+
+def test_a_tokens_application_permissions_are_read_from_it():
+    assert directory.carried(_jwt("Mail.Read", "User.Read.All")) == {"Mail.Read", "User.Read.All"}
+    assert directory.carried(_jwt(claim=False)) == frozenset()  # granted nothing
+    assert directory.carried("access-token") is None  # not a token that can be read
+    assert directory.carried("a.b.c") is None
+
+
+def test_what_a_listing_needs_is_set_against_what_the_token_carries():
+    everyone, group = Mailboxes("everyone"), Mailboxes("group", group=TENANT)
+    assert directory.needed(everyone) == ("User.Read.All",)
+    # A group is named by its own permission, and its members are users, read as such.
+    assert directory.needed(group) == ("GroupMember.Read.All", "User.Read.All")
+    assert directory.needed(Mailboxes("list", addresses=(A,))) == ()
+    held = directory.granted(_jwt("Mail.Read"), directory.needed(everyone))
+    assert held == directory.Granted(("Mail.Read",), ("User.Read.All",))
+    # A wider permission grants the narrower one.
+    wide = directory.granted(_jwt("Directory.Read.All"), directory.needed(group))
+    assert wide is not None and wide.missing == ()
+    assert directory.granted("access-token", directory.needed(everyone)) is None
+
+
+async def _refused_check(check, mailboxes: dict) -> ApiError:
+    await _put(
+        check.plane, platform=SOURCE_TYPE, settings={"tenant": TENANT}, organisation_mailboxes=True
+    )
+    check.graph.queued = [
+        Answer(
+            403, {}, {"error": {"code": "Authorization_RequestDenied", "message": "Insufficient"}}
+        )
+    ]
+    with pytest.raises(ApiError) as denied:
+        await check.router.check_mailboxes(None, check.router.MailboxesBody(mailboxes=mailboxes))
+    assert check.token not in str(denied.value.detail)  # the token is never said
+    return denied.value
+
+
+async def test_a_refused_listing_names_the_permission_the_token_lacks(check):
+    check.token = _jwt("Mail.Read")
+    denied = await _refused_check(check, {"everyone": True})
+    assert denied.code == "microsoft_365.directory_permission_missing"
+    assert denied.params == {
+        "status": 403,
+        "reason": "Authorization_RequestDenied",
+        "carries": "Mail.Read",
+        "missing": "User.Read.All",
+    }
+
+
+async def test_a_refused_listing_says_when_the_token_carries_nothing(check):
+    check.token = _jwt(claim=False)
+    denied = await _refused_check(check, {"everyone": True})
+    assert denied.code == "microsoft_365.directory_no_permissions"
+    assert denied.params == {
+        "status": 403,
+        "reason": "Authorization_RequestDenied",
+        "missing": "User.Read.All",
+    }
+
+
+async def test_a_refused_group_listing_names_the_groups_own_permission(check):
+    check.token = _jwt("Mail.Read", "User.Read.All")
+    denied = await _refused_check(check, {"group": TENANT})
+    assert denied.code == "microsoft_365.directory_permission_missing"
+    assert denied.params["missing"] == "GroupMember.Read.All"
+    assert denied.params["carries"] == "Mail.Read, User.Read.All"
+
+
+async def test_a_listing_refused_with_everything_granted_says_so(check):
+    check.token = _jwt("User.Read.All")
+    denied = await _refused_check(check, {"everyone": True})
+    assert denied.code == "microsoft_365.directory_refused_granted"
+    assert denied.params["carries"] == "User.Read.All" and "missing" not in denied.params
+
+
+def _none_read(org_read) -> str:
+    org_read.graph.queued = []
+    source = org_read.loader.replica_source(SOURCE, _table("messages"), cm.ir_columns("messages"))
+
+    async def read():
+        return [b async for b in source.batches(1000)]
+
+    with pytest.raises(loader.NoMailboxRead) as failed:
+        asyncio.run(read())
+    assert org_read.token not in str(failed.value)
+    return str(failed.value)
+
+
+def test_no_mailbox_read_without_mail_read_points_at_the_grant_or_the_exchange_scope(org_read):
+    org_read.token = _jwt("User.Read.All")
+    said = _none_read(org_read)
+    assert "none of the 3 mailboxes" in said and "does not carry Mail.Read" in said
+    # A client given mail through Exchange legitimately has no Mail.Read: the scope is named.
+    assert "role assignment over a scope of mailboxes" in said
+
+
+def test_no_mailbox_read_with_mail_read_does_not_blame_the_permission(org_read):
+    org_read.token = _jwt("Mail.Read")
+    said = _none_read(org_read)
+    assert "carries Mail.Read" in said and "has not been granted" not in said
+
+
+def test_every_locale_words_the_three_refusals_with_their_particulars():
+    import json
+    import re
+    from pathlib import Path
+
+    locales = Path(__file__).parents[2] / "provisa-ui/src/i18n/locales"
+    wanted = {
+        "directory_no_permissions": {"status", "reason", "missing"},
+        "directory_permission_missing": {"status", "reason", "carries", "missing"},
+        "directory_refused_granted": {"status", "reason", "carries"},
+    }
+    catalogs = sorted(locales.glob("*/serverErrors.json"))
+    assert len(catalogs) == 13
+    for catalog in catalogs:
+        said = json.loads(catalog.read_text())["serverErrors"]["microsoft_365"]
+        for key, particulars in wanted.items():
+            assert set(re.findall(r"{{(\w+)}}", said[key])) == particulars, (catalog, key)

@@ -489,7 +489,10 @@
       "mailboxes_invalid": "无法解析邮箱选择：{{error}}",
       "client_refused": "Microsoft 拒绝了您组织的 Microsoft 365 客户端：{{reason}}",
       "throttled": "Microsoft 目前正在限制请求。请在 {{retry_after}} 秒后重试。",
-      "directory_refused": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端需要读取目录用户的权限。"
+      "directory_refused": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端需要读取目录用户的权限。",
+      "directory_no_permissions": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端的令牌不含任何应用程序权限；此操作需要 {{missing}}。请将其添加为应用程序权限（而非委托权限）并授予管理员同意。",
+      "directory_permission_missing": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端的令牌含有 {{carries}}；缺少：{{missing}}。请将其添加为应用程序权限（而非委托权限）并授予管理员同意。",
+      "directory_refused_granted": "尽管客户端的令牌含有列出所需的权限（{{carries}}），Microsoft 仍未列出组织的邮箱（{{status}} {{reason}}）。"
     },
     "dbt_sources": {
       "unknown_role": "不存在名为 {{role}} 的角色。"

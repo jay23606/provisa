@@ -489,7 +489,10 @@
       "mailboxes_invalid": "De keuze van postvakken kan niet worden gelezen: {{error}}",
       "client_refused": "Microsoft heeft de Microsoft 365-client van uw organisatie geweigerd: {{reason}}",
       "throttled": "Microsoft beperkt momenteel het aantal aanvragen. Probeer het over {{retry_after}} seconden opnieuw.",
-      "directory_refused": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). De client heeft toestemming nodig om de gebruikers van de directory te lezen."
+      "directory_refused": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). De client heeft toestemming nodig om de gebruikers van de directory te lezen.",
+      "directory_no_permissions": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). Het token van de client bevat geen toepassingsmachtiging; hiervoor is {{missing}} nodig. Voeg deze toe als toepassingsmachtiging (niet gedelegeerd) en verleen beheerderstoestemming.",
+      "directory_permission_missing": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). Het token van de client bevat {{carries}}; ontbreekt: {{missing}}. Voeg deze toe als toepassingsmachtiging (niet gedelegeerd) en verleen beheerderstoestemming.",
+      "directory_refused_granted": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}), hoewel het token van de client bevat wat de weergave nodig heeft ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Er bestaat geen rol met de naam {{role}}."

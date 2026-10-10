@@ -489,7 +489,10 @@
       "mailboxes_invalid": "無法解析信箱選擇：{{error}}",
       "client_refused": "Microsoft 拒絕了您組織的 Microsoft 365 用戶端：{{reason}}",
       "throttled": "Microsoft 目前正在限制要求。請在 {{retry_after}} 秒後重試。",
-      "directory_refused": "Microsoft 未列出組織的信箱（{{status}} {{reason}}）。用戶端需要讀取目錄使用者的權限。"
+      "directory_refused": "Microsoft 未列出組織的信箱（{{status}} {{reason}}）。用戶端需要讀取目錄使用者的權限。",
+      "directory_no_permissions": "Microsoft 未列出組織的信箱（{{status}} {{reason}}）。用戶端的權杖不含任何應用程式權限；此操作需要 {{missing}}。請將其新增為應用程式權限（而非委派權限）並授予管理員同意。",
+      "directory_permission_missing": "Microsoft 未列出組織的信箱（{{status}} {{reason}}）。用戶端的權杖含有 {{carries}}；缺少：{{missing}}。請將其新增為應用程式權限（而非委派權限）並授予管理員同意。",
+      "directory_refused_granted": "儘管用戶端的權杖含有列出所需的權限（{{carries}}），Microsoft 仍未列出組織的信箱（{{status}} {{reason}}）。"
     },
     "dbt_sources": {
       "unknown_role": "沒有名為 {{role}} 的角色。"

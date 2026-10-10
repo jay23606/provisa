@@ -489,7 +489,10 @@
       "mailboxes_invalid": "לא ניתן לפרש את בחירת תיבות הדואר: {{error}}",
       "client_refused": "Microsoft דחתה את לקוח Microsoft 365 של הארגון שלך: {{reason}}",
       "throttled": "Microsoft מגבילה כעת בקשות. יש לנסות שוב בעוד {{retry_after}} שניות.",
-      "directory_refused": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). הלקוח זקוק להרשאה לקרוא את משתמשי הספרייה."
+      "directory_refused": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). הלקוח זקוק להרשאה לקרוא את משתמשי הספרייה.",
+      "directory_no_permissions": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). האסימון של הלקוח אינו נושא אף הרשאת יישום; נדרשת {{missing}}. הוסיפו אותה כהרשאת יישום (לא כהרשאה מואצלת) והעניקו הסכמת מנהל.",
+      "directory_permission_missing": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). האסימון של הלקוח נושא {{carries}}; חסר: {{missing}}. הוסיפו אותה כהרשאת יישום (לא כהרשאה מואצלת) והעניקו הסכמת מנהל.",
+      "directory_refused_granted": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}), אף שהאסימון של הלקוח נושא את מה שהמנייה דורשת ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "אין תפקיד בשם {{role}}."
