@@ -564,6 +564,20 @@ class TestTheLoader:
         assert note.code == "replication.unreadable_messages"
         assert note.params == {"count": 1, "ids": ["m9"], "more": 0}
 
+    async def test_a_whole_builds_rows_say_when_they_landed_under_one_stamp(self, read):
+        """The canonical mail tables carry when a row landed; a whole build lands together."""
+        fetch = _connected_loader()
+        columns = cm.landing_columns("messages")
+        source = fetch.replica_source(
+            self._source(), SimpleNamespace(table_name="messages"), columns
+        )
+        stamps = [
+            at
+            for batch in [b async for b in source.batches(1000)]
+            for at in batch.column(cm.LANDED_AT).to_pylist()
+        ]
+        assert len(stamps) == 3 and stamps[0] is not None and len(set(stamps)) == 1
+
     async def test_a_clean_read_leaves_no_note(self, read):
         fetch = _connected_loader()
         columns = cm.ir_columns("messages")
