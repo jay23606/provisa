@@ -128,7 +128,8 @@ export function SourceLoadManagementPanel({
               />
             </FormField>
           )}
-          <FormField help={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")} size="short">
+          {/* Medium, not short: its placeholder is a word, cut in a short box in some languages. */}
+          <FormField help={t("sourceFormFieldsExtended.maxLiveConcurrencyHelp")} size="medium">
             <NumberInput
               label={t("sourceFormFieldsExtended.maxLiveConcurrency")}
               min={1}

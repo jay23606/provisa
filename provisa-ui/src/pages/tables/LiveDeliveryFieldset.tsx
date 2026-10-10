@@ -22,6 +22,8 @@ import { isWatermarkEligible } from "./helpers";
 import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface LiveDeliveryFieldsetProps {
+  /** "tick": only the enabling tick; "settings": only the section it opens. */
+  part?: "tick" | "settings";
   editingTable: RegisteredTable;
   setEditingTable: React.Dispatch<React.SetStateAction<RegisteredTable | null>>;
   editingColumnTypes: Record<string, string>;
@@ -34,6 +36,7 @@ export function LiveDeliveryFieldset({
   setEditingTable,
   editingColumnTypes,
   sources,
+  part,
 }: LiveDeliveryFieldsetProps) {
   const { t } = useTranslation();
   const src = sources.find((s) => s.id === editingTable.sourceId);
@@ -87,301 +90,312 @@ export function LiveDeliveryFieldset({
     kafka: null,
     outputs: [],
   };
-  return (
+  // The tick sits with the form's other ticks; its settings are a section that shows once it is
+  // ticked. `part` lets a form place the two; without it both render together.
+  const tick = (
+    <FormField size="short">
+      <Checkbox
+        data-testid="live-delivery-enable"
+        checked={!!live}
+        label={t("liveDeliveryFieldset.enableLabel")}
+        onChange={(e) =>
+          setEditingTable({
+            ...editingTable,
+            live: e.currentTarget.checked ? defaultLive : null,
+          })
+        }
+      />
+    </FormField>
+  );
+  if (part === "tick") return tick;
+  const engineWarning = isEngineDerived && !editingTable.materialize && (
+    <Alert color="yellow" variant="light" mb="sm" p="xs">
+      <Text size="xs">
+        {t("liveDeliveryFieldset.materializeWarningPre")}
+        <em>{t("liveDeliveryFieldset.materializeWarningEm")}</em>
+        {t("liveDeliveryFieldset.materializeWarningPost")}
+      </Text>
+    </Alert>
+  );
+  const settings = !live ? (
+    engineWarning ? (
+      <FormField size="full">{engineWarning}</FormField>
+    ) : null
+  ) : (
     <FormField size="full">
-      <Fieldset
-        legend={live ? t("liveDeliveryFieldset.legendActive") : t("liveDeliveryFieldset.legend")}
-      >
-        {isEngineDerived && !editingTable.materialize && (
-          <Alert color="yellow" variant="light" mb="sm" p="xs">
-            <Text size="xs">
-              {t("liveDeliveryFieldset.materializeWarningPre")}
-              <em>{t("liveDeliveryFieldset.materializeWarningEm")}</em>
-              {t("liveDeliveryFieldset.materializeWarningPost")}
+      <Fieldset legend={t("liveDeliveryFieldset.legendActive")}>
+        {engineWarning}
+        <FormLayout>
+          <FormField size="full">
+            <Text data-testid="live-mechanism" size="xs" c="dimmed">
+              {isPushSignal ? (
+                <>
+                  {t("liveDeliveryFieldset.mechanismPushPre")}
+                  <strong>{effectiveSignal}</strong>
+                  {t("liveDeliveryFieldset.mechanismPushMid")}
+                  <em>{t("liveDeliveryFieldset.mechanismPushEm")}</em>
+                  {t("liveDeliveryFieldset.mechanismPushPost")}
+                </>
+              ) : pollMode === "append" ? (
+                <>
+                  {t("liveDeliveryFieldset.mechanismAppendPre")}
+                  <strong>{effWatermark}</strong>
+                  {t("liveDeliveryFieldset.mechanismAppendPost")}
+                </>
+              ) : (
+                t("liveDeliveryFieldset.mechanismReplace")
+              )}
             </Text>
-          </Alert>
-        )}
-        <FormChecks>
-          <FormField size="short">
-            <Checkbox
-              data-testid="live-delivery-enable"
-              checked={!!live}
-              label={t("liveDeliveryFieldset.enableLabel")}
-              onChange={(e) =>
-                setEditingTable({
-                  ...editingTable,
-                  live: e.currentTarget.checked ? defaultLive : null,
-                })
-              }
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              readOnly
+              label={t("liveDeliveryFieldset.queryIdLabel")}
+              value={`${editingTable.sourceId}.${editingTable.tableName}`}
+              styles={{ input: { color: "var(--text-muted)", cursor: "default" } }}
             />
           </FormField>
-        </FormChecks>
-        {live && (
-          <FormLayout>
-            <FormField size="full">
-              <Text data-testid="live-mechanism" size="xs" c="dimmed">
-                {isPushSignal ? (
-                  <>
-                    {t("liveDeliveryFieldset.mechanismPushPre")}
-                    <strong>{effectiveSignal}</strong>
-                    {t("liveDeliveryFieldset.mechanismPushMid")}
-                    <em>{t("liveDeliveryFieldset.mechanismPushEm")}</em>
-                    {t("liveDeliveryFieldset.mechanismPushPost")}
-                  </>
-                ) : pollMode === "append" ? (
-                  <>
-                    {t("liveDeliveryFieldset.mechanismAppendPre")}
-                    <strong>{effWatermark}</strong>
-                    {t("liveDeliveryFieldset.mechanismAppendPost")}
-                  </>
-                ) : (
-                  t("liveDeliveryFieldset.mechanismReplace")
-                )}
-              </Text>
-            </FormField>
-            <FormField size="medium">
-              <TextInput
-                readOnly
-                label={t("liveDeliveryFieldset.queryIdLabel")}
-                value={`${editingTable.sourceId}.${editingTable.tableName}`}
-                styles={{ input: { color: "var(--text-muted)", cursor: "default" } }}
-              />
-            </FormField>
-            {!isPushSignal && (
-              <>
-                {wmCols.length > 0 && (
-                  <FormField size="medium" help={t("liveDeliveryFieldset.watermarkColumnTooltip")}>
-                    <Select
-                      label={t("liveDeliveryFieldset.watermarkColumnLabel")}
-                      id="live-delivery-watermark-column"
-                      data-testid="watermark-column-select"
-                      value={live.watermarkColumn ?? ""}
-                      onChange={(value) => setLive({ watermarkColumn: value ?? "" })}
-                      data={[
-                        {
-                          value: "",
-                          label: t("liveDeliveryFieldset.watermarkNoneOption"),
-                        },
-                        ...wmCols.map((c) => ({
-                          value: c.columnName,
-                          label: c.columnName,
-                        })),
-                      ]}
-                      allowDeselect={false}
-                      comboboxProps={{ withinPortal: true }}
-                    />
-                  </FormField>
-                )}
-                <FormField size="short" help={t("liveDeliveryFieldset.pollIntervalTooltip")}>
-                  <NumberInput
-                    label={t("liveDeliveryFieldset.pollIntervalLabel")}
-                    id="live-delivery-poll-interval"
-                    data-testid="poll-interval-input"
-                    min={1}
-                    value={live.pollInterval}
-                    onChange={(value) =>
-                      setLive({
-                        pollInterval: Number(value) || 10,
-                      })
-                    }
+          {!isPushSignal && (
+            <>
+              {wmCols.length > 0 && (
+                <FormField size="medium" help={t("liveDeliveryFieldset.watermarkColumnTooltip")}>
+                  <Select
+                    label={t("liveDeliveryFieldset.watermarkColumnLabel")}
+                    id="live-delivery-watermark-column"
+                    data-testid="watermark-column-select"
+                    value={live.watermarkColumn ?? ""}
+                    onChange={(value) => setLive({ watermarkColumn: value ?? "" })}
+                    data={[
+                      {
+                        value: "",
+                        label: t("liveDeliveryFieldset.watermarkNoneOption"),
+                      },
+                      ...wmCols.map((c) => ({
+                        value: c.columnName,
+                        label: c.columnName,
+                      })),
+                    ]}
+                    allowDeselect={false}
+                    comboboxProps={{ withinPortal: true }}
                   />
                 </FormField>
-                {refreshInterval != null && live.pollInterval < refreshInterval && (
-                  <FormField size="full">
-                    <Text size="xs" c="yellow.7" mt={4}>
-                      {t("liveDeliveryFieldset.pollFasterWarning", {
-                        seconds: refreshInterval,
-                      })}
-                    </Text>
-                  </FormField>
-                )}
-              </>
-            )}
-            {isPushSignal && (
-              <FormField size="full">
-                <Text size="xs" c="dimmed">
-                  {effectiveSignal === "debezium"
-                    ? t("liveDeliveryFieldset.debeziumNote")
-                    : effectiveSignal === "kafka"
-                      ? t("liveDeliveryFieldset.kafkaNote")
-                      : t("liveDeliveryFieldset.nativeNote")}
-                </Text>
+              )}
+              <FormField size="short" help={t("liveDeliveryFieldset.pollIntervalTooltip")}>
+                <NumberInput
+                  label={t("liveDeliveryFieldset.pollIntervalLabel")}
+                  id="live-delivery-poll-interval"
+                  data-testid="poll-interval-input"
+                  min={1}
+                  value={live.pollInterval}
+                  onChange={(value) =>
+                    setLive({
+                      pollInterval: Number(value) || 10,
+                    })
+                  }
+                />
               </FormField>
-            )}
-            {/* REQ-1733: the landing-latency/throughput tradeoff for CDC push landing
+              {refreshInterval != null && live.pollInterval < refreshInterval && (
+                <FormField size="full">
+                  <Text size="xs" c="yellow.7" mt={4}>
+                    {t("liveDeliveryFieldset.pollFasterWarning", {
+                      seconds: refreshInterval,
+                    })}
+                  </Text>
+                </FormField>
+              )}
+            </>
+          )}
+          {isPushSignal && (
+            <FormField size="full">
+              <Text size="xs" c="dimmed">
+                {effectiveSignal === "debezium"
+                  ? t("liveDeliveryFieldset.debeziumNote")
+                  : effectiveSignal === "kafka"
+                    ? t("liveDeliveryFieldset.kafkaNote")
+                    : t("liveDeliveryFieldset.nativeNote")}
+              </Text>
+            </FormField>
+          )}
+          {/* REQ-1733: the landing-latency/throughput tradeoff for CDC push landing
               (subscriptions.cdc_landing.consume_cdc_into_store's debounce_quiet/max_delay) — a
               Table-level field, not part of `live` (LiveDeliveryConfig governs the OUTBOUND
               fan-out; this governs the INBOUND write to the store), so it reads/writes
               editingTable directly, the same way mvDebounceQuiet does. */}
-            {isPushSignal && (
-              <>
+          {isPushSignal && (
+            <>
+              <FormField size="full">
+                <Text size="xs" fw={600} mb={4}>
+                  {t("liveDeliveryFieldset.pushDebounceLabel")}
+                </Text>
+              </FormField>
+              <FieldGroup title={t("liveDeliveryFieldset.pushDebounceTitle")}>
+                <FormField size="short">
+                  <NumberInput
+                    min={0}
+                    step={0.5}
+                    placeholder={t("liveDeliveryFieldset.pushQuietPlaceholder")}
+                    aria-label={t("liveDeliveryFieldset.pushQuietAria")}
+                    data-testid="push-debounce-quiet"
+                    value={editingTable.pushDebounceQuiet}
+                    onChange={(v) =>
+                      setEditingTable({
+                        ...editingTable,
+                        pushDebounceQuiet: typeof v === "number" ? v : parseFloat(String(v)) || 0,
+                      })
+                    }
+                  />
+                </FormField>
+                <FormField size="short">
+                  <NumberInput
+                    min={0}
+                    step={0.5}
+                    placeholder={t("liveDeliveryFieldset.pushMaxDelayPlaceholder")}
+                    aria-label={t("liveDeliveryFieldset.pushMaxDelayAria")}
+                    data-testid="push-debounce-max-delay"
+                    value={editingTable.pushDebounceMaxDelay}
+                    onChange={(v) =>
+                      setEditingTable({
+                        ...editingTable,
+                        pushDebounceMaxDelay:
+                          typeof v === "number" ? v : parseFloat(String(v)) || 0,
+                      })
+                    }
+                  />
+                </FormField>
+              </FieldGroup>
+            </>
+          )}
+          {/* REQ-813: inbound Kafka transport params, editable when the change signal is Kafka. */}
+          {effectiveSignal === "kafka" && (
+            <FormField size="full">
+              <FormLayout>
                 <FormField size="full">
-                  <Text size="xs" fw={600} mb={4}>
-                    {t("liveDeliveryFieldset.pushDebounceLabel")}
+                  <Text size="xs" fw={600}>
+                    {t("liveDeliveryFieldset.kafkaConsumeHeading")}
                   </Text>
                 </FormField>
-                <FieldGroup title={t("liveDeliveryFieldset.pushDebounceTitle")}>
-                  <FormField size="short">
-                    <NumberInput
-                      min={0}
-                      step={0.5}
-                      placeholder={t("liveDeliveryFieldset.pushQuietPlaceholder")}
-                      aria-label={t("liveDeliveryFieldset.pushQuietAria")}
-                      data-testid="push-debounce-quiet"
-                      value={editingTable.pushDebounceQuiet}
-                      onChange={(v) =>
-                        setEditingTable({
-                          ...editingTable,
-                          pushDebounceQuiet: typeof v === "number" ? v : parseFloat(String(v)) || 0,
-                        })
-                      }
-                    />
-                  </FormField>
-                  <FormField size="short">
-                    <NumberInput
-                      min={0}
-                      step={0.5}
-                      placeholder={t("liveDeliveryFieldset.pushMaxDelayPlaceholder")}
-                      aria-label={t("liveDeliveryFieldset.pushMaxDelayAria")}
-                      data-testid="push-debounce-max-delay"
-                      value={editingTable.pushDebounceMaxDelay}
-                      onChange={(v) =>
-                        setEditingTable({
-                          ...editingTable,
-                          pushDebounceMaxDelay:
-                            typeof v === "number" ? v : parseFloat(String(v)) || 0,
-                        })
-                      }
-                    />
-                  </FormField>
-                </FieldGroup>
-              </>
-            )}
-            {/* REQ-813: inbound Kafka transport params, editable when the change signal is Kafka. */}
-            {effectiveSignal === "kafka" && (
-              <FormField size="full">
+                <FormField size="medium">
+                  <TextInput
+                    label={t("liveDeliveryFieldset.kafkaConsumeTopicLabel")}
+                    value={live.kafka?.topic ?? ""}
+                    onChange={(e) =>
+                      setLive({
+                        kafka: { ...(live.kafka ?? { topic: "" }), topic: e.currentTarget.value },
+                      })
+                    }
+                    placeholder="orders.cdc"
+                    data-testid="live-kafka-topic"
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("liveDeliveryFieldset.kafkaConsumeFormatLabel")}
+                    value={live.kafka?.format ?? ""}
+                    onChange={(e) =>
+                      setLive({
+                        kafka: {
+                          ...(live.kafka ?? { topic: "" }),
+                          format: e.currentTarget.value || undefined,
+                        },
+                      })
+                    }
+                    placeholder="json"
+                    data-testid="live-kafka-format"
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("liveDeliveryFieldset.kafkaConsumeKeyColumnLabel")}
+                    value={live.kafka?.keyColumn ?? ""}
+                    onChange={(e) =>
+                      setLive({
+                        kafka: {
+                          ...(live.kafka ?? { topic: "" }),
+                          keyColumn: e.currentTarget.value || null,
+                        },
+                      })
+                    }
+                    placeholder="(optional)"
+                    data-testid="live-kafka-key-column"
+                  />
+                </FormField>
+              </FormLayout>
+            </FormField>
+          )}
+          <FormField size="full">
+            <div>
+              <Text size="xs" fw={600} mb={4}>
+                {t("liveDeliveryFieldset.outputsHeading")}
+              </Text>
+              <FormChecks>
+                <FormField size="short">
+                  <Checkbox
+                    checked
+                    readOnly
+                    disabled
+                    label={t("liveDeliveryFieldset.sseFanoutLabel")}
+                  />
+                </FormField>
+                <FormField size="short">
+                  <Checkbox
+                    data-testid="kafka-sink-checkbox"
+                    checked={!!kafkaOut}
+                    label={t("liveDeliveryFieldset.kafkaSinkLabel")}
+                    onChange={(e) => {
+                      if (e.currentTarget.checked) setKafkaOut({});
+                      else
+                        setLive({
+                          outputs: live.outputs.filter((o) => o.type !== "kafka"),
+                        });
+                    }}
+                  />
+                </FormField>
+              </FormChecks>
+              {kafkaOut && (
                 <FormLayout>
-                  <FormField size="full">
-                    <Text size="xs" fw={600}>
-                      {t("liveDeliveryFieldset.kafkaConsumeHeading")}
-                    </Text>
-                  </FormField>
                   <FormField size="medium">
                     <TextInput
-                      label={t("liveDeliveryFieldset.kafkaConsumeTopicLabel")}
-                      value={live.kafka?.topic ?? ""}
+                      label={t("liveDeliveryFieldset.kafkaBootstrapLabel")}
+                      value={kafkaOut.bootstrapServers ?? ""}
+                      placeholder={t("liveDeliveryFieldset.kafkaBootstrapPlaceholder")}
                       onChange={(e) =>
-                        setLive({
-                          kafka: { ...(live.kafka ?? { topic: "" }), topic: e.currentTarget.value },
+                        setKafkaOut({
+                          bootstrapServers: e.currentTarget.value,
                         })
                       }
-                      placeholder="orders.cdc"
-                      data-testid="live-kafka-topic"
                     />
                   </FormField>
                   <FormField size="medium">
                     <TextInput
-                      label={t("liveDeliveryFieldset.kafkaConsumeFormatLabel")}
-                      value={live.kafka?.format ?? ""}
-                      onChange={(e) =>
-                        setLive({
-                          kafka: {
-                            ...(live.kafka ?? { topic: "" }),
-                            format: e.currentTarget.value || undefined,
-                          },
-                        })
-                      }
-                      placeholder="json"
-                      data-testid="live-kafka-format"
+                      label={t("liveDeliveryFieldset.kafkaTopicLabel")}
+                      value={kafkaOut.topic ?? ""}
+                      onChange={(e) => setKafkaOut({ topic: e.currentTarget.value })}
                     />
                   </FormField>
                   <FormField size="medium">
                     <TextInput
-                      label={t("liveDeliveryFieldset.kafkaConsumeKeyColumnLabel")}
-                      value={live.kafka?.keyColumn ?? ""}
+                      label={t("liveDeliveryFieldset.kafkaKeyColumnLabel")}
+                      value={kafkaOut.keyColumn ?? ""}
                       onChange={(e) =>
-                        setLive({
-                          kafka: {
-                            ...(live.kafka ?? { topic: "" }),
-                            keyColumn: e.currentTarget.value || null,
-                          },
+                        setKafkaOut({
+                          keyColumn: e.currentTarget.value || null,
                         })
                       }
-                      placeholder="(optional)"
-                      data-testid="live-kafka-key-column"
                     />
                   </FormField>
                 </FormLayout>
-              </FormField>
-            )}
-            <FormField size="full">
-              <div>
-                <Text size="xs" fw={600} mb={4}>
-                  {t("liveDeliveryFieldset.outputsHeading")}
-                </Text>
-                <FormChecks>
-                  <FormField size="short">
-                    <Checkbox
-                      checked
-                      readOnly
-                      disabled
-                      label={t("liveDeliveryFieldset.sseFanoutLabel")}
-                    />
-                  </FormField>
-                  <FormField size="short">
-                    <Checkbox
-                      data-testid="kafka-sink-checkbox"
-                      checked={!!kafkaOut}
-                      label={t("liveDeliveryFieldset.kafkaSinkLabel")}
-                      onChange={(e) => {
-                        if (e.currentTarget.checked) setKafkaOut({});
-                        else
-                          setLive({
-                            outputs: live.outputs.filter((o) => o.type !== "kafka"),
-                          });
-                      }}
-                    />
-                  </FormField>
-                </FormChecks>
-                {kafkaOut && (
-                  <FormLayout>
-                    <FormField size="medium">
-                      <TextInput
-                        label={t("liveDeliveryFieldset.kafkaBootstrapLabel")}
-                        value={kafkaOut.bootstrapServers ?? ""}
-                        placeholder={t("liveDeliveryFieldset.kafkaBootstrapPlaceholder")}
-                        onChange={(e) =>
-                          setKafkaOut({
-                            bootstrapServers: e.currentTarget.value,
-                          })
-                        }
-                      />
-                    </FormField>
-                    <FormField size="medium">
-                      <TextInput
-                        label={t("liveDeliveryFieldset.kafkaTopicLabel")}
-                        value={kafkaOut.topic ?? ""}
-                        onChange={(e) => setKafkaOut({ topic: e.currentTarget.value })}
-                      />
-                    </FormField>
-                    <FormField size="medium">
-                      <TextInput
-                        label={t("liveDeliveryFieldset.kafkaKeyColumnLabel")}
-                        value={kafkaOut.keyColumn ?? ""}
-                        onChange={(e) =>
-                          setKafkaOut({
-                            keyColumn: e.currentTarget.value || null,
-                          })
-                        }
-                      />
-                    </FormField>
-                  </FormLayout>
-                )}
-              </div>
-            </FormField>
-          </FormLayout>
-        )}
+              )}
+            </div>
+          </FormField>
+        </FormLayout>
       </Fieldset>
     </FormField>
+  );
+  if (part === "settings") return settings;
+  return (
+    <>
+      <FormChecks>{tick}</FormChecks>
+      {settings}
+    </>
   );
 }
