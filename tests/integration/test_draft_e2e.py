@@ -303,3 +303,54 @@ def test_a_draft_reached_through_a_replica_is_landed_by_its_stewards_preview(lan
     # Released: read by anyone the model serves it to, from the copy already landed.
     _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: false)")
     assert _read(srv) == _ID_AMOUNT
+
+
+def test_a_views_inputs_are_in_service_for_its_readers(server):
+    """A view is answered from the tables its SQL names. While one of them is out of service
+    the view is refused naming that table, on SQL and GraphQL alike, exactly as a statement
+    naming the table is; the view stays, and is answered again once the table is released."""
+    srv, pg = server
+    _mutate(
+        srv,
+        'createSource(input: {id: "src", type: "postgresql", host: "127.0.0.1", '
+        f'port: {pg.source_port}, database: "shop", username: "provisa", password: "provisa"}})',
+    )
+    registered = _mutate(
+        srv,
+        'registerTable(input: {sourceId: "src", domainId: "shop", schemaName: "public", '
+        'tableName: "orders", columns: ['
+        '{name: "id", visibleTo: ["org_admin"], dataType: "integer", isPrimaryKey: true}, '
+        '{name: "amount", visibleTo: ["org_admin"], dataType: "double"}]})',
+    )
+    table_id = registered_id(registered["message"])
+    _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: false)")
+    view = _mutate(
+        srv,
+        'registerTable(input: {sourceId: "__derived__", domainId: "shop", schemaName: "views", '
+        'tableName: "order_amounts", alias: "order_amounts", '
+        'viewSql: "SELECT id, amount FROM orders", columns: ['
+        '{name: "id", visibleTo: ["org_admin"]}, {name: "amount", visibleTo: ["org_admin"]}]})',
+    )
+    _mutate(srv, f"setTableDraft(tableId: {registered_id(view['message'])}, draft: false)")
+
+    def through_the_view() -> httpx.Response:
+        return _sql(srv, "SELECT id, amount FROM order_amounts ORDER BY id")
+
+    answered = through_the_view()
+    assert answered.status_code == 200, answered.text
+
+    # Its input goes out of service: the view names it, and is refused naming it.
+    _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: true)")
+    _refused_as_draft(srv)
+    refused = through_the_view()
+    assert refused.status_code != 200, refused.text
+    assert "'orders' is a draft" in refused.text, refused.text
+    graphql = _graphql(srv, "{ order_amounts { id amount } }")
+    assert graphql.status_code != 200 or "errors" in graphql.json(), graphql.text
+    assert "'orders' is a draft" in graphql.text, graphql.text
+
+    # Released: the same statement over the same view is answered again.
+    _mutate(srv, f"setTableDraft(tableId: {table_id}, draft: false)")
+    again = through_the_view()
+    assert again.status_code == 200, again.text
+    assert again.json() == answered.json()
