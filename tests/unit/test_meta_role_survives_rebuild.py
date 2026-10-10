@@ -175,3 +175,59 @@ def _rebuild(monkeypatch, roles: list[dict]) -> None:
         metrics=[],
         draft_tables=[],
     )
+
+
+def _governed_read_as_the_meta_role(state) -> str:
+    """One governed statement of a request acting as the meta-role, as the pipeline governs it:
+    the role's surface, its role entry, and the masking rules the state holds NOW."""
+    from provisa.compiler.stage2 import apply_governance, build_governance_context
+    from provisa.security.rights import require_role
+    from tests.unit.test_empty_domain_access_reaches_nothing import _tables
+
+    surface = role_surface(state, _META)
+    gov = build_governance_context(
+        _META,
+        surface.rls,
+        state.masking_rules,
+        surface.context,
+        _tables(),
+        role=require_role(state.roles, _META),
+    )
+    return apply_governance("SELECT id FROM orders", gov)
+
+
+def test_a_meta_role_has_its_masks_at_every_step_of_a_rebuild(state, monkeypatch):
+    """A rebuild publishes its masking rules, reads on, and only then builds the roles. A
+    request acting as a meta-role is governed with its masks before the rebuild, BETWEEN those
+    two steps, and after it: a column masked for every member is masked for it throughout."""
+    import asyncio
+    from unittest.mock import MagicMock
+
+    from provisa.api import app_loaders
+    from tests.unit.test_empty_domain_access_reaches_nothing import SALES
+    from tests.unit.test_masking_rules_published_whole import _mask_row
+
+    class _ControlPlane:
+        async def execute_core(self, _stmt):
+            result = MagicMock()
+            # orders.id is masked for every role: nobody is in its unmasked_to.
+            result.fetchall.return_value = [
+                MagicMock(_mapping={**_mask_row("id", unmasked_to=[]), "table_id": SALES})
+            ]
+            return result
+
+    def _the_masking_load_of_a_rebuild() -> None:
+        asyncio.run(app_loaders._load_masking_rules(_ControlPlane(), {}, [dict(_A), dict(_B)]))
+
+    _the_masking_load_of_a_rebuild()
+    ensure_meta_role(state, ["a", "b"])
+    assert "MASKED" in _governed_read_as_the_meta_role(state)
+
+    # A rebuild begins: the masking rules are published first...
+    _the_masking_load_of_a_rebuild()
+    # ...and a request acting as the meta-role runs a statement before the roles are built.
+    assert "MASKED" in _governed_read_as_the_meta_role(state), (
+        "between the masking load and the role build the meta-role was governed without its mask"
+    )
+    _rebuild(monkeypatch, [dict(_A), dict(_B)])
+    assert "MASKED" in _governed_read_as_the_meta_role(state)

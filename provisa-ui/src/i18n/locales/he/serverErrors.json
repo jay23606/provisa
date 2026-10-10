@@ -106,7 +106,10 @@
       "domain_not_accessible": "לתפקיד '{{role_id}}' אין גישה לתחום '{{domain}}'",
       "role_mismatch": "הבקשה מציינת את התפקיד '{{body_role}}' אך רצה בתפקיד '{{acting_role}}'. התפקיד מועבר בכותרת X-Provisa-Role (או בזהות המחוברת); הסירו את התפקיד האחר או התאימו אותו.",
       "sql_parameters_do_not_fit": "ערכי הפרמטרים אינם תואמים את המשפט: {{reason}}",
-      "unknown_root_field": "שדה שאילתה לא מוכר '{{field}}': לתפקיד זה לא מוגשת טבלה בשם זה"
+      "unknown_root_field": "שדה שאילתה לא מוכר '{{field}}': לתפקיד זה לא מוגשת טבלה בשם זה",
+      "viewer_column_unknown": "'{{column}}' אינה עמודה של הטבלה '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' אינו מסנן של העמודה '{{column}}'",
+      "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'"
     },
     "discovery": {
       "adapter_missing_discover_schema": "המתאם עבור '{{source_type}}' אינו מממש discover_schema",

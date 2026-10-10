@@ -326,6 +326,64 @@ async def replica_tables(engine: Any, state: Any) -> list[tuple[Any, dict]]:
     return _served_from_replica(engine, registry, registry.promoted)
 
 
+async def draft_replica_tables(engine: Any, state: Any) -> list[tuple[Any, dict]]:
+    """Every DRAFT table that has, or may come to have, a replica on ``engine`` (REQ-1921), by
+    the same decision as :func:`replica_tables`. A draft is offered to no reader, and it may hold
+    a replica: its steward's preview lands it the way a read of a table in service does
+    (admin/table_read.py), and it is kept for the table's release. What the replicator keeps
+    by, and finds a requested build's table by; it asks for no build of a draft itself."""
+    from provisa.api.admin.db_queries import fetch_tables
+
+    registry = await _registry(state)
+    if state.model_db is None:
+        return []
+    async with state.model_db.acquire() as conn:
+        drafts = await fetch_tables(conn, draft=True)
+    return _served_from_replica(engine, registry._replace(registered=drafts), frozenset())
+
+
+def routes_with_draft(state: Any, draft: dict, source: Any) -> ReplicaRoutes:
+    """The published routes of ``state`` and, where the bound engine reads ``draft`` from a
+    replica, the draft's own route (REQ-1921). For the one read its steward's preview is: the
+    published routes never hold a draft, so no other statement is addressed at its replica."""
+    import dataclasses
+
+    published: ReplicaRoutes = state.replica_routes
+    engine = state.federation_engine.engine
+    if not reads_replica(source, draft, engine, promoted=False):
+        return dataclasses.replace(
+            published, unfloored={**published.unfloored, draft["id"]: source.id}
+        )
+    backend = engine.backend
+    physical = getattr(state, "kafka_table_physical", None) or {}
+    name = physical.get(draft["table_name"], draft["table_name"])
+    address = backend.replica_address(
+        state,
+        source_id=source.id,
+        schema_name=draft["schema_name"],
+        table_name=draft["table_name"],
+    )
+    route = ReplicaRoute(
+        source_id=source.id,
+        table_name=draft["table_name"],
+        target=(backend.replica_read_catalog(state), address.schema, address.table),
+    )
+    keys = engine_table_keys(engine, state.source_catalogs[source.id], draft["schema_name"], name)
+    setting = table_floor(source, draft, promoted=False)
+    floored, unfloored = dict(published.floored), dict(published.unfloored)
+    if setting is not None:
+        floored[draft["id"]] = (source.id, setting)
+    else:
+        unfloored[draft["id"]] = source.id
+    return dataclasses.replace(
+        published,
+        engine_name=engine.name,
+        routes={**published.routes, **dict.fromkeys(keys, route)},
+        floored=floored,
+        unfloored=unfloored,
+    )
+
+
 async def floored_tables(state: Any) -> dict[int, tuple[str, str]]:
     """Every registered table whose reads the operator's settings put on its replica (REQ-030,
     REQ-826), as ``{registered table id: (source_id, setting)}`` — ``setting`` the one a refusal
@@ -364,10 +422,24 @@ async def landing_worklist(
     data column with no type is a registration gap and the table is skipped (logged), never
     guessed. Shared by every backend's ``reconcile_landed_tables`` so the engines agree on exactly
     which tables are reconciled — they differ only in what they do with each entry."""
+    return _worklist(engine, await replica_tables(engine, state))
+
+
+async def draft_landing_worklist(
+    engine: Any, state: Any
+) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str]]]:
+    """:func:`landing_worklist` for the DRAFT tables (:func:`draft_replica_tables`, REQ-1921):
+    what the definition of a draft's replica is judged by."""
+    return _worklist(engine, await draft_replica_tables(engine, state))
+
+
+def _worklist(
+    engine: Any, tables: list[tuple[Any, dict]]
+) -> list[tuple[Any, str, str, list[tuple[str, str]], list[str]]]:
     from provisa.core.ir_types import to_ir
 
     work: list[tuple[Any, str, str, list[tuple[str, str]], list[str]]] = []
-    for src, reg in await replica_tables(engine, state):
+    for src, reg in tables:
         data_cols = _data_columns(reg)
         if any(c["data_type"] is None for c in data_cols):
             _log.warning(

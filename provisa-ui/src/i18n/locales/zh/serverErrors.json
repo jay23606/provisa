@@ -106,7 +106,10 @@
       "domain_not_accessible": "角色 '{{role_id}}' 无法访问域 '{{domain}}'",
       "role_mismatch": "请求指定了角色 '{{body_role}}'，但以角色 '{{acting_role}}' 运行。角色由 X-Provisa-Role 标头（或已登录的身份）携带；请移除另一个角色或使其一致。",
       "sql_parameters_do_not_fit": "参数值与语句不匹配：{{reason}}",
-      "unknown_root_field": "未知的查询字段“{{field}}”：此角色没有名为该名称的表"
+      "unknown_root_field": "未知的查询字段“{{field}}”：此角色没有名为该名称的表",
+      "viewer_column_unknown": "“{{column}}”不是表“{{table}}”的列",
+      "viewer_filter_unknown": "“{{operator}}”不是列“{{column}}”的筛选器",
+      "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",

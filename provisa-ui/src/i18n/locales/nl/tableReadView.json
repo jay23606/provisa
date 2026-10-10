@@ -57,6 +57,10 @@
     "writable": "Schrijfbaar",
     "writableOps": "Accepteert {{ops}} via GraphQL, REST en SQL",
     "dataProductChip": "Dataproduct",
-    "notShown": "niet getoond"
+    "notShown": "niet getoond",
+    "draftLabel": "Concept",
+    "draftTooltip": "Concept: buiten gebruik — in geen enkel schema en door niemand gelezen. Vink uit om de tabel vrij te geven; vink aan om haar buiten gebruik te stellen.",
+    "draftNoRightTooltip": "Een tabel vrijgeven of terugzetten naar concept vereist het recht Tabelregistratie in het domein van de tabel.",
+    "draftPreviewNote": "Conceptvoorbeeld: lezers kunnen deze tabel nog niet zien."
   }
 }

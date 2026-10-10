@@ -16,7 +16,14 @@
 import type { RegisteredTable, TableColumn } from "../types/admin";
 import { quoteIdent, tableSqlRef } from "../naming";
 import type { ActiveFilter } from "../pages/sql/columnFilter";
-import { binder, filterToSql, type Bind, type BoundStatement } from "./columnFilterSql";
+import {
+  binder,
+  filterToSql,
+  timestampText,
+  type Bind,
+  type BoundStatement,
+} from "./columnFilterSql";
+import { dateBounds, isUsable } from "../pages/sql/columnFilter";
 
 export const PREVIEW_ROW_LIMIT = 1000;
 
@@ -87,6 +94,73 @@ export function pagedViewerSql(
   return {
     sql: `SELECT * FROM ${tableSqlRef(table)}${where}${orderBy} LIMIT ${pageSize + 1} OFFSET ${page * pageSize}`,
     params: bound,
+  };
+}
+
+/** One column filter as the server takes it (REQ-1921): the filter as the viewer holds it, with a
+ * date filter's bounds resolved here — "today" is this browser's today. */
+export interface ViewerFilterRequest {
+  col: string;
+  kind: ActiveFilter["kind"];
+  op: string;
+  a?: string;
+  b?: string;
+  values?: string[];
+  from?: string;
+  to?: string;
+}
+
+/** What the viewer chose, for a table whose statement the SERVER writes: a DRAFT is read by no
+ * statement a caller sends, so its viewer sends these choices — the same inputs
+ * `pagedViewerSql` writes its statement from — and the server writes the statement. */
+export interface ViewerRequest {
+  params: { column: string; value: string | number }[];
+  filters: ViewerFilterRequest[];
+  sorts: { col: string; dir: "asc" | "desc" }[];
+  groupBy: string[];
+  page: number;
+  pageSize: number;
+}
+
+export function viewerRequest(
+  table: RegisteredTable,
+  params: Record<string, string>,
+  filters: ActiveFilter[],
+  sorts: { col: string; dir: "asc" | "desc" }[],
+  groupBy: string[],
+  page: number,
+  pageSize: number,
+  now: Date = new Date(),
+): ViewerRequest {
+  const sent: ViewerFilterRequest[] = [];
+  for (const f of filters) {
+    // A filter that is not usable yet narrows nothing, here as in the statement the viewer writes.
+    if (!isUsable(f.kind, f.spec)) continue;
+    const { op, a, b, values } = f.spec;
+    const filter: ViewerFilterRequest = { col: f.col, kind: f.kind, op };
+    if (a !== undefined) filter.a = a;
+    if (b !== undefined) filter.b = b;
+    if (values !== undefined) filter.values = values;
+    if (f.kind === "date" && op !== "isEmpty" && op !== "notEmpty" && op !== "in") {
+      const bounds = dateBounds(f.spec, now);
+      if (!bounds) continue;
+      if (bounds.from !== undefined) filter.from = timestampText(bounds.from);
+      if (bounds.to !== undefined) filter.to = timestampText(bounds.to);
+    }
+    sent.push(filter);
+  }
+  return {
+    params: [...requiredParamColumns(table), ...optionalParamColumns(table)]
+      .filter((c) => (params[c.columnName] ?? "").trim() !== "")
+      .map((c) => ({
+        column: c.alias || c.columnName,
+        value: paramValue(params[c.columnName], c.dataType),
+      })),
+    filters: sent,
+    sorts,
+    groupBy,
+    page,
+    pageSize,
   };
 }
 

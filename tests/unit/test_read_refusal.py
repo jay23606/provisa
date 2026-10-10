@@ -127,7 +127,6 @@ _HTTP_DATA_ROUTES = (
     "api/rest/cypher_router.py",  # Cypher
     "api/jsonapi/generator.py",  # JSON:API
     "api/rest/neo4j_compat_router.py",  # the Neo4j HTTP-compatible endpoint
-    "api/admin/table_profile_router.py",  # a table's sampled profile
 )
 
 
@@ -157,8 +156,13 @@ def test_the_neo4j_endpoint_answers_the_family_in_its_own_error_format():
     assert source.count("except ReadRefused as exc:") == 2  # governance, and execution
 
 
-def test_a_table_profile_does_not_retry_or_reword_a_refusal():
-    """Its catch-all retries the sample without TABLESAMPLE and answers a second failure as a
-    400; a refusal is neither retried nor reworded."""
+def test_a_table_profile_has_no_catch_all_for_a_refusal_to_fall_into():
+    """A table's profile and preview read through the one pipeline as their caller and catch
+    nothing: a refusal reaches the app's handler as it was raised, neither retried nor
+    reworded. (The route used to retry its sample and answer a second failure as a 400.)"""
     source = (Path(provisa.__file__).parent / "api/admin/table_profile_router.py").read_text()
-    assert source.count("except ReadRefused:") == source.count("except Exception")
+    import re
+
+    read = (Path(provisa.__file__).parent / "api/admin/table_read.py").read_text()
+    for text in (source, read):
+        assert not re.search(r"^\s*except\b", text, re.M)

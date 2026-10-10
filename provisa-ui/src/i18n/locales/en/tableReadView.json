@@ -57,6 +57,10 @@
     "writable": "Writable",
     "writableOps": "Accepts {{ops}} from GraphQL, REST and SQL",
     "dataProductChip": "Data product",
-    "notShown": "not shown"
+    "notShown": "not shown",
+    "draftLabel": "Draft",
+    "draftTooltip": "Draft: out of service — in no schema and read by nobody. Untick to release the table; tick to take it out of service.",
+    "draftNoRightTooltip": "Releasing a table, or returning it to draft, needs the Table registration right in the table's domain.",
+    "draftPreviewNote": "Draft preview: readers cannot see this table yet."
   }
 }

@@ -26,46 +26,22 @@ import pytest
 
 from provisa.api.admin import table_profile_router as router_mod
 from provisa.api.errors import ApiError
-from provisa.core.models import DERIVED_SOURCE_ID
-
-
-class _Conn:
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *exc):
-        return False
-
-    async def execute_core(self, _stmt):
-        row = types.SimpleNamespace(
-            _mapping={
-                "source_id": DERIVED_SOURCE_ID,
-                "schema_name": "sales",
-                "table_name": "big_orders",
-                "view_sql": "SELECT id FROM sales.orders;",
-            }
-        )
-        return types.SimpleNamespace(fetchone=lambda: row)
 
 
 @pytest.fixture
 def governed(monkeypatch) -> list[str]:
-    """The roles the view's sample was governed as."""
+    """The roles the table's sample was read as."""
     seen: list[str] = []
 
-    async def _govern(sql, role_id):
+    async def _read(_state, table_id, role_id, *, limit=None, request=None):
         seen.append(role_id)
-        return object()
-
-    async def _execute(_plan, _state):
         return types.SimpleNamespace(column_names=["id"], rows=[(1,)])
 
-    monkeypatch.setattr("provisa.pgwire._pipeline._govern_and_route", _govern)
-    monkeypatch.setattr("provisa.pgwire._pipeline._execute_plan", _execute)
-    monkeypatch.setattr(router_mod, "require_capability_request", lambda request, cap: None)
-    state = types.SimpleNamespace(
-        model_db=types.SimpleNamespace(acquire=lambda: _Conn()), federation_engine=object()
+    monkeypatch.setattr(router_mod, "read_as_caller", _read)
+    monkeypatch.setattr(
+        router_mod, "table_for_steward", lambda request, state, table_id: {"draft": False}
     )
+    state = types.SimpleNamespace(model_db=object(), federation_engine=object())
     monkeypatch.setattr(router_mod, "state", state)
     return seen
 
@@ -88,7 +64,7 @@ def _request(role: str | None):
 async def test_the_sample_is_governed_as_the_established_role(governed, header, established):
     out = await router_mod.profile_table(_request(established), 7, x_provisa_role=header)
     assert governed == [established]
-    assert out == {"columns": ["id"], "rows": [{"id": 1}], "rowCount": 1}
+    assert out == {"columns": ["id"], "rows": [{"id": 1}], "rowCount": 1, "draft": False}
 
 
 async def test_with_no_auth_layer_the_header_names_the_role(governed):

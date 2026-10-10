@@ -238,6 +238,21 @@ async def require_home_replica(state: Any, table: Any, home: str) -> Any:
     return record
 
 
+def require_draft_read_in_its_region(table_name: str, home: str | None) -> None:
+    """A table that names a region is read in that region. One in service is read there from
+    its replica (:func:`require_home_replica`); a draft has no replica, so it is read live, and
+    only by the cluster of its own region — refused elsewhere as a table in service whose
+    replica is not there is refused (``query.home_region_unavailable``). A draft that names no
+    region is read where the caller is."""
+    from provisa.core import process_region
+    from provisa.core.region_stores import HomeRegionUnavailable
+
+    if home and home != process_region.region():
+        raise HomeRegionUnavailable(
+            table_name, home, "a draft does not have: preview it from that region"
+        )
+
+
 async def read_home_replica(state: Any, backend: Any, table: Any, home: str) -> None:
     """Make the read of ``table`` from its replica in region ``home`` possible (REQ-1922): that
     replica is built there (``require_home_replica``), and the engine has attached it for that
@@ -436,7 +451,7 @@ async def ensure_resident(
         or db is None
     ):
         return Residency(answered_in=only_there)
-    from provisa.federation.registry_view import registered_sources, registered_tables
+    from provisa.federation.registry_view import registered_sources, tables_a_read_judges
 
     # REQ-1674: the registry, not the config file — see registry_view. A built-in source
     # (provisa-admin, ...) is never landed and is not in it: a statement's read of one of its
@@ -475,7 +490,7 @@ async def ensure_resident(
     tables_by_source: dict[str, list[Any]] = {}
     elsewhere: list[tuple[Any, str]] = []
     read_here = 0  # tables this statement reads in this region (live or from its own replica)
-    for t in await registered_tables(state):
+    for t in await tables_a_read_judges(state):
         if t.source_id not in wanted or t.id not in read:
             continue
         home = home_region(t)

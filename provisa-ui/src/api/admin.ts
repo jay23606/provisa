@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import type { Role, RoleAssignment, OrgMembership } from "../types/auth";
+import type { ViewerRequest } from "../components/nativeParams";
 import type { Paging, PagingKind } from "../types/admin";
 import { ORG_HEADER } from "../lib/authFetch";
 import { normalizeRole, type RawRole } from "../lib/roles";
@@ -450,6 +451,31 @@ export async function deleteOrgRole(orgId: string, roleId: string): Promise<void
     headers: { [ORG_HEADER]: orgId },
   });
   if (!res.ok) throw httpError("deleteOrgRole", res.status);
+}
+
+/** One page of a registered table as the table viewer shows it, read as the caller — the read a
+ * DRAFT takes (REQ-1921). The body is what the viewer chose; the server writes the statement.
+ * One row more than the page comes back when a next page exists. */
+export async function previewTable(
+  tableId: number,
+  role: string,
+  request: ViewerRequest,
+): Promise<{
+  columns: string[];
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  draft: boolean;
+}> {
+  const resp = await fetch(`${API_BASE}/admin/tables/${tableId}/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Provisa-Role": role },
+    body: JSON.stringify(request),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(serverMessage(body, requestFailed("previewTable", resp.status)));
+  }
+  return resp.json();
 }
 
 export async function profileTable(

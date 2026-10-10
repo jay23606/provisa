@@ -10,16 +10,20 @@
 
 // Table data preview modal — thin shell around the shared GovernedTableViewer.
 
+import { useTranslation } from "react-i18next";
 import { Modal, Text } from "@mantine/core";
 import type { RegisteredTable } from "../types/admin";
 import { GovernedTableViewer } from "./GovernedTableViewer";
 
 interface TablePreviewModalProps {
   table: RegisteredTable | null;
+  // The role the preview is read as (a draft's preview names it to the server).
+  role?: string | null;
   onClose: () => void;
 }
 
-export function TablePreviewModal({ table, onClose }: TablePreviewModalProps) {
+export function TablePreviewModal({ table, role = null, onClose }: TablePreviewModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal.Root opened={table != null} onClose={onClose} size="90%">
       <Modal.Overlay />
@@ -35,7 +39,14 @@ export function TablePreviewModal({ table, onClose }: TablePreviewModalProps) {
         <Modal.Body>
           {table && (
             <div style={{ height: "70vh", display: "flex", flexDirection: "column" }}>
-              <GovernedTableViewer key={table.id} table={table} />
+              {/* REQ-1921: a draft's preview is the same viewer; it reads through the admin
+                  preview, as the caller, and says whom the table is not yet shown to. */}
+              {table.draft && (
+                <Text size="sm" c="dimmed" mb="xs" data-testid="table-preview-draft-note">
+                  {t("tableReadView.draftPreviewNote")}
+                </Text>
+              )}
+              <GovernedTableViewer key={table.id} table={table} role={role} />
             </div>
           )}
         </Modal.Body>
