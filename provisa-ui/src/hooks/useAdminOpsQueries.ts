@@ -12,6 +12,7 @@
 // control and the scheduled-task table. Split out of useAdminQueries so neither file carries more
 // than the max-lines cap allows.
 
+import { useEffect } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import type { MutationResult, Paging, RoleTtl } from "../types/admin";
 import { pagingInput } from "../pages/tables/paging";
@@ -69,14 +70,35 @@ export function useCacheTableStats() {
   return { cacheTableStats: data?.cacheTableStats ?? [], loading, error, refetch };
 }
 
-/** Every replica of the acting org and environment with its build (REQ-1915). Polled, so a
- * running build's progress moves while the form is open. */
-export function useReplicaBuilds() {
-  const { data, loading, error, refetch } = useQuery<{ replicaBuilds: ReplicaBuilds }>(
-    REPLICA_BUILDS_QUERY,
-    { fetchPolicy: "cache-and-network", pollInterval: 5000 },
+/** How often replica builds are asked for while one is running or waiting, or a table's detail
+ * is open; and how often otherwise, so a build that starts while a list sits open still shows. */
+export const REPLICA_BUILDS_BUSY_MS = 5000;
+export const REPLICA_BUILDS_QUIET_MS = 30000;
+
+/** The interval for a caller that only needs to notice builds (`watching` false, none running or
+ * waiting): the quiet one. */
+export function replicaBuildsInterval(builds: ReplicaBuilds | null, watching: boolean): number {
+  const busy = (builds?.builds ?? []).some(
+    (b) => b.state === "building" || b.state === "requested",
   );
-  return { replicaBuilds: data?.replicaBuilds ?? null, loading, error, refetch };
+  return busy || watching ? REPLICA_BUILDS_BUSY_MS : REPLICA_BUILDS_QUIET_MS;
+}
+
+/** Every replica of the acting org and environment with its build (REQ-1915). Polled, so a
+ * running build's progress moves while it is shown: often while a build is running or waiting
+ * or `watching` (a table's detail is open), seldom otherwise. One caller, the table list,
+ * whose result its details read too. */
+export function useReplicaBuilds(list: { watching: boolean }) {
+  const { data, loading, error, refetch, startPolling, stopPolling } = useQuery<{
+    replicaBuilds: ReplicaBuilds;
+  }>(REPLICA_BUILDS_QUERY, { fetchPolicy: "cache-and-network" });
+  const replicaBuilds = data?.replicaBuilds ?? null;
+  const every = replicaBuildsInterval(replicaBuilds, list.watching);
+  useEffect(() => {
+    startPolling(every);
+    return stopPolling;
+  }, [every, startPolling, stopPolling]);
+  return { replicaBuilds, loading, error, refetch };
 }
 
 export function useHotTables() {

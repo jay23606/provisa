@@ -17,6 +17,62 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 /** A server message in the reader's language: its code when the catalog has it, else its English text. */
 type ServerText = (body: ServerMessageShape, fallback: string) => string;
 
+/** The build of one table among those the server reported; undefined when it has no replica
+ * record, or builds could not be read. */
+export function buildOf(
+  builds: ReplicaBuild[] | undefined,
+  table: { sourceId: string; schemaName: string; tableName: string },
+): ReplicaBuild | undefined {
+  return builds?.find(
+    (b) =>
+      b.sourceId === table.sourceId &&
+      b.schemaName === table.schemaName &&
+      b.tableName === table.tableName,
+  );
+}
+
+/** The most a running build is shown as: it is not complete until it says so. */
+export const MOST_SHOWN_PERCENT = 95;
+
+/** How far a running build has got, for the mark that shows it. THE one place this is worked
+ * out: a build that comes to know a total of another kind (mailboxes read of mailboxes listed,
+ * files read of files matched) is given its measure here, and the mark draws it unchanged. */
+export interface ReplicaProgress {
+  /** How full the ring is, 0 to MOST_SHOWN_PERCENT; null when there is nothing to measure the
+   * build against, and the ring turns without a measure. Never made up. */
+  percent: number | null;
+  /** Whether the measure is a total the build knows, or an estimate of one. */
+  exact: boolean;
+  /** What the mark says of it: the wording's key under `replicaBuild`, and the numbers in it
+   * (each is formatted for the reader's language where it is shown). */
+  said: { key: string; numbers: Record<string, number> };
+}
+
+/** How far `build`, which is running, has got. Today the one measure is the rows of the last
+ * build that copied the whole table: an estimate, since the table may have grown or shrunk. */
+export function replicaProgress(build: ReplicaBuild): ReplicaProgress {
+  const rows = build.rowsCopied ?? 0;
+  const total = build.completedRows ?? 0;
+  // A delta applies changes only: its rows are not a share of the table's.
+  if (build.method === "delta" || total <= 0 || rows <= 0) {
+    return {
+      percent: null,
+      exact: false,
+      said:
+        rows > 0 ? { key: "progressRows", numbers: { rows } } : { key: "replicating", numbers: {} },
+    };
+  }
+  const percent = Math.min(MOST_SHOWN_PERCENT, Math.floor((rows / total) * 100));
+  return {
+    percent,
+    exact: false,
+    said:
+      rows > total
+        ? { key: "progressPast", numbers: { rows, total } }
+        : { key: "progressAbout", numbers: { rows, total } },
+  };
+}
+
 /** How a build copies, in words: "streamed in batches, row copy". */
 function how(build: ReplicaBuild, t: Translate): string {
   const parts: string[] = [];

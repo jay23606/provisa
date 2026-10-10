@@ -47,6 +47,7 @@ function build(over: Partial<ReplicaBuild>): ReplicaBuild {
     startedAt: null,
     rowsCopied: null,
     rowsPerSecond: null,
+    completedRows: null,
     completedAt: null,
     verifiedAt: null,
     nextRefreshAt: null,

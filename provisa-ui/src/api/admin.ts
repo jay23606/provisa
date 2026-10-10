@@ -1586,6 +1586,9 @@ export interface ReplicaBuild {
   rowsCopied: number | null;
   /** A running build's rate so far. */
   rowsPerSecond: number | null;
+  /** The rows of the last build that copied the whole table: an estimate of its size for a
+   * running build's progress. Null before the first such build. */
+  completedRows: number | null;
   /** null: there is no replica yet. */
   completedAt: string | null;
   /** When its probe last found the source unchanged since that build; null: not since. */

@@ -1455,6 +1455,10 @@ replica_state = Table(
     Column("build_holder", Text),  # host:pid of the process building it
     Column("build_method", Text),  # data_replicator.Method
     Column("rows_copied", BigInteger),  # progress of the running build; the total once complete
+    # The rows of the last build that copied the whole table, kept while the next build runs
+    # (``rows_copied`` starts again from 0 then): what a running build's progress is measured
+    # against. An estimate -- the table may have grown or shrunk since. NULL: no such build yet.
+    Column("completed_rows", BigInteger),
     Column("completed_at", DateTime(timezone=True)),  # NULL: there is no replica
     Column("next_refresh_at", DateTime(timezone=True)),  # NULL: refreshed only on request
     Column("content_hash", Text),  # order-independent hash of the last completed build

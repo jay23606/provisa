@@ -149,9 +149,19 @@ const DOMAINS = [{ id: "sales", description: "Sales data" }];
 const ROLES = [{ id: "admin", capabilities: ["admin"], domainAccess: ["*"] }];
 const forceRegen = vi.fn();
 
+// What the server reports of replica builds; null as for a caller who may not read them.
+const replicaBuilds = vi.hoisted(() => ({
+  reported: null as unknown,
+  asked: [] as ({ watching: boolean } | undefined)[],
+}));
+
 vi.mock("../../hooks/useAdminOpsQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminOpsQueries")>()),
   usePurgeCacheByTable: () => ({ purgeCacheByTable: vi.fn(), loading: false }),
+  useReplicaBuilds: (list?: { watching: boolean }) => {
+    replicaBuilds.asked.push(list);
+    return { replicaBuilds: replicaBuilds.reported, loading: false, refetch: vi.fn() };
+  },
 }));
 
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
@@ -173,6 +183,7 @@ function renderPage() {
 
 describe("TablesPage — forced run (REQ-968)", () => {
   beforeEach(() => {
+    replicaBuilds.reported = null;
     forceRegen.mockReset();
     forceRegen.mockResolvedValue({ success: true, message: "" });
   });
@@ -212,5 +223,85 @@ describe("TablesPage — forced run (REQ-968)", () => {
 
     expect(await screen.findByTestId("tables-error")).toHaveTextContent(/no landed rows/);
     expect(screen.queryByTestId("tables-regen-queued")).not.toBeInTheDocument();
+  });
+});
+
+describe("TablesPage — a table that is replicating says so", () => {
+  const reported = (state: string) => ({
+    builds: [
+      { sourceId: "sales-pg", schemaName: "sales", tableName: "orders", state, buildNotes: [] },
+      {
+        sourceId: "sales-pg",
+        schemaName: "sales",
+        tableName: "prices",
+        state: "idle",
+        buildNotes: [],
+      },
+    ],
+    convergenceError: null,
+    convergenceErrorAt: null,
+  });
+  const row = (name: string) =>
+    document.querySelector(`[data-table-row="sales-pg.${name}"]`) as HTMLElement;
+
+  beforeEach(() => {
+    replicaBuilds.reported = reported("building");
+    replicaBuilds.asked.length = 0;
+  });
+
+  it("in its row of the list, beside its name, and in no other row", async () => {
+    renderPage();
+    const mark = await screen.findByTestId("replicating-orders");
+    expect(row("orders")).toContainElement(mark);
+    expect(mark).toHaveTextContent("Replicating");
+    // Beside the name, in the name's own cell: no cell or line is added to the row.
+    expect(mark.closest("td")).toHaveTextContent("orders");
+    expect(row("orders").querySelectorAll("td")).toHaveLength(
+      row("prices").querySelectorAll("td").length,
+    );
+    expect(screen.queryByTestId("replicating-prices")).toBeNull();
+  });
+
+  it("and at the start of its detail's row of actions once the row is opened", async () => {
+    renderPage();
+    await screen.findByTestId("replicating-orders");
+    await userEvent.click(row("orders"));
+    const edit = await screen.findByTestId("table-read-view-edit");
+    const marks = screen.getAllByTestId("replicating-orders");
+    expect(marks).toHaveLength(2);
+    const actions = edit.parentElement as HTMLElement;
+    expect(actions.firstElementChild).toBe(marks[1]);
+    // One request serves every row; it is asked for often once a detail is open.
+    expect(replicaBuilds.asked.at(-1)).toEqual({ watching: true });
+    expect(replicaBuilds.asked[0]).toEqual({ watching: false });
+  });
+
+  it("on a draft table's row like any other: a draft's replica lands the normal way", async () => {
+    const drafted = TABLES.map((t) => (t.tableName === "orders" ? { ...t, draft: true } : t));
+    TABLES.splice(0, TABLES.length, ...drafted);
+    try {
+      renderPage();
+      const mark = await screen.findByTestId("replicating-orders");
+      expect(row("orders")).toContainElement(mark);
+    } finally {
+      TABLES.splice(0, TABLES.length, ...drafted.map((t) => ({ ...t, draft: false })));
+    }
+  });
+
+  it.each(["failed", "requested", "idle"])("not when its build is %s", async (state) => {
+    replicaBuilds.reported = reported(state);
+    renderPage();
+    await screen.findByTestId("tables-run-now-orders");
+    expect(screen.queryByTestId("replicating-orders")).toBeNull();
+  });
+
+  it("and a caller who may not read builds simply sees none", async () => {
+    replicaBuilds.reported = null;
+    renderPage();
+    await screen.findByTestId("tables-run-now-orders");
+    expect(screen.queryByTestId("replicating-orders")).toBeNull();
+    await userEvent.click(row("orders"));
+    await screen.findByTestId("table-read-view-edit");
+    expect(screen.queryByTestId("replicating-orders")).toBeNull();
   });
 });

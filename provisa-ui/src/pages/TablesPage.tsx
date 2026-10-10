@@ -56,6 +56,7 @@ import {
 } from "../hooks/useAdminQueries";
 import {
   usePurgeCacheByTable,
+  useReplicaBuilds,
   useUpdateTablePaging,
   useUpdateTableRoleTtl,
 } from "../hooks/useAdminOpsQueries";
@@ -72,6 +73,9 @@ import { RegisterTableForm } from "./tables/RegisterTableForm";
 import { ViewDefinitionForm } from "./tables/ViewDefinitionForm";
 import { ModelingForm } from "./tables/ModelingForm";
 import { TableReadView } from "./tables/TableReadView";
+import { ReplicatingMark } from "./tables/ReplicatingMark";
+import { buildOf } from "./tables/replicaBuild";
+import { ReplicaBuildsContext } from "./tables/replicaBuildsContext";
 import { TablePreviewModal } from "../components/TablePreviewModal";
 import { NativeParamsModal } from "../components/NativeParamsModal";
 import { previewSql, requiredParamColumns } from "../components/nativeParams";
@@ -139,6 +143,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   const { suggestTableAlias } = useSuggestTableAlias();
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
+  // One request for every row; asked for often only while a build runs or a detail is open.
+  const { replicaBuilds } = useReplicaBuilds({ watching: expanded !== null });
   // REQ-1386: table whose governed SELECT * preview modal is open.
   const [previewTable, setPreviewTable] = useState<RegisteredTable | null>(null);
   // Table awaiting native-param entry before its profile sample can run.
@@ -968,6 +974,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                     >
                       <Group gap="0.35rem">
                         {t.alias || t.tableName}
+                        <ReplicatingMark build={buildOf(replicaBuilds?.builds, t)} />
                         {/* REQ-1320: star-schema role is metadata on the registration itself —
                             the badge derives live from it, so it can never drift from the def. */}
                         {t.modelingRole ? (
@@ -1108,6 +1115,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                       {!isEditing ? (
                         <TableReadView
                           t={t}
+                          build={buildOf(replicaBuilds?.builds, t)}
                           hidingOnly={hidingOnly}
                           dataProducts={dataProducts}
                           navigate={navigate}
@@ -1136,32 +1144,34 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                         />
                       ) : (
                         editingTable && (
-                          <TableEditForm
-                            hidingOnly={hidingOnly}
-                            editingTable={editingTable}
-                            setEditingTable={setEditingTable}
-                            savedProfilerId={
-                              tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ??
-                              null
-                            }
-                            editingColumnTypes={editingColumnTypes}
-                            cacheTtlEdits={cacheTtlEdits}
-                            setCacheTtlEdits={setCacheTtlEdits}
-                            sources={sources}
-                            roles={roles}
-                            dataProducts={dataProducts}
-                            settings={settings}
-                            saving={saving}
-                            generatingDesc={generatingDesc}
-                            setGeneratingDesc={setGeneratingDesc}
-                            generatingColDesc={generatingColDesc}
-                            setGeneratingColDesc={setGeneratingColDesc}
-                            generateTableDescription={generateTableDescription}
-                            generateColumnDescription={generateColumnDescription}
-                            cancelEditing={cancelEditing}
-                            handleSaveEdit={handleSaveEdit}
-                            updateEditCol={updateEditCol}
-                          />
+                          <ReplicaBuildsContext.Provider value={replicaBuilds}>
+                            <TableEditForm
+                              hidingOnly={hidingOnly}
+                              editingTable={editingTable}
+                              setEditingTable={setEditingTable}
+                              savedProfilerId={
+                                tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ??
+                                null
+                              }
+                              editingColumnTypes={editingColumnTypes}
+                              cacheTtlEdits={cacheTtlEdits}
+                              setCacheTtlEdits={setCacheTtlEdits}
+                              sources={sources}
+                              roles={roles}
+                              dataProducts={dataProducts}
+                              settings={settings}
+                              saving={saving}
+                              generatingDesc={generatingDesc}
+                              setGeneratingDesc={setGeneratingDesc}
+                              generatingColDesc={generatingColDesc}
+                              setGeneratingColDesc={setGeneratingColDesc}
+                              generateTableDescription={generateTableDescription}
+                              generateColumnDescription={generateColumnDescription}
+                              cancelEditing={cancelEditing}
+                              handleSaveEdit={handleSaveEdit}
+                              updateEditCol={updateEditCol}
+                            />
+                          </ReplicaBuildsContext.Provider>
                         )
                       )}
                     </ListExpandRow>

@@ -1587,6 +1587,7 @@ CREATE TABLE IF NOT EXISTS replica_state (
     build_holder     TEXT,          -- host:pid of the process building it
     build_method     TEXT,          -- engine_statement | stream_batches
     rows_copied      BIGINT,        -- progress of the running build; the total once complete
+    completed_rows   BIGINT,        -- rows of the last whole build, kept while the next runs; NULL: none
     completed_at     TIMESTAMPTZ,   -- NULL: there is no replica
     next_refresh_at  TIMESTAMPTZ,   -- NULL: refreshed only on request
     content_hash     TEXT,          -- order-independent hash of the last completed build
