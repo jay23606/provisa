@@ -179,3 +179,90 @@ def test_a_group_that_fails_part_way_changes_no_table_of_a_sqlalchemy_store(tmp_
         assert conn.execute(sa.text("SELECT count(*) FROM messages")).scalar() == 1
         assert conn.execute(sa.text("SELECT count(*) FROM message_recipients")).scalar() == 2
     engine.dispose()
+
+
+# --- rows named by part of their key ---
+
+
+def _replaced() -> dict[str, TableChanges]:
+    """m1 changed: its recipients are replaced whole, whatever positions it had."""
+    return {
+        "messages": TableChanges(
+            "mail", "messages", MESSAGES, ["id"], [Change("upsert", {"id": "m1", "subject": "new"})]
+        ),
+        "message_recipients": TableChanges(
+            "mail",
+            "message_recipients",
+            RECIPIENTS,
+            ["message_id", "position"],
+            [Change("upsert", {"message_id": "m1", "position": 1, "address": "only@x.test"})],
+            delete_where=[{"message_id": "m1"}],
+        ),
+    }
+
+
+def test_a_set_of_rows_is_replaced_whole_by_part_of_its_key_on_duckdb(tmp_path):
+    from provisa.federation.materialize_broker import _SyncedStore
+
+    db = str(tmp_path / "store.duckdb")
+    broker = _SyncedStore(db)
+    other = _group(
+        [Change("upsert", {"id": "m9", "subject": "another"})],
+        [Change("upsert", {"message_id": "m9", "position": 1, "address": "kept@x.test"})],
+    )
+    for group in (_added(), other, _replaced(), _replaced()):  # the last one applied twice
+        broker.apply_change_group(ordered(group, head="messages"))
+    con = duckdb.connect(db, read_only=True)
+    try:
+        assert con.execute(
+            'SELECT message_id, address FROM mail."message_recipients" ORDER BY 1'
+        ).fetchall() == [("m1", "only@x.test"), ("m9", "kept@x.test")]
+    finally:
+        con.close()
+
+
+def test_a_set_of_rows_is_removed_by_part_of_its_key_before_any_table_exists(tmp_path):
+    from provisa.federation.materialize_broker import _SyncedStore
+
+    db = str(tmp_path / "store.duckdb")
+    gone = {
+        "message_recipients": TableChanges(
+            "mail",
+            "message_recipients",
+            RECIPIENTS,
+            ["message_id", "position"],
+            delete_where=[{"message_id": "never-there"}],
+        )
+    }
+    _SyncedStore(db).apply_change_group(ordered(gone, head="messages", removed=True))
+
+
+def test_a_set_of_rows_is_replaced_whole_by_part_of_its_key_on_a_sqlalchemy_store(tmp_path):
+    import sqlalchemy as sa
+
+    from provisa.federation.sqlalchemy_runtime import SqlAlchemyFederationRuntime
+
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'store.db'}")
+    runtime = SqlAlchemyFederationRuntime.__new__(SqlAlchemyFederationRuntime)
+    runtime._sa = engine
+
+    def group(changes: dict[str, TableChanges]) -> list[TableChanges]:
+        return [
+            TableChanges("", c.table, c.columns, c.pk_columns, c.events, c.delete_where)
+            for c in ordered(changes, head="messages")
+        ]
+
+    for changes in (_added(), _replaced()):
+        asyncio.run(runtime.apply_change_group(group(changes)))
+    with engine.connect() as conn:
+        assert conn.execute(sa.text("SELECT address FROM message_recipients")).fetchall() == [
+            ("only@x.test",)
+        ]
+    engine.dispose()
+
+
+def test_a_removal_that_names_no_column_or_an_unknown_one_is_refused():
+    with pytest.raises(ValueError, match="would empty the table"):
+        TableChanges("mail", "messages", MESSAGES, ["id"], delete_where=[{}])
+    with pytest.raises(ValueError, match="names no column"):
+        TableChanges("mail", "messages", MESSAGES, ["id"], delete_where=[{"nope": 1}])

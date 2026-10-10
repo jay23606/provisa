@@ -447,7 +447,13 @@ class SqlAlchemyFederationRuntime:  # REQ-825, REQ-840, REQ-905
             with self._sa.begin() as conn:
                 for changes, tbl, temporal_cols in prepared:
                     _apply_events(
-                        conn, changes.schema, tbl, changes.pk_columns, changes.events, temporal_cols
+                        conn,
+                        changes.schema,
+                        tbl,
+                        changes.pk_columns,
+                        changes.events,
+                        temporal_cols,
+                        changes.delete_where,
                     )
 
         loop = asyncio.get_event_loop()
@@ -459,7 +465,13 @@ class SqlAlchemyFederationRuntime:  # REQ-825, REQ-840, REQ-905
 
 
 def _apply_events(
-    conn: Any, schema: str, tbl: Any, pk_columns: list[str], events: list, temporal_cols: Any
+    conn: Any,
+    schema: str,
+    tbl: Any,
+    pk_columns: list[str],
+    events: list,
+    temporal_cols: Any,
+    delete_where: list[dict[str, Any]] | None = None,
 ) -> dict[str, int]:
     """Apply change events to one table on ``conn``, inside the caller's transaction:
     insert/update -> upsert by key, delete -> the row removed."""
@@ -474,6 +486,8 @@ def _apply_events(
     if schema:
         _ensure_schema(conn, schema)
     _ensure_table(conn, tbl)
+    for match in delete_where or ():  # rows named by part of their key, before the events
+        conn.execute(tbl.delete().where(_and_eq(tbl, list(match), match)))
     for ev in events:
         if ev.operation.lower() == "delete":
             conn.execute(tbl.delete().where(_and_eq(tbl, pk_columns, ev.row)))

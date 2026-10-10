@@ -388,7 +388,8 @@ class EngineBackend:
         as it comes, in that order. A native engine whose store is embedded and shares a single
         connection (DuckDB) overrides this, as it does ``apply_cdc_events``."""
         del state
-        from sqlalchemy.schema import CreateSchema
+        from sqlalchemy import and_
+        from sqlalchemy.schema import CreateSchema, CreateTable
 
         from provisa.federation.materialize_exec import apply_cdc, build_table
         from provisa.federation.store_writer import store_connection
@@ -401,6 +402,11 @@ class EngineBackend:
                     table = build_table(
                         changes.schema, changes.table, changes.columns, tuple(changes.pk_columns)
                     )
+                    await conn.execute_core(CreateTable(table, if_not_exists=True))
+                    for match in changes.delete_where:
+                        await conn.execute_core(
+                            table.delete().where(and_(*[table.c[k] == v for k, v in match.items()]))
+                        )
                     await apply_cdc(conn, table, changes.pk_columns, changes.events)
 
     async def analyze_landed_table(

@@ -29,13 +29,32 @@ from typing import Any
 @dataclass(frozen=True)
 class TableChanges:
     """The changes to one landed table: rows to add or replace by key (``operation`` insert or
-    update), and keys to remove (``operation`` delete), as ``apply_cdc`` takes them."""
+    update), and keys to remove (``operation`` delete), as ``apply_cdc`` takes them.
+
+    ``delete_where`` removes every row that matches all the column values of one of its
+    entries -- part of a key, such as every recipient of one message -- and is applied BEFORE
+    ``events``, so a set of rows is replaced whole by naming it there and giving its new rows
+    as events."""
 
     schema: str
     table: str
     columns: list[tuple[str, str]]
     pk_columns: list[str]
     events: list = field(default_factory=list)
+    delete_where: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def idle(self) -> bool:
+        return not self.events and not self.delete_where
+
+    def __post_init__(self) -> None:
+        known = {name for name, _ in self.columns}
+        for match in self.delete_where:
+            if not match:
+                raise ValueError(f"{self.table}: delete_where with no column would empty the table")
+            unknown = sorted(set(match) - known)
+            if unknown:
+                raise ValueError(f"{self.table}: delete_where names no column {unknown}")
 
 
 @dataclass(frozen=True)
@@ -52,6 +71,6 @@ def ordered(
     """``changes`` (by a name of the caller's) in the order that never shows ``head``'s row
     without its dependants: the others first and ``head`` last when rows are added or
     replaced; ``head`` first when they are removed. Tables with nothing to do are left out."""
-    rest = [c for name, c in sorted(changes.items()) if name != head and c.events]
-    first = [changes[head]] if head in changes and changes[head].events else []
+    rest = [c for name, c in sorted(changes.items()) if name != head and not c.idle]
+    first = [changes[head]] if head in changes and not changes[head].idle else []
     return [*first, *rest] if removed else [*rest, *first]

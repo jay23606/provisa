@@ -690,12 +690,17 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         columns: list[tuple[str, str]],
         pk_columns: list[str],
         events: list,
+        delete_where: list[dict[str, Any]] | None = None,
     ) -> dict[str, int]:
         """Apply change events to one table on ``cur``: insert/update -> upsert by key,
-        delete -> the row removed."""
+        delete -> the row removed. ``delete_where`` first removes the rows named by part of
+        their key."""
         names = [name for name, _ in columns]
         self._ensure_table(cur, schema, table, columns, pk_columns)
         counts = {"upsert": 0, "delete": 0}
+        for match in delete_where or ():
+            where = " AND ".join(f'"{c}" = %s' for c in match)
+            cur.execute(f'DELETE FROM "{schema}"."{table}" WHERE {where}', tuple(match.values()))
         for ev in events:
             if ev.operation.lower() == "delete":
                 where = " AND ".join(f'"{c}" = %s' for c in pk_columns)
@@ -733,6 +738,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
                             changes.columns,
                             changes.pk_columns,
                             changes.events,
+                            changes.delete_where,
                         )
                 except BaseException:
                     cur.execute("ROLLBACK")
