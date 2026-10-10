@@ -43,7 +43,13 @@ import httpx
 from provisa.core import canonical_mail as cm
 from provisa.federation.data_replicator import noted, unreadable_messages_note
 from provisa.google_workspace import settings as gw_settings
-from provisa.google_workspace.gmail import Gmail, GmailNotFound, GmailRefused, QuotaExhausted
+from provisa.google_workspace.gmail import (
+    WAIT_SECONDS,
+    Gmail,
+    GmailNotFound,
+    GmailRefused,
+    QuotaExhausted,
+)
 from provisa.google_workspace.mail_rows import PROVIDER, MessageFacts, message_facts
 from provisa.google_workspace.settings import MAIL_HEADERS, MailSettings, Settings
 
@@ -274,6 +280,12 @@ class Reading:
     #: Keeps where a completed read of the source reached (``federation.mail_sync_state``
     #: rows): called once the build that read to it is recorded as completed.
     keep: Callable[[dict[tuple[str, str, str], str]], Awaitable[None]] | None = None
+    #: The most the waits one call Google refuses for now may add up to (the operator's
+    #: ``mail.throttle_wait_seconds`` for a replica's read).
+    wait_seconds: float = WAIT_SECONDS
+    #: Told how long a call Google is throttling is about to wait, and 0 when the wait is
+    #: over: the record of every table the source is building says what it waits on.
+    throttled: Callable[[float], Awaitable[None]] | None = None
 
 
 Connect = Callable[[Any], Awaitable[Reading]]
@@ -317,7 +329,14 @@ def _mailbox(reading: Reading, account: str, client: httpx.AsyncClient) -> Gmail
     async def token() -> str:
         return await reading.token(account)
 
-    return Gmail(account, token, client, quota_user=reading.organisation)
+    return Gmail(
+        account,
+        token,
+        client,
+        quota_user=reading.organisation,
+        wait_seconds=reading.wait_seconds,
+        waiting=reading.throttled,
+    )
 
 
 async def _read_mailboxes(
@@ -670,6 +689,15 @@ def make_connect(state: Any) -> Connect:
             async with state.tenant_db.acquire() as conn:
                 await mail_sync_state.replace(conn, source.id, rows)
 
+        wait_seconds = float(settings_registry.value("mail.throttle_wait_seconds"))
+
+        async def throttled(seconds: float) -> None:
+            # The record of every table this source is building says what it waits on.
+            from provisa.federation import replica_state
+
+            async with state.tenant_db.acquire() as conn:
+                await replica_state.record_throttled(conn, source.id, seconds=seconds, by="Google")
+
         if settings.organisation:
             assert settings.mailboxes is not None  # the organisation shape names its mailboxes
             # Refused by name unless the organisation's administrator allowed sources that
@@ -687,6 +715,8 @@ def make_connect(state: Any) -> Connect:
                 organisation=True,
                 at_once=int(settings_registry.value("mail.mailboxes_at_once")),
                 keep=keep,
+                wait_seconds=wait_seconds,
+                throttled=throttled,
             )
         client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
         (address,) = settings.accounts
@@ -712,6 +742,13 @@ def make_connect(state: Any) -> Connect:
         async def signed_in(_address: str) -> str:
             return await asyncio.to_thread(access_token, auth)
 
-        return Reading((address,), settings.mail, signed_in, keep=keep)
+        return Reading(
+            (address,),
+            settings.mail,
+            signed_in,
+            keep=keep,
+            wait_seconds=wait_seconds,
+            throttled=throttled,
+        )
 
     return connect

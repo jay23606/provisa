@@ -69,7 +69,7 @@ class Waits:
         self.now += seconds
 
 
-def _mailbox(*answers, waits: Waits | None = None, pacer: Pacer | None = None):
+def _mailbox(*answers, waits: Waits | None = None, pacer: Pacer | None = None, **reader):
     google, waits = Google(*answers), waits or Waits()
 
     async def token() -> str:
@@ -77,7 +77,8 @@ def _mailbox(*answers, waits: Waits | None = None, pacer: Pacer | None = None):
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(google.handle))
     pacer = pacer or Pacer(clock=waits.clock, sleep=waits.sleep)
-    return Gmail(ACCOUNT, token, client, pacer=pacer, sleep=waits.sleep), google, waits
+    mailbox = Gmail(ACCOUNT, token, client, pacer=pacer, sleep=waits.sleep, **reader)
+    return mailbox, google, waits
 
 
 async def _pages(mailbox: Gmail, mail: MailSettings = ALL_MAIL) -> list[list[str]]:
@@ -240,10 +241,71 @@ class TestRefusals:
         mailbox, google, waits = _mailbox(*[refusal] * 6)
         with pytest.raises(QuotaExhausted) as raised:
             await mailbox.message("a", ALL_MAIL)
-        assert raised.value.reason == "userRateLimitExceeded, tried 6 times"
+        # The waits of a call a person is waiting on add up to at most a minute: the next
+        # wait (32 s) would pass it, so the read fails, saying what it waited and what to set.
+        assert raised.value.reason.startswith(
+            "userRateLimitExceeded; the read waited 31s of the 60s it may and was still refused."
+        )
+        assert '"Longest wait when a mail service is throttling"' in raised.value.reason
+        assert '"Mailboxes read at once"' in raised.value.reason
         assert ACCOUNT in str(raised.value) and "messages.get" in str(raised.value)
         assert waits.waited == [1.0, 2.0, 4.0, 8.0, 16.0]
         assert len(google.requests) == 6
+
+    async def test_the_wait_google_names_is_the_wait(self):
+        """Google's Retry-After, in seconds, where it sends one; the doubling wait otherwise."""
+        asked = httpx.Response(429, headers={"Retry-After": "40"}, text="no")
+        mailbox, google, waits = _mailbox(asked, _refusal(429), {"id": "a"}, wait_seconds=900)
+        assert await mailbox.message("a", ALL_MAIL) == {"id": "a"}
+        assert waits.waited == [40.0, 1.0]
+
+    async def test_a_replicas_read_waits_as_long_as_it_is_told_it_may(self):
+        """The operator's bound: many minutes for a build, where a call a person waits on
+        gives up after one."""
+        minutes = httpx.Response(429, headers={"Retry-After": "300"}, text="no")
+        mailbox, _, waits = _mailbox(minutes, minutes, {"id": "a"}, wait_seconds=900)
+        assert await mailbox.message("a", ALL_MAIL) == {"id": "a"}
+        assert waits.waited == [300.0, 300.0]
+        refused, _, waits = _mailbox(minutes, minutes, minutes, minutes, wait_seconds=900)
+        with pytest.raises(QuotaExhausted) as raised:
+            await refused.message("a", ALL_MAIL)
+        assert "waited 900s of the 900s it may" in raised.value.reason
+        assert waits.waited == [300.0, 300.0, 300.0]
+        nothing, google, waits = _mailbox(_refusal(429), wait_seconds=0)
+        with pytest.raises(QuotaExhausted):
+            await nothing.message("a", ALL_MAIL)
+        assert waits.waited == [] and len(google.requests) == 1
+
+    async def test_it_says_it_is_waiting_on_googles_throttle_and_when_it_no_longer_is(self):
+        said: list[float] = []
+
+        async def waiting(seconds: float) -> None:
+            said.append(seconds)
+
+        asked = httpx.Response(429, headers={"Retry-After": "40"}, text="no")
+        mailbox, _, _ = _mailbox(asked, {"id": "a"}, wait_seconds=900, waiting=waiting)
+        await mailbox.message("a", ALL_MAIL)
+        assert said == [40.0, 0]
+        # A wait that ends in a refusal is over too.
+        said.clear()
+        refused, _, _ = _mailbox(asked, asked, wait_seconds=60, waiting=waiting)
+        with pytest.raises(QuotaExhausted):
+            await refused.message("a", ALL_MAIL)
+        assert said == [40.0, 0]
+
+    async def test_a_call_that_was_never_throttled_says_nothing(self):
+        said: list[float] = []
+
+        async def waiting(seconds: float) -> None:
+            said.append(seconds)
+
+        mailbox, _, waits = _mailbox(
+            _refusal(503, "backendError"), {"id": "a"}, {"id": "b"}, waiting=waiting
+        )
+        await mailbox.message("a", ALL_MAIL)
+        await mailbox.message("b", ALL_MAIL)
+        # Google's own failure is waited out, but it is not Google throttling the read.
+        assert (said, waits.waited) == ([], [1.0])
 
     async def test_the_projects_daily_limit_is_not_tried_again(self):
         mailbox, google, waits = _mailbox(_refusal(403, "dailyLimitExceeded"))
@@ -275,7 +337,7 @@ class TestRefusals:
         failing, _, _ = _mailbox(*[_refusal(500, "backendError")] * 6)
         with pytest.raises(GmailUnavailable) as raised:
             await failing.message("a", ALL_MAIL)
-        assert raised.value.reason == "backendError, tried 6 times"
+        assert raised.value.reason.startswith("backendError; the read waited 31s of the 60s")
 
     async def test_a_message_gone_since_it_was_listed_is_said_to_be_gone(self):
         mailbox, _, _ = _mailbox(_refusal(404, "notFound"))
