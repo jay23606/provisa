@@ -140,6 +140,23 @@ describe("FormLayout", () => {
     expect(screen.queryByText("One mailbox is connected by its owner.")).not.toBeInTheDocument();
   });
 
+  it("draws the required mark right after the label text, before the (?)", () => {
+    render(
+      <FormLayout>
+        <FormField size="medium" help="Which mailbox.">
+          <TextInput label="Mailbox address" required />
+        </FormField>
+      </FormLayout>,
+    );
+    const input = screen.getByRole("textbox");
+    expect(input).toBeRequired();
+    const label = input.closest(".mantine-InputWrapper-root")?.querySelector("label");
+    expect(label?.textContent).toBe("Mailbox address *");
+    const mark = label?.querySelector(".form-required");
+    const icon = screen.getByRole("img", { name: "Which mailbox." });
+    expect(mark!.compareDocumentPosition(icon) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("keeps the ticks of a form together, each with its optional (?)", () => {
     render(
       <FormLayout>

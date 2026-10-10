@@ -2290,6 +2290,9 @@ main {
   align-items: center;
   gap: 0.3rem;
 }
+.form-required {
+  color: var(--mantine-color-error);
+}
 .form-help {
   display: inline-flex;
   color: var(--text-muted);

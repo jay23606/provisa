@@ -68,11 +68,29 @@ export function FormLayout({
  */
 export type FormFieldSize = "short" | "medium" | "long" | "full";
 
-/** A longer explanation: a (?) immediately after the label, opened by hover, focus or touch. */
-function LabelWithHelp({ label, help }: { label: ReactNode; help: string }) {
+/**
+ * A label with its longer explanation: the text, the required mark right after the text, then a
+ * (?) opened by hover, focus or touch. The one help glyph of every form.
+ */
+export function LabelWithHelp({
+  label,
+  help,
+  required = false,
+}: {
+  label: ReactNode;
+  help: string;
+  required?: boolean;
+}) {
   return (
     <span className="form-label">
-      {label}
+      <span>
+        {label}
+        {required && (
+          <span className="form-required" aria-hidden>
+            {" *"}
+          </span>
+        )}
+      </span>
       <Tooltip label={help} multiline w={320} events={{ hover: true, focus: true, touch: true }}>
         <span className="form-help" role="img" tabIndex={0} aria-label={help}>
           <CircleHelp size={14} aria-hidden />
@@ -82,7 +100,12 @@ function LabelWithHelp({ label, help }: { label: ReactNode; help: string }) {
   );
 }
 
-type Explainable = { label?: ReactNode; description?: ReactNode };
+type Explainable = {
+  label?: ReactNode;
+  description?: ReactNode;
+  required?: boolean;
+  withAsterisk?: boolean;
+};
 
 /**
  * One field of a form. `hint` is a brief explanation (one short sentence) shown BELOW the control;
@@ -117,7 +140,18 @@ export function FormField({
     content = cloneElement(control, {
       ...(hint !== undefined ? { description: hint } : {}),
       ...(help !== undefined
-        ? { label: <LabelWithHelp label={control.props.label} help={help} /> }
+        ? {
+            // The mark is drawn with the text, so it comes before the (?); the control keeps
+            // `required` and only stops drawing a second mark after the icon.
+            label: (
+              <LabelWithHelp
+                label={control.props.label}
+                help={help}
+                required={control.props.required === true}
+              />
+            ),
+            withAsterisk: false,
+          }
         : {}),
     });
   }

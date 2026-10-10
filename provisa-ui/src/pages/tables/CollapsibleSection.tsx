@@ -13,7 +13,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ActionIcon, Badge, Collapse, Group, Text, Tooltip } from "@mantine/core";
-import { Info } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 import { FormLayout } from "../../components/form/FormLayout";
 
 export function CollapsibleSection({
@@ -78,7 +78,7 @@ export function CollapsibleSection({
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
             >
-              <Info size={12} aria-hidden />
+              <CircleHelp size={14} aria-hidden />
             </ActionIcon>
           </Tooltip>
         )}
