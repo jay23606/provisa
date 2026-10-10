@@ -9,10 +9,11 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { Checkbox, Group, MultiSelect, Paper, Select, Stack, TextInput } from "@mantine/core";
+import { Checkbox, MultiSelect, Paper, Select, Stack, TextInput } from "@mantine/core";
 import { keyList } from "../../naming";
 import type { RegisteredTable } from "../../types/admin";
 import type { RelForm } from "./relationship-types";
+import { FormChecks, FormField, FormLayout } from "../form/FormLayout";
 
 interface JunctionPanelProps {
   form: RelForm;
@@ -42,110 +43,123 @@ export function JunctionPanel({ form, setForm, tables, testIdPrefix }: JunctionP
 
   return (
     <Stack gap="xs" data-testid={`${testIdPrefix}-junction-panel`}>
-      <Checkbox
-        label={t("addRelationshipForm.junctionTitle")}
-        description={t("addRelationshipForm.junctionHelp")}
-        checked={checked}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            junctionDeclared: e.currentTarget.checked,
-            // Clearing the declaration discards the mapping — a stored junction with no table is
-            // not a shape the control plane accepts, so it must not survive an unchecked box.
-            ...(e.currentTarget.checked
-              ? {}
-              : {
-                  viaTable: "",
-                  viaSourceColumn: "",
-                  viaTargetColumn: "",
-                  viaTypeColumn: "",
-                  viaTypeValue: "",
-                  viaLabelSource: "",
-                }),
-          })
-        }
-        data-testid={`${testIdPrefix}-junction-toggle`}
-      />
+      <FormLayout>
+        <FormChecks>
+          <FormField help={t("addRelationshipForm.junctionHelp")} size="short">
+            <Checkbox
+              label={t("addRelationshipForm.junctionTitle")}
+              checked={checked}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  junctionDeclared: e.currentTarget.checked,
+                  // Clearing the declaration discards the mapping — a stored junction with no table is
+                  // not a shape the control plane accepts, so it must not survive an unchecked box.
+                  ...(e.currentTarget.checked
+                    ? {}
+                    : {
+                        viaTable: "",
+                        viaSourceColumn: "",
+                        viaTargetColumn: "",
+                        viaTypeColumn: "",
+                        viaTypeValue: "",
+                        viaLabelSource: "",
+                      }),
+                })
+              }
+              data-testid={`${testIdPrefix}-junction-toggle`}
+            />
+          </FormField>
+        </FormChecks>
+      </FormLayout>
       {checked && (
         <Paper withBorder p="sm" radius="sm">
-      <Stack gap="sm">
-        <Group align="flex-end" wrap="wrap">
-          <Select
-            label={t("addRelationshipForm.viaTableLabel")}
-            placeholder={t("addRelationshipForm.selectPlaceholder")}
-            data={tableOptions}
-            clearable
-            searchable
-            value={form.viaTable || null}
-            onChange={(v) =>
-              setForm({
-                ...form,
-                viaTable: v ?? "",
-                viaSourceColumn: "",
-                viaTargetColumn: "",
-                viaTypeColumn: "",
-                viaTypeValue: "",
-                viaLabelSource: v ? form.viaLabelSource : "",
-              })
-            }
-            data-testid={`${testIdPrefix}-via-table`}
-          />
-          {/* REQ-1586: an end is an ordered column list, so a composite foreign key is mapped by
+          <FormLayout>
+            <FormField size="medium">
+              <Select
+                label={t("addRelationshipForm.viaTableLabel")}
+                placeholder={t("addRelationshipForm.selectPlaceholder")}
+                data={tableOptions}
+                clearable
+                searchable
+                value={form.viaTable || null}
+                onChange={(v) =>
+                  setForm({
+                    ...form,
+                    viaTable: v ?? "",
+                    viaSourceColumn: "",
+                    viaTargetColumn: "",
+                    viaTypeColumn: "",
+                    viaTypeValue: "",
+                    viaLabelSource: v ? form.viaLabelSource : "",
+                  })
+                }
+                data-testid={`${testIdPrefix}-via-table`}
+              />
+            </FormField>
+            {/* REQ-1586: an end is an ordered column list, so a composite foreign key is mapped by
               picking its columns in order; the picks are paired positionally against the
               relationship's own keys. A single-column end is one pick. */}
-          <MultiSelect
-            label={t("addRelationshipForm.viaSourceColumnLabel")}
-            placeholder={t("addRelationshipForm.selectPlaceholder")}
-            data={viaColumnOptions}
-            disabled={!form.viaTable}
-            value={keyList(form.viaSourceColumn)}
-            onChange={(v) => setForm({ ...form, viaSourceColumn: v.join(",") })}
-            data-testid={`${testIdPrefix}-via-source-column`}
-          />
-          <MultiSelect
-            label={t("addRelationshipForm.viaTargetColumnLabel")}
-            placeholder={t("addRelationshipForm.selectPlaceholder")}
-            data={viaColumnOptions}
-            disabled={!form.viaTable}
-            value={keyList(form.viaTargetColumn)}
-            onChange={(v) => setForm({ ...form, viaTargetColumn: v.join(",") })}
-            data-testid={`${testIdPrefix}-via-target-column`}
-          />
-        </Group>
-        <Group align="flex-end" wrap="wrap">
-          <Select
-            label={t("addRelationshipForm.viaTypeColumnLabel")}
-            placeholder={t("addRelationshipForm.selectPlaceholder")}
-            data={viaColumnOptions}
-            disabled={!form.viaTable}
-            clearable
-            value={form.viaTypeColumn || null}
-            onChange={(v) => setForm({ ...form, viaTypeColumn: v ?? "", viaTypeValue: "" })}
-            data-testid={`${testIdPrefix}-via-type-column`}
-          />
-          <TextInput
-            label={t("addRelationshipForm.viaTypeValueLabel")}
-            placeholder={t("addRelationshipForm.viaTypeValuePlaceholder")}
-            disabled={!form.viaTypeColumn}
-            value={form.viaTypeValue}
-            onChange={(e) => setForm({ ...form, viaTypeValue: e.currentTarget.value })}
-            data-testid={`${testIdPrefix}-via-type-value`}
-          />
-          <Select
-            label={t("addRelationshipForm.viaLabelSourceLabel")}
-            placeholder={t("addRelationshipForm.selectPlaceholder")}
-            data={[
-              { value: "column", label: t("addRelationshipForm.viaLabelSourceColumn") },
-              { value: "table", label: t("addRelationshipForm.viaLabelSourceTable") },
-              { value: "fixed", label: t("addRelationshipForm.viaLabelSourceFixed") },
-            ]}
-            disabled={!form.viaTable}
-            value={form.viaLabelSource || null}
-            onChange={(v) => setForm({ ...form, viaLabelSource: v ?? "" })}
-            data-testid={`${testIdPrefix}-via-label-source`}
-          />
-        </Group>
-      </Stack>
+            <FormField size="medium">
+              <MultiSelect
+                label={t("addRelationshipForm.viaSourceColumnLabel")}
+                placeholder={t("addRelationshipForm.selectPlaceholder")}
+                data={viaColumnOptions}
+                disabled={!form.viaTable}
+                value={keyList(form.viaSourceColumn)}
+                onChange={(v) => setForm({ ...form, viaSourceColumn: v.join(",") })}
+                data-testid={`${testIdPrefix}-via-source-column`}
+              />
+            </FormField>
+            <FormField size="medium">
+              <MultiSelect
+                label={t("addRelationshipForm.viaTargetColumnLabel")}
+                placeholder={t("addRelationshipForm.selectPlaceholder")}
+                data={viaColumnOptions}
+                disabled={!form.viaTable}
+                value={keyList(form.viaTargetColumn)}
+                onChange={(v) => setForm({ ...form, viaTargetColumn: v.join(",") })}
+                data-testid={`${testIdPrefix}-via-target-column`}
+              />
+            </FormField>
+            <FormField size="medium">
+              <Select
+                label={t("addRelationshipForm.viaTypeColumnLabel")}
+                placeholder={t("addRelationshipForm.selectPlaceholder")}
+                data={viaColumnOptions}
+                disabled={!form.viaTable}
+                clearable
+                value={form.viaTypeColumn || null}
+                onChange={(v) => setForm({ ...form, viaTypeColumn: v ?? "", viaTypeValue: "" })}
+                data-testid={`${testIdPrefix}-via-type-column`}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("addRelationshipForm.viaTypeValueLabel")}
+                placeholder={t("addRelationshipForm.viaTypeValuePlaceholder")}
+                disabled={!form.viaTypeColumn}
+                value={form.viaTypeValue}
+                onChange={(e) => setForm({ ...form, viaTypeValue: e.currentTarget.value })}
+                data-testid={`${testIdPrefix}-via-type-value`}
+              />
+            </FormField>
+            <FormField size="medium">
+              <Select
+                label={t("addRelationshipForm.viaLabelSourceLabel")}
+                placeholder={t("addRelationshipForm.selectPlaceholder")}
+                data={[
+                  { value: "column", label: t("addRelationshipForm.viaLabelSourceColumn") },
+                  { value: "table", label: t("addRelationshipForm.viaLabelSourceTable") },
+                  { value: "fixed", label: t("addRelationshipForm.viaLabelSourceFixed") },
+                ]}
+                disabled={!form.viaTable}
+                value={form.viaLabelSource || null}
+                onChange={(v) => setForm({ ...form, viaLabelSource: v ?? "" })}
+                data-testid={`${testIdPrefix}-via-label-source`}
+              />
+            </FormField>
+          </FormLayout>
         </Paper>
       )}
     </Stack>
