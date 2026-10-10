@@ -671,6 +671,7 @@ export function RegisterTableForm({
           <label>
             {t("registerTableForm.sourceLabel")}
             <select
+              className="form-select"
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
               data-testid="register-table-source-select"
@@ -695,6 +696,7 @@ export function RegisterTableForm({
             <label>
               {t("registerTableForm.domainLabel")}
               <select
+                className="form-select"
                 value={domainId}
                 onChange={(e) => setDomainId(e.target.value)}
                 data-testid="register-table-domain-select"
@@ -747,6 +749,7 @@ export function RegisterTableForm({
             <label>
               {t("registerTableForm.profilerResultLabel")}
               <select
+                className="form-select"
                 value={tableName}
                 onChange={(e) => setTableName(e.target.value)}
                 disabled={profilerCatalog == null}
@@ -779,6 +782,7 @@ export function RegisterTableForm({
               <label>
                 {t("registerTableForm.schemaLabel")}
                 <select
+                  className="form-select"
                   value={schemaName}
                   onChange={(e) => setSchemaName(e.target.value)}
                   disabled={!sourceId || loadingSchemas || isFixedSchema}
@@ -801,6 +805,7 @@ export function RegisterTableForm({
               <label>
                 {t("registerTableForm.tableLabel")}
                 <select
+                  className="form-select"
                   value={tableName}
                   onChange={(e) => setTableName(e.target.value)}
                   disabled={!schemaName || loadingTables || allTablesRegistered}

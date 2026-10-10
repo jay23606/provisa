@@ -1631,6 +1631,7 @@ export function SourcesPage() {
                 <label>
                   {t("sourcesPage.typeLabel")}
                   <select
+                    className="form-select"
                     data-tour="sources-type"
                     data-testid="sources-type-select"
                     value={form.type}

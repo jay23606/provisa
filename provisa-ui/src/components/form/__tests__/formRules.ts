@@ -215,6 +215,20 @@ export function checkFormRules(
       report("full-width-single-line", n, `<${tag}> spans the row`);
     }
     if (options.notAForm || hasAncestor(n, TABLE_CELLS)) return;
+    if (tag === "select" && !/\bform-select\b/.test(attr(n, "className") ?? "")) {
+      report(
+        "outside-shared-layout",
+        n,
+        `a native <select> in a form without className="form-select"`,
+      );
+    }
+    if (tag === "NativeSelect") {
+      report(
+        "outside-shared-layout",
+        n,
+        '<NativeSelect>: use Select, or a native <select className="form-select">',
+      );
+    }
     if (attr(n, "description") !== undefined) {
       report(
         "explanation-misplaced",

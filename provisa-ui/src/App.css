@@ -2383,3 +2383,69 @@ main {
 .form-field:empty {
   display: none;
 }
+/* A native <select> in a form (kept native where the e2e specs drive it with selectOption) is given
+ * the look of the Mantine Select beside it: the same height, background, border, radius, chevron,
+ * focus ring and disabled state, in both themes. One class, `form-select`; the guard fails a raw
+ * <select> in a form without it. Its <label> reads as a Mantine label. */
+.form-layout .form-field > label:has(> select.form-select) {
+  display: block;
+  gap: 0;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  line-height: var(--mantine-line-height);
+  color: var(--mantine-color-text);
+  /* A Mantine label is an inline-block: its line box sits 2px lower and leaves 1px more above
+   * the control. Measured in the rendered form; without these the two kinds of field in one
+   * row are 3px apart. */
+  padding-top: 2px;
+}
+.form-layout select.form-select {
+  display: block;
+  margin-top: 1.1px;
+  width: 100%;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 2.25rem 0 0.75rem;
+  font-family: inherit;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 400;
+  line-height: calc(2.25rem - 2px);
+  color: var(--mantine-color-text);
+  background-color: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-gray-4);
+  border-radius: var(--mantine-radius-default);
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23868e96' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 9l4-4 4 4'/%3E%3Cpath d='M16 15l-4 4-4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  transition: border-color 100ms ease;
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select {
+  background-color: var(--mantine-color-dark-6);
+  border-color: var(--mantine-color-dark-4);
+}
+.form-layout select.form-select:hover:not(:disabled) {
+  border-color: var(--mantine-color-gray-4);
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select:hover:not(:disabled) {
+  border-color: var(--mantine-color-dark-4);
+}
+.form-layout select.form-select:focus,
+.form-layout select.form-select:focus-visible {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: none;
+}
+.form-layout select.form-select:disabled {
+  color: var(--mantine-color-dimmed);
+  background-color: var(--mantine-color-gray-1);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select:disabled {
+  background-color: var(--mantine-color-dark-6);
+}

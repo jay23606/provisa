@@ -402,6 +402,24 @@ describe("the form rules hold where an explanation sits and where ticks sit", ()
     );
   });
 
+  it("a native select in a form that does not take the shared look", () => {
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium"><label>Type<select /></label></FormField></FormLayout>`,
+      ),
+    ).toEqual(["outside-shared-layout"]);
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium"><label>Type<select className="form-select" /></label></FormField></FormLayout>`,
+      ),
+    ).toEqual([]);
+    expect(
+      rules(
+        `<FormLayout><FormField size="medium"><NativeSelect label="Scope" /></FormField></FormLayout>`,
+      ),
+    ).toEqual(["outside-shared-layout"]);
+  });
+
   it("a reusable select counts as a field", () => {
     expect(rules(`<Stack><RegionSelect value={v} /></Stack>`)).toEqual(["outside-shared-layout"]);
   });
