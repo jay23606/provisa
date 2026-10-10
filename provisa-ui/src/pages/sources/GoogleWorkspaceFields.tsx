@@ -34,14 +34,13 @@ import {
   gwMissing,
   gwScopes,
 } from "./googleWorkspace";
+import { FormField } from "../../components/form/FormLayout";
 
 interface Props {
   sourceId: string;
   fields: Record<string, string>;
   setFields: (fields: Record<string, string>) => void;
 }
-
-const WIDE = { gridColumn: "1 / -1" } as const;
 
 export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
   const { t } = useTranslation();
@@ -111,113 +110,122 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
   const where = `${t("navBar.groupAdmin")} › ${t("navBar.itemEmail")}`;
   return (
     <>
-      <TextInput
-        label={t("googleWorkspaceFields.account")}
-        description={t("googleWorkspaceFields.accountHelp")}
-        placeholder="ada@example.com"
-        required
-        style={WIDE}
-        {...text("gw_account", setAsked)}
-      />
-      <Select
-        label={t("googleWorkspaceFields.mailContent")}
-        description={t("googleWorkspaceFields.mailContentHelp")}
-        data={[
-          { value: GW_MAIL_FULL, label: t("googleWorkspaceFields.mailContentFull") },
-          { value: GW_MAIL_HEADERS, label: t("googleWorkspaceFields.mailContentHeaders") },
-        ]}
-        value={fields.gw_mail_content ?? null}
-        onChange={(value) => setAsked("gw_mail_content", value ?? "")}
-        required
-        allowDeselect={false}
-        style={WIDE}
-        data-testid="google-workspace-gw_mail_content"
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("googleWorkspaceFields.account")}
+          description={t("googleWorkspaceFields.accountHelp")}
+          placeholder="ada@example.com"
+          required
+          {...text("gw_account", setAsked)}
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("googleWorkspaceFields.mailContent")}
+          description={t("googleWorkspaceFields.mailContentHelp")}
+          data={[
+            { value: GW_MAIL_FULL, label: t("googleWorkspaceFields.mailContentFull") },
+            { value: GW_MAIL_HEADERS, label: t("googleWorkspaceFields.mailContentHeaders") },
+          ]}
+          value={fields.gw_mail_content ?? null}
+          onChange={(value) => setAsked("gw_mail_content", value ?? "")}
+          required
+          allowDeselect={false}
+          data-testid="google-workspace-gw_mail_content"
+        />
+      </FormField>
       {notConnected && (
-        <Alert
-          color="yellow"
-          variant="light"
-          style={WIDE}
-          data-testid="google-workspace-not-set-up"
-        >
-          {status.may_configure ? (
-            <>
-              {t("googleWorkspaceFields.notSetUp")}{" "}
-              <Anchor
-                component={Link}
-                to={MAIL_PLATFORMS_ROUTE}
-                data-testid="google-workspace-set-up"
-              >
-                {t("googleWorkspaceFields.setUpLink", { where })}
-              </Anchor>
-            </>
-          ) : (
-            t("googleWorkspaceFields.notSetUpAsk", { where })
-          )}
-        </Alert>
+        <FormField size="full">
+          <Alert color="yellow" variant="light" data-testid="google-workspace-not-set-up">
+            {status.may_configure ? (
+              <>
+                {t("googleWorkspaceFields.notSetUp")}{" "}
+                <Anchor
+                  component={Link}
+                  to={MAIL_PLATFORMS_ROUTE}
+                  data-testid="google-workspace-set-up"
+                >
+                  {t("googleWorkspaceFields.setUpLink", { where })}
+                </Anchor>
+              </>
+            ) : (
+              t("googleWorkspaceFields.notSetUpAsk", { where })
+            )}
+          </Alert>
+        </FormField>
       )}
       {byApproval && !notConnected && (
-        <Group style={WIDE} gap="sm" align="center">
-          <Button
-            type="button"
-            onClick={connect}
-            loading={connecting}
-            disabled={status === null || gwConnectMissing(fields, sourceId).length > 0}
-            data-testid="google-workspace-connect"
-          >
-            {t("googleWorkspaceFields.connect")}
-          </Button>
-          {fields.gw_connected_as && !missing.has("gw_refresh_token") && (
-            <Alert
-              color="green"
-              variant="light"
-              py={4}
-              px="sm"
-              data-testid="google-workspace-connected"
+        <FormField size="full">
+          <Group gap="sm" align="center">
+            <Button
+              type="button"
+              onClick={connect}
+              loading={connecting}
+              disabled={status === null || gwConnectMissing(fields, sourceId).length > 0}
+              data-testid="google-workspace-connect"
             >
-              {t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
-            </Alert>
-          )}
-        </Group>
+              {t("googleWorkspaceFields.connect")}
+            </Button>
+            {fields.gw_connected_as && !missing.has("gw_refresh_token") && (
+              <Alert
+                color="green"
+                variant="light"
+                py={4}
+                px="sm"
+                data-testid="google-workspace-connected"
+              >
+                {t("googleWorkspaceFields.connected", { account: fields.gw_connected_as })}
+              </Alert>
+            )}
+          </Group>
+        </FormField>
       )}
       {problem && (
-        <Alert color="red" variant="light" style={WIDE} data-testid="google-workspace-problem">
-          {problem}
-        </Alert>
+        <FormField size="full">
+          <Alert color="red" variant="light" data-testid="google-workspace-problem">
+            {problem}
+          </Alert>
+        </FormField>
       )}
       {/* Google does not search mail it serves as headers and labels only. */}
       {!gwHeadersOnly(fields) && (
         <>
-          <TextInput
-            label={t("googleWorkspaceFields.mailSearch")}
-            description={t("googleWorkspaceFields.mailSearchHelp")}
-            placeholder="from:orders@example.com"
-            style={WIDE}
-            {...text("gw_mail_search")}
-          />
-          <TextInput
-            type="date"
-            label={t("googleWorkspaceFields.mailSince")}
-            description={t("googleWorkspaceFields.mailSinceHelp")}
-            {...text("gw_mail_since")}
-          />
+          <FormField size="long">
+            <TextInput
+              label={t("googleWorkspaceFields.mailSearch")}
+              description={t("googleWorkspaceFields.mailSearchHelp")}
+              placeholder="from:orders@example.com"
+              {...text("gw_mail_search")}
+            />
+          </FormField>
+          <FormField size="short">
+            <TextInput
+              type="date"
+              label={t("googleWorkspaceFields.mailSince")}
+              description={t("googleWorkspaceFields.mailSinceHelp")}
+              {...text("gw_mail_since")}
+            />
+          </FormField>
         </>
       )}
-      <Textarea
-        label={t("googleWorkspaceFields.mailLabels")}
-        description={t("googleWorkspaceFields.mailLabelsHelp")}
-        placeholder={"Clients\nInvoices"}
-        autosize
-        minRows={2}
-        {...text("gw_mail_labels")}
-      />
-      <Checkbox
-        label={t("googleWorkspaceFields.mailSpamTrash")}
-        checked={fields.gw_mail_include_spam_trash === "true"}
-        onChange={(e) => set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")}
-        style={WIDE}
-        data-testid="google-workspace-gw_mail_include_spam_trash"
-      />
+      <FormField size="full">
+        <Textarea
+          label={t("googleWorkspaceFields.mailLabels")}
+          description={t("googleWorkspaceFields.mailLabelsHelp")}
+          placeholder={"Clients\nInvoices"}
+          autosize
+          minRows={2}
+          {...text("gw_mail_labels")}
+        />
+      </FormField>
+      <FormField size="long">
+        <Checkbox
+          label={t("googleWorkspaceFields.mailSpamTrash")}
+          checked={fields.gw_mail_include_spam_trash === "true"}
+          onChange={(e) => set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")}
+          data-testid="google-workspace-gw_mail_include_spam_trash"
+        />
+      </FormField>
     </>
   );
 }
