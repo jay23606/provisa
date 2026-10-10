@@ -100,7 +100,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/DebugTracePanel.tsx",
   "components/admin/EncryptionTab.tsx",
   "components/admin/EnvironmentsTab.tsx",
-  "components/admin/FederationEngineTab.tsx",
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
   "components/admin/ImportTab.tsx",
