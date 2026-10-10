@@ -114,7 +114,7 @@ def columns_of_file(path: str) -> list[str]:
 
     file_type = _source_type_for_path(path)
     if file_type is None:
-        raise ValueError(f"file {path!r} has no supported file-source type (REQ-788)")
+        raise ValueError(f"file {path!r} has no supported file-source type")
     cfg = FileSourceConfig(id="_glob", source_type=file_type, path=path)
     return [col["name"] for col in discover_schema(cfg)]
 

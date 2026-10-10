@@ -55,7 +55,7 @@ class UnscannableSource(Exception):  # REQ-897
         self.source_id = source_id
         super().__init__(
             f"engine {engine!r} resolved source {source_id!r} to a SCAN but does not declare the "
-            "file_native trait (REQ-897)"
+            "file_native trait"
         )
 
 

@@ -282,7 +282,7 @@ class SourceRowLoader:
         if stype in _ADAPTER_FETCH_ONLY:
             raise UnsupportedSourceFetch(
                 f"source type {stype!r} (source {source.id!r}) has no keyed-fetch translation "
-                "wired for this table (REQ-1865)"
+                "wired for this table"
             )
         from provisa.compiler.naming import source_to_catalog
 
@@ -420,7 +420,7 @@ def make_neo4j_keyed_loader(state: Any) -> AdapterKeyedLoader:
         if len(pk_columns) != 1:
             raise UnsupportedSourceFetch(
                 f"neo4j source {source.id!r} table {table.table_name!r}: keyed fetch on a "
-                f"composite PK {pk_columns!r} is not implemented (REQ-1865)"
+                f"composite PK {pk_columns!r} is not implemented"
             )
         wrapped_template = inject_keys_filter(endpoint.query_template, pk_columns[0])
         wrapped_endpoint = endpoint.model_copy(update={"query_template": wrapped_template})

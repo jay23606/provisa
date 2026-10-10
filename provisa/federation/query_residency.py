@@ -74,7 +74,7 @@ def _row_cache_ttls(table: Any, source: Any, reader_role: str | None) -> tuple[i
     if declared_cache_ttl(table, source) is None:
         raise ValueError(
             f"row-materialize table {table.table_name!r}: no resolved cache_ttl at fetch time "
-            "(registration should have rejected this — REQ-1865)"
+            "(registration should have rejected this)"
         )
     return effective_ttl(table, source, reader_role), max_accepted_ttl(table, source)
 

@@ -722,8 +722,8 @@ def _reject_view_writes(parsed: Any, state: Any) -> None:
     if tbl is not None and tbl.name in view_map:
         op = type(parsed).__name__.upper()
         raise PermissionError(
-            f"{op} into {tbl.name!r} is not allowed: it is a view/MV-backed relation and is query-only "
-            "(REQ-1157). A write would fail at the source or be lost on the next materialized-view refresh."
+            f"{op} into {tbl.name!r} is not allowed: it is a view/MV-backed relation and is query-only"
+            ". A write would fail at the source or be lost on the next materialized-view refresh."
         )
 
 
@@ -771,8 +771,8 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
     kind = type(parsed).__name__.upper()
     if handling == REFUSED:
         raise PermissionError(
-            f"{kind} is refused in environment {env!r}: its mutation handling is Refused "
-            "(REQ-1942). An environment_data holder can make it Reversible or Direct."
+            f"{kind} is refused in environment {env!r}: its mutation handling is Refused"
+            ". An environment_data holder can make it Reversible or Direct."
         )
     from provisa.compiler.write_admission import target_table
 
@@ -786,7 +786,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         raise PermissionError(
             f"{type(parsed).__name__.upper()} into {tbl.name!r} is not allowed in environment "
             f"{env!r}: it is not a registered table, so which binding the write would travel "
-            f"cannot be established, and a write with no established target is what REQ-1491 refuses."
+            f"cannot be established, and a write with no established target is refused."
         )
     if handling != DIRECT:
         # REQ-1942, Reversible: kept in the environment's change log, never run on the source --
@@ -796,7 +796,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         if state.source_types.get(source_id) in api_source_types():
             raise PermissionError(
                 f"{kind} into {tbl.name!r} is refused in environment {env!r}: its mutation "
-                f"handling is Reversible, and an API's mutation cannot be reversed (REQ-1942)."
+                f"handling is Reversible, and an API's mutation cannot be reversed."
             )
         return
     if getattr(state, "source_binding_env", {}).get(source_id) is None:
@@ -805,7 +805,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         raise PermissionError(
             f"{kind} into {tbl.name!r} is not allowed in environment {env!r}: its mutation "
             f"handling is Direct, which changes only data the environment owns, and source "
-            f"{source_id!r} is not bound to a connection of {env!r}'s own (REQ-1491, REQ-1942). "
+            f"{source_id!r} is not bound to a connection of {env!r}'s own. "
             f"Bind it to a database of the environment's own to write to it."
         )
 
@@ -820,7 +820,7 @@ def _refuse_composed_mutators(tree, commands: dict) -> None:
     if called:
         raise PermissionError(
             f"command {called[0]!r} writes to its source and is called on its own: it cannot be "
-            "composed in a query, a view or a materialized view (REQ-1924)"
+            "composed in a query, a view or a materialized view"
         )
 
 

@@ -142,7 +142,7 @@ def _register_table_in_ctx(
             if col_name.lower() not in _t.column_metadata:
                 raise ValueError(
                     f"metric {_name!r}: column {col_name!r} is not a column of "
-                    f"table {_t.table_name!r} (REQ-1319)"
+                    f"table {_t.table_name!r}"
                 )
             return col_name
 

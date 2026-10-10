@@ -279,7 +279,7 @@ class NativeEngineBackend(EngineBackend):
         if _active_org is not None and not _owns_engine and _active_org != _default_org:
             raise RuntimeError(
                 f"native federation engine {self.engine.name!r} is single-org; org "
-                f"{_active_org!r} requires the Trino tier for per-org catalog isolation (REQ-1266)"
+                f"{_active_org!r} requires the Trino tier for per-org catalog isolation"
             )
 
         self._refresh_control_plane_snapshot(state)

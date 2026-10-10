@@ -59,7 +59,7 @@ def test_mask_streams_when_source_cannot_evaluate():
 
 def test_mask_fails_loud_when_it_can_neither_push_down_nor_stream():
     cap = Capability(predicate_pushdown=False)
-    with pytest.raises(ValueError, match="REQ-971"):
+    with pytest.raises(ValueError, match="can neither push down to the source nor stream"):
         plan_mask_evaluation(cap, can_stream=False)
 
 

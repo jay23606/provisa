@@ -767,8 +767,8 @@ class _Translator(  # REQ-345, REQ-347, REQ-348, REQ-349, REQ-350, REQ-351, REQ-
                 if not any(prop in other_nm.properties for other_nm in self._lm.nodes.values()):
                     raise CypherTranslateError(
                         f"Unknown property {prop!r} on {var} (type {info[1].type_name!r}) — "
-                        f"Cypher property names follow the configured GQL naming convention "
-                        f"(REQ-194); physical/raw column names are never valid here."
+                        f"Cypher property names follow the configured GQL naming convention"
+                        f"; physical/raw column names are never valid here."
                     )
             return m.group(0)
 

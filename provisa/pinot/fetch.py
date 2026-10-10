@@ -180,9 +180,7 @@ def fetch_rows_by_keys(
     bound ``IN (...)`` predicate, never the full-table scan ``fetch_rows`` runs. Single-column
     only, mirroring the other keyed loaders' own single-column contract."""
     if len(pk_columns) != 1:
-        raise ValueError(
-            f"Pinot keyed fetch on a composite PK {pk_columns!r} is not implemented (REQ-1865)"
-        )
+        raise ValueError(f"Pinot keyed fetch on a composite PK {pk_columns!r} is not implemented")
     if not keys:
         return []
     select = ", ".join(f'"{c}"' for c in columns) if columns else "*"

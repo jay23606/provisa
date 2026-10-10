@@ -185,7 +185,7 @@ class ExtensionCatalog:
         entry = self._entries.get(extension)
         if entry is None:
             raise ExtensionArtifactUnavailable(
-                extension, -1, "*", "extension not in the curated REQ-898 catalog"
+                extension, -1, "*", "extension not in the curated catalog"
             )
         return entry
 
@@ -271,7 +271,7 @@ def load_catalog(path: str | Path | None = None) -> ExtensionCatalog:
     covered = frozenset(entries)
     _require(
         covered == NAMED_EXTENSIONS,
-        f"{src}: catalog must cover exactly the REQ-898 named set; "
+        f"{src}: catalog must cover exactly the named set; "
         f"missing={sorted(NAMED_EXTENSIONS - covered)} extra={sorted(covered - NAMED_EXTENSIONS)}",
     )
     return ExtensionCatalog(entries)

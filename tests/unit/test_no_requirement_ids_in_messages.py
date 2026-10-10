@@ -19,9 +19,6 @@ of every UI catalog. Comments, docstrings and log lines keep theirs.
 
 A literal that IS an id and nothing else is a reference, not a message (a setting's
 requirement, the requirements tooling's own data).
-
-``NOT_YET_SWEPT`` is the files still to be cleaned. It only shrinks: a file in it that is
-clean fails this test until it is taken out, and no file may be added.
 """
 
 from __future__ import annotations
@@ -39,59 +36,6 @@ REPO = Path(__file__).resolve().parents[2]
 ID = re.compile(r"REQ-[A-Z]*\d+")
 ONLY_AN_ID = re.compile(r"^REQ-[A-Z]*\d+$")
 _LOG_CALLS = {"debug", "info", "warning", "error", "exception", "critical", "log"}
-
-NOT_YET_SWEPT: frozenset[str] = frozenset(
-    {
-        "provisa/api_source/engine_cache.py",
-        "provisa/cassandra/fetch.py",
-        "provisa/cli.py",
-        "provisa/compiler/aggregates.py",
-        "provisa/compiler/context.py",
-        "provisa/compiler/schema_directives.py",
-        "provisa/cypher/translator.py",
-        "provisa/dq/registration.py",
-        "provisa/dq/results.py",
-        "provisa/druid/fetch.py",
-        "provisa/encryption/envelope.py",
-        "provisa/encryption/runtime.py",
-        "provisa/events/boot.py",
-        "provisa/events/deadlines.py",
-        "provisa/events/handlers.py",
-        "provisa/events/injector.py",
-        "provisa/events/lineage.py",
-        "provisa/events/outcomes.py",
-        "provisa/events/processor.py",
-        "provisa/events/snapshots.py",
-        "provisa/events/source_loader.py",
-        "provisa/executor/command_localize.py",
-        "provisa/executor/redirect.py",
-        "provisa/executor/source_operation.py",
-        "provisa/fakes/read_sql.py",
-        "provisa/federation/backend.py",
-        "provisa/federation/clickhouse_runtime.py",
-        "provisa/federation/delta.py",
-        "provisa/federation/engine.py",
-        "provisa/federation/engine_wake.py",
-        "provisa/federation/k8s_provisioner.py",
-        "provisa/federation/live_concurrency.py",
-        "provisa/federation/native_backend.py",
-        "provisa/federation/pgwire_replica.py",
-        "provisa/federation/plan.py",
-        "provisa/federation/promote.py",
-        "provisa/federation/query_residency.py",
-        "provisa/federation/residency.py",
-        "provisa/federation/scheduled_refresh.py",
-        "provisa/file_source/files_glob.py",
-        "provisa/freshness/producer.py",
-        "provisa/hive/fetch.py",
-        "provisa/mv/preflight_eval.py",
-        "provisa/pg_extensions/catalog.py",
-        "provisa/pgwire/_pipeline.py",
-        "provisa/pgwire/kept_mutations.py",
-        "provisa/pinot/fetch.py",
-        "provisa/subscriptions/pg_triggers.py",
-    }
-)
 
 
 def _docstrings(tree: ast.AST) -> set[int]:
@@ -147,18 +91,8 @@ def test_no_message_of_the_product_names_a_requirement():
     offending = []
     for path in _product_files():
         name = str(path.relative_to(REPO))
-        if name in NOT_YET_SWEPT:
-            continue
         offending += [f"{name}:{line}: {text[:90]!r}" for line, text in literals_with_an_id(path)]
     assert not offending, "a requirement id in a string a user could read:\n" + "\n".join(offending)
-
-
-def test_the_files_still_to_be_swept_only_shrink():
-    names = {str(p.relative_to(REPO)) for p in _product_files()}
-    gone = sorted(NOT_YET_SWEPT - names)
-    assert not gone, f"listed but no longer a file: {gone}"
-    clean = sorted(name for name in NOT_YET_SWEPT if not literals_with_an_id(REPO / name))
-    assert not clean, f"clean now; take out of NOT_YET_SWEPT: {clean}"
 
 
 def _strings(value: object, at: str = ""):

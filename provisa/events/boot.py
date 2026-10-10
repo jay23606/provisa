@@ -122,7 +122,7 @@ def _resolve_mv_deadline(
         raise ValueError(f"MV {mv.target_table!r} declares calendar {calendar!r} but no registry")
     grain = getattr(mv, "grain", None)
     if grain is None:
-        raise ValueError(f"MV {mv.target_table!r}: calendar declared without a grain (REQ-962)")
+        raise ValueError(f"MV {mv.target_table!r}: calendar declared without a grain")
     # REQ-962/1168: grain is a nesting grain ("daily".."annual") OR an nth-weekday recurrence
     # ("3WE"/"LFR"); parse_grain_spec resolves either. PeriodicCalendar accepts both forms.
     source = PeriodicCalendar(

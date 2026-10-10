@@ -1431,7 +1431,7 @@ class TrinoBackend(EngineBackend):
             raise RuntimeError(
                 f"engine {self.engine.name!r} Arrow Flight transport cannot be resolved: the "
                 "active org runs a coordinator this control plane does not provision, so it has "
-                "no Zaychik sidecar to dial (REQ-1518)"
+                "no Zaychik sidecar to dial"
             )
         gen = generation(shard)
         cached = state.flight_clients.get(shard)

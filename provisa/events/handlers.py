@@ -383,12 +383,12 @@ def make_mv_incremental(
     validate_persist(persist)
     if not pk_columns:
         raise ValueError(
-            "REQ-969: incremental maintenance requires a primary key for row identity — "
+            "Incremental maintenance requires a primary key for row identity — "
             "refusing a silent full-recompute downgrade"
         )
     if not is_incrementalizable(sql):
         raise ValueError(
-            f"REQ-969: {schema}.{table} declares incremental but its SQL has no safe incremental "
+            f"{schema}.{table} declares incremental but its SQL has no safe incremental "
             f"form (join/aggregate/filter/computed projection need delta-rule derivation, deferred) "
             f"— an infeasible incremental declaration is an explicit error, not a full recompute"
         )

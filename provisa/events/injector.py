@@ -114,9 +114,9 @@ async def force_regen(
     if scope not in REGEN_SCOPES:
         raise ValueError(f"unknown regen scope {scope!r}; expected one of {sorted(REGEN_SCOPES)}")
     if not (reason and reason.strip()):
-        raise ValueError("REQ-968: a forced regen MUST carry a reason (audit why-tag)")
+        raise ValueError("a forced regen MUST carry a reason (audit why-tag)")
     if scope == "window" and not window_id:
-        raise ValueError("REQ-968: window-scope regen requires a window_id (the calendar address)")
+        raise ValueError("window-scope regen requires a window_id (the calendar address)")
     payload: dict[str, Any] = {"forced": True, "reason": reason, "scope": scope}
     if window_id is not None:
         payload["window_id"] = window_id

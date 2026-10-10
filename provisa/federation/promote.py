@@ -116,7 +116,7 @@ def plan_mask_evaluation(cap: Capability, *, can_stream: bool = True) -> MaskPla
             "mask not pushable at source — bounded-memory streaming evaluation (O(batch))",
         )
     raise ValueError(
-        "REQ-971: mask can neither push down to the source nor stream — refusing to buffer "
+        "Mask can neither push down to the source nor stream — refusing to buffer "
         "the unmasked relation in the middle tier (no fetchall-then-mask)"
     )
 

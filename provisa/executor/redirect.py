@@ -820,6 +820,6 @@ async def run_materialize(
     # Local/HTTP sink tier (REQ-1191/REQ-1192/REQ-1193): served by the app's redirect-file endpoint
     # with per-username scoping and TTL reaping. Implemented as the follow-on increment.
     raise NotImplementedError(
-        "local/HTTP materialization sink (REQ-1191) not yet wired — configure an object store "
+        "local/HTTP materialization sink not yet wired — configure an object store "
         "(PROVISA_REDIRECT_ENDPOINT) with a native format (parquet/orc) to materialize results"
     )
