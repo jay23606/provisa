@@ -65,3 +65,28 @@ def compile_proto(proto_content: str, output_dir: str) -> tuple[str, str]:  # RE
         raise RuntimeError(f"Expected output not found: {pb2_grpc_path}")
 
     return pb2_path, pb2_grpc_path
+
+
+def compile_descriptor_set(proto_content: str) -> bytes:
+    """``proto_content`` compiled to a serialized ``FileDescriptorSet``, its imports included
+    (the well-known types a service names). No Python module is generated: the caller loads the
+    set into a descriptor pool of its own (grpc/descriptor.py)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        (Path(tmpdir) / "provisa_service.proto").write_text(proto_content)
+        import grpc_tools
+
+        well_known = str(Path(grpc_tools.__file__).parent / "_proto")
+        out = Path(tmpdir) / "provisa_service.desc"
+        result = protoc.main(
+            [
+                "grpc_tools.protoc",
+                f"--proto_path={tmpdir}",
+                f"--proto_path={well_known}",
+                f"--descriptor_set_out={out}",
+                "--include_imports",
+                "provisa_service.proto",
+            ]
+        )
+        if result != 0:
+            raise RuntimeError(f"protoc compilation failed with code {result}")
+        return out.read_bytes()

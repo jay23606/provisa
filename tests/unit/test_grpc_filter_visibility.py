@@ -128,7 +128,7 @@ def _servicer():
         schemas={"analyst": MagicMock()},
         multitenancy=False,
     )
-    return ProvisaServicer(state, pb2, MagicMock())
+    return ProvisaServicer(state, pb2)
 
 
 def _context():

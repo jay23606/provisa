@@ -53,7 +53,7 @@ def _servicer(p) -> ProvisaServicer:
     ctx.aggregate_columns[1] = [("id", "integer")]
     p.state.source_pools.supports_stream = lambda _source_id: False  # the buffered DIRECT read
     p.state.multitenancy = False
-    servicer = ProvisaServicer(p.state, SimpleNamespace(Orders=_Order), MagicMock())
+    servicer = ProvisaServicer(p.state, SimpleNamespace(Orders=_Order))
     servicer._emit_trailing_metadata = MagicMock()
     servicer._meter_msg = lambda msg: msg
     return servicer

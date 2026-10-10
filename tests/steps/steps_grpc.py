@@ -51,7 +51,7 @@ def _make_servicer() -> ProvisaServicer:
     msg_cls = MagicMock()
     msg_cls.DESCRIPTOR = descriptor
     pb2 = SimpleNamespace(Orders=msg_cls, DESCRIPTOR=SimpleNamespace(services_by_name={}))
-    return ProvisaServicer(SimpleNamespace(schemas={}, contexts={}), pb2, MagicMock())
+    return ProvisaServicer(SimpleNamespace(schemas={}, contexts={}), pb2)
 
 
 def _status_code_of(exc: BaseException):

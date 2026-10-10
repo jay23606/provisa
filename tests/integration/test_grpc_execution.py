@@ -73,7 +73,7 @@ _GRPC_AUDIT_ORG = "grpc_exec_itest"
 
 MINIMAL_PROTO = """\
 syntax = "proto3";
-package test.grpc.v1;
+package provisa.v1;
 
 import "google/protobuf/field_mask.proto";
 
@@ -146,6 +146,14 @@ def compiled_proto_paths():
         yield str(pb2_path), str(pb2_grpc_path)
 
 
+def _serving(state):
+    """``state`` as an organisation whose schema build wrote MINIMAL_PROTO as its service: the
+    server compiles what it serves from the bound organisation's proto (grpc/descriptor.py)."""
+    state.wire_proto = MINIMAL_PROTO
+    state.grpc_descriptor = None
+    return state
+
+
 # ---------------------------------------------------------------------------
 # Server startup test
 # ---------------------------------------------------------------------------
@@ -197,12 +205,7 @@ class TestGrpcServerStarts:
 
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
 
-        server = start_grpc_server(
-            port=_TEST_GRPC_PORT,
-            state=state,
-            pb2_path=pb2_path,
-            pb2_grpc_path=pb2_grpc_path,
-        )
+        server = start_grpc_server(port=_TEST_GRPC_PORT, state=_serving(state))
         assert server is not None
         server.stop(grace=0).wait()
 
@@ -251,12 +254,7 @@ class TestGrpcServerStarts:
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
 
         port = _TEST_GRPC_PORT + 1
-        server = start_grpc_server(
-            port=port,
-            state=state,
-            pb2_path=pb2_path,
-            pb2_grpc_path=pb2_grpc_path,
-        )
+        server = start_grpc_server(port=port, state=_serving(state))
         try:
             # Port should now be in use — verify by connecting to it
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -443,12 +441,7 @@ class TestGrpcQueryExecution:
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
 
         port = _free_port()
-        server = start_grpc_server(
-            port=port,
-            state=state,
-            pb2_path=pb2_path,
-            pb2_grpc_path=pb2_grpc_path,
-        )
+        server = start_grpc_server(port=port, state=_serving(state))
 
         channel = grpc.aio.insecure_channel(f"localhost:{port}")
         # Wait for the channel to reach READY before yielding — 30 s tolerates a loaded CI lane.
@@ -536,7 +529,6 @@ class TestGrpcQueryExecution:
         # No docker-compose service can inject this specific error condition.
         pb2_mock = MagicMock()
         pb2_mock.UnknownType.DESCRIPTOR.fields = []
-        pb2_grpc_mock = MagicMock()
 
         state = no_replica_routes(MagicMock())
         # REQ-1266: a bare MagicMock attribute is truthy, which would put this single-org
@@ -560,7 +552,7 @@ class TestGrpcQueryExecution:
         state.server_cfg = {}
         state.schemas = {}  # empty — will cause NOT_FOUND
 
-        servicer = ProvisaServicer(state, pb2_mock, pb2_grpc_mock)
+        servicer = ProvisaServicer(state, pb2_mock)
 
         ctx = MagicMock()
         ctx.invocation_metadata.return_value = [("x-provisa-role", "admin")]
@@ -656,12 +648,7 @@ class TestSecuredGrpcRequiresACredential:
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
 
         secured_port = _free_port()
-        server = start_grpc_server(
-            port=secured_port,
-            state=state,
-            pb2_path=pb2_path,
-            pb2_grpc_path=pb2_grpc_path,
-        )
+        server = start_grpc_server(port=secured_port, state=_serving(state))
         channel = grpc.aio.insecure_channel(f"localhost:{secured_port}")
         # Wait for the channel to reach READY before yielding — 30 s tolerates a loaded CI lane.
         await asyncio.wait_for(channel.channel_ready(), timeout=30.0)
