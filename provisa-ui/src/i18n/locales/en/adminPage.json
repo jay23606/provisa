@@ -190,6 +190,8 @@
     "domainDeleted": "Deleted \"{{id}}\"",
     "policyApplied": "Domain policy applied.",
     "policyApplyFailed": "Failed to apply domain policy",
-    "settingsPanel": "Settings"
+    "settingsPanel": "Settings",
+    "deleteDomainTitle": "Delete domain \"{{id}}\"?",
+    "deleteDomainConsequence": "The domain is removed. A domain that is still in use cannot be deleted."
   }
 }

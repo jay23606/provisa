@@ -47,6 +47,8 @@
     "lastPage": "Letzte Seite",
     "roleLabel": "Läuft als Rolle",
     "validationRoleRequired": "Eine SQL-Aufgabe läuft als Rolle: Wählen Sie eine aus.",
-    "runsAs": "läuft als {{role}}"
+    "runsAs": "läuft als {{role}}",
+    "deleteTitle": "Geplante Aufgabe „{{name}}“ löschen?",
+    "deleteConsequence": "Die Aufgabe wird entfernt und nicht mehr ausgeführt."
   }
 }

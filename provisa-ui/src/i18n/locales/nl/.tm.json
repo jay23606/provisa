@@ -5528,5 +5528,11 @@
   "nl/viewDefinitionForm.json::viewDefinitionForm.save": "Save view",
   "nl/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "nl/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "nl/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
+  "nl/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "nl/adminPage.json::adminPage.deleteDomainTitle": "Delete domain \"{{id}}\"?",
+  "nl/adminPage.json::adminPage.deleteDomainConsequence": "The domain is removed. A domain that is still in use cannot be deleted.",
+  "nl/rolesTab.json::rolesTab.deleteRoleTitle": "Delete role \"{{roleId}}\"?",
+  "nl/rolesTab.json::rolesTab.deleteRoleConsequence": "The role is removed from this organization.",
+  "nl/scheduledTasks.json::scheduledTasks.deleteTitle": "Delete scheduled task \"{{name}}\"?",
+  "nl/scheduledTasks.json::scheduledTasks.deleteConsequence": "The task is removed and no longer runs."
 }

@@ -47,6 +47,8 @@
     "lastPage": "Última página",
     "roleLabel": "Executa como função",
     "validationRoleRequired": "Uma tarefa SQL é executada como uma função: escolha uma.",
-    "runsAs": "executa como {{role}}"
+    "runsAs": "executa como {{role}}",
+    "deleteTitle": "Excluir a tarefa agendada \"{{name}}\"?",
+    "deleteConsequence": "A tarefa é removida e não é mais executada."
   }
 }

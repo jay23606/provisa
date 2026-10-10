@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { ActionIcon, Group, Pagination, Stack, Table, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { Trash2 } from "lucide-react";
@@ -64,27 +65,25 @@ export function RolesTab({ orgId }: RolesTabProps) {
     <Stack gap="md">
       <Title order={4}>{t("rolesTab.heading", { orgId })}</Title>
       <ListTable minWidth={640} testId="org-roles-list">
-          <ListHead
-            sortGroup={sortGroup}
-            columns={[
-              { col: "id" },
-              { col: "capabilities" },
-              { col: "domains" },
-              t("rolesTab.colActions"),
-            ]}
-          />
-          <Table.Tbody>
-            {orgRoles.length === 0 && <ListEmpty colSpan={4}>{t("rolesTab.empty")}</ListEmpty>}
-            <ListItems
-              state={sortGroup}
-              items={pageItems(sortGroup, rolePage - 1, PAGE_SIZE)}
-              colSpan={4}
-              rowKey={(role) => role.id}
-              render={(role) => (
+        <ListHead
+          sortGroup={sortGroup}
+          columns={[
+            { col: "id" },
+            { col: "capabilities" },
+            { col: "domains" },
+            t("rolesTab.colActions"),
+          ]}
+        />
+        <Table.Tbody>
+          {orgRoles.length === 0 && <ListEmpty colSpan={4}>{t("rolesTab.empty")}</ListEmpty>}
+          <ListItems
+            state={sortGroup}
+            items={pageItems(sortGroup, rolePage - 1, PAGE_SIZE)}
+            colSpan={4}
+            rowKey={(role) => role.id}
+            render={(role) => (
               <ListRow>
-                <Table.Td>
-                  {role.id}
-                </Table.Td>
+                <Table.Td>{role.id}</Table.Td>
                 {role.detailsHidden ? (
                   <Table.Td colSpan={3} c="dimmed" data-testid={`role-details-hidden-${role.id}`}>
                     {t("rolesTab.detailsHidden")}
@@ -97,22 +96,30 @@ export function RolesTab({ orgId }: RolesTabProps) {
                       {role.domain_access.join(", ") || t("rolesTab.noDomains")}
                     </Table.Td>
                     <Table.Td>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={t("rolesTab.deleteRole", { roleId: role.id })}
-                        data-testid={`delete-role-${role.id}`}
-                        onClick={() => handleDeleteOrgRole(role.id)}
+                      <ConfirmDialog
+                        title={t("rolesTab.deleteRoleTitle", { roleId: role.id })}
+                        consequence={t("rolesTab.deleteRoleConsequence")}
+                        onConfirm={() => handleDeleteOrgRole(role.id)}
                       >
-                        <Trash2 size={14} />
-                      </ActionIcon>
+                        {(open) => (
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            aria-label={t("rolesTab.deleteRole", { roleId: role.id })}
+                            data-testid={`delete-role-${role.id}`}
+                            onClick={open}
+                          >
+                            <Trash2 size={14} />
+                          </ActionIcon>
+                        )}
+                      </ConfirmDialog>
                     </Table.Td>
                   </>
                 )}
               </ListRow>
-              )}
-            />
-          </Table.Tbody>
+            )}
+          />
+        </Table.Tbody>
       </ListTable>
       {totalPages > 1 && sortGroup.groupBy.length === 0 && (
         <Group justify="flex-end">

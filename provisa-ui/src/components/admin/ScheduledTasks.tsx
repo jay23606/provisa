@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "../ConfirmDialog";
 import {
   Badge,
   Button,
@@ -403,17 +404,25 @@ export function ScheduledTasks() {
                           ? t("scheduledTasks.disable")
                           : t("scheduledTasks.enable")}
                     </Button>
-                    <Button
-                      size="compact-xs"
-                      color="red"
-                      variant="light"
-                      onClick={() => handleDelete(task.id)}
-                      disabled={deleting === task.id}
+                    <ConfirmDialog
+                      title={t("scheduledTasks.deleteTitle", { name: task.name })}
+                      consequence={t("scheduledTasks.deleteConsequence")}
+                      onConfirm={() => handleDelete(task.id)}
                     >
-                      {deleting === task.id
-                        ? t("scheduledTasks.working")
-                        : t("scheduledTasks.delete")}
-                    </Button>
+                      {(open) => (
+                        <Button
+                          size="compact-xs"
+                          color="red"
+                          variant="light"
+                          onClick={open}
+                          disabled={deleting === task.id}
+                        >
+                          {deleting === task.id
+                            ? t("scheduledTasks.working")
+                            : t("scheduledTasks.delete")}
+                        </Button>
+                      )}
+                    </ConfirmDialog>
                   </Group>
                 </Table.Td>
               </ListRow>

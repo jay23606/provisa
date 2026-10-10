@@ -4,7 +4,7 @@
 // control; a role the caller may read shows its capabilities and the delete control.
 
 import { describe, it, expect, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../../test-utils/render";
 import * as api from "../../../api/admin";
 import { normalizeRole } from "../../../lib/roles";
@@ -13,6 +13,7 @@ import { RolesTab } from "../RolesTab";
 vi.mock("../../../api/admin", async (orig) => ({
   ...(await orig<typeof import("../../../api/admin")>()),
   fetchOrgRoles: vi.fn(),
+  deleteOrgRole: vi.fn(async () => undefined),
 }));
 
 describe("normalizeRole", () => {
@@ -51,5 +52,20 @@ describe("RolesTab", () => {
 
     expect(screen.getByText("usage")).toBeTruthy();
     expect(screen.getByTestId("delete-role-analyst")).toBeTruthy();
+  });
+
+  it("asks before deleting a role, and deletes only on confirm", async () => {
+    vi.mocked(api.fetchOrgRoles).mockResolvedValue([
+      normalizeRole({ id: "analyst", capabilities: ["usage"], domain_access: ["sales"] }),
+    ]);
+    render(<RolesTab orgId="acme" />);
+
+    fireEvent.click(await screen.findByTestId("delete-role-analyst"));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText('Delete role "analyst"?')).toBeTruthy();
+    expect(api.deleteOrgRole).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(api.deleteOrgRole).toHaveBeenCalledWith("acme", "analyst"));
   });
 });

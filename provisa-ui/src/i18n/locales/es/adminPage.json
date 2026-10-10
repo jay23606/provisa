@@ -190,6 +190,8 @@
     "policyApplyFailed": "No se pudo aplicar la política de dominio",
     "settingsPanel": "Configuración",
     "maxRows": "Máximo de filas por lectura",
-    "maxRowsHint": "El máximo de filas que toma una lectura de una tabla remota paginada, siguiendo su cursor página a página."
+    "maxRowsHint": "El máximo de filas que toma una lectura de una tabla remota paginada, siguiendo su cursor página a página.",
+    "deleteDomainTitle": "¿Eliminar el dominio \"{{id}}\"?",
+    "deleteDomainConsequence": "El dominio se elimina. No se puede eliminar un dominio que sigue en uso."
   }
 }

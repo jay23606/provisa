@@ -190,6 +190,8 @@
     "policyApplyFailed": "应用域策略失败",
     "settingsPanel": "设置",
     "maxRows": "每次读取的最大行数",
-    "maxRowsHint": "对分页的远程表进行一次读取时，逐页跟随其游标所获取的最大行数。"
+    "maxRowsHint": "对分页的远程表进行一次读取时，逐页跟随其游标所获取的最大行数。",
+    "deleteDomainTitle": "删除域“{{id}}”？",
+    "deleteDomainConsequence": "该域将被移除。仍在使用中的域无法删除。"
   }
 }

@@ -47,6 +47,8 @@
     "lastPage": "最後一頁",
     "roleLabel": "以角色執行",
     "validationRoleRequired": "SQL 任務以某個角色執行：請選擇一個。",
-    "runsAs": "以 {{role}} 執行"
+    "runsAs": "以 {{role}} 執行",
+    "deleteTitle": "刪除排程工作「{{name}}」？",
+    "deleteConsequence": "該工作將被移除，不再執行。"
   }
 }

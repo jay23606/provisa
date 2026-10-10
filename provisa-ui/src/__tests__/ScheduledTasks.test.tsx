@@ -124,7 +124,14 @@ describe("ScheduledTasks — SQL trigger", () => {
     expect(screen.getByText("INSERT INTO audit.d SELECT 1")).toBeTruthy();
     expect(screen.getByText(t("scheduledTasks.runsAs", { role: "ops" }))).toBeTruthy();
 
+    // The Delete button asks first, naming the task; nothing is deleted until it is confirmed.
     fireEvent.click(screen.getByRole("button", { name: t("scheduledTasks.delete") }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain(
+      t("scheduledTasks.deleteTitle", { name: "Nightly Rollup" }),
+    );
+    expect(deleteSpy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: t("common.confirm") }));
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith("nightly"));
   });
 });

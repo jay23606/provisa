@@ -47,6 +47,8 @@
     "lastPage": "עמוד אחרון",
     "roleLabel": "פועל כתפקיד",
     "validationRoleRequired": "משימת SQL פועלת כתפקיד: בחרו אחד.",
-    "runsAs": "פועל כ-{{role}}"
+    "runsAs": "פועל כ-{{role}}",
+    "deleteTitle": "למחוק את המשימה המתוזמנת \"{{name}}\"?",
+    "deleteConsequence": "המשימה תוסר ולא תרוץ עוד."
   }
 }

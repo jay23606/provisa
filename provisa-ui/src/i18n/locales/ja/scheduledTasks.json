@@ -47,6 +47,8 @@
     "lastPage": "最後のページ",
     "roleLabel": "実行ロール",
     "validationRoleRequired": "SQL タスクはロールとして実行されます。ロールを選択してください。",
-    "runsAs": "{{role}} として実行"
+    "runsAs": "{{role}} として実行",
+    "deleteTitle": "スケジュールされたタスク「{{name}}」を削除しますか？",
+    "deleteConsequence": "タスクは削除され、以後実行されません。"
   }
 }

@@ -14,6 +14,8 @@
     "firstPage": "Eerste pagina",
     "previousPage": "Vorige pagina",
     "nextPage": "Volgende pagina",
-    "lastPage": "Laatste pagina"
+    "lastPage": "Laatste pagina",
+    "deleteRoleTitle": "Rol \"{{roleId}}\" verwijderen?",
+    "deleteRoleConsequence": "De rol wordt uit deze organisatie verwijderd."
   }
 }

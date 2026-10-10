@@ -14,6 +14,8 @@
     "firstPage": "首页",
     "previousPage": "上一页",
     "nextPage": "下一页",
-    "lastPage": "末页"
+    "lastPage": "末页",
+    "deleteRoleTitle": "删除角色“{{roleId}}”？",
+    "deleteRoleConsequence": "该角色将从此组织中移除。"
   }
 }

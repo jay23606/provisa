@@ -47,6 +47,8 @@
     "lastPage": "Last page",
     "roleLabel": "Runs as role",
     "validationRoleRequired": "A SQL task runs as a role: choose one.",
-    "runsAs": "runs as {{role}}"
+    "runsAs": "runs as {{role}}",
+    "deleteTitle": "Delete scheduled task \"{{name}}\"?",
+    "deleteConsequence": "The task is removed and no longer runs."
   }
 }

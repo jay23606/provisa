@@ -42,6 +42,7 @@ import type { PlatformSettings } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
 import { domainGqlAlias } from "../types/admin";
 import { OwnerResolutionIcon } from "../components/OwnerResolution";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EnvironmentsTab } from "../components/admin/EnvironmentsTab";
 import { CacheManager } from "../components/admin/CacheManager";
 import { SystemHealth } from "../components/admin/SystemHealth";
@@ -443,14 +444,22 @@ export function AdminPage() {
                                 </Group>
                               </Table.Td>
                               <Table.Td>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={t("adminPage.deleteDomain", { id: d.id })}
-                                  onClick={() => handleDeleteDomain(d.id)}
+                                <ConfirmDialog
+                                  title={t("adminPage.deleteDomainTitle", { id: d.id })}
+                                  consequence={t("adminPage.deleteDomainConsequence")}
+                                  onConfirm={() => handleDeleteDomain(d.id)}
                                 >
-                                  <Trash2 size={14} />
-                                </ActionIcon>
+                                  {(open) => (
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="red"
+                                      aria-label={t("adminPage.deleteDomain", { id: d.id })}
+                                      onClick={open}
+                                    >
+                                      <Trash2 size={14} />
+                                    </ActionIcon>
+                                  )}
+                                </ConfirmDialog>
                               </Table.Td>
                             </ListRow>
                           )}
