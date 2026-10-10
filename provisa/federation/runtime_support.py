@@ -135,29 +135,65 @@ def stream_from_dbapi(
 
 
 _DECLARED_DECIMAL = re.compile(r"^\s*(?:decimal|numeric)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*$", re.I)
+_UNSIZED_DECIMAL = re.compile(r"^\s*(?:decimal|numeric)\s*$", re.I)
 _DECIMAL128_MAX_PRECISION = 38
+
+
+def _exact_decimals(values: list) -> Any:
+    """``values`` (Decimals and None) as the exact decimal they are, at the widest scale held."""
+    import pyarrow as pa
+
+    # A non-finite Decimal (NaN, Infinity) has no decimal128 form: pyarrow refuses it below.
+    exponents = [
+        e
+        for e in (v.as_tuple().exponent for v in values if isinstance(v, Decimal))
+        if isinstance(e, int)
+    ]
+    scale = max([0, *(-e for e in exponents)])
+    return pa.array(values, type=pa.decimal128(_DECIMAL128_MAX_PRECISION, scale))
+
+
+def _as_double(decimals: Any) -> Any:
+    """An Arrow decimal column as the nearest double of each value, column-wise. Through text:
+    Arrow's direct decimal-to-double cast is not correctly rounded (0.3 becomes
+    0.30000000000000004); its text-to-double parse is."""
+    import pyarrow as pa
+
+    return decimals.cast(pa.string()).cast(pa.float64())
+
+
+def _array_as(values: list, locked: Any) -> Any:
+    """A later batch's column as the type its first batch locked: a decimal column that is
+    floating point is converted as the first batch was; anything else is built as ``locked``,
+    and values that are not that type raise."""
+    import pyarrow as pa
+
+    if pa.types.is_floating(locked) and any(isinstance(v, Decimal) for v in values):
+        return _as_double(_exact_decimals(values)).cast(locked)
+    return pa.array(values, type=locked)
 
 
 def arrow_array_for_rows(values: list, declared: str | None) -> Any:  # REQ-1219, REQ-1897
     """One column of row values as an Arrow array: the one rows->Arrow typing Flight uses for a
     live row stream and for a cached ``rows`` entry alike, so a miss and its hit share a schema.
 
-    Lossless: a declared ``DECIMAL(p,s)``/``NUMERIC(p,s)`` is ``decimal128(p, s)``; a ``Decimal``
-    column declared without precision (Postgres reports plain ``numeric``) is
-    ``decimal128(38, s)`` at the widest scale it holds, so its type does not depend on how many
-    digits the rows at hand happen to have; anything else is pyarrow's inference (an aware
-    datetime keeps its zone)."""
+    A decimal column is exact where its size is known and floating point where it is not
+    (REQ-1961, the rule for a registered numeric applied to a result's): a declared
+    ``DECIMAL(p,s)``/``NUMERIC(p,s)`` is ``decimal128(p, s)``; a ``Decimal`` column the source
+    reports no size for (Postgres reports plain ``numeric`` for any computed decimal) is
+    ``float64``. Its type therefore never depends on how many digits the rows at hand happen to
+    have — typing it by the first batch's widest scale failed the read on a later, wider value.
+    A statement that wants such a column exact states its size: ``CAST(... AS numeric(p,s))``.
+    Anything else is pyarrow's inference (an aware datetime keeps its zone)."""
     import pyarrow as pa
 
     m = _DECLARED_DECIMAL.match(declared) if declared else None
     if m is not None:
         return pa.array(values, type=pa.decimal128(int(m.group(1)), int(m.group(2))))
-    decimals = [v for v in values if isinstance(v, Decimal)]
-    if decimals:
-        # A non-finite Decimal (NaN, Infinity) has no decimal128 form: pyarrow refuses it below.
-        exponents = [e for e in (v.as_tuple().exponent for v in decimals) if isinstance(e, int)]
-        scale = max([0, *(-e for e in exponents)])
-        return pa.array(values, type=pa.decimal128(_DECIMAL128_MAX_PRECISION, scale))
+    if any(isinstance(v, Decimal) for v in values):
+        return _as_double(_exact_decimals(values))
+    if declared and _UNSIZED_DECIMAL.match(declared):
+        return pa.array(values, type=pa.float64())
     return pa.array(values)
 
 
@@ -196,8 +232,11 @@ def typed_arrow_array(values: list, target: Any, column: str) -> Any:  # REQ-196
     try:
         return pa.array(values, type=target)
     except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
-        found = arrow_array_for_rows(values, None)
+        decimals = any(isinstance(v, Decimal) for v in values)
+        found = _exact_decimals(values) if decimals else pa.array(values)
     try:
+        if decimals and pa.types.is_floating(target):
+            return _as_double(found).cast(target)
         return found.cast(target)
     except (pa.ArrowInvalid, pa.ArrowNotImplementedError) as mismatch:
         raise ColumnTypeMismatch(column, target, found.type) from mismatch
@@ -265,17 +304,26 @@ def read_targets(names: list[str], shape: list[tuple[str, str]] | None) -> list[
     declares columns, not expressions, and its engine sizes the result — a sum of a two-digit
     decimal is the engine's wider decimal, exact), a statement with no derivable shape, a result
     column the shape does not name, a registered type neither vocabulary names, and a JSON
-    column (REQ-1965: what a JSON column reads as is its reader's to produce)."""
-    from provisa.compiler.result_shape import RegisteredType
+    column (REQ-1965: what a JSON column reads as is its reader's to produce). One computed
+    column IS typed: a numeric whose size the statement states with a CAST
+    (``compiler.result_shape.StatedType``)."""
+    from provisa.compiler.result_shape import RegisteredType, StatedType
     from provisa.core.catalog_types import column_arrow_type, is_json_type
+    from provisa.core.numeric_type import numeric_arrow_type, numeric_size
 
-    registered = {
-        name: declared for name, declared in (shape or []) if isinstance(declared, RegisteredType)
-    }
-    return [
-        None if is_json_type(registered.get(name)) else column_arrow_type(registered.get(name))
-        for name in names
-    ]
+    by_name = dict(shape or [])
+    targets: list[Any] = []
+    for name in names:
+        declared = by_name.get(name)
+        if isinstance(declared, RegisteredType) and not is_json_type(declared):
+            targets.append(column_arrow_type(declared))
+        elif isinstance(declared, StatedType) and numeric_size(declared) is not None:
+            # The statement states a numeric's size (CAST(... AS numeric(p,s))): read exact, at
+            # that size, on every path — the way to keep a computed decimal exact.
+            targets.append(numeric_arrow_type(declared))
+        else:
+            targets.append(None)
+    return targets
 
 
 def arrow_batches_from_rows(
@@ -315,7 +363,7 @@ def arrow_batches_from_rows(
             ]
             return pa.RecordBatch.from_arrays(arrays, names=names)
         arrays = [
-            pa.array(c, type=schema.field(i).type)
+            _array_as(c, schema.field(i).type)
             if targets[i] is None
             else typed_arrow_array(c, targets[i], names[i])
             for i, c in enumerate(cols)

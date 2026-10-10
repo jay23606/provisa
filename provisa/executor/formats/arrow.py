@@ -59,6 +59,7 @@ def rows_to_arrow_table(  # REQ-045, REQ-051
     *,
     shape: list[tuple[str, str]] | None = None,
     result_names: list[str] | None = None,
+    result_types: list[str] | None = None,
 ) -> pa.Table:
     """Convert rows to a PyArrow Table (for Arrow Flight).
 
@@ -67,9 +68,15 @@ def rows_to_arrow_table(  # REQ-045, REQ-051
     parallel to ``columns``, when those differ from the names the table is given. A result
     column that is a registered column is read as its registered type, with or without rows
     (``runtime_support.read_targets`` / ``typed_arrow_array``, the row stream's own rule);
-    every other column is typed from its values as before.
+    every other column is typed as the row stream types it (``arrow_array_for_rows``): from
+    ``result_types``, the driver's own column types, where it reports a decimal's size, and
+    from its values otherwise — a decimal with no size is floating point.
     """
-    from provisa.federation.runtime_support import read_targets, typed_arrow_array
+    from provisa.federation.runtime_support import (
+        arrow_array_for_rows,
+        read_targets,
+        typed_arrow_array,
+    )
 
     names = _column_names(columns)
     targets = read_targets(result_names if result_names is not None else names, shape)
@@ -79,5 +86,5 @@ def rows_to_arrow_table(  # REQ-045, REQ-051
         if targets[i] is not None:
             arrays.append(typed_arrow_array(values, targets[i], name))
         else:
-            arrays.append(pa.array([_convert(v) for v in values]))
+            arrays.append(arrow_array_for_rows(values, result_types[i] if result_types else None))
     return pa.table(arrays, names=names)

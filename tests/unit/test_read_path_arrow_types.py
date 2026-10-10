@@ -33,9 +33,10 @@ The four paths:
 
 Where the paths DISAGREE today (the findings; the one rule's answer is the registered type):
 
-1. A numeric column: the row stream gives ``decimal128(p, s)`` only when the result's own
-   column type carries the size, else ``decimal128(38, s)`` with ``s`` read off the first
-   batch's values; the materialised path and Airport give ``double``, declared or not.
+1. A numeric column that is not a registered column (a computed one): every path gives
+   ``decimal128(p, s)`` when the result's own column type carries the size, and ``double``
+   when it does not (#202: it was ``decimal128(38, s)`` with ``s`` read off the first batch's
+   values on the row stream, and ``double`` whatever the driver said on the other two).
 2. A 32-bit integer column: the row stream and the materialised path give ``int64`` (inferred
    from Python ints); Airport gives ``int32`` (from the driver's type).
 3. A result with no rows: the row stream and the materialised path give every column the
@@ -209,18 +210,94 @@ def test_a_computed_column_keeps_the_type_its_engine_gives_it():
     """The model declares columns, not expressions. ``amount * amount`` over numeric(18,2) is
     four digits after the point on the engine; SQLGlot annotates it ``DECIMAL(18, 2)``. Typing
     it by that annotation would refuse a correct answer, so a computed column is not typed by
-    the shape: its values, exact as the engine sent them, decide."""
+    the shape: the size its engine reports for it decides."""
     rows = [(Decimal("156.2500"), Decimal("12.50"))]
 
     class _Two(_Stream):
         def __init__(self) -> None:
-            self._rows, self.column_names, self.column_types = rows, ["sq", "amount"], None
+            self._rows, self.column_names = rows, ["sq", "amount"]
+            self.column_types = ["DECIMAL(18,4)", "DECIMAL(18,2)"]
 
     shape = [("sq", "DECIMAL(18, 2)"), ("amount", RegisteredType("numeric(18,2)"))]
     schema, batches = arrow_batches_from_rows(_Two(), shape=shape)
-    assert schema.field("sq").type == pa.decimal128(38, 4)
+    assert schema.field("sq").type == pa.decimal128(18, 4)
     assert schema.field("amount").type == pa.decimal128(18, 2)
     assert next(batches).column(0).to_pylist() == [Decimal("156.2500")]
+
+
+# --- a computed decimal with no reported size (#202) -----------------------------------------------
+
+
+class _Quotients(_Stream):
+    """A computed decimal as a PostgreSQL direct route reports it: ``numeric``, no size. The
+    later rows have more digits after the point than the first."""
+
+    def __init__(self, declared: str | None = "numeric") -> None:
+        self._rows = [(Decimal("1.5"),), (Decimal("0.333333"),), (Decimal("0.3"),)]
+        self.column_names = ["q"]
+        self.column_types = [declared] if declared else None
+
+
+@pytest.mark.parametrize("declared", ["numeric", None])
+def test_a_later_batch_with_more_digits_than_the_first_does_not_fail_the_read(declared):
+    """#202: the column was typed decimal128(38, 1) by its first batch, and the second batch's
+    0.333333 failed the read with "Rescaling Decimal value would cause data loss". A decimal
+    with no size is floating point — the rule for a registered numeric with none — so its type
+    depends on no row; each value is its nearest double."""
+    schema, batches = arrow_batches_from_rows(_Quotients(declared), batch_rows=1)
+    assert schema.field("q").type == pa.float64()
+    assert [b.column(0).to_pylist() for b in batches] == [[1.5], [0.333333], [0.3]]
+
+
+def test_a_computed_decimal_is_kept_exact_by_stating_its_size():
+    """The statement's CAST carries a size, and the column is read exact at it — whatever the
+    driver reports (PostgreSQL still says ``numeric``) and however the rows are batched."""
+    from provisa.compiler.result_shape import StatedType
+
+    shape = [("q", StatedType("DECIMAL(12, 6)"))]
+    schema, batches = arrow_batches_from_rows(_Quotients(), batch_rows=1, shape=shape)
+    assert schema.field("q").type == pa.decimal128(12, 6)
+    assert [b.column(0).to_pylist() for b in batches] == [
+        [Decimal("1.500000")],
+        [Decimal("0.333333")],
+        [Decimal("0.300000")],
+    ]
+
+
+def test_the_shape_says_which_columns_the_statement_states_the_type_of():
+    from provisa.compiler.result_shape import StatedType
+    from tests.unit.test_result_shape import _shape
+
+    shape = dict(
+        _shape(
+            "SELECT CAST(o.amount / 3 AS NUMERIC(12, 6)) AS q, o.amount / 3 AS loose, "
+            "CAST(o.amount AS DOUBLE PRECISION) AS f FROM sales.orders o"
+        )
+    )
+    assert isinstance(shape["q"], StatedType) and shape["q"] == "DECIMAL(12, 6)"
+    assert not isinstance(shape["loose"], (StatedType, RegisteredType))
+    assert isinstance(shape["f"], StatedType)  # stated, and not a sized numeric: not held to it
+
+
+def test_every_path_types_an_unsized_computed_decimal_alike():
+    """The materialised table and Airport follow the row stream: exact where the driver reports
+    a size, floating point where it does not. (The engine's own stream always carries a size.)"""
+    from provisa.api.airport.query import _typed_batches_from_rows
+
+    refs = [ColumnRef(alias=None, column="q", field_name="q", nested_in=None)]
+    rows = list(_Quotients().iter_rows())
+    for declared, expected in (("numeric", pa.float64()), ("DECIMAL(12,6)", pa.decimal128(12, 6))):
+        stream_schema, _ = arrow_batches_from_rows(_Quotients(declared))
+        table = rows_to_arrow_table(rows, refs, result_types=[declared])
+        airport = _direct_typed_schema(["q"], [declared])
+        (batch,) = _typed_batches_from_rows(_Quotients(declared), airport)
+        assert (
+            stream_schema.field("q").type
+            == table.schema.field("q").type
+            == airport.field("q").type
+            == batch.schema.field("q").type
+            == expected
+        )
 
 
 def test_a_registered_column_is_typed_beside_a_column_whose_type_cannot_be_derived():
@@ -262,9 +339,9 @@ def test_the_shape_marks_which_result_columns_are_registered_columns():
     [
         # The size comes from the RESULT's column type, when it carries one...
         ("duckdb", pa.decimal128(18, 2)),
-        # ...and otherwise from the widest scale among the first batch's values.
-        ("postgres", pa.decimal128(38, 2)),
-        ("none", pa.decimal128(38, 2)),
+        # ...and a decimal with no size is floating point (#202), never sized by the rows.
+        ("postgres", pa.float64()),
+        ("none", pa.float64()),
     ],
 )
 def test_the_row_stream_without_a_shape(reported, money):
@@ -274,7 +351,7 @@ def test_the_row_stream_without_a_shape(reported, money):
         **_AGREED,
         "i": pa.int64(),  # finding 2: inferred, not the column's 32 bits
         "money": money,  # finding 1
-        "ratio": pa.decimal128(38, 3),  # finding 1: sized by the data
+        "ratio": pa.float64(),  # finding 1: no size reported
     }
 
 
@@ -313,11 +390,12 @@ def test_the_materialised_table_matches_the_shape_by_the_results_own_names():
 
 
 def test_the_materialised_table_without_a_shape():
-    """A result that is not a governed statement's (a command's rows) has no shape."""
+    """A result that is not a governed statement's (a command's rows) has no shape; with no
+    driver types either, a decimal has no size and is floating point."""
     assert _types(rows_to_arrow_table(_ROWS, _column_refs()).schema) == {
         **_AGREED,
         "i": pa.int64(),  # finding 2
-        "money": pa.float64(),  # finding 1: every Decimal becomes a float
+        "money": pa.float64(),  # finding 1
         "ratio": pa.float64(),
     }
 
@@ -431,11 +509,13 @@ def test_airport_refuses_values_that_are_not_the_registered_type():
 
 @pytest.mark.parametrize("reported", ["postgres", "duckdb"])
 def test_airport_without_declared_types(reported):
-    """A column that is not a registered column is typed from the driver's column type alone."""
+    """A column that is not a registered column is typed from the driver's column type alone:
+    a decimal exact where the driver reports its size, floating point where it does not — the
+    row stream's rule."""
     assert _types(_direct_typed_schema(_NAMES, _DRIVER_TYPES[reported])) == {
         **_AGREED,
         "i": pa.int32(),
-        "money": pa.float64(),  # finding 1: its numeric is a float, sized or not
+        "money": pa.decimal128(18, 2) if reported == "duckdb" else pa.float64(),
         "ratio": pa.float64(),
     }
 

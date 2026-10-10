@@ -173,12 +173,15 @@ def test_a_numeric_is_listed_and_read_as_the_model_declares_it_on_every_surface(
 
         # A computed column is its engine's, exact as sent: the square of a two-digit scale has
         # four digits after the point, whatever the model says of the column squared.
+        # (Over a PostgreSQL direct route the product arrives with no size and is floating point;
+        # over an engine route it is the engine's exact decimal. The value is the same.)
         squared = _flight(
             flight_port, "SELECT amount * amount AS sq FROM sales.ledger WHERE id = 1"
         )
-        assert squared.column("sq").to_pylist() == [Decimal("156.2500")]
+        assert [float(v) for v in squared.column("sq").to_pylist()] == [156.25]
 
-        # pgwire returns a numeric as a numeric.
+        # pgwire returns a sized numeric as a numeric, and one the model records no size for as
+        # float8 — described so and sent so (the governed statement casts it at its source).
         import psycopg
 
         with psycopg.connect(
@@ -190,7 +193,24 @@ def test_a_numeric_is_listed_and_read_as_the_model_declares_it_on_every_surface(
             connect_timeout=10,
             autocommit=True,
         ) as conn:
-            assert conn.execute(_QUERY).fetchall()[0][1] == Decimal("12.50")
+            cursor = conn.execute(_QUERY)
+            described = {d.name: d.type_code for d in cursor.description or []}
+            first = cursor.fetchall()[0]
+            assert first[1] == Decimal("12.50")
+            assert described["amount"] == 1700  # numeric
+            assert described["ratio"] == 701  # float8
+            assert first[2] == 0.5 and isinstance(first[2], float)
+
+        # A computed decimal PostgreSQL reports no size for is floating point, whatever its rows
+        # hold (#202); stating its size keeps it exact.
+        loose = _flight(flight_port, "SELECT amount / 3 AS q FROM sales.ledger ORDER BY id")
+        assert loose.schema.field("q").type == pa.float64()
+        stated = _flight(
+            flight_port,
+            "SELECT CAST(amount / 3 AS NUMERIC(12, 6)) AS q FROM sales.ledger ORDER BY id",
+        )
+        assert stated.schema.field("q").type == pa.decimal128(12, 6)
+        assert stated.column("q").to_pylist() == [Decimal("4.166667"), Decimal("0.083333")]
 
         # HTTP answers JSON, which has no decimal: the value, as a number.
         answered = _post(http_port, "/data/sql", {"sql": _QUERY, "role": "org_admin"})

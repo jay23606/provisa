@@ -1376,7 +1376,7 @@ class ProvisaFlightServer(
                 ColumnRef(field_name=c, column=c, alias=None, nested_in=None)
                 for c in result.column_names
             ]
-            table = rows_to_arrow_table(result.rows, columns)
+            table = rows_to_arrow_table(result.rows, columns, result_types=result.column_types)
             return self._license_stream(table, role_id)  # REQ-1137
 
         plan = result
@@ -1499,7 +1499,12 @@ class ProvisaFlightServer(
                     for c in result.column_names
                 ]
                 # REQ-1961: registered columns are read as the model declares them.
-                table = rows_to_arrow_table(result.rows, columns, shape=self._result_shape_of(plan))
+                table = rows_to_arrow_table(
+                    result.rows,
+                    columns,
+                    shape=self._result_shape_of(plan),
+                    result_types=result.column_types,
+                )
                 plan.row_count = len(result.rows)
                 self._finalize_audit(plan, 200)
                 return self._license_stream(table, role_id, plan.warnings)  # REQ-1137
@@ -1637,6 +1642,7 @@ class ProvisaFlightServer(
                     compiled.columns,
                     shape=self._result_shape_of(plan),
                     result_names=list(result.column_names),
+                    result_types=result.column_types,
                 )
                 plan.row_count = len(result.rows)
                 self._finalize_audit(plan, 200)

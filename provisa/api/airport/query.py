@@ -360,10 +360,21 @@ def _direct_typed_schema(
             f"{None if column_types is None else len(column_types)} column types — cannot form a "
             "byte-stable schema"
         )
+    from provisa.core.numeric_type import numeric_arrow_type, numeric_size_of, numeric_type
+
     declared = declared if declared is not None else [None] * len(column_names)
+
+    def _reported(ctype: str) -> pa.DataType:
+        # A decimal the driver reports a size for is exact at that size; one it reports none
+        # for is floating point — the row stream's rule (runtime_support.arrow_array_for_rows).
+        size = numeric_size_of(ctype)
+        if size is not None:
+            return numeric_arrow_type(numeric_type(*size))
+        return _ir_to_arrow(to_ir(ctype, "postgresql"))
+
     return pa.schema(
         [
-            pa.field(name, model_type or _ir_to_arrow(to_ir(ctype, "postgresql")))
+            pa.field(name, model_type or _reported(ctype))
             for name, ctype, model_type in zip(column_names, column_types, declared)
         ]
     )
@@ -395,8 +406,8 @@ def _typed_batches_from_rows(
 
     def _to_batch(rows: list[tuple]) -> pa.RecordBatch:
         arrays = [
-            typed_arrow_array([r[i] for r in rows], declared[i], names[i])
-            if declared[i] is not None
+            typed_arrow_array([r[i] for r in rows], typed_schema.field(i).type, names[i])
+            if declared[i] is not None or pa.types.is_decimal(typed_schema.field(i).type)
             else pa.array([_conv(r[i]) for r in rows], type=typed_schema.field(i).type)
             for i in range(len(names))
         ]

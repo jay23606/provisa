@@ -65,6 +65,15 @@ class RegisteredType(str):
     __slots__ = ()
 
 
+class StatedType(str):
+    """A result column's type that the STATEMENT states: the projection is an explicit
+    ``CAST(... AS type)``. Unlike the annotation of any other expression it is a declaration —
+    the engine returns that type — so a read may hold the column to it (a computed decimal cast
+    to ``numeric(p,s)`` is read exact at that size)."""
+
+    __slots__ = ()
+
+
 class Underived(str):
     """In a READ's shape (``derive_result_shape(..., each=True)``), the place of a result column
     whose type cannot be derived from registered metadata; its text is why. The columns beside
@@ -317,6 +326,8 @@ def _annotated_shape(
             derived = sel.type
             if derived is not None and derived.this not in _UNDETERMINED:
                 col_type = derived.sql(dialect="postgres")
+                if isinstance(inner, exp.Cast):
+                    col_type = StatedType(col_type)
             elif _untyped_is_text(inner):
                 col_type = "text"
         if col_type is None:
