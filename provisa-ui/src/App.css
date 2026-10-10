@@ -70,6 +70,30 @@ body {
   display: flex;
   gap: 0.75rem;
   flex: 1;
+  /* The bar always fits its window: the links give way first (they may shrink below their
+     content), and when one line cannot hold them they take a second, under the first. The
+     controls at the end keep their size and stay on the first line. */
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+.navbar-links a,
+.navbar-links .nav-group-label {
+  white-space: nowrap;
+}
+.navbar-brand,
+.navbar-role {
+  flex: 0 0 auto;
+}
+/* A laptop-width window: closer spacing holds every link on one line for longer. */
+@media (max-width: 90em) {
+  .navbar {
+    gap: 0.5rem;
+    padding-inline: 1rem;
+  }
+  .navbar-links {
+    gap: 0.125rem;
+  }
 }
 .navbar-links a {
   color: var(--text-muted);
