@@ -614,6 +614,12 @@ main {
   display: flex;
   flex-direction: column;
 }
+/* A list table inside a card (an accordion panel, a settings card): it keeps every column, and
+ * what the card leaves it too little room for scrolls sideways instead of hanging out of the card. */
+.card-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
 /* The list keeps every column: what the panel leaves it too little room for scrolls sideways. */
 .split-pane__list > .table-scroll {
   flex: 1 1 auto;
@@ -2511,6 +2517,12 @@ main {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
+}
+/* A checklist: one tick to a line. */
+.form-checks--column {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 /* The label and its (?) stay on one line; the (?) is the only thing beside the label. */
 .form-label {

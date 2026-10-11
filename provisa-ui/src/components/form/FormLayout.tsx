@@ -183,11 +183,21 @@ export function FormField({
 /**
  * The ticks and switches of a form, together on a line of their own beneath the fields they
  * belong with. Each is its label and an optional (?); no paragraph sits beside a box.
+ *
+ * `column`: a checklist — one tick to a line, where the ticks ARE the form (a list of things to
+ * accept or leave out) rather than a few settings beside its fields.
  */
-export function FormChecks({ children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+export function FormChecks({
+  column = false,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLDivElement> & { column?: boolean }) {
   useInsideFormLayout("FormChecks");
   return (
-    <div {...rest} className={classes("form-checks", rest.className)}>
+    <div
+      {...rest}
+      className={classes("form-checks", column ? "form-checks--column" : undefined, rest.className)}
+    >
       {children}
     </div>
   );

@@ -197,8 +197,6 @@ export function OssieInterchangePanel() {
     );
   };
 
-  // A checklist: one proposal to a line, each section under its own heading.
-  const CHECKLIST = { flexDirection: "column", alignItems: "flex-start" } as const;
   const applyButton = (
     <Button
       onClick={handleApply}
@@ -296,7 +294,7 @@ export function OssieInterchangePanel() {
             </Text>
           </FormField>
           <Divider label={t("ossiePanel.tablesSection", { count: proposals.tables.length })} />
-          <FormChecks style={CHECKLIST}>
+          <FormChecks column>
             {proposals.tables.map((tbl) => {
               const key: ItemKey = `table:${tbl.name}`;
               return (
@@ -338,7 +336,7 @@ export function OssieInterchangePanel() {
           <Divider
             label={t("ossiePanel.relationshipsSection", { count: proposals.relationships.length })}
           />
-          <FormChecks style={CHECKLIST}>
+          <FormChecks column>
             {proposals.relationships.map((rel) => {
               const key: ItemKey = `rel:${rel.name}`;
               return (
@@ -365,7 +363,7 @@ export function OssieInterchangePanel() {
             })}
           </FormChecks>
           <Divider label={t("ossiePanel.metricsSection", { count: proposals.metrics.length })} />
-          <FormChecks style={CHECKLIST}>
+          <FormChecks column>
             {proposals.metrics.map((m) => {
               const key: ItemKey = `metric:${m.name}`;
               return (
