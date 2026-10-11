@@ -46,6 +46,8 @@ interface RelationshipDetailProps {
   onDelete: () => void;
   onEditSave: () => void;
   saving: string | null;
+  /** What the form says of a save that did not go through. */
+  problem: string;
   tables: RegisteredTable[];
   functions: TrackedFunction[];
   tableDomainById: Record<string, string>;
@@ -62,6 +64,7 @@ export function RelationshipDetail({
   onDelete,
   onEditSave,
   saving,
+  problem,
   tables,
   functions,
   tableDomainById,
@@ -459,6 +462,7 @@ export function RelationshipDetail({
           )}
           <FormFooter
             panel
+            problem={problem || undefined}
             onSave={onEditSave}
             saving={!!saving}
             onCancel={() => setEditingRel(null)}

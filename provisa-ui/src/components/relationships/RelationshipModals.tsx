@@ -85,6 +85,8 @@ interface ReverseRelationshipFormProps {
   reverseForm: RelForm;
   setReverseForm: (f: RelForm | null) => void;
   saving: string | null;
+  /** What the form says of a save that did not go through. */
+  problem: string;
   onSave: () => void;
 }
 
@@ -94,6 +96,7 @@ export function ReverseRelationshipForm({
   reverseForm,
   setReverseForm,
   saving,
+  problem,
   onSave,
 }: ReverseRelationshipFormProps) {
   const { t } = useTranslation();
@@ -151,6 +154,7 @@ export function ReverseRelationshipForm({
         )}
         <FormFooter
           panel
+          problem={problem || undefined}
           onSave={onSave}
           saving={saving === "reverse"}
           onCancel={() => setReverseForm(null)}

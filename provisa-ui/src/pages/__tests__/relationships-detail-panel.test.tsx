@@ -147,6 +147,23 @@ describe("RelationshipsPage: the right-hand detail panel", () => {
     );
   });
 
+  it("keeps the form open on a refused save and says why", async () => {
+    UPSERT.upsertRelationship.mockResolvedValueOnce({
+      success: false,
+      message: "Alias 'PLACED_BY' already exists for source table 'orders'",
+    });
+    render(<RelationshipsPage />);
+    fireEvent.click(rowOf("orders.customer_id"));
+    fireEvent.click(within(panel()).getByRole("button", { name: "Edit" }));
+    fireEvent.click(within(panel()).getByRole("button", { name: "Save" }));
+    expect(await screen.findByTestId("form-problem")).toHaveTextContent(
+      "Alias 'PLACED_BY' already exists for source table 'orders'",
+    );
+    // Still the form, not the detail it would return to after a save.
+    expect(within(panel()).getByRole("button", { name: "Save" })).toBeTruthy();
+    expect(DELETE.deleteRelationship).not.toHaveBeenCalled();
+  });
+
   it("keeps Escape from dropping a form that is being typed into", () => {
     render(<RelationshipsPage />);
     fireEvent.click(rowOf("orders.customer_id"));

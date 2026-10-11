@@ -39,6 +39,7 @@ function row(onDelete: () => void) {
     onDelete,
     onEditSave: vi.fn(),
     saving: null,
+    problem: "",
     tables: [],
     functions: [],
     tableDomainById: {},
