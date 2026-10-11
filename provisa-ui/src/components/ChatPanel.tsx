@@ -56,6 +56,7 @@ import { usePolly } from "../context/pollyState";
 import type { MutationResult } from "../types/admin";
 import type { ChoiceAnswer, ClientToolResult, PresentChoiceRequest } from "../mcp/clientTools";
 import { useResizableWidth } from "../hooks/useResizableWidth";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
@@ -347,10 +348,8 @@ export function ChatPanel() {
             Polly needs an LLM vendor and credential configured before it can chat
             {unconfiguredReason ? ` (${unconfiguredReason})` : ""}.
           </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setUnconfiguredReason(null)}>
-              Not now
-            </Button>
+          {/* The way on first, at the start; "Not now" follows. */}
+          <Group justify="flex-start">
             <Button
               onClick={() => {
                 setUnconfiguredReason(null);
@@ -358,6 +357,9 @@ export function ChatPanel() {
               }}
             >
               Open AI Models settings
+            </Button>
+            <Button variant="default" onClick={() => setUnconfiguredReason(null)}>
+              Not now
             </Button>
           </Group>
         </Modal>
@@ -493,7 +495,7 @@ export function ChatPanel() {
 
         <ScrollArea style={{ flex: 1 }} mb="sm" viewportRef={messagesScrollRef}>
           {messages.length === 0 && (
-            <Stack gap={6} data-testid="chat-panel-suggestions">
+            <Stack gap={6} align="flex-start" data-testid="chat-panel-suggestions">
               <Text size="xs" c="dimmed">
                 {t("chatPanel.tryAsking")}
               </Text>
@@ -503,6 +505,8 @@ export function ChatPanel() {
                   variant="light"
                   size="xs"
                   justify="flex-start"
+                  // Its own width, but never wider than the panel.
+                  maw="100%"
                   onClick={() => void send(q)}
                   disabled={busy}
                 >
@@ -673,30 +677,28 @@ export function ChatPanel() {
                       onChange={(e) => setOtherText(e.currentTarget.value)}
                       autoFocus
                     />
-                    <Group justify="space-between">
-                      <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
-                        Back to Yes/No
-                      </Button>
+                    <Group justify="flex-start">
                       <Button
                         disabled={!otherText.trim()}
                         onClick={() => resolveChoice(otherText.trim())}
                       >
                         Submit
                       </Button>
+                      <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
+                        Back to Yes/No
+                      </Button>
                     </Group>
                   </Stack>
                 ) : (
-                  <Stack gap="sm">
-                    <Group justify="flex-end">
-                      <Button variant="default" onClick={() => resolveChoice(false)}>
-                        No
-                      </Button>
-                      <Button onClick={() => resolveChoice(true)}>Yes</Button>
-                    </Group>
+                  <Group justify="flex-start">
+                    <Button onClick={() => resolveChoice(true)}>Yes</Button>
+                    <Button variant="default" onClick={() => resolveChoice(false)}>
+                      No
+                    </Button>
                     <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
                       Type something else
                     </Button>
-                  </Stack>
+                  </Group>
                 ))}
 
               {choiceState.mode === "single" && (
@@ -717,7 +719,7 @@ export function ChatPanel() {
                       autoFocus
                     />
                   )}
-                  <Group justify="flex-end">
+                  <Group justify="flex-start">
                     <Button
                       disabled={!choiceDraft[0] || (choiceDraft[0] === OTHER && !otherText.trim())}
                       onClick={() =>
@@ -748,7 +750,7 @@ export function ChatPanel() {
                       autoFocus
                     />
                   )}
-                  <Group justify="flex-end">
+                  <Group justify="flex-start">
                     <Button
                       onClick={() => {
                         const rest = choiceDraft.filter((v) => v !== OTHER);
@@ -772,15 +774,15 @@ export function ChatPanel() {
         onClose={() => resolveConfirm(false)}
         title={confirmState?.title}
       >
-        <Text size="sm" mb="md">
-          {confirmState?.message}
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => resolveConfirm(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => resolveConfirm(true)}>Confirm</Button>
-        </Group>
+        <FormLayout>
+          <FormField size="full">
+            <Text size="sm">{confirmState?.message}</Text>
+          </FormField>
+          <FormFooter
+            onCancel={() => resolveConfirm(false)}
+            action={<Button onClick={() => resolveConfirm(true)}>Confirm</Button>}
+          />
+        </FormLayout>
       </Modal>
     </>
   );
