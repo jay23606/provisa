@@ -9,8 +9,9 @@
 // permission from the copyright holder.
 
 import type { ReactElement } from "react";
-import { ActionIcon, HoverCard, Stack, Text } from "@mantine/core";
+import { ActionIcon, Stack, Text } from "@mantine/core";
 import { CircleHelp } from "lucide-react";
+import { TipSurface } from "./Tip";
 
 /**
  * The explanation attached to a page control. It answers what the control is FOR — what
@@ -36,15 +37,12 @@ export function HelpBubble({
   target?: ReactElement;
 }) {
   return (
-    <HoverCard width={340} shadow="md" withArrow position="bottom-end">
-      <HoverCard.Target>
-        {target ?? (
-          <ActionIcon variant="subtle" color="gray" aria-label={ariaLabel} data-testid={testId}>
-            <CircleHelp size={16} />
-          </ActionIcon>
-        )}
-      </HoverCard.Target>
-      <HoverCard.Dropdown data-testid={`${testId}-card`}>
+    // The same surface as every one-line hint (components/Tip.tsx), as a titled card.
+    <TipSurface
+      card
+      position="bottom-end"
+      testId={`${testId}-card`}
+      content={
         <Stack gap="xs">
           <Text size="sm" fw={600}>
             {title}
@@ -55,7 +53,13 @@ export function HelpBubble({
             </Text>
           ))}
         </Stack>
-      </HoverCard.Dropdown>
-    </HoverCard>
+      }
+    >
+      {target ?? (
+        <ActionIcon variant="subtle" color="gray" aria-label={ariaLabel} data-testid={testId}>
+          <CircleHelp size={16} />
+        </ActionIcon>
+      )}
+    </TipSurface>
   );
 }
