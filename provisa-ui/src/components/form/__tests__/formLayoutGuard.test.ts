@@ -110,7 +110,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/RequestsPage.tsx",
   "pages/SetupPage.tsx",
   "pages/TablesPage.tsx",
-  "pages/TeamPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
   "pages/security/RoleFormParts.tsx",
   "pages/sources/SourceDetailPanel.tsx",
