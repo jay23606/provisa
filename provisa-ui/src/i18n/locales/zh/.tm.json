@@ -4226,8 +4226,6 @@
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.loadManagementInfo": "Balances how current each reader's data is against load on the platform and on upstream sources. Ideally the upstream manages its own load; the operator protects the platform, and the upstream when it can't protect itself. These settings are the operator's floor — no query or request hint can get fresher data or put more load on a source than they allow. Readers can only choose to accept older data for speed. A table the engine reads live ignores the TTL settings; they apply once it is served from its replica (Replicate, or Load Protected).",
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.loadManagementInfoLabel": "About load management and timeliness",
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.loadManagementTitle": "Load Management and Timeliness",
-  "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.loadProtected": "Load Protected",
-  "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.loadProtectedTooltip": "Never query this source live — always serve the last materialized snapshot, and refresh it only inside the off-peak window. Protects a fragile or rate-limited source from query load. A per-table setting can override this default.",
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.maxLiveConcurrency": "Max concurrent live queries",
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.maxLiveConcurrencyHelp": "Upper bound on queries reading this source live at once, across every Provisa instance sharing this Redis. Queries beyond it wait up to their own deadline, then fail. Empty = no cap. Has no effect when the source is read from its replica (Replicate / load protected).",
   "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.maxLiveConcurrencyInvalid": "Enter a whole number of 1 or more, or leave empty for no cap.",
@@ -5552,5 +5550,8 @@
   "zh/tablesPage.json::tablesPage.expandDetail": "Expand the panel",
   "zh/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
   "zh/tablesPage.json::tablesPage.backToList": "Back to the list",
-  "zh/tablesPage.json::tablesPage.backToDetail": "Back to details"
+  "zh/tablesPage.json::tablesPage.backToDetail": "Back to details",
+  "zh/replicateSelect.json::replicateSelect.scheduled": "Always, source read only on schedule",
+  "zh/replicateSelect.json::replicateSelect.helpScheduled": "Always, source read only on schedule: reads always come from the replica and a query never causes the source to be read; the scheduler refreshes the replica on the off-peak window, the Cache TTL or the change probe, and at least one of the three is required.",
+  "zh/sourceFormFieldsExtended.json::sourceFormFieldsExtended.offPeakWindowHint": "Without a window, the refresh follows the Cache TTL or the change probe."
 }

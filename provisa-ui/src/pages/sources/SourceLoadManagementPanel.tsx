@@ -68,6 +68,10 @@ export function SourceLoadManagementPanel({
             <ReplicateSelect
               value={form.replicate}
               onChange={(replicate) => setForm({ ...form, replicate })}
+              // REQ-1141: load protection is the drop-down's last choice, not a setting beside it.
+              onScheduledChange={(replicate, loadProtected) =>
+                setForm({ ...form, replicate, loadProtected })
+              }
               scope="source"
               loadProtected={form.loadProtected}
               testId="source-replicate-select"
@@ -146,10 +150,11 @@ export function SourceLoadManagementPanel({
               data-testid="max-live-concurrency-input"
             />
           </FormField>
-          {/* REQ-1141: the off-peak window of a load-protected source. */}
+          {/* REQ-1141: when a source read only on schedule is refreshed. Both are optional: with
+              no window the refresh follows the Cache TTL or the change probe. */}
           {form.loadProtected && (
             <>
-              <FormField size="short">
+              <FormField size="medium" hint={t("sourceFormFieldsExtended.offPeakWindowHint")}>
                 <TextInput
                   label={t("sourceFormFieldsExtended.offPeakWindow")}
                   value={form.offPeakWindow}
@@ -169,7 +174,7 @@ export function SourceLoadManagementPanel({
               </FormField>
             </>
           )}
-          {/* The ticks sit together beneath the fields: caching, the freshness gate, load protection. */}
+          {/* The ticks sit together beneath the fields: caching, the freshness gate. */}
           <FormChecks>
             <FormField size="short" help={t("sourceFormFieldsExtended.cacheEnabledHelp")}>
               <Checkbox
@@ -185,14 +190,6 @@ export function SourceLoadManagementPanel({
                 checked={form.freshnessGate}
                 onChange={(e) => setForm({ ...form, freshnessGate: e.currentTarget.checked })}
                 data-testid="freshness-gate-checkbox"
-              />
-            </FormField>
-            <FormField help={t("sourceFormFieldsExtended.loadProtectedTooltip")} size="short">
-              <Checkbox
-                label={t("sourceFormFieldsExtended.loadProtected")}
-                checked={form.loadProtected}
-                onChange={(e) => setForm({ ...form, loadProtected: e.currentTarget.checked })}
-                data-testid="load-protected-checkbox"
               />
             </FormField>
           </FormChecks>
