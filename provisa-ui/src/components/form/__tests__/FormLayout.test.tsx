@@ -272,6 +272,9 @@ describe("FormLayout", () => {
         expect(b).toHaveAttribute("data-variant", "subtle");
         expect(b).toHaveAttribute("data-size", "compact-sm");
       }
+      // Both borderless: Save is marked as the primary (and tinted as one), Cancel is not.
+      expect(save).toHaveAttribute("data-primary", "true");
+      expect(cancel).not.toHaveAttribute("data-primary");
       expect(save.closest(".form-footer")).toHaveClass("form-footer--head");
       // Nothing is left at the foot of the panel's content.
       expect(
@@ -317,6 +320,34 @@ describe("FormLayout", () => {
       expect(
         run.compareDocumentPosition(screen.getByRole("button", { name: t("common.cancel") })),
       ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("submits the form it names from the panel's head, where it sits outside that form", async () => {
+      const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+      inPanel(
+        <FormLayout component="form" id="the-form" onSubmit={onSubmit}>
+          <FormField size="medium">
+            <TextInput label="Name" required defaultValue="orders" />
+          </FormField>
+          <FormFooter panel submit form="the-form" onCancel={() => {}} />
+        </FormLayout>,
+      );
+      const save = await screen.findByRole("button", { name: t("common.save") });
+      expect(head()).toContainElement(save);
+      // Outside the form's element, and still that form's submit.
+      expect(save.closest("form")).toBeNull();
+      expect(save).toHaveAttribute("type", "submit");
+      expect(save).toHaveAttribute("form", "the-form");
+      expect((save as HTMLButtonElement).form).toBe(document.getElementById("the-form"));
+      fireEvent.click(save);
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("names no form unless it is given one", async () => {
+      inPanel(<FormFooter panel onSave={() => {}} onCancel={() => {}} />);
+      expect(await screen.findByRole("button", { name: t("common.save") })).not.toHaveAttribute(
+        "form",
+      );
     });
 
     it("stays the row at the form's foot outside a panel, and for a form that does not ask", () => {

@@ -5364,7 +5364,6 @@
   "es/tablesPage.json::tablesPage.resizeDetail": "Resize the detail panel",
   "es/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
   "es/tablesPage.json::tablesPage.runNow": "Run Now",
-  "es/tablesPage.json::tablesPage.runNowCancel": "Cancel",
   "es/tablesPage.json::tablesPage.runNowModalTitle": "Run {{table}} now",
   "es/tablesPage.json::tablesPage.runNowQueued": "Run queued for {{table}}.",
   "es/tablesPage.json::tablesPage.runNowQueuing": "Queuing...",
@@ -5525,8 +5524,6 @@
   "es/testData.json::testData.kindCategory.transform": "Transforms",
   "es/testData.json::testData.kindCategory.values": "Values",
   "es/testData.json::testData.methodCategory": "Fake method: {{category}}",
-  "es/testData.json::testData.modeMetadata": "Metadata",
-  "es/testData.json::testData.modeTestData": "Test data",
   "es/testData.json::testData.noConfidentMatch": "Tagged pii, with no confident match in the profile: declare its fake.",
   "es/testData.json::testData.noProposal": "The profile proposes nothing for this column.",
   "es/testData.json::testData.openDialog": "Choose a fake",
@@ -5770,5 +5767,6 @@
   "es/viewDefinitionForm.json::viewDefinitionForm.openSqlEditor": "Open SQL editor",
   "es/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "es/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
+  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "es/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing"
 }

@@ -76,7 +76,8 @@ import { TableReadView } from "./tables/TableReadView";
 import { ReplicatingMark } from "./tables/ReplicatingMark";
 import { buildOf } from "./tables/replicaBuild";
 import { ReplicaBuildsContext } from "./tables/replicaBuildsContext";
-import { GovernedTableViewer } from "../components/GovernedTableViewer";
+import { TablePreviewPane } from "./tables/TablePreviewPane";
+import { FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import { NativeParamsModal } from "../components/NativeParamsModal";
 import { previewSql, requiredParamColumns } from "../components/nativeParams";
 import { TagControl } from "../components/TagControl";
@@ -838,25 +839,11 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           <div className="split-pane__fill" data-testid="table-preview-modal">
             {/* The table's actions stay in the panel's head while its rows are looked at. */}
             {readView({ actionsOnly: true })}
-            <div className="split-pane__bar">
-              <Button
-                variant="subtle"
-                size="compact-sm"
-                leftSection={<ArrowLeft size={14} />}
-                onClick={() => setPreviewTable(null)}
-                data-testid="table-preview-back"
-              >
-                {translate("tablesPage.backToDetail")}
-              </Button>
-            </div>
-            {/* REQ-1921: a draft's preview is the same viewer; it reads through the admin
-                  preview, as the caller, and says whom the table is not yet shown to. */}
-            {t.draft && (
-              <Text size="sm" c="dimmed" data-testid="table-preview-draft-note">
-                {translate("tableReadView.draftPreviewNote")}
-              </Text>
-            )}
-            <GovernedTableViewer key={t.id} table={t} role={activeRole?.id ?? null} />
+            <TablePreviewPane
+              table={t}
+              role={activeRole?.id ?? null}
+              onBack={() => setPreviewTable(null)}
+            />
           </div>
         );
       }
@@ -1364,28 +1351,32 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         })}
         data-testid="run-now-modal"
       >
-        <TextInput
-          label={translate("tablesPage.runNowReasonLabel")}
-          placeholder={translate("tablesPage.runNowReasonPlaceholder")}
-          description={translate("tablesPage.runNowReasonHelp")}
-          value={regenReason}
-          onChange={(e) => setRegenReason(e.currentTarget.value)}
-          data-testid="run-now-reason"
-        />
-        <Group justify="flex-end" mt="md">
-          <Button variant="default" onClick={() => setRegenTable(null)}>
-            {translate("tablesPage.runNowCancel")}
-          </Button>
-          <Button
-            onClick={handleForceRegen}
-            disabled={regenReason.trim() === "" || regenning}
-            data-testid="run-now-submit"
-          >
-            {regenning
-              ? translate("tablesPage.runNowQueuing")
-              : translate("tablesPage.runNowSubmit")}
-          </Button>
-        </Group>
+        <FormLayout>
+          <FormField size="long" help={translate("tablesPage.runNowReasonHelp")}>
+            <TextInput
+              label={translate("tablesPage.runNowReasonLabel")}
+              placeholder={translate("tablesPage.runNowReasonPlaceholder")}
+              value={regenReason}
+              onChange={(e) => setRegenReason(e.currentTarget.value)}
+              data-testid="run-now-reason"
+            />
+          </FormField>
+          {/* Queuing the run is not a save: the button keeps its word, first; Cancel follows. */}
+          <FormFooter
+            onCancel={() => setRegenTable(null)}
+            action={
+              <Button
+                onClick={handleForceRegen}
+                disabled={regenReason.trim() === "" || regenning}
+                data-testid="run-now-submit"
+              >
+                {regenning
+                  ? translate("tablesPage.runNowQueuing")
+                  : translate("tablesPage.runNowSubmit")}
+              </Button>
+            }
+          />
+        </FormLayout>
       </Modal>
       {/* REQ-1484: advisory — the estate's dependents are listed, the administrator decides. */}
       <Modal
@@ -1418,10 +1409,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             </Table>
           </div>
         ))}
-        <Group justify="flex-end" mt="md">
-          <Button variant="default" onClick={() => setPendingDependents(null)}>
-            {translate("tablesPage.dependentsCancel")}
-          </Button>
+        {/* The action first, at the start of the row; the way back to the form follows. */}
+        <Group justify="flex-start" mt="md">
           <Button
             color="red"
             data-testid="column-dependents-confirm"
@@ -1431,6 +1420,13 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             }}
           >
             {translate("tablesPage.dependentsConfirm")}
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => setPendingDependents(null)}
+            data-testid="column-dependents-back"
+          >
+            {translate("tablesPage.dependentsCancel")}
           </Button>
         </Group>
       </Modal>

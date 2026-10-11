@@ -141,7 +141,7 @@ const THE_SHARED_LAYOUT = "components/form/FormLayout.tsx";
  * converts it, and the guard fails a listed file that already passes. Nothing is added here,
  * except when the rules themselves grow: the files then caught are listed in that same commit.
  */
-const NOT_YET_CONVERTED: readonly string[] = ["pages/TablesPage.tsx"];
+const NOT_YET_CONVERTED: readonly string[] = [];
 
 function componentFiles(dir: string, found: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

@@ -75,11 +75,12 @@ test("the Test data topic walks from the map through the profiler to a fake", as
   });
   await expect(page.locator('[data-tour="profiler-panel"]')).toBeVisible();
 
-  // "Declare a fake" switches the column list to its Test data mode.
+  // "Declare a fake" opens the column list's Testing tab.
   await next.click();
   await expect(title).toHaveText("Declare a fake", { timeout: 30000 });
   await expect(page.locator('[data-testid="testdata-columns"]')).toBeVisible();
-  await expect(
-    page.locator('[data-tour="table-columns-mode"] input[value="testdata"]'),
-  ).toBeChecked();
+  await expect(page.locator('[data-testid="column-tab-testing"]')).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 });

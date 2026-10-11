@@ -12,8 +12,11 @@
 
 import { useState } from "react";
 
-export type ColumnTab = "naming" | "type" | "access";
-export const COLUMN_TABS: ColumnTab[] = ["naming", "type", "access"];
+export type ColumnTab = "naming" | "type" | "access" | "testing";
+/** A column's own attributes: what a column list shows before the table is registered. */
+export const METADATA_TABS: ColumnTab[] = ["naming", "type", "access"];
+/** Every topic of a registered table's columns; Testing is each column's test data. */
+export const COLUMN_TABS: ColumnTab[] = [...METADATA_TABS, "testing"];
 
 /** The tab in view; a form that hides a topic (no right to see grants) passes the ones it shows. */
 export function useColumnTab(shown: ColumnTab[] = COLUMN_TABS) {

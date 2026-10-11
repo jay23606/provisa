@@ -705,6 +705,11 @@ main {
 .form-footer.form-footer--head .mantine-Button-root {
   min-width: 0;
 }
+/* Both are borderless here; Save is the primary and is tinted as one. */
+.form-footer.form-footer--head .mantine-Button-root[data-primary]:not(:disabled) {
+  --button-color: var(--primary-hover);
+  color: var(--primary-hover);
+}
 /* What a form in the panel says of a save that did not go through: one line under the head. */
 .split-pane__notice {
   flex: 0 0 auto;

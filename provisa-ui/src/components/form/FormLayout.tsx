@@ -272,6 +272,10 @@ type ButtonExtras = { "data-testid"?: string; disabled?: boolean };
  * outside a panel a form that says `panel` keeps the row at its foot. One implementation, the
  * same test ids either way. `problem` is what the form has to say of a save that did not go
  * through: in a panel a line under its head, else a line above the row.
+ *
+ * `form`: the id of the <form> a `submit` Save belongs to. In a panel's head Save sits outside
+ * the form's own element, where a submit button submits nothing; naming the form makes it that
+ * form's submit wherever it sits, so the form's required-field checks and its onSubmit run.
  */
 export function FormFooter({
   onSave,
@@ -283,6 +287,7 @@ export function FormFooter({
   action,
   panel = false,
   problem,
+  form,
   children,
   ...rest
 }: HTMLAttributes<HTMLDivElement> & {
@@ -295,6 +300,7 @@ export function FormFooter({
   cancelProps?: ButtonExtras;
   panel?: boolean;
   problem?: ReactNode;
+  form?: string;
 }) {
   const { t } = useTranslation();
   const [pending, setPending] = useState(false);
@@ -326,6 +332,9 @@ export function FormFooter({
         <Button
           {...inHeadLook}
           {...saveProps}
+          // In a panel's head both are borderless: the tint is what says which is the primary.
+          data-primary={inHead || undefined}
+          form={form}
           type={submit ? "submit" : "button"}
           onClick={submit ? undefined : save}
           leftSection={busy ? <Loader size={14} color="currentColor" /> : <Check size={14} />}

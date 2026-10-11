@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "元數據",
-    "modeTestData": "測試數據",
     "fake": "虛構值",
     "syntheticRule": "合成規則",
     "stable": "穩定",

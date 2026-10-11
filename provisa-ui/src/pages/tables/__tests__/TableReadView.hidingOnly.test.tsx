@@ -204,3 +204,51 @@ describe("TableReadView's Draft box", () => {
     expect(screen.queryByTestId("table-read-view-draft-note")).not.toBeInTheDocument();
   });
 });
+
+describe("TableReadView — a column's test data is the fourth tab", () => {
+  const COLUMN = {
+    id: 1,
+    columnName: "email",
+    visibleTo: [],
+    writableBy: [],
+    unmaskedTo: [],
+    maskType: null,
+    isPrimaryKey: false,
+  };
+  const withColumns = (...columns: object[]) =>
+    makeTable({ id: 7, columns: columns as RegisteredTable["columns"] });
+
+  it("shows the same four topics as the editor, the column's name first on each", () => {
+    renderView(
+      false,
+      withColumns({ ...COLUMN, fake: "email()", syntheticRule: "sql_group(1)", fakeStable: true }),
+    );
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Naming",
+      "Type and keys",
+      "Access",
+      "Testing",
+    ]);
+    fireEvent.click(screen.getByTestId("column-tab-testing"));
+    const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+    expect(headers).toEqual(["Column", "Fake", "Synthetic rule", "Stable"]);
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("email()");
+    expect(screen.getByTestId("read-rule-email")).toHaveTextContent("sql_group(1)");
+    expect(
+      screen.getByTestId("read-fake-email").closest("tr")!.querySelector("td"),
+    ).toHaveTextContent("email");
+  });
+
+  it("says a column with no fake shows its real value, and marks a pii column with none", () => {
+    renderView(false, withColumns({ ...COLUMN, isPii: true }));
+    fireEvent.click(screen.getByTestId("column-tab-testing"));
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("real value");
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("pii, no fake");
+  });
+
+  it("is not offered to a caller who may change only how columns are hidden", () => {
+    renderView(true, withColumns(COLUMN));
+    expect(screen.queryByTestId("column-tab-testing")).toBeNull();
+    expect(screen.getByTestId("column-tab-access")).toBeInTheDocument();
+  });
+});

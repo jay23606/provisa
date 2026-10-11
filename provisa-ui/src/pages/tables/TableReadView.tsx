@@ -33,7 +33,7 @@ import { OwnerResolutionIcon } from "../../components/OwnerResolution";
 import { LatestProfilePanel } from "./LatestProfilePanel";
 import { PanelActions } from "../../components/list/SplitPane";
 import { ColumnTabs } from "./ColumnTabs";
-import { useColumnTab } from "./columnTopics";
+import { COLUMN_TABS, useColumnTab } from "./columnTopics";
 import { toIrType } from "../../irTypes";
 
 interface TableProfileResult {
@@ -100,7 +100,10 @@ export function TableReadView({
   actionsOnly = false,
 }: TableReadViewProps) {
   const { t } = useTranslation();
-  const [tab, setTab] = useColumnTab();
+  // The same topics as the column editor. A caller who may change only how columns are hidden
+  // is not offered Testing, here as in the editor.
+  const shownTabs = COLUMN_TABS.filter((topic) => !(topic === "testing" && hidingOnly));
+  const [tab, setTab] = useColumnTab(shownTabs);
 
   // The table's actions. In a detail panel they sit in its pinned head (PanelActions); under a
   // list row they stay in place. While the table is being edited they are not there: the form's
@@ -278,8 +281,8 @@ export function TableReadView({
           {table.description}
         </Box>
       )}
-      {/* The same three topics as the column editor: the name first, a tab's attributes after. */}
-      <ColumnTabs value={tab} onChange={setTab} />
+      {/* The same topics as the column editor: the name first, a tab's attributes after. */}
+      <ColumnTabs value={tab} onChange={setTab} shown={shownTabs} />
       <Table.ScrollContainer minWidth={480}>
         <Table className="data-table" style={{ margin: 0 }}>
           <Table.Thead>
@@ -303,6 +306,13 @@ export function TableReadView({
                   <Table.Th>{t("tableReadView.colVisibleTo")}</Table.Th>
                   <Table.Th>{t("tableReadView.colWritableBy")}</Table.Th>
                   <Table.Th>{t("tableReadView.colMasking")}</Table.Th>
+                </>
+              )}
+              {tab === "testing" && (
+                <>
+                  <Table.Th>{t("testData.fake")}</Table.Th>
+                  <Table.Th>{t("testData.syntheticRule")}</Table.Th>
+                  <Table.Th>{t("testData.stable")}</Table.Th>
                 </>
               )}
             </Table.Tr>
@@ -397,6 +407,38 @@ export function TableReadView({
                         )}
                       </Table.Td>
                       <Table.Td>{c.scope || t("tableReadView.scopeDomain")}</Table.Td>
+                    </>
+                  )}
+                  {tab === "testing" && (
+                    <>
+                      {/* REQ-1494: what the column shows in test data. No fake is the real
+                          value, said as that; a pii column with none is marked. */}
+                      <Table.Td data-testid={`read-fake-${c.columnName}`}>
+                        {c.fake ? (
+                          <Text span ff="monospace" size="sm">
+                            {c.fake}
+                          </Text>
+                        ) : (
+                          <Text span size="sm" c="dimmed">
+                            {t("testData.realValue")}
+                          </Text>
+                        )}
+                        {c.isPii && !c.fake && (
+                          <Badge ml="xs" size="xs" color="red" variant="light">
+                            {t("testData.piiNoFake")}
+                          </Badge>
+                        )}
+                      </Table.Td>
+                      <Table.Td ff="monospace" data-testid={`read-rule-${c.columnName}`}>
+                        {c.syntheticRule || ""}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        {c.fakeStable && (
+                          <Text span c="blue">
+                            &#10003;
+                          </Text>
+                        )}
+                      </Table.Td>
                     </>
                   )}
                   {tab === "access" && (

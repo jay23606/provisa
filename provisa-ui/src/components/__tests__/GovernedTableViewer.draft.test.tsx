@@ -32,7 +32,7 @@ vi.mock("../../api/admin", () => ({
 }));
 
 import { GovernedTableViewer } from "../GovernedTableViewer";
-import { TablePreviewModal } from "../TablePreviewModal";
+import { TablePreviewPane } from "../../pages/tables/TablePreviewPane";
 
 const DRAFT = {
   id: 9,
@@ -126,7 +126,8 @@ describe("GovernedTableViewer over a draft", () => {
   });
 });
 
-describe("TablePreviewModal for a draft", () => {
+// The preview is a view inside the table's detail panel (it was a dialog over the page).
+describe("a table's preview in its detail panel, for a draft", () => {
   beforeEach(() => {
     vi.mocked(runSql).mockReset();
     vi.mocked(previewTable).mockReset();
@@ -134,7 +135,7 @@ describe("TablePreviewModal for a draft", () => {
 
   it("mounts the same viewer under the line that says whom the table is not yet shown to", async () => {
     vi.mocked(previewTable).mockResolvedValue(page(0, 2));
-    render(<TablePreviewModal table={DRAFT} role="steward" onClose={vi.fn()} />);
+    render(<TablePreviewPane table={DRAFT} role="steward" onBack={vi.fn()} />);
     expect(await screen.findByTestId("table-preview-draft-note")).toHaveTextContent(
       "Draft preview: readers cannot see this table yet.",
     );
@@ -145,9 +146,7 @@ describe("TablePreviewModal for a draft", () => {
 
   it("says nothing of drafts over a table in service", async () => {
     vi.mocked(runSql).mockResolvedValue({ columns: ["id"], rows: [{ id: 1 }] });
-    render(
-      <TablePreviewModal table={{ ...DRAFT, draft: false }} role="steward" onClose={vi.fn()} />,
-    );
+    render(<TablePreviewPane table={{ ...DRAFT, draft: false }} role="steward" onBack={vi.fn()} />);
     await waitFor(() => expect(runSql).toHaveBeenCalled());
     expect(screen.queryByTestId("table-preview-draft-note")).not.toBeInTheDocument();
   });

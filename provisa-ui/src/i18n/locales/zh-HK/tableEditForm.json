@@ -257,8 +257,6 @@
     "pagingPositive": "請使用不小於 1 的整數。",
     "pagingAboveCeiling": "最多 {{ceiling}}：資料表可以降低營運者的上限，但不能提高。",
     "pagingFixErrors": "儲存前請修正分頁錯誤。",
-    "draftLabel": "草稿",
-    "draftHelp": "勾選期間停止服務：任何地方都不讀寫、任何模式中都不提供、也不複製——所有區域中已有的副本都會被刪除。在此登記的表或檢視以草稿開始；取消勾選即可發佈。",
     "delta": {
       "legend": "增量重新載入（delta）",
       "enable": "增量重新載入",
@@ -279,6 +277,8 @@
       "query": "增量查詢（選用，來源原生）",
       "queryHelp": "使用 $wm（游標）及 {{fields}} 預留位置的來源原生查詢。SQL 來源請留空：Provisa 會產生 SELECT {{fields}} FROM <table> WHERE <watermark> > $wm ORDER BY <watermark>。"
     },
+    "draftLabel": "草稿",
+    "draftHelp": "勾選期間停止服務：任何地方都不讀寫、任何模式中都不提供、也不複製——所有區域中已有的副本都會被刪除。在此登記的表或檢視以草稿開始；取消勾選即可發佈。",
     "pagingRowsFieldHelp": "回應中包含資料列的屬性，例如分頁包裝中的 values 或 data。當回應本身就是資料列時請留空。資料表的欄位即該處物件的欄位。",
     "pagingRowsFieldFixed": "在註冊資料表時設定。如要從其他位置讀取資料列，請重新註冊該資料表。",
     "scopeHelp": "domain：提供予可存取此資料表所屬網域的角色。public：亦提供予該網域以外的角色。restricted：只提供予「可見對象」中指明的角色。",
@@ -287,6 +287,7 @@
       "naming": "命名",
       "type": "類型與鍵",
       "access": "存取",
+      "testing": "測試",
       "errors": "{{count}} 項待修正"
     },
     "offPeakInherited": "繼承：此資料表的來源只會按排程讀取。"

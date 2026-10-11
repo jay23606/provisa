@@ -22,7 +22,7 @@ import type { Role } from "../../types/auth";
 import type { ColumnForm } from "./types";
 import { ColumnGlossaryHover, type ColumnDefinitionLine } from "./ColumnGlossaryHover";
 import { ColumnTabs } from "./ColumnTabs";
-import { useColumnTab } from "./columnTopics";
+import { METADATA_TABS, useColumnTab } from "./columnTopics";
 
 export function ColumnsTable({
   columns,
@@ -38,7 +38,8 @@ export function ColumnsTable({
   sourceType: string;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useColumnTab();
+  // A table not registered yet has no test data: its columns' own attributes only.
+  const [tab, setTab] = useColumnTab(METADATA_TABS);
   // What Save will refuse, per tab: a selected column with no data type.
   const errors = { type: columns.filter((c) => c.selected && !c.dataType).length };
   const definitionOf = (col: ColumnForm): ColumnDefinitionLine[] => [
@@ -63,7 +64,7 @@ export function ColumnsTable({
   ];
   return (
     <>
-      <ColumnTabs value={tab} onChange={setTab} errors={errors} />
+      <ColumnTabs value={tab} onChange={setTab} shown={METADATA_TABS} errors={errors} />
       <Table.ScrollContainer minWidth={640}>
         <Table striped highlightOnHover withTableBorder verticalSpacing="xs">
           <Table.Thead>
