@@ -15,10 +15,9 @@
 // the Cache TTL or the change probe.
 
 import { useTranslation } from "react-i18next";
-import { Group, Select, Text } from "@mantine/core";
+import { Group, Input, Select } from "@mantine/core";
 import { TimeInput } from "@mantine/dates";
 import { FormField } from "../form/FormLayout";
-import { FieldLabel } from "../../pages/tables/FieldLabel";
 import { IANA_TIME_ZONES } from "../../pages/tables/constants";
 
 export function OffPeakWindowFields({
@@ -39,32 +38,32 @@ export function OffPeakWindowFields({
   const compose = (start: string, end: string) => (start || end ? `${start}-${end}` : "");
   return (
     <>
-      <FormField size="medium" data-testid="off-peak-window">
-        <FieldLabel
-          text={t("tableEditForm.offPeakWindowLabel")}
-          help={t("tableEditForm.offPeakWindowHelp")}
-        />
-        <Group gap="xs" grow>
-          <TimeInput
-            aria-label={t("tableEditForm.offPeakOpensAria")}
-            data-testid="off-peak-opens"
-            label={t("tableEditForm.offPeakOpens")}
-            value={opens}
-            onChange={(e) => onWindowChange(compose(e.currentTarget.value, closes))}
-          />
-          <TimeInput
-            aria-label={t("tableEditForm.offPeakClosesAria")}
-            data-testid="off-peak-closes"
-            label={t("tableEditForm.offPeakCloses")}
-            value={closes}
-            onChange={(e) => onWindowChange(compose(opens, e.currentTarget.value))}
-          />
-        </Group>
-        {/* Two boxes share the label, so the sentence a single box would carry as its hint is
-            written beneath them. */}
-        <Text size="xs" c="dimmed" mt={4}>
-          {t("sourceFormFieldsExtended.offPeakWindowHint")}
-        </Text>
+      {/* Two boxes under one label: the label, its (?) and the sentence beneath are the field's,
+          as they are for a single box. */}
+      <FormField
+        size="medium"
+        help={t("tableEditForm.offPeakWindowHelp")}
+        hint={t("sourceFormFieldsExtended.offPeakWindowHint")}
+        data-testid="off-peak-window"
+      >
+        <Input.Wrapper label={t("tableEditForm.offPeakWindowLabel")}>
+          <Group gap="xs" grow>
+            <TimeInput
+              aria-label={t("tableEditForm.offPeakOpensAria")}
+              data-testid="off-peak-opens"
+              label={t("tableEditForm.offPeakOpens")}
+              value={opens}
+              onChange={(e) => onWindowChange(compose(e.currentTarget.value, closes))}
+            />
+            <TimeInput
+              aria-label={t("tableEditForm.offPeakClosesAria")}
+              data-testid="off-peak-closes"
+              label={t("tableEditForm.offPeakCloses")}
+              value={closes}
+              onChange={(e) => onWindowChange(compose(opens, e.currentTarget.value))}
+            />
+          </Group>
+        </Input.Wrapper>
       </FormField>
       <FormField help={t("tableEditForm.offPeakTzHelp")} size="medium">
         <Select
