@@ -73,7 +73,11 @@ export function OrgAddressModal({
           </Stack>
         </Group>
 
-        <Group justify="flex-end">
+        {/* Actions start where the reading does: the one that finishes first. */}
+        <Group justify="flex-start">
+          <Button data-testid="org-address-done" onClick={onClose}>
+            {t("orgAddress.doneButton")}
+          </Button>
           <Button
             variant="light"
             data-testid="org-address-brand"
@@ -83,9 +87,6 @@ export function OrgAddressModal({
             }}
           >
             {t("orgAddress.brandingButton")}
-          </Button>
-          <Button data-testid="org-address-done" onClick={onClose}>
-            {t("orgAddress.doneButton")}
           </Button>
         </Group>
       </Stack>

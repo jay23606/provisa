@@ -88,7 +88,7 @@ export function DependentsDialog({ subject, dependents, onClose, itemAction }: D
           );
         })}
       </Stack>
-      <Group justify="flex-end" mt="lg">
+      <Group justify="flex-start" mt="lg">
         <Button onClick={onClose}>{t("dependentsDialog.close")}</Button>
       </Group>
     </Modal>

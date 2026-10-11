@@ -13,7 +13,8 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { Button, Modal, Text, TextInput } from "@mantine/core";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import type { RegisteredTable } from "../types/admin";
 import {
   optionalParamColumns,
@@ -45,38 +46,42 @@ export function NativeParamsModal({ table, onClose, onSubmit }: NativeParamsModa
       title={t("nativeParams.title", { name: table.alias || table.tableName })}
       data-testid="native-params-modal"
     >
-      <Stack gap="sm">
-        <Text size="xs" c="dimmed">
-          {t("nativeParams.hint")}
-        </Text>
+      <FormLayout>
+        <FormField size="full">
+          <Text size="xs" c="dimmed">
+            {t("nativeParams.hint")}
+          </Text>
+        </FormField>
         {[...requiredCols, ...optionalCols].map((c) => (
-          <TextInput
-            key={c.columnName}
-            label={c.alias || c.columnName}
-            required={isRequiredParam(c)}
-            value={values[c.columnName] ?? ""}
-            onChange={(e) => {
-              // React may run a functional updater on a later render pass, by which point the
-              // synthetic event has been pooled and currentTarget is null. Read it here.
-              const next = e.currentTarget.value;
-              setValues((prev) => ({ ...prev, [c.columnName]: next }));
-            }}
-            data-testid={`native-param-${c.columnName}`}
-          />
+          <FormField size="medium" key={c.columnName}>
+            <TextInput
+              label={c.alias || c.columnName}
+              required={isRequiredParam(c)}
+              value={values[c.columnName] ?? ""}
+              onChange={(e) => {
+                // React may run a functional updater on a later render pass, by which point the
+                // synthetic event has been pooled and currentTarget is null. Read it here.
+                const next = e.currentTarget.value;
+                setValues((prev) => ({ ...prev, [c.columnName]: next }));
+              }}
+              data-testid={`native-param-${c.columnName}`}
+            />
+          </FormField>
         ))}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            {t("nativeParams.cancel")}
-          </Button>
-          <Button
-            disabled={!canRun}
-            onClick={() => onSubmit(values)}
-            data-testid="native-params-run-btn"
-          >
-            {t("nativeParams.run")}
-          </Button>
-        </Group>
-      </Stack>
+        {/* Run is not a save: it keeps its word, first, and Cancel follows. */}
+        <FormFooter
+          onCancel={onClose}
+          action={
+            <Button
+              disabled={!canRun}
+              onClick={() => onSubmit(values)}
+              data-testid="native-params-run-btn"
+            >
+              {t("nativeParams.run")}
+            </Button>
+          }
+        />
+      </FormLayout>
     </Modal>
   );
 }
