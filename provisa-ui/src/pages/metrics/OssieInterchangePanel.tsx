@@ -46,6 +46,7 @@ import {
 } from "../../hooks/useAdminQueries";
 import { useAuth } from "../../context/AuthContext";
 import type { MutationResult } from "../../types/admin";
+import { Tip } from "../../components/Tip";
 
 function saveAs(text: string, filename: string) {
   const url = URL.createObjectURL(new Blob([text], { type: "text/yaml" }));
@@ -191,9 +192,11 @@ export function OssieInterchangePanel() {
         {t("ossiePanel.applied")}
       </Badge>
     ) : (
-      <Badge size="xs" color="red" title={r.message} data-testid={`ossie-result-${key}`}>
-        {r.message || t("ossiePanel.failed")}
-      </Badge>
+      <Tip text={r.message}>
+        <Badge size="xs" color="red" data-testid={`ossie-result-${key}`}>
+          {r.message || t("ossiePanel.failed")}
+        </Badge>
+      </Tip>
     );
   };
 
@@ -217,7 +220,9 @@ export function OssieInterchangePanel() {
               {t("ossiePanel.endpointLabel")}
             </Text>
             <Code data-testid="ossie-endpoint-url">{endpointUrl}</Code>
-            <CopyButton text={endpointUrl} title={t("ossiePanel.copyEndpoint")} />
+            <Tip text={t("ossiePanel.copyEndpoint")} named>
+              <CopyButton text={endpointUrl} aria-label={t("ossiePanel.copyEndpoint")} />
+            </Tip>
           </Group>
         </div>
         <Group gap="sm">
@@ -230,17 +235,18 @@ export function OssieInterchangePanel() {
           >
             {t("ossiePanel.download")}
           </Button>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<Download size={13} />}
-            onClick={handleDbtSources}
-            disabled={!role}
-            title={t("ossiePanel.dbtSourcesHelp", { role: role?.id ?? "" })}
-            data-testid="dbt-sources-download"
-          >
-            {t("ossiePanel.dbtSources")}
-          </Button>
+          <Tip text={t("ossiePanel.dbtSourcesHelp", { role: role?.id ?? "" })}>
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<Download size={13} />}
+              onClick={handleDbtSources}
+              disabled={!role}
+              data-testid="dbt-sources-download"
+            >
+              {t("ossiePanel.dbtSources")}
+            </Button>
+          </Tip>
           {/* The opener of the review is hidden while the review is open. */}
           {!proposals && (
             <Button

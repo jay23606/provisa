@@ -24,11 +24,13 @@ import {
   Tabs,
   Text,
   Title,
+  VisuallyHidden,
 } from "@mantine/core";
 import { FilterInput } from "../components/admin/FilterInput";
 import { serverMessage, requestFailed, type ServerMessageShape } from "../i18n/serverMessage";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
+import { Tip } from "../components/Tip";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -399,17 +401,33 @@ export function RequestsPage() {
                     )}
                     {row.status === "pending" && row.can_decide && (
                       <Group gap="xs" wrap="nowrap">
-                        <Button
-                          size="compact-xs"
-                          onClick={() => doApprove(row.id)}
-                          disabled={busy || row.approve_refusal !== null}
-                          title={
+                        {/* A disabled button takes no pointer, so the hint hangs on a wrapper around
+                            it; the reason is also the button's description, for a screen reader. */}
+                        <Tip
+                          text={
                             row.approve_refusal ? serverMessage(row.approve_refusal, "") : undefined
                           }
-                          data-testid={`requests-approve-${row.id}`}
+                          named
                         >
-                          {t("requestsPage.approve")}
-                        </Button>
+                          <span style={{ display: "inline-flex" }}>
+                            <Button
+                              size="compact-xs"
+                              onClick={() => doApprove(row.id)}
+                              disabled={busy || row.approve_refusal !== null}
+                              aria-describedby={
+                                row.approve_refusal ? `requests-approve-why-${row.id}` : undefined
+                              }
+                              data-testid={`requests-approve-${row.id}`}
+                            >
+                              {t("requestsPage.approve")}
+                            </Button>
+                            {row.approve_refusal && (
+                              <VisuallyHidden id={`requests-approve-why-${row.id}`}>
+                                {serverMessage(row.approve_refusal, "")}
+                              </VisuallyHidden>
+                            )}
+                          </span>
+                        </Tip>
                         {/* Executing only retries a creation that failed when the last
                               approval was given: it is offered once the approvals are in. */}
                         {row.approvals.length >= row.required_approvals &&

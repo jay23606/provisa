@@ -191,7 +191,9 @@ describe("RequestsPage — a request is decided by the domains it touches", () =
     page();
     const approve = within(await row(3)).getByTestId("requests-approve-3");
     expect(approve).toBeDisabled();
-    expect(approve).toHaveAttribute("title", "You have already approved this request");
+    // Said to a screen reader as the button's description, and shown as the hint on hover.
+    expect(approve).toHaveAccessibleDescription("You have already approved this request");
+    expect(approve).not.toHaveAttribute("title");
     // Rejecting is still theirs to do.
     expect(within(await row(3)).getByTestId("requests-reject-3")).toBeEnabled();
     expect(within(await row(1)).getByTestId("requests-approve-1")).toBeEnabled();

@@ -11,7 +11,7 @@
 // The one tooltip (components/Tip.tsx): what it shows, when, and what it leaves alone.
 
 import { describe, expect, it, vi } from "vitest";
-import { ActionIcon } from "@mantine/core";
+import { ActionIcon, Menu } from "@mantine/core";
 import { fireEvent, render, screen, waitFor } from "../../test-utils/render";
 import { Tip } from "../Tip";
 
@@ -89,6 +89,29 @@ describe("Tip", () => {
     fireEvent.focus(target);
     expect(screen.queryByRole("tooltip")).toBeNull();
     matches.mockRestore();
+  });
+
+  it("lets a menu's trigger through: a control with a hint still opens its menu", async () => {
+    const own: string[] = [];
+    render(
+      <Menu>
+        <Menu.Target>
+          <Tip text="More actions">
+            <ActionIcon aria-label="More" onClick={() => own.push("click")}>
+              m
+            </ActionIcon>
+          </Tip>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item>Rename</Menu.Item>
+        </Menu.Dropdown>
+      </Menu>,
+    );
+    fireEvent.click(screen.getByLabelText("More"));
+    expect(await screen.findByText("Rename")).toBeInTheDocument();
+    // The trigger's handler and the control's own both ran.
+    expect(own).toEqual(["click"]);
+    expect(screen.getByLabelText("More")).toHaveAttribute("aria-haspopup");
   });
 
   it("leaves the target's own handlers and its click working", async () => {

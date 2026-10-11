@@ -50,6 +50,7 @@ import { useAuth } from "../context/AuthContext";
 import { inviteUrl } from "../lib/authHost";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
+import { Tip } from "../components/Tip";
 
 // REQ-1266: org_admin self-service team management. The org_admin invites people into their
 // active org and picks the role each invitee is granted on redemption (the invite carries
@@ -373,33 +374,37 @@ export function TeamPage() {
                         <Table.Td>{m.is_org_admin ? t("teamPage.yes") : t("teamPage.no")}</Table.Td>
                         <Table.Td>
                           <Group gap="xs">
-                            <Button
-                              size="compact-xs"
-                              variant="default"
-                              disabled={lastAdmin}
-                              title={lastAdmin ? t("teamPage.lastAdminHint") : undefined}
-                              onClick={() => handleToggleAdmin(m)}
-                              data-testid={`team-toggle-admin-${m.user_id}`}
-                            >
-                              {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
-                            </Button>
-                            <Button
-                              size="compact-xs"
-                              color="red"
-                              variant="light"
-                              disabled={lastAdmin || m.user_id === userId}
-                              title={
+                            <Tip text={lastAdmin ? t("teamPage.lastAdminHint") : undefined}>
+                              <Button
+                                size="compact-xs"
+                                variant="default"
+                                disabled={lastAdmin}
+                                onClick={() => handleToggleAdmin(m)}
+                                data-testid={`team-toggle-admin-${m.user_id}`}
+                              >
+                                {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
+                              </Button>
+                            </Tip>
+                            <Tip
+                              text={
                                 m.user_id === userId
                                   ? t("teamPage.selfRemoveHint")
                                   : lastAdmin
                                     ? t("teamPage.lastAdminHint")
                                     : undefined
                               }
-                              onClick={() => handleRemoveMember(m)}
-                              data-testid={`team-remove-${m.user_id}`}
                             >
-                              {t("teamPage.removeButton")}
-                            </Button>
+                              <Button
+                                size="compact-xs"
+                                color="red"
+                                variant="light"
+                                disabled={lastAdmin || m.user_id === userId}
+                                onClick={() => handleRemoveMember(m)}
+                                data-testid={`team-remove-${m.user_id}`}
+                              >
+                                {t("teamPage.removeButton")}
+                              </Button>
+                            </Tip>
                           </Group>
                         </Table.Td>
                       </ListRow>

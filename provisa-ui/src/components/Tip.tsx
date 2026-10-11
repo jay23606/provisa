@@ -25,6 +25,7 @@ import {
   useRef,
   useState,
   type FocusEvent,
+  type HTMLAttributes,
   type KeyboardEvent,
   type MouseEvent,
   type ReactElement,
@@ -52,6 +53,25 @@ type TargetProps = {
   "aria-describedby"?: string;
 };
 
+/** Props a wrapper may hand on through a Tip to its target (see `ref` below). */
+type PassedOn = Omit<HTMLAttributes<HTMLElement>, "content" | "children">;
+
+function mergeHandedOn(own: object, handedOn: object): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...own };
+  for (const [key, theirs] of Object.entries(handedOn)) {
+    const mine = out[key];
+    if (key === "className" && typeof mine === "string" && typeof theirs === "string")
+      out[key] = `${mine} ${theirs}`;
+    else if (/^on[A-Z]/.test(key) && typeof mine === "function" && typeof theirs === "function")
+      out[key] = (...args: unknown[]) => {
+        (theirs as (...a: unknown[]) => void)(...args);
+        (mine as (...a: unknown[]) => void)(...args);
+      };
+    else if (theirs !== undefined) out[key] = theirs;
+  }
+  return out;
+}
+
 /**
  * The surface, attached to one element. `content` is what it shows; `card` gives it the titled
  * card's fixed width and padding. Opens on hover after `openDelay` and at once on keyboard focus;
@@ -67,6 +87,8 @@ export function TipSurface({
   named = false,
   opened,
   testId,
+  ref,
+  ...handedOn
 }: {
   content: ReactNode;
   /** One element that takes a ref and mouse/focus handlers. */
@@ -82,7 +104,13 @@ export function TipSurface({
    */
   opened?: boolean;
   testId?: string;
-}) {
+  /**
+   * Whatever a wrapper gives its one child -- a menu's or a popover's trigger hands its click
+   * handler, its ref and its aria state to the element inside it -- goes on to the target, so a
+   * control with a hint still opens its menu.
+   */
+  ref?: Ref<HTMLElement>;
+} & PassedOn) {
   const id = useId();
   const [target, setTarget] = useState<HTMLElement | null>(null);
   // Mounted on first need and kept: the description stays attached to the target afterwards.
@@ -106,9 +134,11 @@ export function TipSurface({
     setOpen(false);
   };
 
-  const own = children.props;
-  // The target's element, kept here and handed on to whatever ref the target already had.
-  const attach = useMergedRef<HTMLElement>(setTarget, own.ref);
+  // What the target is given: its own props, with a wrapper's laid over them -- a handler both
+  // have is called for both, the wrapper's first.
+  const own = mergeHandedOn(children.props, handedOn) as TargetProps;
+  // The target's element, kept here and handed on to the refs the target and a wrapper had.
+  const attach = useMergedRef<HTMLElement>(setTarget, children.props.ref, ref);
   const describedBy = [own["aria-describedby"], armed && !named ? id : undefined]
     .filter(Boolean)
     .join(" ");
@@ -119,6 +149,7 @@ export function TipSurface({
           tooltip to a target (the library's own Tooltip does the same); nothing reads a ref's
           current value during render here. */}
       {cloneElement(children, {
+        ...own,
         ref: attach,
         onMouseEnter: (e) => {
           own.onMouseEnter?.(e);
@@ -183,6 +214,8 @@ export function Tip({
   openDelay,
   named,
   testId,
+  ref,
+  ...handedOn
 }: {
   /** The hint; with none (empty, null, undefined, false) the target is rendered as it is. */
   text: string | null | undefined | false;
@@ -192,8 +225,14 @@ export function Tip({
   openDelay?: number;
   named?: boolean;
   testId?: string;
-}) {
-  if (!text) return children;
+  ref?: Ref<HTMLElement>;
+} & PassedOn) {
+  // With no hint the target is still given what a wrapper handed on.
+  if (!text) {
+    const passed = mergeHandedOn(children.props, handedOn) as TargetProps;
+    // eslint-disable-next-line react-hooks/refs -- a ref is handed on to the target, never read
+    return cloneElement(children, ref ? { ...passed, ref } : passed);
+  }
   return (
     <TipSurface
       content={text}
@@ -201,6 +240,8 @@ export function Tip({
       openDelay={openDelay}
       named={named}
       testId={testId}
+      ref={ref}
+      {...handedOn}
     >
       {children}
     </TipSurface>
