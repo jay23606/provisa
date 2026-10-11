@@ -49,6 +49,7 @@ import { SplunkFields } from "./SplunkFields";
 import { SourceLoadManagementPanel } from "./SourceLoadManagementPanel";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import type { SourceFormFieldsProps } from "./SourceFormFields";
+import { useCacheTtlRequired } from "./sourceKind";
 import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 export function SourceFormFieldsExtended({
@@ -59,6 +60,7 @@ export function SourceFormFieldsExtended({
   authFields,
   setAuthFields,
   editingSourceId,
+  essential,
   cdc,
   setCdc,
   domainsEnabled,
@@ -135,6 +137,8 @@ export function SourceFormFieldsExtended({
   setRssUseSsl,
   onKaggleSourcesRegistered,
 }: SourceFormFieldsProps) {
+  // A kind whose tables land cannot be created without its Cache TTL (sourceKind).
+  const landsWithTtl = useCacheTtlRequired(form.type);
   const { t } = useTranslation();
   const regionChoices = useRegionChoices();
   // REQ-1739: was `getCategory(form.type) === "Streaming"`, which was correct only while kafka was
@@ -842,16 +846,20 @@ export function SourceFormFieldsExtended({
         })()}
       {/* REQ-1907: the load and timeliness controls are offered at create as well as edit — a
           source whose tables land needs its cache TTL before a table is registered. */}
-      <SourceLoadManagementPanel form={form} setForm={setForm} />
-      <FormField size="medium">
-        <RegionSelect
-          value={form.region}
-          onChange={(region) => setForm({ ...form, region })}
-          regions={regionChoices.regions}
-          scope="source"
-          testId="source-region-select"
-        />
-      </FormField>
+      {/* The short step asks for them only where the source cannot exist without one: a kind
+          whose tables land must state its Cache TTL. */}
+      {(!essential || landsWithTtl) && <SourceLoadManagementPanel form={form} setForm={setForm} />}
+      {!essential && (
+        <FormField size="medium">
+          <RegionSelect
+            value={form.region}
+            onChange={(region) => setForm({ ...form, region })}
+            regions={regionChoices.regions}
+            scope="source"
+            testId="source-region-select"
+          />
+        </FormField>
+      )}
       {editingSourceId && (
         <>
           <FormField size="medium">

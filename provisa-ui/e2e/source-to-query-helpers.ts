@@ -24,11 +24,21 @@ export async function openSourcesForm(page: Page) {
   await page.waitForSelector(".form-card", { timeout: 5000 });
 }
 
+// The cache TTL a spec asked for while filling the short create step, by page: the step asks
+// only what a source needs in order to exist, so the TTL is set in the edit form the new source
+// opens in (submitSourceAndExpectListed), unless the step itself shows the field.
+const askedCacheTtl = new WeakMap<Page, number>();
+
 /** Give a new source the cache TTL its tables need (REQ-1907): a source the engine serves from a
- *  replica must have a landing clock before a table is registered. Set through the form's Load
- *  Management and Timeliness panel, which the create form offers. */
+ *  replica must have a landing clock before a table is registered. A kind that cannot exist
+ *  without one shows the field in the create step, and it is filled there; for any other kind
+ *  it is set, right after the source is created, in the edit form it opens in. */
 export async function setSourceCacheTtl(page: Page, seconds: number) {
   const toggle = page.getByTestId("source-load-management-panel-toggle");
+  if ((await toggle.count()) === 0) {
+    askedCacheTtl.set(page, seconds);
+    return;
+  }
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   await page.getByTestId("cache-ttl-input").fill(String(seconds));
 }
@@ -54,7 +64,8 @@ export async function removeTestSources(baseUrl: string = BACKEND_URL): Promise<
     return res.json();
   };
   const listed = await gql("{ sources { id } }");
-  if (listed.errors) throw new Error(`sources could not be listed: ${JSON.stringify(listed.errors)}`);
+  if (listed.errors)
+    throw new Error(`sources could not be listed: ${JSON.stringify(listed.errors)}`);
   const mine = ((listed.data?.sources ?? []) as Array<{ id: string }>)
     .map((s) => s.id)
     .filter((id) => /^e2e_[a-z0-9_]+_\d{13}$/.test(id));
@@ -74,6 +85,18 @@ export async function submitSourceAndExpectListed(page: Page, sourceId: string) 
   await expect(page.locator(".data-table td").filter({ hasText: sourceId })).toBeVisible({
     timeout: 60000,
   });
+  const seconds = askedCacheTtl.get(page);
+  if (seconds === undefined) return;
+  askedCacheTtl.delete(page);
+  // The new source is selected and its detail is open in edit, everything else at defaults.
+  const save = page.getByTestId("sources-edit-submit");
+  await expect(save).toBeVisible({ timeout: 60000 });
+  const toggle = page.getByTestId("source-load-management-panel-toggle");
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await page.getByTestId("cache-ttl-input").fill(String(seconds));
+  await save.click();
+  // Saved: the panel shows the source's detail again.
+  await expect(page.getByTestId("source-detail-edit")).toBeVisible({ timeout: 60000 });
 }
 
 export async function openRegisterForm(page: Page, sourceId: string, domain: string = DOMAIN) {

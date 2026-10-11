@@ -1,5 +1,13 @@
 {
   "sourcesPage": {
+    "detailPanel": "Detalle de la fuente",
+    "resizeDetail": "Cambiar el tamaño del panel de detalles",
+    "expandDetail": "Ampliar el panel",
+    "restoreDetail": "Restaurar el panel",
+    "closeDetail": "Cerrar el panel de detalles",
+    "backToList": "Volver a la lista",
+    "backToSource": "Volver a la fuente",
+    "panelNewSource": "Nueva fuente",
     "title": "Orígenes de datos",
     "loading": "Cargando orígenes...",
     "filterPlaceholder": "Filtrar por ID o tipo de origen…",

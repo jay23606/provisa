@@ -1,5 +1,13 @@
 {
   "sourcesPage": {
+    "detailPanel": "Сведения об источнике",
+    "resizeDetail": "Изменить размер панели сведений",
+    "expandDetail": "Развернуть панель",
+    "restoreDetail": "Восстановить панель",
+    "closeDetail": "Закрыть панель сведений",
+    "backToList": "Назад к списку",
+    "backToSource": "Назад к источнику",
+    "panelNewSource": "Новый источник",
     "title": "Источники данных",
     "loading": "Загрузка источников...",
     "filterPlaceholder": "Фильтр по ID или типу источника…",

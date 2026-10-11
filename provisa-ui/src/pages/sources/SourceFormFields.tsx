@@ -68,6 +68,10 @@ export interface SourceFormFieldsProps {
   authFields: Record<string, string>;
   setAuthFields: (f: Record<string, string>) => void;
   editingSourceId: string | null;
+  /** The short step that creates a source: only what it needs in order to exist -- how it is
+   * reached and signed in to. Everything else starts at its default and is set in the edit
+   * form the new source then opens in. */
+  essential?: boolean;
   cdc: CdcState;
   setCdc: (v: CdcState) => void;
   domainsEnabled: boolean;
@@ -166,14 +170,16 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
 
   return (
     <>
-      <FormField size="long">
-        <TextInput
-          label={t("sourceFormFields.description")}
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
-          placeholder={t("sourceFormFields.descriptionPlaceholder")}
-        />
-      </FormField>
+      {!props.essential && (
+        <FormField size="long">
+          <TextInput
+            label={t("sourceFormFields.description")}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
+            placeholder={t("sourceFormFields.descriptionPlaceholder")}
+          />
+        </FormField>
+      )}
       {isSimpleRdbms && (
         <>
           <FieldGroup>

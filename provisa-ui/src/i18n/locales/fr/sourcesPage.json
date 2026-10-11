@@ -1,5 +1,13 @@
 {
   "sourcesPage": {
+    "detailPanel": "Détail de la source",
+    "resizeDetail": "Redimensionner le panneau de détails",
+    "expandDetail": "Agrandir le panneau",
+    "restoreDetail": "Restaurer le panneau",
+    "closeDetail": "Fermer le panneau de détails",
+    "backToList": "Retour à la liste",
+    "backToSource": "Retour à la source",
+    "panelNewSource": "Nouvelle source",
     "title": "Sources de données",
     "loading": "Chargement des sources...",
     "filterPlaceholder": "Filtrer par ID ou type de source…",
