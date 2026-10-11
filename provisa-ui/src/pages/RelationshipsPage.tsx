@@ -50,7 +50,7 @@ import { ListTable, ListHead, ListEmpty, ListItems } from "../components/list/Li
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
 import {
   ConflictModal,
-  ReverseRelationshipModal,
+  ReverseRelationshipForm,
 } from "../components/relationships/RelationshipModals";
 import { CandidatesTable } from "../components/relationships/CandidatesTable";
 import { PageLoading } from "../components/PageLoading";
@@ -433,7 +433,7 @@ export function RelationshipsPage() {
           placeholder={t("relationshipsPage.filterPlaceholder")}
         />
         <div className="page-actions">
-          {canManage && (
+          {canManage && !reverseForm && (
             <Button
               data-tour="rels-add"
               data-testid="rels-add-toggle"
@@ -542,6 +542,17 @@ export function RelationshipsPage() {
           />
         </div>
       )}
+      {/* The reverse of a relationship is created on the page, as a relationship is added. */}
+      {reverseForm && (
+        <div className="page-aux">
+          <ReverseRelationshipForm
+            reverseForm={reverseForm}
+            setReverseForm={setReverseForm}
+            saving={saving}
+            onSave={handleReverseAdd}
+          />
+        </div>
+      )}
 
       <ListTable testId="relationships-list" style={{ tableLayout: "fixed" }}>
         <ListHead
@@ -595,7 +606,7 @@ export function RelationshipsPage() {
                       setEditingRel={setEditingRel}
                       canManage={canManage}
                       onStartEdit={() => startEditing(r)}
-                      onReverse={() => setReverseForm(buildReverse(r))}
+                      onReverse={reverseForm ? undefined : () => setReverseForm(buildReverse(r))}
                       onDelete={() => handleDelete(id)}
                       onEditSave={handleEditSave}
                       saving={saving}
@@ -685,15 +696,6 @@ export function RelationshipsPage() {
       )}
 
       {conflictRel && <ConflictModal rel={conflictRel} onClose={() => setConflictRel(null)} />}
-
-      {reverseForm && (
-        <ReverseRelationshipModal
-          reverseForm={reverseForm}
-          setReverseForm={setReverseForm}
-          saving={saving}
-          onSave={handleReverseAdd}
-        />
-      )}
 
       {candidates.length > 0 && (
         <div className="page-aux">

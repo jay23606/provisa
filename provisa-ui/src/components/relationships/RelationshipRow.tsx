@@ -11,10 +11,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 import {
   ActionIcon,
   Badge,
-  Button,
   Checkbox,
   Group,
   Select,
@@ -23,7 +23,7 @@ import {
   TextInput,
   NumberInput,
 } from "@mantine/core";
-import { Trash2, Pencil, Check, X, ArrowLeftRight } from "lucide-react";
+import { Trash2, Pencil, ArrowLeftRight } from "lucide-react";
 import type { Relationship, RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelForm } from "./relationship-types";
@@ -40,7 +40,8 @@ interface RelationshipRowProps {
   setEditingRel: (f: RelForm | null) => void;
   canManage: boolean;
   onStartEdit: () => void;
-  onReverse: () => void;
+  /** Opens the form that creates this relationship's reverse; absent while that form is open. */
+  onReverse?: () => void;
   onDelete: () => void;
   onEditSave: () => void;
   saving: string | null;
@@ -243,17 +244,20 @@ export function RelationshipRow({
                     >
                       <Pencil size={14} />
                     </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      aria-label={t("relationshipRow.generateReverse")}
-                      title={t("relationshipRow.generateReverse")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReverse();
-                      }}
-                    >
-                      <ArrowLeftRight size={14} />
-                    </ActionIcon>
+                    {/* The opener of the reverse form is hidden while that form is open. */}
+                    {onReverse && (
+                      <ActionIcon
+                        variant="subtle"
+                        aria-label={t("relationshipRow.generateReverse")}
+                        title={t("relationshipRow.generateReverse")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReverse();
+                        }}
+                      >
+                        <ArrowLeftRight size={14} />
+                      </ActionIcon>
+                    )}
                     <ConfirmDialog
                       title={t("relationshipRow.deleteTitle", { id: r.id })}
                       consequence={t("relationshipRow.deleteConsequence")}
@@ -278,45 +282,40 @@ export function RelationshipRow({
                 )}
               </Stack>
             ) : (
-              <Stack gap="0.75rem">
-                <Group gap="sm" wrap="wrap">
+              <FormLayout>
+                <FormField size="medium">
                   <TextInput
                     label={t("relationshipRow.aliasLabel")}
                     value={editingRel.alias}
                     onChange={(e) => setEditingRel({ ...editingRel, alias: e.target.value })}
                     placeholder={r.computedCypherAlias ?? "PLACED_BY"}
                   />
+                </FormField>
+                <FormField size="medium">
                   <TextInput
                     label={t("relationshipRow.graphqlAliasLabel")}
                     value={editingRel.graphqlAlias}
                     onChange={(e) => setEditingRel({ ...editingRel, graphqlAlias: e.target.value })}
                     placeholder={r.graphqlAlias ?? ""}
                   />
-                </Group>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                  {/* Source panel */}
-                  {(() => {
-                    const uniqueDomains = [
-                      ...new Set(tables.map((t2) => domainToSqlName(t2.domainId)).filter(Boolean)),
-                    ].sort();
-                    const filteredSrcTables = editingRel.sourceDomain
-                      ? tables.filter(
-                          (t2) => domainToSqlName(t2.domainId) === editingRel.sourceDomain,
-                        )
-                      : tables;
-                    return (
-                      <Stack
-                        gap="sm"
-                        style={{
-                          border: "1px solid var(--border)",
-                          borderRadius: "4px",
-                          padding: "0.75rem",
-                        }}
-                      >
-                        <Text fw={700} c="dimmed" fz="0.75rem" tt="uppercase">
-                          {t("relationshipRow.source")}
-                        </Text>
-                        {domainsEnabled && (
+                </FormField>
+                {/* Source panel */}
+                {(() => {
+                  const uniqueDomains = [
+                    ...new Set(tables.map((t2) => domainToSqlName(t2.domainId)).filter(Boolean)),
+                  ].sort();
+                  const filteredSrcTables = editingRel.sourceDomain
+                    ? tables.filter(
+                        (t2) => domainToSqlName(t2.domainId) === editingRel.sourceDomain,
+                      )
+                    : tables;
+                  return (
+                    <FormLayout aria-label={t("relationshipRow.source")}>
+                      <Text fw={700} c="dimmed" fz="0.75rem" tt="uppercase">
+                        {t("relationshipRow.source")}
+                      </Text>
+                      {domainsEnabled && (
+                        <FormField size="medium">
                           <Select
                             label={t("relationshipRow.domainLabel")}
                             data={[
@@ -333,7 +332,9 @@ export function RelationshipRow({
                             }
                             allowDeselect={false}
                           />
-                        )}
+                        </FormField>
+                      )}
+                      <FormField size="medium">
                         <Select
                           label={t("relationshipRow.tableLabel")}
                           data={[
@@ -347,6 +348,8 @@ export function RelationshipRow({
                           onChange={(v) => setEditingRel({ ...editingRel, sourceTableId: v ?? "" })}
                           allowDeselect={false}
                         />
+                      </FormField>
+                      <FormField size="medium">
                         <Select
                           label={t("relationshipRow.columnLabel")}
                           data={[
@@ -360,21 +363,16 @@ export function RelationshipRow({
                           onChange={(v) => setEditingRel({ ...editingRel, sourceColumn: v ?? "" })}
                           allowDeselect={false}
                         />
-                      </Stack>
-                    );
-                  })()}
-                  {/* Target panel */}
-                  <Stack
-                    gap="sm"
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "4px",
-                      padding: "0.75rem",
-                    }}
-                  >
-                    <Text fw={700} c="dimmed" fz="0.75rem" tt="uppercase">
-                      {t("relationshipRow.target")}
-                    </Text>
+                      </FormField>
+                    </FormLayout>
+                  );
+                })()}
+                {/* Target panel */}
+                <FormLayout aria-label={t("relationshipRow.target")}>
+                  <Text fw={700} c="dimmed" fz="0.75rem" tt="uppercase">
+                    {t("relationshipRow.target")}
+                  </Text>
+                  <FormField size="medium">
                     <Select
                       label={t("relationshipRow.targetTypeLabel")}
                       data={[
@@ -394,21 +392,23 @@ export function RelationshipRow({
                       }
                       allowDeselect={false}
                     />
-                    {editingRel.targetType === "table" ? (
-                      (() => {
-                        const uniqueDomains = [
-                          ...new Set(
-                            tables.map((t2) => domainToSqlName(t2.domainId)).filter(Boolean),
-                          ),
-                        ].sort();
-                        const filteredTgtTables = editingRel.targetDomain
-                          ? tables.filter(
-                              (t2) => domainToSqlName(t2.domainId) === editingRel.targetDomain,
-                            )
-                          : tables;
-                        return (
-                          <>
-                            {domainsEnabled && (
+                  </FormField>
+                  {editingRel.targetType === "table" ? (
+                    (() => {
+                      const uniqueDomains = [
+                        ...new Set(
+                          tables.map((t2) => domainToSqlName(t2.domainId)).filter(Boolean),
+                        ),
+                      ].sort();
+                      const filteredTgtTables = editingRel.targetDomain
+                        ? tables.filter(
+                            (t2) => domainToSqlName(t2.domainId) === editingRel.targetDomain,
+                          )
+                        : tables;
+                      return (
+                        <>
+                          {domainsEnabled && (
+                            <FormField size="medium">
                               <Select
                                 label={t("relationshipRow.domainLabel")}
                                 data={[
@@ -425,7 +425,9 @@ export function RelationshipRow({
                                 }
                                 allowDeselect={false}
                               />
-                            )}
+                            </FormField>
+                          )}
+                          <FormField size="medium">
                             <Select
                               label={t("relationshipRow.tableLabel")}
                               data={[
@@ -441,6 +443,8 @@ export function RelationshipRow({
                               }
                               allowDeselect={false}
                             />
+                          </FormField>
+                          <FormField size="medium">
                             <Select
                               label={t("relationshipRow.columnLabel")}
                               data={[
@@ -456,11 +460,13 @@ export function RelationshipRow({
                               }
                               allowDeselect={false}
                             />
-                          </>
-                        );
-                      })()
-                    ) : (
-                      <>
+                          </FormField>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <>
+                      <FormField size="medium">
                         <Select
                           label={t("relationshipRow.functionLabel")}
                           data={[
@@ -473,6 +479,8 @@ export function RelationshipRow({
                           }
                           allowDeselect={false}
                         />
+                      </FormField>
+                      <FormField size="medium">
                         <TextInput
                           label={t("relationshipRow.functionArgLabel")}
                           value={editingRel.functionArg}
@@ -481,12 +489,12 @@ export function RelationshipRow({
                           }
                           placeholder={t("relationshipRow.functionArgPlaceholder")}
                         />
-                      </>
-                    )}
-                  </Stack>
-                </div>
-                <Group gap="sm" align="flex-end" wrap="wrap">
-                  {editingRel.targetType === "table" && (
+                      </FormField>
+                    </>
+                  )}
+                </FormLayout>
+                {editingRel.targetType === "table" && (
+                  <FormField size="medium">
                     <Select
                       label={t("relationshipRow.cardinality")}
                       data={[
@@ -498,62 +506,61 @@ export function RelationshipRow({
                         setEditingRel({ ...editingRel, cardinality: v ?? "many-to-one" })
                       }
                       allowDeselect={false}
-                      style={{ width: `${editingRel.cardinality.length + 6}ch` }}
                     />
-                  )}
-                  <Checkbox
-                    label={t("relationshipRow.materializeCheckbox")}
-                    checked={editingRel.materialize}
-                    onChange={(e) =>
-                      setEditingRel({ ...editingRel, materialize: e.currentTarget.checked })
-                    }
-                  />
-                  <Checkbox
-                    label={t("relationshipRow.excludeFromCypher")}
-                    checked={editingRel.disableCypher}
-                    onChange={(e) =>
-                      setEditingRel({ ...editingRel, disableCypher: e.currentTarget.checked })
-                    }
-                  />
-                  {editingRel.materialize && (
+                  </FormField>
+                )}
+                <FormChecks>
+                  <FormField size="short">
+                    <Checkbox
+                      label={t("relationshipRow.materializeCheckbox")}
+                      checked={editingRel.materialize}
+                      onChange={(e) =>
+                        setEditingRel({ ...editingRel, materialize: e.currentTarget.checked })
+                      }
+                    />
+                  </FormField>
+                  <FormField size="short">
+                    <Checkbox
+                      label={t("relationshipRow.excludeFromCypher")}
+                      checked={editingRel.disableCypher}
+                      onChange={(e) =>
+                        setEditingRel({ ...editingRel, disableCypher: e.currentTarget.checked })
+                      }
+                    />
+                  </FormField>
+                </FormChecks>
+                {editingRel.materialize && (
+                  <FormField size="short">
                     <NumberInput
                       label={t("relationshipRow.refreshIntervalSeconds")}
                       value={editingRel.refreshInterval}
                       onChange={(v) => setEditingRel({ ...editingRel, refreshInterval: String(v) })}
                     />
-                  )}
-                </Group>
-                {editingRel.targetType === "table" && (
-                  <JunctionPanel
-                    form={editingRel}
-                    setForm={setEditingRel}
-                    tables={tables}
-                    testIdPrefix="rel-edit"
-                  />
+                  </FormField>
                 )}
                 {editingRel.targetType === "table" && editingRel.cardinality === "many-to-one" && (
-                  <Text c="orange.7" fz="0.78rem">
-                    {t("relationshipRow.cardinalityWarning")}
-                  </Text>
+                  <FormField size="full">
+                    <Text c="orange.7" fz="0.78rem">
+                      {t("relationshipRow.cardinalityWarning")}
+                    </Text>
+                  </FormField>
                 )}
-                <Group gap="sm" justify="flex-end">
-                  <Button
-                    variant="default"
-                    leftSection={<X size={14} />}
-                    onClick={() => setEditingRel(null)}
-                  >
-                    {t("relationshipRow.cancel")}
-                  </Button>
-                  <Button
-                    variant="filled"
-                    leftSection={<Check size={14} />}
-                    onClick={onEditSave}
-                    disabled={!!saving}
-                  >
-                    {t("relationshipRow.save")}
-                  </Button>
-                </Group>
-              </Stack>
+                {editingRel.targetType === "table" && (
+                  <FormField size="full">
+                    <JunctionPanel
+                      form={editingRel}
+                      setForm={setEditingRel}
+                      tables={tables}
+                      testIdPrefix="rel-edit"
+                    />
+                  </FormField>
+                )}
+                <FormFooter
+                  onSave={onEditSave}
+                  saving={!!saving}
+                  onCancel={() => setEditingRel(null)}
+                />
+              </FormLayout>
             )}
           </ListDetail>
         </ListExpandRow>
