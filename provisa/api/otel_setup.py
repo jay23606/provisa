@@ -131,6 +131,89 @@ def _span_switch(exports: "_SpanExports") -> Any:
     return _Switch()
 
 
+class _CollectorReport:
+    """What one signal's exports say about the collector, said once per change.
+
+    A collector that cannot be reached is an operating condition, not a fault of this process --
+    a demo runs with none listening. It is said once, in one line naming the endpoint and the
+    reason, when exports start failing, and once more when they reach it again; the exports in
+    between say nothing. The reason is the exporter's own: its failure result, or the error it
+    raised. One of those errors is the exporter library's: after a failed attempt it waits out its
+    backoff and tries again with whatever time is left, and a late wake-up leaves none -- the HTTP
+    client then refuses a timeout of zero or less with a ValueError the library does not treat as
+    a failed send (opentelemetry-exporter-otlp-proto-http 1.42.1, #233; the same loop is in its
+    metric, trace and log exporters). It is a failed export like any other."""
+
+    def __init__(self, signal: str, endpoint: str) -> None:
+        self._signal = signal
+        self._endpoint = endpoint
+        self._failed = 0
+        self._lock = Lock()
+
+    def not_sent(self, reason: str) -> None:
+        import logging
+
+        with self._lock:
+            self._failed += 1
+            first = self._failed == 1
+        if first:
+            logging.getLogger(__name__).warning(
+                "OTel %s are not reaching %s: %s", self._signal, self._endpoint, reason
+            )
+
+    def raised(self, error: BaseException) -> None:
+        """An export that raised: the same condition, with the traceback kept at debug level."""
+        import logging
+
+        logging.getLogger(__name__).debug("OTel %s export raised", self._signal, exc_info=error)
+        self.not_sent(f"{type(error).__name__}: {error}")
+
+    def sent(self) -> None:
+        import logging
+
+        with self._lock:
+            failed, self._failed = self._failed, 0
+        if failed:
+            logging.getLogger(__name__).warning(
+                "OTel %s are reaching %s again (%d export(s) did not)",
+                self._signal,
+                self._endpoint,
+                failed,
+            )
+
+
+_REFUSED = "the exporter reported a failed export"
+
+
+class _Reported:
+    """A span or log exporter whose every export is reported (:class:`_CollectorReport`).
+
+    The SDK's batch processors call an exporter on their own threads and log whatever it raises,
+    with its traceback, on every batch. This stands between: an export that fails or raises is
+    the collector not being reached -- reported once -- and is answered to the processor as the
+    signal's failure result, which is what a failed export is. Everything else is the exporter's."""
+
+    def __init__(self, exporter: Any, signal: str, endpoint: str, failure: Any) -> None:
+        self._exporter = exporter
+        self._report = _CollectorReport(signal, endpoint)
+        self._failure = failure
+
+    def export(self, batch: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            result = self._exporter.export(batch, *args, **kwargs)
+        except Exception as error:  # allow-ble: the export boundary -- reported, next batch retries
+            self._report.raised(error)
+            return self._failure
+        if result is self._failure:
+            self._report.not_sent(_REFUSED)
+        else:
+            self._report.sent()
+        return result
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._exporter, name)
+
+
 class _MetricExports:
     """The process meter provider's one reader, collected by an export thread whose exporter is
     replaced on an endpoint change. A meter provider's readers are fixed when it is built, so the
@@ -158,49 +241,26 @@ class _MetricExports:
             preferred_aggregation=exporter._preferred_aggregation,
         )
         self._exporter: Any = None
-        self._endpoint = ""
-        # What the last export said, and how many in a row have not reached the collector.
+        self._report = _CollectorReport("metrics", "")
+        # What the last export said.
         self._refused = False
-        self._failed = 0
         self._interval = interval_millis / 1000
         self._thread: Any = None
         self._stop: Any = None
         self._lock = Lock()
 
     def collect_once(self) -> None:
-        """One export, and what it says about the collector.
-
-        A collector that cannot be reached is an operating condition, not a fault of this
-        process -- a demo runs with none listening. It is said once, in one line naming the
-        endpoint and the reason, when exports start failing, and once more when they reach it
-        again; the exports in between say nothing. The reason is the exporter's own: its failure
-        result, or the error it raised. One of those errors is the exporter library's: after a
-        failed attempt it waits out its backoff and tries again with whatever time is left, and a
-        late wake-up leaves none -- the HTTP client then refuses a timeout of zero or less with a
-        ValueError the library does not treat as a failed send (opentelemetry-exporter-otlp-
-        proto-http 1.42.1, #233). It is a failed export like any other."""
-        import logging
-
-        log = logging.getLogger(__name__)
+        """One export, and what it says about the collector (:class:`_CollectorReport`)."""
         self._refused = False
         try:
             self.reader.collect()
-            reason = "the exporter reported a failed export" if self._refused else None
         except Exception as error:  # allow-ble: an export thread's boundary -- next tick retries
-            reason = f"{type(error).__name__}: {error}"
-            log.debug("OTel metric export raised", exc_info=True)
-        if reason is not None:
-            self._failed += 1
-            if self._failed == 1:
-                log.warning("OTel metrics are not reaching %s: %s", self._endpoint, reason)
+            self._report.raised(error)
             return
-        if self._failed:
-            log.warning(
-                "OTel metrics are reaching %s again (%d export(s) did not)",
-                self._endpoint,
-                self._failed,
-            )
-            self._failed = 0
+        if self._refused:
+            self._report.not_sent(_REFUSED)
+        else:
+            self._report.sent()
 
     def start(self, exporter: Any, endpoint: str) -> None:
         """Export through ``exporter``, which sends to ``endpoint``, from now on; the exporter it
@@ -210,8 +270,7 @@ class _MetricExports:
         self.stop()
         with self._lock:
             self._exporter = exporter
-            self._endpoint = endpoint
-            self._failed = 0
+            self._report = _CollectorReport("metrics", endpoint)
             stop = threading.Event()
             interval = self._interval
 
@@ -449,16 +508,21 @@ def _is_http_endpoint(endpoint: str, protocol: str = "") -> bool:
     return _otlp_protocol(protocol) == "http/protobuf"
 
 
-def _make_span_exporter(endpoint: str, protocol: str = ""):
+def _make_span_exporter(endpoint: str, protocol: str = "") -> Any:
+    # Any: what the SDK's batch processor is handed is the exporter, reported (`_Reported`).
     if _is_http_endpoint(endpoint, protocol):
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter as HTTPSpanExporter,
         )
 
-        return HTTPSpanExporter(endpoint=endpoint + "/v1/traces")
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        exporter: Any = HTTPSpanExporter(endpoint=endpoint + "/v1/traces")
+    else:
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    return OTLPSpanExporter(endpoint=endpoint, insecure=True)
+        exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
+    from opentelemetry.sdk.trace.export import SpanExportResult
+
+    return _Reported(exporter, "traces", endpoint, SpanExportResult.FAILURE)
 
 
 def _make_metric_exporter(endpoint: str, protocol: str = ""):
@@ -473,16 +537,21 @@ def _make_metric_exporter(endpoint: str, protocol: str = ""):
     return OTLPMetricExporter(endpoint=endpoint, insecure=True)
 
 
-def _make_log_exporter(endpoint: str, protocol: str = ""):
+def _make_log_exporter(endpoint: str, protocol: str = "") -> Any:
+    # Any: what the SDK's batch processor is handed is the exporter, reported (`_Reported`).
     if _is_http_endpoint(endpoint, protocol):
         from opentelemetry.exporter.otlp.proto.http._log_exporter import (
             OTLPLogExporter as HTTPLogExporter,
         )
 
-        return HTTPLogExporter(endpoint=endpoint + "/v1/logs")
-    from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+        exporter: Any = HTTPLogExporter(endpoint=endpoint + "/v1/logs")
+    else:
+        from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
-    return OTLPLogExporter(endpoint=endpoint, insecure=True)
+        exporter = OTLPLogExporter(endpoint=endpoint, insecure=True)
+    from opentelemetry.sdk._logs.export import LogRecordExportResult
+
+    return _Reported(exporter, "logs", endpoint, LogRecordExportResult.FAILURE)
 
 
 # The settings sources, highest precedence first.
