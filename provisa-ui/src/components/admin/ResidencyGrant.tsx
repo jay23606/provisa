@@ -13,7 +13,8 @@
 // right does not exist otherwise.
 
 import { useTranslation } from "react-i18next";
-import { Checkbox, Stack } from "@mantine/core";
+import { Checkbox } from "@mantine/core";
+import { FormChecks, FormField } from "../form/FormLayout";
 import { MultiSelect } from "../MultiSelect";
 
 /** The grant value that stands for "no region" (server: security/residency.NO_REGION). */
@@ -36,27 +37,33 @@ export function ResidencyGrant({
   const { t } = useTranslation();
   if (regions.length === 0) return null;
   return (
-    <Stack gap={4} data-testid="residency-grant">
-      <Checkbox
-        label={t("residencyGrant.right")}
-        description={t("residencyGrant.help")}
-        checked={held}
-        onChange={(e) => onHeld(e.currentTarget.checked)}
-        data-testid="residency-grant-checkbox"
-        size="sm"
-      />
+    <>
+      {/* The tick decides whether the field after it is shown, so it comes first. */}
+      <FormChecks data-testid="residency-grant">
+        <FormField size="short" help={t("residencyGrant.help")}>
+          <Checkbox
+            label={t("residencyGrant.right")}
+            checked={held}
+            onChange={(e) => onHeld(e.currentTarget.checked)}
+            data-testid="residency-grant-checkbox"
+            size="sm"
+          />
+        </FormField>
+      </FormChecks>
       {held && (
-        <MultiSelect
-          label={t("residencyGrant.values")}
-          placeholder={t("residencyGrant.valuesPlaceholder")}
-          options={[
-            ...regions.map((region) => ({ id: region, label: region })),
-            { id: NO_REGION, label: t("residencyGrant.noRegion") },
-          ]}
-          value={values}
-          onChange={onValues}
-        />
+        <FormField size="long">
+          <MultiSelect
+            label={t("residencyGrant.values")}
+            placeholder={t("residencyGrant.valuesPlaceholder")}
+            options={[
+              ...regions.map((region) => ({ id: region, label: region })),
+              { id: NO_REGION, label: t("residencyGrant.noRegion") },
+            ]}
+            value={values}
+            onChange={onValues}
+          />
+        </FormField>
       )}
-    </Stack>
+    </>
   );
 }

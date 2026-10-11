@@ -10,6 +10,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Checkbox, Group, Text } from "@mantine/core";
+import { FormField } from "../../components/form/FormLayout";
 import type { Capability } from "../../types/auth";
 
 const ALL_CAPABILITIES: Capability[] = [
@@ -64,18 +65,21 @@ export function CapabilityGrid({
   label: string;
 }) {
   return (
-    <Checkbox.Group label={label} value={value} data-testid="capability-grid">
-      <Group gap="sm" mt="xs" style={{ rowGap: "0.35rem" }}>
-        {ALL_CAPABILITIES.map((cap) => (
-          <Checkbox
-            key={cap}
-            label={cap}
-            checked={value.includes(cap)}
-            onChange={() => onToggle(cap)}
-            size="sm"
-          />
-        ))}
-      </Group>
-    </Checkbox.Group>
+    // One labelled set of ticks, a line of the role form to itself.
+    <FormField size="full">
+      <Checkbox.Group label={label} value={value} data-testid="capability-grid">
+        <Group gap="sm" mt="xs" style={{ rowGap: "0.35rem" }}>
+          {ALL_CAPABILITIES.map((cap) => (
+            <Checkbox
+              key={cap}
+              label={cap}
+              checked={value.includes(cap)}
+              onChange={() => onToggle(cap)}
+              size="sm"
+            />
+          ))}
+        </Group>
+      </Checkbox.Group>
+    </FormField>
   );
 }

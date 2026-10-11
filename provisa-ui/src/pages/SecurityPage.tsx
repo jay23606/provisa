@@ -302,22 +302,18 @@ export function SecurityRolesPage() {
               />
             </FormField>
           </FormIdentifiers>
-          <FormField size="full">
-            <CapabilityGrid
-              value={roleForm.capabilities}
-              onToggle={toggleCapability}
-              label={t("securityPage.capabilities")}
-            />
-          </FormField>
-          <FormField size="full">
-            <ResidencyGrant
-              held={roleForm.capabilities.includes("data_residency")}
-              values={roleForm.residencyValues}
-              regions={regionChoices.regions}
-              onHeld={() => toggleCapability("data_residency")}
-              onValues={(residencyValues) => setRoleForm({ ...roleForm, residencyValues })}
-            />
-          </FormField>
+          <CapabilityGrid
+            value={roleForm.capabilities}
+            onToggle={toggleCapability}
+            label={t("securityPage.capabilities")}
+          />
+          <ResidencyGrant
+            held={roleForm.capabilities.includes("data_residency")}
+            values={roleForm.residencyValues}
+            regions={regionChoices.regions}
+            onHeld={() => toggleCapability("data_residency")}
+            onValues={(residencyValues) => setRoleForm({ ...roleForm, residencyValues })}
+          />
           <FormField size="long">
             <MultiSelect
               label={t("securityPage.domainAccess")}
@@ -493,24 +489,20 @@ export function SecurityRolesPage() {
                         </Stack>
                       ) : (
                         <FormLayout>
-                          <FormField size="full">
-                            <CapabilityGrid
-                              value={roleForm.capabilities}
-                              onToggle={toggleCapability}
-                              label={t("securityPage.capabilities")}
-                            />
-                          </FormField>
-                          <FormField size="full">
-                            <ResidencyGrant
-                              held={roleForm.capabilities.includes("data_residency")}
-                              values={roleForm.residencyValues}
-                              regions={regionChoices.regions}
-                              onHeld={() => toggleCapability("data_residency")}
-                              onValues={(residencyValues) =>
-                                setRoleForm({ ...roleForm, residencyValues })
-                              }
-                            />
-                          </FormField>
+                          <CapabilityGrid
+                            value={roleForm.capabilities}
+                            onToggle={toggleCapability}
+                            label={t("securityPage.capabilities")}
+                          />
+                          <ResidencyGrant
+                            held={roleForm.capabilities.includes("data_residency")}
+                            values={roleForm.residencyValues}
+                            regions={regionChoices.regions}
+                            onHeld={() => toggleCapability("data_residency")}
+                            onValues={(residencyValues) =>
+                              setRoleForm({ ...roleForm, residencyValues })
+                            }
+                          />
                           <FormField size="long">
                             <MultiSelect
                               label={t("securityPage.domainAccess")}
