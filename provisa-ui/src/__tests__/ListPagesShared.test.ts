@@ -19,6 +19,7 @@ const LIST_PAGES = [
   "pages/TablesPage.tsx",
   "pages/SourcesPage.tsx",
   "pages/SecurityPage.tsx",
+  "pages/security/SecurityRlsPage.tsx",
   "pages/RelationshipsPage.tsx",
   "components/relationships/RelationshipRow.tsx",
   "pages/DataProductsPage.tsx",

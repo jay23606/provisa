@@ -5592,5 +5592,10 @@
   "he/sourcesPage.json::sourcesPage.expandDetail": "Expand the panel",
   "he/sourcesPage.json::sourcesPage.panelNewSource": "New source",
   "he/sourcesPage.json::sourcesPage.resizeDetail": "Resize the detail panel",
-  "he/sourcesPage.json::sourcesPage.restoreDetail": "Restore the panel"
+  "he/sourcesPage.json::sourcesPage.restoreDetail": "Restore the panel",
+  "he/securityPage.json::securityPage.roleDetailPanel": "Role details",
+  "he/securityPage.json::securityPage.ruleDetailPanel": "RLS rule details",
+  "he/securityPage.json::securityPage.panelNewRole": "New role",
+  "he/securityPage.json::securityPage.panelNewRule": "New RLS rule",
+  "he/securityPage.json::securityPage.panelRule": "RLS rule {{id}}"
 }

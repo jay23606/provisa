@@ -69,6 +69,11 @@
     "deleteRoleTitle": "Excluir a função \"{{id}}\"?",
     "deleteRoleConsequence": "A função é removida. Uma função que ainda está em uso não pode ser excluída.",
     "deleteRuleTitle": "Excluir esta regra RLS?",
-    "deleteRuleConsequence": "A função \"{{role}}\" deixa de ser limitada por esta regra."
+    "deleteRuleConsequence": "A função \"{{role}}\" deixa de ser limitada por esta regra.",
+    "roleDetailPanel": "Detalhes do papel",
+    "ruleDetailPanel": "Detalhes da regra RLS",
+    "panelNewRole": "Novo papel",
+    "panelNewRule": "Nova regra RLS",
+    "panelRule": "Regra RLS {{id}}"
   }
 }

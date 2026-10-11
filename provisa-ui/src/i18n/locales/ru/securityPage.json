@@ -69,6 +69,11 @@
     "deleteRoleTitle": "Удалить роль «{{id}}»?",
     "deleteRoleConsequence": "Роль будет удалена. Роль, которая ещё используется, удалить нельзя.",
     "deleteRuleTitle": "Удалить это правило RLS?",
-    "deleteRuleConsequence": "Роль «{{role}}» больше не будет ограничена этим правилом."
+    "deleteRuleConsequence": "Роль «{{role}}» больше не будет ограничена этим правилом.",
+    "roleDetailPanel": "Сведения о роли",
+    "ruleDetailPanel": "Сведения о правиле RLS",
+    "panelNewRole": "Новая роль",
+    "panelNewRule": "Новое правило RLS",
+    "panelRule": "Правило RLS {{id}}"
   }
 }

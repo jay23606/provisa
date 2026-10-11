@@ -129,10 +129,12 @@ describe("SecurityPage — a role lists at least one domain", () => {
     expect(list!.classList.contains("data-table")).toBe(true);
     const rows = container.querySelectorAll("tbody tr.list-row");
     expect(rows).toHaveLength(ROLES.length);
-    // Expanding a role adds a detail row that is not an item row, so the alternation is unchanged.
+    // Opening a role shows it in the right-hand panel: the list gains no row, so the alternation
+    // is unchanged.
     fireEvent.click(screen.getByText("analyst"));
     expect(container.querySelectorAll("tbody tr.list-row")).toHaveLength(ROLES.length);
-    expect(container.querySelectorAll("tbody tr.list-expand")).toHaveLength(1);
+    expect(container.querySelectorAll("tbody tr.list-expand")).toHaveLength(0);
+    expect(screen.getByTestId("roles-split-title")).toHaveTextContent("analyst");
   });
 
   it("shows neither message when a saved role that lists domains is edited", () => {
