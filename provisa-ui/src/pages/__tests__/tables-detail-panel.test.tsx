@@ -254,6 +254,8 @@ describe("TablesPage — the detail panel", () => {
     await userEvent.click(await screen.findByTestId("tables-add-toggle"));
     const panel = await screen.findByTestId("tables-split-panel");
     expect(within(panel).getByTestId("register-table-source-select")).toBeInTheDocument();
+    // Titled for what it is, not with the button's words.
+    expect(within(panel).getByTestId("tables-split-title")).toHaveTextContent("Register table");
   });
 
   it("keeps the table's actions in the panel's pinned head", async () => {

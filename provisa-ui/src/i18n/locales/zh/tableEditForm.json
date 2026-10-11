@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "请输入不小于 0 的整数秒数。",
     "roleTtlDuplicateRole": "该角色已在列表中。",
     "roleTtlFixErrors": "保存前请修正角色 TTL 行。",
-    "loadProtectedLabel": "负载保护",
-    "loadProtectedHelp": "保护对负载敏感的数据源：完全通过计划快照提供此表的数据，使查询永不触达数据源。至少需要一个刷新门控——非高峰时段窗口、缓存 TTL 节奏或探测式变更信号。继承 = 遵循数据源级默认值。",
     "offPeakWindowLabel": "非高峰时段窗口",
     "offPeakWindowHelp": "维护窗口，格式为 HH:MM-HH:MM（24 小时制）。调度器仅在此窗口开放期间刷新受负载保护的表。留空表示无窗口（改由节奏/探测驱动刷新）。",
-    "offPeakWindowPlaceholder": "例如 01:00-03:00",
     "offPeakTzLabel": "非高峰时区",
     "offPeakTzHelp": "评估非高峰窗口所用的 IANA 时区（例如 UTC、America/New_York）。自动跟踪夏令时。",
     "refreshPolicyTitle": "刷新策略",
-    "inheritSource": "继承数据源",
-    "on": "开",
-    "off": "关",
     "descriptionLabel": "描述",
     "descriptionHelp": "在 API 架构（SDL）、数据目录和 AI 辅助查询生成中显示的人类可读描述。良好的描述可提高自动生成 SQL 的准确性。",
     "descriptionPlaceholder": "显示在 SDL 文档中",
@@ -296,6 +290,7 @@
       "type": "类型与键",
       "access": "访问",
       "errors": "{{count}} 项待修正"
-    }
+    },
+    "offPeakInherited": "继承：此表的来源仅按计划读取。"
   }
 }

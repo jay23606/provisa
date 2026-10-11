@@ -79,6 +79,9 @@
     "expandDetail": "Paneel uitvouwen",
     "restoreDetail": "Paneel herstellen",
     "backToList": "Terug naar de lijst",
-    "backToDetail": "Terug naar de details"
+    "backToDetail": "Terug naar de details",
+    "panelRegisterTable": "Tabel registreren",
+    "panelNewView": "Nieuwe weergave",
+    "panelNewModel": "Nieuw model"
   }
 }

@@ -79,6 +79,9 @@
     "expandDetail": "Expandir o painel",
     "restoreDetail": "Restaurar o painel",
     "backToList": "Voltar à lista",
-    "backToDetail": "Voltar aos detalhes"
+    "backToDetail": "Voltar aos detalhes",
+    "panelRegisterTable": "Registar tabela",
+    "panelNewView": "Nova vista",
+    "panelNewModel": "Novo modelo"
   }
 }

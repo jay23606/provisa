@@ -79,6 +79,9 @@
     "expandDetail": "展开面板",
     "restoreDetail": "还原面板",
     "backToList": "返回列表",
-    "backToDetail": "返回详情"
+    "backToDetail": "返回详情",
+    "panelRegisterTable": "注册表",
+    "panelNewView": "新建视图",
+    "panelNewModel": "新建模型"
   }
 }

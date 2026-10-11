@@ -41,15 +41,19 @@ export function ReplicateSelect({
   onChange: (value: number | null) => void;
   /** Which form this is in: a table's own value, or the source value its tables inherit. */
   scope: "table" | "source";
-  /** Whether load protection is on for this table or source (Never then contradicts it). */
+  /**
+   * Whether load protection is this table's or source's OWN setting (Never then contradicts it).
+   * A table that only inherits it from its source shows Default.
+   */
   loadProtected: boolean;
   /**
    * Given, the drop-down also offers "Always, source read only on schedule" (REQ-1141), which is
    * load protection: choosing it reports Always with load protection on, and any other choice
    * reports that choice with load protection off. A value stored with load protection shows as
-   * that choice whatever its Replicate value is.
+   * that choice whatever its Replicate value is. A table's Default inherits both from its source
+   * and reports load protection as null; a source has no inheritance and never reports null.
    */
-  onScheduledChange?: (value: number | null, loadProtected: boolean) => void;
+  onScheduledChange?: (value: number | null, loadProtected: boolean | null) => void;
   testId: string;
 }) {
   const { t } = useTranslation();
@@ -84,7 +88,10 @@ export function ReplicateSelect({
         if (option === null) return;
         if (!onScheduledChange) onChange(parseReplicateOption(option));
         else if (option === SCHEDULED) onScheduledChange(REPLICATE_ALWAYS, true);
-        else onScheduledChange(parseReplicateOption(option), false);
+        else {
+          const replicate = parseReplicateOption(option);
+          onScheduledChange(replicate, scope === "table" && replicate === null ? null : false);
+        }
       }}
       error={
         // With the scheduled choice in the list the two cannot be set against each other here.

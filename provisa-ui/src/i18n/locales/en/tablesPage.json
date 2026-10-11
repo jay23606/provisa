@@ -79,6 +79,9 @@
     "expandDetail": "Expand the panel",
     "restoreDetail": "Restore the panel",
     "backToList": "Back to the list",
-    "backToDetail": "Back to details"
+    "backToDetail": "Back to details",
+    "panelRegisterTable": "Register table",
+    "panelNewView": "New view",
+    "panelNewModel": "New model"
   }
 }

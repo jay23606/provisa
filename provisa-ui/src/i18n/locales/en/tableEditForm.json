@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "Enter a whole number of seconds, 0 or more.",
     "roleTtlDuplicateRole": "This role is already listed.",
     "roleTtlFixErrors": "Fix the Role TTL rows before saving.",
-    "loadProtectedLabel": "Load Protected",
-    "loadProtectedHelp": "Shield a load-sensitive source: serve this table entirely from a scheduled snapshot so queries never hit the source. Requires at least one refresh gate — an off-peak window, a cache TTL cadence, or a probing change signal. Inherit = follow the source-level default.",
     "offPeakWindowLabel": "Off-Peak Window",
     "offPeakWindowHelp": "Maintenance window as HH:MM-HH:MM (24h). The scheduler refreshes a load-protected table only while this window is open. Leave blank for no window (cadence/probe drive the refresh instead).",
-    "offPeakWindowPlaceholder": "e.g. 01:00-03:00",
     "offPeakTzLabel": "Off-Peak Timezone",
     "offPeakTzHelp": "IANA timezone the off-peak window is evaluated in (e.g. UTC, America/New_York). Tracks DST.",
     "refreshPolicyTitle": "Refresh policy",
-    "inheritSource": "Inherit source",
-    "on": "On",
-    "off": "Off",
     "descriptionLabel": "Description",
     "descriptionHelp": "Human-readable description shown in the API schema (SDL), data catalog, and AI-assisted query generation. Good descriptions improve auto-generated SQL accuracy.",
     "descriptionPlaceholder": "Appears in SDL docs",
@@ -296,6 +290,7 @@
       "type": "Type and keys",
       "access": "Access",
       "errors": "{{count}} to fix"
-    }
+    },
+    "offPeakInherited": "Inherited: this table's source is read only on schedule."
   }
 }

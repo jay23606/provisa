@@ -79,6 +79,9 @@
     "expandDetail": "הרחבת החלונית",
     "restoreDetail": "שחזור החלונית",
     "backToList": "חזרה לרשימה",
-    "backToDetail": "חזרה לפרטים"
+    "backToDetail": "חזרה לפרטים",
+    "panelRegisterTable": "רישום טבלה",
+    "panelNewView": "תצוגה חדשה",
+    "panelNewModel": "מודל חדש"
   }
 }

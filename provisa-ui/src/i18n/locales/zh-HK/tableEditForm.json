@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "請輸入不小於 0 的整數秒數。",
     "roleTtlDuplicateRole": "該角色已在列表中。",
     "roleTtlFixErrors": "儲存前請修正角色 TTL 行。",
-    "loadProtectedLabel": "負載保護",
-    "loadProtectedHelp": "保護對負載敏感的數據來源：此數據表完全由排程快照提供服務，查詢永不觸及來源。需要至少一個重新整理閘門 — 離峰時段、快取 TTL 週期或探測式變更訊號。繼承 = 遵循數據來源層級的預設值。",
     "offPeakWindowLabel": "離峰時段",
     "offPeakWindowHelp": "以 HH:MM-HH:MM（24 小時制）表示的維護時段。排程器僅在此時段開放期間重新整理受負載保護的數據表。留空表示無時段限制（改由週期/探測驅動重新整理）。",
-    "offPeakWindowPlaceholder": "例如 01:00-03:00",
     "offPeakTzLabel": "離峰時區",
     "offPeakTzHelp": "評估離峰時段所用的 IANA 時區（例如 UTC、America/New_York）。會跟隨夏令時間。",
     "refreshPolicyTitle": "重新整理原則",
-    "inheritSource": "繼承數據來源",
-    "on": "開",
-    "off": "關",
     "descriptionLabel": "描述",
     "descriptionHelp": "顯示於 API 結構描述（SDL）、數據目錄及 AI 輔助查詢產生中的人類可讀描述。良好的描述可提升自動產生 SQL 的準確度。",
     "descriptionPlaceholder": "顯示於 SDL 文件中",
@@ -296,6 +290,7 @@
       "type": "類型與鍵",
       "access": "存取",
       "errors": "{{count}} 項待修正"
-    }
+    },
+    "offPeakInherited": "繼承：此資料表的來源只會按排程讀取。"
   }
 }

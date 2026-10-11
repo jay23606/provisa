@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "0以上の整数の秒数を入力してください。",
     "roleTtlDuplicateRole": "このロールはすでに一覧にあります。",
     "roleTtlFixErrors": "保存する前にロール別TTLの行を修正してください。",
-    "loadProtectedLabel": "負荷保護",
-    "loadProtectedHelp": "負荷に敏感なソースを保護します。このテーブルを完全にスケジュール済みスナップショットから提供し、クエリがソースに到達しないようにします。少なくとも1つの更新ゲート（オフピークウィンドウ、キャッシュTTLの周期、または変更検知プローブ）が必要です。継承 = ソースレベルのデフォルトに従います。",
     "offPeakWindowLabel": "オフピークウィンドウ",
     "offPeakWindowHelp": "HH:MM-HH:MM（24時間制）形式のメンテナンスウィンドウです。スケジューラは、このウィンドウが開いている間のみ負荷保護テーブルを更新します。空欄でウィンドウなし（代わりに周期/プローブが更新を駆動します）。",
-    "offPeakWindowPlaceholder": "例: 01:00-03:00",
     "offPeakTzLabel": "オフピークタイムゾーン",
     "offPeakTzHelp": "オフピークウィンドウを評価するIANAタイムゾーンです（例: UTC、America/New_York）。夏時間に追従します。",
     "refreshPolicyTitle": "更新ポリシー",
-    "inheritSource": "ソースを継承",
-    "on": "オン",
-    "off": "オフ",
     "descriptionLabel": "説明",
     "descriptionHelp": "APIスキーマ（SDL）、データカタログ、AI支援クエリ生成に表示される、人が読める説明です。良い説明は自動生成SQLの精度を向上させます。",
     "descriptionPlaceholder": "SDLドキュメントに表示されます",
@@ -296,6 +290,7 @@
       "type": "型とキー",
       "access": "アクセス",
       "errors": "要修正 {{count}} 件"
-    }
+    },
+    "offPeakInherited": "継承: このテーブルのソースはスケジュールに従ってのみ読み取られます。"
   }
 }
