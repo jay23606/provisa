@@ -5585,5 +5585,13 @@
   "zh-HK/loginPage.json::loginPage.sandboxHeading": "Try Provisa",
   "zh-HK/relationshipsPage.json::relationshipsPage.detailPanel": "Relationship details",
   "zh-HK/relationshipsPage.json::relationshipsPage.panelNewRelationship": "New relationship",
-  "zh-HK/relationshipsPage.json::relationshipsPage.backToRelationship": "Back to {{id}}"
+  "zh-HK/relationshipsPage.json::relationshipsPage.backToRelationship": "Back to {{id}}",
+  "zh-HK/sourcesPage.json::sourcesPage.backToList": "Back to the list",
+  "zh-HK/sourcesPage.json::sourcesPage.backToSource": "Back to the source",
+  "zh-HK/sourcesPage.json::sourcesPage.closeDetail": "Close the detail panel",
+  "zh-HK/sourcesPage.json::sourcesPage.detailPanel": "Source detail",
+  "zh-HK/sourcesPage.json::sourcesPage.expandDetail": "Expand the panel",
+  "zh-HK/sourcesPage.json::sourcesPage.panelNewSource": "New source",
+  "zh-HK/sourcesPage.json::sourcesPage.resizeDetail": "Resize the detail panel",
+  "zh-HK/sourcesPage.json::sourcesPage.restoreDetail": "Restore the panel"
 }
