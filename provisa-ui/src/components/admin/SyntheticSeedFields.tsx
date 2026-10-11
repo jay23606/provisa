@@ -8,13 +8,36 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Checkbox, Group, NumberInput, Select, Stack, TagsInput, TextInput } from "@mantine/core";
+import { Checkbox, NumberInput, Select, TagsInput, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormField } from "../form/FormLayout";
 import { EMPTY_SEED, type SyntheticSeed } from "./syntheticSeed";
 
 // REQ-1939, BOOTSTRAPPING AN ENVIRONMENT: creating an environment may seed it with a synthetic
 // dataset -- the tables, the environment whose profile runs describe them and a scale -- so it
 // starts on plausible data and no production row reaches it.
+// The tick that asks for the seed: it sits with the form's other ticks, and the fields it opens
+// follow them.
+export function SyntheticSeedTick({
+  seed,
+  setSeed,
+}: {
+  seed: SyntheticSeed | null;
+  setSeed: (seed: SyntheticSeed | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <FormField size="short">
+      <Checkbox
+        label={t("syntheticDatasets.seedOption")}
+        checked={seed !== null}
+        onChange={(e) => setSeed(e.currentTarget.checked ? EMPTY_SEED : null)}
+        data-testid="env-new-synthetic"
+      />
+    </FormField>
+  );
+}
+
 export function SyntheticSeedFields({
   envs,
   seed,
@@ -25,53 +48,54 @@ export function SyntheticSeedFields({
   setSeed: (seed: SyntheticSeed | null) => void;
 }) {
   const { t } = useTranslation();
+  if (seed === null) return null;
   return (
-    <Stack gap={4}>
-      <Checkbox
-        label={t("syntheticDatasets.seedOption")}
-        checked={seed !== null}
-        onChange={(e) => setSeed(e.currentTarget.checked ? EMPTY_SEED : null)}
-        data-testid="env-new-synthetic"
-      />
-      {seed !== null && (
-        <Group align="end">
-          <TextInput
-            label={t("syntheticDatasets.name")}
-            value={seed.dataset}
-            onChange={(e) => setSeed({ ...seed, dataset: e.currentTarget.value })}
-            data-testid="env-new-synthetic-name"
-          />
-          <TagsInput
-            label={t("syntheticDatasets.seedTables")}
-            value={seed.tables}
-            onChange={(tables) => setSeed({ ...seed, tables })}
-            data-testid="env-new-synthetic-tables"
-          />
-          <Select
-            label={t("syntheticDatasets.profileEnv")}
-            data={envs}
-            value={seed.profile_env}
-            onChange={(v) => v && setSeed({ ...seed, profile_env: v })}
-            allowDeselect={false}
-            data-testid="env-new-synthetic-profile-env"
-          />
-          <NumberInput
-            label={t("syntheticDatasets.scale")}
-            value={seed.scale}
-            min={0.001}
-            decimalScale={3}
-            onChange={(v) => setSeed({ ...seed, scale: Number(v) })}
-            data-testid="env-new-synthetic-scale"
-          />
-          <NumberInput
-            label={t("syntheticDatasets.seed")}
-            value={seed.seed}
-            allowDecimal={false}
-            onChange={(v) => setSeed({ ...seed, seed: Number(v) })}
-            data-testid="env-new-synthetic-seed"
-          />
-        </Group>
-      )}
-    </Stack>
+    <>
+      <FormField size="medium">
+        <TextInput
+          label={t("syntheticDatasets.name")}
+          value={seed.dataset}
+          onChange={(e) => setSeed({ ...seed, dataset: e.currentTarget.value })}
+          data-testid="env-new-synthetic-name"
+        />
+      </FormField>
+      <FormField size="long">
+        <TagsInput
+          label={t("syntheticDatasets.seedTables")}
+          value={seed.tables}
+          onChange={(tables) => setSeed({ ...seed, tables })}
+          data-testid="env-new-synthetic-tables"
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("syntheticDatasets.profileEnv")}
+          data={envs}
+          value={seed.profile_env}
+          onChange={(v) => v && setSeed({ ...seed, profile_env: v })}
+          allowDeselect={false}
+          data-testid="env-new-synthetic-profile-env"
+        />
+      </FormField>
+      <FormField size="short">
+        <NumberInput
+          label={t("syntheticDatasets.scale")}
+          value={seed.scale}
+          min={0.001}
+          decimalScale={3}
+          onChange={(v) => setSeed({ ...seed, scale: Number(v) })}
+          data-testid="env-new-synthetic-scale"
+        />
+      </FormField>
+      <FormField size="short">
+        <NumberInput
+          label={t("syntheticDatasets.seed")}
+          value={seed.seed}
+          allowDecimal={false}
+          onChange={(v) => setSeed({ ...seed, seed: Number(v) })}
+          data-testid="env-new-synthetic-seed"
+        />
+      </FormField>
+    </>
   );
 }
