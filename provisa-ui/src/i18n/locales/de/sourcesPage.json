@@ -12,7 +12,6 @@
     "loading": "Quellen werden geladen...",
     "filterPlaceholder": "Nach Quellen-ID oder Typ filtern…",
     "addSource": "+ Quelle",
-    "closeForm": "Formular schließen",
     "schemaRefreshFailed": "Schemaaktualisierung fehlgeschlagen: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "z. B. sales-pg",

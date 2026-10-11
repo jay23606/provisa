@@ -12,7 +12,6 @@
     "loading": "Bronnen laden...",
     "filterPlaceholder": "Filteren op bron-ID of type…",
     "addSource": "+ Bron",
-    "closeForm": "Formulier sluiten",
     "schemaRefreshFailed": "Schema verversen mislukt: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "bijv. sales-pg",

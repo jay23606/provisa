@@ -66,6 +66,12 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
  * Everything else is still held: a full-size Save or Cancel, a stretched button, an action row.
  */
 const IN_PLACE_EDIT: Readonly<Record<string, string>> = {
+  "components/ChatPanel.tsx":
+    "Polly's composer and the answer boxes of a question it asks, in the conversation itself",
+  "components/admin/GlossaryRelationships.tsx":
+    "a term's relationship picked in the row that adds it, in the term's detail",
+  "components/admin/GlossaryTab.tsx":
+    "a term's name, definition and export tick each saved in place in its detail; the list's filter ticks",
   "components/TagControl.tsx": "a tag assigned and edited in its popover, beside what it tags",
   "pages/tables/ProfileConstraintsModal.tsx":
     "a column's constraints edited in the row of the checklist that lists them",
@@ -135,12 +141,7 @@ const THE_SHARED_LAYOUT = "components/form/FormLayout.tsx";
  * converts it, and the guard fails a listed file that already passes. Nothing is added here,
  * except when the rules themselves grow: the files then caught are listed in that same commit.
  */
-const NOT_YET_CONVERTED: readonly string[] = [
-  "components/ChatPanel.tsx",
-  "components/admin/GlossaryRelationships.tsx",
-  "components/admin/GlossaryTab.tsx",
-  "pages/TablesPage.tsx",
-];
+const NOT_YET_CONVERTED: readonly string[] = ["pages/TablesPage.tsx"];
 
 function componentFiles(dir: string, found: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

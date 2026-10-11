@@ -12,7 +12,6 @@
     "loading": "Caricamento delle origini...",
     "filterPlaceholder": "Filtra per ID o tipo di origine…",
     "addSource": "+ Origine",
-    "closeForm": "Chiudi modulo",
     "schemaRefreshFailed": "Aggiornamento dello schema non riuscito: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "es. sales-pg",

@@ -12,7 +12,6 @@
     "loading": "正在加载数据源…",
     "filterPlaceholder": "按数据源 ID 或类型筛选…",
     "addSource": "+ 数据源",
-    "closeForm": "关闭表单",
     "schemaRefreshFailed": "架构刷新失败：{{message}}",
     "idLabel": "ID",
     "idPlaceholder": "例如 sales-pg",

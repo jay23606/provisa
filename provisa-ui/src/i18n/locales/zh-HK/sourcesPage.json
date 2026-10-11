@@ -12,7 +12,6 @@
     "loading": "正在載入數據來源…",
     "filterPlaceholder": "按數據來源 ID 或類型篩選…",
     "addSource": "+ 數據來源",
-    "closeForm": "關閉表單",
     "schemaRefreshFailed": "重新整理結構描述失敗：{{message}}",
     "idLabel": "ID",
     "idPlaceholder": "例如 sales-pg",

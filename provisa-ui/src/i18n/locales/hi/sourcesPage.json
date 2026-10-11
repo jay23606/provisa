@@ -12,7 +12,6 @@
     "loading": "स्रोत लोड हो रहे हैं...",
     "filterPlaceholder": "स्रोत ID या प्रकार से फ़िल्टर करें…",
     "addSource": "+ स्रोत",
-    "closeForm": "फ़ॉर्म बंद करें",
     "schemaRefreshFailed": "स्कीमा रिफ़्रेश विफल: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "जैसे sales-pg",

@@ -12,7 +12,6 @@
     "loading": "Chargement des sources...",
     "filterPlaceholder": "Filtrer par ID ou type de source…",
     "addSource": "+ Source",
-    "closeForm": "Fermer le formulaire",
     "schemaRefreshFailed": "Échec de l'actualisation du schéma : {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "p. ex. sales-pg",

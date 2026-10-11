@@ -6,8 +6,6 @@
     "name": "Nom",
     "firstName": "Prénom",
     "lastName": "Nom de famille",
-    "save": "Enregistrer",
-    "saving": "Enregistrement…",
     "saved": "Enregistré",
     "saveError": "Impossible d'enregistrer le profil",
     "email": "E-mail",

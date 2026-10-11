@@ -12,7 +12,6 @@
     "loading": "Carregando fontes...",
     "filterPlaceholder": "Filtrar por ID ou tipo de fonte…",
     "addSource": "+ Fonte",
-    "closeForm": "Fechar formulário",
     "schemaRefreshFailed": "Falha na atualização do esquema: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "ex.: sales-pg",

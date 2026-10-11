@@ -12,7 +12,6 @@
     "loading": "Загрузка источников...",
     "filterPlaceholder": "Фильтр по ID или типу источника…",
     "addSource": "+ Источник",
-    "closeForm": "Закрыть форму",
     "schemaRefreshFailed": "Не удалось обновить схему: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "например, sales-pg",

@@ -6,8 +6,6 @@
     "name": "姓名",
     "firstName": "名",
     "lastName": "姓",
-    "save": "保存",
-    "saving": "保存中…",
     "saved": "已保存",
     "saveError": "无法保存个人资料",
     "email": "邮箱",

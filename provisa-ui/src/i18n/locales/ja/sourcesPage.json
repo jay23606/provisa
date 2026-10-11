@@ -12,7 +12,6 @@
     "loading": "ソースを読み込み中...",
     "filterPlaceholder": "ソースIDまたはタイプで絞り込み…",
     "addSource": "+ ソース",
-    "closeForm": "フォームを閉じる",
     "schemaRefreshFailed": "スキーマの更新に失敗しました: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "例: sales-pg",

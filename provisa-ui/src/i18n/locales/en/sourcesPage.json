@@ -12,7 +12,6 @@
     "loading": "Loading sources...",
     "filterPlaceholder": "Filter by source ID or type…",
     "addSource": "+ Source",
-    "closeForm": "Close form",
     "schemaRefreshFailed": "Schema refresh failed: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "e.g. sales-pg",

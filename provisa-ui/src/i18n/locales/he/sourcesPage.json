@@ -12,7 +12,6 @@
     "loading": "טוען מקורות...",
     "filterPlaceholder": "סינון לפי מזהה מקור או סוג…",
     "addSource": "+ מקור",
-    "closeForm": "סגירת הטופס",
     "schemaRefreshFailed": "רענון הסכמה נכשל: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "למשל sales-pg",

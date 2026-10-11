@@ -12,7 +12,6 @@
     "loading": "Cargando orígenes...",
     "filterPlaceholder": "Filtrar por ID o tipo de origen…",
     "addSource": "+ Origen",
-    "closeForm": "Cerrar formulario",
     "schemaRefreshFailed": "Error al actualizar el esquema: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "p. ej. sales-pg",
