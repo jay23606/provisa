@@ -106,7 +106,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/JsonApiPage.tsx",
   "pages/LineagePage.tsx",
   "pages/LoginPage.tsx",
-  "pages/MetricsPage.tsx",
   "pages/OnboardOrgPage.tsx",
   "pages/RequestsPage.tsx",
   "pages/SetupPage.tsx",

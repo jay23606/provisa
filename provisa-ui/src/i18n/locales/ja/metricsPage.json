@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "メトリクス",
-    "newMetric": "新規メトリクス",
+    "newMetric": "+ メトリクス",
     "loading": "読み込み中...",
     "empty": "登録されたメトリクスはまだありません。",
     "colName": "名前",

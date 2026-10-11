@@ -1813,7 +1813,7 @@
   "fr/metricsPage.json::metricsPage.fieldNamePlaceholder": "e.g. total_revenue",
   "fr/metricsPage.json::metricsPage.fromFact": "from fact",
   "fr/metricsPage.json::metricsPage.loading": "Loading...",
-  "fr/metricsPage.json::metricsPage.newMetric": "New Metric",
+  "fr/metricsPage.json::metricsPage.newMetric": "+ Metric",
   "fr/metricsPage.json::metricsPage.purposeAdd": "Define it once so consumers cannot drift by re-implementing the arithmetic. A view built from a metric regenerates whenever the metric changes, so the number stays the same everywhere.",
   "fr/metricsPage.json::metricsPage.purposeAria": "About metrics",
   "fr/metricsPage.json::metricsPage.purposeBody": "A metric is the business definition of a measure — an aggregate over one fact table, defined once here and projected into every surface: SQL, GraphQL, the explore canvas, views built from metrics, and interchange export.",

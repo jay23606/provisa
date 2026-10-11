@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Metriken",
-    "newMetric": "Neue Metrik",
+    "newMetric": "+ Metrik",
     "loading": "Wird geladen...",
     "empty": "Noch keine Metriken registriert.",
     "colName": "Name",
