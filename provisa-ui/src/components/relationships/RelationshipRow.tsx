@@ -40,7 +40,8 @@ interface RelationshipRowProps {
   setEditingRel: (f: RelForm | null) => void;
   canManage: boolean;
   onStartEdit: () => void;
-  onReverse: () => void;
+  /** Opens the form that creates this relationship's reverse; absent while that form is open. */
+  onReverse?: () => void;
   onDelete: () => void;
   onEditSave: () => void;
   saving: string | null;
@@ -243,17 +244,20 @@ export function RelationshipRow({
                     >
                       <Pencil size={14} />
                     </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      aria-label={t("relationshipRow.generateReverse")}
-                      title={t("relationshipRow.generateReverse")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReverse();
-                      }}
-                    >
-                      <ArrowLeftRight size={14} />
-                    </ActionIcon>
+                    {/* The opener of the reverse form is hidden while that form is open. */}
+                    {onReverse && (
+                      <ActionIcon
+                        variant="subtle"
+                        aria-label={t("relationshipRow.generateReverse")}
+                        title={t("relationshipRow.generateReverse")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReverse();
+                        }}
+                      >
+                        <ArrowLeftRight size={14} />
+                      </ActionIcon>
+                    )}
                     <ConfirmDialog
                       title={t("relationshipRow.deleteTitle", { id: r.id })}
                       consequence={t("relationshipRow.deleteConsequence")}
