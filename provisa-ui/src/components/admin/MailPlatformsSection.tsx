@@ -95,6 +95,11 @@ export function MailPlatformsSection() {
         const id = `mail-platform-${p.platform}`;
         const chosen = draft.own_mailbox || draft.organisation_mailboxes;
         const client = needsClient(p, draft);
+        // A platform with no credential of its own reads the organisation's mailboxes with its
+        // client, and an entry that holds a client is one people can sign in with: while the
+        // first tick is on, the second is true and cannot be unticked.
+        const ownImplied = draft.organisation_mailboxes && !p.organisation_key_field;
+        const own = draft.own_mailbox || ownImplied;
         return (
           <Card key={p.platform} withBorder data-testid={id}>
             <Group justify="space-between" mb="sm">
@@ -126,7 +131,8 @@ export function MailPlatformsSection() {
                 <FormField size="short">
                   <Checkbox
                     label={t("mailPlatforms.ownMailbox")}
-                    checked={draft.own_mailbox}
+                    checked={own}
+                    disabled={ownImplied}
                     onChange={(e) => change(p.platform, { own_mailbox: e.currentTarget.checked })}
                     data-testid={`${id}-own-mailbox`}
                   />
@@ -199,7 +205,7 @@ export function MailPlatformsSection() {
                 </FieldGroup>
               )}
               {/* One person signing in returns to this address: it goes into the platform. */}
-              {draft.own_mailbox &&
+              {own &&
                 (state.redirect_address ? (
                   <>
                     <FieldGroup row>
