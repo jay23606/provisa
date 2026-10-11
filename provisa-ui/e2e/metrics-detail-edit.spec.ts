@@ -67,7 +67,8 @@ test.beforeAll(async () => {
     `mutation($id: Int!) { setTableDraft(tableId: $id, draft: false) { success message } }`,
     { id: fact.id },
   );
-  if (!released.data?.setTableDraft?.success) {
+  const draft = released.data?.setTableDraft as { success?: boolean } | undefined;
+  if (!draft?.success) {
     throw new Error(`setTableDraft failed: ${JSON.stringify(released)}`);
   }
 });

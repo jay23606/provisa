@@ -73,14 +73,15 @@ test("tour does not show a step's popover over a page still loading its data", a
       );
       return { loading };
     },
-    [TABLES_POSITION, CONNECT_TOTAL],
+    [TABLES_POSITION, CONNECT_TOTAL] as [number, number],
     // Entering the step navigates to /tables and pays that route's first-visit chunk fetch, so the
     // wait for its popover is a page transition, not an in-place DOM update. The budget does not
     // weaken the assertion: what is asserted is the loading state captured in the same tick the
     // popover first appears, whenever that is.
     { timeout: 60000 },
   );
-  const { loading } = await state.jsonValue();
+  // waitForFunction resolves only on a truthy value, so this is the object, never null.
+  const { loading } = (await state.jsonValue()) as { loading: boolean };
   expect(loading, "tour popover appeared while TablesPage was still on its loading state").toBe(false);
 
   await expect(page).toHaveURL(/\/tables/);
