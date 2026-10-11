@@ -168,8 +168,10 @@ html .MuiMenuItem-root.Mui-selected { background-color: var(--surface-alt); }
 
 /* The graph. */
 html .graphql-voyager svg text { font-family: var(--font); fill: var(--text); }
-html .node polygon { stroke: var(--border); fill: var(--surface); }
-html .node .type-title polygon { fill: var(--surface-alt); stroke: var(--border); }
+/* A node's outline is the dimmed-text colour, not the border colour: on the page background a
+ * border-coloured line is too faint to carry a node that is not selected. */
+html .node polygon { stroke: var(--text-muted); fill: var(--surface); }
+html .node .type-title polygon { fill: var(--surface-alt); stroke: var(--text-muted); }
 html .node .type-title text { fill: var(--text); }
 html .node.selected polygon { stroke: var(--primary); }
 html .node.selected .type-title polygon { fill: var(--primary-strong); }

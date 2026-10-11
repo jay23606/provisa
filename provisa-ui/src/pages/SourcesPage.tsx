@@ -97,7 +97,6 @@ import {
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
 import { PanelWorking } from "./sources/PanelWorking";
 import { PanelActions, SplitPane } from "../components/list/SplitPane";
-import { submitForm } from "./panelSubmit";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
@@ -1729,7 +1728,8 @@ export function SourcesPage() {
             is created by its own section's button, so it gets Cancel alone. */}
         <FormFooter
           panel
-          onSave={form.type !== "kaggle" ? submitForm("sources-new-form") : undefined}
+          submit={form.type !== "kaggle"}
+          form="sources-new-form"
           saving={submitting}
           onCancel={handleCancelForm}
           saveProps={{ "data-testid": "sources-submit" }}
@@ -1780,7 +1780,8 @@ export function SourcesPage() {
               <SourceFormFields {...sourceFormFieldsProps} />
               <FormFooter
                 panel
-                onSave={submitForm("sources-edit-form")}
+                submit
+                form="sources-edit-form"
                 saving={submitting}
                 onCancel={handleCancelForm}
                 saveProps={{ "data-testid": "sources-edit-submit" }}

@@ -25,9 +25,17 @@ import { Tip } from "../Tip";
 export interface ListTableProps {
   children: ReactNode;
   testId?: string;
+  /**
+   * The narrowest the list may be drawn, in pixels: below it the list scrolls sideways instead
+   * of crushing its columns. It is a floor, never a width: a list always fills the room it has.
+   */
   minWidth?: number;
   style?: CSSProperties;
 }
+
+/** A list is at least as wide as its container, and at least its own floor where it has one. */
+const listMinWidth = (floor: number | undefined) =>
+  floor === undefined ? undefined : `max(100%, ${floor}px)`;
 
 export function ListTable({ children, testId, minWidth, style }: ListTableProps) {
   return (
@@ -36,7 +44,7 @@ export function ListTable({ children, testId, minWidth, style }: ListTableProps)
         className="data-table"
         data-list-table=""
         data-testid={testId}
-        miw={minWidth}
+        miw={listMinWidth(minWidth)}
         style={style}
       >
         {children}
