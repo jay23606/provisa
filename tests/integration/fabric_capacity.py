@@ -79,3 +79,50 @@ def suspend_capacity() -> None:
             "its capacity on teardown (see this module's docstring)"
         )
     _product.suspend_capacity()
+
+
+_PAUSED_STATES = ("Paused", "Suspended")
+_PAUSE_TIMEOUT_S = 600.0
+_PAUSE_POLL_S = 10.0
+
+
+def ensure_capacity_paused(*, sleep=None, clock=None) -> str:
+    """Leave the lane's capacity PAUSED, whatever state it is found in, and return that state.
+
+    A lane's always-run cleanup cannot assume the capacity is Active: the spec that resumed it
+    may already have paused it, or it may be between states. A bare suspend is refused (400) in
+    every state but Active -- which says nothing about whether compute is billing (run
+    38050265191 reported "NOT paused" on such a refusal without knowing). So the state is read:
+    paused is done; Active is suspended; anything else is waited out. Raises if the capacity is
+    not paused within the bound -- then it may be billing, and the caller must say so."""
+    import time
+
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
+    if not _product.capacity_configured():
+        raise RuntimeError(
+            "FABRIC_RESOURCE_GROUP/FABRIC_CAPACITY_NAME are not set — the fabric lane cannot pause "
+            "its capacity (see this module's docstring)"
+        )
+    with _product._client() as client:
+        url, state = _product._locate(client)
+        deadline = clock() + _PAUSE_TIMEOUT_S
+        suspend_sent = False
+        while True:
+            if state in _PAUSED_STATES:
+                return state
+            if state == "Active" and not suspend_sent:
+                client.post(
+                    f"{url}/suspend",
+                    params={"api-version": _product._API_VERSION},
+                    content=b"",
+                    headers={"Content-Length": "0"},
+                ).raise_for_status()
+                suspend_sent = True
+            if clock() >= deadline:
+                raise RuntimeError(
+                    f"Fabric capacity is {state!r} after {_PAUSE_TIMEOUT_S:.0f}s, not paused: "
+                    "it may be billing"
+                )
+            sleep(_PAUSE_POLL_S)
+            state = _product._state(client, url)

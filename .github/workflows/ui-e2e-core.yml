@@ -37,6 +37,56 @@ on:
       - "demo/**"
       - ".github/workflows/ui-e2e-core.yml"
   workflow_dispatch:
+  # Callable: by an orchestrator, and by the proof of the CI's own structure. Every secret its two
+  # jobs read, by name; the caller passes each one and nothing is inherited.
+  workflow_call:
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_CLIENT_SECRET:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      DATABRICKS_HTTP_PATH:
+        required: false
+      DATABRICKS_SERVER_HOSTNAME:
+        required: false
+      DATABRICKS_TOKEN:
+        required: false
+      FABRIC_CAPACITY_NAME:
+        required: false
+      FABRIC_DATABASE:
+        required: false
+      FABRIC_RESOURCE_GROUP:
+        required: false
+      FABRIC_SQL_SERVER:
+        required: false
+      GOOGLE_APPLICATION_CREDENTIALS_JSON:
+        required: false
+      GOOGLE_CLOUD_PROJECT:
+        required: false
+      GSHEETS_TEST_SHEET_ID:
+        required: false
+      SNOWFLAKE_ACCOUNT:
+        required: false
+      SNOWFLAKE_PASSWORD:
+        required: false
+      SNOWFLAKE_USER:
+        required: false
+      SNOWFLAKE_WAREHOUSE:
+        required: false
+      SP_CERT_P12_BASE64:
+        required: false
+      SP_CERT_PASSWORD:
+        required: false
+      SP_CLIENT_ID:
+        required: false
+      SP_SITE_URL:
+        required: false
+      SP_TENANT_ID:
+        required: false
 
 permissions:
   contents: read
@@ -52,111 +102,125 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Both jobs are the one lane workflow (lane.yml). They run side by side on two runners: the
+  # lane took 2.0 h as one job (run 37918605161, which reached its 120-minute bound), and the
+  # provisioning specs must not share a host with other workers' pages -- a Docker network made
+  # or removed on the runner aborts whatever page is loading (playwright.config.ts
+  # PROVISIONING_SPECS).
   playwright:
     name: Playwright core lane
-    runs-on: ubuntu-latest
-    # Was 30: the core-lane suite has grown past that budget — every run since at least
-    # 2026-09-12 was cancelled at the 30m mark mid-suite, not from a hang (the last log inspected
-    # was still making steady per-test progress at cancellation). Raised to 60 as an immediate
-    # unblock, then to 90: source-to-query-generic-rdbms.spec.ts's beforeAll now also provisions
-    # saphana, whose HXE tenant DB alone can take up to 15 minutes past container-healthy
-    # (demo/sources/saphana/prime.py's own retry budget), serially on top of every other fixture in
-    # that file. Raised again to 120 (REQ-1763): source-to-query-olap-lake.spec.ts's exasol describe
-    # block also runs for real here (RUNNING_IN_CI), with its own beforeAll budgeted up to 15
-    # minutes (EXAStorage cold init), and this job's single core-lane worker runs every spec file
-    # serially. (druid moved to ui-e2e-trino.yml with the rest of TRINO_SPECS — REQ-1763 amendment,
-    # 2026-09-15 — since it, like pinot/hive_s3/hive, has no direct driver and was never actually
-    # reachable here.) The real fix (splitting/parallelizing this job, or trimming serial per-file
-    # container provisioning — several files stand up every fixture in one beforeAll even when most
-    # of that file's tests are skipped) is tracked separately, not done here.
-    timeout-minutes: 120
-    env:
-      # playwright.config.ts keys `reuseExistingServer` off this: under CI every webServer must be
-      # started by the harness, never adopted from a stale process.
-      CI: "true"
-      # Selects the SQLite control plane and drops the Trino webServer from the config. Without it
-      # the config would call `docker compose port postgres`, which throws with no daemon running.
-      PROVISA_E2E_LANE: core
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
+    uses: ./.github/workflows/lane.yml
+    with:
+      name: ui-core
+      timeout: 120
+      # Fabric's SQL endpoint (the cloud-warehouse spec) is reached through ODBC Driver 18.
+      odbc: true
       # playwright.config.ts's webServer commands invoke `.venv/bin/uvicorn` by path, so the
-      # environment must be a real repo-root .venv — uv sync creates exactly that.
-      # The `cassandra` extra is demo/sources/cassandra/prime.py's own dependency: this lane's
-      # global setup provisions every DEMO_SOURCES entry (demo-source-containers.ts), cassandra
-      # included, and prime.py imports cassandra-driver directly rather than through a lazy import
-      # a missing package could degrade gracefully around. `saphana` (hdbcli + sqlalchemy-hana) is
-      # demo/sources/saphana/prime.py's own dependency and the product's own hana+hdbcli driver —
-      # source-to-query-generic-rdbms.spec.ts's saphana case runs for real on this runner (a genuine
-      # amd64 host, see that spec's RUNNING_IN_CI gate).
-      # demo/sources/sqlserver/prime.py connects with pyodbc through "ODBC Driver 18 for SQL Server",
-      # which the runner image does not carry. Without it the primer could never connect, reported
-      # only "sqlserver ... did not become ready", and the generic-RDBMS spec's whole stack failed
-      # to provision: mariadb failed and the nine cases after it did not run (run 37874182519).
-      # The same step as the integration suite's lanes.
-      - name: Install Microsoft ODBC Driver 18 for SQL Server
-        # Bounded: core 2/6 once sat in this step for its whole job (run 37690884511, started
-        # 21:45Z and still here at 23:23Z). Nothing in it had a time limit: a download that
-        # stalls, or a package lock another process holds, waited for ever. Each transfer now
-        # gives up and is retried, apt waits a bounded time for the lock, and the step itself ends.
-        timeout-minutes: 10
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          CURL_OPTS: --fail --silent --show-error --location --connect-timeout 20 --max-time 120 --retry 5 --retry-all-errors
-          APT_OPTS: -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=300
-        run: |
-          curl $CURL_OPTS https://packages.microsoft.com/keys/microsoft.asc \
-            | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-          curl $CURL_OPTS "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list" \
-            | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
-          sudo apt-get $APT_OPTS update -q
-          sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get $APT_OPTS install -y -q msodbcsql18 unixodbc-dev
-          odbcinst -q -d -n "ODBC Driver 18 for SQL Server"
-
-      # `gx` and `soda` are the two data-quality checkers the demo model this lane serves registers
-      # as sources (dq-checker, dq-soda; pyproject's REQ-1443 notes). Without them each scan exits
-      # "checker ... is not installed", its results table can never be built, and every request
-      # that reads the whole model fails on it: the seven `MATCH (n) ...` Cypher cases answered 500
-      # (ReplicaBuildFailed for dq-checker.quality.pets_scan) and the checker specs had nothing to
-      # show (run 37874182519 on v0.1.0-alpha.477).
-      - name: Install Python deps
-        run: uv sync --frozen --extra dev --extra cassandra --extra saphana --extra gx --extra soda
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: provisa-ui/package-lock.json
-
-      - name: Install UI deps
-        working-directory: provisa-ui
-        run: npm ci
-
+      # environment must be a real repo-root .venv. `cassandra` and `saphana` are their demo
+      # primers' own dependencies (demo/sources/*/prime.py); `gx` and `soda` are the two
+      # data-quality checkers the demo model this lane serves registers as sources -- without
+      # them every read of the whole model failed (run 37874182519).
+      python-extras: dev cassandra saphana gx soda
       # No --with-deps: the ubuntu-24.04 runner image already carries chromium's shared
-      # libraries and fonts, and the apt refresh it triggers has stalled past the job
-      # timeout when the azure mirror is unreachable (run 32158624857: 28.5 minutes on
-      # `Get:5 ... noble-security InRelease`, zero tests run).
-      - name: Install Playwright browser
-        working-directory: provisa-ui
-        timeout-minutes: 6
-        run: npx playwright install chromium
+      # libraries and fonts, and the apt refresh it triggers has stalled past the job timeout.
+      ui: chromium
+      ui-timeout: 12
+      # CI: every webServer is started by the harness, never adopted from a stale process.
+      # PROVISA_E2E_LANE: the SQLite control plane, and no Trino webServer in the config.
+      env: |
+        CI=true
+        PROVISA_E2E_LANE=core
+      working-directory: provisa-ui
+      # json beside the list and the HTML report (in a file of its own: the HTML reporter empties
+      # its folder): the run's own record of what did not execute.
+      # Playwright stops ITSELF after 95 minutes, inside the job's bound: a run the job timeout
+      # kills writes no report at all (release .479, run 38022153596: 108 failed attempts and
+      # not one line of error text, no artifact). Stopped by its own limit it prints every
+      # failure and writes the HTML and JSON reports, which the steps after this one upload.
+      run: >-
+        PLAYWRIGHT_JSON_OUTPUT_NAME=playwright-results.json
+        npx playwright test --project=core --global-timeout=5700000 --reporter=list,html,json
+      # prepare: the credential files of the live sources. after: every test that did not run,
+      # by name and reason, under its own count (not a pass); the Fabric capacity paused again;
+      # the credential files removed.
+      prepare: scripts/ci/lanes/ui-core-prepare.sh
+      after: bash ../scripts/ci/lanes/ui-core-after.sh playwright-results.json
+      # What held the runner while the lane ran (run 37918605161 could not say).
+      sampler: true
+      artifact-name: playwright-report-core
+      artifact-path: |
+        provisa-ui/playwright-report/
+        provisa-ui/playwright-results.json
+      artifact-retention: 7
+    secrets:
+      # chat-panel-streaming.spec.ts drives a live model and fails by name without it. This
+      # workflow runs on release pushes, tags and dispatch only (no pull_request trigger), so
+      # the secret never reaches a fork's code.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # The live sources this job's specs register: Snowflake, Databricks, BigQuery, Google
+      # Sheets and Fabric (source-to-query-cloud-warehouse / -special-cases). Passed by name.
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+      DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+      GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+      GSHEETS_TEST_SHEET_ID: ${{ secrets.GSHEETS_TEST_SHEET_ID }}
+      FABRIC_SQL_SERVER: ${{ secrets.FABRIC_SQL_SERVER }}
+      FABRIC_DATABASE: ${{ secrets.FABRIC_DATABASE }}
+      FABRIC_RESOURCE_GROUP: ${{ secrets.FABRIC_RESOURCE_GROUP }}
+      FABRIC_CAPACITY_NAME: ${{ secrets.FABRIC_CAPACITY_NAME }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
-      - name: Run Playwright core lane
-        working-directory: provisa-ui
-        run: npx playwright test --project=core --reporter=list,html
-        env:
-          # chat-panel-streaming.spec.ts drives a live model and fails by name without it. This
-          # workflow runs on release pushes, tags and dispatch only (no pull_request trigger), so
-          # the secret never reaches a fork's code.
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-core
-          path: provisa-ui/playwright-report/
-          retention-days: 7
+  # The specs that bring source stacks up and down, with ONE worker on a runner of their own.
+  provisioning:
+    name: Playwright core lane, provisioning specs
+    uses: ./.github/workflows/lane.yml
+    with:
+      name: ui-core-provisioning
+      timeout: 150
+      python-extras: dev cassandra saphana gx soda
+      # demo/sources/sqlserver/prime.py connects with pyodbc through "ODBC Driver 18 for SQL
+      # Server", which the runner image does not carry (run 37874182519: the generic-RDBMS
+      # stack never provisioned).
+      odbc: true
+      ui: chromium
+      ui-timeout: 12
+      env: |
+        CI=true
+        PROVISA_E2E_LANE=core
+      working-directory: provisa-ui
+      # json beside the list and the HTML report (in a file of its own: the HTML reporter empties
+      # its folder): the run's own record of what did not execute.
+      # Playwright stops ITSELF after 125 minutes, inside the job's bound: a run the job timeout
+      # kills writes no report at all (release .479, run 38022153596: 108 failed attempts and
+      # not one line of error text, no artifact). Stopped by its own limit it prints every
+      # failure and writes the HTML and JSON reports, which the steps after this one upload.
+      run: >-
+        PLAYWRIGHT_JSON_OUTPUT_NAME=playwright-results.json
+        npx playwright test --project=core-provisioning --workers=1 --global-timeout=7500000 --reporter=list,html,json
+      # prepare: the credential files of the live sources. after: every test that did not run,
+      # by name and reason, under its own count (not a pass); the Fabric capacity paused again;
+      # the credential files removed.
+      prepare: scripts/ci/lanes/ui-core-prepare.sh
+      after: bash ../scripts/ci/lanes/ui-core-after.sh playwright-results.json
+      # What held the runner while the lane ran (run 37918605161 could not say).
+      sampler: true
+      artifact-name: playwright-report-core-provisioning
+      artifact-path: |
+        provisa-ui/playwright-report/
+        provisa-ui/playwright-results.json
+      artifact-retention: 7
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # SharePoint (source-to-query.spec.ts), the one live source among this job's specs.
+      SP_CERT_P12_BASE64: ${{ secrets.SP_CERT_P12_BASE64 }}
+      SP_TENANT_ID: ${{ secrets.SP_TENANT_ID }}
+      SP_CLIENT_ID: ${{ secrets.SP_CLIENT_ID }}
+      SP_SITE_URL: ${{ secrets.SP_SITE_URL }}
+      SP_CERT_PASSWORD: ${{ secrets.SP_CERT_PASSWORD }}

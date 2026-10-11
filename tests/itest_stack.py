@@ -52,6 +52,9 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CORE_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.core.yml")
 TEST_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.test.yml")
 ITEST_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.itest.yml")
+# The host mounts a test stack needs and an install must not have (#201): the file lake, the
+# SharePoint certificate and the host-backed Hive warehouse. Its variables have no default.
+E2E_MOUNTS_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.e2e-mounts.yml")
 
 
 def _checkout_prefix() -> str:
@@ -78,7 +81,18 @@ _PREFIXES = (_ITEST_PREFIX, _E2E_PREFIX)
 
 ITEST_PROJECT = session_project(_ITEST_PREFIX, "PROVISA_ITEST_PROJECT")
 E2E_PROJECT = session_project(_E2E_PREFIX, "PROVISA_E2E_PROJECT")
-COMPOSE_ARGS = ["-p", ITEST_PROJECT, "-f", CORE_COMPOSE, "-f", TEST_COMPOSE, "-f", ITEST_COMPOSE]
+COMPOSE_ARGS = [
+    "-p",
+    ITEST_PROJECT,
+    "-f",
+    CORE_COMPOSE,
+    "-f",
+    E2E_MOUNTS_COMPOSE,
+    "-f",
+    TEST_COMPOSE,
+    "-f",
+    ITEST_COMPOSE,
+]
 
 
 def _session_trino_etc() -> str:
@@ -99,10 +113,10 @@ def _session_trino_etc() -> str:
         os.makedirs(os.path.join(path, sub), exist_ok=True)
     os.environ.setdefault("PROVISA_TRINO_ETC_HOST", path)
     os.environ.setdefault("PROVISA_TRINO_ETC_DIR", path)
-    # docker-compose.core.yml bind-mounts the Hive warehouse and the file lake from FIXED host
-    # directories unless these are set, so every session (and every worktree) shared one warehouse:
-    # a table directory left by an interrupted run (wh.db/widgets) made the next session's CREATE
-    # TABLE fail HIVE_PATH_ALREADY_EXISTS on a brand-new metastore. One directory per session,
+    # docker-compose.e2e-mounts.yml bind-mounts the Hive warehouse and the file lake from the host
+    # directories these name (it has no default). A directory shared by every session made the next
+    # session's CREATE TABLE fail HIVE_PATH_ALREADY_EXISTS on a brand-new metastore after an
+    # interrupted run left a table directory (wh.db/widgets) behind. One directory per session,
     # under the same per-project root reap_orphaned_projects removes. The file lake is an identity
     # mount (same absolute path inside the containers), so an absolute host path is required.
     for env_var, sub in (
@@ -112,6 +126,11 @@ def _session_trino_etc() -> str:
         d = os.path.join(path, sub)
         os.makedirs(d, exist_ok=True)
         os.environ.setdefault(env_var, d)
+    # The SharePoint certificate is this checkout's (gitignored; a lane writes it there, or sets
+    # the variable to where it wrote it). Trino opens it at the same absolute path.
+    os.environ.setdefault(
+        "PROVISA_E2E_SHAREPOINT_CERT_HOST", os.path.join(_REPO_ROOT, "sharepoint.pfx")
+    )
     return path
 
 

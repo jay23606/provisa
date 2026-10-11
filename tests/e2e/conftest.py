@@ -29,6 +29,10 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 _COMPOSE_ARGS = [
     "-f",
     "docker-compose.core.yml",
+    # The test stack's host mounts (#201). Its three paths are set, per session, by
+    # tests/itest_stack.py, which tests/conftest.py imports before this stack starts.
+    "-f",
+    "docker-compose.e2e-mounts.yml",
     "-f",
     "docker-compose.observability.yml",
     "-f",

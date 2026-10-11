@@ -35,7 +35,8 @@ test("REQ-670: Cypher CREATE returns affected_rows count of inserted rows", asyn
     `CREATE (n:Users {id: ${ID}, name: 'E2E Cypher', email: 'e2e-cypher@example.com'})`,
   );
 
-  expect(resp.status()).toBe(200);
+  // The answer's own text is the message: a refusal names its reason there and nowhere else.
+  expect(resp.status(), await resp.text()).toBe(200);
   const body = await resp.json();
   expect(body.error).toBeUndefined();
   expect(body.type).toBe("cypher");
@@ -50,7 +51,7 @@ test("REQ-670: Cypher SET returns affected_rows count of updated rows", async ({
     `MATCH (n:Users) WHERE n.id = ${ID} SET n.name = 'E2E Cypher Updated'`,
   );
 
-  expect(resp.status()).toBe(200);
+  expect(resp.status(), await resp.text()).toBe(200);
   const body = await resp.json();
   expect(body.error).toBeUndefined();
   expect(body.type).toBe("cypher");
@@ -65,7 +66,7 @@ test("REQ-670: Cypher DELETE returns affected_rows count of deleted rows", async
     `MATCH (n:Users) WHERE n.id = ${ID} DELETE n`,
   );
 
-  expect(resp.status()).toBe(200);
+  expect(resp.status(), await resp.text()).toBe(200);
   const body = await resp.json();
   expect(body.error).toBeUndefined();
   expect(body.type).toBe("cypher");

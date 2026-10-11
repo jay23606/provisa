@@ -79,20 +79,31 @@ function hasSqlServerOdbcDriver(): boolean {
 }
 const SQLSERVER_ODBC_AVAILABLE = hasSqlServerOdbcDriver();
 
-const SOURCES = [
-  "mariadb",
-  "tidb",
-  "cockroachdb",
-  "yugabytedb",
-  "clickhouse",
-  "sqlserver",
-  "oracle",
-  "postgresql",
-];
-// CI-only: needs a real amd64 Linux host, see RUNNING_IN_CI's comment above.
-const CI_SOURCES = RUNNING_IN_CI ? ["saphana", "greenplum"] : [];
+// One source's containers at a time. This file used to start all ten in a single hook before its
+// first test and keep them up for the whole file; on the 16 GB runner that left under 200 MB free
+// from the moment SAP HANA came up (run 38050265191: hdbnameserver, hdbindexserver, sqlservr,
+// Oracle, a 4 GB Fuseki and the rest together, load average past 100), and every page load after
+// it timed out. A test now starts the one source it reads and the hook below removes it when the
+// test ends, passed or failed.
+//
+// How long each may take to pull, start and prime before its test's own budget begins.
+// saphana: HXE's tenant database commonly takes 5-15 minutes past container-healthy before
+// prime.py's connect-retry loop (900 s) succeeds. oracle: gvenzl/oracle-free creates its database
+// on first boot. greenplum: a from-scratch cluster.
+const PROVISION_BUDGET_MS: Record<string, number> = {
+  mariadb: 300000,
+  tidb: 300000,
+  cockroachdb: 300000,
+  yugabytedb: 420000,
+  clickhouse: 300000,
+  sqlserver: 420000,
+  oracle: 900000,
+  postgresql: 300000,
+  greenplum: 900000,
+  saphana: 1500000,
+};
 
-function provision(cmd: "up" | "down"): void {
+function provision(cmd: "up" | "down", source: string): void {
   const env = {
     ...process.env,
     PROVISA_DEMO_MARIADB_PORT: String(E2E_MARIADB_PORT),
@@ -107,29 +118,29 @@ function provision(cmd: "up" | "down"): void {
     PROVISA_DEMO_SAPHANA_PORT: String(E2E_SAPHANA_PORT),
     PROVISA_DEMO_SAPHANA_PASSWORD: E2E_SAPHANA_PASSWORD,
   };
-  try {
-    execFileSync(PYTHON, [PROVISION, cmd, "--prefix", PREFIX, ...SOURCES, ...CI_SOURCES], {
-      stdio: "inherit",
-      env,
-    });
-  } catch (e) {
-    if (cmd === "down") return; // a project that was never started removes nothing
-    throw e;
-  }
+  execFileSync(PYTHON, [PROVISION, cmd, "--prefix", PREFIX, source], { stdio: "inherit", env });
+}
+
+// The sources this test started, removed by afterEach. The provisioning project runs one worker
+// (playwright.config.ts), so one list serves the file.
+const started: string[] = [];
+
+/** Start `source` for the running test and give the test `testBudgetMs` on top of the time the
+ * source may take to come up. Call it after any `test.skip`, so a skipped test starts nothing. */
+function useSource(source: string, testBudgetMs: number): void {
+  const budget = PROVISION_BUDGET_MS[source];
+  if (budget === undefined) throw new Error(`no provisioning budget for source '${source}'`);
+  test.setTimeout(testBudgetMs + budget);
+  started.push(source);
+  provision("up", source);
 }
 
 test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", () => {
-  test.beforeAll(() => {
-    // saphana's HXE tenant DB commonly takes 5-15 minutes past container-healthy before prime.py's
-    // own connect-retry loop (900s budget) succeeds — this beforeAll provisions every source in
-    // this file serially, so its own timeout must cover that worst case on top of the rest.
-    test.setTimeout(RUNNING_IN_CI ? 1200000 : 180000);
-    provision("up");
-  });
-
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     await removeTestSources();
-    provision("down");
+    // Every source this test started comes down, also after a failure; a `down` that fails is
+    // a container left holding the runner's memory, so it fails the test loudly.
+    for (const source of started.splice(0)) provision("down", source);
   });
 
   test("mariadb: add the source, register a table, query it on the SQL page", async ({ page }) => {
@@ -143,7 +154,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
     // mariadb/tidb. Fixed by reading the real dialect (core/models.py's Source.dialect, backed by
     // core/source_registry.py's SOURCE_TO_DIALECT — the same map app_loaders.py's config-load path
     // already used) instead of hardcoding "".
-    test.setTimeout(180000);
+    useSource("mariadb", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_mariadb_${stamp}`;
 
@@ -179,7 +190,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
     // REQ-1768: postgresql is the most-used SourceType in the product but had zero e2e coverage
     // of its own registration flow — every other e2e test only exercised it indirectly via the
     // pre-seeded pet_store baseline fixture.
-    test.setTimeout(180000);
+    useSource("postgresql", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_postgresql_${stamp}`;
 
@@ -215,7 +226,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
     // tuples). REQ-1757: the SAME SQL-page dialect bug documented on the mariadb test above is
     // also fixed (schema_mutation.py's hardcoded empty-string dialect, affecting any UI-registered
     // source — see that test's comment for the full mechanism).
-    test.setTimeout(180000);
+    useSource("tidb", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_tidb_${stamp}`;
 
@@ -247,7 +258,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
   test("cockroachdb: add the source, register a table, query it on the SQL page", async ({
     page,
   }) => {
-    test.setTimeout(180000);
+    useSource("cockroachdb", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_cockroachdb_${stamp}`;
 
@@ -279,7 +290,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
   test("yugabytedb: add the source, register a table, query it on the SQL page", async ({
     page,
   }) => {
-    test.setTimeout(240000);
+    useSource("yugabytedb", 240000);
     const stamp = Date.now();
     const sourceId = `e2e_yugabytedb_${stamp}`;
 
@@ -312,7 +323,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
   test("clickhouse: add the source, register a table, query it on the SQL page", async ({
     page,
   }) => {
-    test.setTimeout(180000);
+    useSource("clickhouse", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_clickhouse_${stamp}`;
 
@@ -351,7 +362,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
         "(provisa/executor/drivers/sqlserver.py links libodbc at import) — same host dependency " +
         "tests/integration/test_sqlserver_source_e2e.py's importorskip guards against",
     );
-    test.setTimeout(180000);
+    useSource("sqlserver", 180000);
     const stamp = Date.now();
     const sourceId = `e2e_sqlserver_${stamp}`;
 
@@ -384,7 +395,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
   test("oracle: add the source, register a table, query it on the SQL page", async ({ page }) => {
     // gvenzl/oracle-free's first boot creates the database from scratch; the healthcheck alone
     // is given a 180s start_period + 60 retries in demo/sources/oracle/compose.yml.
-    test.setTimeout(360000);
+    useSource("oracle", 360000);
     const stamp = Date.now();
     const sourceId = `e2e_oracle_${stamp}`;
 
@@ -431,7 +442,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
         "cluster boot realistically exceeds a reasonable single e2e budget locally — runs for " +
         "real in CI (ubuntu-latest is a genuine amd64 host)",
     );
-    test.setTimeout(360000);
+    useSource("greenplum", 360000);
     const stamp = Date.now();
     const sourceId = `e2e_greenplum_${stamp}`;
 
@@ -482,7 +493,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
         "(verified live, not a config issue — see comment above); runs for real in CI " +
         "(ubuntu-latest is a genuine amd64 host)",
     );
-    test.setTimeout(900000);
+    useSource("saphana", 900000);
     const stamp = Date.now();
     const sourceId = `e2e_saphana_${stamp}`;
 
