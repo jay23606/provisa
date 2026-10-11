@@ -121,7 +121,7 @@ describe("SplitPane", () => {
     expect(row).toHaveFocus();
   });
 
-  it("opens at about 60% of the window and keeps the width it is dragged to", () => {
+  it("opens at about 60% of its row and keeps the width it is dragged to", () => {
     render(<Page />);
     fireEvent.click(screen.getByText("orders"));
     const panel = screen.getByTestId("split-panel");
@@ -156,10 +156,13 @@ describe("SplitPane", () => {
     fireEvent.click(screen.getByText("orders"));
     size(screen.getByTestId("split"), { clientWidth: 1452 });
     const handle = screen.getByTestId("split-handle");
+    const panel = screen.getByTestId("split-panel");
+    size(panel, { offsetWidth: 700 });
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
-    expect(screen.getByTestId("split-panel").style.width).toBe("732px");
+    expect(panel.style.width).toBe("732px");
+    size(panel, { offsetWidth: 732 });
     fireEvent.keyDown(handle, { key: "ArrowRight" });
-    expect(screen.getByTestId("split-panel").style.width).toBe("700px");
+    expect(panel.style.width).toBe("700px");
   });
 
   it("expands to the whole row, putting the list away, and comes back", () => {

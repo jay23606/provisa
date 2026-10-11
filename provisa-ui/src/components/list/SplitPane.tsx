@@ -87,8 +87,8 @@ export function SplitPane({
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
 
   const { ref, width, startResize, onHandleKeyDown } = useResizableWidth<HTMLElement>(storageKey, {
-    // About 60% of the window until the handle is moved.
-    initial: Math.round(window.innerWidth * 0.6),
+    // Not moved yet: the panel takes its share of the row (see `shown`).
+    initial: 0,
     min: PANEL_MIN,
     max: () => (rowRef.current ? rowRef.current.clientWidth : window.innerWidth) - LIST_MIN,
   });
@@ -105,6 +105,13 @@ export function SplitPane({
   }, []);
   // A row that reports no width has not been laid out (a test's document): side by side.
   const narrow = rowWidth !== null && rowWidth > 0 && rowWidth < SIDE_BY_SIDE_MIN;
+  // About 60% of the row until the handle is moved: Polly open beside the page leaves the list
+  // its share too. A row that reports no width has not been laid out: the window's stands in.
+  const row = rowWidth !== null && rowWidth > 0 ? rowWidth : window.innerWidth;
+  const shown = Math.max(
+    PANEL_MIN,
+    width > 0 ? Math.min(width, row - LIST_MIN) : Math.round(row * 0.6),
+  );
   const alone = open && (narrow || expanded);
 
   // Focus goes into the panel when it opens and back to where it was when it closes.
@@ -154,7 +161,7 @@ export function SplitPane({
             className="split-pane__panel"
             aria-label={labels.panel}
             data-alone={alone || undefined}
-            style={alone ? undefined : { width: Math.max(PANEL_MIN, width) }}
+            style={alone ? undefined : { width: shown }}
             onKeyDown={onPanelKeyDown}
             data-testid={`${testId}-panel`}
           >

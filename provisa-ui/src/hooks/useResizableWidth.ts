@@ -29,7 +29,8 @@ export interface ResizableWidth<E extends HTMLElement> {
 
 /**
  * `max` may depend on what else shares the row, so it is asked for at the moment of the drag.
- * The width starts at `initial` and, once changed, is kept under `storageKey`.
+ * The width starts at `initial` and, once changed, is kept under `storageKey`. A panel whose
+ * starting width depends on its surroundings passes 0 and sizes itself until it is first moved.
  */
 export function useResizableWidth<E extends HTMLElement>(
   storageKey: string,
@@ -63,8 +64,11 @@ export function useResizableWidth<E extends HTMLElement>(
 
   const onHandleKeyDown = (e: KeyboardEvent) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const panel = ref.current;
+    if (!panel) return;
     e.preventDefault();
-    setWidth((w) => clamp(w + (e.key === "ArrowLeft" ? KEY_STEP : -KEY_STEP)));
+    // From the width the panel has on screen, which is not the kept one until it is first moved.
+    setWidth(clamp(panel.offsetWidth + (e.key === "ArrowLeft" ? KEY_STEP : -KEY_STEP)));
   };
 
   return { ref, width, startResize, onHandleKeyDown };

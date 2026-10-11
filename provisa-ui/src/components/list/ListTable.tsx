@@ -268,8 +268,10 @@ export function ListItems<T>({
   );
 }
 
-export interface ListRowProps
-  extends Omit<HTMLAttributes<HTMLTableRowElement>, "className" | "style" | "onClick"> {
+export interface ListRowProps extends Omit<
+  HTMLAttributes<HTMLTableRowElement>,
+  "className" | "style" | "onClick"
+> {
   children: ReactNode;
   testId?: string;
   /** Click toggles the row's expansion (or whatever the page binds); adds the pointer/hover style. */

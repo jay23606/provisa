@@ -49,11 +49,7 @@ export interface ListSortGroup<T> {
  * The items one page shows. A grouped list shows every group on one page (the group headers are
  * the navigation), so paging applies only while ungrouped.
  */
-export function pageItems<T>(
-  state: ListSortGroup<T>,
-  page: number,
-  size: number,
-): ListItem<T>[] {
+export function pageItems<T>(state: ListSortGroup<T>, page: number, size: number): ListItem<T>[] {
   if (state.groupBy.length > 0) return state.items;
   return state.items.slice(page * size, (page + 1) * size);
 }
@@ -85,14 +81,11 @@ export function useListSortGroup<T>(
     [sortCol, sortDir],
   );
 
-  const toggleGroup = useCallback(
-    (key: string) => {
-      setGroupBy((prev) => (prev.includes(key) ? prev.filter((g) => g !== key) : [...prev, key]));
-      // A different grouping has different group keys: collapsed state from the old one is stale.
-      setCollapsed(new Set());
-    },
-    [],
-  );
+  const toggleGroup = useCallback((key: string) => {
+    setGroupBy((prev) => (prev.includes(key) ? prev.filter((g) => g !== key) : [...prev, key]));
+    // A different grouping has different group keys: collapsed state from the old one is stale.
+    setCollapsed(new Set());
+  }, []);
 
   const toggleCollapsed = useCallback(
     (key: string) =>
