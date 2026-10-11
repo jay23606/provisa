@@ -75,6 +75,10 @@
     "empty": "Noch keine Tabellen registriert.",
     "resizeDetail": "Größe des Detailbereichs ändern",
     "detailPanel": "Tabellendetails",
-    "closeDetail": "Detailbereich schließen"
+    "closeDetail": "Detailbereich schließen",
+    "expandDetail": "Bereich maximieren",
+    "restoreDetail": "Bereich wiederherstellen",
+    "backToList": "Zurück zur Liste",
+    "backToDetail": "Zurück zu den Details"
   }
 }

@@ -15,7 +15,7 @@ import { RegionSelector } from "../components/RegionSelector";
 import { useState, useEffect, Fragment, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Network, FileSpreadsheet, X } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Network, X } from "lucide-react";
 import {
   ActionIcon,
   Alert,
@@ -76,7 +76,7 @@ import { TableReadView } from "./tables/TableReadView";
 import { ReplicatingMark } from "./tables/ReplicatingMark";
 import { buildOf } from "./tables/replicaBuild";
 import { ReplicaBuildsContext } from "./tables/replicaBuildsContext";
-import { TablePreviewModal } from "../components/TablePreviewModal";
+import { GovernedTableViewer } from "../components/GovernedTableViewer";
 import { NativeParamsModal } from "../components/NativeParamsModal";
 import { previewSql, requiredParamColumns } from "../components/nativeParams";
 import { TagControl } from "../components/TagControl";
@@ -708,6 +708,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     setShowViewForm(false);
     setShowModeling(false);
     setExpanded(null);
+    setPreviewTable(null);
     cancelEditing();
   };
   const selectedTable =
@@ -756,72 +757,106 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         onCancel={() => setShowModeling(false)}
       />
     ) : selectedTable ? (
-      ((t: RegisteredTable) => (
-        <>
-          {editingTable?.id !== t.id ? (
-            <TableReadView
-              t={t}
-              build={buildOf(replicaBuilds?.builds, t)}
-              hidingOnly={hidingOnly}
-              dataProducts={dataProducts}
-              navigate={navigate}
-              viewsOnly={viewsOnly}
-              onEditDefinition={viewsOnly ? setEditingViewDef : undefined}
-              deploying={deploying}
-              setDeploying={setDeploying}
-              deployMsg={deployMsg}
-              setDeployMsg={setDeployMsg}
-              tableProfiles={tableProfiles}
-              deployViewToDb={deployViewToDb}
-              reload={reload}
-              startEditing={startEditing}
-              handleDelete={handleDelete}
-              handleProfile={handleProfile}
-              onPreview={setPreviewTable}
-              onSetDraft={handleSetDraft}
-              profileColumnsTable={
-                // REQ-1934: this table's profile, if its columns table is registered.
-                tables.find(
-                  (tb) =>
-                    tb.tableName === `${t.tableName}_profile_columns` &&
-                    sources.find((s) => s.id === tb.sourceId)?.type === "data_profiler",
-                ) ?? null
-              }
-            />
-          ) : (
-            editingTable && (
-              <ReplicaBuildsContext.Provider value={replicaBuilds}>
-                <TableEditForm
-                  hidingOnly={hidingOnly}
-                  editingTable={editingTable}
-                  setEditingTable={setEditingTable}
-                  savedProfilerId={
-                    tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ?? null
-                  }
-                  editingColumnTypes={editingColumnTypes}
-                  cacheTtlEdits={cacheTtlEdits}
-                  setCacheTtlEdits={setCacheTtlEdits}
-                  sources={sources}
-                  roles={roles}
-                  dataProducts={dataProducts}
-                  settings={settings}
-                  saving={saving}
-                  generatingDesc={generatingDesc}
-                  setGeneratingDesc={setGeneratingDesc}
-                  generatingColDesc={generatingColDesc}
-                  setGeneratingColDesc={setGeneratingColDesc}
-                  generateTableDescription={generateTableDescription}
-                  generateColumnDescription={generateColumnDescription}
-                  cancelEditing={cancelEditing}
-                  handleSaveEdit={handleSaveEdit}
-                  updateEditCol={updateEditCol}
-                />
-              </ReplicaBuildsContext.Provider>
-            )
-          )}
-        </>
-      ))(selectedTable)
+      ((t: RegisteredTable) => {
+        const readView = (extra: { actionsOnly?: boolean; actionsDisabled?: boolean }) => (
+          <TableReadView
+            t={t}
+            build={buildOf(replicaBuilds?.builds, t)}
+            hidingOnly={hidingOnly}
+            dataProducts={dataProducts}
+            navigate={navigate}
+            viewsOnly={viewsOnly}
+            onEditDefinition={viewsOnly ? setEditingViewDef : undefined}
+            deploying={deploying}
+            setDeploying={setDeploying}
+            deployMsg={deployMsg}
+            setDeployMsg={setDeployMsg}
+            tableProfiles={tableProfiles}
+            deployViewToDb={deployViewToDb}
+            reload={reload}
+            startEditing={startEditing}
+            handleDelete={handleDelete}
+            handleProfile={handleProfile}
+            onPreview={setPreviewTable}
+            onSetDraft={handleSetDraft}
+            profileColumnsTable={
+              // REQ-1934: this table's profile, if its columns table is registered.
+              tables.find(
+                (tb) =>
+                  tb.tableName === `${t.tableName}_profile_columns` &&
+                  sources.find((s) => s.id === tb.sourceId)?.type === "data_profiler",
+              ) ?? null
+            }
+            {...extra}
+          />
+        );
+        // Preview is a view of the table inside the panel, with a way back to its detail: a
+        // working surface is never a dialog over the page.
+        if (previewTable?.id === t.id) {
+          return (
+            <div className="split-pane__fill" data-testid="table-preview-modal">
+              {/* The table's actions stay in the panel's head while its rows are looked at. */}
+              {readView({ actionsOnly: true })}
+              <div className="split-pane__bar">
+                <Button
+                  variant="subtle"
+                  size="compact-sm"
+                  leftSection={<ArrowLeft size={14} />}
+                  onClick={() => setPreviewTable(null)}
+                  data-testid="table-preview-back"
+                >
+                  {translate("tablesPage.backToDetail")}
+                </Button>
+              </div>
+              {/* REQ-1921: a draft's preview is the same viewer; it reads through the admin
+                  preview, as the caller, and says whom the table is not yet shown to. */}
+              {t.draft && (
+                <Text size="sm" c="dimmed" data-testid="table-preview-draft-note">
+                  {translate("tableReadView.draftPreviewNote")}
+                </Text>
+              )}
+              <GovernedTableViewer key={t.id} table={t} role={activeRole?.id ?? null} />
+            </div>
+          );
+        }
+        if (editingTable?.id !== t.id) return readView({});
+        return (
+          <>
+            {/* The table's actions stay in the panel's head while it is edited, out of use. */}
+            {readView({ actionsOnly: true, actionsDisabled: true })}
+            <ReplicaBuildsContext.Provider value={replicaBuilds}>
+              <TableEditForm
+                hidingOnly={hidingOnly}
+                editingTable={editingTable}
+                setEditingTable={setEditingTable}
+                savedProfilerId={
+                  tables.find((tb) => tb.id === editingTable.id)?.profilerSourceId ?? null
+                }
+                editingColumnTypes={editingColumnTypes}
+                cacheTtlEdits={cacheTtlEdits}
+                setCacheTtlEdits={setCacheTtlEdits}
+                sources={sources}
+                roles={roles}
+                dataProducts={dataProducts}
+                settings={settings}
+                saving={saving}
+                generatingDesc={generatingDesc}
+                setGeneratingDesc={setGeneratingDesc}
+                generatingColDesc={generatingColDesc}
+                setGeneratingColDesc={setGeneratingColDesc}
+                generateTableDescription={generateTableDescription}
+                generateColumnDescription={generateColumnDescription}
+                cancelEditing={cancelEditing}
+                handleSaveEdit={handleSaveEdit}
+                updateEditCol={updateEditCol}
+              />
+            </ReplicaBuildsContext.Provider>
+          </>
+        );
+      })(selectedTable)
     ) : null;
+  const panelIsReadOnly =
+    !showForm && !showViewForm && !showModeling && editingTable === null && previewTable === null;
   const panelTitle =
     showForm && !viewsOnly
       ? translate("tablesPage.addTable")
@@ -832,25 +867,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           : selectedTable
             ? (selectedTable.alias ?? selectedTable.tableName)
             : "";
-  const panelContent =
-    panelBody === null ? null : (
-      <>
-        <div className="split-pane__head">
-          <Title order={4} data-testid="tables-detail-title">
-            {panelTitle}
-          </Title>
-          <ActionIcon
-            variant="subtle"
-            aria-label={translate("tablesPage.closeDetail")}
-            onClick={closePanel}
-            data-testid="tables-detail-close"
-          >
-            <X size={16} />
-          </ActionIcon>
-        </div>
-        <div className="split-pane__body">{panelBody}</div>
-      </>
-    );
 
   return (
     <div className="page page-sticky-head">
@@ -988,8 +1004,18 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       <SplitPane
         testId="tables-split"
         storageKey="provisa.tables.detailWidth"
-        handleLabel={translate("tablesPage.resizeDetail")}
-        panelLabel={translate("tablesPage.detailPanel")}
+        title={panelTitle}
+        onClose={closePanel}
+        // Escape closes a table that is only being looked at; it never drops what is being typed.
+        closeOnEscape={panelIsReadOnly}
+        labels={{
+          panel: translate("tablesPage.detailPanel"),
+          resize: translate("tablesPage.resizeDetail"),
+          expand: translate("tablesPage.expandDetail"),
+          restore: translate("tablesPage.restoreDetail"),
+          close: translate("tablesPage.closeDetail"),
+          backToList: translate("tablesPage.backToList"),
+        }}
         list={
           <>
             <ListTable testId="tables-list">
@@ -1050,6 +1076,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                           aria-selected={expanded === t.id}
                           onClick={() => {
                             setExpanded(expanded === t.id ? null : t.id);
+                            // Another table, or none: the panel shows that table's detail.
+                            setPreviewTable(null);
                             if (expanded === t.id) cancelEditing();
                           }}
                         >
@@ -1275,8 +1303,9 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             })()}
           </>
         }
-        panel={panelContent}
-      />
+      >
+        {panelBody}
+      </SplitPane>
       {/* REQ-1318: edit-view definition flow — a metric view opens in Metrics mode
           prefilled; a free-hand view opens in SQL mode. */}
       <Modal
@@ -1391,11 +1420,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           onClose={() => setShowErd(false)}
         />
       )}
-      <TablePreviewModal
-        table={previewTable}
-        role={activeRole?.id ?? null}
-        onClose={() => setPreviewTable(null)}
-      />
       <NativeParamsModal
         key={profileParamsTable?.id ?? "none"}
         table={profileParamsTable}

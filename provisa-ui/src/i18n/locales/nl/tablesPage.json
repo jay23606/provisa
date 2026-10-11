@@ -75,6 +75,10 @@
     "empty": "Nog geen tabellen geregistreerd.",
     "resizeDetail": "Formaat van het detailpaneel wijzigen",
     "detailPanel": "Tabeldetails",
-    "closeDetail": "Detailpaneel sluiten"
+    "closeDetail": "Detailpaneel sluiten",
+    "expandDetail": "Paneel uitvouwen",
+    "restoreDetail": "Paneel herstellen",
+    "backToList": "Terug naar de lijst",
+    "backToDetail": "Terug naar de details"
   }
 }

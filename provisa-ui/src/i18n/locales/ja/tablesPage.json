@@ -75,6 +75,10 @@
     "empty": "登録済みのテーブルはまだありません。",
     "resizeDetail": "詳細パネルのサイズを変更",
     "detailPanel": "テーブルの詳細",
-    "closeDetail": "詳細パネルを閉じる"
+    "closeDetail": "詳細パネルを閉じる",
+    "expandDetail": "パネルを広げる",
+    "restoreDetail": "パネルを元に戻す",
+    "backToList": "一覧に戻る",
+    "backToDetail": "詳細に戻る"
   }
 }

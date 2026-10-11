@@ -75,6 +75,10 @@
     "empty": "अभी तक कोई तालिका पंजीकृत नहीं है।",
     "resizeDetail": "विवरण पैनल का आकार बदलें",
     "detailPanel": "तालिका विवरण",
-    "closeDetail": "विवरण पैनल बंद करें"
+    "closeDetail": "विवरण पैनल बंद करें",
+    "expandDetail": "पैनल बड़ा करें",
+    "restoreDetail": "पैनल पहले जैसा करें",
+    "backToList": "सूची पर वापस",
+    "backToDetail": "विवरण पर वापस"
   }
 }

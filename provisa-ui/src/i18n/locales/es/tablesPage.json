@@ -75,6 +75,10 @@
     "empty": "Aún no hay tablas registradas.",
     "resizeDetail": "Cambiar el tamaño del panel de detalles",
     "detailPanel": "Detalles de la tabla",
-    "closeDetail": "Cerrar el panel de detalles"
+    "closeDetail": "Cerrar el panel de detalles",
+    "expandDetail": "Ampliar el panel",
+    "restoreDetail": "Restaurar el panel",
+    "backToList": "Volver a la lista",
+    "backToDetail": "Volver a los detalles"
   }
 }

@@ -5536,5 +5536,9 @@
   "ru/tableEditForm.json::tableEditForm.columnTabs.naming": "Naming",
   "ru/tableEditForm.json::tableEditForm.columnTabs.type": "Type and keys",
   "ru/tableEditForm.json::tableEditForm.columnTabs.access": "Access",
-  "ru/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix"
+  "ru/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix",
+  "ru/tablesPage.json::tablesPage.expandDetail": "Expand the panel",
+  "ru/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
+  "ru/tablesPage.json::tablesPage.backToList": "Back to the list",
+  "ru/tablesPage.json::tablesPage.backToDetail": "Back to details"
 }

@@ -646,7 +646,6 @@ main {
 }
 .split-pane__panel {
   flex: 0 0 auto;
-  width: 60%;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -655,26 +654,91 @@ main {
   border-radius: 0.5rem;
   overflow: hidden;
 }
+.split-pane__panel:focus {
+  outline: none;
+}
+/* Expanded, or on a row too narrow for both: the panel has the row and the list is put away. */
+.split-pane__panel[data-alone] {
+  flex: 1 1 auto;
+}
+.split-pane__list[hidden] {
+  display: none;
+}
+/* The pinned head: the title, the content's own actions, then expand and close. When the panel
+   is narrow the actions wrap under the title; nothing is clipped. */
 .split-pane__head {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.25rem 0.5rem;
   padding: 0.5rem 0.75rem 0.5rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.split-pane__head h4 {
+.split-pane__title {
   margin: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.split-pane__actions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.split-pane__actions:empty {
+  min-height: 1px;
+}
+/* The actions a view puts in the head: one set, out of use as a whole while a form is open. */
+.panel-action-set {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.panel-action-set:disabled {
+  opacity: 0.45;
+  pointer-events: none;
 }
 .split-pane__body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.split-pane__body > * {
+  flex: 0 0 auto;
+}
+/* A view that wants the panel's whole height (a data grid). */
+.split-pane__body > .split-pane__fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* A row of the panel's own controls above a view (the way back from a preview). */
+.split-pane__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.split-pane__fill > :last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* A form's Save and Cancel stay at the foot of the panel while the form scrolls above them. */
+.split-pane__body .form-footer:last-child {
+  position: sticky;
+  bottom: -0.75rem;
+  margin-bottom: -0.75rem;
+  padding-block: 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 2;
 }
 /* A form in the panel is the panel's own content: it needs no card of its own inside it. */
 .split-pane__body > .form-card {

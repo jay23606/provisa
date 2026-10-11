@@ -12,7 +12,7 @@
 // editing happens there, and the create forms open there. Nothing opens inside the list.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, within } from "../../test-utils/render";
+import { fireEvent, render, screen, waitFor, within } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import type { RegisteredTable, RoleTtl } from "../../types/admin";
 
@@ -222,7 +222,7 @@ describe("TablesPage — the detail panel", () => {
     render(<TablesPage />);
     const row = await select("orders");
     const panel = await screen.findByTestId("tables-split-panel");
-    expect(within(panel).getByTestId("tables-detail-title")).toHaveTextContent("orders");
+    expect(within(panel).getByTestId("tables-split-title")).toHaveTextContent("orders");
     expect(within(panel).getByTestId("table-read-view-edit")).toBeInTheDocument();
     expect(row).toHaveAttribute("aria-selected", "true");
     // The list holds rows only: no detail row opens beneath the selected one.
@@ -240,7 +240,7 @@ describe("TablesPage — the detail panel", () => {
   it("closes from the panel’s own button, and from a second click on the row", async () => {
     render(<TablesPage />);
     const row = await select("orders");
-    await userEvent.click(await screen.findByTestId("tables-detail-close"));
+    await userEvent.click(await screen.findByTestId("tables-split-close"));
     await waitFor(() => expect(screen.queryByTestId("tables-split-panel")).toBeNull());
     expect(row).toHaveAttribute("aria-selected", "false");
     await select("orders");
@@ -254,5 +254,54 @@ describe("TablesPage — the detail panel", () => {
     await userEvent.click(await screen.findByTestId("tables-add-toggle"));
     const panel = await screen.findByTestId("tables-split-panel");
     expect(within(panel).getByTestId("register-table-source-select")).toBeInTheDocument();
+  });
+
+  it("keeps the table's actions in the panel's pinned head", async () => {
+    render(<TablesPage />);
+    await select("orders");
+    const head = (await screen.findByTestId("tables-split-title")).parentElement as HTMLElement;
+    for (const id of ["table-read-view-preview", "table-read-view-edit", "table-read-view-draft"]) {
+      expect(await within(head).findByTestId(id)).toBeInTheDocument();
+    }
+  });
+
+  it("shows the actions while editing, out of use until Save or Cancel", async () => {
+    render(<TablesPage />);
+    await select("orders");
+    await userEvent.click(await screen.findByTestId("table-read-view-edit"));
+    await screen.findByTestId("table-draft-checkbox");
+    const head = screen.getByTestId("tables-split-title").parentElement as HTMLElement;
+    const preview = await within(head).findByTestId("table-read-view-preview");
+    expect(preview.closest("fieldset")).toBeDisabled();
+    expect(preview).toBeDisabled();
+  });
+
+  it("closes on Escape while a table is only being looked at, and not while it is edited", async () => {
+    render(<TablesPage />);
+    await select("orders");
+    await userEvent.click(await screen.findByTestId("table-read-view-edit"));
+    await screen.findByTestId("table-draft-checkbox");
+    fireEvent.keyDown(screen.getByTestId("tables-split-panel"), { key: "Escape" });
+    expect(screen.getByTestId("tables-split-panel")).toBeInTheDocument();
+  });
+
+  it("shows another table when its row is clicked, one at a time", async () => {
+    render(<TablesPage />);
+    await select("orders");
+    const other = await select("staging");
+    expect(screen.getByTestId("tables-split-title")).toHaveTextContent("staging");
+    expect(other).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByRole("complementary")).toHaveLength(1);
+  });
+
+  it("opens Preview inside the panel, with a way back to the table's detail", async () => {
+    render(<TablesPage />);
+    await select("orders");
+    await userEvent.click(await screen.findByTestId("table-read-view-preview"));
+    const panel = screen.getByTestId("tables-split-panel");
+    expect(await within(panel).findByTestId("table-preview-modal")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent.click(within(panel).getByTestId("table-preview-back"));
+    expect(await within(panel).findByTestId("table-read-view-edit")).toBeInTheDocument();
   });
 });

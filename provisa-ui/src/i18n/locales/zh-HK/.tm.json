@@ -5537,5 +5537,9 @@
   "zh-HK/tableEditForm.json::tableEditForm.columnTabs.naming": "Naming",
   "zh-HK/tableEditForm.json::tableEditForm.columnTabs.type": "Type and keys",
   "zh-HK/tableEditForm.json::tableEditForm.columnTabs.access": "Access",
-  "zh-HK/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix"
+  "zh-HK/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix",
+  "zh-HK/tablesPage.json::tablesPage.expandDetail": "Expand the panel",
+  "zh-HK/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
+  "zh-HK/tablesPage.json::tablesPage.backToList": "Back to the list",
+  "zh-HK/tablesPage.json::tablesPage.backToDetail": "Back to details"
 }
