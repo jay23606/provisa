@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Replizieren",
-    "helpTable": "Wann diese Tabelle aus ihrem Replikat bedient wird: einer Kopie im Store der Engine, die nach den Aktualitätseinstellungen der Tabelle aufgefrischt wird (TTL, Aktualitätsprüfung, Change Feed). Es ist kein kontinuierlicher Änderungsstrom. „Standard“ übernimmt den Wert der Quelle oder, wenn die Quelle keinen hat, den globalen Schwellenwert. Nur „Immer“ ist eine Garantie; „Standard“, „Nie“ und die Hot-Einträge gelten nach bestem Bemühen.",
-    "helpSource": "Wann die Tabellen dieser Quelle aus ihren Replikaten bedient werden: Kopien im Store der Engine, die nach den Aktualitätseinstellungen der jeweiligen Tabelle aufgefrischt werden. Eine Tabelle ohne eigenen Wert übernimmt diesen. „Standard“ wendet den globalen Schwellenwert an. Nur „Immer“ ist eine Garantie; „Standard“, „Nie“ und die Hot-Einträge gelten nach bestem Bemühen.",
+    "helpTable": "Wann die Lesezugriffe dieser Tabelle aus ihrem Replikat kommen, einer Kopie im Speicher der Engine, die nach den Aktualitätseinstellungen der Tabelle erneuert wird. Standard: die Einstellung der Quelle, sonst der globale Schwellenwert.",
+    "helpSource": "Wann die Lesezugriffe auf die Tabellen dieser Quelle aus ihren Replikaten kommen, Kopien im Speicher der Engine, die nach den Aktualitätseinstellungen jeder Tabelle erneuert werden. Eine Tabelle ohne eigene Einstellung verwendet diese. Standard: der globale Schwellenwert.",
+    "helpOptions": "Live, wenn möglich: direkt aus der Quelle gelesen; repliziert nur, wenn die Engine sie nicht direkt lesen kann. Hot-N: direkt gelesen, bis N Anweisungen die Tabelle innerhalb des Intervalls lesen, danach aus dem Replikat, bis es weniger als die Hälfte von N sind; Antworten aus dem Antwort-Cache zählen nicht. Immer: immer aus dem Replikat, die einzige Einstellung mit Garantie.",
     "default": "Standard",
-    "never": "Nie",
+    "never": "Live, wenn möglich",
     "always": "Immer",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "„Nie“ lässt sich nicht mit Lastschutz kombinieren: Eine lastgeschützte Tabelle wird nie live gelesen."
+    "neverWithLoadProtection": "„Live, wenn möglich“ lässt sich nicht mit Lastschutz kombinieren: Eine lastgeschützte Tabelle wird nie live gelesen.",
+    "scheduled": "Immer, Quelle nur nach Zeitplan gelesen",
+    "helpScheduled": "Immer, Quelle nur nach Zeitplan gelesen: Lesezugriffe kommen immer aus dem Replikat, und eine Abfrage löst nie ein Lesen der Quelle aus; der Scheduler aktualisiert das Replikat im Nebenzeiten-Fenster, nach der Cache-TTL oder der Änderungsprüfung, und mindestens eines der drei ist erforderlich."
   }
 }

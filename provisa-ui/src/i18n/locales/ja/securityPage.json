@@ -65,6 +65,15 @@
     "action": "アクション",
     "actionPrefix": "アクション:",
     "loadActionsFailed": "アクションを読み込めませんでした: {{message}}",
-    "labelAction": "アクション:"
+    "labelAction": "アクション:",
+    "deleteRoleTitle": "ロール「{{id}}」を削除しますか？",
+    "deleteRoleConsequence": "ロールは削除されます。使用中のロールは削除できません。",
+    "deleteRuleTitle": "この RLS ルールを削除しますか？",
+    "deleteRuleConsequence": "ロール「{{role}}」はこのルールによる制限を受けなくなります。",
+    "roleDetailPanel": "ロールの詳細",
+    "ruleDetailPanel": "RLS ルールの詳細",
+    "panelNewRole": "新しいロール",
+    "panelNewRule": "新しい RLS ルール",
+    "panelRule": "RLS ルール {{id}}"
   }
 }

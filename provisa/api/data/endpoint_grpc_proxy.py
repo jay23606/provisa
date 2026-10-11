@@ -21,6 +21,8 @@ a native gRPC client.
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import logging
 from typing import Any
 
@@ -162,11 +164,12 @@ async def grpc_group_by_columns(role_id: str, type_name: str, request: Request):
     from provisa.grpc.query_ir import _find_table_meta
 
     role_id = named_role(request, role_id)
-    if role_id not in state.schemas:
+    surface = role_surface(state, role_id)  # one snapshot: the parts are of one build
+    if surface is None:
         raise ApiError(
             404, "data.no_schema_for_role", f"No schema for role {role_id!r}", role_id=role_id
         )
-    ctx = state.contexts[role_id]
+    ctx = surface.context
     # REQ-1882: an Aggregate-suffixed typeName (the columns picker's caller for Query{Type}
     # Aggregate) needs the same stripping GroupBy already got, or _find_table_meta never matches.
     if type_name.endswith("GroupBy"):
@@ -179,7 +182,7 @@ async def grpc_group_by_columns(role_id: str, type_name: str, request: Request):
     if meta is None:
         return []
 
-    schema = state.schemas[role_id]
+    schema = surface.schema
     enum_type = schema.get_type(f"{meta.type_name}DistinctOnColumn")
     if not isinstance(enum_type, GraphQLEnumType):
         return []
@@ -204,11 +207,12 @@ async def jsonapi_group_by_columns(
     from provisa.api.app import state
 
     role_id = named_role(request, role_id)
-    if role_id not in state.schemas:
+    surface = role_surface(state, role_id)  # one snapshot: the parts are of one build
+    if surface is None:
         raise ApiError(
             404, "data.no_schema_for_role", f"No schema for role {role_id!r}", role_id=role_id
         )
-    ctx = state.contexts[role_id]
+    ctx = surface.context
     meta = next(
         (m for m in ctx.tables.values() if m.domain_id == domain_id and m.table_name == table_name),
         None,
@@ -216,7 +220,7 @@ async def jsonapi_group_by_columns(
     if meta is None:
         return []
 
-    schema = state.schemas[role_id]
+    schema = surface.schema
     enum_type = schema.get_type(f"{meta.type_name}DistinctOnColumn")
     if not isinstance(enum_type, GraphQLEnumType):
         return []
@@ -242,12 +246,13 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
 
     if not role_id:
         raise ApiError(400, "data.missing_role_id", "Missing role_id")
-    if role_id not in state.schemas:
+    surface = role_surface(state, role_id)  # one snapshot: the parts are of one build
+    if surface is None:
         raise ApiError(
             404, "data.no_schema_for_role", f"No schema for role {role_id!r}", role_id=role_id
         )
 
-    ctx = state.contexts[role_id]
+    ctx = surface.context
 
     # REQ-1359: Aggregate/GroupBy synthetic proto type names have no semantic-SQL table match —
     # route them through the same GraphQL-text synthesis + compile path the native gRPC servicer
@@ -257,7 +262,7 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
         from provisa.compiler.parser import GraphQLValidationError, parse_query
         from provisa.compiler.sql_gen import compile_query
 
-        schema = state.schemas[role_id]
+        schema = surface.schema
         is_group_by = type_name.endswith("GroupBy")
         # grpc_table_to_*_graphql_text match against the bare table type name (mirrors
         # server.py's __getattr__, which strips both the "Query" prefix and the

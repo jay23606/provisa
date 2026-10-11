@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Métricas",
-    "newMetric": "Nueva métrica",
+    "newMetric": "+ Métrica",
     "loading": "Cargando...",
     "empty": "Aún no hay métricas registradas.",
     "colName": "Nombre",
@@ -39,8 +39,6 @@
     "fieldDescription": "Descripción",
     "fieldAiContext": "Contexto de IA",
     "fieldAiContextPlaceholder": "Indicaciones para la generación de consultas asistida por IA",
-    "save": "Guardar",
-    "cancel": "Cancelar",
     "saveFailed": "Error al guardar.",
     "editMetric": "Editar métrica {{name}}",
     "deleteMetric": "Eliminar métrica {{name}}",
@@ -51,7 +49,8 @@
     "purposeTitle": "Para qué sirven las métricas",
     "purposeBody": "Una métrica es la definición de negocio de una medida: una agregación sobre una tabla de hechos, definida una sola vez aquí y proyectada a todas las superficies: SQL, GraphQL, el lienzo de exploración, las vistas construidas a partir de métricas y la exportación de intercambio.",
     "purposeAdd": "Defínala una vez para que los consumidores no diverjan reimplementando la aritmética. Una vista construida a partir de una métrica se regenera cada vez que la métrica cambia, así el número es el mismo en todas partes.",
-    "purposeAria": "Acerca de las métricas"
+    "purposeAria": "Acerca de las métricas",
+    "detailPanel": "Detalles de la métrica"
   },
   "sqlJoinCanvas": {
     "removeMetric": "Quitar métrica {{metricName}}",

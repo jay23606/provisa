@@ -185,18 +185,20 @@ beforeEach(() => {
   });
 });
 
+// A column's test data is the fourth topic of the one tab bar above the column list.
 function testDataMode() {
-  fireEvent.click(screen.getByText("Test data"));
+  fireEvent.click(screen.getByTestId("column-tab-testing"));
 }
 
 describe("TableEditForm — a column's test data (REQ-1494)", () => {
-  it("offers metadata and test-data modes, the fake edited in its cell", () => {
+  it("offers a column's test data as the fourth tab of one bar, the fake edited in its cell", () => {
     const updateEditCol = vi.fn();
     renderForm(makeTable({ columns: [{ ...EMAIL, fake: "email()" }] }), [SOURCE], updateEditCol);
-    expect(screen.getByTestId("table-columns-mode")).toHaveAttribute(
-      "data-tour",
-      "table-columns-mode",
-    );
+    // One tab bar, and no switch above it.
+    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    expect(tabs).toEqual(["Naming", "Type and keys", "Access", "Testing"]);
+    expect(screen.queryByTestId("table-columns-mode")).toBeNull();
+    expect(screen.queryByText("Metadata")).toBeNull();
     expect(screen.queryByTestId("testdata-columns")).toBeNull();
     testDataMode();
     const input = screen.getByTestId("testdata-fake-email") as HTMLInputElement;
@@ -209,6 +211,12 @@ describe("TableEditForm — a column's test data (REQ-1494)", () => {
     expect(updateEditCol).toHaveBeenCalledWith(0, "syntheticRule", "sql_group(1)");
     fireEvent.click(screen.getByTestId("testdata-stable-email"));
     expect(updateEditCol).toHaveBeenCalledWith(0, "fakeStable", true);
+    // The column's name comes first on this tab as on the others.
+    const first = screen.getByTestId("testdata-row-email").querySelector("td")!;
+    expect(first).toHaveTextContent("email");
+    // Back on another tab the same list shows that topic, and the test data is out of view.
+    fireEvent.click(screen.getByTestId("column-tab-naming"));
+    expect(screen.queryByTestId("testdata-columns")).toBeNull();
   });
 
   it("marks a pii column that declares no fake", () => {

@@ -30,6 +30,7 @@ from provisa.api.errors import ApiError
 from provisa.control_plane.models import Org
 from provisa.control_plane.store import control_plane_store
 from provisa.core.models import ProvisaConfig
+from tests.role_state import RoleState
 
 ORG_ID = "acme"
 
@@ -124,7 +125,7 @@ def surface(monkeypatch, tmp_path):
     monkeypatch.setattr(org_settings_mod, "write_org_overrides", _write)
     monkeypatch.setattr(
         "provisa.api.app.state",
-        types.SimpleNamespace(
+        RoleState(
             model_db=(_one_db := _TenantDb(tmp_path)),
             tenant_db=_one_db,
             # REQ-1659: the listing links back at the org's public origin, read off config.mail.

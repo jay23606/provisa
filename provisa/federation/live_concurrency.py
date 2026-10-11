@@ -58,7 +58,7 @@ class LiveConcurrencyExceeded(TimeoutError):
         super().__init__(
             f"source {source_id!r} is at its live-read cap of {cap} concurrent "
             f"quer{'y' if cap == 1 else 'ies'} (max_live_concurrency); no permit freed within "
-            f"{waited_s:.1f}s (REQ-1909)"
+            f"{waited_s:.1f}s"
         )
 
 

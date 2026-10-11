@@ -21,18 +21,24 @@
     "redirectUnknown": "O endereço de redirecionamento não pode ser exibido porque o endereço público desta implantação não está definido.",
     "clientId": "ID do cliente",
     "clientSecret": "Chave secreta do cliente",
-    "clientSecretKeep": "Deixe em branco para manter a que já foi informada.",
     "setting": {
-      "tenant": "ID do diretório (locatário)"
+      "tenant": "ID do diretório (locatário)",
+      "admin_address": "Endereço do administrador"
     },
     "settingHelp": {
-      "tenant": "O diretório em que estão as contas do Microsoft 365 da sua organização: o ID ou o domínio dele, como o Microsoft Entra mostra na página Visão geral do registro do aplicativo."
+      "tenant": "O diretório em que estão as contas do Microsoft 365 da sua organização: o ID ou o domínio dele, como o Microsoft Entra mostra na página Visão geral do registro do aplicativo.",
+      "admin_address": "Um superadministrador do seu domínio do Google Workspace. O diretório é listado como esse usuário; os e-mails dele só são lidos se uma fonte o nomear."
     },
-    "organisationMailboxes": "Permitir fontes que leem as caixas de correio da organização",
+    "organisationMailboxes": "Ler as caixas de correio da organização",
+    "ownMailbox": "Permitir que cada pessoa ligue a sua própria caixa de correio",
     "organisationMailboxesHelp": "Desativado: uma fonte lê apenas a caixa de correio que uma pessoa conecta. Ativado: uma fonte pode ler muitas caixas de correio da organização com a credencial do administrador, e quem pode ler suas tabelas lê todas as caixas, a menos que uma regra de linha limite isso.",
     "organisationGrant": {
-      "microsoft_365": "Para fontes que leem as caixas de correio da organização, dê ao registro do aplicativo as permissões de aplicativo Mail.Read e User.Read.All e conceda o consentimento do administrador."
+      "microsoft_365": "Para fontes que leem as caixas de correio da organização, dê ao registro do aplicativo as permissões de aplicativo Mail.Read e User.Read.All e conceda o consentimento do administrador.",
+      "google_workspace": "Um superadministrador autoriza o ID do cliente da conta de serviço para os escopos abaixo no Google Admin Console, em Segurança › Controle de dados e acesso › Controles de API › Gerenciar a delegação em todo o domínio. Adicione gmail.metadata para fontes que leem apenas cabeçalhos e marcadores. O Google não consegue limitar isso a algumas caixas de correio: abrange todos os usuários do domínio."
     },
+    "organisationKey": "Chave da conta de serviço",
+    "organisationKeyHelp": "O JSON da chave que o Google Cloud criou para a conta de serviço, ou uma referência a um segredo que a contém.",
+    "organisationScopes": "Escopos a autorizar",
     "save": "Salvar",
     "remove": "Remover",
     "saved": "Salvo.",

@@ -18,6 +18,7 @@ import type { MockedResponse } from "@apollo/client/testing";
 import { theme } from "../theme/theme";
 import i18n from "../i18n";
 import { PollyProvider } from "../context/PollyContext";
+import { FormLayout } from "../components/form/FormLayout";
 
 // Wraps components in the same MantineProvider + i18n runtime the app uses so
 // component tests exercise real theming and translated strings (REQ-1016). The
@@ -27,14 +28,20 @@ import { PollyProvider } from "../context/PollyContext";
 // resolves through Apollo rather than needing a leak-prone module mock.
 // MemoryRouter satisfies REQ-1387's useSearchParams deep-linking. `initialEntries` lets a
 // caller seed the route/query-string a test depends on instead of nesting its own Router.
-function makeWrapper(mocks: readonly MockedResponse[], initialEntries?: MemoryRouterProps["initialEntries"]) {
+function makeWrapper(
+  mocks: readonly MockedResponse[],
+  initialEntries?: MemoryRouterProps["initialEntries"],
+  inForm = false,
+) {
   return function AllProviders({ children }: { children: ReactNode }) {
     return (
       <MockedProvider mocks={mocks}>
         <MantineProvider theme={theme} defaultColorScheme="dark">
           <I18nextProvider i18n={i18n}>
             <MemoryRouter initialEntries={initialEntries}>
-              <PollyProvider>{children}</PollyProvider>
+              <PollyProvider>
+                {inForm ? <FormLayout>{children}</FormLayout> : children}
+              </PollyProvider>
             </MemoryRouter>
           </I18nextProvider>
         </MantineProvider>
@@ -52,6 +59,21 @@ export function renderWithProviders(
 ) {
   const { mocks = [], initialEntries, ...renderOptions } = options ?? {};
   return render(ui, { wrapper: makeWrapper(mocks, initialEntries), ...renderOptions });
+}
+
+/**
+ * Renders a section of a form on its own. A form's fields live in the shared form layout
+ * (REQ-1968) and refuse to render outside one, so a section tested alone is given one.
+ */
+export function renderInForm(
+  ui: ReactElement,
+  options?: Omit<RenderOptions, "wrapper"> & {
+    mocks?: readonly MockedResponse[];
+    initialEntries?: MemoryRouterProps["initialEntries"];
+  },
+) {
+  const { mocks = [], initialEntries, ...renderOptions } = options ?? {};
+  return render(ui, { wrapper: makeWrapper(mocks, initialEntries, true), ...renderOptions });
 }
 
 export * from "@testing-library/react";

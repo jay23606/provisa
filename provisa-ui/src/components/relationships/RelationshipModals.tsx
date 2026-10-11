@@ -8,8 +8,9 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Button, Checkbox, Group, Modal, NumberInput, Stack, Text, TextInput } from "@mantine/core";
+import { Button, Checkbox, Modal, NumberInput, Stack, Text, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormChecks, FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 import type { Relationship } from "../../types/admin";
 import type { RelForm } from "./relationship-types";
 
@@ -68,87 +69,95 @@ export function ConflictModal({ rel, onClose }: ConflictModalProps) {
             </>
           )}
         </Stack>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose} data-testid="conflict-modal-close">
-            {t("relationshipModals.conflictClose")}
-          </Button>
-        </Group>
+        <FormFooter
+          action={
+            <Button variant="default" onClick={onClose} data-testid="conflict-modal-close">
+              {t("relationshipModals.conflictClose")}
+            </Button>
+          }
+        />
       </Stack>
     </Modal>
   );
 }
 
-interface ReverseRelationshipModalProps {
+interface ReverseRelationshipFormProps {
   reverseForm: RelForm;
   setReverseForm: (f: RelForm | null) => void;
   saving: string | null;
   onSave: () => void;
 }
 
-export function ReverseRelationshipModal({
+/** The form that creates a relationship's reverse. A working surface, so it is shown in the
+ *  page's detail panel, which titles it, not in a dialog (REQ-1968). */
+export function ReverseRelationshipForm({
   reverseForm,
   setReverseForm,
   saving,
   onSave,
-}: ReverseRelationshipModalProps) {
+}: ReverseRelationshipFormProps) {
   const { t } = useTranslation();
   return (
-    <Modal
-      opened
-      onClose={() => setReverseForm(null)}
-      title={t("relationshipModals.reverseTitle")}
-      centered
-      size="730px"
-    >
-      <Stack gap="sm">
-        <TextInput
-          label={t("relationshipModals.idLabel")}
-          value={reverseForm.id}
-          onChange={(e) => setReverseForm({ ...reverseForm, id: e.target.value })}
-          data-testid="reverse-rel-id"
-        />
-        <TextInput
-          label={t("relationshipModals.aliasLabel")}
-          placeholder={t("relationshipModals.aliasPlaceholder")}
-          value={reverseForm.alias}
-          onChange={(e) => setReverseForm({ ...reverseForm, alias: e.target.value })}
-          data-testid="reverse-rel-alias"
-        />
-        <TextInput
-          label={t("relationshipModals.graphqlAliasLabel")}
-          value={reverseForm.graphqlAlias}
-          onChange={(e) => setReverseForm({ ...reverseForm, graphqlAlias: e.target.value })}
-          data-testid="reverse-rel-graphql-alias"
-        />
-        <Checkbox
-          label={t("relationshipModals.materializeLabel")}
-          checked={reverseForm.materialize}
-          onChange={(e) => setReverseForm({ ...reverseForm, materialize: e.target.checked })}
-          data-testid="reverse-rel-materialize"
-        />
-        {reverseForm.materialize && (
-          <NumberInput
-            label={t("relationshipModals.refreshIntervalLabel")}
-            value={reverseForm.refreshInterval}
-            onChange={(value) =>
-              setReverseForm({ ...reverseForm, refreshInterval: String(value ?? "") })
-            }
-            data-testid="reverse-rel-refresh-interval"
+    <div data-testid="reverse-relationship-form">
+      <FormLayout>
+        <FormIdentifiers>
+          <FormField size="medium">
+            <TextInput
+              label={t("relationshipModals.idLabel")}
+              value={reverseForm.id}
+              onChange={(e) => setReverseForm({ ...reverseForm, id: e.target.value })}
+              data-testid="reverse-rel-id"
+            />
+          </FormField>
+        </FormIdentifiers>
+        <FormField size="medium">
+          <TextInput
+            label={t("relationshipModals.aliasLabel")}
+            placeholder={t("relationshipModals.aliasPlaceholder")}
+            value={reverseForm.alias}
+            onChange={(e) => setReverseForm({ ...reverseForm, alias: e.target.value })}
+            data-testid="reverse-rel-alias"
           />
+        </FormField>
+        <FormField size="medium">
+          <TextInput
+            label={t("relationshipModals.graphqlAliasLabel")}
+            value={reverseForm.graphqlAlias}
+            onChange={(e) => setReverseForm({ ...reverseForm, graphqlAlias: e.target.value })}
+            data-testid="reverse-rel-graphql-alias"
+          />
+        </FormField>
+        <FormChecks>
+          <FormField size="long">
+            <Checkbox
+              label={t("relationshipModals.materializeLabel")}
+              checked={reverseForm.materialize}
+              onChange={(e) => setReverseForm({ ...reverseForm, materialize: e.target.checked })}
+              data-testid="reverse-rel-materialize"
+            />
+          </FormField>
+        </FormChecks>
+        {reverseForm.materialize && (
+          <FormField size="short">
+            <NumberInput
+              label={t("relationshipModals.refreshIntervalLabel")}
+              value={reverseForm.refreshInterval}
+              onChange={(value) =>
+                setReverseForm({ ...reverseForm, refreshInterval: String(value ?? "") })
+              }
+              data-testid="reverse-rel-refresh-interval"
+            />
+          </FormField>
         )}
-      </Stack>
-      <Group justify="flex-end" mt="md">
-        <Button
-          variant="default"
-          onClick={() => setReverseForm(null)}
-          data-testid="reverse-rel-cancel"
-        >
-          {t("relationshipModals.cancel")}
-        </Button>
-        <Button onClick={onSave} loading={saving === "reverse"} data-testid="reverse-rel-save">
-          {t("relationshipModals.save")}
-        </Button>
-      </Group>
-    </Modal>
+        <FormFooter
+          panel
+          onSave={onSave}
+          saving={saving === "reverse"}
+          onCancel={() => setReverseForm(null)}
+          saveProps={{ "data-testid": "reverse-rel-save" }}
+          cancelProps={{ "data-testid": "reverse-rel-cancel" }}
+        />
+      </FormLayout>
+    </div>
   );
 }

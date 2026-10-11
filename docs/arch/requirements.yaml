@@ -77663,8 +77663,161 @@
   category: Form Layout
   priority: SHOULD
   type: behavioral
-  description: 'Every form in the UI is laid out by one shared form layout, and a field is as wide as what it holds, not as wide as the form. A field declares a size class (short for numbers, ports, durations, switches and short choices; medium for names and hosts; long for addresses, paths and one-line descriptions; full for multi-line text and editors only), and each class has a minimum and a maximum width, so a field neither stretches across the form nor collapses. Fields flow into as many columns as the screen allows and wrap on a narrower one, with no form carrying its own breakpoints; fields that belong together (host and port, precision and scale) are declared as a group and wrap as one. A single-line field is never full width; full width is for multi-line text, editors and tables. Identifier fields, where a form has them, are not in the flow: they sit at the top of the form in a section of their own. A form''s action buttons are at the bottom, aligned to the start of the line (left in a left-to-right language, right in a right-to-left one), primary action first. Reading order and keyboard order are the same after any reflow. Minimum widths hold each field''s label in every shipped locale. Creating an object follows one pattern on every page: a button at the top of the page named for the object ("+ Table", "+ Source") opens the form, and the form ends in Save and Cancel -- Save creates the object, Cancel closes the form with nothing created; the form''s own button never repeats the opening button''s label, and an edit form ends in the same two actions in the same order. A button is as wide as its label, with one shared minimum width, and never grows to fill its container: it is not a direct child of a stretching stack or grid cell but sits in an action row at its natural width. A full-width button is allowed only where it is named as an exception: the single call to action of a narrow card (sign-in, an onboarding step), a row of a menu or list that is itself the action, and a phone-width screen. The rule is held by a guard test: a form that lays its fields out outside the shared layout, a single-line field stretched to full width, action buttons aligned elsewhere, a button stretched by its container, and a full-width button outside the named exceptions each fail it.'
+  description: 'Every form in the UI is laid out by one shared form layout, and a field is as wide as what it holds, not as wide as the form. A field declares a size class (short for numbers, ports, durations, switches and short choices; medium for names and hosts; long for addresses, paths and one-line descriptions; full for multi-line text and editors only), and each class has a minimum and a maximum width, so a field neither stretches across the form nor collapses. Fields flow into as many columns as the screen allows and wrap on a narrower one, with no form carrying its own breakpoints; fields that belong together (host and port, precision and scale) are declared as a group and wrap as one. A single-line field is never full width; full width is for multi-line text, editors and tables. Identifier fields, where a form has them, are not in the flow: they sit at the top of the form in a section of their own. A form''s action buttons are at the bottom, aligned to the start of the line (left in a left-to-right language, right in a right-to-left one), primary action first. Reading order and keyboard order are the same after any reflow. Minimum widths hold each field''s label in every shipped locale. Creating an object follows one pattern on every page: a button at the top of the page named for the object ("+ Table", "+ Source") opens the form, and the form ends in Save and Cancel -- Save creates the object, Cancel closes the form with nothing created; the form''s own button never repeats the opening button''s label, and an edit form ends in the same two actions in the same order. A button is as wide as its label, with one shared minimum width, and never grows to fill its container: it is not a direct child of a stretching stack or grid cell but sits in an action row at its natural width. A full-width button is allowed only where it is named as an exception: the single call to action of a narrow card (sign-in, an onboarding step), a row of a menu or list that is itself the action, and a phone-width screen. The rule is held by a guard test: a form that lays its fields out outside the shared layout, a single-line field stretched to full width, action buttons aligned elsewhere, a button stretched by its container, and a full-width button outside the named exceptions each fail it. Nothing is rendered between a field label and its control: a brief explanation (one short sentence) sits below the field, and a longer explanation is reached from a help icon immediately to the right of the label. Controls in one row share a baseline. A form takes its natural height; it never scrolls inside a box that hides its first or last row.'
   use_case: An operator fills in a source or table form on a laptop or a wide monitor and sees short fields side by side, identifiers set apart at the top, and the buttons where every form has them.
   related_reqs:
   - REQ-1350
-  notes: 'Maintainer 2026-10-10: "We have TOO many full width fields. Fields should be a sensible length, and should use multiple columns and flow to accomodate multiple screens sizes. Fields should have min and max widths. Fields that represent identifiers maybe NOT in with the flow at the top of the form. Action buttons for the form should be left aligned at the bottom." Then, the same day: "one more exception. identifier fields (if they exist) should be at the top in their own section." Lead, measured that day in provisa-ui/src: 116 fields stretched to full width across 25 files; form grids fixed at two equal columns; action buttons right-aligned in 68 places and left-aligned in 2. Size classes, grouping, start-alignment for right-to-left and the guard are the lead''s proposal as put to him; he had not ruled on the class widths when this was recorded. Amended the same day: the heading of the identifier section is "Identity" (his words: "use "Identity" as the heading"); and buttons, after "I see a lot of full width buttons. IMO they don''t look great." with the example "+Table" -- the lead found only 4 explicit full-width buttons in 3 files, the rest being stretched by a stack or grid cell (the register form''s "+ Table" was a grid child spanning the row), so the rule is about where a button sits; the three exceptions are the lead''s proposal. Then, on the register-table form''s submit reading "+ Table" like the page button: "Perhaps it should just be Save/Cancel"; on the source form''s "Create": "Perhaps Save/Cancel would be more consistent"; and the rule: "the idea is that when create a new object you click the +{object} at top of page. Form is displayed with a save/cancel." -- "that''s a consistent approach to creating new {object}".'
+  notes: 'Maintainer 2026-10-10: "We have TOO many full width fields. Fields should be a sensible length, and should use multiple columns and flow to accomodate multiple screens sizes. Fields should have min and max widths. Fields that represent identifiers maybe NOT in with the flow at the top of the form. Action buttons for the form should be left aligned at the bottom." Then, the same day: "one more exception. identifier fields (if they exist) should be at the top in their own section." Lead, measured that day in provisa-ui/src: 116 fields stretched to full width across 25 files; form grids fixed at two equal columns; action buttons right-aligned in 68 places and left-aligned in 2. Size classes, grouping, start-alignment for right-to-left and the guard are the lead''s proposal as put to him; he had not ruled on the class widths when this was recorded. Amended the same day: the heading of the identifier section is "Identity" (his words: "use "Identity" as the heading"); and buttons, after "I see a lot of full width buttons. IMO they don''t look great." with the example "+Table" -- the lead found only 4 explicit full-width buttons in 3 files, the rest being stretched by a stack or grid cell (the register form''s "+ Table" was a grid child spanning the row), so the rule is about where a button sits; the three exceptions are the lead''s proposal. Then, on the register-table form''s submit reading "+ Table" like the page button: "Perhaps it should just be Save/Cancel"; on the source form''s "Create": "Perhaps Save/Cancel would be more consistent"; and the rule: "the idea is that when create a new object you click the +{object} at top of page. Form is displayed with a save/cancel." -- "that''s a consistent approach to creating new {object}". Maintainer 2026-10-10, after seeing the converted source form: "one of the issues is that you have form help text below the label. I think additional explanatory text should be brief, and positioned below the field. Longer explanations, if needed should have (?) icon to the right of the label."'
+- id: REQ-1969
+  status: proposed
+  since: 2026-10
+  group: 11. Platform, Infrastructure & Delivery
+  category: Model Store
+  priority: MUST
+  type: behavioral
+  description: 'Every save of a model object passes one consequences gate on the server before it reaches the model store (REQ-1919). A save is a create, an update or a delete, whatever asks for it: the UI, the API, a config load or an agent. The gate has ONE contract for every object type and answers with one of three verdicts. HARMLESS: the change is saved at once, with no prompt. CONSEQUENTIAL: the change is feasible and has consequences; the answer lists each affected object and what becomes of it (returned to draft, flagged needs review, rebuilt), and the save proceeds only on confirmation of exactly that list. NOT FEASIBLE: the change is refused; the answer says why and names what blocks it. Each object type supplies its own judgement of a proposed change -- which fields changed, what depends on them, what becomes of each dependent; the contract, the format of the list, the confirmation and the marking of dependents are shared. A field no judgement has classified is treated as consequential, never as harmless. Affected tables and views are returned to draft (REQ-1921) and affected relationships, rules and metrics are flagged needs review (REQ-020), in the same transaction as the save; nothing is deleted on the caller''s behalf and nothing keeps serving on a guess. The verdict states what it cannot see: clients outside the product that call an object by name. The existing refused-delete lists, the column-dependents confirmation and the needs-review flagging are instances of this gate. With the gate in place every field of an object is editable, identity fields included; until an object type has its judgement, the fields whose change the server cannot reason about are read-only. Acceptance: a guard fails any save path that does not pass the gate, and any object type that has no judgement.'
+  use_case: 'An operator opens a source''s detail panel and changes its type, or renames a table other objects are built on. Before anything is written the server says which of three things the change is: nothing depends on it and it is saved; these named tables go back to draft and these relationships need review, confirm to proceed; or it cannot be done, and this is what stands in the way. No dependent object is left serving against a definition that no longer exists, and no change is refused without its reason.'
+  related_reqs:
+  - REQ-1919
+  - REQ-1921
+  - REQ-020
+  notes: 'Maintainer 2026-10-11: "every save op needs to go through a consequences gate probably same contract - but will have to unique to each object. and agree harmless, just do it, feasible but has consequences, not feasible and why." Earlier the same day: "in detail panel ALL fields, including identity fields should be editable" and "there vast implications for certain changes, for example data source type. how to handle changes that may invalidate dependent objects?" Rationale: a change to one object can invalidate others (a source''s type, a table''s or a column''s name), and today each save path decides for itself what it refuses, what it confirms and what it flags; one gate with one contract makes the answer the same from every entrance and lets identity fields be edited without leaving dependents broken. His words fix the gate on every save, one contract with a judgement unique to each object, and the three verdicts. The following go beyond his words and are the lead''s elaboration, pending his review: that a consequential save proceeds only on confirmation of exactly the listed consequences; that a field no judgement has classified is treated as consequential; which dependents return to draft and which are flagged needs review, and that this happens in the save''s transaction; that the verdict states what it cannot see; that fields are read-only until an object type has its judgement; and the guard named as acceptance.'
+- id: REQ-1970
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: On a list page a row's detail opens in a right-hand panel beside the list, not under the row. The panel is resizable and can be expanded; one row's detail is open at a time. Whether a page uses the right-hand panel or an inline detail is chosen per page. The right-hand panel is used on Tables, Views, Sources, Relationships, Metrics, Commands, and Security's Roles and RLS; Data Products keeps its inline detail. A page's list stretches to the width of the viewport.
+  use_case: An operator scanning a list of tables selects one and reads or edits its detail without losing the list, widens the panel for a long form, and selects the next row to replace what is shown.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "just an expandable, resizable right side detail panel is a common UI idiom"; "perhaps we need to make choices per page on inline vs right hand panel"; "the data products page looked really good"; "page lists should stretch to viewport width (tables does this)". The following go beyond his words and are the lead''s elaboration: that one detail is open at a time; the list of pages the panel is applied to is what was converted on his machine when this was recorded.'
+- id: REQ-1971
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The head of a detail panel is pinned: the item''s name, then its actions. While the item is being edited, Save and Cancel take the place of the actions in the head; nothing is pinned at the foot of the panel. The actions in a detail panel''s head share one style: no background and no border.'
+  use_case: An operator editing a long detail always has Save and Cancel in view at the top of the panel, and the panel's height goes to the fields rather than to a bar of disabled buttons and a footer.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "instead of greying out the detail actions replace them with save/cancel (that will improve use of vertical space. You can make save/cancel borderless to save space." Still being built when this was recorded (proposed, not yet on his machine): "the action buttons in the right hand detail panel have a variety of styles - standardize on no background, no border." The following go beyond his words and are the lead''s elaboration: that the head is pinned and that nothing is pinned at the foot, as the form in which his sentence was built.'
+- id: REQ-1972
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: An item's detail is divided into sections shown as top-level tabs, not as one scrolling form with expanding sections. The read view and the edit view use the SAME tabs, and the read view summarises every detail of the item. For a table the tabs are Identity, Associations, Load and timeliness, Query, Quality, Columns.
+  use_case: An operator looking for a table's refresh settings goes to the same tab whether reading or editing, and sees everything the table is set to without opening an editor.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "all details of the table should be summarized in the table detail info. int the table detail edit, don''t use a scrolling form with expanding sections, instead devide the table details into section and use a top level tab to show them …"; "perhaps same tab layout for both detail view and edit view". The following go beyond his words and are the lead''s elaboration: the six tab names for a table, and that the rule holds for every item''s detail and not only a table''s.'
+- id: REQ-1973
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The column editor is four tabs: Naming, Type and keys, Access, Testing. The column''s name comes first on each tab, and a hover on the name shows the column''s full definition.'
+  use_case: An operator setting access on forty columns works in a table narrow enough to read, with the column's name always in the first position and the rest of its definition one hover away.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the entire column editor is very horizontally hungry"; "you might have a hover over the column name that shows its full definition"; "collapse the column editor into 4 tabs (make testing the 4th tab)". The following go beyond his words and are the lead''s elaboration: the names of the first three tabs.'
+- id: REQ-1974
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: Creating an object is short. The page's + button asks only for what the object needs in order to exist; the object is then created, selected in the list, and its detail opens in edit. The create form is a subset of the edit form. For a table, creating registers every column.
+  use_case: An operator adds a source by giving its identity, sees it in the list at once, and completes the rest in the same editor used for any later change.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the +{object} … could be much shorter - like create the identity field(s) - add to the list - and then open the detail editor"; on building it: "add it". Still being built when this was recorded (proposed, not yet on his machine): for tables, "Register every column". The following go beyond his words and are the lead''s elaboration: that the create form is a subset of the edit form and that the new object is selected in the list.'
+- id: REQ-1975
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'A working surface is not modal: an editor or a form an operator works in is part of the page. A dialog is used only for a short interruption. Every delete of saved state asks for confirmation. Leaving a panel form that has unsaved changes asks "Discard your changes?".'
+  use_case: An operator editing a table can still read the list, switch to another page's information and come back; a dialog appears only to confirm something that cannot be taken back.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "polly argues for a fulid editor (minimize modals)". Still being built when this was recorded (proposed, not yet on his machine): leaving a panel form with unsaved changes asks "Discard your changes?" -- his choice from options put to him. The following go beyond his words and are the lead''s elaboration: that every delete of saved state confirms, and the reading of a dialog as a short interruption only.'
+- id: REQ-1976
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The explorers are outside the form and detail-panel rules: the pages at /query, /graph, /sql, /jsonapi, /openapi, /explore and /lineage are a different experience and keep their own layout. The Schema Explorer''s fonts and colours follow the application''s styles.'
+  use_case: An analyst working in the SQL or graph explorer keeps a workspace built for exploration; the rules for list pages and forms are not imposed on it.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the explorers were fine"; "its a completely different experience"; on the Schema Explorer, his choice from options: "option 1 - align fonts and colors to the styles used." The following go beyond his words and are the lead''s elaboration: the list of the seven routes that count as explorers.'
+- id: REQ-1977
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The application has one tooltip style: the style of the ERD icon button on the Tables page. A tooltip opens on hover and on keyboard focus and is announced to a screen reader.'
+  use_case: An operator sees the same tooltip everywhere, and one who uses the keyboard or a screen reader gets the same text as one who hovers.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "there are 3 styles of tooltips. Standardize them all using the style that the tables page erd icon button uses." Accepted for what was converted on his machine when this was recorded; the remaining tooltips were still being converted. The following go beyond his words and are the lead''s elaboration: that it opens on keyboard focus and is announced to a screen reader.'
+- id: REQ-1978
+  status: accepted
+  since: 2026-10
+  group: 13. Multi-Tenancy & Organizations
+  category: Environments
+  priority: MUST
+  type: behavioral
+  description: Changing the domain of a registered table or view requires the caller to hold the registering right in the domain it is in AND in the domain it is going to. This applies to an update of the table or view and to a registration that lands on an existing address.
+  use_case: A developer who holds the registering right in the sales domain only cannot move a view from finance into sales, and cannot move a sales view into finance; a caller who holds the right in both domains can do either.
+  scenario: 'Given a view registered in the finance domain and a caller who holds the registering right in the sales domain only
+
+
+    When the caller changes the view''s domain to sales, by an update or by a registration onto the view''s address
+
+
+    Then the change is refused, and the view stays in finance
+
+
+    Given a caller who holds the registering right in both finance and sales
+
+
+    When that caller makes the same change
+
+
+    Then the view is in the sales domain'
+  related_reqs:
+  - REQ-1530
+  - REQ-1531
+  - REQ-433
+  - REQ-1969
+  notes: 'Maintainer 2026-10-11: "table domain change requires you to have the original and future domain rights." The following go beyond his words and are the lead''s elaboration: the rule covers views as well as tables, and a registration onto an existing address as well as an update; confirmed by him 2026-10-11. A physical table''s domain cannot change at all while REQ-433 (first-come ownership of a source table) stands; where that changes, this rule applies to it. Security rule.'
+- id: REQ-1979
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Data Governance
+  priority: SHOULD
+  type: behavioral
+  description: 'The `deprecated` system tag applies to every object of the model: metrics, commands, roles and row-level rules, as well as source, table/view, column and relationship. The rules are the same for all of them: a reason is required, and expires_on is the planned removal date. The tag is shown wherever the object is listed and is carried into every client schema and catalog export the object appears in. A deprecation changes nothing else about the object.'
+  use_case: A steward marks a metric deprecated with a reason and a removal date; everyone who lists the metric or reads it in a client schema or a catalog export sees that it is deprecated and until when, and the metric keeps answering exactly as before.
+  related_reqs:
+  - REQ-1375
+  notes: 'Maintainer 2026-10-11: "deprecation is documented as a tag. I don''t see why it needs to be more than that. deprecation is just a signal to a dependent to move to a new design within a timeframe. It doesn''t effect anything else." and "expand deprecate scope". The following go beyond his words and are the lead''s elaboration: the four added object types (metrics, commands, roles, row-level rules), and that the tag is carried into every client schema the object appears in.'

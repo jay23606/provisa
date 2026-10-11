@@ -524,7 +524,7 @@ async def create_org(body: CreateOrgBody, request: Request):  # REQ-042, REQ-059
                 503,
                 "orgs.isolated_engine_unavailable",
                 "this deployment has no PROVISA_ISOLATED_ENGINE_HOST_TEMPLATE, so it cannot give "
-                "an org a dedicated federation engine (REQ-1043)",
+                "an org a dedicated federation engine",
             )
 
     # REQ-1476: a commercial deployment sells the org — it is reserved here and built by the
@@ -1208,7 +1208,7 @@ async def grant_org_admin_role(org_id: str, user_id: str, request: Request):  # 
         raise ApiError(
             403,
             "orgs.self_role_change",
-            "A user cannot change their own role. Ask another administrator (REQ-1308).",
+            "A user cannot change their own role. Ask another administrator.",
         )
     async with _admin_pool().acquire() as conn:
         exists = await conn.execute_core(select(orgs.c.id).where(orgs.c.id == org_id))
@@ -1250,7 +1250,7 @@ async def revoke_org_admin_role(org_id: str, user_id: str, request: Request):  #
         raise ApiError(
             403,
             "orgs.self_role_change",
-            "A user cannot change their own role. Ask another administrator (REQ-1308).",
+            "A user cannot change their own role. Ask another administrator.",
         )
     model_db = await _org_model_db(org_id)
     try:

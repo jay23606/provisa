@@ -6,8 +6,6 @@
     "name": "Naam",
     "firstName": "Voornaam",
     "lastName": "Achternaam",
-    "save": "Opslaan",
-    "saving": "Opslaan…",
     "saved": "Opgeslagen",
     "saveError": "Kon profiel niet opslaan",
     "email": "E-mail",

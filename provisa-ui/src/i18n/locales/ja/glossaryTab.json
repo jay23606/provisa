@@ -20,7 +20,6 @@
     "deleteConfirm": "用語 {{name}} を削除しますか?",
     "deleted": "用語 {{name}} を削除しました。",
     "deleteDisabledHint": "この用語には参照またはリレーションシップがあります。使用を止めるには廃止し、削除するには参照を移動してリレーションシップを削除してください。",
-    "cancel": "キャンセル",
     "create": "作成",
     "created": "用語 {{name}} を作成しました。",
     "refsTitle": "参照",

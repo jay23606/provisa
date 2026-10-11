@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "मेटाडेटा",
-    "modeTestData": "परीक्षण डेटा",
     "fake": "नकली मान",
     "syntheticRule": "सिंथेटिक नियम",
     "stable": "स्थिर",
@@ -13,7 +11,6 @@
     "dialogTitle": "परीक्षण डेटा: {{column}}",
     "declaration": "घोषणा, जैसे email() या categories((a, b))",
     "methodCategory": "नकली विधि: {{category}}",
-    "cancel": "रद्द करें",
     "apply": "लागू करें",
     "kindCategory": {
       "values": "मान",

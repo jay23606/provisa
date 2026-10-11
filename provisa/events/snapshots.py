@@ -92,13 +92,13 @@ async def seal_snapshot(
     store (the frozen data). Returns the :class:`SealedSnapshot`."""
     if not (reason and reason.strip()):
         raise ValueError(
-            f"REQ-983: preserved snapshot {name!r} MUST be declared with a why-tag (the reason it "
+            f"Preserved snapshot {name!r} MUST be declared with a why-tag (the reason it "
             f"cannot be reconstructed) — refusing to seal a non-reconstructible dataset without one"
         )
     existing = await get_snapshot(conn, name)
     if existing is not None:
         raise ValueError(
-            f"REQ-983: snapshot {name!r} is already sealed and immutable — a preserved snapshot is "
+            f"Snapshot {name!r} is already sealed and immutable — a preserved snapshot is "
             f"materialized point-in-time ONCE, never overwritten (sealed at {existing.location})"
         )
     digest = content_hash(rows, pk_columns)

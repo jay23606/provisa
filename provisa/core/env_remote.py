@@ -232,7 +232,7 @@ def create(remote: str, *, private: bool = True) -> RemoteProbe:
     if not token:
         raise RemoteError(
             f"the remote for {owner}/{repo} carries no credential, and creating a repository "
-            f"needs one -- store it as a secret reference in the URL (REQ-125)"
+            f"needs one -- store it as a secret reference in the URL"
         )
     if api == GITHUB:
         _create_github(owner, repo, token, private)
@@ -334,7 +334,7 @@ def open_pull_request(remote: str, *, head: str, base: str, title: str, body: st
 
     if _is_path(remote):
         raise RemoteError(
-            "a bare repository has no pull requests; review the merge in Provisa instead (REQ-1504)"
+            "a bare repository has no pull requests; review the merge in Provisa instead"
         )
     resolved = resolve_secrets(remote)
     host, owner, repo, token = _split_hosted(resolved)
@@ -347,7 +347,7 @@ def open_pull_request(remote: str, *, head: str, base: str, title: str, body: st
     if not token:
         raise RemoteError(
             f"the remote for {owner}/{repo} carries no credential, and opening a pull request "
-            f"needs one -- store it as a secret reference in the URL (REQ-125)"
+            f"needs one -- store it as a secret reference in the URL"
         )
     if api == GITHUB:
         return _pr_github(owner, repo, token, head=head, base=base, title=title, body=body)

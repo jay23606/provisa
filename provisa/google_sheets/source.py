@@ -37,7 +37,10 @@ class GoogleSheetsSourceConfig:  # REQ-012, REQ-250
 
     id: str
     metadata_sheet_id: str
-    credentials_key: str  # name of secret holding service account JSON
+    # The service account's credentials as the operator entered them: a path, or a reference
+    # they typed (``${env:...}``, ``${secret:...}``). Passed on as entered and resolved where the
+    # catalog is written.
+    credentials: str
     tables: list[GoogleSheetsTableConfig] = field(default_factory=list)
 
 
@@ -46,7 +49,7 @@ def generate_catalog_properties(config: GoogleSheetsSourceConfig) -> dict[str, s
     return {
         "connector.name": "gsheets",
         "gsheets.metadata-sheet-id": config.metadata_sheet_id,
-        "gsheets.credentials-path": f"${{secret:{config.credentials_key}}}",
+        "gsheets.credentials-path": config.credentials,
     }
 
 

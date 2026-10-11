@@ -32,6 +32,7 @@ computes the SELECT). A very large MV is the separate MPP-native materialization
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -236,7 +237,14 @@ def make_source_build(
         kick()
         return None
 
+    async def verified() -> None:
+        """REQ-855: the node's probe found the source unchanged; the replica is current as of
+        now, and a reader's tolerance of its age is measured from now."""
+        async with db.acquire() as conn:
+            await replica_state.record_verified(conn, key, now=datetime.now(UTC))
+
     land.replica_key = key  # type: ignore[attr-defined]
+    land.verified = verified  # type: ignore[attr-defined]
     return land
 
 
@@ -375,12 +383,12 @@ def make_mv_incremental(
     validate_persist(persist)
     if not pk_columns:
         raise ValueError(
-            "REQ-969: incremental maintenance requires a primary key for row identity — "
+            "Incremental maintenance requires a primary key for row identity — "
             "refusing a silent full-recompute downgrade"
         )
     if not is_incrementalizable(sql):
         raise ValueError(
-            f"REQ-969: {schema}.{table} declares incremental but its SQL has no safe incremental "
+            f"{schema}.{table} declares incremental but its SQL has no safe incremental "
             f"form (join/aggregate/filter/computed projection need delta-rule derivation, deferred) "
             f"— an infeasible incremental declaration is an explicit error, not a full recompute"
         )

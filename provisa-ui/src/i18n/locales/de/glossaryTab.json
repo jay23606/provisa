@@ -20,7 +20,6 @@
     "deleteConfirm": "Begriff {{name}} löschen?",
     "deleted": "Begriff {{name}} gelöscht.",
     "deleteDisabledHint": "Dieser Begriff hat Refs oder Beziehungen. Stellen Sie ihn außer Dienst, um ihn aus dem Betrieb zu nehmen, oder verschieben Sie seine Refs und entfernen Sie seine Beziehungen, um ihn zu löschen.",
-    "cancel": "Abbrechen",
     "create": "Erstellen",
     "created": "Begriff {{name}} erstellt.",
     "refsTitle": "Referenzen",

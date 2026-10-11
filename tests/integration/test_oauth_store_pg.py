@@ -22,11 +22,11 @@ import sqlalchemy as sa
 
 from provisa.api_source import oauth_store
 from provisa.api_source.oauth_store import Grant, RefreshBusy, stored_access_token
-from provisa.core import secrets_store
 from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import REGISTRY_TABLES, metadata, orgs
-from provisa.core.secrets_store import ORG_OWNER
+from provisa.core.schema_org import mail_sync_state as state_table
+from provisa.core.schema_org import metadata
 from provisa.encryption.runtime import reset_encryption
+from provisa.federation import mail_sync_state
 
 pytestmark = [pytest.mark.integration]
 
@@ -38,7 +38,7 @@ _BASE = f"postgresql+psycopg://{_PG_USER}:{_PG_PASSWORD}@{_PG_HOST}:{_PG_PORT}"
 _ADMIN_URL = f"{_BASE}/{os.environ.get('PG_DATABASE', 'provisa')}"
 ORG = "acme"
 SOURCE = "m365"
-NAME = "M365_REFRESH"
+ACCOUNT = "megan@contoso.test"
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +55,8 @@ def _isolated(tmp_path, monkeypatch):
 
 @pytest.fixture
 def plane():
-    """A fresh control-plane database holding the vault, and its URL."""
+    """A fresh PostgreSQL database holding the organisation's state store, where an owner's
+    approval is kept, and its URL (where the refresh locks are taken)."""
     name = f"oauth_store_{uuid.uuid4().hex[:10]}"
     admin = sa.create_engine(_ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
@@ -63,10 +64,7 @@ def plane():
     url = f"{_BASE}/{name}"
     engine = create_engine_from_url(url)
     with engine.begin() as conn:
-        # The control plane's own tables, as the org tests build them: the vault refers to the
-        # organisation that holds each secret.
-        metadata.create_all(conn, tables=REGISTRY_TABLES)
-        conn.execute(sa.insert(orgs).values(id=ORG, name=ORG))
+        metadata.create_all(conn, tables=[state_table])
     try:
         yield Database(engine, "test"), url
     finally:
@@ -74,6 +72,11 @@ def plane():
         with admin.connect() as conn:
             conn.execute(sa.text(f'DROP DATABASE "{name}" WITH (FORCE)'))
         admin.dispose()
+
+
+async def _keep(db, token: str) -> None:
+    async with db.acquire() as conn:
+        await mail_sync_state.keep_grant(conn, SOURCE, ACCOUNT, token)
 
 
 class Issuer:
@@ -129,7 +132,7 @@ def test_concurrent_refreshes_in_one_process_run_one_at_a_time(plane):
     db, url = plane
 
     async def run():
-        await secrets_store.put(db, ORG, NAME, "rt-0", owner_id=ORG_OWNER)
+        await _keep(db, "rt-0")
         issuer = Issuer(delay=0.1)
         await asyncio.gather(
             *[
@@ -138,7 +141,7 @@ def test_concurrent_refreshes_in_one_process_run_one_at_a_time(plane):
                     url,
                     ORG,
                     source_id=SOURCE,
-                    secret_name=NAME,
+                    account=ACCOUNT,
                     exchange=issuer,
                     replaces=True,
                 )
@@ -147,7 +150,9 @@ def test_concurrent_refreshes_in_one_process_run_one_at_a_time(plane):
         )
         assert issuer.most_at_once == 1
         assert issuer.sent == ["rt-0", "rt-1", "rt-2", "rt-3"]
-        assert await secrets_store.value_of(db, ORG, NAME, owner_id=ORG_OWNER) == "rt-4"
+        # The newest approval is what the state store ends holding, on PostgreSQL as on SQLite.
+        async with db.acquire() as conn:
+            assert await mail_sync_state.grant(conn, SOURCE, ACCOUNT) == "rt-4"
 
     asyncio.run(run())
 
@@ -156,7 +161,7 @@ def test_a_refresh_that_cannot_take_the_lock_fails_by_name(plane):
     db, url = plane
 
     async def run():
-        await secrets_store.put(db, ORG, NAME, "rt-0", owner_id=ORG_OWNER)
+        await _keep(db, "rt-0")
         holder = oauth_store._RefreshLock(url, f"{ORG}|{SOURCE}")
         assert holder.try_acquire()
         issuer = Issuer(delay=0.0)
@@ -167,7 +172,7 @@ def test_a_refresh_that_cannot_take_the_lock_fails_by_name(plane):
                     url,
                     ORG,
                     source_id=SOURCE,
-                    secret_name=NAME,
+                    account=ACCOUNT,
                     exchange=issuer,
                     replaces=True,
                     lock_wait_seconds=0.5,
@@ -175,5 +180,28 @@ def test_a_refresh_that_cannot_take_the_lock_fails_by_name(plane):
         finally:
             holder.close()
         assert issuer.sent == []
+
+    asyncio.run(run())
+
+
+def test_a_completed_read_and_a_renewal_do_not_take_each_others_rows(plane):
+    """What a read reached is replaced whole when it completes; the approval beside it in the
+    same table stands, and a renewal overwrites only the approval."""
+    db, url = plane
+
+    async def run():
+        await _keep(db, "rt-0")
+        async with db.acquire() as conn:
+            await mail_sync_state.replace(conn, SOURCE, {(ACCOUNT, "inbox", "delta"): "link"})
+        token = await stored_access_token(
+            db, url, ORG, source_id=SOURCE, account=ACCOUNT, exchange=Issuer(0.0), replaces=True
+        )
+        assert token == "at-for-rt-0"
+        async with db.acquire() as conn:
+            assert await mail_sync_state.grant(conn, SOURCE, ACCOUNT) == "rt-1"
+            assert await mail_sync_state.read_all(conn, SOURCE) == {
+                (ACCOUNT, "inbox", "delta"): "link"
+            }
+            assert await mail_sync_state.granted_at(conn, SOURCE, ACCOUNT) is not None
 
     asyncio.run(run())

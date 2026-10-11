@@ -229,3 +229,65 @@ async def test_boot_create_seeds_one_replace_event_per_source(monkeypatch):
     assert posted == [("s.a", "replace"), ("s.b", "replace")]
     # each source's boot event is enqueued as work for the source node itself (self-dependent)
     assert fanned == [(1, ["s.a"]), (2, ["s.b"])]
+
+
+def test_a_table_that_inherits_its_sources_ttl_is_polled_at_that_ttl():
+    """REQ-1907: a table's TTL is its own, else its source's. The poll timer is what runs a
+    probing table's probe (REQ-855, REQ-982), so a table that inherits its source's TTL must
+    have one: without it the table's probe never runs."""
+    source = _src("api", "openapi")
+    source.cache_ttl = 120
+    inherits = _tbl("api", "events", [_col("id", "bigint", pk=True)], cache_ttl=None)
+    own = _tbl("api", "orders", [_col("id", "bigint", pk=True)], cache_ttl=30)
+    specs = specs_from_config(
+        sources=[source],
+        tables=[inherits, own],
+        mvs=[],
+        engine=build_duckdb_engine(),
+        engine_runtime=_DsnEngine("sqlite://"),
+        source_fetch=lambda s, t: _fetch,
+        mv_columns=lambda m: [],
+        mv_run_query=lambda m: _run_query,
+    )
+    polled = {spec.node: spec.poll_seconds for spec in specs}
+    assert polled == {"api/default.events": 120, "api/default.orders": 30}
+
+
+@pytest.mark.asyncio
+async def test_a_probing_tables_node_asks_its_sources_own_adapter():
+    """REQ-982: a source whose adapter gives a token transport for a table (a mail source asks
+    its provider) is probed through it under the hash probe type."""
+
+    async def from_provider() -> str:
+        return "history-token"
+
+    asked: list[tuple[str, str]] = []
+
+    def source_probe(src, tbl):
+        asked.append((src.id, tbl.table_name))
+        return from_provider if tbl.table_name == "messages" else None
+
+    source = _src("mail", "google_workspace")
+    source.change_signal = "probe"
+    source.cache_ttl = 300
+    tables = [
+        _tbl("mail", "messages", [_col("id", "text", pk=True)]),
+        _tbl("mail", "events", [_col("id", "text", pk=True)]),
+    ]
+    specs = specs_from_config(
+        sources=[source],
+        tables=tables,
+        mvs=[],
+        engine=build_duckdb_engine(),
+        engine_runtime=_DsnEngine("sqlite://"),
+        source_fetch=lambda s, t: _fetch,
+        mv_columns=lambda m: [],
+        mv_run_query=lambda m: _run_query,
+        source_probe=source_probe,
+    )
+    by_node = {spec.node: spec for spec in specs}
+    assert {spec.probe_type for spec in specs} == {"hash"}
+    assert await by_node["mail/default.messages"].probe_factory()() == "history-token"
+    # A table the adapter has no probe for gives no token: it degrades to its TTL.
+    assert await by_node["mail/default.events"].probe_factory()() is None
+    assert sorted(asked) == [("mail", "events"), ("mail", "messages")]

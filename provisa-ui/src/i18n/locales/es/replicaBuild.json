@@ -3,9 +3,19 @@
     "none": "No se ha compilado ninguna réplica para esta tabla.",
     "requested": "Compilación de réplica solicitada.",
     "waiting": "Compilación de réplica solicitada; en espera: {{waitingOn}}.",
+    "replicating": "Replicando",
+    "progressAbout": "Aproximadamente {{percent}} %: {{rows}} de unas {{total}} filas",
+    "progressPast": "{{rows}} filas copiadas; la última compilación tenía {{total}}",
+    "progressRows": "{{rows}} filas copiadas",
+    "progressMailboxes": "{{done}} de {{total}} buzones leídos",
+    "progressWaiting": "En espera {{seconds}} s: {{by}} está limitando la lectura",
     "building": "Compilando réplica: {{rows}} filas copiadas, {{rate}} filas/s ({{how}}).",
     "buildingNoRate": "Compilando réplica ({{how}}).",
+    "buildingWaiting": "Réplica en creación; esperando {{seconds}} s: {{by}} está limitando la lectura ({{how}}).",
+    "buildingPartial": "La réplica se está creando y ya se puede leer. Parcial: {{done}} de {{total}} buzones leídos ({{how}}).",
+    "buildingParts": "La réplica se está actualizando: {{done}} de {{total}} buzones comprobados ({{how}}).",
     "built": "Réplica compilada {{when}}: {{rows}} filas ({{how}}).",
+    "builtChecked": "Réplica compilada {{when}}: {{rows}} filas ({{how}}). Comprobada {{checked}}, sin cambios desde entonces.",
     "failed": "La compilación de la réplica falló (intento {{attempts}}; se vuelve a intentar): {{error}}",
     "failedNextAt": "La compilación de la réplica falló (intento {{attempts}}; se reintenta {{when}}): {{error}}",
     "retired": "Esta tabla ya no se replica; su réplica se está eliminando.",
@@ -14,7 +24,8 @@
       "engine_statement": "copiada por el motor",
       "stream_batches": "transmitida por lotes",
       "store_pipeline": "cargada por la propia pipeline del almacén",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "mantenida al día en su sitio"
     },
     "loadKind": {
       "bulk_stream": "flujo masivo",
@@ -37,6 +48,9 @@
     "note": {
       "unreadable_messages": "Mensajes conservados sin su texto porque una parte no es lo que declara: {{total}}. Sus ID: {{ids}}",
       "mailboxes_left_out": "Buzones omitidos, porque Microsoft o Google indica que no existen o no pueden leerse: {{total}}. Son: {{accounts}}",
+      "mailboxes_at_quota": "Buzones omitidos, porque han alcanzado su cuota de almacenamiento y Microsoft no seguirá sus cambios hasta que se libere espacio: {{total}}. Son: {{accounts}}",
+      "mailboxes_failed": "Buzones cuya lectura falló a mitad: {{total}}. Lo que se leyó de ellos se conserva y su lectura continúa en la próxima actualización. Son: {{accounts}}",
+      "place_not_kept": "Esta copia está completa, pero no se pudo guardar hasta dónde llegó su lectura, por lo que la próxima comprobación de cambios volverá a pedir la lectura: {{reason}}",
       "andMore": "{{ids}} y {{more}} más",
       "other": "La última compilación anotó: {{code}}"
     }

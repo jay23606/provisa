@@ -9,9 +9,10 @@
 // permission from the copyright holder.
 
 // REQ-1923: the organisation's mail platforms -- the client its sources sign in to Google
-// Workspace (and Microsoft 365) with, entered once by an organisation administrator. No call
-// here can be handed the client's secret back: an answer says whether a platform is connected,
-// its client id and settings, and the address to register with the platform.
+// Workspace (and Microsoft 365) with, entered once by an organisation administrator. An
+// answer carries what each field holds, as it was entered (a credential's value, or the
+// reference typed for it), to the administrator who may enter it, and the address to register
+// with the platform.
 
 import { requestFailed, serverMessage } from "../i18n/serverMessage";
 
@@ -23,9 +24,19 @@ export interface MailPlatform {
   settings_fields: string[];
   configured: boolean;
   client_id: string | null;
+  /** The client's secret as it was entered: the value, or a reference someone typed. */
+  client_secret: string | null;
   settings: Record<string, string>;
   /** Whether sources may read the organisation's mailboxes through this platform. */
   organisation_mailboxes: boolean;
+  /** What the platform is entered with for those sources, beside its client. */
+  organisation_settings_fields: string[];
+  /** Whether those sources read with a credential of the platform's own (Google's key). */
+  organisation_key_field: boolean;
+  /** That credential as it was entered: the value, or a reference someone typed. */
+  organisation_key: string | null;
+  /** What an administrator authorises at the platform for it (Google's delegation scopes). */
+  organisation_scopes: string[];
 }
 
 export interface MailPlatforms {
@@ -37,10 +48,12 @@ export interface MailPlatforms {
 
 export interface MailPlatformBody {
   client_id: string;
-  /** Left out to keep the secret already entered. */
+  /** What the field holds; left out, the entry keeps what it has. */
   client_secret?: string;
   settings: Record<string, string>;
   organisation_mailboxes: boolean;
+  /** The credential as entered; left out to keep the one the entry holds. */
+  organisation_key?: string;
 }
 
 async function ok<T>(res: Response, op: string): Promise<T> {

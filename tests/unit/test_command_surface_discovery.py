@@ -163,7 +163,7 @@ def test_proto_gen_visible_commands_typed_request_fields():
 def test_grpc_servicer_resolves_call_rpc_to_command_name():
     from provisa.grpc.server import ProvisaServicer
 
-    servicer = ProvisaServicer(_state(), pb2_module=object(), pb2_grpc_module=object())
+    servicer = ProvisaServicer(_state(), messages=object())
     assert servicer._resolve_command_rpc("ActiveUsers") == "active_users"
     assert servicer._resolve_command_rpc("ResetCache") == "reset_cache"
     assert servicer._resolve_command_rpc("DoesNotExist") is None

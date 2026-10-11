@@ -132,7 +132,17 @@
         "help": "Quantos processos worker o servidor executa. Requer reinicialização, pois os processos são iniciados pelo launcher."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Token da API do Kaggle",
+        "help": "O token com que as pesquisas e os downloads de conjuntos de dados do Kaggle iniciam sessão: o próprio token ou uma referência a um segredo que você criou, como ${secret:NAME}."
+      }
+    },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Espera máxima quando um serviço de e-mail limita",
+        "help": "Quando a Microsoft ou o Google pede que a leitura de uma réplica aguarde, ela aguarda e continua. Este é o máximo que as esperas de uma solicitação podem somar, em segundos; uma espera maior faz a criação falhar, e ela é tentada novamente depois. Aumente para atravessar limitações longas; para ser menos limitado, reduza as caixas de correio lidas ao mesmo tempo."
+      },
       "mailboxes_at_once": {
         "label": "Caixas de correio lidas em simultâneo",
         "help": "Quantas caixas de correio uma fonte das caixas de uma organização lê ao mesmo tempo. Um número maior encurta uma compilação e consome mais do limite do serviço de correio para toda a aplicação."

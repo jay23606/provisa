@@ -211,6 +211,34 @@ DECLARED: list[Setting] = [
         unit="jobs",
     ),
     Setting(
+        key="kaggle.api_token",
+        card="security",
+        type="str",
+        effect="live",  # read at each Kaggle search and each staging
+        req="REQ-1819",
+        # The default is a reference in a visible, editable field, not a name hidden in code
+        # (maintainer ruling, 2026-10-10: the product resolves what a field holds and makes up
+        # no secret names): an operator who already created a secret of this name keeps
+        # working, and any other value or reference may be typed over it.
+        default="${secret:kaggle_api_token}",
+        credential=True,
+    ),
+    Setting(
+        key="mail.throttle_wait_seconds",
+        card="concurrency",
+        type="int",
+        effect="live",  # read when a replica's read of a mail source begins
+        # 900: a mail service that is throttling says how long to wait (Retry-After), and for a
+        # mailbox that has been read hard it asks for minutes. A replica's build is background
+        # work: it waits that out and goes on, where failing throws the whole read away. This is
+        # the most the waits of ONE call may add up to; a longer one fails the read by name.
+        req="REQ-1923",
+        env="PROVISA_MAIL_THROTTLE_WAIT_SECONDS",
+        default=900,
+        min=0,
+        unit="seconds",
+    ),
+    Setting(
         key="mail.mailboxes_at_once",
         card="concurrency",
         type="int",

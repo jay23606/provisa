@@ -12,7 +12,7 @@
 // exactly its own fields, and each field writes the hint key it is saved under.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "../../../test-utils/render";
+import { fireEvent, renderInForm, screen } from "../../../test-utils/render";
 import { ObjectStoreCredentialFields } from "../ObjectStoreCredentialFields";
 import { OBJECT_STORE_HINT_KEYS, type ObjectStore } from "../objectStoreHints";
 
@@ -21,7 +21,7 @@ describe("ObjectStoreCredentialFields", () => {
     "%s shows its own fields, each writing its hint key",
     (store) => {
       const setFields = vi.fn();
-      render(<ObjectStoreCredentialFields store={store} fields={{}} setFields={setFields} />);
+      renderInForm(<ObjectStoreCredentialFields store={store} fields={{}} setFields={setFields} />);
       for (const key of OBJECT_STORE_HINT_KEYS[store]) {
         const input = screen.getByTestId(`object-store-${key}`);
         fireEvent.change(input, { target: { value: `v-${key}` } });

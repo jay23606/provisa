@@ -36,7 +36,7 @@ from provisa.api.admin.types import MutationResult
 from provisa.core.models import BUILT_IN_SOURCE_IDS
 from provisa.core.replicate import contradiction
 from provisa.core.schema_org import registered_tables, sources
-from provisa.federation.role_ttl import lands_from_config, missing_landing_ttl
+from provisa.federation.role_ttl import CLOCKED_SIGNALS, lands_from_config, missing_landing_ttl
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,8 @@ class SourceTtl:
     cache_ttl: int | None
     replicate: int | None
     load_protected: bool
+    #: REQ-860: the source's read-time freshness gate; its ``probe`` needs no cache_ttl.
+    freshness_gate: bool
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,7 @@ async def _as_saved(
                 sources.c.cache_ttl,
                 sources.c.replicate,
                 sources.c.load_protected,
+                sources.c.freshness_gate,
             ).where(sources.c.id == source_id)
         )
         row = res.fetchone()
@@ -89,7 +92,13 @@ async def _as_saved(
                 code="schema.source_not_found",
                 params={"source": source_id},
             )
-        source = SourceTtl(row.change_signal, row.cache_ttl, row.replicate, row.load_protected)
+        source = SourceTtl(
+            row.change_signal,
+            row.cache_ttl,
+            row.replicate,
+            row.load_protected,
+            row.freshness_gate,
+        )
     res = await conn.execute_core(
         select(
             registered_tables.c.schema_name,
@@ -175,16 +184,40 @@ def _engine_reads_in_place(source_type: str | None) -> bool:
     return engine_attaches(state.federation_engine, source_type)
 
 
+def kind_lands(source_type: str) -> bool:
+    """Whether every table of a source of ``source_type`` is served from a replica here: the
+    bound engine cannot read the kind in place, and the kind owns a replica at all. Such a
+    table needs a landing cache_ttl, its own or its source's, to be registered under a ttl
+    signal -- the judgment :func:`landing_ttl_refusal` makes at the save."""
+    from provisa.federation.replica_routing import NO_REPLICA_TYPES
+
+    return source_type not in NO_REPLICA_TYPES and not _engine_reads_in_place(source_type)
+
+
+def source_states_the_clock(source_type: str | None) -> bool:
+    """Whether a source of ``source_type`` must state the landing cache_ttl itself, rather than
+    leave it to each table. True for the mail kinds (every declared mail platform): their tables
+    are one fixed set that always lands, read together by one read of the source, so the one
+    clock they refresh by is the source's. The source form asks it of this function
+    (``/admin/source-kinds/{kind}``); nothing else names those kinds."""
+    from provisa.core import mail_platforms
+
+    return source_type in mail_platforms.source_types()
+
+
 async def landing_ttl_refusal(
     conn: Any,
     source_id: str,
     *,
     source: SourceTtl | None = None,
     table: TableTtl | None = None,
+    source_type: str | None = None,
 ) -> MutationResult | None:
     """A failing MutationResult naming the first table of ``source_id`` whose ttl / ttl_probe
     signal has no table or source cache_ttl, judged with ``source`` / ``table`` (the values being
-    saved) in place of the stored ones; None when every table has a landing clock. Refuses the
+    saved) in place of the stored ones; None when every table has a landing clock. A source whose
+    kind states the clock itself (``source_states_the_clock``) is refused without one, tables or
+    none; ``source_type`` is the type being saved, for a source not stored yet. Refuses the
     load_protected / replicate -1 pair first (REQ-826).
 
     A built-in source (provisa-admin, provisa-otel, __derived__) is Provisa's own catalog or MV
@@ -205,7 +238,23 @@ async def landing_ttl_refusal(
     # has no tables yet.
     from provisa.federation.replica_routing import NO_REPLICA_TYPES
 
-    source_type = await _stored_type(conn, source_id)
+    # The type being saved (a source being created is not stored yet), else the stored one.
+    source_type = source_type or await _stored_type(conn, source_id)
+    if (
+        source_states_the_clock(source_type)
+        and source.change_signal in CLOCKED_SIGNALS
+        and source.cache_ttl is None
+    ):
+        return MutationResult(
+            success=False,
+            message=(
+                f"Source {source_id!r}: change_signal {source.change_signal!r} is TTL-based and "
+                "every table of this source lands, so set the source's Cache TTL (Load "
+                "Management and Timeliness)"
+            ),
+            code="schema.source_cache_ttl_required",
+            params={"source": source_id, "signal": source.change_signal},
+        )
     # A type that owns no replica (ingest, a profiler's results: REQ-1771,
     # REQ-1934) is read where it is written and never landed, so it has no landing clock to judge.
     if source_type in NO_REPLICA_TYPES:
@@ -222,7 +271,11 @@ async def landing_ttl_refusal(
         ):
             continue
         err = missing_landing_ttl(
-            t.change_signal, source.change_signal, t.cache_ttl, source.cache_ttl
+            t.change_signal,
+            source.change_signal,
+            t.cache_ttl,
+            source.cache_ttl,
+            gated=source.freshness_gate,
         )
         if err is not None:
             return MutationResult(

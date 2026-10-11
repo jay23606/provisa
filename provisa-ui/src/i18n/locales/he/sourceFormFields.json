@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "שום דבר ישן מ-",
+    "mailSinceHelp": "יש להשאיר ריק כדי לקרוא דואר מכל תאריך.",
     "description": "תיאור",
     "descriptionPlaceholder": "תיאור קצר של מקור הנתונים הזה",
     "host": "מארח",

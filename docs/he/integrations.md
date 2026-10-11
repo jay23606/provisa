@@ -193,15 +193,19 @@ spark = SparkSession.builder \
 
 ## Protobuf gRPC (פורט 50051)
 
-נתיב שירות-לשירות. Provisa מייצרת `.proto` פר-תפקיד באתחול — כל תפקיד רואה רק את הטבלאות והעמודות שיש לו גישה אליהן.
+נתיב משירות לשירות. Provisa מייצרת `.proto` לכל תפקיד ומייצרת אותו מחדש בכל שינוי במודל או בתפקיד — כל תפקיד רואה רק את הטבלאות והעמודות שיש לו גישה אליהן. בשירות יש RPC לכל טבלה בשורש הסכמה של התפקיד; טבלאות מקושרות נגישות דרך הקשרים שלהן, כמו ב-GraphQL.
 
 הורידו את ה-proto עבור התפקיד שלכם:
 
 ```bash
-curl http://localhost:8001/proto/analyst > provisa_analyst.proto
+curl http://localhost:8001/data/proto/analyst > provisa_analyst.proto
 ```
 
-השתמשו ב-`grpc_server_reflection` לגילוי הסכמה באופן פרוגרמטי.
+השתמשו ב-`grpc_server_reflection` כדי לגלות את הסכמה באופן תכנותי. הרפלקציה מתארת את השירות של התפקיד שבשמו הקריאה פועלת, אותו קובץ כמו ההורדה שלמעלה. כשהאימות כבוי, קריאת רפלקציה מציינת את התפקיד שלה כמו כל קריאה אחרת:
+
+```bash
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
+```
 
 כל RPC חייב לשאת אישור במפתח metadata `authorization` — אסימון ספק או אסימון גישה אישי. `x-provisa-role` מבקש תפקיד מתוך הקבוצה המורשית של הזהות; זה אינו אישור ולעולם לא היה. תעודות לקוח נתמכות. ראו [Security Model](security.md#_12).
 

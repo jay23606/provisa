@@ -1,0 +1,20 @@
+{
+  "lineagePage": {
+    "title": "Linhagem de dados",
+    "intro": "Rastreie de onde vêm os dados. Cole uma consulta abaixo e o Provisa relaciona cada coluna do resultado, através das suas transformações e chamadas de comandos, com as colunas de origem — assim você responde «o que alimenta esta coluna?» antes de publicar uma visão ou um comando. Ou escolha <b>Linhagem completa</b> para ver a proveniência de todas as visões e conjuntos de dados registrados de uma só vez.",
+    "queryLabel": "Consulta a analisar",
+    "queryHelp": "Qualquer SELECT que leia suas tabelas, visões ou comandos registrados. Esta consulta é apenas analisada, nunca executada — nada é executado e nenhum dado é lido.",
+    "copy": "Copiar consulta",
+    "copied": "Copiado",
+    "roleLabel": "Linhagem para o papel",
+    "allRoles": "Todos os papéis",
+    "statement": "Linhagem da instrução",
+    "complete": "Linhagem completa",
+    "error": "Erro de linhagem",
+    "cyclesTitle": "Ciclos detectados",
+    "cycleFeedback": "(válido — atravessa um limite materializado)",
+    "cycleError": "(sem limite de materialização — provavelmente um erro de projeto)",
+    "emptyTitle": "Nada a mostrar",
+    "emptyBody": "Nenhuma linhagem encontrada. A linhagem completa abrange suas visões registradas — nenhuma foi definida ainda, portanto não há nada a rastrear. Registre uma visão (Modelo → Visões) ou analise uma consulta acima para ver sua linhagem diretamente."
+  }
+}

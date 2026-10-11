@@ -459,7 +459,7 @@ def shard_endpoint(shard: str) -> tuple[str, int]:
     if not ip:
         raise K8sProvisioningError(
             f"shard {shard} has no address: it has not been woken in this process, so the pod "
-            "serving it is unknown (REQ-1448)"
+            "serving it is unknown"
         )
     return ip, _int_env("PROVISA_ENGINE_PORT", 8080)
 
@@ -903,7 +903,7 @@ async def ensure_isolated_shard(shard: str, size: Any) -> dict:
     if size is None:
         raise K8sProvisioningError(
             f"shard {shard} is on the isolated lane but no engine size was resolved for it; "
-            "a dedicated engine is provisioned at the size its plan sells (REQ-1449)"
+            "a dedicated engine is provisioned at the size its plan sells"
         )
     return await ensure_shard_running(shard, lane="isolated", size=size)
 

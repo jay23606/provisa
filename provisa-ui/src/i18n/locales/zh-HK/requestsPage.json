@@ -8,7 +8,6 @@
     "reasonLabel": "原因",
     "reasonPlaceholder": "— 選取原因 —",
     "confirm": "確認",
-    "cancel": "取消",
     "empty": "沒有{{tab}}請求。",
     "emptyFiltered": "沒有符合篩選條件的{{tab}}請求。",
     "colId": "ID",

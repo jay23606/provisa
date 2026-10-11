@@ -908,7 +908,7 @@ async def test_an_isolated_shard_without_a_size_is_refused(configured):
     rate of the size it bought — silently the wrong hardware, at the wrong price."""
     with pytest.raises(prov.K8sProvisioningError) as excinfo:
         await prov.ensure_isolated_shard("iso_acme", None)
-    assert "REQ-1449" in str(excinfo.value)
+    assert "provisioned at the size its plan sells" in str(excinfo.value)
 
 
 @pytest.mark.asyncio

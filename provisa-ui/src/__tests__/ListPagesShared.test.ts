@@ -19,6 +19,7 @@ const LIST_PAGES = [
   "pages/TablesPage.tsx",
   "pages/SourcesPage.tsx",
   "pages/SecurityPage.tsx",
+  "pages/security/SecurityRlsPage.tsx",
   "pages/RelationshipsPage.tsx",
   "components/relationships/RelationshipRow.tsx",
   "pages/DataProductsPage.tsx",
@@ -122,5 +123,33 @@ describe("REQ-1940 list pages wire sort and group", () => {
       // REQ-1922: the region selection narrows the filtered list before it is sorted and grouped.
       'useListSortGroup(regionTables, listColumns, "tables")',
     );
+  });
+});
+
+// A list fills the room it has: the whole page with no detail panel open, its side of the split
+// with one. Nothing a page passes may make its list narrower than its container.
+describe("list pages fill the width they have", () => {
+  const listTable = src("components/list/ListTable.tsx");
+  const css = src("App.css");
+
+  it("a list's minimum width is a floor on top of its container's width, never a width", () => {
+    expect(listTable).toContain("`max(100%, ${floor}px)`");
+    expect(listTable).toContain("miw={listMinWidth(minWidth)}");
+    // The pixel floor itself never reaches the table: alone it would hold a list at that width
+    // beside a detail panel's list rule, which sizes a list to its content.
+    expect(listTable).not.toMatch(/miw=\{minWidth\}/);
+  });
+
+  it("the list's own rules make it as wide as its container", () => {
+    expect(css).toMatch(/\.data-table\s*\{[^}]*width:\s*100%/);
+    expect(css).toMatch(/\.split-pane__list > \.table-scroll > table\s*\{[^}]*min-width:\s*100%/);
+  });
+
+  it.each(LIST_PAGES)("%s sets no width of its own on its list", (page) => {
+    const tags = src(page).match(/<ListTable\b[^>]*>/g) ?? [];
+    for (const tag of tags) {
+      expect(tag, tag).not.toMatch(/\b(?:w|maw|miw|width|maxWidth)=/);
+      expect(tag, tag).not.toMatch(/style=\{\{[^}]*\b(?:width|maxWidth|minWidth)\b/);
+    }
   });
 });

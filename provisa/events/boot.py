@@ -76,6 +76,7 @@ def _probe_factory(
     sentinel_path: str | None = None,
     source_path: str | None = None,
     file_glob: str | None = None,
+    loader_probe: Probe | None = None,
 ) -> Callable[[], Probe]:
     """Build a node's probe factory from its resolved ``probe_type`` (REQ-982). Each fire yields a
     fresh transport (``() -> str | None``) via :func:`probes.build_probe`; ``check_node`` compares the
@@ -93,6 +94,7 @@ def _probe_factory(
             sentinel_path=sentinel_path,
             source_path=source_path,
             file_glob=file_glob,
+            loader_probe=loader_probe,
         )
 
     return factory
@@ -120,7 +122,7 @@ def _resolve_mv_deadline(
         raise ValueError(f"MV {mv.target_table!r} declares calendar {calendar!r} but no registry")
     grain = getattr(mv, "grain", None)
     if grain is None:
-        raise ValueError(f"MV {mv.target_table!r}: calendar declared without a grain (REQ-962)")
+        raise ValueError(f"MV {mv.target_table!r}: calendar declared without a grain")
     # REQ-962/1168: grain is a nesting grain ("daily".."annual") OR an nth-weekday recurrence
     # ("3WE"/"LFR"); parse_grain_spec resolves either. PeriodicCalendar accepts both forms.
     source = PeriodicCalendar(
@@ -145,6 +147,7 @@ def build_source_node_spec(
     engine_runtime: Any,
     source_fetch: Callable[[Any, Any], Any],
     probe_scalar: Callable[[Any, Any], Any] | None = None,
+    source_probe: Callable[[Any, Any], Probe | None] | None = None,
     replica_build: Callable[[tuple[str, str, str]], Any] | None = None,
     write_lock: Callable[[tuple[str, str, str]], Any] | None = None,
 ) -> NodeSpec | None:
@@ -238,6 +241,8 @@ def build_source_node_spec(
             sentinel_path=getattr(src, "sentinel_path", None),  # REQ-1148
             source_path=resolve_secrets(getattr(src, "path", "") or "") or None,  # REQ-788
             file_glob=getattr(tbl, "file_glob", None),  # REQ-788
+            # The source's own adapter may ask its provider whether the table changed.
+            loader_probe=source_probe(src, tbl) if source_probe is not None else None,
         )
         if is_poll(args.change_signal)
         else None
@@ -245,6 +250,7 @@ def build_source_node_spec(
     # REQ-957/1165: a landed source may also declare a preflight(streams, ctx) CHECK (run after
     # fetch, before land). A source's own fetched rows ARE its single input — the gate runs the
     # hook over ``{node: rows}`` (no engine streaming; the adapter already materialized to land).
+    from provisa.federation.role_ttl import declared_cache_ttl
     from provisa.mv.preflight_eval import make_rows_evaluator
 
     return NodeSpec(
@@ -253,7 +259,9 @@ def build_source_node_spec(
         change_signal=args.change_signal,
         watermark_column=args.watermark_column,
         handle=handle,
-        poll_seconds=getattr(tbl, "cache_ttl", None),
+        # REQ-1907: the table's TTL is its own, else its source's. A table that inherits it is
+        # polled like one that states it: the timer is what runs a probing table's probe.
+        poll_seconds=declared_cache_ttl(tbl, src),
         # Poll sources refresh on their own cadence (register_runtime schedules the injector);
         # push sources are driven by their listener. Boot lands the first copy either way.
         probe_factory=factory,
@@ -273,6 +281,7 @@ def specs_from_config(
     mv_columns: Callable[[Any], list[tuple[str, str]] | None],
     mv_run_query: Callable[[Any], Any],
     probe_scalar: Callable[[Any, Any], Any] | None = None,
+    source_probe: Callable[[Any, Any], Probe | None] | None = None,
     subscribers_of: Callable[[str, str], list[str]] | None = None,
     calendar_registry: Any | None = None,
     freshness_of: Callable[[str], Any] | None = None,
@@ -305,6 +314,7 @@ def specs_from_config(
             engine_runtime=engine_runtime,
             source_fetch=source_fetch,
             probe_scalar=probe_scalar,
+            source_probe=source_probe,
             replica_build=replica_build,
             write_lock=write_lock,
         )

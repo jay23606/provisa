@@ -6,6 +6,12 @@
     "admin": "An administrator added you to {{org}}.",
     "ack": "Got it",
     "leave": "This isn't my organization",
-    "leaveError": "Could not leave the organization."
+    "leaveError": "Could not leave the organization.",
+    "sandboxIntro": "You are on our shared starter instance, in an isolated environment of your own. The sample data is a private copy — nothing you do here is visible to another visitor, and nothing here touches anyone else's data.",
+    "sandboxOpen": "Almost every operation is open to you: register your own sources, model them, write policies and masking rules, and query the result in SQL, GraphQL, or Cypher.",
+    "sandboxHeldBack": "Held back are the org-wide controls — switching or managing environments, inviting people and conferring roles, org settings, and org-wide observability. Those pages stay visible, marked as part of the production system.",
+    "sandboxTemporary": "Your environment is temporary. Signing out wipes it, and it is also reclaimed after a day of inactivity. Nothing you build here is meant to be kept.",
+    "sandboxUpgrade": "When you are ready for an organization that persists, upgrade to a Starter plan.",
+    "sandboxAck": "Start exploring"
   }
 }

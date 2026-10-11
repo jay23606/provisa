@@ -74,7 +74,7 @@ def _row_cache_ttls(table: Any, source: Any, reader_role: str | None) -> tuple[i
     if declared_cache_ttl(table, source) is None:
         raise ValueError(
             f"row-materialize table {table.table_name!r}: no resolved cache_ttl at fetch time "
-            "(registration should have rejected this — REQ-1865)"
+            "(registration should have rejected this)"
         )
     return effective_ttl(table, source, reader_role), max_accepted_ttl(table, source)
 
@@ -236,6 +236,21 @@ async def require_home_replica(state: Any, table: Any, home: str) -> Any:
     if record is None or not record.exists or record.retired_at is not None:
         raise HomeRegionUnavailable(table.table_name, home, "is not built")
     return record
+
+
+def require_draft_read_in_its_region(table_name: str, home: str | None) -> None:
+    """A table that names a region is read in that region. One in service is read there from
+    its replica (:func:`require_home_replica`); a draft has no replica, so it is read live, and
+    only by the cluster of its own region — refused elsewhere as a table in service whose
+    replica is not there is refused (``query.home_region_unavailable``). A draft that names no
+    region is read where the caller is."""
+    from provisa.core import process_region
+    from provisa.core.region_stores import HomeRegionUnavailable
+
+    if home and home != process_region.region():
+        raise HomeRegionUnavailable(
+            table_name, home, "a draft does not have: preview it from that region"
+        )
 
 
 async def read_home_replica(state: Any, backend: Any, table: Any, home: str) -> None:
@@ -436,7 +451,7 @@ async def ensure_resident(
         or db is None
     ):
         return Residency(answered_in=only_there)
-    from provisa.federation.registry_view import registered_sources, registered_tables
+    from provisa.federation.registry_view import registered_sources, tables_a_read_judges
 
     # REQ-1674: the registry, not the config file — see registry_view. A built-in source
     # (provisa-admin, ...) is never landed and is not in it: a statement's read of one of its
@@ -475,7 +490,7 @@ async def ensure_resident(
     tables_by_source: dict[str, list[Any]] = {}
     elsewhere: list[tuple[Any, str]] = []
     read_here = 0  # tables this statement reads in this region (live or from its own replica)
-    for t in await registered_tables(state):
+    for t in await tables_a_read_judges(state):
         if t.source_id not in wanted or t.id not in read:
             continue
         home = home_region(t)
@@ -583,6 +598,11 @@ async def ensure_resident(
         check does not report it fresh (REQ-1907; the whole gate is ``is_stale_of``). The plan
         applies the rest: a load-protected table that has a replica is never rebuilt by a read
         (REQ-1141: its refresh is the runner's alone)."""
+        if source.freshness_gate and record is not None and record.partial:
+            # A replica read while its first build fills it holds only the parts landed so
+            # far. A source whose reads are gated on freshness promises more than that: its
+            # reader waits for the pass in progress, as for any build.
+            return True
         node = _node(table)
         key_ = (source.id, table.schema_name, table.table_name)
         # A standing replica that can no longer answer the model (convergence found a column
@@ -599,10 +619,11 @@ async def ensure_resident(
     replicas_read: dict[ReplicaKey, datetime] = {}
 
     def _read_from(key: ReplicaKey, record: Any) -> None:
-        """The statement reads this replica: keep the completion time of its build."""
+        """The statement reads this replica: keep the time its copy is current as of (its
+        build's completion, or its probe's later finding that the source had not changed)."""
         if record is None or not record.exists_in(_store()):
             raise ReplicaAgeUnknown(".".join(key))
-        replicas_read[key] = record.completed_at
+        replicas_read[key] = record.current_at
 
     for source in sources:
         tables = tables_by_source.get(source.id)
@@ -713,7 +734,8 @@ def _freshness_state(record: Any, store: str) -> dict | None:
     if record is None:
         return None
     return {
-        "last_refresh_at": record.completed_at.timestamp() if record.exists_in(store) else None,
+        # REQ-855: a copy its probe found unchanged is current as of that finding.
+        "last_refresh_at": record.current_at.timestamp() if record.exists_in(store) else None,
         "last_refresh_ok": record.build_state != FAILED,
     }
 

@@ -8,7 +8,6 @@
     "reasonLabel": "Reason",
     "reasonPlaceholder": "— select reason —",
     "confirm": "Confirm",
-    "cancel": "Cancel",
     "empty": "No {{tab}} requests.",
     "emptyFiltered": "No {{tab}} requests matching filter.",
     "colId": "ID",

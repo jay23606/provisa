@@ -166,7 +166,7 @@ def test_external_engine_org_has_no_sidecar_to_dial(cluster, connections, set_or
     state = _state({"acme": rt})
     set_org("acme")
 
-    with pytest.raises(RuntimeError, match="REQ-1518"):
+    with pytest.raises(RuntimeError, match="no Zaychik sidecar to dial"):
         backend._flight_transport(state)
     assert connections == []
 

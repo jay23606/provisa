@@ -37,7 +37,6 @@
     "runNowSubmit": "立即執行",
     "runNowQueuing": "排隊中...",
     "runNowQueued": "已為 {{table}} 排隊執行。",
-    "runNowCancel": "取消",
     "dependentsTitle": "其他物件正在使用這些欄",
     "dependentsIntro": "重新命名欄的 SQL 別名或刪除該欄，會破壞下列物件，它們按目前名稱引用該欄。仍要儲存嗎？",
     "dependentsCancel": "返回",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "實體關係圖",
     "erdHelpBody": "繪製已註冊的資料表以及它們之間宣告的關係，讓你在撰寫查詢之前就看得到既有的連接。它只讀取模型，不會修改：可按網域篩選，並將圖匯出為 PNG 或 SVG。",
     "purposeModel": "「+ 模型」宣告一個實體或事實——星型結構與 Data Vault 都由這兩者組成——並把它降解到同樣的原語上，註冊物化檢視、它的歷史模式，以及指向所引用實體鍵的關係。",
-    "empty": "尚未註冊任何表。"
+    "empty": "尚未註冊任何表。",
+    "resizeDetail": "調整詳情面板大小",
+    "detailPanel": "資料表詳情",
+    "closeDetail": "關閉詳情面板",
+    "expandDetail": "展開面板",
+    "restoreDetail": "還原面板",
+    "backToList": "返回清單",
+    "backToDetail": "返回詳情",
+    "panelRegisterTable": "註冊資料表",
+    "panelNewView": "新增檢視",
+    "panelNewModel": "新增模型"
   }
 }

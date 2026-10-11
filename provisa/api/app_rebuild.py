@@ -123,11 +123,10 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                         _registered_tables_t.c.mv_expected_events,  # REQ-961
                         _registered_tables_t.c.mv_business_day_grain,  # REQ-962
                         _registered_tables_t.c.region,  # REQ-1921: where the view is built
+                        _registered_tables_t.c.draft,  # REQ-1921
                     ).where(
                         _registered_tables_t.c.source_id == DERIVED_SOURCE_ID,
                         _registered_tables_t.c.view_sql.is_not(None),
-                        # REQ-1921: a draft view is neither built nor expanded.
-                        _registered_tables_t.c.draft.is_(False),
                     )
                 )
             ).fetchall()
@@ -136,20 +135,6 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
         from provisa.core import settings_registry  # REQ-1913: an operator setting
 
         _mv_default_ttl = settings_registry.value("materialized_views.default_ttl")
-        # REQ-1921: a view that is draft goes out of service here, wherever this runs (each
-        # region on its reload): it is not expanded, and its build is no longer registered — so
-        # its stored table is an orphan the reclamation sweep drops (mv/refresh.py, REQ-234).
-        for (_draft_name,) in (
-            await conn.execute_core(
-                select(_registered_tables_t.c.table_name).where(
-                    _registered_tables_t.c.source_id == DERIVED_SOURCE_ID,
-                    _registered_tables_t.c.draft.is_(True),
-                )
-            )
-        ).fetchall():
-            state.view_sql_map.pop(_draft_name, None)
-            if state.mv_registry.get(f"view-{_draft_name}") is not None:
-                state.mv_registry.unregister(f"view-{_draft_name}")
         for _vr in _view_rows:
             # Store the *semantic* view SQL; _compile_view_sqls rewrites it to a physical plan.
             # EVERY user view (materialized or not) goes into view_sql_map so the query path can
@@ -215,7 +200,9 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                             target_schema=_tgt_schema,
                             target_table=f"mv_{_vr['table_name']}",
                             refresh_interval=int(_vr.get("mv_refresh_interval") or _mv_default_ttl),
-                            enabled=True,
+                            enabled=not _vr[
+                                "draft"
+                            ],  # REQ-1921: a draft's build is kept, unscheduled
                             sql=_semantic_sql,
                             semantic_sql=_semantic_sql,  # REQ-1921/1922
                             region=_vr.get("region"),  # REQ-1921
@@ -249,6 +236,7 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                             "lower its SQL against"
                         )
                     _existing.sql = compile_view_sql_to_physical(_semantic_sql, state.view_context)
+                    _existing.enabled = not _vr["draft"]  # REQ-1921
                     _existing.semantic_sql = _semantic_sql  # REQ-1921/1922
                     _existing.region = _vr.get("region")  # REQ-1921
                     _existing.read_tables = read_table_names(_semantic_sql)
@@ -264,6 +252,20 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                     )  # REQ-961
                     _existing.expected_events = _vr.get("mv_expected_events")  # REQ-961
                     _existing.business_day_grain = bool(_vr.get("mv_business_day_grain"))  # REQ-962
+        # REQ-1921: a view that is draft is offered to no reader, wherever this runs (each region
+        # on its reload): no statement expands it. A materialized one stays registered above,
+        # with its build DISABLED — the scheduler and the rewriter skip a disabled build
+        # (mv/registry.py), and the reclamation sweep keeps a registered build's stored table
+        # (mv/refresh.py, REQ-234) — so a view set back to draft keeps what it has built, and is
+        # built again only when its steward previews it (admin/table_read.py). One that is not
+        # materialized has no build.
+        for _vr in _view_rows:
+            if not _vr["draft"]:
+                continue
+            state.view_sql_map.pop(_vr["table_name"], None)
+            state.bitemporal_view_reads.pop(_vr["table_name"], None)
+            if not _vr.get("materialize") and state.mv_registry.get(f"view-{_vr['table_name']}"):
+                state.mv_registry.unregister(f"view-{_vr['table_name']}")
 
 
 async def _finalize_rebuild_state(_rebuild_log: logging.Logger) -> None:

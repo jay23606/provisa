@@ -20,7 +20,6 @@
     "deleteConfirm": "刪除詞彙 {{name}}?",
     "deleted": "詞彙 {{name}} 已刪除。",
     "deleteDisabledHint": "此術語有參照或關係。可將它停用以停止使用，或移走其參照並移除其關係後再刪除。",
-    "cancel": "取消",
     "create": "建立",
     "created": "詞彙 {{name}} 已建立。",
     "refsTitle": "參照",

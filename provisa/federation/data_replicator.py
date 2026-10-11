@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -261,6 +261,49 @@ def mailboxes_left_out_note(accounts: list[str]) -> BuildNote | None:
     )
 
 
+MAILBOXES_AT_QUOTA = "replication.mailboxes_at_quota"
+
+#: The build completed, but its source could not keep where the read reached (its
+#: ``committed`` failed): the copy is whole, and the next check will ask for the read again.
+PLACE_NOT_KEPT = "replication.place_not_kept"
+
+
+def mailboxes_at_quota_note(accounts: list[str]) -> BuildNote | None:
+    """The build's note for the mailboxes left out because they are at their storage quota,
+    where the provider will not track their changes: how many, the first :data:`NOTED_IDS`
+    of their addresses, and how many more. None when there is none."""
+    if not accounts:
+        return None
+    return BuildNote(
+        MAILBOXES_AT_QUOTA,
+        {
+            "count": len(accounts),
+            "accounts": accounts[:NOTED_IDS],
+            "more": max(len(accounts) - NOTED_IDS, 0),
+        },
+    )
+
+
+#: The note of a mail source's pass in which mailboxes began to be read and then failed:
+#: what they gave before is written and stays, and the others were read.
+MAILBOXES_FAILED = "replication.mailboxes_failed"
+
+
+def mailboxes_failed_note(accounts: list[str]) -> BuildNote | None:
+    """The pass's note for the mailboxes whose read failed part way: how many, the first
+    :data:`NOTED_IDS` of their addresses, and how many more. None when there is none."""
+    if not accounts:
+        return None
+    return BuildNote(
+        MAILBOXES_FAILED,
+        {
+            "count": len(accounts),
+            "accounts": accounts[:NOTED_IDS],
+            "more": max(len(accounts) - NOTED_IDS, 0),
+        },
+    )
+
+
 @dataclass(frozen=True)
 class BuildOutcome:
     """What a finished build reports. ``changed`` is False when the copy's content hash equals
@@ -276,11 +319,20 @@ class BuildOutcome:
     built_columns: list | None = None
     #: What the source had to say of the rows it read (BuildNote); empty when nothing.
     notes: tuple[BuildNote, ...] = ()
+    #: The source's ``committed``, when it has one: what it does once the build's completion
+    #: is recorded (keep where its read reached, so the next can ask what changed since). The
+    #: runner awaits it then, and never for a build that failed.
+    committed: Callable[[], Awaitable[None]] | None = field(default=None, compare=False, repr=False)
 
 
 class _Source(Protocol):
     """A source may also carry ``notes()``: called once its batches are read to the end, it
-    answers every :class:`BuildNote` of the read just made, none when it has nothing to say."""
+    answers every :class:`BuildNote` of the read just made, none when it has nothing to say.
+
+    And ``async committed()``: awaited by the runner once the build that read it is recorded
+    as completed -- its copy swapped in, or found the same as the last. A source keeps there
+    what its read reached. It is not called for a build that failed, so what it keeps never
+    runs ahead of the copy."""
 
     caps: SourceCaps
 
@@ -370,6 +422,7 @@ class ReplicaJob:
             # What the source says of this read holds whether or not the copy is swapped in.
             said = getattr(self._source, "notes", None)
             notes = tuple(said()) if said is not None else ()
+            committed = getattr(self._source, "committed", None)
             if content_hash == self._prior_hash:
                 return BuildOutcome(
                     rows_copied=copied,
@@ -377,6 +430,7 @@ class ReplicaJob:
                     content_hash=content_hash,
                     changed=False,
                     notes=notes,
+                    committed=committed,
                 )
             if self._still_wanted is not None:
                 # Raises when the model stopped declaring the table while it was copied: the
@@ -389,7 +443,11 @@ class ReplicaJob:
                 await self._target.abort()
         await self._engine.after_swap()
         return BuildOutcome(
-            rows_copied=copied, method=self.method.value, content_hash=content_hash, notes=notes
+            rows_copied=copied,
+            method=self.method.value,
+            content_hash=content_hash,
+            notes=notes,
+            committed=committed,
         )
 
 
@@ -507,6 +565,16 @@ class ReplicaGroupJob:
             results[table] = await self._finish(
                 table, part, digests[table].hexdigest(), copied[table], notes
             )
+        # The source's ``committed`` rides on every table's outcome; the runner awaits it once,
+        # and only when every table of the read was recorded as completed.
+        committed = getattr(self._source, "committed", None)
+        if committed is not None:
+            results = {
+                table: outcome
+                if isinstance(outcome, BaseException)
+                else replace(outcome, committed=committed)
+                for table, outcome in results.items()
+            }
         return results
 
     async def _finish(

@@ -34,7 +34,6 @@
     "selectSourceFirst": "תחילה יש לבחור טבלת מקור.",
     "notKeyable": "לא ניתן לשמש כמפתח",
     "errorRequired": "שם, מקור ודומיין הם שדות חובה.",
-    "cancel": "ביטול",
     "submit": "יצירה",
     "createdTitle": "{{name}} נוצר",
     "createdMv": "נבנה Materialized View — ה-{{kind}} \"{{name}}\" בדומיין {{domain}}. הוא מופיע כעת בטבלאות הרשומות וניתן להריץ עליו שאילתות.",

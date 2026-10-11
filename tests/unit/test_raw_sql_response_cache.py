@@ -45,6 +45,7 @@ from provisa.pgwire._pipeline import (
 )
 from provisa.transpiler.router import Route
 from tests.unit.test_response_cache_shared import FakeCacheStore
+from tests.role_state import RoleState
 
 
 @pytest.fixture(autouse=True)
@@ -86,7 +87,7 @@ def _plan(sql: str = "SELECT id, amount, ts FROM t", *, params=None, role="analy
 
 
 def _state(store, *, source_cache=None, table_cache=None, default_ttl=300):
-    return SimpleNamespace(
+    return RoleState(
         response_cache_store=store,
         model_db="fake",
         tenant_db="fake",

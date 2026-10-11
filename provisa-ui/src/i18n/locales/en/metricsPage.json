@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Metrics",
-    "newMetric": "New Metric",
+    "newMetric": "+ Metric",
     "loading": "Loading...",
     "empty": "No metrics registered yet.",
     "colName": "Name",
@@ -39,8 +39,6 @@
     "fieldDescription": "Description",
     "fieldAiContext": "AI Context",
     "fieldAiContextPlaceholder": "Hints for AI-assisted query generation",
-    "save": "Save",
-    "cancel": "Cancel",
     "saveFailed": "Save failed.",
     "editMetric": "Edit metric {{name}}",
     "deleteMetric": "Delete metric {{name}}",
@@ -51,7 +49,8 @@
     "purposeTitle": "What metrics are for",
     "purposeBody": "A metric is the business definition of a measure — an aggregate over one fact table, defined once here and projected into every surface: SQL, GraphQL, the explore canvas, views built from metrics, and interchange export.",
     "purposeAdd": "Define it once so consumers cannot drift by re-implementing the arithmetic. A view built from a metric regenerates whenever the metric changes, so the number stays the same everywhere.",
-    "purposeAria": "About metrics"
+    "purposeAria": "About metrics",
+    "detailPanel": "Metric details"
   },
   "sqlJoinCanvas": {
     "removeMetric": "Remove metric {{metricName}}",

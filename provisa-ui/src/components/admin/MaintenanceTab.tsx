@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, Button, Card, Group, Stack, Text, Textarea, TextInput, Title } from "@mantine/core";
 import {
   fetchMaintenanceNotice,
@@ -29,8 +30,10 @@ import { shutdownAllServices } from "../../api/lifecycle";
  * so the deployment says the same thing every time without an administrator having to compose it.
  */
 import { ConfigFileSection } from "./settingsCards";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 export function MaintenanceTab() {
+  const { t } = useTranslation();
   const [notice, setNotice] = useState<MaintenanceNotice | null>(null);
   const [message, setMessage] = useState("");
   // A `datetime-local` value ("2026-08-14T22:30"), which the browser reads in the operator's own
@@ -78,13 +81,7 @@ export function MaintenanceTab() {
   };
 
   const stopAllServices = async () => {
-    if (
-      !window.confirm(
-        "Kill the backend and UI dev server on this machine? This ends your session immediately.",
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(t("maintenanceTab.stopConfirm"))) return;
     setStopBusy(true);
     setStopError("");
     try {
@@ -98,12 +95,9 @@ export function MaintenanceTab() {
   return (
     <Stack gap="md">
       <div>
-        <Title order={3}>Scheduled maintenance</Title>
+        <Title order={3}>{t("maintenanceTab.title")}</Title>
         <Text c="dimmed" size="sm">
-          Shows a banner to every signed-in user, on every page, until you turn it off. Turn it on
-          before planned work that interrupts queries — replacing the engine cluster, switching its
-          topology, or upgrading the control plane — so the interruption reads as scheduled rather
-          than broken.
+          {t("maintenanceTab.intro")}
         </Text>
       </div>
 
@@ -115,39 +109,47 @@ export function MaintenanceTab() {
 
       {notice?.active && (
         <Alert color="orange" data-testid="maintenance-active">
-          The banner is live
-          {notice.started_at ? ` since ${new Date(notice.started_at).toLocaleString()}` : ""}.
+          {notice.started_at
+            ? t("maintenanceTab.liveSince", {
+                time: new Date(notice.started_at).toLocaleString(),
+              })
+            : t("maintenanceTab.live")}
         </Alert>
       )}
 
       <Card withBorder padding="md">
-        <Stack gap="sm">
-          <Textarea
-            label="Message"
-            description="Leave empty for the standard wording."
-            placeholder="Provisa is undergoing scheduled maintenance…"
-            autosize
-            minRows={2}
-            value={message}
-            onChange={(e) => setMessage(e.currentTarget.value)}
-            data-testid="maintenance-message"
-          />
-          <TextInput
-            type="datetime-local"
-            label="Expected back by"
-            description="Leave empty to say no estimate is being offered rather than to imply one."
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.currentTarget.value)}
-            data-testid="maintenance-ends-at"
-          />
-          <Group>
+        <FormLayout>
+          <FormField hint={t("maintenanceTab.messageHint")} size="full">
+            <Textarea
+              label={t("maintenanceTab.messageLabel")}
+              placeholder={t("maintenanceTab.messagePlaceholder")}
+              autosize
+              minRows={2}
+              value={message}
+              onChange={(e) => setMessage(e.currentTarget.value)}
+              data-testid="maintenance-message"
+            />
+          </FormField>
+          <FormField
+            hint={t("maintenanceTab.endsAtHint")}
+            size="medium"
+          >
+            <TextInput
+              type="datetime-local"
+              label={t("maintenanceTab.endsAtLabel")}
+              value={endsAt}
+              onChange={(e) => setEndsAt(e.currentTarget.value)}
+              data-testid="maintenance-ends-at"
+            />
+          </FormField>
+          <FormFooter>
             <Button
               color="orange"
               loading={busy}
               onClick={() => apply(true)}
               data-testid="maintenance-on"
             >
-              {notice?.active ? "Update banner" : "Show banner"}
+              {notice?.active ? t("maintenanceTab.updateBanner") : t("maintenanceTab.showBanner")}
             </Button>
             <Button
               variant="default"
@@ -155,10 +157,10 @@ export function MaintenanceTab() {
               onClick={() => apply(false)}
               data-testid="maintenance-off"
             >
-              Clear banner
+              {t("maintenanceTab.clearBanner")}
             </Button>
-          </Group>
-        </Stack>
+          </FormFooter>
+        </FormLayout>
       </Card>
 
       {/* REQ-1349: exporting, diffing and re-applying the config file is deployment maintenance,
@@ -167,11 +169,10 @@ export function MaintenanceTab() {
 
       <div>
         <Title order={3} c="red">
-          Danger zone
+          {t("maintenanceTab.dangerTitle")}
         </Title>
         <Text c="dimmed" size="sm">
-          Stops the backend and the UI dev server on this machine. Only works against a --demo/
-          --native desktop launch — refused everywhere else.
+          {t("maintenanceTab.dangerIntro")}
         </Text>
       </div>
 
@@ -189,7 +190,7 @@ export function MaintenanceTab() {
             onClick={stopAllServices}
             data-testid="stop-all-services"
           >
-            Stop all services
+            {t("maintenanceTab.stopAll")}
           </Button>
         </Group>
       </Card>

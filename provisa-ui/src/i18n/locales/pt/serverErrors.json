@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "O catálogo '{{catalog}}' do mecanismo está sendo registrado. Tente novamente em instantes.",
       "domain_not_accessible": "A função '{{role_id}}' não tem acesso ao domínio '{{domain}}'",
       "role_mismatch": "A solicitação indica a função '{{body_role}}', mas é executada como a função '{{acting_role}}'. A função é transmitida pelo cabeçalho X-Provisa-Role (ou pela identidade conectada); remova a outra função ou faça com que coincida.",
-      "sql_parameters_do_not_fit": "Os valores dos parâmetros não correspondem à instrução: {{reason}}"
+      "sql_parameters_do_not_fit": "Os valores dos parâmetros não correspondem à instrução: {{reason}}",
+      "unknown_root_field": "Campo de consulta desconhecido '{{field}}': nenhuma tabela com esse nome é servida a esta função",
+      "viewer_column_unknown": "'{{column}}' não é uma coluna da tabela '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' não é um filtro da coluna '{{column}}'",
+      "viewer_value_invalid": "O filtro em '{{column}}' não pode usar o valor '{{value}}'",
+      "replica_building": "A cópia de {{replica}} ainda está sendo criada. A criação continua; abra a pré-visualização novamente quando terminar."
     },
     "discovery": {
       "adapter_missing_discover_schema": "O adaptador para '{{source_type}}' não implementa discover_schema",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: o argumento '{{argument}}' não foi informado",
       "argument_not_declared": "{{signature}}: o argumento '{{argument}}' não está declarado",
       "binding_missing_key": "a vinculação de função para o tipo '{{kind}}' está sem a chave obrigatória '{{key}}'",
-      "egress_denied": "saída para '{{endpoint}}' negada: host não está na lista de permissões de saída de UDF (REQ-885 negar por padrão). Adicione-o a udf_egress_allowlist para permitir.",
+      "egress_denied": "saída para '{{endpoint}}' negada: host não está na lista de permissões de saída de UDF (negar por padrão). Adicione-o a udf_egress_allowlist para permitir.",
       "grpc_call_failed": "chamada grpc {{target}}{{path}} falhou: {{status}}: {{details}}",
       "grpc_method_invalid": "o método grpc '{{method}}' deve ser 'Service/Method' ou 'pkg.Service.Method'",
       "json_argument_invalid": "o argumento '{{argument}}' de '{{name}}' não é um literal JSON",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "o callable python '{{spec}}' deve ser 'module:attr'",
       "remote_refused": "{{source_id}} recusou {{operation}}: {{answer}}",
       "result_set_ref_invalid": "a ref de result_set '{{ref}}' deve ser source.schema.table",
-      "rowwise_external": "a função '{{name}}' (kind={{impl_kind}}) é externa por linha: todos os argumentos são column_value escalares. Declare um argumento de relação table_ref/result_set para que as chamadas sejam por conjunto e em lote (REQ-885).",
+      "rowwise_external": "a função '{{name}}' (kind={{impl_kind}}) é externa por linha: todos os argumentos são column_value escalares. Declare um argumento de relação table_ref/result_set para que as chamadas sejam por conjunto e em lote.",
       "script_failed": "o script saiu com {{returncode}}: {{stderr}}",
       "source_not_connected": "Fonte '{{source_id}}' não conectada",
       "unknown_arg_kind": "arg_kind desconhecido '{{arg_kind}}' para '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "O id de organização '{{org}}' é reservado. Ids reservados: {{reserved}}.",
       "platform_admin_required": "platform_admin necessário",
       "retry_not_failed": "A organização '{{org}}' está em '{{state}}', não em 'failed' — nada a repetir.",
-      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador (REQ-1308).",
+      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
       "view_not_permitted": "Sem permissão para exibir esta organização"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "calendário inválido: {{error}}",
       "invalid_cardinality": "Cardinalidade inválida: '{{cardinality}}'",
       "invalid_off_peak_window": "janela fora de pico inválida: {{error}}",
-      "load_protection_gate_required": "{{who}}: a proteção de carga requer pelo menos um portão de atualização — defina uma janela fora de pico, uma cadência de cache_ttl ou um change_signal de sondagem (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: a proteção de carga requer pelo menos um portão de atualização — defina uma janela fora de pico, uma cadência de cache_ttl ou um change_signal de sondagem (probe/ttl_probe)",
       "metric_deleted": "Métrica '{{metric}}' excluída",
       "metric_not_found": "Métrica '{{metric}}' não encontrada",
       "metric_saved": "Métrica '{{metric}}' salva",
@@ -297,6 +302,10 @@
       "relationship_not_found": "Relacionamento '{{relationship}}' não encontrado",
       "relationship_saved": "Relacionamento '{{relationship}}' salvo",
       "remigrated": "{{source}}.{{table}} migrado novamente",
+      "change_signal_not_honoured": "Uma fonte do tipo {{type}} ainda não pode ser verificada quanto a alterações, pelo que o sinal de alteração {{signal}} nunca seria consultado. Use ttl para a fonte '{{source}}'.",
+      "sentinel_path_not_applicable": "Uma fonte do tipo {{type}} não pode ter um caminho sentinela: nenhum produtor seu pode assinalar uma alteração nos seus dados, ou a fonte não é sondada. Remova o caminho sentinela da fonte '{{source}}'.",
+      "source_cache_ttl_required": "A fonte '{{source}}' precisa de um TTL do cache: cada tabela sua é uma réplica, atualizada por esse relógio com o sinal de alteração {{signal}}. Defina-o em «Gestão de carga e atualidade» da fonte.",
+      "landing_ttl_required": "A tabela '{{table}}' é uma réplica atualizada por um TTL do cache, e nem ela nem a sua fonte '{{source}}' têm um. Defina o TTL do cache em «Gestão de carga e atualidade» da fonte, ou na própria tabela depois de registada.",
       "replicate_contradicts_load_protected": "A proteção de carga não pode ser combinada com Replicar = 'Nunca': uma tabela protegida contra carga nunca é lida ao vivo",
       "replicate_invalid": "Replicar deve ser 'Padrão', 'Nunca', 'Sempre' ou um limite acima de 0; recebido {{value}}",
       "request_executed": "Solicitação de criação nº {{id}} executada",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} é o último administrador de plataforma desta implantação. Conceda primeiro o papel a outro usuário.",
       "no_active_org": "Nenhuma organização está vinculada a esta solicitação. Entre primeiro em uma organização.",
       "no_fields_to_update": "Nenhum campo para atualizar",
-      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador (REQ-1308).",
+      "self_role_change": "Um usuário não pode alterar a própria função. Peça a outro administrador.",
       "user_not_found": "Usuário não encontrado"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "Não existe nenhuma plataforma de e-mail chamada {{platform}}.",
       "not_configured": "Sua organização ainda não conectou esta plataforma de e-mail ({{platform}}). Um administrador informa o cliente dela uma vez em Administração › E-mail.",
       "unknown_setting": "{{setting}} não é uma configuração desta plataforma de e-mail.",
-      "incomplete": "Ainda necessário antes de salvar: {{missing}}."
+      "incomplete": "Ainda necessário antes de salvar: {{missing}}.",
+      "credential_unresolved": "Não foi possível resolver o valor de {{field}} introduzido para esta plataforma de correio ({{platform}}): {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "A escolha das caixas de correio não pode ser interpretada: {{error}}",
       "client_refused": "A Microsoft recusou o cliente Microsoft 365 da sua organização: {{reason}}",
       "throttled": "A Microsoft está a limitar os pedidos por agora. Tente novamente dentro de {{retry_after}} segundos.",
-      "directory_refused": "A Microsoft não listou as caixas de correio da organização ({{status}} {{reason}}). O cliente precisa de permissão para ler os utilizadores do diretório."
+      "directory_refused": "A Microsoft não listou as caixas de correio da organização ({{status}} {{reason}}). O cliente precisa de permissão para ler os utilizadores do diretório.",
+      "directory_no_permissions": "A Microsoft não listou as caixas de correio da organização ({{status}} {{reason}}). O token do cliente não contém nenhuma permissão de aplicação; é necessária {{missing}}. Adicione-a como permissão de aplicação (não delegada) e conceda o consentimento do administrador.",
+      "directory_permission_missing": "A Microsoft não listou as caixas de correio da organização ({{status}} {{reason}}). O token do cliente contém {{carries}}; em falta: {{missing}}. Adicione-a como permissão de aplicação (não delegada) e conceda o consentimento do administrador.",
+      "directory_refused_granted": "A Microsoft não listou as caixas de correio da organização ({{status}} {{reason}}), embora o token do cliente contenha o que a listagem necessita ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Não existe nenhuma função chamada {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Essa não é uma forma de escolher caixas de correio: {{error}}",
+      "scope_not_delegated": "A conta de serviço do Google da organização não está autorizada para {{scopes}}. Um superadministrador adiciona o ID do cliente dela com esse escopo no Google Admin Console, em Segurança › Controle de dados e acesso › Controles de API › Gerenciar a delegação em todo o domínio; uma nova autorização pode levar até 24 horas.",
+      "admin_not_a_user": "{{address}} não é um usuário do domínio do Google Workspace da organização; por isso o diretório não pode ser listado em nome dele. Um administrador corrige o endereço do administrador em Administração › E-mail.",
+      "directory_refused": "Não foi possível ler o diretório do Google: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "O Google recusou a conta de serviço da organização: {{reason}}"
     }
   }
 }

@@ -14,6 +14,8 @@
     "firstPage": "Erste Seite",
     "previousPage": "Vorherige Seite",
     "nextPage": "Nächste Seite",
-    "lastPage": "Letzte Seite"
+    "lastPage": "Letzte Seite",
+    "deleteRoleTitle": "Rolle „{{roleId}}“ löschen?",
+    "deleteRoleConsequence": "Die Rolle wird aus dieser Organisation entfernt."
   }
 }

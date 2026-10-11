@@ -27,6 +27,7 @@ import pytest
 
 from provisa.api.airport.server import ProvisaAirportServer
 from provisa.auth.models import AuthIdentity
+from tests.role_state import RoleState
 
 _AUTH_CONFIG = {"provider": "oidc", "default_role": "seller", "role_mapping": []}
 _ROLES = ("seller", "hr_reader", "org_admin")
@@ -61,7 +62,7 @@ def _identity(roles: list[str]) -> AuthIdentity:
 
 def _server(monkeypatch, *, auth: bool, middleware_only: bool = False) -> ProvisaAirportServer:
     srv = ProvisaAirportServer.__new__(ProvisaAirportServer)
-    srv._state = types.SimpleNamespace(
+    srv._state = RoleState(
         auth_config=_AUTH_CONFIG if auth and not middleware_only else None,
         auth_middleware_active=auth,
         admin_db=None,

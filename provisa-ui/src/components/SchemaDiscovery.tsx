@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import {
   ActionIcon,
   Alert,
@@ -28,6 +29,8 @@ import { discoverSourceSchema, fetchIrTypes } from "../api/admin";
 import type { DiscoveredColumn } from "../api/admin";
 import { useRegisterTable, useRoles } from "../hooks/useAdminQueries";
 import { IR_TYPES_FALLBACK, toIrType } from "../irTypes";
+import { refusalError } from "../i18n/serverMessage";
+import { Tip } from "./Tip";
 
 interface ColumnRow {
   selected: boolean;
@@ -71,50 +74,60 @@ function DiscoverHints({
   const { t } = useTranslation();
   if (sourceType === "mongodb") {
     return (
-      <TextInput
-        label={t("schemaDiscovery.collection")}
-        value={hints.collection ?? ""}
-        onChange={(e) => setHints({ ...hints, collection: e.currentTarget.value })}
-        placeholder={t("schemaDiscovery.collectionPlaceholder")}
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("schemaDiscovery.collection")}
+          value={hints.collection ?? ""}
+          onChange={(e) => setHints({ ...hints, collection: e.currentTarget.value })}
+          placeholder={t("schemaDiscovery.collectionPlaceholder")}
+        />
+      </FormField>
     );
   }
   if (sourceType === "elasticsearch") {
     return (
-      <TextInput
-        label={t("schemaDiscovery.indexPattern")}
-        value={hints.index ?? ""}
-        onChange={(e) => setHints({ ...hints, index: e.currentTarget.value })}
-        placeholder={t("schemaDiscovery.indexPatternPlaceholder")}
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("schemaDiscovery.indexPattern")}
+          value={hints.index ?? ""}
+          onChange={(e) => setHints({ ...hints, index: e.currentTarget.value })}
+          placeholder={t("schemaDiscovery.indexPatternPlaceholder")}
+        />
+      </FormField>
     );
   }
   if (sourceType === "cassandra") {
     return (
       <>
-        <TextInput
-          label={t("schemaDiscovery.keyspace")}
-          value={hints.keyspace ?? ""}
-          onChange={(e) => setHints({ ...hints, keyspace: e.currentTarget.value })}
-          placeholder={t("schemaDiscovery.keyspacePlaceholder")}
-        />
-        <TextInput
-          label={t("schemaDiscovery.table")}
-          value={hints.table ?? ""}
-          onChange={(e) => setHints({ ...hints, table: e.currentTarget.value })}
-          placeholder={t("schemaDiscovery.tablePlaceholder")}
-        />
+        <FormField size="medium">
+          <TextInput
+            label={t("schemaDiscovery.keyspace")}
+            value={hints.keyspace ?? ""}
+            onChange={(e) => setHints({ ...hints, keyspace: e.currentTarget.value })}
+            placeholder={t("schemaDiscovery.keyspacePlaceholder")}
+          />
+        </FormField>
+        <FormField size="medium">
+          <TextInput
+            label={t("schemaDiscovery.table")}
+            value={hints.table ?? ""}
+            onChange={(e) => setHints({ ...hints, table: e.currentTarget.value })}
+            placeholder={t("schemaDiscovery.tablePlaceholder")}
+          />
+        </FormField>
       </>
     );
   }
   if (sourceType === "prometheus") {
     return (
-      <TextInput
-        label={t("schemaDiscovery.metricName")}
-        value={hints.metric ?? ""}
-        onChange={(e) => setHints({ ...hints, metric: e.currentTarget.value })}
-        placeholder={t("schemaDiscovery.metricNamePlaceholder")}
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("schemaDiscovery.metricName")}
+          value={hints.metric ?? ""}
+          onChange={(e) => setHints({ ...hints, metric: e.currentTarget.value })}
+          placeholder={t("schemaDiscovery.metricNamePlaceholder")}
+        />
+      </FormField>
     );
   }
   if (sourceType === "kafka") {
@@ -129,29 +142,33 @@ function DiscoverHints({
     // host:port), surfaced here so sample mode is reachable without a stored/registered source.
     return (
       <>
-        <TextInput
-          label={t("schemaDiscovery.kafkaTopic")}
-          value={hints.topic ?? ""}
-          onChange={(e) => setHints({ ...hints, topic: e.currentTarget.value })}
-          placeholder={t("schemaDiscovery.kafkaTopicPlaceholder")}
-          data-testid="discover-kafka-topic"
-        />
-        <TextInput
-          label={t("schemaDiscovery.kafkaSchemaRegistryUrl")}
-          value={hints.schema_registry_url ?? ""}
-          onChange={(e) => setHints({ ...hints, schema_registry_url: e.currentTarget.value })}
-          placeholder={t("schemaDiscovery.kafkaSchemaRegistryUrlPlaceholder")}
-          description={t("schemaDiscovery.kafkaSchemaRegistryUrlDescription")}
-          data-testid="discover-kafka-registry-url"
-        />
-        <TextInput
-          label={t("schemaDiscovery.kafkaBootstrapServers")}
-          value={hints.bootstrap_servers ?? ""}
-          onChange={(e) => setHints({ ...hints, bootstrap_servers: e.currentTarget.value })}
-          placeholder={t("schemaDiscovery.kafkaBootstrapServersPlaceholder")}
-          description={t("schemaDiscovery.kafkaBootstrapServersDescription")}
-          data-testid="discover-kafka-bootstrap-servers"
-        />
+        <FormField size="medium">
+          <TextInput
+            label={t("schemaDiscovery.kafkaTopic")}
+            value={hints.topic ?? ""}
+            onChange={(e) => setHints({ ...hints, topic: e.currentTarget.value })}
+            placeholder={t("schemaDiscovery.kafkaTopicPlaceholder")}
+            data-testid="discover-kafka-topic"
+          />
+        </FormField>
+        <FormField size="long" hint={t("schemaDiscovery.kafkaSchemaRegistryUrlDescription")}>
+          <TextInput
+            label={t("schemaDiscovery.kafkaSchemaRegistryUrl")}
+            value={hints.schema_registry_url ?? ""}
+            onChange={(e) => setHints({ ...hints, schema_registry_url: e.currentTarget.value })}
+            placeholder={t("schemaDiscovery.kafkaSchemaRegistryUrlPlaceholder")}
+            data-testid="discover-kafka-registry-url"
+          />
+        </FormField>
+        <FormField size="long" help={t("schemaDiscovery.kafkaBootstrapServersDescription")}>
+          <TextInput
+            label={t("schemaDiscovery.kafkaBootstrapServers")}
+            value={hints.bootstrap_servers ?? ""}
+            onChange={(e) => setHints({ ...hints, bootstrap_servers: e.currentTarget.value })}
+            placeholder={t("schemaDiscovery.kafkaBootstrapServersPlaceholder")}
+            data-testid="discover-kafka-bootstrap-servers"
+          />
+        </FormField>
       </>
     );
   }
@@ -280,7 +297,7 @@ export function SchemaDiscovery({
           isPrimaryKey: c.isPrimaryKey || undefined,
         })),
       });
-      if (!result.success) throw new Error(result.message);
+      if (!result.success) throw refusalError(result);
       onRegistered?.();
       onClose();
     } catch (e) {
@@ -310,15 +327,20 @@ export function SchemaDiscovery({
         </Alert>
       )}
 
-      <Group gap="sm" wrap="wrap" align="flex-end" mt="sm">
+      <FormLayout style={{ marginTop: "0.75rem" }}>
         <DiscoverHints sourceType={sourceType} hints={hints} setHints={setHints} />
-        <Button onClick={handleDiscover} loading={loading} data-testid="discover-schema-btn">
-          {loading ? t("schemaDiscovery.discovering") : t("schemaDiscovery.discover")}
-        </Button>
-        <Button variant="light" size="xs" onClick={addManualColumn} data-testid="add-column-btn">
-          {t("schemaDiscovery.addColumn")}
-        </Button>
-      </Group>
+        <FormFooter
+          action={
+            <Button onClick={handleDiscover} loading={loading} data-testid="discover-schema-btn">
+              {loading ? t("schemaDiscovery.discovering") : t("schemaDiscovery.discover")}
+            </Button>
+          }
+        >
+          <Button variant="light" onClick={addManualColumn} data-testid="add-column-btn">
+            {t("schemaDiscovery.addColumn")}
+          </Button>
+        </FormFooter>
+      </FormLayout>
 
       {columns.length > 0 && (
         <>
@@ -399,17 +421,18 @@ export function SchemaDiscovery({
                       {col.sourcePath}
                     </Table.Td>
                     <Table.Td ta="center">
-                      <Checkbox
-                        checked={col.isPrimaryKey}
-                        onChange={(e) =>
-                          updateColumn(idx, { isPrimaryKey: e.currentTarget.checked })
-                        }
-                        title={t("schemaDiscovery.primaryKeyTitle")}
-                        aria-label={t("schemaDiscovery.primaryKeyAriaLabel", {
-                          name: col.name || idx + 1,
-                        })}
-                        data-testid={`discover-col-pk-${col.name || idx}`}
-                      />
+                      <Tip text={t("schemaDiscovery.primaryKeyTitle")}>
+                        <Checkbox
+                          checked={col.isPrimaryKey}
+                          onChange={(e) =>
+                            updateColumn(idx, { isPrimaryKey: e.currentTarget.checked })
+                          }
+                          aria-label={t("schemaDiscovery.primaryKeyAriaLabel", {
+                            name: col.name || idx + 1,
+                          })}
+                          data-testid={`discover-col-pk-${col.name || idx}`}
+                        />
+                      </Tip>
                     </Table.Td>
                     <Table.Td>
                       <ActionIcon
@@ -432,30 +455,44 @@ export function SchemaDiscovery({
           <Title order={5} mt="md" mb="xs">
             {t("schemaDiscovery.registerTableHeading")}
           </Title>
-          <Group gap="sm" wrap="wrap" align="flex-end">
-            <TextInput
-              label={t("schemaDiscovery.domainId")}
-              required
-              value={regForm.domainId}
-              onChange={(e) => setRegForm({ ...regForm, domainId: e.currentTarget.value })}
-              placeholder={t("schemaDiscovery.domainIdPlaceholder")}
+          <FormLayout>
+            <FormField size="medium">
+              <TextInput
+                label={t("schemaDiscovery.domainId")}
+                required
+                value={regForm.domainId}
+                onChange={(e) => setRegForm({ ...regForm, domainId: e.currentTarget.value })}
+                placeholder={t("schemaDiscovery.domainIdPlaceholder")}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("schemaDiscovery.schema")}
+                value={regForm.schemaName}
+                onChange={(e) => setRegForm({ ...regForm, schemaName: e.currentTarget.value })}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("schemaDiscovery.tableName")}
+                required
+                value={regForm.tableName}
+                onChange={(e) => setRegForm({ ...regForm, tableName: e.currentTarget.value })}
+                placeholder={t("schemaDiscovery.tableNamePlaceholder")}
+              />
+            </FormField>
+            <FormFooter
+              action={
+                <Button
+                  onClick={handleRegister}
+                  loading={registering}
+                  data-testid="register-table-btn"
+                >
+                  {registering ? t("schemaDiscovery.registering") : t("schemaDiscovery.register")}
+                </Button>
+              }
             />
-            <TextInput
-              label={t("schemaDiscovery.schema")}
-              value={regForm.schemaName}
-              onChange={(e) => setRegForm({ ...regForm, schemaName: e.currentTarget.value })}
-            />
-            <TextInput
-              label={t("schemaDiscovery.tableName")}
-              required
-              value={regForm.tableName}
-              onChange={(e) => setRegForm({ ...regForm, tableName: e.currentTarget.value })}
-              placeholder={t("schemaDiscovery.tableNamePlaceholder")}
-            />
-            <Button onClick={handleRegister} loading={registering} data-testid="register-table-btn">
-              {registering ? t("schemaDiscovery.registering") : t("schemaDiscovery.register")}
-            </Button>
-          </Group>
+          </FormLayout>
         </>
       )}
     </Card>

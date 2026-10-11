@@ -110,6 +110,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _remove_view_mv,
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
+    google_workspace_organisation_refusal,
     microsoft_365_organisation_refusal,
     microsoft_365_refusal,
     _stage_kaggle_if_needed,
@@ -119,10 +120,6 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _upsert_source_with_domains,
     _another_govdata_source,
     _validate_govdata_api_key,
-    forget_source_mapping_secrets,
-    forget_source_password,
-    persist_source_mapping_secrets,
-    persist_source_password,
 )
 
 
@@ -709,7 +706,7 @@ def _validate_load_protection(
             success=False,
             message=(
                 f"{who}: load protection requires at least one refresh gate — set an off-peak "
-                "window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe) (REQ-1141)"
+                "window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe)"
             ),
             code="schema.load_protection_gate_required",
             params={"who": who},
@@ -745,6 +742,27 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
         source_change_signal(input.type, input.change_signal)
     except ValueError as e:
         return _fail("schema.change_signal_not_push", str(e))
+    # A mail source's tables have no probe query of their own: a probing signal on the source
+    # is honoured only by the kind's own check for changes, once that is wired
+    # (probes.LOADER_PROBE_TYPES). Until then it is refused by name rather than saved and
+    # never asked.
+    from provisa.core import mail_platforms
+    from provisa.events.probes import LOADER_PROBE_TYPES
+
+    if (
+        input.change_signal in ("probe", "ttl_probe")
+        and input.type in mail_platforms.source_types()
+        and input.type not in LOADER_PROBE_TYPES
+    ):
+        return MutationResult(
+            success=False,
+            message=(
+                f"Source {input.id!r}: a {input.type} source cannot yet be checked for changes, "
+                f"so change_signal {input.change_signal!r} would never be asked; use ttl"
+            ),
+            code="schema.change_signal_not_honoured",
+            params={"source": input.id, "type": input.type, "signal": input.change_signal},
+        )
     if input.cache_ttl is not None and input.cache_ttl < 0:
         return _fail("schema.invalid_cache_ttl", "cache_ttl must be 0 or more seconds")
     if input.max_live_concurrency is not None and input.max_live_concurrency < 1:
@@ -754,8 +772,18 @@ def _validate_source_load_management(input: SourceInput) -> "MutationResult | No
             "reads use replicate 0 (always) or load_protected)",
         )
     if input.sentinel_path:
-        from provisa.events.sentinel_probe import build_sentinel_probe
+        from provisa.events.sentinel_probe import applies_to, build_sentinel_probe
 
+        if not applies_to(input.type):
+            return MutationResult(
+                success=False,
+                message=(
+                    f"Source {input.id!r}: a {input.type} source has no sentinel: nothing of "
+                    "yours produces its data and could mark a change, or the source is not probed"
+                ),
+                code="schema.sentinel_path_not_applicable",
+                params={"source": input.id, "type": input.type},
+            )
         try:
             build_sentinel_probe(input.sentinel_path)
         except ValueError as e:
@@ -1131,7 +1159,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.cache_ttl,
                     input.replicate,
                     input.load_protected,
+                    input.freshness_gate,
                 ),
+                source_type=input.type,
             )
         if _ttl_refusal is not None:
             return _ttl_refusal
@@ -1184,7 +1214,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 if _wikipedia_refusal is not None:
                     return _wikipedia_refusal
                 # REQ-1923: a Google Workspace source's settings are checked before it exists.
-                _workspace_refusal = google_workspace_refusal(input)
+                _workspace_refusal = google_workspace_refusal(
+                    input
+                ) or await google_workspace_organisation_refusal(input)
                 if _workspace_refusal is not None:
                     return _workspace_refusal
                 _m365_refusal = microsoft_365_refusal(
@@ -1211,17 +1243,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         if _feed_refusal is not None:
             return _feed_refusal
 
-        # REQ-1695: the connection answered, so this credential is worth keeping. A literal goes
-        # into the org vault and the row keeps the reference that names it; the row never holds a
-        # credential. Done after the validation so a rejected source leaves no vault entry behind.
+        # Each credential is kept as the operator entered it (a value, or a reference they
+        # typed) and resolved where it is used.
         _registry_refusal = refuse_registry_settings(input)  # REQ-1951
         if _registry_refusal is not None:
             return _registry_refusal
-        password_ref = await persist_source_password(info, input.id, input.password)
-        # A credential the type keeps in its mapping is kept the same way.
-        _mapping = await persist_source_mapping_secrets(
-            info, input.id, input.type, _parse_mapping_json(input.mapping_json)
-        )
+        password_ref = input.password or ""
+        _mapping = _parse_mapping_json(input.mapping_json)
         _profiler_refusal = _refuse_invalid_profiler(input.id, input.type, _mapping)  # REQ-1934
         if _profiler_refusal is not None:
             return _profiler_refusal
@@ -1546,6 +1574,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.cache_ttl,
                     input.replicate,
                     input.load_protected,
+                    input.freshness_gate,
                 ),
             )
             if _ttl_refusal is not None:
@@ -1562,7 +1591,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _wikipedia_refusal = _expand_wikipedia_if_needed(input)
             if _wikipedia_refusal is not None:
                 return _wikipedia_refusal
-            _workspace_refusal = google_workspace_refusal(input)  # REQ-1923
+            _workspace_refusal = google_workspace_refusal(
+                input
+            ) or await google_workspace_organisation_refusal(input)  # REQ-1923
             if _workspace_refusal is not None:
                 return _workspace_refusal
             _m365_refusal = microsoft_365_refusal(
@@ -1570,13 +1601,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             ) or await microsoft_365_organisation_refusal(input)  # REQ-1923
             if _m365_refusal is not None:
                 return _m365_refusal
-            # REQ-1695: the literal a person retyped into the form replaces the vault entry under
-            # the same name -- a rotation, not a second secret -- and the row keeps the reference.
-            password_ref = await persist_source_password(info, input.id, input.password)
-            # A credential the type keeps in its mapping is kept the same way.
-            _stored_mapping = await persist_source_mapping_secrets(
-                info, input.id, input.type, _parse_mapping_json(input.mapping_json)
-            )
+            # As entered: a value, or a reference the operator typed.
+            password_ref = input.password or ""
+            _stored_mapping = _parse_mapping_json(input.mapping_json)
             _profiler_refusal = _refuse_invalid_profiler(  # REQ-1934
                 input.id, input.type, _stored_mapping
             )
@@ -1799,8 +1826,6 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 )
         if deleted:
             assert _existing is not None  # delete reported a row, so get found one
-            await forget_source_password(id, _existing["password_ref"])
-            await forget_source_mapping_secrets(id, _existing["type"], _existing["mapping"] or {})
             state.graphql_remote_sources.pop(id, None)
             # REQ-1730: was never called here at all — see _drop_source_on_engine's own comment for
             # the exact orphaned-catalog accumulation this closes.
@@ -3421,7 +3446,10 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         async with pool.acquire() as conn:
             _sig = await conn.execute_core(
                 select(
-                    sources.c.change_signal, sources.c.replicate, sources.c.load_protected
+                    sources.c.change_signal,
+                    sources.c.replicate,
+                    sources.c.load_protected,
+                    sources.c.freshness_gate,
                 ).where(sources.c.id == source_id)
             )
             _sig_row = _sig.fetchone()
@@ -3434,6 +3462,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                         cache_ttl,
                         _sig_row.replicate,
                         _sig_row.load_protected,
+                        _sig_row.freshness_gate,
                     ),
                 )
                 if _ttl_refusal is not None:
@@ -3602,7 +3631,10 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         async with pool.acquire() as conn:
             _row = await conn.execute_core(
                 select(
-                    sources.c.change_signal, sources.c.cache_ttl, sources.c.load_protected
+                    sources.c.change_signal,
+                    sources.c.cache_ttl,
+                    sources.c.load_protected,
+                    sources.c.freshness_gate,
                 ).where(sources.c.id == source_id)
             )
             row = _row.fetchone()
@@ -3619,7 +3651,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _refusal = await landing_ttl_refusal(
                 conn,
                 source_id,
-                source=SourceTtl(row.change_signal, row.cache_ttl, replicate, row.load_protected),
+                source=SourceTtl(
+                    row.change_signal,
+                    row.cache_ttl,
+                    replicate,
+                    row.load_protected,
+                    row.freshness_gate,
+                ),
             )
             if _refusal is not None:
                 return _refusal
@@ -3754,8 +3792,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def set_table_draft(
         self, info: StrawberryInfo, table_id: int, draft: bool
     ) -> MutationResult:  # REQ-1921
-        """Put a table or view out of service (draft) or release it. While draft it is read and
-        written nowhere, offered in no schema and copied nowhere; its domain's owners set and
+        """Put a table or view out of service (draft) or release it. While draft it is offered
+        to no reader: in no schema, refused to every statement. It keeps the replica it has, and
+        its steward's preview may land one (admin/table_read.py). Its domain's owners set and
         clear it, and no other right is needed."""
         from sqlalchemy import update as _update
 
@@ -3860,9 +3899,12 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         pool = await _get_pool()
         async with pool.acquire() as conn:
             _res = await conn.execute_core(
-                select(sources.c.cache_ttl, sources.c.change_signal, sources.c.replicate).where(
-                    sources.c.id == source_id
-                )
+                select(
+                    sources.c.cache_ttl,
+                    sources.c.change_signal,
+                    sources.c.replicate,
+                    sources.c.freshness_gate,
+                ).where(sources.c.id == source_id)
             )
             row = _res.fetchone()
             if row is None:
@@ -3885,7 +3927,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _contradicted = await replicate_contradiction_refusal(
                 conn,
                 source_id,
-                source=SourceTtl(row.change_signal, row.cache_ttl, row.replicate, load_protected),
+                source=SourceTtl(
+                    row.change_signal,
+                    row.cache_ttl,
+                    row.replicate,
+                    load_protected,
+                    row.freshness_gate,
+                ),
             )
             if _contradicted is not None:
                 return _contradicted

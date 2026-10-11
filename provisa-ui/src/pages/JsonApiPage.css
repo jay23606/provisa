@@ -213,7 +213,7 @@
   border-radius: 4px;
   font-size: 0.85rem;
   cursor: pointer;
-  width: 100%;
+  align-self: flex-start;
   flex-shrink: 0;
 }
 

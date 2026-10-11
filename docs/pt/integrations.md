@@ -193,15 +193,19 @@ spark = SparkSession.builder \
 
 ## Protobuf gRPC (porta 50051)
 
-Caminho serviço a serviço. O Provisa gera um `.proto` por função na inicialização — cada função vê apenas as tabelas e colunas às quais tem acesso.
+Caminho de serviço para serviço. O Provisa gera um `.proto` por função e o regenera sempre que o modelo ou a função muda — cada função vê apenas as tabelas e colunas às quais tem acesso. O serviço tem uma RPC para cada tabela na raiz do esquema da função; as tabelas relacionadas são alcançadas pelos seus relacionamentos, como no GraphQL.
 
 Baixe o proto para sua função:
 
 ```bash
-curl http://localhost:8001/proto/analyst > provisa_analyst.proto
+curl http://localhost:8001/data/proto/analyst > provisa_analyst.proto
 ```
 
-Use `grpc_server_reflection` para descobrir o esquema programaticamente.
+Use `grpc_server_reflection` para descobrir o esquema programaticamente. A reflexão descreve o serviço da função com que a chamada atua, o mesmo arquivo do download acima. Com a autenticação desativada, uma chamada de reflexão informa sua função como qualquer outra chamada:
+
+```bash
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
+```
 
 Todo RPC deve carregar uma credencial na chave de metadados `authorization` — um token do provedor ou um token de acesso pessoal. `x-provisa-role` solicita uma função do conjunto permitido da identidade; não é uma credencial e nunca foi. Certificados de cliente são suportados. Veja [Modelo de segurança](security.md#superficies-e-credenciais).
 

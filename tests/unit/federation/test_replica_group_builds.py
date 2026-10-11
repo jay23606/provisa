@@ -33,6 +33,7 @@ KEYS = [("s1", "public", name) for name in NAMES]
 
 def _table(name):
     return SimpleNamespace(
+        id=sum(map(ord, name)),  # the table's registered id
         source_id="s1",
         schema_name="public",
         table_name=name,
@@ -229,3 +230,142 @@ def test_the_source_types_that_read_in_groups_are_the_ones_whose_loader_says_so(
     loader = make_microsoft365_loader(None)  # type: ignore[arg-type]
     assert SOURCE_TYPE in replica_builds.GROUP_READ_TYPES
     assert callable(loader.replica_group) and callable(loader.replica_group_source)
+
+
+# --- a source whose reader gives units is kept in place, a part at a time ---
+
+
+class _UnitRead:
+    """Gives two parts of one mailbox and says the source names two."""
+
+    def __init__(self, tables, seen):
+        self._tables, self._seen = tables, seen
+        self.total = 0
+        seen["unit_tables"] = tuple(tables)
+
+    def notes(self):
+        return []
+
+    async def keep(self, account, links):
+        self._seen.setdefault("kept", []).append((account, dict(links)))
+
+    async def forget(self, account):
+        raise AssertionError("nothing is read again from its start here")
+
+    async def committed(self):
+        self._seen["committed"] = True
+
+    async def units(self):
+        from provisa.core.canonical_mail import Unit
+
+        self.total = 2
+        yield Unit("a@x.test", rows={"messages": [{"id": 1, "name": "m"}]})
+        yield Unit(
+            "a@x.test",
+            rows={"threads": [{"id": 9, "name": "t"}]},
+            links={"": "where-it-reached"},
+            last=True,
+        )
+
+
+@pytest.fixture
+def in_place(group, monkeypatch):
+    seen = group
+    seen["applied"], seen["partial"], seen["parts"] = [], [], []
+    loader = None
+
+    def make(source, tables):
+        return _UnitRead(tables, seen)
+
+    from provisa.events import app_wiring
+
+    loader = app_wiring.build_adapter_loaders(None, None)["openapi"]
+    loader.replica_unit_source = make
+
+    async def record_partial(conn, key, **kw):
+        seen["partial"].append((key, kw["store"], kw["built_columns"]))
+        return True
+
+    async def record_parts(conn, key, **kw):
+        seen["parts"].append((key, kw))
+
+    async def row_count(state, key):
+        return {"messages": 1, "threads": 1, "attachments": 0}[key[2]]
+
+    monkeypatch.setattr("provisa.federation.replica_state.record_partial", record_partial)
+    monkeypatch.setattr("provisa.federation.replica_state.record_parts", record_parts)
+    monkeypatch.setattr("provisa.federation.replica_hot._row_count", row_count)
+
+    async def invalidate_tables(state, table_ids):
+        seen.setdefault("dropped", []).append(sorted(table_ids))
+        return 0
+
+    monkeypatch.setattr("provisa.cache.tenancy.invalidate_tables", invalidate_tables)
+    return seen
+
+
+def _in_place_state(seen):
+    state = _group_state(_Targets())
+
+    async def apply(group):
+        seen["applied"].append([(c.table, len(c.events), c.pk_columns) for c in group])
+
+    state.federation_engine.apply_change_group = apply
+    return state
+
+
+async def test_a_source_that_gives_units_is_kept_in_place_and_swaps_nothing(in_place):
+    state = _in_place_state(in_place)
+    built = await replica_builds.build_group(state, KEYS, _noop)
+    backend = state.federation_engine.engine.backend
+    assert backend.targets == {}  # no build table, no swap
+    assert in_place.get("reads", 0) == 0  # the whole read was not asked for
+    assert in_place["unit_tables"] == NAMES
+    made, first_part, second_part = in_place["applied"]
+    # Every table is made before any part lands, so one no part writes to is an empty replica.
+    assert sorted(table for table, _n, _k in made) == sorted(f"s1__public__{n}" for n in NAMES)
+    assert all(count == 0 for _t, count, _k in made)
+    assert [(t, n) for t, n, _k in first_part] == [("s1__public__messages", 1)]
+    assert first_part[0][2] == ["provider", "account", "id"]  # kept by the mail table's key
+    assert [(t, n) for t, n, _k in second_part] == [("s1__public__threads", 1)]
+    # Where the read reached is kept after its rows were written.
+    assert in_place["kept"] == [("a@x.test", {"": "where-it-reached"})]
+    for key in KEYS:
+        outcome = built[key]
+        assert outcome.method == "apply_units" and outcome.changed
+        assert outcome.rows_copied == {"messages": 1, "threads": 1, "attachments": 0}[key[2]]
+        assert outcome.definition_hash and outcome.committed is not None
+    assert {m for _k, m, _l in in_place["all_started"]} == {"apply_units"}
+    assert [ok for _node, ok in in_place["stamps"]] == [True, True, True]
+
+
+async def test_a_first_build_is_a_replica_as_soon_as_its_first_part_has_landed(in_place):
+    await replica_builds.build_group(_in_place_state(in_place), KEYS, _noop)
+    # No table had a copy in this store: each is recorded as readable, once, in this store.
+    assert sorted(key for key, _s, _c in in_place["partial"]) == sorted(KEYS)
+    assert {store for _k, store, _c in in_place["partial"]} == {"store-a"}
+    # And says how many of the source's mailboxes have been read to their end.
+    assert {(kw["done"], kw["total"], kw["unit"], kw["first"]) for _k, kw in in_place["parts"]} == {
+        (1, 2, "mailboxes", True)
+    }
+
+
+async def test_a_replica_built_from_another_definition_is_copied_whole_again(in_place):
+    """Changed columns are not something a part at a time can bring about."""
+    in_place["record"] = SimpleNamespace(
+        content_hash=None, definition_hash="another", exists_in=lambda store: True
+    )
+    state = _in_place_state(in_place)
+    await replica_builds.build_group(state, KEYS, _noop)
+    assert in_place["applied"] == [] and in_place["reads"] == 1
+    assert len(state.federation_engine.engine.backend.targets) == 3
+
+
+async def test_answers_cached_from_a_table_are_dropped_when_parts_land_in_it(in_place):
+    """What was answered from the table before a part landed is no longer what it holds. The
+    table that no part wrote to keeps its cached answers."""
+    state = _in_place_state(in_place)
+    ids = {t.table_name: t.id for t in state.config.tables}
+    await replica_builds.build_group(state, KEYS, _noop)
+    dropped = {table_id for call in in_place["dropped"] for table_id in call}
+    assert dropped == {ids["messages"], ids["threads"]}

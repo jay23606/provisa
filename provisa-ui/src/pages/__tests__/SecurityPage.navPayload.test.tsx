@@ -38,7 +38,7 @@ vi.mock("../../hooks/useSecurityQueries", () => ({
   useRevokeRoleGrants: () => ({ revokeFromTable: vi.fn(), revokeFromObject: vi.fn() }),
 }));
 
-import { SecurityRlsPage } from "../SecurityPage";
+import { SecurityRlsPage } from "../security/SecurityRlsPage";
 
 function RulesFor({ table }: { table: string }) {
   const navigate = useNavigate();

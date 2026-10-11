@@ -5,7 +5,11 @@
     "save": "सहेजें",
     "delete": "हटाएँ",
     "confirm": "पुष्टि करें",
-    "processing": "प्रोसेस हो रहा है..."
+    "processing": "प्रोसेस हो रहा है...",
+    "identity": "पहचान",
+    "discardTitle": "अपने बदलाव छोड़ दें?",
+    "discardBody": "{{what}} में किए गए बदलाव सहेजे नहीं गए हैं।",
+    "discard": "छोड़ें"
   },
   "app": {
     "apiUnreachable": "Provisa API तक नहीं पहुँच सके।",

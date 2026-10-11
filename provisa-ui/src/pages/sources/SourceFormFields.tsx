@@ -18,6 +18,7 @@ import { IcebergCatalogFields } from "./IcebergCatalogFields";
 import { ObjectStoreCredentialFields } from "./ObjectStoreCredentialFields";
 import { CLOUD_FILE_TYPES, objectStoreOf } from "./objectStoreHints";
 import { SourceFormFieldsExtended } from "./SourceFormFieldsExtended";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 
 export interface SourceFormState {
   id: string;
@@ -67,6 +68,10 @@ export interface SourceFormFieldsProps {
   authFields: Record<string, string>;
   setAuthFields: (f: Record<string, string>) => void;
   editingSourceId: string | null;
+  /** The short step that creates a source: only what it needs in order to exist -- how it is
+   * reached and signed in to. Everything else starts at its default and is set in the edit
+   * form the new source then opens in. */
+  essential?: boolean;
   cdc: CdcState;
   setCdc: (v: CdcState) => void;
   domainsEnabled: boolean;
@@ -165,55 +170,68 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
 
   return (
     <>
-      <TextInput
-        style={{ gridColumn: "1 / -1" }}
-        label={t("sourceFormFields.description")}
-        value={form.description}
-        onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
-        placeholder={t("sourceFormFields.descriptionPlaceholder")}
-      />
+      {!props.essential && (
+        <FormField size="long">
+          <TextInput
+            label={t("sourceFormFields.description")}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
+            placeholder={t("sourceFormFields.descriptionPlaceholder")}
+          />
+        </FormField>
+      )}
       {isSimpleRdbms && (
         <>
-          <TextInput
-            label={t("sourceFormFields.host")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="localhost"
-          />
-          <NumberInput
-            label={t("sourceFormFields.port")}
-            required
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
-            hideControls
-          />
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <TextInput
-              style={{ flex: 1 }}
-              label={t("sourceFormFields.username")}
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
-            />
-            <PasswordInput
-              style={{ flex: 1 }}
-              label={t("sourceFormFields.password")}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.currentTarget.value })}
-            />
-          </div>
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFields.host")}
+                required
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                placeholder="localhost"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("sourceFormFields.port")}
+                required
+                value={form.port}
+                onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
+                hideControls
+              />
+            </FormField>
+          </FieldGroup>
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFields.username")}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
+              />
+            </FormField>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("sourceFormFields.password")}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.currentTarget.value })}
+              />
+            </FormField>
+          </FieldGroup>
           {
             // REQ-1740: TrinoDruidConnector.details() (trino_connectors.py) builds its Avatica
             // connection-url from Source.jdbc_url(host, port) alone — Druid's Avatica JDBC URL has
             // no database segment, and the connector never reads source.database. Rendering (and
             // requiring) it here was a dead, actively misleading input.
             form.type !== "druid" && (
-              <TextInput
-                label={t("sourceFormFields.database")}
-                required
-                value={form.database}
-                onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-              />
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourceFormFields.database")}
+                  required
+                  value={form.database}
+                  onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+                />
+              </FormField>
             )
           }
         </>
@@ -222,76 +240,87 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // REQ-1731: HiveDriver.configure() reads `auth_mechanism` from Source.federation_hints,
         // defaulting to PLAIN when unset (stock HS2's SASL PLAIN, works with any/no credentials).
         // GSSAPI (Kerberos) and LDAP are the other mechanisms impyla supports against a real HS2.
-        <Select
-          style={{ gridColumn: "1 / -1" }}
-          label={t("sourceFormFields.authMechanism")}
-          data={[
-            { value: "PLAIN", label: t("sourceFormFields.authMechanismPlain") },
-            { value: "LDAP", label: t("sourceFormFields.authMechanismLdap") },
-            { value: "GSSAPI", label: t("sourceFormFields.authMechanismGssapi") },
-          ]}
-          value={authFields.auth_mechanism ?? "PLAIN"}
-          onChange={(v) => setAuthFields({ ...authFields, auth_mechanism: v ?? "PLAIN" })}
-          allowDeselect={false}
-        />
+        <FormField size="medium">
+          <Select
+            label={t("sourceFormFields.authMechanism")}
+            data={[
+              { value: "PLAIN", label: t("sourceFormFields.authMechanismPlain") },
+              { value: "LDAP", label: t("sourceFormFields.authMechanismLdap") },
+              { value: "GSSAPI", label: t("sourceFormFields.authMechanismGssapi") },
+            ]}
+            value={authFields.auth_mechanism ?? "PLAIN"}
+            onChange={(v) => setAuthFields({ ...authFields, auth_mechanism: v ?? "PLAIN" })}
+            allowDeselect={false}
+          />
+        </FormField>
       )}
       {isHostPortOnly && (
         <>
-          <TextInput
-            label={t("sourceFormFields.host")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="localhost"
-          />
-          <NumberInput
-            label={t("sourceFormFields.port")}
-            required
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
-            hideControls
-          />
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFields.host")}
+                required
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                placeholder="localhost"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("sourceFormFields.port")}
+                required
+                value={form.port}
+                onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
+                hideControls
+              />
+            </FormField>
+          </FieldGroup>
         </>
       )}
       {(form.type === "websocket" || form.type === "rss") && (
-        <TextInput
-          label={t("sourceFormFields.pathOptional")}
-          value={form.path}
-          onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
-          placeholder="/"
-        />
+        <FormField size="medium">
+          <TextInput
+            label={t("sourceFormFields.pathOptional")}
+            value={form.path}
+            onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
+            placeholder="/"
+          />
+        </FormField>
       )}
       {form.type === "duckdb" && (
-        <TextInput
-          style={{ gridColumn: "1 / -1" }}
-          label={t("sourceFormFields.filePath")}
-          required
-          value={form.database}
-          onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-          placeholder={t("sourceFormFields.filePathPlaceholder")}
-        />
+        <FormField size="long">
+          <TextInput
+            label={t("sourceFormFields.filePath")}
+            required
+            value={form.database}
+            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+            placeholder={t("sourceFormFields.filePathPlaceholder")}
+          />
+        </FormField>
       )}
       {isFile && (
-        <TextInput
-          style={{ gridColumn: "1 / -1" }}
-          label={
-            form.type === "sqlite"
-              ? t("sourceFormFields.sqliteFilePath")
-              : form.type === "csv"
-                ? t("sourceFormFields.csvFilePath")
-                : t("sourceFormFields.parquetFilePath")
-          }
-          required
-          value={form.path}
-          onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
-          placeholder={
-            form.type === "sqlite"
-              ? "./demo/files/orders.sqlite"
-              : form.type === "csv"
-                ? "./demo/files/customers.csv"
-                : "./demo/files/products.parquet"
-          }
-        />
+        <FormField size="medium">
+          <TextInput
+            label={
+              form.type === "sqlite"
+                ? t("sourceFormFields.sqliteFilePath")
+                : form.type === "csv"
+                  ? t("sourceFormFields.csvFilePath")
+                  : t("sourceFormFields.parquetFilePath")
+            }
+            required
+            value={form.path}
+            onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
+            placeholder={
+              form.type === "sqlite"
+                ? "./demo/files/orders.sqlite"
+                : form.type === "csv"
+                  ? "./demo/files/customers.csv"
+                  : "./demo/files/products.parquet"
+            }
+          />
+        </FormField>
       )}
       {CLOUD_FILE_TYPES.has(form.type) && objectStoreOf(form.path) && (
         <ObjectStoreCredentialFields
@@ -302,246 +331,295 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
       )}
       {form.type === "snowflake" && (
         <>
-          <TextInput
-            label={t("sourceFormFields.accountUrl")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="org-account.snowflakecomputing.com"
-          />
-          <TextInput
-            label={t("sourceFormFields.database")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-          />
-          <TextInput
-            label={t("sourceFormFields.warehouse")}
-            value={authFields.warehouse ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, warehouse: e.currentTarget.value })}
-            placeholder="COMPUTE_WH"
-          />
-          <TextInput
-            label={t("sourceFormFields.schema")}
-            value={authFields.schema ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, schema: e.currentTarget.value })}
-            placeholder="optional"
-          />
-          <TextInput
-            label={t("sourceFormFields.role")}
-            value={authFields.role ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, role: e.currentTarget.value })}
-            placeholder="optional"
-          />
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "password", label: t("sourceFormFields.usernamePassword") },
-              { value: "key_pair", label: t("sourceFormFields.keyPair") },
-              { value: "oauth", label: t("sourceFormFields.oauthToken") },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              // warehouse/schema/role above are connection fields, not auth-type-specific — they
-              // stay mounted across an auth-type switch, so resetting the whole bucket silently
-              // wiped whatever the user had already typed there (same bug class as the Databricks
-              // http_path field below).
-              setAuthFields({
-                warehouse: authFields.warehouse,
-                schema: authFields.schema,
-                role: authFields.role,
-              });
-            }}
-            allowDeselect={false}
-          />
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFields.accountUrl")}
+              required
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+              placeholder="org-account.snowflakecomputing.com"
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.database")}
+              required
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.warehouse")}
+              value={authFields.warehouse ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, warehouse: e.currentTarget.value })}
+              placeholder="COMPUTE_WH"
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.schema")}
+              value={authFields.schema ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, schema: e.currentTarget.value })}
+              placeholder="optional"
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.role")}
+              value={authFields.role ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, role: e.currentTarget.value })}
+              placeholder="optional"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "password", label: t("sourceFormFields.usernamePassword") },
+                { value: "key_pair", label: t("sourceFormFields.keyPair") },
+                { value: "oauth", label: t("sourceFormFields.oauthToken") },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                // warehouse/schema/role above are connection fields, not auth-type-specific — they
+                // stay mounted across an auth-type switch, so resetting the whole bucket silently
+                // wiped whatever the user had already typed there (same bug class as the Databricks
+                // http_path field below).
+                setAuthFields({
+                  warehouse: authFields.warehouse,
+                  schema: authFields.schema,
+                  role: authFields.role,
+                });
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
           {authType === "password" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "key_pair" && (
             <>
-              <TextInput
-                label={t("sourceFormFields.username")}
-                required
-                value={authFields.username ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, username: e.currentTarget.value })}
-              />
-              <TextInput
-                label={t("sourceFormFields.privateKeyPath")}
-                required
-                value={authFields.private_key_path ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, private_key_path: e.currentTarget.value })
-                }
-                placeholder="/path/to/rsa_key.p8"
-              />
-              <PasswordInput
-                label={t("sourceFormFields.passphrase")}
-                value={authFields.passphrase ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, passphrase: e.currentTarget.value })
-                }
-                placeholder="optional"
-              />
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourceFormFields.username")}
+                  required
+                  value={authFields.username ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, username: e.currentTarget.value })
+                  }
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.privateKeyPath")}
+                  required
+                  value={authFields.private_key_path ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, private_key_path: e.currentTarget.value })
+                  }
+                  placeholder="/path/to/rsa_key.p8"
+                />
+              </FormField>
+              <FormField size="medium">
+                <PasswordInput
+                  label={t("sourceFormFields.passphrase")}
+                  value={authFields.passphrase ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, passphrase: e.currentTarget.value })
+                  }
+                  placeholder="optional"
+                />
+              </FormField>
             </>
           )}
           {authType === "oauth" && (
-            <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.token")}
-              required
-              value={authFields.token ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, token: e.currentTarget.value })}
-              placeholder="${env:SNOWFLAKE_TOKEN}"
-            />
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.token")}
+                required
+                value={authFields.token ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, token: e.currentTarget.value })}
+                placeholder="${env:SNOWFLAKE_TOKEN}"
+              />
+            </FormField>
           )}
         </>
       )}
       {form.type === "bigquery" && (
         <>
-          <TextInput
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.projectId")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-            placeholder="my-gcp-project"
-          />
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "service_account", label: t("sourceFormFields.serviceAccountKey") },
-              {
-                value: "application_default",
-                label: t("sourceFormFields.applicationDefaultCredentials"),
-              },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            allowDeselect={false}
-          />
-          {authType === "service_account" && (
+          <FormField size="medium">
             <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.credentialsJsonPath")}
+              label={t("sourceFormFields.projectId")}
               required
-              value={authFields.credentials_json ?? ""}
-              onChange={(e) =>
-                setAuthFields({ ...authFields, credentials_json: e.currentTarget.value })
-              }
-              placeholder="/path/to/service-account.json"
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+              placeholder="my-gcp-project"
             />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "service_account", label: t("sourceFormFields.serviceAccountKey") },
+                {
+                  value: "application_default",
+                  label: t("sourceFormFields.applicationDefaultCredentials"),
+                },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
+          {authType === "service_account" && (
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.credentialsJsonPath")}
+                required
+                value={authFields.credentials_json ?? ""}
+                onChange={(e) =>
+                  setAuthFields({ ...authFields, credentials_json: e.currentTarget.value })
+                }
+                placeholder="/path/to/service-account.json"
+              />
+            </FormField>
           )}
         </>
       )}
       {form.type === "databricks" && (
         <>
-          <TextInput
-            label={t("sourceFormFields.workspaceUrl")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="https://dbc-xxxxx.cloud.databricks.com"
-          />
-          <TextInput
-            label={t("sourceFormFields.catalog")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-            placeholder="main"
-          />
-          <TextInput
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.sqlWarehouseHttpPath")}
-            required
-            value={authFields.http_path ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, http_path: e.currentTarget.value })}
-            placeholder="/sql/1.0/warehouses/xxxxxxxxxxxxxxxx"
-          />
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "token", label: t("sourceFormFields.personalAccessToken") },
-              { value: "oauth", label: t("sourceFormFields.oauth2M2M") },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              // http_path above is a connection field, not auth-type-specific — it stays mounted
-              // across an auth-type switch, so resetting the whole bucket silently wiped whatever
-              // the user had already typed there before picking an auth method.
-              setAuthFields({ http_path: authFields.http_path });
-            }}
-            allowDeselect={false}
-          />
-          {authType === "token" && (
+          <FormField size="long">
             <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.accessToken")}
+              label={t("sourceFormFields.workspaceUrl")}
               required
-              value={authFields.access_token ?? ""}
-              onChange={(e) =>
-                setAuthFields({ ...authFields, access_token: e.currentTarget.value })
-              }
-              placeholder="${env:DATABRICKS_TOKEN}"
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+              placeholder="https://dbc-xxxxx.cloud.databricks.com"
             />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.catalog")}
+              required
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+              placeholder="main"
+            />
+          </FormField>
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFields.sqlWarehouseHttpPath")}
+              required
+              value={authFields.http_path ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, http_path: e.currentTarget.value })}
+              placeholder="/sql/1.0/warehouses/xxxxxxxxxxxxxxxx"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "token", label: t("sourceFormFields.personalAccessToken") },
+                { value: "oauth", label: t("sourceFormFields.oauth2M2M") },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                // http_path above is a connection field, not auth-type-specific — it stays mounted
+                // across an auth-type switch, so resetting the whole bucket silently wiped whatever
+                // the user had already typed there before picking an auth method.
+                setAuthFields({ http_path: authFields.http_path });
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
+          {authType === "token" && (
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.accessToken")}
+                required
+                value={authFields.access_token ?? ""}
+                onChange={(e) =>
+                  setAuthFields({ ...authFields, access_token: e.currentTarget.value })
+                }
+                placeholder="${env:DATABRICKS_TOKEN}"
+              />
+            </FormField>
           )}
           {authType === "oauth" && (
             <>
-              <TextInput
-                label={t("sourceFormFields.clientId")}
-                required
-                value={authFields.client_id ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, client_id: e.currentTarget.value })}
-              />
-              <PasswordInput
-                label={t("sourceFormFields.clientSecret")}
-                required
-                value={authFields.client_secret ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, client_secret: e.currentTarget.value })
-                }
-              />
-              <TextInput
-                style={{ gridColumn: "1 / -1" }}
-                label={t("sourceFormFields.tokenUrl")}
-                required
-                value={authFields.token_url ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, token_url: e.currentTarget.value })}
-              />
+              <FieldGroup>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("sourceFormFields.clientId")}
+                    required
+                    value={authFields.client_id ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, client_id: e.currentTarget.value })
+                    }
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <PasswordInput
+                    label={t("sourceFormFields.clientSecret")}
+                    required
+                    value={authFields.client_secret ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, client_secret: e.currentTarget.value })
+                    }
+                  />
+                </FormField>
+              </FieldGroup>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.tokenUrl")}
+                  required
+                  value={authFields.token_url ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, token_url: e.currentTarget.value })
+                  }
+                />
+              </FormField>
             </>
           )}
         </>
       )}
       {form.type === "redshift" && (
         <>
-          <TextInput
-            label={t("sourceFormFields.host")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="cluster.xxxxx.region.redshift.amazonaws.com"
-          />
-          <NumberInput
-            label={t("sourceFormFields.port")}
-            required
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
-            hideControls
-          />
-          <TextInput
-            label={t("sourceFormFields.database")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-            placeholder="dev"
-          />
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFields.host")}
+                required
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                placeholder="cluster.xxxxx.region.redshift.amazonaws.com"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("sourceFormFields.port")}
+                required
+                value={form.port}
+                onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
+                hideControls
+              />
+            </FormField>
+          </FieldGroup>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.database")}
+              required
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+              placeholder="dev"
+            />
+          </FormField>
           {
             // REQ-1740: an Authentication select ("Username/Password" vs "IAM Credentials") used
             // to render here, with the password mode binding to authFields (not form) — but the
@@ -555,20 +633,22 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             // form.username is already populated from the saved source (SourcesPage.tsx's
             // handleEdit), unlike authFields which nothing ever repopulated for redshift.
           }
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <TextInput
-              style={{ flex: 1 }}
-              label={t("sourceFormFields.username")}
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
-            />
-            <PasswordInput
-              style={{ flex: 1 }}
-              label={t("sourceFormFields.password")}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.currentTarget.value })}
-            />
-          </div>
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFields.username")}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
+              />
+            </FormField>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("sourceFormFields.password")}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.currentTarget.value })}
+              />
+            </FormField>
+          </FieldGroup>
         </>
       )}
       {form.type === "exasol" && (
@@ -578,31 +658,33 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // (models.py's Source.jdbc_url, federation_hints["tls_fingerprint"]) — absent, the driver
         // validates against the truststore as usual.
         <>
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "none", label: t("sourceFormFields.exasolTrustStoreDefault") },
-              { value: "tls_fingerprint", label: t("sourceFormFields.exasolTlsFingerprintPin") },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "none");
-              setAuthFields({});
-            }}
-            allowDeselect={false}
-          />
-          {authType === "tls_fingerprint" && (
-            <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.tlsFingerprint")}
-              required
-              value={authFields.tls_fingerprint ?? ""}
-              onChange={(e) =>
-                setAuthFields({ ...authFields, tls_fingerprint: e.currentTarget.value })
-              }
-              placeholder="SHA-256 fingerprint, e.g. 3B:D5:...:9F"
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "none", label: t("sourceFormFields.exasolTrustStoreDefault") },
+                { value: "tls_fingerprint", label: t("sourceFormFields.exasolTlsFingerprintPin") },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "none");
+                setAuthFields({});
+              }}
+              allowDeselect={false}
             />
+          </FormField>
+          {authType === "tls_fingerprint" && (
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.tlsFingerprint")}
+                required
+                value={authFields.tls_fingerprint ?? ""}
+                onChange={(e) =>
+                  setAuthFields({ ...authFields, tls_fingerprint: e.currentTarget.value })
+                }
+                placeholder="SHA-256 fingerprint, e.g. 3B:D5:...:9F"
+              />
+            </FormField>
           )}
         </>
       )}
@@ -613,21 +695,22 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // deployments (models.py's Source.jdbc_url, federation_hints["trust_server_certificate"])
         // — absent, the driver validates against the truststore as usual (encrypt=true implies
         // trustServerCertificate=false by default).
-        <Select
-          data-testid="sqlserver-cert-trust-select"
-          style={{ gridColumn: "1 / -1" }}
-          label={t("sourceFormFields.sqlserverCertTrust")}
-          data={[
-            { value: "none", label: t("sourceFormFields.sqlserverTrustStoreDefault") },
-            {
-              value: "trust_server_certificate",
-              label: t("sourceFormFields.sqlserverTrustServerCertificate"),
-            },
-          ]}
-          value={authType}
-          onChange={(v) => setAuthType(v ?? "none")}
-          allowDeselect={false}
-        />
+        <FormField size="medium">
+          <Select
+            data-testid="sqlserver-cert-trust-select"
+            label={t("sourceFormFields.sqlserverCertTrust")}
+            data={[
+              { value: "none", label: t("sourceFormFields.sqlserverTrustStoreDefault") },
+              {
+                value: "trust_server_certificate",
+                label: t("sourceFormFields.sqlserverTrustServerCertificate"),
+              },
+            ]}
+            value={authType}
+            onChange={(v) => setAuthType(v ?? "none")}
+            allowDeselect={false}
+          />
+        </FormField>
       )}
       {(form.type === "fabric" || form.type === "synapse") && (
         // T-SQL over TDS/ODBC (provisa/executor/drivers/mssql_warehouse.py's MssqlWarehouseDriver).
@@ -635,116 +718,142 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // principal (tenant_id/client_id/client_secret) pinned per-source in federation_hints, or,
         // absent, the ambient credential (az login / managed identity via DefaultAzureCredential).
         <>
-          <TextInput
-            label={t("sourceFormFields.server")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder={
-              form.type === "fabric"
-                ? "xxxxxxxx.datawarehouse.fabric.microsoft.com"
-                : "xxxxxxxx.sql.azuresynapse.net"
-            }
-          />
-          <TextInput
-            label={t("sourceFormFields.database")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-          />
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "none", label: t("sourceFormFields.azureAmbientCredential") },
-              { value: "service_principal", label: t("sourceFormFields.azureServicePrincipal") },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "none");
-              setAuthFields({});
-            }}
-            allowDeselect={false}
-          />
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.server")}
+              required
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+              placeholder={
+                form.type === "fabric"
+                  ? "xxxxxxxx.datawarehouse.fabric.microsoft.com"
+                  : "xxxxxxxx.sql.azuresynapse.net"
+              }
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.database")}
+              required
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "none", label: t("sourceFormFields.azureAmbientCredential") },
+                { value: "service_principal", label: t("sourceFormFields.azureServicePrincipal") },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "none");
+                setAuthFields({});
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
           {authType === "service_principal" && (
             <>
-              <TextInput
-                label={t("sourceFormFields.tenantId")}
-                required
-                value={authFields.tenant_id ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, tenant_id: e.currentTarget.value })}
-              />
-              <TextInput
-                label={t("sourceFormFields.clientId")}
-                required
-                value={authFields.client_id ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, client_id: e.currentTarget.value })}
-              />
-              <PasswordInput
-                label={t("sourceFormFields.clientSecret")}
-                required
-                value={authFields.client_secret ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, client_secret: e.currentTarget.value })
-                }
-              />
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourceFormFields.tenantId")}
+                  required
+                  value={authFields.tenant_id ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, tenant_id: e.currentTarget.value })
+                  }
+                />
+              </FormField>
+              <FieldGroup>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("sourceFormFields.clientId")}
+                    required
+                    value={authFields.client_id ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, client_id: e.currentTarget.value })
+                    }
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <PasswordInput
+                    label={t("sourceFormFields.clientSecret")}
+                    required
+                    value={authFields.client_secret ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, client_secret: e.currentTarget.value })
+                    }
+                  />
+                </FormField>
+              </FieldGroup>
             </>
           )}
         </>
       )}
       {form.type === "elasticsearch" && (
         <>
-          <TextInput
-            label={t("sourceFormFields.host")}
-            required
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-            placeholder="https://localhost:9200"
-          />
-          <NumberInput
-            label={t("sourceFormFields.port")}
-            required
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
-            hideControls
-          />
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.authentication")}
-            data={[
-              { value: "none", label: t("sourceFormFields.noAuth") },
-              { value: "basic", label: t("sourceFormFields.basicAuth") },
-              { value: "api_key", label: t("sourceFormFields.apiKey") },
-              { value: "bearer", label: t("sourceFormFields.bearerToken") },
-            ]}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            allowDeselect={false}
-          />
+          <FieldGroup>
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.host")}
+                required
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                placeholder="https://localhost:9200"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("sourceFormFields.port")}
+                required
+                value={form.port}
+                onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
+                hideControls
+              />
+            </FormField>
+          </FieldGroup>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.authentication")}
+              data={[
+                { value: "none", label: t("sourceFormFields.noAuth") },
+                { value: "basic", label: t("sourceFormFields.basicAuth") },
+                { value: "api_key", label: t("sourceFormFields.apiKey") },
+                { value: "bearer", label: t("sourceFormFields.bearerToken") },
+              ]}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
           {authType === "basic" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "api_key" && (
-            <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.apiKeyBase64")}
-              required
-              value={authFields.api_key ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, api_key: e.currentTarget.value })}
-              placeholder="${env:ES_API_KEY}"
-            />
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.apiKeyBase64")}
+                required
+                value={authFields.api_key ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, api_key: e.currentTarget.value })}
+                placeholder="${env:ES_API_KEY}"
+              />
+            </FormField>
           )}
           {authType === "bearer" && (
-            <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.token")}
-              required
-              value={authFields.token ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, token: e.currentTarget.value })}
-            />
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.token")}
+                required
+                value={authFields.token ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, token: e.currentTarget.value })}
+              />
+            </FormField>
           )}
         </>
       )}
@@ -752,37 +861,45 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         <>
           {(form.type === "hive" || form.type === "hive_s3") && (
             <>
-              <TextInput
-                label={t("sourceFormFields.metastoreUri")}
-                required
-                value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-                placeholder="thrift://hive-metastore:9083"
-              />
-              <TextInput
-                label={t("sourceFormFields.warehousePath")}
-                required
-                value={form.database}
-                onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-                placeholder="s3://bucket/warehouse"
-              />
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.metastoreUri")}
+                  required
+                  value={form.host}
+                  onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                  placeholder="thrift://hive-metastore:9083"
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.warehousePath")}
+                  required
+                  value={form.database}
+                  onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
+                  placeholder="s3://bucket/warehouse"
+                />
+              </FormField>
             </>
           )}
           {(form.type === "delta_lake" || form.type === "iceberg") && (
             <>
-              <TextInput
-                label={t("sourceFormFields.metastoreUri")}
-                value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
-                placeholder="thrift://hive-metastore:9083 (optional)"
-              />
-              <TextInput
-                label={t("sourceFormFields.warehousePath")}
-                required
-                value={form.path}
-                onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
-                placeholder="s3://bucket/warehouse/table"
-              />
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.metastoreUri")}
+                  value={form.host}
+                  onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                  placeholder="thrift://hive-metastore:9083 (optional)"
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.warehousePath")}
+                  required
+                  value={form.path}
+                  onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
+                  placeholder="s3://bucket/warehouse/table"
+                />
+              </FormField>
               {form.type === "iceberg" && (
                 <IcebergCatalogFields fields={authFields} setFields={setAuthFields} />
               )}
@@ -790,118 +907,140 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {/* REQ-229: hive_s3 DECLARES S3 storage — TrinoHiveS3Connector always wires the native S3
               filesystem, so the "none"/hadoop-local option `hive` offers makes no sense here. */}
-          <Select
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFields.storageAuthentication")}
-            data={
-              form.type === "hive_s3"
-                ? [{ value: "aws", label: t("sourceFormFields.awsS3AccessKey") }]
-                : [
-                    { value: "none", label: t("sourceFormFields.noneInstanceRoleLocal") },
-                    { value: "aws", label: t("sourceFormFields.awsS3AccessKey") },
-                    { value: "azure", label: t("sourceFormFields.azureAdls") },
-                    { value: "gcs", label: t("sourceFormFields.googleCloudStorage") },
-                  ]
-            }
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              // A new storage credential starts empty; an Iceberg source's catalog is not storage
-              // and is kept.
-              setAuthFields(
-                Object.fromEntries(
-                  Object.entries(authFields).filter(([k]) => k.startsWith("iceberg_")),
-                ),
-              );
-            }}
-            allowDeselect={false}
-          />
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFields.storageAuthentication")}
+              data={
+                form.type === "hive_s3"
+                  ? [{ value: "aws", label: t("sourceFormFields.awsS3AccessKey") }]
+                  : [
+                      { value: "none", label: t("sourceFormFields.noneInstanceRoleLocal") },
+                      { value: "aws", label: t("sourceFormFields.awsS3AccessKey") },
+                      { value: "azure", label: t("sourceFormFields.azureAdls") },
+                      { value: "gcs", label: t("sourceFormFields.googleCloudStorage") },
+                    ]
+              }
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                // A new storage credential starts empty; an Iceberg source's catalog is not storage
+                // and is kept.
+                setAuthFields(
+                  Object.fromEntries(
+                    Object.entries(authFields).filter(([k]) => k.startsWith("iceberg_")),
+                  ),
+                );
+              }}
+              allowDeselect={false}
+            />
+          </FormField>
           {authType === "aws" && (
             <>
-              <TextInput
-                label={t("sourceFormFields.accessKeyId")}
-                required
-                value={authFields.access_key_id ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, access_key_id: e.currentTarget.value })
-                }
-                placeholder="${env:AWS_ACCESS_KEY_ID}"
-              />
-              <PasswordInput
-                label={t("sourceFormFields.secretAccessKey")}
-                required
-                value={authFields.secret_access_key ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, secret_access_key: e.currentTarget.value })
-                }
-                placeholder="${env:AWS_SECRET_ACCESS_KEY}"
-              />
-              <TextInput
-                label={t("sourceFormFields.region")}
-                required={form.type === "hive_s3"}
-                // Was `authFields.region ?? "us-east-1"` — a DISPLAY-ONLY default that never
-                // actually entered authFields. Typing the exact string already shown ("us-east-1")
-                // is a same-value write: React's controlled-input reconciliation drops it, so
-                // onChange never fires and authFields.region stays unset. mappingJson then omits
-                // "region" entirely, _hive_s3_props (trino_connectors.py) raises "hive_s3 requires
-                // ... region in mapping", and that raise is swallowed by
-                // _register_source_on_engine's best-effort catch (schema_common.py) — the source
-                // record still gets created, but its Trino catalog never does, so the Register
-                // Table schema picker sits empty forever with no visible error. Live-traced this
-                // session (source-to-query-olap-lake.spec.ts's hive_s3 test). A placeholder can
-                // suggest a value; only real state can submit one.
-                value={authFields.region ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, region: e.currentTarget.value })}
-                placeholder={form.type === "hive_s3" ? "us-east-1" : "optional"}
-              />
-              <TextInput
-                label={t("sourceFormFields.s3EndpointMinio")}
-                required={form.type === "hive_s3"}
-                value={authFields.endpoint ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, endpoint: e.currentTarget.value })}
-                placeholder={
-                  form.type === "hive_s3" ? "http://minio:9000" : "optional — for S3-compatible"
-                }
-              />
+              <FieldGroup>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("sourceFormFields.accessKeyId")}
+                    required
+                    value={authFields.access_key_id ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, access_key_id: e.currentTarget.value })
+                    }
+                    placeholder="${env:AWS_ACCESS_KEY_ID}"
+                  />
+                </FormField>
+                <FormField size="medium">
+                  <PasswordInput
+                    label={t("sourceFormFields.secretAccessKey")}
+                    required
+                    value={authFields.secret_access_key ?? ""}
+                    onChange={(e) =>
+                      setAuthFields({ ...authFields, secret_access_key: e.currentTarget.value })
+                    }
+                    placeholder="${env:AWS_SECRET_ACCESS_KEY}"
+                  />
+                </FormField>
+              </FieldGroup>
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourceFormFields.region")}
+                  required={form.type === "hive_s3"}
+                  // Was `authFields.region ?? "us-east-1"` — a DISPLAY-ONLY default that never
+                  // actually entered authFields. Typing the exact string already shown ("us-east-1")
+                  // is a same-value write: React's controlled-input reconciliation drops it, so
+                  // onChange never fires and authFields.region stays unset. mappingJson then omits
+                  // "region" entirely, _hive_s3_props (trino_connectors.py) raises "hive_s3 requires
+                  // ... region in mapping", and that raise is swallowed by
+                  // _register_source_on_engine's best-effort catch (schema_common.py) — the source
+                  // record still gets created, but its Trino catalog never does, so the Register
+                  // Table schema picker sits empty forever with no visible error. Live-traced this
+                  // session (source-to-query-olap-lake.spec.ts's hive_s3 test). A placeholder can
+                  // suggest a value; only real state can submit one.
+                  value={authFields.region ?? ""}
+                  onChange={(e) => setAuthFields({ ...authFields, region: e.currentTarget.value })}
+                  placeholder={form.type === "hive_s3" ? "us-east-1" : "optional"}
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.s3EndpointMinio")}
+                  required={form.type === "hive_s3"}
+                  value={authFields.endpoint ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, endpoint: e.currentTarget.value })
+                  }
+                  placeholder={
+                    form.type === "hive_s3" ? "http://minio:9000" : "optional — for S3-compatible"
+                  }
+                />
+              </FormField>
             </>
           )}
           {authType === "azure" && (
             <>
-              <TextInput
-                label={t("sourceFormFields.storageAccount")}
-                required
-                value={authFields.storage_account ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, storage_account: e.currentTarget.value })
-                }
-              />
-              <PasswordInput
-                label={t("sourceFormFields.accessKey")}
-                value={authFields.access_key ?? ""}
-                onChange={(e) =>
-                  setAuthFields({ ...authFields, access_key: e.currentTarget.value })
-                }
-                placeholder="shared key (or use SAS)"
-              />
-              <TextInput
-                label={t("sourceFormFields.sasToken")}
-                value={authFields.sas_token ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, sas_token: e.currentTarget.value })}
-                placeholder="alternative to access key"
-              />
+              <FormField size="medium">
+                <TextInput
+                  label={t("sourceFormFields.storageAccount")}
+                  required
+                  value={authFields.storage_account ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, storage_account: e.currentTarget.value })
+                  }
+                />
+              </FormField>
+              <FormField size="medium">
+                <PasswordInput
+                  label={t("sourceFormFields.accessKey")}
+                  value={authFields.access_key ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, access_key: e.currentTarget.value })
+                  }
+                  placeholder="shared key (or use SAS)"
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  label={t("sourceFormFields.sasToken")}
+                  value={authFields.sas_token ?? ""}
+                  onChange={(e) =>
+                    setAuthFields({ ...authFields, sas_token: e.currentTarget.value })
+                  }
+                  placeholder="alternative to access key"
+                />
+              </FormField>
             </>
           )}
           {authType === "gcs" && (
-            <TextInput
-              style={{ gridColumn: "1 / -1" }}
-              label={t("sourceFormFields.credentialsJsonPath")}
-              required
-              value={authFields.credentials_json ?? ""}
-              onChange={(e) =>
-                setAuthFields({ ...authFields, credentials_json: e.currentTarget.value })
-              }
-              placeholder="/path/to/service-account.json"
-            />
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFields.credentialsJsonPath")}
+                required
+                value={authFields.credentials_json ?? ""}
+                onChange={(e) =>
+                  setAuthFields({ ...authFields, credentials_json: e.currentTarget.value })
+                }
+                placeholder="/path/to/service-account.json"
+              />
+            </FormField>
           )}
         </>
       )}

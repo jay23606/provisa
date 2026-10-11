@@ -13,7 +13,7 @@
 // mapping.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { renderInForm, screen } from "../../../test-utils/render";
 import { ProfilerFormSection } from "../ProfilerFormSection";
 import {
   PROFILER_DEFAULTS,
@@ -39,14 +39,14 @@ const STORED = {
 describe("Data Profiler source fields", () => {
   it("defaults every run default for a new profiler", () => {
     const setAuthFields = vi.fn();
-    render(
+    renderInForm(
       <ProfilerFormSection authFields={{ cron: "0 3 * * *" }} setAuthFields={setAuthFields} />,
     );
     expect(setAuthFields).toHaveBeenCalledWith({ cron: "0 3 * * *", ...PROFILER_DEFAULTS });
   });
 
   it("groups the settings into panels, with the schedule open", () => {
-    render(
+    renderInForm(
       <ProfilerFormSection
         authFields={{ cron: "0 3 * * *", ...PROFILER_DEFAULTS }}
         setAuthFields={vi.fn()}
@@ -64,7 +64,7 @@ describe("Data Profiler source fields", () => {
   });
 
   it("offers a field for each drift setting", () => {
-    render(
+    renderInForm(
       <ProfilerFormSection
         authFields={{ cron: "0 3 * * *", ...PROFILER_DEFAULTS }}
         setAuthFields={vi.fn()}
@@ -80,7 +80,7 @@ describe("Data Profiler source fields", () => {
   it("keeps stored settings and round-trips the mapping", () => {
     const setAuthFields = vi.fn();
     const fields = profilerFieldsFromMapping(JSON.stringify(STORED));
-    render(<ProfilerFormSection authFields={fields} setAuthFields={setAuthFields} />);
+    renderInForm(<ProfilerFormSection authFields={fields} setAuthFields={setAuthFields} />);
     expect(setAuthFields).not.toHaveBeenCalled();
     expect(JSON.parse(profilerMappingJson(fields))).toEqual(STORED);
     const { sample_above_cells: _, ...whole } = STORED;

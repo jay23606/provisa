@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Métriques",
-    "newMetric": "Nouvelle métrique",
+    "newMetric": "+ Métrique",
     "loading": "Chargement…",
     "empty": "Aucune métrique enregistrée pour l'instant.",
     "colName": "Nom",
@@ -39,8 +39,6 @@
     "fieldDescription": "Description",
     "fieldAiContext": "Contexte IA",
     "fieldAiContextPlaceholder": "Indications pour la génération de requêtes assistée par IA",
-    "save": "Enregistrer",
-    "cancel": "Annuler",
     "saveFailed": "Échec de l'enregistrement.",
     "editMetric": "Modifier la métrique {{name}}",
     "deleteMetric": "Supprimer la métrique {{name}}",
@@ -51,7 +49,8 @@
     "purposeTitle": "À quoi servent les métriques",
     "purposeBody": "Une métrique est la définition métier d'une mesure : une agrégation sur une table de faits, définie une seule fois ici et projetée dans toutes les surfaces — SQL, GraphQL, le canevas d'exploration, les vues construites à partir de métriques et l'export d'interchange.",
     "purposeAdd": "Définissez-la une fois pour que les consommateurs ne dérivent pas en réimplémentant le calcul. Une vue construite à partir d'une métrique est régénérée dès que la métrique change : le chiffre reste le même partout.",
-    "purposeAria": "À propos des métriques"
+    "purposeAria": "À propos des métriques",
+    "detailPanel": "Détails de la métrique"
   },
   "sqlJoinCanvas": {
     "removeMetric": "Retirer la métrique {{metricName}}",

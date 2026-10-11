@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Repliceren",
-    "helpTable": "Wanneer deze tabel vanuit haar replica wordt bediend: een kopie in de store van de engine die wordt ververst volgens de actualiteitsinstellingen van de tabel (TTL, versheidscontrole, change feed). Het is geen doorlopende wijzigingsstroom. 'Standaard' gebruikt de waarde van de bron of, als de bron er geen heeft, de globale drempel. Alleen 'Altijd' is een garantie; 'Standaard', 'Nooit' en de Hot-waarden gelden naar beste vermogen.",
-    "helpSource": "Wanneer de tabellen van deze bron vanuit hun replica's worden bediend: kopieën in de store van de engine die worden ververst volgens de actualiteitsinstellingen van elke tabel. Een tabel zonder eigen waarde gebruikt deze. 'Standaard' past de globale drempel toe. Alleen 'Altijd' is een garantie; 'Standaard', 'Nooit' en de Hot-waarden gelden naar beste vermogen.",
+    "helpTable": "Wanneer leesacties op deze tabel uit de replica komen, een kopie in de opslag van de engine die wordt ververst volgens de tijdigheidsinstellingen van de tabel. Standaard: de instelling van de bron, of anders de globale drempel.",
+    "helpSource": "Wanneer leesacties op de tabellen van deze bron uit hun replica's komen, kopieën in de opslag van de engine die worden ververst volgens de tijdigheidsinstellingen van elke tabel. Een tabel zonder eigen instelling gebruikt deze. Standaard: de globale drempel.",
+    "helpOptions": "Live indien mogelijk: rechtstreeks uit de bron gelezen; alleen gerepliceerd waar de engine de bron niet rechtstreeks kan lezen. Hot-N: rechtstreeks gelezen totdat N statements de tabel binnen het interval lezen, daarna uit de replica totdat het er minder dan de helft van N zijn; antwoorden uit de responscache tellen niet mee. Altijd: altijd uit de replica, de enige instelling die een garantie is.",
     "default": "Standaard",
-    "never": "Nooit",
+    "never": "Live indien mogelijk",
     "always": "Altijd",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "'Nooit' kan niet worden gecombineerd met belastingsbescherming: een tabel met belastingsbescherming wordt nooit live gelezen."
+    "neverWithLoadProtection": "'Live indien mogelijk' kan niet worden gecombineerd met belastingsbescherming: een tabel met belastingsbescherming wordt nooit live gelezen.",
+    "scheduled": "Altijd, bron alleen volgens schema gelezen",
+    "helpScheduled": "Altijd, bron alleen volgens schema gelezen: leesbewerkingen komen altijd uit de replica en een query leidt nooit tot het lezen van de bron; de planner ververst de replica in het dalurenvenster, volgens de cache-TTL of de wijzigingscontrole, en minstens een van de drie is vereist."
   }
 }

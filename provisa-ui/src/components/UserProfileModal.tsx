@@ -12,7 +12,6 @@ import {
   Alert,
   Badge,
   Button,
-  Checkbox,
   Group,
   Modal,
   Stack,
@@ -21,12 +20,12 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { deleteAccount, leaveOrg, updateProfile } from "../api/admin";
-import { getEmailPreferences, updateEmailPreferences } from "../api/email";
 import { PersonalAccessTokens } from "./PersonalAccessTokens";
+import { FieldGroup, FormField, FormFooter, FormLayout } from "./form/FormLayout";
 
 interface Props {
   onClose: () => void;
@@ -56,26 +55,7 @@ export function UserProfileModal({ onClose }: Props) {
   // live on their profile rather than under an admin page they may not be able to reach.
   const [membershipError, setMembershipError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState("");
-  const [emailOptIn, setEmailOptIn] = useState(true);
-  const [emailLoading, setEmailLoading] = useState(true);
   const dirty = first !== (givenName ?? "") || last !== (familyName ?? "");
-
-  useEffect(() => {
-    getEmailPreferences()
-      .then((pref) => setEmailOptIn(pref.email_opt_in))
-      .catch(() => setEmailOptIn(true))
-      .finally(() => setEmailLoading(false));
-  }, []);
-
-  async function handleEmailOptInChange(value: boolean) {
-    setEmailOptIn(value);
-    try {
-      await updateEmailPreferences({ email_opt_in: value });
-    } catch (e) {
-      setEmailOptIn(!value);
-      setMembershipError(e instanceof Error ? e.message : String(e));
-    }
-  }
 
   async function handleLeave(orgId: string) {
     setMembershipError(null);
@@ -133,37 +113,37 @@ export function UserProfileModal({ onClose }: Props) {
           >
             {t("userProfileModal.identity")}
           </Title>
-          <Group grow gap="sm" mb="sm">
-            <TextInput
-              label={t("userProfileModal.firstName")}
-              value={first}
-              onChange={(e) => setFirst(e.currentTarget.value)}
-              data-testid="profile-first-name"
-            />
-            <TextInput
-              label={t("userProfileModal.lastName")}
-              value={last}
-              onChange={(e) => setLast(e.currentTarget.value)}
-              data-testid="profile-last-name"
-            />
-          </Group>
-          <Group justify="flex-end" mb="sm">
+          <FormLayout>
+            <FormField size="medium">
+              <TextInput
+                label={t("userProfileModal.firstName")}
+                value={first}
+                onChange={(e) => setFirst(e.currentTarget.value)}
+                data-testid="profile-first-name"
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("userProfileModal.lastName")}
+                value={last}
+                onChange={(e) => setLast(e.currentTarget.value)}
+                data-testid="profile-last-name"
+              />
+            </FormField>
             {saveError && (
-              <Text fz="0.8rem" c="var(--reject)" data-testid="profile-save-error">
-                {saveError}
-              </Text>
+              <FormField size="full">
+                <Text fz="0.8rem" c="var(--reject)" data-testid="profile-save-error">
+                  {saveError}
+                </Text>
+              </FormField>
             )}
-            <Button
-              size="xs"
-              onClick={handleSave}
-              loading={saving}
-              disabled={!dirty || saving}
-              data-testid="profile-save"
-            >
-              {saving ? t("userProfileModal.saving") : t("userProfileModal.save")}
-            </Button>
-          </Group>
-          <Table withRowBorders={false} verticalSpacing={4} fz="0.85rem">
+            <FormFooter
+              onSave={handleSave}
+              saving={saving}
+              saveProps={{ "data-testid": "profile-save", disabled: !dirty }}
+            />
+          </FormLayout>
+          <Table withRowBorders={false} verticalSpacing={4} fz="0.85rem" mt="md">
             <Table.Tbody>
               {displayName && (
                 <Table.Tr>
@@ -205,29 +185,6 @@ export function UserProfileModal({ onClose }: Props) {
               )}
             </Table.Tbody>
           </Table>
-        </section>
-
-        <section>
-          <Title
-            order={4}
-            tt="uppercase"
-            fz="0.75rem"
-            c="dimmed"
-            fw={600}
-            mb="xs"
-            style={{ letterSpacing: "0.05em" }}
-          >
-            {t("userProfileModal.emailPreferences")}
-          </Title>
-          {!emailLoading && (
-            <Checkbox
-              label={t("userProfileModal.receiveEmails")}
-              checked={emailOptIn}
-              onChange={(e) => handleEmailOptInChange(e.currentTarget.checked)}
-              description={t("userProfileModal.receiveEmailsHelp")}
-              mb="md"
-            />
-          )}
         </section>
 
         <section>
@@ -399,23 +356,27 @@ export function UserProfileModal({ onClose }: Props) {
           <Text fz="0.85rem" c="dimmed" mb="xs">
             {t("userProfileModal.deleteAccountHelp")}
           </Text>
-          <Group gap="xs" align="flex-end">
-            <TextInput
-              label={t("userProfileModal.deleteAccountConfirmLabel", { userId })}
-              value={confirmDelete}
-              onChange={(e) => setConfirmDelete(e.currentTarget.value)}
-              data-testid="profile-delete-confirm"
-            />
-            <Button
-              color="red"
-              size="xs"
-              disabled={!userId || confirmDelete !== userId}
-              onClick={handleDeleteAccount}
-              data-testid="profile-delete-submit"
-            >
-              {t("userProfileModal.deleteAccountButton")}
-            </Button>
-          </Group>
+          <FormLayout>
+            {/* The confirmation and the button it unlocks: one row, the button level with the box. */}
+            <FieldGroup row>
+              <FormField size="medium">
+                <TextInput
+                  label={t("userProfileModal.deleteAccountConfirmLabel", { userId })}
+                  value={confirmDelete}
+                  onChange={(e) => setConfirmDelete(e.currentTarget.value)}
+                  data-testid="profile-delete-confirm"
+                />
+              </FormField>
+              <Button
+                color="red"
+                disabled={!userId || confirmDelete !== userId}
+                onClick={handleDeleteAccount}
+                data-testid="profile-delete-submit"
+              >
+                {t("userProfileModal.deleteAccountButton")}
+              </Button>
+            </FieldGroup>
+          </FormLayout>
         </section>
       </Stack>
     </Modal>

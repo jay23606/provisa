@@ -43,6 +43,7 @@ from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import compile_query as real_compile_query
 from provisa.pgwire import governed_plan
 from tests.unit.test_jsonapi import _build_test_schema
+from tests.role_state import RoleState
 
 pytestmark = [pytest.mark.anyio]
 
@@ -124,7 +125,7 @@ class _Compiles:
 @pytest.fixture
 def surface(monkeypatch):
     schema, ctx = _build_test_schema()
-    state = SimpleNamespace(
+    state = RoleState(
         schemas={_ROLE: schema},
         contexts={_ROLE: ctx},
         rls_contexts={_ROLE: RLSContext.empty()},

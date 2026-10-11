@@ -606,6 +606,12 @@ class EngineRuntime:  # REQ-825, REQ-840
             self._state, catalog=catalog, schema=schema, table=table
         )
 
+    async def apply_change_group(self, group: list[Any]) -> None:
+        """Apply the changes of several landed tables that belong together
+        (``federation.change_group``): in the order given, and in one transaction where the
+        store has one across tables. Delegated to the backend, as ``apply_cdc_events`` is."""
+        await self._backend.apply_change_group(self._state, group)
+
     async def apply_cdc_events(
         self,
         *,

@@ -19,6 +19,7 @@ from provisa.compiler.metric_expand import (
     generate_view_metrics_sql,
 )
 from provisa.core.models import Metric, ViewMetricsSpec
+from provisa.api.role_surface import RoleSurface
 
 METRICS = {
     "net_revenue": Metric(
@@ -213,6 +214,8 @@ async def test_compiled_path_expands_metric_refs():
         # What the governed-plan lookup reads before the statement is parsed (REQ-1877).
         roles = {"admin": {"id": "admin"}}
         rls_contexts: dict = {}
+        # The role's surface, which the pipeline takes once (api/role_surface.py).
+        surfaces = {"admin": RoleSurface(context=None)}
         masking_rules: dict = {}
         schema_boot_id = "test-boot"
         schema_version = 1

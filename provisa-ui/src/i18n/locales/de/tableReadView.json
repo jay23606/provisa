@@ -57,6 +57,10 @@
     "writable": "Beschreibbar",
     "writableOps": "Nimmt {{ops}} über GraphQL, REST und SQL an",
     "dataProductChip": "Datenprodukt",
-    "notShown": "nicht angezeigt"
+    "notShown": "nicht angezeigt",
+    "draftLabel": "Entwurf",
+    "draftTooltip": "Entwurf: außer Betrieb – in keinem Schema und von niemandem lesbar. Haken entfernen, um die Tabelle freizugeben; Haken setzen, um sie außer Betrieb zu nehmen.",
+    "draftNoRightTooltip": "Eine Tabelle freizugeben oder wieder zum Entwurf zu machen erfordert das Recht „Tabellenregistrierung“ in der Domäne der Tabelle.",
+    "draftPreviewNote": "Entwurfsvorschau: Leser können diese Tabelle noch nicht sehen."
   }
 }

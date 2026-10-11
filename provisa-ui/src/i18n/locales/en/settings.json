@@ -132,7 +132,17 @@
         "help": "How many worker processes the server runs. Restart required because processes are started by the launcher."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API token",
+        "help": "The token Kaggle searches and dataset downloads sign in with: the token itself, or a reference to a secret you created, such as ${secret:NAME}."
+      }
+    },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Longest wait when a mail service is throttling",
+        "help": "When Microsoft or Google asks a replica's read to wait, it waits and goes on. This is the most the waits of one request may add up to, in seconds; a longer one fails the build, which is tried again later. Raise it to ride out long throttles; to be throttled less, lower Mailboxes read at once."
+      },
       "mailboxes_at_once": {
         "label": "Mailboxes read at once",
         "help": "How many mailboxes a source of an organization's mailboxes reads at the same time. More shortens a build and asks more of the mail service's limit for the whole application."

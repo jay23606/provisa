@@ -38,7 +38,7 @@ async def table_delta_refusal(conn: Any, model: Any) -> MutationResult | None:
     return MutationResult(
         success=False,
         message=f"table {model.table_name!r}: delta replication is only available for SQL sources, "
-        f"not {source_type!r} (REQ-874)",
+        f"not {source_type!r}",
         code="schema.delta_not_sql_source",
         params={"table": model.table_name, "source": model.source_id, "type": source_type},
     )

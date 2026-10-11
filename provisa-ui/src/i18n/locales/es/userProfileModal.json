@@ -6,8 +6,6 @@
     "name": "Nombre",
     "firstName": "Nombre",
     "lastName": "Apellidos",
-    "save": "Guardar",
-    "saving": "Guardando…",
     "saved": "Guardado",
     "saveError": "No se pudo guardar el perfil",
     "email": "Correo electrónico",

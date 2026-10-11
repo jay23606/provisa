@@ -173,9 +173,87 @@ def test_a_group_read_gives_each_table_its_canonical_batches_from_one_listing(fe
     assert {table for table, _ in batches} == set(tables)
     for table, batch in batches:
         assert batch.schema == arrow_schema(columns[table]), table
-    listings = [c for c in fetch.graph.calls if c[1].split("?")[0].endswith("/messages")]
-    assert len(listings) == 1
+    # One reading of the mailbox for all five tables: each folder's round is made once, and
+    # nothing lists the mailbox's messages besides.
+    rounds = [c[1] for c in fetch.graph.calls if c[1].split("?")[0].endswith("/messages/delta")]
+    assert rounds and len(rounds) == len(set(rounds))
+    assert not [c for c in fetch.graph.calls if c[1].split("?")[0].endswith("/messages")]
     (note,) = source.notes()
     assert note.params == {"count": 1, "ids": ["m2"], "more": 0}  # m2 has no HTML body
     asyncio.run(read())
     assert source.notes()[0].params["count"] == 1  # a read begun again counts again, not twice
+
+
+# --- where a read reached is kept when its build completed, and only then ---
+
+
+def _keeping(monkeypatch, table: dict):
+    """A group source over a stand-in Graph whose reading keeps what it is given."""
+    from provisa.microsoft365 import mail
+
+    fake = FakeGraph(table)
+    monkeypatch.setattr(loader, "http_send", lambda _client: fake.send)
+    kept: list[dict] = []
+
+    async def keep(rows):
+        kept.append(rows)
+
+    async def connect(source):
+        return loader.Reading((ACCOUNT,), lambda: "access-token", keep=keep)
+
+    made = loader.make_microsoft365_loader(connect)
+    tables = mail.MESSAGE_TABLES
+    source = made.replica_group_source(SOURCE, tables, {t: cm.ir_columns(t) for t in tables})
+    return source, kept, fake
+
+
+def test_a_completed_build_keeps_each_folders_link_and_the_mailboxs(monkeypatch):
+    source, kept, _ = _keeping(
+        monkeypatch, {f"{ROOT}/messages": [[_message(1), _message(2)]], **_html(1, 2)}
+    )
+
+    async def build():
+        async for _table, _batch in source.batches(1000):
+            pass
+        assert kept == []  # the read has ended, the build is not yet recorded: nothing kept
+        await source.committed()
+
+    asyncio.run(build())
+    (rows,) = kept
+    # Kept under the address as the tables' account column has it (lowercased).
+    links = {key: link for key, link in rows.items() if key[2] == "delta"}
+    assert {account for account, _scope, _kind in links} == {ACCOUNT.lower()}
+    assert {scope for _a, scope, _k in links} == {"f-inbox", ""}
+    assert all("$deltatoken=" in link for link in links.values())
+    # Beside them, the date the mailbox was read with (this source states none).
+    assert {k: v for k, v in rows.items() if k[2] != "delta"} == {
+        (ACCOUNT.lower(), loader.SINCE, "probe"): loader.ANY_AGE
+    }
+
+
+def test_a_read_that_did_not_end_keeps_nothing(monkeypatch):
+    source, kept, fake = _keeping(monkeypatch, {f"{ROOT}/messages": [[_message(1)]], **_html(1)})
+
+    async def build():
+        async for _table, _batch in source.batches(1000):
+            break  # the build stopped before the mailbox was read to its end
+        await source.committed()
+
+    asyncio.run(build())
+    assert kept == []
+
+
+def test_the_runner_tells_a_source_only_of_a_build_it_recorded_as_completed():
+    """``committed`` rides on the outcome; a job attaches its source's."""
+    from provisa.federation.data_replicator import BuildOutcome
+
+    told: list[str] = []
+
+    async def committed() -> None:
+        told.append("kept")
+
+    done = BuildOutcome(rows_copied=1, method="stream", committed=committed)
+    assert done == BuildOutcome(rows_copied=1, method="stream")  # not part of what a build is
+    assert BuildOutcome(rows_copied=1, method="stream").committed is None
+    asyncio.run(done.committed())
+    assert told == ["kept"]

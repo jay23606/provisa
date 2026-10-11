@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "元數據",
-    "modeTestData": "測試數據",
     "fake": "虛構值",
     "syntheticRule": "合成規則",
     "stable": "穩定",
@@ -13,7 +11,6 @@
     "dialogTitle": "測試數據：{{column}}",
     "declaration": "聲明，例如 email() 或 categories((a, b))",
     "methodCategory": "虛構方法：{{category}}",
-    "cancel": "取消",
     "apply": "套用",
     "kindCategory": {
       "values": "值",

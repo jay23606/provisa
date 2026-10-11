@@ -3,9 +3,19 @@
     "none": "Aucune réplique n'a été construite pour cette table.",
     "requested": "Construction de la réplique demandée.",
     "waiting": "Construction de la réplique demandée ; en attente : {{waitingOn}}.",
+    "replicating": "Réplication en cours",
+    "progressAbout": "Environ {{percent}} % : {{rows}} sur environ {{total}} lignes",
+    "progressPast": "{{rows}} lignes copiées ; la dernière construction en comptait {{total}}",
+    "progressRows": "{{rows}} lignes copiées",
+    "progressMailboxes": "{{done}} boîtes aux lettres lues sur {{total}}",
+    "progressWaiting": "En attente {{seconds}} s : {{by}} limite la lecture",
     "building": "Réplique en construction : {{rows}} lignes copiées, {{rate}} lignes/s ({{how}}).",
     "buildingNoRate": "Réplique en construction ({{how}}).",
+    "buildingWaiting": "Réplica en cours de création ; attente de {{seconds}} s : {{by}} limite la lecture ({{how}}).",
+    "buildingPartial": "Réplica en cours de création et déjà lisible. Partiel : {{done}} boîtes aux lettres lues sur {{total}} ({{how}}).",
+    "buildingParts": "Réplica en cours de mise à jour : {{done}} boîtes aux lettres vérifiées sur {{total}} ({{how}}).",
     "built": "Réplique construite {{when}} : {{rows}} lignes ({{how}}).",
+    "builtChecked": "Réplique construite {{when}} : {{rows}} lignes ({{how}}). Vérifié {{checked}}, inchangé depuis.",
     "failed": "La construction de la réplique a échoué (tentative {{attempts}} ; elle est retentée) : {{error}}",
     "failedNextAt": "La construction du réplica a échoué (tentative {{attempts}} ; nouvelle tentative {{when}}) : {{error}}",
     "retired": "Cette table n'est plus répliquée ; sa réplique est en cours de suppression.",
@@ -14,7 +24,8 @@
       "engine_statement": "copiée par le moteur",
       "stream_batches": "diffusée par lots",
       "store_pipeline": "chargée par le propre pipeline du magasin",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "tenu à jour sur place"
     },
     "loadKind": {
       "bulk_stream": "flux en masse",
@@ -37,6 +48,9 @@
     "note": {
       "unreadable_messages": "Messages conservés sans leur texte, car une partie n’est pas ce qu’elle déclare : {{total}}. Leurs identifiants : {{ids}}",
       "mailboxes_left_out": "Boîtes aux lettres laissées de côté, car Microsoft ou Google indique qu’elles n’existent pas ou ne peuvent pas être lues : {{total}}. Ce sont : {{accounts}}",
+      "mailboxes_at_quota": "Boîtes aux lettres laissées de côté, car elles ont atteint leur quota de stockage et Microsoft ne suivra pas leurs modifications tant que de l’espace n’aura pas été libéré : {{total}}. Ce sont : {{accounts}}",
+      "mailboxes_failed": "Boîtes aux lettres dont la lecture a échoué en cours de route : {{total}}. Ce qui en a été lu est conservé et leur lecture reprend à la prochaine actualisation. Ce sont : {{accounts}}",
+      "place_not_kept": "Cette copie est complète, mais l’endroit où sa lecture s’est arrêtée n’a pas pu être conservé ; la prochaine vérification des changements redemandera donc la lecture : {{reason}}",
       "andMore": "{{ids}} et {{more}} autres",
       "other": "Le dernier build a noté : {{code}}"
     }

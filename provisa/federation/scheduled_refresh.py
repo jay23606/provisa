@@ -192,7 +192,7 @@ class LoadProtectedWithoutGate(ValueError):  # REQ-1141
         where = f"{source_id}.{table_name}" if table_name else source_id
         super().__init__(
             f"{where} is load_protected but arms no refresh gate — set an off_peak_window, a "
-            "cache_ttl cadence, or a probing change_signal (probe/ttl_probe) (REQ-1141)"
+            "cache_ttl cadence, or a probing change_signal (probe/ttl_probe)"
         )
 
 

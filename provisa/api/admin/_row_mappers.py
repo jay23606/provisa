@@ -137,7 +137,7 @@ def _source_from_row(row, *, connection: bool) -> SourceType:
         description=row.get("description") or "",
         mapping_json=mapping_json if connection else None,
         federation_hints_json=federation_hints_json if connection else None,
-        # REQ-1730: the vault reference, never a secret
+        # What the password field holds, as entered: the value, or a reference someone typed.
         password_ref=(row.get("password_ref") or "") if connection else None,
         change_signal=row.get("change_signal") or "ttl",  # REQ-929
         cdc=_cdc_from_row(row) if connection else None,

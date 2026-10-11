@@ -12,15 +12,26 @@ import { Table } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { RegisteredTable, TableColumn } from "../../types/admin";
 import { ColumnBadge } from "./ColumnBadge";
-import { ColumnGlossaryHover } from "./ColumnGlossaryHover";
+import { ColumnGlossaryHover, type ColumnDefinitionLine } from "./ColumnGlossaryHover";
 
-/** The table editor's column-name cell: the name, its glossary hover and its key/kind badges. */
-export function ColumnNameCell({ table, c }: { table: RegisteredTable; c: TableColumn }) {
+/**
+ * The table editor's column-name cell: the name, its hover (the column's full definition and its
+ * glossary term) and its key/kind badges.
+ */
+export function ColumnNameCell({
+  table,
+  c,
+  definition,
+}: {
+  table: RegisteredTable;
+  c: TableColumn;
+  definition?: ColumnDefinitionLine[];
+}) {
   const { t } = useTranslation();
   return (
     <Table.Td>
       {/* REQ-1387: glossary term summary card on column-name hover. */}
-      <ColumnGlossaryHover tableId={table.id} columnName={c.columnName}>
+      <ColumnGlossaryHover tableId={table.id} columnName={c.columnName} definition={definition}>
         <code>{c.columnName}</code>
       </ColumnGlossaryHover>
       {c.nativeFilterType && (

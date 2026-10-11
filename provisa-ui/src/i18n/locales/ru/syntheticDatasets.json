@@ -36,7 +36,6 @@
     "runOption": "{{time}} (строк: {{rows}})",
     "tableScale": "Масштаб таблицы",
     "tableScalePlaceholder": "Масштаб набора данных",
-    "define": "Сохранить набор данных",
     "seedOption": "Начать с синтетических данных",
     "seedTables": "Таблицы",
     "relationshipOption": "{{parent}} → {{child}}",

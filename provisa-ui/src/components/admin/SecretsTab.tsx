@@ -28,7 +28,6 @@ import {
   Table,
   Text,
   TextInput,
-  Tooltip,
 } from "@mantine/core";
 import { Copy, Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -53,6 +52,8 @@ import {
 } from "../../api/secrets";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 /**
  * REQ-1557, REQ-1558: the org's secrets — NAMES GO IN, VALUES NEVER COME BACK OUT.
@@ -128,7 +129,7 @@ export function SecretsServicePanel() {
   if (!s) return <Text>{t("secretsTab.loading")}</Text>;
 
   return (
-    <Stack gap="sm" maw={720} data-testid="secrets-service">
+    <Stack gap="sm" data-testid="secrets-service">
       <Text c="dimmed" fz="sm">
         {t("secretsTab.serviceIntro")}
       </Text>
@@ -174,35 +175,33 @@ export function SecretsServicePanel() {
         </Stack>
       </Radio.Group>
 
-      {(selected?.config_fields ?? []).map((f) => (
-        <TextInput
-          key={f.config_key}
-          label={f.label}
-          required={f.required}
-          placeholder={
-            secretPlaceholder(f, s.secret_set?.[choice], {
-              set: t("secretsTab.secretOnFile"),
-              unset: t("secretsTab.secretNotSet"),
-            }) ?? f.placeholder
-          }
-          // Never a password field: the value typed here is a ${env:...} REFERENCE to the
-          // credential, not the credential (REQ-1557).
-          value={config[choice]?.[f.config_key] ?? ""}
-          onChange={(e) => setField(f.config_key, e.currentTarget.value)}
-          data-testid={`secrets-service-field-${f.config_key}`}
-        />
-      ))}
+      <FormLayout>
+        {(selected?.config_fields ?? []).map((f) => (
+          <FormField size="medium" key={f.config_key}>
+            <TextInput
+              label={f.label}
+              required={f.required}
+              placeholder={
+                secretPlaceholder(f, s.secret_set?.[choice], {
+                  set: t("secretsTab.secretOnFile"),
+                  unset: t("secretsTab.secretNotSet"),
+                }) ?? f.placeholder
+              }
+              // Never a password field: the value typed here is a ${env:...} REFERENCE to the
+              // credential, not the credential (REQ-1557).
+              value={config[choice]?.[f.config_key] ?? ""}
+              onChange={(e) => setField(f.config_key, e.currentTarget.value)}
+              data-testid={`secrets-service-field-${f.config_key}`}
+            />
+          </FormField>
+        ))}
+      </FormLayout>
 
-      <Group>
-        <Button
-          onClick={save}
-          loading={saving}
-          disabled={incomplete || choice === ""}
-          data-testid="secrets-service-save"
-        >
-          {t("secretsTab.serviceSave")}
-        </Button>
-      </Group>
+      <FormFooter
+        onSave={save}
+        saving={saving}
+        saveProps={{ "data-testid": "secrets-service-save", disabled: incomplete || choice === "" }}
+      />
     </Stack>
   );
 }
@@ -336,100 +335,6 @@ function SecretsVault({ vault, header }: VaultProps) {
       )}
       {message && <Alert color="green">{message}</Alert>}
 
-      {state.secrets.length === 0 ? (
-        <Text c="dimmed">{t("secretsTab.empty")}</Text>
-      ) : (
-        <SortGroupTable
-          testPrefix="secrets"
-          testId="secrets-table"
-          rows={state.secrets}
-          columns={[
-            { key: "name", label: t("secretsTab.columnName"), sortValue: (s) => s.name },
-            { key: "description", label: t("secretsTab.columnDescription"), sortValue: (s) => s.description ?? "" },
-            { key: "updated", label: t("secretsTab.columnUpdated"), sortValue: (s) => s.updated_at ?? "" },
-            { key: "reference", label: t("secretsTab.columnReference"), sortValue: (s) => s.reference },
-          ]}
-          headers={[
-            { col: "name" },
-            { col: "description" },
-            { col: "updated" },
-            { col: "reference" },
-            "",
-          ]}
-          colSpan={5}
-          rowKey={(s) => s.name}
-          render={(s) => (
-              <ListRow key={s.name} testId={`secret-row-${s.name}`}>
-                <Table.Td>
-                  <Code>{s.name}</Code>
-                </Table.Td>
-                <Table.Td>{s.description ?? ""}</Table.Td>
-                <Table.Td>
-                  <Text fz="sm">
-                    {s.updated_at ? new Date(s.updated_at).toLocaleString() : t("secretsTab.never")}
-                  </Text>
-                  {s.updated_by && (
-                    <Text fz="xs" c="dimmed">
-                      {t("secretsTab.updatedBy", { actor: s.updated_by })}
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Code>{s.reference}</Code>
-                    <Tooltip label={t("secretsTab.copyReference")}>
-                      <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        aria-label={t("secretsTab.copyReference")}
-                        onClick={() => navigator.clipboard?.writeText(s.reference)}
-                      >
-                        <Copy size={14} />
-                      </Button>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  {writable && (
-                    <Group gap="xs" justify="flex-end">
-                      <Button
-                        variant="default"
-                        size="compact-sm"
-                        data-testid={`secret-replace-${s.name}`}
-                        onClick={() => open(s)}
-                      >
-                        {t("secretsTab.replaceAction")}
-                      </Button>
-                      <ConfirmDialog
-                        title={t("secretsTab.deleteAction")}
-                        consequence={t(
-                          vault === "org"
-                            ? "secretsTab.deleteConfirmOrg"
-                            : "secretsTab.deleteConfirm",
-                          { name: s.name },
-                        )}
-                        onConfirm={() => remove(s)}
-                      >
-                        {(openConfirm) => (
-                          <Button
-                            color="red"
-                            variant="light"
-                            size="compact-sm"
-                            data-testid={`secret-delete-${s.name}`}
-                            onClick={openConfirm}
-                          >
-                            {t("secretsTab.deleteAction")}
-                          </Button>
-                        )}
-                      </ConfirmDialog>
-                    </Group>
-                  )}
-                </Table.Td>
-              </ListRow>
-            )}
-        />
-      )}
-
       {writable && (
         <Group>
           <Button
@@ -442,48 +347,153 @@ function SecretsVault({ vault, header }: VaultProps) {
         </Group>
       )}
 
+      {state.secrets.length === 0 ? (
+        <Text c="dimmed">{t("secretsTab.empty")}</Text>
+      ) : (
+        <SortGroupTable
+          testPrefix="secrets"
+          testId="secrets-table"
+          rows={state.secrets}
+          columns={[
+            { key: "name", label: t("secretsTab.columnName"), sortValue: (s) => s.name },
+            {
+              key: "description",
+              label: t("secretsTab.columnDescription"),
+              sortValue: (s) => s.description ?? "",
+            },
+            {
+              key: "updated",
+              label: t("secretsTab.columnUpdated"),
+              sortValue: (s) => s.updated_at ?? "",
+            },
+            {
+              key: "reference",
+              label: t("secretsTab.columnReference"),
+              sortValue: (s) => s.reference,
+            },
+          ]}
+          headers={[
+            { col: "name" },
+            { col: "description" },
+            { col: "updated" },
+            { col: "reference" },
+            "",
+          ]}
+          colSpan={5}
+          rowKey={(s) => s.name}
+          render={(s) => (
+            <ListRow key={s.name} testId={`secret-row-${s.name}`}>
+              <Table.Td>
+                <Code>{s.name}</Code>
+              </Table.Td>
+              <Table.Td>{s.description ?? ""}</Table.Td>
+              <Table.Td>
+                <Text fz="sm">
+                  {s.updated_at ? new Date(s.updated_at).toLocaleString() : t("secretsTab.never")}
+                </Text>
+                {s.updated_by && (
+                  <Text fz="xs" c="dimmed">
+                    {t("secretsTab.updatedBy", { actor: s.updated_by })}
+                  </Text>
+                )}
+              </Table.Td>
+              <Table.Td>
+                <Group gap="xs">
+                  <Code>{s.reference}</Code>
+                  <Tip text={t("secretsTab.copyReference")} named>
+                    <Button
+                      variant="subtle"
+                      size="compact-xs"
+                      aria-label={t("secretsTab.copyReference")}
+                      onClick={() => navigator.clipboard?.writeText(s.reference)}
+                    >
+                      <Copy size={14} />
+                    </Button>
+                  </Tip>
+                </Group>
+              </Table.Td>
+              <Table.Td>
+                {writable && (
+                  <Group gap="xs" justify="flex-end">
+                    <Button
+                      variant="default"
+                      size="compact-sm"
+                      data-testid={`secret-replace-${s.name}`}
+                      onClick={() => open(s)}
+                    >
+                      {t("secretsTab.replaceAction")}
+                    </Button>
+                    <ConfirmDialog
+                      title={t("secretsTab.deleteAction")}
+                      consequence={t(
+                        vault === "org"
+                          ? "secretsTab.deleteConfirmOrg"
+                          : "secretsTab.deleteConfirm",
+                        { name: s.name },
+                      )}
+                      onConfirm={() => remove(s)}
+                    >
+                      {(openConfirm) => (
+                        <Button
+                          color="red"
+                          variant="light"
+                          size="compact-sm"
+                          data-testid={`secret-delete-${s.name}`}
+                          onClick={openConfirm}
+                        >
+                          {t("secretsTab.deleteAction")}
+                        </Button>
+                      )}
+                    </ConfirmDialog>
+                  </Group>
+                )}
+              </Table.Td>
+            </ListRow>
+          )}
+        />
+      )}
+
       <Modal
         opened={editing !== null}
         onClose={() => setEditing(null)}
         title={editing ? t("secretsTab.replaceTitle", { name: editing }) : t("secretsTab.addTitle")}
         centered
       >
-        <Stack gap="sm">
-          <TextInput
-            label={t("secretsTab.nameLabel")}
-            placeholder={t("secretsTab.namePlaceholder")}
-            description={t("secretsTab.nameHelp")}
-            value={name}
-            // A replacement keeps its name: the name is the identity of the secret being replaced.
-            disabled={!!editing}
-            onChange={(e) => setName(e.currentTarget.value)}
+        <FormLayout>
+          <FormIdentifiers>
+            <FormField hint={t("secretsTab.nameHelp")} size="long">
+              <TextInput
+                label={t("secretsTab.nameLabel")}
+                placeholder={t("secretsTab.namePlaceholder")}
+                value={name}
+                // A replacement keeps its name: the name is the identity of the secret being replaced.
+                disabled={!!editing}
+                onChange={(e) => setName(e.currentTarget.value)}
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="long">
+            <TextInput
+              label={t("secretsTab.descriptionLabel")}
+              placeholder={t("secretsTab.descriptionPlaceholder")}
+              value={description}
+              onChange={(e) => setDescription(e.currentTarget.value)}
+            />
+          </FormField>
+          <FormField hint={t("secretsTab.valueHelp")} size="long">
+            <PasswordInput
+              label={t("secretsTab.valueLabel")}
+              value={value}
+              onChange={(e) => setValue(e.currentTarget.value)}
+            />
+          </FormField>
+          <FormFooter
+            onSave={save}
+            saving={saving}
+            onCancel={() => setEditing(null)}
+            saveProps={{ "data-testid": "secret-submit", disabled: !name.trim() || !value }}
           />
-          <TextInput
-            label={t("secretsTab.descriptionLabel")}
-            placeholder={t("secretsTab.descriptionPlaceholder")}
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
-          />
-          <PasswordInput
-            label={t("secretsTab.valueLabel")}
-            description={t("secretsTab.valueHelp")}
-            value={value}
-            onChange={(e) => setValue(e.currentTarget.value)}
-          />
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setEditing(null)} disabled={saving}>
-              {t("secretsTab.cancel")}
-            </Button>
-            <Button
-              onClick={save}
-              loading={saving}
-              data-testid="secret-submit"
-              disabled={!name.trim() || !value}
-            >
-              {editing ? t("secretsTab.replace") : t("secretsTab.add")}
-            </Button>
-          </Group>
-        </Stack>
+        </FormLayout>
       </Modal>
     </Stack>
   );

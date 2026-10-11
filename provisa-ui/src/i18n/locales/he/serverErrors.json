@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "הקטלוג '{{catalog}}' של המנוע נמצא בתהליך רישום. יש לנסות שוב בעוד רגע.",
       "domain_not_accessible": "לתפקיד '{{role_id}}' אין גישה לתחום '{{domain}}'",
       "role_mismatch": "הבקשה מציינת את התפקיד '{{body_role}}' אך רצה בתפקיד '{{acting_role}}'. התפקיד מועבר בכותרת X-Provisa-Role (או בזהות המחוברת); הסירו את התפקיד האחר או התאימו אותו.",
-      "sql_parameters_do_not_fit": "ערכי הפרמטרים אינם תואמים את המשפט: {{reason}}"
+      "sql_parameters_do_not_fit": "ערכי הפרמטרים אינם תואמים את המשפט: {{reason}}",
+      "unknown_root_field": "שדה שאילתה לא מוכר '{{field}}': לתפקיד זה לא מוגשת טבלה בשם זה",
+      "viewer_column_unknown": "'{{column}}' אינה עמודה של הטבלה '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' אינו מסנן של העמודה '{{column}}'",
+      "viewer_value_invalid": "המסנן על '{{column}}' אינו יכול להשתמש בערך '{{value}}'",
+      "replica_building": "העותק של {{replica}} עדיין נבנה. הבנייה נמשכת; פתחו שוב את התצוגה המקדימה לאחר שתסתיים."
     },
     "discovery": {
       "adapter_missing_discover_schema": "המתאם עבור '{{source_type}}' אינו מממש discover_schema",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: הארגומנט '{{argument}}' לא נמסר",
       "argument_not_declared": "{{signature}}: הארגומנט '{{argument}}' אינו מוצהר",
       "binding_missing_key": "לקישור הפונקציה עבור kind '{{kind}}' חסר מפתח חובה '{{key}}'",
-      "egress_denied": "יציאה אל '{{endpoint}}' נדחתה: המארח אינו ברשימת ההיתרים ליציאת UDF (REQ-885 deny-by-default). הוסיפו אותו ל-udf_egress_allowlist כדי להתיר.",
+      "egress_denied": "יציאה אל '{{endpoint}}' נדחתה: המארח אינו ברשימת ההיתרים ליציאת UDF (נדחה כברירת מחדל). הוסיפו אותו ל-udf_egress_allowlist כדי להתיר.",
       "grpc_call_failed": "קריאת grpc {{target}}{{path}} נכשלה: {{status}}: {{details}}",
       "grpc_method_invalid": "מתודת grpc '{{method}}' חייבת להיות 'Service/Method' או 'pkg.Service.Method'",
       "json_argument_invalid": "הארגומנט '{{argument}}' של '{{name}}' אינו ליטרל JSON",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python callable '{{spec}}' חייב להיות 'module:attr'",
       "remote_refused": "{{source_id}} דחה את {{operation}}: {{answer}}",
       "result_set_ref_invalid": "הפניית result_set '{{ref}}' חייבת להיות source.schema.table",
-      "rowwise_external": "הפונקציה '{{name}}' (kind={{impl_kind}}) היא חיצונית ברמת שורה: כל הארגומנטים הם column_value סקלרי. הצהירו על ארגומנט יחס table_ref/result_set כדי שהקריאות יהיו ברמת קבוצה ובאצוות (REQ-885).",
+      "rowwise_external": "הפונקציה '{{name}}' (kind={{impl_kind}}) היא חיצונית ברמת שורה: כל הארגומנטים הם column_value סקלרי. הצהירו על ארגומנט יחס table_ref/result_set כדי שהקריאות יהיו ברמת קבוצה ובאצוות.",
       "script_failed": "הסקריפט הסתיים בקוד {{returncode}}: {{stderr}}",
       "source_not_connected": "המקור '{{source_id}}' אינו מחובר",
       "unknown_arg_kind": "arg_kind לא מוכר '{{arg_kind}}' עבור '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "מזהה הארגון '{{org}}' שמור. מזהים שמורים: {{reserved}}.",
       "platform_admin_required": "נדרש platform_admin",
       "retry_not_failed": "הארגון '{{org}}' נמצא במצב '{{state}}', לא 'failed' — אין מה לנסות שוב.",
-      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר (REQ-1308).",
+      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר.",
       "view_not_permitted": "אין הרשאה לצפות בארגון זה"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "לוח שנה לא תקין: {{error}}",
       "invalid_cardinality": "קרדינליות לא תקינה: '{{cardinality}}'",
       "invalid_off_peak_window": "חלון שפל לא תקין: {{error}}",
-      "load_protection_gate_required": "{{who}}: הגנת עומס דורשת לפחות שער רענון אחד — הגדירו חלון שפל, קצב cache_ttl, או change_signal מסוג בדיקה (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: הגנת עומס דורשת לפחות שער רענון אחד — הגדירו חלון שפל, קצב cache_ttl, או change_signal מסוג בדיקה (probe/ttl_probe)",
       "metric_deleted": "המדד '{{metric}}' נמחק",
       "metric_not_found": "המדד '{{metric}}' לא נמצא",
       "metric_saved": "המדד '{{metric}}' נשמר",
@@ -297,6 +302,10 @@
       "relationship_not_found": "הקשר '{{relationship}}' לא נמצא",
       "relationship_saved": "הקשר '{{relationship}}' נשמר",
       "remigrated": "בוצעה מיגרציה מחדש של {{source}}.{{table}}",
+      "change_signal_not_honoured": "מקור מסוג {{type}} עדיין אינו ניתן לבדיקת שינויים, ולכן אות השינוי {{signal}} לעולם לא יישאל. השתמשו ב-ttl עבור המקור '{{source}}'.",
+      "sentinel_path_not_applicable": "למקור מסוג {{type}} לא יכול להיות נתיב זקיף: אין יצרן משלכם שיכול לסמן שינוי בנתוניו, או שהמקור אינו נבדק. הסירו את נתיב הזקיף מהמקור '{{source}}'.",
+      "source_cache_ttl_required": "המקור '{{source}}' זקוק ל-TTL של המטמון: כל טבלה שלו היא רפליקה, המתרענן לפי שעון זה תחת אות השינוי {{signal}}. הגדירו אותו תחת ״ניהול עומס ועדכניות״ במקור.",
+      "landing_ttl_required": "הטבלה '{{table}}' היא רפליקה המתרענן לפי TTL של המטמון, ולא לה ולא למקור שלה '{{source}}' יש כזה. הגדירו את ה-TTL של המטמון תחת ״ניהול עומס ועדכניות״ במקור, או בטבלה עצמה לאחר רישומה.",
       "replicate_contradicts_load_protected": "אי אפשר לשלב הגנת עומס עם שכפול = 'אף פעם': טבלה מוגנת עומס אף פעם אינה נקראת בזמן אמת",
       "replicate_invalid": "שכפול חייב להיות 'ברירת מחדל', 'אף פעם', 'תמיד' או סף גדול מ-0; התקבל {{value}}",
       "request_executed": "בקשת היצירה מס' {{id}} בוצעה",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} הוא מנהל הפלטפורמה האחרון של פריסה זו. יש להעניק תחילה את התפקיד למשתמש אחר.",
       "no_active_org": "אין ארגון המקושר לבקשה זו. יש להתחבר תחילה לארגון.",
       "no_fields_to_update": "אין שדות לעדכון",
-      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר (REQ-1308).",
+      "self_role_change": "משתמש אינו יכול לשנות את התפקיד של עצמו. פנו למנהל אחר.",
       "user_not_found": "המשתמש לא נמצא"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "אין פלטפורמת דואר בשם {{platform}}.",
       "not_configured": "הארגון שלך עדיין לא חיבר את פלטפורמת הדואר הזו ({{platform}}). מנהל מערכת מזין את הלקוח שלה פעם אחת תחת ניהול › דוא\"ל.",
       "unknown_setting": "{{setting}} אינה הגדרה של פלטפורמת הדואר הזו.",
-      "incomplete": "עדיין נדרש לפני השמירה: {{missing}}."
+      "incomplete": "עדיין נדרש לפני השמירה: {{missing}}.",
+      "credential_unresolved": "הערך של {{field}} שהוזן עבור פלטפורמת הדואר הזו ({{platform}}) לא ניתן לפענוח: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "לא ניתן לפרש את בחירת תיבות הדואר: {{error}}",
       "client_refused": "Microsoft דחתה את לקוח Microsoft 365 של הארגון שלך: {{reason}}",
       "throttled": "Microsoft מגבילה כעת בקשות. יש לנסות שוב בעוד {{retry_after}} שניות.",
-      "directory_refused": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). הלקוח זקוק להרשאה לקרוא את משתמשי הספרייה."
+      "directory_refused": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). הלקוח זקוק להרשאה לקרוא את משתמשי הספרייה.",
+      "directory_no_permissions": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). האסימון של הלקוח אינו נושא אף הרשאת יישום; נדרשת {{missing}}. הוסיפו אותה כהרשאת יישום (לא כהרשאה מואצלת) והעניקו הסכמת מנהל.",
+      "directory_permission_missing": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}). האסימון של הלקוח נושא {{carries}}; חסר: {{missing}}. הוסיפו אותה כהרשאת יישום (לא כהרשאה מואצלת) והעניקו הסכמת מנהל.",
+      "directory_refused_granted": "Microsoft לא הסכימה למנות את תיבות הדואר של הארגון ({{status}} {{reason}}), אף שהאסימון של הלקוח נושא את מה שהמנייה דורשת ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "אין תפקיד בשם {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "זו אינה דרך לבחור תיבות דואר: {{error}}",
+      "scope_not_delegated": "חשבון השירות של Google של הארגון אינו מורשה עבור {{scopes}}. סופר-אדמין מוסיף את מזהה הלקוח שלו עם ההיקף הזה במסוף Google Admin, תחת אבטחה › בקרת גישה ונתונים › בקרות API › ניהול הענקת גישה ברמת הדומיין; הרשאה חדשה עשויה להיכנס לתוקף תוך עד 24 שעות.",
+      "admin_not_a_user": "{{address}} אינו משתמש בדומיין Google Workspace של הארגון, ולכן לא ניתן לקרוא את הספרייה בשמו. מנהל מערכת מתקן את כתובת מנהל המערכת תחת ניהול › דוא\"ל.",
+      "directory_refused": "לא ניתן היה לקרוא את הספרייה של Google: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google דחתה את חשבון השירות של הארגון: {{reason}}"
     }
   }
 }

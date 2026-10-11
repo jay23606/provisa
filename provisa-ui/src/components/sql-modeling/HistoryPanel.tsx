@@ -12,6 +12,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Table, Text } from "@mantine/core";
 import type { HistoryEntry, ResultTab } from "./types";
+import { Tip } from "../Tip";
 
 interface HistoryPanelProps {
   history: HistoryEntry[];
@@ -75,7 +76,9 @@ export function HistoryPanel({ history, setSqlText, setRole, setResultTab }: His
                 </Table.Td>
                 <Table.Td style={{ whiteSpace: "nowrap" }} c={h.error ? "red" : undefined}>
                   {h.error ? (
-                    <span title={h.error}>{t("sqlModelingHistoryPanel.error")}</span>
+                    <Tip text={h.error}>
+                      <span>{t("sqlModelingHistoryPanel.error")}</span>
+                    </Tip>
                   ) : (
                     h.rowCount
                   )}

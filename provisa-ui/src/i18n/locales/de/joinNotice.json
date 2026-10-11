@@ -6,6 +6,12 @@
     "admin": "Ein Administrator hat Sie zu {{org}} hinzugefügt.",
     "ack": "Verstanden",
     "leave": "Das ist nicht meine Organisation",
-    "leaveError": "Die Organisation konnte nicht verlassen werden."
+    "leaveError": "Die Organisation konnte nicht verlassen werden.",
+    "sandboxIntro": "Sie befinden sich auf unserer gemeinsamen Starter-Instanz, in einer eigenen, isolierten Umgebung. Die Beispieldaten sind eine private Kopie – nichts, was Sie hier tun, ist für andere Besucher sichtbar, und nichts hier berührt die Daten anderer.",
+    "sandboxOpen": "Fast jeder Vorgang steht Ihnen offen: eigene Quellen registrieren, sie modellieren, Richtlinien und Maskierungsregeln schreiben und das Ergebnis in SQL, GraphQL oder Cypher abfragen.",
+    "sandboxHeldBack": "Zurückgehalten sind die organisationsweiten Steuerungen – Umgebungen wechseln oder verwalten, Personen einladen und Rollen vergeben, Organisationseinstellungen und organisationsweite Beobachtbarkeit. Diese Seiten bleiben sichtbar und sind als Teil des Produktivsystems gekennzeichnet.",
+    "sandboxTemporary": "Ihre Umgebung ist temporär. Beim Abmelden wird sie gelöscht, und nach einem Tag ohne Aktivität wird sie ebenfalls zurückgenommen. Nichts, was Sie hier aufbauen, ist zum Aufbewahren gedacht.",
+    "sandboxUpgrade": "Wenn Sie bereit für eine dauerhafte Organisation sind, wechseln Sie zu einem Starter-Tarif.",
+    "sandboxAck": "Erkundung starten"
   }
 }

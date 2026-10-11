@@ -51,6 +51,9 @@ export interface Source {
   description: string;
   mappingJson?: string | null;
   federationHintsJson?: string | null;
+  /** What the password field holds, as it was entered: the value, or a reference someone typed.
+   * Null for a caller who may not register sources. */
+  passwordRef?: string | null;
   changeSignal: string; // REQ-929: source default change signal, inherited by its tables
   cdc?: SourceCdcConfig | null;
 }

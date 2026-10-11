@@ -435,19 +435,25 @@ def test_a_role_whose_list_becomes_empty_loses_the_surface_an_earlier_build_gave
     state = _built_roles(
         monkeypatch, [{"id": "r", "capabilities": ["usage"], "domain_access": ["sales"]}]
     )
-    surfaces = (
-        state.schemas,
-        state.contexts,
-        state.rls_contexts,
-        state.table_path_maps,
-        state.proto_files,
-    )
-    assert all("r" in surface for surface in surfaces)
+
+    def parts():
+        # Read afresh each time: a part is a copy of what the role surfaces held when it was read.
+        return (
+            state.schemas,
+            state.contexts,
+            state.rls_contexts,
+            state.table_path_maps,
+            state.proto_files,
+        )
+
+    assert all("r" in part for part in parts())
+    assert "r" in state.surfaces
 
     # The same runtime, rebuilt after the role's list was emptied: nothing of the old build is
     # left to show it a catalog it no longer reaches.
     _drop_data_surface(appmod.state, "r")
-    assert not any("r" in surface for surface in surfaces)
+    assert not any("r" in part for part in parts())
+    assert "r" not in state.surfaces
 
 
 def test_the_build_itself_drops_a_stale_surface(multi_domain, monkeypatch):

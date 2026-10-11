@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "कमांड का विवरण",
+    "resizeDetail": "विवरण पैनल का आकार बदलें",
+    "expandDetail": "पैनल बड़ा करें",
+    "restoreDetail": "पैनल पहले जैसा करें",
+    "closeDetail": "विवरण पैनल बंद करें",
+    "backToList": "सूची पर वापस",
+    "backToCommand": "कमांड पर वापस",
+    "panelNewCommand": "नया कमांड",
     "title": "कमांड",
     "loading": "कमांड लोड हो रहे हैं...",
     "filterPlaceholder": "नाम से फ़िल्टर करें…",

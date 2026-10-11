@@ -19,6 +19,7 @@ from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.schema_gen import SchemaInput
 from provisa.grpc.proto_gen import generate_proto
 from provisa.grpc.server import ProvisaServicer, _rpc_role
+from tests.role_state import RoleState
 
 
 def _col(name, data_type="varchar(100)", nullable=False):
@@ -288,7 +289,7 @@ class TestREQ617RoleSelectionViaMetadata:
     async def test_missing_role_metadata_raises_unauthenticated(self):
         # REQ-617: Missing x-provisa-role causes UNAUTHENTICATED rejection.
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        servicer = ProvisaServicer(SimpleNamespace(schemas={}, contexts={}), pb2, MagicMock())
+        servicer = ProvisaServicer(RoleState(schemas={}, contexts={}), pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = []
 
@@ -309,12 +310,12 @@ class TestREQ617RoleSelectionViaMetadata:
     async def test_unrecognised_role_aborts_with_not_found(self):
         # REQ-617: Unrecognised role metadata causes the call to be rejected.
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        state = SimpleNamespace(
+        state = RoleState(
             org_id="default",
             schemas={"admin": MagicMock()},
             contexts={"admin": MagicMock()},
         )
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "unknown_role")]
         context.abort.side_effect = grpc.aio.AbortError(
@@ -334,7 +335,7 @@ class TestREQ617RoleSelectionViaMetadata:
         from provisa.transpiler.router import Route
 
         pb2, _ = _make_pb2_module("Orders", ["id", "amount"])
-        state = SimpleNamespace(
+        state = RoleState(
             org_id="default",
             schemas={"admin": MagicMock()},
             contexts={"admin": MagicMock()},
@@ -353,7 +354,7 @@ class TestREQ617RoleSelectionViaMetadata:
         from provisa.federation.runtime import EngineRuntime
 
         state.federation_engine = EngineRuntime(build_trino_engine(), state)
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         context.invocation_metadata.return_value = [("x-provisa-role", "admin")]
         request = MagicMock()
@@ -427,7 +428,7 @@ class TestREQ617RoleSelectionViaMetadata:
     async def test_mutation_rpc_is_unary(self):
         # REQ-617: Mutation RPCs are unary (return a single response, not a stream).
         pb2, _ = _make_pb2_module("Orders", ["id"])
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         context = AsyncMock(spec=grpc.aio.ServicerContext)
         request = MagicMock()
         # _handle_insert is a coroutine (unary), not an async generator (streaming).

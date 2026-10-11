@@ -190,6 +190,8 @@
     "policyApplyFailed": "套用網域原則失敗",
     "settingsPanel": "設定",
     "maxRows": "每次讀取的資料列上限",
-    "maxRowsHint": "對分頁的遠端資料表進行一次讀取時，逐頁跟隨其游標所取得的資料列上限。"
+    "maxRowsHint": "對分頁的遠端資料表進行一次讀取時，逐頁跟隨其游標所取得的資料列上限。",
+    "deleteDomainTitle": "刪除網域「{{id}}」？",
+    "deleteDomainConsequence": "該網域將被移除。仍在使用中的網域無法刪除。"
   }
 }

@@ -1079,7 +1079,7 @@ def _validate_watermark_columns(config) -> None:  # REQ-924, REQ-925
         if col is None:
             raise ValueError(
                 f"Table {table.table_name!r}: watermark_column {watermark!r} is not a column of "
-                f"the table (watermark must name an existing column, REQ-924)"
+                f"the table (watermark must name an existing column)"
             )
         if col.data_type is None:
             continue  # type not yet resolved (deferred introspection); re-checked at selection
@@ -1091,7 +1091,7 @@ def _validate_watermark_columns(config) -> None:  # REQ-924, REQ-925
             raise ValueError(
                 f"Table {table.table_name!r}: watermark_column {watermark!r} has type "
                 f"{col.data_type!r} which is not monotonic non-decreasing; a watermark must be a "
-                f"timestamp/date/time or an incrementing integer (REQ-925)"
+                f"timestamp/date/time or an incrementing integer"
             )
 
 
@@ -1184,7 +1184,7 @@ def _validate_role_ttl(config) -> None:  # REQ-1907
         unknown = sorted(set(table.role_ttl) - known)
         if unknown:
             raise ValueError(
-                f"table {table.table_name!r}: role_ttl names unknown role(s) {unknown} (REQ-1907)"
+                f"table {table.table_name!r}: role_ttl names unknown role(s) {unknown}"
             )
 
 
@@ -1293,7 +1293,11 @@ def _validate_landing_ttl(config) -> None:  # REQ-1907
         ):
             continue
         err = missing_landing_ttl(
-            table.change_signal, source.change_signal, table.cache_ttl, source.cache_ttl
+            table.change_signal,
+            source.change_signal,
+            table.cache_ttl,
+            source.cache_ttl,
+            gated=source.freshness_gate,
         )
         if err is not None:
             raise ValueError(f"table {table.table_name!r} (source {source.id!r}): {err}")
@@ -1322,18 +1326,18 @@ def _validate_delta(config) -> None:  # REQ-874
         if not delta_source_supported(source.type.value):
             raise ValueError(
                 f"table {table.table_name!r}: delta replication is only available for SQL sources, "
-                f"not {source.type.value!r} (REQ-874)"
+                f"not {source.type.value!r}"
             )
         if resolved_replicate(source, table) == -1:
             raise ValueError(
                 f"table {table.table_name!r}: delta reload needs the table replicated "
-                "(replicate is -1/Never) (REQ-874)"
+                "(replicate is -1/Never)"
             )
         signal = _resolve_signal(table.change_signal, source.change_signal)
         if signal in ("probe", "ttl_probe"):
             raise ValueError(
                 f"table {table.table_name!r}: delta and a probe change_signal are mutually "
-                f"exclusive — the delta query is the probe (change_signal is {signal!r}) (REQ-874)"
+                f"exclusive — the delta query is the probe (change_signal is {signal!r})"
             )
 
 
@@ -1356,7 +1360,7 @@ def _validate_file_globs(config) -> None:  # REQ-788
         if src_type not in ("files", "csv", "parquet"):
             raise ValueError(
                 f"table {table.table_name!r}: file_glob is defined only for a files source, "
-                f"not {src_type!r} (REQ-788)"
+                f"not {src_type!r}"
             )
         from provisa.core.secrets import resolve_secrets
 
@@ -1396,7 +1400,7 @@ def _validate_row_materialize(config) -> None:  # REQ-1865
             raise ValueError(
                 f"table {table.table_name!r}: row_materialize=True requires a resolved cache_ttl "
                 f"(own or inherited from source {table.source_id!r}) to drive each cached row's "
-                "freshness clock (REQ-1865)"
+                "freshness clock"
             )
         if table.query_template is not None:
             _raw_type = getattr(source, "type", None) if source is not None else None
@@ -1410,14 +1414,14 @@ def _validate_row_materialize(config) -> None:  # REQ-1865
                     f"table {table.table_name!r}: row_materialize=True on a query_template table "
                     f"has no keyed-fetch translation for source type {src_type!r} (today: neo4j "
                     "only — sparql has no parser/AST to safely resolve a projected property or "
-                    "splice a filter against, REQ-1865)"
+                    "splice a filter against)"
                 )
             pk_columns = [c.name for c in table.columns if c.is_primary_key]
             if len(pk_columns) != 1:
                 raise ValueError(
                     f"table {table.table_name!r}: row_materialize=True on a query_template table "
                     f"requires exactly one PK column for keyed fetch, got {pk_columns!r} "
-                    "(composite-PK keyed fetch is not implemented, REQ-1865)"
+                    "(composite-PK keyed fetch is not implemented)"
                 )
             try:
                 resolve_projected_property(table.query_template, pk_columns[0])

@@ -92,6 +92,7 @@ query SourcesQuery {
     description
     mappingJson
     federationHintsJson
+    passwordRef
     changeSignal
     cdc {
       bootstrapServers
@@ -721,7 +722,12 @@ query ReplicaBuilds {
       startedAt
       rowsCopied
       rowsPerSecond
+      wait
+      completedRows
+      progress
+      partial
       completedAt
+      verifiedAt
       nextRefreshAt
       lastError
       lastErrorCode

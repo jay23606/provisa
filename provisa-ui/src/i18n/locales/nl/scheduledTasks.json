@@ -47,6 +47,8 @@
     "lastPage": "Laatste pagina",
     "roleLabel": "Draait als rol",
     "validationRoleRequired": "Een SQL-taak draait als een rol: kies er een.",
-    "runsAs": "draait als {{role}}"
+    "runsAs": "draait als {{role}}",
+    "deleteTitle": "Geplande taak \"{{name}}\" verwijderen?",
+    "deleteConsequence": "De taak wordt verwijderd en wordt niet meer uitgevoerd."
   }
 }

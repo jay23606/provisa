@@ -32,6 +32,7 @@ from fastapi import FastAPI, Request, Response
 from provisa.core import model_change
 from provisa.core.config_location import config_path_str
 from provisa.core.connection_loop import CrossLoopLock, LongLived, run_lifecycle_work
+from provisa.api.role_surface import RoleSurface
 from provisa.api.data.endpoint import router as data_router
 from provisa.api.data.redirect_unwrap import router as redirect_unwrap_router
 from provisa.api.data.endpoint_dev import router as dev_router
@@ -192,13 +193,6 @@ class AppState:
     mcp_catalog_index: Any = None
     mv_registry: MVRegistry = MVRegistry()
     _mv_refresh_task: LongLived | None = None
-    proto_files: dict[str, str] = {}  # role_id → .proto content
-    # The one SERVED wire descriptor: union of every role's surface (see
-    # app_loaders._build_and_register_schemas). Governance is per-request, not per-descriptor.
-    wire_proto: str | None = None
-    table_path_maps: dict[
-        str, dict[str, dict]
-    ] = {}  # role_id → {gql_field_name → {schema_name, table_name, domain_id}}
     _grpc_server: Any | None = None
     _flight_server: Any | None = None  # ProvisaFlightServer
     _flight_relay: Any | None = None  # FlightRelay: the advertised Flight port (REQ-1900)
@@ -234,8 +228,6 @@ class AppState:
     approval_hook_config: Any | None = None  # REQ-247: ApprovalHookConfig
     table_approval_hooks: dict[int, bool] = {}  # table_id → approval_hook flag
     source_approval_hooks: dict[str, bool] = {}  # source_id → approval_hook flag
-    api_endpoints: dict[tuple[str, str], Any] = {}  # (source_id, table_name) → ApiEndpoint
-    api_sources: dict[str, Any] = {}  # source_id → ApiSource
     hot_manager: HotTableManager | None = None
     _hot_refresh_task: LongLived | None = None
     _replica_hot_task: LongLived | None = None  # REQ-826: the Hot promotion evaluation
@@ -689,6 +681,30 @@ class AppState:
         self._active_runtime().roles = value
 
     @property
+    def surfaces(self) -> dict[str, RoleSurface]:
+        """role id -> the role's whole data surface, from one build (api/role_surface.py)."""
+        return self._active_runtime().surfaces
+
+    @property
+    def proto_files(self) -> dict[str, str]:
+        """role id -> .proto content (a view of ``surfaces``)."""
+        return self._active_runtime().proto_files
+
+    @proto_files.setter
+    def proto_files(self, value: dict[str, str]) -> None:
+        self._active_runtime().proto_files = value
+
+    @property
+    def table_path_maps(self) -> dict[str, dict[str, dict]]:
+        """role id -> {gql field name -> {schema_name, table_name, domain_id}} (a view of
+        ``surfaces``)."""
+        return self._active_runtime().table_path_maps
+
+    @table_path_maps.setter
+    def table_path_maps(self, value: dict[str, dict[str, dict]]) -> None:
+        self._active_runtime().table_path_maps = value
+
+    @property
     def schemas(self) -> dict[str, graphql.GraphQLSchema]:
         return self._active_runtime().schemas
 
@@ -705,6 +721,33 @@ class AppState:
         self._active_runtime().contexts = value
 
     @property
+    def wire_proto(self) -> str | None:
+        """The gRPC service of the bound organisation, as proto text: the union of every role's
+        surface (app_loaders._build_and_register_schemas; OrgRuntime.wire_proto). What is
+        served is compiled from it per organisation (grpc/descriptor.py). Governance is per
+        request, not per descriptor."""
+        return self._active_runtime().wire_proto
+
+    @wire_proto.setter
+    def wire_proto(self, value: str | None) -> None:
+        self._active_runtime().wire_proto = value
+
+    @property
+    def grpc_descriptor(self) -> Any:
+        """The bound organisation's compiled gRPC service (OrgRuntime.grpc_descriptor)."""
+        return self._active_runtime().grpc_descriptor
+
+    @grpc_descriptor.setter
+    def grpc_descriptor(self, value: Any) -> None:
+        self._active_runtime().grpc_descriptor = value
+
+    @property
+    def grpc_role_descriptors(self) -> dict[str, Any]:
+        """Each role's compiled service, of the bound organisation
+        (OrgRuntime.grpc_role_descriptors)."""
+        return self._active_runtime().grpc_role_descriptors
+
+    @property
     def role_build_inputs(self) -> dict:
         """What any role's surface is built from (OrgRuntime.role_build_inputs)."""
         return self._active_runtime().role_build_inputs
@@ -717,6 +760,31 @@ class AppState:
     def meta_roles(self) -> dict:
         """meta-role id → the held roles it acts as (OrgRuntime.meta_roles)."""
         return self._active_runtime().meta_roles
+
+    @property
+    def api_sources(self) -> dict[str, Any]:
+        """source id → ApiSource: the organisation's API sources, with their addresses and
+        credentials (OrgRuntime.api_sources)."""
+        return self._active_runtime().api_sources
+
+    @api_sources.setter
+    def api_sources(self, value: dict[str, Any]) -> None:
+        self._active_runtime().api_sources = value
+
+    @property
+    def api_endpoints(self) -> dict[tuple[str, str], Any]:
+        """(source id, table name) → ApiEndpoint: the endpoints the organisation's API tables are
+        served from (OrgRuntime.api_endpoints)."""
+        return self._active_runtime().api_endpoints
+
+    @api_endpoints.setter
+    def api_endpoints(self, value: dict[tuple[str, str], Any]) -> None:
+        self._active_runtime().api_endpoints = value
+
+    @property
+    def meta_resolved_at(self) -> dict:
+        """meta-role id → when a request last resolved it (OrgRuntime.meta_resolved_at)."""
+        return self._active_runtime().meta_resolved_at
 
     @property
     def view_context(self) -> CompilationContext | None:
@@ -2651,9 +2719,9 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
     # same registry the admin surfaces read — runtime-registered metrics included).
     state.metrics = {m.name: m for m in _metric_models}
 
-    # REQ-1921: a table or view that has gone draft since the last build keeps no copy in this
-    # region: its cached responses go (its replicas retire with convergence, its view build with
-    # the reclamation sweep). Entries are kept by place, not by table, so the place is purged.
+    # REQ-1921: no reader is answered from a table or view that has gone draft since the last
+    # build: its cached responses go. (A table keeps the replica it has; a view's build goes with
+    # the reclamation sweep.) Entries are kept by place, not by table, so the place is purged.
     from provisa.cache.tenancy import purge_when_drafted
 
     await purge_when_drafted(state, frozenset(t["id"] for t in draft_tables))
@@ -3254,6 +3322,22 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
+    from provisa.federation.replica_state import ReplicaBuilding as _ReplicaBuilding
+
+    @app.exception_handler(_ReplicaBuilding)
+    async def _replica_building_handler(_req: _Request, exc: _ReplicaBuilding):  # noqa: F841  # pyright: ignore[reportUnusedFunction]
+        # A read's time ran out while the replica it needs was still being built (REQ-1661):
+        # not a slow statement and not a failure — the build goes on, and the body says which
+        # table and for how long, by the code /data/sql answers with.
+        return _JSONResponse(
+            status_code=504,
+            content={
+                "detail": str(exc),
+                "code": "data.replica_building",
+                "params": {"replica": exc.replica, "seconds": round(exc.running_for)},
+            },
+        )
+
     from provisa.core.secrets_providers import SecretNameRefused as _SecretNameRefused
 
     @app.exception_handler(_SecretNameRefused)
@@ -3328,6 +3412,18 @@ def create_app() -> FastAPI:
                 "code": "data.table_is_draft",
                 "params": {"table": exc.table},
             },
+        )
+
+    from provisa.compiler.sql_gen import UnknownRootField as _UnknownRootField
+
+    @app.exception_handler(_UnknownRootField)
+    async def _unknown_root_field_handler(_req: _Request, exc: _UnknownRootField):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # A query for a root field the role is not served (compiler/sql_gen.py). The statement
+        # is at fault: a client error naming the field. It used to escape as an unhandled
+        # exception -- a 500, and a closed connection (#213).
+        return _JSONResponse(
+            status_code=400,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
         )
 
     from provisa.compiler.definitions import DefinitionNotAvailable as _DefinitionNotAvailable
@@ -3781,6 +3877,12 @@ def create_app() -> FastAPI:
     from provisa.api.admin.microsoft365_router import router as microsoft365_router
 
     app.include_router(microsoft365_router)  # REQ-1923
+    from provisa.api.admin.google_workspace_router import router as google_workspace_router
+
+    app.include_router(google_workspace_router)  # REQ-1923
+    from provisa.api.admin.source_kinds_router import router as source_kinds_router
+
+    app.include_router(source_kinds_router)  # REQ-1907
     from provisa.api.branding_router import router as branding_router  # REQ-1486
 
     app.include_router(branding_router)

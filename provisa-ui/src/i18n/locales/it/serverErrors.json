@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "Il catalogo '{{catalog}}' del motore è in fase di registrazione. Riprova tra poco.",
       "domain_not_accessible": "Il ruolo '{{role_id}}' non ha accesso al dominio '{{domain}}'",
       "role_mismatch": "La richiesta indica il ruolo '{{body_role}}' ma viene eseguita come ruolo '{{acting_role}}'. Il ruolo è trasmesso dall'intestazione X-Provisa-Role (o dall'identità autenticata); rimuovi l'altro ruolo o fallo corrispondere.",
-      "sql_parameters_do_not_fit": "I valori dei parametri non corrispondono all'istruzione: {{reason}}"
+      "sql_parameters_do_not_fit": "I valori dei parametri non corrispondono all'istruzione: {{reason}}",
+      "unknown_root_field": "Campo di query sconosciuto '{{field}}': a questo ruolo non è servita alcuna tabella con quel nome",
+      "viewer_column_unknown": "'{{column}}' non è una colonna della tabella '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' non è un filtro della colonna '{{column}}'",
+      "viewer_value_invalid": "Il filtro su '{{column}}' non può usare il valore '{{value}}'",
+      "replica_building": "La copia di {{replica}} è ancora in fase di creazione. La creazione continua; riapri l'anteprima al termine."
     },
     "discovery": {
       "adapter_missing_discover_schema": "L'adattatore per '{{source_type}}' non implementa discover_schema",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: l'argomento '{{argument}}' non è stato fornito",
       "argument_not_declared": "{{signature}}: l'argomento '{{argument}}' non è dichiarato",
       "binding_missing_key": "al binding di funzione per il kind '{{kind}}' manca la chiave obbligatoria '{{key}}'",
-      "egress_denied": "uscita verso '{{endpoint}}' negata: host non presente nell'elenco consentiti di uscita UDF (REQ-885 rifiuto predefinito). Aggiungerlo a udf_egress_allowlist per consentirlo.",
+      "egress_denied": "uscita verso '{{endpoint}}' negata: host non presente nell'elenco consentiti di uscita UDF (rifiuto predefinito). Aggiungerlo a udf_egress_allowlist per consentirlo.",
       "grpc_call_failed": "chiamata grpc {{target}}{{path}} non riuscita: {{status}}: {{details}}",
       "grpc_method_invalid": "il metodo grpc '{{method}}' deve essere 'Service/Method' o 'pkg.Service.Method'",
       "json_argument_invalid": "l'argomento '{{argument}}' di '{{name}}' non è un letterale JSON",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "il callable python '{{spec}}' deve essere 'module:attr'",
       "remote_refused": "{{source_id}} ha rifiutato {{operation}}: {{answer}}",
       "result_set_ref_invalid": "il riferimento result_set '{{ref}}' deve essere source.schema.table",
-      "rowwise_external": "la funzione '{{name}}' (kind={{impl_kind}}) è esterna riga per riga: tutti gli argomenti sono column_value scalari. Dichiarare un argomento relazione table_ref/result_set affinché le chiamate siano per insiemi e raggruppate in batch (REQ-885).",
+      "rowwise_external": "la funzione '{{name}}' (kind={{impl_kind}}) è esterna riga per riga: tutti gli argomenti sono column_value scalari. Dichiarare un argomento relazione table_ref/result_set affinché le chiamate siano per insiemi e raggruppate in batch.",
       "script_failed": "script terminato con codice {{returncode}}: {{stderr}}",
       "source_not_connected": "Origine '{{source_id}}' non connessa",
       "unknown_arg_kind": "arg_kind '{{arg_kind}}' sconosciuto per '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "L'id organizzazione '{{org}}' è riservato. Id riservati: {{reserved}}.",
       "platform_admin_required": "platform_admin richiesto",
       "retry_not_failed": "L'organizzazione '{{org}}' è in stato '{{state}}', non 'failed' — nulla da ritentare.",
-      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore (REQ-1308).",
+      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
       "view_not_permitted": "Visualizzazione di questa organizzazione non consentita"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "calendario non valido: {{error}}",
       "invalid_cardinality": "Cardinalità non valida: '{{cardinality}}'",
       "invalid_off_peak_window": "finestra fuori picco non valida: {{error}}",
-      "load_protection_gate_required": "{{who}}: la protezione dal carico richiede almeno un gate di aggiornamento — impostare una finestra fuori picco, una cadenza cache_ttl o un change_signal di sondaggio (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: la protezione dal carico richiede almeno un gate di aggiornamento — impostare una finestra fuori picco, una cadenza cache_ttl o un change_signal di sondaggio (probe/ttl_probe)",
       "metric_deleted": "Metrica '{{metric}}' eliminata",
       "metric_not_found": "Metrica '{{metric}}' non trovata",
       "metric_saved": "Metrica '{{metric}}' salvata",
@@ -297,6 +302,10 @@
       "relationship_not_found": "Relazione '{{relationship}}' non trovata",
       "relationship_saved": "Relazione '{{relationship}}' salvata",
       "remigrated": "Ripetuta la migrazione di {{source}}.{{table}}",
+      "change_signal_not_honoured": "Un'origine di tipo {{type}} non può ancora essere controllata per rilevare modifiche, quindi il segnale di modifica {{signal}} non verrebbe mai interrogato. Usa ttl per l'origine '{{source}}'.",
+      "sentinel_path_not_applicable": "Un'origine di tipo {{type}} non può avere un percorso sentinella: nessun tuo produttore può segnalare una modifica dei suoi dati, oppure l'origine non viene sondata. Rimuovi il percorso sentinella dall'origine '{{source}}'.",
+      "source_cache_ttl_required": "L'origine '{{source}}' richiede un TTL cache: ogni sua tabella è una replica, aggiornata secondo quell'orologio con il segnale di modifica {{signal}}. Impostalo in «Gestione del carico e tempestività» dell'origine.",
+      "landing_ttl_required": "La tabella '{{table}}' è una replica aggiornata secondo un TTL cache, e né essa né la sua origine '{{source}}' ne hanno uno. Imposta il TTL cache in «Gestione del carico e tempestività» dell'origine, oppure sulla tabella stessa una volta registrata.",
       "replicate_contradicts_load_protected": "La protezione dal carico non può essere combinata con Replicare = «Mai»: una tabella protetta dal carico non viene mai letta in tempo reale",
       "replicate_invalid": "Replicare deve essere «Predefinito», «Mai», «Sempre» o una soglia superiore a 0; ricevuto {{value}}",
       "request_executed": "Eseguita la richiesta di creazione n. {{id}}",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} è l'ultimo amministratore della piattaforma di questa installazione. Assegna prima il ruolo a un altro utente.",
       "no_active_org": "Nessuna organizzazione è associata a questa richiesta. Accedi prima a un'organizzazione.",
       "no_fields_to_update": "Nessun campo da aggiornare",
-      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore (REQ-1308).",
+      "self_role_change": "Un utente non può modificare il proprio ruolo. Chiedere a un altro amministratore.",
       "user_not_found": "Utente non trovato"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "Non esiste alcuna piattaforma di posta chiamata {{platform}}.",
       "not_configured": "La tua organizzazione non ha ancora collegato questa piattaforma di posta ({{platform}}). Un amministratore ne inserisce il client una volta in Amministrazione › Email.",
       "unknown_setting": "{{setting}} non è un’impostazione di questa piattaforma di posta.",
-      "incomplete": "Ancora necessario prima di salvare: {{missing}}."
+      "incomplete": "Ancora necessario prima di salvare: {{missing}}.",
+      "credential_unresolved": "Non è stato possibile risolvere il valore di {{field}} inserito per questa piattaforma di posta ({{platform}}): {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "La scelta delle caselle di posta non può essere interpretata: {{error}}",
       "client_refused": "Microsoft ha rifiutato il client Microsoft 365 della tua organizzazione: {{reason}}",
       "throttled": "Microsoft sta limitando le richieste per ora. Riprova tra {{retry_after}} secondi.",
-      "directory_refused": "Microsoft non ha elencato le caselle di posta dell'organizzazione ({{status}} {{reason}}). Il client necessita dell'autorizzazione a leggere gli utenti della directory."
+      "directory_refused": "Microsoft non ha elencato le caselle di posta dell'organizzazione ({{status}} {{reason}}). Il client necessita dell'autorizzazione a leggere gli utenti della directory.",
+      "directory_no_permissions": "Microsoft non ha elencato le caselle di posta dell'organizzazione ({{status}} {{reason}}). Il token del client non porta alcuna autorizzazione dell'applicazione; serve {{missing}}. Aggiungila come autorizzazione dell'applicazione (non delegata) e concedi il consenso dell'amministratore.",
+      "directory_permission_missing": "Microsoft non ha elencato le caselle di posta dell'organizzazione ({{status}} {{reason}}). Il token del client porta {{carries}}; manca: {{missing}}. Aggiungila come autorizzazione dell'applicazione (non delegata) e concedi il consenso dell'amministratore.",
+      "directory_refused_granted": "Microsoft non ha elencato le caselle di posta dell'organizzazione ({{status}} {{reason}}), benché il token del client porti ciò che serve all'elenco ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Non esiste alcun ruolo chiamato {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Non è un modo per scegliere le caselle di posta: {{error}}",
+      "scope_not_delegated": "L’account di servizio Google dell’organizzazione non è autorizzato per {{scopes}}. Un super amministratore aggiunge il suo ID client con quell’ambito nella Console di amministrazione Google, in Sicurezza › Controllo di accesso e dati › Controlli API › Gestisci delega a livello di dominio; una nuova autorizzazione può richiedere fino a 24 ore.",
+      "admin_not_a_user": "{{address}} non è un utente del dominio Google Workspace dell’organizzazione, quindi la directory non può essere elencata a suo nome. Un amministratore corregge l’indirizzo dell’amministratore in Amministrazione › Email.",
+      "directory_refused": "Non è stato possibile leggere la directory di Google: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google ha rifiutato l’account di servizio dell’organizzazione: {{reason}}"
     }
   }
 }

@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Replicare",
-    "helpTable": "Quando questa tabella viene servita dalla sua replica: una copia conservata nello store del motore e aggiornata secondo le impostazioni di tempestività della tabella (TTL, controllo di aggiornamento, flusso di modifiche). Non è un flusso continuo di modifiche. «Predefinito» usa il valore dell'origine oppure, se l'origine non ne ha, la soglia globale. Solo «Sempre» è una garanzia; «Predefinito», «Mai» e le voci Hot si applicano per quanto possibile.",
-    "helpSource": "Quando le tabelle di questa origine vengono servite dalle loro repliche: copie conservate nello store del motore e aggiornate secondo le impostazioni di tempestività di ciascuna tabella. Una tabella senza un proprio valore usa questo. «Predefinito» applica la soglia globale. Solo «Sempre» è una garanzia; «Predefinito», «Mai» e le voci Hot si applicano per quanto possibile.",
+    "helpTable": "Quando le letture di questa tabella provengono dalla sua replica, una copia nell'archivio del motore aggiornata secondo le impostazioni di tempestività della tabella. Predefinito: l'impostazione dell'origine oppure, se assente, la soglia globale.",
+    "helpSource": "Quando le letture delle tabelle di questa origine provengono dalle loro repliche, copie nell'archivio del motore aggiornate secondo le impostazioni di tempestività di ciascuna tabella. Una tabella senza un'impostazione propria usa questa. Predefinito: la soglia globale.",
+    "helpOptions": "Live se possibile: lettura diretta dall'origine; replica solo quando il motore non può leggerla direttamente. Hot-N: lettura diretta finché N istruzioni non leggono la tabella nell'intervallo, poi dalla replica finché non scendono sotto la metà di N; le risposte dalla cache delle risposte non contano. Sempre: sempre dalla replica, l'unica impostazione che è una garanzia.",
     "default": "Predefinito",
-    "never": "Mai",
+    "never": "Live se possibile",
     "always": "Sempre",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "«Mai» non può essere combinato con la protezione dal carico: una tabella protetta dal carico non viene mai letta in tempo reale."
+    "neverWithLoadProtection": "«Live se possibile» non può essere combinato con la protezione dal carico: una tabella protetta dal carico non viene mai letta in tempo reale.",
+    "scheduled": "Sempre, origine letta solo su pianificazione",
+    "helpScheduled": "Sempre, origine letta solo su pianificazione: le letture provengono sempre dalla replica e una query non causa mai la lettura dell’origine; lo scheduler aggiorna la replica nella finestra fuori picco, secondo il TTL cache o la verifica delle modifiche, e almeno uno dei tre è richiesto."
   }
 }

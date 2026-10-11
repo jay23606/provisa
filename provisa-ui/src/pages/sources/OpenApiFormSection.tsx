@@ -22,6 +22,7 @@ import {
 } from "@mantine/core";
 import { API_AUTH_TYPES } from "./constants";
 import { AuthUserPass } from "./AuthUserPass";
+import { FormField } from "../../components/form/FormLayout";
 
 interface OpenApiFormSectionProps {
   openapiSpecMode: "path" | "inline";
@@ -71,160 +72,171 @@ export function OpenApiFormSection({
   const { t } = useTranslation();
   return (
     <>
-      <Radio.Group
-        name="openapiSpecMode"
-        label={t("openApiFormSection.specModeLegend")}
-        value={openapiSpecMode}
-        onChange={(v) => setOpenapiSpecMode(v as "path" | "inline")}
-        style={{ gridColumn: "1 / -1" }}
-      >
-        <Group mt="xs" gap="lg">
-          <Radio
-            value="path"
-            label={t("openApiFormSection.specModePath")}
-            data-testid="openapi-spec-mode-path"
-          />
-          <Radio
-            value="inline"
-            label={t("openApiFormSection.specModeInline")}
-            data-testid="openapi-spec-mode-inline"
-          />
-        </Group>
-      </Radio.Group>
+      <FormField size="full">
+        <Radio.Group
+          name="openapiSpecMode"
+          label={t("openApiFormSection.specModeLegend")}
+          value={openapiSpecMode}
+          onChange={(v) => setOpenapiSpecMode(v as "path" | "inline")}
+        >
+          <Group mt="xs" gap="lg">
+            <Radio
+              value="path"
+              label={t("openApiFormSection.specModePath")}
+              data-testid="openapi-spec-mode-path"
+            />
+            <Radio
+              value="inline"
+              label={t("openApiFormSection.specModeInline")}
+              data-testid="openapi-spec-mode-inline"
+            />
+          </Group>
+        </Radio.Group>
+      </FormField>
       {openapiSpecMode === "path" ? (
-        <TextInput
-          required
-          label={t("openApiFormSection.specPathLabel")}
-          value={openapiSpecPath}
-          onChange={(e) => setOpenapiSpecPath(e.target.value)}
-          placeholder={t("openApiFormSection.specPathPlaceholder")}
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="openapi-spec-path-input"
-        />
+        <FormField size="long">
+          <TextInput
+            required
+            label={t("openApiFormSection.specPathLabel")}
+            value={openapiSpecPath}
+            onChange={(e) => setOpenapiSpecPath(e.target.value)}
+            placeholder={t("openApiFormSection.specPathPlaceholder")}
+            data-testid="openapi-spec-path-input"
+          />
+        </FormField>
       ) : (
-        <Textarea
-          required
-          label={t("openApiFormSection.specInlineLabel")}
-          value={openapiSpecInline}
-          onChange={(e) => setOpenapiSpecInline(e.target.value)}
-          placeholder={
-            "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0'\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        '200':\n          description: OK"
-          }
-          styles={{ input: { fontFamily: "monospace", fontSize: "0.8rem" } }}
-          autosize
-          minRows={8}
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="openapi-spec-inline-input"
-        />
+        <FormField size="full">
+          <Textarea
+            required
+            label={t("openApiFormSection.specInlineLabel")}
+            value={openapiSpecInline}
+            onChange={(e) => setOpenapiSpecInline(e.target.value)}
+            placeholder={
+              "openapi: '3.0.0'\ninfo:\n  title: My API\n  version: '1.0'\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        '200':\n          description: OK"
+            }
+            styles={{ input: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+            autosize
+            minRows={8}
+            data-testid="openapi-spec-inline-input"
+          />
+        </FormField>
       )}
-      <TextInput
-        label={
-          <>
-            {t("openApiFormSection.baseUrlLabel")}{" "}
-            <Text component="span" c="dimmed" size="xs">
-              {t("openApiFormSection.baseUrlHint")}
-            </Text>
-          </>
-        }
-        value={openapiBaseUrl}
-        onChange={(e) => setOpenapiBaseUrl(e.target.value)}
-        placeholder={t("openApiFormSection.baseUrlPlaceholder")}
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="openapi-base-url-input"
-      />
-      <NumberInput
-        label={t("openApiFormSection.cacheTtlLabel")}
-        min={0}
-        value={openapiCacheTtl === "" ? "" : Number(openapiCacheTtl)}
-        onChange={(v) => setOpenapiCacheTtl(v === "" ? "" : String(v))}
-        placeholder={t("openApiFormSection.cacheTtlPlaceholder")}
-        data-testid="openapi-cache-ttl-input"
-      />
-      <Select
-        label={t("openApiFormSection.authenticationLabel")}
-        value={authType}
-        onChange={(v) => {
-          setAuthType(v ?? "");
-          setAuthFields({});
-        }}
-        data={API_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
-        allowDeselect={false}
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="openapi-auth-type-select"
-      />
-      {authType === "bearer" && (
+      <FormField size="long">
         <TextInput
-          required
-          label={t("openApiFormSection.tokenLabel")}
-          value={authFields.token ?? ""}
-          onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-          placeholder={t("openApiFormSection.tokenPlaceholder")}
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="openapi-bearer-token-input"
+          label={
+            <>
+              {t("openApiFormSection.baseUrlLabel")}{" "}
+              <Text component="span" c="dimmed" size="xs">
+                {t("openApiFormSection.baseUrlHint")}
+              </Text>
+            </>
+          }
+          value={openapiBaseUrl}
+          onChange={(e) => setOpenapiBaseUrl(e.target.value)}
+          placeholder={t("openApiFormSection.baseUrlPlaceholder")}
+          data-testid="openapi-base-url-input"
         />
+      </FormField>
+      <FormField size="short">
+        <NumberInput
+          label={t("openApiFormSection.cacheTtlLabel")}
+          min={0}
+          value={openapiCacheTtl === "" ? "" : Number(openapiCacheTtl)}
+          onChange={(v) => setOpenapiCacheTtl(v === "" ? "" : String(v))}
+          placeholder={t("openApiFormSection.cacheTtlPlaceholder")}
+          data-testid="openapi-cache-ttl-input"
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("openApiFormSection.authenticationLabel")}
+          value={authType}
+          onChange={(v) => {
+            setAuthType(v ?? "");
+            setAuthFields({});
+          }}
+          data={API_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
+          allowDeselect={false}
+          data-testid="openapi-auth-type-select"
+        />
+      </FormField>
+      {authType === "bearer" && (
+        <FormField size="long">
+          <TextInput
+            required
+            label={t("openApiFormSection.tokenLabel")}
+            value={authFields.token ?? ""}
+            onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+            placeholder={t("openApiFormSection.tokenPlaceholder")}
+            data-testid="openapi-bearer-token-input"
+          />
+        </FormField>
       )}
       {authType === "basic" && (
         <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
       )}
       {authType === "api_key" && (
         <>
-          <TextInput
-            required
-            label={t("openApiFormSection.headerNameLabel")}
-            value={authFields.header_name ?? "X-API-Key"}
-            onChange={(e) => setAuthFields({ ...authFields, header_name: e.target.value })}
-            placeholder={t("openApiFormSection.headerNamePlaceholder")}
-            data-testid="openapi-header-name-input"
-          />
-          <TextInput
-            required
-            label={t("openApiFormSection.apiKeyLabel")}
-            value={authFields.api_key ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, api_key: e.target.value })}
-            placeholder={t("openApiFormSection.apiKeyPlaceholder")}
-            data-testid="openapi-api-key-input"
-          />
+          <FormField size="medium">
+            <TextInput
+              required
+              label={t("openApiFormSection.headerNameLabel")}
+              value={authFields.header_name ?? "X-API-Key"}
+              onChange={(e) => setAuthFields({ ...authFields, header_name: e.target.value })}
+              placeholder={t("openApiFormSection.headerNamePlaceholder")}
+              data-testid="openapi-header-name-input"
+            />
+          </FormField>
+          <FormField size="long">
+            <TextInput
+              required
+              label={t("openApiFormSection.apiKeyLabel")}
+              value={authFields.api_key ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, api_key: e.target.value })}
+              placeholder={t("openApiFormSection.apiKeyPlaceholder")}
+              data-testid="openapi-api-key-input"
+            />
+          </FormField>
         </>
       )}
-      <Group style={{ gridColumn: "1 / -1" }} gap="sm" align="center">
-        <Button
-          type="button"
-          onClick={onOpenapiPreview}
-          loading={openapiPreviewing}
-          disabled={openapiSpecMode === "path" ? !openapiSpecPath : !openapiSpecInline}
-          data-testid="openapi-preview-button"
-        >
-          {openapiPreviewing
-            ? t("openApiFormSection.previewLoading")
-            : t("openApiFormSection.previewButton")}
-        </Button>
-        {openapiPreviewError && (
-          <Alert color="red" variant="light" py={4} px="sm" data-testid="openapi-preview-error">
-            {openapiPreviewError}
-          </Alert>
-        )}
-      </Group>
+      <FormField size="full">
+        <Group gap="sm" align="center">
+          <Button
+            type="button"
+            onClick={onOpenapiPreview}
+            loading={openapiPreviewing}
+            disabled={openapiSpecMode === "path" ? !openapiSpecPath : !openapiSpecInline}
+            data-testid="openapi-preview-button"
+          >
+            {openapiPreviewing
+              ? t("openApiFormSection.previewLoading")
+              : t("openApiFormSection.previewButton")}
+          </Button>
+          {openapiPreviewError && (
+            <Alert color="red" variant="light" py={4} px="sm" data-testid="openapi-preview-error">
+              {openapiPreviewError}
+            </Alert>
+          )}
+        </Group>
+      </FormField>
       {openapiPreview && (
-        <Text
-          size="sm"
-          c="dimmed"
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="openapi-preview-summary"
-        >
-          <Text component="strong" size="sm">
-            {t("openApiFormSection.queriesCount", { count: openapiPreview.queries.length })}
+        <FormField size="full">
+          <Text size="sm" c="dimmed" data-testid="openapi-preview-summary">
+            <Text component="strong" size="sm">
+              {t("openApiFormSection.queriesCount", { count: openapiPreview.queries.length })}
+            </Text>
+            {": "}
+            {openapiPreview.queries.map((q) => q.operation_id).join(", ") ||
+              t("openApiFormSection.none")}
+            <br />
+            <Text component="strong" size="sm">
+              {t("openApiFormSection.mutationsCount", { count: openapiPreview.mutations.length })}
+            </Text>
+            {": "}
+            {openapiPreview.mutations.map((m) => m.operation_id).join(", ") ||
+              t("openApiFormSection.none")}
           </Text>
-          {": "}
-          {openapiPreview.queries.map((q) => q.operation_id).join(", ") ||
-            t("openApiFormSection.none")}
-          <br />
-          <Text component="strong" size="sm">
-            {t("openApiFormSection.mutationsCount", { count: openapiPreview.mutations.length })}
-          </Text>
-          {": "}
-          {openapiPreview.mutations.map((m) => m.operation_id).join(", ") ||
-            t("openApiFormSection.none")}
-        </Text>
+        </FormField>
       )}
     </>
   );

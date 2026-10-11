@@ -8,7 +8,8 @@
 // parse_grain_spec resolves; nesting-grain presets pass through as their plain token.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "../../../test-utils/render";
+// The builder is fields of the form that mounts it, so it is mounted in one here too.
+import { renderInForm as render, screen, fireEvent } from "../../../test-utils/render";
 import { RecurrenceBuilder } from "../RecurrenceBuilder";
 
 function renderBuilder(value: string | null) {

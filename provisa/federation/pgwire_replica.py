@@ -948,7 +948,6 @@ async def land_via_select_keys(
     if len(pk_columns) != 1:
         raise ValueError(
             f"pgwire-replica keyed fetch on a composite PK {pk_columns!r} is not implemented "
-            "(REQ-1865)"
         )
     if not keys:
         return []

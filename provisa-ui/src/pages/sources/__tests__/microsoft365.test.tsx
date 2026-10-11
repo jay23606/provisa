@@ -13,8 +13,10 @@
 // nothing about how Provisa signs in to Microsoft is in front of them.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "../../../test-utils/render";
+import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/render";
 import en from "../../../i18n/locales/en/microsoft365Fields.json";
+import google from "../../../i18n/locales/en/googleWorkspaceFields.json";
+import shared from "../../../i18n/locales/en/sourceFormFields.json";
 import { BRAND_CARRIER, SOURCE_TYPES } from "../constants";
 import { SourceFormFieldsExtended } from "../SourceFormFieldsExtended";
 import type { SourceFormFieldsProps } from "../SourceFormFields";
@@ -74,7 +76,7 @@ function form(authFields: Record<string, string>, id = "mail") {
     setAuthFields,
     domains: [],
   } as unknown as SourceFormFieldsProps;
-  render(<SourceFormFieldsExtended {...props} />);
+  renderInForm(<SourceFormFieldsExtended {...props} />);
   return setAuthFields;
 }
 
@@ -121,11 +123,12 @@ describe("what the form asks", () => {
 });
 
 describe("connecting the mailbox", () => {
-  it("asks for the owner's approval and keeps what it gave", async () => {
+  it("asks for the owner's approval and holds none of it", async () => {
+    // The server keeps the approval for the source's reads; the answer says only who approved.
     signIn.signInSource.mockResolvedValue({
       source_id: "mail",
       account: "megan@contoso.test",
-      refresh_token: "${secret:source_mail_refresh_token}",
+      connected: true,
     });
     const setAuthFields = form(FILLED);
     await waitFor(() => expect(shown("connect")).toBeEnabled());
@@ -137,31 +140,54 @@ describe("connecting the mailbox", () => {
       account: "megan@contoso.test",
       scopes: M365_SCOPES,
     });
-    expect(setAuthFields).toHaveBeenCalledWith({
-      ...FILLED,
-      m365_refresh_token: "${secret:source_mail_refresh_token}",
-      m365_connected_as: "megan@contoso.test",
-    });
+    const [kept] = setAuthFields.mock.calls.at(-1)!;
+    expect(kept).toMatchObject({ ...FILLED, m365_connected_as: "megan@contoso.test" });
+    expect(Date.parse(kept.m365_connected_at)).not.toBeNaN();
+    expect(JSON.stringify(kept)).not.toContain("refresh_token");
+  });
+
+  it("learns from the server whether the mailbox's owner has signed in, and when", async () => {
+    signIn.signInStatus.mockImplementation(async (_kind: string, of?: object) =>
+      of
+        ? {
+            configured: true,
+            may_configure: false,
+            connected: true,
+            connected_at: "2026-10-01T09:00:00+00:00",
+          }
+        : { configured: true, may_configure: false },
+    );
+    const setAuthFields = form(FILLED);
+    await waitFor(() =>
+      expect(signIn.signInStatus).toHaveBeenCalledWith("microsoft_365", {
+        source_id: "mail",
+        account: "megan@contoso.test",
+      }),
+    );
+    await waitFor(() =>
+      expect(setAuthFields).toHaveBeenCalledWith({
+        ...FILLED,
+        m365_connected_as: "megan@contoso.test",
+        m365_connected_at: "2026-10-01T09:00:00+00:00",
+      }),
+    );
   });
 
   it("says who it is connected as", async () => {
-    form({ ...FILLED, m365_refresh_token: "${secret:t}", m365_connected_as: "megan@contoso.test" });
+    form({ ...FILLED, m365_connected_as: "megan@contoso.test" });
     expect(await screen.findByTestId("microsoft-365-connected")).toHaveTextContent(
       "Connected as megan@contoso.test",
     );
   });
 
   it("asks again when another mailbox is named", () => {
-    const setAuthFields = form({
-      ...FILLED,
-      m365_refresh_token: "${secret:t}",
-      m365_connected_as: "megan@contoso.test",
-    });
+    const setAuthFields = form({ ...FILLED, m365_connected_as: "megan@contoso.test" });
     fireEvent.change(shown("m365_account")!, { target: { value: "other@contoso.test" } });
     expect(setAuthFields).toHaveBeenCalledWith({
       m365_account: "other@contoso.test",
-      m365_refresh_token: "",
+      m365_earlier_approval: "",
       m365_connected_as: "",
+      m365_connected_at: "",
     });
   });
 
@@ -198,23 +224,160 @@ describe("an organisation that has not connected Microsoft 365", () => {
 });
 
 describe("the source's mapping", () => {
-  it("keeps the mailbox, what is read and the approval, and no client", () => {
-    const mapping = m365Mapping({ ...FILLED, m365_refresh_token: "${secret:t}" });
-    expect(mapping).toEqual({
-      accounts: ["megan@contoso.test"],
-      resources: ["mail"],
-      refresh_token: "${secret:t}",
-    });
+  it("keeps the mailbox and what is read: no approval and no client", () => {
+    const mapping = m365Mapping({ ...FILLED, m365_connected_as: "megan@contoso.test" });
+    expect(mapping).toEqual({ accounts: ["megan@contoso.test"], resources: ["mail"] });
     expect(m365FieldsFromMapping(JSON.stringify(mapping))).toEqual({
       m365_whose: "one",
       m365_account: "megan@contoso.test",
-      m365_refresh_token: "${secret:t}",
-      m365_connected_as: "megan@contoso.test",
     });
+  });
+
+  it("carries through the reference a source connected the earlier way still names", () => {
+    // Its reader takes that approval once and keeps it; until then an edit must not drop it.
+    const stored = {
+      accounts: ["megan@contoso.test"],
+      resources: ["mail"],
+      refresh_token: "${secret:source_mail__refresh_token}",
+    };
+    const fields = m365FieldsFromMapping(JSON.stringify(stored));
+    expect(fields.m365_connected_as).toBe("megan@contoso.test");
+    expect(m365Mapping({ ...FILLED, ...fields })).toEqual(stored);
+  });
+});
+
+describe("nothing received before a date", () => {
+  it.each([[FILLED], [{ m365_whose: "organisation" }]])(
+    "offers the date and keeps what is typed, whichever mailboxes are read (%j)",
+    async (whose) => {
+      const setAuthFields = form(whose);
+      const field = await screen.findByTestId("microsoft-365-m365_mail_since");
+      expect(field).toHaveAttribute("type", "date");
+      fireEvent.change(field, { target: { value: "2026-10-01" } });
+      expect(setAuthFields).toHaveBeenCalledWith({ ...whose, m365_mail_since: "2026-10-01" });
+    },
+  );
+
+  it("is the source's mail_since, as a Google Workspace source's is, for either shape", () => {
+    const one = m365Mapping({ ...FILLED, m365_mail_since: "2026-10-01" });
+    expect(one).toEqual({
+      accounts: ["megan@contoso.test"],
+      resources: ["mail"],
+      mail_since: "2026-10-01",
+    });
+    const organisation = m365Mapping({
+      m365_whose: "organisation",
+      m365_choice: "everyone",
+      m365_mail_since: "2026-10-01",
+    });
+    expect(organisation).toEqual({
+      resources: ["mail"],
+      mailboxes: { everyone: true },
+      mail_since: "2026-10-01",
+    });
+    // A stored source shows its date again, whichever shape it is.
+    expect(m365FieldsFromMapping(JSON.stringify(one)).m365_mail_since).toBe("2026-10-01");
+    expect(m365FieldsFromMapping(JSON.stringify(organisation)).m365_mail_since).toBe("2026-10-01");
+  });
+
+  it("left empty, the source states no date and holds mail of any age", () => {
+    expect(m365Mapping(FILLED)).toEqual({ accounts: ["megan@contoso.test"], resources: ["mail"] });
+    expect(m365Mapping({ ...FILLED, m365_mail_since: "" })).not.toHaveProperty("mail_since");
+    expect(m365FieldsFromMapping(JSON.stringify(m365Mapping(FILLED)))).not.toHaveProperty(
+      "m365_mail_since",
+    );
+  });
+
+  it("is the one field both mail sources show, with one label and one hint", async () => {
+    form(FILLED);
+    await screen.findByTestId("microsoft-365-m365_mail_since");
+    expect(screen.getByLabelText(shared.sourceFormFields.mailSince)).toBeInTheDocument();
+    expect(screen.getByText(shared.sourceFormFields.mailSinceHelp)).toBeInTheDocument();
+    // Neither source keeps wording of its own for it.
+    expect(en.microsoft365Fields).not.toHaveProperty("mailSince");
+    expect(google.googleWorkspaceFields).not.toHaveProperty("mailSince");
   });
 });
 
 const ORG = { m365_whose: "organisation" };
+describe("what the form offers follows what the organisation's Microsoft 365 entry can do", () => {
+  // The organisation's client serves both shapes, so only the switch tells them apart.
+  // `admin`: whether the person at the form may set the entry up (Admin › Email).
+  const entry = (configured: boolean, organisation_mailboxes: boolean, admin = false) => ({
+    configured,
+    may_configure: admin,
+    organisation_mailboxes,
+  });
+  const offered = async () => {
+    const input = await screen.findByTestId("microsoft-365-m365_whose");
+    fireEvent.click(input);
+    const list = document.getElementById(input.getAttribute("aria-controls")!)!;
+    return [...list.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+  };
+  const ONE = en.microsoft365Fields.whoseOne;
+  const ORGANISATION = en.microsoft365Fields.whoseOrganisation;
+
+  it("connected, the organisation's mailboxes allowed: both, and a new source opens on one mailbox", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, true));
+    const setAuthFields = form({});
+    await waitFor(() => expect(setAuthFields).toHaveBeenCalledWith({ m365_whose: "one" }));
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+  });
+
+  it("connected, not allowed: one mailbox only for someone who cannot allow it", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, false));
+    form({});
+    expect(await offered()).toEqual([ONE]);
+    expect(shown("not-allowed")).toBeNull();
+  });
+
+  it("connected, not allowed: an administrator is still offered it, where the notice says where to allow it", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, false, true));
+    form({});
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+    expect(m365.m365Shapes(entry(true, false, true), "").opensOn).toBe("one");
+  });
+
+  it("not connected: both are offered and the form says what is missing", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(false, false));
+    form({});
+    expect(await screen.findByTestId("microsoft-365-not-set-up")).toBeInTheDocument();
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+    // The switch alone reads nothing without the client.
+    expect(m365.m365Shapes(entry(false, true), "")).toEqual({
+      offered: ["one", "organisation"],
+      opensOn: "one",
+    });
+  });
+
+  it("a stored source keeps its shape and what it holds, whatever the entry can do now", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, false));
+    const stored = { m365_whose: "organisation", m365_choice: "everyone" };
+    const setAuthFields = form(stored);
+    expect(await offered()).toEqual([ONE, ORGANISATION]);
+    expect(await screen.findByTestId("microsoft-365-not-allowed")).toBeInTheDocument();
+    expect(setAuthFields).not.toHaveBeenCalled();
+  });
+
+  it("a stored one-mailbox source connected the earlier way keeps its approval", async () => {
+    signIn.signInStatus.mockResolvedValue(entry(true, true));
+    const earlier = m365FieldsFromMapping(
+      JSON.stringify({
+        accounts: ["megan@contoso.test"],
+        resources: ["mail"],
+        refresh_token: "${secret:source_mail__refresh_token}",
+      }),
+    );
+    expect(earlier.m365_whose).toBe("one");
+    const setAuthFields = form(earlier, "");
+    await screen.findByTestId("microsoft-365-m365_whose");
+    await waitFor(() => expect(signIn.signInStatus).toHaveBeenCalled());
+    // Nothing settles a shape for it, so nothing rewrites its fields.
+    expect(setAuthFields).not.toHaveBeenCalled();
+    expect(m365Mapping(earlier).refresh_token).toBe("${secret:source_mail__refresh_token}");
+  });
+});
+
 const allowed = { configured: true, may_configure: false, organisation_mailboxes: true };
 
 describe("a source of the organisation's mailboxes", () => {
@@ -261,7 +424,11 @@ describe("a source of the organisation's mailboxes", () => {
   });
 
   it("tells an administrator in one line when the organisation has not allowed it", async () => {
-    signIn.signInStatus.mockResolvedValue({ ...allowed, may_configure: true, organisation_mailboxes: false });
+    signIn.signInStatus.mockResolvedValue({
+      ...allowed,
+      may_configure: true,
+      organisation_mailboxes: false,
+    });
     form({ ...ORG, m365_choice: "everyone" });
     const line = await screen.findByTestId("microsoft-365-not-allowed");
     expect(line).toHaveTextContent(en.microsoft365Fields.notAllowed);
@@ -282,8 +449,14 @@ describe("a source of the organisation's mailboxes", () => {
     expect(m365Mailboxes({ ...ORG, m365_choice: "group", m365_group: " " })).toBeNull();
     const cases: [Record<string, string>, Record<string, unknown>][] = [
       [{ m365_choice: "everyone" }, { everyone: true }],
-      [{ m365_choice: "group", m365_group: " sales@contoso.test " }, { group: "sales@contoso.test" }],
-      [{ m365_choice: "list", m365_list: "a@contoso.test\n\n b@contoso.test " }, { list: ["a@contoso.test", "b@contoso.test"] }],
+      [
+        { m365_choice: "group", m365_group: " sales@contoso.test " },
+        { group: "sales@contoso.test" },
+      ],
+      [
+        { m365_choice: "list", m365_list: "a@contoso.test\n\n b@contoso.test " },
+        { list: ["a@contoso.test", "b@contoso.test"] },
+      ],
     ];
     for (const [fields, mailboxes] of cases) {
       const mapping = m365Mapping({ ...ORG, ...fields, m365_refresh_token: "left over" });

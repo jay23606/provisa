@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "エンジンのカタログ '{{catalog}}' を登録中です。しばらくしてからもう一度お試しください。",
       "domain_not_accessible": "ロール「{{role_id}}」はドメイン「{{domain}}」にアクセスできません",
       "role_mismatch": "リクエストはロール「{{body_role}}」を指定していますが、ロール「{{acting_role}}」として実行されます。ロールは X-Provisa-Role ヘッダー(またはサインイン中の ID)で指定されます。もう一方のロールを削除するか、一致させてください。",
-      "sql_parameters_do_not_fit": "パラメーターの値がステートメントと一致しません: {{reason}}"
+      "sql_parameters_do_not_fit": "パラメーターの値がステートメントと一致しません: {{reason}}",
+      "unknown_root_field": "不明なクエリフィールド '{{field}}': このロールにはその名前のテーブルが提供されていません",
+      "viewer_column_unknown": "'{{column}}' はテーブル '{{table}}' の列ではありません",
+      "viewer_filter_unknown": "'{{operator}}' は列 '{{column}}' のフィルターではありません",
+      "viewer_value_invalid": "'{{column}}' のフィルターでは値 '{{value}}' を使用できません",
+      "replica_building": "{{replica}} のコピーはまだ作成中です。作成は続行されます。完了後にもう一度プレビューを開いてください。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "「{{source_type}}」のアダプターは discover_schema を実装していません",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: 引数 '{{argument}}' が渡されていません",
       "argument_not_declared": "{{signature}}: 引数 '{{argument}}' は宣言されていません",
       "binding_missing_key": "kind「{{kind}}」の関数バインディングに必須キー「{{key}}」がありません",
-      "egress_denied": "「{{endpoint}}」への外部送信は拒否されました：ホストが UDF 外部送信許可リストにありません（REQ-885 デフォルト拒否）。許可するには udf_egress_allowlist に追加してください。",
+      "egress_denied": "「{{endpoint}}」への外部送信は拒否されました：ホストが UDF 外部送信許可リストにありません（デフォルト拒否）。許可するには udf_egress_allowlist に追加してください。",
       "grpc_call_failed": "grpc 呼び出し {{target}}{{path}} が失敗しました：{{status}}：{{details}}",
       "grpc_method_invalid": "grpc メソッド「{{method}}」は「Service/Method」または「pkg.Service.Method」の形式である必要があります",
       "json_argument_invalid": "'{{name}}' の引数 '{{argument}}' は JSON リテラルではありません",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python callable「{{spec}}」は「module:attr」の形式である必要があります",
       "remote_refused": "{{source_id}} が {{operation}} を拒否しました: {{answer}}",
       "result_set_ref_invalid": "result_set 参照「{{ref}}」は source.schema.table の形式である必要があります",
-      "rowwise_external": "関数「{{name}}」（kind={{impl_kind}}）は行単位の外部関数です：すべての引数がスカラーの column_value です。呼び出しがセット単位でバッチ処理されるよう、table_ref/result_set のリレーション引数を宣言してください（REQ-885）。",
+      "rowwise_external": "関数「{{name}}」（kind={{impl_kind}}）は行単位の外部関数です：すべての引数がスカラーの column_value です。呼び出しがセット単位でバッチ処理されるよう、table_ref/result_set のリレーション引数を宣言してください。",
       "script_failed": "スクリプトが終了コード {{returncode}} で終了しました：{{stderr}}",
       "source_not_connected": "ソース「{{source_id}}」が接続されていません",
       "unknown_arg_kind": "「{{name}}」の arg_kind「{{arg_kind}}」は不明です",
@@ -214,7 +219,7 @@
       "org_id_reserved": "組織ID「{{org}}」は予約されています。予約済みID：{{reserved}}。",
       "platform_admin_required": "platform_admin が必要です",
       "retry_not_failed": "組織「{{org}}」は「{{state}}」であり「failed」ではないため、再試行するものがありません。",
-      "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください（REQ-1308）。",
+      "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください。",
       "view_not_permitted": "この組織を表示する権限がありません"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "無効なカレンダーです：{{error}}",
       "invalid_cardinality": "無効なカーディナリティです：「{{cardinality}}」",
       "invalid_off_peak_window": "無効なオフピークウィンドウです：{{error}}",
-      "load_protection_gate_required": "{{who}}：負荷保護には少なくとも1つの更新ゲートが必要です。オフピークウィンドウ、cache_ttl の周期、またはプロービングの change_signal（probe/ttl_probe）を設定してください（REQ-1141）",
+      "load_protection_gate_required": "{{who}}：負荷保護には少なくとも1つの更新ゲートが必要です。オフピークウィンドウ、cache_ttl の周期、またはプロービングの change_signal（probe/ttl_probe）を設定してください",
       "metric_deleted": "メトリクス「{{metric}}」を削除しました",
       "metric_not_found": "メトリクス「{{metric}}」が見つかりません",
       "metric_saved": "メトリクス「{{metric}}」を保存しました",
@@ -297,6 +302,10 @@
       "relationship_not_found": "リレーションシップ「{{relationship}}」が見つかりません",
       "relationship_saved": "リレーションシップ「{{relationship}}」を保存しました",
       "remigrated": "{{source}}.{{table}} を再マイグレーションしました",
+      "change_signal_not_honoured": "種類 {{type}} のソースは、まだ変更の有無を確認できないため、変更シグナル {{signal}} が問い合わせられることはありません。ソース「{{source}}」には ttl を使用してください。",
+      "sentinel_path_not_applicable": "種類 {{type}} のソースにはセンチネルパスを設定できません。データの変更を知らせられるお客様側の生成元がないか、このソースはプローブされません。ソース「{{source}}」からセンチネルパスを削除してください。",
+      "source_cache_ttl_required": "ソース「{{source}}」にはキャッシュTTLが必要です。このソースのテーブルはすべてレプリカであり、変更シグナル {{signal}} のもとでその時計に従って更新されます。ソースの「負荷管理と鮮度」で設定してください。",
+      "landing_ttl_required": "テーブル「{{table}}」はキャッシュTTLに従って更新されるレプリカですが、テーブルにもそのソース「{{source}}」にも設定がありません。ソースの「負荷管理と鮮度」でキャッシュTTLを設定するか、登録後にテーブル自体に設定してください。",
       "replicate_contradicts_load_protected": "負荷保護はレプリケート =「しない」と併用できません。負荷保護されたテーブルはライブで読まれることがありません",
       "replicate_invalid": "レプリケートは「デフォルト」「しない」「常に」または 0 より大きいしきい値である必要があります（指定値: {{value}}）",
       "request_executed": "作成リクエスト #{{id}} を実行しました",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} はこのデプロイメントの最後のプラットフォーム管理者です。先に別のユーザーにそのロールを付与してください。",
       "no_active_org": "このリクエストに組織が関連付けられていません。先に組織にサインインしてください。",
       "no_fields_to_update": "更新するフィールドがありません",
-      "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください（REQ-1308）。",
+      "self_role_change": "ユーザーは自分自身のロールを変更できません。別の管理者に依頼してください。",
       "user_not_found": "ユーザーが見つかりません"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "{{platform}} という名前のメール プラットフォームはありません。",
       "not_configured": "組織はこのメール プラットフォーム ({{platform}}) をまだ接続していません。管理者が 「管理 › メール」 でクライアントを一度入力します。",
       "unknown_setting": "{{setting}} はこのメール プラットフォームの設定ではありません。",
-      "incomplete": "保存するには、次の項目がまだ必要です: {{missing}}。"
+      "incomplete": "保存するには、次の項目がまだ必要です: {{missing}}。",
+      "credential_unresolved": "このメール プラットフォーム ({{platform}}) に入力された {{field}} を解決できませんでした: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "メールボックスの選択を解釈できません: {{error}}",
       "client_refused": "Microsoft が組織の Microsoft 365 クライアントを拒否しました: {{reason}}",
       "throttled": "Microsoft が現在リクエストを制限しています。{{retry_after}} 秒後にもう一度お試しください。",
-      "directory_refused": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントにはディレクトリのユーザーを読み取るアクセス許可が必要です。"
+      "directory_refused": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントにはディレクトリのユーザーを読み取るアクセス許可が必要です。",
+      "directory_no_permissions": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントのトークンにはアプリケーションのアクセス許可が含まれていません。必要なのは {{missing}} です。(委任ではなく) アプリケーションのアクセス許可として追加し、管理者の同意を付与してください。",
+      "directory_permission_missing": "Microsoft が組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。クライアントのトークンには {{carries}} が含まれています。不足: {{missing}}。(委任ではなく) アプリケーションのアクセス許可として追加し、管理者の同意を付与してください。",
+      "directory_refused_granted": "クライアントのトークンには一覧表示に必要なもの ({{carries}}) が含まれていますが、Microsoft は組織のメールボックスを一覧表示しませんでした ({{status}} {{reason}})。"
     },
     "dbt_sources": {
       "unknown_role": "{{role}} という名前のロールはありません。"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "その方法ではメールボックスを選択できません: {{error}}",
+      "scope_not_delegated": "組織の Google サービス アカウントは {{scopes}} について承認されていません。特権管理者が、Google 管理コンソールの [セキュリティ] › [アクセスとデータ管理] › [API の制御] › [ドメイン全体の委任を管理] で、そのクライアント ID にこのスコープを追加します。新しい承認が反映されるまで最大 24 時間かかることがあります。",
+      "admin_not_a_user": "{{address}} は組織の Google Workspace ドメインのユーザーではないため、このアドレスとしてディレクトリを一覧表示できません。管理者が「管理 › メール」で管理者のアドレスを修正します。",
+      "directory_refused": "Google のディレクトリを読み取れませんでした: {{reason}} (HTTP {{status}})。",
+      "credential_refused": "Google が組織のサービス アカウントを拒否しました: {{reason}}"
     }
   }
 }

@@ -74,7 +74,7 @@ _TOOLS: list[Any] = [
     {
         "name": "graphql_field_names",
         "description": (
-            "REQ-1847/1849: the REAL field names a GraphQL query against /query must use for "
+            "The REAL field names a GraphQL query against /query must use for "
             "this table and its columns — NOT a guessed transform of describe_table's SQL-plane "
             "names. The two planes apply DIFFERENT naming conventions and the table field "
             "additionally gets a domain-uniqueness prefix the compiled schema alone knows (e.g. "
@@ -83,7 +83,7 @@ _TOOLS: list[Any] = [
             "assume camelCase-plus-prefix yourself — guessing wrong fails schema validation. Also "
             "returns the real gRPC method names (grpc_query_method/grpc_aggregate_method) for "
             "this same table — gRPC's names are a deterministic re-casing of this same field, "
-            "always call this (not a guess) before a gRPC query too. REQ-1851: also returns "
+            "always call this (not a guess) before a gRPC query too. also returns "
             "jsonapi_path/openapi_path — JSON:API and OpenAPI route on the table's RAW domain id, "
             "not the sql-safe schema name `schema`/`table` are — reassembling "
             "`/{schema}/{table}` yourself 404s for any domain id with a hyphen or space; always "
@@ -98,7 +98,7 @@ _TOOLS: list[Any] = [
     {
         "name": "cypher_field_names",
         "description": (
-            "REQ-1848: the REAL Cypher node label, id property, and column property names for "
+            "The REAL Cypher node label, id property, and column property names for "
             "this table — NOT a guessed PascalCase-plus-domain-prefix transform. A guessed label "
             "can collide with a different table's in another domain and MATCH the wrong node "
             "type silently, or simply not exist. ALWAYS call this before writing a Cypher query "
@@ -113,7 +113,7 @@ _TOOLS: list[Any] = [
     {
         "name": "generate_explore_queries",
         "description": (
-            "REQ-1852: generate ready-to-run queries for ALL SIX Explore surfaces (sql, "
+            "Generate ready-to-run queries for ALL SIX Explore surfaces (sql, "
             "graphql, cypher, grpc, jsonapi, openapi) from one natural-language question — the "
             "SAME pipeline the NL Explore page runs, with its own LLM call resolving table "
             "selection, joins, and aggregation shape. Use this instead of graphql_field_names/"
@@ -174,10 +174,10 @@ _TOOLS: list[Any] = [
     {
         "name": "propose_source",
         "description": (
-            "Propose a newly-discovered data source for a human to review and register "
-            "(REQ-1792). Normally queues a pending creation request a rights-holder must execute "
+            "Propose a newly-discovered data source for a human to review and register"
+            ". Normally queues a pending creation request a rights-holder must execute "
             "or reject on the admin UI's Requests page — NEVER creates a live source directly. "
-            "EXCEPTION (REQ-1799): if the caller's own role already holds source_registration, "
+            "EXCEPTION: if the caller's own role already holds source_registration, "
             "this instead returns status 'confirm_required' without queuing anything — see the "
             "system prompt for what to do then. Use this when asked to find/add/connect a new "
             "data source: propose it here rather than just describing it in prose."
@@ -205,8 +205,8 @@ _TOOLS: list[Any] = [
         "name": "propose_table",
         "description": (
             "Propose registering a table from an already-registered source, for a human to "
-            "approve (REQ-1792). Normally queues a pending creation request the same way "
-            "propose_source does. EXCEPTION (REQ-1799): if the caller's own role already holds "
+            "approve. Normally queues a pending creation request the same way "
+            "propose_source does. EXCEPTION: if the caller's own role already holds "
             "table_registration, this instead returns status 'confirm_required' without queuing "
             "anything — see the system prompt for what to do then."
         ),
@@ -236,8 +236,8 @@ _TOOLS: list[Any] = [
     {
         "name": "create_source_now",
         "description": (
-            "Create a live Source immediately, bypassing the Requests-page review queue "
-            "(REQ-1799). ONLY call this after propose_source returned 'confirm_required' AND the "
+            "Create a live Source immediately, bypassing the Requests-page review queue"
+            ". ONLY call this after propose_source returned 'confirm_required' AND the "
             "user has explicitly confirmed in THIS conversation that they want it created now — "
             "never call it speculatively or without that confirmation. Takes the exact same "
             "source/reason propose_source was called with."
@@ -260,8 +260,8 @@ _TOOLS: list[Any] = [
     {
         "name": "register_table_now",
         "description": (
-            "Register a live Table immediately, bypassing the Requests-page review queue "
-            "(REQ-1799). ONLY call this after propose_table returned 'confirm_required' AND the "
+            "Register a live Table immediately, bypassing the Requests-page review queue"
+            ". ONLY call this after propose_table returned 'confirm_required' AND the "
             "user has explicitly confirmed in THIS conversation that they want it registered now. "
             "Takes the exact same table/reason propose_table was called with."
         ),
@@ -281,7 +281,7 @@ _TOOLS: list[Any] = [
         "name": "search_govdata_subjects",
         "description": (
             "Check GovData (askamerica) FIRST for a topic-matching source, before web_search or "
-            "propose_source (REQ-1798) — GovData and Kaggle are this org's subscription "
+            "propose_source — GovData and Kaggle are this org's subscription "
             "sources. Matches a free-text topic (e.g. 'inflation', 'unemployment', 'crime "
             "rates') against GovData's real schema/table catalog and reports whether each match's "
             "subject is already subscribed for this org."
@@ -295,12 +295,13 @@ _TOOLS: list[Any] = [
     {
         "name": "search_kaggle_datasets",
         "description": (
-            "Check Kaggle SECOND (after search_govdata_subjects, REQ-1798) for a topic-matching "
-            "public dataset, before web_search or propose_source. Reads the user's Kaggle API "
-            "token from a FIXED secret name — 'kaggle_api_token' — never a raw token argument and "
-            "never a name you choose or ask the user to choose. If this tool errors saying that "
-            "secret doesn't exist, tell the user to create one on the Secrets page (/admin/secrets) "
-            "named EXACTLY 'kaggle_api_token' with their Kaggle API token as its value, then retry."
+            "Check Kaggle SECOND (after search_govdata_subjects) for a topic-matching "
+            "public dataset, before web_search or propose_source. Reads the Kaggle API "
+            "token from the operator setting 'Kaggle API token' — never a raw token argument and "
+            "never a secret name you choose or ask the user to choose. If this tool errors "
+            "because the token cannot be read, tell the user to enter it in that setting (Admin "
+            "> Settings > Security): the token itself, or a reference to a secret they created, "
+            "then retry."
         ),
         "input_schema": {
             "type": "object",
@@ -311,7 +312,7 @@ _TOOLS: list[Any] = [
     {
         "name": "list_native_tables",
         "description": (
-            "REQ-1833: the REAL table names of a source, introspected directly from it — NOT "
+            "The REAL table names of a source, introspected directly from it — NOT "
             "the governed catalog list_tables/search_catalog read, which is EMPTY for a source "
             "with nothing registered on it yet (a source you just created, most commonly). "
             "REQUIRED before propose_table/register_table_now for such a source: guessing a "
@@ -332,7 +333,7 @@ _TOOLS: list[Any] = [
     {
         "name": "describe_native_table",
         "description": (
-            "REQ-1833: the REAL columns (name, data_type) of one table of a source, introspected "
+            "The REAL columns (name, data_type) of one table of a source, introspected "
             "directly from it. Call list_native_tables first if you don't already have the exact "
             "table_name from it. Building propose_table/register_table_now's columns list from "
             "this result is what makes registration actually succeed — a guessed columns list "
@@ -351,7 +352,7 @@ _TOOLS: list[Any] = [
     {
         "name": "list_glossary_terms",
         "description": (
-            "REQ-1835: search/list the org's glossary terms. Each result's `live` field tells "
+            "Search/list the org's glossary terms. Each result's `live` field tells "
             "you whether the term is admitted (grounded to a real column, or edge-connected to "
             "one) or still 'proposed' (a draft with neither). Use this before create_glossary_"
             "term to avoid proposing a duplicate."
@@ -367,7 +368,7 @@ _TOOLS: list[Any] = [
     {
         "name": "create_glossary_term",
         "description": (
-            "REQ-1835: create a new glossary term (name + definition). It starts 'proposed' — "
+            "Create a new glossary term (name + definition). It starts 'proposed' — "
             "there is no separate flag to mark it finalized/live. A proposed term becomes live "
             "either automatically (a real column gets registered and lands on it) or by calling "
             "add_glossary_term_edge to connect it to a term that is already live. If the org runs "
@@ -386,7 +387,7 @@ _TOOLS: list[Any] = [
     {
         "name": "update_glossary_term",
         "description": (
-            "REQ-1835: rename a glossary term, change its definition, exclude it from exports, "
+            "Rename a glossary term, change its definition, exclude it from exports, "
             "or retire it. Only the fields you pass are changed. Prefer retiring (retired=true) "
             "over deleting when the term carries curator work (a definition, a relationship, or "
             "an expert) — deleting that outright is exactly the case delete_glossary_term warns "
@@ -407,7 +408,7 @@ _TOOLS: list[Any] = [
     {
         "name": "delete_glossary_term",
         "description": (
-            "REQ-1835: permanently delete a glossary term. Irreversible — always confirm with "
+            "Permanently delete a glossary term. Irreversible — always confirm with "
             "the user first via present_choice (mode='yes_no'), the same as any other "
             "irreversible action, before calling this."
         ),
@@ -420,7 +421,7 @@ _TOOLS: list[Any] = [
     {
         "name": "add_glossary_term_edge",
         "description": (
-            "REQ-1835: connect two glossary terms with a typed relationship (e.g. 'broader', "
+            "Connect two glossary terms with a typed relationship (e.g. 'broader', "
             "'narrower', 'synonym' — check list_glossary_terms/existing edges for the vocabulary "
             "this org already uses before inventing a new rel_type). This is also the mechanism "
             "for finalizing a proposed term without waiting for a column: connect it to an "
@@ -438,7 +439,7 @@ _TOOLS: list[Any] = [
     },
     {
         "name": "remove_glossary_term_edge",
-        "description": "REQ-1835: remove a relationship edge between two glossary terms.",
+        "description": "remove a relationship edge between two glossary terms.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -451,13 +452,13 @@ _TOOLS: list[Any] = [
     },
     {
         "name": "list_data_products",
-        "description": "REQ-1855: list the org's data products (id, domain, name, purpose, owner/team role, status, etc.).",
+        "description": "list the org's data products (id, domain, name, purpose, owner/team role, status, etc.).",
         "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "create_data_product",
         "description": (
-            "REQ-1855: create or replace a data product by id — an id that already exists is "
+            "Create or replace a data product by id — an id that already exists is "
             "overwritten in full, so call list_data_products first if you mean to change only "
             "some fields of an existing one. `domain_id` must be a real, existing domain."
         ),
@@ -483,7 +484,7 @@ _TOOLS: list[Any] = [
     {
         "name": "delete_data_product",
         "description": (
-            "REQ-1855: delete a data product by id. Irreversible — always confirm with the user "
+            "Delete a data product by id. Irreversible — always confirm with the user "
             "first (present_choice, mode='yes_no')."
         ),
         "input_schema": {
@@ -495,7 +496,7 @@ _TOOLS: list[Any] = [
     {
         "name": "upsert_metric",
         "description": (
-            "REQ-1856: create or replace a governed metric by name — a name that already exists "
+            "Create or replace a governed metric by name — a name that already exists "
             "is overwritten in full. `expression` is an aggregate ANSI-SQL expression over "
             'semantic table.column references (e.g. "SUM(orders.amount) - SUM(orders.refunds)") '
             "— must parse under sqlglot and contain at least one aggregate function, or this "
@@ -520,7 +521,7 @@ _TOOLS: list[Any] = [
     {
         "name": "delete_metric",
         "description": (
-            "REQ-1856: delete a governed metric by name. Irreversible — always confirm with the "
+            "Delete a governed metric by name. Irreversible — always confirm with the "
             "user first (present_choice, mode='yes_no')."
         ),
         "input_schema": {
@@ -550,7 +551,7 @@ _CLIENT_TOOLS: list[Any] = [
             "asking them to paste it — each of these six reads its own state key (see the "
             "`state` field below) the SAME way an in-app hyperlink to it already does, and runs "
             "it immediately when state.autoRun is true, landing it in the editor with no "
-            "copy-paste needed. See the system prompt's REQ-1846/1847/1848/1851 section for which "
+            "copy-paste needed. See the system prompt's section on the query surfaces for which "
             "tool to call first to get each surface's real field/name identifiers before "
             "building the query."
         ),
@@ -660,15 +661,15 @@ _SYSTEM = (
     "If asked to find, add, connect, or register a new data source, or a new table from an "
     "existing source: first check search_catalog/list_schemas to avoid proposing a duplicate. "
     "Then, for a topical data request (e.g. 'find me inflation data'), check this org's "
-    "subscription sources BEFORE the open web (REQ-1798): ALWAYS call BOTH "
+    "subscription sources BEFORE the open web: ALWAYS call BOTH "
     "search_govdata_subjects AND search_kaggle_datasets — never stop after the first one finds a "
     "match and ask the user whether to check the other; check both unconditionally, in the same "
     "turn, then present whichever option(s) you found (there may be one, both, or neither). "
-    "search_kaggle_datasets reads the user's Kaggle API token from a secret named exactly "
-    "'kaggle_api_token'. Never ask the user to paste a token into chat or to choose a secret name; "
-    "if the tool errors because that secret doesn't exist, just tell them to create one on the "
-    "Secrets page (/admin/secrets) named 'kaggle_api_token' with their Kaggle API token as the "
-    "value, then retry. Only once GovData and Kaggle have both been checked and neither has a "
+    "search_kaggle_datasets reads the Kaggle API token from the operator setting 'Kaggle API "
+    "token'. Never ask the user to paste a token into chat or to choose a secret name; if the "
+    "tool errors because the token cannot be read, just tell them to enter it in that setting "
+    "(Admin > Settings > Security), as the token itself or a reference to a secret they "
+    "created, then retry. Only once GovData and Kaggle have both been checked and neither has a "
     "match, fall back to web_search/web_fetch to find real connection "
     "details (API base URL, auth scheme, official docs) for a brand-new external source. If more "
     "than one candidate was found (multiple GovData subjects, multiple Kaggle datasets, or a mix "
@@ -688,13 +689,13 @@ _SYSTEM = (
     "require if the org isn't subscribed yet); for a Kaggle match, propose type='files' with "
     'federation_hints_json set to \'{"kaggle_owner": "<owner>", "kaggle_ref": "<ref>"}\' '
     "(split the dataset's ref on its '/') and any placeholder for path — the server downloads the "
-    "real files and overwrites path itself when the source is actually created (REQ-1819), so "
+    "real files and overwrites path itself when the source is actually created, so "
     "there is no separate staging/download step to call here or anywhere else. ALWAYS use the "
     "tool rather than only describing the source in prose. If none of these tools can find "
     "something (an API key, "
     "a customer-specific hostname), say what's still needed rather than inventing it.\n\n"
     "propose_source/propose_table normally queue a pending request a human approves on the "
-    "Requests page and never create anything directly. REQ-1799 EXCEPTION: if the result's status "
+    "Requests page and never create anything directly. EXCEPTION: if the result's status "
     "is 'confirm_required' instead of 'pending', nothing was queued — the caller's own role "
     "already holds the needed capability, so a review queue is irrelevant here and must never be "
     "mentioned. In that case — and ONLY this case, this is the one real confirmation in the whole "
@@ -719,7 +720,7 @@ _SYSTEM = (
     "source's own real, native schema directly. Never guess a table_name or columns list from the "
     "source's name/description alone; register_table_now's own validation will refuse a guessed "
     "columns list outright, and the tool call will fail. "
-    "REQ-1834: before performing an action that corresponds to a specific admin page (creating or "
+    "THE PAGE-FIRST RULE: before performing an action that corresponds to a specific admin page (creating or "
     "registering a source/table, editing a glossary term, upserting/deleting a relationship, "
     "running a GraphQL query in Explorer, or anything else with a dedicated screen), call navigate "
     "to that page FIRST (e.g. /admin/glossary for any glossary edit), then perform the action — so "
@@ -733,7 +734,7 @@ _SYSTEM = (
     "specifically (e.g. 'I wasn't able to do that — <what's missing>. Can you give me more detail "
     "and I'll try again?'). Never just stop or trail off without a closing message; the user should "
     "never have to guess whether you're still working or already gave up.\n\n"
-    "REQ-1835: manage the glossary with list_glossary_terms/create_glossary_term/update_glossary_"
+    "Manage the glossary with list_glossary_terms/create_glossary_term/update_glossary_"
     "term/delete_glossary_term/add_glossary_term_edge/remove_glossary_term_edge directly — these "
     "carry their own capability check (glossary_rw) and fail loud if the caller lacks it, so they "
     "don't go through the propose/confirm_required flow above. Still always confirm with the user "
@@ -742,9 +743,9 @@ _SYSTEM = (
     "glossary_terms first to avoid creating a duplicate term, and remember 'finalizing' a term "
     "has no direct flag — it happens by grounding it (a real column, or add_glossary_term_edge to "
     "an already-live term); say this plainly if a user asks you to just 'mark it live'. Per "
-    "REQ-1834 above: navigate to /admin/glossary before calling any of these — every time, for "
+    "the page-first rule above: navigate to /admin/glossary before calling any of these — every time, for "
     "every term you touch in the turn, not only the first.\n\n"
-    "REQ-1855/1856: manage data products with list_data_products/create_data_product/"
+    "Manage data products with list_data_products/create_data_product/"
     "delete_data_product, and governed metrics with upsert_metric/delete_metric, directly — no "
     "propose/confirm_required flow, they carry their own capability check and fail loud if the "
     "caller lacks it (data_product_rw / table_registration). create_data_product and upsert_metric "
@@ -754,9 +755,9 @@ _SYSTEM = (
     "table.column references and fails validation with no aggregate function in it — write a real "
     "`ai_context` (what it means, when to use it), not a restatement of the expression. Always "
     "confirm with the user (present_choice, mode='yes_no') before delete_data_product/delete_"
-    "metric specifically, since they're irreversible. Per REQ-1834: navigate to /data-products or "
+    "metric specifically, since they're irreversible. Per the page-first rule: navigate to /data-products or "
     "/metrics before calling any of these.\n\n" + model_tool_specs.SYSTEM_SECTION + "\n\n"
-    "REQ-1846/1847/1848/1849/1851/1852: Provisa has SEVEN query surfaces under Explore, each its "
+    "THE QUERY SURFACES: Provisa has SEVEN query surfaces under Explore, each its "
     "own route and each with its own exact deep-link format — never assume one surface's names or "
     "state shape transfer to another. Route + navigate `state` key per surface: GraphQL /query "
     "(state.query), Cypher /graph (state.query), SQL /sql (state.sql), gRPC /grpc "

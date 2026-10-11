@@ -14,6 +14,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "../../components/form/FormLayout";
 import {
   ActionIcon,
   Button,
@@ -36,6 +37,7 @@ import {
   type FilterOp,
   type FilterSpec,
 } from "./columnFilter";
+import { Tip } from "../../components/Tip";
 
 interface Props {
   col: string;
@@ -127,24 +129,25 @@ export function ColumnFilterMenu({
       shadow="md"
     >
       <Popover.Target>
-        <ActionIcon
-          variant="subtle"
-          data-active={current ? "true" : undefined}
-          size="xs"
-          className="th-filter-btn"
-          aria-label={t("columnFilter.open", { column: col })}
-          title={t("columnFilter.open", { column: col })}
-          data-testid={`${id}-btn`}
-          onClick={(e) => {
-            // A controlled Popover does not toggle itself from its target.
-            e.stopPropagation();
-            if (opened) setOpened(false);
-            else open();
-          }}
-        >
-          {/* An applied filter fills the icon; the button keeps the text box's background. */}
-          <Filter size={11} fill={current ? "currentColor" : "none"} />
-        </ActionIcon>
+        <Tip text={t("columnFilter.open", { column: col })} named>
+          <ActionIcon
+            variant="subtle"
+            data-active={current ? "true" : undefined}
+            size="xs"
+            className="th-filter-btn"
+            aria-label={t("columnFilter.open", { column: col })}
+            data-testid={`${id}-btn`}
+            onClick={(e) => {
+              // A controlled Popover does not toggle itself from its target.
+              e.stopPropagation();
+              if (opened) setOpened(false);
+              else open();
+            }}
+          >
+            {/* An applied filter fills the icon; the button keeps the text box's background. */}
+            <Filter size={11} fill={current ? "currentColor" : "none"} />
+          </ActionIcon>
+        </Tip>
       </Popover.Target>
       <Popover.Dropdown onClick={(e) => e.stopPropagation()} data-testid={`${id}-menu`}>
         <Stack gap="xs">
@@ -181,17 +184,19 @@ export function ColumnFilterMenu({
                 </Button>
               </Group>
               {canAddTyped && (
-                <Button
-                  size="compact-xs"
-                  variant="light"
-                  onClick={() => {
-                    setTicked(new Set([...ticked, typed]));
-                    setSearch("");
-                  }}
-                  data-testid={`${id}-add-typed`}
-                >
-                  {t("columnFilter.addTyped", { value: typed })}
-                </Button>
+                <Group justify="flex-start">
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    onClick={() => {
+                      setTicked(new Set([...ticked, typed]));
+                      setSearch("");
+                    }}
+                    data-testid={`${id}-add-typed`}
+                  >
+                    {t("columnFilter.addTyped", { value: typed })}
+                  </Button>
+                </Group>
               )}
               <ScrollArea.Autosize mah={180}>
                 <Stack gap={4}>
@@ -272,7 +277,14 @@ export function ColumnFilterMenu({
               {t("columnFilter.timeZoneNote")}
             </Text>
           )}
-          <Group justify="space-between">
+          {/* Apply first, then Clear, at the start of the line. */}
+          <FormFooter
+            action={
+              <Button size="compact-xs" onClick={apply} data-testid={`${id}-apply`}>
+                {t("columnFilter.apply")}
+              </Button>
+            }
+          >
             <Button
               size="compact-xs"
               variant="default"
@@ -284,10 +296,7 @@ export function ColumnFilterMenu({
             >
               {t("columnFilter.clear")}
             </Button>
-            <Button size="compact-xs" onClick={apply} data-testid={`${id}-apply`}>
-              {t("columnFilter.apply")}
-            </Button>
-          </Group>
+          </FormFooter>
         </Stack>
       </Popover.Dropdown>
     </Popover>

@@ -11,8 +11,9 @@
 
 import { useState, useCallback } from "react";
 import { Copy, Check } from "lucide-react";
-import { ActionIcon, Tooltip } from "@mantine/core";
+import { ActionIcon } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { Tip } from "./Tip";
 
 interface CopyButtonProps {
   text: string;
@@ -36,7 +37,7 @@ export function CopyButton({ text, size = 11, className, title, children }: Copy
   const label = copied ? t("copyButton.copied") : (title ?? t("copyButton.copy"));
 
   return (
-    <Tooltip label={label}>
+    <Tip text={label} named>
       <ActionIcon
         type="button"
         variant="transparent"
@@ -47,7 +48,7 @@ export function CopyButton({ text, size = 11, className, title, children }: Copy
       >
         {children ?? (copied ? <Check size={size} /> : <Copy size={size} />)}
       </ActionIcon>
-    </Tooltip>
+    </Tip>
   );
 }
 
@@ -73,7 +74,7 @@ export function CopySymbolButton({
   const label = copied ? t("copyButton.copied") : (title ?? t("copyButton.copy"));
 
   return (
-    <Tooltip label={label}>
+    <Tip text={label} named>
       <ActionIcon
         type="button"
         variant="transparent"
@@ -84,6 +85,6 @@ export function CopySymbolButton({
       >
         {copied ? "✓" : "⎘"}
       </ActionIcon>
-    </Tooltip>
+    </Tip>
   );
 }

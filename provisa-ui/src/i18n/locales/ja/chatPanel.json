@@ -8,6 +8,26 @@
       "inflation": "インフレのデータを探して",
       "profile": "orders テーブルをプロファイリングして",
       "fakes": "テストデータ用に customers テーブルにフェイクの名前を設定して"
-    }
+    },
+    "toggleTooltip": "Polly — データアシスタント",
+    "notSetUpTitle": "Polly はまだ設定されていません",
+    "needsVendor": "Polly がチャットするには、LLM ベンダーと認証情報の設定が必要です。",
+    "needsVendorReason": "Polly がチャットするには、LLM ベンダーと認証情報の設定が必要です（{{reason}}）。",
+    "openAiModels": "AI モデルの設定を開く",
+    "notNow": "あとで",
+    "resize": "チャットパネルのサイズを変更",
+    "clear": "会話を消去",
+    "composerPlaceholder": "質問するか、してほしいことを伝えてください。",
+    "stopListening": "聞き取りを停止",
+    "speak": "Polly に話しかける",
+    "stop": "停止",
+    "send": "送信",
+    "typeAnswer": "回答を入力…",
+    "submit": "送信",
+    "backToYesNo": "はい/いいえに戻る",
+    "yes": "はい",
+    "no": "いいえ",
+    "typeSomethingElse": "別の内容を入力",
+    "confirm": "確認"
   }
 }

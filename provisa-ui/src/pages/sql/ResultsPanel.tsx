@@ -18,6 +18,7 @@ import type { ResultTab, HistoryEntry } from "./types";
 import type { ExplainNodeDto, ExplainResponse } from "../../api/admin";
 import { MermaidDiagram } from "../../components/MermaidDiagram";
 import "./ResultsPanel.css";
+import { Tip } from "../../components/Tip";
 
 interface ResultsPanelProps {
   resultTab: ResultTab;
@@ -169,16 +170,17 @@ export function ResultsPanel({
             </div>
           ) : (
             <div className="analyze-panes-wrap" style={{ height: "100%" }}>
-              <button
-                type="button"
-                className="analyze-expand"
-                onClick={() => setResultsExpanded(true)}
-                title={t("sqlResultsPanel.resultsExpand")}
-                aria-label={t("sqlResultsPanel.resultsExpand")}
-                data-testid="results-expand"
-              >
-                <Maximize2 size={12} />
-              </button>
+              <Tip text={t("sqlResultsPanel.resultsExpand")} named>
+                <button
+                  type="button"
+                  className="analyze-expand"
+                  onClick={() => setResultsExpanded(true)}
+                  aria-label={t("sqlResultsPanel.resultsExpand")}
+                  data-testid="results-expand"
+                >
+                  <Maximize2 size={12} />
+                </button>
+              </Tip>
               <ResultsGrid
                 grid={grid}
                 totalRowCount={resultRows.length}
@@ -244,23 +246,23 @@ export function ResultsPanel({
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>{t("sqlResultsPanel.colColumn")}</Table.Th>
-                      <Table.Th title={t("sqlResultsPanel.colNullsTitle")}>
-                        {t("sqlResultsPanel.colNulls")}
-                      </Table.Th>
-                      <Table.Th title={t("sqlResultsPanel.colBlanksTitle")}>
-                        {t("sqlResultsPanel.colBlanks")}
-                      </Table.Th>
-                      <Table.Th title={t("sqlResultsPanel.colDistinctTitle")}>
-                        {t("sqlResultsPanel.colDistinct")}
-                      </Table.Th>
-                      <Table.Th title={t("sqlResultsPanel.colConstantTitle")}>
-                        {t("sqlResultsPanel.colConstant")}
-                      </Table.Th>
+                      <Tip text={t("sqlResultsPanel.colNullsTitle")}>
+                        <Table.Th>{t("sqlResultsPanel.colNulls")}</Table.Th>
+                      </Tip>
+                      <Tip text={t("sqlResultsPanel.colBlanksTitle")}>
+                        <Table.Th>{t("sqlResultsPanel.colBlanks")}</Table.Th>
+                      </Tip>
+                      <Tip text={t("sqlResultsPanel.colDistinctTitle")}>
+                        <Table.Th>{t("sqlResultsPanel.colDistinct")}</Table.Th>
+                      </Tip>
+                      <Tip text={t("sqlResultsPanel.colConstantTitle")}>
+                        <Table.Th>{t("sqlResultsPanel.colConstant")}</Table.Th>
+                      </Tip>
                       <Table.Th>{t("sqlResultsPanel.colMin")}</Table.Th>
                       <Table.Th>{t("sqlResultsPanel.colMax")}</Table.Th>
-                      <Table.Th title={t("sqlResultsPanel.colMeanTitle")}>
-                        {t("sqlResultsPanel.colMean")}
-                      </Table.Th>
+                      <Tip text={t("sqlResultsPanel.colMeanTitle")}>
+                        <Table.Th>{t("sqlResultsPanel.colMean")}</Table.Th>
+                      </Tip>
                       <Table.Th>{t("sqlResultsPanel.colTopValues")}</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
@@ -343,11 +345,13 @@ export function ResultsPanel({
                             }}
                           >
                             {isConstant ? (
-                              <span title={String(p.constantValue)}>
-                                {t("sqlResultsPanel.constantYes", {
-                                  value: String(p.constantValue).slice(0, 12),
-                                })}
-                              </span>
+                              <Tip text={String(p.constantValue)}>
+                                <span>
+                                  {t("sqlResultsPanel.constantYes", {
+                                    value: String(p.constantValue).slice(0, 12),
+                                  })}
+                                </span>
+                              </Tip>
                             ) : (
                               <span style={{ color: "var(--text-muted)" }}>
                                 {t("sqlResultsPanel.dash")}
@@ -422,19 +426,20 @@ export function ResultsPanel({
                                         }}
                                       />
                                     </div>
-                                    <span
-                                      style={{
-                                        fontFamily: "monospace",
-                                        fontSize: "0.68rem",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        maxWidth: 110,
-                                        textOverflow: "ellipsis",
-                                      }}
-                                      title={value}
-                                    >
-                                      {value.slice(0, 22)}
-                                    </span>
+                                    <Tip text={value}>
+                                      <span
+                                        style={{
+                                          fontFamily: "monospace",
+                                          fontSize: "0.68rem",
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          maxWidth: 110,
+                                          textOverflow: "ellipsis",
+                                        }}
+                                      >
+                                        {value.slice(0, 22)}
+                                      </span>
+                                    </Tip>
                                     <span
                                       style={{
                                         color: "var(--text-muted)",
@@ -569,7 +574,9 @@ export function ResultsPanel({
                         }}
                       >
                         {h.error ? (
-                          <span title={h.error}>{t("sqlResultsPanel.errorLabel")}</span>
+                          <Tip text={h.error}>
+                            <span>{t("sqlResultsPanel.errorLabel")}</span>
+                          </Tip>
                         ) : (
                           h.rowCount
                         )}
@@ -774,16 +781,17 @@ export function ResultsPanel({
               {/* REQ-1519: the diagram and the operator list are two readings of one tree —
                   side by side so a node in the graph can be found in the list without scrolling. */}
               <div className="analyze-panes-wrap">
-                <button
-                  type="button"
-                  className="analyze-expand"
-                  onClick={() => setAnalyzeExpanded(true)}
-                  title={t("sqlResultsPanel.analyzeExpand")}
-                  aria-label={t("sqlResultsPanel.analyzeExpand")}
-                  data-testid="analyze-expand"
-                >
-                  <Maximize2 size={12} />
-                </button>
+                <Tip text={t("sqlResultsPanel.analyzeExpand")} named>
+                  <button
+                    type="button"
+                    className="analyze-expand"
+                    onClick={() => setAnalyzeExpanded(true)}
+                    aria-label={t("sqlResultsPanel.analyzeExpand")}
+                    data-testid="analyze-expand"
+                  >
+                    <Maximize2 size={12} />
+                  </button>
+                </Tip>
                 <AnalyzePanes plan={analyzePlan} />
               </div>
 
@@ -900,15 +908,16 @@ function AnalyzePanes({ plan: analyzePlan }: { plan: ExplainResponse }) {
         </div>
       )}
       {analyzePlan.plan.length > 0 && analyzePlan.mermaid && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t("sqlResultsPanel.analyzeResize")}
-          title={t("sqlResultsPanel.analyzeResize")}
-          onMouseDown={startResize}
-          data-testid="analyze-resizer"
-          className="analyze-resizer"
-        />
+        <Tip text={t("sqlResultsPanel.analyzeResize")} named>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("sqlResultsPanel.analyzeResize")}
+            onMouseDown={startResize}
+            data-testid="analyze-resizer"
+            className="analyze-resizer"
+          />
+        </Tip>
       )}
       {analyzePlan.mermaid && (
         <div style={{ flex: "1 1 0", minWidth: 0, overflow: "auto" }}>

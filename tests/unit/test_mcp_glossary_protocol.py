@@ -16,7 +16,6 @@ fires through the protocol, and the term payload round-trips serialization.
 from __future__ import annotations
 
 import json
-import types
 from contextlib import asynccontextmanager
 
 import pytest
@@ -37,6 +36,7 @@ from provisa.core.schema_org import (
     table_columns,
     naming_rules,
 )
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -75,7 +75,7 @@ async def _server(tmp_path):
                     view_sql="SELECT 1",
                 ),
             )
-        state = types.SimpleNamespace(
+        state = RoleState(
             contexts={"analyst": object()},
             model_db=db,
             tenant_db=db,

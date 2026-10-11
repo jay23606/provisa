@@ -131,7 +131,13 @@ def test_a_change_fed_table_is_fresh_for_every_role_role_ttl_cannot_hold_back_th
     event loop's change path, so on the read path its replica counts as fresh for every reader --
     role_ttl only limits read-triggered refreshes; it never holds back the change feed, and a
     change-fed table is never re-landed by a read on the clock."""
-    t = _tbl("feed", cache_ttl=None, role_ttl={"analyst": 360}, change_signal=signal)
+    # A probed table states the cache_ttl its probe is asked on; a pushed one needs none.
+    t = _tbl(
+        "feed",
+        cache_ttl=60 if signal == "probe" else None,
+        role_ttl={"analyst": 360},
+        change_signal=signal,
+    )
     for role in ("analyst", "trader", None):
         for age in (1, 200, 361, 100_000):
             assert not _real_stale([t], {"s/sch.feed": _st(age)}, role)
@@ -334,9 +340,11 @@ def wiring(monkeypatch):
             return None
         at = held["last_refresh_at"] if held else None
         failed = held is not None and not held.get("last_refresh_ok", True)
+        built = datetime.fromtimestamp(at, UTC) if at is not None else None
         return SimpleNamespace(
             build_state="requested" if building else "failed" if failed else "idle",
-            completed_at=datetime.fromtimestamp(at, UTC) if at is not None else None,
+            completed_at=built,
+            current_at=built,  # never verified by a probe since its build
             last_error=None,
             exists_in=lambda store: at is not None,
         )
@@ -474,7 +482,7 @@ async def test_a_directly_attached_ttl_table_with_no_cache_ttl_reads_live(wiring
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["probe", "native", "debezium", "kafka"])
+@pytest.mark.parametrize("signal", ["native", "debezium", "kafka"])
 async def test_a_landed_no_ttl_freshness_signal_table_reads_without_a_cache_ttl(wiring, signal):
     backend = _Backend()
     t = _tbl("orders", cache_ttl=None, change_signal=signal)
@@ -483,6 +491,16 @@ async def test_a_landed_no_ttl_freshness_signal_table_reads_without_a_cache_ttl(
         await ensure_resident(state, {"s"}, reader_role="analyst", table_ids=_read(state))
     ).built == []
     assert backend.lands == 0
+
+
+def test_a_probed_table_with_no_cache_ttl_has_no_cadence_and_is_refused():
+    """A probe is asked on the table's cache_ttl and nowhere else: with none it would never be
+    asked again after its first build, so the read says so (REQ-855, REQ-1907)."""
+    t = _tbl("orders", cache_ttl=None, change_signal="probe")
+    with pytest.raises(ValueError, match=r"orders.*change_signal 'probe'.*add a cache_ttl"):
+        _real_stale([t], {"s/sch.orders": _st(10)}, "analyst")
+    # the source's cache_ttl is the table's when it has none of its own
+    assert not _real_stale([t], {"s/sch.orders": _st(10)}, "analyst", src=_src(cache_ttl=60))
 
 
 def test_a_freshness_gated_probe_source_with_no_cache_ttl_is_judged_by_its_gate():

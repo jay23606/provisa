@@ -410,19 +410,19 @@ def _make_pb2_module_with_aggregates(type_name: str = "Inquiries"):
 class TestServicerAggregateDispatch:
     def test_aggregate_rpc_resolves_to_aggregate_handler(self):
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.QueryInquiriesAggregate
         assert callable(handler)
 
     def test_group_by_rpc_resolves_to_group_by_handler(self):
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.QueryInquiriesGroupBy
         assert callable(handler)
 
     def test_plain_query_rpc_still_resolves(self):
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.QueryInquiries
         assert callable(handler)
 
@@ -431,7 +431,7 @@ class TestServicerAggregateDispatch:
         _handle_query (which the plain Query{Type} prefix branch would wrongly match if it were
         checked first)."""
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         calls = []
 
@@ -456,7 +456,7 @@ class TestServicerAggregateDispatch:
 
     def test_no_collision_group_by_dispatches_to_group_by_bound(self, monkeypatch):
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         calls = []
 
@@ -481,7 +481,7 @@ class TestServicerAggregateDispatch:
 
     def test_plain_query_dispatches_to_handle_query_not_aggregate(self, monkeypatch):
         pb2 = _make_pb2_module_with_aggregates()
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
 
         calls = []
 
@@ -504,7 +504,7 @@ class TestServicerAggregateDispatch:
 
     def test_type_name_stripped_correctly_for_aggregate(self):
         pb2 = _make_pb2_module_with_aggregates("Orders")
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         # Access via __getattr__ directly to inspect closure behavior indirectly: the handler
         # must be built for type_name == "Orders", not "OrdersAggregate" or "".
         handler = servicer.__getattr__("QueryOrdersAggregate")
@@ -512,6 +512,6 @@ class TestServicerAggregateDispatch:
 
     def test_type_name_stripped_correctly_for_group_by(self):
         pb2 = _make_pb2_module_with_aggregates("Orders")
-        servicer = ProvisaServicer(MagicMock(), pb2, MagicMock())
+        servicer = ProvisaServicer(MagicMock(), pb2)
         handler = servicer.__getattr__("QueryOrdersGroupBy")
         assert callable(handler)

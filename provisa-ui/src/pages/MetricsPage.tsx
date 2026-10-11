@@ -16,31 +16,22 @@ import {
   Button,
   Group,
   Modal,
-  Paper,
   Select,
-  Stack,
   Table,
   Text,
   Textarea,
   TextInput,
   Title,
 } from "@mantine/core";
-import { Check, Plus, X } from "lucide-react";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 import { useMetrics, useTables, useUpsertMetric, useDeleteMetric } from "../hooks/useAdminQueries";
 import type { Metric, RegisteredTable } from "../types/admin";
 import { OssieInterchangePanel } from "./metrics/OssieInterchangePanel";
 import { HelpBubble } from "../components/HelpBubble";
 import { MetricDetailPanel } from "./metrics/MetricDetailPanel";
+import { SplitPane } from "../components/list/SplitPane";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
-import {
-  ListTable,
-  ListHead,
-  ListRow,
-  ListExpandRow,
-  ListEmpty,
-  ListDetail,
-  ListItems,
-} from "../components/list/ListTable";
+import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { PageLoading } from "../components/PageLoading";
 
@@ -111,23 +102,29 @@ function MetricFormCard({
 }: MetricFormCardProps) {
   const { t } = useTranslation();
   return (
-    <Stack gap="sm" data-testid="metric-form">
-      <TextInput
-        label={t("metricsPage.fieldName")}
-        required
-        value={form.name}
-        disabled={editingName !== null}
-        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-        placeholder={t("metricsPage.fieldNamePlaceholder")}
-        data-testid="metric-name-input"
-      />
+    <FormLayout data-testid="metric-form">
+      <FormIdentifiers>
+        <FormField size="medium">
+          <TextInput
+            label={t("metricsPage.fieldName")}
+            required
+            value={form.name}
+            disabled={editingName !== null}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder={t("metricsPage.fieldNamePlaceholder")}
+            data-testid="metric-name-input"
+          />
+        </FormField>
+      </FormIdentifiers>
       {/* REQ-1320/1324: facts are the metric sources — pick fact + measure + aggregate
           to compose the expression; the textarea below stays the escape hatch. Always
           visible so the fact-sourced path is discoverable even before any fact exists. */}
-      <Group grow align="flex-end">
+      <FormField
+        size="medium"
+        hint={factTables.length === 0 ? t("metricsPage.builderNoFacts") : undefined}
+      >
         <Select
           label={t("metricsPage.builderFact")}
-          description={factTables.length === 0 ? t("metricsPage.builderNoFacts") : undefined}
           value={builder.fact}
           onChange={(v) => applyBuilder({ ...builder, fact: v, column: null })}
           data={factTables.map((tbl) => tbl.tableName)}
@@ -136,6 +133,8 @@ function MetricFormCard({
           searchable
           data-testid="metric-builder-fact"
         />
+      </FormField>
+      <FormField size="medium">
         <Select
           label={t("metricsPage.builderMeasure")}
           value={builder.column}
@@ -150,6 +149,8 @@ function MetricFormCard({
           searchable
           data-testid="metric-builder-measure"
         />
+      </FormField>
+      <FormField size="short">
         <Select
           label={t("metricsPage.builderAgg")}
           value={builder.agg}
@@ -159,66 +160,66 @@ function MetricFormCard({
           clearable
           data-testid="metric-builder-agg"
         />
-      </Group>
-      <Textarea
-        label={t("metricsPage.fieldExpression")}
-        required
-        value={form.expression}
-        onChange={(e) => setForm((f) => ({ ...f, expression: e.target.value }))}
-        placeholder={t("metricsPage.fieldExpressionPlaceholder")}
-        rows={3}
-        styles={{ input: { fontFamily: "monospace" } }}
-        data-testid="metric-expression-input"
-      />
-      <TextInput
-        label={t("metricsPage.fieldDatatype")}
-        description={t("metricsPage.fieldDatatypeDerived")}
-        value={form.datatype}
-        onChange={(e) => setForm((f) => ({ ...f, datatype: e.target.value }))}
-        placeholder={t("metricsPage.fieldDatatypePlaceholder")}
-        data-testid="metric-datatype-input"
-      />
-      <Textarea
-        label={t("metricsPage.fieldDescription")}
-        value={form.description}
-        onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-        rows={2}
-        data-testid="metric-description-input"
-      />
-      <Textarea
-        label={t("metricsPage.fieldAiContext")}
-        value={form.aiContext}
-        onChange={(e) => setForm((f) => ({ ...f, aiContext: e.target.value }))}
-        placeholder={t("metricsPage.fieldAiContextPlaceholder")}
-        rows={2}
-        data-testid="metric-ai-context-input"
-      />
-      {msg && (
-        <Alert color="red" data-testid="metric-form-error">
-          {msg}
-        </Alert>
+      </FormField>
+      <FormField size="full">
+        <Textarea
+          label={t("metricsPage.fieldExpression")}
+          required
+          value={form.expression}
+          onChange={(e) => setForm((f) => ({ ...f, expression: e.target.value }))}
+          placeholder={t("metricsPage.fieldExpressionPlaceholder")}
+          rows={3}
+          styles={{ input: { fontFamily: "monospace" } }}
+          data-testid="metric-expression-input"
+        />
+      </FormField>
+      <FormField size="medium" hint={t("metricsPage.fieldDatatypeDerived")}>
+        <TextInput
+          label={t("metricsPage.fieldDatatype")}
+          value={form.datatype}
+          onChange={(e) => setForm((f) => ({ ...f, datatype: e.target.value }))}
+          placeholder={t("metricsPage.fieldDatatypePlaceholder")}
+          data-testid="metric-datatype-input"
+        />
+      </FormField>
+      {/* What a metric does not need in order to exist is edited once it does. (Its datatype
+          stays in the first step: the builder derives it from the aggregate, in sight.) */}
+      {editingName !== null && (
+        <>
+          <FormField size="full">
+            <Textarea
+              label={t("metricsPage.fieldDescription")}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={2}
+              data-testid="metric-description-input"
+            />
+          </FormField>
+          <FormField size="full">
+            <Textarea
+              label={t("metricsPage.fieldAiContext")}
+              value={form.aiContext}
+              onChange={(e) => setForm((f) => ({ ...f, aiContext: e.target.value }))}
+              placeholder={t("metricsPage.fieldAiContextPlaceholder")}
+              rows={2}
+              data-testid="metric-ai-context-input"
+            />
+          </FormField>
+        </>
       )}
-      <Group justify="flex-end" gap="sm">
-        <Button
-          variant="default"
-          leftSection={<X size={14} />}
-          onClick={onCancel}
-          data-testid="metric-cancel-button"
-        >
-          {t("metricsPage.cancel")}
-        </Button>
-        <Button
-          variant="filled"
-          leftSection={<Check size={14} />}
-          onClick={onSave}
-          loading={saving}
-          disabled={!form.name.trim() || !form.expression.trim()}
-          data-testid="metric-save-button"
-        >
-          {t("metricsPage.save")}
-        </Button>
-      </Group>
-    </Stack>
+      <FormFooter
+        panel
+        problem={msg || undefined}
+        onSave={onSave}
+        saving={saving}
+        onCancel={onCancel}
+        saveProps={{
+          "data-testid": "metric-save-button",
+          disabled: !form.name.trim() || !form.expression.trim(),
+        }}
+        cancelProps={{ "data-testid": "metric-cancel-button" }}
+      />
+    </FormLayout>
   );
 }
 
@@ -248,6 +249,8 @@ export function MetricsPage() {
     tables.filter((tbl) => tbl.viewMetrics?.metrics.includes(name)).map((tbl) => tbl.tableName);
 
   const openCreate = () => {
+    // One thing in the panel at a time: the form replaces whatever metric was open.
+    setExpanded(null);
     setEditingName(null);
     setForm({ ...EMPTY_FORM });
     setBuilder({ ...EMPTY_BUILDER });
@@ -305,7 +308,13 @@ export function MetricsPage() {
       description: form.description.trim() || null,
       aiContext: form.aiContext.trim() || null,
     });
-    if (result.success) {
+    if (result.success && creating) {
+      // The metric exists now, with everything else at its defaults: it is selected in the list
+      // and its detail opens in edit, where its description and AI context are filled in.
+      setCreating(false);
+      setExpanded(form.name.trim());
+      setEditingName(form.name.trim());
+    } else if (result.success) {
       closeForm();
     } else {
       setMsg(result.message || t("metricsPage.saveFailed"));
@@ -336,7 +345,6 @@ export function MetricsPage() {
     />
   );
 
-
   // REQ-1940: sort and group are the shared list mechanism.
   const metricColumns = useMemo<ListColumn<Metric>[]>(
     () => [
@@ -353,25 +361,57 @@ export function MetricsPage() {
         label: t("metricsPage.colDescription"),
         sortValue: (m) => m.description ?? "",
       },
-      { key: "aiContext", label: t("metricsPage.colAiContext"), sortValue: (m) => m.aiContext ?? "" },
+      {
+        key: "aiContext",
+        label: t("metricsPage.colAiContext"),
+        sortValue: (m) => m.aiContext ?? "",
+      },
     ],
     [t],
   );
   const sortGroup = useListSortGroup(metrics, metricColumns, "metrics");
 
+  // The right-hand panel: the form that creates a metric while it is open, otherwise the selected
+  // metric -- its detail, or the form that edits it. Nothing selected: no panel.
+  const closePanel = () => {
+    closeForm();
+    setExpanded(null);
+  };
+  const selectedMetric =
+    expanded === null ? null : (metrics.find((m) => m.name === expanded) ?? null);
+  const panelTitle = creating
+    ? t("metricsPage.createTitle")
+    : selectedMetric
+      ? selectedMetric.name
+      : "";
+  const panelBody = creating ? (
+    <div data-testid="metric-create-card">{formCard}</div>
+  ) : selectedMetric ? (
+    editingName === selectedMetric.name ? (
+      // While the form is open the panel's head is the form's: its Save and Cancel.
+      formCard
+    ) : (
+      <MetricDetailPanel
+        m={selectedMetric}
+        dependentViews={dependentViews(selectedMetric.name)}
+        onEdit={() => openEdit(selectedMetric)}
+        onDelete={() => setDeleteTarget(selectedMetric.name)}
+      />
+    )
+  ) : null;
+
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "1rem 1.25rem" }}>
+    // The list and its panel share the height the heading leaves; each scrolls by itself.
+    <div className="page-sticky-head" style={{ padding: "1rem 1.25rem" }}>
       <Group justify="space-between" mb="md">
         <Title order={3}>{t("metricsPage.title")}</Title>
         <Group gap="xs">
-          <Button
-            size="xs"
-            leftSection={<Plus size={13} />}
-            onClick={openCreate}
-            data-testid="metrics-new-button"
-          >
-            {t("metricsPage.newMetric")}
-          </Button>
+          {/* The opener is hidden while a metric form is open (the form ends in Save, Cancel). */}
+          {!creating && editingName === null && (
+            <Button size="xs" onClick={openCreate} data-testid="metrics-new-button">
+              {t("metricsPage.newMetric")}
+            </Button>
+          )}
           <HelpBubble
             title={t("metricsPage.purposeTitle")}
             paragraphs={[t("metricsPage.purposeBody"), t("metricsPage.purposeAdd")]}
@@ -382,7 +422,10 @@ export function MetricsPage() {
       </Group>
 
       {/* REQ-1316: semantic interchange (Ossie) — export endpoint/download + import review. */}
-      <OssieInterchangePanel />
+      {/* An import under review can be long: it scrolls in its own box, the list keeps its place. */}
+      <div style={{ maxHeight: "50vh", overflow: "auto" }}>
+        <OssieInterchangePanel />
+      </div>
 
       {error && (
         <Alert color="red" mb="sm">
@@ -395,108 +438,105 @@ export function MetricsPage() {
         </Alert>
       )}
 
-      {creating && (
-        <Paper withBorder p="md" mb="md" data-testid="metric-create-card">
-          <Title order={5} mb="sm">
-            {t("metricsPage.createTitle")}
-          </Title>
-          {formCard}
-        </Paper>
-      )}
-
       {loading && metrics.length === 0 ? (
         <PageLoading message={t("metricsPage.loading")} />
       ) : (
-      <ListTable testId="metrics-table">
-          <ListHead
-            sortGroup={sortGroup}
-            columns={[
-              { col: "name" },
-              { col: "expression" },
-              { col: "datatype" },
-              { col: "description" },
-              { col: "aiContext" },
-            ]}
-          />
-          <Table.Tbody>
-            {metrics.length === 0 && (
-              <ListEmpty colSpan={5} testId="metrics-empty">
-                {t("metricsPage.empty")}
-              </ListEmpty>
-            )}
-            <ListItems
-              state={sortGroup}
-              colSpan={5}
-              rowKey={(m) => m.name}
-              render={(m) => {
-              const isExpanded = expanded === m.name;
-              const isEditing = editingName === m.name;
-              return (
-                <React.Fragment key={m.name}>
-                  <ListRow
-                    testId={`metrics-row-${m.name}`}
-                    onClick={() => {
-                      setExpanded(isExpanded ? null : m.name);
-                      if (isEditing && isExpanded) closeForm();
-                    }}
-                  >
-                    <Table.Td>
-                      <Group gap="0.35rem" wrap="nowrap">
-                        <Text size="sm" fw={600} ff="monospace">
-                          {m.name}
-                        </Text>
-                        {m.fromFact && (
-                          <Badge
-                            size="xs"
-                            variant="light"
-                            data-testid={`metrics-from-fact-${m.name}`}
-                          >
-                            {t("metricsPage.fromFact")}
-                          </Badge>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
-                        {m.expression}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" ff="monospace">
-                        {m.datatype ?? ""}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs">{m.description ?? ""}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="var(--text-muted)">
-                        {m.aiContext ?? ""}
-                      </Text>
-                    </Table.Td>
-                  </ListRow>
-                  {isExpanded && (
-                    <ListExpandRow colSpan={5}>
-                      <ListDetail>
-                        {isEditing ? (
-                          formCard
-                        ) : (
-                          <MetricDetailPanel
-                            m={m}
-                            dependentViews={dependentViews(m.name)}
-                            onEdit={() => openEdit(m)}
-                            onDelete={() => setDeleteTarget(m.name)}
-                          />
-                        )}
-                      </ListDetail>
-                    </ListExpandRow>
-                  )}
-                </React.Fragment>
-              );
-              }}
-            />
-          </Table.Tbody>
-      </ListTable>
+        <SplitPane
+          testId="metrics-split"
+          storageKey="provisa.metrics.detailWidth"
+          title={panelTitle}
+          onClose={closePanel}
+          // Escape closes a metric that is only being looked at; it never drops what is typed.
+          closeOnEscape={!creating && editingName === null}
+          labels={{
+            panel: t("metricsPage.detailPanel"),
+            resize: t("tablesPage.resizeDetail"),
+            expand: t("tablesPage.expandDetail"),
+            restore: t("tablesPage.restoreDetail"),
+            close: t("tablesPage.closeDetail"),
+            backToList: t("tablesPage.backToList"),
+          }}
+          list={
+            <ListTable testId="metrics-table">
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  { col: "name" },
+                  { col: "expression" },
+                  { col: "datatype" },
+                  { col: "description" },
+                  { col: "aiContext" },
+                ]}
+              />
+              <Table.Tbody>
+                {metrics.length === 0 && (
+                  <ListEmpty colSpan={5} testId="metrics-empty">
+                    {t("metricsPage.empty")}
+                  </ListEmpty>
+                )}
+                <ListItems
+                  state={sortGroup}
+                  colSpan={5}
+                  rowKey={(m) => m.name}
+                  render={(m) => {
+                    const isExpanded = expanded === m.name;
+                    return (
+                      <React.Fragment key={m.name}>
+                        <ListRow
+                          testId={`metrics-row-${m.name}`}
+                          // The row whose detail the right-hand panel is showing.
+                          selected={isExpanded}
+                          onClick={() => {
+                            // The row opens its detail in the panel, swaps it, or closes it.
+                            setExpanded(isExpanded ? null : m.name);
+                            closeForm();
+                          }}
+                        >
+                          <Table.Td>
+                            <Group gap="0.35rem" wrap="nowrap">
+                              <Text size="sm" fw={600} ff="monospace">
+                                {m.name}
+                              </Text>
+                              {m.fromFact && (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  data-testid={`metrics-from-fact-${m.name}`}
+                                >
+                                  {t("metricsPage.fromFact")}
+                                </Badge>
+                              )}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
+                              {m.expression}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" ff="monospace">
+                              {m.datatype ?? ""}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">{m.description ?? ""}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" c="var(--text-muted)">
+                              {m.aiContext ?? ""}
+                            </Text>
+                          </Table.Td>
+                        </ListRow>
+                      </React.Fragment>
+                    );
+                  }}
+                />
+              </Table.Tbody>
+            </ListTable>
+          }
+        >
+          {panelBody}
+        </SplitPane>
       )}
 
       {/* Delete confirm */}
@@ -510,19 +550,21 @@ export function MetricsPage() {
         <Text mb="lg" size="sm">
           {t("metricsPage.deleteConfirm", { name: deleteTarget ?? "" })}
         </Text>
-        <Group justify="flex-end" gap="sm">
-          <Button variant="default" onClick={() => setDeleteTarget(null)}>
-            {t("metricsPage.cancel")}
-          </Button>
-          <Button
-            color="red"
-            onClick={handleDelete}
-            loading={deleting}
-            data-testid="metric-delete-confirm"
-          >
-            {t("metricsPage.delete")}
-          </Button>
-        </Group>
+        {/* The action first, then the shared Cancel, at the start of the row like every form. */}
+        <FormFooter
+          onCancel={() => setDeleteTarget(null)}
+          cancelProps={{ disabled: deleting }}
+          action={
+            <Button
+              color="red"
+              onClick={handleDelete}
+              loading={deleting}
+              data-testid="metric-delete-confirm"
+            >
+              {t("metricsPage.delete")}
+            </Button>
+          }
+        />
       </Modal>
       {refusal.dialog}
     </div>

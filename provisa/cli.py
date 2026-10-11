@@ -664,13 +664,13 @@ def main(argv: list[str] | None = None) -> int:
         "--mode",
         choices=("every", "query", "coordinator"),
         default=None,
-        help="Process mode (REQ-1916): every (default) serves requests and does the background "
+        help="Process mode: every (default) serves requests and does the background "
         "work; query only serves requests; coordinator only does the background work",
     )
     run.add_argument(
         "--region",
         default=None,
-        help="The platform region this node serves (REQ-1922); required when the platform "
+        help="The platform region this node serves; required when the platform "
         "declares regions, refused when it declares none",
     )
     run.set_defaults(func=_cmd_run)
@@ -691,7 +691,7 @@ def main(argv: list[str] | None = None) -> int:
     meta_export = meta_sub.add_parser(
         "export",
         help="Publish the full metadata snapshot to the org's configured catalog "
-        "(the on-demand REQ-1072 reconcile, runnable from cron)",
+        "(the on-demand reconcile, runnable from cron)",
     )
     meta_export.add_argument(
         "--api",

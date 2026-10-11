@@ -106,6 +106,12 @@ def _retry_after(value: str) -> float | None:
     return max(0.0, (until - _utcnow()).total_seconds())
 
 
+async def _wait(seconds: float) -> None:
+    """The pause before the next attempt. This module's own: a test that must see exactly how
+    long a retry waited replaces this, and not ``asyncio.sleep`` for every thread of the process."""
+    await asyncio.sleep(seconds)
+
+
 async def _request_with_retry(
     client: httpx.AsyncClient,
     method: str,
@@ -145,7 +151,7 @@ async def _request_with_retry(
                     f"({_DEFAULT_TOTAL_TIMEOUT:g}s): {resp.status_code}{named}"
                 )
             if attempt < _MAX_RETRIES - 1:
-                await asyncio.sleep(wait)
+                await _wait(wait)
                 continue
             raise ApiCallError(
                 f"API call failed after {_MAX_RETRIES} retries: "

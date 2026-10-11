@@ -1552,6 +1552,19 @@ CREATE TABLE IF NOT EXISTS node_freshness_state (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Where the last completed read of a mail source reached (REQ-1923): a token for each mailbox
+-- (scope '') or each of its folders (scope = the folder's id); kind 'probe' or 'delta'.
+-- Mirrors provisa.core.schema_org.mail_sync_state.
+CREATE TABLE IF NOT EXISTS mail_sync_state (
+    source_id   TEXT NOT NULL,
+    account     TEXT NOT NULL,
+    scope       TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    token       TEXT NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (source_id, account, scope, kind)
+);
+
 -- Replica state (REQ-1912, REQ-826): one row per replica of a source table, shared by every
 -- worker and instance. ``promoted`` is the automatic-promotion decision (a Hot-N table past its
 -- threshold); the replica build's own state is added to this same row. Keyed by the table's
@@ -1574,6 +1587,7 @@ CREATE TABLE IF NOT EXISTS replica_state (
     build_holder     TEXT,          -- host:pid of the process building it
     build_method     TEXT,          -- engine_statement | stream_batches
     rows_copied      BIGINT,        -- progress of the running build; the total once complete
+    completed_rows   BIGINT,        -- rows of the last whole build, kept while the next runs; NULL: none
     completed_at     TIMESTAMPTZ,   -- NULL: there is no replica
     next_refresh_at  TIMESTAMPTZ,   -- NULL: refreshed only on request
     content_hash     TEXT,          -- order-independent hash of the last completed build
@@ -1582,11 +1596,18 @@ CREATE TABLE IF NOT EXISTS replica_state (
     built_columns    JSONB,         -- the columns the standing replica has
     model_stamp      BIGINT,        -- the model stamp of the process that asked for the build
     load_kind        TEXT,          -- bulk_stream | row_copy, of the running or last build
+    -- What a running build is waiting out: {"by", "seconds", "until"} while its source's
+    -- service is throttling the read. NULL: it is not waiting.
+    build_wait       JSONB,
+    -- How far a running build that lands a part at a time has got: {"done", "total", "unit",
+    -- "first"} (mailboxes read to their end). NULL: not such a build.
+    build_progress   JSONB,
     retired_at       TIMESTAMPTZ,   -- set when the model stops declaring it; dropped after a grace
     last_error       TEXT,
     last_error_code  TEXT,          -- REQ-1350: the failure's code, when its cause is a named one
     last_error_params JSONB,        -- and its params
     build_notes      JSONB,         -- what the last completed build had to say of its copy: [{code, params}]
+    verified_at      TIMESTAMPTZ,   -- REQ-855: when its probe last found the source unchanged since the build
     failed_at        TIMESTAMPTZ,
     failed_attempts  INTEGER NOT NULL DEFAULT 0,  -- builds failed in a row since the last completed
     waiting_on       TEXT,          -- why a requested build did not start on the last pass (a code)

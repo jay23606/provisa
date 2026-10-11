@@ -11,6 +11,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  FormChecks,
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+} from "../components/form/FormLayout";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -558,7 +565,7 @@ export function OnboardOrgPage() {
                     </Button>
                   </Group>
                 ))}
-                <Group justify="flex-end">
+                <Group justify="flex-start">
                   <Button
                     size="xs"
                     variant="subtle"
@@ -586,18 +593,21 @@ export function OnboardOrgPage() {
           />
 
           {mode === "create" ? (
-            <form onSubmit={handleCreate}>
-              <Stack gap="md">
-                <TextInput
-                  id="onboard-org-id"
-                  data-testid="onboard-org-id"
-                  label={t("onboardOrg.orgIdLabel")}
-                  description={t("onboardOrg.orgIdDesc")}
-                  value={id}
-                  onChange={(e) => setId(e.currentTarget.value)}
-                  required
-                  pattern="[a-z][a-z0-9]{1,39}"
-                />
+            <FormLayout component="form" onSubmit={handleCreate}>
+              <FormIdentifiers>
+                <FormField size="medium" help={t("onboardOrg.orgIdDesc")}>
+                  <TextInput
+                    id="onboard-org-id"
+                    data-testid="onboard-org-id"
+                    label={t("onboardOrg.orgIdLabel")}
+                    value={id}
+                    onChange={(e) => setId(e.currentTarget.value)}
+                    required
+                    pattern="[a-z][a-z0-9]{1,39}"
+                  />
+                </FormField>
+              </FormIdentifiers>
+              <FormField size="medium">
                 <TextInput
                   id="onboard-org-name"
                   data-testid="onboard-org-name"
@@ -606,28 +616,28 @@ export function OnboardOrgPage() {
                   onChange={(e) => setName(e.currentTarget.value)}
                   required
                 />
-                <Checkbox
-                  data-testid="onboard-org-demo"
-                  label={t("onboardOrg.includeDemoLabel")}
-                  description={t("onboardOrg.includeDemoDesc")}
-                  checked={includeDemo}
-                  onChange={(e) => setIncludeDemo(e.currentTarget.checked)}
+              </FormField>
+              <FormField size="long" help={t("onboardOrg.emailRuleDesc")}>
+                <TextInput
+                  id="onboard-org-email-rule"
+                  data-testid="onboard-org-email-rule"
+                  label={t("onboardOrg.emailRuleLabel")}
+                  placeholder="@acme\.com$"
+                  value={emailRule}
+                  onChange={(e) => {
+                    setEmailRule(e.currentTarget.value);
+                    // REQ-1567: the acceptance was of what the PREVIOUS rule admitted. A new rule
+                    // admits a different set, so it has to be measured and accepted again.
+                    setBreadthWarning(null);
+                    setRiskAcknowledged(false);
+                  }}
                 />
-                {/* REQ-1510: where plans are sold the plan carries the lane, so the checkbox would
-                    be a second, contradictable answer to the same question. */}
-                {!billing && (
-                  <Checkbox
-                    data-testid="onboard-org-isolated-engine"
-                    label={t("onboardOrg.isolatedEngineLabel")}
-                    description={t("onboardOrg.isolatedEngineDesc")}
-                    checked={isolatedEngine}
-                    onChange={(e) => setIsolatedEngine(e.currentTarget.checked)}
-                  />
-                )}
-                {/* REQ-1514: what each plan actually costs and caps. The checkout overlay renders a
+              </FormField>
+              {/* REQ-1514: what each plan actually costs and caps. The checkout overlay renders a
                     variant by its first tier's unit price, which is zero on every plan, and says
                     nothing of the hourly rate, the source cap, or the transfer allowance. */}
-                {plans && (
+              {plans && (
+                <FormField size="full">
                   <Radio.Group
                     data-testid="onboard-org-plan"
                     label={t("onboardOrg.planLabel")}
@@ -703,104 +713,126 @@ export function OnboardOrgPage() {
                       ))}
                     </Stack>
                   </Radio.Group>
+                </FormField>
+              )}
+              {/* The ticks together, after the fields; the last decides the field that follows. */}
+              <FormChecks>
+                <FormField size="long" help={t("onboardOrg.includeDemoDesc")}>
+                  <Checkbox
+                    data-testid="onboard-org-demo"
+                    label={t("onboardOrg.includeDemoLabel")}
+                    checked={includeDemo}
+                    onChange={(e) => setIncludeDemo(e.currentTarget.checked)}
+                  />
+                </FormField>
+                {/* REQ-1510: where plans are sold the plan carries the lane, so the checkbox would
+                      be a second, contradictable answer to the same question. */}
+                {!billing && (
+                  <FormField size="long" help={t("onboardOrg.isolatedEngineDesc")}>
+                    <Checkbox
+                      data-testid="onboard-org-isolated-engine"
+                      label={t("onboardOrg.isolatedEngineLabel")}
+                      checked={isolatedEngine}
+                      onChange={(e) => setIsolatedEngine(e.currentTarget.checked)}
+                    />
+                  </FormField>
                 )}
-                <TextInput
-                  id="onboard-org-email-rule"
-                  data-testid="onboard-org-email-rule"
-                  label={t("onboardOrg.emailRuleLabel")}
-                  description={t("onboardOrg.emailRuleDesc")}
-                  placeholder="@acme\.com$"
-                  value={emailRule}
-                  onChange={(e) => {
-                    setEmailRule(e.currentTarget.value);
-                    // REQ-1567: the acceptance was of what the PREVIOUS rule admitted. A new rule
-                    // admits a different set, so it has to be measured and accepted again.
-                    setBreadthWarning(null);
-                    setRiskAcknowledged(false);
-                  }}
-                />
-                <Checkbox
-                  data-testid="onboard-org-auto-join"
-                  label={t("onboardOrg.autoJoinLabel")}
-                  description={t("onboardOrg.autoJoinDesc")}
-                  checked={autoJoin}
-                  onChange={(e) => setAutoJoin(e.currentTarget.checked)}
-                />
-                {autoJoin && (
+                <FormField size="long" help={t("onboardOrg.autoJoinDesc")}>
+                  <Checkbox
+                    data-testid="onboard-org-auto-join"
+                    label={t("onboardOrg.autoJoinLabel")}
+                    checked={autoJoin}
+                    onChange={(e) => setAutoJoin(e.currentTarget.checked)}
+                  />
+                </FormField>
+              </FormChecks>
+              {autoJoin && (
+                <FormField size="medium" hint={t("onboardOrg.autoJoinRoleDesc")}>
                   <TextInput
                     id="onboard-org-auto-join-role"
                     data-testid="onboard-org-auto-join-role"
                     label={t("onboardOrg.autoJoinRoleLabel")}
-                    description={t("onboardOrg.autoJoinRoleDesc")}
                     placeholder="analyst"
                     value={autoJoinRole}
                     onChange={(e) => setAutoJoinRole(e.currentTarget.value)}
                     required
                   />
-                )}
-                {breadthWarning && (
-                  <Alert
-                    variant="light"
-                    color="yellow"
-                    data-testid="onboard-org-breadth-warning"
-                    title={t("onboardOrg.autoJoinBreadthTitle")}
-                  >
-                    <Stack gap="xs">
-                      <Text size="sm">{breadthWarning}</Text>
-                      <Checkbox
-                        data-testid="onboard-org-accept-risk"
-                        label={t("onboardOrg.autoJoinAcceptRisk")}
-                        checked={riskAcknowledged}
-                        onChange={(e) => setRiskAcknowledged(e.currentTarget.checked)}
-                      />
-                    </Stack>
-                  </Alert>
-                )}
-                {error && (
-                  <Alert variant="light" color="red" data-testid="onboard-org-error">
-                    {error}
-                  </Alert>
-                )}
-                {/* REQ-1476: on a commercial deployment this button opens a checkout — the org is
-                    created by the subscription, so it says what it does. */}
-                {billing && offer && (
-                  <Text size="sm" c="dimmed" data-testid="onboard-org-signup-desc">
-                    {offer.trial_days === null || !trialAvailable
-                      ? t("onboardOrg.signUpDescPaid")
-                      : t("onboardOrg.signUpDesc")}
-                  </Text>
-                )}
-                <Button
-                  type="submit"
-                  data-testid="onboard-org-submit"
-                  disabled={billing && offer === null}
+                </FormField>
+              )}
+              {breadthWarning && (
+                <Alert
+                  variant="light"
+                  color="yellow"
+                  data-testid="onboard-org-breadth-warning"
+                  title={t("onboardOrg.autoJoinBreadthTitle")}
                 >
-                  {billing ? t("onboardOrg.signUpButton") : t("onboardOrg.createButton")}
-                </Button>
-              </Stack>
-            </form>
+                  <Stack gap="xs">
+                    <Text size="sm">{breadthWarning}</Text>
+                    <FormChecks>
+                      <FormField size="long">
+                        <Checkbox
+                          data-testid="onboard-org-accept-risk"
+                          label={t("onboardOrg.autoJoinAcceptRisk")}
+                          checked={riskAcknowledged}
+                          onChange={(e) => setRiskAcknowledged(e.currentTarget.checked)}
+                        />
+                      </FormField>
+                    </FormChecks>
+                  </Stack>
+                </Alert>
+              )}
+              {error && (
+                <Alert variant="light" color="red" data-testid="onboard-org-error">
+                  {error}
+                </Alert>
+              )}
+              {/* REQ-1476: on a commercial deployment this button opens a checkout — the org is
+                    created by the subscription, so it says what it does. */}
+              {billing && offer && (
+                <Text size="sm" c="dimmed" data-testid="onboard-org-signup-desc">
+                  {offer.trial_days === null || !trialAvailable
+                    ? t("onboardOrg.signUpDescPaid")
+                    : t("onboardOrg.signUpDesc")}
+                </Text>
+              )}
+              {/* The step's one action, in the shared footer. */}
+              <FormFooter
+                action={
+                  <Button
+                    type="submit"
+                    data-testid="onboard-org-submit"
+                    disabled={billing && offer === null}
+                  >
+                    {billing ? t("onboardOrg.signUpButton") : t("onboardOrg.createButton")}
+                  </Button>
+                }
+              />
+            </FormLayout>
           ) : (
-            <form onSubmit={handleJoin}>
-              <Stack gap="md">
+            <FormLayout component="form" onSubmit={handleJoin}>
+              <FormField size="long" hint={t("onboardOrg.inviteDesc")}>
                 <TextInput
                   id="onboard-org-invite"
                   data-testid="onboard-org-invite"
                   label={t("onboardOrg.inviteLabel")}
-                  description={t("onboardOrg.inviteDesc")}
                   value={invite}
                   onChange={(e) => setInvite(e.currentTarget.value)}
                   required
                 />
-                {error && (
-                  <Alert variant="light" color="red" data-testid="onboard-org-error">
-                    {error}
-                  </Alert>
-                )}
-                <Button type="submit" data-testid="onboard-org-join-submit">
-                  {t("onboardOrg.joinButton")}
-                </Button>
-              </Stack>
-            </form>
+              </FormField>
+              {error && (
+                <Alert variant="light" color="red" data-testid="onboard-org-error">
+                  {error}
+                </Alert>
+              )}
+              <FormFooter
+                action={
+                  <Button type="submit" data-testid="onboard-org-join-submit">
+                    {t("onboardOrg.joinButton")}
+                  </Button>
+                }
+              />
+            </FormLayout>
           )}
         </Stack>
       )}

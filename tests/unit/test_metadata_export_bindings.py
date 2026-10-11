@@ -49,6 +49,7 @@ from provisa.core.models import (
     SourceType,
     Table,
 )
+from tests.role_state import RoleState
 
 TABLE_FQN = "wh.public.orders"
 OM_TABLE_FQN = "wh.default.public.orders"
@@ -531,7 +532,7 @@ async def test_publish_snapshot_loads_persists_and_prunes_bindings(snapshot, tmp
     monkeypatch.setattr(publishing, "metadata_export", lambda config: exporter)
     monkeypatch.setattr(
         "provisa.api.app.state",
-        types.SimpleNamespace(
+        RoleState(
             model_db=(_one_db := _TenantDb()),
             tenant_db=_one_db,
             contexts={},

@@ -282,7 +282,7 @@ class _NativeBackend:
     def query_arrow(self, sql: str, params: dict | None = None) -> pa.Table:
         raise NotImplementedError(
             "the ClickHouse native TCP transport (clickhouse-driver) has no Arrow format; "
-            "use clickhouse:// (HTTP) or chdb:// for the Arrow Flight ENGINE path (REQ-986)"
+            "use clickhouse:// (HTTP) or chdb:// for the Arrow Flight ENGINE path"
         )
 
     def query_arrow_stream(
@@ -290,7 +290,7 @@ class _NativeBackend:
     ) -> tuple[pa.Schema, Iterator[pa.RecordBatch]]:
         raise NotImplementedError(
             "the ClickHouse native TCP transport (clickhouse-driver) has no Arrow format; "
-            "use clickhouse:// (HTTP) or chdb:// for the Arrow Flight ENGINE path (REQ-986)"
+            "use clickhouse:// (HTTP) or chdb:// for the Arrow Flight ENGINE path"
         )
 
     def insert_arrow(

@@ -76,7 +76,7 @@ Client ←(Arrow batches)← Provisa Flight Server ←(Arrow batches)← Zaychik
 
 ### Protobuf gRPC (פורט 50051)
 
-`.proto` מיוצר אוטומטית מסכמת הנתונים, מיוצר לפי תפקיד. (REQ-525) שאילתות זרימה (הודעה אחת לכל שורה), מוטציות יחידניות (unary). Server reflection מופעל. (REQ-526) התפקיד מועבר דרך מפתח metadata בשם `x-provisa-role`.
+`.proto` מיוצר אוטומטית מסכמת הנתונים, מיוצר לפי תפקיד. (REQ-525) שאילתות זרימה (הודעה אחת לכל שורה), מוטציות יחידניות (unary). Server reflection מופעל. (REQ-526) התפקיד מועבר דרך מפתח metadata בשם `x-provisa-role`. הרפלקציה מתארת לכל קורא את השירות של התפקיד שלו.
 
 ### פרוטוקול חוט PostgreSQL / pgwire (פורט ניתן להגדרה)
 

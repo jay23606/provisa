@@ -9,15 +9,12 @@
     "fieldName": "שם ה-View",
     "fieldNamePlaceholder": "למשל revenue_by_region",
     "fieldDomain": "דומיין",
-    "fieldDescription": "תיאור",
     "fieldMetrics": "מדדים",
     "fieldMetricsPlaceholder": "בחרו מדד רשום אחד או יותר",
     "fieldDimensions": "ממדים",
     "fieldDimensionsPlaceholder": "עמודות של טבלאות המדדים (כולל מרחק של קשר אחד)",
     "fieldFilters": "מסננים",
     "fieldFiltersHelp": "תנאי SQL אחד בכל שורה; התנאים מחוברים ב-AND.",
-    "save": "שמירת View",
-    "saveFailed": "השמירה נכשלה",
-    "cancel": "ביטול"
+    "saveFailed": "השמירה נכשלה"
   }
 }

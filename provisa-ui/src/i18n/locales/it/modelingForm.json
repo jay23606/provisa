@@ -34,7 +34,6 @@
     "selectSourceFirst": "Selezionare prima una tabella di origine.",
     "notKeyable": "non utilizzabile come chiave",
     "errorRequired": "Nome, origine e dominio sono obbligatori.",
-    "cancel": "Annulla",
     "submit": "Crea",
     "createdTitle": "{{name}} creato",
     "createdMv": "Creata una vista materializzata — {{kind}} \"{{name}}\" nel dominio {{domain}}. Ora appare nelle tabelle registrate ed è interrogabile.",

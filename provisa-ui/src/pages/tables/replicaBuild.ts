@@ -17,6 +17,94 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 /** A server message in the reader's language: its code when the catalog has it, else its English text. */
 type ServerText = (body: ServerMessageShape, fallback: string) => string;
 
+/** The build of one table among those the server reported; undefined when it has no replica
+ * record, or builds could not be read. */
+export function buildOf(
+  builds: ReplicaBuild[] | undefined,
+  table: { sourceId: string; schemaName: string; tableName: string },
+): ReplicaBuild | undefined {
+  return builds?.find(
+    (b) =>
+      b.sourceId === table.sourceId &&
+      b.schemaName === table.schemaName &&
+      b.tableName === table.tableName,
+  );
+}
+
+/** The most a running build is shown as: it is not complete until it says so. */
+export const MOST_SHOWN_PERCENT = 95;
+
+/** How far a running build has got, for the mark that shows it. THE one place this is worked
+ * out: a build that comes to know a total of another kind (mailboxes read of mailboxes listed,
+ * files read of files matched) is given its measure here, and the mark draws it unchanged. */
+export interface ReplicaProgress {
+  /** How full the ring is, 0 to MOST_SHOWN_PERCENT; null when there is nothing to measure the
+   * build against, and the ring turns without a measure. Never made up. */
+  percent: number | null;
+  /** Whether the measure is a total the build knows, or an estimate of one. */
+  exact: boolean;
+  /** What the mark says of it: the wording's key under `replicaBuild`, and the numbers in it
+   * (each is formatted for the reader's language where it is shown). */
+  said: { key: string; numbers: Record<string, number>; words?: Record<string, string> };
+}
+
+/** How far `build`, which is running, has got. Today the one measure is the rows of the last
+ * build that copied the whole table: an estimate, since the table may have grown or shrunk. */
+export function replicaProgress(build: ReplicaBuild): ReplicaProgress {
+  const measured = measuredProgress(build);
+  // Its source's service asked the read to wait: the ring keeps what it had measured, and
+  // says that -- how far a build has got matters less than why it is standing still.
+  if (build.wait) {
+    return {
+      ...measured,
+      said: {
+        key: "progressWaiting",
+        numbers: { seconds: Math.round(build.wait.seconds) },
+        words: { by: build.wait.by },
+      },
+    };
+  }
+  return measured;
+}
+
+function measuredProgress(build: ReplicaBuild): ReplicaProgress {
+  // A build that lands a mailbox at a time knows its total: the mailboxes it reads. That is a
+  // count, not an estimate -- and still never shown as complete while the build runs.
+  const parts = build.progress;
+  if (parts && parts.unit === "mailboxes" && parts.total > 0) {
+    return {
+      // Until its first mailbox is read to its end the ring turns: a still, empty ring would
+      // look stuck for the whole first read of a one-mailbox source. It says the count.
+      percent:
+        parts.done > 0
+          ? Math.min(MOST_SHOWN_PERCENT, Math.floor((parts.done / parts.total) * 100))
+          : null,
+      exact: true,
+      said: { key: "progressMailboxes", numbers: { done: parts.done, total: parts.total } },
+    };
+  }
+  const rows = build.rowsCopied ?? 0;
+  const total = build.completedRows ?? 0;
+  // A delta applies changes only: its rows are not a share of the table's.
+  if (build.method === "delta" || total <= 0 || rows <= 0) {
+    return {
+      percent: null,
+      exact: false,
+      said:
+        rows > 0 ? { key: "progressRows", numbers: { rows } } : { key: "replicating", numbers: {} },
+    };
+  }
+  const percent = Math.min(MOST_SHOWN_PERCENT, Math.floor((rows / total) * 100));
+  return {
+    percent,
+    exact: false,
+    said:
+      rows > total
+        ? { key: "progressPast", numbers: { rows, total } }
+        : { key: "progressAbout", numbers: { rows, total } },
+  };
+}
+
 /** How a build copies, in words: "streamed in batches, row copy". */
 function how(build: ReplicaBuild, t: Translate): string {
   const parts: string[] = [];
@@ -61,6 +149,24 @@ export function replicaBuildLine(
           })
         : t("replicaBuild.requested");
     case "building":
+      // Its source's service asked the read to wait: say so, in place of a rate that stands
+      // still.
+      if (build.wait) {
+        return t("replicaBuild.buildingWaiting", {
+          seconds: formatNumber(Math.round(build.wait.seconds)),
+          by: build.wait.by,
+          how: how(build, t),
+        });
+      }
+      // A mail source's replica is written a part at a time and read meanwhile: it says how
+      // many of the source's mailboxes have been read to their end, not a rate of rows.
+      if (build.progress) {
+        return t(build.partial ? "replicaBuild.buildingPartial" : "replicaBuild.buildingParts", {
+          done: formatNumber(build.progress.done),
+          total: formatNumber(build.progress.total),
+          how: how(build, t),
+        });
+      }
       return build.rowsPerSecond !== null
         ? t("replicaBuild.building", {
             rows,
@@ -69,13 +175,20 @@ export function replicaBuildLine(
           })
         : t("replicaBuild.buildingNoRate", { how: how(build, t) });
     default:
-      return build.completedAt
-        ? t("replicaBuild.built", {
+      if (!build.completedAt) return t("replicaBuild.none");
+      // REQ-855: a copy its probe has since found unchanged says when it was last checked.
+      return build.verifiedAt
+        ? t("replicaBuild.builtChecked", {
             when: formatWhen(build.completedAt),
+            checked: formatWhen(build.verifiedAt),
             rows,
             how: how(build, t),
           })
-        : t("replicaBuild.none");
+        : t("replicaBuild.built", {
+            when: formatWhen(build.completedAt),
+            rows,
+            how: how(build, t),
+          });
   }
 }
 
@@ -117,6 +230,25 @@ export function replicaNoteLines(build: ReplicaBuild | undefined, t: Translate):
         total: Number(params.count ?? 0),
         accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
       });
+    }
+    if (code === "replication.mailboxes_at_quota") {
+      const named = ((params.accounts as string[] | undefined) ?? []).join(", ");
+      const more = Number(params.more ?? 0);
+      return t("replicaBuild.note.mailboxes_at_quota", {
+        total: Number(params.count ?? 0),
+        accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
+      });
+    }
+    if (code === "replication.mailboxes_failed") {
+      const named = ((params.accounts as string[] | undefined) ?? []).join(", ");
+      const more = Number(params.more ?? 0);
+      return t("replicaBuild.note.mailboxes_failed", {
+        total: Number(params.count ?? 0),
+        accounts: more > 0 ? t("replicaBuild.note.andMore", { ids: named, more }) : named,
+      });
+    }
+    if (code === "replication.place_not_kept") {
+      return t("replicaBuild.note.place_not_kept", { reason: String(params.reason ?? "") });
     }
     return t("replicaBuild.note.other", { code });
   });

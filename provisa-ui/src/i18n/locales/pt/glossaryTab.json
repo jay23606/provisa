@@ -20,7 +20,6 @@
     "deleteConfirm": "Excluir o termo {{name}}?",
     "deleted": "Termo {{name}} excluído.",
     "deleteDisabledHint": "Este termo tem referências ou relacionamentos. Desative-o para retirá-lo de uso, ou mova suas referências e remova seus relacionamentos para excluí-lo.",
-    "cancel": "Cancelar",
     "create": "Criar",
     "created": "Termo {{name}} criado.",
     "refsTitle": "Referências",

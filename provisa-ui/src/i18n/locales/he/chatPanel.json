@@ -8,6 +8,26 @@
       "inflation": "מצא לי נתוני אינפלציה",
       "profile": "צור פרופיל לטבלה orders",
       "fakes": "תן לטבלה customers שמות מדומים לנתוני בדיקה"
-    }
+    },
+    "toggleTooltip": "Polly, עוזר הנתונים שלכם",
+    "notSetUpTitle": "Polly עדיין לא הוגדר",
+    "needsVendor": "כדי ש-Polly יוכל לשוחח, יש להגדיר ספק LLM ואישורי גישה.",
+    "needsVendorReason": "כדי ש-Polly יוכל לשוחח, יש להגדיר ספק LLM ואישורי גישה ({{reason}}).",
+    "openAiModels": "פתיחת הגדרות מודלי ה-AI",
+    "notNow": "לא עכשיו",
+    "resize": "שינוי גודל חלונית הצ'אט",
+    "clear": "ניקוי השיחה",
+    "composerPlaceholder": "שאלו אותי שאלה, או אמרו לי מה לעשות.",
+    "stopListening": "הפסקת ההאזנה",
+    "speak": "דיבור אל Polly",
+    "stop": "עצירה",
+    "send": "שליחה",
+    "typeAnswer": "הקלידו את תשובתכם…",
+    "submit": "שליחה",
+    "backToYesNo": "חזרה לכן/לא",
+    "yes": "כן",
+    "no": "לא",
+    "typeSomethingElse": "הקלדת משהו אחר",
+    "confirm": "אישור"
   }
 }

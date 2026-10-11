@@ -261,7 +261,7 @@ describe("ServerLimitsCard", () => {
     const grid = screen.getByTestId("limit-timeouts-grid");
     for (const k of TRANSPORTS)
       expect(grid).toContainElement(screen.getByTestId(`limit-timeout-${k}`));
-    expect(grid.className).toMatch(/SimpleGrid/);
+    expect(grid).toHaveClass("form-layout");
     expect(grid).not.toContainElement(screen.getByTestId("limit-request-timeout"));
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");

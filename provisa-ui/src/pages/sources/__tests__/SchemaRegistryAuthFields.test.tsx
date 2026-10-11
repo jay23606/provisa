@@ -12,7 +12,7 @@
 // bundle path always, and each field writes the CdcState key it is saved under.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "../../../test-utils/render";
+import { fireEvent, renderInForm, screen } from "../../../test-utils/render";
 import { SchemaRegistryAuthFields } from "../SchemaRegistryAuthFields";
 import { schemaRegistryAuthPayload } from "../schemaRegistryAuth";
 import type { CdcState } from "../SourceFormFields";
@@ -49,7 +49,7 @@ const CASES: [string, (keyof typeof FIELD_IDS)[], string[]][] = [
 describe("SchemaRegistryAuthFields", () => {
   it.each(CASES)("%s shows exactly its fields plus the CA path", (method, shown, keys) => {
     const setCdc = vi.fn();
-    render(
+    renderInForm(
       <SchemaRegistryAuthFields cdc={{ ...BASE, schemaRegistryAuth: method }} setCdc={setCdc} />,
     );
     expect(screen.getByTestId("cdc-registry-auth-select")).toBeTruthy();
@@ -75,7 +75,7 @@ describe("SchemaRegistryAuthFields", () => {
 
   it("choosing a method writes schemaRegistryAuth", async () => {
     const setCdc = vi.fn();
-    render(<SchemaRegistryAuthFields cdc={BASE} setCdc={setCdc} />);
+    renderInForm(<SchemaRegistryAuthFields cdc={BASE} setCdc={setCdc} />);
     fireEvent.click(screen.getByTestId("cdc-registry-auth-select"));
     fireEvent.click(await screen.findByRole("option", { name: "Bearer token" }));
     expect(setCdc).toHaveBeenLastCalledWith({ ...BASE, schemaRegistryAuth: "bearer" });

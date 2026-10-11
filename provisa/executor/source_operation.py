@@ -479,5 +479,5 @@ def refuse_writes_in_definition(sql: str, commands: dict, what: str) -> None:
     if called:
         raise ValueError(
             f"{what} calls {', '.join(called)}, which writes to its source and is called on its "
-            "own: a view or materialized view cannot call it (REQ-1924)"
+            "own: a view or materialized view cannot call it"
         )

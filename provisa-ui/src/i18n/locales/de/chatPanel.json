@@ -8,6 +8,26 @@
       "inflation": "Finde Inflationsdaten für mich",
       "profile": "Profiliere die Tabelle orders",
       "fakes": "Gib der Tabelle customers Fake-Namen für Testdaten"
-    }
+    },
+    "toggleTooltip": "Polly, Ihr Datenassistent",
+    "notSetUpTitle": "Polly ist noch nicht eingerichtet",
+    "needsVendor": "Polly benötigt einen konfigurierten LLM-Anbieter und Zugangsdaten, bevor es chatten kann.",
+    "needsVendorReason": "Polly benötigt einen konfigurierten LLM-Anbieter und Zugangsdaten, bevor es chatten kann ({{reason}}).",
+    "openAiModels": "Einstellungen für KI-Modelle öffnen",
+    "notNow": "Nicht jetzt",
+    "resize": "Größe des Chat-Bereichs ändern",
+    "clear": "Unterhaltung löschen",
+    "composerPlaceholder": "Stellen Sie mir eine Frage oder sagen Sie mir, was ich tun soll.",
+    "stopListening": "Zuhören beenden",
+    "speak": "Mit Polly sprechen",
+    "stop": "Stopp",
+    "send": "Senden",
+    "typeAnswer": "Antwort eingeben…",
+    "submit": "Absenden",
+    "backToYesNo": "Zurück zu Ja/Nein",
+    "yes": "Ja",
+    "no": "Nein",
+    "typeSomethingElse": "Etwas anderes eingeben",
+    "confirm": "Bestätigen"
   }
 }

@@ -43,7 +43,7 @@ DECLARE
 BEGIN
   rowjson := (CASE WHEN TG_OP = 'DELETE' THEN row_to_json(OLD) ELSE row_to_json(NEW) END)::text;
   payload := json_build_object('op', lower(TG_OP), 'row', rowjson::json)::text;
-  -- REQ-1515: NOTIFY caps a payload at 8000 bytes and raises otherwise, which would abort the
+  -- NOTIFY caps a payload at 8000 bytes and raises otherwise, which would abort the
   -- writer's transaction. A row too large to fit is truncated rather than dropped: the
   -- subscriber still sees the change and the leading columns, and a write never fails for
   -- want of a notification. The loop halves the character budget until the encoded envelope

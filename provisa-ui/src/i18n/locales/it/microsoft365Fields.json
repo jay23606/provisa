@@ -6,6 +6,7 @@
     "readsMailHelp": "Messaggi, cartelle e dettagli degli allegati di questa casella di posta. Nulla viene modificato.",
     "connect": "Collega account Microsoft",
     "connected": "Collegato come {{account}}",
+    "connectedOn": "Collegato come {{account}} il {{date}}",
     "connectFailed": "Non è stato possibile completare l’accesso.",
     "notSetUp": "La tua organizzazione non ha ancora collegato Microsoft 365.",
     "setUpLink": "Configuralo in {{where}}",

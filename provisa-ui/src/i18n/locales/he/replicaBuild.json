@@ -3,9 +3,19 @@
     "none": "לא נבנתה רפליקה לטבלה זו.",
     "requested": "התבקשה בניית רפליקה.",
     "waiting": "התבקשה בניית רפליקה; בהמתנה: {{waitingOn}}.",
+    "replicating": "משכפל",
+    "progressAbout": "כ-{{percent}}%: {{rows}} מתוך כ-{{total}} שורות",
+    "progressPast": "הועתקו {{rows}} שורות; בבנייה האחרונה היו {{total}}",
+    "progressRows": "הועתקו {{rows}} שורות",
+    "progressMailboxes": "נקראו {{done}} מתוך {{total}} תיבות דואר",
+    "progressWaiting": "ממתין {{seconds}} שניות: {{by}} מגביל את הקריאה",
     "building": "הרפליקה נבנית: {{rows}} שורות הועתקו, {{rate}} שורות/שנייה ({{how}}).",
     "buildingNoRate": "הרפליקה נבנית ({{how}}).",
+    "buildingWaiting": "העותק המשוכפל נבנה; ממתין {{seconds}} שניות: {{by}} מגביל את הקריאה ({{how}}).",
+    "buildingPartial": "העותק המשוכפל נבנה וכבר ניתן לקריאה. חלקי: נקראו {{done}} מתוך {{total}} תיבות דואר ({{how}}).",
+    "buildingParts": "העותק המשוכפל מתעדכן: נבדקו {{done}} מתוך {{total}} תיבות דואר ({{how}}).",
     "built": "הרפליקה נבנתה {{when}}: {{rows}} שורות ({{how}}).",
+    "builtChecked": "הרפליקה נבנתה {{when}}: {{rows}} שורות ({{how}}). נבדק {{checked}}, ללא שינוי מאז.",
     "failed": "בניית הרפליקה נכשלה (ניסיון {{attempts}}; מתבצע ניסיון חוזר): {{error}}",
     "failedNextAt": "בניית הרפליקה נכשלה (ניסיון {{attempts}}; ניסיון חוזר {{when}}): {{error}}",
     "retired": "טבלה זו אינה משוכפלת עוד; הרפליקה שלה מוסרת.",
@@ -14,7 +24,8 @@
       "engine_statement": "הועתקה על ידי המנוע",
       "stream_batches": "הוזרמה באצוות",
       "store_pipeline": "נטענה על ידי ה-Pipeline של המאגר עצמו",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "מתעדכן במקומו"
     },
     "loadKind": {
       "bulk_stream": "הזרמה בכמות גדולה",
@@ -37,6 +48,9 @@
     "note": {
       "unreadable_messages": "הודעות שנשמרו ללא הטקסט שלהן, כי חלק מהן אינו מה שהוא מצהיר: {{total}}. המזהים שלהן: {{ids}}",
       "mailboxes_left_out": "תיבות דואר שהושמטו, כי Microsoft או Google מציינת שאינן קיימות או שאין לקרוא אותן: {{total}}. הן: {{accounts}}",
+      "mailboxes_at_quota": "תיבות דואר שהושמטו, כי הגיעו למכסת האחסון שלהן ו-Microsoft לא תעקוב אחר השינויים בהן עד שיתפנה מקום: {{total}}. הן: {{accounts}}",
+      "mailboxes_failed": "תיבות דואר שקריאתן נכשלה באמצע: {{total}}. מה שנקרא מהן נשמר וקריאתן תימשך ברענון הבא. הן: {{accounts}}",
+      "place_not_kept": "העתק זה שלם, אך לא ניתן היה לשמור עד היכן הגיעה הקריאה שלו, ולכן בדיקת השינויים הבאה תבקש את הקריאה שוב: {{reason}}",
       "andMore": "{{ids}} ועוד {{more}}",
       "other": "הבנייה האחרונה ציינה: {{code}}"
     }

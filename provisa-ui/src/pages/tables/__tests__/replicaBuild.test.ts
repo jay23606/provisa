@@ -47,7 +47,9 @@ function build(over: Partial<ReplicaBuild>): ReplicaBuild {
     startedAt: null,
     rowsCopied: null,
     rowsPerSecond: null,
+    completedRows: null,
     completedAt: null,
+    verifiedAt: null,
     nextRefreshAt: null,
     lastError: null,
     lastErrorCode: null,
@@ -87,6 +89,66 @@ describe("replicaBuildLine", () => {
     );
     expect(line).toBe(
       'replicaBuild.building {"rows":"#3800000","rate":"#38000","how":"replicaBuild.method.stream_batches, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
+  it("says a running build is waiting out a throttle, who asked and for how long", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "stream_batches",
+        loadKind: "row_copy",
+        rowsCopied: 1200,
+        rowsPerSecond: 3,
+        wait: { by: "Microsoft", seconds: 87, until: "2026-10-10T12:01:27+00:00" },
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingWaiting {"seconds":"#87","by":"Microsoft","how":"replicaBuild.method.stream_batches, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
+  it("says a first build of a mail source is readable and partial, by mailboxes read", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "apply_units",
+        loadKind: "row_copy",
+        rowsCopied: 1200,
+        rowsPerSecond: 40,
+        progress: { done: 3, total: 40, unit: "mailboxes", first: true },
+        partial: true,
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingPartial {"done":"#3","total":"#40","how":"replicaBuild.method.apply_units, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
+  it("says a later pass over a replica that exists is bringing it up to date", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "apply_units",
+        loadKind: "row_copy",
+        progress: { done: 12, total: 40, unit: "mailboxes", first: false },
+        partial: false,
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingParts {"done":"#12","total":"#40","how":"replicaBuild.method.apply_units, replicaBuild.loadKind.row_copy"}',
     );
   });
 
@@ -239,6 +301,27 @@ describe("replicaDeltaLine (REQ-874)", () => {
   });
 });
 
+describe("a replica its probe found unchanged", () => {
+  it("says when it was last checked and that it has not changed since the build", () => {
+    const line = replicaBuildLine(
+      build({
+        completedAt: "2026-10-02T12:00:00+00:00",
+        verifiedAt: "2026-10-02T12:30:00+00:00",
+        rowsCopied: 500,
+        method: "stream_batches",
+        loadKind: "bulk_stream",
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.builtChecked {"when":"@2026-10-02T12:00:00+00:00","checked":"@2026-10-02T12:30:00+00:00","rows":"#500","how":"replicaBuild.method.stream_batches, replicaBuild.loadKind.bulk_stream"}',
+    );
+  });
+});
+
 describe("replicaNoteLines", () => {
   const UNREADABLE = "replication.unreadable_messages";
 
@@ -281,6 +364,43 @@ describe("replicaNoteLines", () => {
     expect(replicaNoteLines(noted, t)).toEqual([
       'replicaBuild.note.mailboxes_left_out {"total":2,"accounts":"a@contoso.test, b@contoso.test"}',
       'replicaBuild.note.mailboxes_left_out {"total":130,"accounts":"replicaBuild.note.andMore {\\"ids\\":\\"a@contoso.test\\",\\"more\\":129}"}',
+    ]);
+  });
+
+  it("names the mailboxes whose read failed part way", () => {
+    const noted = build({
+      buildNotes: [
+        {
+          code: "replication.mailboxes_failed",
+          params: { count: 1, accounts: ["slow@contoso.test"], more: 0 },
+        },
+      ],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.mailboxes_failed {"total":1,"accounts":"slow@contoso.test"}',
+    ]);
+  });
+
+  it("names the mailboxes left out at their storage quota, by that reason", () => {
+    const noted = build({
+      buildNotes: [
+        {
+          code: "replication.mailboxes_at_quota",
+          params: { count: 1, accounts: ["full@contoso.test"], more: 0 },
+        },
+      ],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.mailboxes_at_quota {"total":1,"accounts":"full@contoso.test"}',
+    ]);
+  });
+
+  it("says a completed copy's place could not be kept, with the reason", () => {
+    const noted = build({
+      buildNotes: [{ code: "replication.place_not_kept", params: { reason: "store is away" } }],
+    });
+    expect(replicaNoteLines(noted, t)).toEqual([
+      'replicaBuild.note.place_not_kept {"reason":"store is away"}',
     ]);
   });
 

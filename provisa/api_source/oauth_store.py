@@ -8,22 +8,28 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""An access token for a source whose refresh token lives in the org's vault.
+"""An access token for a source whose owner approved it at a sign-in.
+
+The approval is a refresh token the provider issued. It is sign-in state, kept in the
+organisation's state store beside what the source's reads reached
+(``federation.mail_sync_state``, kind ``grant``, one for each source and account): written
+when the sign-in completes, read here, and overwritten here when the provider replaces it.
+It is in no vault and in no field of the source.
 
 Some issuers answer every refresh with a new refresh token (Microsoft does; the one sent keeps
-working only until its own lifetime ends). The vault then has to hold the newest one, whichever
-process last refreshed. So one refresh of a source runs at a time, across every process and
-node, and each reads the token it sends from the vault after it has the lock:
+working only until its own lifetime ends). The state store then has to hold the newest one,
+whichever process last refreshed. So one refresh of a source runs at a time, across every
+process and node, and each reads the token it sends from the store after it has the lock:
 
 - the lock is a session advisory lock on the platform control plane, or a ``flock`` beside a
   control plane that is a file on one host -- the same two forms a replica build's lock takes
   (``provisa.federation.replica_locks``), released by the holder's death with nothing to renew;
 - a process keeps the access token it was given and its expiry, never a refresh token, so a
-  refresh can only send what the vault holds;
-- the replacement is written to the vault before the access token is held: a write that fails
+  refresh can only send what the store holds;
+- the replacement is written to the store before the access token is held: a write that fails
   fails the read and leaves no token behind.
 
-A sign-in that stores a new refresh token (:func:`store_refresh_token`) takes the same lock.
+A sign-in that keeps a new approval (:func:`store_refresh_token`) takes the same lock.
 """
 
 from __future__ import annotations
@@ -31,13 +37,13 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 
-from provisa.core import request_deadline, secrets_store
+from provisa.core import request_deadline
 from provisa.core.host_lock import FileLock, control_plane_lock_dir, lock_name
 
 if TYPE_CHECKING:
@@ -85,11 +91,11 @@ class _Held:
     expires_at: float
 
 
-_held: dict[tuple[str, str], _Held] = {}
+_held: dict[tuple[str, str, str], _Held] = {}
 _held_guard = threading.Lock()
 
 
-def _fresh(key: tuple[str, str]) -> str | None:
+def _fresh(key: tuple[str, str, str]) -> str | None:
     with _held_guard:
         held = _held.get(key)
     if held is None or held.expires_at - _EXPIRY_MARGIN_SECONDS <= time.monotonic():
@@ -97,10 +103,10 @@ def _fresh(key: tuple[str, str]) -> str | None:
     return held.access_token
 
 
-def forget(org_id: str, source_id: str) -> None:
-    """Drop the access token this process holds for the source."""
+def forget(org_id: str, source_id: str, account: str) -> None:
+    """Drop the access token this process holds for the source's account."""
     with _held_guard:
-        _held.pop((org_id, source_id), None)
+        _held.pop((org_id, source_id, account.lower()), None)
 
 
 class _RefreshLock:
@@ -190,40 +196,63 @@ class _Locked:
         await asyncio.to_thread(self._lock.close)
 
 
-async def _replace(
-    admin_db: "Database", org_id: str, name: str, value: str, *, actor: str | None
-) -> None:
-    """Store ``value`` as the org's secret ``name``, keeping the description it has."""
-    owner = secrets_store.ORG_OWNER
-    known = await secrets_store.describe(admin_db, org_id, name, owner_id=owner)
-    await secrets_store.put(
-        admin_db,
-        org_id,
-        name,
-        value,
-        owner_id=owner,
-        description=None if known is None else known.description,
-        actor=actor,
-    )
+class NotConnected(RuntimeError):
+    """No approval is kept for the source's account: its owner has not signed in."""
+
+
+async def kept_refresh_token(
+    state_db: "Database",
+    *,
+    source_id: str,
+    account: str,
+    earlier: Callable[[], Awaitable[str | None]] | None = None,
+) -> str:
+    """The approval kept for ``account`` of ``source_id`` in the organisation's state store.
+    Where none is kept and ``earlier`` answers one (a source connected before approvals were
+    kept here), that one is kept and answered. Refused by name when there is none at all."""
+    from provisa.federation import mail_sync_state
+
+    async with state_db.acquire() as conn:
+        stored = await mail_sync_state.grant(conn, source_id, account)
+    if stored is None and earlier is not None:
+        stored = await earlier()
+        if stored is not None:
+            async with state_db.acquire() as conn:
+                await mail_sync_state.keep_grant(conn, source_id, account, stored)
+    if stored is None:
+        raise NotConnected(
+            f"source {source_id!r}: {account} is not connected; its owner signs in again from "
+            "the source's form"
+        )
+    return stored
 
 
 async def stored_access_token(
-    admin_db: "Database",
+    state_db: "Database",
     platform_url: str,
     org_id: str,
     *,
     source_id: str,
-    secret_name: str,
+    account: str,
     exchange: Callable[[str], Grant],
     replaces: bool,
+    earlier: Callable[[], Awaitable[str | None]] | None = None,
     lock_wait_seconds: float = LOCK_WAIT_SECONDS,
     exchange_seconds: float = EXCHANGE_SECONDS,
 ) -> str:
-    """An access token for ``source_id``, whose refresh token is the org's secret
-    ``secret_name``. ``exchange`` sends a refresh token to the issuer and returns its answer; it
-    blocks, and is run off the event loop. ``replaces`` says the issuer answers every refresh
-    with a new refresh token, which is then stored before the access token is handed out."""
-    key = (org_id, source_id)
+    """An access token for ``account`` of ``source_id``, from the approval kept for it in the
+    organisation's state store (``state_db``). ``exchange`` sends a refresh token to the issuer
+    and returns its answer; it blocks, and is run off the event loop. ``replaces`` says the
+    issuer answers every refresh with a new refresh token, which is then kept before the access
+    token is handed out.
+
+    ``earlier`` answers the approval of a source connected before approvals were kept here (it
+    was named by a reference in the source's own settings), or None when there is none. It is
+    asked only when the store holds nothing for the account, and what it answers is kept, so
+    it is asked once: nothing already connected stops, and nobody has to sign in again."""
+    from provisa.federation import mail_sync_state
+
+    key = (org_id, source_id, account.lower())
     token = _fresh(key)
     if token is not None:
         return token
@@ -231,9 +260,9 @@ async def stored_access_token(
         token = _fresh(key)  # another task of this process refreshed while this one waited
         if token is not None:
             return token
-        # Read under the lock: what another process stored while this one waited is what is sent.
-        stored = await secrets_store.value_of(
-            admin_db, org_id, secret_name, owner_id=secrets_store.ORG_OWNER
+        # Read under the lock: what another process kept while this one waited is what is sent.
+        stored = await kept_refresh_token(
+            state_db, source_id=source_id, account=account, earlier=earlier
         )
         try:
             grant = await asyncio.wait_for(
@@ -250,9 +279,8 @@ async def stored_access_token(
                 "token; the sign-in did not grant offline access"
             )
         if grant.refresh_token and grant.refresh_token != stored:
-            await _replace(
-                admin_db, org_id, secret_name, grant.refresh_token, actor=f"source:{source_id}"
-            )
+            async with state_db.acquire() as conn:
+                await mail_sync_state.keep_grant(conn, source_id, account, grant.refresh_token)
         if grant.expires_in is not None:  # a token of unstated lifetime is used once, not held
             with _held_guard:
                 _held[key] = _Held(grant.access_token, time.monotonic() + grant.expires_in)
@@ -260,19 +288,20 @@ async def stored_access_token(
 
 
 async def store_refresh_token(
-    admin_db: "Database",
+    state_db: "Database",
     platform_url: str,
     org_id: str,
     *,
     source_id: str,
-    secret_name: str,
+    account: str,
     refresh_token: str,
-    actor: str | None,
     lock_wait_seconds: float = LOCK_WAIT_SECONDS,
 ) -> None:
-    """Store the refresh token a sign-in produced, under the lock a refresh takes, and drop the
-    access token this process held under the one it replaces. ``actor`` is who signed in; None
-    on a deployment without sign-in, which has nobody to name."""
+    """Keep the approval a sign-in produced, under the lock a refresh takes, and drop the
+    access token this process held under the one it replaces."""
+    from provisa.federation import mail_sync_state
+
     async with _Locked(platform_url, org_id, source_id, lock_wait_seconds):
-        await _replace(admin_db, org_id, secret_name, refresh_token, actor=actor)
-        forget(org_id, source_id)
+        async with state_db.acquire() as conn:
+            await mail_sync_state.keep_grant(conn, source_id, account, refresh_token)
+        forget(org_id, source_id, account)

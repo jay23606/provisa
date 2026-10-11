@@ -81,7 +81,7 @@ def require_pk(persist: str, emit: set[str] | frozenset[str], pk_columns: list[s
     if needs:
         raise ValueError(
             f"{sorted(needs)} require a primary key for row identity, but none is declared or "
-            f"derivable — refusing to silently emit/persist a coarser shape (REQ-965)"
+            f"derivable — refusing to silently emit/persist a coarser shape"
         )
 
 

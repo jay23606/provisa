@@ -5,7 +5,11 @@
     "save": "Enregistrer",
     "delete": "Supprimer",
     "confirm": "Confirmer",
-    "processing": "Traitement..."
+    "processing": "Traitement...",
+    "identity": "Identité",
+    "discardTitle": "Abandonner vos modifications ?",
+    "discardBody": "Vos modifications de {{what}} ne sont pas enregistrées.",
+    "discard": "Abandonner"
   },
   "app": {
     "apiUnreachable": "Impossible de joindre l'API Provisa.",

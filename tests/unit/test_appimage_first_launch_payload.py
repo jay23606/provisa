@@ -19,6 +19,7 @@ The function is run here as the script runs it (``bash -euo pipefail``)."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -34,7 +35,8 @@ def _find_payload_function() -> str:
 def _run(appdir: Path, calls: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", "-euo", "pipefail", "-c", _find_payload_function() + calls],
-        env={"APPDIR": str(appdir), "PATH": "/usr/bin:/bin"},
+        # This process's own PATH: a fixed one names directories that hold no bash on NixOS.
+        env={"APPDIR": str(appdir), "PATH": os.environ["PATH"]},
         capture_output=True,
         text=True,
     )

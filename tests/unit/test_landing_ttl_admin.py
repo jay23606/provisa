@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy import select
 
 from provisa.api.admin._landing_ttl import SourceTtl, TableTtl
-from provisa.api.admin.types import ColumnInput, SourceInput, TableInput
+from provisa.api.admin.types import ColumnInput, MutationResult, SourceInput, TableInput
 from provisa.core.database import Database, create_engine_from_url
 from provisa.core.schema_org import registered_tables, roles, sources, table_columns
 
@@ -144,7 +144,7 @@ def _t(signal, ttl, **kw) -> TableTtl:
 
 
 def _s(signal, ttl, **kw) -> SourceTtl:
-    flags = dict(replicate=None, load_protected=False)
+    flags = dict(replicate=None, load_protected=False, freshness_gate=False)
     flags.update(kw)
     return SourceTtl(signal, ttl, **flags)
 
@@ -160,7 +160,7 @@ _LANDING = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
 async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
     tmp_path, signal, tflag, sflag
@@ -189,7 +189,7 @@ async def test_the_check_refuses_a_landed_ttl_table_with_no_cache_ttl(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_path, signal):
     """Nothing in the operator's settings lands it, and the bound engine reads the source in
     place, so it has no replica and needs no landing clock."""
@@ -205,7 +205,25 @@ async def test_the_check_accepts_a_ttl_table_config_does_not_force_to_land(tmp_p
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("signal", ["probe", "native", "debezium", "kafka", "signal"])
+@pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
+async def test_a_probe_on_a_freshness_gated_source_needs_no_cache_ttl(tmp_path, tflag, sflag):
+    """REQ-860: a gated source's probe is judged at each read; without the gate a probe has no
+    cadence but the cache_ttl, and is refused without one."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path, source_signal="kafka") as db:
+        async with db.acquire() as conn:
+            gated = _s("kafka", None, freshness_gate=True, **sflag)
+            table = _t("probe", None, **tflag)
+            assert await landing_ttl_refusal(conn, "s", source=gated, table=table) is None
+            ungated = _s("kafka", None, **sflag)
+            refused = await landing_ttl_refusal(conn, "s", source=ungated, table=table)
+            assert refused is not None and refused.code == "schema.landing_ttl_required"
+            assert "change_signal 'probe'" in refused.message
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "signal"])
 @pytest.mark.parametrize(("tflag", "sflag"), _LANDING)
 async def test_the_no_ttl_freshness_signals_need_no_cache_ttl(tmp_path, signal, tflag, sflag):
     from provisa.api.admin._landing_ttl import landing_ttl_refusal
@@ -413,6 +431,76 @@ async def test_register_table_refuses_inheriting_a_ttl_signal_with_no_cache_ttl(
 
 
 @pytest.mark.asyncio
+async def test_register_table_takes_the_cache_ttl_the_registration_states(tmp_path):
+    """The same table that is refused for want of a clock passes the landing check when the
+    registration states its own (#208); a negative one is refused by name."""
+    from provisa.api.admin import schema_mutation_ops as ops
+    from provisa.core.models import Column
+
+    async with _db(tmp_path, source_signal="ttl", table_ttl=60, source_replicate=0) as db:
+        judged: list[TableTtl] = []
+
+        async def judge(conn, source_id, *, table=None, **kw):
+            judged.append(table)
+            return MutationResult(success=False, message="stop here", code="test.stop")
+
+        with (
+            patch.object(ops, "_get_pool", new=AsyncMock(return_value=_Pool(db))),
+            patch("provisa.api.admin.capabilities.require_capability", return_value=None),
+            patch.object(
+                ops,
+                "_build_columns_for_input",
+                new=AsyncMock(
+                    return_value=(
+                        [Column(name="id", data_type="integer", visible_to=["analyst"])],
+                        None,
+                    )
+                ),
+            ),
+        ):
+            negative = await ops.register_table(
+                MagicMock(), _table_input(table_name="payments", cache_ttl=-1)
+            )
+            with patch("provisa.api.admin._landing_ttl.landing_ttl_refusal", new=judge):
+                await ops.register_table(
+                    MagicMock(), _table_input(table_name="payments", cache_ttl=120)
+                )
+        assert negative.success is False and negative.code == "schema.invalid_cache_ttl"
+        # The landing check judged the table with the clock the registration stated ...
+        assert [t.cache_ttl for t in judged] == [120]
+        async with db.acquire() as conn:
+            # ... and that clock satisfies it.
+            assert await landing_ttl_refusal_of(conn, judged[0]) is None
+
+
+async def landing_ttl_refusal_of(conn, table):
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    return await landing_ttl_refusal(conn, "s", table=table)
+
+
+def test_the_registration_input_carries_a_cache_ttl():
+    assert _table_input().cache_ttl is None
+    assert _table_input(cache_ttl=120).cache_ttl == 120
+
+
+@pytest.mark.asyncio
+async def test_the_form_is_told_whether_a_kinds_tables_land(monkeypatch):
+    import provisa.api.app as appmod
+    from provisa.api.admin import source_kinds_router as kinds
+    from provisa.federation.engine import build_engine
+
+    monkeypatch.setattr(kinds, "require_capability_request", lambda request, capability: None)
+    monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
+    # DuckDB attaches postgresql and reads it in place; it has no connector for these.
+    assert (await kinds.source_kind(None, "postgresql"))["tables_land"] is False
+    for kind in ("elasticsearch", "redis", "microsoft_365"):
+        assert (await kinds.source_kind(None, kind))["tables_land"] is True, kind
+    # A kind that owns no replica is read where it is written.
+    assert (await kinds.source_kind(None, "ingest"))["tables_land"] is False
+
+
+@pytest.mark.asyncio
 async def test_update_table_cache_accepts_clearing_it_on_a_table_config_does_not_land(
     tmp_path, monkeypatch
 ):
@@ -581,7 +669,7 @@ async def test_a_non_standard_threshold_is_kept_as_saved(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source_type", ["elasticsearch", "redis", "cassandra", "prometheus"])
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
     tmp_path, monkeypatch, source_type, signal
 ):
@@ -608,7 +696,7 @@ async def test_a_table_the_engine_lands_needs_a_cache_ttl_at_save(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source_type", ["ingest", "data_profiler"])
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
     tmp_path, monkeypatch, source_type, signal
 ):
@@ -623,3 +711,140 @@ async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
     async with _db(tmp_path, source_type=source_type, table_replicate=None) as db:
         async with db.acquire() as conn:
             assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
+
+
+# --- a kind whose every table lands states the clock on the source (#208) ---
+
+_MAIL_KINDS = ["microsoft_365", "google_workspace"]
+
+
+def test_only_the_mail_kinds_must_state_the_clock_on_the_source():
+    from provisa.api.admin._landing_ttl import source_states_the_clock
+
+    assert [source_states_the_clock(kind) for kind in _MAIL_KINDS] == [True, True]
+    for kind in ("postgresql", "openapi", "graphql_remote", "ingest", None):
+        assert source_states_the_clock(kind) is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", _MAIL_KINDS)
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+async def test_a_new_mail_source_is_refused_without_a_cache_ttl(tmp_path, kind, signal):
+    """Nothing is registered under it yet: the source is still asked for the clock, since every
+    table it will have lands and refreshes by it."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path) as db:
+        async with db.acquire() as conn:
+            bad = await landing_ttl_refusal(conn, "mail", source=_s(signal, None), source_type=kind)
+            assert bad is not None and bad.success is False
+            assert bad.code == "schema.source_cache_ttl_required"
+            assert bad.params == {"source": "mail", "signal": signal}
+            # The operator's own value satisfies it; a signal with its own clock needs none.
+            for said in (_s(signal, 300), _s("kafka", None)):
+                assert (
+                    await landing_ttl_refusal(conn, "mail", source=said, source_type=kind) is None
+                )
+            # Another kind is not asked at create: its tables may state their own.
+            assert (
+                await landing_ttl_refusal(
+                    conn, "pg", source=_s(signal, None), source_type="postgresql"
+                )
+                is None
+            )
+
+
+@pytest.mark.asyncio
+async def test_create_source_refuses_a_mail_source_with_no_cache_ttl(tmp_path):
+    async with _db(tmp_path) as db:
+        m, p = _mutation(db)
+        asked = _source_input(change_signal="ttl", cache_ttl=None)
+        asked.id, asked.type = "mail", "microsoft_365"
+        with (
+            p,
+            patch("provisa.api.admin.capabilities.require_capability", return_value=None),
+            patch(
+                "provisa.api.admin.schema_mutation._refuse_over_source_limit",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            result = await m.create_source(MagicMock(), asked)
+        assert result.success is False and result.code == "schema.source_cache_ttl_required"
+        async with db.acquire() as conn:
+            stored = await conn.execute_core(select(sources.c.id).where(sources.c.id == "mail"))
+            assert stored.fetchone() is None  # nothing written
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", _MAIL_KINDS)
+async def test_a_table_of_a_stored_mail_source_with_no_clock_is_refused_naming_the_source(
+    tmp_path, kind
+):
+    """A source saved before the rule has no cache_ttl: registering a table of it is refused by
+    the source's own refusal, which says where the value is set."""
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+
+    async with _db(tmp_path, source_type=kind, table_replicate=None) as db:
+        async with db.acquire() as conn:
+            bad = await landing_ttl_refusal(conn, "s", table=_t(None, None))
+            assert bad is not None and bad.code == "schema.source_cache_ttl_required"
+            assert bad.params == {"source": "s", "signal": "ttl"}
+            assert "Load Management and Timeliness" in bad.message
+
+
+@pytest.mark.asyncio
+async def test_the_form_is_told_which_kinds_state_the_clock(monkeypatch):
+    from provisa.api.admin import source_kinds_router as kinds
+
+    asked: list[str] = []
+    monkeypatch.setattr(
+        kinds, "require_capability_request", lambda request, capability: asked.append(capability)
+    )
+    assert (await kinds.source_kind(None, "microsoft_365"))["cache_ttl_required"] is True
+    assert (await kinds.source_kind(None, "postgresql"))["cache_ttl_required"] is False
+    assert asked == ["source_registration"] * 2
+
+
+def test_every_locale_words_both_landing_clock_refusals():
+    import json
+    import re
+    from pathlib import Path
+
+    locales = Path(__file__).parents[2] / "provisa-ui/src/i18n/locales"
+    wanted = {
+        "source_cache_ttl_required": {"source", "signal"},
+        "landing_ttl_required": {"table", "source"},
+        "sentinel_path_not_applicable": {"source", "type"},
+    }
+    catalogs = sorted(locales.glob("*/serverErrors.json"))
+    assert len(catalogs) == 13
+    for catalog in catalogs:
+        said = json.loads(catalog.read_text())["serverErrors"]["schema"]
+        for key, particulars in wanted.items():
+            assert set(re.findall(r"{{(\w+)}}", said[key])) == particulars, (catalog, key)
+
+
+@pytest.mark.parametrize(
+    ("source_type", "columns", "named", "watermark"),
+    [
+        ("microsoft_365", ["id", "landed_at"], None, "landed_at"),
+        ("google_workspace", ["id", "landed_at"], None, "landed_at"),
+        ("microsoft_365", ["id", "landed_at"], "received_at", "received_at"),  # the operator's
+        ("microsoft_365", ["id"], None, None),  # registered without the stamp
+        ("postgresql", ["id", "landed_at"], None, None),  # another kind's column of that name
+    ],
+)
+def test_a_mail_table_registered_with_the_landing_stamp_takes_it_as_its_watermark(
+    source_type, columns, named, watermark
+):
+    """Rows land mailbox by mailbox, in no order of the provider's own times, so live delivery
+    goes by when a row landed."""
+    from types import SimpleNamespace
+
+    from provisa.api.admin.schema_mutation_ops import default_mail_watermark
+
+    model = SimpleNamespace(
+        watermark_column=named, columns=[SimpleNamespace(name=name) for name in columns]
+    )
+    default_mail_watermark(model, source_type)
+    assert model.watermark_column == watermark

@@ -560,7 +560,7 @@ async def land_api_cache(  # REQ-318, REQ-848, REQ-932, REQ-989
     fallback."""
     if loc.backend == "iceberg":
         raise NotImplementedError(
-            "Iceberg api-cache landing requires the pyiceberg write-face branch (REQ-848); "
+            "Iceberg api-cache landing requires the pyiceberg write-face branch; "
             "the engine must not write the store"
         )
     await engine.land_source_table(

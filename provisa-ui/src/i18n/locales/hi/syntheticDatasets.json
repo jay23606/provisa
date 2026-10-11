@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} पंक्तियाँ)",
     "tableScale": "टेबल का पैमाना",
     "tableScalePlaceholder": "डेटासेट का पैमाना",
-    "define": "डेटासेट सहेजें",
     "seedOption": "सिंथेटिक डेटा के साथ शुरू करें",
     "seedTables": "टेबलें",
     "relationshipOption": "{{parent}} → {{child}}",

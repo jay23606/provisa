@@ -34,7 +34,6 @@
     "selectSourceFirst": "请先选择源表。",
     "notKeyable": "不可作为键",
     "errorRequired": "名称、数据源和域为必填项。",
-    "cancel": "取消",
     "submit": "创建",
     "createdTitle": "已创建 {{name}}",
     "createdMv": "已构建物化视图 — 域 {{domain}} 中的{{kind}}“{{name}}”。它现已出现在“已注册表”中并可查询。",

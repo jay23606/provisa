@@ -8,7 +8,6 @@
     "reasonLabel": "Motivo",
     "reasonPlaceholder": "— seleziona motivo —",
     "confirm": "Conferma",
-    "cancel": "Annulla",
     "empty": "Nessuna richiesta {{tab}}.",
     "emptyFiltered": "Nessuna richiesta {{tab}} corrispondente al filtro.",
     "colId": "ID",

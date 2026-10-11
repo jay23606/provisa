@@ -19,7 +19,8 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Button, Checkbox, Group, Stack, Text, TextInput } from "@mantine/core";
+import { FormChecks, FormField, FormFooter, FormLayout } from "./form/FormLayout";
+import { Alert, Checkbox, Stack, Text, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { OrgError, fetchOrgSettings, updateOrgSettings } from "../api/admin";
 
@@ -79,56 +80,62 @@ export function OrgJoinSettings({
   };
 
   return (
-    <Stack gap="sm" maw={480} data-testid="org-join-settings">
+    <FormLayout data-testid="org-join-settings">
       <Text c="dimmed" size="sm">
         {t("orgJoin.help")}
       </Text>
-      <TextInput
-        label={t("orgJoin.emailRuleLabel")}
-        description={t("orgJoin.emailRuleDesc")}
-        placeholder="@acme\\.com$"
-        value={emailRule}
-        onChange={(e) => editRule(e.currentTarget.value)}
-        data-testid="org-join-email-rule"
-      />
-      <Checkbox
-        label={t("orgJoin.autoJoinLabel")}
-        description={t("orgJoin.autoJoinDesc")}
-        checked={autoJoin}
-        onChange={(e) => {
-          setAutoJoin(e.currentTarget.checked);
-          setBreadth(null);
-          setAccepted(false);
-        }}
-        data-testid="org-join-auto-join"
-      />
-      {autoJoin && (
+      <FormField size="long" help={t("orgJoin.emailRuleDesc")}>
         <TextInput
-          label={t("orgJoin.autoJoinRoleLabel")}
-          description={t("orgJoin.autoJoinRoleDesc")}
-          value={autoJoinRole}
-          onChange={(e) => setAutoJoinRole(e.currentTarget.value)}
-          data-testid="org-join-auto-join-role"
+          label={t("orgJoin.emailRuleLabel")}
+          placeholder="@acme\\.com$"
+          value={emailRule}
+          onChange={(e) => editRule(e.currentTarget.value)}
+          data-testid="org-join-email-rule"
         />
+      </FormField>
+      {/* The tick decides the field that follows it. */}
+      <FormChecks>
+        <FormField size="long" help={t("orgJoin.autoJoinDesc")}>
+          <Checkbox
+            label={t("orgJoin.autoJoinLabel")}
+            checked={autoJoin}
+            onChange={(e) => {
+              setAutoJoin(e.currentTarget.checked);
+              setBreadth(null);
+              setAccepted(false);
+            }}
+            data-testid="org-join-auto-join"
+          />
+        </FormField>
+      </FormChecks>
+      {autoJoin && (
+        <FormField size="medium" hint={t("orgJoin.autoJoinRoleDesc")}>
+          <TextInput
+            label={t("orgJoin.autoJoinRoleLabel")}
+            value={autoJoinRole}
+            onChange={(e) => setAutoJoinRole(e.currentTarget.value)}
+            data-testid="org-join-auto-join-role"
+          />
+        </FormField>
       )}
       {breadth && (
         <Alert color="yellow" data-testid="org-join-breadth-warning">
           <Stack gap="xs">
             <Text size="sm">{breadth}</Text>
-            <Checkbox
-              label={t("orgJoin.acceptRisk")}
-              checked={accepted}
-              onChange={(e) => setAccepted(e.currentTarget.checked)}
-              data-testid="org-join-accept-risk"
-            />
+            <FormChecks>
+              <FormField size="long">
+                <Checkbox
+                  label={t("orgJoin.acceptRisk")}
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.currentTarget.checked)}
+                  data-testid="org-join-accept-risk"
+                />
+              </FormField>
+            </FormChecks>
           </Stack>
         </Alert>
       )}
-      <Group>
-        <Button onClick={save} loading={saving} data-testid="org-join-save">
-          {t("orgJoin.save")}
-        </Button>
-      </Group>
-    </Stack>
+      <FormFooter onSave={save} saving={saving} saveProps={{ "data-testid": "org-join-save" }} />
+    </FormLayout>
   );
 }

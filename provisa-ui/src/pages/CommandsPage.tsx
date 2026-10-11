@@ -17,7 +17,6 @@ import {
   Button,
   Card,
   Group,
-  Modal,
   Pagination,
   Select,
   Stack,
@@ -28,7 +27,7 @@ import {
 } from "@mantine/core";
 import { useAuth } from "../context/AuthContext";
 import { useDomainFilter } from "../context/DomainFilterContext";
-import { Trash2, Pencil, Check, X, Plus } from "lucide-react";
+import { Trash2, Pencil, Plus } from "lucide-react";
 import { FilterInput } from "../components/admin/FilterInput";
 import {
   fetchActions,
@@ -50,6 +49,8 @@ import type { TableMetadata } from "../api/admin";
 import { fetchOrgRoles } from "../api/admin";
 import type { Role } from "../types/auth";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { PanelActions, SplitPane } from "../components/list/SplitPane";
+import { PanelWorking } from "./sources/PanelWorking";
 import { TagControl } from "../components/TagControl";
 import type { ActionType, FormState } from "./commands/types";
 import {
@@ -60,16 +61,9 @@ import {
 } from "./commands/types";
 import { CommandFormFields } from "./commands/CommandFormFields";
 import { PageLoading } from "../components/PageLoading";
-import {
-  ListTable,
-  ListHead,
-  ListRow,
-  ListExpandRow,
-  ListEmpty,
-  ListDetail,
-  ListItems,
-} from "../components/list/ListTable";
+import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 
 export function CommandsPage() {
   const { t } = useTranslation();
@@ -111,8 +105,10 @@ export function CommandsPage() {
       const actions = await fetchActions();
       setFunctions(actions.functions);
       setWebhooks(actions.webhooks);
+      return actions;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return null;
     } finally {
       setLoading(false);
     }
@@ -147,9 +143,15 @@ export function CommandsPage() {
       .finally(() => setLoadingFunctions(false));
   }, [form.sourceId, form.schemaName, sources, getAvailableFunctions]);
 
-  const handleEdit = (actionType: ActionType, name: string) => {
+  // `held`: the lists as just read, where the page's own have not caught up yet (a command
+  // opened in edit straight after it was created).
+  const handleEdit = (
+    actionType: ActionType,
+    name: string,
+    held: { functions: TrackedFunction[]; webhooks: TrackedWebhook[] } = { functions, webhooks },
+  ) => {
     if (actionType === "function") {
-      const fn = functions.find((f) => f.name === name);
+      const fn = held.functions.find((f) => f.name === name);
       if (!fn) return;
       // REQ-1159: output is a dataset. A registered table → "table" mode; anything else is an
       // IR-typed column list. Legacy commands carry only return_schema → reverse-project it.
@@ -181,7 +183,7 @@ export function CommandsPage() {
       });
       setExpandedFn(name);
     } else {
-      const wh = webhooks.find((w) => w.name === name);
+      const wh = held.webhooks.find((w) => w.name === name);
       if (!wh) return;
       setForm({
         actionType: "webhook",
@@ -268,8 +270,16 @@ export function CommandsPage() {
       setMsg(t("commandsPage.savedMessage", { type: form.actionType, name: form.name }));
       setShowForm(false);
       setForm({ ...EMPTY_FORM });
+      // A command the short step just made is selected and its detail opens in edit, with
+      // everything the step did not ask for at its default.
+      const created = editingName ? null : { type: form.actionType, name: form.name };
       setEditingName(null);
-      load();
+      const held = await load();
+      if (created && held) {
+        setExpandedFn(created.type === "function" ? created.name : null);
+        setExpandedWh(created.type === "webhook" ? created.name : null);
+        handleEdit(created.type, created.name, held);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -404,11 +414,426 @@ export function CommandsPage() {
   const fnSortGroup = useListSortGroup(filteredFunctions, fnColumns, "commands-fn");
   const whSortGroup = useListSortGroup(filteredWebhooks, whColumns, "commands-wh");
 
+  // What the right-hand panel shows: the result of a test run (with a way back to the command),
+  // the short step that creates a command, or the selected command -- being edited, or read.
+  const selectedFn = expandedFn ? (functions.find((f) => f.name === expandedFn) ?? null) : null;
+  const selectedWh = expandedWh ? (webhooks.find((w) => w.name === expandedWh) ?? null) : null;
+  // Whom a test run is made as: chosen where the run is started, in the command's own panel.
+  const testAs = (
+    <Group gap="sm" align="center" mt="sm">
+      <Text size="sm" c="dimmed">
+        {t("commandsPage.testAsRole")}
+      </Text>
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            aria-label={t("commandsPage.testAsRole")}
+            size="xs"
+            data={roles.map((r) => ({ value: r.id, label: r.id }))}
+            value={testRoleId || null}
+            onChange={(v) => setTestRoleId(v ?? "")}
+            allowDeselect={false}
+          />
+        </FormField>
+      </FormLayout>
+    </Group>
+  );
+  const panelBody: React.ReactNode = testResult ? (
+    <PanelWorking
+      back={t("commandsPage.backToCommand")}
+      onBack={() => setTestResult(null)}
+      testId="commands-test-back"
+    >
+      <Title order={5} data-testid="commands-test-result">
+        {t("commandsPage.testResultHeading", { name: testResult.name })}
+      </Title>
+      <>
+        {!!(
+          testResult.data &&
+          typeof testResult.data === "object" &&
+          "enforcement" in testResult.data
+        ) && (
+          <Alert color="blue" mb="sm" title={t("commandsPage.governanceApplied")}>
+            <pre style={{ margin: "0.25rem 0 0", fontSize: "0.78rem" }}>
+              {JSON.stringify((testResult.data as Record<string, unknown>).enforcement, null, 2)}
+            </pre>
+          </Alert>
+        )}
+        <pre style={{ fontSize: "0.85rem", overflow: "auto", maxHeight: "60vh" }}>
+          {JSON.stringify(
+            testResult.data && typeof testResult.data === "object" && "rows" in testResult.data
+              ? (testResult.data as Record<string, unknown>).rows
+              : testResult.data,
+            null,
+            2,
+          )}
+        </pre>
+      </>
+    </PanelWorking>
+  ) : showForm && !editingName ? (
+    <Card component="form" id="commands-form" withBorder onSubmit={handleSave}>
+      <Stack gap="sm">
+        <FormLayout>
+          <FormIdentifiers>
+            <FormField size="medium">
+              <TextInput
+                label={t("commandsPage.nameLabel")}
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder={t("commandsPage.namePlaceholder")}
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="medium">
+            <Select
+              label={t("commandsPage.typeLabel")}
+              data={[
+                { value: "function", label: t("commandsPage.typeFunction") },
+                { value: "webhook", label: t("commandsPage.typeWebhook") },
+              ]}
+              value={form.actionType}
+              onChange={(v) =>
+                setForm({ ...EMPTY_FORM, actionType: (v ?? "function") as ActionType })
+              }
+              allowDeselect={false}
+            />
+          </FormField>
+        </FormLayout>
+        {/* Only what a command needs in order to exist; the rest is set in the edit form
+            the new command opens in. */}
+        <CommandFormFields {...formFieldsProps} essential />
+        <FormFooter
+          panel
+          submit
+          form="commands-form"
+          saving={saving}
+          onCancel={handleCancel}
+          saveProps={{ "data-testid": "commands-save" }}
+        />
+      </Stack>
+    </Card>
+  ) : selectedFn ? (
+    ((fn: TrackedFunction) =>
+      editingName === fn.name ? (
+        <Stack component="form" id="commands-form" gap="sm" onSubmit={handleSave}>
+          <CommandFormFields {...formFieldsProps} />
+          <FormFooter panel submit form="commands-form" saving={saving} onCancel={handleCancel} />
+        </Stack>
+      ) : (
+        <>
+          <Stack gap="sm">
+            <Table withRowBorders={false} verticalSpacing={2}>
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailName")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.name}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailKind")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.kind ?? "mutation"}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailSource")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.sourceId}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailSchema")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.schemaName}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailFunction")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.functionName}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailReturns")}</strong>
+                  </Table.Td>
+                  <Table.Td>
+                    {fn.returns ||
+                      (fn.returnSchema ? t("commandsPage.customSchema") : t("commandsPage.dash"))}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailDomain")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.domainId || t("commandsPage.dash")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailDescription")}</strong>
+                  </Table.Td>
+                  <Table.Td>{fn.description || t("commandsPage.dash")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailArguments")}</strong>
+                  </Table.Td>
+                  <Table.Td>
+                    {fn.arguments.length === 0
+                      ? t("commandsPage.none")
+                      : fn.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
+                  </Table.Td>
+                </Table.Tr>
+              </Table.Tbody>
+            </Table>
+            <PanelActions>
+              <Group gap="sm" wrap="nowrap">
+                <ActionIcon
+                  variant="default"
+                  aria-label={t("commandsPage.editAria", { name: fn.name })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit("function", fn.name);
+                  }}
+                >
+                  <Pencil size={14} />
+                </ActionIcon>
+                <Button
+                  variant="light"
+                  size="xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTest("function", fn.name);
+                  }}
+                  disabled={testing === fn.name}
+                  loading={testing === fn.name}
+                >
+                  {testing === fn.name
+                    ? t("commandsPage.testingButton")
+                    : t("commandsPage.testButton")}
+                </Button>
+                <ConfirmDialog
+                  title={t("commandsPage.deleteFunctionTitle", { name: fn.name })}
+                  consequence={t("commandsPage.deleteFunctionConsequence")}
+                  onConfirm={async () => {
+                    await deleteFunction(fn.name);
+                    setExpandedFn(null);
+                    load();
+                  }}
+                >
+                  {(open) => (
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={t("commandsPage.deleteFunctionAria", {
+                        name: fn.name,
+                      })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </ActionIcon>
+                  )}
+                </ConfirmDialog>
+              </Group>
+            </PanelActions>
+          </Stack>
+          {testAs}
+        </>
+      ))(selectedFn)
+  ) : selectedWh ? (
+    ((wh: TrackedWebhook) =>
+      editingName === wh.name ? (
+        <Stack component="form" id="commands-form" gap="sm" onSubmit={handleSave}>
+          <CommandFormFields {...formFieldsProps} />
+          <FormFooter panel submit form="commands-form" saving={saving} onCancel={handleCancel} />
+        </Stack>
+      ) : (
+        <>
+          <Stack gap="sm">
+            {wh.approved === false && (
+              <Alert color="yellow" data-testid={`webhook-pending-${wh.name}`}>
+                {t("commandsPage.webhookPendingHint")}
+              </Alert>
+            )}
+            <Table withRowBorders={false} verticalSpacing={2}>
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailName")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.name}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailStatus")}</strong>
+                  </Table.Td>
+                  <Table.Td>
+                    {wh.approved === false
+                      ? t("commandsPage.statusPending")
+                      : t("commandsPage.statusApproved")}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailKind")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.kind ?? "mutation"}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailUrl")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.url}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailMethod")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.method}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailTimeout")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.timeoutMs}ms</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailReturns")}</strong>
+                  </Table.Td>
+                  <Table.Td>
+                    {wh.returns ||
+                      t("commandsPage.inlineReturns", {
+                        count: wh.inlineReturnType.length,
+                      })}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailDomain")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailDescription")}</strong>
+                  </Table.Td>
+                  <Table.Td>{wh.description || t("commandsPage.dash")}</Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td c="dimmed">
+                    <strong>{t("commandsPage.detailArguments")}</strong>
+                  </Table.Td>
+                  <Table.Td>
+                    {wh.arguments.length === 0
+                      ? t("commandsPage.none")
+                      : wh.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
+                  </Table.Td>
+                </Table.Tr>
+                {wh.inlineReturnType.length > 0 && (
+                  <Table.Tr>
+                    <Table.Td c="dimmed">
+                      <strong>{t("commandsPage.detailInlineFields")}</strong>
+                    </Table.Td>
+                    <Table.Td>
+                      {wh.inlineReturnType.map((f) => `${f.name}: ${f.type}`).join(", ")}
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+              </Table.Tbody>
+            </Table>
+            <PanelActions>
+              <Group gap="sm" wrap="nowrap">
+                <ActionIcon
+                  variant="default"
+                  aria-label={t("commandsPage.editAria", { name: wh.name })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit("webhook", wh.name);
+                  }}
+                >
+                  <Pencil size={14} />
+                </ActionIcon>
+                <Button
+                  variant="light"
+                  size="xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTest("webhook", wh.name);
+                  }}
+                  disabled={testing === wh.name}
+                  loading={testing === wh.name}
+                >
+                  {testing === wh.name
+                    ? t("commandsPage.testingButton")
+                    : t("commandsPage.testButton")}
+                </Button>
+                <ConfirmDialog
+                  title={t("commandsPage.deleteWebhookTitle", { name: wh.name })}
+                  consequence={t("commandsPage.deleteWebhookConsequence")}
+                  onConfirm={async () => {
+                    await deleteWebhook(wh.name);
+                    setExpandedWh(null);
+                    load();
+                  }}
+                >
+                  {(open) => (
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={t("commandsPage.deleteWebhookAria", {
+                        name: wh.name,
+                      })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </ActionIcon>
+                  )}
+                </ConfirmDialog>
+              </Group>
+            </PanelActions>
+          </Stack>
+          {testAs}
+        </>
+      ))(selectedWh)
+  ) : null;
+  const panelIsReadOnly = !showForm && editingName === null;
+  const panelTitle =
+    showForm && !editingName
+      ? t("commandsPage.panelNewCommand")
+      : (selectedFn?.name ?? selectedWh?.name ?? testResult?.name ?? "");
+  const closePanel = () => {
+    setTestResult(null);
+    if (showForm || editingName) handleCancel();
+    setExpandedFn(null);
+    setExpandedWh(null);
+  };
+
   if (loading) return <PageLoading message={t("commandsPage.loading")} />;
 
   return (
-    <Stack gap="md" p="md">
-      <Group justify="space-between" wrap="wrap">
+    <div className="page page-sticky-head">
+      <div className="page-header">
         <Title order={2}>{t("commandsPage.title")}</Title>
         <FilterInput
           value={cmdSearch}
@@ -419,604 +844,218 @@ export function CommandsPage() {
           }}
           placeholder={t("commandsPage.filterPlaceholder")}
         />
-        <Group>
-          {!editingName && (
+        <div className="page-actions">
+          {!editingName && !showForm && (
             <Button
-              leftSection={showForm ? <X size={14} /> : <Plus size={14} />}
+              leftSection={<Plus size={14} />}
               data-testid="commands-toggle-form"
-              onClick={() => {
-                setShowForm(!showForm);
-                if (showForm) handleCancel();
-              }}
+              onClick={() => setShowForm(true)}
             >
-              {showForm ? t("commandsPage.closeForm") : t("commandsPage.addCommand")}
+              {t("commandsPage.addCommand")}
             </Button>
           )}
-        </Group>
-      </Group>
+        </div>
+      </div>
 
       {error && (
-        <Alert color="red" data-testid="commands-error">
+        <Alert color="red" mb="md" data-testid="commands-error">
           {error}
         </Alert>
       )}
       {msg && (
-        <Alert color="green" data-testid="commands-success">
+        <Alert color="green" mb="md" data-testid="commands-success">
           {msg}
         </Alert>
       )}
 
-      {showForm && !editingName && (
-        <Card component="form" withBorder onSubmit={handleSave}>
-          <Stack gap="sm">
-            <Group grow align="flex-end">
-              <Select
-                label={t("commandsPage.typeLabel")}
-                data={[
-                  { value: "function", label: t("commandsPage.typeFunction") },
-                  { value: "webhook", label: t("commandsPage.typeWebhook") },
-                ]}
-                value={form.actionType}
-                onChange={(v) =>
-                  setForm({ ...EMPTY_FORM, actionType: (v ?? "function") as ActionType })
-                }
-                allowDeselect={false}
-              />
-              <TextInput
-                label={t("commandsPage.nameLabel")}
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder={t("commandsPage.namePlaceholder")}
-              />
-            </Group>
-            <CommandFormFields {...formFieldsProps} />
-            <Group justify="flex-end">
-              <Button type="submit" disabled={saving} loading={saving}>
-                {saving ? t("commandsPage.savingButton") : t("commandsPage.createButton")}
-              </Button>
-            </Group>
-          </Stack>
-        </Card>
-      )}
-
-      <Title order={3}>{t("commandsPage.dbFunctionsHeading")}</Title>
-      <ListTable minWidth={720}>
-          <ListHead
-            sortGroup={fnSortGroup}
-            columns={[
-              { col: "name" },
-              { col: "source" },
-              { col: "domain" },
-              { col: "function" },
-              { col: "returns" },
-              { col: "args" },
-              { col: "visibleTo" },
-            ]}
-          />
-          <Table.Tbody>
-            {filteredFunctions.length === 0 && (
-              <ListEmpty colSpan={7}>{t("commandsPage.noFunctions")}</ListEmpty>
-            )}
-            <ListItems
-              state={fnSortGroup}
-              items={pageItems(fnSortGroup, fnPage - 1, PAGE_SIZE)}
-              colSpan={7}
-              rowKey={(fn) => fn.name}
-              render={(fn) => {
-              const isExpanded = expandedFn === fn.name;
-              const isEditing = editingName === fn.name;
-              return (
-                <React.Fragment key={fn.name}>
-                  <ListRow
-                    onClick={() => {
-                      setExpandedFn(isExpanded ? null : fn.name);
-                      if (isEditing) setEditingName(null);
-                    }}
-                  >
-                    <Table.Td>
-                      <Group gap="xs" wrap="wrap">
-                        {fn.name}
-                        <TagControl objectType="command" commandName={fn.name} />
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{fn.sourceId}</Table.Td>
-                    <Table.Td>{fn.domainId || t("commandsPage.dash")}</Table.Td>
-                    <Table.Td>
-                      {fn.schemaName}.{fn.functionName}
-                    </Table.Td>
-                    <Table.Td>
-                      {fn.returns ||
-                        (fn.returnSchema ? t("commandsPage.customSchema") : t("commandsPage.dash"))}
-                    </Table.Td>
-                    <Table.Td>{fn.arguments.length}</Table.Td>
-                    <Table.Td>{fn.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
-                  </ListRow>
-                  {isExpanded && (
-                    <ListExpandRow colSpan={7}>
-                      <ListDetail>
-                        {isEditing ? (
-                          <Stack component="form" gap="sm" onSubmit={handleSave}>
-                            <CommandFormFields {...formFieldsProps} />
-                            <Group justify="flex-end">
-                              <Button
-                                type="button"
-                                variant="default"
-                                leftSection={<X size={14} />}
-                                onClick={handleCancel}
-                              >
-                                {t("commandsPage.cancelAria")}
-                              </Button>
-                              <Button
-                                type="submit"
-                                variant="filled"
-                                leftSection={<Check size={14} />}
-                                disabled={saving}
-                              >
-                                {t("commandsPage.saveAria")}
-                              </Button>
-                            </Group>
-                          </Stack>
-                        ) : (
-                          <Stack gap="sm">
-                            <Table withRowBorders={false} verticalSpacing={2}>
-                              <Table.Tbody>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailName")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.name}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailKind")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.kind ?? "mutation"}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailSource")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.sourceId}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailSchema")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.schemaName}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailFunction")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.functionName}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailReturns")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {fn.returns ||
-                                      (fn.returnSchema
-                                        ? t("commandsPage.customSchema")
-                                        : t("commandsPage.dash"))}
-                                  </Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {fn.visibleTo.join(", ") || t("commandsPage.all")}
-                                  </Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailDomain")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.domainId || t("commandsPage.dash")}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailDescription")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{fn.description || t("commandsPage.dash")}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailArguments")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {fn.arguments.length === 0
-                                      ? t("commandsPage.none")
-                                      : fn.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
-                                  </Table.Td>
-                                </Table.Tr>
-                              </Table.Tbody>
-                            </Table>
-                            <Group gap="sm">
-                              <ActionIcon
-                                variant="default"
-                                aria-label={t("commandsPage.editAria", { name: fn.name })}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit("function", fn.name);
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </ActionIcon>
-                              <Button
-                                variant="light"
-                                size="xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTest("function", fn.name);
-                                }}
-                                disabled={testing === fn.name}
-                                loading={testing === fn.name}
-                              >
-                                {testing === fn.name
-                                  ? t("commandsPage.testingButton")
-                                  : t("commandsPage.testButton")}
-                              </Button>
-                              <ConfirmDialog
-                                title={t("commandsPage.deleteFunctionTitle", { name: fn.name })}
-                                consequence={t("commandsPage.deleteFunctionConsequence")}
-                                onConfirm={async () => {
-                                  await deleteFunction(fn.name);
-                                  setExpandedFn(null);
-                                  load();
-                                }}
-                              >
-                                {(open) => (
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    aria-label={t("commandsPage.deleteFunctionAria", {
-                                      name: fn.name,
-                                    })}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      open();
-                                    }}
-                                  >
-                                    <Trash2 size={14} />
-                                  </ActionIcon>
-                                )}
-                              </ConfirmDialog>
-                            </Group>
-                          </Stack>
-                        )}
-                      </ListDetail>
-                    </ListExpandRow>
-                  )}
-                </React.Fragment>
-              );
-              }}
-            />
-          </Table.Tbody>
-      </ListTable>
-      {fnTotalPages > 1 && fnSortGroup.groupBy.length === 0 && (
-        <Group justify="flex-end">
-          <Pagination total={fnTotalPages} value={fnPage} onChange={setFnPage} size="sm" />
-        </Group>
-      )}
-
-      <Title order={3}>{t("commandsPage.webhooksHeading")}</Title>
-      <ListTable minWidth={720}>
-          <ListHead
-            sortGroup={whSortGroup}
-            columns={[
-              { col: "name" },
-              { col: "status" },
-              { col: "domain" },
-              { col: "url" },
-              { col: "method" },
-              { col: "timeout" },
-              { col: "returns" },
-              { col: "args" },
-              { col: "visibleTo" },
-            ]}
-          />
-          <Table.Tbody>
-            {filteredWebhooks.length === 0 && (
-              <ListEmpty colSpan={9}>{t("commandsPage.noWebhooks")}</ListEmpty>
-            )}
-            <ListItems
-              state={whSortGroup}
-              items={pageItems(whSortGroup, whPage - 1, PAGE_SIZE)}
-              colSpan={9}
-              rowKey={(wh) => wh.name}
-              render={(wh) => {
-              const isExpanded = expandedWh === wh.name;
-              const isEditing = editingName === wh.name;
-              return (
-                <React.Fragment key={wh.name}>
-                  <ListRow
-                    onClick={() => {
-                      setExpandedWh(isExpanded ? null : wh.name);
-                      if (isEditing) setEditingName(null);
-                    }}
-                  >
-                    <Table.Td>
-                      <Group gap="xs" wrap="wrap">
-                        {wh.name}
-                        <TagControl objectType="command" commandName={wh.name} />
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        size="sm"
-                        variant="light"
-                        color={wh.approved === false ? "yellow" : "green"}
-                        data-testid={`webhook-status-${wh.name}`}
-                      >
-                        {wh.approved === false
-                          ? t("commandsPage.statusPending")
-                          : t("commandsPage.statusApproved")}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
-                    <Table.Td
-                      style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis" }}
-                    >
-                      {wh.url}
-                    </Table.Td>
-                    <Table.Td>{wh.method}</Table.Td>
-                    <Table.Td>{wh.timeoutMs}ms</Table.Td>
-                    <Table.Td>
-                      {wh.returns ||
-                        t("commandsPage.inlineReturns", { count: wh.inlineReturnType.length })}
-                    </Table.Td>
-                    <Table.Td>{wh.arguments.length}</Table.Td>
-                    <Table.Td>{wh.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
-                  </ListRow>
-                  {isExpanded && (
-                    <ListExpandRow colSpan={9}>
-                      <ListDetail>
-                        {isEditing ? (
-                          <Stack component="form" gap="sm" onSubmit={handleSave}>
-                            <CommandFormFields {...formFieldsProps} />
-                            <Group justify="flex-end">
-                              <Button
-                                type="button"
-                                variant="default"
-                                leftSection={<X size={14} />}
-                                onClick={handleCancel}
-                              >
-                                {t("commandsPage.cancelAria")}
-                              </Button>
-                              <Button
-                                type="submit"
-                                variant="filled"
-                                leftSection={<Check size={14} />}
-                                disabled={saving}
-                              >
-                                {t("commandsPage.saveAria")}
-                              </Button>
-                            </Group>
-                          </Stack>
-                        ) : (
-                          <Stack gap="sm">
-                            {wh.approved === false && (
-                              <Alert color="yellow" data-testid={`webhook-pending-${wh.name}`}>
-                                {t("commandsPage.webhookPendingHint")}
-                              </Alert>
-                            )}
-                            <Table withRowBorders={false} verticalSpacing={2}>
-                              <Table.Tbody>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailName")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.name}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailStatus")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {wh.approved === false
-                                      ? t("commandsPage.statusPending")
-                                      : t("commandsPage.statusApproved")}
-                                  </Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailKind")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.kind ?? "mutation"}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailUrl")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.url}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailMethod")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.method}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailTimeout")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.timeoutMs}ms</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailReturns")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {wh.returns ||
-                                      t("commandsPage.inlineReturns", {
-                                        count: wh.inlineReturnType.length,
-                                      })}
-                                  </Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {wh.visibleTo.join(", ") || t("commandsPage.all")}
-                                  </Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailDomain")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailDescription")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>{wh.description || t("commandsPage.dash")}</Table.Td>
-                                </Table.Tr>
-                                <Table.Tr>
-                                  <Table.Td c="dimmed">
-                                    <strong>{t("commandsPage.detailArguments")}</strong>
-                                  </Table.Td>
-                                  <Table.Td>
-                                    {wh.arguments.length === 0
-                                      ? t("commandsPage.none")
-                                      : wh.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
-                                  </Table.Td>
-                                </Table.Tr>
-                                {wh.inlineReturnType.length > 0 && (
-                                  <Table.Tr>
-                                    <Table.Td c="dimmed">
-                                      <strong>{t("commandsPage.detailInlineFields")}</strong>
-                                    </Table.Td>
-                                    <Table.Td>
-                                      {wh.inlineReturnType
-                                        .map((f) => `${f.name}: ${f.type}`)
-                                        .join(", ")}
-                                    </Table.Td>
-                                  </Table.Tr>
-                                )}
-                              </Table.Tbody>
-                            </Table>
-                            <Group gap="sm">
-                              <ActionIcon
-                                variant="default"
-                                aria-label={t("commandsPage.editAria", { name: wh.name })}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit("webhook", wh.name);
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </ActionIcon>
-                              <Button
-                                variant="light"
-                                size="xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTest("webhook", wh.name);
-                                }}
-                                disabled={testing === wh.name}
-                                loading={testing === wh.name}
-                              >
-                                {testing === wh.name
-                                  ? t("commandsPage.testingButton")
-                                  : t("commandsPage.testButton")}
-                              </Button>
-                              <ConfirmDialog
-                                title={t("commandsPage.deleteWebhookTitle", { name: wh.name })}
-                                consequence={t("commandsPage.deleteWebhookConsequence")}
-                                onConfirm={async () => {
-                                  await deleteWebhook(wh.name);
-                                  setExpandedWh(null);
-                                  load();
-                                }}
-                              >
-                                {(open) => (
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    aria-label={t("commandsPage.deleteWebhookAria", {
-                                      name: wh.name,
-                                    })}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      open();
-                                    }}
-                                  >
-                                    <Trash2 size={14} />
-                                  </ActionIcon>
-                                )}
-                              </ConfirmDialog>
-                            </Group>
-                          </Stack>
-                        )}
-                      </ListDetail>
-                    </ListExpandRow>
-                  )}
-                </React.Fragment>
-              );
-              }}
-            />
-          </Table.Tbody>
-      </ListTable>
-      {whTotalPages > 1 && whSortGroup.groupBy.length === 0 && (
-        <Group justify="flex-end">
-          <Pagination total={whTotalPages} value={whPage} onChange={setWhPage} size="sm" />
-        </Group>
-      )}
-
-      <Group gap="sm" align="center">
-        <Text size="sm" c="dimmed">
-          {t("commandsPage.testAsRole")}
-        </Text>
-        <Select
-          aria-label={t("commandsPage.testAsRole")}
-          size="xs"
-          data={roles.map((r) => ({ value: r.id, label: r.id }))}
-          value={testRoleId || null}
-          onChange={(v) => setTestRoleId(v ?? "")}
-          allowDeselect={false}
-        />
-      </Group>
-
-      <Modal
-        opened={testResult !== null}
-        onClose={() => setTestResult(null)}
-        size="lg"
-        title={testResult ? t("commandsPage.testResultHeading", { name: testResult.name }) : ""}
-      >
-        {testResult && (
+      <SplitPane
+        testId="commands-split"
+        storageKey="provisa.commands.detailWidth"
+        title={panelTitle}
+        onClose={closePanel}
+        // Escape closes a command that is only being looked at; it never drops what is being typed.
+        closeOnEscape={panelIsReadOnly}
+        labels={{
+          panel: t("commandsPage.detailPanel"),
+          resize: t("commandsPage.resizeDetail"),
+          expand: t("commandsPage.expandDetail"),
+          restore: t("commandsPage.restoreDetail"),
+          close: t("commandsPage.closeDetail"),
+          backToList: t("commandsPage.backToList"),
+        }}
+        list={
+          // Each list is the pane's own child: it scrolls sideways under the panel's edge,
+          // where a wrapper would let it hang out from under it.
           <>
-            {!!(
-              testResult.data &&
-              typeof testResult.data === "object" &&
-              "enforcement" in testResult.data
-            ) && (
-              <Alert color="blue" mb="sm" title={t("commandsPage.governanceApplied")}>
-                <pre style={{ margin: "0.25rem 0 0", fontSize: "0.78rem" }}>
-                  {JSON.stringify(
-                    (testResult.data as Record<string, unknown>).enforcement,
-                    null,
-                    2,
-                  )}
-                </pre>
-              </Alert>
+            <Title order={3} mb="sm">
+              {t("commandsPage.dbFunctionsHeading")}
+            </Title>
+            <ListTable minWidth={720}>
+              <ListHead
+                sortGroup={fnSortGroup}
+                columns={[
+                  { col: "name" },
+                  { col: "source" },
+                  { col: "domain" },
+                  { col: "function" },
+                  { col: "returns" },
+                  { col: "args" },
+                  { col: "visibleTo" },
+                ]}
+              />
+              <Table.Tbody>
+                {filteredFunctions.length === 0 && (
+                  <ListEmpty colSpan={7}>{t("commandsPage.noFunctions")}</ListEmpty>
+                )}
+                <ListItems
+                  state={fnSortGroup}
+                  items={pageItems(fnSortGroup, fnPage - 1, PAGE_SIZE)}
+                  colSpan={7}
+                  rowKey={(fn) => fn.name}
+                  render={(fn) => {
+                    const isExpanded = expandedFn === fn.name;
+                    const isEditing = editingName === fn.name;
+                    return (
+                      <React.Fragment key={fn.name}>
+                        <ListRow
+                          testId={`commands-fn-row-${fn.name}`}
+                          selected={isExpanded}
+                          onClick={() => {
+                            setTestResult(null);
+                            setExpandedWh(null);
+                            setExpandedFn(isExpanded ? null : fn.name);
+                            if (isEditing) setEditingName(null);
+                          }}
+                        >
+                          <Table.Td>
+                            <Group gap="xs" wrap="wrap">
+                              {fn.name}
+                              <TagControl objectType="command" commandName={fn.name} />
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>{fn.sourceId}</Table.Td>
+                          <Table.Td>{fn.domainId || t("commandsPage.dash")}</Table.Td>
+                          <Table.Td>
+                            {fn.schemaName}.{fn.functionName}
+                          </Table.Td>
+                          <Table.Td>
+                            {fn.returns ||
+                              (fn.returnSchema
+                                ? t("commandsPage.customSchema")
+                                : t("commandsPage.dash"))}
+                          </Table.Td>
+                          <Table.Td>{fn.arguments.length}</Table.Td>
+                          <Table.Td>{fn.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
+                        </ListRow>
+                      </React.Fragment>
+                    );
+                  }}
+                />
+              </Table.Tbody>
+            </ListTable>
+            {fnTotalPages > 1 && fnSortGroup.groupBy.length === 0 && (
+              <Group justify="flex-end">
+                <Pagination total={fnTotalPages} value={fnPage} onChange={setFnPage} size="sm" />
+              </Group>
             )}
-            <pre style={{ fontSize: "0.85rem", overflow: "auto", maxHeight: "60vh" }}>
-              {JSON.stringify(
-                testResult.data && typeof testResult.data === "object" && "rows" in testResult.data
-                  ? (testResult.data as Record<string, unknown>).rows
-                  : testResult.data,
-                null,
-                2,
-              )}
-            </pre>
+
+            <Title order={3} mt="md">
+              {t("commandsPage.webhooksHeading")}
+            </Title>
+            <ListTable minWidth={720}>
+              <ListHead
+                sortGroup={whSortGroup}
+                columns={[
+                  { col: "name" },
+                  { col: "status" },
+                  { col: "domain" },
+                  { col: "url" },
+                  { col: "method" },
+                  { col: "timeout" },
+                  { col: "returns" },
+                  { col: "args" },
+                  { col: "visibleTo" },
+                ]}
+              />
+              <Table.Tbody>
+                {filteredWebhooks.length === 0 && (
+                  <ListEmpty colSpan={9}>{t("commandsPage.noWebhooks")}</ListEmpty>
+                )}
+                <ListItems
+                  state={whSortGroup}
+                  items={pageItems(whSortGroup, whPage - 1, PAGE_SIZE)}
+                  colSpan={9}
+                  rowKey={(wh) => wh.name}
+                  render={(wh) => {
+                    const isExpanded = expandedWh === wh.name;
+                    const isEditing = editingName === wh.name;
+                    return (
+                      <React.Fragment key={wh.name}>
+                        <ListRow
+                          testId={`commands-wh-row-${wh.name}`}
+                          selected={isExpanded}
+                          onClick={() => {
+                            setTestResult(null);
+                            setExpandedFn(null);
+                            setExpandedWh(isExpanded ? null : wh.name);
+                            if (isEditing) setEditingName(null);
+                          }}
+                        >
+                          <Table.Td>
+                            <Group gap="xs" wrap="wrap">
+                              {wh.name}
+                              <TagControl objectType="command" commandName={wh.name} />
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              size="sm"
+                              variant="light"
+                              color={wh.approved === false ? "yellow" : "green"}
+                              data-testid={`webhook-status-${wh.name}`}
+                            >
+                              {wh.approved === false
+                                ? t("commandsPage.statusPending")
+                                : t("commandsPage.statusApproved")}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
+                          <Table.Td
+                            style={{
+                              maxWidth: "200px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {wh.url}
+                          </Table.Td>
+                          <Table.Td>{wh.method}</Table.Td>
+                          <Table.Td>{wh.timeoutMs}ms</Table.Td>
+                          <Table.Td>
+                            {wh.returns ||
+                              t("commandsPage.inlineReturns", {
+                                count: wh.inlineReturnType.length,
+                              })}
+                          </Table.Td>
+                          <Table.Td>{wh.arguments.length}</Table.Td>
+                          <Table.Td>{wh.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
+                        </ListRow>
+                      </React.Fragment>
+                    );
+                  }}
+                />
+              </Table.Tbody>
+            </ListTable>
+            {whTotalPages > 1 && whSortGroup.groupBy.length === 0 && (
+              <Group justify="flex-end">
+                <Pagination total={whTotalPages} value={whPage} onChange={setWhPage} size="sm" />
+              </Group>
+            )}
           </>
-        )}
-      </Modal>
-    </Stack>
+        }
+      >
+        {panelBody}
+      </SplitPane>
+    </div>
   );
 }

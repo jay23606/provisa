@@ -24,6 +24,7 @@ from provisa.security.meta_role import (
     meta_role_id,
     resolve_requested_role,
 )
+from tests.role_state import RoleState
 
 
 def _tm(table_id: int) -> SimpleNamespace:
@@ -37,7 +38,7 @@ def _state(*, rls: dict[str, RLSContext], reads: dict[str, list[int]], roles: di
     ]
     tables = [{"id": 1, "domain_id": "sales", "columns": columns}]
     built: dict = {}
-    state = SimpleNamespace(
+    state = RoleState(
         roles=dict(roles),
         rls_contexts=dict(rls),
         contexts={
@@ -47,6 +48,7 @@ def _state(*, rls: dict[str, RLSContext], reads: dict[str, list[int]], roles: di
         tracked_functions={},
         tracked_webhooks={},
         meta_roles={},
+        meta_resolved_at={},
         role_build_inputs={
             "tables": tables,
             "metrics": [],

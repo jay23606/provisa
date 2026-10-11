@@ -443,18 +443,18 @@ class CopyHandler:  # REQ-038, REQ-040, REQ-129, REQ-266, REQ-272
         # (compiler/write_admission.py): the write right and the columns' writable_by here,
         # before any data is asked for; the role's row filter over each row below, before any
         # row is written.
-        from provisa.compiler.rls import RLSContext
         from provisa.compiler.stage2 import build_governance_context
         from provisa.compiler.write_admission import admit_rows
         from provisa.core.request_context import session_vars_for
         from provisa.security.rights import require_role
 
         _role = require_role(_state.roles, role_id)
+        _surface = _state.surfaces[role_id]  # one snapshot: parts of one build
         _gov = build_governance_context(
             role_id,
-            _state.rls_contexts.get(role_id, RLSContext.empty()),
+            _surface.rls,
             _state.masking_rules,
-            _state.contexts[role_id],
+            _surface.context,
             getattr(_state, "tables", []),
             role=_role,
             relationships=getattr(_state, "relationships", None),

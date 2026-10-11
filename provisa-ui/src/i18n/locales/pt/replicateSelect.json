@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Replicar",
-    "helpTable": "Quando esta tabela é servida a partir da sua réplica: uma cópia mantida no repositório do motor e atualizada conforme as configurações de atualidade da tabela (TTL, verificação de atualidade, feed de alterações). Não é um fluxo contínuo de alterações. 'Padrão' usa o valor da fonte ou, se a fonte não tiver nenhum, o limite global. Apenas 'Sempre' é uma garantia; 'Padrão', 'Nunca' e as entradas Hot são aplicados na medida do possível.",
-    "helpSource": "Quando as tabelas desta fonte são servidas a partir das suas réplicas: cópias mantidas no repositório do motor e atualizadas conforme as configurações de atualidade de cada tabela. Uma tabela sem valor próprio usa este. 'Padrão' aplica o limite global. Apenas 'Sempre' é uma garantia; 'Padrão', 'Nunca' e as entradas Hot são aplicados na medida do possível.",
+    "helpTable": "Quando as leituras desta tabela vêm da sua réplica, uma cópia no armazenamento do motor atualizada conforme as definições de atualidade da tabela. Padrão: a definição da origem ou, se não houver, o limite global.",
+    "helpSource": "Quando as leituras das tabelas desta origem vêm das suas réplicas, cópias no armazenamento do motor atualizadas conforme as definições de atualidade de cada tabela. Uma tabela sem definição própria usa esta. Padrão: o limite global.",
+    "helpOptions": "Ao vivo se possível: lida diretamente da origem; replicada apenas quando o motor não a consegue ler diretamente. Hot-N: lida diretamente até que N instruções leiam a tabela dentro do intervalo; depois, da réplica até ficarem abaixo de metade de N; as respostas da cache de respostas não contam. Sempre: sempre da réplica, a única definição que é uma garantia.",
     "default": "Padrão",
-    "never": "Nunca",
+    "never": "Ao vivo se possível",
     "always": "Sempre",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "'Nunca' não pode ser combinado com a proteção de carga: uma tabela protegida contra carga nunca é lida ao vivo."
+    "neverWithLoadProtection": "'Ao vivo se possível' não pode ser combinado com a proteção de carga: uma tabela protegida contra carga nunca é lida ao vivo.",
+    "scheduled": "Sempre, origem lida apenas por agendamento",
+    "helpScheduled": "Sempre, origem lida apenas por agendamento: as leituras vêm sempre da réplica e uma consulta nunca provoca a leitura da origem; o agendador atualiza a réplica na janela fora de pico, pelo TTL do cache ou pela sonda de alterações, e pelo menos um dos três é obrigatório."
   }
 }

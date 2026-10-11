@@ -78,7 +78,8 @@ export function answerOpener(answer: IssuerAnswer, win: Window = window): () => 
 export interface SignedIn {
   source_id: string;
   account: string;
-  refresh_token: string; // a reference into the organisation's vault, never the credential
+  /** The owner's approval is kept by the server for the source's reads; the form never holds it. */
+  connected: boolean;
 }
 
 /** What the person adding a source gives. The client is the organisation's (Admin › Email) and
@@ -91,11 +92,43 @@ export interface SignInRequest {
 }
 
 /** Whether the organisation has connected the platform, and whether the caller may do so. */
+/** Whose mail a mail source reads: one mailbox its owner connects, or the organisation's. */
+export const ONE_MAILBOX = "one";
+export const ORGANISATION_MAILBOXES = "organisation";
+
+/** Which shapes a mail source's form offers, by what the organisation's entry `can` do. THE one
+ * rule, for every mail platform's form:
+ * - a shape the entry can do is offered;
+ * - a shape it cannot do is offered only to someone who may set the entry up (`may_configure`),
+ *   for whom the form's notice says where; anyone else is not shown a choice that cannot work;
+ * - `saved`, the shape a stored source has, is always offered: a source keeps its shape;
+ * - an entry that can do neither offers both, and the form says what is missing.
+ * `opensOn` is the shape a NEW source starts with: one the entry can do. */
+export function shapesOffered(
+  entry: SignInStatus | null,
+  saved: string,
+  can: { one: boolean; organisation: boolean },
+): { offered: string[]; opensOn: string } {
+  const neither = !can.one && !can.organisation;
+  const shown = (shape: string, able: boolean) =>
+    neither || able || entry?.may_configure === true || saved === shape;
+  return {
+    offered: [
+      ...(shown(ONE_MAILBOX, can.one) ? [ONE_MAILBOX] : []),
+      ...(shown(ORGANISATION_MAILBOXES, can.organisation) ? [ORGANISATION_MAILBOXES] : []),
+    ],
+    opensOn: neither || can.one ? ONE_MAILBOX : ORGANISATION_MAILBOXES,
+  };
+}
+
 export interface SignInStatus {
   configured: boolean;
   may_configure: boolean;
   /** Whether an administrator allows sources that read the organisation's mailboxes. */
   organisation_mailboxes?: boolean;
+  /** Asked with a source and an account: whether that mailbox's owner has signed in, and when. */
+  connected?: boolean;
+  connected_at?: string | null;
 }
 
 /** A refusal by the server, with the code its message is localised by. */
@@ -120,8 +153,16 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return said as T;
 }
 
-export async function signInStatus(kind: string): Promise<SignInStatus> {
-  return call<SignInStatus>(`status?kind=${encodeURIComponent(kind)}`);
+export async function signInStatus(
+  kind: string,
+  of?: { source_id: string; account: string },
+): Promise<SignInStatus> {
+  const asked = new URLSearchParams({ kind });
+  if (of && of.source_id.trim() && of.account.trim()) {
+    asked.set("source_id", of.source_id.trim());
+    asked.set("account", of.account.trim());
+  }
+  return call<SignInStatus>(`status?${asked.toString()}`);
 }
 
 const HELLO_EVERY_MS = 500;

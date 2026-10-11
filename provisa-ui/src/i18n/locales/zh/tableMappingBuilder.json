@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "移除第 {{index}} 列",
-    "saveMapping": "保存映射",
     "fieldRedis": "Redis 字段",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "点路径",

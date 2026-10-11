@@ -12,7 +12,7 @@
 // more clouds, each all or nothing, and saves only what is filled.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { renderInForm, screen } from "../../../test-utils/render";
 import { CloudopsFields } from "../CloudopsFields";
 import { SOURCE_TYPES } from "../constants";
 import {
@@ -76,7 +76,7 @@ describe("cloudops helpers", () => {
 
 describe("CloudopsFields", () => {
   const show = (fields: Record<string, string>) =>
-    render(<CloudopsFields fields={fields} setFields={vi.fn()} />);
+    renderInForm(<CloudopsFields fields={fields} setFields={vi.fn()} />);
 
   it("shows every cloud's fields and asks for a cloud when none is named", () => {
     show({});

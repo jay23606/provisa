@@ -596,7 +596,7 @@ def _tags(
             }
         else:
             raise DeployError(
-                f"{path!r} carries a tag on {fragment!r}, which is not an address REQ-1385 gives a "
+                f"{path!r} carries a tag on {fragment!r}, which is not an address the model gives a "
                 f"part of an entity; the fragments a tag may name are #field: and #rel:"
             )
         body.setdefault("base_tag_id", body["tag_id"])

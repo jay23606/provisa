@@ -28,7 +28,6 @@ import {
   TextInput,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { ArrowDownToLine, ArrowUpFromLine, GitBranch, GitMerge, Trash2 } from "lucide-react";
@@ -57,10 +56,12 @@ import { MergeRequestsPanel } from "./MergeRequestsPanel";
 import { RepoBrowser } from "./RepoBrowser";
 import { RepoIntegrationPanel } from "./RepoIntegrationPanel";
 import { SyntheticDatasetsPanel } from "./SyntheticDatasetsPanel";
-import { SyntheticSeedFields } from "./SyntheticSeedFields";
+import { SyntheticSeedFields, SyntheticSeedTick } from "./SyntheticSeedFields";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 import type { SyntheticSeed } from "./syntheticSeed";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { Tip } from "../Tip";
 
 const PROD = "prod";
 
@@ -474,46 +475,64 @@ export function EnvironmentsTab() {
         <Tabs.Panel value="environments" pt="md">
           <Stack gap="md">
             <Title order={4}>{t("environmentsTab.title")}</Title>
-            <Group align="end">
-              <TextInput
-                label={t("environmentsTab.newName")}
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-                data-testid="env-new-name"
-              />
-              <Select
-                label={t("environmentsTab.branchFrom")}
-                data={names}
-                value={from}
-                onChange={(v) => setFrom(v ?? PROD)}
-                data-testid="env-new-from"
-              />
-              <Group gap={4} align="center">
-                <Checkbox
-                  label={t("environmentsTab.inheritConnections")}
-                  checked={inherits}
-                  disabled={!canAdminister}
-                  onChange={(e) => setInheritConnections(e.currentTarget.checked)}
-                  data-testid="env-new-inherit"
+            <FormLayout>
+              <FormField size="medium">
+                <TextInput
+                  label={t("environmentsTab.newName")}
+                  value={name}
+                  onChange={(e) => setName(e.currentTarget.value)}
+                  data-testid="env-new-name"
                 />
-                <HelpBubble
-                  title={t("environmentsTab.inheritTitle")}
-                  paragraphs={[t("environmentsTab.inheritHelp"), t("environmentsTab.inheritHelp2")]}
-                  ariaLabel={t("environmentsTab.inheritTitle")}
-                  testId="env-inherit-help"
+              </FormField>
+              <FormField size="medium">
+                <Select
+                  label={t("environmentsTab.branchFrom")}
+                  data={names}
+                  value={from}
+                  onChange={(v) => setFrom(v ?? PROD)}
+                  data-testid="env-new-from"
                 />
-              </Group>
-              <Button
-                leftSection={<GitBranch size={14} aria-hidden />}
-                onClick={create}
-                loading={creating}
-                disabled={name.trim() === ""}
-                data-testid="env-create"
-              >
-                {t("environmentsTab.create")}
-              </Button>
-            </Group>
-            <SyntheticSeedFields envs={names} seed={synthetic} setSeed={setSynthetic} />
+              </FormField>
+              {/* The ticks together after the fields; the fields the second one opens follow. */}
+              <FormChecks>
+                <FormField size="short">
+                  <Group gap={4} align="center" wrap="nowrap">
+                    <Checkbox
+                      label={t("environmentsTab.inheritConnections")}
+                      checked={inherits}
+                      disabled={!canAdminister}
+                      onChange={(e) => setInheritConnections(e.currentTarget.checked)}
+                      data-testid="env-new-inherit"
+                    />
+                    <HelpBubble
+                      title={t("environmentsTab.inheritTitle")}
+                      paragraphs={[
+                        t("environmentsTab.inheritHelp"),
+                        t("environmentsTab.inheritHelp2"),
+                      ]}
+                      ariaLabel={t("environmentsTab.inheritTitle")}
+                      testId="env-inherit-help"
+                    />
+                  </Group>
+                </FormField>
+                <SyntheticSeedTick seed={synthetic} setSeed={setSynthetic} />
+              </FormChecks>
+              <SyntheticSeedFields envs={names} seed={synthetic} setSeed={setSynthetic} />
+              {/* Create is not a save and the form is always open: it keeps its word, alone. */}
+              <FormFooter
+                action={
+                  <Button
+                    leftSection={<GitBranch size={14} aria-hidden />}
+                    onClick={create}
+                    loading={creating}
+                    disabled={name.trim() === ""}
+                    data-testid="env-create"
+                  >
+                    {t("environmentsTab.create")}
+                  </Button>
+                }
+              />
+            </FormLayout>
 
             <SortGroupTable
               testPrefix="environments"
@@ -566,11 +585,11 @@ export function EnvironmentsTab() {
                     <Group gap="xs">
                       <Text size="sm">{e.name}</Text>
                       {e.drifted && (
-                        <Tooltip label={t("environmentsTab.driftedHelp")}>
+                        <Tip text={t("environmentsTab.driftedHelp")}>
                           <Badge color="orange" data-testid={`env-drifted-${e.name}`}>
                             {t("environmentsTab.drifted")}
                           </Badge>
-                        </Tooltip>
+                        </Tip>
                       )}
                     </Group>
                   </Table.Td>
@@ -614,11 +633,8 @@ export function EnvironmentsTab() {
                     {Object.keys(e.expired_kept_by).length > 0 && (
                       // REQ-1918: past its expiry and still standing, because something still
                       // refers to it. Said on the row so nobody has to read the server's log.
-                      <Tooltip
-                        multiline
-                        w={300}
-                        withArrow
-                        label={t("environmentsTab.expiredKeptHint", {
+                      <Tip
+                        text={t("environmentsTab.expiredKeptHint", {
                           reasons: Object.entries(e.expired_kept_by)
                             .map(
                               ([kind, count]) => `${t(`dependentsDialog.kind.${kind}`)}: ${count}`,
@@ -634,7 +650,7 @@ export function EnvironmentsTab() {
                         >
                           {t("environmentsTab.expiredKept")}
                         </Badge>
-                      </Tooltip>
+                      </Tip>
                     )}
                   </Table.Td>
                   <Table.Td>
@@ -660,7 +676,7 @@ export function EnvironmentsTab() {
                       {/* REQ-1546: the repair for a branch the best-effort mirror could not
                             send, and the way to take what the remote holds. Both are asked for
                             here rather than run on a timer. */}
-                      <Tooltip label={t("environmentsTab.push")}>
+                      <Tip text={t("environmentsTab.push")} named>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
@@ -670,8 +686,8 @@ export function EnvironmentsTab() {
                         >
                           <ArrowUpFromLine size={14} aria-hidden />
                         </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t("environmentsTab.pull")}>
+                      </Tip>
+                      <Tip text={t("environmentsTab.pull")} named>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
@@ -681,7 +697,7 @@ export function EnvironmentsTab() {
                         >
                           <ArrowDownToLine size={14} aria-hidden />
                         </ActionIcon>
-                      </Tooltip>
+                      </Tip>
                       {/* REQ-1552: stepping this environment's history is offered where the
                             change was made -- the environment switcher -- not here. */}
                       {/* prod exists from the org's creation and is refused by the server; the
@@ -728,100 +744,124 @@ export function EnvironmentsTab() {
         onClose={() => setMergeSource(null)}
         title={t("environmentsTab.mergeTitle", { env: mergeSource?.name })}
       >
-        <Stack gap="sm">
+        <FormLayout>
           {/* REQ-1549: the target arrives already chosen — this picker is how the work is sent
               somewhere other than where the branch came from. */}
-          <Select
-            label={t("environmentsTab.mergeIntoLabel")}
-            description={t("environmentsTab.mergeIntoHelp")}
-            data={names.filter((n) => n !== mergeSource?.name)}
-            value={mergeInto}
-            onChange={setMergeInto}
-            data-testid="env-merge-into"
-          />
+          <FormField size="medium" help={t("environmentsTab.mergeIntoHelp")}>
+            <Select
+              label={t("environmentsTab.mergeIntoLabel")}
+              data={names.filter((n) => n !== mergeSource?.name)}
+              value={mergeInto}
+              onChange={setMergeInto}
+              data-testid="env-merge-into"
+            />
+          </FormField>
           {mergeInto === null && (
-            <Alert color="orange" data-testid="env-merge-no-target">
-              {t("environmentsTab.noMergeTarget")}
-            </Alert>
+            <FormField size="full">
+              <Alert color="orange" data-testid="env-merge-no-target">
+                {t("environmentsTab.noMergeTarget")}
+              </Alert>
+            </FormField>
           )}
           {/* REQ-1550: required, and required of every merge rather than only of a proposed one —
               the merge lands as one squashed commit, so this sentence is the whole account of it. */}
-          <Textarea
-            label={t("environmentsTab.mergeMessage")}
-            description={t("environmentsTab.mergeMessageHelp")}
-            value={message}
-            onChange={(e) => setMessage(e.currentTarget.value)}
-            required
-            data-testid="env-merge-message"
-          />
-          <Tooltip label={t("environmentsTab.removalsHelp")} multiline w={320}>
-            <Checkbox
-              label={t("environmentsTab.removals")}
-              checked={removals}
-              onChange={(e) => setRemovals(e.currentTarget.checked)}
-              data-testid="env-merge-removals"
+          <FormField size="full" help={t("environmentsTab.mergeMessageHelp")}>
+            <Textarea
+              label={t("environmentsTab.mergeMessage")}
+              value={message}
+              onChange={(e) => setMessage(e.currentTarget.value)}
+              required
+              data-testid="env-merge-message"
             />
-          </Tooltip>
-          <Tooltip label={t("environmentsTab.retireSourceHelp")} multiline w={320}>
-            <Checkbox
-              label={t("environmentsTab.retireSource", { env: mergeSource?.name })}
-              checked={retireSource}
-              onChange={(e) => {
-                setRetireSource(e.currentTarget.checked);
-                // The remote option cannot outlive the box it hangs off: leaving the environment
-                // standing while deleting its only off-volume copy is never offered (REQ-1550).
-                if (!e.currentTarget.checked) setRetireRemote(false);
-              }}
-              data-testid="env-merge-retire"
-            />
-          </Tooltip>
-          {retireSource && (
-            <Tooltip label={t("environmentsTab.retireRemoteHelp")} multiline w={320}>
+          </FormField>
+          {/* What each tick does is behind its (?), where a keyboard reaches it. */}
+          <FormChecks>
+            <FormField size="short" help={t("environmentsTab.removalsHelp")}>
               <Checkbox
-                ml="lg"
-                label={t("environmentsTab.retireRemote")}
-                checked={retireRemote}
-                onChange={(e) => setRetireRemote(e.currentTarget.checked)}
-                data-testid="env-merge-retire-remote"
+                label={t("environmentsTab.removals")}
+                checked={removals}
+                onChange={(e) => setRemovals(e.currentTarget.checked)}
+                data-testid="env-merge-removals"
               />
-            </Tooltip>
-          )}
-          {preview && (
-            <Alert color="gray" data-testid="env-merge-preview">
-              {t("environmentsTab.reportCounts", {
-                added: preview.added,
-                changed: preview.changed,
-                removed: preview.removed,
-              })}
-            </Alert>
-          )}
-          {/* REQ-1555: the objects this merge would carry away from whoever changed them in the
+            </FormField>
+            <FormField size="short" help={t("environmentsTab.retireSourceHelp")}>
+              <Checkbox
+                label={t("environmentsTab.retireSource", { env: mergeSource?.name })}
+                checked={retireSource}
+                onChange={(e) => {
+                  setRetireSource(e.currentTarget.checked);
+                  // The remote option cannot outlive the box it hangs off: leaving the environment
+                  // standing while deleting its only off-volume copy is never offered (REQ-1550).
+                  if (!e.currentTarget.checked) setRetireRemote(false);
+                }}
+                data-testid="env-merge-retire"
+              />
+            </FormField>
+            {retireSource && (
+              <FormField size="short" help={t("environmentsTab.retireRemoteHelp")}>
+                <Checkbox
+                  label={t("environmentsTab.retireRemote")}
+                  checked={retireRemote}
+                  onChange={(e) => setRetireRemote(e.currentTarget.checked)}
+                  data-testid="env-merge-retire-remote"
+                />
+              </FormField>
+            )}
+          </FormChecks>
+          <FormField size="full">
+            <Stack gap="xs">
+              {preview && (
+                <Alert color="gray" data-testid="env-merge-preview">
+                  {t("environmentsTab.reportCounts", {
+                    added: preview.added,
+                    changed: preview.changed,
+                    removed: preview.removed,
+                  })}
+                </Alert>
+              )}
+              {/* REQ-1555: the objects this merge would carry away from whoever changed them in the
               target. Named, not offered: there is nothing to choose here, because the merge applies
               the source either way — what was missing was the sentence saying whose work went. */}
-          {preview && preview.compared === false && (
-            <Alert color="gray" data-testid="env-merge-not-compared">
-              {t("environmentsTab.conflictsNotCompared")}
-            </Alert>
-          )}
-          {preview?.conflicts && preview.conflicts.length > 0 && (
-            <Alert color="yellow" data-testid="env-merge-conflicts">
-              <Text size="sm" fw={600}>
-                {t("environmentsTab.conflictsTitle", { count: preview.conflicts.length })}
-              </Text>
-              <List size="sm" withPadding>
-                {preview.conflicts.map((c) => (
-                  <List.Item key={c.path} data-testid="env-merge-conflict">
-                    {t("environmentsTab.conflictLine", {
-                      path: c.path,
-                      source: t(`environmentsTab.conflictSide.${c.source}`),
-                      target: t(`environmentsTab.conflictSide.${c.target}`),
-                    })}
-                  </List.Item>
-                ))}
-              </List>
-            </Alert>
-          )}
-          <Group>
+              {preview && preview.compared === false && (
+                <Alert color="gray" data-testid="env-merge-not-compared">
+                  {t("environmentsTab.conflictsNotCompared")}
+                </Alert>
+              )}
+              {preview?.conflicts && preview.conflicts.length > 0 && (
+                <Alert color="yellow" data-testid="env-merge-conflicts">
+                  <Text size="sm" fw={600}>
+                    {t("environmentsTab.conflictsTitle", { count: preview.conflicts.length })}
+                  </Text>
+                  <List size="sm" withPadding>
+                    {preview.conflicts.map((c) => (
+                      <List.Item key={c.path} data-testid="env-merge-conflict">
+                        {t("environmentsTab.conflictLine", {
+                          path: c.path,
+                          source: t(`environmentsTab.conflictSide.${c.source}`),
+                          target: t(`environmentsTab.conflictSide.${c.target}`),
+                        })}
+                      </List.Item>
+                    ))}
+                  </List>
+                </Alert>
+              )}
+            </Stack>
+          </FormField>
+          {/* The merge first, at the start; what looks before or asks someone else follows. */}
+          <FormFooter
+            action={
+              <Button
+                onClick={runMerge}
+                loading={merging}
+                disabled={mergeInto === null || message.trim() === ""}
+                data-testid="env-merge-run"
+              >
+                {intoEnv?.protected
+                  ? t("environmentsTab.propose")
+                  : t("environmentsTab.mergeConfirm")}
+              </Button>
+            }
+          >
             <Button
               variant="default"
               onClick={runPreview}
@@ -832,7 +872,7 @@ export function EnvironmentsTab() {
             </Button>
             {/* REQ-1551: for a target branch the git host governs with pull requests, the review
                 happens there — this opens it, and the comment above becomes its description. */}
-            <Tooltip label={t("environmentsTab.requestReviewHelp")} multiline w={320}>
+            <Tip text={t("environmentsTab.requestReviewHelp")}>
               <Button
                 variant="subtle"
                 onClick={runReview}
@@ -842,19 +882,9 @@ export function EnvironmentsTab() {
               >
                 {t("environmentsTab.requestReview")}
               </Button>
-            </Tooltip>
-            <Button
-              onClick={runMerge}
-              loading={merging}
-              disabled={mergeInto === null || message.trim() === ""}
-              data-testid="env-merge-run"
-            >
-              {intoEnv?.protected
-                ? t("environmentsTab.propose")
-                : t("environmentsTab.mergeConfirm")}
-            </Button>
-          </Group>
-        </Stack>
+            </Tip>
+          </FormFooter>
+        </FormLayout>
       </Modal>
 
       {inUse && (
@@ -869,46 +899,50 @@ export function EnvironmentsTab() {
         onClose={() => setDeleteTarget(null)}
         title={t("environmentsTab.deleteTitle", { env: deleteTarget?.name })}
       >
-        <Stack gap="sm">
-          <Text size="sm">{t("environmentsTab.deleteHelp")}</Text>
-          <Tooltip label={t("environmentsTab.deleteBranchHelp")} multiline w={320}>
-            <Checkbox
-              label={t("environmentsTab.deleteBranch")}
-              checked={deleteBranch}
-              onChange={(e) => {
-                setDeleteBranch(e.currentTarget.checked);
-                // Same rule the merge dialog follows: the remote copy is what survives a lost
-                // volume, so it is never deleted while the branch it mirrors stays (REQ-1550).
-                if (!e.currentTarget.checked) setDeleteRemote(false);
-              }}
-              data-testid="env-delete-branch"
-            />
-          </Tooltip>
-          {deleteBranch && (
-            <Tooltip label={t("environmentsTab.deleteRemoteBranchHelp")} multiline w={320}>
+        <FormLayout>
+          <FormField size="full">
+            <Text size="sm">{t("environmentsTab.deleteHelp")}</Text>
+          </FormField>
+          <FormChecks>
+            <FormField size="short" help={t("environmentsTab.deleteBranchHelp")}>
               <Checkbox
-                ml="lg"
-                label={t("environmentsTab.deleteRemoteBranch")}
-                checked={deleteRemote}
-                onChange={(e) => setDeleteRemote(e.currentTarget.checked)}
-                data-testid="env-delete-remote-branch"
+                label={t("environmentsTab.deleteBranch")}
+                checked={deleteBranch}
+                onChange={(e) => {
+                  setDeleteBranch(e.currentTarget.checked);
+                  // Same rule the merge dialog follows: the remote copy is what survives a lost
+                  // volume, so it is never deleted while the branch it mirrors stays (REQ-1550).
+                  if (!e.currentTarget.checked) setDeleteRemote(false);
+                }}
+                data-testid="env-delete-branch"
               />
-            </Tooltip>
-          )}
-          <Group>
-            <Button variant="default" onClick={() => setDeleteTarget(null)}>
-              {t("environmentsTab.cancel")}
-            </Button>
-            <Button
-              color="red"
-              onClick={runDelete}
-              loading={busy === deleteTarget?.name}
-              data-testid="env-delete-run"
-            >
-              {t("environmentsTab.deleteConfirm")}
-            </Button>
-          </Group>
-        </Stack>
+            </FormField>
+            {deleteBranch && (
+              <FormField size="short" help={t("environmentsTab.deleteRemoteBranchHelp")}>
+                <Checkbox
+                  label={t("environmentsTab.deleteRemoteBranch")}
+                  checked={deleteRemote}
+                  onChange={(e) => setDeleteRemote(e.currentTarget.checked)}
+                  data-testid="env-delete-remote-branch"
+                />
+              </FormField>
+            )}
+          </FormChecks>
+          {/* The action keeps its word, first; Cancel follows. */}
+          <FormFooter
+            onCancel={() => setDeleteTarget(null)}
+            action={
+              <Button
+                color="red"
+                onClick={runDelete}
+                loading={busy === deleteTarget?.name}
+                data-testid="env-delete-run"
+              >
+                {t("environmentsTab.deleteConfirm")}
+              </Button>
+            }
+          />
+        </FormLayout>
       </Modal>
     </Stack>
   );

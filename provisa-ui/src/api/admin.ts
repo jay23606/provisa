@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import type { Role, RoleAssignment, OrgMembership } from "../types/auth";
+import type { ViewerRequest } from "../components/nativeParams";
 import type { Paging, PagingKind } from "../types/admin";
 import { ORG_HEADER } from "../lib/authFetch";
 import { normalizeRole, type RawRole } from "../lib/roles";
@@ -450,6 +451,44 @@ export async function deleteOrgRole(orgId: string, roleId: string): Promise<void
     headers: { [ORG_HEADER]: orgId },
   });
   if (!res.ok) throw httpError("deleteOrgRole", res.status);
+}
+
+/** A preview the server did not answer with rows, with the code it gave: the viewer tells a
+ * copy that is still being built (`data.replica_building`) from a refusal. */
+export class PreviewRefused extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.code = code;
+  }
+}
+
+/** One page of a registered table as the table viewer shows it, read as the caller — the read a
+ * DRAFT takes (REQ-1921). The body is what the viewer chose; the server writes the statement.
+ * One row more than the page comes back when a next page exists. */
+export async function previewTable(
+  tableId: number,
+  role: string,
+  request: ViewerRequest,
+): Promise<{
+  columns: string[];
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  draft: boolean;
+}> {
+  const resp = await fetch(`${API_BASE}/admin/tables/${tableId}/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Provisa-Role": role },
+    body: JSON.stringify(request),
+  });
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new PreviewRefused(
+      serverMessage(body, requestFailed("previewTable", resp.status)),
+      typeof body?.code === "string" ? body.code : null,
+    );
+  }
+  return resp.json();
 }
 
 export async function profileTable(
@@ -1552,7 +1591,8 @@ export interface ReplicaBuild {
   /** idle (built, nothing pending) | requested | building | failed | retired */
   state: string;
   requestedReason: string | null;
-  /** engine_statement | stream_batches | store_pipeline | delta, of the running or last build */
+  /** engine_statement | stream_batches | store_pipeline | delta | apply_units, of the running or
+   * last build */
   method: string | null;
   /** bulk_stream | row_copy */
   loadKind: string | null;
@@ -1560,8 +1600,21 @@ export interface ReplicaBuild {
   rowsCopied: number | null;
   /** A running build's rate so far. */
   rowsPerSecond: number | null;
+  /** A running build waiting out a throttle: who asked it to wait, for how many seconds, and
+   * until when (ISO 8601). Null when it is not waiting. */
+  wait?: { by: string; seconds: number; until: string } | null;
+  /** The rows of the last build that copied the whole table: an estimate of its size for a
+   * running build's progress. Null before the first such build. */
+  completedRows: number | null;
+  /** A running build that lands a part at a time: how many of the source's mailboxes it has
+   * read to their end. `first` says the replica had no copy before this build. */
+  progress?: { done: number; total: number; unit: string; first: boolean } | null;
+  /** The replica is read while its first build is still filling it. */
+  partial?: boolean;
   /** null: there is no replica yet. */
   completedAt: string | null;
+  /** When its probe last found the source unchanged since that build; null: not since. */
+  verifiedAt: string | null;
   nextRefreshAt: string | null;
   /** The last failure, in English; with (REQ-1350) its code and params when the cause is a named one. */
   lastError: string | null;
@@ -2158,6 +2211,9 @@ export interface CatalogSetting {
   restart_required: boolean;
   pending_restart: boolean;
   secret: boolean;
+  /** A credential field that keeps what was typed (a value, or a reference to a secret) and
+   * shows it again in a masked input. */
+  credential?: boolean;
   /** Secrets only: whether a value is stored. A secret never carries a value. */
   set?: boolean;
   editable: boolean;

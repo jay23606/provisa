@@ -59,6 +59,31 @@ async def test_unchanged_posts_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_an_unchanged_token_tells_whoever_keeps_the_copy(tmp_path):
+    """REQ-855: an unchanged token keeps the rows, and the copy is current as of the probe."""
+    told: list[str] = []
+
+    async def verified() -> None:
+        told.append("verified")
+
+    async with _conn(tmp_path) as conn:
+        await queue.set_node_state(conn, "s.orders", probe_token="tok")
+        given = {
+            "node": "s.orders",
+            "change_signal": "probe",
+            "watermark_column": None,
+            "dependents": ["mv.daily"],
+            "on_unchanged": verified,
+        }
+        assert await check_node(conn, probe=_probe("tok"), **given) is None
+        assert told == ["verified"]
+        # A changed token, and a probe that could not answer, verify nothing.
+        assert await check_node(conn, probe=_probe("tok2"), **given) is not None
+        assert await check_node(conn, probe=_probe(None), **given) is not None
+        assert told == ["verified"]
+
+
+@pytest.mark.asyncio
 async def test_none_token_degrades_to_ttl_and_posts(tmp_path):
     # a source with no token capability (None) is not gated — it re-posts every cadence (TTL degrade)
     async with _conn(tmp_path) as conn:
@@ -137,3 +162,48 @@ async def test_event_kind_from_change_signal(tmp_path):
         )
         kinds = {r["source_table"]: r["event_type"] for r in await queue.read_since(conn, cursor=0)}
         assert kinds == {"s.a": "replace", "s.b": "delta"}
+
+
+@pytest.mark.asyncio
+async def test_a_probe_that_answers_only_unchanged_or_cannot_tell_asks_for_one_read_per_change(
+    tmp_path,
+):
+    """A Microsoft 365 mailbox has no token to compare: its probe follows the links its last
+    completed read kept and answers the constant "unchanged", or None when something changed
+    or it cannot tell (``microsoft365.loader.unchanged``). A completed read sets the node's
+    baseline to that constant (the loader's ``settle``). Through the node's comparison: every
+    None asks for a read and leaves the baseline alone; "unchanged" asks for nothing -- no
+    read after the one just made, and no second read after a change."""
+    from provisa.microsoft365.loader import UNCHANGED
+
+    told: list[str] = []
+
+    async def verified() -> None:
+        told.append("verified")
+
+    async with _conn(tmp_path) as conn:
+        given = {
+            "node": "mail/default.messages",
+            "change_signal": "ttl_probe",
+            "watermark_column": None,
+            "dependents": [],
+            "on_unchanged": verified,
+        }
+
+        async def tick(answer: str | None) -> bool:
+            """Whether the tick asked for a read."""
+            return await check_node(conn, probe=_probe(answer), **given) is not None
+
+        # Before any read has completed there are no links: it cannot tell, each time, and
+        # nothing is kept from an answer that is not one.
+        assert await tick(None) and await tick(None)
+        assert await queue.get_node_state(conn, given["node"]) is None
+        # The first read completes and settles the node.
+        await queue.set_node_state(conn, given["node"], probe_token=UNCHANGED)
+        assert not await tick(UNCHANGED) and told == ["verified"]  # not read again
+        # A change: a read is asked for on every tick until one completes ...
+        assert await tick(None) and await tick(None)
+        state = await queue.get_node_state(conn, given["node"])
+        assert state["probe_token"] == UNCHANGED  # ... and the baseline stood through it,
+        assert not await tick(UNCHANGED)  # so the read that follows is not asked for twice.
+        assert told == ["verified", "verified"]

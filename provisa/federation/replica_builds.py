@@ -109,14 +109,19 @@ def _delta_rebuild_due(record: Any, delta_cfg: Any) -> bool:
 async def _model_row(state: Any, key: ReplicaKey) -> tuple[Any, Any, list[Any]]:
     """The source and table ``key`` names, as the model in this process has them, and every
     registered source (the vault a build dials sources under is bound for all of them)."""
-    from provisa.federation.registry_view import registered_sources, registered_tables
+    from provisa.federation.registry_view import (
+        draft_tables,
+        registered_sources,
+        registered_tables,
+    )
 
     sources = await registered_sources(state)
     source = next((s for s in sources if s.id == key[0]), None)
     table = next(
         (
             t
-            for t in await registered_tables(state)
+            # REQ-1921: a draft's build is asked for by its steward's preview; it is found here.
+            for t in [*await registered_tables(state), *await draft_tables(state)]
             if (t.source_id, t.schema_name, t.table_name) == key
         ),
         None,
@@ -335,10 +340,44 @@ async def _build_by_pipeline(
     )
 
 
+async def _probe_decides(state: Any, key: ReplicaKey, source: Any, table: Any) -> bool:
+    """Whether the table's own probe, and not its TTL, says when its replica is rebuilt
+    (REQ-855: under ``probe`` and ``ttl_probe`` a copy is rebuilt only when the probe says the
+    source changed). True for a replica a node of the event loop builds, whose change signal
+    probes and whose probe has a token to ask for; its node's timer runs that probe on the
+    table's TTL and asks for the build. A probe with no token to give degrades to the TTL
+    (REQ-982), and so does a replica no node watches."""
+    from provisa.core.change_signal import is_poll
+    from provisa.core.secrets import resolve_secrets
+    from provisa.events.app_wiring import build_adapter_loaders
+    from provisa.events.probes import can_probe, loader_probe
+    from provisa.federation.residency import resolve_landing_args
+
+    if key not in (getattr(state, "replica_nodes", None) or {}):
+        return False
+    backend = state.federation_engine.engine.backend
+    args = resolve_landing_args(source, table, platform=backend.dialect)
+    if not is_poll(args.change_signal) or args.change_signal == "ttl":
+        return False
+    return can_probe(
+        args.probe_type,
+        watermark_column=args.watermark_column,
+        sentinel_path=getattr(source, "sentinel_path", None),  # REQ-1148
+        source_path=resolve_secrets(getattr(source, "path", "") or "") or None,  # REQ-788
+        file_glob=getattr(table, "file_glob", None),  # REQ-788
+        # The source's own adapter asks its provider (a mail source's mailboxes).
+        loader_probe=loader_probe(
+            build_adapter_loaders(state, state.federation_engine), source, table
+        )
+        is not None,
+    )
+
+
 def _next_refresh_at(state: Any) -> Any:
     """When a replica completed now is next due, by its declared cache TTL; None for a table
-    with no TTL of its own (its refresh is then only what a reader's tolerance asks for), and
-    for one that left the model while it was built."""
+    with no TTL of its own (its refresh is then only what a reader's tolerance asks for), for
+    one whose probe decides (:func:`_probe_decides`), and for one that left the model while it
+    was built."""
 
     async def due(key: ReplicaKey, now: datetime) -> datetime | None:
         from provisa.federation.role_ttl import declared_cache_ttl
@@ -348,7 +387,9 @@ def _next_refresh_at(state: Any) -> Any:
         except ReplicaTableGone:
             return None
         ttl = declared_cache_ttl(table, source)
-        return now + timedelta(seconds=ttl) if ttl else None
+        if not ttl or await _probe_decides(state, key, source, table):
+            return None
+        return now + timedelta(seconds=ttl)
 
     return due
 
@@ -419,7 +460,7 @@ async def group_of(state: Any, key: ReplicaKey) -> list[ReplicaKey] | None:
     says come from the same read, that the model declares and that have a replica. None for a
     table read on its own, which is every table of most sources; an empty list for a table
     of a group whose siblings are not declared or have no replica."""
-    from provisa.federation.registry_view import registered_tables
+    from provisa.federation.registry_view import draft_tables, registered_tables
 
     try:
         source, table, _sources = await _model_row(state, key)
@@ -431,7 +472,7 @@ async def group_of(state: Any, key: ReplicaKey) -> list[ReplicaKey] | None:
         return None
     declared = {
         (t.source_id, t.schema_name, t.table_name)
-        for t in await registered_tables(state)
+        for t in [*await registered_tables(state), *await draft_tables(state)]
         if t.source_id == key[0] and t.schema_name == key[1] and t.table_name in names
     }
     siblings: list[ReplicaKey] = []
@@ -496,6 +537,15 @@ async def build_group(
         # REQ-1695: the read dials the source, so the vault of the org it is registered in is
         # bound here, where the build runs.
         async with org_vault(state, sources):
+            by_table = {table.table_name: key for key, (_s, table, _a, _d) in prepared.items()}
+            if await _kept_in_place(state, loader, prepared):
+                async with AsyncExitStack() as held:
+                    for name in sorted(
+                        f"{a.schema}.{a.table}" for _s, _t, _a, a in prepared.values()
+                    ):
+                        await held.enter_async_context(land_lock(name))
+                    built = await _land_units(state, loader, prepared, by_table)
+                return await _group_results(state, prepared, nodes, built, results)
             parts: dict[str, GroupPart] = {}
             for key, (src, table, args, address) in prepared.items():
                 engine_party = backend.replica_engine(state, src, table, address=address, args=args)
@@ -515,7 +565,6 @@ async def build_group(
                     ),
                     still_wanted=_still_wanted(key),
                 )
-            by_table = {table.table_name: key for key, (_s, table, _a, _d) in prepared.items()}
             reader = loader.replica_group_source(
                 source,
                 tuple(by_table),
@@ -548,6 +597,20 @@ async def build_group(
             # Tables answered before the read keep their own reason on their records.
             raise GroupReadFailed(failed, dict(results)) from failed
         raise
+    return await _group_results(state, prepared, nodes, built, results)
+
+
+async def _group_results(
+    state: Any,
+    prepared: dict[ReplicaKey, tuple[Any, Any, Any, Any]],
+    nodes: dict[ReplicaKey, Any],
+    built: dict[str, "BuildOutcome | BaseException"],
+    results: dict[ReplicaKey, "BuildOutcome | BaseException"],
+) -> dict[ReplicaKey, "BuildOutcome | BaseException"]:
+    """Each table's outcome of one read, stamped on its freshness node and posted to its
+    event-loop node when the replica changed; what it was built from is added to it."""
+    from provisa.events import queue
+
     async with state.tenant_db.acquire() as conn:
         for key, (src, table, args, address) in prepared.items():
             outcome = built[table.table_name]
@@ -574,6 +637,169 @@ async def build_group(
                 built_columns=[[name, ir_type] for name, ir_type in args.columns],
             )
     return results
+
+
+async def _kept_in_place(
+    state: Any, loader: Any, prepared: dict[ReplicaKey, tuple[Any, Any, Any, Any]]
+) -> bool:
+    """Whether the tables of this read are kept in place a part at a time
+    (``federation.mail_units``) instead of copied whole and swapped in: the source's reader
+    gives its changes in units, every table has a key to keep rows by, and no table's replica
+    was built from another definition (changed columns are a whole rebuild)."""
+    from provisa.core.canonical_mail import key_columns
+
+    if getattr(loader, "replica_unit_source", None) is None:
+        return False
+    store = store_identity(state)
+    async with state.tenant_db.acquire() as conn:
+        for key, (src, table, args, address) in prepared.items():
+            if not key_columns(table.table_name):
+                return False
+            record = await replica_state.read(conn, key)
+            if (
+                record is not None
+                and record.exists_in(store)
+                and record.definition_hash
+                != definition_hash(src, address, args.columns, args.pk_columns)
+            ):
+                return False
+    return True
+
+
+#: Cached answers are dropped and an event is posted to a table's node for the parts landing
+#: in it at most this often while a pass runs, and once more when it ends: a first build
+#: writes thousands of parts.
+_RIPPLE_EVERY_S = 5.0
+
+
+async def _land_units(
+    state: Any,
+    loader: Any,
+    prepared: dict[ReplicaKey, tuple[Any, Any, Any, Any]],
+    by_table: dict[str, ReplicaKey],
+) -> dict[str, "BuildOutcome | BaseException"]:
+    """Keep the replicas ``prepared`` names in place from one pass over their source: every
+    part the reader gives is written to them as it arrives and can be read at once. A table
+    with no copy in this store becomes readable when its first part has landed, and says how
+    many of the source's mailboxes have been read to their end while the pass runs."""
+    import time
+
+    from provisa.events import queue
+    from provisa.events.nodes import source_node
+    from provisa.federation.change_group import TableChanges
+    from provisa.core.canonical_mail import key_columns
+    from provisa.federation.mail_units import METHOD, Part, ReplicaUnitJob
+    from provisa.federation.replica_hot import _row_count
+
+    engine = state.federation_engine
+    store = store_identity(state)
+    source = next(iter(prepared.values()))[0]
+    parts = {
+        table.table_name: Part(address.schema, address.table, list(args.columns))
+        for _src, table, args, address in prepared.values()
+    }
+    hashes = {
+        key: definition_hash(src, address, args.columns, args.pk_columns)
+        for key, (src, _t, args, address) in prepared.items()
+    }
+    first: dict[ReplicaKey, bool] = {}
+    async with state.tenant_db.acquire() as conn:
+        for key in prepared:
+            record = await replica_state.read(conn, key)
+            first[key] = not (record is not None and record.exists_in(store))
+            await replica_state.record_started(
+                conn, key, method=METHOD, load_kind=TargetLoad.ROW_COPY.value
+            )
+    # Every table is there before any part lands: a table no part ever writes to (a mailbox
+    # with no attachment) is then an empty replica, not a missing one.
+    await engine.apply_change_group(
+        [
+            TableChanges(part.schema, part.table, part.columns, list(key_columns(name)))
+            for name, part in sorted(parts.items())
+        ]
+    )
+    reader = loader.replica_unit_source(source, tuple(by_table))
+    rippled = dict.fromkeys(by_table, 0.0)
+
+    async def first_write() -> None:
+        now = datetime.now(UTC)
+        async with state.tenant_db.acquire() as conn:
+            for key, (_src, _table, args, _address) in prepared.items():
+                if first[key]:
+                    await replica_state.record_partial(
+                        conn,
+                        key,
+                        store=store,
+                        now=now,
+                        definition_hash=hashes[key],
+                        built_columns=[[name, ir_type] for name, ir_type in args.columns],
+                    )
+
+    async def mailbox_done(done: int) -> None:
+        async with state.tenant_db.acquire() as conn:
+            for key in prepared:
+                await replica_state.record_parts(
+                    conn, key, done=done, total=reader.total, unit="mailboxes", first=first[key]
+                )
+
+    table_ids = {table.table_name: table.id for _src, table, _a, _d in prepared.values()}
+
+    async def ripple(names: list[str]) -> None:
+        # An answer cached from the table before these parts landed is no longer what it
+        # holds: dropped here, as a write through Provisa drops it (cache.tenancy).
+        from provisa.cache.tenancy import invalidate_tables
+
+        await invalidate_tables(state, [table_ids[name] for name in names])
+        # And what a completed build posts (run_build): the views that read the table ripple.
+        watched = getattr(state, "replica_nodes", None) or {}
+        async with state.tenant_db.acquire() as conn:
+            for name in names:
+                key = by_table[name]
+                if key not in watched:
+                    continue
+                node = source_node(*key)
+                event_id = await queue.post_event(
+                    conn, source_table=node, event_type="replace", payload={"built": True}
+                )
+                await queue.fan_out(conn, event_id, [node])
+
+    behind: set[str] = set()  # tables written to since their last ripple
+
+    async def written(unit: Any) -> None:
+        now = time.monotonic()
+        behind.update(name for name in parts if name in unit.rows or name in unit.removed)
+        due = [name for name in sorted(behind) if now - rippled[name] >= _RIPPLE_EVERY_S]
+        for name in due:
+            rippled[name] = now
+            behind.discard(name)
+        if due:
+            await ripple(due)
+
+    landed = await ReplicaUnitJob(
+        reader,
+        parts,
+        engine.apply_change_group,
+        first_write=first_write,
+        mailbox_done=mailbox_done,
+        written=written,
+    ).run()
+    if behind:
+        await ripple(sorted(behind))  # the last parts landed inside the interval
+    notes = tuple(reader.notes())
+    built: dict[str, BuildOutcome | BaseException] = {}
+    for name, key in by_table.items():
+        built[name] = BuildOutcome(
+            # What the replica holds now, counted where it is read: a pass that applies a few
+            # changes writes few rows, and the table's size is not that.
+            rows_copied=await _row_count(state, key),
+            method=METHOD,
+            # The pass's last parts may have landed after the last event posted for them: the
+            # completion posts once more for a pass that wrote anything.
+            changed=landed.wrote,
+            notes=notes,
+            committed=reader.committed,
+        )
+    return built
 
 
 def make_runner(state: Any, org_id: str, platform_url: str) -> ReplicaRunner:

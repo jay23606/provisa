@@ -19,6 +19,8 @@ inclusion, content negotiation, error objects.
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import logging
 from typing import Any
 
@@ -606,18 +608,19 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
             return _jsonapi_error_response(401, "Unauthorized", "authenticated role required")
         role_id = auth_role
 
-        if role_id not in state.schemas:
+        surface = role_surface(state, role_id)  # one snapshot: parts of one build
+        if surface is None:
             return _jsonapi_error_response(
                 400,
                 "Bad Request",
                 f"No schema available for role {role_id!r}",
             )
 
-        schema = state.schemas[role_id]
-        ctx = state.contexts[role_id]
+        schema = surface.schema
+        ctx = surface.context
 
         # Resolve domain_id + table_name → GQL field name (e.g. "ps__pets")
-        path_map = getattr(state, "table_path_maps", {}).get(role_id, {})
+        path_map = surface.table_path_map
         gql_table = next(
             (
                 gql

@@ -12,7 +12,7 @@
 // credential set's fields and saves only those.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { renderInForm, screen } from "../../../test-utils/render";
 import { SalesforceFields } from "../SalesforceFields";
 import { SOURCE_TYPES } from "../constants";
 import {
@@ -107,7 +107,9 @@ describe("salesforceLoginUrlValid", () => {
 
 describe("SalesforceFields", () => {
   const show = (fields: Record<string, string>, form = FORM) =>
-    render(<SalesforceFields form={form} setForm={vi.fn()} fields={fields} setFields={vi.fn()} />);
+    renderInForm(
+      <SalesforceFields form={form} setForm={vi.fn()} fields={fields} setFields={vi.fn()} />,
+    );
 
   it("says a login URL without https:// is not the full My Domain URL", () => {
     show({}, { ...FORM, host: "acme.my.salesforce.com" });

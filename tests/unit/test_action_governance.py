@@ -26,6 +26,7 @@ from provisa.api.data.action_governance import (
 from provisa.api.errors import ApiError
 from provisa.compiler.rls import RLSContext
 from provisa.security.inheritance import materialize_rls, role_chains
+from tests.role_state import RoleState
 
 
 class _Engine:
@@ -80,7 +81,7 @@ def _state(rls_by_role: dict[str, RLSContext] | None = None, roles: dict | None 
             "session_vars": {"region": "east"},
         },
     }
-    return SimpleNamespace(
+    return RoleState(
         roles=roles,
         role_chains={
             "analyst": ["analyst"],

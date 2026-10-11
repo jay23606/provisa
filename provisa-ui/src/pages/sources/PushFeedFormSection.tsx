@@ -15,6 +15,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Checkbox, NumberInput, TextInput } from "@mantine/core";
+import { FormChecks, FormField } from "../../components/form/FormLayout";
 
 interface PushFeedFormSectionProps {
   formType: string;
@@ -56,59 +57,75 @@ export function PushFeedFormSection({
     <>
       {formType === "websocket" && (
         <>
-          <Checkbox
-            label={t("sourceFormFieldsExtended.useSsl")}
-            checked={wsUseSsl}
-            onChange={(e) => setWsUseSsl(e.currentTarget.checked)}
-            data-testid="websocket-use-ssl-checkbox"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.eventPath")}
-            value={wsEventPath}
-            onChange={(e) => setWsEventPath(e.currentTarget.value)}
-            placeholder="data.event"
-            data-testid="websocket-event-path-input"
-          />
-          <NumberInput
-            label={t("sourceFormFieldsExtended.reconnectIntervalSeconds")}
-            value={wsReconnectInterval === "" ? "" : Number(wsReconnectInterval)}
-            onChange={(v) => setWsReconnectInterval(v === "" ? "" : String(v))}
-            hideControls
-            placeholder="5"
-          />
-          <TextInput
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFieldsExtended.subscribePayload")}
-            value={wsSubscribePayload}
-            onChange={(e) => setWsSubscribePayload(e.currentTarget.value)}
-            placeholder='{"action":"subscribe","channel":"orders"}'
-            data-testid="websocket-subscribe-payload-input"
-          />
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.useSsl")}
+                checked={wsUseSsl}
+                onChange={(e) => setWsUseSsl(e.currentTarget.checked)}
+                data-testid="websocket-use-ssl-checkbox"
+              />
+            </FormField>
+          </FormChecks>
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFieldsExtended.eventPath")}
+              value={wsEventPath}
+              onChange={(e) => setWsEventPath(e.currentTarget.value)}
+              placeholder="data.event"
+              data-testid="websocket-event-path-input"
+            />
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.reconnectIntervalSeconds")}
+              value={wsReconnectInterval === "" ? "" : Number(wsReconnectInterval)}
+              onChange={(v) => setWsReconnectInterval(v === "" ? "" : String(v))}
+              hideControls
+              placeholder="5"
+            />
+          </FormField>
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFieldsExtended.subscribePayload")}
+              value={wsSubscribePayload}
+              onChange={(e) => setWsSubscribePayload(e.currentTarget.value)}
+              placeholder='{"action":"subscribe","channel":"orders"}'
+              data-testid="websocket-subscribe-payload-input"
+            />
+          </FormField>
         </>
       )}
       {formType === "rss" && (
         <>
-          <TextInput
-            style={{ gridColumn: "1 / -1" }}
-            label={t("sourceFormFieldsExtended.feedUrlOverride")}
-            value={rssFeedUrl}
-            onChange={(e) => setRssFeedUrl(e.currentTarget.value)}
-            placeholder="https://example.com/feed.xml (overrides host/port/path)"
-            data-testid="rss-feed-url-input"
-          />
-          <NumberInput
-            label={t("sourceFormFieldsExtended.pollIntervalSeconds")}
-            value={rssPollInterval === "" ? "" : Number(rssPollInterval)}
-            onChange={(v) => setRssPollInterval(v === "" ? "" : String(v))}
-            hideControls
-            placeholder="300"
-          />
-          <Checkbox
-            label={t("sourceFormFieldsExtended.useSsl")}
-            checked={rssUseSsl}
-            onChange={(e) => setRssUseSsl(e.currentTarget.checked)}
-            data-testid="rss-use-ssl-checkbox"
-          />
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFieldsExtended.feedUrlOverride")}
+              value={rssFeedUrl}
+              onChange={(e) => setRssFeedUrl(e.currentTarget.value)}
+              placeholder="https://example.com/feed.xml (overrides host/port/path)"
+              data-testid="rss-feed-url-input"
+            />
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.pollIntervalSeconds")}
+              value={rssPollInterval === "" ? "" : Number(rssPollInterval)}
+              onChange={(v) => setRssPollInterval(v === "" ? "" : String(v))}
+              hideControls
+              placeholder="300"
+            />
+          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.useSsl")}
+                checked={rssUseSsl}
+                onChange={(e) => setRssUseSsl(e.currentTarget.checked)}
+                data-testid="rss-use-ssl-checkbox"
+              />
+            </FormField>
+          </FormChecks>
         </>
       )}
     </>

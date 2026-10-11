@@ -136,7 +136,8 @@ async def handle_subscription_sse(  # REQ-219, REQ-258, REQ-260, REQ-282
     source_type = state.source_types[source_id]
 
     # Collect all tables referenced in the selection (root + related via joins)
-    ctx = state.contexts[role_id]
+    surface = state.surfaces[role_id]  # one snapshot: the parts are of one build
+    ctx = surface.context
     related_tables = (
         _collect_related_tables(
             sub_selection.selections[0].selection_set,  # type: ignore[union-attr]
@@ -156,7 +157,7 @@ async def handle_subscription_sse(  # REQ-219, REQ-258, REQ-260, REQ-282
     selection_text = print_ast(sub_selection)
     query_text = f"query {selection_text}"
 
-    schema = state.schemas[role_id]
+    schema = surface.schema
 
     # Resolve directives: extract from AST if not passed in (e.g. direct SSE calls)
     if directives is None:

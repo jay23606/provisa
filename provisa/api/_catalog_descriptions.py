@@ -88,7 +88,7 @@ TABLE_DESCRIPTIONS: dict[str, str] = {
     "compacted into Iceberg",
     "logs": "OpenTelemetry log records emitted by Provisa and by the federation engine, "
     "compacted into Iceberg",
-    "org_registry": "The deployment's own tenancy (REQ-1301) — one row per org per org_admin, "
+    "org_registry": "The deployment's own tenancy — one row per org per org_admin, "
     "joining the platform-plane org record to the tenant-plane role assignment",
     "queries": "One row per statement Provisa executed, from the audit log — who ran it, under "
     "which role, over which transport, against which table, how long it took and how it ended",
@@ -190,7 +190,7 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "domain_id": "Domain the rule belongs to",
         "role_id": "Role the predicate applies to",
         "filter_expr": "Predicate appended to every read of the table by that role",
-        "action_name": "Tracked function or webhook whose response rows the predicate filters (REQ-1679)",
+        "action_name": "Tracked function or webhook whose response rows the predicate filters",
         "tenant_id": _TENANT,
     },
     "roles": {
@@ -353,7 +353,7 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "user_id": "Principal that issued the statement",
         "user_name": "Display name of that principal, from the tenant user directory",
         "role_id": "Role the statement executed under",
-        "query_hash": "Hash of the statement text; the text itself is encrypted (REQ-689)",
+        "query_hash": "Hash of the statement text; the text itself is encrypted",
         "table_ids": "Registered tables the statement read",
         "source": "Protocol surface the statement arrived on (http, grpc, pgwire, bolt, …)",
         "status_code": "How the statement ended — 200 success, 403 denied by governance",
@@ -416,7 +416,7 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "user_id": "Principal whose statement was refused",
         "user_name": "Display name of that principal, from the tenant user directory",
         "role_id": "Role the statement executed under",
-        "query_hash": "Hash of the statement text; the text itself is encrypted (REQ-689)",
+        "query_hash": "Hash of the statement text; the text itself is encrypted",
         "table_ids": "Registered tables the statement referenced",
         "source": "Protocol surface the statement arrived on",
         "status_code": "401 unauthenticated, 403 denied by governance",

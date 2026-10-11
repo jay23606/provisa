@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "Метаданные",
-    "modeTestData": "Тестовые данные",
     "fake": "Фиктивное значение",
     "syntheticRule": "Синтетическое правило",
     "stable": "Стабильный",
@@ -13,7 +11,6 @@
     "dialogTitle": "Тестовые данные: {{column}}",
     "declaration": "Объявление, напр. email() или categories((a, b))",
     "methodCategory": "Фиктивный метод: {{category}}",
-    "cancel": "Отмена",
     "apply": "Применить",
     "kindCategory": {
       "values": "Значения",

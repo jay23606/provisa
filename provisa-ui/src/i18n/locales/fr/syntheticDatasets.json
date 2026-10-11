@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} lignes)",
     "tableScale": "Échelle de la table",
     "tableScalePlaceholder": "Échelle du jeu de données",
-    "define": "Enregistrer le jeu de données",
     "seedOption": "Démarrer avec des données synthétiques",
     "seedTables": "Tables",
     "relationshipOption": "{{parent}} → {{child}}",

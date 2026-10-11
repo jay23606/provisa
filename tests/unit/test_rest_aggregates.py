@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -33,6 +32,7 @@ from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.parser import GraphQLValidationError, parse_query
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
 from provisa.executor.result import QueryResult
+from tests.role_state import RoleState
 
 
 def _col(name: str, data_type: str = "varchar(100)", nullable: bool = False) -> ColumnMetadata:
@@ -477,7 +477,7 @@ def _make_state(enable_aggregates: bool = True, enable_group_by: bool = True):
     }
     # The router keeps a request's compiled form in the org's plan store (REQ-1877), so the state
     # carries what that store reads: the role's governance objects and the schema generation.
-    return SimpleNamespace(
+    return RoleState(
         schemas={"admin": schema},
         contexts={"admin": ctx},
         table_path_maps={"admin": path_map},

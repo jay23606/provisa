@@ -34,6 +34,24 @@ from urllib.parse import urlparse
 Transport = Callable[[], Awaitable["str | None"]]
 
 
+def applies_to(source_type: str) -> bool:
+    """Whether a source of ``source_type`` can have a sentinel: a marker a producer drops when
+    its data changes, read by a ``hash`` probe in place of the data. Two things rule it out:
+
+    - the kind is not probed at all (a push or direct-write kind has no ``hash`` probe to read
+      the marker: :func:`provisa.events.probes.probe_capabilities`);
+    - the kind's data is produced inside a provider's own service, where the operator has no
+      producer to drop a marker (the mail platforms).
+
+    The Sources form asks this (``/admin/source-kinds/{kind}``) and a save states it."""
+    from provisa.core import mail_platforms
+    from provisa.events.probes import HASH, probe_capabilities
+
+    return HASH in probe_capabilities(source_type) and source_type not in (
+        mail_platforms.source_types()
+    )
+
+
 def _stat_token(exists: bool, mtime: float | int | str | None, size: int | None) -> str | None:
     """The HASH token for a file-like marker: ``mtime:size``, or None when the marker is absent.
 

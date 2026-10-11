@@ -193,15 +193,19 @@ spark = SparkSession.builder \
 
 ## Protobuf gRPC (port 50051)
 
-Chemin service à service. Provisa génère un `.proto` par rôle au démarrage — chaque rôle ne voit que les tables et colonnes auxquelles il a accès.
+Chemin de service à service. Provisa génère un `.proto` par rôle et le régénère chaque fois que le modèle ou le rôle change — chaque rôle ne voit que les tables et colonnes auxquelles il a accès. Le service a une RPC pour chaque table à la racine du schéma du rôle ; les tables liées s'atteignent par leurs relations, comme dans GraphQL.
 
 Téléchargez le proto pour votre rôle :
 
 ```bash
-curl http://localhost:8001/proto/analyst > provisa_analyst.proto
+curl http://localhost:8001/data/proto/analyst > provisa_analyst.proto
 ```
 
-Utilisez `grpc_server_reflection` pour découvrir le schéma par programmation.
+Utilisez `grpc_server_reflection` pour découvrir le schéma par programme. La réflexion décrit le service du rôle sous lequel l'appel agit, le même fichier que le téléchargement ci-dessus. Avec l'authentification désactivée, un appel de réflexion indique son rôle comme tout autre appel :
+
+```bash
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
+```
 
 Chaque RPC doit porter un identifiant dans la clé de métadonnées `authorization` — un jeton de fournisseur ou un jeton d'accès personnel. `x-provisa-role` demande un rôle parmi l'ensemble autorisé de l'identité ; ce n'est pas un identifiant et ça ne l'a jamais été. Les certificats client sont pris en charge. Voir [Security Model](security.md#surfaces-et-identifiants).
 

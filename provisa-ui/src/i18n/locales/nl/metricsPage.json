@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Metrics",
-    "newMetric": "Nieuwe metric",
+    "newMetric": "+ Metric",
     "loading": "Laden...",
     "empty": "Nog geen metrics geregistreerd.",
     "colName": "Naam",
@@ -39,8 +39,6 @@
     "fieldDescription": "Beschrijving",
     "fieldAiContext": "AI-context",
     "fieldAiContextPlaceholder": "Aanwijzingen voor AI-ondersteunde querygeneratie",
-    "save": "Opslaan",
-    "cancel": "Annuleren",
     "saveFailed": "Opslaan mislukt.",
     "editMetric": "Metric {{name}} bewerken",
     "deleteMetric": "Metric {{name}} verwijderen",
@@ -51,7 +49,8 @@
     "purposeTitle": "Waar metrieken voor zijn",
     "purposeBody": "Een metriek is de bedrijfsdefinitie van een meetwaarde: een aggregatie over één feitentabel, hier één keer gedefinieerd en geprojecteerd naar elk oppervlak — SQL, GraphQL, het explore-canvas, views die uit metrieken zijn gebouwd, en de interchange-export.",
     "purposeAdd": "Eén definitie voorkomt dat consumenten afwijken door het rekenwerk opnieuw te implementeren. Een view die op een metriek is gebouwd wordt opnieuw gegenereerd zodra de metriek verandert, dus het getal blijft overal gelijk.",
-    "purposeAria": "Over metrieken"
+    "purposeAria": "Over metrieken",
+    "detailPanel": "Details van de metric"
   },
   "sqlJoinCanvas": {
     "removeMetric": "Metric {{metricName}} verwijderen",

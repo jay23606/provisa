@@ -63,6 +63,12 @@ def request_timeout_for(transport: str) -> float:  # REQ-1905
     return float(own)
 
 
+def longest_request_timeout() -> float:
+    """Seconds the longest-lived request may take, on whichever transport allows the most: the
+    bound on how long anything a request resolved at its start may still be in use."""
+    return max(request_timeout_for(transport) for transport in REQUEST_TRANSPORTS)
+
+
 # REQ-1905: the transport of the HTTP request being served, bound from its route by the API's
 # transport middleware. The other transports are named by the surface their statements carry.
 _request_transport: contextvars.ContextVar[str | None] = contextvars.ContextVar(

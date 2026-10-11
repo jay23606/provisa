@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "इंजन का '{{catalog}}' कैटलॉग पंजीकृत किया जा रहा है। थोड़ी देर में फिर प्रयास करें।",
       "domain_not_accessible": "भूमिका '{{role_id}}' की डोमेन '{{domain}}' तक पहुँच नहीं है",
       "role_mismatch": "अनुरोध में भूमिका '{{body_role}}' दी गई है लेकिन यह भूमिका '{{acting_role}}' के रूप में चलता है। भूमिका X-Provisa-Role हेडर (या साइन-इन पहचान) से आती है; दूसरी भूमिका हटाएँ या उसे मिलाएँ।",
-      "sql_parameters_do_not_fit": "पैरामीटर मान कथन से मेल नहीं खाते: {{reason}}"
+      "sql_parameters_do_not_fit": "पैरामीटर मान कथन से मेल नहीं खाते: {{reason}}",
+      "unknown_root_field": "अज्ञात क्वेरी फ़ील्ड '{{field}}': इस भूमिका को इस नाम की कोई तालिका उपलब्ध नहीं है",
+      "viewer_column_unknown": "'{{column}}' तालिका '{{table}}' का कॉलम नहीं है",
+      "viewer_filter_unknown": "'{{operator}}' कॉलम '{{column}}' का फ़िल्टर नहीं है",
+      "viewer_value_invalid": "'{{column}}' पर फ़िल्टर मान '{{value}}' का उपयोग नहीं कर सकता",
+      "replica_building": "{{replica}} की प्रति अभी बनाई जा रही है। निर्माण जारी है; पूरा होने पर पूर्वावलोकन फिर से खोलें।"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' का अडैप्टर discover_schema लागू नहीं करता",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: आर्ग्युमेंट '{{argument}}' नहीं दिया गया",
       "argument_not_declared": "{{signature}}: आर्ग्युमेंट '{{argument}}' घोषित नहीं है",
       "binding_missing_key": "kind '{{kind}}' की फ़ंक्शन बाइंडिंग में आवश्यक कुंजी '{{key}}' गायब है",
-      "egress_denied": "'{{endpoint}}' पर ईग्रेस अस्वीकृत है: होस्ट UDF ईग्रेस अनुमति-सूची में नहीं है (REQ-885 डिफ़ॉल्ट-अस्वीकृति)। अनुमति देने के लिए इसे udf_egress_allowlist में जोड़ें।",
+      "egress_denied": "'{{endpoint}}' पर ईग्रेस अस्वीकृत है: होस्ट UDF ईग्रेस अनुमति-सूची में नहीं है (डिफ़ॉल्ट-अस्वीकृति)। अनुमति देने के लिए इसे udf_egress_allowlist में जोड़ें।",
       "grpc_call_failed": "grpc कॉल {{target}}{{path}} विफल हुई: {{status}}: {{details}}",
       "grpc_method_invalid": "grpc मेथड '{{method}}' 'Service/Method' या 'pkg.Service.Method' होना चाहिए",
       "json_argument_invalid": "'{{name}}' का आर्ग्युमेंट '{{argument}}' JSON लिटरल नहीं है",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python callable '{{spec}}' 'module:attr' होना चाहिए",
       "remote_refused": "{{source_id}} ने {{operation}} अस्वीकार किया: {{answer}}",
       "result_set_ref_invalid": "result_set ref '{{ref}}' source.schema.table होना चाहिए",
-      "rowwise_external": "फ़ंक्शन '{{name}}' (kind={{impl_kind}}) पंक्ति-वार बाहरी है: सभी आर्ग्युमेंट स्केलर column_value हैं। एक table_ref/result_set रिलेशन आर्ग्युमेंट घोषित करें ताकि कॉल सेट-वार और बैच्ड हों (REQ-885)।",
+      "rowwise_external": "फ़ंक्शन '{{name}}' (kind={{impl_kind}}) पंक्ति-वार बाहरी है: सभी आर्ग्युमेंट स्केलर column_value हैं। एक table_ref/result_set रिलेशन आर्ग्युमेंट घोषित करें ताकि कॉल सेट-वार और बैच्ड हों।",
       "script_failed": "स्क्रिप्ट {{returncode}} के साथ समाप्त हुई: {{stderr}}",
       "source_not_connected": "स्रोत '{{source_id}}' कनेक्ट नहीं है",
       "unknown_arg_kind": "'{{name}}' के लिए अज्ञात arg_kind '{{arg_kind}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "संगठन id '{{org}}' आरक्षित है। आरक्षित id: {{reserved}}।",
       "platform_admin_required": "platform_admin आवश्यक है",
       "retry_not_failed": "संगठन '{{org}}' की स्थिति '{{state}}' है, 'failed' नहीं — पुनः प्रयास के लिए कुछ नहीं है।",
-      "self_role_change": "उपयोगकर्ता अपनी स्वयं की भूमिका नहीं बदल सकता। किसी अन्य प्रशासक से कहें (REQ-1308)।",
+      "self_role_change": "उपयोगकर्ता अपनी स्वयं की भूमिका नहीं बदल सकता। किसी अन्य प्रशासक से कहें।",
       "view_not_permitted": "इस संगठन को देखने की अनुमति नहीं है"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "अमान्य कैलेंडर: {{error}}",
       "invalid_cardinality": "अमान्य कार्डिनैलिटी: '{{cardinality}}'",
       "invalid_off_peak_window": "अमान्य ऑफ़-पीक विंडो: {{error}}",
-      "load_protection_gate_required": "{{who}}: लोड सुरक्षा के लिए कम से कम एक रीफ़्रेश गेट आवश्यक है — एक ऑफ़-पीक विंडो, एक cache_ttl कैडेंस, या एक प्रोबिंग change_signal (probe/ttl_probe) सेट करें (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: लोड सुरक्षा के लिए कम से कम एक रीफ़्रेश गेट आवश्यक है — एक ऑफ़-पीक विंडो, एक cache_ttl कैडेंस, या एक प्रोबिंग change_signal (probe/ttl_probe) सेट करें",
       "metric_deleted": "मेट्रिक '{{metric}}' हटाया गया",
       "metric_not_found": "मेट्रिक '{{metric}}' नहीं मिला",
       "metric_saved": "मेट्रिक '{{metric}}' सहेजा गया",
@@ -297,6 +302,10 @@
       "relationship_not_found": "रिलेशनशिप '{{relationship}}' नहीं मिली",
       "relationship_saved": "रिलेशनशिप '{{relationship}}' सहेजी गई",
       "remigrated": "{{source}}.{{table}} पुनः माइग्रेट किया गया",
+      "change_signal_not_honoured": "{{type}} प्रकार के स्रोत में अभी बदलावों की जाँच नहीं की जा सकती, इसलिए {{signal}} परिवर्तन संकेत कभी पूछा नहीं जाएगा। स्रोत '{{source}}' के लिए ttl का उपयोग करें।",
+      "sentinel_path_not_applicable": "{{type}} प्रकार के स्रोत का सेंटिनल पथ नहीं हो सकता: आपका कोई उत्पादक इसके डेटा में बदलाव को चिह्नित नहीं कर सकता, या स्रोत की जाँच नहीं होती। स्रोत '{{source}}' से सेंटिनल पथ हटाएँ।",
+      "source_cache_ttl_required": "स्रोत '{{source}}' को कैश TTL चाहिए: इसकी हर तालिका एक रेप्लिका है, जो {{signal}} परिवर्तन संकेत के अंतर्गत उसी घड़ी से ताज़ा होती है। इसे स्रोत के “लोड प्रबंधन और समयबद्धता” में सेट करें।",
+      "landing_ttl_required": "तालिका '{{table}}' एक रेप्लिका है जो कैश TTL से ताज़ा होती है, और न इसके पास और न इसके स्रोत '{{source}}' के पास कोई है। कैश TTL को स्रोत के “लोड प्रबंधन और समयबद्धता” में सेट करें, या पंजीकरण के बाद स्वयं तालिका पर।",
       "replicate_contradicts_load_protected": "लोड सुरक्षा को रेप्लिकेट = 'कभी नहीं' के साथ नहीं जोड़ा जा सकता: लोड-सुरक्षित टेबल कभी लाइव नहीं पढ़ी जाती",
       "replicate_invalid": "रेप्लिकेट 'डिफ़ॉल्ट', 'कभी नहीं', 'हमेशा' या 0 से बड़ा थ्रेशोल्ड होना चाहिए; मिला {{value}}",
       "request_executed": "निर्माण अनुरोध #{{id}} निष्पादित किया गया",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} इस डिप्लॉयमेंट का अंतिम प्लेटफ़ॉर्म व्यवस्थापक है। पहले यह भूमिका किसी अन्य उपयोगकर्ता को दें।",
       "no_active_org": "इस अनुरोध से कोई संगठन जुड़ा नहीं है। पहले किसी संगठन में साइन इन करें।",
       "no_fields_to_update": "अपडेट करने के लिए कोई फ़ील्ड नहीं",
-      "self_role_change": "उपयोगकर्ता अपनी स्वयं की भूमिका नहीं बदल सकता। किसी अन्य प्रशासक से कहें (REQ-1308)।",
+      "self_role_change": "उपयोगकर्ता अपनी स्वयं की भूमिका नहीं बदल सकता। किसी अन्य प्रशासक से कहें।",
       "user_not_found": "उपयोगकर्ता नहीं मिला"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "{{platform}} नाम का कोई मेल प्लैटफ़ॉर्म मौजूद नहीं है।",
       "not_configured": "आपके संगठन ने यह मेल प्लैटफ़ॉर्म ({{platform}}) अभी कनेक्ट नहीं किया है। एडमिनिस्ट्रेटर इसका क्लाइंट एक बार एडमिन › ईमेल में डालता है।",
       "unknown_setting": "{{setting}} इस मेल प्लैटफ़ॉर्म की सेटिंग नहीं है।",
-      "incomplete": "सेव करने से पहले अभी यह चाहिए: {{missing}}।"
+      "incomplete": "सेव करने से पहले अभी यह चाहिए: {{missing}}।",
+      "credential_unresolved": "इस मेल प्लेटफ़ॉर्म ({{platform}}) के लिए दर्ज किया गया {{field}} हल नहीं किया जा सका: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "मेलबॉक्स का चयन समझा नहीं जा सका: {{error}}",
       "client_refused": "Microsoft ने आपके संगठन के Microsoft 365 क्लाइंट को अस्वीकार कर दिया: {{reason}}",
       "throttled": "Microsoft अभी अनुरोधों को सीमित कर रहा है। {{retry_after}} सेकंड में फिर प्रयास करें।",
-      "directory_refused": "Microsoft ने संगठन के मेलबॉक्स सूचीबद्ध नहीं किए ({{status}} {{reason}})। क्लाइंट को निर्देशिका के उपयोगकर्ताओं को पढ़ने की अनुमति चाहिए।"
+      "directory_refused": "Microsoft ने संगठन के मेलबॉक्स सूचीबद्ध नहीं किए ({{status}} {{reason}})। क्लाइंट को निर्देशिका के उपयोगकर्ताओं को पढ़ने की अनुमति चाहिए।",
+      "directory_no_permissions": "Microsoft ने संगठन के मेलबॉक्स सूचीबद्ध नहीं किए ({{status}} {{reason}})। क्लाइंट के टोकन में कोई एप्लिकेशन अनुमति नहीं है; इसके लिए {{missing}} चाहिए। इसे एप्लिकेशन अनुमति (प्रत्यायोजित नहीं) के रूप में जोड़ें और व्यवस्थापक की सहमति दें।",
+      "directory_permission_missing": "Microsoft ने संगठन के मेलबॉक्स सूचीबद्ध नहीं किए ({{status}} {{reason}})। क्लाइंट के टोकन में {{carries}} है; अनुपलब्ध: {{missing}}। इसे एप्लिकेशन अनुमति (प्रत्यायोजित नहीं) के रूप में जोड़ें और व्यवस्थापक की सहमति दें।",
+      "directory_refused_granted": "Microsoft ने संगठन के मेलबॉक्स सूचीबद्ध नहीं किए ({{status}} {{reason}}), जबकि क्लाइंट के टोकन में वह है जो सूचीकरण के लिए चाहिए ({{carries}})।"
     },
     "dbt_sources": {
       "unknown_role": "{{role}} नाम की कोई भूमिका मौजूद नहीं है।"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "मेलबॉक्स चुनने का यह तरीका नहीं है: {{error}}",
+      "scope_not_delegated": "संगठन के Google सर्विस अकाउंट को {{scopes}} की अनुमति नहीं है। सुपर एडमिन Google Admin console में Security › Access and data control › API controls › Manage Domain Wide Delegation के अंतर्गत उसकी क्लाइंट आईडी को इस स्कोप के साथ जोड़ता है; नई अनुमति लागू होने में 24 घंटे तक लग सकते हैं।",
+      "admin_not_a_user": "{{address}} संगठन के Google Workspace डोमेन का उपयोगकर्ता नहीं है, इसलिए डायरेक्टरी उसके रूप में सूचीबद्ध नहीं हो सकती। एडमिनिस्ट्रेटर एडमिन › ईमेल में एडमिनिस्ट्रेटर का पता ठीक करता है।",
+      "directory_refused": "Google की डायरेक्टरी नहीं पढ़ी जा सकी: {{reason}} (HTTP {{status}})।",
+      "credential_refused": "Google ने संगठन का सर्विस अकाउंट अस्वीकार कर दिया: {{reason}}"
     }
   }
 }

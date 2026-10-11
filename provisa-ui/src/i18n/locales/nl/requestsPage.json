@@ -8,7 +8,6 @@
     "reasonLabel": "Reden",
     "reasonPlaceholder": "— reden selecteren —",
     "confirm": "Bevestigen",
-    "cancel": "Annuleren",
     "empty": "Geen verzoeken ({{tab}}).",
     "emptyFiltered": "Geen verzoeken ({{tab}}) die overeenkomen met het filter.",
     "colId": "ID",

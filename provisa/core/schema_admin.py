@@ -784,6 +784,8 @@ source_sign_ins = Table(
     Column("account", Text, nullable=False),
     Column("scopes", Text, nullable=False),  # space separated, as the issuer is asked
     Column("client_id", Text, nullable=False),
+    # Of an earlier design, which named vault entries: read by nothing and written empty. Kept
+    # because an existing control plane holds them NOT NULL and a schema is only ever added to.
     Column("client_secret_name", Text, nullable=False),
     Column("refresh_token_name", Text, nullable=False),
     Column("verifier", LargeBinary, nullable=False),
@@ -805,16 +807,22 @@ org_mail_platforms = Table(
     metadata,
     Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
     Column("platform", Text, primary_key=True),
-    Column("client_id", Text, nullable=False),
+    # NULL: no client entered, which only a platform that reads the organisation's mailboxes
+    # with a credential of its own allows (core/mail_platforms.put).
+    Column("client_id", Text, nullable=True),
     # The reference that names the client's secret in the organisation's vault, as text, so the
     # vault's reference search (core/secret_references.py) finds the entry and refuses to let
-    # the secret go while the entry stands.
-    Column("client_secret", Text, nullable=False),
+    # the secret go while the entry stands. NULL with the client.
+    Column("client_secret", Text, nullable=True),
     Column("settings", Text, nullable=False),
     # REQ-1923: whether the organisation's administrator allows sources that read the
     # organisation's mailboxes with this client's own credential, nobody signing in. Off until
     # the administrator turns it on.
     Column("organisation_mailboxes", Boolean, nullable=False, server_default=false()),
+    # REQ-1923: the reference that names, in the organisation's vault, the credential of its own
+    # a platform reads the organisation's mailboxes with where that is not the client's (Google:
+    # a service account's key). As text, for the vault's reference search. NULL: none entered.
+    Column("organisation_key", Text, nullable=True),
     Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("updated_by", Text, nullable=True),
 )

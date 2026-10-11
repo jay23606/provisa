@@ -13,8 +13,9 @@
 // stays within its line budget.
 
 import { Fragment } from "react";
-import { Text, TextInput } from "@mantine/core";
+import { TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormField } from "../../components/form/FormLayout";
 
 export function FilesGlobFieldset({
   fileGlob,
@@ -30,35 +31,25 @@ export function FilesGlobFieldset({
   const { t } = useTranslation();
   return (
     <Fragment>
-      <TextInput
-        label={
-          <>
-            {t("registerTableForm.fileGlobLabel")}{" "}
-            <Text span fw="normal" c="dimmed" fz="xs">
-              {t("registerTableForm.fileGlobHint")}
-            </Text>
-          </>
-        }
-        placeholder={t("registerTableForm.fileGlobPlaceholder")}
-        value={fileGlob}
-        onChange={(e) => setFileGlob(e.currentTarget.value)}
-        data-testid="register-table-file-glob"
-      />
-      <TextInput
-        label={
-          <>
-            {t("registerTableForm.sourceFileColumnLabel")}{" "}
-            <Text span fw="normal" c="dimmed" fz="xs">
-              {t("registerTableForm.sourceFileColumnHint")}
-            </Text>
-          </>
-        }
-        placeholder={t("registerTableForm.sourceFileColumnPlaceholder")}
-        value={sourceFileColumn}
-        onChange={(e) => setSourceFileColumn(e.currentTarget.value)}
-        disabled={!fileGlob.trim()}
-        data-testid="register-table-source-file-column"
-      />
+      <FormField size="long" hint={t("registerTableForm.fileGlobHint")}>
+        <TextInput
+          label={t("registerTableForm.fileGlobLabel")}
+          placeholder={t("registerTableForm.fileGlobPlaceholder")}
+          value={fileGlob}
+          onChange={(e) => setFileGlob(e.currentTarget.value)}
+          data-testid="register-table-file-glob"
+        />
+      </FormField>
+      <FormField size="medium" hint={t("registerTableForm.sourceFileColumnHint")}>
+        <TextInput
+          label={t("registerTableForm.sourceFileColumnLabel")}
+          placeholder={t("registerTableForm.sourceFileColumnPlaceholder")}
+          value={sourceFileColumn}
+          onChange={(e) => setSourceFileColumn(e.currentTarget.value)}
+          disabled={!fileGlob.trim()}
+          data-testid="register-table-source-file-column"
+        />
+      </FormField>
     </Fragment>
   );
 }

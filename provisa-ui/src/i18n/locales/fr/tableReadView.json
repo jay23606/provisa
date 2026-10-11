@@ -57,6 +57,10 @@
     "writable": "Modifiable",
     "writableOps": "Accepte {{ops}} via GraphQL, REST et SQL",
     "dataProductChip": "Produit de données",
-    "notShown": "non affiché"
+    "notShown": "non affiché",
+    "draftLabel": "Brouillon",
+    "draftTooltip": "Brouillon : hors service — dans aucun schéma et lu par personne. Décochez pour publier la table ; cochez pour la mettre hors service.",
+    "draftNoRightTooltip": "Publier une table, ou la remettre en brouillon, nécessite le droit Enregistrement de tables dans le domaine de la table.",
+    "draftPreviewNote": "Aperçu du brouillon : les lecteurs ne peuvent pas encore voir cette table."
   }
 }

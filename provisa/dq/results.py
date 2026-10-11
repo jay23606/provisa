@@ -65,7 +65,7 @@ _ENVELOPE: tuple[tuple[str, str, str], ...] = (
     (
         "diagnostics",
         "jsonb",
-        "Check-type-specific detail. Promote a field to a typed column (REQ-119).",
+        "Check-type-specific detail. Promote a field to a typed column.",
     ),
 )
 

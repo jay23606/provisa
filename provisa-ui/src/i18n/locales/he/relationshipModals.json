@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "כינוי GQL (camelCase)",
     "materializeLabel": "מטריאליזציה",
-    "refreshIntervalLabel": "מרווח רענון (שניות)",
-    "cancel": "ביטול",
-    "save": "שמירה"
+    "refreshIntervalLabel": "מרווח רענון (שניות)"
   }
 }

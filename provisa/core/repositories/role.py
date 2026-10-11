@@ -44,7 +44,7 @@ class ReservedRoleRedefined(Exception):
         self.role_id = role_id
         super().__init__(
             f"Role {role_id!r} is a reserved administrative role and cannot be defined by a config "
-            f"file or the admin surface; remove it from the config (REQ-1349)."
+            f"file or the admin surface; remove it from the config."
         )
 
 

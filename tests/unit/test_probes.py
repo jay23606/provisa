@@ -185,3 +185,99 @@ async def test_build_probe_none_never_queries():
 async def test_build_probe_watermark_without_scalar_degrades():
     probe = probes.build_probe(probes.WATERMARK, query_scalar=None, ref=None, watermark_column="wm")
     assert await probe() is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("probe_type", sorted(probes.VALID_PROBE_TYPES))
+@pytest.mark.parametrize("watermark", [None, "updated_at"])
+@pytest.mark.parametrize("sentinel", [None, "/data/_SUCCESS"])
+@pytest.mark.parametrize("glob", [(None, None), ("/data", "*.csv")])
+@pytest.mark.parametrize("from_loader", [False, True])
+async def test_can_probe_says_what_build_probe_can_ask_for(
+    probe_type, watermark, sentinel, glob, from_loader, monkeypatch
+):
+    """REQ-855: a replica follows its probe only when the probe has a token to ask for. The
+    predicate and the builder must agree, case by case: a transport that asks is one that is
+    not the builder's own no-token answer."""
+    from provisa.events import sentinel_probe
+
+    asked: list[str] = []
+
+    async def scalar(_sql: str):
+        asked.append("sql")
+        return 1
+
+    async def glob_token(_path: str, _glob: str):
+        asked.append("glob")
+        return "g"
+
+    async def sentinel_token():
+        asked.append("sentinel")
+        return "s"
+
+    async def loader_token():
+        asked.append("loader")
+        return "l"
+
+    monkeypatch.setattr(probes, "glob_token", glob_token)
+    monkeypatch.setattr(sentinel_probe, "build_sentinel_probe", lambda _path: sentinel_token)
+    source_path, file_glob = glob
+    given = {
+        "watermark_column": watermark,
+        "sentinel_path": sentinel,
+        "source_path": source_path,
+        "file_glob": file_glob,
+    }
+    transport = probes.build_probe(
+        probe_type,
+        query_scalar=scalar,
+        ref='"s"."t"',
+        loader_probe=loader_token if from_loader else None,
+        **given,
+    )
+    token = await transport()
+    assert probes.can_probe(probe_type, loader_probe=from_loader, **given) is bool(asked)
+    assert (token is not None) is bool(asked)
+
+
+@pytest.mark.parametrize("source_type", ["google_workspace", "microsoft_365"])
+def test_a_mail_source_probes_by_its_providers_token_or_not_at_all(source_type):
+    """A mailbox has no cursor to watermark by and no count that sees an edit."""
+    assert probes.probe_capabilities(source_type) == frozenset({probes.HASH, probes.NONE})
+    for signal in ("probe", "ttl_probe"):
+        resolved = probes.resolve_probe_type(
+            None, source_type=source_type, change_signal=signal, has_watermark=False
+        )
+        assert resolved == probes.HASH
+    with pytest.raises(ValueError, match="not supported by source type"):
+        probes.resolve_probe_type(
+            "count", source_type=source_type, change_signal="probe", has_watermark=False
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_hash_probe_asks_the_sources_own_adapter_when_it_has_a_probe():
+    async def from_gmail() -> str:
+        return "history-token"
+
+    transport = probes.build_probe(probes.HASH, loader_probe=from_gmail)
+    assert await transport() == "history-token"
+    assert await probes.build_probe(probes.HASH)() is None  # nothing to ask: no token
+
+
+def test_loader_probe_is_what_the_sources_adapter_gives_for_the_table():
+    from types import SimpleNamespace
+
+    async def token() -> str:
+        return "t"
+
+    def loader(*_a):
+        return []
+
+    loader.freshness_probe = lambda source, table: token if table.table_name == "messages" else None
+    loaders = {"google_workspace": loader, "rss": lambda *_a: []}
+    mail = SimpleNamespace(type="google_workspace")
+    assert probes.loader_probe(loaders, mail, SimpleNamespace(table_name="messages")) is token
+    assert probes.loader_probe(loaders, mail, SimpleNamespace(table_name="events")) is None
+    assert probes.loader_probe(loaders, SimpleNamespace(type="rss"), None) is None
+    assert probes.loader_probe(loaders, SimpleNamespace(type="postgresql"), None) is None

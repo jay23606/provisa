@@ -16,6 +16,7 @@ import {
   Button,
   Collapse,
   Divider,
+  Group,
   Loader,
   PasswordInput,
   Stack,
@@ -24,6 +25,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import {
   fetchProviderType,
   fetchBootstrapStatus,
@@ -386,43 +388,50 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
         <OrgBrandingHeader branding={branding} />
         <Title order={2}>{t("loginPage.operatorSignInTitle")}</Title>
         <form onSubmit={handleOperatorLogin} style={{ maxWidth: 360 }}>
-          <Stack gap="md">
-            <TextInput
-              label={t("loginPage.username")}
-              value={username}
-              onChange={(e) => setUsername(e.currentTarget.value)}
-              required
-              withAsterisk={false}
-              autoComplete="username"
-              data-testid="operator-username-input"
-            />
-            <PasswordInput
-              label={t("loginPage.password")}
-              value={password}
-              onChange={(e) => setPassword(e.currentTarget.value)}
-              required
-              withAsterisk={false}
-              autoComplete="current-password"
-              data-testid="operator-password-input"
-            />
+          <FormLayout>
+            <FormField size="long">
+              <TextInput
+                label={t("loginPage.username")}
+                value={username}
+                onChange={(e) => setUsername(e.currentTarget.value)}
+                required
+                withAsterisk={false}
+                autoComplete="username"
+                data-testid="operator-username-input"
+              />
+            </FormField>
+            <FormField size="long">
+              <PasswordInput
+                label={t("loginPage.password")}
+                value={password}
+                onChange={(e) => setPassword(e.currentTarget.value)}
+                required
+                withAsterisk={false}
+                autoComplete="current-password"
+                data-testid="operator-password-input"
+              />
+            </FormField>
             {error && (
               <Alert color="red" data-testid="login-error">
                 {error}
               </Alert>
             )}
-            <div>
-              <Button
-                type="submit"
-                disabled={loading}
-                loading={loading}
-                data-testid="operator-login-button"
-              >
-                {loading ? t("loginPage.signingIn") : t("loginPage.operatorSignIn")}
-              </Button>
+            {/* The card's action first, then its other one, in the shared footer. */}
+            <FormFooter
+              action={
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  loading={loading}
+                  data-testid="operator-login-button"
+                >
+                  {loading ? t("loginPage.signingIn") : t("loginPage.operatorSignIn")}
+                </Button>
+              }
+            >
               <Button
                 type="button"
                 variant="default"
-                ml="xs"
                 onClick={() => {
                   setOperatorMode(false);
                   setError(null);
@@ -432,8 +441,8 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
               >
                 {t("loginPage.backToSignIn")}
               </Button>
-            </div>
-          </Stack>
+            </FormFooter>
+          </FormLayout>
         </form>
       </div>
     );
@@ -445,23 +454,21 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
       <Alert
         color="violet"
         mb="md"
-        title="Building your sandbox…"
+        title={t("loginPage.sandboxBuildingTitle")}
         icon={<Loader color="violet" size="sm" data-testid="sandbox-provisioning-spinner" />}
         data-testid="sandbox-provisioning-notice"
       >
-        Setting up a private copy of the sample data just for you — this can take a couple of
-        minutes.
+        {t("loginPage.sandboxBuildingBody")}
       </Alert>
     ) : (
       <Alert
         color="violet"
         mb="md"
-        title="Try Provisa Free"
+        title={t("loginPage.sandboxTryTitle")}
         icon={<Text size="xl">✨</Text>}
         data-testid="sandbox-notice"
       >
-        Explore the full platform with sample data — no credit card required. Your sandbox is
-        temporary: it disappears when you log out.
+        {t("loginPage.sandboxTryBody")}
       </Alert>
     )
   ) : null;
@@ -485,16 +492,19 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
           >
             {t("loginPage.signInWithSso")}
           </Button>
-          <Button
-            variant="subtle"
-            data-testid="operator-signin-toggle"
-            onClick={() => {
-              setError(null);
-              setOperatorMode(true);
-            }}
-          >
-            {t("loginPage.operatorSignIn")}
-          </Button>
+          {/* A secondary action: its natural width, at the start of the line. */}
+          <Group justify="flex-start">
+            <Button
+              variant="subtle"
+              data-testid="operator-signin-toggle"
+              onClick={() => {
+                setError(null);
+                setOperatorMode(true);
+              }}
+            >
+              {t("loginPage.operatorSignIn")}
+            </Button>
+          </Group>
         </Stack>
       </div>
     );
@@ -506,7 +516,7 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
         <OrgBrandingHeader branding={branding} />
         <Title order={2}>
           {isSandbox
-            ? "Try Provisa"
+            ? t("loginPage.sandboxHeading")
             : firstLogin
               ? t("loginPage.firstLoginHeading")
               : t("loginPage.signInTitle")}
@@ -561,30 +571,36 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
           )}
           <Collapse in={emailOpen}>
             <form onSubmit={handleFirebaseEmail}>
-              <Stack gap="sm">
-                <TextInput
-                  type="email"
-                  label={t("loginPage.email")}
-                  data-testid="firebase-email-input"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.currentTarget.value)}
-                  required
-                />
-                <PasswordInput
-                  label={t("loginPage.password")}
-                  data-testid="firebase-password-input"
-                  value={password}
-                  onChange={(e) => setPassword(e.currentTarget.value)}
-                  required
-                />
-                {mode === "register" && (
-                  <PasswordInput
-                    label={t("loginPage.confirmPassword")}
-                    data-testid="firebase-confirm-password-input"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.currentTarget.value)}
+              <FormLayout>
+                <FormField size="long">
+                  <TextInput
+                    type="email"
+                    label={t("loginPage.email")}
+                    data-testid="firebase-email-input"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.currentTarget.value)}
                     required
                   />
+                </FormField>
+                <FormField size="long">
+                  <PasswordInput
+                    label={t("loginPage.password")}
+                    data-testid="firebase-password-input"
+                    value={password}
+                    onChange={(e) => setPassword(e.currentTarget.value)}
+                    required
+                  />
+                </FormField>
+                {mode === "register" && (
+                  <FormField size="long">
+                    <PasswordInput
+                      label={t("loginPage.confirmPassword")}
+                      data-testid="firebase-confirm-password-input"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.currentTarget.value)}
+                      required
+                    />
+                  </FormField>
                 )}
                 <Button
                   type="submit"
@@ -598,35 +614,41 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
                       ? t("loginPage.createAccount")
                       : t("loginPage.signInWithEmail")}
                 </Button>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  data-testid="firebase-email-toggle"
-                  onClick={() => {
-                    setError(null);
-                    setMode(mode === "register" ? "login" : "register");
-                  }}
-                  disabled={loading}
-                >
-                  {mode === "register"
-                    ? t("loginPage.haveAccountSignIn")
-                    : t("loginPage.needAccountRegister")}
-                </Button>
-              </Stack>
+                {/* A secondary action: its natural width, at the start of the line. */}
+                <Group justify="flex-start">
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    data-testid="firebase-email-toggle"
+                    onClick={() => {
+                      setError(null);
+                      setMode(mode === "register" ? "login" : "register");
+                    }}
+                    disabled={loading}
+                  >
+                    {mode === "register"
+                      ? t("loginPage.haveAccountSignIn")
+                      : t("loginPage.needAccountRegister")}
+                  </Button>
+                </Group>
+              </FormLayout>
             </form>
           </Collapse>
-          <Button
-            variant="subtle"
-            size="compact-sm"
-            data-testid="operator-signin-toggle"
-            onClick={() => {
-              setError(null);
-              setOperatorMode(true);
-            }}
-            disabled={loading}
-          >
-            {t("loginPage.operatorSignIn")}
-          </Button>
+          {/* A secondary action: its natural width, at the start of the line. */}
+          <Group justify="flex-start">
+            <Button
+              variant="subtle"
+              size="compact-sm"
+              data-testid="operator-signin-toggle"
+              onClick={() => {
+                setError(null);
+                setOperatorMode(true);
+              }}
+              disabled={loading}
+            >
+              {t("loginPage.operatorSignIn")}
+            </Button>
+          </Group>
         </Stack>
       </div>
     );
@@ -638,84 +660,99 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
         <OrgBrandingHeader branding={branding} />
         <Title order={2}>{t("loginPage.createAccountTitle")}</Title>
         <form onSubmit={handleRegister} style={{ maxWidth: 360 }}>
-          <Stack gap="md">
-            <TextInput
-              id="reg-username"
-              label={t("loginPage.username")}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              withAsterisk={false}
-              autoComplete="username"
-              data-testid="reg-username-input"
-            />
-            <TextInput
-              id="reg-email"
-              type="email"
-              label={t("loginPage.email")}
-              value={regEmail}
-              onChange={(e) => setRegEmail(e.target.value)}
-              autoComplete="email"
-              data-testid="reg-email-input"
-            />
-            <TextInput
-              id="reg-displayname"
-              label={t("loginPage.displayName")}
-              value={regDisplayName}
-              onChange={(e) => setRegDisplayName(e.target.value)}
-              data-testid="reg-displayname-input"
-            />
-            {inviteInfo && (
+          <FormLayout>
+            <FormField size="long">
               <TextInput
-                label={t("loginPage.organization")}
-                value={inviteInfo.org_name}
-                readOnly
-                data-testid="reg-org-input"
+                id="reg-username"
+                label={t("loginPage.username")}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                withAsterisk={false}
+                autoComplete="username"
+                data-testid="reg-username-input"
               />
+            </FormField>
+            <FormField size="long">
+              <TextInput
+                id="reg-email"
+                type="email"
+                label={t("loginPage.email")}
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                autoComplete="email"
+                data-testid="reg-email-input"
+              />
+            </FormField>
+            <FormField size="long">
+              <TextInput
+                id="reg-displayname"
+                label={t("loginPage.displayName")}
+                value={regDisplayName}
+                onChange={(e) => setRegDisplayName(e.target.value)}
+                data-testid="reg-displayname-input"
+              />
+            </FormField>
+            {inviteInfo && (
+              <FormField size="long">
+                <TextInput
+                  label={t("loginPage.organization")}
+                  value={inviteInfo.org_name}
+                  readOnly
+                  data-testid="reg-org-input"
+                />
+              </FormField>
             )}
             {inviteError && (
               <Alert color="red" data-testid="invite-error">
                 {inviteError}
               </Alert>
             )}
-            <PasswordInput
-              id="reg-password"
-              label={t("loginPage.password")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              withAsterisk={false}
-              autoComplete="new-password"
-              data-testid="reg-password-input"
-            />
-            <PasswordInput
-              id="reg-confirm"
-              label={t("loginPage.confirmPassword")}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              withAsterisk={false}
-              autoComplete="new-password"
-              data-testid="reg-confirm-input"
-            />
+            <FormField size="long">
+              <PasswordInput
+                id="reg-password"
+                label={t("loginPage.password")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                withAsterisk={false}
+                autoComplete="new-password"
+                data-testid="reg-password-input"
+              />
+            </FormField>
+            <FormField size="long">
+              <PasswordInput
+                id="reg-confirm"
+                label={t("loginPage.confirmPassword")}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                withAsterisk={false}
+                autoComplete="new-password"
+                data-testid="reg-confirm-input"
+              />
+            </FormField>
             {error && (
               <Alert color="red" data-testid="register-error">
                 {error}
               </Alert>
             )}
-            <div>
-              <Button
-                type="submit"
-                disabled={loading}
-                loading={loading}
-                data-testid="create-account-button"
-              >
-                {loading ? t("loginPage.creating") : t("loginPage.createAccount")}
-              </Button>
+            {/* The card's action first, then its other one, in the shared footer. */}
+            <FormFooter
+              action={
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  loading={loading}
+                  data-testid="create-account-button"
+                >
+                  {loading ? t("loginPage.creating") : t("loginPage.createAccount")}
+                </Button>
+              }
+            >
               <Button
                 type="button"
                 variant="default"
-                ml="xs"
                 onClick={() => {
                   setMode("login");
                   setError(null);
@@ -725,8 +762,8 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
               >
                 {t("loginPage.backToLogin")}
               </Button>
-            </div>
-          </Stack>
+            </FormFooter>
+          </FormLayout>
         </form>
       </div>
     );
@@ -740,41 +777,48 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
       </Title>
       {firstLoginNotice}
       <form onSubmit={handleBasicLogin} style={{ maxWidth: 360 }}>
-        <Stack gap="md">
-          <TextInput
-            id="username"
-            label={t("loginPage.username")}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            withAsterisk={false}
-            autoComplete="username"
-            data-testid="username-input"
-          />
-          <PasswordInput
-            id="password"
-            label={t("loginPage.password")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            withAsterisk={false}
-            autoComplete="current-password"
-            data-testid="password-input"
-          />
+        <FormLayout>
+          <FormField size="long">
+            <TextInput
+              id="username"
+              label={t("loginPage.username")}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              withAsterisk={false}
+              autoComplete="username"
+              data-testid="username-input"
+            />
+          </FormField>
+          <FormField size="long">
+            <PasswordInput
+              id="password"
+              label={t("loginPage.password")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              withAsterisk={false}
+              autoComplete="current-password"
+              data-testid="password-input"
+            />
+          </FormField>
           {error && (
             <Alert color="red" data-testid="login-error">
               {error}
             </Alert>
           )}
-          <div>
-            <Button type="submit" disabled={loading} loading={loading} data-testid="login-button">
-              {loading ? t("loginPage.loggingIn") : t("loginPage.loginTitle")}
-            </Button>
+          {/* The card's action first, then its other one, in the shared footer. */}
+          <FormFooter
+            action={
+              <Button type="submit" disabled={loading} loading={loading} data-testid="login-button">
+                {loading ? t("loginPage.loggingIn") : t("loginPage.loginTitle")}
+              </Button>
+            }
+          >
             {provider === "basic" && (
               <Button
                 type="button"
                 variant="default"
-                ml="xs"
                 onClick={() => {
                   setMode("register");
                   setError(null);
@@ -785,8 +829,8 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
                 {t("loginPage.createAccount")}
               </Button>
             )}
-          </div>
-        </Stack>
+          </FormFooter>
+        </FormLayout>
       </form>
     </div>
   );

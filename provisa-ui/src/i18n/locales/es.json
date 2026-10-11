@@ -5,7 +5,11 @@
     "save": "Guardar",
     "delete": "Eliminar",
     "confirm": "Confirmar",
-    "processing": "Procesando..."
+    "processing": "Procesando...",
+    "identity": "Identidad",
+    "discardTitle": "¿Descartar los cambios?",
+    "discardBody": "Los cambios en {{what}} no están guardados.",
+    "discard": "Descartar"
   },
   "app": {
     "apiUnreachable": "No se pudo conectar con la API de Provisa.",

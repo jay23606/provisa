@@ -474,15 +474,11 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
     # A metric is a compound expression, so a per-function FILTER (WHERE ...) cannot wrap
     # it: requesting both is a hard error, never a silently-unfiltered result.
     if metric_names and filter_sql:
-        raise ValueError(
-            "metrics fields do not support the aggregate where/FILTER argument (REQ-1319)"
-        )
+        raise ValueError("metrics fields do not support the aggregate where/FILTER argument")
     for m_name in metric_names:
         m_expr = ctx.metric_exprs.get((table.table_id, m_name))
         if m_expr is None:
-            raise ValueError(
-                f"metric {m_name!r} is not registered for table {table.table_name!r} (REQ-1319)"
-            )
+            raise ValueError(f"metric {m_name!r} is not registered for table {table.table_name!r}")
         select_parts.append(m_expr)
         columns.append(
             ColumnRef(
@@ -628,9 +624,7 @@ def _compile_aggregate_field(  # REQ-196, REQ-197, REQ-198, REQ-199
     for m_name in metric_names:
         m_expr = ctx.metric_exprs.get((table.table_id, m_name))
         if m_expr is None:
-            raise ValueError(
-                f"metric {m_name!r} is not registered for table {table.table_name!r} (REQ-1319)"
-            )
+            raise ValueError(f"metric {m_name!r} is not registered for table {table.table_name!r}")
         m_field = col_aliases.get("metrics", {}).get(m_name, m_name)
         select_parts.append(f"{m_expr} AS {_q(m_field)}" if m_field != m_name else m_expr)
         columns.append(

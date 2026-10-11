@@ -5,7 +5,11 @@
     "save": "Save",
     "delete": "Delete",
     "confirm": "Confirm",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "identity": "Identity",
+    "discardTitle": "Discard your changes?",
+    "discardBody": "Your changes to {{what}} are not saved.",
+    "discard": "Discard"
   },
   "app": {
     "apiUnreachable": "Could not reach the Provisa API.",

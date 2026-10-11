@@ -8,19 +8,10 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { PanelActions } from "../../components/list/SplitPane";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Group,
-  Modal,
-  PasswordInput,
-  Stack,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Alert, Button, Group, Modal, PasswordInput, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2, ArrowRight, RefreshCw, Play } from "lucide-react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import type { Source } from "../../types/admin";
@@ -29,6 +20,8 @@ import { uiType } from "./sourceHelpers";
 import { useRefreshKaggleSource } from "../../hooks/useAdminQueries";
 import { runProfiler, type SourceRunOutcome } from "../../api/profiler";
 import { profilerFieldsFromMapping } from "./profilerMapping";
+import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
+import { Tip } from "../../components/Tip";
 
 const API_TYPES = new Set(["graphql_remote", "grpc_remote", "openapi"]);
 const PATH_TYPES = new Set(["sqlite", "csv", "parquet", "files"]);
@@ -167,127 +160,139 @@ export function SourceDetailPanel({
             </React.Fragment>
           ))}
       </dl>
-      <Group gap="xs" mt={4}>
-        <Tooltip label={t("sourceDetailPanel.editTitle")}>
-          <ActionIcon
-            variant="subtle"
-            aria-label={t("sourceDetailPanel.editTitle")}
-            data-testid="source-detail-edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-          >
-            <Pencil size={14} />
-          </ActionIcon>
-        </Tooltip>
-        {s.id !== "provisa-otel" && (
-          <Tooltip label={t("sourceDetailPanel.navigateTitle")}>
+      {/* In a panel these sit in its pinned head, beside the source's name. */}
+      <PanelActions>
+        <Group gap="xs" wrap="nowrap">
+          <Tip text={t("sourceDetailPanel.editTitle")} named>
             <ActionIcon
               variant="subtle"
-              aria-label={t("sourceDetailPanel.navigateTitle")}
-              data-testid="source-detail-navigate"
+              aria-label={t("sourceDetailPanel.editTitle")}
+              data-testid="source-detail-edit"
               onClick={(e) => {
                 e.stopPropagation();
-                onNavigate();
+                onEdit();
               }}
             >
-              <ArrowRight size={14} />
+              <Pencil size={14} />
             </ActionIcon>
-          </Tooltip>
-        )}
-        {kaggleOrigin && (
-          <Tooltip label={t("sourceDetailPanel.refreshKaggleTitle")}>
-            <ActionIcon
-              variant="subtle"
-              aria-label={t("sourceDetailPanel.refreshKaggleTitle")}
-              data-testid="source-detail-refresh-kaggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                setRefreshError(null);
-                setRefreshModalOpen(true);
-              }}
-            >
-              <RefreshCw size={14} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-        {isProfiler && (
-          // REQ-1934: an ad hoc run of every member table, beside the source's other actions.
-          <Tooltip label={t("sourceDetailPanel.runProfilerTitle")}>
-            <ActionIcon
-              variant="subtle"
-              aria-label={t("sourceDetailPanel.runProfilerTitle")}
-              data-testid="source-detail-run-profiler"
-              loading={profiling}
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleRunProfiler();
-              }}
-            >
-              <Play size={14} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-        <ConfirmDialog
-          title={t("sourceDetailPanel.deleteTitle", { id: s.id })}
-          consequence={t("sourceDetailPanel.deleteConsequence", { id: s.id })}
-          onConfirm={onDelete}
-        >
-          {(open) => (
-            <Tooltip label={t("sourceDetailPanel.deleteTitleShort")}>
+          </Tip>
+          {s.id !== "provisa-otel" && (
+            <Tip text={t("sourceDetailPanel.navigateTitle")} named>
               <ActionIcon
                 variant="subtle"
-                color="red"
-                aria-label={t("sourceDetailPanel.deleteTitleShort")}
-                data-testid="source-detail-delete"
+                aria-label={t("sourceDetailPanel.navigateTitle")}
+                data-testid="source-detail-navigate"
                 onClick={(e) => {
                   e.stopPropagation();
-                  open();
+                  onNavigate();
                 }}
               >
-                <Trash2 size={14} />
+                <ArrowRight size={14} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           )}
-        </ConfirmDialog>
-      </Group>
+          {kaggleOrigin && (
+            <Tip text={t("sourceDetailPanel.refreshKaggleTitle")} named>
+              <ActionIcon
+                variant="subtle"
+                aria-label={t("sourceDetailPanel.refreshKaggleTitle")}
+                data-testid="source-detail-refresh-kaggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRefreshError(null);
+                  setRefreshModalOpen(true);
+                }}
+              >
+                <RefreshCw size={14} />
+              </ActionIcon>
+            </Tip>
+          )}
+          {isProfiler && (
+            // REQ-1934: an ad hoc run of every member table, beside the source's other actions.
+            <Tip text={t("sourceDetailPanel.runProfilerTitle")} named>
+              <ActionIcon
+                variant="subtle"
+                aria-label={t("sourceDetailPanel.runProfilerTitle")}
+                data-testid="source-detail-run-profiler"
+                loading={profiling}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleRunProfiler();
+                }}
+              >
+                <Play size={14} />
+              </ActionIcon>
+            </Tip>
+          )}
+          <ConfirmDialog
+            title={t("sourceDetailPanel.deleteTitle", { id: s.id })}
+            consequence={t("sourceDetailPanel.deleteConsequence", { id: s.id })}
+            onConfirm={onDelete}
+          >
+            {(open) => (
+              <Tip text={t("sourceDetailPanel.deleteTitleShort")} named>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  aria-label={t("sourceDetailPanel.deleteTitleShort")}
+                  data-testid="source-detail-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    open();
+                  }}
+                >
+                  <Trash2 size={14} />
+                </ActionIcon>
+              </Tip>
+            )}
+          </ConfirmDialog>
+        </Group>
+      </PanelActions>
       {kaggleOrigin && (
         <Modal
           opened={refreshModalOpen}
           onClose={() => setRefreshModalOpen(false)}
           title={t("sourceDetailPanel.refreshKaggleTitle")}
         >
-          <Stack gap="sm">
-            <Text size="sm" c="dimmed">
-              {t("sourceDetailPanel.refreshKaggleHint", {
-                owner: kaggleOrigin.owner,
-                ref: kaggleOrigin.ref,
-              })}
-            </Text>
-            <PasswordInput
-              label={t("sourceDetailPanel.kaggleTokenLabel")}
-              value={refreshToken}
-              onChange={(e) => setRefreshToken(e.currentTarget.value)}
-              data-testid="source-detail-refresh-kaggle-token"
-            />
+          <FormLayout>
+            <FormField size="full">
+              <Text size="sm" c="dimmed">
+                {t("sourceDetailPanel.refreshKaggleHint", {
+                  owner: kaggleOrigin.owner,
+                  ref: kaggleOrigin.ref,
+                })}
+              </Text>
+            </FormField>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("sourceDetailPanel.kaggleTokenLabel")}
+                value={refreshToken}
+                onChange={(e) => setRefreshToken(e.currentTarget.value)}
+                data-testid="source-detail-refresh-kaggle-token"
+              />
+            </FormField>
             {refreshError && (
-              <Alert color="red" variant="light" py={4} px="sm">
-                {refreshError}
-              </Alert>
+              <FormField size="full">
+                <Alert color="red" variant="light" py={4} px="sm">
+                  {refreshError}
+                </Alert>
+              </FormField>
             )}
-            <Group justify="flex-end">
-              <Button
-                type="button"
-                loading={refreshing}
-                disabled={!refreshToken}
-                onClick={handleRefresh}
-                data-testid="source-detail-refresh-kaggle-submit"
-              >
-                {t("sourceDetailPanel.refreshKaggleSubmit")}
-              </Button>
-            </Group>
-          </Stack>
+            {/* Refreshing is not a save: the button keeps its word, at the start. */}
+            <FormFooter
+              action={
+                <Button
+                  type="button"
+                  loading={refreshing}
+                  disabled={!refreshToken}
+                  onClick={handleRefresh}
+                  data-testid="source-detail-refresh-kaggle-submit"
+                >
+                  {t("sourceDetailPanel.refreshKaggleSubmit")}
+                </Button>
+              }
+            />
+          </FormLayout>
         </Modal>
       )}
       {profileError && (

@@ -279,7 +279,7 @@ class NativeEngineBackend(EngineBackend):
         if _active_org is not None and not _owns_engine and _active_org != _default_org:
             raise RuntimeError(
                 f"native federation engine {self.engine.name!r} is single-org; org "
-                f"{_active_org!r} requires the Trino tier for per-org catalog isolation (REQ-1266)"
+                f"{_active_org!r} requires the Trino tier for per-org catalog isolation"
             )
 
         self._refresh_control_plane_snapshot(state)
@@ -703,6 +703,17 @@ class NativeEngineBackend(EngineBackend):
             pk_columns=pk_columns,
             match_floor=match_floor,
             shape=shape,
+        )
+
+    async def apply_change_group(self, state: Any, group: list[Any]) -> None:
+        """Apply a group of changes through the runtime when it holds the store's own
+        connection, as ``apply_cdc_events`` does; otherwise the base store connection."""
+        runtime = self._runtime_for(state)
+        if hasattr(runtime, "apply_change_group"):
+            await runtime.apply_change_group(group)
+            return
+        await super().apply_change_group(  # pyright: ignore[reportAttributeAccessIssue]
+            state, group
         )
 
     async def apply_cdc_events(

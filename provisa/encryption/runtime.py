@@ -128,7 +128,7 @@ def encryption_service() -> EncryptionService:
             if org_id in _org_rings:
                 raise RuntimeError(
                     f"org {org_id!r} holds an encryption key this process has not loaded; its "
-                    "runtime must load the ring before any encrypted path runs (REQ-1574)"
+                    "runtime must load the ring before any encrypted path runs"
                 )
     return _service if _service is not None else NullEncryption()
 

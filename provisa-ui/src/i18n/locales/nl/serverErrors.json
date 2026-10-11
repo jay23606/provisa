@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "De catalogus '{{catalog}}' van de engine wordt geregistreerd. Probeer het zo opnieuw.",
       "domain_not_accessible": "Rol '{{role_id}}' heeft geen toegang tot domein '{{domain}}'",
       "role_mismatch": "Het verzoek noemt rol '{{body_role}}' maar wordt uitgevoerd als rol '{{acting_role}}'. De rol wordt meegegeven in de header X-Provisa-Role (of door de aangemelde identiteit); verwijder de andere rol of maak deze gelijk.",
-      "sql_parameters_do_not_fit": "De parameterwaarden passen niet bij de instructie: {{reason}}"
+      "sql_parameters_do_not_fit": "De parameterwaarden passen niet bij de instructie: {{reason}}",
+      "unknown_root_field": "Onbekend queryveld '{{field}}': deze rol krijgt geen tabel met die naam",
+      "viewer_column_unknown": "'{{column}}' is geen kolom van tabel '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' is geen filter van kolom '{{column}}'",
+      "viewer_value_invalid": "Het filter op '{{column}}' kan de waarde '{{value}}' niet gebruiken",
+      "replica_building": "De kopie van {{replica}} wordt nog opgebouwd. De opbouw gaat door; open het voorbeeld opnieuw zodra deze klaar is."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter voor '{{source_type}}' implementeert discover_schema niet",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: argument '{{argument}}' is niet gegeven",
       "argument_not_declared": "{{signature}}: argument '{{argument}}' is niet gedeclareerd",
       "binding_missing_key": "functiebinding voor soort '{{kind}}' mist verplichte sleutel '{{key}}'",
-      "egress_denied": "uitgaand verkeer naar '{{endpoint}}' is geweigerd: host staat niet op de UDF-egress-toelatingslijst (REQ-885 standaard weigeren). Voeg de host toe aan udf_egress_allowlist om dit toe te staan.",
+      "egress_denied": "uitgaand verkeer naar '{{endpoint}}' is geweigerd: host staat niet op de UDF-egress-toelatingslijst (standaard weigeren). Voeg de host toe aan udf_egress_allowlist om dit toe te staan.",
       "grpc_call_failed": "grpc-aanroep {{target}}{{path}} mislukt: {{status}}: {{details}}",
       "grpc_method_invalid": "grpc-methode '{{method}}' moet 'Service/Method' of 'pkg.Service.Method' zijn",
       "json_argument_invalid": "argument '{{argument}}' van '{{name}}' is geen JSON-literal",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python callable '{{spec}}' moet 'module:attr' zijn",
       "remote_refused": "{{source_id}} heeft {{operation}} geweigerd: {{answer}}",
       "result_set_ref_invalid": "result_set-verwijzing '{{ref}}' moet source.schema.table zijn",
-      "rowwise_external": "functie '{{name}}' (kind={{impl_kind}}) is rijgewijs extern: alle argumenten zijn scalaire column_value. Declareer een table_ref/result_set-relatieargument zodat aanroepen setgewijs en gebatcht zijn (REQ-885).",
+      "rowwise_external": "functie '{{name}}' (kind={{impl_kind}}) is rijgewijs extern: alle argumenten zijn scalaire column_value. Declareer een table_ref/result_set-relatieargument zodat aanroepen setgewijs en gebatcht zijn.",
       "script_failed": "script eindigde met code {{returncode}}: {{stderr}}",
       "source_not_connected": "Bron '{{source_id}}' niet verbonden",
       "unknown_arg_kind": "Onbekende arg_kind '{{arg_kind}}' voor '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "Organisatie-id '{{org}}' is gereserveerd. Gereserveerde id's: {{reserved}}.",
       "platform_admin_required": "platform_admin vereist",
       "retry_not_failed": "Organisatie '{{org}}' is '{{state}}', niet 'failed' — niets om opnieuw te proberen.",
-      "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder (REQ-1308).",
+      "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder.",
       "view_not_permitted": "Geen toestemming om deze organisatie te bekijken"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "ongeldige kalender: {{error}}",
       "invalid_cardinality": "Ongeldige kardinaliteit: '{{cardinality}}'",
       "invalid_off_peak_window": "ongeldig dalurenvenster: {{error}}",
-      "load_protection_gate_required": "{{who}}: belastingsbescherming vereist ten minste één vernieuwingspoort — stel een dalurenvenster, een cache_ttl-cadans of een probing change_signal (probe/ttl_probe) in (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: belastingsbescherming vereist ten minste één vernieuwingspoort — stel een dalurenvenster, een cache_ttl-cadans of een probing change_signal (probe/ttl_probe) in",
       "metric_deleted": "Metric '{{metric}}' verwijderd",
       "metric_not_found": "Metric '{{metric}}' niet gevonden",
       "metric_saved": "Metric '{{metric}}' opgeslagen",
@@ -297,6 +302,10 @@
       "relationship_not_found": "Relatie '{{relationship}}' niet gevonden",
       "relationship_saved": "Relatie '{{relationship}}' opgeslagen",
       "remigrated": "{{source}}.{{table}} opnieuw gemigreerd",
+      "change_signal_not_honoured": "Een bron van het type {{type}} kan nog niet op wijzigingen worden gecontroleerd, dus het wijzigingssignaal {{signal}} zou nooit worden geraadpleegd. Gebruik ttl voor bron '{{source}}'.",
+      "sentinel_path_not_applicable": "Een bron van het type {{type}} kan geen sentinelpad hebben: geen eigen producent kan een wijziging in de gegevens markeren, of de bron wordt niet gepeild. Verwijder het sentinelpad uit bron '{{source}}'.",
+      "source_cache_ttl_required": "Bron '{{source}}' heeft een Cache-TTL nodig: elke tabel ervan is een replica die onder het wijzigingssignaal {{signal}} volgens die klok wordt vernieuwd. Stel deze in onder 'Belastingbeheer en actualiteit' van de bron.",
+      "landing_ttl_required": "Tabel '{{table}}' is een replica die volgens een Cache-TTL wordt vernieuwd, en noch de tabel noch de bron '{{source}}' heeft er een. Stel de Cache-TTL in onder 'Belastingbeheer en actualiteit' van de bron, of op de tabel zelf zodra die is geregistreerd.",
       "replicate_contradicts_load_protected": "Belastingsbescherming kan niet worden gecombineerd met Repliceren = 'Nooit': een tabel met belastingsbescherming wordt nooit live gelezen",
       "replicate_invalid": "Repliceren moet 'Standaard', 'Nooit', 'Altijd' of een drempel boven 0 zijn; ontvangen: {{value}}",
       "request_executed": "Aanmaakverzoek #{{id}} uitgevoerd",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} is de laatste platformbeheerder van deze installatie. Ken de rol eerst aan een andere gebruiker toe.",
       "no_active_org": "Er is geen organisatie aan dit verzoek gekoppeld. Meld u eerst aan bij een organisatie.",
       "no_fields_to_update": "Geen velden om bij te werken",
-      "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder (REQ-1308).",
+      "self_role_change": "Een gebruiker kan de eigen rol niet wijzigen. Vraag een andere beheerder.",
       "user_not_found": "Gebruiker niet gevonden"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "Er bestaat geen e-mailplatform met de naam {{platform}}.",
       "not_configured": "Uw organisatie heeft dit e-mailplatform ({{platform}}) nog niet gekoppeld. Een beheerder vult de client één keer in onder Beheer › E-mail.",
       "unknown_setting": "{{setting}} is geen instelling van dit e-mailplatform.",
-      "incomplete": "Nog nodig voordat dit kan worden opgeslagen: {{missing}}."
+      "incomplete": "Nog nodig voordat dit kan worden opgeslagen: {{missing}}.",
+      "credential_unresolved": "De voor dit mailplatform ({{platform}}) ingevoerde waarde van {{field}} kon niet worden omgezet: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "De keuze van postvakken kan niet worden gelezen: {{error}}",
       "client_refused": "Microsoft heeft de Microsoft 365-client van uw organisatie geweigerd: {{reason}}",
       "throttled": "Microsoft beperkt momenteel het aantal aanvragen. Probeer het over {{retry_after}} seconden opnieuw.",
-      "directory_refused": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). De client heeft toestemming nodig om de gebruikers van de directory te lezen."
+      "directory_refused": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). De client heeft toestemming nodig om de gebruikers van de directory te lezen.",
+      "directory_no_permissions": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). Het token van de client bevat geen toepassingsmachtiging; hiervoor is {{missing}} nodig. Voeg deze toe als toepassingsmachtiging (niet gedelegeerd) en verleen beheerderstoestemming.",
+      "directory_permission_missing": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}). Het token van de client bevat {{carries}}; ontbreekt: {{missing}}. Voeg deze toe als toepassingsmachtiging (niet gedelegeerd) en verleen beheerderstoestemming.",
+      "directory_refused_granted": "Microsoft wilde de postvakken van de organisatie niet weergeven ({{status}} {{reason}}), hoewel het token van de client bevat wat de weergave nodig heeft ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Er bestaat geen rol met de naam {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Zo kunnen geen postvakken worden gekozen: {{error}}",
+      "scope_not_delegated": "Het Google-serviceaccount van de organisatie is niet geautoriseerd voor {{scopes}}. Een superbeheerder voegt de client-ID ervan met dat bereik toe in de Google Beheerdersconsole, onder Beveiliging › Toegangs- en gegevenscontrole › API-beheer › Domeinbrede delegatie beheren; een nieuwe autorisatie kan tot 24 uur duren.",
+      "admin_not_a_user": "{{address}} is geen gebruiker van het Google Workspace-domein van de organisatie, dus de directory kan niet namens dit adres worden opgevraagd. Een beheerder corrigeert het adres van de beheerder onder Beheer › E-mail.",
+      "directory_refused": "De directory van Google kon niet worden gelezen: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google heeft het serviceaccount van de organisatie geweigerd: {{reason}}"
     }
   }
 }

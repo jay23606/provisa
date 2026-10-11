@@ -44,9 +44,13 @@ import { GoogleWorkspaceFields } from "./GoogleWorkspaceFields";
 import { Microsoft365Fields } from "./Microsoft365Fields";
 import { WikipediaFields } from "./WikipediaFields";
 import { SparqlFormSection } from "./SparqlFormSection";
+import { SharepointFields } from "./SharepointFields";
+import { SplunkFields } from "./SplunkFields";
 import { SourceLoadManagementPanel } from "./SourceLoadManagementPanel";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import type { SourceFormFieldsProps } from "./SourceFormFields";
+import { useCacheTtlRequired } from "./sourceKind";
+import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 export function SourceFormFieldsExtended({
   form,
@@ -56,6 +60,7 @@ export function SourceFormFieldsExtended({
   authFields,
   setAuthFields,
   editingSourceId,
+  essential,
   cdc,
   setCdc,
   domainsEnabled,
@@ -132,6 +137,8 @@ export function SourceFormFieldsExtended({
   setRssUseSsl,
   onKaggleSourcesRegistered,
 }: SourceFormFieldsProps) {
+  // A kind whose tables land cannot be created without its Cache TTL (sourceKind).
+  const landsWithTtl = useCacheTtlRequired(form.type);
   const { t } = useTranslation();
   const regionChoices = useRegionChoices();
   // REQ-1739: was `getCategory(form.type) === "Streaming"`, which was correct only while kafka was
@@ -147,61 +154,66 @@ export function SourceFormFieldsExtended({
     <>
       {form.type === "prometheus" && (
         <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.url")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="http://prometheus:9090"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="prometheus-url-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authentication")}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            data={simpleAuthData}
-            allowDeselect={false}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="prometheus-auth-type-select"
-          />
+          <FormField size="long">
+            <TextInput
+              required
+              label={t("sourceFormFieldsExtended.url")}
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.target.value })}
+              placeholder="http://prometheus:9090"
+              data-testid="prometheus-url-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.authentication")}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              data={simpleAuthData}
+              allowDeselect={false}
+              data-testid="prometheus-auth-type-select"
+            />
+          </FormField>
           {authType === "basic" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "bearer" && (
-            <TextInput
-              required
-              label={t("sourceFormFieldsExtended.token")}
-              value={authFields.token ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="prometheus-token-input"
-            />
+            <FormField size="long">
+              <TextInput
+                required
+                label={t("sourceFormFieldsExtended.token")}
+                value={authFields.token ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+                data-testid="prometheus-token-input"
+              />
+            </FormField>
           )}
         </>
       )}
       {form.type === "google_sheets" && (
         <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.credentialsJsonPath")}
-            value={authFields.credentials_json ?? ""}
-            onChange={(e) => setAuthFields({ ...authFields, credentials_json: e.target.value })}
-            placeholder={t("sourceFormFieldsExtended.credentialsJsonPathPlaceholder")}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="google-sheets-credentials-input"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.metadataSheetId")}
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.target.value })}
-            placeholder={t("sourceFormFieldsExtended.metadataSheetIdPlaceholder")}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="google-sheets-sheet-id-input"
-          />
+          <FormField size="long">
+            <TextInput
+              required
+              label={t("sourceFormFieldsExtended.credentialsJsonPath")}
+              value={authFields.credentials_json ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, credentials_json: e.target.value })}
+              placeholder={t("sourceFormFieldsExtended.credentialsJsonPathPlaceholder")}
+              data-testid="google-sheets-credentials-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFieldsExtended.metadataSheetId")}
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.target.value })}
+              placeholder={t("sourceFormFieldsExtended.metadataSheetIdPlaceholder")}
+              data-testid="google-sheets-sheet-id-input"
+            />
+          </FormField>
         </>
       )}
       {form.type === "openapi" && (
@@ -234,79 +246,87 @@ export function SourceFormFieldsExtended({
       )}
       {/* REQ-1923: a brand asks for the credential it states (BRAND_AUTH), never one by default. */}
       {BRAND_AUTH[form.type] === "token" && (
-        <PasswordInput
-          required
-          label={t("sourceFormFieldsExtended.accessToken")}
-          description={t("sourceFormFieldsExtended.accessTokenHint")}
-          value={authFields.token ?? ""}
-          onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-          style={{ gridColumn: "1 / -1" }}
-          data-testid="brand-token-input"
-        />
+        <FormField hint={t("sourceFormFieldsExtended.accessTokenHint")} size="long">
+          <PasswordInput
+            required
+            label={t("sourceFormFieldsExtended.accessToken")}
+            value={authFields.token ?? ""}
+            onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+            data-testid="brand-token-input"
+          />
+        </FormField>
       )}
       {/* A table name prefix is the remote GraphQL source's; an OpenAPI table is named for its
           operation. */}
       {BRAND_CARRIER[form.type] === "graphql" && (
-        <TextInput
-          label={t("sourceFormFieldsExtended.namespace")}
-          description={t("sourceFormFieldsExtended.brandNamespaceHint")}
-          value={gqlNamespace}
-          onChange={(e) => setGqlNamespace(e.target.value)}
-          data-testid="brand-namespace-input"
-        />
-      )}
-      {form.type === "graphql" && (
-        <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.endpointUrl")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="https://api.example.com/graphql"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="graphql-endpoint-input"
-          />
+        <FormField hint={t("sourceFormFieldsExtended.brandNamespaceHint")} size="medium">
           <TextInput
             label={t("sourceFormFieldsExtended.namespace")}
             value={gqlNamespace}
             onChange={(e) => setGqlNamespace(e.target.value)}
-            placeholder="myapi"
-            data-testid="graphql-namespace-input"
+            data-testid="brand-namespace-input"
           />
-          <NumberInput
-            label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-            min={0}
-            value={gqlCacheTtl === "" ? "" : Number(gqlCacheTtl)}
-            onChange={(v) => setGqlCacheTtl(v === "" ? "" : String(v))}
-            placeholder="300"
-            data-testid="graphql-cache-ttl-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authentication")}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            data={[
-              { value: "none", label: t("sourceFormFieldsExtended.authNone") },
-              { value: "bearer", label: t("sourceFormFieldsExtended.authBearer") },
-              { value: "basic", label: t("sourceFormFieldsExtended.authBasic") },
-            ]}
-            allowDeselect={false}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="graphql-auth-type-select"
-          />
-          {authType === "bearer" && (
+        </FormField>
+      )}
+      {form.type === "graphql" && (
+        <>
+          <FormField size="long">
             <TextInput
               required
-              label={t("sourceFormFieldsExtended.token")}
-              value={authFields.token ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-              placeholder="${env:GQL_TOKEN}"
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="graphql-token-input"
+              label={t("sourceFormFieldsExtended.endpointUrl")}
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.target.value })}
+              placeholder="https://api.example.com/graphql"
+              data-testid="graphql-endpoint-input"
             />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFieldsExtended.namespace")}
+              value={gqlNamespace}
+              onChange={(e) => setGqlNamespace(e.target.value)}
+              placeholder="myapi"
+              data-testid="graphql-namespace-input"
+            />
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
+              min={0}
+              value={gqlCacheTtl === "" ? "" : Number(gqlCacheTtl)}
+              onChange={(v) => setGqlCacheTtl(v === "" ? "" : String(v))}
+              placeholder="300"
+              data-testid="graphql-cache-ttl-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.authentication")}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              data={[
+                { value: "none", label: t("sourceFormFieldsExtended.authNone") },
+                { value: "bearer", label: t("sourceFormFieldsExtended.authBearer") },
+                { value: "basic", label: t("sourceFormFieldsExtended.authBasic") },
+              ]}
+              allowDeselect={false}
+              data-testid="graphql-auth-type-select"
+            />
+          </FormField>
+          {authType === "bearer" && (
+            <FormField size="long">
+              <TextInput
+                required
+                label={t("sourceFormFieldsExtended.token")}
+                value={authFields.token ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+                placeholder="${env:GQL_TOKEN}"
+                data-testid="graphql-token-input"
+              />
+            </FormField>
           )}
           {authType === "basic" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
@@ -315,158 +335,193 @@ export function SourceFormFieldsExtended({
       )}
       {form.type === "grpc" && (
         <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.protoPathOrUrl")}
-            value={grpcProtoPath}
-            onChange={(e) => setGrpcProtoPath(e.target.value)}
-            placeholder="https://api.example.com/service.proto or ./service.proto"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="grpc-proto-path-input"
-          />
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.serverAddress")}
-            value={grpcServerAddress}
-            onChange={(e) => setGrpcServerAddress(e.target.value)}
-            placeholder="api.example.com:50051"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="grpc-server-address-input"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.namespace")}
-            value={grpcNamespace}
-            onChange={(e) => setGrpcNamespace(e.target.value)}
-            placeholder="mygrpc"
-            data-testid="grpc-namespace-input"
-          />
-          <NumberInput
-            label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
-            min={0}
-            value={grpcCacheTtl === "" ? "" : Number(grpcCacheTtl)}
-            onChange={(v) => setGrpcCacheTtl(v === "" ? "" : String(v))}
-            placeholder="300"
-            data-testid="grpc-cache-ttl-input"
-          />
-          <Checkbox
-            label={t("sourceFormFieldsExtended.tls")}
-            checked={grpcTls}
-            onChange={(e) => setGrpcTls(e.currentTarget.checked)}
-            mt="1.5rem"
-            data-testid="grpc-tls-checkbox"
-          />
-          <TextInput
-            label={
-              <>
-                {t("sourceFormFieldsExtended.importPaths")}{" "}
-                <Text component="span" c="dimmed" size="xs">
-                  {t("sourceFormFieldsExtended.importPathsHint")}
-                </Text>
-              </>
-            }
-            value={grpcImportPaths}
-            onChange={(e) => setGrpcImportPaths(e.target.value)}
-            placeholder="/path/to/protos,/another/path"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="grpc-import-paths-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authentication")}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            data={API_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
-            allowDeselect={false}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="grpc-auth-type-select"
-          />
-          {authType === "bearer" && (
+          <FormField size="long">
             <TextInput
               required
-              label={t("sourceFormFieldsExtended.token")}
-              value={authFields.token ?? ""}
-              onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
-              placeholder="${env:GRPC_TOKEN}"
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="grpc-token-input"
+              label={t("sourceFormFieldsExtended.protoPathOrUrl")}
+              value={grpcProtoPath}
+              onChange={(e) => setGrpcProtoPath(e.target.value)}
+              placeholder="https://api.example.com/service.proto or ./service.proto"
+              data-testid="grpc-proto-path-input"
             />
+          </FormField>
+          <FormField size="long">
+            <TextInput
+              required
+              label={t("sourceFormFieldsExtended.serverAddress")}
+              value={grpcServerAddress}
+              onChange={(e) => setGrpcServerAddress(e.target.value)}
+              placeholder="api.example.com:50051"
+              data-testid="grpc-server-address-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFieldsExtended.namespace")}
+              value={grpcNamespace}
+              onChange={(e) => setGrpcNamespace(e.target.value)}
+              placeholder="mygrpc"
+              data-testid="grpc-namespace-input"
+            />
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("sourceFormFieldsExtended.cacheTtlSeconds")}
+              min={0}
+              value={grpcCacheTtl === "" ? "" : Number(grpcCacheTtl)}
+              onChange={(v) => setGrpcCacheTtl(v === "" ? "" : String(v))}
+              placeholder="300"
+              data-testid="grpc-cache-ttl-input"
+            />
+          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.tls")}
+                checked={grpcTls}
+                onChange={(e) => setGrpcTls(e.currentTarget.checked)}
+                mt="1.5rem"
+                data-testid="grpc-tls-checkbox"
+              />
+            </FormField>
+          </FormChecks>
+          <FormField size="long">
+            <TextInput
+              label={
+                <>
+                  {t("sourceFormFieldsExtended.importPaths")}{" "}
+                  <Text component="span" c="dimmed" size="xs">
+                    {t("sourceFormFieldsExtended.importPathsHint")}
+                  </Text>
+                </>
+              }
+              value={grpcImportPaths}
+              onChange={(e) => setGrpcImportPaths(e.target.value)}
+              placeholder="/path/to/protos,/another/path"
+              data-testid="grpc-import-paths-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.authentication")}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              data={API_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
+              allowDeselect={false}
+              data-testid="grpc-auth-type-select"
+            />
+          </FormField>
+          {authType === "bearer" && (
+            <FormField size="long">
+              <TextInput
+                required
+                label={t("sourceFormFieldsExtended.token")}
+                value={authFields.token ?? ""}
+                onChange={(e) => setAuthFields({ ...authFields, token: e.target.value })}
+                placeholder="${env:GRPC_TOKEN}"
+                data-testid="grpc-token-input"
+              />
+            </FormField>
           )}
           {authType === "basic" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "api_key" && (
             <>
-              <TextInput
-                required
-                label={t("sourceFormFieldsExtended.headerName")}
-                value={authFields.header_name ?? "X-API-Key"}
-                onChange={(e) => setAuthFields({ ...authFields, header_name: e.target.value })}
-                placeholder="X-API-Key"
-                data-testid="grpc-header-name-input"
-              />
-              <TextInput
-                required
-                label={t("sourceFormFieldsExtended.apiKey")}
-                value={authFields.api_key ?? ""}
-                onChange={(e) => setAuthFields({ ...authFields, api_key: e.target.value })}
-                placeholder="${env:API_KEY}"
-                data-testid="grpc-api-key-input"
-              />
+              <FormField size="medium">
+                <TextInput
+                  required
+                  label={t("sourceFormFieldsExtended.headerName")}
+                  value={authFields.header_name ?? "X-API-Key"}
+                  onChange={(e) => setAuthFields({ ...authFields, header_name: e.target.value })}
+                  placeholder="X-API-Key"
+                  data-testid="grpc-header-name-input"
+                />
+              </FormField>
+              <FormField size="long">
+                <TextInput
+                  required
+                  label={t("sourceFormFieldsExtended.apiKey")}
+                  value={authFields.api_key ?? ""}
+                  onChange={(e) => setAuthFields({ ...authFields, api_key: e.target.value })}
+                  placeholder="${env:API_KEY}"
+                  data-testid="grpc-api-key-input"
+                />
+              </FormField>
             </>
           )}
         </>
       )}
       {form.type === "neo4j" && (
         <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.host")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="localhost"
-            data-testid="neo4j-host-input"
-          />
-          <NumberInput
-            required
-            label={t("sourceFormFieldsExtended.port")}
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: Number(v) || 0 })}
-            data-testid="neo4j-port-input"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.database")}
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.target.value })}
-            placeholder="neo4j"
-            data-testid="neo4j-database-input"
-          />
-          <Checkbox
-            label={t("sourceFormFieldsExtended.https")}
-            checked={authFields.use_https === "true"}
-            onChange={(e) =>
-              setAuthFields({
-                ...authFields,
-                use_https: e.currentTarget.checked ? "true" : "false",
-              })
-            }
-            mt="1.5rem"
-            data-testid="neo4j-https-checkbox"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.username")}
-            value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })}
-            placeholder="neo4j"
-            data-testid="neo4j-username-input"
-          />
-          <PasswordInput
-            label={t("sourceFormFieldsExtended.password")}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            data-testid="neo4j-password-input"
-          />
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                required
+                label={t("sourceFormFieldsExtended.host")}
+                value={form.host}
+                onChange={(e) => setForm({ ...form, host: e.target.value })}
+                placeholder="localhost"
+                data-testid="neo4j-host-input"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                required
+                label={t("sourceFormFieldsExtended.port")}
+                value={form.port}
+                onChange={(v) => setForm({ ...form, port: Number(v) || 0 })}
+                data-testid="neo4j-port-input"
+              />
+            </FormField>
+          </FieldGroup>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFieldsExtended.database")}
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.target.value })}
+              placeholder="neo4j"
+              data-testid="neo4j-database-input"
+            />
+          </FormField>
+          <FormChecks>
+            <FormField size="short">
+              <Checkbox
+                label={t("sourceFormFieldsExtended.https")}
+                checked={authFields.use_https === "true"}
+                onChange={(e) =>
+                  setAuthFields({
+                    ...authFields,
+                    use_https: e.currentTarget.checked ? "true" : "false",
+                  })
+                }
+                mt="1.5rem"
+                data-testid="neo4j-https-checkbox"
+              />
+            </FormField>
+          </FormChecks>
+          <FieldGroup>
+            <FormField size="medium">
+              <TextInput
+                label={t("sourceFormFieldsExtended.username")}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="neo4j"
+                data-testid="neo4j-username-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("sourceFormFieldsExtended.password")}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                data-testid="neo4j-password-input"
+              />
+            </FormField>
+          </FieldGroup>
         </>
       )}
       {form.type === "sparql" && (
@@ -481,32 +536,34 @@ export function SourceFormFieldsExtended({
       )}
       {form.type === "govdata" && (
         <>
-          <Checkbox.Group
-            label={t("sourceFormFieldsExtended.dataSubjects")}
-            value={govdataSubjects}
-            onChange={setGovdataSubjects}
-            style={{ gridColumn: "1 / -1" }}
-          >
-            <Group gap="sm" mt="0.25rem">
-              {(govdataSubjectOptions ?? []).map((subj) => (
-                <Checkbox
-                  key={subj.value}
-                  value={subj.value}
-                  label={subj.label}
-                  data-testid={`govdata-subject-${subj.value}`}
-                />
-              ))}
-            </Group>
-          </Checkbox.Group>
-          <Group style={{ gridColumn: "1 / -1" }} gap="sm" align="flex-end">
-            <TextInput
-              label={t("sourceFormFieldsExtended.askAmericaApiKey")}
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              placeholder="${ASKAMERICA_API_KEY}"
-              style={{ flex: 1 }}
-              data-testid="govdata-api-key-input"
-            />
+          <FormField size="full">
+            <Checkbox.Group
+              label={t("sourceFormFieldsExtended.dataSubjects")}
+              value={govdataSubjects}
+              onChange={setGovdataSubjects}
+            >
+              <Group gap="sm" mt="0.25rem">
+                {(govdataSubjectOptions ?? []).map((subj) => (
+                  <Checkbox
+                    key={subj.value}
+                    value={subj.value}
+                    label={subj.label}
+                    data-testid={`govdata-subject-${subj.value}`}
+                  />
+                ))}
+              </Group>
+            </Checkbox.Group>
+          </FormField>
+          <FieldGroup>
+            <FormField size="long">
+              <TextInput
+                label={t("sourceFormFieldsExtended.askAmericaApiKey")}
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="${ASKAMERICA_API_KEY}"
+                data-testid="govdata-api-key-input"
+              />
+            </FormField>
             <Button
               type="button"
               variant="default"
@@ -514,47 +571,55 @@ export function SourceFormFieldsExtended({
               href="https://askamerica.ai"
               target="_blank"
               rel="noreferrer"
+              style={{ alignSelf: "flex-end" }}
               data-testid="govdata-get-api-key-link"
             >
               {t("sourceFormFieldsExtended.getApiKey")}
             </Button>
-          </Group>
+          </FieldGroup>
           {submitting && !editingSourceId && (
-            <Text c="dimmed" size="sm" style={{ gridColumn: "1 / -1" }}>
-              {t("sourceFormFieldsExtended.validatingApiKey")}
-            </Text>
+            <FormField size="full">
+              <Text c="dimmed" size="sm">
+                {t("sourceFormFieldsExtended.validatingApiKey")}
+              </Text>
+            </FormField>
           )}
         </>
       )}
       {isKafka && (
         <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.bootstrapServers")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="kafka:9092"
-            data-testid="kafka-bootstrap-servers-input"
-          />
-          <TextInput
-            label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.target.value })}
-            placeholder="http://schema-registry:8081"
-            data-testid="kafka-schema-registry-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authentication")}
-            value={authType}
-            onChange={(v) => {
-              setAuthType(v ?? "");
-              setAuthFields({});
-            }}
-            data={KAFKA_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
-            allowDeselect={false}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="kafka-auth-type-select"
-          />
+          <FormField size="long">
+            <TextInput
+              required
+              label={t("sourceFormFieldsExtended.bootstrapServers")}
+              value={form.host}
+              onChange={(e) => setForm({ ...form, host: e.target.value })}
+              placeholder="kafka:9092"
+              data-testid="kafka-bootstrap-servers-input"
+            />
+          </FormField>
+          <FormField size="long">
+            <TextInput
+              label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
+              value={form.database}
+              onChange={(e) => setForm({ ...form, database: e.target.value })}
+              placeholder="http://schema-registry:8081"
+              data-testid="kafka-schema-registry-input"
+            />
+          </FormField>
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.authentication")}
+              value={authType}
+              onChange={(v) => {
+                setAuthType(v ?? "");
+                setAuthFields({});
+              }}
+              data={KAFKA_AUTH_TYPES.map((a) => ({ value: a.value, label: a.label }))}
+              allowDeselect={false}
+              data-testid="kafka-auth-type-select"
+            />
+          </FormField>
           {authType !== "none" && (
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
@@ -591,9 +656,7 @@ export function SourceFormFieldsExtended({
       {form.type === "wikipedia" && (
         <WikipediaFields fields={authFields} setFields={setAuthFields} /> // REQ-1960
       )}
-      {form.type === "cloudops" && (
-        <CloudopsFields fields={authFields} setFields={setAuthFields} />
-      )}
+      {form.type === "cloudops" && <CloudopsFields fields={authFields} setFields={setAuthFields} />}
       {form.type === "salesforce" && (
         <SalesforceFields
           form={form}
@@ -603,287 +666,177 @@ export function SourceFormFieldsExtended({
         />
       )}
       {form.type === "sharepoint" && (
-        <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.siteUrl")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="https://contoso.sharepoint.com/sites/mysite"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="sharepoint-site-url-input"
-          />
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.tenantId")}
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.target.value })}
-            placeholder={t("sourceFormFieldsExtended.tenantIdPlaceholder")}
-            data-testid="sharepoint-tenant-id-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authType")}
-            value={spAuthType}
-            onChange={(v) => setSpAuthType(v ?? "")}
-            data={[
-              {
-                value: "CLIENT_CREDENTIALS",
-                label: t("sourceFormFieldsExtended.clientCredentials"),
-              },
-              { value: "USERNAME_PASSWORD", label: t("sourceFormFieldsExtended.usernamePassword") },
-              { value: "CERTIFICATE", label: t("sourceFormFieldsExtended.certificate") },
-            ]}
-            allowDeselect={false}
-            data-testid="sharepoint-auth-type-select"
-          />
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.clientId")}
-            value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })}
-            placeholder={t("sourceFormFieldsExtended.clientIdPlaceholder")}
-            data-testid="sharepoint-client-id-input"
-          />
-          {spAuthType === "CLIENT_CREDENTIALS" && (
-            <PasswordInput
-              label={t("sourceFormFieldsExtended.clientSecret")}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={t("sourceFormFieldsExtended.clientSecretPlaceholder")}
-              data-testid="sharepoint-client-secret-input"
-            />
-          )}
-          {spAuthType === "USERNAME_PASSWORD" && (
-            <>
-              <TextInput
-                required
-                label={t("sourceFormFieldsExtended.spUsername")}
-                value={spUsername}
-                onChange={(e) => setSpUsername(e.target.value)}
-                placeholder="user@contoso.com"
-                data-testid="sharepoint-sp-username-input"
-              />
-              <PasswordInput
-                required
-                label={t("sourceFormFieldsExtended.spPassword")}
-                value={spPassword}
-                onChange={(e) => setSpPassword(e.target.value)}
-                data-testid="sharepoint-sp-password-input"
-              />
-            </>
-          )}
-          {spAuthType === "CERTIFICATE" && (
-            <>
-              <PasswordInput
-                label={t("sourceFormFieldsExtended.clientSecret")}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={t("sourceFormFieldsExtended.clientSecretCertPlaceholder")}
-                data-testid="sharepoint-cert-client-secret-input"
-              />
-              <TextInput
-                required
-                label={t("sourceFormFieldsExtended.certificatePath")}
-                value={spCertPath}
-                onChange={(e) => setSpCertPath(e.target.value)}
-                placeholder="/certs/sharepoint.pfx"
-                style={{ gridColumn: "1 / -1" }}
-                data-testid="sharepoint-cert-path-input"
-              />
-              <PasswordInput
-                label={t("sourceFormFieldsExtended.certificatePassword")}
-                value={spCertPassword}
-                onChange={(e) => setSpCertPassword(e.target.value)}
-                data-testid="sharepoint-cert-password-input"
-              />
-            </>
-          )}
-        </>
+        <SharepointFields
+          form={form}
+          setForm={setForm}
+          spAuthType={spAuthType}
+          setSpAuthType={setSpAuthType}
+          spCertPath={spCertPath}
+          setSpCertPath={setSpCertPath}
+          spCertPassword={spCertPassword}
+          setSpCertPassword={setSpCertPassword}
+          spUsername={spUsername}
+          setSpUsername={setSpUsername}
+          spPassword={spPassword}
+          setSpPassword={setSpPassword}
+        />
       )}
       {form.type === "splunk" && (
-        <>
-          <TextInput
-            required
-            label={t("sourceFormFieldsExtended.host")}
-            value={form.host}
-            onChange={(e) => setForm({ ...form, host: e.target.value })}
-            placeholder="splunk.example.com"
-            data-testid="splunk-host-input"
-          />
-          <NumberInput
-            label={t("sourceFormFieldsExtended.port")}
-            value={form.port}
-            onChange={(v) => setForm({ ...form, port: Number(v) || 0 })}
-            data-testid="splunk-port-input"
-          />
-          <Select
-            label={t("sourceFormFieldsExtended.authMethod")}
-            value={splunkAuthMode}
-            onChange={(v) => setSplunkAuthMode(v === "userpass" ? "userpass" : "token")}
-            data={[
-              { value: "token", label: t("sourceFormFieldsExtended.token") },
-              { value: "userpass", label: t("sourceFormFieldsExtended.usernamePassword") },
-            ]}
-            allowDeselect={false}
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="splunk-auth-mode-select"
-          />
-          {splunkAuthMode === "token" ? (
-            <PasswordInput
-              required
-              label={t("sourceFormFieldsExtended.authToken")}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={t("sourceFormFieldsExtended.authToken")}
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="splunk-auth-token-input"
-            />
-          ) : (
-            <>
-              <TextInput
-                required
-                label={t("sourceFormFieldsExtended.username")}
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                data-testid="splunk-username-input"
-              />
-              <PasswordInput
-                required
-                label={t("sourceFormFieldsExtended.password")}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                data-testid="splunk-password-input"
-              />
-            </>
-          )}
-          <TextInput
-            label={t("sourceFormFieldsExtended.appOptional")}
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.target.value })}
-            placeholder="Splunk_SA_CIM"
-            style={{ gridColumn: "1 / -1" }}
-            data-testid="splunk-app-input"
-          />
-          <Checkbox
-            label={t("sourceFormFieldsExtended.disableSslValidation")}
-            checked={splunkDisableSsl}
-            onChange={(e) => setSplunkDisableSsl(e.currentTarget.checked)}
-            data-testid="splunk-disable-ssl-checkbox"
-          />
-        </>
+        <SplunkFields
+          form={form}
+          setForm={setForm}
+          splunkDisableSsl={splunkDisableSsl}
+          splunkAuthMode={splunkAuthMode}
+          setSplunkAuthMode={setSplunkAuthMode}
+          setSplunkDisableSsl={setSplunkDisableSsl}
+        />
       )}
       {form.type === "files" &&
         (() => {
           const transportMeta = FILE_TRANSPORTS.find((t2) => t2.value === filesTransport)!;
           return (
             <>
-              <Select
-                label={t("sourceFormFieldsExtended.transport")}
-                value={filesTransport}
-                onChange={(v) => {
-                  setFilesTransport(v ?? "");
-                  setForm({ ...form, username: "", password: "" });
-                }}
-                data={FILE_TRANSPORTS.map((tr) => ({ value: tr.value, label: tr.label }))}
-                allowDeselect={false}
-                data-testid="files-transport-select"
-              />
-              <TextInput
-                required
-                label={
-                  <>
-                    {t("sourceFormFieldsExtended.pathGlob")}{" "}
-                    <Text component="span" c="dimmed" size="xs">
-                      {t("sourceFormFieldsExtended.pathGlobHint")}
-                    </Text>
-                  </>
-                }
-                value={form.path}
-                onChange={(e) => setForm({ ...form, path: e.target.value })}
-                placeholder={filesTransport === "file://" ? "/data/files/**" : "bucket/prefix/**"}
-                data-testid="files-path-input"
-              />
+              <FormField size="medium">
+                <Select
+                  label={t("sourceFormFieldsExtended.transport")}
+                  value={filesTransport}
+                  onChange={(v) => {
+                    setFilesTransport(v ?? "");
+                    setForm({ ...form, username: "", password: "" });
+                  }}
+                  data={FILE_TRANSPORTS.map((tr) => ({ value: tr.value, label: tr.label }))}
+                  allowDeselect={false}
+                  data-testid="files-transport-select"
+                />
+              </FormField>
+              <FormField size="medium">
+                <TextInput
+                  required
+                  label={
+                    <>
+                      {t("sourceFormFieldsExtended.pathGlob")}{" "}
+                      <Text component="span" c="dimmed" size="xs">
+                        {t("sourceFormFieldsExtended.pathGlobHint")}
+                      </Text>
+                    </>
+                  }
+                  value={form.path}
+                  onChange={(e) => setForm({ ...form, path: e.target.value })}
+                  placeholder={filesTransport === "file://" ? "/data/files/**" : "bucket/prefix/**"}
+                  data-testid="files-path-input"
+                />
+              </FormField>
               {transportMeta.needsAuth === "s3" && (
                 <>
-                  <TextInput
-                    label={t("sourceFormFieldsExtended.accessKeyId")}
-                    value={form.username}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    data-testid="files-access-key-input"
-                  />
-                  <PasswordInput
-                    label={t("sourceFormFieldsExtended.secretAccessKey")}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    data-testid="files-secret-key-input"
-                  />
+                  <FieldGroup>
+                    <FormField size="medium">
+                      <TextInput
+                        label={t("sourceFormFieldsExtended.accessKeyId")}
+                        value={form.username}
+                        onChange={(e) => setForm({ ...form, username: e.target.value })}
+                        data-testid="files-access-key-input"
+                      />
+                    </FormField>
+                    <FormField size="medium">
+                      <PasswordInput
+                        label={t("sourceFormFieldsExtended.secretAccessKey")}
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        data-testid="files-secret-key-input"
+                      />
+                    </FormField>
+                  </FieldGroup>
                 </>
               )}
               {transportMeta.needsAuth === "userpass" && (
                 <>
-                  <TextInput
-                    label={t("sourceFormFieldsExtended.username")}
-                    value={form.username}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    data-testid="files-username-input"
-                  />
-                  <PasswordInput
-                    label={t("sourceFormFieldsExtended.password")}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    data-testid="files-password-input"
-                  />
-                </>
-              )}
-              {transportMeta.needsAuth === "cert-or-userpass" && (
-                <>
-                  <Select
-                    label={t("sourceFormFieldsExtended.authMethod")}
-                    value={filesAuthMode}
-                    onChange={(v) => {
-                      setFilesAuthMode(v as "userpass" | "certificate");
-                      setForm({ ...form, username: "", password: "" });
-                      setFilesCertPath("");
-                      setFilesCertPassword("");
-                    }}
-                    data={[
-                      { value: "userpass", label: t("sourceFormFieldsExtended.usernamePassword") },
-                      { value: "certificate", label: t("sourceFormFieldsExtended.certificatePfx") },
-                    ]}
-                    allowDeselect={false}
-                    data-testid="files-auth-method-select"
-                  />
-                  {filesAuthMode === "userpass" && (
-                    <>
+                  <FieldGroup>
+                    <FormField size="medium">
                       <TextInput
                         label={t("sourceFormFieldsExtended.username")}
                         value={form.username}
                         onChange={(e) => setForm({ ...form, username: e.target.value })}
-                        data-testid="files-userpass-username-input"
+                        data-testid="files-username-input"
                       />
+                    </FormField>
+                    <FormField size="medium">
                       <PasswordInput
                         label={t("sourceFormFieldsExtended.password")}
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        data-testid="files-userpass-password-input"
+                        data-testid="files-password-input"
                       />
+                    </FormField>
+                  </FieldGroup>
+                </>
+              )}
+              {transportMeta.needsAuth === "cert-or-userpass" && (
+                <>
+                  <FormField size="medium">
+                    <Select
+                      label={t("sourceFormFieldsExtended.authMethod")}
+                      value={filesAuthMode}
+                      onChange={(v) => {
+                        setFilesAuthMode(v as "userpass" | "certificate");
+                        setForm({ ...form, username: "", password: "" });
+                        setFilesCertPath("");
+                        setFilesCertPassword("");
+                      }}
+                      data={[
+                        {
+                          value: "userpass",
+                          label: t("sourceFormFieldsExtended.usernamePassword"),
+                        },
+                        {
+                          value: "certificate",
+                          label: t("sourceFormFieldsExtended.certificatePfx"),
+                        },
+                      ]}
+                      allowDeselect={false}
+                      data-testid="files-auth-method-select"
+                    />
+                  </FormField>
+                  {filesAuthMode === "userpass" && (
+                    <>
+                      <FieldGroup>
+                        <FormField size="medium">
+                          <TextInput
+                            label={t("sourceFormFieldsExtended.username")}
+                            value={form.username}
+                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                            data-testid="files-userpass-username-input"
+                          />
+                        </FormField>
+                        <FormField size="medium">
+                          <PasswordInput
+                            label={t("sourceFormFieldsExtended.password")}
+                            value={form.password}
+                            onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            data-testid="files-userpass-password-input"
+                          />
+                        </FormField>
+                      </FieldGroup>
                     </>
                   )}
                   {filesAuthMode === "certificate" && (
                     <>
-                      <TextInput
-                        label={t("sourceFormFieldsExtended.pfxCertificatePath")}
-                        value={filesCertPath}
-                        onChange={(e) => setFilesCertPath(e.target.value)}
-                        placeholder="/path/to/cert.pfx"
-                        data-testid="files-cert-path-input"
-                      />
-                      <PasswordInput
-                        label={t("sourceFormFieldsExtended.certificatePassword")}
-                        value={filesCertPassword}
-                        onChange={(e) => setFilesCertPassword(e.target.value)}
-                        data-testid="files-cert-password-input"
-                      />
+                      <FormField size="long">
+                        <TextInput
+                          label={t("sourceFormFieldsExtended.pfxCertificatePath")}
+                          value={filesCertPath}
+                          onChange={(e) => setFilesCertPath(e.target.value)}
+                          placeholder="/path/to/cert.pfx"
+                          data-testid="files-cert-path-input"
+                        />
+                      </FormField>
+                      <FormField size="medium">
+                        <PasswordInput
+                          label={t("sourceFormFieldsExtended.certificatePassword")}
+                          value={filesCertPassword}
+                          onChange={(e) => setFilesCertPassword(e.target.value)}
+                          data-testid="files-cert-password-input"
+                        />
+                      </FormField>
                     </>
                   )}
                 </>
@@ -893,28 +846,36 @@ export function SourceFormFieldsExtended({
         })()}
       {/* REQ-1907: the load and timeliness controls are offered at create as well as edit — a
           source whose tables land needs its cache TTL before a table is registered. */}
-      <SourceLoadManagementPanel form={form} setForm={setForm} />
-      <RegionSelect
-        value={form.region}
-        onChange={(region) => setForm({ ...form, region })}
-        regions={regionChoices.regions}
-        scope="source"
-        testId="source-region-select"
-      />
+      {/* The short step asks for them only where the source cannot exist without one: a kind
+          whose tables land must state its Cache TTL. */}
+      {(!essential || landsWithTtl) && <SourceLoadManagementPanel form={form} setForm={setForm} />}
+      {!essential && (
+        <FormField size="medium">
+          <RegionSelect
+            value={form.region}
+            onChange={(region) => setForm({ ...form, region })}
+            regions={regionChoices.regions}
+            scope="source"
+            testId="source-region-select"
+          />
+        </FormField>
+      )}
       {editingSourceId && (
         <>
-          <Select
-            label={t("sourceFormFieldsExtended.namingConvention")}
-            value={form.gqlNamingConvention}
-            onChange={(v) => setForm({ ...form, gqlNamingConvention: v ?? "" })}
-            data={NAMING_CONVENTIONS.map((nc) => ({ value: nc.value, label: nc.label }))}
-            allowDeselect={false}
-            data-testid="naming-convention-select"
-          />
+          <FormField size="medium">
+            <Select
+              label={t("sourceFormFieldsExtended.namingConvention")}
+              value={form.gqlNamingConvention}
+              onChange={(v) => setForm({ ...form, gqlNamingConvention: v ?? "" })}
+              data={NAMING_CONVENTIONS.map((nc) => ({ value: nc.value, label: nc.label }))}
+              allowDeselect={false}
+              data-testid="naming-convention-select"
+            />
+          </FormField>
           {domainsEnabled && (
-            <Stack gap={4} style={{ gridColumn: "1 / -1" }}>
+            <FormField size="long" hint={t("sourceFormFieldsExtended.allowedDomainsHint")}>
               <MultiSelect
-                label={`${t("sourceFormFieldsExtended.allowedDomains")} ${t("sourceFormFieldsExtended.allowedDomainsHint")}`}
+                label={t("sourceFormFieldsExtended.allowedDomains")}
                 options={domains.map((d) => ({ id: d.id, label: d.id }))}
                 value={form.allowedDomains
                   .split(",")
@@ -922,58 +883,68 @@ export function SourceFormFieldsExtended({
                   .filter(Boolean)}
                 onChange={(selected) => setForm({ ...form, allowedDomains: selected.join(", ") })}
               />
-            </Stack>
+            </FormField>
           )}
           {cdcTransportApplicable(form.type) && (
-            <Accordion
-              variant="separated"
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="cdc-transport-accordion"
-            >
-              <Accordion.Item value="cdc">
-                <Accordion.Control>
-                  {t("sourceFormFieldsExtended.cdcTransportHeading")}
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <Stack gap="sm">
-                    <Text size="sm" c="dimmed">
-                      {t("sourceFormFieldsExtended.cdcTransportDescription")}
-                    </Text>
-                    <TextInput
-                      label={t("sourceFormFieldsExtended.bootstrapServers")}
-                      value={cdc.bootstrapServers}
-                      onChange={(e) => setCdc({ ...cdc, bootstrapServers: e.target.value })}
-                      placeholder="broker1:9092,broker2:9092"
-                      data-testid="cdc-bootstrap-servers-input"
-                    />
-                    <TextInput
-                      label={t("sourceFormFieldsExtended.topicPrefix")}
-                      value={cdc.topicPrefix}
-                      onChange={(e) => setCdc({ ...cdc, topicPrefix: e.target.value })}
-                      placeholder={t("sourceFormFieldsExtended.topicPrefixPlaceholder")}
-                      data-testid="cdc-topic-prefix-input"
-                    />
-                    <TextInput
-                      label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
-                      value={cdc.schemaRegistryUrl}
-                      onChange={(e) => setCdc({ ...cdc, schemaRegistryUrl: e.target.value })}
-                      placeholder={t("sourceFormFieldsExtended.schemaRegistryUrlCdcPlaceholder")}
-                      data-testid="cdc-schema-registry-input"
-                    />
-                    {cdc.schemaRegistryUrl && (
-                      <SchemaRegistryAuthFields cdc={cdc} setCdc={setCdc} />
-                    )}
-                    <TextInput
-                      label={t("sourceFormFieldsExtended.consumerGroupId")}
-                      value={cdc.consumerGroupId}
-                      onChange={(e) => setCdc({ ...cdc, consumerGroupId: e.target.value })}
-                      placeholder={t("sourceFormFieldsExtended.consumerGroupIdPlaceholder")}
-                      data-testid="cdc-consumer-group-input"
-                    />
-                  </Stack>
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
+            <FormField size="full">
+              <Accordion variant="separated" data-testid="cdc-transport-accordion">
+                <Accordion.Item value="cdc">
+                  <Accordion.Control>
+                    {t("sourceFormFieldsExtended.cdcTransportHeading")}
+                  </Accordion.Control>
+                  <Accordion.Panel>
+                    <Stack gap="sm">
+                      <Text size="sm" c="dimmed">
+                        {t("sourceFormFieldsExtended.cdcTransportDescription")}
+                      </Text>
+                      <FormLayout>
+                        <FormField size="long">
+                          <TextInput
+                            label={t("sourceFormFieldsExtended.bootstrapServers")}
+                            value={cdc.bootstrapServers}
+                            onChange={(e) => setCdc({ ...cdc, bootstrapServers: e.target.value })}
+                            placeholder="broker1:9092,broker2:9092"
+                            data-testid="cdc-bootstrap-servers-input"
+                          />
+                        </FormField>
+                        <FormField size="medium">
+                          <TextInput
+                            label={t("sourceFormFieldsExtended.topicPrefix")}
+                            value={cdc.topicPrefix}
+                            onChange={(e) => setCdc({ ...cdc, topicPrefix: e.target.value })}
+                            placeholder={t("sourceFormFieldsExtended.topicPrefixPlaceholder")}
+                            data-testid="cdc-topic-prefix-input"
+                          />
+                        </FormField>
+                        <FormField size="long">
+                          <TextInput
+                            label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
+                            value={cdc.schemaRegistryUrl}
+                            onChange={(e) => setCdc({ ...cdc, schemaRegistryUrl: e.target.value })}
+                            placeholder={t(
+                              "sourceFormFieldsExtended.schemaRegistryUrlCdcPlaceholder",
+                            )}
+                            data-testid="cdc-schema-registry-input"
+                          />
+                        </FormField>
+                        {cdc.schemaRegistryUrl && (
+                          <SchemaRegistryAuthFields cdc={cdc} setCdc={setCdc} />
+                        )}
+                        <FormField size="medium">
+                          <TextInput
+                            label={t("sourceFormFieldsExtended.consumerGroupId")}
+                            value={cdc.consumerGroupId}
+                            onChange={(e) => setCdc({ ...cdc, consumerGroupId: e.target.value })}
+                            placeholder={t("sourceFormFieldsExtended.consumerGroupIdPlaceholder")}
+                            data-testid="cdc-consumer-group-input"
+                          />
+                        </FormField>
+                      </FormLayout>
+                    </Stack>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            </FormField>
           )}
         </>
       )}

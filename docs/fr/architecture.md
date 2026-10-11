@@ -76,7 +76,7 @@ Le résultat complet n'est jamais matérialisé en mémoire Provisa — les lots
 
 ### Protobuf gRPC (port 50051)
 
-`.proto` auto-généré depuis le schéma de données, généré par rôle. (REQ-525) Requêtes en streaming (un message par ligne), mutations unaires. Réflexion serveur activée. (REQ-526) Rôle via la clé de métadonnées `x-provisa-role`.
+`.proto` auto-généré depuis le schéma de données, généré par rôle. (REQ-525) Requêtes en streaming (un message par ligne), mutations unaires. Réflexion serveur activée. (REQ-526) Rôle via la clé de métadonnées `x-provisa-role`. La réflexion décrit à chaque appelant le service de son propre rôle.
 
 ### Protocole de fil PostgreSQL / pgwire (port configurable)
 

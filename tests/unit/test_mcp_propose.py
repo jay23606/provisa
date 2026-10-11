@@ -27,6 +27,7 @@ from provisa.core.database import create_engine_from_url
 from provisa.core.database import Database
 from provisa.core.repositories import creation_request as cr_repo
 from provisa.core.schema_org import creation_requests
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -46,7 +47,7 @@ async def _db(tmp_path):
 
 
 def _state(db: Database) -> types.SimpleNamespace:
-    return types.SimpleNamespace(contexts={"analyst": object()}, model_db=db, tenant_db=db)
+    return RoleState(contexts={"analyst": object()}, model_db=db, tenant_db=db)
 
 
 class TestProposeSource:

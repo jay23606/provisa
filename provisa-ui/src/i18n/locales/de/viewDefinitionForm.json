@@ -9,15 +9,12 @@
     "fieldName": "Sichtname",
     "fieldNamePlaceholder": "z. B. revenue_by_region",
     "fieldDomain": "Domäne",
-    "fieldDescription": "Beschreibung",
     "fieldMetrics": "Metriken",
     "fieldMetricsPlaceholder": "Eine oder mehrere registrierte Metriken auswählen",
     "fieldDimensions": "Dimensionen",
     "fieldDimensionsPlaceholder": "Spalten der Metrik-Tabellen (inkl. eines Beziehungssprungs)",
     "fieldFilters": "Filter",
     "fieldFiltersHelp": "Eine SQL-Bedingung pro Zeile; Bedingungen werden mit AND verknüpft.",
-    "save": "Sicht speichern",
-    "saveFailed": "Speichern fehlgeschlagen",
-    "cancel": "Abbrechen"
+    "saveFailed": "Speichern fehlgeschlagen"
   }
 }

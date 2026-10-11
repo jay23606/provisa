@@ -36,7 +36,6 @@
     "runOption": "{{time}}（{{rows}} 行）",
     "tableScale": "テーブルの規模",
     "tableScalePlaceholder": "データセットの規模",
-    "define": "データセットを保存",
     "seedOption": "合成データで開始",
     "seedTables": "テーブル",
     "relationshipOption": "{{parent}} → {{child}}",

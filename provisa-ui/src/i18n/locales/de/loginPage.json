@@ -34,6 +34,11 @@
     "operatorSignInTitle": "Betreiber-Anmeldung",
     "backToSignIn": "Zurück zur Anmeldung",
     "signInWithSso": "Mit Single Sign-On anmelden",
-    "samlSignInFailed": "Die Single-Sign-On-Anmeldung wurde nicht abgeschlossen. Versuchen Sie es erneut oder wenden Sie sich an Ihren Administrator."
+    "samlSignInFailed": "Die Single-Sign-On-Anmeldung wurde nicht abgeschlossen. Versuchen Sie es erneut oder wenden Sie sich an Ihren Administrator.",
+    "sandboxBuildingTitle": "Ihre Sandbox wird erstellt…",
+    "sandboxBuildingBody": "Eine private Kopie der Beispieldaten wird nur für Sie eingerichtet – das kann einige Minuten dauern.",
+    "sandboxTryTitle": "Provisa kostenlos testen",
+    "sandboxTryBody": "Erkunden Sie die gesamte Plattform mit Beispieldaten – keine Kreditkarte erforderlich. Ihre Sandbox ist temporär: Sie verschwindet, wenn Sie sich abmelden.",
+    "sandboxHeading": "Provisa testen"
   }
 }

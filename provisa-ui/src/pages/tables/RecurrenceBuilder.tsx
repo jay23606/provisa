@@ -4,10 +4,11 @@
 // This source code is licensed under the Business Source License 1.1
 // found in the LICENSE file in the root directory of this source tree.
 
-import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from "@mantine/core";
+import { Chip, Group, NumberInput, SegmentedControl, Select, Text } from "@mantine/core";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { RRule, Weekday } from "rrule";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 
 // The snapshot-schedule GRAIN (REQ-962/1168/1169). Coarse presets are the fixed nesting grains the
 // server tiles directly; "custom" opens an Outlook/iCalendar-style recurrence builder that emits an
@@ -85,36 +86,38 @@ export function RecurrenceBuilder({
   const monthlyMode: MonthlyMode = byweekday.some((w) => w.n) ? "weekday" : "day";
 
   return (
-    <Stack gap="xs">
-      <Select
-        label={label}
-        data-testid={testId}
-        placeholder={placeholder}
-        data={[
-          { value: "daily", label: t("recurrence.daily") },
-          { value: "weekly", label: t("recurrence.weekly") },
-          { value: "monthly", label: t("recurrence.monthly") },
-          { value: "quarterly", label: t("recurrence.quarterly") },
-          { value: "annual", label: t("recurrence.annual") },
-          { value: "custom", label: t("recurrence.custom") },
-        ]}
-        value={mode}
-        allowDeselect={false}
-        onChange={(v) => {
-          if (!v) return onChange(null);
-          if (v === "custom") return emit({});
-          onChange(v);
-        }}
-        comboboxProps={{ withinPortal: true }}
-      />
+    <>
+      <FormField size="medium">
+        <Select
+          label={label}
+          data-testid={testId}
+          placeholder={placeholder}
+          data={[
+            { value: "daily", label: t("recurrence.daily") },
+            { value: "weekly", label: t("recurrence.weekly") },
+            { value: "monthly", label: t("recurrence.monthly") },
+            { value: "quarterly", label: t("recurrence.quarterly") },
+            { value: "annual", label: t("recurrence.annual") },
+            { value: "custom", label: t("recurrence.custom") },
+          ]}
+          value={mode}
+          allowDeselect={false}
+          onChange={(v) => {
+            if (!v) return onChange(null);
+            if (v === "custom") return emit({});
+            onChange(v);
+          }}
+          comboboxProps={{ withinPortal: true }}
+        />
+      </FormField>
 
       {mode === "custom" && (
-        <Stack gap="xs" data-testid="recurrence-builder" pl="sm">
-          <Group gap="xs" align="flex-end">
+        // The rule's parts on one row beneath the choice that opened them.
+        <FieldGroup row data-testid="recurrence-builder">
+          <FormField size="short">
             <Select
               label={t("recurrence.frequency")}
               data-testid="recurrence-freq"
-              w={140}
               data={[
                 { value: String(RRule.DAILY), label: t("recurrence.freqDaily") },
                 { value: String(RRule.WEEKLY), label: t("recurrence.freqWeekly") },
@@ -133,15 +136,19 @@ export function RecurrenceBuilder({
               }
               comboboxProps={{ withinPortal: true }}
             />
+          </FormField>
+          <FormField size="short">
             <NumberInput
               label={t("recurrence.interval")}
               data-testid="recurrence-interval"
-              w={120}
               min={1}
               value={opts?.interval ?? 1}
               onChange={(v) => emit({ interval: typeof v === "number" ? v : 1 })}
             />
-            {(freq === RRule.MONTHLY || freq === RRule.YEARLY) && (
+          </FormField>
+          {(freq === RRule.MONTHLY || freq === RRule.YEARLY) && (
+            // It has no label of its own: it stands level with the boxes, not with their labels.
+            <FormField size="short" style={{ alignSelf: "flex-end" }}>
               <SegmentedControl
                 size="xs"
                 data-testid="recurrence-monthly-mode"
@@ -156,59 +163,64 @@ export function RecurrenceBuilder({
                   { value: "weekday", label: t("recurrence.onThe") },
                 ]}
               />
-            )}
-            {(freq === RRule.MONTHLY || freq === RRule.YEARLY) && (
-              <MonthlyPanel
-                mode={monthlyMode}
-                bymonthday={bymonthday}
-                byweekday={byweekday}
-                onDayChange={(n) => emit({ bymonthday: n, byweekday: undefined })}
-                onWeekdayChange={(n, wd) => emit({ byweekday: [wd.nth(n)], bymonthday: undefined })}
-              />
-            )}
-          </Group>
-
-          {freq === RRule.WEEKLY && (
-            <Chip.Group
-              multiple
-              value={byweekday.map((w) => WD_ABBR[w.weekday])}
-              onChange={(vals) =>
-                emit({ byweekday: vals.map((a) => WEEKDAYS[WD_ABBR.indexOf(a)]) })
-              }
-            >
-              <Group gap={4} data-testid="recurrence-weekdays">
-                {WD_ABBR.map((a, i) => (
-                  <Chip key={a} value={a} size="xs" variant="outline">
-                    {t(`recurrence.wd${i}`)}
-                  </Chip>
-                ))}
-              </Group>
-            </Chip.Group>
+            </FormField>
           )}
-
-          {freq === RRule.YEARLY && (
-            <Select
-              label={t("recurrence.month")}
-              data-testid="recurrence-month"
-              w={160}
-              data={Array.from({ length: 12 }, (_, i) => ({
-                value: String(i + 1),
-                label: t(`recurrence.mo${i}`),
-              }))}
-              value={String(firstNum(opts?.bymonth) ?? 1)}
-              onChange={(v) => v && emit({ bymonth: Number(v) })}
-              comboboxProps={{ withinPortal: true }}
+          {(freq === RRule.MONTHLY || freq === RRule.YEARLY) && (
+            <MonthlyPanel
+              mode={monthlyMode}
+              bymonthday={bymonthday}
+              byweekday={byweekday}
+              onDayChange={(n) => emit({ bymonthday: n, byweekday: undefined })}
+              onWeekdayChange={(n, wd) => emit({ byweekday: [wd.nth(n)], bymonthday: undefined })}
             />
           )}
 
-          {summary && (
-            <Text size="xs" c="dimmed" data-testid="recurrence-summary">
-              {summary}
-            </Text>
+          {freq === RRule.WEEKLY && (
+            <FormField size="full">
+              <Chip.Group
+                multiple
+                value={byweekday.map((w) => WD_ABBR[w.weekday])}
+                onChange={(vals) =>
+                  emit({ byweekday: vals.map((a) => WEEKDAYS[WD_ABBR.indexOf(a)]) })
+                }
+              >
+                <Group gap={4} data-testid="recurrence-weekdays">
+                  {WD_ABBR.map((a, i) => (
+                    <Chip key={a} value={a} size="xs" variant="outline">
+                      {t(`recurrence.wd${i}`)}
+                    </Chip>
+                  ))}
+                </Group>
+              </Chip.Group>
+            </FormField>
           )}
-        </Stack>
+
+          {freq === RRule.YEARLY && (
+            <FormField size="short">
+              <Select
+                label={t("recurrence.month")}
+                data-testid="recurrence-month"
+                data={Array.from({ length: 12 }, (_, i) => ({
+                  value: String(i + 1),
+                  label: t(`recurrence.mo${i}`),
+                }))}
+                value={String(firstNum(opts?.bymonth) ?? 1)}
+                onChange={(v) => v && emit({ bymonth: Number(v) })}
+                comboboxProps={{ withinPortal: true }}
+              />
+            </FormField>
+          )}
+
+          {summary && (
+            <FormField size="full">
+              <Text size="xs" c="dimmed" data-testid="recurrence-summary">
+                {summary}
+              </Text>
+            </FormField>
+          )}
+        </FieldGroup>
       )}
-    </Stack>
+    </>
   );
 }
 
@@ -233,41 +245,44 @@ function MonthlyPanel({
 
   // The day / nth-weekday inputs; the on-day vs on-the toggle lives up on the Frequency line.
   return mode === "day" ? (
-    <Select
-      label={t("recurrence.dayOfMonth")}
-      data-testid="recurrence-monthday"
-      w={140}
-      // 1..31, plus "Last day" (-1). No 0 — there is no 0th day of a month.
-      data={[
-        ...Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
-        { value: "-1", label: t("recurrence.lastDay") },
-      ]}
-      value={String(bymonthday ?? 1)}
-      onChange={(v) => v && onDayChange(Number(v))}
-      comboboxProps={{ withinPortal: true }}
-      allowDeselect={false}
-    />
+    <FormField size="short">
+      <Select
+        label={t("recurrence.dayOfMonth")}
+        data-testid="recurrence-monthday"
+        // 1..31, plus "Last day" (-1). No 0 — there is no 0th day of a month.
+        data={[
+          ...Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
+          { value: "-1", label: t("recurrence.lastDay") },
+        ]}
+        value={String(bymonthday ?? 1)}
+        onChange={(v) => v && onDayChange(Number(v))}
+        comboboxProps={{ withinPortal: true }}
+        allowDeselect={false}
+      />
+    </FormField>
   ) : (
-    <Group gap="xs" align="flex-end">
-      <Select
-        label={t("recurrence.ordinal")}
-        data-testid="recurrence-ordinal"
-        w={120}
-        data={ORDINALS.map((n) => ({ value: String(n), label: t(`recurrence.ord${n}`) }))}
-        value={String(nth)}
-        onChange={(v) => v && onWeekdayChange(Number(v), new Weekday(wd.weekday))}
-        comboboxProps={{ withinPortal: true }}
-      />
-      <Select
-        label={t("recurrence.weekday")}
-        data-testid="recurrence-weekday"
-        w={140}
-        data={WD_ABBR.map((_a, i) => ({ value: String(i), label: t(`recurrence.wdFull${i}`) }))}
-        value={String(wd.weekday)}
-        onChange={(v) => v !== null && onWeekdayChange(nth, new Weekday(Number(v)))}
-        comboboxProps={{ withinPortal: true }}
-      />
-    </Group>
+    <>
+      <FormField size="short">
+        <Select
+          label={t("recurrence.ordinal")}
+          data-testid="recurrence-ordinal"
+          data={ORDINALS.map((n) => ({ value: String(n), label: t(`recurrence.ord${n}`) }))}
+          value={String(nth)}
+          onChange={(v) => v && onWeekdayChange(Number(v), new Weekday(wd.weekday))}
+          comboboxProps={{ withinPortal: true }}
+        />
+      </FormField>
+      <FormField size="short">
+        <Select
+          label={t("recurrence.weekday")}
+          data-testid="recurrence-weekday"
+          data={WD_ABBR.map((_a, i) => ({ value: String(i), label: t(`recurrence.wdFull${i}`) }))}
+          value={String(wd.weekday)}
+          onChange={(v) => v !== null && onWeekdayChange(nth, new Weekday(Number(v)))}
+          comboboxProps={{ withinPortal: true }}
+        />
+      </FormField>
+    </>
   );
 }
 

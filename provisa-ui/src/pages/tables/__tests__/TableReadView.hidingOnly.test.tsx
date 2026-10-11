@@ -12,6 +12,7 @@
 // previews it, but is not offered the table editor's acts -- deploy, profile, delete.
 
 import { describe, it, expect, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen } from "../../../test-utils/render";
 import { TableReadView } from "../TableReadView";
 import type { RegisteredTable } from "../../../types/admin";
@@ -147,5 +148,107 @@ describe("TableReadView for a table with a required parameter", () => {
     fireEvent.click(screen.getByTestId("table-read-view-profile"));
     expect(onPreview).toHaveBeenCalledWith(needing);
     expect(handleProfile).toHaveBeenCalledWith(9);
+  });
+});
+
+// REQ-1921: the Draft box sits with the table's other actions. It shows the stored state and
+// asks for the change; whoever may not release a table sees the state and cannot change it.
+describe("TableReadView's Draft box", () => {
+  it("is checked on a draft and asks to release it when unticked", () => {
+    const onSetDraft = vi.fn();
+    const draft = makeTable({ id: 7, draft: true });
+    renderView(false, draft, { onSetDraft });
+    const box = screen.getByTestId("table-read-view-draft");
+    expect(box).toBeChecked();
+    expect(screen.getByLabelText("Draft")).toBe(box);
+    fireEvent.click(box);
+    expect(onSetDraft).toHaveBeenCalledTimes(1);
+    expect(onSetDraft).toHaveBeenCalledWith(draft, false);
+    // Not optimistic: the box follows the stored state, which has not changed yet.
+    expect(box).toBeChecked();
+  });
+
+  it("is unchecked on a table in service and asks to return it to draft when ticked", () => {
+    const onSetDraft = vi.fn();
+    const released = makeTable({ id: 7, draft: false });
+    renderView(false, released, { onSetDraft });
+    const box = screen.getByTestId("table-read-view-draft");
+    expect(box).not.toBeChecked();
+    fireEvent.click(box);
+    expect(onSetDraft).toHaveBeenCalledWith(released, true);
+  });
+
+  it("shows the state and cannot be changed by a caller who may not register tables", async () => {
+    const onSetDraft = vi.fn();
+    renderView(true, makeTable({ id: 7, draft: true }), { onSetDraft });
+    const box = screen.getByTestId("table-read-view-draft");
+    expect(box).toBeChecked();
+    expect(box).toBeDisabled();
+    // As a person clicks: a disabled control takes no click (a dispatched event would).
+    await userEvent.setup({ pointerEventsCheck: 0 }).click(box);
+    expect(onSetDraft).not.toHaveBeenCalled();
+    expect(box).toBeChecked();
+  });
+
+  it("says a draft's preview is a draft preview, and keeps Preview and Profile offered", () => {
+    renderView(false, makeTable({ id: 7, draft: true }), { onSetDraft: vi.fn() });
+    expect(screen.getByTestId("table-read-view-draft-note")).toHaveTextContent(
+      "Draft preview: readers cannot see this table yet.",
+    );
+    expect(screen.getByTestId("table-read-view-preview")).toBeEnabled();
+    expect(screen.getByTestId("table-read-view-profile")).toBeEnabled();
+  });
+
+  it("says nothing of drafts on a table in service", () => {
+    renderView(false, makeTable({ id: 7, draft: false }), { onSetDraft: vi.fn() });
+    expect(screen.queryByTestId("table-read-view-draft-note")).not.toBeInTheDocument();
+  });
+});
+
+describe("TableReadView — a column's test data is the fourth tab", () => {
+  const COLUMN = {
+    id: 1,
+    columnName: "email",
+    visibleTo: [],
+    writableBy: [],
+    unmaskedTo: [],
+    maskType: null,
+    isPrimaryKey: false,
+  };
+  const withColumns = (...columns: object[]) =>
+    makeTable({ id: 7, columns: columns as RegisteredTable["columns"] });
+
+  it("shows the same four topics as the editor, the column's name first on each", () => {
+    renderView(
+      false,
+      withColumns({ ...COLUMN, fake: "email()", syntheticRule: "sql_group(1)", fakeStable: true }),
+    );
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Naming",
+      "Type and keys",
+      "Access",
+      "Testing",
+    ]);
+    fireEvent.click(screen.getByTestId("column-tab-testing"));
+    const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+    expect(headers).toEqual(["Column", "Fake", "Synthetic rule", "Stable"]);
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("email()");
+    expect(screen.getByTestId("read-rule-email")).toHaveTextContent("sql_group(1)");
+    expect(
+      screen.getByTestId("read-fake-email").closest("tr")!.querySelector("td"),
+    ).toHaveTextContent("email");
+  });
+
+  it("says a column with no fake shows its real value, and marks a pii column with none", () => {
+    renderView(false, withColumns({ ...COLUMN, isPii: true }));
+    fireEvent.click(screen.getByTestId("column-tab-testing"));
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("real value");
+    expect(screen.getByTestId("read-fake-email")).toHaveTextContent("pii, no fake");
+  });
+
+  it("is not offered to a caller who may change only how columns are hidden", () => {
+    renderView(true, withColumns(COLUMN));
+    expect(screen.queryByTestId("column-tab-testing")).toBeNull();
+    expect(screen.getByTestId("column-tab-access")).toBeInTheDocument();
   });
 });

@@ -37,7 +37,6 @@
     "runNowSubmit": "Nu uitvoeren",
     "runNowQueuing": "In wachtrij plaatsen...",
     "runNowQueued": "Uitvoering in wachtrij geplaatst voor {{table}}.",
-    "runNowCancel": "Annuleren",
     "dependentsTitle": "Andere artefacten gebruiken deze kolommen",
     "dependentsIntro": "De SQL-alias van een kolom hernoemen of de kolom verwijderen breekt de onderstaande artefacten, die de kolom onder de huidige naam aanspreken. Toch opslaan?",
     "dependentsCancel": "Terug",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "Entiteit-relatiediagram",
     "erdHelpBody": "Tekent de geregistreerde tabellen en de relaties die ertussen zijn gedeclareerd, zodat bestaande joins zichtbaar zijn voordat je een query schrijft. Het leest het model in plaats van het te bewerken: filter op domein en exporteer het diagram als PNG of SVG.",
     "purposeModel": "+ Model declareert een entiteit of een feit — de twee bouwstenen waaruit zowel een stervormig schema als een Data Vault bestaat — en brengt dat terug tot diezelfde primitieven: de gematerialiseerde weergave, haar historiemodus en de relaties naar de entiteiten waarvan het de sleutels gebruikt.",
-    "empty": "Nog geen tabellen geregistreerd."
+    "empty": "Nog geen tabellen geregistreerd.",
+    "resizeDetail": "Formaat van het detailpaneel wijzigen",
+    "detailPanel": "Tabeldetails",
+    "closeDetail": "Detailpaneel sluiten",
+    "expandDetail": "Paneel uitvouwen",
+    "restoreDetail": "Paneel herstellen",
+    "backToList": "Terug naar de lijst",
+    "backToDetail": "Terug naar de details",
+    "panelRegisterTable": "Tabel registreren",
+    "panelNewView": "Nieuwe weergave",
+    "panelNewModel": "Nieuw model"
   }
 }

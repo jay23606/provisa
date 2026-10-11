@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "Metadati",
-    "modeTestData": "Dati di test",
     "fake": "Valore fittizio",
     "syntheticRule": "Regola sintetica",
     "stable": "Stabile",
@@ -13,7 +11,6 @@
     "dialogTitle": "Dati di test: {{column}}",
     "declaration": "Dichiarazione, es. email() o categories((a, b))",
     "methodCategory": "Metodo fittizio: {{category}}",
-    "cancel": "Annulla",
     "apply": "Applica",
     "kindCategory": {
       "values": "Valori",

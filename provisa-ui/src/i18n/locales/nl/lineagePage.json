@@ -1,0 +1,20 @@
+{
+  "lineagePage": {
+    "title": "Gegevensherkomst",
+    "intro": "Ga na waar gegevens vandaan komen. Plak hieronder een query en Provisa herleidt elke resultaatkolom via de transformaties en opdrachtaanroepen naar de oorspronkelijke bronkolommen — zo beantwoordt u 'wat voedt deze kolom?' voordat u een view of opdracht publiceert. Of kies <b>Volledige herkomst</b> om de herkomst van alle geregistreerde views en datasets in één keer te zien.",
+    "queryLabel": "Te analyseren query",
+    "queryHelp": "Elke SELECT die uw geregistreerde tabellen, views of opdrachten leest. Deze query wordt alleen geanalyseerd, nooit uitgevoerd — er wordt niets uitgevoerd en er worden geen gegevens gelezen.",
+    "copy": "Query kopiëren",
+    "copied": "Gekopieerd",
+    "roleLabel": "Herkomst voor rol",
+    "allRoles": "Alle rollen",
+    "statement": "Herkomst van de instructie",
+    "complete": "Volledige herkomst",
+    "error": "Herkomstfout",
+    "cyclesTitle": "Cycli gevonden",
+    "cycleFeedback": "(toegestaan — kruist een gematerialiseerde grens)",
+    "cycleError": "(geen materialisatiegrens — waarschijnlijk een ontwerpfout)",
+    "emptyTitle": "Niets om te tonen",
+    "emptyBody": "Er is geen herkomst gevonden. Volledige herkomst omvat uw geregistreerde views — er zijn er nog geen gedefinieerd, dus er valt niets na te gaan. Registreer een view (Model → Views) of analyseer hierboven een query om de herkomst direct te zien."
+  }
+}

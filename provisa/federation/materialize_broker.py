@@ -266,6 +266,46 @@ class _SyncedStore:
             ),
         )
 
+    def apply_change_group(self, group: list[Any]) -> None:
+        """Apply the changes of several tables in ONE transaction of the store, while its lock
+        is held: every table changes or none does, and no reader sees some of them."""
+        from provisa.federation.store_connection import (
+            apply_cdc_duckdb_native,
+            delete_where_duckdb_native,
+        )
+
+        def apply(con: Any, changes: Any, events: list) -> None:
+            apply_cdc_duckdb_native(
+                con,
+                catalog=_MAT_STORE_ALIAS,
+                schema=changes.schema,
+                table=changes.table,
+                columns=changes.columns,
+                pk_columns=changes.pk_columns,
+                events=events,
+            )
+
+        def run(con: Any) -> None:
+            con.execute("BEGIN TRANSACTION")
+            try:
+                for changes in group:
+                    if changes.delete_where:
+                        apply(con, changes, [])  # the table, if it is not there yet
+                        delete_where_duckdb_native(
+                            con,
+                            catalog=_MAT_STORE_ALIAS,
+                            schema=changes.schema,
+                            table=changes.table,
+                            matches=changes.delete_where,
+                        )
+                    apply(con, changes, changes.events)
+            except BaseException:
+                con.execute("ROLLBACK")
+                raise
+            con.execute("COMMIT")
+
+        _with_store(self._db_path, run)
+
     def apply_cdc(
         self,
         schema: str,

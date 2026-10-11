@@ -10,23 +10,45 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Button, Group, Modal, Text } from "@mantine/core";
+import { Button, Modal, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 
 interface Props {
   title: string;
   consequence: string;
   onConfirm: () => void | Promise<void>;
-  children: (open: () => void) => ReactNode;
+  /** The control that opens the dialog. Left out by an owner that opens it itself (`opened`). */
+  children?: (open: () => void) => ReactNode;
+  /** Opened by its owner: true shows the dialog, and `onCancel` is told it was dismissed. */
+  opened?: boolean;
+  onCancel?: () => void;
+  /** The action's own word, where "Confirm" does not say what it does. */
+  confirmLabel?: string;
+  testId?: string;
 }
 
 /** Confirmation dialog for destructive actions with consequence summary (REQ-061).
  *  Backed by Mantine Modal for focus-trap, `role="dialog"`, aria-modal, ESC /
  *  overlay dismissal, and focus restoration on close (REQ-1013). */
-export function ConfirmDialog({ title, consequence, onConfirm, children }: Props) {
+export function ConfirmDialog({
+  title,
+  consequence,
+  onConfirm,
+  children,
+  opened,
+  onCancel,
+  confirmLabel,
+  testId,
+}: Props) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [own, setOwn] = useState(false);
   const [loading, setLoading] = useState(false);
+  const open = opened ?? own;
+  const setOpen = (next: boolean) => {
+    setOwn(next);
+    if (!next) onCancel?.();
+  };
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -34,13 +56,13 @@ export function ConfirmDialog({ title, consequence, onConfirm, children }: Props
       await onConfirm();
     } finally {
       setLoading(false);
-      setOpen(false);
+      setOwn(false);
     }
   };
 
   return (
     <>
-      {children(() => setOpen(true))}
+      {children?.(() => setOwn(true))}
       <Modal
         opened={open}
         onClose={() => setOpen(false)}
@@ -49,16 +71,24 @@ export function ConfirmDialog({ title, consequence, onConfirm, children }: Props
         closeOnClickOutside={!loading}
         closeOnEscape={!loading}
         withCloseButton={false}
+        data-testid={testId}
       >
         <Text mb="md">{consequence}</Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setOpen(false)} disabled={loading}>
-            {t("common.cancel")}
-          </Button>
-          <Button color="red" onClick={handleConfirm} loading={loading}>
-            {loading ? t("common.processing") : t("common.confirm")}
-          </Button>
-        </Group>
+        {/* The action first, then the shared Cancel, at the start of the row like every form. */}
+        <FormFooter
+          onCancel={() => setOpen(false)}
+          cancelProps={{ disabled: loading }}
+          action={
+            <Button
+              color="red"
+              onClick={handleConfirm}
+              loading={loading}
+              data-testid={testId ? `${testId}-confirm` : undefined}
+            >
+              {loading ? t("common.processing") : (confirmLabel ?? t("common.confirm"))}
+            </Button>
+          }
+        />
       </Modal>
     </>
   );

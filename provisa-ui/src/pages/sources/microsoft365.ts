@@ -12,7 +12,7 @@
 // mapping, under the names provisa/microsoft365/settings.py reads; that module is the
 // authority on what is valid, and this one only says what is still missing from the form.
 
-import { SignInRefused } from "../../lib/sourceSignIn";
+import { SignInRefused, shapesOffered, type SignInStatus } from "../../lib/sourceSignIn";
 
 export const MICROSOFT_365 = "microsoft_365";
 /** Where an administrator enters the organisation's Microsoft client. */
@@ -41,6 +41,15 @@ const lines = (text: string | undefined) =>
 export const m365Organisation = (fields: Record<string, string>) =>
   stated(fields, "m365_whose") === M365_ORGANISATION;
 
+/** Which of the two a Microsoft 365 source's form offers and a new source opens on
+ * (`shapesOffered`). The organisation's client serves both: it signs one mailbox's owner in, and
+ * reads the organisation's mailboxes once that is allowed -- so only the switch tells them apart. */
+export const m365Shapes = (entry: SignInStatus | null, saved: string) =>
+  shapesOffered(entry, saved, {
+    one: entry?.configured === true,
+    organisation: entry?.configured === true && entry.organisation_mailboxes === true,
+  });
+
 /** Which mailboxes of the organisation, as the source's mapping states it; null while the
  * form does not yet say. */
 export function m365Mailboxes(fields: Record<string, string>): Record<string, unknown> | null {
@@ -67,22 +76,35 @@ export function m365ConnectMissing(fields: Record<string, string>, sourceId: str
  * part of it: a source of one mailbox keeps only its owner's approval, and a source of the
  * organisation's mailboxes keeps only which ones. */
 export function m365Mapping(fields: Record<string, string>): Record<string, unknown> {
+  // Nothing received before this date is held, whichever mailboxes are read; left out, mail
+  // of any age is. The same setting, by the same name, as a Google Workspace source's.
+  const since = stated(fields, "m365_mail_since")
+    ? { mail_since: stated(fields, "m365_mail_since") }
+    : {};
   if (m365Organisation(fields)) {
-    return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {} };
+    return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {}, ...since };
   }
-  return {
+  const mapping: Record<string, unknown> = {
     accounts: [stated(fields, "m365_account")],
     resources: ["mail"],
-    refresh_token: stated(fields, "m365_refresh_token"),
+    ...since,
   };
+  // The owner's approval is kept by the server, not in the source. A source connected before
+  // that still names it here; it is carried through unchanged until the server has taken it.
+  if (stated(fields, "m365_earlier_approval")) {
+    mapping.refresh_token = stated(fields, "m365_earlier_approval");
+  }
+  return mapping;
 }
 
 /** The fields a stored source's mapping carries, for the form that edits it. */
 export function m365FieldsFromMapping(mappingJson: string): Record<string, string> {
   const mapping = JSON.parse(mappingJson) as Record<string, unknown>;
   const chosen = mapping.mailboxes as Record<string, unknown> | undefined;
+  const since: Record<string, string> =
+    typeof mapping.mail_since === "string" ? { m365_mail_since: mapping.mail_since } : {};
   if (chosen !== undefined) {
-    const fields: Record<string, string> = { m365_whose: M365_ORGANISATION };
+    const fields: Record<string, string> = { m365_whose: M365_ORGANISATION, ...since };
     if (chosen.everyone === true) fields.m365_choice = M365_EVERYONE;
     if (typeof chosen.group === "string") {
       fields.m365_choice = M365_GROUP;
@@ -95,13 +117,14 @@ export function m365FieldsFromMapping(mappingJson: string): Record<string, strin
     return fields;
   }
   const fields: Record<string, string> = {
+    ...since,
     m365_whose: M365_ONE,
     m365_account: ((mapping.accounts as string[] | undefined) ?? []).join(""),
   };
-  if (mapping.refresh_token !== undefined) {
-    fields.m365_refresh_token = String(mapping.refresh_token);
+  if (typeof mapping.refresh_token === "string" && mapping.refresh_token !== "") {
+    fields.m365_earlier_approval = mapping.refresh_token;
+    fields.m365_connected_as = fields.m365_account; // connected the earlier way
   }
-  if (fields.m365_refresh_token) fields.m365_connected_as = fields.m365_account;
   return fields;
 }
 

@@ -14,17 +14,7 @@
 // Microsoft: the client is the organisation's, entered once under Admin › Email.
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Alert,
-  Anchor,
-  Button,
-  Checkbox,
-  Group,
-  Select,
-  Text,
-  TextInput,
-  Textarea,
-} from "@mantine/core";
+import { Alert, Anchor, Button, Checkbox, Select, Text, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { serverMessage } from "../../i18n/serverMessage";
@@ -47,15 +37,16 @@ import {
   m365ConnectMissing,
   m365Mailboxes,
   m365Organisation,
+  m365Shapes,
 } from "./microsoft365";
+import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
+import { MailSinceField } from "./MailSinceField";
 
 interface Props {
   sourceId: string;
   fields: Record<string, string>;
   setFields: (fields: Record<string, string>) => void;
 }
-
-const WIDE = { gridColumn: "1 / -1" } as const;
 
 export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
   const { t } = useTranslation();
@@ -88,6 +79,35 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
     };
   }, [refused]);
 
+  // A new source opens on a shape the organisation's entry can do. A stored source states its
+  // shape (m365FieldsFromMapping) and keeps it, with everything else it holds.
+  useEffect(() => {
+    if (status === null || fields.m365_whose) return;
+    setFields({ ...fields, m365_whose: m365Shapes(status, "").opensOn });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- decided once, when the entry is known
+  }, [status]);
+
+  // Whether this mailbox's owner has signed in is the server's to say: it keeps the approval.
+  const account = (fields.m365_account ?? "").trim();
+  useEffect(() => {
+    if (!sourceId.trim() || !account) return;
+    let live = true;
+    signInStatus(MICROSOFT_365, { source_id: sourceId, account })
+      .then((answered) => {
+        if (!live || !answered.connected) return;
+        setFields({
+          ...fields,
+          m365_connected_as: account,
+          m365_connected_at: answered.connected_at ?? "",
+        });
+      })
+      .catch(() => undefined); // the organisation's status above already says what is wrong
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- asked when the mailbox named changes
+  }, [sourceId, account]);
+
   const connect = async () => {
     setProblem("");
     setConnecting(true);
@@ -100,8 +120,9 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
       });
       setFields({
         ...fields,
-        m365_refresh_token: done.refresh_token,
         m365_connected_as: done.account,
+        m365_connected_at: new Date().toISOString(),
+        m365_earlier_approval: "", // superseded by the approval just given
       });
     } catch (err) {
       setProblem(refused(err));
@@ -130,6 +151,8 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
     }
   };
 
+  // What the form offers follows what the organisation's entry can do.
+  const shapes = m365Shapes(status, fields.m365_whose ?? "");
   const notSetUp = status !== null && !status.configured;
   const notAllowed =
     organisation && status !== null && status.configured && !status.organisation_mailboxes;
@@ -137,179 +160,212 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
   const where = `${t("navBar.groupAdmin")} › ${t("navBar.itemEmail")}`;
   return (
     <>
-      <Select
-        label={t("microsoft365Fields.whose")}
-        description={t("microsoft365Fields.whoseHelp")}
-        data={[
-          { value: M365_ONE, label: t("microsoft365Fields.whoseOne") },
-          { value: M365_ORGANISATION, label: t("microsoft365Fields.whoseOrganisation") },
-        ]}
-        value={organisation ? M365_ORGANISATION : M365_ONE}
-        onChange={(value) => choose({ m365_whose: value ?? M365_ONE })}
-        allowDeselect={false}
-        style={WIDE}
-        data-testid="microsoft-365-m365_whose"
-      />
+      <FormField help={t("microsoft365Fields.whoseHelp")} size="medium">
+        <Select
+          label={t("microsoft365Fields.whose")}
+          data={[
+            { value: M365_ONE, label: t("microsoft365Fields.whoseOne") },
+            { value: M365_ORGANISATION, label: t("microsoft365Fields.whoseOrganisation") },
+          ].filter((choice) => shapes.offered.includes(choice.value))}
+          value={organisation ? M365_ORGANISATION : M365_ONE}
+          onChange={(value) => choose({ m365_whose: value ?? M365_ONE })}
+          allowDeselect={false}
+          data-testid="microsoft-365-m365_whose"
+        />
+      </FormField>
       {!organisation && (
         <>
-          <TextInput
-            label={t("microsoft365Fields.account")}
-            description={t("microsoft365Fields.accountHelp")}
-            placeholder="ada@example.com"
-            required
-            style={WIDE}
-            value={fields.m365_account ?? ""}
-            // Another mailbox is not the one that was approved: the approval is asked again.
-            onChange={(e) =>
-              setFields({
-                ...fields,
-                m365_account: e.currentTarget.value,
-                m365_refresh_token: "",
-                m365_connected_as: "",
-              })
-            }
-            data-testid="microsoft-365-m365_account"
-          />
-          <Checkbox
-            label={t("microsoft365Fields.readsMail")}
-            description={t("microsoft365Fields.readsMailHelp")}
-            checked
-            readOnly
-            style={WIDE}
-            data-testid="microsoft-365-reads-mail"
-          />
+          {/* The button that connects the mailbox sits at the end of its address. */}
+          <FieldGroup>
+            <FormField hint={t("microsoft365Fields.accountHelp")} size="medium">
+              <TextInput
+                label={t("microsoft365Fields.account")}
+                placeholder="ada@example.com"
+                required
+                value={fields.m365_account ?? ""}
+                // Another mailbox is not the one that was approved: the approval is asked again.
+                onChange={(e) =>
+                  setFields({
+                    ...fields,
+                    m365_account: e.currentTarget.value,
+                    m365_earlier_approval: "",
+                    m365_connected_as: "",
+                    m365_connected_at: "",
+                  })
+                }
+                data-testid="microsoft-365-m365_account"
+              />
+            </FormField>
+            {!notSetUp && (
+              <Button
+                type="button"
+                onClick={connect}
+                loading={connecting}
+                disabled={status === null || m365ConnectMissing(fields, sourceId).length > 0}
+                data-testid="microsoft-365-connect"
+              >
+                {t("microsoft365Fields.connect")}
+              </Button>
+            )}
+          </FieldGroup>
+          <FormChecks>
+            <FormField help={t("microsoft365Fields.readsMailHelp")} size="short">
+              <Checkbox
+                label={t("microsoft365Fields.readsMail")}
+                checked
+                readOnly
+                data-testid="microsoft-365-reads-mail"
+              />
+            </FormField>
+          </FormChecks>
         </>
       )}
       {organisation && (
         <>
-          <Select
-            label={t("microsoft365Fields.choice")}
-            data={[
-              { value: M365_EVERYONE, label: t("microsoft365Fields.choiceEveryone") },
-              { value: M365_GROUP, label: t("microsoft365Fields.choiceGroup") },
-              { value: M365_LIST, label: t("microsoft365Fields.choiceList") },
-            ]}
-            value={fields.m365_choice ?? null}
-            onChange={(value) => choose({ m365_choice: value ?? "" })}
-            required
-            allowDeselect={false}
-            style={WIDE}
-            data-testid="microsoft-365-m365_choice"
-          />
+          {/* The button that checks the choice sits at its end. */}
+          <FieldGroup>
+            <FormField size="medium">
+              <Select
+                label={t("microsoft365Fields.choice")}
+                data={[
+                  { value: M365_EVERYONE, label: t("microsoft365Fields.choiceEveryone") },
+                  { value: M365_GROUP, label: t("microsoft365Fields.choiceGroup") },
+                  { value: M365_LIST, label: t("microsoft365Fields.choiceList") },
+                ]}
+                value={fields.m365_choice ?? null}
+                onChange={(value) => choose({ m365_choice: value ?? "" })}
+                required
+                allowDeselect={false}
+                data-testid="microsoft-365-m365_choice"
+              />
+            </FormField>
+            {!notSetUp && !notAllowed && (
+              <Button
+                type="button"
+                variant="default"
+                onClick={check}
+                loading={checking}
+                disabled={status === null || chosen === null}
+                data-testid="microsoft-365-check"
+              >
+                {t("microsoft365Fields.check")}
+              </Button>
+            )}
+          </FieldGroup>
           {fields.m365_choice === M365_GROUP && (
-            <TextInput
-              label={t("microsoft365Fields.group")}
-              description={t("microsoft365Fields.groupHelp")}
-              placeholder="sales@example.com"
-              required
-              style={WIDE}
-              value={fields.m365_group ?? ""}
-              onChange={(e) => choose({ m365_group: e.currentTarget.value })}
-              data-testid="microsoft-365-m365_group"
-            />
+            <FormField help={t("microsoft365Fields.groupHelp")} size="medium">
+              <TextInput
+                label={t("microsoft365Fields.group")}
+                placeholder="sales@example.com"
+                required
+                value={fields.m365_group ?? ""}
+                onChange={(e) => choose({ m365_group: e.currentTarget.value })}
+                data-testid="microsoft-365-m365_group"
+              />
+            </FormField>
           )}
           {fields.m365_choice === M365_LIST && (
-            <Textarea
-              label={t("microsoft365Fields.list")}
-              description={t("microsoft365Fields.listHelp")}
-              placeholder={"ada@example.com\ngrace@example.com"}
-              autosize
-              minRows={3}
-              required
-              style={WIDE}
-              value={fields.m365_list ?? ""}
-              onChange={(e) => choose({ m365_list: e.currentTarget.value })}
-              data-testid="microsoft-365-m365_list"
-            />
+            <FormField hint={t("microsoft365Fields.listHelp")} size="full">
+              <Textarea
+                label={t("microsoft365Fields.list")}
+                placeholder={"ada@example.com\ngrace@example.com"}
+                autosize
+                minRows={3}
+                required
+                value={fields.m365_list ?? ""}
+                onChange={(e) => choose({ m365_list: e.currentTarget.value })}
+                data-testid="microsoft-365-m365_list"
+              />
+            </FormField>
           )}
-          <Checkbox
-            label={t("microsoft365Fields.readsMail")}
-            description={t("microsoft365Fields.readsMailHelp")}
-            checked
-            readOnly
-            style={WIDE}
-            data-testid="microsoft-365-reads-mail"
-          />
-          <Text size="sm" c="dimmed" style={WIDE} data-testid="microsoft-365-every-mailbox">
-            {t("microsoft365Fields.everyMailbox")}
-          </Text>
+          <FormChecks>
+            <FormField help={t("microsoft365Fields.readsMailHelp")} size="short">
+              <Checkbox
+                label={t("microsoft365Fields.readsMail")}
+                checked
+                readOnly
+                data-testid="microsoft-365-reads-mail"
+              />
+            </FormField>
+          </FormChecks>
+          <FormField size="full">
+            <Text size="sm" c="dimmed" data-testid="microsoft-365-every-mailbox">
+              {t("microsoft365Fields.everyMailbox")}
+            </Text>
+          </FormField>
         </>
       )}
+      {/* Whichever mailboxes are read: nothing received before this date is held. */}
+      <MailSinceField
+        value={fields.m365_mail_since ?? ""}
+        onChange={(value) => setFields({ ...fields, m365_mail_since: value })}
+        testId="microsoft-365-m365_mail_since"
+      />
       {notSetUp && (
-        <Alert color="yellow" variant="light" style={WIDE} data-testid="microsoft-365-not-set-up">
-          {status.may_configure ? (
-            <>
-              {t("microsoft365Fields.notSetUp")}{" "}
-              <Anchor component={Link} to={MAIL_PLATFORMS_ROUTE} data-testid="microsoft-365-set-up">
-                {t("microsoft365Fields.setUpLink", { where })}
-              </Anchor>
-            </>
-          ) : (
-            t("microsoft365Fields.notSetUpAsk", { where })
-          )}
-        </Alert>
+        <FormField size="full">
+          <Alert color="yellow" variant="light" data-testid="microsoft-365-not-set-up">
+            {status.may_configure ? (
+              <>
+                {t("microsoft365Fields.notSetUp")}{" "}
+                <Anchor
+                  component={Link}
+                  to={MAIL_PLATFORMS_ROUTE}
+                  data-testid="microsoft-365-set-up"
+                >
+                  {t("microsoft365Fields.setUpLink", { where })}
+                </Anchor>
+              </>
+            ) : (
+              t("microsoft365Fields.notSetUpAsk", { where })
+            )}
+          </Alert>
+        </FormField>
       )}
       {notAllowed && (
-        <Alert color="yellow" variant="light" style={WIDE} data-testid="microsoft-365-not-allowed">
-          {status.may_configure ? (
-            <>
-              {t("microsoft365Fields.notAllowed")}{" "}
-              <Anchor component={Link} to={MAIL_PLATFORMS_ROUTE} data-testid="microsoft-365-allow">
-                {t("microsoft365Fields.allowLink", { where })}
-              </Anchor>
-            </>
-          ) : (
-            t("microsoft365Fields.notAllowedAsk", { where })
-          )}
-        </Alert>
+        <FormField size="full">
+          <Alert color="yellow" variant="light" data-testid="microsoft-365-not-allowed">
+            {status.may_configure ? (
+              <>
+                {t("microsoft365Fields.notAllowed")}{" "}
+                <Anchor
+                  component={Link}
+                  to={MAIL_PLATFORMS_ROUTE}
+                  data-testid="microsoft-365-allow"
+                >
+                  {t("microsoft365Fields.allowLink", { where })}
+                </Anchor>
+              </>
+            ) : (
+              t("microsoft365Fields.notAllowedAsk", { where })
+            )}
+          </Alert>
+        </FormField>
       )}
-      {organisation && !notSetUp && !notAllowed && (
-        <Group style={WIDE} gap="sm" align="center">
-          <Button
-            type="button"
-            variant="default"
-            onClick={check}
-            loading={checking}
-            disabled={status === null || chosen === null}
-            data-testid="microsoft-365-check"
-          >
-            {t("microsoft365Fields.check")}
-          </Button>
-          {found !== null && (
-            <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-found">
-              {t("microsoft365Fields.found", { count: found })}
-            </Alert>
-          )}
-        </Group>
+      {organisation && !notSetUp && !notAllowed && found !== null && (
+        <FormField size="full">
+          <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-found">
+            {t("microsoft365Fields.found", { count: found })}
+          </Alert>
+        </FormField>
       )}
-      {!organisation && !notSetUp && (
-        <Group style={WIDE} gap="sm" align="center">
-          <Button
-            type="button"
-            onClick={connect}
-            loading={connecting}
-            disabled={status === null || m365ConnectMissing(fields, sourceId).length > 0}
-            data-testid="microsoft-365-connect"
-          >
-            {t("microsoft365Fields.connect")}
-          </Button>
-          {fields.m365_connected_as && fields.m365_refresh_token && (
-            <Alert
-              color="green"
-              variant="light"
-              py={4}
-              px="sm"
-              data-testid="microsoft-365-connected"
-            >
-              {t("microsoft365Fields.connected", { account: fields.m365_connected_as })}
-            </Alert>
-          )}
-        </Group>
+      {!organisation && !notSetUp && fields.m365_connected_as && (
+        <FormField size="full">
+          <Alert color="green" variant="light" py={4} px="sm" data-testid="microsoft-365-connected">
+            {fields.m365_connected_at
+              ? t("microsoft365Fields.connectedOn", {
+                  account: fields.m365_connected_as,
+                  date: new Date(fields.m365_connected_at).toLocaleDateString(),
+                })
+              : t("microsoft365Fields.connected", { account: fields.m365_connected_as })}
+          </Alert>
+        </FormField>
       )}
       {problem && (
-        <Alert color="red" variant="light" style={WIDE} data-testid="microsoft-365-problem">
-          {problem}
-        </Alert>
+        <FormField size="full">
+          <Alert color="red" variant="light" data-testid="microsoft-365-problem">
+            {problem}
+          </Alert>
+        </FormField>
       )}
     </>
   );

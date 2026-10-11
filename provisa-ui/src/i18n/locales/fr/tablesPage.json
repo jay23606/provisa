@@ -37,7 +37,6 @@
     "runNowSubmit": "Exécuter maintenant",
     "runNowQueuing": "Mise en file...",
     "runNowQueued": "Exécution mise en file pour {{table}}.",
-    "runNowCancel": "Annuler",
     "dependentsTitle": "D'autres artefacts utilisent ces colonnes",
     "dependentsIntro": "Renommer l'alias SQL d'une colonne ou la supprimer cassera les artefacts ci-dessous, qui nomment la colonne telle qu'elle est aujourd'hui. Enregistrer quand même ?",
     "dependentsCancel": "Retour",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "Diagramme entité-association",
     "erdHelpBody": "Dessine les tables enregistrées et les relations déclarées entre elles, afin que les jointures existantes soient visibles avant d'écrire une requête. Il lit le modèle sans le modifier : filtrez par domaine et exportez le diagramme en PNG ou SVG.",
     "purposeModel": "+ Modèle déclare une entité ou un fait — les deux briques dont sont faits aussi bien un schéma en étoile qu'un Data Vault — et l'abaisse sur ces mêmes primitives, en enregistrant la vue matérialisée, son mode d'historique et les relations vers les entités dont il reprend les clés.",
-    "empty": "Aucune table enregistrée pour le moment."
+    "empty": "Aucune table enregistrée pour le moment.",
+    "resizeDetail": "Redimensionner le panneau de détails",
+    "detailPanel": "Détails de la table",
+    "closeDetail": "Fermer le panneau de détails",
+    "expandDetail": "Agrandir le panneau",
+    "restoreDetail": "Restaurer le panneau",
+    "backToList": "Retour à la liste",
+    "backToDetail": "Retour aux détails",
+    "panelRegisterTable": "Enregistrer une table",
+    "panelNewView": "Nouvelle vue",
+    "panelNewModel": "Nouveau modèle"
   }
 }

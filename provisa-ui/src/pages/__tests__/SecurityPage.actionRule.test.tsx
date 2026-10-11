@@ -71,7 +71,7 @@ vi.mock("../../hooks/useSecurityQueries", () => ({
   useRevokeRoleGrants: () => ({ revokeFromTable: vi.fn(), revokeFromObject: vi.fn() }),
 }));
 
-import { SecurityRlsPage } from "../SecurityPage";
+import { SecurityRlsPage } from "../security/SecurityRlsPage";
 
 // Mantine Select portals its listbox; jsdom applies no layout so it reads as hidden.
 async function selectOption(combobox: HTMLElement, name: string | RegExp) {
@@ -115,5 +115,22 @@ describe("SecurityPage — RLS rules on actions (REQ-1679)", () => {
       roleId: "analyst",
       filterExpr: "1 = 1",
     });
+  });
+
+  it("asks before it deletes a rule, and deletes only on confirm", async () => {
+    deleteRlsRuleSpy.mockClear();
+    render(<SecurityRlsPage />);
+    // The delete action is in the rule's expanded row.
+    fireEvent.click(screen.getByTestId("rule-scope-9"));
+    fireEvent.click(await screen.findByTestId("delete-rule-9"));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("Delete this RLS rule?");
+    expect(dialog.textContent).toContain('Role "analyst" is no longer limited by this rule.');
+    expect(deleteRlsRuleSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+    await waitFor(() =>
+      expect(deleteRlsRuleSpy).toHaveBeenCalledWith("analyst", null, null, "customer_lookup"),
+    );
   });
 });

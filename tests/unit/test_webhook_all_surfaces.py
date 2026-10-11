@@ -30,6 +30,7 @@ from provisa.api.data.action_exec import (
     invoke_tracked_function,
     list_visible_commands,
 )
+from tests.role_state import RoleState
 
 
 def _webhook() -> dict:
@@ -72,7 +73,7 @@ class _Engine:
 
 def _state() -> SimpleNamespace:
     wh = _webhook()
-    return SimpleNamespace(
+    return RoleState(
         tracked_functions={},
         tracked_webhooks={"add_pet": wh, "ps__addPet": wh},  # raw + gql-field-name alias
         undefined_commands={},
@@ -199,7 +200,7 @@ def test_grpc_proto_gen_emits_webhook_rpc():
 def test_grpc_servicer_resolves_webhook_rpc():
     from provisa.grpc.server import ProvisaServicer
 
-    servicer = ProvisaServicer(_state(), pb2_module=object(), pb2_grpc_module=object())
+    servicer = ProvisaServicer(_state(), messages=object())
     assert servicer._resolve_command_rpc("AddPet") == "add_pet"
 
 

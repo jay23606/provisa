@@ -176,8 +176,52 @@ describe("TableEditForm — load protection + refresh-policy summary (REQ-1141/1
     expect(select).toHaveValue("Hot-750");
     fireEvent.click(select);
     const listbox = document.getElementById(select.getAttribute("aria-controls") as string);
-    fireEvent.click(within(listbox as HTMLElement).getByText("Never"));
-    expect(setEditingTable).toHaveBeenLastCalledWith(expect.objectContaining({ replicate: -1 }));
+    fireEvent.click(within(listbox as HTMLElement).getByText("Live if possible"));
+    // An explicit choice is the table's own: it is not read only on schedule.
+    expect(setEditingTable).toHaveBeenLastCalledWith(
+      expect.objectContaining({ replicate: -1, loadProtected: false }),
+    );
+  });
+
+  const SCHEDULED = "Always, source read only on schedule";
+  const chooseReplicate = (text: string) => {
+    const select = screen.getByTestId("table-replicate-select");
+    fireEvent.click(select);
+    const listbox = document.getElementById(select.getAttribute("aria-controls") as string);
+    fireEvent.click(within(listbox as HTMLElement).getByText(text));
+  };
+
+  it("offers load protection as the last Replicate choice, with no drop-down of its own", () => {
+    renderForm(makeTable());
+    const select = screen.getByTestId("table-replicate-select");
+    fireEvent.click(select);
+    const listbox = document.getElementById(select.getAttribute("aria-controls") as string);
+    const options = within(listbox as HTMLElement).getAllByRole("option");
+    expect(options[0]).toHaveTextContent("Default");
+    expect(options[options.length - 1]).toHaveTextContent(SCHEDULED);
+    expect(screen.queryByText("Load Protected")).toBeNull();
+  });
+
+  it("saves load protection with the scheduled choice", () => {
+    const setEditingTable = renderForm(makeTable());
+    chooseReplicate(SCHEDULED);
+    expect(setEditingTable).toHaveBeenLastCalledWith(
+      expect.objectContaining({ replicate: 0, loadProtected: true }),
+    );
+  });
+
+  it("opens a table with load protection of its own on the scheduled choice", () => {
+    renderForm(makeTable({ loadProtected: true, replicate: 250 }));
+    expect(screen.getByTestId("table-replicate-select")).toHaveValue(SCHEDULED);
+    expect(screen.queryByTestId("off-peak-inherited")).toBeNull();
+  });
+
+  it("inherits both settings with Default", () => {
+    const setEditingTable = renderForm(makeTable({ loadProtected: true, replicate: 0 }));
+    chooseReplicate("Default");
+    expect(setEditingTable).toHaveBeenLastCalledWith(
+      expect.objectContaining({ replicate: null, loadProtected: null }),
+    );
   });
 
   it("hides the off-peak window/zone when load protection resolves off", () => {
@@ -195,5 +239,10 @@ describe("TableEditForm — load protection + refresh-policy summary (REQ-1141/1
     ]);
     expect(screen.getByTestId("off-peak-window")).toBeTruthy();
     expect(screen.getByTestId("off-peak-opens")).toBeTruthy();
+    // The drop-down stays on Default, and the section says whose setting it is.
+    expect(screen.getByTestId("table-replicate-select")).toHaveValue("Default");
+    expect(screen.getByTestId("off-peak-inherited")).toHaveTextContent(
+      "Inherited: this table's source is read only on schedule.",
+    );
   });
 });

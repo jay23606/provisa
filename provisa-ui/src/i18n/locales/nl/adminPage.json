@@ -190,6 +190,8 @@
     "policyApplyFailed": "Toepassen van domeinbeleid mislukt",
     "settingsPanel": "Instellingen",
     "maxRows": "Max. rijen per leesbewerking",
-    "maxRowsHint": "Het maximale aantal rijen dat één leesbewerking van een gepagineerde externe tabel ophaalt, door de cursor pagina voor pagina te volgen."
+    "maxRowsHint": "Het maximale aantal rijen dat één leesbewerking van een gepagineerde externe tabel ophaalt, door de cursor pagina voor pagina te volgen.",
+    "deleteDomainTitle": "Domein \"{{id}}\" verwijderen?",
+    "deleteDomainConsequence": "Het domein wordt verwijderd. Een domein dat nog in gebruik is, kan niet worden verwijderd."
   }
 }

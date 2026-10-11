@@ -163,7 +163,7 @@ def _output_spec(command: dict, rows: list[dict]) -> tuple[list[str], dict[str, 
         return list(rows[0].keys()), {}
     raise ValueError(
         f"command {command.get('name')!r} returned no rows and declares no output_columns — "
-        "cannot determine the inline relation's columns (declare output_columns, REQ-1159)"
+        "cannot determine the inline relation's columns (declare output_columns)"
     )
 
 

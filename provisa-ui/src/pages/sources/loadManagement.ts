@@ -32,15 +32,19 @@ export function sentinelPathValid(value: string): boolean {
   return SENTINEL_SCHEMES.some((scheme) => v.toLowerCase().startsWith(scheme));
 }
 
-/** True when the panel's fields can be sent to the server. */
-export function sourceLoadFieldsValid(form: {
-  maxLiveConcurrency: string;
-  sentinelPath: string;
-  changeSignal: string;
-  cacheTtl: string;
-  replicate: number | null;
-  loadProtected: boolean;
-}): boolean {
+/** True when the panel's fields can be sent to the server. `kindLands`: the server says every
+ * table of a source of this kind lands, so the source states the Cache TTL (sourceKind.ts). */
+export function sourceLoadFieldsValid(
+  form: {
+    maxLiveConcurrency: string;
+    sentinelPath: string;
+    changeSignal: string;
+    cacheTtl: string;
+    replicate: number | null;
+    loadProtected: boolean;
+  },
+  kindLands = false,
+): boolean {
   return (
     maxLiveConcurrencyValid(form.maxLiveConcurrency) &&
     sentinelPathValid(form.sentinelPath) &&
@@ -48,16 +52,17 @@ export function sourceLoadFieldsValid(form: {
     !ttlSignalMissingCacheTtl(
       form.changeSignal,
       sourceFormCacheTtl(form.cacheTtl),
-      sourceFormLanded(form),
+      sourceFormLanded(form, kindLands),
     )
   );
 }
 
-/** The change signals whose staleness clock IS the Cache TTL (REQ-930). */
-const TTL_CLOCK_SIGNALS = ["ttl", "ttl_probe"];
+/** The change signals whose clock IS the Cache TTL (REQ-930): ttl re-reads on it, and a probing
+ * signal asks its probe on it (server: role_ttl.CLOCKED_SIGNALS). */
+const TTL_CLOCK_SIGNALS = ["ttl", "ttl_probe", "probe"];
 
 /**
- * A ttl/ttl_probe change signal with no resolved landing Cache TTL (the table's own, else its
+ * A ttl/ttl_probe/probe change signal with no resolved landing Cache TTL (the table's own, else its
  * source's — the global response-cache default is not a landing clock) is refused only when the
  * data is replicated: `landed` is true for materialize / row_materialize / Replicate set to
  * Always or a Hot threshold / Load Protected. A live-read ttl table saves normally; the server raises on read if it ever lands
@@ -67,7 +72,12 @@ export function ttlSignalMissingCacheTtl(
   changeSignal: string | null,
   resolvedCacheTtl: number | null,
   landed: boolean,
+  // REQ-860: the source has the read-time freshness gate. Its probe is judged at each read,
+  // which is a cadence of its own, so `probe` there needs no Cache TTL (server: role_ttl
+  // missing_landing_ttl `gated`). The source form offers no bare `probe`, so it passes none.
+  gated: boolean = false,
 ): boolean {
+  if (changeSignal === "probe" && gated) return false;
   return (
     landed &&
     changeSignal !== null &&
@@ -81,7 +91,11 @@ export function sourceFormCacheTtl(cacheTtl: string): number | null {
   return cacheTtl.trim() === "" ? null : Number(cacheTtl);
 }
 
-/** A source's settings say its tables are replicated: Always, a Hot threshold, or load protection. */
-export function sourceFormLanded(form: { replicate: number | null; loadProtected: boolean }) {
-  return saysReplicated(form.replicate, form.loadProtected);
+/** A source's tables are replicated: its settings say so (Always, a Hot threshold, or load
+ * protection), or its kind is one whose every table lands whatever the settings (`kindLands`). */
+export function sourceFormLanded(
+  form: { replicate: number | null; loadProtected: boolean },
+  kindLands = false,
+) {
+  return kindLands || saysReplicated(form.replicate, form.loadProtected);
 }

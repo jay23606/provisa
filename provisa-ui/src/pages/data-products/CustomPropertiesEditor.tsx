@@ -9,8 +9,10 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Group, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { ActionIcon, Text, TextInput } from "@mantine/core";
 import { Plus, Trash2 } from "lucide-react";
+import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
+import { Tip } from "../../components/Tip";
 
 interface CustomPropertiesEditorProps {
   value: Record<string, string>;
@@ -39,30 +41,36 @@ export function CustomPropertiesEditor({ value, onChange }: CustomPropertiesEdit
   };
 
   return (
-    <Stack gap={4}>
-      <Text size="sm" fw={500}>
-        {t("dataProductsTab.customPropertiesLabel")}
-      </Text>
-      <Text size="xs" c="var(--text-muted)">
-        {t("dataProductsTab.customPropertiesDesc")}
-      </Text>
+    <FormLayout>
+      <FormField size="full">
+        <Text size="sm" fw={500}>
+          {t("dataProductsTab.customPropertiesLabel")}
+        </Text>
+        <Text size="xs" c="var(--text-muted)">
+          {t("dataProductsTab.customPropertiesDesc")}
+        </Text>
+      </FormField>
       {entries.map(([key, val], i) => (
-        <Group key={i} gap="xs" wrap="nowrap">
-          <TextInput
-            flex={1}
-            value={key}
-            onChange={(e) => setEntry(i, e.target.value, val)}
-            placeholder={t("dataProductsTab.customPropertiesKeyPlaceholder")}
-            data-testid={`data-product-custom-property-key-${i}`}
-          />
-          <TextInput
-            flex={1}
-            value={val}
-            onChange={(e) => setEntry(i, key, e.target.value)}
-            placeholder={t("dataProductsTab.customPropertiesValuePlaceholder")}
-            data-testid={`data-product-custom-property-value-${i}`}
-          />
-          <Tooltip label={t("dataProductsTab.customPropertiesRemove", { key: key || i })}>
+        <FieldGroup row key={i} className="form-field-group--bare">
+          <FormField size="medium">
+            <TextInput
+              aria-label={t("dataProductsTab.customPropertiesKeyPlaceholder")}
+              value={key}
+              onChange={(e) => setEntry(i, e.target.value, val)}
+              placeholder={t("dataProductsTab.customPropertiesKeyPlaceholder")}
+              data-testid={`data-product-custom-property-key-${i}`}
+            />
+          </FormField>
+          <FormField size="medium">
+            <TextInput
+              aria-label={t("dataProductsTab.customPropertiesValuePlaceholder")}
+              value={val}
+              onChange={(e) => setEntry(i, key, e.target.value)}
+              placeholder={t("dataProductsTab.customPropertiesValuePlaceholder")}
+              data-testid={`data-product-custom-property-value-${i}`}
+            />
+          </FormField>
+          <Tip text={t("dataProductsTab.customPropertiesRemove", { key: key || i })} named>
             <ActionIcon
               variant="subtle"
               color="red"
@@ -72,10 +80,10 @@ export function CustomPropertiesEditor({ value, onChange }: CustomPropertiesEdit
             >
               <Trash2 size={14} />
             </ActionIcon>
-          </Tooltip>
-        </Group>
+          </Tip>
+        </FieldGroup>
       ))}
-      <Group>
+      <FormField size="full">
         <ActionIcon
           variant="subtle"
           aria-label={t("dataProductsTab.customPropertiesAdd")}
@@ -84,7 +92,7 @@ export function CustomPropertiesEditor({ value, onChange }: CustomPropertiesEdit
         >
           <Plus size={14} />
         </ActionIcon>
-      </Group>
-    </Stack>
+      </FormField>
+    </FormLayout>
   );
 }

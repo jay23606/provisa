@@ -19,6 +19,8 @@ pgwire, Bolt and Arrow Flight run it on the connection thread's own event loop, 
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import asyncio
 import collections
 from datetime import datetime
@@ -722,8 +724,8 @@ def _reject_view_writes(parsed: Any, state: Any) -> None:
     if tbl is not None and tbl.name in view_map:
         op = type(parsed).__name__.upper()
         raise PermissionError(
-            f"{op} into {tbl.name!r} is not allowed: it is a view/MV-backed relation and is query-only "
-            "(REQ-1157). A write would fail at the source or be lost on the next materialized-view refresh."
+            f"{op} into {tbl.name!r} is not allowed: it is a view/MV-backed relation and is query-only"
+            ". A write would fail at the source or be lost on the next materialized-view refresh."
         )
 
 
@@ -771,8 +773,8 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
     kind = type(parsed).__name__.upper()
     if handling == REFUSED:
         raise PermissionError(
-            f"{kind} is refused in environment {env!r}: its mutation handling is Refused "
-            "(REQ-1942). An environment_data holder can make it Reversible or Direct."
+            f"{kind} is refused in environment {env!r}: its mutation handling is Refused"
+            ". An environment_data holder can make it Reversible or Direct."
         )
     from provisa.compiler.write_admission import target_table
 
@@ -786,7 +788,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         raise PermissionError(
             f"{type(parsed).__name__.upper()} into {tbl.name!r} is not allowed in environment "
             f"{env!r}: it is not a registered table, so which binding the write would travel "
-            f"cannot be established, and a write with no established target is what REQ-1491 refuses."
+            f"cannot be established, and a write with no established target is refused."
         )
     if handling != DIRECT:
         # REQ-1942, Reversible: kept in the environment's change log, never run on the source --
@@ -796,7 +798,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         if state.source_types.get(source_id) in api_source_types():
             raise PermissionError(
                 f"{kind} into {tbl.name!r} is refused in environment {env!r}: its mutation "
-                f"handling is Reversible, and an API's mutation cannot be reversed (REQ-1942)."
+                f"handling is Reversible, and an API's mutation cannot be reversed."
             )
         return
     if getattr(state, "source_binding_env", {}).get(source_id) is None:
@@ -805,7 +807,7 @@ async def _reject_unbound_writes(parsed: Any, state: Any) -> None:
         raise PermissionError(
             f"{kind} into {tbl.name!r} is not allowed in environment {env!r}: its mutation "
             f"handling is Direct, which changes only data the environment owns, and source "
-            f"{source_id!r} is not bound to a connection of {env!r}'s own (REQ-1491, REQ-1942). "
+            f"{source_id!r} is not bound to a connection of {env!r}'s own. "
             f"Bind it to a database of the environment's own to write to it."
         )
 
@@ -820,7 +822,7 @@ def _refuse_composed_mutators(tree, commands: dict) -> None:
     if called:
         raise PermissionError(
             f"command {called[0]!r} writes to its source and is called on its own: it cannot be "
-            "composed in a query, a view or a materialized view (REQ-1924)"
+            "composed in a query, a view or a materialized view"
         )
 
 
@@ -1226,14 +1228,16 @@ async def govern_statement(
     import sqlglot.expressions as exp
 
     from provisa.api.app import state
-    from provisa.compiler.rls import RLSContext
     from provisa.compiler.params import extract_params_comment, extract_relationship_guard_comment
     from provisa.compiler.stage2 import apply_governance, build_governance_context
     from provisa.compiler.sql_validator import validate_sql
 
     from provisa.audit.pipeline import write_denial
 
-    if role_id not in state.contexts:
+    # ONE snapshot of the role's surface for this statement (#213): context and row filters
+    # are read off this object, never one map after another across a rebuild.
+    surface = role_surface(state, role_id)
+    if surface is None:
         # REQ-1386: a refusal is auditable evidence — policy_denials reports on it.
         await write_denial(sql, role_id, None, None, state)
         raise PermissionError(f"No schema for role {role_id!r}")
@@ -1244,8 +1248,8 @@ async def govern_statement(
 
     await resolve_trace_scope(state, role_id, hint=cache_hint_for("sql", sql).debug_trace)
 
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    ctx = surface.context
+    rls = surface.rls
     # REQ-1620: domain_access follows the UNION of every role the caller is acting as ("Role:
     # All"); role_id/RLS/masking/capabilities stay single-role. See
     # security.rights.effective_domain_access_role — the one place this is computed, so every
@@ -3875,7 +3879,6 @@ async def _govern_compiled(
     import sqlglot as _sg
 
     from provisa.audit.pipeline import resolve_table_ids
-    from provisa.compiler.rls import RLSContext
     from provisa.compiler.stage2 import apply_governance, build_governance_context
 
     # REQ-1882: sqlglot tokenization off-loaded — see _off_loop's own docstring. This is the
@@ -3923,8 +3926,9 @@ async def _govern_compiled(
 
     from provisa.security.rights import require_role
 
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    surface = state.surfaces[role_id]  # one snapshot: context and row filters of one build
+    ctx = surface.context
+    rls = surface.rls
 
     gov_ctx = build_governance_context(
         role_id,

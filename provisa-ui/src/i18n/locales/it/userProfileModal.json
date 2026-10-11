@@ -6,8 +6,6 @@
     "name": "Nome",
     "firstName": "Nome",
     "lastName": "Cognome",
-    "save": "Salva",
-    "saving": "Salvataggio…",
     "saved": "Salvato",
     "saveError": "Impossibile salvare il profilo",
     "email": "Email",

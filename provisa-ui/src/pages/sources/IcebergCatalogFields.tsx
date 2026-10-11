@@ -19,6 +19,7 @@ import {
   ICEBERG_CATALOG_TYPES,
   type IcebergCatalogType,
 } from "./icebergCatalog";
+import { FormField } from "../../components/form/FormLayout";
 
 interface Props {
   fields: Record<string, string>;
@@ -49,34 +50,37 @@ export function IcebergCatalogFields({ fields, setFields }: Props) {
       "data-testid": `iceberg-${key}`,
     };
     return key === "iceberg_catalog_password" ? (
-      <PasswordInput {...props} placeholder="${secret:catalog_password}" />
+      <FormField size="medium">
+        <PasswordInput {...props} placeholder="${secret:catalog_password}" />
+      </FormField>
     ) : (
-      <TextInput {...props} />
+      <FormField size="medium">
+        <TextInput {...props} />
+      </FormField>
     );
   };
   return (
     <>
-      <Select
-        label={t("sourceFormFields.icebergCatalogType")}
-        description={t("sourceFormFields.icebergCatalogTypeHelp")}
-        data={ICEBERG_CATALOG_TYPES.map((v) => ({ value: v, label: v }))}
-        value={type ?? null}
-        onChange={(v) => setFields({ ...fields, iceberg_catalog_type: v ?? "" })}
-        clearable
-        data-testid="iceberg-catalog-type"
-      />
+      <FormField help={t("sourceFormFields.icebergCatalogTypeHelp")} size="medium">
+        <Select
+          label={t("sourceFormFields.icebergCatalogType")}
+          data={ICEBERG_CATALOG_TYPES.map((v) => ({ value: v, label: v }))}
+          value={type ?? null}
+          onChange={(v) => setFields({ ...fields, iceberg_catalog_type: v ?? "" })}
+          clearable
+          data-testid="iceberg-catalog-type"
+        />
+      </FormField>
       {type && (
         <>
           {input("iceberg_table_id", true)}
           {ICEBERG_CATALOG_FIELDS[type].map((f) => input(f.key, f.required))}
           {CATALOG_PASSWORD_IN_CONFIG.has(type) && (
-            <Alert
-              color="yellow"
-              style={{ gridColumn: "1 / -1" }}
-              data-testid="iceberg-password-exposure"
-            >
-              {t("sourceFormFields.icebergCatalogPasswordExposure")}
-            </Alert>
+            <FormField size="full">
+              <Alert color="yellow" data-testid="iceberg-password-exposure">
+                {t("sourceFormFields.icebergCatalogPasswordExposure")}
+              </Alert>
+            </FormField>
           )}
         </>
       )}

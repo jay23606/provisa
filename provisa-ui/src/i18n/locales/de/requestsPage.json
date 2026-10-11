@@ -8,7 +8,6 @@
     "reasonLabel": "Grund",
     "reasonPlaceholder": "— Grund auswählen —",
     "confirm": "Bestätigen",
-    "cancel": "Abbrechen",
     "empty": "Keine {{tab}} Anträge.",
     "emptyFiltered": "Keine {{tab}} Anträge entsprechen dem Filter.",
     "colId": "ID",

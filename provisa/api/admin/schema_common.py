@@ -267,8 +267,8 @@ async def _stage_kaggle_if_needed(input: SourceInput) -> Optional[MutationResult
     KaggleFormSection.tsx at creation, or set the same way by an MCP proposal) — not by
     input.type, since a caller could set anything there.
 
-    Must run inside `bound_to_request_org()` (same requirement as search_kaggle_datasets) — the
-    fixed KAGGLE_TOKEN_SECRET_NAME secret resolves against whichever org's vault is bound."""
+    Must run inside `bound_to_request_org()` (same requirement as search_kaggle_datasets) — a
+    reference the Kaggle token setting holds resolves against whichever org's vault is bound."""
     import json as _json
 
     hints = _json.loads(input.federation_hints_json or "{}")
@@ -276,14 +276,9 @@ async def _stage_kaggle_if_needed(input: SourceInput) -> Optional[MutationResult
     if not owner or not ref:
         return None
 
-    from provisa.core.secrets import resolve_secrets
-    from provisa.kaggle.downloader import (
-        KAGGLE_TOKEN_SECRET_NAME,
-        UnsupportedKaggleDataset,
-        stage_dataset,
-    )
+    from provisa.kaggle.downloader import UnsupportedKaggleDataset, api_token, stage_dataset
 
-    token = resolve_secrets(f"${{secret:{KAGGLE_TOKEN_SECRET_NAME}}}")
+    token = api_token()
     try:
         staged_root = await stage_dataset(token, owner, ref)
     except UnsupportedKaggleDataset as exc:
@@ -366,6 +361,34 @@ async def microsoft_365_organisation_refusal(
     from provisa.core.request_context import require_current_org
     from provisa.microsoft365 import SOURCE_TYPE
     from provisa.microsoft365.settings import parse
+
+    if input.type != SOURCE_TYPE or not parse(_json.loads(input.mapping_json or "{}")).organisation:
+        return None
+    assert state.admin_db is not None  # set before any request is served
+    try:
+        await mail_platforms.require_organisation(
+            state.admin_db, require_current_org(), SOURCE_TYPE
+        )
+    except mail_platforms.MailPlatformRefused as refused:
+        return MutationResult(
+            success=False, message=str(refused), code=refused.code, params=dict(refused.params)
+        )
+    return None
+
+
+async def google_workspace_organisation_refusal(
+    input: SourceInput,
+) -> Optional[MutationResult]:  # REQ-1923
+    """Why a Google Workspace source of the ORGANISATION's mailboxes cannot be saved, or None:
+    for another source type, for a source of one mailbox, and when the organisation's
+    administrator has allowed such sources. Asked again where a build asks for its credential."""
+    import json as _json
+
+    from provisa.api.app import state
+    from provisa.core import mail_platforms
+    from provisa.core.request_context import require_current_org
+    from provisa.google_workspace import SOURCE_TYPE
+    from provisa.google_workspace.settings import parse
 
     if input.type != SOURCE_TYPE or not parse(_json.loads(input.mapping_json or "{}")).organisation:
         return None
@@ -833,219 +856,14 @@ async def activate_view_mv(table_name: str) -> None:
         await wire_event_loop(scheduler, state=state, log=_log, seed=False)
 
 
-# -- source password persistence (REQ-1695) ------------------------------------------------
-
-#: REQ-1695: what a source's password is stored under in the ORG vault. ``source_`` is a literal
-#: prefix rather than decoration: it makes the name valid under ``secrets_store.validate_name``
-#: (which demands a leading letter or underscore) whatever the source id starts with, and it says
-#: on the Secrets screen what the value is for.
-_SOURCE_SECRET_PREFIX = "source_"
-_SOURCE_SECRET_SUFFIX = "_password"
-
-
-def source_password_secret_name(source_id: str, env: str) -> str:  # REQ-1695, REQ-1942
-    """The org-vault name holding ``source_id``'s password as typed in environment ``env``.
-
-    Prod's is the source's own name. A password typed in any other environment is that
-    environment's, under a name of its own, so typing it never rotates the parent's credential;
-    a reference copied from the parent keeps naming the parent's.
-
-    A source id may carry hyphens, dots and slashes; a secret name may carry none of them
-    (``secrets_store.NAME``), so every character outside the grammar becomes an underscore. The
-    mapping is not injective -- ``a-b`` and ``a.b`` normalize alike -- and does not need to be:
-    two sources with ids that differ only in punctuation cannot coexist in one control plane,
-    because ``sources.id`` is the primary key and the catalog derivation
-    (``source_to_catalog``) already collapses hyphens the same way.
-    """
-    import re
-
-    from provisa.core.secrets_store import validate_name
-
-    from provisa.core.environments import PROD
-
-    owner = source_id if env == PROD else f"{source_id}__env_{env}"
-    normalized = re.sub(r"[^A-Za-z0-9_]", "_", owner)
-    return validate_name(f"{_SOURCE_SECRET_PREFIX}{normalized}{_SOURCE_SECRET_SUFFIX}")
-
-
-#: The mapping keys that carry a credential, by source type. A source has one password column;
-#: a type that needs a second credential keeps it in its mapping, and it is kept there exactly
-#: as the password is (REQ-1695): a literal goes into the org vault and the mapping holds the
-#: reference. A type whose mapping carries a credential is listed here; nothing else decides it.
-SOURCE_MAPPING_SECRET_KEYS: dict[str, tuple[str, ...]] = {
-    "sharepoint": ("certificate_password", "sp_password"),
-    "salesforce": ("sf_password", "security_token", "access_token"),
-    "cloudops": ("azure_client_secret", "aws_secret_access_key"),  # REQ-1947
-    # REQ-1923: the same names provisa/google_workspace/settings.py reads (SECRET_KEYS).
-    "google_workspace": ("refresh_token", "service_account_key"),
-    # REQ-1923: the same names provisa/microsoft365/settings.py reads (SECRET_KEYS).
-    "microsoft_365": ("refresh_token",),
-}
-
-
-def source_mapping_secret_name(source_id: str, key: str, env: str) -> str:
-    """The org-vault name holding the credential in ``source_id``'s mapping under ``key``, as
-    typed in environment ``env``: the source's password name (:func:`source_password_secret_name`)
-    with the key appended, so the two are told apart on the Secrets screen and one never
-    overwrites the other."""
-    from provisa.core.secrets_store import validate_name
-
-    return validate_name(f"{source_password_secret_name(source_id, env)}__{key}")
-
-
-async def persist_source_password(info: StrawberryInfo, source_id: str, password: str) -> str:
-    """Store ``password`` where a credential belongs and return what ``sources.password_ref`` holds.
-
-    Three cases, and no fourth (REQ-1695):
-
-    * empty -- the source needs no password, and the empty string is what the column carries.
-    * a value written in the reference grammar (it contains ``${``) -- the operator already said
-      where the credential lives, so it is stored VERBATIM. Putting it in the vault would store the
-      reference text as if it were a credential and resolve to the reference on the way out.
-    * a literal -- the credential itself, which never lands in the control-plane row. It goes into
-      the ORG vault (``secrets_store``, encrypted at rest, values unreadable by name) and the row
-      gets the ``${secret:NAME}`` that names it.
-
-    The vault is the org's, so a rotation through this door is the same ``put`` a rotation through
-    the Secrets screen is: the name is the identity and the new value replaces the old.
-    """
-    from provisa.api.admin.capabilities import _identity_from_info
-    from provisa.core.request_context import active_env
-
-    identity = _identity_from_info(info)
-    return await store_source_password(
-        getattr(identity, "user_id", None) if identity is not None else None,
-        source_id,
-        password,
-        env=active_env(),
-    )
-
-
-async def store_source_password(
-    actor: str | None, source_id: str, password: str, *, env: str
-) -> str:
-    """:func:`persist_source_password` for a caller that is not a GraphQL resolver -- a REST
-    admin router names the acting user and the environment the password was typed in itself.
-    The same three cases."""
-    return await _store_source_secret(
-        actor,
-        source_password_secret_name(source_id, env),
-        password,
-        f"password for source {source_id}",
-    )
-
-
-async def _store_source_secret(actor: str | None, name: str, value: str, description: str) -> str:
-    """What the row holds for a credential typed for a source: empty stays empty, a reference
-    is kept verbatim, and a literal goes into the org vault under ``name`` and is replaced by
-    the reference that names it."""
-    if not value:
-        return ""
-    if "${" in value:
-        return value
-    from provisa.api.app import state
-    from provisa.core import secrets_store
-    from provisa.core.request_context import require_current_org
-
-    assert state.admin_db is not None, "the platform control plane holds every org's vault"
-    await secrets_store.put(
-        state.admin_db,
-        require_current_org(),
-        name,
-        value,
-        owner_id=secrets_store.ORG_OWNER,
-        actor=actor,
-        description=description,
-    )
-    return f"${{secret:{name}}}"
-
-
-async def persist_source_mapping_secrets(
-    info: StrawberryInfo, source_id: str, source_type: str, mapping: dict
-) -> dict:
-    """:func:`store_source_mapping_secrets` for a GraphQL resolver: the acting user and the
-    environment come from the request, as :func:`persist_source_password`'s do."""
-    from provisa.api.admin.capabilities import _identity_from_info
-    from provisa.core.request_context import active_env
-
-    identity = _identity_from_info(info)
-    return await store_source_mapping_secrets(
-        getattr(identity, "user_id", None) if identity is not None else None,
-        source_id,
-        source_type,
-        mapping,
-        env=active_env(),
-    )
-
-
-async def store_source_mapping_secrets(
-    actor: str | None, source_id: str, source_type: str, mapping: dict, *, env: str
-) -> dict:
-    """``mapping`` as the row holds it: each credential its type keeps there
-    (``SOURCE_MAPPING_SECRET_KEYS``) stored as the password is — a literal in the org vault, its
-    reference in the mapping. Every other key, and a value that is not text, is as given."""
-    stored = dict(mapping)
-    for key in SOURCE_MAPPING_SECRET_KEYS.get(source_type, ()):
-        value = stored.get(key)
-        if isinstance(value, str):
-            stored[key] = await _store_source_secret(
-                actor,
-                source_mapping_secret_name(source_id, key, env),
-                value,
-                f"{key} for source {source_id}",
-            )
-    return stored
-
-
-async def forget_source_mapping_secrets(source_id: str, source_type: str, mapping: dict) -> None:
-    """Remove the vault entries a deleted source's mapping names — only the ones this module
-    minted, as :func:`forget_source_password` does for the password."""
-    from provisa.core.request_context import active_env
-
-    for key in SOURCE_MAPPING_SECRET_KEYS.get(source_type, ()):
-        name = source_mapping_secret_name(source_id, key, active_env())
-        if mapping.get(key) == f"${{secret:{name}}}":
-            await _forget_source_secret(name)
-
-
-async def forget_source_password(source_id: str, password_ref: str) -> None:
-    """Remove the vault entry a deleted source's ``password_ref`` names (REQ-1695).
-
-    Only the entry THIS module minted: a reference the operator wrote themselves names a secret
-    they own for their own reasons, and deleting a source is not permission to delete it. The
-    comparison is against the generated name, which is exactly that distinction. The entry is
-    kept while the same source in another environment of the org still names it.
-    """
-    from provisa.core.request_context import active_env
-
-    name = source_password_secret_name(source_id, active_env())
-    if password_ref != f"${{secret:{name}}}":
-        return
-    await _forget_source_secret(name)
-
-
-async def _forget_source_secret(name: str) -> None:
-    """Remove one vault entry this module minted for a source."""
-    from provisa.api.app import state
-    from provisa.core import secrets_store
-    from provisa.core.request_context import require_current_org
-
-    from provisa.api.admin.secrets_router import _environment_planes
-
-    assert state.admin_db is not None, "the platform control plane holds every org's vault"
-    org_id = require_current_org()
-    try:
-        await secrets_store.remove(
-            state.admin_db,
-            org_id,
-            name,
-            owner_id=secrets_store.ORG_OWNER,
-            environments=await _environment_planes(org_id),
-        )
-    except secrets_store.SecretDeleteRefused as refused:
-        # REQ-1918: the same source in another environment of the org still names the entry, so
-        # it is kept: the credential is still owned. It goes when the last source naming it does.
-        logging.getLogger(__name__).info("vault entry %r kept: %s", name, refused)
+# -- a source's credentials --------------------------------------------------------------------
+#
+# A credential field of a source -- its password, and each credential its type keeps in its
+# mapping or its CDC block -- holds exactly what the operator entered: the value itself, or a
+# ``${secret:NAME}`` / ``${env:NAME}`` reference they typed. It is kept in the source's own row
+# as entered, and resolved where it is used by the one resolver (``core.secrets.resolve_secrets``:
+# a value that is no reference is used as it is). Nothing here writes a secret store, and no name
+# is made up for one.
 
 
 def remote_source_counts(

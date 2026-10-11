@@ -29,8 +29,11 @@ from __future__ import annotations
 from typing import Any
 
 
-# Change signals whose refresh cadence IS cache_ttl (REQ-930): with no cache_ttl they have no clock.
-CLOCKED_SIGNALS = frozenset({"ttl", "ttl_probe"})
+# Change signals whose cadence IS cache_ttl (REQ-930): ttl re-reads on it, and a probing signal
+# asks its probe on it -- a probe is asked by the table's timer and nowhere else, so ``probe``
+# with no cache_ttl would never be asked again after its first build. With no cache_ttl they have
+# no clock.
+CLOCKED_SIGNALS = frozenset({"ttl", "ttl_probe", "probe"})
 
 
 def declared_cache_ttl(table: Any, source: Any) -> int | None:
@@ -67,27 +70,42 @@ def lands_from_config(
 
 
 def missing_landing_ttl(
-    table_signal: str | None, source_signal: str, table_ttl: int | None, source_ttl: int | None
+    table_signal: str | None,
+    source_signal: str,
+    table_ttl: int | None,
+    source_ttl: int | None,
+    *,
+    gated: bool,
 ) -> str | None:
-    """The error for a ttl / ttl_probe change signal with no table or source cache_ttl, else None
-    (REQ-1907, amended 2026-09-30). Shared by config load, admin save and the read path; the
-    no-TTL freshness signals (probe, native, debezium, kafka, signal) need no cache_ttl."""
+    """The error for a ttl / ttl_probe / probe change signal with no table or source cache_ttl,
+    else None (REQ-1907, amended 2026-09-30). Shared by config load, admin save and the read path;
+    the signals fed by a change (native, debezium, kafka, signal) need no cache_ttl.
+
+    ``gated``: the source has the read-time freshness gate (REQ-860). Its ``probe`` is judged
+    at each read, which is a cadence of its own, so ``probe`` on such a source needs no
+    cache_ttl; ``ttl`` and ``ttl_probe`` still do, as the gate's own strategy requires."""
     signal = table_signal if table_signal is not None else source_signal
+    if signal == "probe" and gated:
+        return None
     if signal in CLOCKED_SIGNALS and table_ttl is None and source_ttl is None:
         return (
-            f"change_signal {signal!r} is TTL-based and the table lands, so add a cache_ttl to the "
-            "table or its source (REQ-1907); the global response-cache default_ttl is not a "
-            "landing TTL"
+            f"change_signal {signal!r} re-reads or checks the source on the table's cache_ttl and "
+            "the table lands, so add a cache_ttl to the table or its source; the "
+            "global response-cache default_ttl is not a landing TTL"
         )
     return None
 
 
 def require_landing_ttl(table: Any, source: Any) -> None:
-    """Raise when the table's change signal is ttl / ttl_probe and neither it nor its source
+    """Raise when the table's change signal is ttl / ttl_probe / probe and neither it nor its source
     declares a cache_ttl -- such a table has no refresh clock, so a read cannot judge it. Called
     only for a table the read actually lands (after the direct-attach decision)."""
     err = missing_landing_ttl(
-        table.change_signal, source.change_signal, table.cache_ttl, source.cache_ttl
+        table.change_signal,
+        source.change_signal,
+        table.cache_ttl,
+        source.cache_ttl,
+        gated=source.freshness_gate,
     )
     if err is not None:
         raise ValueError(f"table {table.table_name!r} (source {source.id!r}): {err}")

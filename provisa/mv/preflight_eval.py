@@ -106,7 +106,7 @@ def make_streams_evaluator(
     if _requires_stream(source) and not engine.supports(EngineCapability.ARROW_STREAM):
         raise ValueError(
             f"preflight check requires ARROW_STREAM but engine {getattr(engine, 'name', '?')!r} "
-            f"does not advertise it (REQ-1165: no materialize fallback)"
+            f"does not advertise it (there is no materialize fallback)"
         )
 
     async def _eval(rows: Any, ctx: Any) -> Verdict | None:

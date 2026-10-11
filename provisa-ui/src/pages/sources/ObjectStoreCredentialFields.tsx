@@ -15,6 +15,7 @@
 import { PasswordInput, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { ObjectStore } from "./objectStoreHints";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 
 interface Props {
   store: ObjectStore;
@@ -33,49 +34,71 @@ export function ObjectStoreCredentialFields({ store, fields, setFields }: Props)
   if (store === "S3") {
     return (
       <>
-        <TextInput
-          label={t("sourceFormFields.accessKeyId")}
-          placeholder="${secret:aws_access_key_id}"
-          {...field("access_key_id")}
-        />
-        <PasswordInput
-          label={t("sourceFormFields.secretAccessKey")}
-          placeholder="${secret:aws_secret_access_key}"
-          {...field("secret_access_key")}
-        />
-        <TextInput label={t("sourceFormFields.region")} placeholder="us-east-1" {...field("region")} />
-        <TextInput
-          label={t("sourceFormFields.s3EndpointMinio")}
-          placeholder="optional — for S3-compatible"
-          {...field("endpoint")}
-        />
+        <FieldGroup>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourceFormFields.accessKeyId")}
+              placeholder="${secret:aws_access_key_id}"
+              {...field("access_key_id")}
+            />
+          </FormField>
+          <FormField size="medium">
+            <PasswordInput
+              label={t("sourceFormFields.secretAccessKey")}
+              placeholder="${secret:aws_secret_access_key}"
+              {...field("secret_access_key")}
+            />
+          </FormField>
+        </FieldGroup>
+        <FormField size="medium">
+          <TextInput
+            label={t("sourceFormFields.region")}
+            placeholder="us-east-1"
+            {...field("region")}
+          />
+        </FormField>
+        <FormField size="long">
+          <TextInput
+            label={t("sourceFormFields.s3EndpointMinio")}
+            placeholder="optional — for S3-compatible"
+            {...field("endpoint")}
+          />
+        </FormField>
       </>
     );
   }
   if (store === "GCS") {
     return (
       <>
-        <TextInput
-          label={t("sourceFormFields.gcsHmacAccessId")}
-          placeholder="${secret:gcs_hmac_access_id}"
-          {...field("gcs_access_id")}
-        />
-        <PasswordInput
-          label={t("sourceFormFields.gcsHmacSecret")}
-          placeholder="${secret:gcs_hmac_secret}"
-          {...field("gcs_secret_key")}
-        />
+        <FormField size="medium">
+          <TextInput
+            label={t("sourceFormFields.gcsHmacAccessId")}
+            placeholder="${secret:gcs_hmac_access_id}"
+            {...field("gcs_access_id")}
+          />
+        </FormField>
+        <FormField size="medium">
+          <PasswordInput
+            label={t("sourceFormFields.gcsHmacSecret")}
+            placeholder="${secret:gcs_hmac_secret}"
+            {...field("gcs_secret_key")}
+          />
+        </FormField>
       </>
     );
   }
   return (
     <>
-      <TextInput label={t("sourceFormFields.storageAccount")} {...field("azure_account_name")} />
-      <PasswordInput
-        label={t("sourceFormFields.accessKey")}
-        placeholder="${secret:azure_account_key}"
-        {...field("azure_account_key")}
-      />
+      <FormField size="medium">
+        <TextInput label={t("sourceFormFields.storageAccount")} {...field("azure_account_name")} />
+      </FormField>
+      <FormField size="medium">
+        <PasswordInput
+          label={t("sourceFormFields.accessKey")}
+          placeholder="${secret:azure_account_key}"
+          {...field("azure_account_key")}
+        />
+      </FormField>
     </>
   );
 }

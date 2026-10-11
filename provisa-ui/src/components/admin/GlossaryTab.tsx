@@ -33,19 +33,10 @@ import {
   TextInput,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useSearchParams } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
-import {
-  Archive,
-  ArchiveRestore,
-  BookOpen,
-  Pencil,
-  Plus,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Archive, ArchiveRestore, BookOpen, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { FilterInput } from "./FilterInput";
 import { GlossaryRelationships } from "./GlossaryRelationships";
 import { HelpBubble } from "../HelpBubble";
@@ -82,6 +73,15 @@ import type {
 } from "../../api/glossary";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import {
+  FieldGroup,
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+  LabelWithHelp,
+} from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 // Per-viewer list-filter preferences; never reachable from other viewers or the server.
 function readStoredBool(key: string, fallback: boolean): boolean {
@@ -125,10 +125,14 @@ export function GlossaryTab() {
   const [query, setQuery] = useState("");
   // REQ-1387: checked = show that category; both default on so the list starts unfiltered. Choice
   // is a per-viewer UI preference, not server state, so it's remembered in localStorage.
-  const [showDeprecated, setShowDeprecated] = useState(() => readStoredBool("glossary.showDeprecated", true));
+  const [showDeprecated, setShowDeprecated] = useState(() =>
+    readStoredBool("glossary.showDeprecated", true),
+  );
   // Proposed (not yet live/retired/deprecated) terms are the raw output of the semantic layer's
   // derivation, not curated — unchecking this narrows the list to terms a curator has admitted.
-  const [showProposed, setShowProposed] = useState(() => readStoredBool("glossary.showProposed", true));
+  const [showProposed, setShowProposed] = useState(() =>
+    readStoredBool("glossary.showProposed", true),
+  );
 
   useEffect(() => {
     writeStoredBool("glossary.showDeprecated", showDeprecated);
@@ -535,11 +539,11 @@ export function GlossaryTab() {
           ) : (
             // REQ-1590: say which of the two rights the viewer holds, so a reader who expected to
             // curate knows a right is missing rather than that the buttons failed to render.
-            <Tooltip label={t("glossaryTab.readOnlyHint")}>
+            <Tip text={t("glossaryTab.readOnlyHint")}>
               <Badge variant="light" color="gray" data-testid="glossary-read-only">
                 {t("glossaryTab.readOnly")}
               </Badge>
-            </Tooltip>
+            </Tip>
           )}
         </Group>
       </Group>
@@ -595,9 +599,7 @@ export function GlossaryTab() {
                           size="xs"
                           variant="light"
                           color={term.grounded ? undefined : "red"}
-                          data-testid={
-                            term.grounded ? undefined : `glossary-dangling-${term.id}`
-                          }
+                          data-testid={term.grounded ? undefined : `glossary-dangling-${term.id}`}
                         >
                           {t("glossaryTab.abstract")}
                         </Badge>
@@ -682,8 +684,8 @@ export function GlossaryTab() {
                     >
                       {t("glossaryTab.rename")}
                     </Button>
-                    <Tooltip
-                      label={
+                    <Tip
+                      text={
                         detail.retired ? t("glossaryTab.unretireHint") : t("glossaryTab.retireHint")
                       }
                     >
@@ -705,13 +707,14 @@ export function GlossaryTab() {
                       >
                         {detail.retired ? t("glossaryTab.unretire") : t("glossaryTab.retire")}
                       </Button>
-                    </Tooltip>
-                    <Tooltip
-                      label={t("glossaryTab.deleteDisabledHint")}
-                      disabled={
+                    </Tip>
+                    <Tip
+                      text={
                         detail.refs.length === 0 &&
                         detail.edges_out.length === 0 &&
                         detail.edges_in.length === 0
+                          ? null
+                          : t("glossaryTab.deleteDisabledHint")
                       }
                     >
                       <span>
@@ -730,14 +733,19 @@ export function GlossaryTab() {
                           {t("glossaryTab.delete")}
                         </Button>
                       </span>
-                    </Tooltip>
+                    </Tip>
                   </>
                 )}
               </Group>
 
               <Checkbox
-                label={t("glossaryTab.excludeFromExportLabel")}
-                description={t("glossaryTab.excludeFromExportHelp")}
+                // What the tick does is behind its (?), not a paragraph under it.
+                label={
+                  <LabelWithHelp
+                    label={t("glossaryTab.excludeFromExportLabel")}
+                    help={t("glossaryTab.excludeFromExportHelp")}
+                  />
+                }
                 checked={exportExcluded}
                 disabled={!canEdit}
                 onChange={(e) => {
@@ -772,6 +780,8 @@ export function GlossaryTab() {
                 </Stack>
                 {canEdit && (
                   <Button
+                    // Saves this one field in place: compact, beside what it saves.
+                    size="compact-sm"
                     variant="default"
                     disabled={definition === (detail.definition ?? "")}
                     onClick={() =>
@@ -794,49 +804,67 @@ export function GlossaryTab() {
                 </Text>
               ) : (
                 <SortGroupTable
-          testPrefix="glossary-refs"
-          minWidth={480}
-          rows={detail.refs}
-          columns={[
-            { key: "column", label: t("glossaryTab.colColumn"), sortValue: (r) => r.column_name },
-            { key: "table", label: t("glossaryTab.colTable"), sortValue: (r) => r.alias || r.table_name },
-            { key: "source", label: t("glossaryTab.colSource"), sortValue: (r) => r.source_id, groupValue: (r) => r.source_id },
-            { key: "domain", label: t("glossaryTab.colDomain"), sortValue: (r) => r.domain_id, groupValue: (r) => r.domain_id },
-          ]}
-          headers={[
-            { col: "column" },
-            { col: "table" },
-            { col: "source" },
-            { col: "domain" },
-            ...(canEdit ? [t("glossaryTab.colMove")] : []),
-          ]}
-          colSpan={5}
-          rowKey={(ref) => `${ref.table_id}:${ref.column_name}`}
-          render={(ref) => (
-                        <ListRow
-                          key={`${ref.table_id}:${ref.column_name}`}
-                          testId={`glossary-ref-${ref.table_id}-${ref.column_name}`}
-                        >
-                          <Table.Td>{ref.column_name}</Table.Td>
-                          <Table.Td>{ref.alias || ref.table_name}</Table.Td>
-                          <Table.Td>{ref.source_id}</Table.Td>
-                          <Table.Td>{ref.domain_id}</Table.Td>
-                          {canEdit && (
-                            <Table.Td>
-                              <Select
-                                size="xs"
-                                data={otherTermOptions}
-                                value={null}
-                                placeholder={t("glossaryTab.moveToPlaceholder")}
-                                onChange={(v) => void handleMoveRef(ref, v)}
-                                searchable
-                                data-testid={`glossary-move-select-${ref.table_id}-${ref.column_name}`}
-                              />
-                            </Table.Td>
-                          )}
-                        </ListRow>
+                  testPrefix="glossary-refs"
+                  minWidth={480}
+                  rows={detail.refs}
+                  columns={[
+                    {
+                      key: "column",
+                      label: t("glossaryTab.colColumn"),
+                      sortValue: (r) => r.column_name,
+                    },
+                    {
+                      key: "table",
+                      label: t("glossaryTab.colTable"),
+                      sortValue: (r) => r.alias || r.table_name,
+                    },
+                    {
+                      key: "source",
+                      label: t("glossaryTab.colSource"),
+                      sortValue: (r) => r.source_id,
+                      groupValue: (r) => r.source_id,
+                    },
+                    {
+                      key: "domain",
+                      label: t("glossaryTab.colDomain"),
+                      sortValue: (r) => r.domain_id,
+                      groupValue: (r) => r.domain_id,
+                    },
+                  ]}
+                  headers={[
+                    { col: "column" },
+                    { col: "table" },
+                    { col: "source" },
+                    { col: "domain" },
+                    ...(canEdit ? [t("glossaryTab.colMove")] : []),
+                  ]}
+                  colSpan={5}
+                  rowKey={(ref) => `${ref.table_id}:${ref.column_name}`}
+                  render={(ref) => (
+                    <ListRow
+                      key={`${ref.table_id}:${ref.column_name}`}
+                      testId={`glossary-ref-${ref.table_id}-${ref.column_name}`}
+                    >
+                      <Table.Td>{ref.column_name}</Table.Td>
+                      <Table.Td>{ref.alias || ref.table_name}</Table.Td>
+                      <Table.Td>{ref.source_id}</Table.Td>
+                      <Table.Td>{ref.domain_id}</Table.Td>
+                      {canEdit && (
+                        <Table.Td>
+                          <Select
+                            size="xs"
+                            data={otherTermOptions}
+                            value={null}
+                            placeholder={t("glossaryTab.moveToPlaceholder")}
+                            onChange={(v) => void handleMoveRef(ref, v)}
+                            searchable
+                            data-testid={`glossary-move-select-${ref.table_id}-${ref.column_name}`}
+                          />
+                        </Table.Td>
                       )}
-        />
+                    </ListRow>
+                  )}
+                />
               )}
 
               <Group gap="xs" align="center">
@@ -929,44 +957,49 @@ export function GlossaryTab() {
                 )}
               </Stack>
               {canEdit && expertEditMode && (
-                <Group align="flex-end" gap="sm">
-                  <Select
-                    label={t("glossaryTab.expertUserLabel")}
-                    placeholder={t("glossaryTab.expertUserPlaceholder")}
-                    data={memberOptions}
-                    value={expertUserId}
-                    onChange={setExpertUserId}
-                    searchable
-                    w={220}
-                    data-testid="glossary-expert-user-input"
-                  />
-                  <Select
-                    label={t("glossaryTab.expertKindLabel")}
-                    data={kindOptions}
-                    value={expertKind}
-                    onChange={(v) => v && setExpertKind(v)}
-                    allowDeselect={false}
-                    w={140}
-                    data-testid="glossary-expert-kind-select"
-                  />
-                  <Button
-                    variant="default"
-                    disabled={!expertUserId}
-                    onClick={() =>
-                      void act(() =>
-                        addGlossaryExpert(
-                          detail.id,
-                          // The button is withheld until a person is picked, so the id is present.
-                          expertUserId as string,
-                          expertKind as GlossaryExpertKind,
-                        ),
-                      )
-                    }
-                    data-testid="glossary-expert-add-btn"
-                  >
-                    {t("glossaryTab.addExpert")}
-                  </Button>
-                </Group>
+                <FormLayout>
+                  {/* Who, in what capacity, and the button that adds them: one row. */}
+                  <FieldGroup row>
+                    <FormField size="medium">
+                      <Select
+                        label={t("glossaryTab.expertUserLabel")}
+                        placeholder={t("glossaryTab.expertUserPlaceholder")}
+                        data={memberOptions}
+                        value={expertUserId}
+                        onChange={setExpertUserId}
+                        searchable
+                        data-testid="glossary-expert-user-input"
+                      />
+                    </FormField>
+                    <FormField size="short">
+                      <Select
+                        label={t("glossaryTab.expertKindLabel")}
+                        data={kindOptions}
+                        value={expertKind}
+                        onChange={(v) => v && setExpertKind(v)}
+                        allowDeselect={false}
+                        data-testid="glossary-expert-kind-select"
+                      />
+                    </FormField>
+                    <Button
+                      variant="default"
+                      disabled={!expertUserId}
+                      onClick={() =>
+                        void act(() =>
+                          addGlossaryExpert(
+                            detail.id,
+                            // The button is withheld until a person is picked, so the id is present.
+                            expertUserId as string,
+                            expertKind as GlossaryExpertKind,
+                          ),
+                        )
+                      }
+                      data-testid="glossary-expert-add-btn"
+                    >
+                      {t("glossaryTab.addExpert")}
+                    </Button>
+                  </FieldGroup>
+                </FormLayout>
               )}
             </Stack>
           )}
@@ -979,55 +1012,67 @@ export function GlossaryTab() {
         title={t("glossaryTab.newTermTitle")}
         size="lg"
       >
-        <Stack gap="sm">
-          <Text size="xs" c="dimmed">
-            {t("glossaryTab.newTermHint")}
-          </Text>
-          <TextInput
-            label={t("glossaryTab.nameLabel")}
-            value={addName}
-            onChange={(e) => setAddName(e.currentTarget.value)}
-            data-testid="glossary-add-name-input"
-            required
-          />
-          <Textarea
-            label={t("glossaryTab.definitionLabel")}
-            value={addDefinition}
-            onChange={(e) => setAddDefinition(e.currentTarget.value)}
-            autosize
-            minRows={3}
-            data-testid="glossary-add-definition-input"
-          />
-          {domainsEnabled && (
-            <MultiSelect
-              label={t("glossaryTab.domainsLabel")}
-              description={t("glossaryTab.domainsHint")}
-              data={addDomainOptions}
-              value={addDomains}
-              onChange={setAddDomains}
-              data-testid="glossary-add-domains-input"
-              required
+        <FormLayout>
+          <FormField size="full">
+            <Text size="xs" c="dimmed">
+              {t("glossaryTab.newTermHint")}
+            </Text>
+          </FormField>
+          <FormIdentifiers>
+            <FormField size="medium">
+              <TextInput
+                label={t("glossaryTab.nameLabel")}
+                value={addName}
+                onChange={(e) => setAddName(e.currentTarget.value)}
+                data-testid="glossary-add-name-input"
+                required
+              />
+            </FormField>
+          </FormIdentifiers>
+          <FormField size="full">
+            <Textarea
+              label={t("glossaryTab.definitionLabel")}
+              value={addDefinition}
+              onChange={(e) => setAddDefinition(e.currentTarget.value)}
+              autosize
+              minRows={3}
+              data-testid="glossary-add-definition-input"
             />
+          </FormField>
+          {domainsEnabled && (
+            <FormField size="long" help={t("glossaryTab.domainsHint")}>
+              <MultiSelect
+                label={t("glossaryTab.domainsLabel")}
+                data={addDomainOptions}
+                value={addDomains}
+                onChange={setAddDomains}
+                data-testid="glossary-add-domains-input"
+                required
+              />
+            </FormField>
           )}
           {addError && (
-            <Alert color="red" data-testid="glossary-add-error">
-              {addError}
-            </Alert>
+            <FormField size="full">
+              <Alert color="red" data-testid="glossary-add-error">
+                {addError}
+              </Alert>
+            </FormField>
           )}
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setAddOpen(false)}>
-              {t("glossaryTab.cancel")}
-            </Button>
-            <Button
-              onClick={() => void handleCreate()}
-              loading={addSaving}
-              disabled={!addName.trim() || (domainsEnabled && addDomains.length === 0)}
-              data-testid="glossary-add-save-btn"
-            >
-              {t("glossaryTab.create")}
-            </Button>
-          </Group>
-        </Stack>
+          {/* Create keeps its word, first; Cancel follows. */}
+          <FormFooter
+            onCancel={() => setAddOpen(false)}
+            action={
+              <Button
+                onClick={() => void handleCreate()}
+                loading={addSaving}
+                disabled={!addName.trim() || (domainsEnabled && addDomains.length === 0)}
+                data-testid="glossary-add-save-btn"
+              >
+                {t("glossaryTab.create")}
+              </Button>
+            }
+          />
+        </FormLayout>
       </Modal>
     </Stack>
   );

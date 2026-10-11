@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "不早于",
+    "mailSinceHelp": "留空表示读取任何日期的邮件。",
     "description": "描述",
     "descriptionPlaceholder": "此数据源的简要描述",
     "host": "主机",

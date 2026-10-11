@@ -26,6 +26,7 @@ import {
   useKaggleTokenValidLazy,
   useStageKaggleDataset,
 } from "../../hooks/useAdminQueries";
+import { FormField } from "../../components/form/FormLayout";
 
 // REQ-1783: Kaggle's own dataset search requires auth, so the form cannot present token entry
 // and dataset search at once — the picker step only exists once step 1 validates live.
@@ -151,44 +152,46 @@ export function KaggleFormSection({ sourceIdHint, onSourcesRegistered }: KaggleF
 
   return (
     <>
-      <TextInput
-        required
-        label={t("kaggleFormSection.tokenLabel")}
-        description={t("kaggleFormSection.tokenDescription")}
-        value={token}
-        onChange={(e) => {
-          setToken(e.target.value);
-          setStep("token");
-        }}
-        placeholder={t("kaggleFormSection.tokenPlaceholder")}
-        style={{ gridColumn: "1 / -1" }}
-        data-testid="kaggle-token-input"
-      />
-      <Group style={{ gridColumn: "1 / -1" }} gap="sm" align="center">
-        <Button
-          type="button"
-          onClick={handleValidate}
-          loading={validating}
-          disabled={!token.trim()}
-          data-testid="kaggle-validate-token-button"
-        >
-          {t("kaggleFormSection.validateButton")}
-        </Button>
-        {step === "picker" && (
-          <Text size="sm" c="teal" data-testid="kaggle-token-valid">
-            {t("kaggleFormSection.tokenValid")}
-          </Text>
-        )}
-        {tokenError && (
-          <Alert color="red" variant="light" py={4} px="sm" data-testid="kaggle-token-error">
-            {tokenError}
-          </Alert>
-        )}
-      </Group>
+      <FormField hint={t("kaggleFormSection.tokenDescription")} size="long">
+        <TextInput
+          required
+          label={t("kaggleFormSection.tokenLabel")}
+          value={token}
+          onChange={(e) => {
+            setToken(e.target.value);
+            setStep("token");
+          }}
+          placeholder={t("kaggleFormSection.tokenPlaceholder")}
+          data-testid="kaggle-token-input"
+        />
+      </FormField>
+      <FormField size="full">
+        <Group gap="sm" align="center">
+          <Button
+            type="button"
+            onClick={handleValidate}
+            loading={validating}
+            disabled={!token.trim()}
+            data-testid="kaggle-validate-token-button"
+          >
+            {t("kaggleFormSection.validateButton")}
+          </Button>
+          {step === "picker" && (
+            <Text size="sm" c="teal" data-testid="kaggle-token-valid">
+              {t("kaggleFormSection.tokenValid")}
+            </Text>
+          )}
+          {tokenError && (
+            <Alert color="red" variant="light" py={4} px="sm" data-testid="kaggle-token-error">
+              {tokenError}
+            </Alert>
+          )}
+        </Group>
+      </FormField>
 
       {step === "picker" && (
         <>
-          <div style={{ gridColumn: "1 / -1" }}>
+          <FormField size="long">
             <Combobox
               store={combobox}
               onOptionSubmit={(val) => {
@@ -238,27 +241,31 @@ export function KaggleFormSection({ sourceIdHint, onSourcesRegistered }: KaggleF
                 </ScrollArea.Autosize>
               </Combobox.Dropdown>
             </Combobox>
-          </div>
+          </FormField>
 
           {selectedRef && (
-            <Group style={{ gridColumn: "1 / -1" }} gap="sm" align="center">
-              <Text size="sm" data-testid="kaggle-selected-dataset">
-                {t("kaggleFormSection.selectedDataset", { ref: selectedRef })}
-              </Text>
-              <Button
-                type="button"
-                onClick={handleConfirmDataset}
-                loading={registering}
-                data-testid="kaggle-register-button"
-              >
-                {t("kaggleFormSection.registerButton")}
-              </Button>
-            </Group>
+            <FormField size="full">
+              <Group gap="sm" align="center">
+                <Text size="sm" data-testid="kaggle-selected-dataset">
+                  {t("kaggleFormSection.selectedDataset", { ref: selectedRef })}
+                </Text>
+                <Button
+                  type="button"
+                  onClick={handleConfirmDataset}
+                  loading={registering}
+                  data-testid="kaggle-register-button"
+                >
+                  {t("kaggleFormSection.registerButton")}
+                </Button>
+              </Group>
+            </FormField>
           )}
           {registerError && (
-            <Alert color="red" variant="light" py={4} px="sm" data-testid="kaggle-register-error">
-              {registerError}
-            </Alert>
+            <FormField size="full">
+              <Alert color="red" variant="light" py={4} px="sm" data-testid="kaggle-register-error">
+                {registerError}
+              </Alert>
+            </FormField>
           )}
         </>
       )}

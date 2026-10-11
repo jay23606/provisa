@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Badge, Button, Group, PasswordInput, Radio, Stack, Text } from "@mantine/core";
 import { fetchOrgEncryption, setOrgEncryption, type OrgEncryptionState } from "../../api/admin";
+import { FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 /**
  * REQ-1574: the org's own encryption key — set it, rotate it, never see it.
@@ -63,7 +64,7 @@ export function OrgEncryptionTab() {
   if (!s) return <Text>{t("orgEncryptionTab.loading")}</Text>;
 
   return (
-    <Stack gap="md" maw={720} data-testid="org-encryption">
+    <Stack gap="md" data-testid="org-encryption">
       <Text c="dimmed" size="sm">
         {t("orgEncryptionTab.intro")}
       </Text>
@@ -117,22 +118,25 @@ export function OrgEncryptionTab() {
         </Stack>
       </Radio.Group>
 
-      {mode === "supply" && (
-        <PasswordInput
-          label={t("orgEncryptionTab.keyLabel")}
-          description={t("orgEncryptionTab.keyHelp")}
-          value={keyB64}
-          autoComplete="new-password"
-          onChange={(e) => setKeyB64(e.currentTarget.value)}
-          data-testid="org-encryption-key-input"
-        />
-      )}
+      <FormLayout>
+        {mode === "supply" && (
+          <FormField help={t("orgEncryptionTab.keyHelp")} size="long">
+            <PasswordInput
+              label={t("orgEncryptionTab.keyLabel")}
+              value={keyB64}
+              autoComplete="new-password"
+              onChange={(e) => setKeyB64(e.currentTarget.value)}
+              data-testid="org-encryption-key-input"
+            />
+          </FormField>
+        )}
+      </FormLayout>
 
       <Alert color="yellow" variant="light">
         {t("orgEncryptionTab.rotationNote")}
       </Alert>
 
-      <Group gap="sm" align="center">
+      <FormFooter>
         <Button
           onClick={apply}
           loading={saving}
@@ -143,7 +147,7 @@ export function OrgEncryptionTab() {
         </Button>
         {msg && <Text c="green">{msg}</Text>}
         {error && <Text c="red">{error}</Text>}
-      </Group>
+      </FormFooter>
     </Stack>
   );
 }

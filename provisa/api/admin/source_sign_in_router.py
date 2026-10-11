@@ -93,6 +93,43 @@ async def _source_exists(source_id: str) -> bool:
         return found.fetchone() is not None
 
 
+def _state_db():
+    """The organisation's state store, where an owner's approval is kept beside what the
+    source's reads reached."""
+    from provisa.api.app import state
+
+    assert state.tenant_db is not None, "a running deployment has its organisation's state store"
+    return state.tenant_db
+
+
+def _keep_grant(org_id: str):
+    """The approval goes to the organisation's state store under the lock the source's renewals
+    take (``oauth_store``), so a sign-in and a renewal never write one source's at once."""
+
+    async def keep(source_id: str, account: str, refresh_token: str) -> None:
+        from provisa.api_source import oauth_store
+        from provisa.core.config_loader import load_control_plane
+        from provisa.core.config_location import config_path_str
+
+        await oauth_store.store_refresh_token(
+            _state_db(),
+            load_control_plane(config_path_str()).resolved_platform_url(),
+            org_id,
+            source_id=source_id,
+            account=account,
+            refresh_token=refresh_token,
+        )
+
+    return keep
+
+
+async def _forget_grant(source_id: str, account: str) -> None:
+    from provisa.federation import mail_sync_state
+
+    async with _state_db().acquire() as conn:
+        await mail_sync_state.forget_grant(conn, source_id, account)
+
+
 def _holds_org_settings(request: Request) -> bool:
     """Whether the caller may enter the organisation's client (Admin > Email)."""
     from provisa.api.admin.capabilities import has_capability_request
@@ -100,33 +137,14 @@ def _holds_org_settings(request: Request) -> bool:
     return has_capability_request(request, "org_settings")
 
 
-def _store_refresh_token(org_id: str, actor: str | None):
-    """The refresh token goes to the vault under the lock the source's refreshes take
-    (``oauth_store``), so a sign-in and a refresh never write one source's token at once."""
-
-    async def store(source_id: str, secret_name: str, refresh_token: str) -> str:
-        from provisa.api_source import oauth_store
-        from provisa.core.config_loader import load_control_plane
-        from provisa.core.config_location import config_path_str
-
-        await oauth_store.store_refresh_token(
-            _admin_db(),
-            load_control_plane(config_path_str()).resolved_platform_url(),
-            org_id,
-            source_id=source_id,
-            secret_name=secret_name,
-            refresh_token=refresh_token,
-            actor=actor,
-        )
-        return f"${{secret:{secret_name}}}"
-
-    return store
-
-
 @router.get("/status")
-async def status(request: Request, kind: str) -> dict:
+async def status(
+    request: Request, kind: str, source_id: str | None = None, account: str | None = None
+) -> dict:
     """Whether the caller's organisation has entered a client for ``kind``, so the Sources
-    form can offer the sign-in or say what is missing and who sets it."""
+    form can offer the sign-in or say what is missing and who sets it. With ``source_id`` and
+    ``account``, also whether that mailbox's owner has signed in, and when: the form shows it
+    as "Connected as ... on ..." and never holds the approval itself."""
     require_capability_request(request, "source_registration")
     from provisa.core.request_context import require_current_org
 
@@ -134,8 +152,17 @@ async def status(request: Request, kind: str) -> dict:
         configured = await mail_platforms.read(_admin_db(), require_current_org(), kind)
     except MailPlatformRefused as refused:
         raise ApiError(refused.status, refused.code, str(refused), None, **refused.params) from None
+    connected_at = None
+    if source_id and account:
+        from provisa.federation import mail_sync_state
+
+        async with _state_db().acquire() as conn:
+            connected_at = await mail_sync_state.granted_at(conn, source_id.strip(), account)
     return {
-        "configured": configured is not None,
+        "connected": connected_at is not None,
+        "connected_at": None if connected_at is None else connected_at.isoformat(),
+        # A client to sign in with; an entry may stand without one (organisation mailboxes).
+        "configured": configured is not None and configured.client_id is not None,
         "may_configure": _holds_org_settings(request),
         # Whether the administrator allows sources that read the organisation's mailboxes.
         "organisation_mailboxes": configured is not None and configured.organisation_mailboxes,
@@ -145,7 +172,6 @@ async def status(request: Request, kind: str) -> dict:
 @router.post("/start")
 async def start(request: Request, body: StartRequest) -> dict:
     require_capability_request(request, "source_registration")
-    from provisa.api.admin.schema_common import _forget_source_secret, source_mapping_secret_name
     from provisa.core.request_context import active_env, require_current_org
 
     org_id, env, user_id = require_current_org(), active_env(), _starter(request)
@@ -160,7 +186,7 @@ async def start(request: Request, body: StartRequest) -> dict:
             org_id=org_id,
             env=env,
             source_exists=_source_exists,
-            forget_secret=_forget_source_secret,
+            forget_grant=_forget_grant,
         )
         started = await source_sign_in.start(
             _admin_db(),
@@ -171,11 +197,7 @@ async def start(request: Request, body: StartRequest) -> dict:
             kind_id=body.kind,
             account=body.account.strip(),
             scopes=body.scopes,
-            client_id=client.client_id,
-            client_secret_name=mail_platforms.secret_name(body.kind),
-            refresh_token_name=source_mapping_secret_name(
-                body.source_id.strip(), "refresh_token", env
-            ),
+            client_id=client.client,
             public_address=_public_address(),
             settings=client.settings,
         )
@@ -203,12 +225,13 @@ async def complete(request: Request, body: CompleteRequest) -> dict:
             state=body.state,
             code=body.code,
             error=body.error,
-            store_refresh_token=_store_refresh_token(org_id, _caller_user_id(request)),
+            keep_grant=_keep_grant(org_id),
         )
     except SignInRefused as refused:
         raise _refusal(refused) from None
     return {
         "source_id": done.source_id,
         "account": done.account,
-        "refresh_token": done.refresh_token,
+        # The approval is sign-in state, kept for the source's reads; it is in no answer.
+        "connected": True,
     }

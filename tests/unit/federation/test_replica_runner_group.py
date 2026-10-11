@@ -393,3 +393,97 @@ async def test_a_table_answered_before_the_read_keeps_its_own_reason_when_the_re
     assert (
         records[_key(1)].last_error == records[_key(3)].last_error == "the source stopped answering"
     )
+
+
+# --- a source is told its build completed: once, and only when every table did ---
+
+
+def _told():
+    calls: list[str] = []
+
+    async def committed() -> None:
+        calls.append("kept")
+
+    return calls, committed
+
+
+async def test_a_group_whose_tables_all_completed_tells_its_source_once(plane, tmp_path):
+    url, connect = plane
+    db = connect()
+    await _request(db, *GROUP)
+    calls, committed = _told()
+    outcome = BuildOutcome(rows_copied=7, method="stream_batches", committed=committed)
+    # One table's copy was found unchanged: it completed all the same.
+    same = BuildOutcome(rows_copied=7, method="stream_batches", changed=False, committed=committed)
+    reads = _Reads(per_key={_key(1): outcome, _key(2): same, _key(3): outcome})
+    node = _node("a", url, db, tmp_path, reads)
+    await asyncio.wait_for(node.runner.run_pass(), 10)
+    await asyncio.wait_for(node.drain(), 10)
+    assert calls == ["kept"]  # one read, told once -- not once for each table
+
+
+async def test_a_group_with_a_table_that_failed_does_not_tell_its_source(plane, tmp_path):
+    url, connect = plane
+    db = connect()
+    await _request(db, *GROUP)
+    calls, committed = _told()
+    outcome = BuildOutcome(rows_copied=7, method="stream_batches", committed=committed)
+    reads = _Reads(
+        per_key={_key(1): outcome, _key(2): LookupError("not declared"), _key(3): outcome}
+    )
+    node = _node("a", url, db, tmp_path, reads)
+    await asyncio.wait_for(node.runner.run_pass(), 10)
+    await asyncio.wait_for(node.drain(), 10)
+    # What the source would keep must not run ahead of a copy that was not made.
+    assert calls == []
+
+
+async def test_a_read_that_failed_does_not_tell_its_source(plane, tmp_path):
+    url, connect = plane
+    db = connect()
+    await _request(db, *GROUP)
+    reads = _Reads(fail=RuntimeError("the source stopped answering"))
+    node = _node("a", url, db, tmp_path, reads)
+    await asyncio.wait_for(node.runner.run_pass(), 10)
+    await asyncio.wait_for(node.drain(), 10)
+    assert {r.build_state for r in (await _records(db)).values()} == {build_state.FAILED}
+
+
+async def test_a_source_that_cannot_keep_its_place_leaves_the_build_completed(plane, tmp_path):
+    url, connect = plane
+    db = connect()
+    await _request(db, *GROUP)
+
+    async def committed() -> None:
+        raise RuntimeError("the state store is away")
+
+    outcome = BuildOutcome(rows_copied=7, method="stream_batches", committed=committed)
+    reads = _Reads(per_key=dict.fromkeys(GROUP, outcome))
+    node = _node("a", url, db, tmp_path, reads)
+    await asyncio.wait_for(node.runner.run_pass(), 10)
+    await asyncio.wait_for(node.drain(), 10)
+    records = await _records(db)
+    assert {records[key].build_state for key in GROUP} == {build_state.IDLE}
+    # It is said on every table of the read, for the operator: a note of the build.
+    for key in GROUP:
+        assert records[key].build_notes == [
+            {"code": "replication.place_not_kept", "params": {"reason": "the state store is away"}}
+        ]
+
+
+async def test_a_table_built_alone_tells_its_source_when_it_completed(plane, tmp_path):
+    url, connect = plane
+    db = connect()
+    await _request(db, _key(9))
+    calls, committed = _told()
+    reads = _Reads()
+
+    async def build(key, progress):
+        reads.single.append(key)
+        return BuildOutcome(rows_copied=1, method="stream_batches", committed=committed)
+
+    reads.build = build
+    node = _node("a", url, db, tmp_path, reads)
+    await asyncio.wait_for(node.runner.run_pass(), 10)
+    await asyncio.wait_for(node.drain(), 10)
+    assert calls == ["kept"]

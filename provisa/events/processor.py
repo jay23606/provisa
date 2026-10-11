@@ -191,7 +191,7 @@ class TableProcessor(ABC):
         elif debounce_quiet > 0:
             if debounce_max_delay is None:
                 raise ValueError(
-                    f"{node}: REQ-963 live debounce (quiet>0) requires a max_delay staleness cap"
+                    f"{node}: live debounce (quiet>0) requires a max_delay staleness cap"
                 )
             self._deadline = LiveDebounce(quiet=debounce_quiet, max_delay=debounce_max_delay)
         else:
@@ -277,7 +277,12 @@ class TableProcessor(ABC):
                 probe=probe,
                 dependents=self._dependents_of(self.node),
                 probe_type=self.probe_type,
+                on_unchanged=self._on_unchanged(),
             )
+
+    def _on_unchanged(self) -> Callable[[], Awaitable[None]] | None:
+        """What an unchanged probe tells: nothing, for a node that keeps no copy to verify."""
+        return None
 
     # -- processor side (claim → handle → complete → re-post) ------------------
     async def process_pending(self, conn: Any) -> int | None:
@@ -520,12 +525,12 @@ class TableProcessor(ABC):
         window = self._deadline.window_for_instant(datetime.fromisoformat(as_of))
         if window is None:
             raise ValueError(
-                f"{self.node}: REQ-968 window regen — no calendar window exists for as_of {as_of}"
+                f"{self.node}: window regen — no calendar window exists for as_of {as_of}"
             )
         requested = forced_payload.get("window_id")
         if requested is not None and window.window_id != requested:
             raise ValueError(
-                f"{self.node}: REQ-968 window regen — as_of {as_of} resolves to window "
+                f"{self.node}: window regen — as_of {as_of} resolves to window "
                 f"{window.window_id!r}, not the requested {requested!r}"
             )
         return window
@@ -571,8 +576,7 @@ class TableProcessor(ABC):
         if result.trusted:
             return False
         ctx.warn(
-            f"REQ-961 outage: inputs not fresh-through {window.window_id}: "
-            f"{', '.join(result.outages)}"
+            f"outage: inputs not fresh-through {window.window_id}: {', '.join(result.outages)}"
         )
         try:
             async with conn.transaction():
@@ -619,6 +623,11 @@ class SourceTableProcessor(TableProcessor):
         # None is valid for a push-only (kafka/debezium) source that drains via consume_kafka and
         # never reaches handle; a poll/land source supplies the write-face callable.
         self._land = land  # async (pending, *, prior_hash) -> (event_type, payload, hash) | None
+
+    def _on_unchanged(self) -> Callable[[], Awaitable[None]] | None:
+        # REQ-855: a source whose copy is a replica has it stamped verified (handlers
+        # make_source_build's ``verified``); a land that keeps no replica record has nothing to.
+        return getattr(self._land, "verified", None)
 
     async def handle(
         self, pending: list[dict], *, prior_hash: str | None, ctx: NodeContext | None = None

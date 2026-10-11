@@ -24,12 +24,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from provisa.api.mcp import tools
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
 
 def _state():
-    return SimpleNamespace(contexts={"analyst": object()}, roles={"analyst": {"id": "analyst"}})
+    return RoleState(contexts={"analyst": object()}, roles={"analyst": {"id": "analyst"}})
 
 
 async def test_list_native_tables_reads_source_directly():

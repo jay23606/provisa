@@ -135,7 +135,7 @@ class TestStreamedQueries:
         """Verify QueryOrders streams back all rows from the result set."""
         pb2, msg_cls = _make_pb2_with_descriptor("Orders", ["id", "amount"])
         state = _make_full_state("admin")
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         rows = [[i, float(i * 100)] for i in range(1, 6)]
         fake_result = SimpleNamespace(column_names=["id", "amount"], rows=rows)
@@ -158,7 +158,7 @@ class TestStreamedQueries:
         """An empty result set yields no messages."""
         pb2, msg_cls = _make_pb2_with_descriptor("Orders", ["id", "amount"])
         state = _make_full_state("admin")
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         fake_result = SimpleNamespace(column_names=["id", "amount"], rows=[])
 
@@ -179,7 +179,7 @@ class TestMutationsViaGrpc:
         """Insert RPCs currently return UNIMPLEMENTED."""
         pb2, _ = _make_pb2_with_descriptor("Orders", ["id", "amount"])
         state = _make_full_state("admin")
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         context = _mock_context("admin")
         request = MagicMock()
@@ -194,7 +194,7 @@ class TestMutationsViaGrpc:
         """Insert abort message includes the correct table name."""
         pb2, _ = _make_pb2_with_descriptor("Customers", ["id", "name"])
         state = _make_full_state("admin")
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         context = _mock_context("admin")
         await servicer._handle_insert(MagicMock(), context, "Customers")
@@ -209,7 +209,7 @@ class TestRoleBasedFieldFiltering:
         """Admin role descriptor includes all fields."""
         pb2, msg_cls = _make_pb2_with_descriptor("Orders", ["id", "amount", "secret_code"])
         state = _make_full_state("admin")
-        ProvisaServicer(state, pb2, MagicMock())  # constructs role-filtered descriptors
+        ProvisaServicer(state, pb2)  # constructs role-filtered descriptors
 
         descriptor = msg_cls.DESCRIPTOR
         field_names = [f.name for f in descriptor.fields if not f.message_type]
@@ -219,7 +219,7 @@ class TestRoleBasedFieldFiltering:
         """Viewer role descriptor excludes secret fields."""
         pb2, msg_cls = _make_pb2_with_descriptor("Orders", ["id", "amount"])
         state = _make_full_state("viewer")
-        ProvisaServicer(state, pb2, MagicMock())  # constructs role-filtered descriptors
+        ProvisaServicer(state, pb2)  # constructs role-filtered descriptors
 
         descriptor = msg_cls.DESCRIPTOR
         field_names = [f.name for f in descriptor.fields if not f.message_type]
@@ -236,7 +236,7 @@ class TestRoleBasedFieldFiltering:
                 "viewer": {"id": "viewer", "capabilities": []},
             },
         )
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         fake_result = SimpleNamespace(column_names=["id"], rows=[[42]])
 
@@ -262,7 +262,7 @@ class TestRoleBasedFieldFiltering:
         """A role not in state.schemas aborts with NOT_FOUND."""
         pb2, _ = _make_pb2_with_descriptor("Orders", ["id"])
         state = _make_full_state("admin")
-        servicer = ProvisaServicer(state, pb2, MagicMock())
+        servicer = ProvisaServicer(state, pb2)
 
         context = _mock_context("hacker")
         context.abort.side_effect = grpc.aio.AbortError(

@@ -64,6 +64,13 @@
     "writesTable": "Writes table",
     "writesTableHint": "The registered table this command changes. After each call, cached results and materialized views over it are refreshed.",
     "routinesOffered_one": "{{count}} routine in this schema is on offer",
-    "routinesOffered_other": "{{count}} routines in this schema are on offer"
+    "routinesOffered_other": "{{count}} routines in this schema are on offer",
+    "outputColumnsTitle": "output dataset columns",
+    "addOutputColumn": "add output column",
+    "removeOutputColumn": "remove output column {{name}}",
+    "inputColumnsTitle": "input dataset columns",
+    "addInputColumn": "add input column",
+    "removeInputColumn": "remove input column {{name}}",
+    "datasetColumnPlaceholder": "column"
   }
 }

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 from typing import Any
 
 META_PREFIX = "meta:"
@@ -120,10 +121,11 @@ def _rls(state: Any, members: list[dict], tables: list[dict]) -> Any:
         terms: list[str] = []
         lifted = False
         for m in members:
-            reads = any(tm.table_id == t["id"] for tm in state.contexts[m["id"]].tables.values())
+            member = state.surfaces[m["id"]]  # one snapshot: context and filters of one build
+            reads = any(tm.table_id == t["id"] for tm in member.context.tables.values())
             if not reads:
                 continue
-            ctx = state.rls_contexts[m["id"]]
+            ctx = member.rls
             expr = ctx.rules.get(t["id"]) or ctx.domain_rules.get(t.get("domain_id") or "")
             if expr is None:
                 lifted = True
@@ -154,44 +156,97 @@ def _rls(state: Any, members: list[dict], tables: list[dict]) -> Any:
     return RLSContext(rules=rules, domain_rules={}, action_rules=actions)
 
 
-def ensure_meta_role(state: Any, members: list[str]) -> str:
-    """The meta-role acting as ``members`` (roles the caller holds, two or more), built on first
-    use in this model generation. A rebuild of the model drops it with every role it no longer
-    holds, so the next use builds it again from the rebuilt members."""
+def meta_masks(rules: dict, meta_id: str, member_ids: list[str] | tuple[str, ...]) -> dict:
+    """The meta-role's masks under ``rules`` ({(table id, role id): {column: rule}}): a column
+    is masked for it only where it is masked for every member."""
+    masks: dict[Any, dict[str, Any]] = {}
+    for table_id in {tid for (tid, role_id) in rules if role_id in member_ids}:
+        per_member = [rules.get((table_id, m)) or {} for m in member_ids]
+        common = set(per_member[0]).intersection(*per_member[1:])
+        if common:
+            masks[(table_id, meta_id)] = {c: per_member[0][c] for c in common}
+    return masks
+
+
+def with_meta_masks(state: Any, rules: dict, role_ids: set[str]) -> dict:
+    """``rules`` — a rebuild's masking rules for the roles the control plane holds — with the
+    masks of every meta-role the runtime knows whose members are all among ``role_ids``.
+
+    A meta-role outlives a rebuild (:func:`rebuild_meta_roles`), and requests act as it while
+    the rebuild runs. Its masks are part of what the rebuild publishes, in the same assignment
+    as its members': there is no moment at which it is served with none."""
+    for meta_id, member_ids in list(state.meta_roles.items()):
+        if all(m in role_ids for m in member_ids):
+            rules.update(meta_masks(rules, meta_id, member_ids))
+    return rules
+
+
+def _build(state: Any, meta_id: str, member_ids: list[str]) -> None:
+    """Build the meta-role from its members as this model generation has them, and install it:
+    its masks, its role and its surface (one assignment — a request acting as it reads the
+    surface this replaces or this one)."""
     from provisa.api.app_loaders import register_role_surface
     from provisa.security.inheritance import expand_grants
 
+    member_roles = [state.roles[m] for m in member_ids]
+    inputs = state.role_build_inputs
+    chains = {meta_id: [meta_id, *member_ids]}
+    # Inheritance with several parents: every grant to a member reaches the child.
+    for t in inputs["tables"]:
+        expand_grants(t.get("columns") or [], chains)
+    expand_grants(inputs["metrics"], chains)
+    expand_grants(inputs["functions"], chains)
+    expand_grants(inputs["webhooks"], chains)
+    # A column is masked for the child only where it is masked for every member: a member in
+    # its unmasked_to puts the child there too (expand_grants above).
+    masks = meta_masks(state.masking_rules, meta_id, member_ids)
+    rls = _rls(state, member_roles, inputs["tables"])
+    role = _role(member_roles, meta_id)
+    state.masking_rules = {**state.masking_rules, **masks}
+    state.roles[meta_id] = role
+    register_role_surface(state, role, rls)
+    state.meta_roles[meta_id] = tuple(member_ids)
+
+
+def ensure_meta_role(state: Any, members: list[str]) -> str:
+    """The meta-role acting as ``members`` (roles the caller holds, two or more), built on first
+    use. A rebuild of the model rebuilds it from the rebuilt members while requests may still be
+    acting as it (:func:`rebuild_meta_roles`); each use is recorded so a rebuild knows that."""
     meta_id = meta_role_id(members)
-    if meta_id in state.roles and state.meta_roles.get(meta_id) is not None:
-        return meta_id
-    with _LOCK:
-        if meta_id in state.roles and state.meta_roles.get(meta_id) is not None:
-            return meta_id
-        member_ids = sorted(set(members))
-        member_roles = [state.roles[m] for m in member_ids]
-        inputs = state.role_build_inputs
-        chains = {meta_id: [meta_id, *member_ids]}
-        # Inheritance with several parents: every grant to a member reaches the child.
-        for t in inputs["tables"]:
-            expand_grants(t.get("columns") or [], chains)
-        expand_grants(inputs["metrics"], chains)
-        expand_grants(inputs["functions"], chains)
-        expand_grants(inputs["webhooks"], chains)
-        # A column is masked for the child only where it is masked for every member: a member in
-        # its unmasked_to puts the child there too (expand_grants above).
-        masks: dict[Any, dict[str, Any]] = {}
-        for t in inputs["tables"]:
-            per_member = [state.masking_rules.get((t["id"], m)) or {} for m in member_ids]
-            common = set(per_member[0]).intersection(*per_member[1:])
-            if common:
-                masks[(t["id"], meta_id)] = {c: per_member[0][c] for c in common}
-        rls = _rls(state, member_roles, inputs["tables"])
-        role = _role(member_roles, meta_id)
-        state.masking_rules = {**state.masking_rules, **masks}
-        state.roles[meta_id] = role
-        register_role_surface(state, role, rls)
-        state.meta_roles[meta_id] = tuple(member_ids)
+    if meta_id not in state.roles or state.meta_roles.get(meta_id) is None:
+        with _LOCK:
+            if meta_id not in state.roles or state.meta_roles.get(meta_id) is None:
+                _build(state, meta_id, sorted(set(members)))
+    state.meta_resolved_at[meta_id] = time.monotonic()
     return meta_id
+
+
+def rebuild_meta_roles(state: Any, role_ids: set[str]) -> None:
+    """After a rebuild has registered the roles the control plane holds (``role_ids``): bring
+    the runtime's meta-roles to the new model generation.
+
+    A request resolves the role it acts as once, and then runs as it — one statement after
+    another, for as long as its transport's request timeout allows. Dropping a meta-role at a
+    rebuild therefore failed requests in flight: their next statement found no role (#216). A
+    meta-role that a request may still be acting as — one resolved within the longest request
+    timeout — is REBUILT here from its rebuilt members, its surface replaced in one assignment.
+    One whose members are no longer all held, or that nothing has resolved for that long, is
+    removed; a later use builds it again.
+    """
+    from provisa.api.app_loaders import _drop_data_surface
+    from provisa.core.limits import longest_request_timeout
+
+    in_use_since = time.monotonic() - longest_request_timeout()
+    with _LOCK:
+        for meta_id, member_ids in list(state.meta_roles.items()):
+            held = all(m in role_ids for m in member_ids)
+            if held and state.meta_resolved_at.get(meta_id, float("-inf")) >= in_use_since:
+                _build(state, meta_id, list(member_ids))
+                continue
+            state.meta_roles.pop(meta_id, None)
+            state.meta_resolved_at.pop(meta_id, None)
+            state.roles.pop(meta_id, None)
+            _drop_data_surface(state, meta_id)
 
 
 def resolve_requested_role(state: Any, permitted: set[str], requested: str) -> str:

@@ -25,6 +25,7 @@ from provisa.api.data.subscribe import (
     _sse_generator,
 )
 from provisa.live.governed import GovernanceKey
+from tests.role_state import RoleState
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +326,7 @@ class TestSubscribeEndpoint:
         from provisa.core.request_context import reset_current_org, set_current_org
 
         meta = SimpleNamespace(table_id=7, source_id="pg", domain_id="sales")
-        state = SimpleNamespace(
+        state = RoleState(
             tenant_db=None,
             roles={"analyst": {}},
             view_context=SimpleNamespace(tables={"orders": meta}, pk_columns={7: ["id"]}),

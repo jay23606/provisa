@@ -9,9 +9,10 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Group, Table, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Table, Text } from "@mantine/core";
 import { Download } from "lucide-react";
 import type { ColumnProfile } from "./types";
+import { Tip } from "../Tip";
 
 interface ProfilePanelProps {
   profile: ColumnProfile[];
@@ -46,7 +47,7 @@ export function ProfilePanel({ profile, resultRows, handleDownloadProfile }: Pro
           background: "var(--surface)",
         }}
       >
-        <Tooltip label={t("profilePanel.downloadJsonLabel")}>
+        <Tip text={t("profilePanel.downloadJsonLabel")} named>
           <ActionIcon
             variant="subtle"
             size="sm"
@@ -56,30 +57,30 @@ export function ProfilePanel({ profile, resultRows, handleDownloadProfile }: Pro
           >
             <Download size={14} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
       </Group>
       <div style={{ flex: 1, overflow: "auto" }}>
         <Table style={{ fontSize: "0.75rem" }}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t("profilePanel.colColumn")}</Table.Th>
-              <Table.Th title={t("profilePanel.colNullsTitle")}>
-                {t("profilePanel.colNulls")}
-              </Table.Th>
-              <Table.Th title={t("profilePanel.colBlanksTitle")}>
-                {t("profilePanel.colBlanks")}
-              </Table.Th>
-              <Table.Th title={t("profilePanel.colDistinctTitle")}>
-                {t("profilePanel.colDistinct")}
-              </Table.Th>
-              <Table.Th title={t("profilePanel.colConstantTitle")}>
-                {t("profilePanel.colConstant")}
-              </Table.Th>
+              <Tip text={t("profilePanel.colNullsTitle")}>
+                <Table.Th>{t("profilePanel.colNulls")}</Table.Th>
+              </Tip>
+              <Tip text={t("profilePanel.colBlanksTitle")}>
+                <Table.Th>{t("profilePanel.colBlanks")}</Table.Th>
+              </Tip>
+              <Tip text={t("profilePanel.colDistinctTitle")}>
+                <Table.Th>{t("profilePanel.colDistinct")}</Table.Th>
+              </Tip>
+              <Tip text={t("profilePanel.colConstantTitle")}>
+                <Table.Th>{t("profilePanel.colConstant")}</Table.Th>
+              </Tip>
               <Table.Th>{t("profilePanel.colMin")}</Table.Th>
               <Table.Th>{t("profilePanel.colMax")}</Table.Th>
-              <Table.Th title={t("profilePanel.colMeanTitle")}>
-                {t("profilePanel.colMean")}
-              </Table.Th>
+              <Tip text={t("profilePanel.colMeanTitle")}>
+                <Table.Th>{t("profilePanel.colMean")}</Table.Th>
+              </Tip>
               <Table.Th>{t("profilePanel.colTopValues")}</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -135,11 +136,13 @@ export function ProfilePanel({ profile, resultRows, handleDownloadProfile }: Pro
                     }}
                   >
                     {isConstant ? (
-                      <span title={String(p.constantValue)}>
-                        {t("profilePanel.constantYes", {
-                          value: String(p.constantValue).slice(0, 12),
-                        })}
-                      </span>
+                      <Tip text={String(p.constantValue)}>
+                        <span>
+                          {t("profilePanel.constantYes", {
+                            value: String(p.constantValue).slice(0, 12),
+                          })}
+                        </span>
+                      </Tip>
                     ) : (
                       <span style={{ color: "var(--text-muted)" }}>
                         {t("profilePanel.emptyValue")}

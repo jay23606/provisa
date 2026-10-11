@@ -16,7 +16,6 @@ process was restarted, because these code paths never looked at org_settings at 
 
 from __future__ import annotations
 
-import types
 
 import pytest
 from provisa.core.database import create_engine_from_url
@@ -26,6 +25,7 @@ from provisa.api.mcp import tools as mcp_tools
 from provisa.core.database import Database
 from provisa.core.org_settings import write_org_overrides
 from provisa.core.schema_org import org_settings
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -41,9 +41,7 @@ async def tenant_db(tmp_path):
 
 
 def _state(tenant_db):
-    return types.SimpleNamespace(
-        model_db=tenant_db, tenant_db=tenant_db, contexts={"analyst": object()}
-    )
+    return RoleState(model_db=tenant_db, tenant_db=tenant_db, contexts={"analyst": object()})
 
 
 class TestEmbeddingModelHonorsOrgOverride:

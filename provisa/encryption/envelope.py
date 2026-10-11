@@ -214,9 +214,7 @@ class RingEnvelopeEncryption(EncryptionService):  # REQ-1574
         key_id, wrapped, iv, ciphertext = _split(blob)
         named = key_id if key_id is not None else self._v1_key_id
         if named is None:
-            raise ValueError(
-                "envelope blob names no key and this ring adopts no unnamed blobs (REQ-1574)"
-            )
+            raise ValueError("envelope blob names no key and this ring adopts no unnamed blobs")
         provider = self._providers.get(named)
         if provider is None:
             raise ValueError(f"envelope blob names key {named!r}, which this ring does not hold")

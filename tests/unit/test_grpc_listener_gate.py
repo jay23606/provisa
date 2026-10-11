@@ -30,6 +30,7 @@ import types
 from pathlib import Path
 
 import pytest
+from tests.role_state import RoleState
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -44,10 +45,6 @@ def startup(monkeypatch):
         return types.SimpleNamespace()
 
     monkeypatch.setattr("provisa.grpc.server.start_grpc_server", _start_grpc)
-    monkeypatch.setattr(
-        "provisa.grpc.schema_gen.compile_proto",
-        lambda proto, out: ("pb2.py", "pb2_grpc.py"),
-    )
     return started
 
 
@@ -103,7 +100,7 @@ async def test_a_cluster_with_no_registered_tables_starts_no_grpc_listener(start
 
     monkeypatch.setattr(
         "provisa.api.app.state",
-        types.SimpleNamespace(wire_proto=None, server_cfg={}, proto_files={}),
+        RoleState(wire_proto=None, server_cfg={}, proto_files={}),
         raising=False,
     )
     # Every other server in _start_servers is best-effort and logs on failure; the assertion is

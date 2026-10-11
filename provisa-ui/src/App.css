@@ -70,6 +70,30 @@ body {
   display: flex;
   gap: 0.75rem;
   flex: 1;
+  /* The bar always fits its window: the links give way first (they may shrink below their
+     content), and when one line cannot hold them they take a second, under the first. The
+     controls at the end keep their size and stay on the first line. */
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+.navbar-links a,
+.navbar-links .nav-group-label {
+  white-space: nowrap;
+}
+.navbar-brand,
+.navbar-role {
+  flex: 0 0 auto;
+}
+/* A laptop-width window: closer spacing holds every link on one line for longer. */
+@media (max-width: 90em) {
+  .navbar {
+    gap: 0.5rem;
+    padding-inline: 1rem;
+  }
+  .navbar-links {
+    gap: 0.125rem;
+  }
 }
 .navbar-links a {
   color: var(--text-muted);
@@ -552,18 +576,227 @@ main {
    * show above it. */
   overflow: auto;
 }
-/* The candidates block yields its height to the table and scrolls within what is left,
- * rather than being clipped by the page's overflow. min-height: 0 let the flex algorithm
- * squeeze an open form (Register Table/Source/Relationship) down to a sliver whenever the
- * table below it was tall — verified live: Schema/Table fields cut off mid-row, only
- * reachable by scrolling inside a barely-visible internal scrollport nobody would think to
- * look for. A generous floor guarantees the form a real, usable share of the viewport
- * before the table claims the rest; it can still shrink (and scroll internally) below that
- * on a genuinely short viewport. */
-.page-sticky-head > .page-aux {
-  flex: 0 1 auto;
-  min-height: min(60vh, 520px);
+/* A column's full definition in the hover on its name: label and value lines. */
+.column-definition {
+  margin: 0 0 0.25rem;
+  display: grid;
+  gap: 0.125rem;
+  font-size: 0.8rem;
+}
+.column-definition > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+}
+.column-definition dt {
+  color: var(--text-muted);
+}
+.column-definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A list with a detail panel on its right (SplitPane). The two share the height the page's head
+ * leaves; each scrolls by itself, so the list keeps its place while a long form is filled in. */
+.page-sticky-head > .split-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.split-pane {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.split-pane__list {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* A list table inside a card (an accordion panel, a settings card): it keeps every column, and
+ * what the card leaves it too little room for scrolls sideways instead of hanging out of the card. */
+.card-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+/* The list keeps every column: what the panel leaves it too little room for scrolls sideways. */
+.split-pane__list > .table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+}
+.split-pane__list > .table-scroll > table {
+  width: max-content;
+  min-width: 100%;
+}
+.split-pane__list > :not(.table-scroll) {
+  flex: 0 0 auto;
+}
+/* The rule between the two IS the grab handle: a 1px line inside a wider hit area. */
+.split-pane__handle {
+  flex: 0 0 9px;
+  margin-inline: -0.375rem;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+}
+.split-pane__handle > div {
+  width: 1px;
+  background: var(--border);
+}
+.split-pane__handle:focus-visible > div,
+.split-pane__handle:hover > div {
+  width: 3px;
+  background: var(--primary);
+}
+.split-pane__panel {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.split-pane__panel:focus {
+  outline: none;
+}
+/* Expanded, or on a row too narrow for both: the panel has the row and the list is put away. */
+.split-pane__panel[data-alone] {
+  flex: 1 1 auto;
+}
+.split-pane__list[hidden] {
+  display: none;
+}
+/* The pinned head: the title, the content's own actions, then expand and close. When the panel
+   is narrow the actions wrap under the title; nothing is clipped. */
+.split-pane__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.split-pane__title {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.split-pane__actions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.split-pane__actions:empty {
+  min-height: 1px;
+}
+/* A form's Save and Cancel in the head of the panel it is open in, in place of the view's
+ * actions: borderless and compact, beside the name, so the form has the panel's whole height. */
+.form-footer.form-footer--head {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+}
+.form-footer.form-footer--head .mantine-Button-root {
+  min-width: 0;
+}
+/* Both are borderless here; Save is the primary and is tinted as one. */
+.form-footer.form-footer--head .mantine-Button-root[data-primary]:not(:disabled) {
+  --button-color: var(--primary-hover);
+  color: var(--primary-hover);
+}
+/* What a form in the panel says of a save that did not go through: one line under the head. */
+.split-pane__notice {
+  flex: 0 0 auto;
+}
+.split-pane__notice:empty {
+  display: none;
+}
+.form-problem {
+  color: var(--mantine-color-red-text);
+  font-size: var(--mantine-font-size-sm);
+}
+.split-pane__notice > .form-problem {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--mantine-color-red-light);
+}
+.form-footer > .form-problem {
+  flex: 1 1 100%;
+}
+/* The actions a view puts in the head: one set. */
+.panel-action-set {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.split-pane__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.split-pane__body > * {
+  flex: 0 0 auto;
+}
+/* A view that wants the panel's whole height (a data grid). */
+.split-pane__body > .split-pane__fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* A row of the panel's own controls above a view (the way back from a preview). */
+.split-pane__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.split-pane__fill > :last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* A form's Save and Cancel stay at the foot of the panel while the form scrolls above them. */
+.split-pane__body .form-footer:last-child {
+  position: sticky;
+  bottom: -0.75rem;
+  margin-bottom: -0.75rem;
+  padding-block: 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 2;
+}
+/* A form in the panel is the panel's own content: it needs no card of its own inside it. */
+.split-pane__body > .form-card {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
+/* An open form (Register Table/Source/Relationship) takes its natural height and is never an
+ * inner scroll box: squeezed between the header and the table it hid its own first and last rows
+ * (the identity section, Save and Cancel). While a form is open the whole page scrolls instead,
+ * and the table beneath it is as tall as its rows. */
+.page-sticky-head > .page-aux {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.page-sticky-head:has(> .page-aux) {
+  overflow: auto;
+}
+.page-sticky-head:has(> .page-aux) > .table-scroll {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 .page-sticky-head .data-table {
   overflow: visible;
@@ -608,6 +841,16 @@ main {
   border-inline-end: 1px solid var(--border);
   font-weight: 400;
   color: var(--text);
+}
+/* The header cell holds the column's name and its filter row, so both stay at the top of the
+ * grid's own scroll area. border-collapse drops a sticky th's border; the divider is an inset
+ * shadow, as on the list pages. */
+.sql-results-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 .sql-results-table th:last-child,
 .sql-results-table td:last-child {
@@ -2210,4 +2453,316 @@ main {
   padding: 0.3rem 0.625rem;
   opacity: 0.45;
   cursor: default;
+}
+
+/* A form made of titled panels: the panels flow into columns by the width of the form itself
+   (two once it holds two of 22rem), and each panel lays its own fields out in rows. */
+.form-panels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-md);
+}
+.form-panels > * {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+/* What a field says about its value beneath the control (where it comes from, that a change
+   needs a restart, an action on it): the size and colour of a hint, its parts spaced, wrapping
+   inside the field's own width. */
+.form-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.5rem;
+  margin-top: calc(var(--mantine-spacing-xs) / 2);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.3;
+  color: var(--mantine-color-dimmed);
+}
+/* A tick with an action of its own: the action sits after the label, on the tick's line. */
+.form-field--action {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* REQ-1968: the shared form layout (components/form/FormLayout.tsx). A wrapping flex row, so the
+ * number of columns follows the container with no breakpoint, and the DOM order is the visual and
+ * keyboard order. A field's cell is at least its class minimum and at least its own label (field
+ * labels do not wrap), so the minimum holds the label in every locale; the control inside is capped
+ * at the class maximum. */
+.form-layout,
+.form-card.form-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+}
+.form-field {
+  flex: 0 1 var(--form-field-width);
+  /* An explicit minimum wins over max-width, so a label longer than the class maximum is held. */
+  min-width: min-content;
+  max-width: var(--form-field-max);
+}
+/* One rhythm: every field of a class has the same width, two short fields and the gap between
+ * them are as wide as a medium one, and two medium as a long one, so rows line up in columns.
+ * A field narrows towards its minimum only when the row cannot hold it. */
+.form-field--short {
+  --form-field-min: 7rem;
+  --form-field-width: 9.5rem;
+  --form-field-max: 9.5rem;
+}
+.form-field--medium {
+  --form-field-min: 14rem;
+  --form-field-width: 20rem;
+  --form-field-max: 20rem;
+}
+.form-field--long {
+  --form-field-min: 20rem;
+  --form-field-width: 41rem;
+  --form-field-max: 41rem;
+}
+.form-field--full {
+  --form-field-min: 100%;
+  --form-field-width: 100%;
+  --form-field-max: 100%;
+  min-width: 0;
+}
+.form-field .mantine-Input-wrapper,
+.form-field select,
+.form-field input:not([type="checkbox"]):not([type="radio"]) {
+  max-width: var(--form-field-max);
+}
+/* Ticks and switches sit together on a line of their own, each as wide as its label. */
+.form-checks {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+}
+.form-checks > .form-field {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+/* A checklist: one tick to a line. */
+.form-checks--column {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+/* The label and its (?) stay on one line; the (?) is the only thing beside the label. */
+.form-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.form-required {
+  color: var(--mantine-color-error);
+}
+.form-help {
+  display: inline-flex;
+  color: var(--text-muted);
+  cursor: help;
+}
+.form-help:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+/* Field labels stay on one line; a checkbox or switch sentence wraps. Below phone width the
+ * container can be narrower than a label, so there a label may wrap. */
+@media (min-width: 30em) {
+  .form-field:not(.form-field--full) .mantine-InputWrapper-label,
+  .form-field:not(.form-field--full) > label {
+    white-space: nowrap;
+  }
+}
+/* Grouped fields keep their class minimum (or their label) and move to the next line together. */
+.form-field-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.form-field-group--row {
+  flex: 1 1 100%;
+}
+/* A titled section of a form, and a layout nested in another, take the full row. */
+.form-section,
+.form-layout > .form-layout {
+  flex: 1 1 100%;
+}
+.form-field-group > .form-field {
+  flex: 0 0 auto;
+  width: var(--form-field-width);
+  /* never wider than its row: a long box in a dialog stops at the dialog's edge */
+  max-width: 100%;
+}
+/* An action at the end of a field (Connect, Copy, a preview) lines up with the field's control:
+ * below the label's line, whatever sits under the control. */
+.form-field-group > .mantine-Button-root,
+.form-field-group > .mantine-ActionIcon-root {
+  flex: 0 0 auto;
+  /* the label's line, and the hairline the control's own border adds */
+  margin-top: calc(var(--mantine-font-size-sm) * var(--mantine-line-height) + 3px);
+}
+/* A row whose boxes carry no label above them (one entry of a list): its action sits level with
+   the boxes, and the boxes share the row. */
+.form-field-group--bare {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.form-field-group--bare > .form-field {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+}
+.form-field-group--bare > .mantine-Button-root,
+.form-field-group--bare > .mantine-ActionIcon-root {
+  margin-top: 0;
+}
+.form-identifiers {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.form-identifiers__heading {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* The action row. flex-start is the logical start, so it is the right edge in a right-to-left
+ * language without a rule of its own. A button is as wide as its label, from one shared minimum. */
+.form-footer {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+}
+.form-footer .mantine-Button-root {
+  flex: 0 0 auto;
+  min-width: 5rem;
+}
+/* Transitional: a child a form has not wrapped in a FormField yet keeps a row to itself. Goes when
+ * the guard's not-yet-converted list is empty. */
+.form-layout
+  > :not(.form-field):not(.form-field-group):not(.form-identifiers):not(.form-footer):not(.form-layout):not(.form-checks):not(.form-section),
+.form-identifiers > :not(.form-field):not(.form-field-group):not(.form-identifiers__heading) {
+  flex: 1 1 100%;
+}
+/* A field whose control renders nothing (a region picker with no regions) takes no cell. */
+.form-field:empty {
+  display: none;
+}
+/* A native <select> in a form (kept native where the e2e specs drive it with selectOption) is given
+ * the look of the Mantine Select beside it: the same height, background, border, radius, chevron,
+ * focus ring and disabled state, in both themes. One class, `form-select`; the guard fails a raw
+ * <select> in a form without it. Its <label> reads as a Mantine label. */
+.form-layout .form-field > label:has(> select.form-select) {
+  display: block;
+  gap: 0;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  line-height: var(--mantine-line-height);
+  color: var(--mantine-color-text);
+  /* A Mantine label is an inline-block: its line box sits 2px lower and leaves 1px more above
+   * the control. Measured in the rendered form; without these the two kinds of field in one
+   * row are 3px apart. */
+  padding-top: 2px;
+}
+.form-layout select.form-select {
+  display: block;
+  margin-top: 1.1px;
+  width: 100%;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 2.25rem 0 0.75rem;
+  font-family: inherit;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 400;
+  line-height: calc(2.25rem - 2px);
+  color: var(--mantine-color-text);
+  background-color: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-gray-4);
+  border-radius: var(--mantine-radius-default);
+  box-shadow: none;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23868e96' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 9l4-4 4 4'/%3E%3Cpath d='M16 15l-4 4-4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  transition: border-color 100ms ease;
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select {
+  background-color: var(--mantine-color-dark-6);
+  border-color: var(--mantine-color-dark-4);
+}
+.form-layout select.form-select:hover:not(:disabled) {
+  border-color: var(--mantine-color-gray-4);
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select:hover:not(:disabled) {
+  border-color: var(--mantine-color-dark-4);
+}
+.form-layout select.form-select:focus,
+.form-layout select.form-select:focus-visible {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: none;
+}
+.form-layout select.form-select:disabled {
+  color: var(--mantine-color-dimmed);
+  background-color: var(--mantine-color-gray-1);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+[data-mantine-color-scheme="dark"] .form-layout select.form-select:disabled {
+  background-color: var(--mantine-color-dark-6);
+}
+
+/* The one tooltip surface (components/Tip.tsx): every hint and every help card is drawn with it.
+ * It is the card the ERD button of the Tables page has always shown -- the popover's own surface,
+ * border, radius, shadow and arrow -- not the dark label Mantine's Tooltip draws by default. */
+.tip-surface {
+  --tip-border: var(--mantine-color-gray-2);
+  --tooltip-bg: var(--mantine-color-white);
+  --tooltip-color: var(--mantine-color-text);
+  --tooltip-radius: var(--mantine-radius-default);
+  border: 1px solid var(--tip-border);
+  box-shadow: var(--mantine-shadow-md);
+  padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
+  font-size: var(--mantine-font-size-xs);
+  line-height: var(--mantine-line-height-sm);
+  /* a hint never takes the pointer: what is under it stays clickable */
+  pointer-events: none;
+}
+:where([data-mantine-color-scheme="dark"]) .tip-surface {
+  --tip-border: var(--mantine-color-dark-4);
+  --tooltip-bg: var(--mantine-color-dark-6);
+}
+.tip-surface--card {
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+/* the arrow carries the surface's border on its two outer edges, as the popover's does */
+.tip-surface .mantine-Tooltip-arrow {
+  background-color: inherit;
+  border: 1px solid var(--tip-border);
+  z-index: 1;
 }

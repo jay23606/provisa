@@ -229,7 +229,8 @@ async def test_a_compiled_hit_does_no_route_work(pipe):
         _PLAIN,
         "analyst",
         exec_params=[7],
-        state=SimpleNamespace(**{**vars(pipe.state), "model_db": None, "tenant_db": None}),
+        # A copy of the stand-in of the same kind: it holds its roles' surfaces as the first does.
+        state=type(pipe.state)(**{**vars(pipe.state), "model_db": None, "tenant_db": None}),
         cache_hint=NO_CACHE_HINT,
         serve_cached=True,
         sdl_joins=True,

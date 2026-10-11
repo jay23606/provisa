@@ -5,7 +5,11 @@
     "save": "儲存",
     "delete": "刪除",
     "confirm": "確認",
-    "processing": "處理中..."
+    "processing": "處理中...",
+    "identity": "識別",
+    "discardTitle": "放棄變更?",
+    "discardBody": "對 {{what}} 的變更尚未儲存。",
+    "discard": "放棄"
   },
   "app": {
     "apiUnreachable": "無法連接 Provisa API。",

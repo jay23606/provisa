@@ -1,10 +1,17 @@
 {
   "sourcesPage": {
+    "detailPanel": "Quellendetails",
+    "resizeDetail": "Größe des Detailbereichs ändern",
+    "expandDetail": "Bereich maximieren",
+    "restoreDetail": "Bereich wiederherstellen",
+    "closeDetail": "Detailbereich schließen",
+    "backToList": "Zurück zur Liste",
+    "backToSource": "Zurück zur Quelle",
+    "panelNewSource": "Neue Quelle",
     "title": "Datenquellen",
     "loading": "Quellen werden geladen...",
     "filterPlaceholder": "Nach Quellen-ID oder Typ filtern…",
     "addSource": "+ Quelle",
-    "closeForm": "Formular schließen",
     "schemaRefreshFailed": "Schemaaktualisierung fehlgeschlagen: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "z. B. sales-pg",

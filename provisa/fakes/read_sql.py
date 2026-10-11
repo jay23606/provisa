@@ -348,9 +348,7 @@ def expression(
         # Refused when declared as a fake (provisa.fakes.kinds.RULE_ONLY); a fake never holds one.
         raise FakeReadRefused(f"{col.name}: {kind_name(k)}() is a synthetic rule, not a fake")
     elif isinstance(k, Encrypt):
-        raise FakeReadRefused(
-            f"{col.name}: encrypt() is not yet computed on a faked read (REQ-1494)"
-        )
+        raise FakeReadRefused(f"{col.name}: encrypt() is not yet computed on a faked read")
     else:
         raise FakeReadRefused(f"{col.name}: {kind_name(k)}() has no faked read")
     if not guarded:

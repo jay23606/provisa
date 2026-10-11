@@ -115,7 +115,7 @@ def _apply_control_plane(
     fail loud if a preset names one (Trino/observability are added strictly as compute)."""
     if cp_store in _COMPUTE_ONLY_TIER_ADDITIONS:
         raise ValueError(
-            f"REQ-889: control_plane_store {cp_store!r} is a compute-only tier addition; the "
+            f"control_plane_store {cp_store!r} is a compute-only tier addition; the "
             "metadata/config/roles store must stay on the embedded home (sqlite/embedded_pg) or an "
             "explicit RDB — Trino/observability are added strictly as compute, never the metadata home"
         )
@@ -157,7 +157,7 @@ def _apply_embedded_pg(
         raise ValueError(
             "control_plane_store 'embedded_pg' has no in-memory form — pgserver is a real "
             "PostgreSQL with a data directory. Use a data_dir, or pick the 'sqlite' store for an "
-            "ephemeral plane (which then holds only the 'prod' environment, REQ-1534)."
+            "ephemeral plane (which then holds only the 'prod' environment)."
         )
     from provisa.core.control_plane_pg import start as start_control_plane_pg
 

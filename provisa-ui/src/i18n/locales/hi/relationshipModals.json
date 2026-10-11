@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "GQL उपनाम (camelCase)",
     "materializeLabel": "मटीरियलाइज़ करें",
-    "refreshIntervalLabel": "रिफ़्रेश अंतराल (सेकंड)",
-    "cancel": "रद्द करें",
-    "save": "सहेजें"
+    "refreshIntervalLabel": "रिफ़्रेश अंतराल (सेकंड)"
   }
 }

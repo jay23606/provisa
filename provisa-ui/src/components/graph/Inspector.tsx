@@ -22,7 +22,6 @@ import {
   Table,
   Text,
   TextInput,
-  Tooltip,
   useComputedColorScheme,
 } from "@mantine/core";
 import { Braces, Check, ChevronRight, Copy, X } from "lucide-react";
@@ -33,6 +32,7 @@ import { cypherRelType } from "../../naming";
 import CodeMirror from "@uiw/react-codemirror";
 import { json as jsonLang } from "@codemirror/lang-json";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { Tip } from "../Tip";
 
 interface OverviewData {
   nodesByLabel: [string, number][];
@@ -265,7 +265,7 @@ export function Inspector({
           {headerLabel}
         </Text>
         <div className="gf-insp-header-actions">
-          <Tooltip label={t("graphInspector.copyAll")} withinPortal>
+          <Tip text={t("graphInspector.copyAll")} named>
             <ActionIcon
               variant="subtle"
               size="sm"
@@ -276,12 +276,12 @@ export function Inspector({
             >
               <Copy size={12} />
             </ActionIcon>
-          </Tooltip>
-          <Tooltip
-            label={
+          </Tip>
+          <Tip
+            text={
               inspView === "json" ? t("graphInspector.showDetails") : t("graphInspector.showJson")
             }
-            withinPortal
+            named
           >
             <ActionIcon
               variant="subtle"
@@ -296,7 +296,7 @@ export function Inspector({
             >
               <Braces size={14} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
           <ActionIcon
             variant="subtle"
             size="sm"
@@ -312,15 +312,16 @@ export function Inspector({
 
       <div className="gf-insp-chip-row">
         {isN && domainPrefix && (
-          <Badge
-            variant="filled"
-            radius="xl"
-            className="gf-inspector-badge"
-            style={{ background: colorOverrides[domainPrefix] ?? labelColor(domainPrefix) }}
-            title={t("graphInspector.domain")}
-          >
-            {domainPrefix}
-          </Badge>
+          <Tip text={t("graphInspector.domain")}>
+            <Badge
+              variant="filled"
+              radius="xl"
+              className="gf-inspector-badge"
+              style={{ background: colorOverrides[domainPrefix] ?? labelColor(domainPrefix) }}
+            >
+              {domainPrefix}
+            </Badge>
+          </Tip>
         )}
         <Menu
           position="bottom-start"
@@ -330,19 +331,20 @@ export function Inspector({
           onChange={setShowPalette}
         >
           <Menu.Target>
-            <Badge
-              component="button"
-              type="button"
-              variant="filled"
-              radius={isN ? "xl" : "sm"}
-              className={isN ? "gf-inspector-badge" : "graph-rel-badge"}
-              style={isN ? { background: color, cursor: "pointer" } : { cursor: "pointer" }}
-              title={t("graphInspector.changeColor")}
-              aria-label={t("graphInspector.changeColor")}
-              data-testid="inspector-color-trigger"
-            >
-              {chipLabel}
-            </Badge>
+            <Tip text={t("graphInspector.changeColor")} named>
+              <Badge
+                component="button"
+                type="button"
+                variant="filled"
+                radius={isN ? "xl" : "sm"}
+                className={isN ? "gf-inspector-badge" : "graph-rel-badge"}
+                style={isN ? { background: color, cursor: "pointer" } : { cursor: "pointer" }}
+                aria-label={t("graphInspector.changeColor")}
+                data-testid="inspector-color-trigger"
+              >
+                {chipLabel}
+              </Badge>
+            </Tip>
           </Menu.Target>
           <Menu.Dropdown className="gf-color-palette">
             {PALETTE.map((c) => (

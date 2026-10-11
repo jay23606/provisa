@@ -75,7 +75,7 @@ def resolve_landing_args(
         raise ValueError(
             f"cannot land {table.schema_name}.{table.table_name}: column(s) {epoch_stored} are "
             "epoch-stored temporals (epoch_unit), which are supported on live reads only — this "
-            "engine would land the table (REQ-1908)"
+            "engine would land the table"
         )
     columns: list[tuple[str, str]] = []
     for c in data_cols:

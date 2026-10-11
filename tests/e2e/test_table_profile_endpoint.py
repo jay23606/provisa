@@ -60,6 +60,12 @@ async def view_id():
             .returning(registered_tables.c.id)
         )
         new_id = res.fetchone()[0]
+    # A table's profile is read as its caller through the one pipeline, so the view has to be
+    # in the model the server holds: the registration is followed by a rebuild, as the admin
+    # API's own registration is.
+    from provisa.api.app import _rebuild_schemas
+
+    await _rebuild_schemas()
 
     yield new_id
 
@@ -69,6 +75,7 @@ async def view_id():
         state.model_db.acquire() as conn,
     ):
         await conn.execute_core(delete(registered_tables).where(registered_tables.c.id == new_id))
+    await _rebuild_schemas()
 
 
 class TestTableProfileEndpoint:

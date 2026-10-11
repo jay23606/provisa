@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "The engine's '{{catalog}}' catalog is being registered. Try again shortly.",
       "domain_not_accessible": "Role '{{role_id}}' does not reach domain '{{domain}}'",
       "role_mismatch": "The request names role '{{body_role}}' but runs as role '{{acting_role}}'. The role is carried by the X-Provisa-Role header (or the signed-in identity); remove the other role or make it match.",
-      "sql_parameters_do_not_fit": "The parameter values do not fit the statement: {{reason}}"
+      "sql_parameters_do_not_fit": "The parameter values do not fit the statement: {{reason}}",
+      "unknown_root_field": "Unknown query field '{{field}}': this role is not served a table by that name",
+      "viewer_column_unknown": "'{{column}}' is not a column of table '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' is not a filter of column '{{column}}'",
+      "viewer_value_invalid": "The filter on '{{column}}' cannot use the value '{{value}}'",
+      "replica_building": "The copy of {{replica}} is still being built. The build continues; open the preview again once it has finished."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter for '{{source_type}}' does not implement discover_schema",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: argument '{{argument}}' was not given",
       "argument_not_declared": "{{signature}}: argument '{{argument}}' is not one it declares",
       "binding_missing_key": "function binding for kind '{{kind}}' is missing required key '{{key}}'",
-      "egress_denied": "egress to '{{endpoint}}' is denied: host not on the UDF egress allow-list (REQ-885 deny-by-default). Add it to udf_egress_allowlist to permit.",
+      "egress_denied": "egress to '{{endpoint}}' is denied: host not on the UDF egress allow-list, and egress is denied by default. Add it to udf_egress_allowlist to permit.",
       "grpc_call_failed": "grpc call {{target}}{{path}} failed: {{status}}: {{details}}",
       "grpc_method_invalid": "grpc method '{{method}}' must be 'Service/Method' or 'pkg.Service.Method'",
       "json_argument_invalid": "argument '{{argument}}' of '{{name}}' is not a JSON literal",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python callable '{{spec}}' must be 'module:attr'",
       "remote_refused": "{{source_id}} refused {{operation}}: {{answer}}",
       "result_set_ref_invalid": "result_set ref '{{ref}}' must be source.schema.table",
-      "rowwise_external": "function '{{name}}' (kind={{impl_kind}}) is row-wise external: all arguments are scalar column_value. Declare a table_ref/result_set relation argument so calls are set-wise and batched (REQ-885).",
+      "rowwise_external": "function '{{name}}' (kind={{impl_kind}}) is row-wise external: all arguments are scalar column_value. Declare a table_ref/result_set relation argument so calls are set-wise and batched.",
       "script_failed": "script exited {{returncode}}: {{stderr}}",
       "source_not_connected": "Source '{{source_id}}' not connected",
       "unknown_arg_kind": "Unknown arg_kind '{{arg_kind}}' for '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "Org id '{{org}}' is reserved. Reserved ids: {{reserved}}.",
       "platform_admin_required": "platform_admin required",
       "retry_not_failed": "Org '{{org}}' is '{{state}}', not 'failed' — nothing to retry.",
-      "self_role_change": "A user cannot change their own role. Ask another administrator (REQ-1308).",
+      "self_role_change": "A user cannot change their own role. Ask another administrator.",
       "view_not_permitted": "Not permitted to view this org"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "invalid calendar: {{error}}",
       "invalid_cardinality": "Invalid cardinality: '{{cardinality}}'",
       "invalid_off_peak_window": "invalid off-peak window: {{error}}",
-      "load_protection_gate_required": "{{who}}: load protection requires at least one refresh gate — set an off-peak window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe) (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: load protection requires at least one refresh gate — set an off-peak window, a cache_ttl cadence, or a probing change_signal (probe/ttl_probe)",
       "metric_deleted": "Metric '{{metric}}' deleted",
       "metric_not_found": "Metric '{{metric}}' not found",
       "metric_saved": "Metric '{{metric}}' saved",
@@ -297,6 +302,10 @@
       "relationship_not_found": "Relationship '{{relationship}}' not found",
       "relationship_saved": "Relationship '{{relationship}}' saved",
       "remigrated": "Re-migrated {{source}}.{{table}}",
+      "change_signal_not_honoured": "A {{type}} source cannot yet be checked for changes, so the {{signal}} change signal would never be asked. Use ttl for source '{{source}}'.",
+      "sentinel_path_not_applicable": "A {{type}} source cannot have a sentinel path: no producer of yours can mark a change in its data, or the source is not probed. Remove the sentinel path from source '{{source}}'.",
+      "source_cache_ttl_required": "Source '{{source}}' needs a Cache TTL: every table of it is a replica, refreshed on that clock under the {{signal}} change signal. Set it under Load Management and Timeliness on the source.",
+      "landing_ttl_required": "Table '{{table}}' is a replica refreshed on a Cache TTL, and neither it nor its source '{{source}}' has one. Set the Cache TTL under Load Management and Timeliness on the source, or on the table itself once it is registered.",
       "replicate_contradicts_load_protected": "Load protection cannot be combined with Replicate = Never: a load-protected table is never read live",
       "replicate_invalid": "Replicate must be Default, Never, Always or a threshold above 0; got {{value}}",
       "request_executed": "Executed creation request #{{id}}",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} is the last platform admin of this deployment. Grant the platform admin role to another user first.",
       "no_active_org": "No organization is bound to this request. Sign in to an organization first.",
       "no_fields_to_update": "No fields to update",
-      "self_role_change": "A user cannot change their own role. Ask another administrator (REQ-1308).",
+      "self_role_change": "A user cannot change their own role. Ask another administrator.",
       "user_not_found": "User not found"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "No mail platform named {{platform}} exists.",
       "not_configured": "Your organization has not connected this mail platform ({{platform}}) yet. An administrator enters its client once under Admin › Email.",
       "unknown_setting": "{{setting}} is not a setting of this mail platform.",
-      "incomplete": "Still needed before this can be saved: {{missing}}."
+      "incomplete": "Still needed before this can be saved: {{missing}}.",
+      "credential_unresolved": "The {{field}} entered for this mail platform ({{platform}}) could not be resolved: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "The choice of mailboxes cannot be read: {{error}}",
       "client_refused": "Microsoft refused your organization's Microsoft 365 client: {{reason}}",
       "throttled": "Microsoft is limiting requests for now. Try again in {{retry_after}} seconds.",
-      "directory_refused": "Microsoft would not list the organization's mailboxes ({{status}} {{reason}}). The client needs permission to read the directory's users."
+      "directory_refused": "Microsoft would not list the organization's mailboxes ({{status}} {{reason}}). The client needs permission to read the directory's users.",
+      "directory_no_permissions": "Microsoft would not list the organization's mailboxes ({{status}} {{reason}}). The client's token carries no application permission; this needs {{missing}}. Add it as an Application permission (not Delegated) and grant admin consent.",
+      "directory_permission_missing": "Microsoft would not list the organization's mailboxes ({{status}} {{reason}}). The client's token carries {{carries}}; missing: {{missing}}. Add it as an Application permission (not Delegated) and grant admin consent.",
+      "directory_refused_granted": "Microsoft would not list the organization's mailboxes ({{status}} {{reason}}), though the client's token carries what the listing needs ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "No role named {{role}} exists."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "That is not a way to choose mailboxes: {{error}}",
+      "scope_not_delegated": "The organization's Google service account is not authorized for {{scopes}}. A super administrator adds its client ID with that scope in the Google Admin console, under Security › Access and data control › API controls › Manage Domain Wide Delegation; a new authorization can take up to 24 hours to apply.",
+      "admin_not_a_user": "{{address}} is not a user of the organization's Google Workspace domain, so the directory cannot be listed as it. An administrator corrects the administrator address under Admin › Email.",
+      "directory_refused": "Google's directory would not be read: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google refused the organization's service account: {{reason}}"
     }
   }
 }

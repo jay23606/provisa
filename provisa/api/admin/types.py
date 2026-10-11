@@ -112,13 +112,10 @@ class SourceType:  # REQ-012
     # overwrites federation_hints when the input actually carries a federation_hints_json). Also
     # the channel rss's feed_url and websocket's subscribe_payload round-trip through (REQ-1739).
     federation_hints_json: str | None = "{}"
-    # REQ-1730: the ``${secret:NAME}`` reference persist_source_password (REQ-1695) wrote — never
-    # the plaintext credential, which the vault holds "unreadable by name" by design. Exposed so a
-    # caller re-registering an ALREADY-VALIDATED source on a second engine (the cross-engine swap
-    # replay) can carry the same credential forward without ever seeing it: SourceInput.password
-    # already treats a value containing ``${`` as a reference and stores it verbatim rather than
-    # re-vaulting it, so round-tripping this field through create_source resolves correctly via
-    # resolve_secrets() on the target engine's own process, sharing the same org vault.
+    # What the source's password field holds, as its operator entered it: the value, or a
+    # reference they typed. Exposed so the form shows the field's own text again, and so a caller
+    # re-registering an already-validated source on a second engine (the cross-engine swap
+    # replay) can carry the same field forward.
     password_ref: str | None = ""
     change_signal: str = "ttl"  # REQ-929: source default change signal (inherited by its tables)
     cdc: SourceCdcConfigType | None = None  # REQ-824: source-level CDC transport
@@ -965,6 +962,9 @@ class TableInput:  # REQ-013, REQ-016, REQ-133, REQ-135, REQ-252
     off_peak_window: str | None = None  # REQ-1141: per-table "HH:MM-HH:MM" window override
     off_peak_tz: str | None = None  # REQ-1141: per-table window zone override
     change_signal: str | None = None  # REQ-929: override source change signal; None = inherit
+    # REQ-1907: the table's own landing cache_ttl, stated when it is registered. A table that
+    # already has one keeps it (updateTableCache is what changes it); None = the source's.
+    cache_ttl: int | None = None
     probe_query: str | None = None  # REQ-929: source-native freshness probe
     probe_type: str | None = None  # REQ-982: input-probe method; None = resolve per source class
     materialize: bool = False
@@ -1363,7 +1363,17 @@ class ReplicaBuildType:  # REQ-1915
     # A float: a GraphQL Int is 32 bits, and a replica can hold more than 2^31 rows.
     rows_copied: float | None
     rows_per_second: float | None  # a running build's rate so far
+    # A running build waiting out a throttle: {"by", "seconds", "until"}; None when not.
+    wait: JsonScalar | None
+    # The rows of the last build that copied the whole table; None before the first. An
+    # estimate of the table's size for a running build's progress, never a promise.
+    completed_rows: float | None
+    # A running build that lands a part at a time: {"done", "total", "unit", "first"}.
+    progress: JsonScalar | None
+    # The replica is read while its first build is still filling it.
+    partial: bool
     completed_at: str | None  # None: there is no replica yet
+    verified_at: str | None  # REQ-855: its probe last found the source unchanged; None: not since
     next_refresh_at: str | None
     # The last failure: its English text, and (REQ-1350) the code and params the UI renders
     # in its own language when the cause is one Provisa names.

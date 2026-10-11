@@ -168,3 +168,70 @@ def test_a_value_a_loader_works_out_must_be_canonical():
     assert cm.canonical("event_kind", None) is None
     with pytest.raises(ValueError, match="not a canonical value"):
         cm.canonical("event_kind", "seriesMaster")
+
+
+# --- what identifies a row, and when it landed ---
+
+
+def test_every_mail_table_has_a_key_of_its_own_columns_that_no_reader_leaves_empty():
+    assert set(cm.KEYS) == {
+        "messages",
+        "message_recipients",
+        "message_folders",
+        "attachments",
+        "threads",
+        "folders",
+    }
+    for table, key in cm.KEYS.items():
+        names = [c.name for c in cm.TABLES[table].columns]
+        assert key[:2] == ("provider", "account")  # a row is one mailbox's
+        assert all(column in names for column in key)
+        # Both providers populate every key column: a key is never NULL.
+        assert all(cm.TABLES[table].column(c).populated == "GM" for c in key)
+    assert cm.key_columns("events") == ()
+
+
+def test_a_replica_holds_the_readers_columns_and_then_when_the_row_landed():
+    for table in cm.KEYS:
+        assert cm.landing_columns(table) == [*cm.ir_columns(table), (cm.LANDED_AT, "timestamp")]
+        # No provider has such a value and no reader gives one.
+        assert cm.LANDED_AT not in [c.name for c in cm.TABLES[table].columns]
+    assert cm.landing_columns("events") == cm.ir_columns("events")
+
+
+def test_rows_written_together_carry_one_stamp():
+    from datetime import UTC, datetime
+
+    at = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    rows = cm.stamped([{"id": "a"}, {"id": "b"}], at)
+    assert [row[cm.LANDED_AT] for row in rows] == [at, at]
+
+
+async def test_each_stamp_of_a_source_is_later_than_the_last_and_written_in_order(monkeypatch):
+    """Live delivery asks for rows whose watermark is greater than the last it sent. Whatever
+    the clock says, a later landing's stamp is greater; and what is stamped earlier is written
+    before anything is stamped later, however the reads that produced the rows interleave."""
+    import asyncio
+    from datetime import UTC, datetime
+
+    from provisa.federation import mail_landing
+
+    frozen = datetime(2026, 10, 10, 12, tzinfo=UTC)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return frozen  # a clock that does not move, or moves back
+
+    monkeypatch.setattr(mail_landing, "datetime", Clock)
+    stamps = mail_landing.Stamps(after=frozen)
+    written: list[datetime] = []
+
+    async def land(pause: float) -> None:
+        async with stamps.turn() as at:
+            await asyncio.sleep(pause)  # the write takes a while
+            written.append(at)
+
+    await asyncio.gather(land(0.05), land(0.0), land(0.02))
+    assert written == sorted(written) and len(set(written)) == 3
+    assert written[0] > frozen

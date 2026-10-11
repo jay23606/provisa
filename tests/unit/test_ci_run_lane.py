@@ -307,7 +307,10 @@ def test_the_live_salesforce_test_is_in_no_lane_but_its_own():
     requires_warehouse, and the nightly warehouse lane must not select it."""
     run_lane = _runner()
     marker = run_lane.LANES["warehouse"].marker
-    assert marker == "requires_warehouse and not requires_salesforce"
+    assert marker == (
+        "requires_warehouse and not requires_salesforce and not requires_microsoft_365 "
+        "and not requires_google_workspace"
+    )
     assert run_lane.LANES["salesforce"].marker == "requires_salesforce"
     # Every other lane excludes the live tests through the base exclusion or its own marker.
     for name, lane in run_lane.LANES.items():

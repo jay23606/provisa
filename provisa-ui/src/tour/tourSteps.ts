@@ -353,7 +353,8 @@ export const TOUR_STEPS: TourStep[] = [
     capability: "access_config",
     readySelector: '[data-testid="toggle-role-form"]',
     clickBefore: '[data-testid="toggle-role-form"]',
-    clickAfterNext: '[data-testid="toggle-role-form"]',
+    // The opener is hidden while its form is open: the form's own Cancel closes it.
+    clickAfterNext: '[data-testid="cancel-role"]',
     element: '[data-testid="role-parent-select"]',
     key: "stepRoleInherit",
   },
@@ -445,6 +446,13 @@ export const TOUR_STEPS: TourStep[] = [
     capability: "table_registration",
     prefetch: "settings",
     ensureOpen: [
+      // Entered from the card after it (Back) the edit form is open, and while a table is edited
+      // the panel's head holds Save and Cancel in place of the table's actions: leave the form
+      // first, so the control this card points at is there.
+      {
+        click: '[data-testid="table-edit-cancel"]',
+        unlessPresent: 'body:not(:has([data-testid="table-edit-cancel"]))',
+      },
       {
         click: PROFILER_ROW,
         unlessPresent: '[data-testid="table-read-view-edit"], [data-tour="profiler-panel"]',
@@ -461,12 +469,12 @@ export const TOUR_STEPS: TourStep[] = [
     key: "stepTestDataProfiler",
   },
   {
-    // REQ-1494: a column's kind of fake is declared in the column list's Test data mode, so the
-    // step switches the column list to that mode and points at the test-data columns.
+    // REQ-1494: a column's kind of fake is declared on the column list's Testing tab, so the
+    // step opens that tab and points at the test-data columns.
     ensureOpen: [
       ...PETS_EDIT_OPEN,
       {
-        click: '[data-tour="table-columns-mode"] input[value="testdata"]',
+        click: '[data-testid="column-tab-testing"]',
         unlessPresent: '[data-testid="testdata-columns"]',
       },
     ],
@@ -474,9 +482,15 @@ export const TOUR_STEPS: TourStep[] = [
     key: "stepFakes",
   },
   {
-    // REQ-1494: the fill-from-profile action sits with the column list's test-data mode.
-    ensureOpen: PETS_EDIT_OPEN,
-    element: '[data-tour="table-columns-mode"]',
+    // REQ-1494: the fill-from-profile action sits on the column list's Testing tab.
+    ensureOpen: [
+      ...PETS_EDIT_OPEN,
+      {
+        click: '[data-testid="column-tab-testing"]',
+        unlessPresent: '[data-testid="testdata-columns"]',
+      },
+    ],
+    element: '[data-tour="fill-from-profile"]',
     key: "stepFakesFill",
     clickAfterNext: PROFILER_ROW,
   },
@@ -644,7 +658,14 @@ export type TourScope = "core" | TopicId;
 export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
   core: ["step0", "stepPolly", "step1", "step2", "stepQuery", "step14"],
   connect: ["step3", "step4", "step5", "stepPreview"],
-  relationships: ["step15", "stepRelsAgents", "step16", "stepRelsSuggest", "stepRelsList", "step17"],
+  relationships: [
+    "step15",
+    "stepRelsAgents",
+    "step16",
+    "stepRelsSuggest",
+    "stepRelsList",
+    "step17",
+  ],
   model: ["step20", "step21", "stepMetrics", "stepCommands", "step22"],
   govern: ["step18", "stepRoleInherit", "step19", "stepDomains", "stepTags", "stepRequests"],
   query: ["step6", "step7", "step8", "step9", "step10", "step11", "step12", "step13"],
@@ -664,7 +685,13 @@ export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
     "stepSynthetic",
     "stepSyntheticPrivacy",
   ],
-  publish: ["stepDataProducts", "stepProductForm", "stepGlossary", "stepGlossaryTerm", "stepPublish"],
+  publish: [
+    "stepDataProducts",
+    "stepProductForm",
+    "stepGlossary",
+    "stepGlossaryTerm",
+    "stepPublish",
+  ],
   operate: ["stepReports", "stepObservability", "stepCache", "stepScheduled", "step23"],
 };
 

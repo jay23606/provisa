@@ -561,9 +561,7 @@ def notify_org_ready(org_id: str, user_id: str) -> None:  # REQ-1266
 # reason role assignment is an administrative act; a user who can grant themselves a role has no
 # role. Enforced server-side at every mutation site rather than hidden in a UI, because the UI is
 # not the only client.
-SELF_ROLE_CHANGE_MESSAGE = (
-    "A user cannot change their own role. Ask another administrator (REQ-1308)."
-)
+SELF_ROLE_CHANGE_MESSAGE = "A user cannot change their own role. Ask another administrator."
 
 
 def is_self_role_change(actor_id: str | None, subject_id: str) -> bool:

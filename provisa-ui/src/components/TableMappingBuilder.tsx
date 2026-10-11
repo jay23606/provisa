@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormChecks, FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import {
   ActionIcon,
   Button,
@@ -18,10 +19,8 @@ import {
   Group,
   Pill,
   Select,
-  SimpleGrid,
   Stack,
   Table,
-  Text,
   TextInput,
   Title,
 } from "@mantine/core";
@@ -97,25 +96,31 @@ function RedisForm({
   ];
   return (
     <>
-      <TextInput
-        label={t("tableMappingBuilder.keyPattern")}
-        value={mapping.keyPattern ?? ""}
-        onChange={(e) => setMapping({ ...mapping, keyPattern: e.target.value })}
-        placeholder={t("tableMappingBuilder.keyPatternPlaceholder")}
-      />
-      <TextInput
-        label={t("tableMappingBuilder.keyColumn")}
-        value={mapping.keyColumn ?? ""}
-        onChange={(e) => setMapping({ ...mapping, keyColumn: e.target.value })}
-        placeholder={t("tableMappingBuilder.keyColumnPlaceholder")}
-      />
-      <Select
-        label={t("tableMappingBuilder.valueType")}
-        data={redisValueTypes}
-        value={mapping.valueType ?? "hash"}
-        onChange={(value) => setMapping({ ...mapping, valueType: value ?? "hash" })}
-        allowDeselect={false}
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.keyPattern")}
+          value={mapping.keyPattern ?? ""}
+          onChange={(e) => setMapping({ ...mapping, keyPattern: e.target.value })}
+          placeholder={t("tableMappingBuilder.keyPatternPlaceholder")}
+        />
+      </FormField>
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.keyColumn")}
+          value={mapping.keyColumn ?? ""}
+          onChange={(e) => setMapping({ ...mapping, keyColumn: e.target.value })}
+          placeholder={t("tableMappingBuilder.keyColumnPlaceholder")}
+        />
+      </FormField>
+      <FormField size="medium">
+        <Select
+          label={t("tableMappingBuilder.valueType")}
+          data={redisValueTypes}
+          value={mapping.valueType ?? "hash"}
+          onChange={(value) => setMapping({ ...mapping, valueType: value ?? "hash" })}
+          allowDeselect={false}
+        />
+      </FormField>
     </>
   );
 }
@@ -131,18 +136,21 @@ function MongoForm({
   const { t } = useTranslation();
   return (
     <>
-      <TextInput
-        label={t("tableMappingBuilder.collection")}
-        value={mapping.collection ?? ""}
-        onChange={(e) => setMapping({ ...mapping, collection: e.target.value })}
-        placeholder={t("tableMappingBuilder.collectionPlaceholder")}
-      />
-      <Checkbox
-        label={t("tableMappingBuilder.autoDiscoverSchema")}
-        checked={mapping.discover ?? false}
-        onChange={(e) => setMapping({ ...mapping, discover: e.target.checked })}
-        mt="1.5rem"
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.collection")}
+          value={mapping.collection ?? ""}
+          onChange={(e) => setMapping({ ...mapping, collection: e.target.value })}
+          placeholder={t("tableMappingBuilder.collectionPlaceholder")}
+        />
+      </FormField>
+      <FormChecks>
+        <Checkbox
+          label={t("tableMappingBuilder.autoDiscoverSchema")}
+          checked={mapping.discover ?? false}
+          onChange={(e) => setMapping({ ...mapping, discover: e.target.checked })}
+        />
+      </FormChecks>
     </>
   );
 }
@@ -158,18 +166,21 @@ function ElasticsearchForm({
   const { t } = useTranslation();
   return (
     <>
-      <TextInput
-        label={t("tableMappingBuilder.indexPattern")}
-        value={mapping.indexPattern ?? ""}
-        onChange={(e) => setMapping({ ...mapping, indexPattern: e.target.value })}
-        placeholder={t("tableMappingBuilder.indexPatternPlaceholder")}
-      />
-      <Checkbox
-        label={t("tableMappingBuilder.autoDiscoverSchema")}
-        checked={mapping.discover ?? false}
-        onChange={(e) => setMapping({ ...mapping, discover: e.target.checked })}
-        mt="1.5rem"
-      />
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.indexPattern")}
+          value={mapping.indexPattern ?? ""}
+          onChange={(e) => setMapping({ ...mapping, indexPattern: e.target.value })}
+          placeholder={t("tableMappingBuilder.indexPatternPlaceholder")}
+        />
+      </FormField>
+      <FormChecks>
+        <Checkbox
+          label={t("tableMappingBuilder.autoDiscoverSchema")}
+          checked={mapping.discover ?? false}
+          onChange={(e) => setMapping({ ...mapping, discover: e.target.checked })}
+        />
+      </FormChecks>
     </>
   );
 }
@@ -199,58 +210,67 @@ function PrometheusForm({
 
   return (
     <>
-      <TextInput
-        label={t("tableMappingBuilder.metricName")}
-        value={mapping.metric ?? ""}
-        onChange={(e) => setMapping({ ...mapping, metric: e.target.value })}
-        placeholder={t("tableMappingBuilder.metricNamePlaceholder")}
-      />
-      <TextInput
-        label={t("tableMappingBuilder.valueColumnName")}
-        value={mapping.valueColumn ?? "value"}
-        onChange={(e) => setMapping({ ...mapping, valueColumn: e.target.value })}
-      />
-      <TextInput
-        label={t("tableMappingBuilder.defaultTimeRange")}
-        value={mapping.defaultRange ?? "1h"}
-        onChange={(e) => setMapping({ ...mapping, defaultRange: e.target.value })}
-        placeholder={t("tableMappingBuilder.defaultTimeRangePlaceholder")}
-      />
-      <div style={{ gridColumn: "1 / -1" }}>
-        <Text component="label" size="sm" fw={500}>
-          {t("tableMappingBuilder.labelsAsColumns")}
-        </Text>
-        <Group gap="0.25rem" mb="0.25rem" mt="0.25rem">
-          {(mapping.labels ?? []).map((label) => (
-            <Pill
-              key={label}
-              withRemoveButton
-              removeButtonProps={{ "aria-label": t("tableMappingBuilder.removeLabel", { label }) }}
-              onRemove={() => removeLabel(label)}
-            >
-              {label}
-            </Pill>
-          ))}
-        </Group>
-        <Group gap="0.25rem">
-          <TextInput
-            value={labelInput}
-            onChange={(e) => setLabelInput(e.target.value)}
-            placeholder={t("tableMappingBuilder.labelPlaceholder")}
-            w="10rem"
-            aria-label={t("tableMappingBuilder.labelsAsColumns")}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addLabel();
-              }
-            }}
-          />
-          <Button onClick={addLabel} size="xs" variant="default">
-            {t("tableMappingBuilder.addLabel")}
-          </Button>
-        </Group>
-      </div>
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.metricName")}
+          value={mapping.metric ?? ""}
+          onChange={(e) => setMapping({ ...mapping, metric: e.target.value })}
+          placeholder={t("tableMappingBuilder.metricNamePlaceholder")}
+        />
+      </FormField>
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.valueColumnName")}
+          value={mapping.valueColumn ?? "value"}
+          onChange={(e) => setMapping({ ...mapping, valueColumn: e.target.value })}
+        />
+      </FormField>
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.defaultTimeRange")}
+          value={mapping.defaultRange ?? "1h"}
+          onChange={(e) => setMapping({ ...mapping, defaultRange: e.target.value })}
+          placeholder={t("tableMappingBuilder.defaultTimeRangePlaceholder")}
+        />
+      </FormField>
+      <FormField size="medium">
+        <TextInput
+          label={t("tableMappingBuilder.labelsAsColumns")}
+          value={labelInput}
+          onChange={(e) => setLabelInput(e.target.value)}
+          placeholder={t("tableMappingBuilder.labelPlaceholder")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addLabel();
+            }
+          }}
+          rightSectionWidth="auto"
+          rightSection={
+            <Button onClick={addLabel} size="compact-xs" variant="default" mr={4}>
+              {t("tableMappingBuilder.addLabel")}
+            </Button>
+          }
+        />
+      </FormField>
+      {(mapping.labels ?? []).length > 0 && (
+        <FormField size="full">
+          <Group gap="0.25rem">
+            {(mapping.labels ?? []).map((label) => (
+              <Pill
+                key={label}
+                withRemoveButton
+                removeButtonProps={{
+                  "aria-label": t("tableMappingBuilder.removeLabel", { label }),
+                }}
+                onRemove={() => removeLabel(label)}
+              >
+                {label}
+              </Pill>
+            ))}
+          </Group>
+        </FormField>
+      )}
     </>
   );
 }
@@ -320,14 +340,16 @@ export function TableMappingBuilder({ sourceType, onSave, onCancel }: TableMappi
         </ActionIcon>
       </Group>
 
-      <SimpleGrid cols={2} spacing="0.5rem" mt="0.5rem">
-        <TextInput
-          required
-          label={t("tableMappingBuilder.tableName")}
-          value={mapping.tableName}
-          onChange={(e) => setMapping({ ...mapping, tableName: e.target.value })}
-          placeholder={t("tableMappingBuilder.tableNamePlaceholder")}
-        />
+      <FormLayout style={{ marginTop: "0.5rem" }}>
+        <FormField size="medium">
+          <TextInput
+            required
+            label={t("tableMappingBuilder.tableName")}
+            value={mapping.tableName}
+            onChange={(e) => setMapping({ ...mapping, tableName: e.target.value })}
+            placeholder={t("tableMappingBuilder.tableNamePlaceholder")}
+          />
+        </FormField>
 
         {sourceType === "redis" && <RedisForm mapping={mapping} setMapping={setMapping} />}
         {sourceType === "mongodb" && <MongoForm mapping={mapping} setMapping={setMapping} />}
@@ -337,7 +359,7 @@ export function TableMappingBuilder({ sourceType, onSave, onCancel }: TableMappi
         {sourceType === "prometheus" && (
           <PrometheusForm mapping={mapping} setMapping={setMapping} />
         )}
-      </SimpleGrid>
+      </FormLayout>
 
       {sourceType !== "prometheus" && (
         <Stack gap="0.25rem" mt="1rem">
@@ -415,11 +437,12 @@ export function TableMappingBuilder({ sourceType, onSave, onCancel }: TableMappi
         </Stack>
       )}
 
-      <Group mt="0.75rem">
-        <Button onClick={handleSave} data-testid="save-mapping-button">
-          {t("tableMappingBuilder.saveMapping")}
-        </Button>
-      </Group>
+      <FormFooter
+        onSave={handleSave}
+        onCancel={onCancel}
+        saveProps={{ "data-testid": "save-mapping-button" }}
+        style={{ marginTop: "0.75rem" }}
+      />
     </Card>
   );
 }

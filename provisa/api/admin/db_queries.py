@@ -145,8 +145,9 @@ async def fetch_tables(  # REQ-155, REQ-393, REQ-399
     conn: "Connection", *, draft: bool = False
 ) -> list[dict]:
     """Fetch registered tables with columns — the data plane's: those in service. ``draft``
-    True fetches the ones out of service instead (REQ-1921), which no schema offers, no statement
-    reads and nothing copies; they are fetched only to be refused by name."""
+    True fetches the ones out of service instead (REQ-1921), which no schema offers and no
+    statement reads: fetched to be refused by name, for their steward's preview
+    (admin/table_read.py) and for the replica such a preview lands."""
     rows = await conn.fetch(
         "SELECT id, source_id, domain_id, schema_name, table_name, "
         "alias, description, column_presets, unique_constraints, l1_cluster, l2_cluster, l3_cluster, "

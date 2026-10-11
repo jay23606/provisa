@@ -1705,8 +1705,7 @@ def isolated_engine_endpoint(org_id: str) -> tuple[str, int]:  # REQ-1043/REQ-10
         raise RuntimeError(
             f"org {org_id!r} requires an isolated federation engine, but this deployment has no "
             "PROVISA_ISOLATED_ENGINE_HOST_TEMPLATE configured — cannot resolve a dedicated "
-            "coordinator, and routing to the shared engine would break the isolation guarantee "
-            "(REQ-1043)"
+            "coordinator, and routing to the shared engine would break the isolation guarantee"
         )
     host = template.format(org_id=org_id)
     port = int(os.environ.get("PROVISA_ISOLATED_ENGINE_PORT", "8080"))

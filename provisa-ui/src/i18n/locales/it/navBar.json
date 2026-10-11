@@ -64,6 +64,11 @@
     "profile": "Profilo",
     "settings": "Impostazioni",
     "logout": "Esci",
-    "dev": "DEV"
+    "dev": "DEV",
+    "sandboxExitTitle": "Pronto a costruire?",
+    "sandboxExitDeleted": "Il tuo account sandbox verrà eliminato alla disconnessione. Puoi sempre creare un nuovo account sandbox usando di nuovo il link di invito.",
+    "sandboxExitUpgrade": "Pronto a creare la tua organizzazione e iniziare con un piano Starter? Avrai 14 giorni gratuiti.",
+    "sandboxExitCreateOrg": "Crea organizzazione",
+    "sandboxExitLogOut": "Esci soltanto"
   }
 }

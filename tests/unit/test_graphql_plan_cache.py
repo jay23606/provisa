@@ -31,6 +31,7 @@ from provisa.pgwire import governed_plan
 from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.directives import QueryDirectives
 from provisa.compiler.sql_types import CompiledQuery
+from tests.role_state import RoleState
 
 
 def _cq(
@@ -62,7 +63,7 @@ def _state(**over) -> SimpleNamespace:
         model_stamp=1,
     )
     base.update(over)
-    return SimpleNamespace(**base)
+    return RoleState(**base)
 
 
 def _request(state, **over) -> PlanRequest:
@@ -257,7 +258,7 @@ def _endpoint_harness(monkeypatch, *, approval_hook=None):
     async def _awake(state):
         return None
 
-    state = SimpleNamespace(
+    state = RoleState(
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         schemas={"analyst": _SCHEMA},
         contexts={"analyst": _CTX},

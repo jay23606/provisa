@@ -65,6 +65,15 @@
     "action": "操作",
     "actionPrefix": "操作：",
     "loadActionsFailed": "无法加载操作：{{message}}",
-    "labelAction": "操作："
+    "labelAction": "操作：",
+    "deleteRoleTitle": "删除角色“{{id}}”？",
+    "deleteRoleConsequence": "该角色将被移除。仍在使用中的角色无法删除。",
+    "deleteRuleTitle": "删除此 RLS 规则？",
+    "deleteRuleConsequence": "角色“{{role}}”将不再受此规则限制。",
+    "roleDetailPanel": "角色详情",
+    "ruleDetailPanel": "RLS 规则详情",
+    "panelNewRole": "新建角色",
+    "panelNewRule": "新建 RLS 规则",
+    "panelRule": "RLS 规则 {{id}}"
   }
 }

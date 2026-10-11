@@ -8,16 +8,16 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""REQ-1695: a source registered through the admin API keeps its password, and keeps it properly.
+"""A source registered through the admin API keeps its password as its operator entered it.
 
-The credential goes into the ORG VAULT (provisa.core.secrets_store -- encrypted at rest, values
-unreadable by name) and the ``sources`` row keeps only the ``${secret:NAME}`` that names it. A
-value the operator already wrote as a reference is stored verbatim instead, because putting a
-reference into the vault would store the reference TEXT as a credential.
+The ``sources`` row holds the text typed into the field: the value itself, or a
+``${secret:NAME}`` / ``${env:NAME}`` reference the operator wrote. It is resolved where it is
+used by the one resolver. The product puts nothing in the organisation's vault for it, makes
+up no name for it, and removes nothing from the vault when the source goes: the vault holds
+only what its operator created there, by names they chose.
 
-What this fixes: before the column existed, a source created through the Sources form reached the
-REQ-1673 introspection seam with an empty password, so Register Table listed no schema for any
-connector that authenticates.
+(This supersedes the earlier rule, under which a typed value was moved into the vault under a
+name derived from the source's id.)
 """
 
 import base64
@@ -124,48 +124,46 @@ async def _vault_names() -> set[str]:
 
 
 class TestLiteralPassword:
-    async def test_the_literal_goes_to_the_vault_and_the_row_keeps_the_reference(self, client):
+    async def test_a_typed_value_is_kept_as_typed_and_nothing_is_put_in_the_vault(self, client):
         source_id = "req1695_literal"
-        secret = "s3cr3t-not-in-the-row"
-        result = (await _gql(client, _create(source_id, secret)))["data"]["createSource"]
+        typed = "s3cr3t-as-typed"
+        before = await _vault_names()
+        result = (await _gql(client, _create(source_id, typed)))["data"]["createSource"]
         assert result["success"] is True, result["message"]
 
         row = await _row(source_id)
-        assert row["password_ref"] == "${secret:source_req1695_literal_password}"
-        # The credential itself is nowhere in the control-plane row.
-        assert secret not in str(row)
-        assert "source_req1695_literal_password" in await _vault_names()
+        assert row["password_ref"] == typed
+        assert await _vault_names() == before  # nothing written on the operator's behalf
 
-    async def test_the_row_reads_back_as_a_source_carrying_the_reference(self, client):
+    async def test_the_row_reads_back_as_a_source_carrying_what_was_typed(self, client):
         from provisa.core.repositories.source import source_from_row
+        from provisa.core.secrets import resolve_secrets
 
-        assert (
-            source_from_row(await _row("req1695_literal")).password
-            == "${secret:source_req1695_literal_password}"
-        )
+        password = source_from_row(await _row("req1695_literal")).password
+        assert password == "s3cr3t-as-typed"
+        assert resolve_secrets(password) == "s3cr3t-as-typed"  # a value is used as it is
 
-    async def test_retyping_the_password_rotates_the_one_vault_entry(self, client):
+    async def test_retyping_the_password_replaces_the_fields_text(self, client):
         source_id = "req1695_literal"
-        update = _create(source_id, "rotated-value").replace("createSource", "updateSource")
+        before = await _vault_names()
+        update = _create(source_id, "retyped-value").replace("createSource", "updateSource")
         result = (await _gql(client, update))["data"]["updateSource"]
         assert result["success"] is True, result["message"]
 
-        assert (await _row(source_id))["password_ref"] == (
-            "${secret:source_req1695_literal_password}"
-        )
-        # A rotation is the same name, not a second secret.
-        assert len([n for n in await _vault_names() if n == "source_req1695_literal_password"]) == 1
+        assert (await _row(source_id))["password_ref"] == "retyped-value"
+        assert await _vault_names() == before
 
-    async def test_deleting_the_source_removes_the_secret_it_minted(self, client):
+    async def test_deleting_the_source_removes_its_row_and_nothing_from_the_vault(self, client):
+        before = await _vault_names()
         result = (
             await _gql(client, 'mutation { deleteSource(id: "req1695_literal") { success } }')
         )["data"]["deleteSource"]
         assert result["success"] is True
-        assert "source_req1695_literal_password" not in await _vault_names()
+        assert await _vault_names() == before
 
 
 class TestReferencePassword:
-    async def test_a_reference_is_stored_verbatim_and_mints_nothing(self, client, monkeypatch):
+    async def test_a_typed_reference_is_stored_verbatim(self, client, monkeypatch):
         # The variable the reference names is the operator's, set where the server runs; the
         # source's pool reads it once the source is stored (REQ-1919: the store holds the model).
         monkeypatch.setenv("PROVISA_DEMO_SPLUNK_PASSWORD", "operator-secret")
@@ -175,10 +173,10 @@ class TestReferencePassword:
         assert result["success"] is True, result["message"]
 
         assert (await _row(source_id))["password_ref"] == reference
-        assert "source_req1695_ref_password" not in await _vault_names()
+        assert not [n for n in await _vault_names() if "req1695" in n]
 
     async def test_deleting_it_leaves_the_operators_own_secrets_alone(self, client):
-        """The source names a secret it did not mint, so deleting the source does not delete it."""
+        """A secret the operator created is theirs: deleting a source does not delete it."""
         from provisa.api.app import state
         from provisa.core import secrets_store
 
@@ -201,4 +199,4 @@ class TestNoPassword:
         result = (await _gql(client, _create("req1695_none", "")))["data"]["createSource"]
         assert result["success"] is True, result["message"]
         assert (await _row("req1695_none"))["password_ref"] == ""
-        assert "source_req1695_none_password" not in await _vault_names()
+        assert not [n for n in await _vault_names() if "req1695" in n]

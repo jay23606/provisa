@@ -24,6 +24,7 @@ import pytest
 from provisa.api.data import stream_end
 from provisa.api.errors import ApiError
 from provisa.kafka.avro_registry import refuse_avro_without_registry
+from tests.role_state import RoleState
 
 
 async def _feed(*chunks, then: BaseException | None = None):
@@ -175,7 +176,7 @@ async def test_a_subscriber_of_an_avro_topic_with_no_registry_is_told_so_and_the
     from provisa.core.request_context import reset_current_org, set_current_org
 
     meta = SimpleNamespace(table_id=7, source_id="shop", domain_id="sales")
-    state = SimpleNamespace(
+    state = RoleState(
         tenant_db=object(),
         roles={"analyst": {}},
         view_context=SimpleNamespace(tables={"orders": meta}, pk_columns={7: ["id"]}),

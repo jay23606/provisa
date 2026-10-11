@@ -9,7 +9,8 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Button, Group, Stack, Text, Textarea, Title } from "@mantine/core";
+import { ActionIcon, Button, Stack, Text, Textarea, Title } from "@mantine/core";
+import { FieldGroup, FormField, FormLayout } from "../../form/FormLayout";
 
 // REQ-1939, ASSERTIONS: statements over the generated tables, each returning true or false. Each
 // runs after generation and its result is reported; none rejects or alters the generated data.
@@ -22,25 +23,36 @@ export function DatasetAssertions({
 }) {
   const { t } = useTranslation();
   return (
-    <Stack gap="xs" data-testid="synthetic-assertions">
-      <Title order={6}>{t("syntheticDatasets.assertionsTitle")}</Title>
-      <Text size="xs" c="dimmed">
-        {t("syntheticDatasets.assertionsHelp")}
-      </Text>
+    <FormLayout data-testid="synthetic-assertions">
+      <FormField size="full">
+        <Stack gap={2}>
+          <Title order={6}>{t("syntheticDatasets.assertionsTitle")}</Title>
+          <Text size="xs" c="dimmed">
+            {t("syntheticDatasets.assertionsHelp")}
+          </Text>
+        </Stack>
+      </FormField>
       {value.map((a, i) => (
-        <Group key={i} align="start" data-testid={`synthetic-assertion-${i}`}>
-          <Textarea
-            aria-label={t("syntheticDatasets.assertion")}
-            autosize
-            minRows={1}
-            style={{ flex: 1 }}
-            placeholder="SELECT COUNT(*) = 0 FROM sales.orders WHERE amount < 0"
-            value={a}
-            onChange={(e) => {
-              const v = e.currentTarget.value;
-              onChange(value.map((x, j) => (j === i ? v : x)));
-            }}
-          />
+        // One entry of the list: the statement and its remove, level with each other.
+        <FieldGroup
+          row
+          className="form-field-group--bare"
+          key={i}
+          data-testid={`synthetic-assertion-${i}`}
+        >
+          <FormField size="full">
+            <Textarea
+              aria-label={t("syntheticDatasets.assertion")}
+              autosize
+              minRows={1}
+              placeholder="SELECT COUNT(*) = 0 FROM sales.orders WHERE amount < 0"
+              value={a}
+              onChange={(e) => {
+                const v = e.currentTarget.value;
+                onChange(value.map((x, j) => (j === i ? v : x)));
+              }}
+            />
+          </FormField>
           <ActionIcon
             variant="subtle"
             aria-label={t("syntheticDatasets.remove")}
@@ -48,9 +60,9 @@ export function DatasetAssertions({
           >
             ×
           </ActionIcon>
-        </Group>
+        </FieldGroup>
       ))}
-      <Group>
+      <FormField size="full">
         <Button
           size="xs"
           variant="light"
@@ -59,7 +71,7 @@ export function DatasetAssertions({
         >
           {t("syntheticDatasets.addAssertion")}
         </Button>
-      </Group>
-    </Stack>
+      </FormField>
+    </FormLayout>
   );
 }

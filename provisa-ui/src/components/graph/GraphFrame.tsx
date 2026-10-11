@@ -58,6 +58,7 @@ import {
   ExpandQueryIcon,
   PushPinIcon,
 } from "./GraphIcons";
+import { Tip } from "../Tip";
 
 // ── Frame component ───────────────────────────────────────────────────────────
 interface GraphFrameProps {
@@ -362,17 +363,18 @@ export function GraphFrame({
     <div className="gf-header">
       <div className="gf-query-editor-wrap">
         {!queryFocused && !isModal && (
-          <div
-            className="gf-header-query-collapsed"
-            onClick={() => {
-              justOpenedRef.current = true;
-              setQueryFocused(true);
-              pendingFocusRef.current = true;
-            }}
-            title={editQuery}
-          >
-            {editQuery.replace(/\s*\n\s*/g, " ")}
-          </div>
+          <Tip text={editQuery}>
+            <div
+              className="gf-header-query-collapsed"
+              onClick={() => {
+                justOpenedRef.current = true;
+                setQueryFocused(true);
+                pendingFocusRef.current = true;
+              }}
+            >
+              {editQuery.replace(/\s*\n\s*/g, " ")}
+            </div>
+          </Tip>
         )}
         {(queryFocused || isModal) && (
           <CodeMirror
@@ -448,142 +450,160 @@ export function GraphFrame({
             )}
           </div>
           {!isModal && (
-            <ActionIcon
-              variant="subtle"
-              className="gf-icon-btn"
-              onClick={() => {
-                setExpanded(true);
-                setQueryFocused(true);
-              }}
-              title={t("graphFrame.expand")}
-              aria-label={t("graphFrame.expand")}
-              data-testid="graph-frame-expand-btn"
-            >
-              <ExpandModalIcon size={14} />
-            </ActionIcon>
+            <Tip text={t("graphFrame.expand")} named>
+              <ActionIcon
+                variant="subtle"
+                className="gf-icon-btn"
+                onClick={() => {
+                  setExpanded(true);
+                  setQueryFocused(true);
+                }}
+                aria-label={t("graphFrame.expand")}
+                data-testid="graph-frame-expand-btn"
+              >
+                <ExpandModalIcon size={14} />
+              </ActionIcon>
+            </Tip>
           )}
           {isModal && (
-            <ActionIcon
-              variant="subtle"
-              className="gf-icon-btn"
-              onClick={() => setExpanded(false)}
-              title={t("graphFrame.exitFullScreen")}
-              aria-label={t("graphFrame.exitFullScreen")}
-              data-testid="graph-frame-exit-fullscreen-btn"
-            >
-              <CollapseModalIcon size={14} />
-            </ActionIcon>
+            <Tip text={t("graphFrame.exitFullScreen")} named>
+              <ActionIcon
+                variant="subtle"
+                className="gf-icon-btn"
+                onClick={() => setExpanded(false)}
+                aria-label={t("graphFrame.exitFullScreen")}
+                data-testid="graph-frame-exit-fullscreen-btn"
+              >
+                <CollapseModalIcon size={14} />
+              </ActionIcon>
+            </Tip>
           )}
           {!isModal && (
-            <ActionIcon
-              variant="subtle"
-              className="gf-icon-btn"
-              onClick={() => setCollapsed((c) => !c)}
-              title={collapsed ? t("graphFrame.expand") : t("graphFrame.collapse")}
-              aria-label={collapsed ? t("graphFrame.expand") : t("graphFrame.collapse")}
-              data-testid="graph-frame-collapse-btn"
-            >
-              {collapsed ? <ExpandQueryIcon size={14} /> : <CollapseQueryIcon size={14} />}
-            </ActionIcon>
+            <Tip text={collapsed ? t("graphFrame.expand") : t("graphFrame.collapse")} named>
+              <ActionIcon
+                variant="subtle"
+                className="gf-icon-btn"
+                onClick={() => setCollapsed((c) => !c)}
+                aria-label={collapsed ? t("graphFrame.expand") : t("graphFrame.collapse")}
+                data-testid="graph-frame-collapse-btn"
+              >
+                {collapsed ? <ExpandQueryIcon size={14} /> : <CollapseQueryIcon size={14} />}
+              </ActionIcon>
+            </Tip>
           )}
           {!isModal && onPin && (
-            <ActionIcon
-              variant="subtle"
-              className={`gf-icon-btn${frame.pinned ? " gf-icon-btn--on" : ""}`}
-              onClick={() => onPin(frame.id)}
-              title={frame.pinned ? t("graphFrame.unpinHint") : t("graphFrame.pinToTop")}
-              aria-label={frame.pinned ? t("graphFrame.unpinHint") : t("graphFrame.pinToTop")}
-              aria-current={frame.pinned ? "true" : undefined}
-              data-testid="graph-frame-pin-btn"
-            >
-              <PushPinIcon size={14} />
-            </ActionIcon>
+            <Tip text={frame.pinned ? t("graphFrame.unpinHint") : t("graphFrame.pinToTop")} named>
+              <ActionIcon
+                variant="subtle"
+                className={`gf-icon-btn${frame.pinned ? " gf-icon-btn--on" : ""}`}
+                onClick={() => onPin(frame.id)}
+                aria-label={frame.pinned ? t("graphFrame.unpinHint") : t("graphFrame.pinToTop")}
+                aria-current={frame.pinned ? "true" : undefined}
+                data-testid="graph-frame-pin-btn"
+              >
+                <PushPinIcon size={14} />
+              </ActionIcon>
+            </Tip>
           )}
           {!isModal && (
-            <ActionIcon
-              variant="subtle"
-              className="gf-icon-btn"
-              onClick={() => onClose(frame.id)}
-              title={t("graphFrame.close")}
-              aria-label={t("graphFrame.close")}
-              data-testid="graph-frame-close-btn"
-            >
-              <span aria-hidden="true">✕</span>
-            </ActionIcon>
+            <Tip text={t("graphFrame.close")} named>
+              <ActionIcon
+                variant="subtle"
+                className="gf-icon-btn"
+                onClick={() => onClose(frame.id)}
+                aria-label={t("graphFrame.close")}
+                data-testid="graph-frame-close-btn"
+              >
+                <span aria-hidden="true">✕</span>
+              </ActionIcon>
+            </Tip>
           )}
         </div>
         <div className="gf-header-actions">
-          <ActionIcon
-            variant="subtle"
-            className="gf-run-inline-btn"
-            onClick={() => handleRerun(frame.id, editQuery.trim())}
-            title={t("graphFrame.run")}
-            aria-label={t("graphFrame.run")}
-            data-testid="graph-frame-run-btn"
-          >
-            <span aria-hidden="true">▶</span>
-          </ActionIcon>
-          {onAddFavorite && (
+          <Tip text={t("graphFrame.run")} named>
             <ActionIcon
               variant="subtle"
-              className={`gf-icon-btn${isFavorited?.(editQuery.trim()) ? " gf-icon-btn--on" : ""}`}
-              title={
-                isFavorited?.(editQuery.trim())
-                  ? t("graphFrame.removeFromFavorites")
-                  : t("graphFrame.addToFavorites")
-              }
-              aria-label={
-                isFavorited?.(editQuery.trim())
-                  ? t("graphFrame.removeFromFavorites")
-                  : t("graphFrame.addToFavorites")
-              }
-              aria-current={isFavorited?.(editQuery.trim()) ? "true" : undefined}
-              onClick={() => onAddFavorite(editQuery.trim())}
-              data-testid="graph-frame-favorite-btn"
+              className="gf-run-inline-btn"
+              onClick={() => handleRerun(frame.id, editQuery.trim())}
+              aria-label={t("graphFrame.run")}
+              data-testid="graph-frame-run-btn"
             >
-              <span aria-hidden="true">★</span>
+              <span aria-hidden="true">▶</span>
             </ActionIcon>
+          </Tip>
+          {onAddFavorite && (
+            <Tip
+              text={
+                isFavorited?.(editQuery.trim())
+                  ? t("graphFrame.removeFromFavorites")
+                  : t("graphFrame.addToFavorites")
+              }
+              named
+            >
+              <ActionIcon
+                variant="subtle"
+                className={`gf-icon-btn${isFavorited?.(editQuery.trim()) ? " gf-icon-btn--on" : ""}`}
+                aria-label={
+                  isFavorited?.(editQuery.trim())
+                    ? t("graphFrame.removeFromFavorites")
+                    : t("graphFrame.addToFavorites")
+                }
+                aria-current={isFavorited?.(editQuery.trim()) ? "true" : undefined}
+                onClick={() => onAddFavorite(editQuery.trim())}
+                data-testid="graph-frame-favorite-btn"
+              >
+                <span aria-hidden="true">★</span>
+              </ActionIcon>
+            </Tip>
           )}
           {hasGraph && frame.status === "done" && (
-            <ActionIcon
-              variant="subtle"
-              className={`gf-run-inline-btn${autoImpute ? " gf-run-inline-btn--on" : ""}`}
-              onClick={() => setAutoImpute((v) => !v)}
-              title={autoImpute ? t("graphFrame.autoImputeOn") : t("graphFrame.autoImputeOff")}
-              aria-label={autoImpute ? t("graphFrame.autoImputeOn") : t("graphFrame.autoImputeOff")}
-              aria-current={autoImpute ? "true" : undefined}
-              data-testid="graph-frame-auto-impute-btn"
+            <Tip
+              text={autoImpute ? t("graphFrame.autoImputeOn") : t("graphFrame.autoImputeOff")}
+              named
             >
-              <span aria-hidden="true">⊕</span>
-            </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                className={`gf-run-inline-btn${autoImpute ? " gf-run-inline-btn--on" : ""}`}
+                onClick={() => setAutoImpute((v) => !v)}
+                aria-label={
+                  autoImpute ? t("graphFrame.autoImputeOn") : t("graphFrame.autoImputeOff")
+                }
+                aria-current={autoImpute ? "true" : undefined}
+                data-testid="graph-frame-auto-impute-btn"
+              >
+                <span aria-hidden="true">⊕</span>
+              </ActionIcon>
+            </Tip>
           )}
           {hasGraph && frame.status === "done" && groupableAttrs.length > 0 && (
-            <Select
-              aria-label={t("graphFrame.groupTooltip")}
-              title={t("graphFrame.groupTooltip")}
-              className={`gf-attr-select${groupableAttrs.includes(clusterLevel) ? " gf-icon-btn--on" : ""}`}
-              size="xs"
-              placeholder={t("graphFrame.groupPlaceholder")}
-              value={groupableAttrs.includes(clusterLevel) ? clusterLevel : null}
-              onChange={(val) => setClusterLevel((val ?? "none") as ClusterLevel)}
-              data={groupableAttrs.map((a) => ({ value: a, label: a }))}
-              clearable
-              comboboxProps={{ withinPortal: true }}
-              data-testid="graph-frame-group-select"
-            />
+            <Tip text={t("graphFrame.groupTooltip")} named>
+              <Select
+                aria-label={t("graphFrame.groupTooltip")}
+                className={`gf-attr-select${groupableAttrs.includes(clusterLevel) ? " gf-icon-btn--on" : ""}`}
+                size="xs"
+                placeholder={t("graphFrame.groupPlaceholder")}
+                value={groupableAttrs.includes(clusterLevel) ? clusterLevel : null}
+                onChange={(val) => setClusterLevel((val ?? "none") as ClusterLevel)}
+                data={groupableAttrs.map((a) => ({ value: a, label: a }))}
+                clearable
+                comboboxProps={{ withinPortal: true }}
+                data-testid="graph-frame-group-select"
+              />
+            </Tip>
           )}
           {activeView === "table" && frame.rows.length > 0 && (
-            <ActionIcon
-              variant="subtle"
-              className={`gf-icon-btn${tableWrap ? " gf-icon-btn--on" : ""}`}
-              title={t("graphFrame.wrapCellText")}
-              aria-label={t("graphFrame.wrapCellText")}
-              aria-current={tableWrap ? "true" : undefined}
-              onClick={() => setTableWrap((v) => !v)}
-              data-testid="graph-frame-table-wrap-btn"
-            >
-              <span aria-hidden="true">⇌</span>
-            </ActionIcon>
+            <Tip text={t("graphFrame.wrapCellText")} named>
+              <ActionIcon
+                variant="subtle"
+                className={`gf-icon-btn${tableWrap ? " gf-icon-btn--on" : ""}`}
+                aria-label={t("graphFrame.wrapCellText")}
+                aria-current={tableWrap ? "true" : undefined}
+                onClick={() => setTableWrap((v) => !v)}
+                data-testid="graph-frame-table-wrap-btn"
+              >
+                <span aria-hidden="true">⇌</span>
+              </ActionIcon>
+            </Tip>
           )}
           {frame.status === "done" && (frame.rows.length > 0 || hasGraph) && (
             <div className="gf-dl-wrap">
@@ -595,26 +615,27 @@ export function GraphFrame({
                 onChange={setShowDlMenu}
               >
                 <Menu.Target>
-                  <ActionIcon
-                    variant="subtle"
-                    className="gf-icon-btn"
-                    title={t("graphFrame.download")}
-                    aria-label={t("graphFrame.download")}
-                    onClick={() => setShowDlMenu((v) => !v)}
-                    data-testid="graph-frame-download-btn"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      xmlns="http://www.w3.org/2000/svg"
-                      aria-hidden="true"
+                  <Tip text={t("graphFrame.download")} named>
+                    <ActionIcon
+                      variant="subtle"
+                      className="gf-icon-btn"
+                      aria-label={t("graphFrame.download")}
+                      onClick={() => setShowDlMenu((v) => !v)}
+                      data-testid="graph-frame-download-btn"
                     >
-                      <path d="M8 10.5L4.5 7h2V2h3v5h2L8 10.5z" />
-                      <rect x="2" y="12" width="12" height="1.5" rx="0.75" />
-                    </svg>
-                  </ActionIcon>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path d="M8 10.5L4.5 7h2V2h3v5h2L8 10.5z" />
+                        <rect x="2" y="12" width="12" height="1.5" rx="0.75" />
+                      </svg>
+                    </ActionIcon>
+                  </Tip>
                 </Menu.Target>
                 <Menu.Dropdown className="gf-dl-menu">
                   {frame.rows.length > 0 && (
@@ -731,18 +752,18 @@ export function GraphFrame({
         ].map(
           ({ key, label, Icon, show, onClick }) =>
             show && (
-              <ActionIcon
-                key={key}
-                variant="subtle"
-                className={`gf-view-bar-btn ${activeView === key ? "active" : ""}`}
-                onClick={onClick}
-                title={label}
-                aria-label={label}
-                aria-current={activeView === key ? "true" : undefined}
-                data-testid={`graph-frame-view-${key}-btn`}
-              >
-                <Icon size={15} />
-              </ActionIcon>
+              <Tip key={key} text={label} named>
+                <ActionIcon
+                  variant="subtle"
+                  className={`gf-view-bar-btn ${activeView === key ? "active" : ""}`}
+                  onClick={onClick}
+                  aria-label={label}
+                  aria-current={activeView === key ? "true" : undefined}
+                  data-testid={`graph-frame-view-${key}-btn`}
+                >
+                  <Icon size={15} />
+                </ActionIcon>
+              </Tip>
             ),
         )}
       </div>
@@ -818,16 +839,17 @@ export function GraphFrame({
               isExpanded={expanded}
             />
             {!inspectorVisible && (
-              <ActionIcon
-                variant="subtle"
-                className="gf-insp-show-btn"
-                onClick={() => setInspectorVisible(true)}
-                title={t("graphFrame.showPropertiesPanel")}
-                aria-label={t("graphFrame.showPropertiesPanel")}
-                data-testid="graph-frame-show-inspector-btn"
-              >
-                <span aria-hidden="true">‹</span>
-              </ActionIcon>
+              <Tip text={t("graphFrame.showPropertiesPanel")} named>
+                <ActionIcon
+                  variant="subtle"
+                  className="gf-insp-show-btn"
+                  onClick={() => setInspectorVisible(true)}
+                  aria-label={t("graphFrame.showPropertiesPanel")}
+                  data-testid="graph-frame-show-inspector-btn"
+                >
+                  <span aria-hidden="true">‹</span>
+                </ActionIcon>
+              </Tip>
             )}
             {inspectorVisible && (
               <Inspector

@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "メトリクス",
-    "newMetric": "新規メトリクス",
+    "newMetric": "+ メトリクス",
     "loading": "読み込み中...",
     "empty": "登録されたメトリクスはまだありません。",
     "colName": "名前",
@@ -39,8 +39,6 @@
     "fieldDescription": "説明",
     "fieldAiContext": "AIコンテキスト",
     "fieldAiContextPlaceholder": "AI支援クエリ生成のためのヒント",
-    "save": "保存",
-    "cancel": "キャンセル",
     "saveFailed": "保存に失敗しました。",
     "editMetric": "メトリクス {{name}} を編集",
     "deleteMetric": "メトリクス {{name}} を削除",
@@ -51,7 +49,8 @@
     "purposeTitle": "メトリクスの目的",
     "purposeBody": "メトリクスは指標のビジネス定義です。1 つのファクトテーブル上の集計をここで一度だけ定義し、SQL、GraphQL、Explore キャンバス、メトリクスから作られたビュー、交換用エクスポートといったすべての面に投影します。",
     "purposeAdd": "一度定義しておけば、利用側が計算を再実装して値がずれることはありません。メトリクスから作られたビューはメトリクスの変更のたびに再生成されるため、数値はどこでも同じままです。",
-    "purposeAria": "メトリクスについて"
+    "purposeAria": "メトリクスについて",
+    "detailPanel": "メトリクスの詳細"
   },
   "sqlJoinCanvas": {
     "removeMetric": "メトリクス {{metricName}} を削除",

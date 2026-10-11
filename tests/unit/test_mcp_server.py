@@ -28,6 +28,7 @@ from provisa.api.mcp import tools
 from provisa.compiler.sql_types import JoinMeta, TableMeta
 from provisa.executor.result import QueryResult
 from provisa.transpiler.router import Route
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -100,7 +101,7 @@ def _make_state():
             SimpleNamespace(id="crm", description="CRM domain"),
         ]
     )
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": ctx},
         roles={"analyst": {"id": "analyst"}},
         config=config,
@@ -215,7 +216,7 @@ def _make_prefixed_state():
         unique_constraints={},
     )
     config = SimpleNamespace(domains=[SimpleNamespace(id="pet-store", description="Pet store")])
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": ctx},
         roles={"analyst": {"id": "analyst"}},
         config=config,

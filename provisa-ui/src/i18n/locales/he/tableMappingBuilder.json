@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "הסרת עמודה {{index}}",
-    "saveMapping": "שמירת מיפוי",
     "fieldRedis": "שדה Redis",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "Dot-Path",

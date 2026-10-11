@@ -37,7 +37,6 @@
     "runNowSubmit": "Ejecutar ahora",
     "runNowQueuing": "Encolando...",
     "runNowQueued": "Ejecución encolada para {{table}}.",
-    "runNowCancel": "Cancelar",
     "dependentsTitle": "Otros artefactos usan estas columnas",
     "dependentsIntro": "Cambiar el alias SQL de una columna o eliminarla romperá los artefactos siguientes, que nombran la columna tal como está hoy. ¿Guardar de todos modos?",
     "dependentsCancel": "Volver",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "Diagrama entidad-relación",
     "erdHelpBody": "Dibuja las tablas registradas y las relaciones declaradas entre ellas, de modo que los joins que ya existen se ven antes de escribir una consulta. Lee el modelo en lugar de editarlo: filtra por dominio y exporta el diagrama como PNG o SVG.",
     "purposeModel": "+ Modelo declara una entidad o un hecho —las dos piezas con las que se construyen tanto un esquema en estrella como un Data Vault— y lo baja a esas mismas primitivas, registrando la vista materializada, su modo de historial y las relaciones con las entidades cuyas claves usa.",
-    "empty": "Aún no hay tablas registradas."
+    "empty": "Aún no hay tablas registradas.",
+    "resizeDetail": "Cambiar el tamaño del panel de detalles",
+    "detailPanel": "Detalles de la tabla",
+    "closeDetail": "Cerrar el panel de detalles",
+    "expandDetail": "Ampliar el panel",
+    "restoreDetail": "Restaurar el panel",
+    "backToList": "Volver a la lista",
+    "backToDetail": "Volver a los detalles",
+    "panelRegisterTable": "Registrar tabla",
+    "panelNewView": "Nueva vista",
+    "panelNewModel": "Nuevo modelo"
   }
 }

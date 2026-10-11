@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} rows)",
     "tableScale": "Table scale",
     "tableScalePlaceholder": "Dataset scale",
-    "define": "Save dataset",
     "seedOption": "Start on synthetic data",
     "seedTables": "Tables",
     "relationshipOption": "{{parent}} → {{child}}",

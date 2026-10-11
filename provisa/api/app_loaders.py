@@ -27,6 +27,7 @@ from provisa.api.startup_resilience import tolerate_startup_failure
 from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.naming import source_to_catalog
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
+from provisa.security.meta_role import is_meta_role_id, rebuild_meta_roles, with_meta_masks
 from provisa.security.rights import Capability, reaches_all_domains
 from provisa.compiler.context import build_context
 from provisa.compiler.rls import build_rls_context
@@ -389,9 +390,9 @@ async def _build_source_pools_and_enums(
     # run before load_config so physical registration uses the org-prefixed name).
     _populate_source_catalog_names(config, extra_sources=extra_sources)
 
-    # REQ-1730: a control-plane-only source's password is a ${secret:NAME} vault reference
-    # (persist_source_password writes it that way — see StoredSecretsProvider), unlike a YAML
-    # source's password, which is a literal or a ${env:...} ref that needs no org binding at all.
+    # REQ-1730: a control-plane-only source's password may be a ${secret:NAME} reference its
+    # operator typed, which needs its organisation's vault bound; a value or a ${env:...}
+    # reference needs no binding at all.
     # Nothing bound an org here before because nothing calling resolve_secrets during BOOT ever
     # held a vault-backed reference until extra_sources started flowing through this loop —
     # reproduced live: KeyError "no organization is bound to this context", uncaught, crashing the
@@ -1336,8 +1337,8 @@ async def _load_masking_rules(  # REQ-040, REQ-263, REQ-1677
         if mrow["mask_type"] == MaskType.fake.value:
             raise RuntimeError(
                 f"table {mrow['table_id']} column {mrow['column_name']!r} is masked with a fake; "
-                "a fake is the column's own declaration, read in a Test (fake) environment "
-                "(REQ-1942), never a role mask"
+                "a fake is the column's own declaration, read in a Test (fake) environment"
+                ", never a role mask"
             )
         if faking and mrow["fake"] is not None:
             fake_rule = MaskingRule(
@@ -1393,7 +1394,9 @@ async def _load_masking_rules(  # REQ-040, REQ-263, REQ-1677
             if holds_grant(role["id"], unmasked_to, chains):
                 continue
             rules.setdefault((table_id, role["id"]), {})[col_name] = (mask_rule, data_type)
-    state.masking_rules = rules
+    # The meta-roles requests are acting as keep their masks through the rebuild: they are
+    # published here, in the same assignment as their members'.
+    state.masking_rules = with_meta_masks(state, rules, {role["id"] for role in roles})
 
 
 async def _load_kept(conn: Any) -> None:  # REQ-1942
@@ -1588,14 +1591,7 @@ def _drop_data_surface(state, role_id: str) -> None:
     last build ran still has that build's schema, context and proto in place. Leaving them would
     go on showing the role a catalog it no longer reaches.
     """
-    for surface in (
-        state.schemas,
-        state.contexts,
-        state.rls_contexts,
-        state.table_path_maps,
-        state.proto_files,
-    ):
-        surface.pop(role_id, None)
+    state.surfaces.pop(role_id, None)
 
 
 def schema_input_for(
@@ -1628,6 +1624,7 @@ def schema_input_for(
 def register_role_surface(state: Any, role: dict, rls: Any) -> None:
     """Build and register one role's data surface: its GraphQL schema, REST path map, compiled
     context, RLS context and proto, from this generation's build inputs."""
+    from provisa.api.role_surface import RoleSurface
     from provisa.compiler.schema_gen import build_table_path_map
     from provisa.grpc.proto_gen import generate_proto
 
@@ -1637,17 +1634,23 @@ def register_role_surface(state: Any, role: dict, rls: Any) -> None:
     # "no schema available" for every request to this org runtime (the build is cache-only-on-
     # success). Let generate_schema raise so a bad role definition fails the build loudly and
     # gets fixed at the source, matching generate_proto below.
-    state.schemas[role["id"]] = generate_schema(si)
-    state.table_path_maps[role["id"]] = build_table_path_map(si)
+    #
+    # Every part is built before any of it is installed, and the role's surface is installed
+    # with ONE assignment (api/role_surface.py): a request on its own thread reads either the
+    # surface this replaces or this one, never the schema of one and the context of the other
+    # (#213). generate_proto is not swallowed either: an unmapped column type is a real gap in
+    # the proto type map, not a reason to silently disable gRPC for the role.
     ctx = build_context(si)
     ctx.refusal = state._active_runtime().data_refusal  # REQ-1942
     ctx.kept = dict(state._active_runtime().kept)  # REQ-1942
-    state.contexts[role["id"]] = ctx
-    state.rls_contexts[role["id"]] = rls
-    # No swallow: an unmapped column type is a real gap in the proto type map, not a reason to
-    # silently disable gRPC for the role. Let generate_proto raise so it surfaces at startup and
-    # gets fixed at the source (the type map) — never patched around here.
-    state.proto_files[role["id"]] = generate_proto(si, field_numbers=inputs["field_numbers"])
+    surface = RoleSurface(
+        schema=generate_schema(si),
+        context=ctx,
+        rls=rls,
+        table_path_map=build_table_path_map(si),
+        proto=generate_proto(si, field_numbers=inputs["field_numbers"]),
+    )
+    state.surfaces[role["id"]] = surface
 
 
 def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221, REQ-262, REQ-263
@@ -1725,8 +1728,16 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
     # are built up across rebuilds of a live runtime, so a role deleted since the last build is
     # still in them: without this it keeps its rights (capability resolution reads state.roles)
     # and its schema, and goes on being served to whoever still names it.
+    #
+    # A meta-role is not among them and is not removed here: requests may be acting as it while
+    # this build runs. It is rebuilt from its rebuilt members, or removed, once they are
+    # registered (security/meta_role.rebuild_meta_roles, below).
     current = {role["id"] for role in roles}
-    for gone in [role_id for role_id in state.roles if role_id not in current]:
+    for gone in [
+        role_id
+        for role_id in state.roles
+        if role_id not in current and not is_meta_role_id(role_id)
+    ]:
         del state.roles[gone]
         _drop_data_surface(state, gone)
 
@@ -1756,6 +1767,8 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
             _drop_data_surface(state, role["id"])
             continue
         register_role_surface(state, role, build_rls_context(rls_rules, role["id"]))
+
+    rebuild_meta_roles(state, current)  # #216: a meta-role in use outlives the rebuild
 
     # REQ-045/REQ-143: the SERVED gRPC wire descriptor. A grpc.aio server registers exactly one
     # generated service and stock reflection serves exactly one descriptor pool, so the wire

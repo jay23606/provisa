@@ -16,6 +16,7 @@ from provisa.core.egress import CountingWriter
 import jwt
 import pytest
 from tests.platform_plane import platform_db
+from tests.role_state import RoleState
 
 
 # ---------------------------------------------------------------------------
@@ -979,7 +980,7 @@ class TestReq586CopyFromAdmitted:
 
         from provisa.compiler.rls import RLSContext
 
-        return SimpleNamespace(
+        return RoleState(
             source_types={"pg": "postgresql"},
             roles={"dev": {"id": "dev", "capabilities": capabilities, "domain_access": ["*"]}},
             rls_contexts={"dev": RLSContext.empty()},

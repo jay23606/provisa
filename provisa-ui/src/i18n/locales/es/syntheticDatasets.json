@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} filas)",
     "tableScale": "Escala de la tabla",
     "tableScalePlaceholder": "Escala del conjunto de datos",
-    "define": "Guardar conjunto de datos",
     "seedOption": "Empezar con datos sintéticos",
     "seedTables": "Tablas",
     "relationshipOption": "{{parent}} → {{child}}",

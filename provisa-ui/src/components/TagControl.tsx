@@ -21,13 +21,13 @@ import {
   Stack,
   Text,
   TextInput,
-  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { Pencil, Tag as TagIcon } from "lucide-react";
 import type { Tag, TagAssignment, TagObjectType } from "../types/admin";
 import { TAG_PARAM_SEPARATOR, baseTagId, tagParam } from "../types/admin";
 import { useAssignTag, useTagAssignments, useTags, useUnassignTag } from "../hooks/useTagQueries";
+import { Tip, TipSurface } from "./Tip";
 
 // REQ-1377: one reusable tag-pill + tag-picker control shared by the five
 // taggable object surfaces (source, table, column, relationship, command).
@@ -188,11 +188,9 @@ export function TagControl({
           !!assignment?.expiresOn &&
           isPastDate(assignment.expiresOn);
         return (
-          <Tooltip
+          <TipSurface
             key={tag.id}
-            withinPortal
-            transitionProps={{ duration: 0 }}
-            label={
+            content={
               <Stack gap={0}>
                 <Text size="xs">{tag.description}</Text>
                 {assignment?.reason && <Text size="xs">{assignment.reason}</Text>}
@@ -214,21 +212,22 @@ export function TagControl({
                   registry id alone would show every parameterized pill as the same word. */}
               {assignment?.tagId ?? tag.id}
             </Badge>
-          </Tooltip>
+          </TipSurface>
         );
       })}
       {!readOnly && (
         <Popover withinPortal position="bottom-start" shadow="md">
           <Popover.Target>
-            <ActionIcon
-              variant="subtle"
-              size="xs"
-              aria-label={t("tagControl.editTags")}
-              title={t("tagControl.editTags")}
-              data-testid="tag-picker-toggle"
-            >
-              <TagIcon size={12} />
-            </ActionIcon>
+            <Tip text={t("tagControl.editTags")} named>
+              <ActionIcon
+                variant="subtle"
+                size="xs"
+                aria-label={t("tagControl.editTags")}
+                data-testid="tag-picker-toggle"
+              >
+                <TagIcon size={12} />
+              </ActionIcon>
+            </Tip>
           </Popover.Target>
           <Popover.Dropdown onClick={(e) => e.stopPropagation()}>
             <Stack gap="0.35rem">
@@ -254,16 +253,17 @@ export function TagControl({
                         data-testid={`tag-option-${tag.id}`}
                       />
                       {assignment && (
-                        <ActionIcon
-                          variant="subtle"
-                          size="xs"
-                          aria-label={t("tagControl.editAssignment")}
-                          title={t("tagControl.editAssignment")}
-                          onClick={() => openForm(tag.id, assignment)}
-                          data-testid={`tag-edit-${tag.id}`}
-                        >
-                          <Pencil size={12} />
-                        </ActionIcon>
+                        <Tip text={t("tagControl.editAssignment")} named>
+                          <ActionIcon
+                            variant="subtle"
+                            size="xs"
+                            aria-label={t("tagControl.editAssignment")}
+                            onClick={() => openForm(tag.id, assignment)}
+                            data-testid={`tag-edit-${tag.id}`}
+                          >
+                            <Pencil size={12} />
+                          </ActionIcon>
+                        </Tip>
                       )}
                     </Group>
                     {isEditing && (

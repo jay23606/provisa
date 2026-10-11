@@ -1256,12 +1256,12 @@ class Table(
         if self.view_sql is not None and self.view_metrics is not None:
             raise ValueError(
                 f"table {self.table_name!r}: view_sql and view_metrics are mutually "
-                "exclusive — a view has exactly one definition form (REQ-1318)"
+                "exclusive — a view has exactly one definition form"
             )
         if self.modeling_role not in (None, "fact", "dimension"):
             raise ValueError(
                 f"table {self.table_name!r}: modeling_role must be 'fact' or "
-                f"'dimension', got {self.modeling_role!r} (REQ-1320)"
+                f"'dimension', got {self.modeling_role!r}"
             )
         return self
 
@@ -1272,8 +1272,7 @@ class Table(
         for role, ttl in self.role_ttl.items():
             if ttl < 0:
                 raise ValueError(
-                    f"table {self.table_name!r}: role_ttl for role {role!r} must be >= 0, got "
-                    f"{ttl} (REQ-1907)"
+                    f"table {self.table_name!r}: role_ttl for role {role!r} must be >= 0, got {ttl}"
                 )
         return self
 
@@ -1307,17 +1306,16 @@ class Table(
         if d.apply == "upsert" and not any(c.is_primary_key for c in self.columns):
             raise ValueError(
                 f"table {self.table_name!r}: delta.apply=upsert needs an is_primary_key column "
-                "to key the delete+insert on (REQ-874)"
+                "to key the delete+insert on"
             )
         if not self.watermark_column:
             raise ValueError(
-                f"table {self.table_name!r}: delta needs watermark_column (the cursor field) "
-                "(REQ-874)"
+                f"table {self.table_name!r}: delta needs watermark_column (the cursor field)"
             )
         if d.query is not None and ("$wm" not in d.query or "{{fields}}" not in d.query):
             raise ValueError(
                 f"table {self.table_name!r}: delta.query must carry both $wm and {{{{fields}}}} "
-                "placeholders (REQ-874)"
+                "placeholders"
             )
         if d.rebuild_every is not None and d.rebuild_every <= 0:
             raise ValueError(
@@ -1334,13 +1332,13 @@ class Table(
         if not any(c.is_primary_key for c in self.columns):
             raise ValueError(
                 f"table {self.table_name!r}: row_materialize requires at least one "
-                "is_primary_key column (REQ-1865)"
+                "is_primary_key column"
             )
         if self.materialize:
             raise ValueError(
                 f"table {self.table_name!r}: row_materialize and materialize (view_sql CTAS) "
                 "are mutually exclusive — a table is either whole-table-materialized or "
-                "row-materialized, never both (REQ-1865)"
+                "row-materialized, never both"
             )
         # The cache_ttl-resolution check (table's own OR inherited from its source) cannot live
         # here — Table's own validator does not see Source. That check is enforced where table

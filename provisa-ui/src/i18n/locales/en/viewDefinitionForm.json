@@ -9,15 +9,12 @@
     "fieldName": "View name",
     "fieldNamePlaceholder": "e.g. revenue_by_region",
     "fieldDomain": "Domain",
-    "fieldDescription": "Description",
     "fieldMetrics": "Metrics",
     "fieldMetricsPlaceholder": "Pick one or more registered metrics",
     "fieldDimensions": "Dimensions",
     "fieldDimensionsPlaceholder": "Columns of the metrics' tables (one relationship hop away included)",
     "fieldFilters": "Filters",
     "fieldFiltersHelp": "One SQL condition per line; conditions are ANDed.",
-    "save": "Save view",
-    "saveFailed": "Save failed",
-    "cancel": "Cancel"
+    "saveFailed": "Save failed"
   }
 }

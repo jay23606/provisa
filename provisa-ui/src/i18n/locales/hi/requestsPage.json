@@ -8,7 +8,6 @@
     "reasonLabel": "कारण",
     "reasonPlaceholder": "— कारण चुनें —",
     "confirm": "पुष्टि करें",
-    "cancel": "रद्द करें",
     "empty": "कोई {{tab}} अनुरोध नहीं।",
     "emptyFiltered": "फ़िल्टर से मेल खाता कोई {{tab}} अनुरोध नहीं।",
     "colId": "ID",

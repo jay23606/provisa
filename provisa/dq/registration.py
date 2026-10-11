@@ -66,7 +66,7 @@ def derive_checker_table(table: Any, source_type: Any) -> str:
     if not table.columns:
         raise ValueError(
             f"Table {table.table_name!r}: declare at least one column to carry visible_to; the "
-            f"results schema itself ships (REQ-1443) and replaces what is declared"
+            f"results schema itself ships and replaces what is declared"
         )
     visible_sets = {tuple(c.visible_to) for c in table.columns}
     if len(visible_sets) > 1:

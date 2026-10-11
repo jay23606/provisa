@@ -35,10 +35,18 @@ from provisa.kaggle.client import download_dataset, get_dataset_metadata
 _SUPPORTED_EXTENSIONS = (".csv", ".parquet")
 _UNSUPPORTED_EXTENSIONS = (".sqlite", ".sqlite3", ".db")
 
-# REQ-1819: the one shared secret name every Kaggle-staging caller (admin GraphQL, MCP chat) reads
-# the API token from — see provisa/api/admin/schema_common.py's _stage_kaggle_if_needed, the single
-# choke point (inside create_source itself) that actually enforces staging on every creation path.
-KAGGLE_TOKEN_SECRET_NAME = "kaggle_api_token"
+#: The operator setting every Kaggle caller (admin GraphQL, MCP chat) reads the API token from.
+KAGGLE_TOKEN_SETTING = "kaggle.api_token"
+
+
+def api_token() -> str:
+    """The Kaggle API token as the operator's setting holds it -- the value, or a reference they
+    typed -- resolved by the one resolver. A reference into an organisation's vault needs that
+    vault bound by the caller (``secrets_store.bound_to_request_org``)."""
+    from provisa.core import settings_registry
+    from provisa.core.secrets import resolve_secrets
+
+    return resolve_secrets(str(settings_registry.value(KAGGLE_TOKEN_SETTING)))
 
 
 class UnsupportedKaggleDataset(Exception):

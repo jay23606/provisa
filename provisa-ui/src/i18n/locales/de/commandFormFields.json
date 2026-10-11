@@ -64,6 +64,13 @@
     "writesTable": "Schreibt Tabelle",
     "writesTableHint": "Die registrierte Tabelle, die dieser Befehl ändert. Nach jedem Aufruf werden zwischengespeicherte Ergebnisse und materialisierte Sichten darauf aktualisiert.",
     "routinesOffered_one": "{{count}} Routine in diesem Schema steht zur Auswahl",
-    "routinesOffered_other": "{{count}} Routinen in diesem Schema stehen zur Auswahl"
+    "routinesOffered_other": "{{count}} Routinen in diesem Schema stehen zur Auswahl",
+    "inputColumnsTitle": "Spalten des Eingabe-Datasets",
+    "addInputColumn": "Eingabespalte hinzufügen",
+    "removeInputColumn": "Eingabespalte {{name}} entfernen",
+    "outputColumnsTitle": "Spalten des Ausgabe-Datasets",
+    "addOutputColumn": "Ausgabespalte hinzufügen",
+    "removeOutputColumn": "Ausgabespalte {{name}} entfernen",
+    "datasetColumnPlaceholder": "Spalte"
   }
 }

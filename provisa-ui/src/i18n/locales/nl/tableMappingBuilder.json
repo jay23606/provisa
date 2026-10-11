@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "Kolom {{index}} verwijderen",
-    "saveMapping": "Toewijzing opslaan",
     "fieldRedis": "Redis-veld",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "Dot-Path",

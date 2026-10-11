@@ -13,7 +13,7 @@
 // description, key, write grants and scope are read-only; its read grants and masks stay editable.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { fireEvent, render, screen } from "../../../test-utils/render";
 
 vi.mock("../../../api/fakes", () => ({
   fetchFakeCatalog: vi.fn().mockResolvedValue({ kinds: [], methods: [] }),
@@ -158,12 +158,15 @@ describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
 
   it("keeps grants and masks editable and the rest of a column read-only", () => {
     renderForm(true);
-    const row = screen.getByTestId("column-row-email");
-    expect(control(row, "SQL Alias")).toBeDisabled();
-    expect(control(row, "Data Type")).toBeDisabled();
-    expect(control(row, "Primary Key")).toBeDisabled();
-    expect(control(row, "Masking")).not.toBeDisabled();
-    expect(control(row, "Visible To (Read)")).not.toBeDisabled();
+    // The column editor shows a topic at a time; the row is the same on each tab.
+    const row = () => screen.getByTestId("column-row-email");
+    expect(control(row(), "SQL Alias")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("column-tab-type"));
+    expect(control(row(), "Data Type")).toBeDisabled();
+    expect(control(row(), "Primary Key")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("column-tab-access"));
+    expect(control(row(), "Masking")).not.toBeDisabled();
+    expect(control(row(), "Visible To (Read)")).not.toBeDisabled();
   });
 
   it("is the whole editor for a table editor", () => {
@@ -171,5 +174,15 @@ describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
     expect(screen.queryByTestId("table-edit-hiding-only")).not.toBeInTheDocument();
     expect(screen.getByTestId("load-management-panel-toggle")).toBeInTheDocument();
     expect(control(screen.getByTestId("column-row-email"), "SQL Alias")).not.toBeDisabled();
+  });
+
+  it("is not offered Testing: its Save writes nothing of a column's test data", () => {
+    renderForm(true);
+    expect(screen.queryByTestId("column-tab-testing")).toBeNull();
+  });
+
+  it("offers Testing to an editor of the whole table", () => {
+    renderForm(false);
+    expect(screen.getByTestId("column-tab-testing")).toHaveTextContent("Testing");
   });
 });

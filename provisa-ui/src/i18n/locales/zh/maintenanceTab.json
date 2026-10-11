@@ -1,0 +1,20 @@
+{
+  "maintenanceTab": {
+    "title": "计划维护",
+    "intro": "在你关闭之前，向每位已登录用户的每个页面显示横幅。在会中断查询的计划工作（更换引擎集群、切换其拓扑或升级控制平面）之前开启，让中断看起来是计划内的，而不是故障。",
+    "live": "横幅正在显示。",
+    "liveSince": "横幅自 {{time}} 起显示。",
+    "messageLabel": "消息",
+    "messagePlaceholder": "Provisa 正在进行计划维护…",
+    "messageHint": "留空则使用标准文案。",
+    "endsAtLabel": "预计恢复时间",
+    "endsAtHint": "留空表示不提供预计时间，而不是暗示一个时间。",
+    "showBanner": "显示横幅",
+    "updateBanner": "更新横幅",
+    "clearBanner": "清除横幅",
+    "dangerTitle": "危险区域",
+    "dangerIntro": "停止本机上的后端和 UI 开发服务器。仅适用于 --demo/--native 桌面启动，其他情况一律拒绝。",
+    "stopAll": "停止所有服务",
+    "stopConfirm": "要停止本机上的后端和 UI 开发服务器吗？你的会话将立即结束。"
+  }
+}

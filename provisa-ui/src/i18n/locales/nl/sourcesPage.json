@@ -1,10 +1,17 @@
 {
   "sourcesPage": {
+    "detailPanel": "Brondetails",
+    "resizeDetail": "Formaat van het detailpaneel wijzigen",
+    "expandDetail": "Paneel uitvouwen",
+    "restoreDetail": "Paneel herstellen",
+    "closeDetail": "Detailpaneel sluiten",
+    "backToList": "Terug naar de lijst",
+    "backToSource": "Terug naar de bron",
+    "panelNewSource": "Nieuwe bron",
     "title": "Databronnen",
     "loading": "Bronnen laden...",
     "filterPlaceholder": "Filteren op bron-ID of type…",
     "addSource": "+ Bron",
-    "closeForm": "Formulier sluiten",
     "schemaRefreshFailed": "Schema verversen mislukt: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "bijv. sales-pg",

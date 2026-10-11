@@ -40,16 +40,42 @@ describe("source load/timeliness client validation", () => {
     expect(sentinelPathValid("/local/path")).toBe(false);
   });
 
-  it("refuses a ttl/ttl_probe signal with no landing Cache TTL only when the data lands", () => {
+  it("refuses a ttl, ttl_probe or probe signal with no landing Cache TTL only when the data lands", () => {
     expect(ttlSignalMissingCacheTtl("ttl", null, true)).toBe(true);
     expect(ttlSignalMissingCacheTtl("ttl_probe", null, true)).toBe(true);
+    // A probe is asked on the Cache TTL and nowhere else: without one it is never asked again.
+    expect(ttlSignalMissingCacheTtl("probe", null, true)).toBe(true);
+    expect(ttlSignalMissingCacheTtl("probe", 60, true)).toBe(false);
+    expect(ttlSignalMissingCacheTtl("probe", null, false)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", null, false)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", 60, true)).toBe(false);
     expect(ttlSignalMissingCacheTtl("ttl", 0, true)).toBe(false);
-    for (const other of ["probe", "native", "debezium", "kafka"]) {
+    for (const other of ["native", "debezium", "kafka"]) {
       expect(ttlSignalMissingCacheTtl(other, null, true)).toBe(false);
     }
     expect(ttlSignalMissingCacheTtl(null, null, true)).toBe(false);
+  });
+
+  // #208: a kind whose every table lands needs the clock whatever its replicate setting says.
+  it("refuses a ttl signal with no Cache TTL for a kind the server says lands every table", () => {
+    const mail = {
+      maxLiveConcurrency: "",
+      sentinelPath: "",
+      changeSignal: "ttl",
+      cacheTtl: "",
+      replicate: null,
+      loadProtected: false,
+    };
+    expect(sourceLoadFieldsValid(mail)).toBe(true); // not known to land
+    expect(sourceLoadFieldsValid(mail, true)).toBe(false);
+    expect(sourceLoadFieldsValid({ ...mail, cacheTtl: "300" }, true)).toBe(true);
+    // #212: a probe is asked on the Cache TTL, so it needs one as ttl does; a signal with its own
+    // clock (a change feed) does not.
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe" }, true)).toBe(false);
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "probe", cacheTtl: "300" }, true)).toBe(
+      true,
+    );
+    expect(sourceLoadFieldsValid({ ...mail, changeSignal: "native" }, true)).toBe(true);
   });
 
   it("combines every rule", () => {
@@ -80,7 +106,7 @@ describe("source load/timeliness client validation", () => {
     expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", replicate: 500 })).toBe(false);
     expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", replicate: -1 })).toBe(true);
     expect(sourceLoadFieldsValid({ ...ok, replicate: -1, loadProtected: true })).toBe(false);
-    for (const signal of ["probe", "native", "debezium", "kafka"]) {
+    for (const signal of ["native", "debezium", "kafka"]) {
       expect(sourceLoadFieldsValid({ ...ok, cacheTtl: "", changeSignal: signal })).toBe(true);
     }
   });

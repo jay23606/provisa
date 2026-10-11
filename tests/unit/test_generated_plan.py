@@ -32,6 +32,7 @@ from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import compile_query
 from provisa.pgwire import governed_plan
 from tests.unit.test_jsonapi import _build_test_schema
+from tests.role_state import RoleState
 
 _ROLE = "admin"
 _FIELDS = "{ id customerId amount region createdAt }"
@@ -40,7 +41,7 @@ _FIELDS = "{ id customerId amount region createdAt }"
 @pytest.fixture
 def env(monkeypatch):
     schema, ctx = _build_test_schema()
-    state = SimpleNamespace(
+    state = RoleState(
         schemas={_ROLE: schema},
         contexts={_ROLE: ctx},
         rls_contexts={_ROLE: RLSContext.empty()},

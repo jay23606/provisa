@@ -66,6 +66,8 @@ _CRED_PREFIXES = (
     "CLICKHOUSE_",
     "SP_",
     "SF_",  # the Salesforce connected app (REQ-1946)
+    "M365_",  # the Microsoft 365 tenant, client and test mailboxes (REQ-1923)
+    "GWS_",  # the Google Workspace service account key file, administrator and mailboxes
     "CLOUDOPS_",  # the cloud inventory source's clouds (REQ-1947)
     "REDSHIFT_",
     # R2 object staging (Cloudflare S3-compatible). The Databricks bulk COPY-INTO, Databricks

@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "指令詳情",
+    "resizeDetail": "調整詳情面板大小",
+    "expandDetail": "展開面板",
+    "restoreDetail": "還原面板",
+    "closeDetail": "關閉詳情面板",
+    "backToList": "返回清單",
+    "backToCommand": "返回指令",
+    "panelNewCommand": "新增指令",
     "title": "命令",
     "loading": "正在載入命令…",
     "filterPlaceholder": "按名稱篩選…",

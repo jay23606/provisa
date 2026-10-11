@@ -13,6 +13,8 @@ import { ActionIcon, Group, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Layers } from "lucide-react";
 import type { ListItem, ListSortGroup } from "./useListSortGroup";
+import { Tip } from "../Tip";
+import { useLeaveGuard } from "./panelLeave";
 
 /**
  * REQ-1940: the one list style, taken from the Register Tables page. Every admin page that lists
@@ -24,9 +26,17 @@ import type { ListItem, ListSortGroup } from "./useListSortGroup";
 export interface ListTableProps {
   children: ReactNode;
   testId?: string;
+  /**
+   * The narrowest the list may be drawn, in pixels: below it the list scrolls sideways instead
+   * of crushing its columns. It is a floor, never a width: a list always fills the room it has.
+   */
   minWidth?: number;
   style?: CSSProperties;
 }
+
+/** A list is at least as wide as its container, and at least its own floor where it has one. */
+const listMinWidth = (floor: number | undefined) =>
+  floor === undefined ? undefined : `max(100%, ${floor}px)`;
 
 export function ListTable({ children, testId, minWidth, style }: ListTableProps) {
   return (
@@ -35,7 +45,7 @@ export function ListTable({ children, testId, minWidth, style }: ListTableProps)
         className="data-table"
         data-list-table=""
         data-testid={testId}
-        miw={minWidth}
+        miw={listMinWidth(minWidth)}
         style={style}
       >
         {children}
@@ -121,21 +131,22 @@ function ListSortCell<T>({ state, col }: { state: ListSortGroup<T>; col: string 
         label
       )}
       {def.groupValue && (
-        <ActionIcon
-          variant="transparent"
-          size="xs"
-          data-testid={`${state.testPrefix}-group-${col}`}
-          aria-label={groupLabel}
-          title={groupLabel}
-          onClick={() => state.toggleGroup(col)}
-          style={{ opacity: isGrouped ? 1 : 0.35 }}
-        >
-          <Layers
-            size={11}
-            color={isGrouped ? "var(--primary, #6366f1)" : undefined}
-            aria-hidden="true"
-          />
-        </ActionIcon>
+        <Tip text={groupLabel} named>
+          <ActionIcon
+            variant="transparent"
+            size="xs"
+            data-testid={`${state.testPrefix}-group-${col}`}
+            aria-label={groupLabel}
+            onClick={() => state.toggleGroup(col)}
+            style={{ opacity: isGrouped ? 1 : 0.35 }}
+          >
+            <Layers
+              size={11}
+              color={isGrouped ? "var(--primary, #6366f1)" : undefined}
+              aria-hidden="true"
+            />
+          </ActionIcon>
+        </Tip>
       )}
       {def.groupValue && isGrouped && (
         <Text span fz="0.65rem" c="var(--primary, #6366f1)">
@@ -268,8 +279,10 @@ export function ListItems<T>({
   );
 }
 
-export interface ListRowProps
-  extends Omit<HTMLAttributes<HTMLTableRowElement>, "className" | "style" | "onClick"> {
+export interface ListRowProps extends Omit<
+  HTMLAttributes<HTMLTableRowElement>,
+  "className" | "style" | "onClick"
+> {
   children: ReactNode;
   testId?: string;
   /** Click toggles the row's expansion (or whatever the page binds); adds the pointer/hover style. */
@@ -282,8 +295,15 @@ export function ListRow({ children, testId, onClick, selected, ...aria }: ListRo
   const cls = ["list-row", onClick ? "clickable" : "", selected ? "row-selected" : ""]
     .filter(Boolean)
     .join(" ");
+  // Beside a detail panel whose form has unsaved changes, choosing a row asks first.
+  const guard = useLeaveGuard();
   return (
-    <Table.Tr {...aria} data-testid={testId} className={cls} onClick={onClick}>
+    <Table.Tr
+      {...aria}
+      data-testid={testId}
+      className={cls}
+      onClick={onClick ? () => guard(onClick) : undefined}
+    >
       {children}
     </Table.Tr>
   );

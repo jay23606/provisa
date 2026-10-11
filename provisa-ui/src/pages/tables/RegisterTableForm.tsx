@@ -10,15 +10,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ColumnsTable } from "./ColumnsTable";
+import { QueryPreviewRows } from "./QueryPreviewRows";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { useTranslation } from "react-i18next";
 import {
   Button,
   Checkbox,
-  Group,
+  NumberInput,
   Select,
   Stack,
-  Table,
   Text,
   TextInput,
   Textarea,
@@ -49,6 +49,17 @@ import { DataQualityPanel } from "./DataQualityPanel";
 import { useDomainFilter } from "../../context/DomainFilterContext";
 import { PagingField } from "./PagingField";
 import { declaredPaging, pagingInput, pagingProblem } from "./paging";
+import {
+  FormChecks,
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+} from "../../components/form/FormLayout";
+import { useSourceKind } from "../sources/sourceKind";
+import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
+import { serverMessage } from "../../i18n/serverMessage";
+import { usePanelDirty } from "../../components/list/panelLeave";
 
 // REQ-1663: a checker table's results land under this schema, the same one the shipped demo uses
 // (config/provisa-install.yaml `schema: quality`). It is the schema of record only when domains are
@@ -91,6 +102,8 @@ interface RegisterTableFormProps {
   /** Closes the form without registering anything. */
   onCancel: () => void;
   setError: (e: string | null) => void;
+  /** What the page has to say of a registration that did not go through. */
+  problem?: string | null;
 }
 
 export function RegisterTableForm({
@@ -107,6 +120,7 @@ export function RegisterTableForm({
   onSuccess,
   onCancel,
   setError,
+  problem,
 }: RegisterTableFormProps) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState("");
@@ -114,6 +128,8 @@ export function RegisterTableForm({
   const { ensureDomainChecked } = useDomainFilter();
   const [schemaName, setSchemaName] = useState("");
   const [tableName, setTableName] = useState("");
+  // Leaving the panel once something is chosen asks first (the panel's one mechanism).
+  usePanelDirty(Boolean(sourceId || schemaName || tableName), tableName || schemaName || sourceId);
   const [tableAlias, setTableAlias] = useState("");
   const [tableDescription, setTableDescription] = useState("");
   // REQ-318: the table's paging, starting from what its source suggests; the steward accepts
@@ -122,6 +138,9 @@ export function RegisterTableForm({
   const [columns, setColumns] = useState<ColumnForm[]>([]);
   const [uniqueConstraints, setUniqueConstraints] = useState<UniqueConstraint[]>([]); // REQ-1093
   const [watermarkColumn, setWatermarkColumn] = useState<string>("");
+  // REQ-1907 (#208): the table's own Cache TTL, asked for when the table will be a replica and
+  // its source states none -- without one the registration is refused.
+  const [cacheTtl, setCacheTtl] = useState<string>("");
   const [fileGlob, setFileGlob] = useState(""); // REQ-788
   const [sourceFileColumn, setSourceFileColumn] = useState(""); // REQ-788
   const [discover, setDiscover] = useState(false); // REQ-252: infer columns from the live source
@@ -149,6 +168,13 @@ export function RegisterTableForm({
 
   const sourceType = sources.find((s) => s.id === sourceId)?.type?.toLowerCase() ?? "";
   const isChecker = (DQ_CHECKERS as readonly string[]).includes(sourceType);
+  const chosenSource = sources.find((s) => s.id === sourceId);
+  // The server says whether a table of this kind is served from a replica under the engine
+  // bound here; then a ttl signal with no Cache TTL on the source needs one on the table.
+  const needsCacheTtl =
+    useSourceKind(sourceType)?.tables_land === true &&
+    chosenSource !== undefined &&
+    ttlSignalMissingCacheTtl(chosenSource.changeSignal, chosenSource.cacheTtl, true);
   // REQ-1934: a Data Profiler source's tables are the result relations it produces per member;
   // its catalog lists them, so the source is never introspected.
   const isProfiler = sourceType === "data_profiler";
@@ -492,6 +518,10 @@ export function RegisterTableForm({
       setError(t("tableEditForm.pagingFixErrors"));
       return;
     }
+    if (needsCacheTtl && cacheTtl.trim() === "") {
+      setError(t("registerTableForm.errorCacheTtlRequired"));
+      return;
+    }
     try {
       const result = await registerTable({
         sourceId,
@@ -507,6 +537,7 @@ export function RegisterTableForm({
         alias: tableAlias || undefined,
         description: tableDescription || undefined,
         watermarkColumn: isQueryApi ? null : watermarkColumn || null,
+        cacheTtl: needsCacheTtl && cacheTtl.trim() !== "" ? Number(cacheTtl) : undefined,
         discover: isQueryApi ? false : discover, // REQ-252
         queryTemplate: isQueryApi ? cypher.trim() : undefined, // REQ-1670/REQ-1683
         fileGlob: isFilesSource && fileGlob.trim() ? fileGlob.trim() : undefined, // REQ-788
@@ -524,7 +555,7 @@ export function RegisterTableForm({
           .map((u) => ({ name: u.name.trim(), columns: u.columns })),
       });
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       // A table registered into a domain the filter has not seen (one with no tables until now)
@@ -567,6 +598,7 @@ export function RegisterTableForm({
     setCypher("");
     setPreviewRows([]);
     setWatermarkColumn("");
+    setCacheTtl("");
     setDiscover(false);
     setDqContract("");
     setDqScanned(null);
@@ -611,7 +643,7 @@ export function RegisterTableForm({
         dqContract,
       });
       if (!result.success) {
-        setError(result.message);
+        setError(serverMessage(result, result.message));
         return;
       }
       // A table registered into a domain the filter has not seen (one with no tables until now)
@@ -637,276 +669,194 @@ export function RegisterTableForm({
   const isCdcSource = CDC_TYPES.has(sourceType);
 
   return (
-    <div data-tour="tables-form" className="form-card">
-      <label>
-        {t("registerTableForm.sourceLabel")}
-        <select
-          value={sourceId}
-          onChange={(e) => setSourceId(e.target.value)}
-          data-testid="register-table-source-select"
-        >
-          <option value="">{t("registerTableForm.sourcePlaceholder")}</option>
-          {sources
-            .filter(
-              (s) =>
-                s.allowedDomains.length === 0 ||
-                s.allowedDomains.some((d) => checkedDomains.has(d)),
-            )
-            .map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.id}
-              </option>
-            ))}
-        </select>
-      </label>
-      {sourceId && (
-        <RegionSelect
-          value={region}
-          onChange={setRegion}
-          regions={regionChoices.regions}
-          scope="table"
-          testId="register-table-region-select"
-        />
-      )}
-      {domainsEnabled && (
-        <label>
-          {t("registerTableForm.domainLabel")}
-          <select
-            value={domainId}
-            onChange={(e) => setDomainId(e.target.value)}
-            data-testid="register-table-domain-select"
-          >
-            <option value="">{t("registerTableForm.domainPlaceholder")}</option>
-            {domainHints
-              .filter((d) => d !== "" && d !== "meta" && d !== "ops")
-              .filter((d) => domainAccess.includes("*") || domainAccess.includes(d))
-              .map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-          </select>
-        </label>
-      )}
-      {isChecker && (
-        <>
-          {/* REQ-1663: the contract panel IS the table picker for a checker source — its dataset
-              select names the governed table to scan, and the rules are authored right here. */}
-          <div style={{ gridColumn: "1 / -1" }} data-testid="register-table-dq">
-            <DataQualityPanel
-              checker={sourceType}
-              sourceId={sourceId}
-              contractText={dqContract}
-              onChange={setDqContract}
-              onDatasetChange={onDqDatasetChange}
-            />
-          </div>
-          <TextInput
-            label={
-              <>
-                {t("registerTableForm.dqResultsTableLabel")}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t("registerTableForm.dqResultsTableHint")}
-                </Text>
-              </>
-            }
-            value={tableName}
-            onChange={(e) => setTableName(e.currentTarget.value)}
-            placeholder={t("registerTableForm.dqResultsTablePlaceholder")}
-            data-testid="register-table-dq-results-table"
-          />
-          <MultiSelect
-            options={roles.map((r) => ({ id: r.id, label: r.id }))}
-            value={dqVisibleTo}
-            onChange={setDqVisibleTo}
-            label={t("registerTableForm.dqVisibleToLabel")}
-          />
-        </>
-      )}
-      {isQueryApi && (
-        <>
-          <TextInput
-            required
-            label={t("registerTableForm.neo4jTableNameLabel")}
-            value={tableName}
-            onChange={(e) => setTableName(e.currentTarget.value)}
-            placeholder={t("registerTableForm.neo4jTableNamePlaceholder")}
-            data-testid={`register-table-${sourceType}-table-name`}
-          />
-          <Textarea
-            required
-            style={{ gridColumn: "1 / -1" }}
-            autosize
-            minRows={3}
-            label={
-              <>
-                {t(
-                  isSparql
-                    ? "registerTableForm.sparqlQueryLabel"
-                    : "registerTableForm.neo4jCypherLabel",
-                )}{" "}
-                <Text span fw="normal" c="dimmed" fz="xs">
-                  {t(
-                    isSparql
-                      ? "registerTableForm.sparqlQueryHint"
-                      : "registerTableForm.neo4jCypherHint",
-                  )}
-                </Text>
-              </>
-            }
-            value={cypher}
-            onChange={(e) => setCypher(e.currentTarget.value)}
-            placeholder={t(
-              isSparql
-                ? "registerTableForm.sparqlQueryPlaceholder"
-                : "registerTableForm.neo4jCypherPlaceholder",
-            )}
-            data-testid={isSparql ? "register-table-sparql-query" : "register-table-neo4j-cypher"}
-          />
-          <Button
-            variant="default"
-            onClick={handleNeo4jPreview}
-            disabled={!sourceId || !cypher.trim() || previewing}
-            data-testid={`register-table-${sourceType}-preview`}
-          >
-            {previewing
-              ? t("registerTableForm.neo4jPreviewing")
-              : t("registerTableForm.neo4jPreviewButton")}
-          </Button>
-          {previewRows.length > 0 && (
-            <Stack gap="xs" style={{ gridColumn: "1 / -1" }}>
-              <Text fw={600} fz="sm">
-                {t("registerTableForm.neo4jPreviewRows", { count: previewRows.length })}
-              </Text>
-              <Table.ScrollContainer minWidth={400}>
-                <Table striped withTableBorder verticalSpacing="xs" fz="xs">
-                  <Table.Thead>
-                    <Table.Tr>
-                      {columns.map((c) => (
-                        <Table.Th key={c.name}>{c.name}</Table.Th>
-                      ))}
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody data-testid={`register-table-${sourceType}-preview-rows`}>
-                    {previewRows.map((row, i) => (
-                      <Table.Tr key={i}>
-                        {columns.map((c) => (
-                          <Table.Td key={c.name}>{String(row[c.name] ?? "")}</Table.Td>
-                        ))}
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            </Stack>
-          )}
-        </>
-      )}
-      {isProfiler && (
-        <label>
-          {t("registerTableForm.profilerResultLabel")}
-          <select
-            value={tableName}
-            onChange={(e) => setTableName(e.target.value)}
-            disabled={profilerCatalog == null}
-            data-testid="register-table-profiler-select"
-          >
-            <option value="">
-              {profilerCatalog == null
-                ? t("registerTableForm.schemaLoading")
-                : profilerCatalog.length === 0
-                  ? t("registerTableForm.profilerNoMembers")
-                  : t("registerTableForm.profilerResultPlaceholder")}
-            </option>
-            {(profilerCatalog ?? []).flatMap((entry) =>
-              entry.tables.map((tb) => (
-                <option key={tb.tableName} value={tb.tableName}>
-                  {t("registerTableForm.profilerResultOption", {
-                    member: entry.member,
-                    kind: tb.kind,
-                  })}
-                </option>
-              )),
-            )}
-          </select>
-        </label>
-      )}
-      {isProfiler && tableName && (
-        <fieldset data-testid="register-table-profiler-row-rules">
-          <legend>{t("registerTableForm.profilerRowRulesLabel")}</legend>
-          {profilerRowRules.length === 0 && (
-            <span>{t("registerTableForm.profilerRowRulesNone")}</span>
-          )}
-          {profilerRowRules.map((rule, i) => (
-            <label key={rule.roleId}>
-              {rule.roleId}
-              <input
-                value={rule.filter}
-                onChange={(e) =>
-                  setProfilerRowRules(
-                    profilerRowRules.map((r, j) =>
-                      j === i ? { ...r, filter: e.target.value } : r,
-                    ),
-                  )
-                }
-                data-testid={`register-table-profiler-row-rule-${rule.roleId}`}
-              />
+    <FormLayout data-tour="tables-form" className="form-card">
+      {/* REQ-1968: what names the table (its source, domain, schema, table and alias) sits apart at
+          the top; the rest flows beneath. */}
+      <FormIdentifiers>
+        <FormField size="medium">
+          <label>
+            {t("registerTableForm.sourceLabel")}
+            <select
+              className="form-select"
+              value={sourceId}
+              onChange={(e) => setSourceId(e.target.value)}
+              data-testid="register-table-source-select"
+            >
+              <option value="">{t("registerTableForm.sourcePlaceholder")}</option>
+              {sources
+                .filter(
+                  (s) =>
+                    s.allowedDomains.length === 0 ||
+                    s.allowedDomains.some((d) => checkedDomains.has(d)),
+                )
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.id}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </FormField>
+        {domainsEnabled && (
+          <FormField size="medium">
+            <label>
+              {t("registerTableForm.domainLabel")}
+              <select
+                className="form-select"
+                value={domainId}
+                onChange={(e) => setDomainId(e.target.value)}
+                data-testid="register-table-domain-select"
+              >
+                <option value="">{t("registerTableForm.domainPlaceholder")}</option>
+                {domainHints
+                  .filter((d) => d !== "" && d !== "meta" && d !== "ops")
+                  .filter((d) => domainAccess.includes("*") || domainAccess.includes(d))
+                  .map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+              </select>
             </label>
-          ))}
-        </fieldset>
-      )}
-      {!isChecker && !isQueryApi && !isProfiler && (
-        <>
-          <label>
-            {t("registerTableForm.schemaLabel")}
-            <select
-              value={schemaName}
-              onChange={(e) => setSchemaName(e.target.value)}
-              disabled={!sourceId || loadingSchemas || isFixedSchema}
-              data-testid="register-table-schema-select"
-            >
-              <option value="">
-                {loadingSchemas
-                  ? t("registerTableForm.schemaLoading")
-                  : t("registerTableForm.schemaPlaceholder")}
-              </option>
-              {availableSchemas.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t("registerTableForm.tableLabel")}
-            <select
+          </FormField>
+        )}
+        {isChecker && (
+          <FormField size="medium">
+            <TextInput
+              label={
+                <>
+                  {t("registerTableForm.dqResultsTableLabel")}{" "}
+                  <Text span fw="normal" c="dimmed" fz="xs">
+                    {t("registerTableForm.dqResultsTableHint")}
+                  </Text>
+                </>
+              }
               value={tableName}
-              onChange={(e) => setTableName(e.target.value)}
-              disabled={!schemaName || loadingTables || allTablesRegistered}
-              data-testid="register-table-table-select"
-            >
-              <option value="">
-                {startingTables
-                  ? t("registerTableForm.tableStarting")
-                  : loadingTables
-                    ? t("registerTableForm.tableLoading")
-                    : allTablesRegistered
-                      ? t("registerTableForm.tableAllRegistered")
-                      : t("registerTableForm.tablePlaceholder")}
-              </option>
-              {availableTables.map((tbl) => (
-                <option key={tbl.name} value={tbl.name} disabled={isRegistered(tbl)}>
-                  {tbl.name}
+              onChange={(e) => setTableName(e.currentTarget.value)}
+              placeholder={t("registerTableForm.dqResultsTablePlaceholder")}
+              data-testid="register-table-dq-results-table"
+            />
+          </FormField>
+        )}
+        {isQueryApi && (
+          <FormField size="medium">
+            <TextInput
+              required
+              label={t("registerTableForm.neo4jTableNameLabel")}
+              value={tableName}
+              onChange={(e) => setTableName(e.currentTarget.value)}
+              placeholder={t("registerTableForm.neo4jTableNamePlaceholder")}
+              data-testid={`register-table-${sourceType}-table-name`}
+            />
+          </FormField>
+        )}
+        {isProfiler && (
+          <FormField size="medium">
+            <label>
+              {t("registerTableForm.profilerResultLabel")}
+              <select
+                className="form-select"
+                value={tableName}
+                onChange={(e) => setTableName(e.target.value)}
+                disabled={profilerCatalog == null}
+                data-testid="register-table-profiler-select"
+              >
+                <option value="">
+                  {profilerCatalog == null
+                    ? t("registerTableForm.schemaLoading")
+                    : profilerCatalog.length === 0
+                      ? t("registerTableForm.profilerNoMembers")
+                      : t("registerTableForm.profilerResultPlaceholder")}
                 </option>
-              ))}
-            </select>
-            {startingTablesTimedOut && (
-              <Text size="xs" c="red" mt={4} data-testid="register-table-starting-timeout">
-                {t("registerTableForm.tableStartingTimedOut")}
-              </Text>
-            )}
-          </label>
-          {sourceId && schemaName && !allTablesRegistered && (
+                {(profilerCatalog ?? []).flatMap((entry) =>
+                  entry.tables.map((tb) => (
+                    <option key={tb.tableName} value={tb.tableName}>
+                      {t("registerTableForm.profilerResultOption", {
+                        member: entry.member,
+                        kind: tb.kind,
+                      })}
+                    </option>
+                  )),
+                )}
+              </select>
+            </label>
+          </FormField>
+        )}
+        {!isChecker && !isQueryApi && !isProfiler && (
+          <>
+            <FormField size="medium">
+              <label>
+                {t("registerTableForm.schemaLabel")}
+                <select
+                  className="form-select"
+                  value={schemaName}
+                  onChange={(e) => setSchemaName(e.target.value)}
+                  disabled={!sourceId || loadingSchemas || isFixedSchema}
+                  data-testid="register-table-schema-select"
+                >
+                  <option value="">
+                    {loadingSchemas
+                      ? t("registerTableForm.schemaLoading")
+                      : t("registerTableForm.schemaPlaceholder")}
+                  </option>
+                  {availableSchemas.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </FormField>
+            <FormField size="medium">
+              <label>
+                {t("registerTableForm.tableLabel")}
+                <select
+                  className="form-select"
+                  value={tableName}
+                  onChange={(e) => setTableName(e.target.value)}
+                  disabled={!schemaName || loadingTables || allTablesRegistered}
+                  data-testid="register-table-table-select"
+                >
+                  <option value="">
+                    {startingTables
+                      ? t("registerTableForm.tableStarting")
+                      : loadingTables
+                        ? t("registerTableForm.tableLoading")
+                        : allTablesRegistered
+                          ? t("registerTableForm.tableAllRegistered")
+                          : t("registerTableForm.tablePlaceholder")}
+                  </option>
+                  {availableTables.map((tbl) => (
+                    <option key={tbl.name} value={tbl.name} disabled={isRegistered(tbl)}>
+                      {tbl.name}
+                    </option>
+                  ))}
+                </select>
+                {startingTablesTimedOut && (
+                  <Text size="xs" c="red" mt={4} data-testid="register-table-starting-timeout">
+                    {t("registerTableForm.tableStartingTimedOut")}
+                  </Text>
+                )}
+              </label>
+            </FormField>
+          </>
+        )}
+        <FormField size="medium">
+          <TextInput
+            data-testid="register-table-alias"
+            label={t("registerTableForm.aliasLabel")}
+            value={tableAlias}
+            onChange={(e) => setTableAlias(e.currentTarget.value)}
+            placeholder={t("registerTableForm.aliasPlaceholder")}
+          />
+        </FormField>
+        {/* The describe-a-table search comes after the five fields it helps to fill, not between them. */}
+        {!isChecker &&
+          !isQueryApi &&
+          !isProfiler &&
+          sourceId &&
+          schemaName &&
+          !allTablesRegistered && (
             <NlTableSearch
               sourceId={sourceId}
               schemaName={schemaName}
@@ -914,35 +864,141 @@ export function RegisterTableForm({
               onPick={setTableName}
             />
           )}
+      </FormIdentifiers>
+      {needsCacheTtl && (
+        <FormField help={t("registerTableForm.cacheTtlHint")} size="short">
+          <NumberInput
+            data-testid="register-table-cache-ttl"
+            label={t("registerTableForm.cacheTtlLabel")}
+            min={0}
+            required
+            value={cacheTtl === "" ? "" : Number(cacheTtl)}
+            onChange={(v) => setCacheTtl(v === "" ? "" : String(v))}
+          />
+        </FormField>
+      )}
+      {sourceId && (
+        <FormField size="medium">
+          <RegionSelect
+            value={region}
+            onChange={setRegion}
+            regions={regionChoices.regions}
+            scope="table"
+            testId="register-table-region-select"
+          />
+        </FormField>
+      )}
+      {isChecker && (
+        <>
+          {/* REQ-1663: the contract panel IS the table picker for a checker source — its dataset
+              select names the governed table to scan, and the rules are authored right here. */}
+          <FormField size="full">
+            <div data-testid="register-table-dq">
+              <DataQualityPanel
+                checker={sourceType}
+                sourceId={sourceId}
+                contractText={dqContract}
+                onChange={setDqContract}
+                onDatasetChange={onDqDatasetChange}
+              />
+            </div>
+          </FormField>
+          <FormField size="long">
+            <MultiSelect
+              options={roles.map((r) => ({ id: r.id, label: r.id }))}
+              value={dqVisibleTo}
+              onChange={setDqVisibleTo}
+              label={t("registerTableForm.dqVisibleToLabel")}
+            />
+          </FormField>
         </>
       )}
-      <TextInput
-        data-testid="register-table-alias"
-        label={
-          <>
-            {t("registerTableForm.aliasLabel")}{" "}
-            <Text span fw="normal" c="dimmed" fz="xs">
-              {t("registerTableForm.aliasOptional")}
-            </Text>
-          </>
-        }
-        value={tableAlias}
-        onChange={(e) => setTableAlias(e.currentTarget.value)}
-        placeholder={t("registerTableForm.aliasPlaceholder")}
-      />
-      <TextInput
-        label={
-          <>
-            {t("registerTableForm.descriptionLabel")}{" "}
-            <Text span fw="normal" c="dimmed" fz="xs">
-              {t("registerTableForm.descriptionOptional")}
-            </Text>
-          </>
-        }
-        value={tableDescription}
-        onChange={(e) => setTableDescription(e.currentTarget.value)}
-        placeholder={t("registerTableForm.descriptionPlaceholder")}
-      />
+      {isQueryApi && (
+        <>
+          <FormField size="full">
+            <Textarea
+              required
+              autosize
+              minRows={3}
+              label={
+                <>
+                  {t(
+                    isSparql
+                      ? "registerTableForm.sparqlQueryLabel"
+                      : "registerTableForm.neo4jCypherLabel",
+                  )}{" "}
+                  <Text span fw="normal" c="dimmed" fz="xs">
+                    {t(
+                      isSparql
+                        ? "registerTableForm.sparqlQueryHint"
+                        : "registerTableForm.neo4jCypherHint",
+                    )}
+                  </Text>
+                </>
+              }
+              value={cypher}
+              onChange={(e) => setCypher(e.currentTarget.value)}
+              placeholder={t(
+                isSparql
+                  ? "registerTableForm.sparqlQueryPlaceholder"
+                  : "registerTableForm.neo4jCypherPlaceholder",
+              )}
+              data-testid={isSparql ? "register-table-sparql-query" : "register-table-neo4j-cypher"}
+            />
+          </FormField>
+          <FormField size="full">
+            <Button
+              variant="default"
+              onClick={handleNeo4jPreview}
+              disabled={!sourceId || !cypher.trim() || previewing}
+              data-testid={`register-table-${sourceType}-preview`}
+            >
+              {previewing
+                ? t("registerTableForm.neo4jPreviewing")
+                : t("registerTableForm.neo4jPreviewButton")}
+            </Button>
+          </FormField>
+          {previewRows.length > 0 && (
+            <FormField size="full">
+              <QueryPreviewRows rows={previewRows} columns={columns} sourceType={sourceType} />
+            </FormField>
+          )}
+        </>
+      )}
+      {isProfiler && tableName && (
+        <FormField size="full">
+          <fieldset data-testid="register-table-profiler-row-rules">
+            <legend>{t("registerTableForm.profilerRowRulesLabel")}</legend>
+            {profilerRowRules.length === 0 && (
+              <span>{t("registerTableForm.profilerRowRulesNone")}</span>
+            )}
+            {profilerRowRules.map((rule, i) => (
+              <label key={rule.roleId}>
+                {rule.roleId}
+                <input
+                  value={rule.filter}
+                  onChange={(e) =>
+                    setProfilerRowRules(
+                      profilerRowRules.map((r, j) =>
+                        j === i ? { ...r, filter: e.target.value } : r,
+                      ),
+                    )
+                  }
+                  data-testid={`register-table-profiler-row-rule-${rule.roleId}`}
+                />
+              </label>
+            ))}
+          </fieldset>
+        </FormField>
+      )}
+      <FormField size="long">
+        <TextInput
+          label={t("registerTableForm.descriptionLabel")}
+          value={tableDescription}
+          onChange={(e) => setTableDescription(e.currentTarget.value)}
+          placeholder={t("registerTableForm.descriptionPlaceholder")}
+        />
+      </FormField>
       {pagingKind !== null && (
         <PagingField
           kind={pagingKind}
@@ -952,47 +1008,32 @@ export function RegisterTableForm({
           rowsFieldEditable
         />
       )}
-      {!isChecker && !isQueryApi && (
-        <Checkbox
-          checked={discover}
-          onChange={(e) => setDiscover(e.currentTarget.checked)}
-          data-testid="discover-columns-checkbox"
-          label={
-            <>
-              {t("registerTableForm.discoverLabel")}{" "}
-              <Text span fw="normal" c="dimmed" fz="xs">
-                {t("registerTableForm.discoverHint")}
-              </Text>
-            </>
-          }
-        />
-      )}
       {sourceId && !isChecker && !isQueryApi && (
-        <Select
-          label={
-            <>
-              {t("registerTableForm.watermarkLabel")}{" "}
-              <Text span fw="normal" c="dimmed" fz="xs">
-                {isCdcSource
-                  ? t("registerTableForm.watermarkHintOptional")
-                  : t("registerTableForm.watermarkHintRequired")}
-              </Text>
-            </>
-          }
-          placeholder={
+        <FormField
+          size="medium"
+          hint={
             isCdcSource
-              ? t("registerTableForm.watermarkNoneTriggers")
-              : t("registerTableForm.watermarkNoneSubscriptions")
+              ? t("registerTableForm.watermarkHintOptional")
+              : t("registerTableForm.watermarkHintRequired")
           }
-          data={columns
-            .filter((c) => c.selected && isWatermarkEligible(c.dataType))
-            .map((c) => ({ value: c.name, label: `${c.name} (${c.dataType})` }))}
-          value={watermarkColumn || null}
-          onChange={(v) => setWatermarkColumn(v ?? "")}
-          disabled={columns.length === 0}
-          clearable
-          data-testid="register-table-watermark-select"
-        />
+        >
+          <Select
+            label={t("registerTableForm.watermarkLabel")}
+            placeholder={
+              isCdcSource
+                ? t("registerTableForm.watermarkNoneTriggers")
+                : t("registerTableForm.watermarkNoneSubscriptions")
+            }
+            data={columns
+              .filter((c) => c.selected && isWatermarkEligible(c.dataType))
+              .map((c) => ({ value: c.name, label: `${c.name} (${c.dataType})` }))}
+            value={watermarkColumn || null}
+            onChange={(v) => setWatermarkColumn(v ?? "")}
+            disabled={columns.length === 0}
+            clearable
+            data-testid="register-table-watermark-select"
+          />
+        </FormField>
       )}
       {isFilesSource && (
         <FilesGlobFieldset
@@ -1002,42 +1043,57 @@ export function RegisterTableForm({
           setSourceFileColumn={setSourceFileColumn}
         />
       )}
-      {!isChecker && (
-        <Stack gap="xs" style={{ gridColumn: "1 / -1" }}>
-          <Text fw={600} fz="sm">
-            {t("registerTableForm.columnsLabel")}{" "}
-            {loadingColumns && t("registerTableForm.columnsLoading")}
-          </Text>
-          {columns.length > 0 && (
-            <ColumnsTable
-              columns={columns}
-              updateCol={updateCol}
-              roles={roles}
-              irTypes={irTypes}
-              sourceType={sourceType}
+      {/* The ticks sit together beneath the fields. */}
+      <FormChecks>
+        {!isChecker && !isQueryApi && (
+          <FormField size="short" help={t("registerTableForm.discoverHint")}>
+            <Checkbox
+              checked={discover}
+              onChange={(e) => setDiscover(e.currentTarget.checked)}
+              data-testid="discover-columns-checkbox"
+              label={t("registerTableForm.discoverLabel")}
             />
-          )}
-        </Stack>
+          </FormField>
+        )}
+      </FormChecks>
+      {/* The heading shows once there is something under it: columns, or their loading. */}
+      {!isChecker && (columns.length > 0 || loadingColumns) && (
+        <FormField size="full">
+          <Stack gap="xs">
+            <Text fw={600} fz="sm">
+              {t("registerTableForm.columnsLabel")}{" "}
+              {loadingColumns && t("registerTableForm.columnsLoading")}
+            </Text>
+            {columns.length > 0 && (
+              <ColumnsTable
+                columns={columns}
+                updateCol={updateCol}
+                roles={roles}
+                irTypes={irTypes}
+                sourceType={sourceType}
+              />
+            )}
+          </Stack>
+        </FormField>
       )}
       {columns.length > 0 && (
-        <div style={{ gridColumn: "1 / -1" }}>
+        <FormField size="full">
           <UniquesPanel
             uniques={uniqueConstraints}
             columns={columns.map((c) => c.name)}
             onChange={setUniqueConstraints}
           />
-        </div>
+        </FormField>
       )}
-      {/* The form's own actions, at the start of the row and as wide as their labels: Save registers
-          the table, Cancel closes the form. (The page's "+ Table" only opens it.) */}
-      <Group gap="xs" style={{ gridColumn: "1 / -1", justifySelf: "start" }}>
-        <Button onClick={handleSubmit} data-testid="register-table-submit">
-          {t("registerTableForm.submitButton")}
-        </Button>
-        <Button variant="default" onClick={onCancel} data-testid="register-table-cancel">
-          {t("registerTableForm.cancelButton")}
-        </Button>
-      </Group>
-    </div>
+      {/* Save registers the table, Cancel closes the form. (The page's "+ Table" only opens it.) */}
+      <FormFooter
+        panel
+        problem={problem}
+        onSave={handleSubmit}
+        onCancel={onCancel}
+        saveProps={{ "data-testid": "register-table-submit" }}
+        cancelProps={{ "data-testid": "register-table-cancel" }}
+      />
+    </FormLayout>
   );
 }

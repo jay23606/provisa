@@ -6,9 +6,10 @@
 
 """REQ-1798: the chat assistant's govdata/Kaggle "subscription sources" MCP tools.
 
-search_kaggle_datasets never takes a raw token or a chosen secret name — it always resolves the
-FIXED secret name mcp_tools.KAGGLE_TOKEN_SECRET_NAME via provisa.core.secrets, so a credential
-never appears in a tool-call argument, chat history, or log line.
+search_kaggle_datasets never takes a raw token or a chosen secret name — it resolves what the
+operator setting "Kaggle API token" holds (a value, or a reference the operator typed) via
+provisa.core.secrets, so a credential never appears in a tool-call argument, chat history, or
+log line.
 """
 
 import types
@@ -23,12 +24,16 @@ from provisa.api.mcp import tools as mcp_tools
 from provisa.core.database import Database
 from provisa.core.models import GovDataSubject, GovDataSubscription
 from provisa.core.schema_admin import deployment_encryption_key, secrets_store
+from tests.role_state import RoleState
+
+#: What the setting holds until an operator types over it: a reference, shown in its field.
+DEFAULT_REFERENCE = "${secret:kaggle_api_token}"
 
 pytestmark = pytest.mark.asyncio
 
 
 def _state(*, govdata_subscriptions=None):
-    return types.SimpleNamespace(
+    return RoleState(
         contexts={"analyst": object()},
         config=types.SimpleNamespace(govdata_subscriptions=govdata_subscriptions or []),
     )
@@ -93,7 +98,7 @@ class TestSearchKaggleDatasets:
             monkeypatch.setattr(secrets_store_mod, "_request_org", lambda: (db, "test_org"))
             yield
 
-    async def test_resolves_fixed_secret_name_never_a_raw_token_argument(self, monkeypatch):
+    async def test_resolves_what_the_setting_holds_never_a_raw_token_argument(self, monkeypatch):
         seen_reference = {}
 
         def fake_resolve_secrets(value):
@@ -111,15 +116,64 @@ class TestSearchKaggleDatasets:
             respx.route(host="www.kaggle.com").mock(side_effect=route.side_effect)
             result = await mcp_tools.search_kaggle_datasets(_state(), "analyst", "inflation")
 
-        assert seen_reference["value"] == f"${{secret:{mcp_tools.KAGGLE_TOKEN_SECRET_NAME}}}"
+        # The setting's own text, which starts as a reference shown in its field; no name is
+        # put together in code.
+        assert seen_reference["value"] == DEFAULT_REFERENCE
         assert result[0]["ref"] == "owner/inflation"
 
     async def test_missing_secret_fails_closed(self):
         # No mocking of resolve_secrets here — the org vault is real (empty), so this exercises
         # the ACTUAL ${secret:...} resolution path end to end and proves it fails closed rather
         # than silently returning an empty/garbage token.
-        with pytest.raises(KeyError, match=mcp_tools.KAGGLE_TOKEN_SECRET_NAME):
+        with pytest.raises(KeyError, match="kaggle_api_token"):
             await mcp_tools.search_kaggle_datasets(_state(), "analyst", "inflation")
+
+    @pytest.mark.parametrize(
+        ("typed", "used"),
+        [("KGAT_typed_token", "KGAT_typed_token"), ("${secret:my_kaggle}", "KGAT_my_own")],
+    )
+    async def test_what_the_operator_typed_in_the_setting_is_what_is_used(
+        self, monkeypatch, typed, used
+    ):
+        """A token typed into the setting is used as it is; a reference typed there is resolved
+        in the organisation's vault, under whatever name the operator gave their secret."""
+        from provisa.core import secrets_store as secrets_store_mod
+        from provisa.core import settings_registry
+
+        monkeypatch.setattr(
+            secrets_store_mod,
+            "_cipher",
+            lambda *, mint: types.SimpleNamespace(encrypt=lambda b: b, decrypt=lambda b: b),
+        )
+        await secrets_store_mod.put(
+            self.admin_db,
+            "test_org",
+            "my_kaggle",
+            "KGAT_my_own",
+            owner_id=secrets_store_mod.ORG_OWNER,
+        )
+        monkeypatch.setattr(
+            settings_registry, "value", lambda key: {"kaggle.api_token": typed}[key]
+        )
+        seen_token = {}
+
+        async def fake_search_datasets(token, *, query):
+            seen_token["token"] = token
+            return []
+
+        monkeypatch.setattr("provisa.kaggle.client.search_datasets", fake_search_datasets)
+        await mcp_tools.search_kaggle_datasets(_state(), "analyst", "inflation")
+        assert seen_token["token"] == used
+
+    async def test_the_setting_is_a_credential_field_whose_default_is_a_visible_reference(self):
+        from provisa.core import settings_registry
+
+        setting = settings_registry.setting("kaggle.api_token")
+        assert (setting.type, setting.effect, setting.default) == ("str", "live", DEFAULT_REFERENCE)
+        # Shown again as typed, in a masked input: not sealed, not write-only.
+        assert setting.credential is True and setting.secret is False
+        described = settings_registry.describe("kaggle.api_token")
+        assert described["credential"] is True and described["value"] == DEFAULT_REFERENCE
 
     async def test_real_secret_resolution_end_to_end(self, monkeypatch):
         # REQ-1799/1802: proves the actual bug (org-context binding, not just the fixed-name
@@ -135,7 +189,7 @@ class TestSearchKaggleDatasets:
         await secrets_store_mod.put(
             self.admin_db,
             "test_org",
-            mcp_tools.KAGGLE_TOKEN_SECRET_NAME,
+            "kaggle_api_token",  # the secret an operator created before the setting existed
             "KGAT_stored_token",
             owner_id=secrets_store_mod.ORG_OWNER,
         )

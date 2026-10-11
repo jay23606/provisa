@@ -34,6 +34,11 @@
     "operatorSignInTitle": "Connexion opérateur",
     "backToSignIn": "Retour à la connexion",
     "signInWithSso": "Se connecter avec l'authentification unique",
-    "samlSignInFailed": "L'authentification unique n'a pas abouti. Réessayez ou contactez votre administrateur."
+    "samlSignInFailed": "L'authentification unique n'a pas abouti. Réessayez ou contactez votre administrateur.",
+    "sandboxBuildingTitle": "Création de votre sandbox…",
+    "sandboxBuildingBody": "Préparation d'une copie privée des données d'exemple rien que pour vous — cela peut prendre quelques minutes.",
+    "sandboxTryTitle": "Essayez Provisa gratuitement",
+    "sandboxTryBody": "Explorez toute la plateforme avec des données d'exemple — sans carte bancaire. Votre sandbox est temporaire : elle disparaît à la déconnexion.",
+    "sandboxHeading": "Essayez Provisa"
   }
 }

@@ -34,6 +34,11 @@
     "operatorSignInTitle": "Acceso de operador",
     "backToSignIn": "Volver al inicio de sesión",
     "signInWithSso": "Iniciar sesión con inicio de sesión único",
-    "samlSignInFailed": "El inicio de sesión único no se completó. Inténtelo de nuevo o consulte a su administrador."
+    "samlSignInFailed": "El inicio de sesión único no se completó. Inténtelo de nuevo o consulte a su administrador.",
+    "sandboxBuildingTitle": "Creando su sandbox…",
+    "sandboxBuildingBody": "Preparando una copia privada de los datos de ejemplo solo para usted; puede tardar un par de minutos.",
+    "sandboxTryTitle": "Pruebe Provisa gratis",
+    "sandboxTryBody": "Explore toda la plataforma con datos de ejemplo, sin tarjeta de crédito. Su sandbox es temporal: desaparece al cerrar sesión.",
+    "sandboxHeading": "Pruebe Provisa"
   }
 }

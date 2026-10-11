@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "Metriken",
-    "newMetric": "Neue Metrik",
+    "newMetric": "+ Metrik",
     "loading": "Wird geladen...",
     "empty": "Noch keine Metriken registriert.",
     "colName": "Name",
@@ -39,8 +39,6 @@
     "fieldDescription": "Beschreibung",
     "fieldAiContext": "KI-Kontext",
     "fieldAiContextPlaceholder": "Hinweise für KI-gestützte Abfragegenerierung",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
     "saveFailed": "Speichern fehlgeschlagen.",
     "editMetric": "Metrik {{name}} bearbeiten",
     "deleteMetric": "Metrik {{name}} löschen",
@@ -51,7 +49,8 @@
     "purposeTitle": "Wozu Metriken dienen",
     "purposeBody": "Eine Metrik ist die fachliche Definition einer Kennzahl — eine Aggregation über eine Faktentabelle, hier einmal definiert und in jede Oberfläche projiziert: SQL, GraphQL, die Explore-Ansicht, aus Metriken gebaute Views und den Interchange-Export.",
     "purposeAdd": "Einmal definiert, können Konsumenten nicht durch eigene Nachbildung der Rechenlogik abweichen. Ein aus einer Metrik gebauter View wird bei jeder Änderung der Metrik neu erzeugt, sodass die Zahl überall gleich bleibt.",
-    "purposeAria": "Über Metriken"
+    "purposeAria": "Über Metriken",
+    "detailPanel": "Details der Metrik"
   },
   "sqlJoinCanvas": {
     "removeMetric": "Metrik {{metricName}} entfernen",

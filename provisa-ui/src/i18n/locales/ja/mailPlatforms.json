@@ -21,18 +21,24 @@
     "redirectUnknown": "このデプロイの公開アドレスが設定されていないため、リダイレクト アドレスを表示できません。",
     "clientId": "クライアント ID",
     "clientSecret": "クライアント シークレット",
-    "clientSecretKeep": "入力済みのものを保持する場合は空欄のままにします。",
     "setting": {
-      "tenant": "ディレクトリ (テナント) ID"
+      "tenant": "ディレクトリ (テナント) ID",
+      "admin_address": "管理者のアドレス"
     },
     "settingHelp": {
-      "tenant": "組織の Microsoft 365 アカウントが属するディレクトリ。Microsoft Entra のアプリの登録の [概要] ページに表示される ID またはドメインです。"
+      "tenant": "組織の Microsoft 365 アカウントが属するディレクトリ。Microsoft Entra のアプリの登録の [概要] ページに表示される ID またはドメインです。",
+      "admin_address": "Google Workspace ドメインの特権管理者。ディレクトリはこのユーザーとして一覧表示されます。このユーザーのメールは、ソースが指定した場合にのみ読み取られます。"
     },
-    "organisationMailboxes": "組織のメールボックスを読み取るソースを許可する",
+    "organisationMailboxes": "組織のメールボックスを読み取る",
+    "ownMailbox": "各自のメールボックスの接続を許可する",
     "organisationMailboxesHelp": "オフ: ソースは、本人が接続した 1 つのメールボックスだけを読み取ります。オン: ソースは管理者の認証情報で組織の多数のメールボックスを読み取ることができ、行ルールで制限しない限り、そのテーブルを読み取れる人はすべてのメールボックスを読み取れます。",
     "organisationGrant": {
-      "microsoft_365": "組織のメールボックスを読み取るソースのために、アプリの登録にアプリケーションのアクセス許可 Mail.Read と User.Read.All を付与し、管理者の同意を与えてください。"
+      "microsoft_365": "組織のメールボックスを読み取るソースのために、アプリの登録にアプリケーションのアクセス許可 Mail.Read と User.Read.All を付与し、管理者の同意を与えてください。",
+      "google_workspace": "特権管理者が、Google 管理コンソールの [セキュリティ] › [アクセスとデータ管理] › [API の制御] › [ドメイン全体の委任を管理] で、サービス アカウントのクライアント ID に以下のスコープを承認します。ヘッダーとラベルのみを読み取るソースには gmail.metadata を追加してください。Google ではこれを一部のメールボックスに限定できません。ドメインのすべてのユーザーが対象になります。"
     },
+    "organisationKey": "サービス アカウントのキー",
+    "organisationKeyHelp": "Google Cloud がサービス アカウント用に作成したキーの JSON、またはそれを保持するシークレットへの参照。",
+    "organisationScopes": "承認するスコープ",
     "save": "保存",
     "remove": "削除",
     "saved": "保存しました。",

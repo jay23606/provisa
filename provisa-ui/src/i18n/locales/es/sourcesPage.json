@@ -1,10 +1,17 @@
 {
   "sourcesPage": {
+    "detailPanel": "Detalles de la fuente",
+    "resizeDetail": "Cambiar el tamaño del panel de detalles",
+    "expandDetail": "Ampliar el panel",
+    "restoreDetail": "Restaurar el panel",
+    "closeDetail": "Cerrar el panel de detalles",
+    "backToList": "Volver a la lista",
+    "backToSource": "Volver a la fuente",
+    "panelNewSource": "Nueva fuente",
     "title": "Orígenes de datos",
     "loading": "Cargando orígenes...",
     "filterPlaceholder": "Filtrar por ID o tipo de origen…",
     "addSource": "+ Origen",
-    "closeForm": "Cerrar formulario",
     "schemaRefreshFailed": "Error al actualizar el esquema: {{message}}",
     "idLabel": "ID",
     "idPlaceholder": "p. ej. sales-pg",

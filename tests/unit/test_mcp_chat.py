@@ -17,6 +17,7 @@ import pytest
 
 from provisa.api.mcp import chat as chat_mod
 from provisa.api.mcp import tools as mcp_tools
+from tests.role_state import RoleState
 
 
 def _block(**kw):
@@ -137,7 +138,7 @@ def _a_configured_vendor_key(monkeypatch):
 
 def _state():
     ctx = SimpleNamespace(tables={}, joins={})
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": ctx},
         config=SimpleNamespace(roles=[SimpleNamespace(id="analyst", domain_access=["sales"])]),
     )
@@ -683,8 +684,8 @@ class TestSubscriptionSources:  # REQ-1798
         assert seen == {"role": "analyst", "query": "inflation"}
 
     async def test_search_kaggle_datasets_dispatches_without_a_token_argument(self, monkeypatch):
-        # No secret_name/token argument at all — the tool resolves a FIXED secret name itself
-        # (mcp_tools.KAGGLE_TOKEN_SECRET_NAME); the model never chooses or asks for one.
+        # No secret_name/token argument at all — the tool reads the operator's Kaggle token
+        # setting itself; the model never chooses or asks for a secret name.
         resp1 = SimpleNamespace(
             content=[
                 _block(

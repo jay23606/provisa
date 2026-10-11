@@ -37,7 +37,6 @@
     "runNowSubmit": "立即运行",
     "runNowQueuing": "正在排队...",
     "runNowQueued": "已为 {{table}} 排队运行。",
-    "runNowCancel": "取消",
     "dependentsTitle": "其他对象正在使用这些列",
     "dependentsIntro": "重命名列的 SQL 别名或删除该列，会破坏下列对象，它们按当前名称引用该列。仍要保存吗？",
     "dependentsCancel": "返回",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "实体关系图",
     "erdHelpBody": "绘制已注册的表以及它们之间声明的关系，让你在写查询之前就能看到已有的连接。它只读取模型，不做修改：可按域筛选，并将图导出为 PNG 或 SVG。",
     "purposeModel": "“+ 模型”声明一个实体或事实——星型模型和 Data Vault 都由这两者搭成——并把它降解到同样的原语上，注册物化视图、它的历史模式，以及指向所引用实体键的关系。",
-    "empty": "尚未注册任何表。"
+    "empty": "尚未注册任何表。",
+    "resizeDetail": "调整详情面板大小",
+    "detailPanel": "表详情",
+    "closeDetail": "关闭详情面板",
+    "expandDetail": "展开面板",
+    "restoreDetail": "还原面板",
+    "backToList": "返回列表",
+    "backToDetail": "返回详情",
+    "panelRegisterTable": "注册表",
+    "panelNewView": "新建视图",
+    "panelNewModel": "新建模型"
   }
 }

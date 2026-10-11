@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "מדדים",
-    "newMetric": "מדד חדש",
+    "newMetric": "+ מדד",
     "loading": "טוען...",
     "empty": "עדיין לא נרשמו מדדים.",
     "colName": "שם",
@@ -39,8 +39,6 @@
     "fieldDescription": "תיאור",
     "fieldAiContext": "הקשר AI",
     "fieldAiContextPlaceholder": "רמזים ליצירת שאילתות בסיוע AI",
-    "save": "שמירה",
-    "cancel": "ביטול",
     "saveFailed": "השמירה נכשלה.",
     "editMetric": "עריכת המדד {{name}}",
     "deleteMetric": "מחיקת המדד {{name}}",
@@ -51,7 +49,8 @@
     "purposeTitle": "למה משמשים מדדים",
     "purposeBody": "מדד הוא ההגדרה העסקית של מדידה — צבירה על טבלת עובדות אחת, מוגדרת כאן פעם אחת ומוקרנת לכל משטח: SQL, GraphQL, לוח החקירה, תצוגות הבנויות ממדדים וייצוא ההחלפה.",
     "purposeAdd": "הגדרה אחת מונעת סטייה של צרכנים שמיישמים מחדש את החישוב. תצוגה הבנויה ממדד נוצרת מחדש בכל שינוי במדד, כך שהמספר נשאר זהה בכל מקום.",
-    "purposeAria": "אודות מדדים"
+    "purposeAria": "אודות מדדים",
+    "detailPanel": "פרטי המדד"
   },
   "sqlJoinCanvas": {
     "removeMetric": "הסרת המדד {{metricName}}",

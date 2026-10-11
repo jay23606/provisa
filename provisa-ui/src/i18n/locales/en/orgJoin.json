@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Role granted on auto-join",
     "autoJoinRoleDesc": "The role everyone admitted by the rule receives.",
     "acceptRisk": "I accept that this rule may admit people from outside my organization",
-    "save": "Save",
     "saved": "Join rule saved."
   }
 }

@@ -40,6 +40,7 @@ _STORED = SimpleNamespace(
     materialize=False,
     row_materialize=False,
     load_protected=False,
+    freshness_gate=False,
 )
 
 

@@ -64,6 +64,13 @@
     "writesTable": "Escreve na tabela",
     "writesTableHint": "A tabela registrada que este comando altera. Após cada chamada, os resultados em cache e as visões materializadas sobre ela são atualizados.",
     "routinesOffered_one": "{{count}} rotina deste esquema está disponível",
-    "routinesOffered_other": "{{count}} rotinas deste esquema estão disponíveis"
+    "routinesOffered_other": "{{count}} rotinas deste esquema estão disponíveis",
+    "inputColumnsTitle": "colunas do conjunto de dados de entrada",
+    "addInputColumn": "adicionar coluna de entrada",
+    "removeInputColumn": "remover a coluna de entrada {{name}}",
+    "outputColumnsTitle": "colunas do conjunto de dados de saída",
+    "addOutputColumn": "adicionar coluna de saída",
+    "removeOutputColumn": "remover a coluna de saída {{name}}",
+    "datasetColumnPlaceholder": "coluna"
   }
 }

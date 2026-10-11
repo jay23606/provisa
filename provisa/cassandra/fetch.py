@@ -164,7 +164,7 @@ def fetch_rows_by_keys(
     contract)."""
     if len(pk_columns) != 1:
         raise ValueError(
-            f"Cassandra keyed fetch on a composite PK {pk_columns!r} is not implemented (REQ-1865)"
+            f"Cassandra keyed fetch on a composite PK {pk_columns!r} is not implemented"
         )
     if not keys:
         return []

@@ -399,10 +399,7 @@ class SqlAlchemyFederationRuntime:  # REQ-825, REQ-840, REQ-905
         materialize_exec.py's ``apply_cdc``, for the same reason ``land_table`` above reimplements
         REPLACE/APPEND/CDC synchronously rather than going through the async ``store_writer`` path."""
         from provisa.federation.materialize_exec import (
-            _coerce_json_row,
-            _json_columns,
             build_table,
-            coerce_temporal_row,
             temporal_columns,
         )
 
@@ -414,33 +411,96 @@ class SqlAlchemyFederationRuntime:  # REQ-825, REQ-840, REQ-905
         temporal_cols = temporal_columns(columns)
 
         def _run() -> dict[str, int]:
-            counts = {"upsert": 0, "delete": 0}
-            json_cols = _json_columns(tbl)
             with self._sa.begin() as conn:
-                if schema:
-                    _ensure_schema(conn, schema)
-                _ensure_table(conn, tbl)
-                for ev in events:
-                    if ev.operation.lower() == "delete":
-                        where = _and_eq(tbl, pk_columns, ev.row)
-                        conn.execute(tbl.delete().where(where))
-                        counts["delete"] += 1
-                    else:
-                        _sync_upsert(
-                            conn,
-                            tbl,
-                            coerce_temporal_row(_coerce_json_row(ev.row, json_cols), temporal_cols),
-                            index_elements=pk_columns,
-                        )
-                        counts["upsert"] += 1
-            return counts
+                return _apply_events(conn, schema, tbl, pk_columns, events, temporal_cols)
 
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _run)
 
+    async def apply_change_group(self, group: list[Any]) -> None:
+        """Apply the changes of several landed tables that belong together
+        (``federation.change_group``) in the order given, in ONE transaction of this engine's
+        store: every table changes or none does."""
+        from provisa.federation.materialize_exec import build_table, temporal_columns
+
+        prepared = [
+            (
+                changes,
+                build_table(
+                    changes.schema,
+                    changes.table,
+                    changes.columns,
+                    tuple(changes.pk_columns),
+                    dialect_name=self._sa.dialect.name,
+                ),
+                temporal_columns(changes.columns),
+            )
+            for changes in group
+        ]
+        for changes, _tbl, _temporal in prepared:
+            if not changes.pk_columns:
+                raise ValueError(
+                    f"CDC land into {changes.schema}.{changes.table} requires primary key columns"
+                )
+
+        def _run() -> None:
+            with self._sa.begin() as conn:
+                for changes, tbl, temporal_cols in prepared:
+                    _apply_events(
+                        conn,
+                        changes.schema,
+                        tbl,
+                        changes.pk_columns,
+                        changes.events,
+                        temporal_cols,
+                        changes.delete_where,
+                    )
+
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _run)
+
     def close(self) -> None:
         self._con.close()
         self._sa.dispose()
+
+
+def _apply_events(
+    conn: Any,
+    schema: str,
+    tbl: Any,
+    pk_columns: list[str],
+    events: list,
+    temporal_cols: Any,
+    delete_where: list[dict[str, Any]] | None = None,
+) -> dict[str, int]:
+    """Apply change events to one table on ``conn``, inside the caller's transaction:
+    insert/update -> upsert by key, delete -> the row removed."""
+    from provisa.federation.materialize_exec import (
+        _coerce_json_row,
+        _json_columns,
+        coerce_temporal_row,
+    )
+
+    counts = {"upsert": 0, "delete": 0}
+    json_cols = _json_columns(tbl)
+    if schema:
+        _ensure_schema(conn, schema)
+    _ensure_table(conn, tbl)
+    for match in delete_where or ():  # rows named by part of their key, before the events
+        conn.execute(tbl.delete().where(_and_eq(tbl, list(match), match)))
+    for ev in events:
+        if ev.operation.lower() == "delete":
+            conn.execute(tbl.delete().where(_and_eq(tbl, pk_columns, ev.row)))
+            counts["delete"] += 1
+        else:
+            _sync_upsert(
+                conn,
+                tbl,
+                coerce_temporal_row(_coerce_json_row(ev.row, json_cols), temporal_cols),
+                index_elements=pk_columns,
+            )
+            counts["upsert"] += 1
+    return counts
 
 
 def _ensure_schema(conn: Any, schema: str) -> None:

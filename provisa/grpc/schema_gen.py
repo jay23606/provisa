@@ -13,55 +13,32 @@
 # Requirements: REQ-045, REQ-051
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 
 from grpc_tools import protoc
 
 
-def compile_proto(proto_content: str, output_dir: str) -> tuple[str, str]:  # REQ-045, REQ-051
-    """Compile a .proto string to Python gRPC stubs.
-
-    Args:
-        proto_content: The .proto file content string.
-        output_dir: Directory to write generated _pb2.py and _pb2_grpc.py.
-
-    Returns:
-        Tuple of (pb2_path, pb2_grpc_path).
-    """
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Write proto to a temp dir so protoc can find it
+def compile_descriptor_set(proto_content: str) -> bytes:
+    """``proto_content`` compiled to a serialized ``FileDescriptorSet``, its imports included
+    (the well-known types a service names). No Python module is generated: the caller loads the
+    set into a descriptor pool of its own (grpc/descriptor.py)."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        proto_path = Path(tmpdir) / "provisa_service.proto"
-        proto_path.write_text(proto_content)
-
-        # Locate google protobuf includes
+        (Path(tmpdir) / "provisa_service.proto").write_text(proto_content)
         import grpc_tools
 
         well_known = str(Path(grpc_tools.__file__).parent / "_proto")
-
+        out = Path(tmpdir) / "provisa_service.desc"
         result = protoc.main(
             [
                 "grpc_tools.protoc",
                 f"--proto_path={tmpdir}",
                 f"--proto_path={well_known}",
-                f"--python_out={output_dir}",
-                f"--grpc_python_out={output_dir}",
+                f"--descriptor_set_out={out}",
+                "--include_imports",
                 "provisa_service.proto",
             ]
         )
-
         if result != 0:
             raise RuntimeError(f"protoc compilation failed with code {result}")
-
-    pb2_path = str(Path(output_dir) / "provisa_service_pb2.py")
-    pb2_grpc_path = str(Path(output_dir) / "provisa_service_pb2_grpc.py")
-
-    if not Path(pb2_path).exists():
-        raise RuntimeError(f"Expected output not found: {pb2_path}")
-    if not Path(pb2_grpc_path).exists():
-        raise RuntimeError(f"Expected output not found: {pb2_grpc_path}")
-
-    return pb2_path, pb2_grpc_path
+        return out.read_bytes()

@@ -35,6 +35,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
+from provisa.api.role_surface import RoleSurface, SurfacePart, set_part
 from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.core.connection_loop import CrossLoopLock
 from provisa.core.environments import PROD
@@ -42,9 +43,6 @@ from provisa.executor.pool import SourcePool
 from provisa.federation.replica_address import ReplicaRoutes
 
 if TYPE_CHECKING:
-    import graphql
-
-    from provisa.compiler.rls import RLSContext
     from provisa.compiler.sql_gen import CompilationContext
     from provisa.core.database import Database
 
@@ -179,13 +177,15 @@ class OrgRuntime:
 
     # Compiled, role-keyed state (role_id → …).
     roles: dict[str, dict] = field(default_factory=dict)
-    schemas: dict[str, "graphql.GraphQLSchema"] = field(default_factory=dict)
-    contexts: dict[str, "CompilationContext"] = field(default_factory=dict)
+    # role id -> everything the role is served through, from ONE build (api/role_surface.py):
+    # its schema, compilation context, row filters, REST path map and proto. A build installs a
+    # role's surface whole, with one assignment; a request takes it once. `schemas`, `contexts`,
+    # `rls_contexts`, `table_path_maps` and `proto_files` below are views of it.
+    surfaces: dict[str, RoleSurface] = field(default_factory=dict)
     # The whole model — every registered table and column, no role's grants applied — used ONLY
     # to lower view SQL to physical (api/app_rebuild.py). It belongs to no role and never answers
     # a request: who may read a view's rows is decided when the view is read.
     view_context: "CompilationContext | None" = None
-    rls_contexts: dict[str, "RLSContext"] = field(default_factory=dict)
     # REQ-1677: role id → [role, parent, grandparent, …], the chain folded into the build.
     role_chains: dict[str, list[str]] = field(default_factory=dict)
 
@@ -251,6 +251,12 @@ class OrgRuntime:
     # live config runs once promoted. None until the runtime is built, and for an environment.
     live_engine: Any = None
     relationships: list[dict] = field(default_factory=list)
+    # The organisation's API sources (source id → ApiSource: its address and credential) and the
+    # endpoints its API tables are served from ((source id, table name) → ApiEndpoint). Loaded
+    # from this organisation's control plane by its own build; source ids repeat across
+    # organisations, so these are the runtime's and never the process's.
+    api_sources: dict[str, Any] = field(default_factory=dict)
+    api_endpoints: dict[tuple[str, str], Any] = field(default_factory=dict)
     # REQ-1317: config-declared metric registry (name → Metric), published alongside tables
     # so the raw-SQL path can expand `metrics.<name>` queries before governance.
     metrics: dict[str, Any] = field(default_factory=dict)
@@ -260,8 +266,17 @@ class OrgRuntime:
     schema_build_cache: dict = field(default_factory=dict)
     # What any role's surface is built from in this generation (app_loaders.register_role_surface).
     role_build_inputs: dict = field(default_factory=dict)
+    # The organisation's gRPC service as proto text, written by its schema build, and what is
+    # compiled from it (grpc/descriptor.OrgDescriptor): its own, read by its own callers.
+    wire_proto: str | None = None
+    grpc_descriptor: Any = None
+    # Each role's own proto, compiled for what that role is described (grpc/descriptor.py).
+    grpc_role_descriptors: dict[str, Any] = field(default_factory=dict)
     # meta-role id → the held roles it acts as (security/meta_role.py), this generation.
     meta_roles: dict = field(default_factory=dict)
+    # meta-role id -> when a request last resolved it (time.monotonic): what a rebuild reads to
+    # know a request may still be acting as it (security/meta_role.rebuild_meta_roles).
+    meta_resolved_at: dict = field(default_factory=dict)
 
     # REQ-1349: this org's rows from its ``org_settings`` table, read once at build time and
     # refreshed by the settings router when the org writes one. Cached here rather than read per
@@ -292,6 +307,48 @@ class OrgRuntime:
     # (pool, dialect, catalog name), so a reload rebuilds that state only for a source whose row
     # was added, changed or removed. ``None`` until the first schema build.
     source_rows: dict[str, tuple] | None = None
+
+    # --- one part of every role's surface (views; api/role_surface.py) ------------------------
+
+    @property
+    def schemas(self) -> SurfacePart:
+        return SurfacePart(self.surfaces, "schema")
+
+    @schemas.setter
+    def schemas(self, value: dict) -> None:
+        set_part(self.surfaces, "schema", value)
+
+    @property
+    def contexts(self) -> SurfacePart:
+        return SurfacePart(self.surfaces, "context")
+
+    @contexts.setter
+    def contexts(self, value: dict) -> None:
+        set_part(self.surfaces, "context", value)
+
+    @property
+    def rls_contexts(self) -> SurfacePart:
+        return SurfacePart(self.surfaces, "rls")
+
+    @rls_contexts.setter
+    def rls_contexts(self, value: dict) -> None:
+        set_part(self.surfaces, "rls", value)
+
+    @property
+    def table_path_maps(self) -> SurfacePart:
+        return SurfacePart(self.surfaces, "table_path_map")
+
+    @table_path_maps.setter
+    def table_path_maps(self, value: dict) -> None:
+        set_part(self.surfaces, "table_path_map", value)
+
+    @property
+    def proto_files(self) -> SurfacePart:
+        return SurfacePart(self.surfaces, "proto")
+
+    @proto_files.setter
+    def proto_files(self, value: dict) -> None:
+        set_part(self.surfaces, "proto", value)
 
 
 class OrgRegistry:

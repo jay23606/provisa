@@ -6,8 +6,6 @@
     "name": "名前",
     "firstName": "名",
     "lastName": "姓",
-    "save": "保存",
-    "saving": "保存中…",
     "saved": "保存しました",
     "saveError": "プロフィールを保存できませんでした",
     "email": "メール",

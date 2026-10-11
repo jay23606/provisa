@@ -31,6 +31,7 @@ from provisa.compiler.context import build_context
 from provisa.compiler.introspect import ColumnMetadata
 from provisa.compiler.rls import RLSContext
 from provisa.compiler.schema_gen import SchemaInput, generate_schema
+from tests.role_state import with_surfaces
 
 _HEADERS = {"accept": "application/vnd.api+json", "X-Provisa-Role": "org_admin"}
 
@@ -142,6 +143,7 @@ def client(monkeypatch):
             }
         }
     }
+    with_surfaces(state)  # the surface a request takes, from the parts set above
     state.masking_rules = {}
     state.source_types = {"pet-store-sqlite": "sqlite"}
     state.source_dialects = {"pet-store-sqlite": "sqlite"}

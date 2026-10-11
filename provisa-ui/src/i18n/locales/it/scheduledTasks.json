@@ -47,6 +47,8 @@
     "lastPage": "Ultima pagina",
     "roleLabel": "Eseguito come ruolo",
     "validationRoleRequired": "Un'attività SQL viene eseguita come un ruolo: sceglierne uno.",
-    "runsAs": "eseguito come {{role}}"
+    "runsAs": "eseguito come {{role}}",
+    "deleteTitle": "Eliminare l'attività pianificata \"{{name}}\"?",
+    "deleteConsequence": "L'attività viene rimossa e non viene più eseguita."
   }
 }

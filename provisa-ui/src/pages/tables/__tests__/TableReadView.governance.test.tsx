@@ -13,7 +13,7 @@
 // either way: without them it shows no governance column and its save names none.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { fireEvent, render, screen } from "../../../test-utils/render";
 import "../../../i18n";
 import { TableReadView } from "../TableReadView";
 import type { RegisteredTable, TableColumn } from "../../../types/admin";
@@ -82,7 +82,6 @@ function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
   };
 }
 
-
 function column(name: string, grants: Partial<TableColumn>): TableColumn {
   return {
     id: 1,
@@ -133,6 +132,8 @@ describe("TableReadView with grant lists withheld (REQ-1958)", () => {
 
   it("says the grants are not shown, never 'all' or 'none'", () => {
     renderView(withheld);
+    // Grants and masks are the Access tab of the columns table.
+    fireEvent.click(screen.getByTestId("column-tab-access"));
     expect(screen.getByTestId("grants-not-shown")).toHaveTextContent("not shown");
     expect(screen.getAllByText("not shown")).toHaveLength(3); // visible to, writable by, mask
     expect(screen.queryByText("all")).not.toBeInTheDocument();
@@ -157,6 +158,7 @@ describe("TableReadView with grant lists shown", () => {
 
   it("shows them and offers the editor", () => {
     const startEditing = renderView(shown);
+    fireEvent.click(screen.getByTestId("column-tab-access"));
     expect(screen.getByText("analyst")).toBeInTheDocument();
     expect(screen.queryByTestId("grants-not-shown")).not.toBeInTheDocument();
     const edit = screen.getByTestId("table-read-view-edit");

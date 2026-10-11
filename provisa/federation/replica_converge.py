@@ -164,7 +164,12 @@ async def converge_replicas(state: Any) -> Converged:
     (see the module's docstring). Raises what fails; :func:`converge_logged` is the entry that
     records and logs a failure instead."""
     from provisa.federation import replica_builds
-    from provisa.federation.replica_routing import landing_worklist, replica_tables
+    from provisa.federation.replica_routing import (
+        draft_landing_worklist,
+        draft_replica_tables,
+        landing_worklist,
+        replica_tables,
+    )
     from provisa.federation.replica_state_view import view_for
 
     engine = state.federation_engine.engine
@@ -177,6 +182,18 @@ async def converge_replicas(state: Any) -> Converged:
         ((src.id, reg["schema_name"], reg["table_name"]), src, reg)
         for src, reg in await replica_tables(engine, state)
     ]
+    # REQ-1921: a DRAFT may hold a replica, landed for its steward's preview and kept for its
+    # release. It is declared — never retired, its definition watched — and no build of it is
+    # asked for here: a draft is built when its steward previews it, not on the model's word.
+    # Why the replicator does not simply ignore ``draft``: a table is registered as a draft
+    # BEFORE its region is settled, and a scheduled build would land it somewhere before its
+    # steward has looked. A build the steward asks for is the steward's act.
+    held_draft = [
+        ((src.id, reg["schema_name"], reg["table_name"]), src, reg)
+        for src, reg in await draft_replica_tables(engine, state)
+    ]
+    drafts = {key for key, _src, _reg in held_draft}
+    served += held_draft
     declared = {key for key, _src, _reg in served}
     homes = {key: home_region(reg) for key, src, reg in served}
     # Of those, the ones a build makes: a row-level or parameterized table is declared (its
@@ -186,6 +203,16 @@ async def converge_replicas(state: Any) -> Converged:
     # is not resolved yet is declared (never retired) and built once it is.
     shapes: dict[ReplicaKey, tuple[str, list[tuple[str, str]]]] = {}
     for src, schema_name, table_name, columns, pk_columns in await landing_worklist(engine, state):
+        key = (src.id, schema_name, table_name)
+        if key not in whole:
+            continue
+        address = backend.replica_address(
+            state, source_id=src.id, schema_name=schema_name, table_name=table_name
+        )
+        shapes[key] = (definition_hash(src, address, columns, pk_columns), columns)
+    for src, schema_name, table_name, columns, pk_columns in await draft_landing_worklist(
+        engine, state
+    ):
         key = (src.id, schema_name, table_name)
         if key not in whole:
             continue
@@ -217,7 +244,7 @@ async def converge_replicas(state: Any) -> Converged:
             view.await_definition(org_id, key, wanted_hash if built and not serving else None)
             if built and not serving:
                 done.not_serving.append(key)
-            if built and record.definition_hash == wanted_hash:  # type: ignore[union-attr]
+            if key in drafts or (built and record.definition_hash == wanted_hash):  # type: ignore[union-attr]
                 continue
             reason = replica_state.REASON_DEFINITION if built else replica_state.REASON_MODEL
             if await replica_state.request_build(conn, key, reason, model_stamp=stamp, now=now):

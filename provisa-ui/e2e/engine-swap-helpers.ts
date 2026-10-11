@@ -377,7 +377,7 @@ export async function reprovisionSourceOnEngine(engine: EngineTarget, sourceId: 
       // 251's write_table_definitions reads source.mapping.tables) — omitting it here recreates
       // the source on the target engine with an empty mapping, so its table-description file
       // comes out empty and every one of its registered tables 404s as TABLE_NOT_FOUND.
-      // passwordRef: the ${secret:NAME} vault REFERENCE persist_source_password wrote (REQ-1695)
+      // passwordRef: what the source's password field holds, as its operator entered it
       // — never the plaintext, which the vault holds unreadable by name. SourceInput.password
       // already treats a value containing "${" as a reference and stores it verbatim (never
       // re-vaults it), so round-tripping this through create_source resolves correctly on the

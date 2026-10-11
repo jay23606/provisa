@@ -76,7 +76,7 @@ Client ←(Arrow batches)← Provisa Flight Server ←(Arrow batches)← Zaychik
 
 ### Protobuf gRPC（端口 50051）
 
-从数据架构自动生成 `.proto`，按角色分别生成。(REQ-525) 流式查询（每行一条消息）、一元变更。已启用服务器反射。(REQ-526) 角色通过 `x-provisa-role` 元数据键传递。
+从数据架构自动生成 `.proto`，按角色分别生成。(REQ-525) 流式查询（每行一条消息）、一元变更。已启用服务器反射。(REQ-526) 角色通过 `x-provisa-role` 元数据键传递。 反射向每个调用方描述其自身角色的服务。
 
 ### PostgreSQL wire protocol / pgwire（可配置端口）
 

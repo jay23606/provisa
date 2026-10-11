@@ -19,13 +19,16 @@ import datetime as dt
 import logging
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from provisa.core import canonical_mail as cm
+from provisa.core import mail_platforms
 from provisa.core.ir_arrow import arrow_schema, rows_to_batch
 from provisa.core.models import SourceType
 from provisa.google_workspace import SOURCE_TYPE, loader
-from provisa.google_workspace.gmail import GmailNotFound
+from provisa.api_source.oauth_grants import CredentialRefused
+from provisa.google_workspace.gmail import GmailNotFound, QuotaExhausted
 from provisa.google_workspace.loader import (
     MESSAGE_TABLES,
     TABLES,
@@ -33,9 +36,20 @@ from provisa.google_workspace.loader import (
     message_table_rows,
     table_rows,
 )
-from provisa.google_workspace.settings import SECRET_KEYS, MailSettings
+from provisa.google_workspace.settings import MailSettings
 
 pytestmark = pytest.mark.asyncio
+
+
+def _in_vault(resolve):
+    """The organisation's vault, standing in for the reader's resolution of a one-mailbox
+    credential (read against a real vault in test_google_workspace_organisation.py)."""
+
+    async def resolved(_admin_db, _org_id, auth):
+        return auth.model_copy(update={"client_secret": resolve(auth.client_secret)})
+
+    return resolved
+
 
 ACCOUNT = "ada@example.test"
 FULL = MailSettings("full", None, (), None, False)
@@ -130,6 +144,9 @@ class FakeGmail:
         self.pages = pages or [list(self.mailbox)]
         self.asked: list[tuple[str, str]] = []
 
+    async def profile(self) -> dict:
+        return {"emailAddress": self.account, "historyId": "1000"}
+
     async def labels(self) -> list[dict]:
         return [{"id": label["id"], "name": label["name"]} for label in self.label_rows.values()]
 
@@ -151,6 +168,21 @@ async def _rows(
     table: str, gmail: FakeGmail | None = None, mail: MailSettings = FULL
 ) -> list[dict]:
     return [row async for batch in table_rows(gmail or FakeGmail(), mail, table) for row in batch]
+
+
+def _connected_loader():
+    """The loader, signed in by nothing: each mailbox of the source is read with a made-up
+    token, as ``loader.make_connect`` would hand it one."""
+
+    async def connect(source) -> loader.Reading:
+        settings = loader.source_settings(source)
+
+        async def token(_account: str) -> str:
+            return "made-up-access-token"
+
+        return loader.Reading(settings.accounts, settings.mail, token)
+
+    return loader.make_google_workspace_loader(connect)
 
 
 class TestEveryTableIsItsCanonicalTable:
@@ -307,6 +339,19 @@ class TestFolders:
         assert (inbox["is_hidden"], inbox["label_list_visibility"]) == (False, "show")
         assert inbox["parent_id"] is None and inbox["child_count"] is None
 
+    async def test_a_label_deleted_between_its_listing_and_its_reading_is_not_a_folder(self):
+        """It is no longer in the mailbox, as a message deleted meanwhile is not: the others
+        are read, and the read does not fail."""
+
+        class OneGone(FakeGmail):
+            async def label(self, label_id: str) -> dict:
+                if label_id == "Label_7":
+                    raise GmailNotFound(ACCOUNT, "labels.get", 404, "notFound")
+                return await super().label(label_id)
+
+        rows = await _rows("folders", OneGone())
+        assert [r["id"] for r in rows] == [key for key in LABELS if key != "Label_7"]
+
     async def test_a_label_of_the_users_own_has_no_role(self):
         clients = {f["id"]: f for f in await _rows("folders")}["Label_7"]
         assert (clients["kind"], clients["role"], clients["name"]) == ("user", None, "Clients")
@@ -334,10 +379,11 @@ class TestTheSourceKind:
         assert SourceType(SOURCE_TYPE) is SourceType.google_workspace
         assert SOURCE_TYPE in _ADAPTER_FETCH_ONLY and SOURCE_TYPE in _MATERIALIZE_ONLY
 
-    async def test_its_credentials_are_the_ones_kept_in_the_vault(self):
-        from provisa.api.admin.schema_common import SOURCE_MAPPING_SECRET_KEYS
+    async def test_its_credential_is_kept_as_the_source_holds_it(self):
+        """A source's fields are stored as given; the kind names none to be moved anywhere."""
+        from provisa.google_workspace import settings
 
-        assert SOURCE_MAPPING_SECRET_KEYS[SOURCE_TYPE] == SECRET_KEYS
+        assert not hasattr(settings, "SECRET_KEYS")
 
     async def test_settings_that_cannot_be_a_source_are_refused_in_the_setups_terms(self):
         import json
@@ -351,15 +397,17 @@ class TestTheSourceKind:
             source(accounts=["ada@example.test"], resources=["mail"])
         )
         assert refused is not None and refused.code == "schema.google_workspace_invalid"
-        assert "sign_in must be one of" in refused.message
+        assert "sign_in must be google_account" in refused.message
         good = source(
             accounts=["ada@example.test"],
             resources=["mail"],
-            sign_in="service_account",
-            service_account_key="${secret:k}",
+            sign_in="google_account",
+            refresh_token="${secret:k}",
             mail_content="full",
         )
         assert google_workspace_refusal(good) is None
+        organisation = source(resources=["mail"], mailboxes={"everyone": True}, mail_content="full")
+        assert google_workspace_refusal(organisation) is None
         other = SimpleNamespace(id="pg", type="postgresql", mapping_json="{}")
         assert google_workspace_refusal(other) is None
 
@@ -370,7 +418,7 @@ class TestTheLoader:
         seen: dict = {}
 
         class Recording(FakeGmail):
-            def __init__(self, account, token, client) -> None:
+            def __init__(self, account, token, client, **_kw) -> None:
                 super().__init__()
                 seen["account"], seen["token"] = account, token
 
@@ -381,7 +429,9 @@ class TestTheLoader:
         seen["state"] = SimpleNamespace(admin_db="admin-plane")
         monkeypatch.setattr(loader, "Gmail", Recording)
         monkeypatch.setattr(
-            loader, "resolve_secrets", lambda v: v.replace("${secret:k}", "resolved-key")
+            loader,
+            "_resolved",
+            _in_vault(lambda v: v.replace("${secret:k}", "resolved-key")),
         )
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", token_for)
         return seen
@@ -391,56 +441,110 @@ class TestTheLoader:
         mapping = {
             "accounts": [ACCOUNT],
             "resources": ["mail"],
-            "sign_in": "service_account",
-            "service_account_key": "${secret:k}",
+            "sign_in": "google_account",
+            "refresh_token": "${secret:k}",
             "mail_content": "full",
         }
         return SimpleNamespace(id="mail", mapping=mapping)
 
-    async def test_a_table_is_read_with_the_sources_own_credential(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+    async def test_a_table_is_read_from_the_sources_mailbox(self, read):
+        fetch = _connected_loader()
         rows = await fetch(self._source(), SimpleNamespace(table_name="messages"))
         assert [r["id"] for r in rows] == ["m1", "m2", "m3"]
         assert read["account"] == ACCOUNT
         assert await read["token"]() == "made-up-access-token"
-        assert (read["auth"].key, read["auth"].subject) == ("resolved-key", ACCOUNT)
 
-    async def test_an_owners_approval_is_renewed_with_the_organisations_client(
-        self, read, monkeypatch
-    ):
-        from provisa.core import mail_platforms, request_context
+    @pytest.fixture
+    def signed_in(self, read, monkeypatch, tmp_path):
+        """What ``connect`` reaches for one mailbox: the organisation's client, its vault and
+        its state store, where the owner's approval is kept."""
+        from provisa.core import request_context
+        from provisa.core.database import Database, create_engine_from_url
         from provisa.core.mail_platforms import Configured
+        from provisa.core.schema_org import mail_sync_state as table
+        from provisa.core.schema_org import metadata
 
-        asked: list[tuple] = []
+        engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
+        with engine.begin() as conn:
+            metadata.create_all(conn, tables=[table])
+        seen = SimpleNamespace(asked=[], vault=[], read=read)
+        seen.state = SimpleNamespace(admin_db="admin-plane", tenant_db=Database(engine, name="s"))
 
         async def require(admin_db, org_id, platform_id):
-            asked.append((admin_db, org_id, platform_id))
-            return Configured(platform_id, "org-client-1", {})
+            seen.asked.append((admin_db, org_id, platform_id))
+            return Configured(platform_id, "org-client-1", {}, client_secret="${secret:typed}")
+
+        async def in_vault(admin_db, org_id, value):
+            seen.vault.append((org_id, value))
+            return value.replace("${secret:", "resolved:").rstrip("}")
 
         monkeypatch.setattr(mail_platforms, "require", require)
+        monkeypatch.setattr(mail_platforms, "resolved", in_vault)
         monkeypatch.setattr(
-            loader, "resolve_secrets", lambda v: v.replace("${secret:", "resolved:").rstrip("}")
+            loader,
+            "_resolved",
+            _in_vault(lambda v: v.replace("${secret:", "resolved:").rstrip("}")),
         )
         token = request_context.set_current_org("acme")
-        try:
-            source = self._source()
-            source.mapping = {
-                "accounts": [ACCOUNT],
-                "resources": ["mail"],
-                "sign_in": "google_account",
-                "refresh_token": "${secret:source_mail__refresh_token}",
-                "mail_content": "full",
-            }
-            fetch = loader.make_google_workspace_loader(read["state"])
-            await fetch(source, SimpleNamespace(table_name="folders"))
-        finally:
-            request_context.reset_current_org(token)
-        assert asked == [("admin-plane", "acme", "google_workspace")]
-        await read["token"]()
-        auth = read["auth"]
+        yield seen
+        request_context.reset_current_org(token)
+        engine.dispose()
+
+    def _one(self, **more):
+        source = self._source()
+        source.mapping = {
+            "accounts": [ACCOUNT],
+            "resources": ["mail"],
+            "sign_in": "google_account",
+            "mail_content": "full",
+            **more,
+        }
+        return source
+
+    @staticmethod
+    async def _kept(state) -> str | None:
+        from provisa.federation import mail_sync_state
+
+        async with state.tenant_db.acquire() as conn:
+            return await mail_sync_state.grant(conn, "mail", ACCOUNT)
+
+    async def test_an_owners_approval_is_renewed_with_the_organisations_client(self, signed_in):
+        """The approval is the one kept for the source and mailbox in the organisation's state
+        store; the source's settings hold none, and no vault is read for it."""
+        from provisa.federation import mail_sync_state
+
+        async with signed_in.state.tenant_db.acquire() as conn:
+            await mail_sync_state.keep_grant(conn, "mail", ACCOUNT, "the-kept-approval")
+        reading = await loader.make_connect(signed_in.state)(self._one())
+        assert signed_in.asked == [("admin-plane", "acme", "google_workspace")]
+        assert (reading.accounts, reading.organisation, reading.at_once) == ((ACCOUNT,), False, 1)
+        assert await reading.token(ACCOUNT) == "made-up-access-token"
+        auth = signed_in.read["auth"]
         assert auth.client_id == "org-client-1"
-        assert auth.client_secret == "resolved:mail_platform_google_workspace_client_secret"
-        assert auth.refresh_token == "resolved:source_mail__refresh_token"
+        assert auth.client_secret == "resolved:typed"
+        assert auth.refresh_token == "the-kept-approval"
+        assert signed_in.vault == []
+        # Google does not replace an approval when it is used: what is kept is left as it is.
+        assert await self._kept(signed_in.state) == "the-kept-approval"
+
+    async def test_a_mailbox_nobody_signed_in_to_is_refused_by_name(self, signed_in):
+        from provisa.api_source.oauth_store import NotConnected
+
+        with pytest.raises(NotConnected, match=f"{ACCOUNT} is not connected"):
+            await loader.make_connect(signed_in.state)(self._one())
+        assert "auth" not in signed_in.read  # nothing was exchanged
+
+    async def test_a_source_connected_the_earlier_way_keeps_reading(self, signed_in):
+        """Its settings still name the approval by a reference: resolved once in the
+        organisation's vault, kept in the state store, and read from there afterwards."""
+        old = self._one(refresh_token="${secret:source_mail__refresh_token}")
+        connect = loader.make_connect(signed_in.state)
+        await (await connect(old)).token(ACCOUNT)
+        assert signed_in.read["auth"].refresh_token == "resolved:source_mail__refresh_token"
+        assert signed_in.vault == [("acme", "${secret:source_mail__refresh_token}")]
+        assert await self._kept(signed_in.state) == "resolved:source_mail__refresh_token"
+        await connect(old)
+        assert len(signed_in.vault) == 1  # the state store answers from then on
 
     async def test_a_replicas_build_notes_the_messages_kept_without_text(self, read, monkeypatch):
         broken = _mail("m9", "t9", T0, "Kept")
@@ -448,7 +552,7 @@ class TestTheLoader:
             {"name": "Content-Type", "value": "text/plain; charset=x-made-up"}
         ]
         monkeypatch.setitem(MAILBOX, "m9", broken)
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("messages")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="messages"), columns
@@ -460,8 +564,22 @@ class TestTheLoader:
         assert note.code == "replication.unreadable_messages"
         assert note.params == {"count": 1, "ids": ["m9"], "more": 0}
 
+    async def test_a_whole_builds_rows_say_when_they_landed_under_one_stamp(self, read):
+        """The canonical mail tables carry when a row landed; a whole build lands together."""
+        fetch = _connected_loader()
+        columns = cm.landing_columns("messages")
+        source = fetch.replica_source(
+            self._source(), SimpleNamespace(table_name="messages"), columns
+        )
+        stamps = [
+            at
+            for batch in [b async for b in source.batches(1000)]
+            for at in batch.column(cm.LANDED_AT).to_pylist()
+        ]
+        assert len(stamps) == 3 and stamps[0] is not None and len(set(stamps)) == 1
+
     async def test_a_clean_read_leaves_no_note(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("messages")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="messages"), columns
@@ -476,7 +594,7 @@ class TestTheLoader:
         assert loader.unreadable_note([]) is None
 
     async def test_a_replica_is_built_from_the_same_read_in_the_canonical_columns(self, read):
-        fetch = loader.make_google_workspace_loader(read["state"])
+        fetch = _connected_loader()
         columns = cm.ir_columns("threads")
         source = fetch.replica_source(
             self._source(), SimpleNamespace(table_name="threads"), columns
@@ -555,14 +673,14 @@ class TestTheGroupBuild:
         gmails: list[FakeGmail] = []
 
         class Recording(FakeGmail):
-            def __init__(self, account, token, client) -> None:
+            def __init__(self, account, token, client, **_kw) -> None:
                 super().__init__()
                 gmails.append(self)
 
         monkeypatch.setattr(loader, "Gmail", Recording)
-        monkeypatch.setattr(loader, "resolve_secrets", lambda v: v)
+        monkeypatch.setattr(loader, "_resolved", _in_vault(lambda v: v))
         monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
-        made = loader.make_google_workspace_loader(SimpleNamespace(admin_db=None))
+        made = _connected_loader()
         made.gmails = gmails
         return made
 
@@ -571,8 +689,8 @@ class TestTheGroupBuild:
         mapping={
             "accounts": [ACCOUNT],
             "resources": ["mail"],
-            "sign_in": "service_account",
-            "service_account_key": "${secret:k}",
+            "sign_in": "google_account",
+            "refresh_token": "${secret:k}",
             "mail_content": "full",
         },
     )
@@ -613,3 +731,78 @@ class TestTheGroupBuild:
             [batch async for batch in source.batches(1000)]
             (note,) = source.notes()
             assert note.params == {"count": 1, "ids": ["m9"], "more": 0}
+
+
+class TestTheMailboxProbe:
+    """REQ-855, REQ-982: a mail table's change probe asks Gmail for the mailbox's current
+    history id, one small call, and never reads a message."""
+
+    @pytest.fixture
+    def fetch(self, monkeypatch):
+        mailbox = {"historyId": "1000", "refuse": None, "profiles": 0}
+
+        class Probed(FakeGmail):
+            def __init__(self, account, token, client, **_kw) -> None:
+                super().__init__()
+
+            async def profile(self) -> dict:
+                mailbox["profiles"] += 1
+                if mailbox["refuse"] is not None:
+                    raise mailbox["refuse"]
+                return {"emailAddress": ACCOUNT, "historyId": mailbox["historyId"]}
+
+            async def message(self, message_id, mail):
+                raise AssertionError("a probe reads no message")
+
+        monkeypatch.setattr(loader, "Gmail", Probed)
+        monkeypatch.setattr(loader, "_resolved", _in_vault(lambda v: v))
+        monkeypatch.setattr("provisa.api_source.oauth_grants.access_token", lambda auth: "t")
+        made = _connected_loader()
+        made.mailbox = mailbox
+        return made
+
+    SOURCE = TestTheGroupBuild.SOURCE
+
+    def _probe(self, fetch, table="messages"):
+        return fetch.freshness_probe(self.SOURCE, SimpleNamespace(table_name=table))
+
+    async def test_a_mailbox_nothing_happened_to_gives_the_same_token(self, fetch):
+        probe = self._probe(fetch)
+        first = await probe()
+        assert first is not None and "1000" not in first and ACCOUNT not in first  # opaque
+        assert await probe() == first
+        assert fetch.mailbox["profiles"] == 2
+
+    async def test_a_new_history_record_gives_another_token(self, fetch):
+        probe = self._probe(fetch)
+        before = await probe()
+        fetch.mailbox["historyId"] = "1001"
+        assert await probe() != before
+
+    async def test_every_table_read_from_the_mailbox_has_the_probe_and_shares_its_token(
+        self, fetch
+    ):
+        tokens = {table: await self._probe(fetch, table)() for table in TABLES}
+        assert len(set(tokens.values())) == 1
+        assert self._probe(fetch, "events") is None  # a calendar table: no cheap token
+        assert self._probe(fetch, "tasks") is None
+
+    @pytest.mark.parametrize(
+        "refusal",
+        [
+            loader.GmailRefused(ACCOUNT, "getProfile", 403, "forbidden"),
+            QuotaExhausted(ACCOUNT, "getProfile", 429, "rateLimitExceeded, tried 6 times"),
+            CredentialRefused("The sign-in approved for client c", "invalid_grant"),
+            httpx.ConnectError("no route"),
+        ],
+        ids=["refused", "throttled", "sign-in refused", "unreachable"],
+    )
+    async def test_a_mailbox_that_cannot_be_asked_gives_no_token_never_the_old_one(
+        self, fetch, refusal, caplog
+    ):
+        probe = self._probe(fetch)
+        assert await probe() is not None
+        fetch.mailbox["refuse"] = refusal
+        with caplog.at_level(logging.WARNING):
+            assert await probe() is None
+        assert "could not be asked whether they changed" in caplog.text

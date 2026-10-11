@@ -76,7 +76,7 @@ Il risultato completo non viene mai materializzato nella memoria di Provisa: i b
 
 ### Protobuf gRPC (Port 50051)
 
-File `.proto` generato automaticamente dallo schema dati, per ruolo. (REQ-525) Query in streaming (un messaggio per riga), mutazioni unarie. Server reflection abilitata. (REQ-526) Ruolo tramite la chiave dei metadati `x-provisa-role`.
+File `.proto` generato automaticamente dallo schema dati, per ruolo. (REQ-525) Query in streaming (un messaggio per riga), mutazioni unarie. Server reflection abilitata. (REQ-526) Ruolo tramite la chiave dei metadati `x-provisa-role`. La reflection descrive a ogni chiamante il servizio del proprio ruolo.
 
 ### Protocollo wire PostgreSQL / pgwire (porta configurabile)
 

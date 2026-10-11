@@ -37,6 +37,7 @@ import {
   type SourceOverride,
 } from "../../api/importer";
 import { useDomains } from "../../hooks/useAdminQueries";
+import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 
 const EMPTY_OVERRIDE: SourceOverride = {
   host: "",
@@ -177,30 +178,33 @@ export function ImportTab() {
         {t("importTab.intro")}
       </Text>
 
-      <Group align="flex-end">
-        <FileButton onChange={setFile} accept=".zip,.yaml,.yml,.json,.hml">
-          {(props) => (
-            <Button {...props} leftSection={<Upload size={16} />} variant="light">
-              {t("importTab.chooseFile")}
-            </Button>
-          )}
-        </FileButton>
-        <Select
-          label={t("importTab.flavor")}
-          data={FLAVORS.map((f) => ({ value: f.value, label: t(`importTab.${f.labelKey}`) }))}
-          value={flavor}
-          onChange={(v) => setFlavor((v as ImportFlavor) ?? "auto")}
-          w={260}
-        />
-        <Button
-          onClick={() => runPreview(domains)}
-          disabled={!file}
-          loading={busy === "preview"}
-          aria-label={t("importTab.preview")}
-        >
-          {t("importTab.preview")}
-        </Button>
-      </Group>
+      <FormLayout>
+        <FieldGroup row>
+          <FileButton onChange={setFile} accept=".zip,.yaml,.yml,.json,.hml">
+            {(props) => (
+              <Button {...props} leftSection={<Upload size={16} />} variant="light">
+                {t("importTab.chooseFile")}
+              </Button>
+            )}
+          </FileButton>
+          <FormField size="medium">
+            <Select
+              label={t("importTab.flavor")}
+              data={FLAVORS.map((f) => ({ value: f.value, label: t(`importTab.${f.labelKey}`) }))}
+              value={flavor}
+              onChange={(v) => setFlavor((v as ImportFlavor) ?? "auto")}
+            />
+          </FormField>
+          <Button
+            onClick={() => runPreview(domains)}
+            disabled={!file}
+            loading={busy === "preview"}
+            aria-label={t("importTab.preview")}
+          >
+            {t("importTab.preview")}
+          </Button>
+        </FieldGroup>
+      </FormLayout>
       <Text size="sm">{file ? file.name : t("importTab.noFile")}</Text>
 
       {error && (
@@ -247,29 +251,32 @@ export function ImportTab() {
               <Text size="xs" c="dimmed">
                 {t("importTab.domainMapHelp")}
               </Text>
-              {preview.discovered_domains.map((from) => {
-                const to = domains[from] ?? from;
-                const isNew = to.trim() !== "" && !existingDomainIds.includes(to.trim());
-                return (
-                  <Group key={from} gap="xs" align="center">
-                    <Code w={220}>{from}</Code>
-                    {/* Existing domains are offered; a name not among them creates a domain. */}
-                    <Autocomplete
-                      w={220}
-                      aria-label={t("importTab.domainTo", { from })}
-                      data={existingDomainIds}
-                      value={to}
-                      onChange={(v) => setDomains({ ...domains, [from]: v })}
-                      data-testid={`import-domain-${from}`}
-                    />
-                    {isNew && (
-                      <Badge variant="light" data-testid={`import-domain-new-${from}`}>
-                        {t("importTab.domainNew")}
-                      </Badge>
-                    )}
-                  </Group>
-                );
-              })}
+              <FormLayout>
+                {preview.discovered_domains.map((from) => {
+                  const to = domains[from] ?? from;
+                  const isNew = to.trim() !== "" && !existingDomainIds.includes(to.trim());
+                  return (
+                    <FieldGroup row key={from} style={{ alignItems: "center" }}>
+                      <Code w={220}>{from}</Code>
+                      {/* Existing domains are offered; a name not among them creates a domain. */}
+                      <FormField size="medium">
+                        <Autocomplete
+                          aria-label={t("importTab.domainTo", { from })}
+                          data={existingDomainIds}
+                          value={to}
+                          onChange={(v) => setDomains({ ...domains, [from]: v })}
+                          data-testid={`import-domain-${from}`}
+                        />
+                      </FormField>
+                      {isNew && (
+                        <Badge variant="light" data-testid={`import-domain-new-${from}`}>
+                          {t("importTab.domainNew")}
+                        </Badge>
+                      )}
+                    </FieldGroup>
+                  );
+                })}
+              </FormLayout>
             </Stack>
           )}
 
@@ -283,54 +290,61 @@ export function ImportTab() {
               <Text size="xs" c="dimmed">
                 {t("importTab.sourceConnectionsHelp")}
               </Text>
-              {(preview.discovered_sources ?? []).map((s) => {
-                const o = sources[s.id] ?? EMPTY_OVERRIDE;
-                const set = (patch: Partial<SourceOverride>) =>
-                  setSources({ ...sources, [s.id]: { ...o, ...patch } });
-                return (
-                  <Group key={s.id} gap="xs" align="flex-end" wrap="wrap">
-                    <Code w={140}>
-                      {s.id} ({s.type})
-                    </Code>
-                    <TextInput
-                      label={t("importTab.host")}
-                      value={o.host}
-                      onChange={(e) => set({ host: e.currentTarget.value })}
-                      w={180}
-                      data-testid={`import-source-host-${s.id}`}
-                    />
-                    <TextInput
-                      label={t("importTab.port")}
-                      value={o.port}
-                      onChange={(e) => set({ port: e.currentTarget.value })}
-                      w={90}
-                      data-testid={`import-source-port-${s.id}`}
-                    />
-                    <TextInput
-                      label={t("importTab.database")}
-                      value={o.database}
-                      onChange={(e) => set({ database: e.currentTarget.value })}
-                      w={160}
-                      data-testid={`import-source-database-${s.id}`}
-                    />
-                    <TextInput
-                      label={t("importTab.username")}
-                      value={o.username}
-                      onChange={(e) => set({ username: e.currentTarget.value })}
-                      w={140}
-                      data-testid={`import-source-username-${s.id}`}
-                    />
-                    <TextInput
-                      label={t("importTab.password")}
-                      type="password"
-                      value={o.password}
-                      onChange={(e) => set({ password: e.currentTarget.value })}
-                      w={140}
-                      data-testid={`import-source-password-${s.id}`}
-                    />
-                  </Group>
-                );
-              })}
+              <FormLayout>
+                {(preview.discovered_sources ?? []).map((s) => {
+                  const o = sources[s.id] ?? EMPTY_OVERRIDE;
+                  const set = (patch: Partial<SourceOverride>) =>
+                    setSources({ ...sources, [s.id]: { ...o, ...patch } });
+                  return (
+                    <FieldGroup row key={s.id} style={{ alignItems: "flex-end" }}>
+                      <Code w={140}>
+                        {s.id} ({s.type})
+                      </Code>
+                      <FormField size="medium">
+                        <TextInput
+                          label={t("importTab.host")}
+                          value={o.host}
+                          onChange={(e) => set({ host: e.currentTarget.value })}
+                          data-testid={`import-source-host-${s.id}`}
+                        />
+                      </FormField>
+                      <FormField size="short">
+                        <TextInput
+                          label={t("importTab.port")}
+                          value={o.port}
+                          onChange={(e) => set({ port: e.currentTarget.value })}
+                          data-testid={`import-source-port-${s.id}`}
+                        />
+                      </FormField>
+                      <FormField size="medium">
+                        <TextInput
+                          label={t("importTab.database")}
+                          value={o.database}
+                          onChange={(e) => set({ database: e.currentTarget.value })}
+                          data-testid={`import-source-database-${s.id}`}
+                        />
+                      </FormField>
+                      <FormField size="medium">
+                        <TextInput
+                          label={t("importTab.username")}
+                          value={o.username}
+                          onChange={(e) => set({ username: e.currentTarget.value })}
+                          data-testid={`import-source-username-${s.id}`}
+                        />
+                      </FormField>
+                      <FormField size="medium">
+                        <TextInput
+                          label={t("importTab.password")}
+                          type="password"
+                          value={o.password}
+                          onChange={(e) => set({ password: e.currentTarget.value })}
+                          data-testid={`import-source-password-${s.id}`}
+                        />
+                      </FormField>
+                    </FieldGroup>
+                  );
+                })}
+              </FormLayout>
             </Stack>
           )}
 
@@ -380,15 +394,19 @@ export function ImportTab() {
           <Text size="xs" c="dimmed">
             {t("importTab.configHelp")}
           </Text>
-          <Textarea
-            aria-label={t("importTab.configHeading")}
-            value={yamlText}
-            onChange={(e) => setYamlText(e.currentTarget.value)}
-            autosize
-            minRows={12}
-            maxRows={30}
-            styles={{ input: { fontFamily: "monospace" } }}
-          />
+          <FormLayout>
+            <FormField size="full">
+              <Textarea
+                aria-label={t("importTab.configHeading")}
+                value={yamlText}
+                onChange={(e) => setYamlText(e.currentTarget.value)}
+                autosize
+                minRows={12}
+                maxRows={30}
+                styles={{ input: { fontFamily: "monospace" } }}
+              />
+            </FormField>
+          </FormLayout>
 
           <Group>
             <Button onClick={runApply} loading={busy === "apply"}>

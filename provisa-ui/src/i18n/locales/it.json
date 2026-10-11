@@ -5,7 +5,11 @@
     "save": "Salva",
     "delete": "Elimina",
     "confirm": "Conferma",
-    "processing": "Elaborazione in corso..."
+    "processing": "Elaborazione in corso...",
+    "identity": "Identità",
+    "discardTitle": "Annullare le modifiche?",
+    "discardBody": "Le modifiche a {{what}} non sono salvate.",
+    "discard": "Annulla modifiche"
   },
   "app": {
     "apiUnreachable": "Impossibile raggiungere l'API Provisa.",

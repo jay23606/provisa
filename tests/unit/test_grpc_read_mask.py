@@ -31,6 +31,7 @@ import sqlglot.expressions as exp
 
 from provisa.compiler.sql_types import TableMeta
 from provisa.grpc.query_ir import grpc_table_to_semantic_sql
+from tests.role_state import RoleState
 
 _COLUMNS = [
     ("order_id", "integer"),
@@ -239,8 +240,8 @@ def _servicer():
     descriptor = SimpleNamespace(fields=fields, fields_by_name={f.name: f for f in fields})
     msg_cls = MagicMock(DESCRIPTOR=descriptor)
     pb2 = SimpleNamespace(Orders=msg_cls)
-    state = SimpleNamespace(org_id="default", contexts={"admin": _ctx()}, multitenancy=False)
-    servicer = ProvisaServicer(state, pb2, MagicMock())
+    state = RoleState(org_id="default", contexts={"admin": _ctx()}, multitenancy=False)
+    servicer = ProvisaServicer(state, pb2)
     servicer._emit_trailing_metadata = MagicMock()
     servicer._meter_msg = lambda msg: msg
     return servicer, msg_cls

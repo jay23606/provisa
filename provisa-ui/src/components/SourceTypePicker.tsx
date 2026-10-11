@@ -16,6 +16,7 @@ import { Chip, Group, Modal, Stack, Text, TextInput, UnstyledButton } from "@man
 import { useTranslation } from "react-i18next";
 import { Ban, Copy, Zap } from "lucide-react";
 import { SourceLogo } from "./SourceLogo";
+import { Tip } from "./Tip";
 
 export interface PickerItem {
   value: string;
@@ -172,37 +173,40 @@ function PickerBody({ onClose, groups, value, onPick }: PickerProps) {
   };
 
   const row = (item: PickerItem, group: string) => (
-    <UnstyledButton
+    <Tip
       key={`${group}:${item.value}`}
-      data-picker-row
-      data-testid={`source-type-option-${item.value}`}
-      disabled={item.disabled}
-      onClick={() => pick(item)}
-      title={`${item.name ?? item.label}${item.reach ? ` — ${reachText(item.reach)}` : ""}`}
-      aria-current={item.value === value ? "true" : undefined}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        width: "100%",
-        padding: "4px 8px",
-        borderRadius: 6,
-        opacity: item.disabled ? 0.45 : 1,
-        cursor: item.disabled ? "not-allowed" : "pointer",
-        background: item.value === value ? "var(--mantine-color-blue-light)" : undefined,
-      }}
-      className="source-type-picker-row"
+      text={`${item.name ?? item.label}${item.reach ? ` — ${reachText(item.reach)}` : ""}`}
     >
-      <SourceLogo
-        type={item.value}
-        label={item.name ?? item.label}
-        category={categoryOf[item.value] ?? group}
-      />
-      <Text size="sm" truncate style={{ flex: 1 }}>
-        {item.name ?? item.label}
-      </Text>
-      {item.reach && <ReachIcon reach={item.reach} label={reachText(item.reach)} />}
-    </UnstyledButton>
+      <UnstyledButton
+        data-picker-row
+        data-testid={`source-type-option-${item.value}`}
+        disabled={item.disabled}
+        onClick={() => pick(item)}
+        aria-current={item.value === value ? "true" : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          padding: "4px 8px",
+          borderRadius: 6,
+          opacity: item.disabled ? 0.45 : 1,
+          cursor: item.disabled ? "not-allowed" : "pointer",
+          background: item.value === value ? "var(--mantine-color-blue-light)" : undefined,
+        }}
+        className="source-type-picker-row"
+      >
+        <SourceLogo
+          type={item.value}
+          label={item.name ?? item.label}
+          category={categoryOf[item.value] ?? group}
+        />
+        <Text size="sm" truncate style={{ flex: 1 }}>
+          {item.name ?? item.label}
+        </Text>
+        {item.reach && <ReachIcon reach={item.reach} label={reachText(item.reach)} />}
+      </UnstyledButton>
+    </Tip>
   );
 
   return (

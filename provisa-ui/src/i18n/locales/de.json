@@ -5,7 +5,11 @@
     "save": "Speichern",
     "delete": "Löschen",
     "confirm": "Bestätigen",
-    "processing": "Wird verarbeitet..."
+    "processing": "Wird verarbeitet...",
+    "identity": "Identität",
+    "discardTitle": "Änderungen verwerfen?",
+    "discardBody": "Ihre Änderungen an {{what}} sind nicht gespeichert.",
+    "discard": "Verwerfen"
   },
   "app": {
     "apiUnreachable": "Die Provisa-API ist nicht erreichbar.",

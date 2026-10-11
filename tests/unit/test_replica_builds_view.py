@@ -30,6 +30,7 @@ def _record(**kw):
         build_method=None,
         load_kind=None,
         rows_copied=None,
+        completed_rows=None,
         completed_at=None,
         next_refresh_at=None,
         last_error=None,
@@ -44,6 +45,10 @@ def _record(**kw):
         delta_skipped=None,
         delta_cursor=None,
         build_notes=[],
+        verified_at=None,
+        build_wait=None,
+        build_progress=None,
+        partial=False,
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -141,6 +146,55 @@ def test_a_build_that_had_something_to_say_shows_its_note():
     assert view["build_notes"] == [{"code": "replication.unreadable_messages", "params": params}]
 
 
+def test_a_copy_its_probe_found_unchanged_shows_when_it_was_checked():
+    view = build_view(_record(completed_at=NOW, verified_at=NOW), NOW)
+    assert view["verified_at"] == view["completed_at"] and view["verified_at"] is not None
+    assert build_view(_record(completed_at=NOW), NOW)["verified_at"] is None
+
+
 def test_a_build_with_nothing_to_say_shows_no_note():
     view = build_view(_record(completed_at=NOW), NOW)
     assert view["build_notes"] == []
+
+
+def test_a_running_build_is_shown_with_the_last_whole_builds_rows():
+    """What its progress is measured against; None for a table never built whole."""
+    started = NOW - timedelta(seconds=10)
+    view = build_view(
+        _record(
+            build_state="building",
+            build_started_at=started,
+            rows_copied=12400,
+            completed_rows=20000,
+        ),
+        NOW,
+    )
+    assert (view["rows_copied"], view["completed_rows"]) == (12400, 20000)
+    assert build_view(_record(build_state="building"), NOW)["completed_rows"] is None
+
+
+def test_a_build_waiting_out_a_throttle_says_who_asked_and_for_how_long():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    wait = {"by": "Microsoft", "seconds": 87, "until": "2026-10-10T12:01:27+00:00"}
+    assert build_view(_record(build_state="building", build_wait=wait), now)["wait"] == wait
+    # A build that is not running is not waiting, whatever its record was left holding.
+    assert build_view(_record(build_state="idle", build_wait=wait), now)["wait"] is None
+
+
+def test_a_build_that_lands_a_part_at_a_time_says_how_far_it_has_got():
+    """A mail source's first build can be read while it runs: the view says it is partial and
+    how many of the source's mailboxes have been read to their end."""
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 10, 12, tzinfo=UTC)
+    progress = {"done": 3, "total": 40, "unit": "mailboxes", "first": True}
+    running = build_view(
+        _record(build_state="building", build_progress=progress, partial=True, completed_at=now),
+        now,
+    )
+    assert running["progress"] == progress and running["partial"] is True
+    # Once it has ended, and for any other build, there is nothing to say.
+    done = build_view(_record(build_state="idle", build_progress=progress, completed_at=now), now)
+    assert done["progress"] is None and done["partial"] is False

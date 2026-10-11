@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} rijen)",
     "tableScale": "Tabelschaal",
     "tableScalePlaceholder": "Schaal van de dataset",
-    "define": "Dataset opslaan",
     "seedOption": "Starten met synthetische data",
     "seedTables": "Tabellen",
     "relationshipOption": "{{parent}} → {{child}}",

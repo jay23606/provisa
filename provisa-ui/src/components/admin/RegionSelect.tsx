@@ -15,6 +15,7 @@
 import { useTranslation } from "react-i18next";
 import { Select } from "@mantine/core";
 import { FieldLabel } from "../../pages/tables/FieldLabel";
+import { useHelpNaming } from "../form/useHelpNaming";
 
 /** The option value standing for "no region" (a region id is a short lowercase name). */
 const NO_REGION = "__none__";
@@ -36,11 +37,20 @@ export function RegionSelect({
   testId: string;
 }) {
   const { t } = useTranslation();
+  const helpKey = { table: "helpTable", view: "helpView", source: "helpSource" }[scope];
+  // Named by the label's text alone; the help is its description.
+  const { textId, naming } = useHelpNaming(t(`regionSelect.${helpKey}`));
   if (regions.length === 0) return null;
-  const help = { table: "helpTable", view: "helpView", source: "helpSource" }[scope];
   return (
     <Select
-      label={<FieldLabel text={t("regionSelect.label")} help={t(`regionSelect.${help}`)} />}
+      {...naming}
+      label={
+        <FieldLabel
+          text={t("regionSelect.label")}
+          help={t(`regionSelect.${helpKey}`)}
+          textId={textId}
+        />
+      }
       data={[
         ...regions.map((region) => ({ value: region, label: region })),
         { value: NO_REGION, label: t("regionSelect.none") },

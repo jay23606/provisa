@@ -132,7 +132,17 @@
         "help": "Hoeveel workerprocessen de server draait. Opnieuw opstarten vereist omdat de processen door de launcher worden gestart."
       }
     },
+    "kaggle": {
+      "api_token": {
+        "label": "Kaggle API-token",
+        "help": "Het token waarmee Kaggle-zoekopdrachten en dataset-downloads zich aanmelden: het token zelf of een verwijzing naar een geheim dat u hebt aangemaakt, zoals ${secret:NAME}."
+      }
+    },
     "mail": {
+      "throttle_wait_seconds": {
+        "label": "Langste wachttijd wanneer een maildienst beperkt",
+        "help": "Wanneer Microsoft of Google het lezen voor een replica laat wachten, wacht het en gaat het verder. Dit is het maximum waartoe de wachttijden van één verzoek mogen oplopen, in seconden; een langere laat de opbouw mislukken, die later opnieuw wordt geprobeerd. Verhoog het om lange beperkingen uit te zitten; verlaag het aantal tegelijk gelezen postvakken om minder beperkt te worden."
+      },
       "mailboxes_at_once": {
         "label": "Tegelijk gelezen postvakken",
         "help": "Hoeveel postvakken een bron van de postvakken van een organisatie tegelijk leest. Meer verkort een build en vraagt meer van de limiet van de e-maildienst voor de hele toepassing."

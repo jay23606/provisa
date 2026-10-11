@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "Rimuovi colonna {{index}}",
-    "saveMapping": "Salva mapping",
     "fieldRedis": "Campo Redis",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "Percorso con punti",

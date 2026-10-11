@@ -1,10 +1,17 @@
 {
   "sourcesPage": {
+    "detailPanel": "資料來源詳情",
+    "resizeDetail": "調整詳情面板大小",
+    "expandDetail": "展開面板",
+    "restoreDetail": "還原面板",
+    "closeDetail": "關閉詳情面板",
+    "backToList": "返回清單",
+    "backToSource": "返回資料來源",
+    "panelNewSource": "新增資料來源",
     "title": "數據來源",
     "loading": "正在載入數據來源…",
     "filterPlaceholder": "按數據來源 ID 或類型篩選…",
     "addSource": "+ 數據來源",
-    "closeForm": "關閉表單",
     "schemaRefreshFailed": "重新整理結構描述失敗：{{message}}",
     "idLabel": "ID",
     "idPlaceholder": "例如 sales-pg",

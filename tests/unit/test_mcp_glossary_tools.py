@@ -23,12 +23,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from provisa.api.mcp import tools
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
 
 def _state():
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": object()},
         roles={"analyst": {"id": "analyst"}},
         tenant_db=SimpleNamespace(acquire=lambda: _FakeAcquire(object())),

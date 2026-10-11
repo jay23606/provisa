@@ -170,7 +170,7 @@ async def keep(mutation: KeptMutation, state: Any) -> Any:
     if not key:
         raise PermissionError(
             f"{table['table_name']!r} declares no primary key, and a mutation kept in a "
-            f"Reversible environment is applied by it (REQ-1942)"
+            f"Reversible environment is applied by it"
         )
     tree = sqlglot.parse_one(mutation.statement, read="postgres")
     steps = (

@@ -2,7 +2,6 @@
   "nativeParams": {
     "title": "Parameters for {{name}}",
     "hint": "This table is backed by an API with required parameters. Provide them to sample it.",
-    "cancel": "Cancel",
     "run": "Run"
   }
 }

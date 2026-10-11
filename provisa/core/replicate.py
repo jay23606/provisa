@@ -83,7 +83,7 @@ def contradiction(replicate: int | None, load_protected: bool) -> str | None:
     if load_protected and replicate == NEVER:
         return (
             "load_protected with replicate -1 (never) is contradictory: a load-protected table "
-            "is never read live. Remove one of the two settings (REQ-826)"
+            "is never read live. Remove one of the two settings"
         )
     return None
 

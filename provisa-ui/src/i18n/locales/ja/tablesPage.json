@@ -37,7 +37,6 @@
     "runNowSubmit": "今すぐ実行",
     "runNowQueuing": "キューに追加中...",
     "runNowQueued": "{{table}} の実行をキューに追加しました。",
-    "runNowCancel": "キャンセル",
     "dependentsTitle": "これらの列は他のアーティファクトから参照されています",
     "dependentsIntro": "列の SQL エイリアスを変更または列を削除すると、現在の名前で列を参照している以下のアーティファクトが壊れます。このまま保存しますか？",
     "dependentsCancel": "戻る",
@@ -72,6 +71,16 @@
     "erdHelpTitle": "ER 図",
     "erdHelpBody": "登録済みテーブルと、その間に宣言されたリレーションシップを描画します。クエリを書く前に、すでに存在する結合を確認できます。モデルを編集するのではなく読み取るだけです。ドメインで絞り込み、図を PNG または SVG として書き出せます。",
     "purposeModel": "「+ モデル」はエンティティまたはファクトを宣言します。スタースキーマと Data Vault のどちらもこの 2 つから組み立てられます。宣言は同じプリミティブへ落とし込まれ、マテリアライズドビュー、その履歴モード、キーとして参照するエンティティへのリレーションシップが登録されます。",
-    "empty": "登録済みのテーブルはまだありません。"
+    "empty": "登録済みのテーブルはまだありません。",
+    "resizeDetail": "詳細パネルのサイズを変更",
+    "detailPanel": "テーブルの詳細",
+    "closeDetail": "詳細パネルを閉じる",
+    "expandDetail": "パネルを広げる",
+    "restoreDetail": "パネルを元に戻す",
+    "backToList": "一覧に戻る",
+    "backToDetail": "詳細に戻る",
+    "panelRegisterTable": "テーブルを登録",
+    "panelNewView": "新しいビュー",
+    "panelNewModel": "新しいモデル"
   }
 }

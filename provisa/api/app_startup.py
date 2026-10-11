@@ -300,9 +300,7 @@ async def _start_servers(_log: logging.Logger) -> None:
 
     if state.wire_proto:
         try:
-            import tempfile
             from google.protobuf.internal import api_implementation
-            from provisa.grpc.schema_gen import compile_proto
             from provisa.grpc.server import start_grpc_server
 
             # REQ-1904: the pure-Python protobuf backend is a silent multi-x serialization
@@ -319,23 +317,13 @@ async def _start_servers(_log: logging.Logger) -> None:
                     "protobuf wheel and PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION."
                 )
 
-            # state.wire_proto is the UNION of every role's surface (app_loaders builds it). A
-            # per-role proto would make the served descriptor depend on dict order and leave the
-            # roles it omits unservable; governance is enforced per RPC from state.contexts[role],
-            # never by which fields the wire descriptor happens to declare.
-            grpc_output_dir = tempfile.mkdtemp(prefix="provisa_grpc_")
-            pb2_path, pb2_grpc_path = compile_proto(state.wire_proto, grpc_output_dir)
             from provisa.core import settings_registry
 
             grpc_port = settings_registry.value("server.grpc_port")  # REQ-1913
             _grpc_tls = _resolve_tls("PROVISA_GRPC_CERT", "PROVISA_GRPC_KEY")
-            state._grpc_server = start_grpc_server(
-                grpc_port,
-                state,
-                pb2_path,
-                pb2_grpc_path,
-                tls=_grpc_tls,
-            )
+            # Nothing is compiled here: each RPC is served from the service of the organisation
+            # it is bound to, compiled from that organisation's own proto (grpc/descriptor.py).
+            state._grpc_server = start_grpc_server(grpc_port, state, tls=_grpc_tls)
             _log.info(
                 "gRPC server listening on %s:%d (TLS=%s)",
                 state.hostname,
@@ -696,7 +684,7 @@ async def _seed_sandbox_org(_log: logging.Logger) -> None:  # REQ-1598
         return
     if state.admin_db is None:
         raise RuntimeError(
-            "REQ-1598: the sandbox org needs the control-plane registry, which is "
+            "The sandbox org needs the control-plane registry, which is "
             "not bound — a commercial deployment always has one"
         )
     from provisa.api.sandbox_org import SANDBOX_ORG_ID, ensure_sandbox_org

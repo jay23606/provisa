@@ -11,14 +11,30 @@
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2, Pencil } from "lucide-react";
-import { ActionIcon, Badge, Box, Button, Group, Table, Text, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Group,
+  Table,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
 import type { RegisteredTable, DataProduct } from "../../types/admin";
+import type { ReplicaBuild } from "../../api/admin";
+import { ReplicatingMark } from "./ReplicatingMark";
 import { computeProfile } from "./helpers";
 import { TagControl } from "../../components/TagControl";
 import { ColumnGlossaryHover } from "./ColumnGlossaryHover";
 import { OwnerResolutionIcon } from "../../components/OwnerResolution";
 import { LatestProfilePanel } from "./LatestProfilePanel";
+import { PanelActions } from "../../components/list/SplitPane";
+import { ColumnTabs } from "./ColumnTabs";
+import { COLUMN_TABS, useColumnTab } from "./columnTopics";
+import { toIrType } from "../../irTypes";
 
 interface TableProfileResult {
   columns: string[];
@@ -28,6 +44,8 @@ interface TableProfileResult {
 
 interface TableReadViewProps {
   t: RegisteredTable;
+  /** The table's replica build as last reported; undefined when it has none. */
+  build?: ReplicaBuild;
   dataProducts: DataProduct[]; // REQ-1634
   navigate: NavigateFunction;
   viewsOnly: boolean;
@@ -45,16 +63,22 @@ interface TableReadViewProps {
   handleProfile: (id: number) => void;
   /** REQ-1944: a governance-only viewer: no registration, deploy, profiling or delete. */
   hidingOnly?: boolean;
+  // REQ-1921: put the table out of service (draft) or release it. The view shows the stored
+  // state: the box follows `table.draft` once the change is saved and the table reloaded.
+  onSetDraft?: (table: RegisteredTable, draft: boolean) => void;
   // REQ-1386: opens the governed SELECT * preview modal.
   onPreview: (t: RegisteredTable) => void;
   // REQ-1318: opens the Views-page definition-mode editor (SQL | Metrics toggle).
   onEditDefinition?: (t: RegisteredTable) => void;
   // REQ-1934: the table's registered profile columns table, when one is registered.
   profileColumnsTable?: RegisteredTable | null;
+  /** Render the action row alone: the edit form shows it, disabled, in the panel's head. */
+  actionsOnly?: boolean;
 }
 
 export function TableReadView({
   t: table,
+  build,
   dataProducts,
   navigate,
   viewsOnly,
@@ -69,11 +93,180 @@ export function TableReadView({
   handleDelete,
   handleProfile,
   hidingOnly = false,
+  onSetDraft,
   onPreview,
   onEditDefinition,
   profileColumnsTable,
+  actionsOnly = false,
 }: TableReadViewProps) {
   const { t } = useTranslation();
+  // The same topics as the column editor. A caller who may change only how columns are hidden
+  // is not offered Testing, here as in the editor.
+  const shownTabs = COLUMN_TABS.filter((topic) => !(topic === "testing" && hidingOnly));
+  const [tab, setTab] = useColumnTab(shownTabs);
+
+  // The table's actions. In a detail panel they sit in its pinned head (PanelActions); under a
+  // list row they stay in place. While the table is being edited they are not there: the form's
+  // Save and Cancel have the head (FormFooter `panel`).
+  const actions = (
+    <PanelActions>
+      <fieldset className="panel-action-set">
+        <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
+          <ReplicatingMark build={build} size="detail" />
+          {table.viewSql && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-edit-sql"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
+              }}
+              title={t("tableReadView.editSqlTitle")}
+            >
+              {viewsOnly
+                ? t("tableReadView.editSqlButton")
+                : t("tableReadView.openInExplorerButton")}
+            </Button>
+          )}
+          {table.viewSql && onEditDefinition && !hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-edit-definition"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditDefinition(table);
+              }}
+              title={t("tableReadView.editDefinitionTitle")}
+            >
+              {t("tableReadView.editDefinitionButton")}
+            </Button>
+          )}
+          {table.canDeployToDb && !hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-deploy"
+              onClick={async (e) => {
+                e.stopPropagation();
+                setDeploying((prev) => ({ ...prev, [table.id]: true }));
+                setDeployMsg((prev) => {
+                  const next = { ...prev };
+                  delete next[table.id];
+                  return next;
+                });
+                const result = await deployViewToDb(table.id);
+                setDeploying((prev) => ({ ...prev, [table.id]: false }));
+                setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
+                if (result.success) reload();
+              }}
+              title={t("tableReadView.deployToDbTitle")}
+              disabled={deploying[table.id]}
+            >
+              {deploying[table.id]
+                ? t("tableReadView.deployingButton")
+                : t("tableReadView.deployToDbButton")}
+            </Button>
+          )}
+          {/* A table that needs a value for a required parameter is asked for it first: Preview
+              in its own viewer, Profile in the dialog its handler opens. */}
+          <Button
+            size="compact-sm"
+            variant="default"
+            data-testid="table-read-view-preview"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(table);
+            }}
+            title={t("tableReadView.previewTitle")}
+          >
+            {t("tableReadView.previewButton")}
+          </Button>
+          {!hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-profile"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleProfile(table.id);
+              }}
+              title={t("tableReadView.profileTitle")}
+              disabled={tableProfiles[table.id] === "loading"}
+            >
+              {tableProfiles[table.id] === "loading"
+                ? t("tableReadView.profilingButton")
+                : t("tableReadView.profileButton")}
+            </Button>
+          )}
+          <Button
+            size="compact-sm"
+            variant="default"
+            data-testid="table-read-view-policies"
+            title={t("tableReadView.policiesTitle")}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/security/rls", {
+                state: { tableFilter: table.tableName },
+              });
+            }}
+          >
+            {t("tableReadView.policiesButton")}
+          </Button>
+          {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
+              too; it shows none of them and its save names none, so the store keeps them. */}
+          <ActionIcon
+            variant="subtle"
+            aria-label={t("tableReadView.editButtonLabel", { name: table.tableName })}
+            data-testid="table-read-view-edit"
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing(table);
+            }}
+          >
+            <Pencil size={14} />
+          </ActionIcon>
+          {!hidingOnly && (
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              aria-label={t("tableReadView.deleteButtonLabel", { name: table.tableName })}
+              data-testid="table-read-view-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(table.id);
+              }}
+            >
+              <Trash2 size={14} />
+            </ActionIcon>
+          )}
+          {/* REQ-1921: draft is set and cleared here, beside the table's other actions. It needs
+              the right to register tables in the table's domain; without it the box only shows
+              the state. */}
+          <Tooltip
+            label={
+              hidingOnly || !onSetDraft
+                ? t("tableReadView.draftNoRightTooltip")
+                : t("tableReadView.draftTooltip")
+            }
+            withArrow
+          >
+            <Checkbox
+              size="xs"
+              label={t("tableReadView.draftLabel")}
+              checked={table.draft}
+              disabled={hidingOnly || !onSetDraft}
+              data-testid="table-read-view-draft"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onSetDraft?.(table, e.currentTarget.checked)}
+            />
+          </Tooltip>
+        </Group>
+      </fieldset>
+    </PanelActions>
+  );
+  if (actionsOnly) return actions;
 
   return (
     <>
@@ -88,18 +281,40 @@ export function TableReadView({
           {table.description}
         </Box>
       )}
-      <Table.ScrollContainer minWidth={640}>
+      {/* The same topics as the column editor: the name first, a tab's attributes after. */}
+      <ColumnTabs value={tab} onChange={setTab} shown={shownTabs} />
+      <Table.ScrollContainer minWidth={480}>
         <Table className="data-table" style={{ margin: 0 }}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t("tableReadView.colColumn")}</Table.Th>
-              <Table.Th>{t("tableReadView.colPk")}</Table.Th>
-              <Table.Th>{t("tableReadView.colSqlAlias")}</Table.Th>
-              <Table.Th>{t("tableReadView.colDescription")}</Table.Th>
-              <Table.Th>{t("tableReadView.colVisibleTo")}</Table.Th>
-              <Table.Th>{t("tableReadView.colWritableBy")}</Table.Th>
-              <Table.Th>{t("tableReadView.colMasking")}</Table.Th>
-              <Table.Th>{t("tableReadView.colScope")}</Table.Th>
+              {tab === "naming" && (
+                <>
+                  <Table.Th>{t("tableReadView.colSqlAlias")}</Table.Th>
+                  <Table.Th w="60%">{t("tableReadView.colDescription")}</Table.Th>
+                </>
+              )}
+              {tab === "type" && (
+                <>
+                  <Table.Th>{t("tableEditForm.dataTypeHeader")}</Table.Th>
+                  <Table.Th>{t("tableReadView.colPk")}</Table.Th>
+                  <Table.Th>{t("tableReadView.colScope")}</Table.Th>
+                </>
+              )}
+              {tab === "access" && (
+                <>
+                  <Table.Th>{t("tableReadView.colVisibleTo")}</Table.Th>
+                  <Table.Th>{t("tableReadView.colWritableBy")}</Table.Th>
+                  <Table.Th>{t("tableReadView.colMasking")}</Table.Th>
+                </>
+              )}
+              {tab === "testing" && (
+                <>
+                  <Table.Th>{t("testData.fake")}</Table.Th>
+                  <Table.Th>{t("testData.syntheticRule")}</Table.Th>
+                  <Table.Th>{t("testData.stable")}</Table.Th>
+                </>
+              )}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -108,7 +323,34 @@ export function TableReadView({
                 <Table.Tr>
                   <Table.Td>
                     {/* REQ-1387: glossary term summary card on column-name hover. */}
-                    <ColumnGlossaryHover tableId={table.id} columnName={c.columnName}>
+                    <ColumnGlossaryHover
+                      tableId={table.id}
+                      columnName={c.columnName}
+                      // Every attribute of the column, whichever tab shows it.
+                      definition={[
+                        { label: t("tableReadView.colColumn"), value: c.columnName },
+                        { label: t("tableReadView.colSqlAlias"), value: c.computedSqlAlias || "" },
+                        { label: t("tableReadView.colDescription"), value: c.description || "" },
+                        {
+                          label: t("tableEditForm.dataTypeHeader"),
+                          value: c.dataType ? toIrType(c.dataType) : "",
+                        },
+                        { label: t("tableReadView.colPk"), value: c.isPrimaryKey ? "✓" : "" },
+                        {
+                          label: t("tableReadView.colScope"),
+                          value: c.scope || t("tableReadView.scopeDomain"),
+                        },
+                        {
+                          label: t("tableReadView.colVisibleTo"),
+                          value: c.visibleTo === null ? "" : c.visibleTo.join(", "),
+                        },
+                        {
+                          label: t("tableReadView.colWritableBy"),
+                          value: c.writableBy === null ? "" : c.writableBy.join(", "),
+                        },
+                        { label: t("tableReadView.colMasking"), value: c.maskType || "" },
+                      ]}
+                    >
                       <code>{c.columnName}</code>
                     </ColumnGlossaryHover>
                     {c.nativeFilterType && (
@@ -148,51 +390,98 @@ export function TableReadView({
                     )}{" "}
                     <TagControl objectType="column" tableId={table.id} columnName={c.columnName} />
                   </Table.Td>
-                  <Table.Td ta="center">
-                    {c.isPrimaryKey && (
-                      <Text span c="blue">
-                        &#10003;
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td c={c.alias ? "white" : "dimmed"}>{c.computedSqlAlias}</Table.Td>
-                  <Table.Td className="reasoning-cell">{c.description || ""}</Table.Td>
-                  {/* REQ-1958/REQ-1134: null grant lists are withheld (the caller lacks
-                      view_governance), which is said — never shown as "all" or "none". */}
-                  <Table.Td>
-                    {c.visibleTo === null ? (
-                      <Text span size="sm" c="dimmed" data-testid="grants-not-shown">
-                        {t("tableReadView.notShown")}
-                      </Text>
-                    ) : (
-                      <Group gap={4} wrap="nowrap">
-                        <Text span size="sm">
-                          {c.visibleTo.length > 0 ? c.visibleTo.join(", ") : t("tableReadView.all")}
-                        </Text>
-                        {c.visibleTo.length > 0 && (
-                          <OwnerResolutionIcon
-                            refs={c.visibleTo}
-                            ariaLabel={t("ownerResolution.columnIconLabel")}
-                          />
+                  {tab === "naming" && (
+                    <>
+                      <Table.Td c={c.alias ? "white" : "dimmed"}>{c.computedSqlAlias}</Table.Td>
+                      <Table.Td className="reasoning-cell">{c.description || ""}</Table.Td>
+                    </>
+                  )}
+                  {tab === "type" && (
+                    <>
+                      <Table.Td ff="monospace">{c.dataType ? toIrType(c.dataType) : ""}</Table.Td>
+                      <Table.Td ta="center">
+                        {c.isPrimaryKey && (
+                          <Text span c="blue">
+                            &#10003;
+                          </Text>
                         )}
-                      </Group>
-                    )}
-                  </Table.Td>
-                  <Table.Td c={c.writableBy === null ? "dimmed" : undefined}>
-                    {c.writableBy === null
-                      ? t("tableReadView.notShown")
-                      : c.writableBy.length > 0
-                        ? c.writableBy.join(", ")
-                        : t("tableReadView.none")}
-                  </Table.Td>
-                  <Table.Td c={c.visibleTo === null ? "dimmed" : undefined}>
-                    {c.visibleTo === null
-                      ? t("tableReadView.notShown")
-                      : c.maskType || t("tableReadView.maskNone")}
-                  </Table.Td>
-                  <Table.Td>{c.scope || t("tableReadView.scopeDomain")}</Table.Td>
+                      </Table.Td>
+                      <Table.Td>{c.scope || t("tableReadView.scopeDomain")}</Table.Td>
+                    </>
+                  )}
+                  {tab === "testing" && (
+                    <>
+                      {/* REQ-1494: what the column shows in test data. No fake is the real
+                          value, said as that; a pii column with none is marked. */}
+                      <Table.Td data-testid={`read-fake-${c.columnName}`}>
+                        {c.fake ? (
+                          <Text span ff="monospace" size="sm">
+                            {c.fake}
+                          </Text>
+                        ) : (
+                          <Text span size="sm" c="dimmed">
+                            {t("testData.realValue")}
+                          </Text>
+                        )}
+                        {c.isPii && !c.fake && (
+                          <Badge ml="xs" size="xs" color="red" variant="light">
+                            {t("testData.piiNoFake")}
+                          </Badge>
+                        )}
+                      </Table.Td>
+                      <Table.Td ff="monospace" data-testid={`read-rule-${c.columnName}`}>
+                        {c.syntheticRule || ""}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        {c.fakeStable && (
+                          <Text span c="blue">
+                            &#10003;
+                          </Text>
+                        )}
+                      </Table.Td>
+                    </>
+                  )}
+                  {tab === "access" && (
+                    <>
+                      {/* REQ-1958/REQ-1134: null grant lists are withheld (the caller lacks
+                          view_governance), which is said — never shown as "all" or "none". */}
+                      <Table.Td>
+                        {c.visibleTo === null ? (
+                          <Text span size="sm" c="dimmed" data-testid="grants-not-shown">
+                            {t("tableReadView.notShown")}
+                          </Text>
+                        ) : (
+                          <Group gap={4} wrap="nowrap">
+                            <Text span size="sm">
+                              {c.visibleTo.length > 0
+                                ? c.visibleTo.join(", ")
+                                : t("tableReadView.all")}
+                            </Text>
+                            {c.visibleTo.length > 0 && (
+                              <OwnerResolutionIcon
+                                refs={c.visibleTo}
+                                ariaLabel={t("ownerResolution.columnIconLabel")}
+                              />
+                            )}
+                          </Group>
+                        )}
+                      </Table.Td>
+                      <Table.Td c={c.writableBy === null ? "dimmed" : undefined}>
+                        {c.writableBy === null
+                          ? t("tableReadView.notShown")
+                          : c.writableBy.length > 0
+                            ? c.writableBy.join(", ")
+                            : t("tableReadView.none")}
+                      </Table.Td>
+                      <Table.Td c={c.visibleTo === null ? "dimmed" : undefined}>
+                        {c.visibleTo === null
+                          ? t("tableReadView.notShown")
+                          : c.maskType || t("tableReadView.maskNone")}
+                      </Table.Td>
+                    </>
+                  )}
                 </Table.Tr>
-                {c.maskType && (
+                {tab === "access" && c.maskType && (
                   <Table.Tr>
                     <Table.Td colSpan={2} c="dimmed" fz="0.75rem" pl="1.5rem">
                       ↳{" "}
@@ -207,7 +496,7 @@ export function TableReadView({
                             })
                           : t("tableReadView.maskTruncate", { precision: c.maskPrecision })}
                     </Table.Td>
-                    <Table.Td colSpan={4} c="dimmed" fz="0.75rem">
+                    <Table.Td colSpan={2} c="dimmed" fz="0.75rem">
                       {t("tableReadView.unmaskedTo", {
                         list:
                           c.unmaskedTo !== null && c.unmaskedTo.length > 0
@@ -286,134 +575,18 @@ export function TableReadView({
           )}
         </Group>
       )}
-      <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
-        {table.viewSql && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-edit-sql"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
-            }}
-            title={t("tableReadView.editSqlTitle")}
-          >
-            {viewsOnly ? t("tableReadView.editSqlButton") : t("tableReadView.openInExplorerButton")}
-          </Button>
-        )}
-        {table.viewSql && onEditDefinition && !hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-edit-definition"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditDefinition(table);
-            }}
-            title={t("tableReadView.editDefinitionTitle")}
-          >
-            {t("tableReadView.editDefinitionButton")}
-          </Button>
-        )}
-        {table.canDeployToDb && !hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-deploy"
-            onClick={async (e) => {
-              e.stopPropagation();
-              setDeploying((prev) => ({ ...prev, [table.id]: true }));
-              setDeployMsg((prev) => {
-                const next = { ...prev };
-                delete next[table.id];
-                return next;
-              });
-              const result = await deployViewToDb(table.id);
-              setDeploying((prev) => ({ ...prev, [table.id]: false }));
-              setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
-              if (result.success) reload();
-            }}
-            title={t("tableReadView.deployToDbTitle")}
-            disabled={deploying[table.id]}
-          >
-            {deploying[table.id]
-              ? t("tableReadView.deployingButton")
-              : t("tableReadView.deployToDbButton")}
-          </Button>
-        )}
-        {/* A table that needs a value for a required parameter is asked for it first: Preview
-            in its own viewer, Profile in the dialog its handler opens. */}
-        <Button
-          size="compact-sm"
-          variant="default"
-          data-testid="table-read-view-preview"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview(table);
-          }}
-          title={t("tableReadView.previewTitle")}
+      {actions}
+      {table.draft && (
+        <Text
+          size="xs"
+          c="dimmed"
+          px="0.5rem"
+          pb="0.25rem"
+          data-testid="table-read-view-draft-note"
         >
-          {t("tableReadView.previewButton")}
-        </Button>
-        {!hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-profile"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleProfile(table.id);
-            }}
-            title={t("tableReadView.profileTitle")}
-            disabled={tableProfiles[table.id] === "loading"}
-          >
-            {tableProfiles[table.id] === "loading"
-              ? t("tableReadView.profilingButton")
-              : t("tableReadView.profileButton")}
-          </Button>
-        )}
-        <Button
-          size="compact-sm"
-          variant="default"
-          data-testid="table-read-view-policies"
-          title={t("tableReadView.policiesTitle")}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("/security/rls", {
-              state: { tableFilter: table.tableName },
-            });
-          }}
-        >
-          {t("tableReadView.policiesButton")}
-        </Button>
-        {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
-            too; it shows none of them and its save names none, so the store keeps them. */}
-        <ActionIcon
-          variant="subtle"
-          aria-label={t("tableReadView.editButtonLabel", { name: table.tableName })}
-          data-testid="table-read-view-edit"
-          onClick={(e) => {
-            e.stopPropagation();
-            startEditing(table);
-          }}
-        >
-          <Pencil size={14} />
-        </ActionIcon>
-        {!hidingOnly && (
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={t("tableReadView.deleteButtonLabel", { name: table.tableName })}
-            data-testid="table-read-view-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(table.id);
-            }}
-          >
-            <Trash2 size={14} />
-          </ActionIcon>
-        )}
-      </Group>
+          {t("tableReadView.draftPreviewNote")}
+        </Text>
+      )}
       {deployMsg[table.id] && (
         <Box
           px="0.75rem"

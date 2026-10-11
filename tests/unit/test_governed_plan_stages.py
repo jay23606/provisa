@@ -30,6 +30,7 @@ from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.directives import NO_CACHE_HINT
 from provisa.pgwire.governed_plan import PlanSlot
 from tests.unit.test_governed_sql_engine_internals import _state as gov_state
+from tests.role_state import RoleState
 
 _SQL = "SELECT o.id FROM sales.orders o"
 
@@ -43,7 +44,7 @@ def _no_rebuild(monkeypatch):
 
 
 def _slot_state() -> SimpleNamespace:
-    return SimpleNamespace(
+    return RoleState(
         contexts={"analyst": object(), "admin": object()},
         rls_contexts={"analyst": object()},
         roles={"analyst": {"id": "analyst"}, "admin": {"id": "admin"}},

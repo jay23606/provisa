@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Rol bij automatische deelname",
     "autoJoinRoleDesc": "De rol die iedereen krijgt die door de regel wordt toegelaten.",
     "acceptRisk": "Ik accepteer dat deze regel mensen van buiten mijn organisatie kan toelaten",
-    "save": "Opslaan",
     "saved": "Deelnameregel opgeslagen."
   }
 }

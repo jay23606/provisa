@@ -97,6 +97,8 @@ import { SourcesPage } from "../SourcesPage";
 describe("Sources page refetch with Schema Discovery open", () => {
   it("keeps the open panel mounted, with what was typed in it, across the refetch", async () => {
     render(<SourcesPage />);
+    // A source's actions are in the head of its panel: the source is selected first.
+    await userEvent.click(await screen.findByTestId("sources-row-orders-kafka"));
     await userEvent.click(await screen.findByTestId("sources-discover-orders-kafka"));
     await userEvent.type(screen.getByLabelText("Topic"), "orders");
     expect(mounts.count).toBe(1);

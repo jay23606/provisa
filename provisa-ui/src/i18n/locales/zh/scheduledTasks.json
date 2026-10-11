@@ -47,6 +47,8 @@
     "lastPage": "最后一页",
     "roleLabel": "以角色运行",
     "validationRoleRequired": "SQL 任务以某个角色运行：请选择一个。",
-    "runsAs": "以 {{role}} 运行"
+    "runsAs": "以 {{role}} 运行",
+    "deleteTitle": "删除计划任务“{{name}}”？",
+    "deleteConsequence": "该任务将被移除，不再运行。"
   }
 }

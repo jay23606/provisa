@@ -21,18 +21,24 @@
     "redirectUnknown": "无法显示重定向地址,因为此部署的公开地址尚未设置。",
     "clientId": "客户端 ID",
     "clientSecret": "客户端密钥",
-    "clientSecretKeep": "留空则保留已填写的密钥。",
     "setting": {
-      "tenant": "目录(租户)ID"
+      "tenant": "目录(租户)ID",
+      "admin_address": "管理员地址"
     },
     "settingHelp": {
-      "tenant": "您的组织的 Microsoft 365 账号所在的目录:其 ID 或域名,即 Microsoft Entra 在应用注册的“概述”页上显示的内容。"
+      "tenant": "您的组织的 Microsoft 365 账号所在的目录:其 ID 或域名,即 Microsoft Entra 在应用注册的“概述”页上显示的内容。",
+      "admin_address": "您的 Google Workspace 网域的超级用户。目录以该用户的身份列出;只有数据源指定该用户时才会读取其邮件。"
     },
-    "organisationMailboxes": "允许数据源读取组织的邮箱",
+    "organisationMailboxes": "读取组织的邮箱",
+    "ownMailbox": "允许用户连接自己的邮箱",
     "organisationMailboxesHelp": "关闭:数据源只读取某人连接的那一个邮箱。开启:数据源可以使用管理员的凭据读取组织的多个邮箱;除非行规则加以限制,任何可以读取其表的人都能读取每个邮箱。",
     "organisationGrant": {
-      "microsoft_365": "对于读取组织邮箱的数据源,请为应用注册授予应用程序权限 Mail.Read 和 User.Read.All,并授予管理员同意。"
+      "microsoft_365": "对于读取组织邮箱的数据源,请为应用注册授予应用程序权限 Mail.Read 和 User.Read.All,并授予管理员同意。",
+      "google_workspace": "超级用户在 Google 管理控制台的“安全性 › 访问权限和数据控件 › API 控件 › 管理全网域授权”下,为服务账号的客户端 ID 授权以下范围。对于只读取标头和标签的数据源,请添加 gmail.metadata。Google 无法将其限制为部分邮箱:它涵盖网域中的每个用户。"
     },
+    "organisationKey": "服务账号密钥",
+    "organisationKeyHelp": "Google Cloud 为该服务账号创建的密钥的 JSON,或对保存该密钥的密钥项的引用。",
+    "organisationScopes": "需要授权的范围",
     "save": "保存",
     "remove": "移除",
     "saved": "已保存。",

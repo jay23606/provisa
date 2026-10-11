@@ -38,10 +38,10 @@
     "materializeCheckbox": "Materializar",
     "excludeFromCypher": "Excluir de Cypher",
     "cardinalityWarning": "Advertencia: si esta unión devuelve más de una fila por elemento padre, solo se usará el primer valor.",
-    "cancel": "Cancelar",
-    "save": "Guardar",
     "toggleDetails": "Alternar detalles de la relación",
     "junctionBadge": "vía",
-    "junctionBadgeTitle": "Relación respaldada por una tabla de unión a través de {{table}}"
+    "junctionBadgeTitle": "Relación respaldada por una tabla de unión a través de {{table}}",
+    "deleteTitle": "¿Eliminar la relación \"{{id}}\"?",
+    "deleteConsequence": "La relación se elimina del modelo. Las consultas ya no pueden unir a través de ella."
   }
 }

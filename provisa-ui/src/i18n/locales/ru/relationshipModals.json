@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "GQL-псевдоним (camelCase)",
     "materializeLabel": "Материализовать",
-    "refreshIntervalLabel": "Интервал обновления (с)",
-    "cancel": "Отмена",
-    "save": "Сохранить"
+    "refreshIntervalLabel": "Интервал обновления (с)"
   }
 }

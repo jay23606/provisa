@@ -14,6 +14,8 @@
     "firstPage": "पहला पृष्ठ",
     "previousPage": "पिछला पृष्ठ",
     "nextPage": "अगला पृष्ठ",
-    "lastPage": "अंतिम पृष्ठ"
+    "lastPage": "अंतिम पृष्ठ",
+    "deleteRoleTitle": "भूमिका \"{{roleId}}\" हटाएँ?",
+    "deleteRoleConsequence": "भूमिका इस संगठन से हटा दी जाएगी।"
   }
 }

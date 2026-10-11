@@ -25,7 +25,7 @@ import types
 from typing import Any
 
 from provisa.api.flight.catalog import CatalogTable, _build_catalog_tables_async
-from provisa.kaggle.downloader import KAGGLE_TOKEN_SECRET_NAME  # REQ-1798/1819: one shared name
+from provisa.kaggle.downloader import api_token as kaggle_api_token  # the operator's setting
 
 
 # Row ceiling for run_sql. An agent context must never absorb an unbounded
@@ -1431,26 +1431,22 @@ async def search_kaggle_datasets(state: Any, role: str, query: str) -> list[dict
 
     This org's GovData/Kaggle sources are its subscription sources (REQ-1798) — check this
     (and search_govdata_subjects) before web_search or propose_source for a topical data request.
-    The Kaggle API token is read from the org secret named KAGGLE_TOKEN_SECRET_NAME, resolved via
-    the standard ``${secret:NAME}`` grammar (provisa.core.secrets) — never taken as a raw token
-    argument (that would put a credential in chat history/logs). The name is FIXED, not chosen per
-    call: the model should never ask the user what to name it, only tell them (once, if the secret
-    doesn't exist yet) to create one under exactly this name on the Secrets page (/admin/secrets)
-    with their Kaggle API token as the value.
+    The Kaggle API token is the operator setting "Kaggle API token" (``kaggle.api_token``): what
+    the operator typed there -- the token, or a ``${secret:NAME}`` reference to a secret they
+    created -- resolved by the one resolver (provisa.core.secrets). It is never taken as a tool
+    argument (that would put a credential in chat history/logs), and the model neither chooses
+    nor asks for a secret name.
 
-    ``${secret:...}`` resolves against whichever org's vault is BOUND to this context
-    (provisa.core.secrets_store's ``bound_to_request_org``) — the same binding
-    provisa/api/admin/schema_mutation.py's create_source wraps around its own secret reads. The
-    MCP chat request never establishes that binding on its own (unlike a GraphQL admin mutation),
-    so this tool must bind it explicitly or every resolution fails with "no organization is bound
-    to this context" regardless of whether the secret actually exists."""
+    A ``${secret:...}`` reference resolves against whichever org's vault is BOUND to this context
+    (provisa.core.secrets_store's ``bound_to_request_org``). The MCP chat request never
+    establishes that binding on its own (unlike a GraphQL admin mutation), so this tool binds it
+    explicitly."""
     require_role(role, state)
-    from provisa.core.secrets import resolve_secrets
     from provisa.core.secrets_store import bound_to_request_org
     from provisa.kaggle.client import search_datasets
 
     async with bound_to_request_org():
-        token = resolve_secrets(f"${{secret:{KAGGLE_TOKEN_SECRET_NAME}}}")
+        token = kaggle_api_token()
     results = await search_datasets(token, query=query)
     return [
         {

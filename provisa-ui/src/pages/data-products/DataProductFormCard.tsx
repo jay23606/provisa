@@ -13,23 +13,21 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   Badge,
-  Button,
   Group,
   MultiSelect,
   Paper,
   Select,
-  SimpleGrid,
   Stack,
   Textarea,
   TextInput,
   Title,
 } from "@mantine/core";
-import { Check, X } from "lucide-react";
 import type { RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import { CustomPropertiesEditor } from "./CustomPropertiesEditor";
 import type { DataProductForm } from "./types";
 import { relationName } from "../../naming";
+import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 
 export interface DataProductFormCardProps {
   editingId: string | null;
@@ -48,14 +46,6 @@ export interface DataProductFormCardProps {
   onSave: () => void;
   onCancel: () => void;
 }
-
-// REQ-1634: the form's panels flow into columns by the width of the form itself (a container
-// query), not the viewport: the same form sits in a full-width creation card and in the narrower
-// expanded detail row. Fields inside a panel flow the same way by the panel's own width.
-const PANEL_COLS = { base: 1, "44rem": 2 };
-const FIELD_COLS = { base: 1, "22rem": 2, "36rem": 3 };
-// A field that takes the whole row of its panel: prose, lists and editors.
-const FULL_ROW = { gridColumn: "1 / -1" } as const;
 
 // One titled panel. `errors` is how many of its fields currently show an error; the panel shows it
 // has one by its border and badge, so a problem in a panel the eye is not on is still found.
@@ -87,9 +77,8 @@ function Panel({
           </Badge>
         )}
       </Group>
-      <SimpleGrid type="container" cols={FIELD_COLS} spacing="sm">
-        {children}
-      </SimpleGrid>
+      {/* The panel’s children are the shared form layout; it flows by the panel’s own width. */}
+      <Stack gap="sm">{children}</Stack>
     </Paper>
   );
 }
@@ -134,119 +123,151 @@ export function DataProductFormCard({
   };
   return (
     <Stack gap="md" data-testid="data-product-form">
-      <SimpleGrid type="container" cols={PANEL_COLS} spacing="md">
+      {/* REQ-1634: the panels flow into columns by the width of the form itself, not the viewport:
+          the same form sits in a full-width creation card and in the narrower expanded detail
+          row. Inside a panel the fields flow in rows by the shared form layout. */}
+      <div className="form-panels">
         <Panel id="identity" title={t("dataProductsTab.panelIdentity")} errors={identityErrors}>
-          <TextInput
-            label={t("dataProductsTab.idLabel")}
-            required
-            value={form.id}
-            disabled={editingId !== null}
-            onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
-            placeholder={t("dataProductsTab.idPlaceholder")}
-            error={err(missing.id)}
-            data-testid="data-product-id-input"
-          />
-          <TextInput
-            label={t("dataProductsTab.nameLabel")}
-            required
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder={t("dataProductsTab.namePlaceholder")}
-            error={err(missing.name)}
-            data-testid="data-product-name-input"
-          />
-          <Select
-            label={t("dataProductsTab.domainLabel")}
-            required
-            value={form.domainId}
-            onChange={(v) => setForm((f) => ({ ...f, domainId: v ?? "" }))}
-            data={domainOptions}
-            searchable
-            error={err(missing.domainId)}
-            data-testid="data-product-domain-input"
-          />
-          <TextInput
-            label={t("dataProductsTab.versionLabel")}
-            value={form.version}
-            onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))}
-            placeholder={t("dataProductsTab.versionPlaceholder")}
-            data-testid="data-product-version-input"
-          />
+          <FormLayout>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.idLabel")}
+                required
+                value={form.id}
+                disabled={editingId !== null}
+                onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
+                placeholder={t("dataProductsTab.idPlaceholder")}
+                error={err(missing.id)}
+                data-testid="data-product-id-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.nameLabel")}
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder={t("dataProductsTab.namePlaceholder")}
+                error={err(missing.name)}
+                data-testid="data-product-name-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <Select
+                label={t("dataProductsTab.domainLabel")}
+                required
+                value={form.domainId}
+                onChange={(v) => setForm((f) => ({ ...f, domainId: v ?? "" }))}
+                data={domainOptions}
+                searchable
+                error={err(missing.domainId)}
+                data-testid="data-product-domain-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.versionLabel")}
+                value={form.version}
+                onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))}
+                placeholder={t("dataProductsTab.versionPlaceholder")}
+                data-testid="data-product-version-input"
+              />
+            </FormField>
+          </FormLayout>
           {/* The backend holds status as free text (DataProduct.status: str | None), so it stays a
               text input; the placeholder lists the usual values. */}
-          <TextInput
-            label={t("dataProductsTab.statusLabel")}
-            value={form.status}
-            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-            placeholder={t("dataProductsTab.statusPlaceholder")}
-            data-testid="data-product-status-input"
-          />
+          <FormLayout>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.statusLabel")}
+                value={form.status}
+                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                placeholder={t("dataProductsTab.statusPlaceholder")}
+                data-testid="data-product-status-input"
+              />
+            </FormField>
+          </FormLayout>
         </Panel>
         <Panel id="ownership" title={t("dataProductsTab.panelOwnership")} errors={0}>
-          <Select
-            label={t("dataProductsTab.ownerLabel")}
-            value={form.ownerRole || null}
-            onChange={(v) => setForm((f) => ({ ...f, ownerRole: v ?? "" }))}
-            data={roleOptions}
-            placeholder={t("dataProductsTab.ownerPlaceholder")}
-            searchable
-            clearable
-            data-testid="data-product-owner-input"
-          />
-          <Select
-            label={t("dataProductsTab.teamLabel")}
-            value={form.teamRole || null}
-            onChange={(v) => setForm((f) => ({ ...f, teamRole: v ?? "" }))}
-            data={roleOptions}
-            placeholder={t("dataProductsTab.teamPlaceholder")}
-            searchable
-            clearable
-            data-testid="data-product-team-input"
-          />
-          <TextInput
-            label={t("dataProductsTab.supportLabel")}
-            value={form.support}
-            onChange={(e) => setForm((f) => ({ ...f, support: e.target.value }))}
-            placeholder={t("dataProductsTab.supportPlaceholder")}
-            data-testid="data-product-support-input"
-          />
-          <TextInput
-            label={t("dataProductsTab.slaLabel")}
-            value={form.sla}
-            onChange={(e) => setForm((f) => ({ ...f, sla: e.target.value }))}
-            placeholder={t("dataProductsTab.slaPlaceholder")}
-            data-testid="data-product-sla-input"
-          />
+          <FormLayout>
+            <FormField size="medium">
+              <Select
+                label={t("dataProductsTab.ownerLabel")}
+                value={form.ownerRole || null}
+                onChange={(v) => setForm((f) => ({ ...f, ownerRole: v ?? "" }))}
+                data={roleOptions}
+                placeholder={t("dataProductsTab.ownerPlaceholder")}
+                searchable
+                clearable
+                data-testid="data-product-owner-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <Select
+                label={t("dataProductsTab.teamLabel")}
+                value={form.teamRole || null}
+                onChange={(v) => setForm((f) => ({ ...f, teamRole: v ?? "" }))}
+                data={roleOptions}
+                placeholder={t("dataProductsTab.teamPlaceholder")}
+                searchable
+                clearable
+                data-testid="data-product-team-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.supportLabel")}
+                value={form.support}
+                onChange={(e) => setForm((f) => ({ ...f, support: e.target.value }))}
+                placeholder={t("dataProductsTab.supportPlaceholder")}
+                data-testid="data-product-support-input"
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("dataProductsTab.slaLabel")}
+                value={form.sla}
+                onChange={(e) => setForm((f) => ({ ...f, sla: e.target.value }))}
+                placeholder={t("dataProductsTab.slaPlaceholder")}
+                data-testid="data-product-sla-input"
+              />
+            </FormField>
+          </FormLayout>
         </Panel>
         <Panel id="description" title={t("dataProductsTab.panelDescription")} errors={0}>
-          <Textarea
-            style={FULL_ROW}
-            label={t("dataProductsTab.purposeLabel")}
-            value={form.purpose}
-            onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))}
-            placeholder={t("dataProductsTab.purposePlaceholder")}
-            rows={2}
-            data-testid="data-product-purpose-input"
-          />
-          <Textarea
-            style={FULL_ROW}
-            label={t("dataProductsTab.limitationsLabel")}
-            value={form.limitations}
-            onChange={(e) => setForm((f) => ({ ...f, limitations: e.target.value }))}
-            placeholder={t("dataProductsTab.limitationsPlaceholder")}
-            rows={2}
-            data-testid="data-product-limitations-input"
-          />
-          <Textarea
-            style={FULL_ROW}
-            label={t("dataProductsTab.usageLabel")}
-            value={form.usage}
-            onChange={(e) => setForm((f) => ({ ...f, usage: e.target.value }))}
-            placeholder={t("dataProductsTab.usagePlaceholder")}
-            rows={2}
-            data-testid="data-product-usage-input"
-          />
-          <div style={FULL_ROW}>
+          <FormLayout>
+            <FormField size="full">
+              <Textarea
+                label={t("dataProductsTab.purposeLabel")}
+                value={form.purpose}
+                onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))}
+                placeholder={t("dataProductsTab.purposePlaceholder")}
+                rows={2}
+                data-testid="data-product-purpose-input"
+              />
+            </FormField>
+            <FormField size="full">
+              <Textarea
+                label={t("dataProductsTab.limitationsLabel")}
+                value={form.limitations}
+                onChange={(e) => setForm((f) => ({ ...f, limitations: e.target.value }))}
+                placeholder={t("dataProductsTab.limitationsPlaceholder")}
+                rows={2}
+                data-testid="data-product-limitations-input"
+              />
+            </FormField>
+            <FormField size="full">
+              <Textarea
+                label={t("dataProductsTab.usageLabel")}
+                value={form.usage}
+                onChange={(e) => setForm((f) => ({ ...f, usage: e.target.value }))}
+                placeholder={t("dataProductsTab.usagePlaceholder")}
+                rows={2}
+                data-testid="data-product-usage-input"
+              />
+            </FormField>
+          </FormLayout>
+          <div>
             <CustomPropertiesEditor
               value={form.customProperties}
               onChange={(v) => setForm((f) => ({ ...f, customProperties: v }))}
@@ -254,52 +275,54 @@ export function DataProductFormCard({
           </div>
         </Panel>
         <Panel id="contents" title={t("dataProductsTab.panelContents")} errors={0}>
-          <MultiSelect
-            style={FULL_ROW}
-            label={t("dataProductsTab.tablesLabel")}
-            description={t("dataProductsTab.tablesDesc")}
-            placeholder={
-              form.domainId
-                ? t("dataProductsTab.tablesPlaceholder")
-                : t("dataProductsTab.tablesNoDomain")
-            }
-            disabled={!form.domainId}
-            value={selectedTableIds}
-            onChange={setSelectedTableIds}
-            // REQ-1634: a table may only join a data product owned by its own domain.
-            // REQ-1443 clause 10: a checker table (one carrying a contract) is a member through the
-            // table it scans, so it is listed but not toggled.
-            data={tables
-              .filter((tb) => tb.domainId === form.domainId)
-              .map((tb) => ({
-                value: String(tb.id),
-                label: relationName(tb),
-                disabled: tb.dqContract != null,
-              }))}
-            searchable
-            data-testid="data-product-tables-input"
-          />
-          <MultiSelect
-            style={FULL_ROW}
-            label={t("dataProductsTab.commandsLabel")}
-            description={t("dataProductsTab.commandsDesc")}
-            placeholder={
-              form.domainId
-                ? t("dataProductsTab.commandsPlaceholder")
-                : t("dataProductsTab.commandsNoDomain")
-            }
-            disabled={!form.domainId}
-            value={selectedFunctionNames}
-            onChange={setSelectedFunctionNames}
-            // REQ-1634: a command may only join a data product owned by its own domain.
-            data={functions
-              .filter((fn) => fn.domainId === form.domainId)
-              .map((fn) => ({ value: fn.name, label: fn.name }))}
-            searchable
-            data-testid="data-product-commands-input"
-          />
+          <FormLayout>
+            <FormField help={t("dataProductsTab.tablesDesc")} size="long">
+              <MultiSelect
+                label={t("dataProductsTab.tablesLabel")}
+                placeholder={
+                  form.domainId
+                    ? t("dataProductsTab.tablesPlaceholder")
+                    : t("dataProductsTab.tablesNoDomain")
+                }
+                disabled={!form.domainId}
+                value={selectedTableIds}
+                onChange={setSelectedTableIds}
+                // REQ-1634: a table may only join a data product owned by its own domain.
+                // REQ-1443 clause 10: a checker table (one carrying a contract) is a member through the
+                // table it scans, so it is listed but not toggled.
+                data={tables
+                  .filter((tb) => tb.domainId === form.domainId)
+                  .map((tb) => ({
+                    value: String(tb.id),
+                    label: relationName(tb),
+                    disabled: tb.dqContract != null,
+                  }))}
+                searchable
+                data-testid="data-product-tables-input"
+              />
+            </FormField>
+            <FormField help={t("dataProductsTab.commandsDesc")} size="long">
+              <MultiSelect
+                label={t("dataProductsTab.commandsLabel")}
+                placeholder={
+                  form.domainId
+                    ? t("dataProductsTab.commandsPlaceholder")
+                    : t("dataProductsTab.commandsNoDomain")
+                }
+                disabled={!form.domainId}
+                value={selectedFunctionNames}
+                onChange={setSelectedFunctionNames}
+                // REQ-1634: a command may only join a data product owned by its own domain.
+                data={functions
+                  .filter((fn) => fn.domainId === form.domainId)
+                  .map((fn) => ({ value: fn.name, label: fn.name }))}
+                searchable
+                data-testid="data-product-commands-input"
+              />
+            </FormField>
+          </FormLayout>
         </Panel>
-      </SimpleGrid>
+      </div>
       {/* Save and Cancel stay at the bottom of the viewport while the panels scroll under them. */}
       <Stack
         gap="xs"
@@ -318,25 +341,13 @@ export function DataProductFormCard({
             {msg}
           </Alert>
         )}
-        <Group justify="flex-end" gap="sm">
-          <Button
-            variant="default"
-            leftSection={<X size={14} />}
-            onClick={onCancel}
-            data-testid="data-product-cancel-button"
-          >
-            {t("dataProductsTab.cancel")}
-          </Button>
-          <Button
-            variant="filled"
-            leftSection={<Check size={14} />}
-            onClick={handleSave}
-            loading={saving}
-            data-testid="data-product-save-button"
-          >
-            {t("dataProductsTab.save")}
-          </Button>
-        </Group>
+        <FormFooter
+          onSave={handleSave}
+          saving={saving}
+          onCancel={onCancel}
+          saveProps={{ "data-testid": "data-product-save-button" }}
+          cancelProps={{ "data-testid": "data-product-cancel-button" }}
+        />
       </Stack>
     </Stack>
   );

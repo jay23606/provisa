@@ -381,6 +381,34 @@ class EngineBackend:
                 await conn.execute_core(CreateSchema(schema, if_not_exists=True))
             return await apply_cdc(conn, tbl, pk_columns, events)
 
+    async def apply_change_group(self, state: Any, group: list[Any]) -> None:
+        """Apply the changes of several landed tables that belong together
+        (``federation.change_group``), in the order given and in one transaction of the store's
+        own connection. A store with no transaction across tables applies each table's change
+        as it comes, in that order. A native engine whose store is embedded and shares a single
+        connection (DuckDB) overrides this, as it does ``apply_cdc_events``."""
+        del state
+        from sqlalchemy import and_
+        from sqlalchemy.schema import CreateSchema, CreateTable
+
+        from provisa.federation.materialize_exec import apply_cdc, build_table
+        from provisa.federation.store_writer import store_connection
+
+        async with store_connection(self.engine.materialize_store()) as conn:
+            async with conn.transaction():
+                for changes in group:
+                    if changes.schema and conn.capabilities.schemas:
+                        await conn.execute_core(CreateSchema(changes.schema, if_not_exists=True))
+                    table = build_table(
+                        changes.schema, changes.table, changes.columns, tuple(changes.pk_columns)
+                    )
+                    await conn.execute_core(CreateTable(table, if_not_exists=True))
+                    for match in changes.delete_where:
+                        await conn.execute_core(
+                            table.delete().where(and_(*[table.c[k] == v for k, v in match.items()]))
+                        )
+                    await apply_cdc(conn, table, changes.pk_columns, changes.events)
+
     async def analyze_landed_table(
         self, state: Any, *, catalog: str | None, schema: str, table: str
     ) -> None:  # REQ-280, REQ-1688
@@ -1431,7 +1459,7 @@ class TrinoBackend(EngineBackend):
             raise RuntimeError(
                 f"engine {self.engine.name!r} Arrow Flight transport cannot be resolved: the "
                 "active org runs a coordinator this control plane does not provision, so it has "
-                "no Zaychik sidecar to dial (REQ-1518)"
+                "no Zaychik sidecar to dial"
             )
         gen = generation(shard)
         cached = state.flight_clients.get(shard)

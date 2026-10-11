@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import {
   Alert,
   Badge,
@@ -23,11 +24,13 @@ import {
   Tabs,
   Text,
   Title,
+  VisuallyHidden,
 } from "@mantine/core";
 import { FilterInput } from "../components/admin/FilterInput";
 import { serverMessage, requestFailed, type ServerMessageShape } from "../i18n/serverMessage";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
+import { Tip } from "../components/Tip";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -289,34 +292,33 @@ export function RequestsPage() {
         }}
         title={t("requestsPage.rejectTitle", { id: rejectingId })}
       >
-        <Stack gap="sm">
-          <Select
-            label={t("requestsPage.reasonLabel")}
-            placeholder={t("requestsPage.reasonPlaceholder")}
-            data={reasonOptions}
-            value={rejectReason}
-            onChange={setRejectReason}
-            data-testid="requests-reject-reason"
+        <FormLayout>
+          <FormField size="long">
+            <Select
+              label={t("requestsPage.reasonLabel")}
+              placeholder={t("requestsPage.reasonPlaceholder")}
+              data={reasonOptions}
+              value={rejectReason}
+              onChange={setRejectReason}
+              data-testid="requests-reject-reason"
+            />
+          </FormField>
+          <FormFooter
+            onCancel={() => {
+              setRejectingId(null);
+              setRejectReason(null);
+            }}
+            action={
+              <Button
+                onClick={doReject}
+                disabled={!rejectReason || busy}
+                data-testid="requests-reject-confirm"
+              >
+                {t("requestsPage.confirm")}
+              </Button>
+            }
           />
-          <Group gap="sm">
-            <Button
-              onClick={doReject}
-              disabled={!rejectReason || busy}
-              data-testid="requests-reject-confirm"
-            >
-              {t("requestsPage.confirm")}
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                setRejectingId(null);
-                setRejectReason(null);
-              }}
-            >
-              {t("requestsPage.cancel")}
-            </Button>
-          </Group>
-        </Stack>
+        </FormLayout>
       </Modal>
 
       <ListTable minWidth={1000}>
@@ -338,9 +340,7 @@ export function RequestsPage() {
         <Table.Tbody>
           {filtered.length === 0 && (
             <ListEmpty colSpan={10}>
-              {search
-                ? t("requestsPage.emptyFiltered", { tab })
-                : t("requestsPage.empty", { tab })}
+              {search ? t("requestsPage.emptyFiltered", { tab }) : t("requestsPage.empty", { tab })}
             </ListEmpty>
           )}
           {filtered.length > 0 && (
@@ -350,76 +350,88 @@ export function RequestsPage() {
               colSpan={10}
               rowKey={(row) => row.id}
               render={(row) => (
-                  <ListRow>
-                    <Table.Td>{row.id}</Table.Td>
-                    <Table.Td>{row.request_type}</Table.Td>
-                    <Table.Td>{row.requested_by ?? t("requestsPage.none")}</Table.Td>
-                    <Table.Td style={{ whiteSpace: "nowrap" }}>
-                      {new Date(row.created_at).toLocaleString()}
-                    </Table.Td>
-                    <Table.Td style={{ maxWidth: "20rem" }}>
-                      <details>
-                        <summary style={{ cursor: "pointer" }}>
-                          {t("requestsPage.viewPayload")}
-                        </summary>
-                        <pre style={{ fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>
-                          {JSON.stringify(row.payload, null, 2)}
-                        </pre>
-                      </details>
-                    </Table.Td>
-                    <Table.Td>
-                      {row.approvals.length} / {row.required_approvals}
-                    </Table.Td>
-                    <Table.Td data-testid={`requests-waiting-${row.id}`}>
-                      {row.waiting_on.length > 0
-                        ? row.waiting_on.join(", ")
-                        : t("requestsPage.none")}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge color={statusColor(row.status)} variant="light">
-                        {row.status}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{row.rejection_reason ?? t("requestsPage.none")}</Table.Td>
-                    <Table.Td style={{ whiteSpace: "nowrap" }}>
-                      {row.status === "pending" && !row.can_decide && row.approve_refusal && (
-                        <Text size="xs" c="dimmed" data-testid={`requests-cannot-${row.id}`}>
-                          {serverMessage(row.approve_refusal, "")}
-                        </Text>
-                      )}
-                      {row.status === "pending" && !row.can_decide && row.can_withdraw && (
-                        <Button
-                          size="compact-xs"
-                          variant="default"
-                          onClick={() => {
-                            setRejectingId(row.id);
-                            setRejectReason(null);
-                          }}
-                          disabled={busy}
-                          data-testid={`requests-withdraw-${row.id}`}
+                <ListRow>
+                  <Table.Td>{row.id}</Table.Td>
+                  <Table.Td>{row.request_type}</Table.Td>
+                  <Table.Td>{row.requested_by ?? t("requestsPage.none")}</Table.Td>
+                  <Table.Td style={{ whiteSpace: "nowrap" }}>
+                    {new Date(row.created_at).toLocaleString()}
+                  </Table.Td>
+                  <Table.Td style={{ maxWidth: "20rem" }}>
+                    <details>
+                      <summary style={{ cursor: "pointer" }}>
+                        {t("requestsPage.viewPayload")}
+                      </summary>
+                      <pre style={{ fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>
+                        {JSON.stringify(row.payload, null, 2)}
+                      </pre>
+                    </details>
+                  </Table.Td>
+                  <Table.Td>
+                    {row.approvals.length} / {row.required_approvals}
+                  </Table.Td>
+                  <Table.Td data-testid={`requests-waiting-${row.id}`}>
+                    {row.waiting_on.length > 0 ? row.waiting_on.join(", ") : t("requestsPage.none")}
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={statusColor(row.status)} variant="light">
+                      {row.status}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{row.rejection_reason ?? t("requestsPage.none")}</Table.Td>
+                  <Table.Td style={{ whiteSpace: "nowrap" }}>
+                    {row.status === "pending" && !row.can_decide && row.approve_refusal && (
+                      <Text size="xs" c="dimmed" data-testid={`requests-cannot-${row.id}`}>
+                        {serverMessage(row.approve_refusal, "")}
+                      </Text>
+                    )}
+                    {row.status === "pending" && !row.can_decide && row.can_withdraw && (
+                      <Button
+                        size="compact-xs"
+                        variant="default"
+                        onClick={() => {
+                          setRejectingId(row.id);
+                          setRejectReason(null);
+                        }}
+                        disabled={busy}
+                        data-testid={`requests-withdraw-${row.id}`}
+                      >
+                        {t("requestsPage.reject")}
+                      </Button>
+                    )}
+                    {row.status === "pending" && row.can_decide && (
+                      <Group gap="xs" wrap="nowrap">
+                        {/* A disabled button takes no pointer, so the hint hangs on a wrapper around
+                            it; the reason is also the button's description, for a screen reader. */}
+                        <Tip
+                          text={
+                            row.approve_refusal ? serverMessage(row.approve_refusal, "") : undefined
+                          }
+                          named
                         >
-                          {t("requestsPage.reject")}
-                        </Button>
-                      )}
-                      {row.status === "pending" && row.can_decide && (
-                        <Group gap="xs" wrap="nowrap">
-                          <Button
-                            size="compact-xs"
-                            onClick={() => doApprove(row.id)}
-                            disabled={busy || row.approve_refusal !== null}
-                            title={
-                              row.approve_refusal
-                                ? serverMessage(row.approve_refusal, "")
-                                : undefined
-                            }
-                            data-testid={`requests-approve-${row.id}`}
-                          >
-                            {t("requestsPage.approve")}
-                          </Button>
-                          {/* Executing only retries a creation that failed when the last
+                          <span style={{ display: "inline-flex" }}>
+                            <Button
+                              size="compact-xs"
+                              onClick={() => doApprove(row.id)}
+                              disabled={busy || row.approve_refusal !== null}
+                              aria-describedby={
+                                row.approve_refusal ? `requests-approve-why-${row.id}` : undefined
+                              }
+                              data-testid={`requests-approve-${row.id}`}
+                            >
+                              {t("requestsPage.approve")}
+                            </Button>
+                            {row.approve_refusal && (
+                              <VisuallyHidden id={`requests-approve-why-${row.id}`}>
+                                {serverMessage(row.approve_refusal, "")}
+                              </VisuallyHidden>
+                            )}
+                          </span>
+                        </Tip>
+                        {/* Executing only retries a creation that failed when the last
                               approval was given: it is offered once the approvals are in. */}
-                          {row.approvals.length >= row.required_approvals &&
-                            row.waiting_on.length === 0 && (
+                        {row.approvals.length >= row.required_approvals &&
+                          row.waiting_on.length === 0 && (
                             <Button
                               size="compact-xs"
                               onClick={() => doExecute(row.id)}
@@ -429,22 +441,22 @@ export function RequestsPage() {
                               {t("requestsPage.execute")}
                             </Button>
                           )}
-                          <Button
-                            size="compact-xs"
-                            variant="default"
-                            onClick={() => {
-                              setRejectingId(row.id);
-                              setRejectReason(null);
-                            }}
-                            disabled={busy}
-                            data-testid={`requests-reject-${row.id}`}
-                          >
-                            {t("requestsPage.reject")}
-                          </Button>
-                        </Group>
-                      )}
-                    </Table.Td>
-                  </ListRow>
+                        <Button
+                          size="compact-xs"
+                          variant="default"
+                          onClick={() => {
+                            setRejectingId(row.id);
+                            setRejectReason(null);
+                          }}
+                          disabled={busy}
+                          data-testid={`requests-reject-${row.id}`}
+                        >
+                          {t("requestsPage.reject")}
+                        </Button>
+                      </Group>
+                    )}
+                  </Table.Td>
+                </ListRow>
               )}
             />
           )}

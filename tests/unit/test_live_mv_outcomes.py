@@ -347,7 +347,7 @@ def test_infer_pk_from_group_by():
 
 
 def test_derive_output_schema_undeterminable_fails_loud():
-    with pytest.raises(ValueError, match="cannot determine the output type"):
+    with pytest.raises(ValueError, match="Cannot determine the output type"):
         derive_output_schema("SELECT id, NULL AS mystery FROM orders", _INPUTS)
 
 

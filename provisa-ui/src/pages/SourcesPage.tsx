@@ -12,10 +12,10 @@ import { useSetSourceRegion, useRegionChoices } from "../hooks/useRegionQueries"
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
 import { RegionSelector } from "../components/RegionSelector";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Check, X } from "lucide-react";
 import {
   ActionIcon,
   Alert,
@@ -49,7 +49,7 @@ import { schemasForSubjects, subjectsOfSchemas } from "./sources/govdataSubjects
 import { useAuth } from "../context/AuthContext";
 import { SchemaDiscovery } from "../components/SchemaDiscovery";
 import { TagControl } from "../components/TagControl";
-import { serverMessage, requestFailed } from "../i18n/serverMessage";
+import { refusalError, requestFailed, serverMessage } from "../i18n/serverMessage";
 import { TableMappingBuilder } from "../components/TableMappingBuilder";
 import type { TableMapping } from "../components/TableMappingBuilder";
 import type { Source } from "../types/admin";
@@ -84,7 +84,8 @@ import { cloudopsFieldsFromMapping, cloudopsMappingJson } from "./sources/cloudo
 import { GOOGLE_WORKSPACE, gwFieldsFromMapping, gwMapping } from "./sources/googleWorkspace";
 import { MICROSOFT_365, m365FieldsFromMapping, m365Mapping } from "./sources/microsoft365";
 import { WIKIPEDIA, wikipediaFieldsFromHints, wikipediaHints } from "./sources/wikipedia";
-import { sourceLoadFieldsValid } from "./sources/loadManagement";
+import { sourceFormCacheTtl, sourceLoadFieldsValid } from "./sources/loadManagement";
+import { useCacheTtlRequired } from "./sources/sourceKind";
 import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
 import {
@@ -94,17 +95,11 @@ import {
   objectStoreOf,
 } from "./sources/objectStoreHints";
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
+import { PanelWorking } from "./sources/PanelWorking";
+import { PanelActions, SplitPane } from "../components/list/SplitPane";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
-import {
-  ListTable,
-  ListHead,
-  ListRow,
-  ListExpandRow,
-  ListEmpty,
-  ListDetail,
-  ListItems,
-} from "../components/list/ListTable";
+import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
 import { KeptTablesNotice } from "../components/KeptTablesNotice";
 import { keptTablesOf } from "../lib/keptTables";
@@ -237,6 +232,8 @@ export function SourcesPage() {
     allowedDomains: "" as string,
     description: "" as string,
   });
+  // Whether the server says a source of this kind states its Cache TTL itself (REQ-1907).
+  const cacheTtlRequired = useCacheTtlRequired(form.type);
   // REQ-824: source-level CDC transport (Debezium), entered once per source
   const emptyCdc: CdcState = {
     bootstrapServers: "",
@@ -544,7 +541,8 @@ export function SourcesPage() {
       port: s.port ?? getDefaultPort(uiType(s.type)),
       database: s.database ?? "",
       username: s.username ?? "",
-      password: "",
+      // The field shows again what it holds: the value typed, or the reference typed.
+      password: s.passwordRef ?? "",
       gqlNamingConvention: s.gqlNamingConvention ?? "",
       cacheTtl: s.cacheTtl != null ? String(s.cacheTtl) : "",
       cacheEnabled: s.cacheEnabled,
@@ -601,9 +599,9 @@ export function SourcesPage() {
     }
     // delta_lake/iceberg S3 creds and snowflake/databricks/bigquery warehouse extras all live in
     // federation_hints (never mapping — see the submit-side comment above `federationHints`).
-    // Secrets themselves (password/access_token/private key) are never sent back by the read
-    // query, same as every other source type's password field — only the non-secret extras
-    // (warehouse/schema/role/http_path/credentials_path/access_key_id/endpoint) round-trip.
+    // A credential field comes back as it was entered (the value, or a reference someone typed)
+    // beside the other extras (warehouse/schema/role/http_path/credentials_path/access_key_id/
+    // endpoint), so the form shows again what each field holds.
     // REQ-990: a CSV/Parquet file's object-store credentials come back into the form's fields for
     // the store its path names.
     if (CLOUD_FILE_TYPES.has(s.type) && objectStoreOf(s.path) && s.federationHintsJson) {
@@ -643,8 +641,19 @@ export function SourcesPage() {
         } else {
           setAuthType("password");
         }
+        // The credential these two kinds keep in the source's password field is shown again as
+        // that field holds it, like any other.
+        const held: Record<string, string> = !s.passwordRef
+          ? {}
+          : s.type === "snowflake"
+            ? { password: s.passwordRef }
+            : s.type === "databricks"
+              ? { access_token: s.passwordRef }
+              : {};
         setAuthFields(
-          hints.credentials_path ? { credentials_json: hints.credentials_path } : hints,
+          hints.credentials_path
+            ? { credentials_json: hints.credentials_path }
+            : { ...hints, ...held },
         );
       } catch {
         setAuthType("none");
@@ -791,6 +800,14 @@ export function SourcesPage() {
     setShowForm(false);
   };
 
+  // The source the short create step just made is selected and its detail opens in edit, with
+  // everything the step did not ask for at its default: read from the list as it is now.
+  const openCreated = async (id: string) => {
+    const fresh = await refetchSources();
+    const made = fresh.data?.sources.find((x) => x.id === id);
+    if (made) handleEdit(made);
+  };
+
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingSourceId(null);
@@ -842,7 +859,7 @@ export function SourcesPage() {
     setError(null);
     // The Load Management and Timeliness panel's inputs show their own errors; an invalid one
     // blocks the save before any mutation runs.
-    if (!sourceLoadFieldsValid(form)) {
+    if (!sourceLoadFieldsValid(form, cacheTtlRequired)) {
       setError(t("sourceFormFieldsExtended.loadManagementFixErrors"));
       return;
     }
@@ -1033,6 +1050,10 @@ export function SourcesPage() {
         type: backendType(form.type),
         offPeakWindow: coreForm.offPeakWindow?.trim() || null,
         // SourceInput is a full upsert: every load/timeliness field is sent with its current value.
+        // The Cache TTL goes with it: the server judges the source's change signal against the TTL
+        // in THIS input, so a source whose tables always land (a mail source) was refused at the
+        // save although its TTL was filled in — it used to travel only in the call that follows.
+        cacheTtl: sourceFormCacheTtl(_ct),
         sentinelPath: coreForm.sentinelPath.trim() || null,
         maxLiveConcurrency:
           coreForm.maxLiveConcurrency.trim() === "" ? null : Number(coreForm.maxLiveConcurrency),
@@ -1089,20 +1110,20 @@ export function SourcesPage() {
         const effectiveId = form.id.trim() || editingSourceId;
         if (effectiveId !== editingSourceId) {
           const renameResult = await renameSource(editingSourceId, effectiveId);
-          if (!renameResult.success) throw new Error(renameResult.message);
+          if (!renameResult.success) throw refusalError(renameResult);
         }
         const result = await updateSource({ ...sourcePayload, id: effectiveId });
-        if (!result.success) throw new Error(result.message);
+        if (!result.success) throw refusalError(result);
         const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
         if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
         const cacheResult = await updateSourceCache(effectiveId, form.cacheEnabled, ttlValue);
-        if (!cacheResult.success) throw new Error(cacheResult.message);
+        if (!cacheResult.success) throw refusalError(cacheResult);
         // REQ-826: the server refuses load protection with Replicate = Never, judged against what
         // is stored at each save. Turning load protection off goes first, so a following Never is
         // accepted; turning it on goes last, after the Replicate value it is compatible with.
         const saveReplicate = async () => {
           const replicateResult = await updateSourceReplicate(effectiveId, form.replicate);
-          if (!replicateResult.success) throw new Error(replicateResult.message);
+          if (!replicateResult.success) throw refusalError(replicateResult);
         };
         const saveLoadProtection = async () => {
           const loadProtResult = await updateSourceLoadProtection(
@@ -1111,7 +1132,7 @@ export function SourcesPage() {
             form.offPeakWindow.trim() || null,
             form.offPeakTz.trim() || "UTC",
           );
-          if (!loadProtResult.success) throw new Error(loadProtResult.message);
+          if (!loadProtResult.success) throw refusalError(loadProtResult);
         };
         if (form.loadProtected) {
           await saveReplicate();
@@ -1124,19 +1145,19 @@ export function SourcesPage() {
           effectiveId,
           form.gqlNamingConvention === "" ? null : form.gqlNamingConvention,
         );
-        if (!namingResult.success) throw new Error(namingResult.message);
+        if (!namingResult.success) throw refusalError(namingResult);
         // REQ-1921: the region its new tables start in, saved on its own when it changed.
         const savedRegion = sources.find((s) => s.id === effectiveId)?.region ?? null;
         if (form.region !== savedRegion) {
           const regionResult = await setSourceRegion(effectiveId, form.region);
-          if (!regionResult.success) throw new Error(regionResult.message);
+          if (!regionResult.success) throw refusalError(regionResult);
         }
         const parsedDomains = form.allowedDomains
           .split(",")
           .map((d) => d.trim())
           .filter(Boolean);
         const domainsResult = await updateSourceAllowedDomains(effectiveId, parsedDomains);
-        if (!domainsResult.success) throw new Error(domainsResult.message);
+        if (!domainsResult.success) throw refusalError(domainsResult);
       } else {
         const { allowedDomains: _ad, ...createPayload } = sourcePayload as typeof sourcePayload & {
           allowedDomains?: unknown;
@@ -1145,17 +1166,17 @@ export function SourcesPage() {
         const createResult = await createSource(
           createPayload as Parameters<typeof createSource>[0],
         );
-        if (!createResult.success) throw new Error(createResult.message);
+        if (!createResult.success) throw refusalError(createResult);
         // REQ-1907: the cache and Replicate settings offered at create are saved with it.
         const createTtl = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
         if (createTtl !== null && isNaN(createTtl)) throw new Error("TTL must be a number");
         const createCache = await updateSourceCache(form.id, form.cacheEnabled, createTtl);
-        if (!createCache.success) throw new Error(createCache.message);
+        if (!createCache.success) throw refusalError(createCache);
         const createReplicate = await updateSourceReplicate(form.id, form.replicate);
-        if (!createReplicate.success) throw new Error(createReplicate.message);
+        if (!createReplicate.success) throw refusalError(createReplicate);
         if (form.region !== null) {
           const createRegion = await setSourceRegion(form.id, form.region); // REQ-1921
-          if (!createRegion.success) throw new Error(createRegion.message);
+          if (!createRegion.success) throw refusalError(createRegion);
         }
         if (form.loadProtected) {
           const lp = await updateSourceLoadProtection(
@@ -1164,7 +1185,7 @@ export function SourcesPage() {
             form.offPeakWindow.trim() || null,
             form.offPeakTz.trim() || "UTC",
           );
-          if (!lp.success) throw new Error(lp.message);
+          if (!lp.success) throw refusalError(lp);
         }
         const parsedDomainsCreate = form.allowedDomains
           .split(",")
@@ -1172,11 +1193,13 @@ export function SourcesPage() {
           .filter(Boolean);
         if (parsedDomainsCreate.length > 0) {
           const domainsResult = await updateSourceAllowedDomains(form.id, parsedDomainsCreate);
-          if (!domainsResult.success) throw new Error(domainsResult.message);
+          if (!domainsResult.success) throw refusalError(domainsResult);
         }
       }
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1307,9 +1330,11 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1351,9 +1376,11 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1397,22 +1424,24 @@ export function SourcesPage() {
       const ttlValue = form.cacheTtl.trim() === "" ? null : parseInt(form.cacheTtl, 10);
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
-      if (!cacheResult.success) throw new Error(cacheResult.message);
+      if (!cacheResult.success) throw refusalError(cacheResult);
       const loadProtResult = await updateSourceLoadProtection(
         form.id,
         form.loadProtected,
         form.offPeakWindow.trim() || null,
         form.offPeakTz.trim() || "UTC",
       );
-      if (!loadProtResult.success) throw new Error(loadProtResult.message);
+      if (!loadProtResult.success) throw refusalError(loadProtResult);
       const parsedDomains = form.allowedDomains
         .split(",")
         .map((d) => d.trim())
         .filter(Boolean);
       const domainsResult = await updateSourceAllowedDomains(form.id, parsedDomains);
-      if (!domainsResult.success) throw new Error(domainsResult.message);
+      if (!domainsResult.success) throw refusalError(domainsResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1515,86 +1544,128 @@ export function SourcesPage() {
 
   if (loading) return <PageLoading message={t("sourcesPage.loading")} />;
 
-  return (
-    <div className="page page-sticky-head">
-      <div className="page-header">
-        <Title order={2}>{t("sourcesPage.title")}</Title>
-        <FilterInput
-          value={sourceSearch}
-          onChange={updateSearch}
-          placeholder={t("sourcesPage.filterPlaceholder")}
-        />
-        <RegionSelector
-          regions={regions}
-          connected={connected}
-          value={regionSel}
-          onChange={setRegionSel}
-          hidden={regionHidden}
-          error={regionError}
-        />
-        <div className="page-actions">
-          {!editingSourceId && (
-            <Button
-              data-tour="sources-add"
-              data-testid="sources-add-toggle"
-              variant={showForm ? "outline" : "filled"}
-              aria-label={showForm ? t("sourcesPage.closeForm") : t("sourcesPage.addSource")}
-              onClick={() => {
-                if (showForm) {
-                  handleCancelForm();
-                } else {
-                  setShowForm(true);
-                }
-              }}
-            >
-              {showForm ? <X size={14} /> : t("sourcesPage.addSource")}
-            </Button>
-          )}
-          <HelpBubble
-            title={t("sourcesPage.purposeTitle")}
-            paragraphs={[t("sourcesPage.purposeBody"), t("sourcesPage.purposeAdd")]}
-            ariaLabel={t("sourcesPage.purposeAria")}
-            testId="sources-purpose-help"
-          />
-        </div>
-      </div>
-
-      {error && (
-        <Alert color="red" mb="md" data-testid="sources-error">
-          {error}
-        </Alert>
-      )}
-      {refreshError && (
-        <Alert color="red" mb="md" data-testid="sources-refresh-error">
-          {t("sourcesPage.schemaRefreshFailed", { message: refreshError })}
-        </Alert>
-      )}
-      <KeptTablesNotice kept={keptTables} onClose={() => setKeptTables([])} />
-
-      {/* page-aux: `.page-sticky-head`'s overflow:hidden otherwise clips a tall form (many
-          source-type fields, or Kaggle's dataset picker) with no scrollport a mouse wheel can
-          act on — see TablesPage.tsx's RegisterTableForm wrapper for the full explanation. */}
-      {showForm && !editingSourceId && (
-        <div className="page-aux">
-          <form
-            data-tour="sources-form"
-            className="form-card"
-            onSubmit={
-              carrierOf(form.type) === "openapi"
-                ? handleOpenapiRegister
-                : form.type === "grpc"
-                  ? handleGrpcRegister
-                  : carrierOf(form.type) === "graphql"
-                    ? handleGraphqlRegister
-                    : // REQ-1780/1783: kaggle registers per-file through KaggleFormSection's own
-                      // "Add Dataset" button (each file needs its own createSource+registerTable
-                      // call, not one createSource for a single "kaggle" type — which does not
-                      // exist as a SourceType) — the outer submit has nothing of its own to do.
-                      form.type === "kaggle"
-                      ? (e: React.FormEvent) => e.preventDefault()
-                      : handleCreate
-            }
+  // What a source's row offered beside it: now in the head of its panel, with its name.
+  const sourceActions = (s: Source) => (
+    <PanelActions>
+      <Group gap="xs" wrap="nowrap">
+        {DISCOVERABLE_TYPES.has(s.type) && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-discover-${s.id}`}
+            onClick={() => {
+              setDiscoverSourceId(s.id);
+              setDiscoverSourceType(s.type);
+              setMappingSourceId(null);
+            }}
           >
+            {t("sourcesPage.discover")}
+          </Button>
+        )}
+        {MAPPING_TYPES.has(s.type) && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-map-table-${s.id}`}
+            onClick={() => {
+              setMappingSourceId(s.id);
+              setMappingSourceType(s.type);
+              setDiscoverSourceId(null);
+            }}
+          >
+            {t("sourcesPage.mapTable")}
+          </Button>
+        )}
+        {(s.type === "graphql" || s.type === "openapi" || s.type === "grpc") && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-refresh-schema-${s.id}`}
+            onClick={() => handleRefreshSchema(s.id, s.type)}
+            disabled={refreshingSourceId === s.id}
+          >
+            {refreshingSourceId === s.id
+              ? t("sourcesPage.refreshing")
+              : t("sourcesPage.refreshSchema")}
+          </Button>
+        )}
+      </Group>
+    </PanelActions>
+  );
+
+  // What the right-hand panel shows: a working surface opened from a source (it has a way back
+  // to the source), the short step that creates one, or the selected source -- being edited, or
+  // read.
+  const selectedSource = expanded ? (sources.find((x) => x.id === expanded) ?? null) : null;
+  const working =
+    discoverSourceId && discoverSourceType ? (
+      <PanelWorking
+        back={t("sourcesPage.backToSource")}
+        onBack={() => {
+          setDiscoverSourceId(null);
+          setDiscoverSourceType(null);
+        }}
+        testId="sources-working-back"
+      >
+        <SchemaDiscovery
+          sourceId={discoverSourceId}
+          sourceType={discoverSourceType}
+          onClose={() => {
+            setDiscoverSourceId(null);
+            setDiscoverSourceType(null);
+          }}
+          onRegistered={load}
+        />
+      </PanelWorking>
+    ) : mappingSourceId && mappingSourceType ? (
+      <PanelWorking
+        back={t("sourcesPage.backToSource")}
+        onBack={() => {
+          setMappingSourceId(null);
+          setMappingSourceType(null);
+        }}
+        testId="sources-working-back"
+      >
+        <TableMappingBuilder
+          sourceType={mappingSourceType}
+          onCancel={() => {
+            setMappingSourceId(null);
+            setMappingSourceType(null);
+          }}
+          onSave={(_mapping: TableMapping) => {
+            setMappingSourceId(null);
+            setMappingSourceType(null);
+            load();
+          }}
+        />
+      </PanelWorking>
+    ) : null;
+  const panelBody: React.ReactNode =
+    working ??
+    (showForm && !editingSourceId ? (
+      <FormLayout
+        component="form"
+        id="sources-new-form"
+        data-tour="sources-form"
+        className="form-card"
+        onSubmit={
+          carrierOf(form.type) === "openapi"
+            ? handleOpenapiRegister
+            : form.type === "grpc"
+              ? handleGrpcRegister
+              : carrierOf(form.type) === "graphql"
+                ? handleGraphqlRegister
+                : // REQ-1780/1783: kaggle registers per-file through KaggleFormSection's own
+                  // "Add Dataset" button (each file needs its own createSource+registerTable
+                  // call, not one createSource for a single "kaggle" type — which does not
+                  // exist as a SourceType) — the outer submit has nothing of its own to do.
+                  form.type === "kaggle"
+                  ? (e: React.FormEvent) => e.preventDefault()
+                  : handleCreate
+        }
+      >
+        <FormIdentifiers>
+          <FormField size="medium">
             <TextInput
               label={t("sourcesPage.idLabel")}
               required
@@ -1603,9 +1674,12 @@ export function SourcesPage() {
               placeholder={t("sourcesPage.idPlaceholder")}
               data-testid="sources-id-input"
             />
+          </FormField>
+          <FormField size="long">
             <label>
               {t("sourcesPage.typeLabel")}
               <select
+                className="form-select"
                 data-tour="sources-type"
                 data-testid="sources-type-select"
                 value={form.type}
@@ -1637,311 +1711,313 @@ export function SourcesPage() {
                 ))}
               </select>
             </label>
-            <SourceTypePicker
-              opened={typePickerOpen}
-              onClose={() => setTypePickerOpen(false)}
-              groups={typeSelectData()}
-              value={form.type}
-              onPick={handleTypeChange}
-            />
-            <SourceFormFields {...sourceFormFieldsProps} />
-            {/* The same two actions, in the same place and order, as the edit form below: Save first,
-                Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
-                is created by its own section's button, so it gets Cancel alone. */}
-            <Group gap="sm" style={{ gridColumn: "1 / -1", justifySelf: "start" }}>
-              {form.type !== "kaggle" && (
-                <Button
-                  type="submit"
-                  loading={submitting}
-                  leftSection={<Check size={14} />}
-                  data-testid="sources-submit"
-                >
-                  {t("sourcesPage.saveEdit")}
-                </Button>
-              )}
-              <Button
-                variant="default"
-                type="button"
-                leftSection={<X size={14} />}
-                onClick={handleCancelForm}
-                data-testid="sources-cancel"
-              >
-                {t("sourcesPage.cancelEdit")}
-              </Button>
-            </Group>
-          </form>
-        </div>
-      )}
-
-      {/* REQ-1587: the page owns the vertical scroll, so the table's own scroller is the plain
-          horizontal one — a Table.ScrollContainer would become the scrollport the header sticks to
-          and, growing to its content, would never scroll vertically. */}
-      <ListTable minWidth={860} testId="sources-list">
-        <ListHead
-          sortGroup={sortGroup}
-          columns={[
-            { col: "id" },
-            { col: "type" },
-            { col: "host" },
-            { col: "port" },
-            { col: "database" },
-            ...(hasRegions ? [{ col: "region" }] : []),
-            { col: "naming" },
-            { col: "cache" },
-            t("sourcesPage.colEffectiveTtl"),
-            t("sourcesPage.colActions"),
-          ]}
+          </FormField>
+        </FormIdentifiers>
+        <SourceTypePicker
+          opened={typePickerOpen}
+          onClose={() => setTypePickerOpen(false)}
+          groups={typeSelectData()}
+          value={form.type}
+          onPick={handleTypeChange}
         />
-        <Table.Tbody>
-          {(() => {
-            if (regionSources.length === 0) {
-              return <ListEmpty colSpan={hasRegions ? 10 : 9}>{t("sourcesPage.empty")}</ListEmpty>;
-            }
-            return (
-              <ListItems
-                state={sortGroup}
-                items={pageItems(sortGroup, page, PAGE_SIZE)}
-                colSpan={hasRegions ? 10 : 9}
-                rowKey={(s) => s.id}
-                render={(s) => {
-                  const isExpanded = expanded === s.id;
-                  const isEditing = editingSourceId === s.id;
-                  return (
-                    <React.Fragment key={s.id}>
-                      <ListRow
-                        testId={`sources-row-${s.id}`}
-                        onClick={() => {
-                          updateExpanded(isExpanded ? null : s.id);
-                          if (isEditing && isExpanded) {
-                            setEditingSourceId(null);
-                            handleCancelForm();
-                          }
-                        }}
-                      >
-                        <Table.Td>
-                          {/* As on Tables: the tag chips follow the identifier, the edit-tags control follows the chips. */}
-                          <Group gap="0.35rem">
-                            {s.id}
-                            <TagControl objectType="source" sourceId={s.id} />
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>{sourceTypeLabel(s.type, s.federationHintsJson)}</Table.Td>
-                        <Table.Td>{s.host}</Table.Td>
-                        <Table.Td>{s.port || "—"}</Table.Td>
-                        <Table.Td>{s.database || "—"}</Table.Td>
-                        {hasRegions && (
-                          <Table.Td c="dimmed" fz="0.85rem">
-                            {s.region ?? t("regionSelector.noRegion")}
-                          </Table.Td>
-                        )}
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {s.gqlNamingConvention || t("sourcesPage.naOrInherit")}
-                        </Table.Td>
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {s.cacheEnabled ? t("sourcesPage.cacheOn") : t("sourcesPage.cacheOff")}
-                        </Table.Td>
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {getEffectiveTtl(s)}
-                        </Table.Td>
-                        <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Group gap="xs" wrap="wrap">
-                            {DISCOVERABLE_TYPES.has(s.type) && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-discover-${s.id}`}
-                                onClick={() => {
-                                  setDiscoverSourceId(s.id);
-                                  setDiscoverSourceType(s.type);
-                                  setMappingSourceId(null);
-                                }}
-                              >
-                                {t("sourcesPage.discover")}
-                              </Button>
-                            )}
-                            {MAPPING_TYPES.has(s.type) && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-map-table-${s.id}`}
-                                onClick={() => {
-                                  setMappingSourceId(s.id);
-                                  setMappingSourceType(s.type);
-                                  setDiscoverSourceId(null);
-                                }}
-                              >
-                                {t("sourcesPage.mapTable")}
-                              </Button>
-                            )}
-                            {(s.type === "graphql" ||
-                              s.type === "openapi" ||
-                              s.type === "grpc") && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-refresh-schema-${s.id}`}
-                                onClick={() => handleRefreshSchema(s.id, s.type)}
-                                disabled={refreshingSourceId === s.id}
-                              >
-                                {refreshingSourceId === s.id
-                                  ? t("sourcesPage.refreshing")
-                                  : t("sourcesPage.refreshSchema")}
-                              </Button>
-                            )}
-                          </Group>
-                        </Table.Td>
-                      </ListRow>
-                      {isExpanded && (
-                        <ListExpandRow colSpan={hasRegions ? 10 : 9}>
-                          <ListDetail>
-                            {isEditing ? (
-                              <form
-                                className="form-card"
-                                onSubmit={
-                                  carrierOf(form.type) === "openapi"
-                                    ? handleOpenapiRegister
-                                    : form.type === "grpc"
-                                      ? handleGrpcRegister
-                                      : carrierOf(form.type) === "graphql"
-                                        ? handleGraphqlRegister
-                                        : handleCreate
-                                }
-                                style={{ margin: 0 }}
-                              >
-                                <TextInput
-                                  label={t("sourcesPage.idLabel")}
-                                  required
-                                  value={form.id}
-                                  onChange={(e) => setForm({ ...form, id: e.target.value })}
-                                />
-                                <Select
-                                  label={t("sourcesPage.typeLabel")}
-                                  value={form.type}
-                                  onChange={(v) => v && handleTypeChange(v)}
-                                  data={typeSelectData()}
-                                  allowDeselect={false}
-                                  searchable
-                                />
-                                <SourceFormFields {...sourceFormFieldsProps} />
-                                <Group
-                                  gap="sm"
-                                  style={{ gridColumn: "1 / -1", justifySelf: "start" }}
-                                >
-                                  <Button
-                                    variant="filled"
-                                    type="submit"
-                                    leftSection={<Check size={14} />}
-                                  >
-                                    {t("sourcesPage.saveEdit")}
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    type="button"
-                                    leftSection={<X size={14} />}
-                                    onClick={handleCancelForm}
-                                  >
-                                    {t("sourcesPage.cancelEdit")}
-                                  </Button>
-                                </Group>
-                              </form>
-                            ) : (
-                              <SourceDetailPanel
-                                s={s}
-                                domainsEnabled={domainsEnabled}
-                                getEffectiveTtl={getEffectiveTtl}
-                                onEdit={() => handleEdit(s)}
-                                onNavigate={() =>
-                                  navigate(`/tables?source=${encodeURIComponent(s.id)}`)
-                                }
-                                onDelete={async () => {
-                                  const result = await deleteSource(s.id);
-                                  if (refusal.refused(result, s.id)) return;
-                                  if (expanded === s.id) updateExpanded(null);
-                                  load();
-                                }}
-                              />
-                            )}
-                          </ListDetail>
-                        </ListExpandRow>
-                      )}
-                    </React.Fragment>
-                  );
-                }}
+        {/* Only what a source needs in order to exist; the rest is set in the edit form the
+            new source opens in. */}
+        <SourceFormFields {...sourceFormFieldsProps} essential />
+        {/* The same two actions, in the same place and order, as the edit form below: Save first,
+            Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
+            is created by its own section's button, so it gets Cancel alone. */}
+        <FormFooter
+          panel
+          submit={form.type !== "kaggle"}
+          form="sources-new-form"
+          saving={submitting}
+          onCancel={handleCancelForm}
+          saveProps={{ "data-testid": "sources-submit" }}
+          cancelProps={{ "data-testid": "sources-cancel" }}
+        />
+      </FormLayout>
+    ) : selectedSource ? (
+      ((s: Source) => (
+        <>
+          {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
+          {editingSourceId !== s.id && sourceActions(s)}
+          {editingSourceId === s.id ? (
+            <FormLayout
+              component="form"
+              id="sources-edit-form"
+              className="form-card"
+              onSubmit={
+                carrierOf(form.type) === "openapi"
+                  ? handleOpenapiRegister
+                  : form.type === "grpc"
+                    ? handleGrpcRegister
+                    : carrierOf(form.type) === "graphql"
+                      ? handleGraphqlRegister
+                      : handleCreate
+              }
+              style={{ margin: 0 }}
+            >
+              <FormIdentifiers>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("sourcesPage.idLabel")}
+                    required
+                    value={form.id}
+                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                  />
+                </FormField>
+                <FormField size="long">
+                  <Select
+                    label={t("sourcesPage.typeLabel")}
+                    value={form.type}
+                    onChange={(v) => v && handleTypeChange(v)}
+                    data={typeSelectData()}
+                    allowDeselect={false}
+                    searchable
+                  />
+                </FormField>
+              </FormIdentifiers>
+              <SourceFormFields {...sourceFormFieldsProps} />
+              <FormFooter
+                panel
+                submit
+                form="sources-edit-form"
+                saving={submitting}
+                onCancel={handleCancelForm}
+                saveProps={{ "data-testid": "sources-edit-submit" }}
+                cancelProps={{ "data-testid": "sources-edit-cancel" }}
               />
-            );
-          })()}
-        </Table.Tbody>
-      </ListTable>
+            </FormLayout>
+          ) : (
+            <SourceDetailPanel
+              s={s}
+              domainsEnabled={domainsEnabled}
+              getEffectiveTtl={getEffectiveTtl}
+              onEdit={() => handleEdit(s)}
+              onNavigate={() => navigate(`/tables?source=${encodeURIComponent(s.id)}`)}
+              onDelete={async () => {
+                const result = await deleteSource(s.id);
+                if (refusal.refused(result, s.id)) return;
+                if (expanded === s.id) updateExpanded(null);
+                load();
+              }}
+            />
+          )}
+        </>
+      ))(selectedSource)
+    ) : null);
+  const panelIsReadOnly = working === null && !showForm && editingSourceId === null;
+  const panelTitle =
+    showForm && !editingSourceId
+      ? t("sourcesPage.panelNewSource")
+      : (selectedSource?.id ?? discoverSourceId ?? mappingSourceId ?? "");
+  const closePanel = () => {
+    setDiscoverSourceId(null);
+    setDiscoverSourceType(null);
+    setMappingSourceId(null);
+    setMappingSourceType(null);
+    if (showForm || editingSourceId) handleCancelForm();
+    updateExpanded(null);
+  };
 
-      {(() => {
-        const filtered = filteredSources;
-        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-        if (totalPages === 1 || sortGroup.groupBy.length > 0) return null;
-        return (
-          <Group justify="flex-end" gap="xs" align="center" py="xs">
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.firstPage")}
-              onClick={() => setPage(0)}
-              disabled={page === 0}
-            >
-              «
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.previousPage")}
-              onClick={() => setPage((p) => p - 1)}
-              disabled={page === 0}
-            >
-              ‹
-            </ActionIcon>
-            <Text fz="sm">{t("sourcesPage.pageStatus", { page: page + 1, totalPages })}</Text>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.nextPage")}
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= totalPages - 1}
-            >
-              ›
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.lastPage")}
-              onClick={() => setPage(totalPages - 1)}
-              disabled={page >= totalPages - 1}
-            >
-              »
-            </ActionIcon>
-          </Group>
-        );
-      })()}
-
-      {discoverSourceId && discoverSourceType && (
-        <SchemaDiscovery
-          sourceId={discoverSourceId}
-          sourceType={discoverSourceType}
-          onClose={() => {
-            setDiscoverSourceId(null);
-            setDiscoverSourceType(null);
-          }}
-          onRegistered={load}
+  return (
+    <div className="page page-sticky-head">
+      <div className="page-header">
+        <Title order={2}>{t("sourcesPage.title")}</Title>
+        <FilterInput
+          value={sourceSearch}
+          onChange={updateSearch}
+          placeholder={t("sourcesPage.filterPlaceholder")}
         />
-      )}
-
-      {mappingSourceId && mappingSourceType && (
-        <TableMappingBuilder
-          sourceType={mappingSourceType}
-          onCancel={() => {
-            setMappingSourceId(null);
-            setMappingSourceType(null);
-          }}
-          onSave={(_mapping: TableMapping) => {
-            setMappingSourceId(null);
-            setMappingSourceType(null);
-            load();
-          }}
+        <RegionSelector
+          regions={regions}
+          connected={connected}
+          value={regionSel}
+          onChange={setRegionSel}
+          hidden={regionHidden}
+          error={regionError}
         />
+        <div className="page-actions">
+          {/* Not shown while its form is open: the panel has its own close. */}
+          {!editingSourceId && !showForm && (
+            <Button
+              data-tour="sources-add"
+              data-testid="sources-add-toggle"
+              onClick={() => setShowForm(true)}
+            >
+              {t("sourcesPage.addSource")}
+            </Button>
+          )}
+          <HelpBubble
+            title={t("sourcesPage.purposeTitle")}
+            paragraphs={[t("sourcesPage.purposeBody"), t("sourcesPage.purposeAdd")]}
+            ariaLabel={t("sourcesPage.purposeAria")}
+            testId="sources-purpose-help"
+          />
+        </div>
+      </div>
+
+      {error && (
+        <Alert color="red" mb="md" data-testid="sources-error">
+          {error}
+        </Alert>
       )}
+      {refreshError && (
+        <Alert color="red" mb="md" data-testid="sources-refresh-error">
+          {t("sourcesPage.schemaRefreshFailed", { message: refreshError })}
+        </Alert>
+      )}
+      <KeptTablesNotice kept={keptTables} onClose={() => setKeptTables([])} />
+
+      <SplitPane
+        testId="sources-split"
+        storageKey="provisa.sources.detailWidth"
+        title={panelTitle}
+        onClose={closePanel}
+        // Escape closes a source that is only being looked at; it never drops what is being typed.
+        closeOnEscape={panelIsReadOnly}
+        labels={{
+          panel: t("sourcesPage.detailPanel"),
+          resize: t("sourcesPage.resizeDetail"),
+          expand: t("sourcesPage.expandDetail"),
+          restore: t("sourcesPage.restoreDetail"),
+          close: t("sourcesPage.closeDetail"),
+          backToList: t("sourcesPage.backToList"),
+        }}
+        list={
+          <>
+            {/* REQ-1587: the page owns the vertical scroll, so the table's own scroller is the plain
+                horizontal one — a Table.ScrollContainer would become the scrollport the header sticks to
+                and, growing to its content, would never scroll vertically. */}
+            <ListTable minWidth={860} testId="sources-list">
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  { col: "id" },
+                  { col: "type" },
+                  { col: "host" },
+                  { col: "port" },
+                  { col: "database" },
+                  ...(hasRegions ? [{ col: "region" }] : []),
+                  { col: "naming" },
+                  { col: "cache" },
+                  t("sourcesPage.colEffectiveTtl"),
+                ]}
+              />
+              <Table.Tbody>
+                {(() => {
+                  if (regionSources.length === 0) {
+                    return (
+                      <ListEmpty colSpan={hasRegions ? 9 : 8}>{t("sourcesPage.empty")}</ListEmpty>
+                    );
+                  }
+                  return (
+                    <ListItems
+                      state={sortGroup}
+                      items={pageItems(sortGroup, page, PAGE_SIZE)}
+                      colSpan={hasRegions ? 9 : 8}
+                      rowKey={(s) => s.id}
+                      render={(s) => {
+                        const isExpanded = expanded === s.id;
+                        const isEditing = editingSourceId === s.id;
+                        return (
+                          <React.Fragment key={s.id}>
+                            <ListRow
+                              testId={`sources-row-${s.id}`}
+                              // The row whose detail the right-hand panel is showing.
+                              selected={isExpanded}
+                              onClick={() => {
+                                updateExpanded(isExpanded ? null : s.id);
+                                if (isEditing && isExpanded) {
+                                  setEditingSourceId(null);
+                                  handleCancelForm();
+                                }
+                              }}
+                            >
+                              <Table.Td>
+                                {/* As on Tables: the tag chips follow the identifier, the edit-tags control follows the chips. */}
+                                <Group gap="0.35rem">
+                                  {s.id}
+                                  <TagControl objectType="source" sourceId={s.id} />
+                                </Group>
+                              </Table.Td>
+                              <Table.Td>{sourceTypeLabel(s.type, s.federationHintsJson)}</Table.Td>
+                              <Table.Td>{s.host}</Table.Td>
+                              <Table.Td>{s.port || "—"}</Table.Td>
+                              <Table.Td>{s.database || "—"}</Table.Td>
+                              {hasRegions && (
+                                <Table.Td c="dimmed" fz="0.85rem">
+                                  {s.region ?? t("regionSelector.noRegion")}
+                                </Table.Td>
+                              )}
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {s.gqlNamingConvention || t("sourcesPage.naOrInherit")}
+                              </Table.Td>
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {s.cacheEnabled
+                                  ? t("sourcesPage.cacheOn")
+                                  : t("sourcesPage.cacheOff")}
+                              </Table.Td>
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {getEffectiveTtl(s)}
+                              </Table.Td>
+                            </ListRow>
+                          </React.Fragment>
+                        );
+                      }}
+                    />
+                  );
+                })()}
+              </Table.Tbody>
+            </ListTable>
+
+            {(() => {
+              const filtered = filteredSources;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              if (totalPages === 1 || sortGroup.groupBy.length > 0) return null;
+              return (
+                <Group justify="flex-end" gap="xs" align="center" py="xs">
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.firstPage")}
+                    onClick={() => setPage(0)}
+                    disabled={page === 0}
+                  >
+                    «
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.previousPage")}
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 0}
+                  >
+                    ‹
+                  </ActionIcon>
+                  <Text fz="sm">{t("sourcesPage.pageStatus", { page: page + 1, totalPages })}</Text>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.nextPage")}
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    ›
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.lastPage")}
+                    onClick={() => setPage(totalPages - 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    »
+                  </ActionIcon>
+                </Group>
+              );
+            })()}
+          </>
+        }
+      >
+        {panelBody}
+      </SplitPane>
       {refusal.dialog}
     </div>
   );

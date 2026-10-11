@@ -427,6 +427,12 @@ Renvoie le fichier `.proto` auto-généré pour un rôle. [tool-verified: `provi
 
 Chaque table enregistrée produit un `message` proto. Les relations produisent des champs de message imbriqués. Mappage de types : `integer → int32`, `bigint → int64`, `varchar → string`, `decimal → double`, `boolean → bool`, `timestamp → google.protobuf.Timestamp`. (REQ-538)
 
+Le service ne liste des RPC que pour les tables à la racine du schéma du rôle, les mêmes que celles de son type `Query` GraphQL ; une table liée a son message et s'atteint par sa relation. [tool-verified: `provisa/grpc/proto_gen.py`]
+
+Ajoutez `?domains=a,b` pour restreindre le fichier à ces domaines. Le service liste alors des RPC pour les tables propres aux domaines choisis ; les tables qui leur sont liées apparaissent comme messages. [tool-verified: `provisa/api/data/endpoint_dev.py`]
+
+Le fichier suit le modèle. Il est régénéré avec le schéma du rôle chaque fois que le modèle ou le rôle change, y compris pour un méta-rôle.
+
 ---
 
 ### `GET /data/subscribe/{table}`
@@ -1182,17 +1188,21 @@ service ProvisaService {
 }
 ```
 
-Chaque table produit un RPC de flux `Query{TypeName}`. Les RPC `Insert{TypeName}` existent pour la symétrie de schéma mais abandonnent avec `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+Chaque table à la racine du schéma du rôle produit une RPC en streaming `Query{TypeName}`. Ce sont les tables que liste le type `Query` GraphQL du rôle. Une table que le rôle n'atteint que par une relation n'a pas de RPC propre, de même qu'elle n'a pas de champ racine dans GraphQL. Les RPC `Insert{TypeName}` existent par symétrie de schéma mais échouent avec `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
-`grpc_reflection.v1alpha` est activé pour la découverte de service sans proto précompilé. (REQ-529) [tool-verified: `provisa/grpc/reflection.py`]
+Une méthode qui ne fait pas partie du service du rôle de l'appelant répond `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
+
+`grpc_reflection.v1alpha` est activé pour la découverte de services sans proto précompilé. (REQ-529) La réflexion décrit à chaque appelant le service du rôle sous lequel il agit : le même `.proto` que ce rôle télécharge depuis `GET /data/proto/{role_id}`. Elle liste par leur nom le service Provisa et le service de réflexion, et décrit le fichier du service Provisa. [tool-verified: `provisa/grpc/server.py`]
+
+Un appel de réflexion est identifié comme tout autre appel gRPC. Avec l'authentification activée, le rôle provient des identifiants de l'appelant. Avec l'authentification désactivée, indiquez le rôle dans `x-provisa-role` ; sur un déploiement qui sert plus d'une organisation, indiquez aussi l'organisation dans `x-provisa-org`. Un appel sans ces métadonnées est refusé avec `UNAUTHENTICATED`. Avec l'authentification désactivée, la réflexion reste désactivée tant que `server.grpc_allow_unsecured_reflection` n'est pas défini. [tool-verified: `provisa/grpc/server.py`]
 
 ```bash
-grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext -H 'x-provisa-role: analyst' localhost:50051 list
 grpcurl -plaintext -H 'x-provisa-role: analyst' \
-  -d '{}' localhost:50051 ProvisaService/QueryOrders
+  -d '{}' localhost:50051 provisa.v1.ProvisaService/QueryOrders
 ```
 
-Le serveur gRPC ne démarre que lorsqu'un proto valide peut être compilé au démarrage. Si la construction du schéma échoue, le serveur gRPC ne démarre pas. (REQ-529)
+Le serveur gRPC démarre lorsque le modèle chargé au démarrage définit un service gRPC. (REQ-529) Chaque appel est ensuite servi à partir du modèle tel qu'il est : une table enregistrée ou modifiée pendant que le serveur tourne est servie et décrite dès l'appel suivant, sans redémarrage. [tool-verified: `provisa/api/app_startup.py`, `provisa/grpc/descriptor.py`]
 
 #### RPC d'agrégation et de regroupement (REQ-1359, REQ-1361, REQ-1405)
 

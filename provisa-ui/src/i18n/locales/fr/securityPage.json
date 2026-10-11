@@ -65,6 +65,15 @@
     "action": "Action",
     "actionPrefix": "action :",
     "loadActionsFailed": "Impossible de charger les actions : {{message}}",
-    "labelAction": "Action :"
+    "labelAction": "Action :",
+    "deleteRoleTitle": "Supprimer le rôle « {{id}} » ?",
+    "deleteRoleConsequence": "Le rôle est supprimé. Un rôle encore utilisé ne peut pas être supprimé.",
+    "deleteRuleTitle": "Supprimer cette règle RLS ?",
+    "deleteRuleConsequence": "Le rôle « {{role}} » n'est plus limité par cette règle.",
+    "roleDetailPanel": "Détails du rôle",
+    "ruleDetailPanel": "Détails de la règle RLS",
+    "panelNewRole": "Nouveau rôle",
+    "panelNewRule": "Nouvelle règle RLS",
+    "panelRule": "Règle RLS {{id}}"
   }
 }

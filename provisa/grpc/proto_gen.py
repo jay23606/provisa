@@ -505,7 +505,11 @@ def generate_proto(
         cmd = command_rpc_name(fn["name"])
         resp = "MutationResponse" if fn.get("kind") == "mutation" else "CommandResponse"
         lines.append(f"  rpc Call{cmd}({cmd}Request) returns ({resp});")
-    for t in sorted(tables, key=lambda t: t.type_name):
+    # The tables a role may CALL are the roots of its Query message above — the root rule of the
+    # GraphQL Query type. A table that is in the role's surface only to be traversed to (the
+    # meta domain, for a role that does not reach it: read through each type's ``_meta``, never
+    # from the root) has its message and no RPC, as it has no root field.
+    for t in root_tables:
         lines.append(
             f"  rpc Query{t.type_name}({t.type_name}Request) returns (stream {t.type_name});"
         )
@@ -526,7 +530,7 @@ def generate_proto(
                 f"  rpc Query{t.type_name}GroupBy({t.type_name}GroupByRequest) "
                 f"returns (stream {t.type_name}GroupByRow);"
             )
-    for t in sorted(tables, key=lambda t: t.type_name):
+    for t in root_tables:
         if "insert" not in t.write_ops:  # executor/write_capability.py
             continue
         lines.append(f"  rpc Insert{t.type_name}({t.type_name}Input) returns (MutationResponse);")

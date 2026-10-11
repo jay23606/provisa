@@ -10,14 +10,17 @@
 
 """What a Google Workspace source is set up with (REQ-1923).
 
-One source reads the resources its operator ticks -- mail, calendar, tasks -- of the accounts it
-names, and asks Google only for the scope of a ticked resource. It signs in one of two ways,
-both with a Google Cloud client the operator owns: as a person who approved the client (a
-refresh token, one account), or as a service account a Workspace domain has delegated to (the
-same key reads as each account named).
+One source reads the resources its operator ticks -- mail, calendar, tasks -- and asks Google
+only for the scope of a ticked resource. A source is one of two shapes:
 
-The settings name a list of accounts and every table leads with the account it was read from,
-so a source of many accounts is this one with a longer list. Today the list holds one.
+- one mailbox its owner connected: the address, and the reference that names the refresh
+  token the owner's approval of the organisation's Google client produced;
+- the organisation's mailboxes (``mailboxes``: everyone, the members of a group, or a list),
+  read with the organisation's own credential -- a service account its Workspace domain has
+  delegated to, entered once on the organisation's Google platform entry
+  (``provisa.core.mail_platforms``). Such a source holds no credential at all.
+
+Every table leads with the account it was read from, so many mailboxes are the same tables.
 
 A setting this module does not read is refused by name, as is a combination Google refuses.
 """
@@ -26,10 +29,11 @@ A setting this module does not read is refused by name, as is a combination Goog
 from __future__ import annotations
 
 import datetime as dt
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from provisa.core.auth_models import ApiAuthGoogleServiceAccount, ApiAuthOAuth2RefreshToken
+from provisa.core.auth_models import ApiAuthOAuth2RefreshToken
 
 if TYPE_CHECKING:
     from provisa.core.mail_platforms import Configured
@@ -58,19 +62,15 @@ RESOURCE_SCOPES: dict[str, tuple[str, ...]] = {
     TASKS: (f"{_SCOPE}tasks.readonly",),
 }
 
-#: Signing in as a person who approved the operator's client, or as a service account a
-#: Workspace domain has delegated to.
-GOOGLE_ACCOUNT, SERVICE_ACCOUNT = "google_account", "service_account"
+#: How a source of one mailbox signs in: as the person who approved the organisation's client.
+GOOGLE_ACCOUNT = "google_account"
 
 #: The settings that are credentials: kept in the org's vault, the source holding a reference.
-SECRET_KEYS: tuple[str, ...] = ("refresh_token", "service_account_key")
+#: A source of the organisation's mailboxes has none: the service account's key is the
+#: organisation's, on its platform entry.
 
-#: What each sign-in keeps in the source. A person's approval is of the ORGANISATION's client
-#: (``core.mail_platforms``), which the source does not hold: it keeps the approval alone.
-_SIGN_IN_KEYS: dict[str, tuple[str, ...]] = {
-    GOOGLE_ACCOUNT: ("refresh_token",),
-    SERVICE_ACCOUNT: ("service_account_key",),
-}
+EVERYONE, GROUP, LIST = "everyone", "group", "list"
+_ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 _MAIL_KEYS = (
     "mail_content",
     "mail_search",
@@ -83,8 +83,9 @@ _KEYS = frozenset(
         "accounts",
         "resources",
         "sign_in",
+        "refresh_token",
+        "mailboxes",
         *_MAIL_KEYS,
-        *(k for ks in _SIGN_IN_KEYS.values() for k in ks),
     )
 )
 
@@ -106,12 +107,33 @@ class MailSettings:
 
 
 @dataclass(frozen=True)
+class Mailboxes:
+    """Which mailboxes a source of the organisation's reads: every user of the domain, the
+    members of a group (named by its address or its id), or the addresses listed."""
+
+    kind: str  # EVERYONE | GROUP | LIST
+    group: str | None = None
+    addresses: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Settings:
-    accounts: tuple[str, ...]
+    """A source is one of two shapes: one mailbox its owner connected (``accounts`` and
+    ``refresh_token``), or the organisation's mailboxes read with the organisation's own
+    credential (``mailboxes``)."""
+
     resources: tuple[str, ...]
-    sign_in: str
-    credential: dict[str, str]  # the sign-in's own settings, secrets as references
     mail: MailSettings | None  # None when mail is not ticked
+    accounts: tuple[str, ...] = ()  # the one mailbox's address
+    #: Only on a source connected before approvals were kept in the organisation's state
+    #: store: the approval as the source then held it. Taken into the state store at the
+    #: source's next read (loader), and never written by a sign-in now.
+    refresh_token: str | None = None
+    mailboxes: Mailboxes | None = None
+
+    @property
+    def organisation(self) -> bool:
+        return self.mailboxes is not None
 
     def scopes(self) -> list[str]:
         """What Google is asked for: the scope of each ticked resource and of no other."""
@@ -125,26 +147,19 @@ class Settings:
         return scopes
 
     def auth(
-        self, account: str, client: "Configured | None" = None
-    ) -> ApiAuthOAuth2RefreshToken | ApiAuthGoogleServiceAccount:
-        """The credential ``account`` is read with. ``client`` is the organisation's Google
-        client, which a person's approval was given to and is renewed with."""
-        if account not in self.accounts:
-            raise InvalidGoogleWorkspaceSource(f"{account} is not an account of this source")
-        if self.sign_in == GOOGLE_ACCOUNT:
-            if client is None:
-                raise InvalidGoogleWorkspaceSource(
-                    "A source signed in by its owner's approval is read with the "
-                    "organisation's Google client, and none was given"
-                )
-            return ApiAuthOAuth2RefreshToken(
-                client_id=client.client_id,
-                client_secret=client.client_secret,
-                refresh_token=self.credential["refresh_token"],
-                token_url=TOKEN_URL,
-            )
-        return ApiAuthGoogleServiceAccount(
-            key=self.credential["service_account_key"], subject=account, scopes=self.scopes()
+        self, account: str, client: "Configured", refresh_token: str
+    ) -> ApiAuthOAuth2RefreshToken:
+        """The credential the one mailbox is read with: ``refresh_token``, its owner's approval
+        of ``client`` -- the organisation's Google client, which the approval was given to and
+        is renewed with. The approval is kept for the source in the organisation's state store
+        and is the caller's to read; the source's settings do not hold it."""
+        if self.organisation or account not in self.accounts:
+            raise InvalidGoogleWorkspaceSource(f"{account} is not the mailbox of this source")
+        return ApiAuthOAuth2RefreshToken(
+            client_id=client.client,
+            client_secret=client.client_secret,
+            refresh_token=refresh_token,
+            token_url=TOKEN_URL,
         )
 
 
@@ -199,28 +214,49 @@ def _resources(mapping: dict) -> tuple[str, ...]:
     return tuple(r for r in RESOURCES if r in ticked)
 
 
-def _credential(mapping: dict) -> tuple[str, dict[str, str]]:
+def _connected(mapping: dict) -> str | None:
+    """How a source of one mailbox is connected, checked; and the approval a source connected
+    before approvals were kept in the state store still names here, or None. A source with no
+    approval at all is refused where it is read (not connected), not here."""
     sign_in = _text(mapping, "sign_in")
-    if sign_in not in _SIGN_IN_KEYS:
+    if sign_in != GOOGLE_ACCOUNT:
         raise InvalidGoogleWorkspaceSource(
-            f"sign_in must be one of {', '.join(_SIGN_IN_KEYS)}, not {sign_in!r}"
+            f"sign_in must be {GOOGLE_ACCOUNT}, not {sign_in!r}: a source of one mailbox is "
+            "connected by its owner; the organisation's mailboxes are read by a source that "
+            "states mailboxes"
         )
-    credential: dict[str, str] = {}
-    for key in _SIGN_IN_KEYS[sign_in]:
-        value = _text(mapping, key)
-        if value is None:
-            raise InvalidGoogleWorkspaceSource(f"{sign_in} sign-in needs {key}")
-        credential[key] = value
-    other = [
-        key
-        for kind, keys in _SIGN_IN_KEYS.items()
-        if kind != sign_in
-        for key in keys
-        if mapping.get(key)
-    ]
-    if other:
-        raise InvalidGoogleWorkspaceSource(f"{sign_in} sign-in does not take {', '.join(other)}")
-    return sign_in, credential
+    return _text(mapping, "refresh_token")
+
+
+def _mailboxes(stated: object) -> Mailboxes:
+    """Which of the organisation's mailboxes: exactly one of everyone, a group, a list."""
+    if not isinstance(stated, dict) or len(stated) != 1:
+        raise InvalidGoogleWorkspaceSource(
+            "mailboxes must say one of: everyone, a group, or a list of addresses"
+        )
+    ((kind, value),) = stated.items()
+    if kind == EVERYONE:
+        if value is not True:
+            raise InvalidGoogleWorkspaceSource("mailboxes.everyone is stated as true or left out")
+        return Mailboxes(EVERYONE)
+    if kind == GROUP:
+        if not isinstance(value, str) or not value.strip() or any(c in value for c in "'/\\ "):
+            raise InvalidGoogleWorkspaceSource(
+                "mailboxes.group names one group, by its address or its ID"
+            )
+        return Mailboxes(GROUP, group=value.strip())
+    if kind == LIST:
+        if not isinstance(value, list) or not value:
+            raise InvalidGoogleWorkspaceSource("mailboxes.list names at least one address")
+        addresses = []
+        for address in value:
+            if not isinstance(address, str) or not _ADDRESS.fullmatch(address.strip()):
+                raise InvalidGoogleWorkspaceSource(f"{address!r} is not a mailbox address")
+            addresses.append(address.strip().lower())
+        return Mailboxes(LIST, addresses=tuple(dict.fromkeys(addresses)))
+    raise InvalidGoogleWorkspaceSource(
+        f"mailboxes.{kind} is not a way to choose mailboxes: everyone, group or list"
+    )
 
 
 def _mail(mapping: dict) -> MailSettings:
@@ -260,8 +296,16 @@ def parse(mapping: dict) -> Settings:
             f"{', '.join(unread)} is not a setting of a Google Workspace source"
         )
     resources = _resources(mapping)
-    sign_in, credential = _credential(mapping)
-    accounts = _accounts(mapping)
+    if "mailboxes" in mapping:
+        own = sorted({"accounts", "sign_in", "refresh_token"} & set(mapping))
+        if own:
+            raise InvalidGoogleWorkspaceSource(
+                f"a source of the organisation's mailboxes states no {' or '.join(own)}: "
+                "nobody connects it"
+            )
+        mailboxes, accounts, token = _mailboxes(mapping["mailboxes"]), (), None
+    else:
+        mailboxes, token, accounts = None, _connected(mapping), _accounts(mapping)
     if MAIL in resources:
         mail = _mail(mapping)
     else:
@@ -271,4 +315,4 @@ def parse(mapping: dict) -> Settings:
                 f"{', '.join(stated)} is a setting of mail, which this source does not read"
             )
         mail = None
-    return Settings(accounts, resources, sign_in, credential, mail)
+    return Settings(resources, mail, accounts, token, mailboxes)

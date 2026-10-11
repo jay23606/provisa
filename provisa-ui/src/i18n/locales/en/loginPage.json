@@ -34,6 +34,11 @@
     "operatorSignInTitle": "Operator sign-in",
     "backToSignIn": "Back to sign-in",
     "signInWithSso": "Sign in with single sign-on",
-    "samlSignInFailed": "Single sign-on did not complete. Try again, or ask your administrator."
+    "samlSignInFailed": "Single sign-on did not complete. Try again, or ask your administrator.",
+    "sandboxBuildingTitle": "Building your sandbox…",
+    "sandboxBuildingBody": "Setting up a private copy of the sample data just for you — this can take a couple of minutes.",
+    "sandboxTryTitle": "Try Provisa Free",
+    "sandboxTryBody": "Explore the full platform with sample data — no credit card required. Your sandbox is temporary: it disappears when you log out.",
+    "sandboxHeading": "Try Provisa"
   }
 }

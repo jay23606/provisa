@@ -38,10 +38,10 @@
     "materializeCheckbox": "Materialiseren",
     "excludeFromCypher": "Uitsluiten van Cypher",
     "cardinalityWarning": "Waarschuwing: als deze join meer dan één rij per bovenliggende rij retourneert, wordt alleen de eerste waarde gebruikt.",
-    "cancel": "Annuleren",
-    "save": "Opslaan",
     "toggleDetails": "Relatiedetails in-/uitklappen",
     "junctionBadge": "via",
-    "junctionBadgeTitle": "Relatie via koppeltabel {{table}}"
+    "junctionBadgeTitle": "Relatie via koppeltabel {{table}}",
+    "deleteTitle": "Relatie \"{{id}}\" verwijderen?",
+    "deleteConsequence": "De relatie wordt uit het model verwijderd. Query's kunnen er niet meer via joinen."
   }
 }

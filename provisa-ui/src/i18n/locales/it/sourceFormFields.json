@@ -1,5 +1,7 @@
 {
   "sourceFormFields": {
+    "mailSince": "Niente di più vecchio di",
+    "mailSinceHelp": "Lascia vuoto per leggere posta di qualsiasi data.",
     "description": "Descrizione",
     "descriptionPlaceholder": "Breve descrizione di questa origine dati",
     "host": "Host",

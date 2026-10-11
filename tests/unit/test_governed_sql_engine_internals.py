@@ -31,6 +31,7 @@ from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.federation.replica_address import ReplicaRoutes
 from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import CompilationContext, TableMeta
+from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
@@ -60,7 +61,7 @@ def _state(domain_access: list[str]) -> SimpleNamespace:
     ctx = CompilationContext()
     # Keyed by field name too: a domain_prefix schema exposes the table as ``sa__orders``.
     ctx.tables = {"orders": _ORDERS, "sa__orders": _ORDERS}
-    return SimpleNamespace(
+    return RoleState(
         admin_db=None,  # as AppState without a control plane: no debug-trace settings
         contexts={"analyst": ctx},
         rls_contexts={"analyst": RLSContext.empty()},

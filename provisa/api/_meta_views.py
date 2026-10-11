@@ -81,7 +81,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
                'table:' || CAST(rt.id AS TEXT) AS object_key,
                CAST(rt.tenant_id AS TEXT) AS tenant_id
         FROM registered_tables rt
-        WHERE rt.modeling_role IN ('fact', 'dimension') AND NOT rt.draft  -- REQ-1921
+        WHERE rt.modeling_role IN ('fact', 'dimension') AND NOT rt.draft
         UNION ALL
         SELECT 'data_quality', 'table', rt.source_id, rt.id, rt.table_name, rt.domain_id,
                'table:' || CAST(rt.id AS TEXT), CAST(rt.tenant_id AS TEXT)
@@ -93,7 +93,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
         CREATE OR REPLACE VIEW tag_assignments_meta AS
         SELECT id, tag_id, base_tag_id, object_type, source_id, table_id, column_name,
                relationship_id, command_name, object_key, reason, expires_on,
-               -- REQ-1585: the column identity the tag graph joins on, shared with
+               -- the column identity the tag graph joins on, shared with
                -- table_columns and glossary_term_refs. NULL for a non-column assignment,
                -- which is what makes the join select only the column-level tags.
                CAST(table_id AS TEXT) || ':' || column_name AS column_key,
@@ -109,7 +109,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
                relationship_id, command_name, object_key, reason, expires_on,
                CASE WHEN expires_on < CAST(CURRENT_DATE AS TEXT)
                     THEN 'expired' ELSE 'expiring' END AS status,
-               CAST(table_id AS TEXT) || ':' || column_name AS column_key,  -- REQ-1585
+               CAST(table_id AS TEXT) || ':' || column_name AS column_key,
                tenant_id
         FROM tag_assignments
         WHERE expires_on IS NOT NULL
@@ -201,12 +201,12 @@ _META_TABLE_VIEWS: dict[str, str] = {
                l1_cluster, l2_cluster, l3_cluster, clusters_computed_at,
                tenant_id
         FROM registered_tables
-        WHERE NOT draft  -- REQ-1921: a draft table is in no catalog
+        WHERE NOT draft  -- a draft table is in no catalog
     """,
     "table_columns": """
         CREATE OR REPLACE VIEW table_columns_meta AS
         SELECT id, table_id, domain_id, column_name,
-               -- REQ-1584: the stable column identity the glossary binds to, and the join key of
+               -- the stable column identity the glossary binds to, and the join key of
                -- the registered glossary_term_refs -> table_columns edge (relationships is
                -- single-column, and table_columns.id is replaced wholesale by the table upsert).
                CAST(table_id AS TEXT) || ':' || column_name AS column_key,
@@ -220,7 +220,7 @@ _META_TABLE_VIEWS: dict[str, str] = {
                writable_by,
                tenant_id
         FROM table_columns
-        -- REQ-1921: nor are a draft table's columns.
+        -- nor are a draft table's columns.
         WHERE table_id IN (SELECT id FROM registered_tables WHERE NOT draft)
     """,
     "roles": """

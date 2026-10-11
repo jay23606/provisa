@@ -35,6 +35,7 @@ from provisa.storage.quota import (
     storage_report,
 )
 from tests.helpers import RegisteredNames
+from tests.role_state import RoleState
 
 _GB = 1024**3
 _PLATFORM_STORE = "postgresql://platform/store"
@@ -53,7 +54,7 @@ def _registry(**storage_urls: str | None) -> OrgRegistry:
 @pytest.fixture
 def app_state(monkeypatch):
     """A stand-in for the module-level app state the storage seam reads through."""
-    state = SimpleNamespace(
+    state = RoleState(
         admin_db=object(),
         org_registry=_registry(acme=None),
         federation_engine=SimpleNamespace(materialize_store_dsn=lambda: _PLATFORM_STORE),

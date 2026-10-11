@@ -225,6 +225,27 @@ describe("Views definition-mode toggle (REQ-1318)", () => {
     expect(screen.queryByTestId("view-definition-metrics-panel")).not.toBeInTheDocument();
   });
 
+  it("creating asks only for a name, a domain and the definition, and says what it made", async () => {
+    // What a view needs in order to exist. Its description is set in the edit it opens in.
+    const user = userEvent.setup();
+    const { onSuccess } = renderForm(null);
+    await user.click(screen.getByRole("radio", { name: "Metrics" }));
+    expect(screen.getByTestId("view-definition-name")).toBeInTheDocument();
+    expect(screen.getByTestId("view-definition-domain")).toBeInTheDocument();
+    expect(screen.queryByTestId("view-definition-description")).toBeNull();
+
+    await user.type(screen.getByTestId("view-definition-name"), "rev_by_region");
+    await selectOption(screen.getByTestId("view-definition-domain"), "sales");
+    await selectOption(
+      screen.getByPlaceholderText("Pick one or more registered metrics"),
+      "revenue",
+    );
+    await user.click(screen.getByTestId("view-definition-save"));
+    // The page is told which view was made, so it can select it and open it in edit.
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith("rev_by_region"));
+    expect(registerTable.mock.calls[0][0]).not.toHaveProperty("description");
+  });
+
   it("switching to Metrics mode shows the metric/dimension picker", async () => {
     const user = userEvent.setup();
     renderForm(null);

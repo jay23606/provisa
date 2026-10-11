@@ -21,18 +21,24 @@
     "redirectUnknown": "Het omleidingsadres kan niet worden getoond omdat het openbare adres van deze installatie niet is ingesteld.",
     "clientId": "Client-ID",
     "clientSecret": "Clientgeheim",
-    "clientSecretKeep": "Laat leeg om het al ingevulde geheim te behouden.",
     "setting": {
-      "tenant": "Map-id (tenant)"
+      "tenant": "Map-id (tenant)",
+      "admin_address": "Adres van de beheerder"
     },
     "settingHelp": {
-      "tenant": "De map waarin de Microsoft 365-accounts van uw organisatie staan: de id of het domein ervan, zoals Microsoft Entra die toont op de pagina Overzicht van de app-registratie."
+      "tenant": "De map waarin de Microsoft 365-accounts van uw organisatie staan: de id of het domein ervan, zoals Microsoft Entra die toont op de pagina Overzicht van de app-registratie.",
+      "admin_address": "Een superbeheerder van uw Google Workspace-domein. De directory wordt als deze gebruiker opgevraagd; zijn e-mail wordt alleen gelezen als een bron hem noemt."
     },
-    "organisationMailboxes": "Bronnen toestaan die de postvakken van de organisatie lezen",
+    "organisationMailboxes": "De postvakken van de organisatie lezen",
+    "ownMailbox": "Mensen hun eigen postvak laten verbinden",
     "organisationMailboxesHelp": "Uit: een bron leest alleen het ene postvak dat iemand koppelt. Aan: een bron mag met de inloggegevens van de beheerder veel postvakken van de organisatie lezen, en wie de tabellen mag lezen, leest elk postvak, tenzij een rijregel dat beperkt.",
     "organisationGrant": {
-      "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming."
+      "microsoft_365": "Geef de app-registratie voor bronnen die de postvakken van de organisatie lezen de toepassingsmachtigingen Mail.Read en User.Read.All en verleen beheerderstoestemming.",
+      "google_workspace": "Een superbeheerder autoriseert de client-ID van het serviceaccount voor de onderstaande bereiken in de Google Beheerdersconsole, onder Beveiliging › Toegangs- en gegevenscontrole › API-beheer › Domeinbrede delegatie beheren. Voeg gmail.metadata toe voor bronnen die alleen kopteksten en labels lezen. Google kan dit niet tot enkele postvakken beperken: het geldt voor elke gebruiker van het domein."
     },
+    "organisationKey": "Sleutel van het serviceaccount",
+    "organisationKeyHelp": "De JSON van de sleutel die Google Cloud voor het serviceaccount heeft gemaakt, of een verwijzing naar een geheim dat die bevat.",
+    "organisationScopes": "Te autoriseren bereiken",
     "save": "Opslaan",
     "remove": "Verwijderen",
     "saved": "Opgeslagen.",

@@ -12,16 +12,19 @@
 // stands: requested, running (rows copied, rate, how it copies), built, failed (why) or being
 // removed. A failure to bring replicas in line with the model at all is shown beside it.
 
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { Text } from "@mantine/core";
-import { useReplicaBuilds } from "../../hooks/useAdminOpsQueries";
 import { serverMessage } from "../../i18n/serverMessage";
 import {
   replicaBuildLine,
   replicaDeltaLine,
   replicaFeedLine,
   replicaNoteLines,
+  buildOf,
 } from "./replicaBuild";
+import { ReplicatingMark } from "./ReplicatingMark";
+import { ReplicaBuildsContext } from "./replicaBuildsContext";
 
 export function ReplicaBuildLine({
   sourceId,
@@ -33,11 +36,10 @@ export function ReplicaBuildLine({
   tableName: string;
 }) {
   const { t, i18n } = useTranslation();
-  const { replicaBuilds } = useReplicaBuilds();
+  // What the table list last read: the list's one request serves this line too.
+  const replicaBuilds = useContext(ReplicaBuildsContext);
   if (replicaBuilds === null) return null;
-  const build = replicaBuilds.builds.find(
-    (b) => b.sourceId === sourceId && b.schemaName === schemaName && b.tableName === tableName,
-  );
+  const build = buildOf(replicaBuilds.builds, { sourceId, schemaName, tableName });
   const numbers = new Intl.NumberFormat(i18n.language);
   const formatWhen = (iso: string) => new Date(iso).toLocaleString(i18n.language);
   const line = replicaBuildLine(build, t, (n) => numbers.format(n), formatWhen, serverMessage);
@@ -46,6 +48,7 @@ export function ReplicaBuildLine({
   const noteLines = replicaNoteLines(build, t);
   return (
     <>
+      <ReplicatingMark build={build} size="detail" />
       <Text
         size="xs"
         c={build?.state === "failed" ? "red" : "dimmed"}

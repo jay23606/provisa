@@ -14,7 +14,7 @@
 // who is shown them edits and saves them as before.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { fireEvent, render, screen } from "../../../test-utils/render";
 import "../../../i18n";
 import en from "../../../i18n/locales/en/tableEditForm.json";
 
@@ -147,7 +147,6 @@ const EMAIL = {
   isImplicitDimension: false,
 } satisfies TableColumn;
 
-
 const H = en.tableEditForm;
 const GOVERNANCE_HEADERS = [H.visibleToHeader, H.writableByHeader, H.maskingHeader];
 const GOVERNANCE_KEYS = [
@@ -180,6 +179,8 @@ const WITHHELD = {
 describe("the table editor for a caller who is shown governance", () => {
   it("has the grant-list and mask columns", () => {
     renderForm(makeTable({ columns: [SHOWN] }), [SOURCE]);
+    // Grants and masks are the Access tab of the column editor.
+    fireEvent.click(screen.getByTestId("column-tab-access"));
     for (const header of GOVERNANCE_HEADERS) {
       expect(screen.getByRole("columnheader", { name: header })).toBeInTheDocument();
     }
@@ -205,9 +206,11 @@ describe("the table editor for a caller who is not shown governance", () => {
     for (const header of GOVERNANCE_HEADERS) {
       expect(screen.queryByRole("columnheader", { name: header })).not.toBeInTheDocument();
     }
-    // The rest of the column editor is there.
-    expect(screen.getByRole("columnheader", { name: H.scopeHeader })).toBeInTheDocument();
+    // The Access tab is not offered at all; the rest of the column editor is there.
+    expect(screen.queryByTestId("column-tab-access")).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: H.descriptionHeader })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("column-tab-type"));
+    expect(screen.getByRole("columnheader", { name: H.scopeHeader })).toBeInTheDocument();
   });
 
   it("saves a column without naming a grant list or mask", () => {

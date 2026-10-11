@@ -14,6 +14,8 @@
     "firstPage": "最初のページ",
     "previousPage": "前のページ",
     "nextPage": "次のページ",
-    "lastPage": "最後のページ"
+    "lastPage": "最後のページ",
+    "deleteRoleTitle": "ロール「{{roleId}}」を削除しますか？",
+    "deleteRoleConsequence": "ロールはこの組織から削除されます。"
   }
 }

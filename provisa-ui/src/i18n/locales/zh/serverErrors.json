@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "引擎的目录 '{{catalog}}' 正在注册。请稍后重试。",
       "domain_not_accessible": "角色 '{{role_id}}' 无法访问域 '{{domain}}'",
       "role_mismatch": "请求指定了角色 '{{body_role}}'，但以角色 '{{acting_role}}' 运行。角色由 X-Provisa-Role 标头（或已登录的身份）携带；请移除另一个角色或使其一致。",
-      "sql_parameters_do_not_fit": "参数值与语句不匹配：{{reason}}"
+      "sql_parameters_do_not_fit": "参数值与语句不匹配：{{reason}}",
+      "unknown_root_field": "未知的查询字段“{{field}}”：此角色没有名为该名称的表",
+      "viewer_column_unknown": "“{{column}}”不是表“{{table}}”的列",
+      "viewer_filter_unknown": "“{{operator}}”不是列“{{column}}”的筛选器",
+      "viewer_value_invalid": "对“{{column}}”的筛选不能使用值“{{value}}”",
+      "replica_building": "{{replica}} 的副本仍在构建中。构建会继续；完成后请再次打开预览。"
     },
     "discovery": {
       "adapter_missing_discover_schema": "'{{source_type}}' 的适配器未实现 discover_schema",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}：未提供参数 '{{argument}}'",
       "argument_not_declared": "{{signature}}：参数 '{{argument}}' 未声明",
       "binding_missing_key": "类型为 '{{kind}}' 的函数绑定缺少必需的键 '{{key}}'",
-      "egress_denied": "拒绝出站访问 '{{endpoint}}'：主机不在 UDF 出站允许列表中（REQ-885 默认拒绝）。将其添加到 udf_egress_allowlist 以允许。",
+      "egress_denied": "拒绝出站访问 '{{endpoint}}'：主机不在 UDF 出站允许列表中（默认拒绝）。将其添加到 udf_egress_allowlist 以允许。",
       "grpc_call_failed": "grpc 调用 {{target}}{{path}} 失败：{{status}}：{{details}}",
       "grpc_method_invalid": "grpc 方法 '{{method}}' 必须为 'Service/Method' 或 'pkg.Service.Method'",
       "json_argument_invalid": "'{{name}}' 的参数 '{{argument}}' 不是 JSON 字面量",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "python 可调用对象 '{{spec}}' 必须为 'module:attr'",
       "remote_refused": "{{source_id}} 拒绝了 {{operation}}：{{answer}}",
       "result_set_ref_invalid": "result_set 引用 '{{ref}}' 必须为 source.schema.table",
-      "rowwise_external": "函数 '{{name}}'（kind={{impl_kind}}）是逐行外部调用：所有参数均为标量 column_value。请声明一个 table_ref/result_set 关系参数，使调用按集合批量执行（REQ-885）。",
+      "rowwise_external": "函数 '{{name}}'（kind={{impl_kind}}）是逐行外部调用：所有参数均为标量 column_value。请声明一个 table_ref/result_set 关系参数，使调用按集合批量执行。",
       "script_failed": "脚本以 {{returncode}} 退出：{{stderr}}",
       "source_not_connected": "数据源 '{{source_id}}' 未连接",
       "unknown_arg_kind": "'{{name}}' 的 arg_kind '{{arg_kind}}' 未知",
@@ -214,7 +219,7 @@
       "org_id_reserved": "组织 ID '{{org}}' 已被保留。保留的 ID：{{reserved}}。",
       "platform_admin_required": "需要 platform_admin 权限",
       "retry_not_failed": "组织 '{{org}}' 的状态为 '{{state}}'，不是 'failed'——无需重试。",
-      "self_role_change": "用户不能更改自己的角色。请联系另一位管理员（REQ-1308）。",
+      "self_role_change": "用户不能更改自己的角色。请联系另一位管理员。",
       "view_not_permitted": "无权查看此组织"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "无效的日历：{{error}}",
       "invalid_cardinality": "无效的基数：'{{cardinality}}'",
       "invalid_off_peak_window": "无效的非高峰时段：{{error}}",
-      "load_protection_gate_required": "{{who}}：负载保护至少需要一个刷新门控——设置非高峰时段、cache_ttl 节奏或探测型 change_signal（probe/ttl_probe）（REQ-1141）",
+      "load_protection_gate_required": "{{who}}：负载保护至少需要一个刷新门控——设置非高峰时段、cache_ttl 节奏或探测型 change_signal（probe/ttl_probe）",
       "metric_deleted": "指标 '{{metric}}' 已删除",
       "metric_not_found": "未找到指标 '{{metric}}'",
       "metric_saved": "指标 '{{metric}}' 已保存",
@@ -297,6 +302,10 @@
       "relationship_not_found": "未找到关系 '{{relationship}}'",
       "relationship_saved": "关系 '{{relationship}}' 已保存",
       "remigrated": "已重新迁移 {{source}}.{{table}}",
+      "change_signal_not_honoured": "类型为 {{type}} 的数据源尚不能检查是否有变更，因此变更信号 {{signal}} 永远不会被询问。请为数据源“{{source}}”使用 ttl。",
+      "sentinel_path_not_applicable": "类型为 {{type}} 的数据源不能有哨兵路径：没有您自己的生产方可以标记其数据的变更，或者该数据源不被探测。请从数据源“{{source}}”中移除哨兵路径。",
+      "source_cache_ttl_required": "数据源“{{source}}”需要缓存 TTL：它的每个表都是副本，在 {{signal}} 变更信号下按该时钟刷新。请在数据源的“负载管理与时效性”中设置。",
+      "landing_ttl_required": "表“{{table}}”是按缓存 TTL 刷新的副本，但它和它的数据源“{{source}}”都没有设置。请在数据源的“负载管理与时效性”中设置缓存 TTL，或在表注册后在表本身上设置。",
       "replicate_contradicts_load_protected": "负载保护不能与复制 =“从不”同时使用：受负载保护的表从不被实时读取",
       "replicate_invalid": "复制必须是“默认”“从不”“始终”或大于 0 的阈值；收到 {{value}}",
       "request_executed": "已执行创建请求 #{{id}}",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} 是此部署的最后一位平台管理员。请先将该角色授予其他用户。",
       "no_active_org": "此请求未绑定任何组织。请先登录某个组织。",
       "no_fields_to_update": "没有要更新的字段",
-      "self_role_change": "用户不能更改自己的角色。请联系另一位管理员（REQ-1308）。",
+      "self_role_change": "用户不能更改自己的角色。请联系另一位管理员。",
       "user_not_found": "未找到用户"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "不存在名为 {{platform}} 的邮件平台。",
       "not_configured": "您的组织尚未连接此邮件平台({{platform}})。管理员在“管理 › 电子邮件”下填写一次其客户端即可。",
       "unknown_setting": "{{setting}} 不是此邮件平台的设置。",
-      "incomplete": "保存前还需要:{{missing}}。"
+      "incomplete": "保存前还需要:{{missing}}。",
+      "credential_unresolved": "无法解析为此邮件平台（{{platform}}）输入的 {{field}}：{{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "无法解析邮箱选择：{{error}}",
       "client_refused": "Microsoft 拒绝了您组织的 Microsoft 365 客户端：{{reason}}",
       "throttled": "Microsoft 目前正在限制请求。请在 {{retry_after}} 秒后重试。",
-      "directory_refused": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端需要读取目录用户的权限。"
+      "directory_refused": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端需要读取目录用户的权限。",
+      "directory_no_permissions": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端的令牌不含任何应用程序权限；此操作需要 {{missing}}。请将其添加为应用程序权限（而非委托权限）并授予管理员同意。",
+      "directory_permission_missing": "Microsoft 未列出组织的邮箱（{{status}} {{reason}}）。客户端的令牌含有 {{carries}}；缺少：{{missing}}。请将其添加为应用程序权限（而非委托权限）并授予管理员同意。",
+      "directory_refused_granted": "尽管客户端的令牌含有列出所需的权限（{{carries}}），Microsoft 仍未列出组织的邮箱（{{status}} {{reason}}）。"
     },
     "dbt_sources": {
       "unknown_role": "不存在名为 {{role}} 的角色。"
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "这不是选择邮箱的方式:{{error}}",
+      "scope_not_delegated": "组织的 Google 服务账号未获得 {{scopes}} 的授权。超级用户在 Google 管理控制台的“安全性 › 访问权限和数据控件 › API 控件 › 管理全网域授权”下,为其客户端 ID 添加该范围;新的授权最长可能需要 24 小时才能生效。",
+      "admin_not_a_user": "{{address}} 不是组织的 Google Workspace 网域中的用户,因此无法以其身份列出目录。管理员在“管理 › 电子邮件”下更正管理员地址。",
+      "directory_refused": "无法读取 Google 的目录:{{reason}}(HTTP {{status}})。",
+      "credential_refused": "Google 拒绝了组织的服务账号:{{reason}}"
     }
   }
 }

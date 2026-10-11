@@ -10,7 +10,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Tooltip, TextInput } from "@mantine/core";
+import { TextInput } from "@mantine/core";
 import { labelColor } from "./graph-model";
 import { DatabaseIcon, HistoryIcon, StarIcon, ExportIcon } from "./GraphIcons";
 import type { RelLineOverride } from "./graph-model";
@@ -22,6 +22,7 @@ import {
   type ContextMenuState,
   type RelContextMenuState,
 } from "./graph-context-menus";
+import { Tip } from "../Tip";
 
 interface SidebarProps {
   schemaNodeLabels: SchemaNodeLabel[];
@@ -251,77 +252,65 @@ export function Sidebar({
   return (
     <aside className="graph-sidebar" style={{ width }}>
       <div className="graph-sidebar-tabs" role="tablist">
-        <Tooltip
-          label={t("graphSidebar.tabDatabase")}
-          withinPortal
-          transitionProps={{ duration: 0 }}
-        >
-          <button
-            type="button"
-            className={`graph-sidebar-tab ${section === "db" ? "active" : ""}`}
-            onClick={() => setSection("db")}
-            aria-label={t("graphSidebar.tabDatabase")}
-            title={t("graphSidebar.tabDatabase")}
-            aria-selected={section === "db"}
-            role="tab"
-            data-testid="graph-sidebar-tab-db"
-          >
-            <DatabaseIcon size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip
-          label={t("graphSidebar.tabHistory")}
-          withinPortal
-          transitionProps={{ duration: 0 }}
-        >
-          <button
-            type="button"
-            className={`graph-sidebar-tab ${section === "history" ? "active" : ""}`}
-            onClick={() => setSection("history")}
-            aria-label={t("graphSidebar.tabHistory")}
-            title={t("graphSidebar.tabHistory")}
-            aria-selected={section === "history"}
-            role="tab"
-            data-testid="graph-sidebar-tab-history"
-          >
-            <HistoryIcon size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip
-          label={t("graphSidebar.tabFavorites")}
-          withinPortal
-          transitionProps={{ duration: 0 }}
-        >
-          <button
-            type="button"
-            className={`graph-sidebar-tab ${section === "favorites" ? "active" : ""}`}
-            onClick={() => setSection("favorites")}
-            aria-label={t("graphSidebar.tabFavorites")}
-            title={t("graphSidebar.tabFavorites")}
-            aria-selected={section === "favorites"}
-            role="tab"
-            data-testid="graph-sidebar-tab-favorites"
-          >
-            <StarIcon size={15} />
-          </button>
-        </Tooltip>
-        {onNeo4jExport && (
-          <Tooltip
-            label={t("graphSidebar.tabExport")}
-            withinPortal
-            transitionProps={{ duration: 0 }}
-          >
+        <Tip text={t("graphSidebar.tabDatabase")}>
+          <Tip text={t("graphSidebar.tabDatabase")} named>
             <button
               type="button"
-              className="graph-sidebar-tab"
-              onClick={onNeo4jExport}
-              aria-label={t("graphSidebar.tabExport")}
-              title={t("graphSidebar.tabExport")}
-              data-testid="graph-sidebar-tab-export"
+              className={`graph-sidebar-tab ${section === "db" ? "active" : ""}`}
+              onClick={() => setSection("db")}
+              aria-label={t("graphSidebar.tabDatabase")}
+              aria-selected={section === "db"}
+              role="tab"
+              data-testid="graph-sidebar-tab-db"
             >
-              <ExportIcon size={15} />
+              <DatabaseIcon size={15} />
             </button>
-          </Tooltip>
+          </Tip>
+        </Tip>
+        <Tip text={t("graphSidebar.tabHistory")}>
+          <Tip text={t("graphSidebar.tabHistory")} named>
+            <button
+              type="button"
+              className={`graph-sidebar-tab ${section === "history" ? "active" : ""}`}
+              onClick={() => setSection("history")}
+              aria-label={t("graphSidebar.tabHistory")}
+              aria-selected={section === "history"}
+              role="tab"
+              data-testid="graph-sidebar-tab-history"
+            >
+              <HistoryIcon size={15} />
+            </button>
+          </Tip>
+        </Tip>
+        <Tip text={t("graphSidebar.tabFavorites")}>
+          <Tip text={t("graphSidebar.tabFavorites")} named>
+            <button
+              type="button"
+              className={`graph-sidebar-tab ${section === "favorites" ? "active" : ""}`}
+              onClick={() => setSection("favorites")}
+              aria-label={t("graphSidebar.tabFavorites")}
+              aria-selected={section === "favorites"}
+              role="tab"
+              data-testid="graph-sidebar-tab-favorites"
+            >
+              <StarIcon size={15} />
+            </button>
+          </Tip>
+        </Tip>
+        {onNeo4jExport && (
+          <Tip text={t("graphSidebar.tabExport")}>
+            <Tip text={t("graphSidebar.tabExport")} named>
+              <button
+                type="button"
+                className="graph-sidebar-tab"
+                onClick={onNeo4jExport}
+                aria-label={t("graphSidebar.tabExport")}
+                data-testid="graph-sidebar-tab-export"
+              >
+                <ExportIcon size={15} />
+              </button>
+            </Tip>
+          </Tip>
         )}
       </div>
 
@@ -343,41 +332,42 @@ export function Sidebar({
                         const color = colorOverrides[lbl] ?? labelColor(lbl);
                         return (
                           <div key={lbl} className="graph-label-item">
-                            <button
-                              type="button"
-                              className={`graph-label-pill${highlightedLabel === lbl ? " graph-label-pill--highlight" : ""}`}
-                              style={{ background: color }}
-                              draggable
-                              onDragStart={(e) =>
-                                e.dataTransfer.setData("text/x-provisa-domain", lbl)
-                              }
-                              onClick={() => onDomainClick(lbl)}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                const domainNumeric = [
-                                  ...new Set([
-                                    ...schemaNodeLabels
-                                      .filter((n) => n.domainLabel === lbl)
-                                      .flatMap((n) => numericPropsByLabel[n.tableLabel] ?? []),
-                                    "degIn",
-                                    "degOut",
-                                    "degTotal",
-                                    "degreeCentrality",
-                                  ]),
-                                ];
-                                setContextMenu({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  compoundLabel: lbl,
-                                  tableLabel: lbl,
-                                  properties: [],
-                                  numericProperties: domainNumeric,
-                                });
-                              }}
-                              title={`MATCH (n:${lbl}) RETURN n LIMIT 25`}
-                            >
-                              {lbl}
-                            </button>
+                            <Tip text={`MATCH (n:${lbl}) RETURN n LIMIT 25`}>
+                              <button
+                                type="button"
+                                className={`graph-label-pill${highlightedLabel === lbl ? " graph-label-pill--highlight" : ""}`}
+                                style={{ background: color }}
+                                draggable
+                                onDragStart={(e) =>
+                                  e.dataTransfer.setData("text/x-provisa-domain", lbl)
+                                }
+                                onClick={() => onDomainClick(lbl)}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  const domainNumeric = [
+                                    ...new Set([
+                                      ...schemaNodeLabels
+                                        .filter((n) => n.domainLabel === lbl)
+                                        .flatMap((n) => numericPropsByLabel[n.tableLabel] ?? []),
+                                      "degIn",
+                                      "degOut",
+                                      "degTotal",
+                                      "degreeCentrality",
+                                    ]),
+                                  ];
+                                  setContextMenu({
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                    compoundLabel: lbl,
+                                    tableLabel: lbl,
+                                    properties: [],
+                                    numericProperties: domainNumeric,
+                                  });
+                                }}
+                              >
+                                {lbl}
+                              </button>
+                            </Tip>
                           </div>
                         );
                       })}
@@ -409,18 +399,19 @@ export function Sidebar({
                 ) : (
                   <div className="graph-label-list">
                     <div className="graph-label-item">
-                      <button
-                        type="button"
-                        className="graph-label-pill graph-label-pill--all"
-                        onClick={() => onLabelClick("*")}
-                        title={t("graphSidebar.matchAllNodes")}
-                      >
-                        *(
-                        {totalNodeCount !== null
-                          ? totalNodeCount.toLocaleString()
-                          : schemaNodeLabels.length}
-                        )
-                      </button>
+                      <Tip text={t("graphSidebar.matchAllNodes")}>
+                        <button
+                          type="button"
+                          className="graph-label-pill graph-label-pill--all"
+                          onClick={() => onLabelClick("*")}
+                        >
+                          *(
+                          {totalNodeCount !== null
+                            ? totalNodeCount.toLocaleString()
+                            : schemaNodeLabels.length}
+                          )
+                        </button>
+                      </Tip>
                     </div>
                     {(() => {
                       const sorted = [...schemaNodeLabels]
@@ -439,31 +430,32 @@ export function Sidebar({
                         const color = colorOverrides[compoundLabel] ?? labelColor(compoundLabel);
                         return (
                           <div key={compoundLabel} className="graph-label-item">
-                            <button
-                              type="button"
-                              className={`graph-label-pill${highlightedLabel === compoundLabel ? " graph-label-pill--highlight" : ""}`}
-                              style={{ background: color }}
-                              draggable
-                              onDragStart={(e) =>
-                                e.dataTransfer.setData("text/x-provisa-label", compoundLabel)
-                              }
-                              onClick={() => onLabelClick(compoundLabel)}
-                              onContextMenu={(e) => handleNodeRightClick(e, node)}
-                              title={`MATCH (n:${compoundLabel}) RETURN n LIMIT 25`}
-                            >
-                              {node.tableLabel}
-                              {labelCounts[compoundLabel] !== undefined && (
-                                <span
-                                  style={{
-                                    opacity: 0.7,
-                                    fontSize: "0.7em",
-                                    marginInlineStart: "0.25em",
-                                  }}
-                                >
-                                  ({labelCounts[compoundLabel].toLocaleString()})
-                                </span>
-                              )}
-                            </button>
+                            <Tip text={`MATCH (n:${compoundLabel}) RETURN n LIMIT 25`}>
+                              <button
+                                type="button"
+                                className={`graph-label-pill${highlightedLabel === compoundLabel ? " graph-label-pill--highlight" : ""}`}
+                                style={{ background: color }}
+                                draggable
+                                onDragStart={(e) =>
+                                  e.dataTransfer.setData("text/x-provisa-label", compoundLabel)
+                                }
+                                onClick={() => onLabelClick(compoundLabel)}
+                                onContextMenu={(e) => handleNodeRightClick(e, node)}
+                              >
+                                {node.tableLabel}
+                                {labelCounts[compoundLabel] !== undefined && (
+                                  <span
+                                    style={{
+                                      opacity: 0.7,
+                                      fontSize: "0.7em",
+                                      marginInlineStart: "0.25em",
+                                    }}
+                                  >
+                                    ({labelCounts[compoundLabel].toLocaleString()})
+                                  </span>
+                                )}
+                              </button>
+                            </Tip>
                           </div>
                         );
                       });
@@ -593,30 +585,32 @@ export function Sidebar({
                       );
                       return [
                         <div key="__all__" className="graph-label-item">
-                          <button
-                            type="button"
-                            className="graph-label-pill graph-label-pill--all"
-                            onClick={() => onRelClick("*")}
-                            title={t("graphSidebar.matchAllRels")}
-                          >
-                            *(
-                            {totalRelCount !== null
-                              ? totalRelCount.toLocaleString()
-                              : uniqueRels.length}
-                            )
-                          </button>
+                          <Tip text={t("graphSidebar.matchAllRels")}>
+                            <button
+                              type="button"
+                              className="graph-label-pill graph-label-pill--all"
+                              onClick={() => onRelClick("*")}
+                            >
+                              *(
+                              {totalRelCount !== null
+                                ? totalRelCount.toLocaleString()
+                                : uniqueRels.length}
+                              )
+                            </button>
+                          </Tip>
                         </div>,
                         ...paged.map(({ type }) => (
                           <div key={type} className="graph-label-item">
-                            <button
-                              type="button"
-                              className="graph-rel-badge"
-                              title={`MATCH ()-[r:${type}]->() RETURN r LIMIT 25`}
-                              onClick={() => onRelClick(type)}
-                              onContextMenu={(e) => handleRelRightClick(e, type)}
-                            >
-                              {type}
-                            </button>
+                            <Tip text={`MATCH ()-[r:${type}]->() RETURN r LIMIT 25`}>
+                              <button
+                                type="button"
+                                className="graph-rel-badge"
+                                onClick={() => onRelClick(type)}
+                                onContextMenu={(e) => handleRelRightClick(e, type)}
+                              >
+                                {type}
+                              </button>
+                            </Tip>
                           </div>
                         )),
                       ];
@@ -736,19 +730,22 @@ export function Sidebar({
                 {!propKeysCollapsed && (
                   <div className="graph-prop-key-list">
                     {[...propertyKeys].sort().map((k) => (
-                      <button
+                      <Tip
                         key={k}
-                        type="button"
-                        className={`graph-prop-key-tag${onPropertyKeyClick ? " graph-prop-key-tag--clickable" : ""}`}
-                        onClick={() => onPropertyKeyClick?.(k)}
-                        title={
+                        text={
                           onPropertyKeyClick
                             ? `MATCH (n)\nWHERE n.${k} IS NOT NULL\nRETURN DISTINCT "node" AS entity, n.${k} AS ${k}\nLIMIT 25\nUNION ALL\nMATCH ()-[r]-()\nWHERE r.${k} IS NOT NULL\nRETURN DISTINCT "relationship" AS entity, r.${k} AS ${k}\nLIMIT 25`
                             : undefined
                         }
                       >
-                        {k}
-                      </button>
+                        <button
+                          type="button"
+                          className={`graph-prop-key-tag${onPropertyKeyClick ? " graph-prop-key-tag--clickable" : ""}`}
+                          onClick={() => onPropertyKeyClick?.(k)}
+                        >
+                          {k}
+                        </button>
+                      </Tip>
                     ))}
                   </div>
                 )}
@@ -765,15 +762,15 @@ export function Sidebar({
             ) : (
               <div className="graph-history-list">
                 {history.map((q, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className="graph-history-item"
-                    onClick={() => onHistorySelect(q)}
-                    title={q}
-                  >
-                    {q}
-                  </button>
+                  <Tip key={i} text={q}>
+                    <button
+                      type="button"
+                      className="graph-history-item"
+                      onClick={() => onHistorySelect(q)}
+                    >
+                      {q}
+                    </button>
+                  </Tip>
                 ))}
               </div>
             )}
@@ -806,48 +803,52 @@ export function Sidebar({
                         />
                       ) : (
                         <>
-                          <button
-                            type="button"
-                            className="graph-fav-run"
-                            title={t("graphSidebar.run")}
-                            aria-label={t("graphSidebar.run")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onFavoriteRun?.(fav.query);
-                            }}
-                          >
-                            ▶
-                          </button>
-                          <button
-                            type="button"
-                            className="graph-fav-label"
-                            onClick={() => onFavoriteSelect?.(fav.query)}
-                            title={fav.query}
-                          >
-                            {fav.label}
-                          </button>
-                          <button
-                            type="button"
-                            className="graph-fav-rename-btn"
-                            title={t("graphSidebar.rename")}
-                            aria-label={t("graphSidebar.rename")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenameValue(fav.label);
-                              setRenamingId(fav.id);
-                            }}
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            className="graph-fav-del"
-                            title={t("graphSidebar.remove")}
-                            aria-label={t("graphSidebar.remove")}
-                            onClick={() => onFavoriteDelete?.(fav.id)}
-                          >
-                            ✕
-                          </button>
+                          <Tip text={t("graphSidebar.run")} named>
+                            <button
+                              type="button"
+                              className="graph-fav-run"
+                              aria-label={t("graphSidebar.run")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFavoriteRun?.(fav.query);
+                              }}
+                            >
+                              ▶
+                            </button>
+                          </Tip>
+                          <Tip text={fav.query}>
+                            <button
+                              type="button"
+                              className="graph-fav-label"
+                              onClick={() => onFavoriteSelect?.(fav.query)}
+                            >
+                              {fav.label}
+                            </button>
+                          </Tip>
+                          <Tip text={t("graphSidebar.rename")} named>
+                            <button
+                              type="button"
+                              className="graph-fav-rename-btn"
+                              aria-label={t("graphSidebar.rename")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameValue(fav.label);
+                                setRenamingId(fav.id);
+                              }}
+                            >
+                              ✎
+                            </button>
+                          </Tip>
+                          <Tip text={t("graphSidebar.remove")} named>
+                            <button
+                              type="button"
+                              className="graph-fav-del"
+                              aria-label={t("graphSidebar.remove")}
+                              onClick={() => onFavoriteDelete?.(fav.id)}
+                            >
+                              ✕
+                            </button>
+                          </Tip>
                         </>
                       )}
                     </div>

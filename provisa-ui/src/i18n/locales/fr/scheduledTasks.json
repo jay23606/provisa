@@ -47,6 +47,8 @@
     "lastPage": "Dernière page",
     "roleLabel": "S'exécute en tant que rôle",
     "validationRoleRequired": "Une tâche SQL s'exécute en tant que rôle : choisissez-en un.",
-    "runsAs": "s'exécute en tant que {{role}}"
+    "runsAs": "s'exécute en tant que {{role}}",
+    "deleteTitle": "Supprimer la tâche planifiée « {{name}} » ?",
+    "deleteConsequence": "La tâche est supprimée et ne s'exécute plus."
   }
 }

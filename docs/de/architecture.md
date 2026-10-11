@@ -76,7 +76,7 @@ Das vollständige Ergebnis wird im Provisa-Speicher nie materialisiert — Batch
 
 ### Protobuf gRPC (Port 50051)
 
-Automatisch generierte `.proto`-Datei aus dem Datenschema, pro Rolle generiert. (REQ-525) Streaming-Abfragen (eine Nachricht pro Zeile), unäre Mutations. Server Reflection aktiviert. (REQ-526) Rolle über den Metadaten-Key `x-provisa-role`.
+Automatisch generierte `.proto`-Datei aus dem Datenschema, pro Rolle generiert. (REQ-525) Streaming-Abfragen (eine Nachricht pro Zeile), unäre Mutations. Server Reflection aktiviert. (REQ-526) Rolle über den Metadaten-Key `x-provisa-role`. Reflection beschreibt jedem Aufrufer den Service seiner eigenen Rolle.
 
 ### PostgreSQL-Wire-Protokoll / pgwire (konfigurierbarer Port)
 

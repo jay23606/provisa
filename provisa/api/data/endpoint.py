@@ -39,6 +39,7 @@ from fastapi.responses import Response
 from graphql import GraphQLSyntaxError, OperationType
 from pydantic import BaseModel
 
+from provisa.api.role_surface import role_surface
 from provisa.core import request_deadline
 from provisa.core.read_refusal import ReadRefused
 from provisa.core.statement_warnings import collecting
@@ -47,7 +48,6 @@ from provisa.cache.middleware import build_cache_headers
 from provisa.federation.replica_state import ReplicaBuilding
 from provisa.compiler.hints import extract_graphql_hints
 from provisa.compiler.parser import GraphQLValidationError, coerce_variable_defaults, parse_query
-from provisa.compiler.rls import RLSContext
 from provisa.compiler.sql_gen import compile_query
 from provisa.executor import stats as _qs_mod
 from provisa.observability.request_facts import TimedJSONResponse as JSONResponse  # REQ-1910
@@ -245,7 +245,10 @@ async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-
 
     role_id = acting_role(raw_request, x_provisa_role, sent_role(request), "org_admin")
 
-    if role_id not in state.schemas:
+    # ONE snapshot of the role's surface for this request: its schema, context and row filters
+    # all come from this object, so a rebuild cannot hand it parts of two builds (#213).
+    surface = role_surface(state, role_id)
+    if surface is None:
         raise ApiError(
             400,
             "data.no_schema_available_for_role",
@@ -277,9 +280,9 @@ async def graphql_endpoint(  # REQ-001, REQ-002, REQ-043, REQ-047, REQ-049, REQ-
     # Legacy comment hints (kept for backwards compat)
     _legacy_hints = extract_graphql_hints(request.query)
 
-    schema = state.schemas[role_id]
-    ctx = state.contexts[role_id]
-    rls = state.rls_contexts.get(role_id, RLSContext.empty())
+    schema = surface.schema
+    ctx = surface.context
+    rls = surface.rls
 
     # REQ-1877 (amended 2026-09-30): a plain query whose governed plan is already cached skips
     # parse, validation, the complexity guard, compilation and governance — the plan is their

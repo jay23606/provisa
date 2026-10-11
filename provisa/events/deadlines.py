@@ -76,7 +76,7 @@ class LiveDebounce:
     def __post_init__(self) -> None:
         if self.quiet > 0 and self.max_delay <= 0:
             raise ValueError(
-                "REQ-963: live debounce with quiet>0 requires a positive max_delay cap "
+                "Live debounce with quiet>0 requires a positive max_delay cap "
                 "(the mandatory staleness SLA); set quiet=0 to disable debounce"
             )
 
@@ -171,7 +171,7 @@ def build_deadline_source(
         )
     if calendar is not None:
         if grain is None:
-            raise ValueError("a calendar deadline source requires a declared grain (REQ-962)")
+            raise ValueError("a calendar deadline source requires a declared grain")
         return PeriodicCalendar(
             calendar=calendar,
             grain=grain,
@@ -180,6 +180,6 @@ def build_deadline_source(
         )
     if debounce_quiet > 0:
         if debounce_max_delay is None:
-            raise ValueError("REQ-963: live debounce (quiet>0) requires a max_delay staleness cap")
+            raise ValueError("live debounce (quiet>0) requires a max_delay staleness cap")
         return LiveDebounce(quiet=debounce_quiet, max_delay=debounce_max_delay)
     return None

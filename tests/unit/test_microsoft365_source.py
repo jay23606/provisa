@@ -27,8 +27,10 @@ TENANT = "0a1b2c3d-1111-2222-3333-444455556666"
 GOOD = {
     "accounts": ["megan@contoso.com"],
     "resources": ["mail"],
-    "refresh_token": "${secret:source_m365_refresh_token}",
 }
+#: A source connected before approvals were kept in the state store: it still names its
+#: owner's approval by a reference of that time.
+EARLIER = {**GOOD, "refresh_token": "${secret:source_m365_refresh_token}"}
 
 
 # -------------------------------------------------------------------------------- settings
@@ -37,7 +39,11 @@ GOOD = {
 def test_the_settings_a_source_keeps():
     read = parse(GOOD)
     assert read.account == "megan@contoso.com" and read.resources == ("mail",)
-    assert read.refresh_token_name == "source_m365_refresh_token"
+    # The owner's approval is sign-in state and no setting of the source. Only a source
+    # connected before that still names one, and it is read as it stands.
+    assert read.refresh_token is None
+    assert parse(EARLIER).refresh_token == EARLIER["refresh_token"]
+    assert parse({**GOOD, "refresh_token": " "}).refresh_token is None
     assert read.scopes() == [
         "https://graph.microsoft.com/Mail.Read",
         "offline_access",
@@ -54,8 +60,9 @@ def test_the_settings_a_source_keeps():
         ({"accounts": ["not an address"]}, "not a mailbox address"),
         ({"resources": []}, "what is read"),
         ({"resources": ["calendar"]}, "cannot read calendar"),
-        ({"refresh_token": ""}, "not connected"),
-        ({"refresh_token": "a-literal-token"}, "reference to the organisation's vault"),
+        ({"refresh_token": 7}, "is text"),
+        ({"mail_since": "10/01/2026"}, "mail_since must be a date as YYYY-MM-DD"),
+        ({"mail_since": 20261001}, "mail_since must be a date as YYYY-MM-DD"),
         ({"client_secret": "x"}, "unknown setting"),
     ],
 )
@@ -66,18 +73,19 @@ def test_settings_that_cannot_be_a_source_are_refused_by_name(change, says):
 
 
 def test_a_save_is_refused_in_the_setups_terms():
-    from provisa.api.admin.schema_common import SOURCE_MAPPING_SECRET_KEYS, microsoft_365_refusal
+    from provisa.api.admin.schema_common import microsoft_365_refusal
 
     def source(mapping) -> SimpleNamespace:
         return SimpleNamespace(id="m365", type=SOURCE_TYPE, mapping_json=json.dumps(mapping))
 
-    refused = microsoft_365_refusal(source({**GOOD, "refresh_token": ""}))
+    refused = microsoft_365_refusal(source({**GOOD, "accounts": []}))
     assert refused is not None and refused.code == "schema.microsoft_365_invalid"
-    assert "not connected" in refused.message and refused.params["source"] == "m365"
+    assert "one mailbox" in refused.message and refused.params["source"] == "m365"
+    # A source is saved before or after its owner signs in: the approval is no part of it.
     assert microsoft_365_refusal(source(GOOD)) is None
+    assert microsoft_365_refusal(source(EARLIER)) is None
     other = SimpleNamespace(id="pg", type="postgresql", mapping_json="{}")
     assert microsoft_365_refusal(other) is None
-    assert SOURCE_MAPPING_SECRET_KEYS[SOURCE_TYPE] == settings.SECRET_KEYS
 
 
 # --------------------------------------------------------------------------------- sign-in
@@ -122,64 +130,151 @@ def test_the_person_is_offered_the_account_the_source_names():
 
 
 @pytest.fixture
-def signed_in(monkeypatch):
-    """What `connect` reaches: the organisation's client, the vault, the store, the exchange."""
+def signed_in(monkeypatch, tmp_path):
+    """What `connect` reaches: the organisation's client, its vault, its state store (where
+    the owner's approval is kept) and the exchange."""
+    from contextlib import asynccontextmanager
+
     from provisa.api_source import oauth_grants, oauth_store
-    from provisa.core import config_loader, request_context, secrets
+    from provisa.core import config_loader, config_location, request_context, secrets_store
+    from provisa.core.database import Database, create_engine_from_url
+    from provisa.core.schema_org import mail_sync_state as table
+    from provisa.core.schema_org import metadata
 
-    calls = SimpleNamespace(required=[], stored=[], exchanged=[])
-
-    async def require(admin_db, org_id, platform_id):
-        calls.required.append((org_id, platform_id))
-        return mail_platforms.Configured(platform_id, "client-id", {"tenant": TENANT})
-
-    async def stored_access_token(admin_db, platform_url, org_id, **kw):
-        calls.stored.append({"platform_url": platform_url, "org_id": org_id, **kw})
-        grant = await asyncio.to_thread(kw["exchange"], "rt-from-the-vault")
-        return grant.access_token
-
-    def exchange_refresh_token(auth):
-        calls.exchanged.append(auth)
-        return oauth_grants.RefreshGrant("access-1", 3600.0, "rt-replacement")
-
-    monkeypatch.setattr(mail_platforms, "require", require)
-    monkeypatch.setattr(oauth_store, "stored_access_token", stored_access_token)
-    monkeypatch.setattr(oauth_grants, "exchange_refresh_token", exchange_refresh_token)
-    monkeypatch.setattr(secrets, "resolve_secrets", lambda value: "the-client-secret")
-    monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
+    with engine.begin() as conn:
+        metadata.create_all(conn, tables=[table])
+    calls = SimpleNamespace(required=[], exchanged=[], resolved=[], bound=[])
+    calls.state = SimpleNamespace(admin_db=object(), tenant_db=Database(engine, name="state"))
+    oauth_store._held.clear()
+    monkeypatch.setattr(config_location, "config_path_str", lambda: "provisa.yaml")
     monkeypatch.setattr(
         config_loader,
         "load_control_plane",
-        lambda path: SimpleNamespace(resolved_platform_url=lambda: "sqlite:///platform.db"),
+        lambda path: SimpleNamespace(
+            resolved_platform_url=lambda: f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
+        ),
     )
-    return calls
+
+    async def require(admin_db, org_id, platform_id):
+        calls.required.append((org_id, platform_id))
+        return mail_platforms.Configured(
+            platform_id, "client-id", {"tenant": TENANT}, client_secret="as-entered"
+        )
+
+    def exchange_refresh_token(auth):
+        calls.exchanged.append(auth)
+        # Microsoft answers every exchange with a newer approval.
+        return oauth_grants.RefreshGrant(
+            f"access-{len(calls.exchanged)}", calls.__dict__.get("lifetime", 3600.0), "rt-newer"
+        )
+
+    async def resolved(admin_db, org_id, platform_id, field, value):
+        # The entry's secret, read in the vault of the organisation it is asked for.
+        calls.resolved.append((org_id, platform_id, field, value))
+        return "the-client-secret"
+
+    @asynccontextmanager
+    async def bound(admin_db, org_id, **kw):
+        calls.bound.append(org_id)
+        yield
+
+    monkeypatch.setattr(mail_platforms, "require", require)
+    monkeypatch.setattr(oauth_grants, "exchange_refresh_token", exchange_refresh_token)
+    monkeypatch.setattr(mail_platforms, "credential", resolved)
+    monkeypatch.setattr(secrets_store, "bound", bound)
+    monkeypatch.setattr(request_context, "require_current_org", lambda: "acme")
+    yield calls
+    oauth_store._held.clear()
+    engine.dispose()
 
 
-def test_a_source_is_signed_in_with_the_organisations_client_through_the_store(signed_in):
-    state = SimpleNamespace(admin_db=object())
+async def _kept(state) -> str | None:
+    from provisa.federation import mail_sync_state
+
+    async with state.tenant_db.acquire() as conn:
+        return await mail_sync_state.grant(conn, "m365", "megan@contoso.com")
+
+
+async def _keep(state, token: str) -> None:
+    from provisa.federation import mail_sync_state
+
+    async with state.tenant_db.acquire() as conn:
+        await mail_sync_state.keep_grant(conn, "m365", "megan@contoso.com", token)
+
+
+def test_a_source_is_signed_in_with_the_organisations_client_and_its_owners_approval(signed_in):
+    state = signed_in.state
     source = SimpleNamespace(id="m365", mapping=GOOD)
 
     async def run():
+        await _keep(state, "rt-from-the-sign-in")
         reading = await loader.make_connect(state)(source)
         assert reading.organisation is False and reading.at_once == 1
         (account,) = reading.accounts
-        return account, await asyncio.to_thread(reading.token)  # Graph is read off the loop
+        first = await asyncio.to_thread(reading.token)  # Graph is read off the loop
+        again = await asyncio.to_thread(reading.token)
+        return account, first, again, await _kept(state)
 
-    account, token = asyncio.run(run())
-    assert (account, token) == ("megan@contoso.com", "access-1")
+    account, token, again, kept = asyncio.run(run())
+    assert (account, token, again) == ("megan@contoso.com", "access-1", "access-1")
     assert signed_in.required == [("acme", SOURCE_TYPE)]
-    (stored,) = signed_in.stored
-    assert stored["org_id"] == "acme" and stored["source_id"] == "m365"
-    assert stored["secret_name"] == "source_m365_refresh_token"
-    assert stored["replaces"] is True  # Microsoft replaces a refresh token on every use
-    assert stored["platform_url"] == "sqlite:///platform.db"
-    (auth,) = signed_in.exchanged
-    assert auth.refresh_token == "rt-from-the-vault"  # what the store read, not the mapping's
+    # The client's secret as its administrator entered it, resolved in that organisation's vault.
+    assert signed_in.resolved == [("acme", SOURCE_TYPE, "client_secret", "as-entered")]
+    assert signed_in.bound == []  # the approval is state: no vault is read for it
+    (auth,) = signed_in.exchanged  # exchanged once; the access token is held to its end
+    assert auth.refresh_token == "rt-from-the-sign-in"  # what the state store kept
     assert auth.client_id == "client-id" and auth.client_secret == "the-client-secret"
     assert auth.token_url == f"https://login.microsoftonline.com/{TENANT}/oauth2/v2.0/token"
     assert auth.scope == (
         "https://graph.microsoft.com/Mail.Read offline_access https://graph.microsoft.com/User.Read"
     )
+    # The newer approval Microsoft answered with is what the next exchange sends.
+    assert kept == "rt-newer"
+
+
+def test_each_renewal_sends_the_approval_the_one_before_it_was_answered_with(signed_in):
+    """Microsoft replaces the approval at every use; a source goes on reading past the first
+    one's lifetime because each replacement is kept."""
+    state, signed_in.lifetime = signed_in.state, 0.0  # no access token is held: every read renews
+
+    async def run():
+        await _keep(state, "rt-from-the-sign-in")
+        reading = await loader.make_connect(state)(SimpleNamespace(id="m365", mapping=GOOD))
+        return [await asyncio.to_thread(reading.token) for _ in range(2)]
+
+    assert asyncio.run(run()) == ["access-1", "access-2"]
+    assert [auth.refresh_token for auth in signed_in.exchanged] == [
+        "rt-from-the-sign-in",
+        "rt-newer",
+    ]
+
+
+def test_a_source_connected_the_earlier_way_still_reads_with_nothing_done_to_it(
+    signed_in, monkeypatch
+):
+    """Its settings name the approval by a reference of that time, still in the organisation's
+    vault. The first read resolves it there, in the source's own organisation, and keeps it in
+    the state store; the reference is not read again."""
+    from provisa.core import secrets as core_secrets
+
+    state = signed_in.state
+    seen: list[str] = []
+
+    def resolve(value: str) -> str:
+        seen.append(value)
+        return "rt-the-vault-held"
+
+    monkeypatch.setattr(core_secrets, "resolve_secrets", resolve)
+
+    async def run():
+        reading = await loader.make_connect(state)(SimpleNamespace(id="m365", mapping=EARLIER))
+        first = await asyncio.to_thread(reading.token)
+        return first, await _kept(state)
+
+    assert asyncio.run(run()) == ("access-1", "rt-newer")
+    assert seen == [EARLIER["refresh_token"]] and signed_in.bound == ["acme"]
+    assert signed_in.exchanged[0].refresh_token == "rt-the-vault-held"
 
 
 def test_an_organisation_with_no_client_is_refused_by_name(signed_in, monkeypatch):
@@ -190,14 +285,21 @@ def test_an_organisation_with_no_client_is_refused_by_name(signed_in, monkeypatc
     connect = loader.make_connect(SimpleNamespace(admin_db=object()))
     with pytest.raises(mail_platforms.MailPlatformRefused):
         asyncio.run(connect(SimpleNamespace(id="m365", mapping=GOOD)))
-    assert signed_in.stored == []
+    assert signed_in.exchanged == []  # nothing was asked of Microsoft
 
 
-def test_a_source_that_is_not_connected_is_not_read(signed_in):
-    connect = loader.make_connect(SimpleNamespace(admin_db=object()))
-    with pytest.raises(InvalidMicrosoft365Source, match="not connected"):
-        asyncio.run(connect(SimpleNamespace(id="m365", mapping={**GOOD, "refresh_token": ""})))
-    assert signed_in.required == []
+def test_a_source_that_is_not_connected_is_refused_by_name_and_asks_nothing_of_microsoft(signed_in):
+    from provisa.api_source.oauth_store import NotConnected
+
+    async def run():
+        reading = await loader.make_connect(signed_in.state)(
+            SimpleNamespace(id="m365", mapping=GOOD)
+        )
+        await asyncio.to_thread(reading.token)
+
+    with pytest.raises(NotConnected, match="megan@contoso.com is not connected"):
+        asyncio.run(run())
+    assert signed_in.exchanged == []
 
 
 # ------------------------------------------------------------------------ the table picker
@@ -228,3 +330,65 @@ def test_the_loader_is_given_to_the_product():
     assert 'loaders["microsoft_365"] = make_microsoft365_loader(make_connect(state))' in (
         inspect.getsource(app_wiring)
     )
+
+
+def test_the_column_picker_marks_each_tables_key_and_offers_when_a_row_landed(monkeypatch):
+    """A mail table is kept by key (rows are added, changed and removed in place), so the
+    picker marks its key columns; and it ends with the landing's own stamp, the table's
+    watermark for live delivery."""
+    from provisa.api.admin import schema_query
+    from provisa.core import canonical_mail as cm
+
+    src = inspect_source(schema_query)
+    assert src.count("is_primary_key=name in key_columns(table_name)") == 2  # both mail kinds
+    assert src.count("for name, ir_type in landing_columns(table_name)") == 2
+    assert cm.landing_columns("messages")[-1] == (cm.LANDED_AT, "timestamp")
+
+
+def inspect_source(module) -> str:
+    import inspect
+
+    return inspect.getsource(module)
+
+
+def test_a_whole_build_stamps_every_row_with_when_it_landed(signed_in, monkeypatch):
+    """One whole build writes its copy at once: every row of every table carries one stamp."""
+    from provisa.core import canonical_mail as cm
+
+    async def read_mailboxes(reading, per_mailbox, *rest):
+        yield "messages", [{"id": "m1"}, {"id": "m2"}]
+        yield "message_recipients", [{"message_id": "m1"}]
+
+    async def connect(source):
+        return SimpleNamespace(keep=None)
+
+    monkeypatch.setattr(loader, "_read_mailboxes", read_mailboxes)
+    columns = {
+        "messages": [("id", "text"), (cm.LANDED_AT, "timestamp")],
+        "message_recipients": [("message_id", "text"), (cm.LANDED_AT, "timestamp")],
+    }
+    read = loader._MessagesRead(connect, SimpleNamespace(id="m365"), tuple(columns), columns)
+
+    async def run():
+        return [(table, batch.to_pylist()) async for table, batch in read.batches(100)]
+
+    landed = asyncio.run(run())
+    stamps = {row[cm.LANDED_AT] for _table, rows in landed for row in rows}
+    assert len(stamps) == 1 and None not in stamps
+    assert [table for table, _ in landed] == ["messages", "message_recipients"]
+
+
+def test_a_source_may_state_a_date_before_which_nothing_received_is_held():
+    """``mail_since``, as a Google Workspace source states it: a date as YYYY-MM-DD, for one
+    mailbox or the organisation's. Left out, or empty, the source holds mail of any age."""
+    import datetime as dt
+
+    from provisa.google_workspace import settings as google
+
+    assert parse(GOOD).since is None
+    assert parse({**GOOD, "mail_since": ""}).since is None
+    assert parse({**GOOD, "mail_since": "2026-10-01"}).since == dt.date(2026, 10, 1)
+    organisation = {"resources": ["mail"], "mailboxes": {"everyone": True}}
+    assert parse({**organisation, "mail_since": " 2026-10-01 "}).since == dt.date(2026, 10, 1)
+    # The same name the Google source's setting has.
+    assert "mail_since" in google._MAIL_KEYS

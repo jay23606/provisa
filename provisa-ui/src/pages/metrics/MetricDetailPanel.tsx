@@ -10,9 +10,11 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Group, Stack, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Metric } from "../../types/admin";
+import { PanelActions } from "../../components/list/SplitPane";
+import { Tip } from "../../components/Tip";
 
 interface MetricDetailPanelProps {
   m: Metric;
@@ -21,8 +23,57 @@ interface MetricDetailPanelProps {
   onDelete: () => void;
 }
 
-// Row-click detail view for a metric — same detail-then-edit pattern as
-// SourceDetailPanel: the read-only facts with Edit/Delete inside.
+// A metric's Edit and Delete. In the page's detail panel they sit in its pinned head
+// (PanelActions); the form's Save and Cancel take their place while it is open.
+function MetricActions({
+  m,
+  onEdit,
+  onDelete,
+}: {
+  m: Metric;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <PanelActions>
+      <fieldset className="panel-action-set">
+        <Group gap="xs">
+          <Tip text={t("metricsPage.editMetric", { name: m.name })} named>
+            <ActionIcon
+              variant="subtle"
+              aria-label={t("metricsPage.editMetric", { name: m.name })}
+              data-testid={`metric-detail-edit-${m.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Pencil size={14} />
+            </ActionIcon>
+          </Tip>
+          <Tip text={t("metricsPage.deleteMetric", { name: m.name })} named>
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              aria-label={t("metricsPage.deleteMetric", { name: m.name })}
+              data-testid={`metric-detail-delete-${m.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <Trash2 size={14} />
+            </ActionIcon>
+          </Tip>
+        </Group>
+      </fieldset>
+    </PanelActions>
+  );
+}
+
+// Row-click detail view for a metric — detail-then-edit: the read-only facts, with Edit and
+// Delete in the panel's head.
 export function MetricDetailPanel({ m, dependentViews, onEdit, onDelete }: MetricDetailPanelProps) {
   const { t } = useTranslation();
 
@@ -54,6 +105,7 @@ export function MetricDetailPanel({ m, dependentViews, onEdit, onDelete }: Metri
 
   return (
     <Stack gap="sm" data-testid={`metric-detail-${m.name}`}>
+      <MetricActions m={m} onEdit={onEdit} onDelete={onDelete} />
       <dl
         style={{
           display: "grid",
@@ -74,35 +126,6 @@ export function MetricDetailPanel({ m, dependentViews, onEdit, onDelete }: Metri
           </React.Fragment>
         ))}
       </dl>
-      <Group gap="xs" mt={4}>
-        <Tooltip label={t("metricsPage.editMetric", { name: m.name })}>
-          <ActionIcon
-            variant="subtle"
-            aria-label={t("metricsPage.editMetric", { name: m.name })}
-            data-testid={`metric-detail-edit-${m.name}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-          >
-            <Pencil size={14} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label={t("metricsPage.deleteMetric", { name: m.name })}>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={t("metricsPage.deleteMetric", { name: m.name })}
-            data-testid={`metric-detail-delete-${m.name}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-          >
-            <Trash2 size={14} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
     </Stack>
   );
 }

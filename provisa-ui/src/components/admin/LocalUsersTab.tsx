@@ -27,7 +27,7 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { ChevronDown, ChevronRight, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import {
   fetchLocalUsers,
   createLocalUser,
@@ -40,6 +40,7 @@ import type { LocalUser, UserAssignment } from "../../api/admin";
 import { useCapability } from "../../hooks/useCapability";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
 
@@ -51,6 +52,7 @@ interface LocalUsersTabProps {
 export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
   const { t } = useTranslation();
   const [localUsers, setLocalUsers] = useState<LocalUser[]>([]);
+  const [creating, setCreating] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -66,6 +68,14 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
       .then(setLocalUsers)
       .catch(() => setLocalUsers([]));
   }, []);
+
+  const closeCreate = () => {
+    setCreating(false);
+    setNewUsername("");
+    setNewPassword("");
+    setNewEmail("");
+    setNewDisplayName("");
+  };
 
   const handleAddUser = async () => {
     if (!newUsername.trim() || !newPassword.trim()) return;
@@ -83,6 +93,7 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
       setNewPassword("");
       setNewEmail("");
       setNewDisplayName("");
+      setCreating(false);
       notifications.show({
         color: "green",
         message: t("localUsers.created", { username: created }),
@@ -172,129 +183,198 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
 
   return (
     <Stack gap="md">
+      {creating ? (
+        <>
+          <Title order={4}>{t("localUsers.createHeading")}</Title>
+          <FormLayout>
+            <FormIdentifiers>
+              <FormField size="medium">
+                <TextInput
+                  label={t("localUsers.username")}
+                  placeholder={t("localUsers.usernameRequired")}
+                  required
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.currentTarget.value)}
+                />
+              </FormField>
+            </FormIdentifiers>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("localUsers.password")}
+                placeholder={t("localUsers.passwordRequired")}
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.currentTarget.value)}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("localUsers.email")}
+                placeholder={t("localUsers.emailOptional")}
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.currentTarget.value)}
+              />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("localUsers.displayName")}
+                placeholder={t("localUsers.displayNameOptional")}
+                value={newDisplayName}
+                onChange={(e) => setNewDisplayName(e.currentTarget.value)}
+              />
+            </FormField>
+            <FormFooter
+              onSave={handleAddUser}
+              onCancel={closeCreate}
+              saveProps={{
+                "data-testid": "local-user-save",
+                disabled: !newUsername.trim() || !newPassword.trim(),
+              }}
+            />
+          </FormLayout>
+        </>
+      ) : (
+        <FormFooter>
+          <Button
+            leftSection={<Plus size={14} />}
+            onClick={() => setCreating(true)}
+            data-testid="local-user-add"
+          >
+            {t("localUsers.createButton")}
+          </Button>
+        </FormFooter>
+      )}
+
       <SortGroupTable
-          testPrefix="local-users"
-          minWidth={640}
-          rows={localUsers}
-          columns={[
-            { key: "username", label: t("localUsers.colUsername"), sortValue: (u) => u.username },
-            { key: "email", label: t("localUsers.colEmail"), sortValue: (u) => u.email ?? "" },
-            { key: "displayName", label: t("localUsers.colDisplayName"), sortValue: (u) => u.display_name ?? "" },
-            { key: "active", label: t("localUsers.colActive"), sortValue: (u) => String(u.is_active), groupValue: (u) => String(u.is_active) },
-          ]}
-          headers={[
-            { col: "username" },
-            { col: "email" },
-            { col: "displayName" },
-            { col: "active" },
-            t("localUsers.actions"),
-          ]}
-          colSpan={5}
-          rowKey={(u) => u.id}
-          empty={t("localUsers.empty")}
-          page={{ index: userPage - 1, size: PAGE_SIZE }}
-          onGroupedChange={setGrouped}
-          render={(u) => {
-              const expanded = expandedUserId === u.id;
-              return (
-                <ListRow key={u.id}>
-                  <Table.Td>
-                    <Button
-                      variant="subtle"
-                      size="compact-sm"
-                      leftSection={
-                        expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-                      }
-                      aria-expanded={expanded}
-                      aria-label={t("localUsers.expandUser", { username: u.username })}
-                      onClick={() => handleExpandUser(u.id)}
-                      styles={{ label: { fontFamily: "monospace" } }}
-                    >
-                      {u.username}
-                    </Button>
-                    <Collapse in={expanded}>
-                      <Stack gap="xs" pl="md" py="sm">
-                        <Text fw={600} fz="sm">
-                          {t("localUsers.assignmentsHeading")}
+        testPrefix="local-users"
+        minWidth={640}
+        rows={localUsers}
+        columns={[
+          { key: "username", label: t("localUsers.colUsername"), sortValue: (u) => u.username },
+          { key: "email", label: t("localUsers.colEmail"), sortValue: (u) => u.email ?? "" },
+          {
+            key: "displayName",
+            label: t("localUsers.colDisplayName"),
+            sortValue: (u) => u.display_name ?? "",
+          },
+          {
+            key: "active",
+            label: t("localUsers.colActive"),
+            sortValue: (u) => String(u.is_active),
+            groupValue: (u) => String(u.is_active),
+          },
+        ]}
+        headers={[
+          { col: "username" },
+          { col: "email" },
+          { col: "displayName" },
+          { col: "active" },
+          t("localUsers.actions"),
+        ]}
+        colSpan={5}
+        rowKey={(u) => u.id}
+        empty={t("localUsers.empty")}
+        page={{ index: userPage - 1, size: PAGE_SIZE }}
+        onGroupedChange={setGrouped}
+        render={(u) => {
+          const expanded = expandedUserId === u.id;
+          return (
+            <ListRow key={u.id}>
+              <Table.Td>
+                <Button
+                  variant="subtle"
+                  size="compact-sm"
+                  leftSection={expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  aria-expanded={expanded}
+                  aria-label={t("localUsers.expandUser", { username: u.username })}
+                  onClick={() => handleExpandUser(u.id)}
+                  styles={{ label: { fontFamily: "monospace" } }}
+                >
+                  {u.username}
+                </Button>
+                <Collapse in={expanded}>
+                  <Stack gap="xs" pl="md" py="sm">
+                    <Text fw={600} fz="sm">
+                      {t("localUsers.assignmentsHeading")}
+                    </Text>
+                    <Group gap="xs">
+                      {(userAssignments[u.id] ?? []).length === 0 && (
+                        <Text c="dimmed" fz="sm">
+                          {t("localUsers.noAssignments")}
                         </Text>
-                        <Group gap="xs">
-                          {(userAssignments[u.id] ?? []).length === 0 && (
-                            <Text c="dimmed" fz="sm">
-                              {t("localUsers.noAssignments")}
-                            </Text>
-                          )}
-                          {(userAssignments[u.id] ?? []).map((a) => (
-                            <Badge
-                              key={a.id}
-                              variant="light"
-                              rightSection={
-                                <ActionIcon
-                                  variant="transparent"
-                                  size="xs"
-                                  color="red"
-                                  aria-label={t("localUsers.removeAssignment", {
-                                    role: a.role_id,
-                                    domain: a.domain_id,
-                                  })}
-                                  onClick={() => handleRemoveAssignment(u.id, a.id)}
-                                >
-                                  <X size={12} />
-                                </ActionIcon>
-                              }
-                            >
-                              {a.role_id}:{a.domain_id}
-                            </Badge>
-                          ))}
-                        </Group>
-                        <Group gap="xs" align="flex-end">
-                          <Select
-                            label={t("localUsers.roleLabel")}
-                            size="xs"
-                            data={allRoles}
-                            value={assignRole}
-                            onChange={setAssignRole}
-                            allowDeselect={false}
-                          />
-                          <Select
-                            label={t("localUsers.domainLabel")}
-                            size="xs"
-                            data={domainOptions}
-                            value={assignDomain}
-                            onChange={(v) => setAssignDomain(v ?? "*")}
-                            allowDeselect={false}
-                          />
-                          <Button
-                            size="xs"
-                            onClick={() => handleAddAssignment(u.id)}
-                            disabled={!assignRole}
-                          >
-                            {t("localUsers.add")}
-                          </Button>
-                        </Group>
-                      </Stack>
-                    </Collapse>
-                  </Table.Td>
-                  <Table.Td>{u.email || t("localUsers.none")}</Table.Td>
-                  <Table.Td>{u.display_name || t("localUsers.none")}</Table.Td>
-                  <Table.Td>{u.is_active ? t("localUsers.yes") : t("localUsers.no")}</Table.Td>
-                  <Table.Td>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label={t(
-                        deletesAccount ? "localUsers.deleteUser" : "localUsers.removeFromOrg",
-                        { username: u.username },
                       )}
-                      data-testid={`remove-user-${u.username}`}
-                      onClick={() => setRemoving({ id: u.id, username: u.username })}
-                    >
-                      <Trash2 size={14} />
-                    </ActionIcon>
-                  </Table.Td>
-                </ListRow>
-              );
-            }}
-        />
+                      {(userAssignments[u.id] ?? []).map((a) => (
+                        <Badge
+                          key={a.id}
+                          variant="light"
+                          rightSection={
+                            <ActionIcon
+                              variant="transparent"
+                              size="xs"
+                              color="red"
+                              aria-label={t("localUsers.removeAssignment", {
+                                role: a.role_id,
+                                domain: a.domain_id,
+                              })}
+                              onClick={() => handleRemoveAssignment(u.id, a.id)}
+                            >
+                              <X size={12} />
+                            </ActionIcon>
+                          }
+                        >
+                          {a.role_id}:{a.domain_id}
+                        </Badge>
+                      ))}
+                    </Group>
+                    <Group gap="xs" align="flex-end">
+                      <Select
+                        label={t("localUsers.roleLabel")}
+                        size="xs"
+                        data={allRoles}
+                        value={assignRole}
+                        onChange={setAssignRole}
+                        allowDeselect={false}
+                      />
+                      <Select
+                        label={t("localUsers.domainLabel")}
+                        size="xs"
+                        data={domainOptions}
+                        value={assignDomain}
+                        onChange={(v) => setAssignDomain(v ?? "*")}
+                        allowDeselect={false}
+                      />
+                      <Button
+                        size="xs"
+                        onClick={() => handleAddAssignment(u.id)}
+                        disabled={!assignRole}
+                      >
+                        {t("localUsers.add")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Collapse>
+              </Table.Td>
+              <Table.Td>{u.email || t("localUsers.none")}</Table.Td>
+              <Table.Td>{u.display_name || t("localUsers.none")}</Table.Td>
+              <Table.Td>{u.is_active ? t("localUsers.yes") : t("localUsers.no")}</Table.Td>
+              <Table.Td>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  aria-label={t(
+                    deletesAccount ? "localUsers.deleteUser" : "localUsers.removeFromOrg",
+                    { username: u.username },
+                  )}
+                  data-testid={`remove-user-${u.username}`}
+                  onClick={() => setRemoving({ id: u.id, username: u.username })}
+                >
+                  <Trash2 size={14} />
+                </ActionIcon>
+              </Table.Td>
+            </ListRow>
+          );
+        }}
+      />
       {totalPages > 1 && !grouped && (
         <Group justify="flex-end">
           <Pagination total={totalPages} value={userPage} onChange={setUserPage} size="sm" />
@@ -318,62 +398,26 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
               username: removing?.username,
             })}
           </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setRemoving(null)} disabled={removeBusy}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              color="red"
-              onClick={handleDeleteUser}
-              loading={removeBusy}
-              data-testid="remove-user-confirm"
-            >
-              {t(
-                deletesAccount
-                  ? "localUsers.confirmDeleteButton"
-                  : "localUsers.confirmRemoveButton",
-              )}
-            </Button>
-          </Group>
+          <FormFooter
+            onCancel={() => setRemoving(null)}
+            cancelProps={{ disabled: removeBusy }}
+            action={
+              <Button
+                color="red"
+                onClick={handleDeleteUser}
+                loading={removeBusy}
+                data-testid="remove-user-confirm"
+              >
+                {t(
+                  deletesAccount
+                    ? "localUsers.confirmDeleteButton"
+                    : "localUsers.confirmRemoveButton",
+                )}
+              </Button>
+            }
+          />
         </Stack>
       </Modal>
-
-      <Title order={4}>{t("localUsers.createHeading")}</Title>
-      <Stack gap="sm" maw={480}>
-        <TextInput
-          label={t("localUsers.username")}
-          placeholder={t("localUsers.usernameRequired")}
-          required
-          value={newUsername}
-          onChange={(e) => setNewUsername(e.currentTarget.value)}
-        />
-        <PasswordInput
-          label={t("localUsers.password")}
-          placeholder={t("localUsers.passwordRequired")}
-          required
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.currentTarget.value)}
-        />
-        <TextInput
-          label={t("localUsers.email")}
-          placeholder={t("localUsers.emailOptional")}
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.currentTarget.value)}
-        />
-        <TextInput
-          label={t("localUsers.displayName")}
-          placeholder={t("localUsers.displayNameOptional")}
-          value={newDisplayName}
-          onChange={(e) => setNewDisplayName(e.currentTarget.value)}
-        />
-        <Button
-          onClick={handleAddUser}
-          disabled={!newUsername.trim() || !newPassword.trim()}
-          style={{ alignSelf: "flex-start" }}
-        >
-          {t("localUsers.createButton")}
-        </Button>
-      </Stack>
     </Stack>
   );
 }

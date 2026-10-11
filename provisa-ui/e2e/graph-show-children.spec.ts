@@ -15,7 +15,7 @@ type CyInstance = {
 
 async function getOverlayKeys(page: import("@playwright/test").Page): Promise<string[]> {
   return page.evaluate(() => {
-    const od = (window as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
+    const od = (window as unknown as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
     return od ? Array.from(od.keys()) : [];
   });
 }
@@ -58,7 +58,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   // but after that the graph query should be fast.
   await page.waitForFunction(
     () => {
-      const cy = (window as Record<string, unknown>).__cy as CyInstance | undefined;
+      const cy = (window as unknown as Record<string, unknown>).__cy as CyInstance | undefined;
       return cy != null && cy.nodes().length >= 2;
     },
     { timeout: 90000 },
@@ -66,7 +66,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
 
   // Collect node IDs (only root result nodes, not overlay nodes)
   const nodeIds = await page.evaluate(() => {
-    const cy = (window as Record<string, unknown>).__cy as CyInstance;
+    const cy = (window as unknown as Record<string, unknown>).__cy as CyInstance;
     return cy.nodes().map((n) => n.id());
   });
 
@@ -78,7 +78,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
 
   async function openContextMenuForNode(nodeId: string) {
     const pos = await page.evaluate((id) => {
-      const cy = (window as Record<string, unknown>).__cy as CyInstance;
+      const cy = (window as unknown as Record<string, unknown>).__cy as CyInstance;
       const node = cy.$id(id);
       return node.length > 0 ? node.renderedPosition() : null;
     }, nodeId);
@@ -105,7 +105,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   // 60s: the Pets children query may be queued behind other backend work; allow generous budget.
   await page.waitForFunction(
     () => {
-      const od = (window as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
+      const od = (window as unknown as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
       return od != null && Array.from(od.keys()).some((k) => k.endsWith(":children"));
     },
     { timeout: 60000 },
@@ -121,7 +121,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   // still shows only the original 5 query-result nodes, causing a misclick into empty space.
   await page.waitForFunction(
     () => {
-      const cy = (window as Record<string, unknown>).__cy as CyInstance | undefined;
+      const cy = (window as unknown as Record<string, unknown>).__cy as CyInstance | undefined;
       return cy != null && cy.nodes().length > 5;
     },
     { timeout: 60000 },
@@ -135,7 +135,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   // Wait for second node's children to be added (total :children entries should be 2)
   await page.waitForFunction(
     () => {
-      const od = (window as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
+      const od = (window as unknown as Record<string, unknown>).__overlayData as Map<string, unknown> | undefined;
       if (!od) return false;
       return Array.from(od.keys()).filter((k) => k.endsWith(":children")).length >= 2;
     },
@@ -156,7 +156,7 @@ test("show children for two nodes keeps both visible", async ({ page }) => {
   // The original bug: overlayEdges changes trigger a full cytoscape rebuild which wipes overlay
   // nodes from the canvas, and stale prevOverlayNodesRef prevents them from being re-added.
   const cyNodeCount = await page.evaluate(() => {
-    const cy = (window as Record<string, unknown>).__cy as CyInstance;
+    const cy = (window as unknown as Record<string, unknown>).__cy as CyInstance;
     return cy.nodes().length;
   });
   // With both sets of children visible, there must be more nodes than the 5 initial query results

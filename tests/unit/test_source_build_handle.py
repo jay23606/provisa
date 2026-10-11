@@ -217,3 +217,42 @@ async def test_a_build_already_running_when_the_seed_was_posted_is_built_again(d
     assert await _handle(db, kicks)(_seed(started.replace(second=5)), prior_hash=None) is None
     assert (await _record(db)).requested_reason == "refresh"
     assert kicks == [1]
+
+
+async def test_an_unchanged_probe_stamps_the_replica_verified(db):
+    """REQ-855: the node's probe found the source unchanged; the replica is current as of then,
+    and the source processor hands the probe exactly this hook."""
+    from provisa.events.processor import SourceTableProcessor
+
+    land = _handle(db, [])
+    async with db.acquire() as conn:
+        await replica_state.request_build(conn, KEY, replica_state.REASON_MODEL)
+    await land.verified()  # never built: nothing to verify
+    assert (await _record(db)).verified_at is None
+    await _complete(db, content_hash="h1")
+    built = (await _record(db)).completed_at
+    await land.verified()
+    record = await _record(db)
+    assert record.verified_at is not None and record.verified_at >= built
+    assert record.current_at == record.verified_at
+
+    processor = SourceTableProcessor(
+        node="src/public.orders",
+        db=db,
+        change_signal="probe",
+        watermark_column=None,
+        dependents_of=lambda _node: [],
+        name="source:src/public.orders",
+        land=land,
+    )
+    assert processor._on_unchanged() is land.verified
+    plain = SourceTableProcessor(
+        node="src/public.orders",
+        db=db,
+        change_signal="probe",
+        watermark_column=None,
+        dependents_of=lambda _node: [],
+        name="source:src/public.orders",
+        land=lambda *a, **k: None,
+    )
+    assert plain._on_unchanged() is None

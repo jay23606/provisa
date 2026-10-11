@@ -11,18 +11,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { User, Compass, ChevronDown } from "lucide-react";
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Checkbox,
-  Menu,
-  Modal,
-  Stack,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Badge, Button, Checkbox, Menu, Modal, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 import { BrandMark } from "./BrandMark";
 import { CapabilityGate } from "./CapabilityGate";
 import { HIDING_RIGHTS } from "../lib/capabilities";
@@ -39,6 +30,7 @@ import { signOut } from "../lib/session";
 import { deleteSandboxAccount } from "../api/admin";
 import { notifications } from "@mantine/notifications";
 import { NAV_GROUPS, activeGroupId, entryItem, labelKeyFor, writeLastSubnav } from "./navGroups";
+import { Tip } from "./Tip";
 
 export function NavBar() {
   const { t } = useTranslation();
@@ -281,7 +273,7 @@ export function NavBar() {
           {/* No launcher where the viewer's rights open none of the tour's pages — a button
               whose tour would be empty is worse than no button. */}
           {tourAvailable && (
-            <Tooltip label={tourLabel}>
+            <Tip text={tourLabel} named>
               <ActionIcon
                 variant="default"
                 size="lg"
@@ -294,7 +286,7 @@ export function NavBar() {
               >
                 <Compass size={16} aria-hidden />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           )}
           <div className="navbar-user-wrapper">
             <Menu position="bottom-end" withinPortal transitionProps={{ duration: 0 }}>
@@ -394,27 +386,25 @@ export function NavBar() {
       <Modal
         opened={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        title="Ready to Build?"
+        title={t("navBar.sandboxExitTitle")}
         centered
         size="sm"
       >
         <Stack gap="md">
-          <Text size="sm">
-            Your sandbox account will be deleted when you log out. You can always create a new
-            sandbox account by using the invite link again.
-          </Text>
-          <Text size="sm">
-            Ready to create your own organization and start with a Starter plan? You'll get 14 days
-            free.
-          </Text>
-          <Stack gap="xs">
-            <Button fullWidth onClick={() => navigate("/admin/orgs")}>
-              Create Organization
+          <Text size="sm">{t("navBar.sandboxExitDeleted")}</Text>
+          <Text size="sm">{t("navBar.sandboxExitUpgrade")}</Text>
+          {/* The dialog's action first, then the other, at the start of the line. */}
+          <FormFooter
+            action={
+              <Button onClick={() => navigate("/admin/orgs")}>
+                {t("navBar.sandboxExitCreateOrg")}
+              </Button>
+            }
+          >
+            <Button variant="default" onClick={proceedWithLogout}>
+              {t("navBar.sandboxExitLogOut")}
             </Button>
-            <Button fullWidth variant="default" onClick={proceedWithLogout}>
-              Just Log Out
-            </Button>
-          </Stack>
+          </FormFooter>
         </Stack>
       </Modal>
     </>

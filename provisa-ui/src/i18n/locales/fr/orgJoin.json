@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Rôle accordé à l'adhésion automatique",
     "autoJoinRoleDesc": "Le rôle que reçoit toute personne admise par la règle.",
     "acceptRisk": "J'accepte que cette règle puisse admettre des personnes extérieures à mon organisation",
-    "save": "Enregistrer",
     "saved": "Règle d'adhésion enregistrée."
   }
 }

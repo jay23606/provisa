@@ -94,9 +94,17 @@ const PUSH_SIGNAL_BY_SOURCE_TYPE: Record<string, string> = {
 // only — their token comes from a per-table probe_query (or MAX(watermark_column)), neither of which
 // exists on a Source — so they are offered on the table editor, not here. A push source type offers
 // only its own push signal.
+//
+// The one exception is a source whose probe is the SOURCE's own, not a table's: a mail source asks
+// its provider whether the mailbox changed (backend: the adapter's freshness_probe), so checking
+// before re-reading is a choice for the whole source. Only a kind whose adapter has that probe is
+// here (server: probes.LOADER_PROBE_TYPES, which refuses the signal on any other mail kind).
+export const SOURCE_PROBE_SOURCE_TYPES = new Set(["google_workspace", "microsoft_365"]);
+
 export function sourceChangeSignals(sourceType: string | null | undefined): string[] {
   const push = PUSH_SIGNAL_BY_SOURCE_TYPE[(sourceType ?? "").toLowerCase()];
   if (push) return [push];
+  if (SOURCE_PROBE_SOURCE_TYPES.has((sourceType ?? "").toLowerCase())) return ["ttl", "ttl_probe"];
   const strat = availableStrategies(sourceType);
   const out: string[] = ["ttl"]; // poll → timer default; every source can fall back to ttl
   if (strat.includes("native")) out.push("native");
@@ -111,6 +119,9 @@ export function sourceChangeSignals(sourceType: string | null | undefined): stri
 // (empty). probe_type implies the landing shape (watermark → append, else replace).
 const PROBE_STREAMING_TYPES = new Set(["kafka", "websocket", "ingest"]);
 const PROBE_FILE_TYPES = new Set(["csv", "parquet", "sqlite", "files"]);
+// A mailbox has no cursor to watermark by and no count that sees an edit: its provider's token
+// (hash) or nothing.
+const PROBE_MAIL_TYPES = new Set(["google_workspace", "microsoft_365"]);
 const PROBE_HTTP_API_TYPES = new Set([
   "openapi",
   "graphql_remote",
@@ -123,7 +134,7 @@ const PROBE_HTTP_API_TYPES = new Set([
 export function sourceProbeTypes(sourceType: string | null | undefined): string[] {
   const t = (sourceType ?? "").toLowerCase();
   if (PROBE_STREAMING_TYPES.has(t)) return []; // push axis — not polled, no probe
-  if (PROBE_FILE_TYPES.has(t)) return ["hash", "none"];
+  if (PROBE_FILE_TYPES.has(t) || PROBE_MAIL_TYPES.has(t)) return ["hash", "none"];
   if (PROBE_HTTP_API_TYPES.has(t)) return ["watermark", "hash", "count", "none"];
   return ["watermark", "hash", "count", "none"]; // SQL / engine-scannable (open-ended default)
 }

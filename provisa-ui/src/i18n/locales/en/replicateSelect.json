@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Replicate",
-    "helpTable": "When this table is served from its replica: a copy kept in the engine's store and refreshed on the table's timeliness settings (TTL, freshness check, change feed). It is not a continuous change stream. Default uses the source's value, or the global threshold when the source has none. Only Always is a guarantee; Default, Never and the Hot entries are best effort.",
-    "helpSource": "When this source's tables are served from their replicas: copies kept in the engine's store and refreshed on each table's timeliness settings. A table with no value of its own uses this one. Default applies the global threshold. Only Always is a guarantee; Default, Never and the Hot entries are best effort.",
+    "helpTable": "When this table's reads come from its replica, a copy in the engine's store refreshed on the table's timeliness settings. Default: the source's setting, or the global threshold when it has none.",
+    "helpSource": "When reads of this source's tables come from their replicas, copies in the engine's store refreshed on each table's timeliness settings. A table with no setting of its own uses this one. Default: the global threshold.",
+    "helpOptions": "Live if possible: read directly from the source; replicated only where the engine cannot read it directly. Hot-N: read directly until N statements read the table within the interval, then from the replica until they fall below half of N; answers from the response cache do not count. Always: always from the replica, the only setting that is a guarantee.",
     "default": "Default",
-    "never": "Never",
+    "never": "Live if possible",
     "always": "Always",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "Never cannot be combined with load protection: a load-protected table is never read live."
+    "neverWithLoadProtection": "Live if possible cannot be combined with load protection: a load-protected table is never read live.",
+    "scheduled": "Always, source read only on schedule",
+    "helpScheduled": "Always, source read only on schedule: reads always come from the replica and a query never causes the source to be read; the scheduler refreshes the replica on the off-peak window, the Cache TTL or the change probe, and at least one of the three is required."
   }
 }

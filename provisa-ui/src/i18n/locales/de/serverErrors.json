@@ -105,7 +105,12 @@
       "system_catalog_unavailable": "Der Katalog '{{catalog}}' der Engine wird gerade registriert. Versuchen Sie es in Kürze erneut.",
       "domain_not_accessible": "Rolle '{{role_id}}' hat keinen Zugriff auf die Domäne '{{domain}}'",
       "role_mismatch": "Die Anfrage nennt die Rolle '{{body_role}}', wird aber als Rolle '{{acting_role}}' ausgeführt. Die Rolle wird über den Header X-Provisa-Role (oder die angemeldete Identität) übermittelt; entfernen Sie die andere Rolle oder gleichen Sie sie an.",
-      "sql_parameters_do_not_fit": "Die Parameterwerte passen nicht zur Anweisung: {{reason}}"
+      "sql_parameters_do_not_fit": "Die Parameterwerte passen nicht zur Anweisung: {{reason}}",
+      "unknown_root_field": "Unbekanntes Abfragefeld '{{field}}': Dieser Rolle wird keine Tabelle mit diesem Namen bereitgestellt",
+      "viewer_column_unknown": "'{{column}}' ist keine Spalte der Tabelle '{{table}}'",
+      "viewer_filter_unknown": "'{{operator}}' ist kein Filter der Spalte '{{column}}'",
+      "viewer_value_invalid": "Der Filter auf '{{column}}' kann den Wert '{{value}}' nicht verwenden",
+      "replica_building": "Die Kopie von {{replica}} wird noch erstellt. Der Aufbau läuft weiter; öffnen Sie die Vorschau erneut, sobald er abgeschlossen ist."
     },
     "discovery": {
       "adapter_missing_discover_schema": "Adapter für '{{source_type}}' implementiert discover_schema nicht",
@@ -135,7 +140,7 @@
       "argument_missing": "{{signature}}: Argument '{{argument}}' wurde nicht angegeben",
       "argument_not_declared": "{{signature}}: Argument '{{argument}}' ist nicht deklariert",
       "binding_missing_key": "Funktionsbindung für Art '{{kind}}' fehlt der erforderliche Schlüssel '{{key}}'",
-      "egress_denied": "Ausgehender Zugriff auf '{{endpoint}}' verweigert: Host steht nicht auf der UDF-Egress-Zulassungsliste (REQ-885 deny-by-default). Fügen Sie ihn zu udf_egress_allowlist hinzu, um ihn zuzulassen.",
+      "egress_denied": "Ausgehender Zugriff auf '{{endpoint}}' verweigert: Host steht nicht auf der UDF-Egress-Zulassungsliste (standardmäßig verweigert). Fügen Sie ihn zu udf_egress_allowlist hinzu, um ihn zuzulassen.",
       "grpc_call_failed": "gRPC-Aufruf {{target}}{{path}} fehlgeschlagen: {{status}}: {{details}}",
       "grpc_method_invalid": "gRPC-Methode '{{method}}' muss dem Format 'Service/Method' oder 'pkg.Service.Method' entsprechen",
       "json_argument_invalid": "Argument '{{argument}}' von '{{name}}' ist kein JSON-Literal",
@@ -145,7 +150,7 @@
       "python_callable_invalid": "Python-Callable '{{spec}}' muss dem Format 'module:attr' entsprechen",
       "remote_refused": "{{source_id}} hat {{operation}} abgelehnt: {{answer}}",
       "result_set_ref_invalid": "result_set-Referenz '{{ref}}' muss dem Format source.schema.table entsprechen",
-      "rowwise_external": "Funktion '{{name}}' (kind={{impl_kind}}) ist zeilenweise extern: alle Argumente sind skalare column_value. Deklarieren Sie ein table_ref-/result_set-Relationsargument, damit Aufrufe mengenweise und gebündelt erfolgen (REQ-885).",
+      "rowwise_external": "Funktion '{{name}}' (kind={{impl_kind}}) ist zeilenweise extern: alle Argumente sind skalare column_value. Deklarieren Sie ein table_ref-/result_set-Relationsargument, damit Aufrufe mengenweise und gebündelt erfolgen.",
       "script_failed": "Skript wurde mit {{returncode}} beendet: {{stderr}}",
       "source_not_connected": "Quelle '{{source_id}}' nicht verbunden",
       "unknown_arg_kind": "Unbekanntes arg_kind '{{arg_kind}}' für '{{name}}'",
@@ -214,7 +219,7 @@
       "org_id_reserved": "Organisations-ID '{{org}}' ist reserviert. Reservierte IDs: {{reserved}}.",
       "platform_admin_required": "platform_admin erforderlich",
       "retry_not_failed": "Organisation '{{org}}' ist '{{state}}', nicht 'failed' — nichts zu wiederholen.",
-      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator (REQ-1308).",
+      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
       "view_not_permitted": "Keine Berechtigung, diese Organisation anzuzeigen"
     },
     "platform": {
@@ -271,7 +276,7 @@
       "invalid_calendar": "ungültiger Kalender: {{error}}",
       "invalid_cardinality": "Ungültige Kardinalität: '{{cardinality}}'",
       "invalid_off_peak_window": "ungültiges Nebenzeiten-Fenster: {{error}}",
-      "load_protection_gate_required": "{{who}}: Lastschutz erfordert mindestens ein Aktualisierungs-Gate — legen Sie ein Nebenzeiten-Fenster, eine cache_ttl-Kadenz oder ein prüfendes change_signal (probe/ttl_probe) fest (REQ-1141)",
+      "load_protection_gate_required": "{{who}}: Lastschutz erfordert mindestens ein Aktualisierungs-Gate — legen Sie ein Nebenzeiten-Fenster, eine cache_ttl-Kadenz oder ein prüfendes change_signal (probe/ttl_probe) fest",
       "metric_deleted": "Metrik '{{metric}}' gelöscht",
       "metric_not_found": "Metrik '{{metric}}' nicht gefunden",
       "metric_saved": "Metrik '{{metric}}' gespeichert",
@@ -297,6 +302,10 @@
       "relationship_not_found": "Beziehung '{{relationship}}' nicht gefunden",
       "relationship_saved": "Beziehung '{{relationship}}' gespeichert",
       "remigrated": "{{source}}.{{table}} erneut migriert",
+      "change_signal_not_honoured": "Eine Quelle vom Typ {{type}} kann noch nicht auf Änderungen geprüft werden, daher würde das Änderungssignal {{signal}} nie abgefragt. Verwenden Sie ttl für die Quelle „{{source}}“.",
+      "sentinel_path_not_applicable": "Eine Quelle vom Typ {{type}} kann keinen Sentinel-Pfad haben: Kein eigener Produzent kann eine Änderung ihrer Daten markieren, oder die Quelle wird nicht geprüft. Entfernen Sie den Sentinel-Pfad aus der Quelle „{{source}}“.",
+      "source_cache_ttl_required": "Die Quelle „{{source}}“ benötigt eine Cache-TTL: Jede ihrer Tabellen ist ein Replikat, das unter dem Änderungssignal {{signal}} nach dieser Uhr aktualisiert wird. Legen Sie sie bei der Quelle unter „Laststeuerung und Aktualität“ fest.",
+      "landing_ttl_required": "Die Tabelle „{{table}}“ ist ein Replikat, das nach einer Cache-TTL aktualisiert wird, und weder sie noch ihre Quelle „{{source}}“ hat eine. Legen Sie die Cache-TTL bei der Quelle unter „Laststeuerung und Aktualität“ fest oder bei der Tabelle selbst, sobald sie registriert ist.",
       "replicate_contradicts_load_protected": "Lastschutz lässt sich nicht mit Replizieren = „Nie“ kombinieren: Eine lastgeschützte Tabelle wird nie live gelesen",
       "replicate_invalid": "Replizieren muss „Standard“, „Nie“, „Immer“ oder ein Schwellenwert über 0 sein; erhalten: {{value}}",
       "request_executed": "Erstellungsanfrage #{{id}} ausgeführt",
@@ -436,7 +445,7 @@
       "last_platform_admin": "{{user}} ist der letzte Plattformadministrator dieser Bereitstellung. Weisen Sie die Rolle zuerst einem anderen Benutzer zu.",
       "no_active_org": "An diese Anfrage ist keine Organisation gebunden. Melden Sie sich zuerst bei einer Organisation an.",
       "no_fields_to_update": "Keine Felder zu aktualisieren",
-      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator (REQ-1308).",
+      "self_role_change": "Ein Benutzer kann seine eigene Rolle nicht ändern. Bitten Sie einen anderen Administrator.",
       "user_not_found": "Benutzer nicht gefunden"
     },
     "cypher": {
@@ -483,16 +492,27 @@
       "unknown": "Es gibt keine E-Mail-Plattform namens {{platform}}.",
       "not_configured": "Ihre Organisation hat diese E-Mail-Plattform ({{platform}}) noch nicht verbunden. Ein Administrator trägt ihren Client einmal unter Admin › E-Mail ein.",
       "unknown_setting": "{{setting}} ist keine Einstellung dieser E-Mail-Plattform.",
-      "incomplete": "Vor dem Speichern noch erforderlich: {{missing}}."
+      "incomplete": "Vor dem Speichern noch erforderlich: {{missing}}.",
+      "credential_unresolved": "Der für diese E-Mail-Plattform ({{platform}}) eingegebene Wert für {{field}} konnte nicht aufgelöst werden: {{reason}}"
     },
     "microsoft_365": {
       "mailboxes_invalid": "Die Auswahl der Postfächer kann nicht gelesen werden: {{error}}",
       "client_refused": "Microsoft hat den Microsoft-365-Client Ihrer Organisation abgelehnt: {{reason}}",
       "throttled": "Microsoft begrenzt derzeit die Anfragen. Versuchen Sie es in {{retry_after}} Sekunden erneut.",
-      "directory_refused": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Der Client benötigt die Berechtigung, die Benutzer des Verzeichnisses zu lesen."
+      "directory_refused": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Der Client benötigt die Berechtigung, die Benutzer des Verzeichnisses zu lesen.",
+      "directory_no_permissions": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Das Token des Clients enthält keine Anwendungsberechtigung; benötigt wird {{missing}}. Fügen Sie sie als Anwendungsberechtigung (nicht als delegierte) hinzu und erteilen Sie die Administratoreinwilligung.",
+      "directory_permission_missing": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}). Das Token des Clients enthält {{carries}}; es fehlt: {{missing}}. Fügen Sie sie als Anwendungsberechtigung (nicht als delegierte) hinzu und erteilen Sie die Administratoreinwilligung.",
+      "directory_refused_granted": "Microsoft hat die Postfächer der Organisation nicht aufgelistet ({{status}} {{reason}}), obwohl das Token des Clients enthält, was die Auflistung benötigt ({{carries}})."
     },
     "dbt_sources": {
       "unknown_role": "Es gibt keine Rolle namens {{role}}."
+    },
+    "google_workspace": {
+      "mailboxes_invalid": "Das ist keine Möglichkeit, Postfächer auszuwählen: {{error}}",
+      "scope_not_delegated": "Das Google-Dienstkonto der Organisation ist nicht für {{scopes}} autorisiert. Ein Super Admin fügt dessen Client-ID mit diesem Bereich in der Google Admin-Konsole unter Sicherheit › Zugriffs- und Datenkontrolle › API-Steuerung › Domainweite Delegierung verwalten hinzu; eine neue Autorisierung kann bis zu 24 Stunden brauchen.",
+      "admin_not_a_user": "{{address}} ist kein Benutzer der Google Workspace-Domain der Organisation, daher kann das Verzeichnis nicht in seinem Namen aufgelistet werden. Ein Administrator korrigiert die Administratoradresse unter Admin › E-Mail.",
+      "directory_refused": "Das Google-Verzeichnis ließ sich nicht lesen: {{reason}} (HTTP {{status}}).",
+      "credential_refused": "Google hat das Dienstkonto der Organisation abgelehnt: {{reason}}"
     }
   }
 }

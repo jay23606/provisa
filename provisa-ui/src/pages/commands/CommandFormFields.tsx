@@ -14,7 +14,6 @@ import {
   ActionIcon,
   Autocomplete,
   Button,
-  Group,
   NumberInput,
   Select,
   Switch,
@@ -39,8 +38,13 @@ import {
 import type { FormState } from "./types";
 import { ColumnGovernanceFields } from "./ColumnGovernanceFields";
 import { physicalRelationName } from "../../naming";
+import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface CommandFormFieldsProps {
+  /** The short step that creates a command: only what it needs in order to exist -- what it
+   * calls. Everything else starts at its default and is set in the edit form the new command
+   * then opens in. */
+  essential?: boolean;
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   sources: Source[];
@@ -53,6 +57,7 @@ interface CommandFormFieldsProps {
 }
 
 export function CommandFormFields({
+  essential = false,
   form,
   setForm,
   sources,
@@ -153,486 +158,646 @@ export function CommandFormFields({
 
   return (
     <>
-      {form.actionType === "function" && (
-        <>
-          <Select
-            label={t("commandFormFields.implementation")}
-            data={IMPL_KINDS}
-            value={form.implKind}
-            onChange={(val) => setForm({ ...form, implKind: val ?? "source_procedure" })}
-            allowDeselect={false}
-            data-testid="command-impl-kind-select"
-          />
-          {(form.implKind === "source_procedure" || isSourceOperation) && (
-            <>
-              <Select
-                label={t("commandFormFields.source")}
-                placeholder={t("commandFormFields.selectSource")}
-                required
-                data={sources.map((s) => ({ value: s.id, label: `${s.id} (${s.type})` }))}
-                value={form.sourceId || null}
-                onChange={(val) => {
-                  const selectedSrc = sources.find((s) => s.id === val);
-                  const schema = selectedSrc ? OPERATION_SCHEMA[selectedSrc.type] : undefined;
-                  setForm({
-                    ...form,
-                    sourceId: val ?? "",
-                    implKind: schema ? "source_operation" : "source_procedure",
-                    schemaName: schema ?? form.schemaName,
-                    functionName: "",
-                    ...(schema ? { kind: "mutation", arguments: [], returns: "" } : {}),
-                  });
-                }}
-                data-testid="command-source-select"
-              />
-              <TextInput
-                label={t("commandFormFields.schema")}
-                value={form.schemaName}
-                onChange={(e) => setForm({ ...form, schemaName: e.currentTarget.value })}
-                readOnly={operationSchema !== undefined}
-                data-testid="command-schema-input"
-              />
-              {operationSchema !== undefined ? (
+      <FormLayout>
+        {form.actionType === "function" && (
+          <>
+            <FormLayout>
+              <FormField size="medium">
                 <Select
-                  label={t("commandFormFields.functionName")}
-                  required
-                  data={availableFunctions.map((f) => ({
-                    value: f.name,
-                    label: f.comment ? `${f.name} — ${f.comment}` : f.name,
-                  }))}
-                  value={form.functionName || null}
-                  onChange={(val) => setForm({ ...form, functionName: val ?? "" })}
-                  disabled={loadingFunctions}
-                  placeholder={
-                    loadingFunctions
-                      ? t("commandFormFields.loading")
-                      : t("commandFormFields.selectOperation")
-                  }
-                  data-testid="command-function-select"
-                />
-              ) : (
-                // REQ-887: the schema's routines are offered to pick from; picking one registers
-                // nothing until the command is saved.
-                <Autocomplete
-                  label={t("commandFormFields.functionName")}
-                  required
-                  data={availableFunctions.map((f) => f.name)}
-                  value={form.functionName}
-                  onChange={(val) => setForm({ ...form, functionName: val })}
-                  placeholder={t("commandFormFields.dbFunctionNamePlaceholder")}
-                  description={
-                    availableFunctions.length > 0
-                      ? t("commandFormFields.routinesOffered", { count: availableFunctions.length })
-                      : undefined
-                  }
-                  data-testid="command-function-input"
-                />
-              )}
-            </>
-          )}
-          {form.implKind === "script" && (
-            <TextInput
-              label={t("commandFormFields.bindingArgv")}
-              required
-              value={bindingStr("argv")}
-              onChange={(e) =>
-                setBinding("argv", e.currentTarget.value.split(/\s+/).filter(Boolean))
-              }
-              placeholder="/usr/local/bin/transform --json"
-              data-testid="command-binding-argv"
-            />
-          )}
-          {form.implKind === "http" && (
-            <>
-              <TextInput
-                label={t("commandFormFields.bindingUrl")}
-                required
-                value={bindingStr("url")}
-                onChange={(e) => setBinding("url", e.currentTarget.value)}
-                placeholder="https://svc.internal/fn"
-                data-testid="command-binding-url"
-              />
-              <Select
-                label={t("commandFormFields.method")}
-                data={["POST", "GET", "PUT", "PATCH"]}
-                value={bindingStr("method") || "POST"}
-                onChange={(val) => setBinding("method", val ?? "POST")}
-                allowDeselect={false}
-              />
-            </>
-          )}
-          {form.implKind === "grpc" && (
-            <>
-              <TextInput
-                label={t("commandFormFields.bindingTarget")}
-                required
-                value={bindingStr("target")}
-                onChange={(e) => setBinding("target", e.currentTarget.value)}
-                placeholder="svc.internal:50051"
-                data-testid="command-binding-target"
-              />
-              <TextInput
-                label={t("commandFormFields.bindingGrpcMethod")}
-                required
-                value={bindingStr("method")}
-                onChange={(e) => setBinding("method", e.currentTarget.value)}
-                placeholder="pkg.Service.Method"
-                data-testid="command-binding-grpc-method"
-              />
-              <Switch
-                label={t("commandFormFields.bindingTls")}
-                checked={!!form.binding.tls}
-                onChange={(e) => setBinding("tls", e.currentTarget.checked)}
-              />
-            </>
-          )}
-          {form.implKind === "python" && (
-            <TextInput
-              label={t("commandFormFields.bindingCallable")}
-              required
-              value={bindingStr("callable")}
-              onChange={(e) => setBinding("callable", e.currentTarget.value)}
-              placeholder="my_pkg.udfs:transform"
-              data-testid="command-binding-callable"
-            />
-          )}
-          {form.implKind !== "source_procedure" && !isSourceOperation && (
-            <Switch
-              label={t("commandFormFields.materialize")}
-              description={t("commandFormFields.materializeHint")}
-              checked={form.materialize}
-              onChange={(e) => setForm({ ...form, materialize: e.currentTarget.checked })}
-              data-testid="command-materialize-switch"
-            />
-          )}
-          {!isSourceOperation && (
-            <Select
-              label={t("commandFormFields.returnType")}
-              data={[
-                { value: "table", label: t("commandFormFields.registeredTable") },
-                { value: "dataset", label: t("commandFormFields.datasetColumns") },
-              ]}
-              value={form.returnSchemaMode}
-              onChange={(val) =>
-                setForm({
-                  ...form,
-                  returnSchemaMode: (val ?? "table") as "table" | "dataset",
-                  returns: "",
-                })
-              }
-              allowDeselect={false}
-              data-testid="command-return-type-select"
-            />
-          )}
-          {!isSourceOperation && form.returnSchemaMode === "table" && (
-            <Select
-              label={t("commandFormFields.returnsTable")}
-              placeholder={t("commandFormFields.selectTable")}
-              data={physicalTableOptions(form.sourceId)}
-              value={form.returns || null}
-              onChange={(val) => setForm({ ...form, returns: val ?? "" })}
-              data-testid="command-returns-table-select"
-            />
-          )}
-          <TextInput
-            label={t("commandFormFields.visibleTo")}
-            value={form.visibleTo}
-            onChange={(e) => setForm({ ...form, visibleTo: e.currentTarget.value })}
-            placeholder={t("commandFormFields.visibleToPlaceholder")}
-          />
-          {/* REQ-1924, REQ-871: the table a call changes; what is held of it is refreshed after. */}
-          <Select
-            label={t("commandFormFields.writesTable")}
-            description={t("commandFormFields.writesTableHint")}
-            placeholder={t("commandFormFields.selectTable")}
-            data={physicalTableOptions(form.sourceId)}
-            value={form.writesTable || null}
-            onChange={(val) => setForm({ ...form, writesTable: val ?? "" })}
-            clearable
-            data-testid="command-writes-table-select"
-          />
-          {/* REQ-1924: a call runs only once the deployment's approval hook approves it. */}
-          <Switch
-            label={t("commandFormFields.requiresApproval")}
-            description={t("commandFormFields.requiresApprovalHint")}
-            checked={form.requiresApproval}
-            onChange={(e) => setForm({ ...form, requiresApproval: e.currentTarget.checked })}
-            data-testid="command-requires-approval-switch"
-          />
-        </>
-      )}
-      {form.actionType === "webhook" && (
-        <>
-          <TextInput
-            label={t("commandFormFields.url")}
-            required
-            value={form.url}
-            onChange={(e) => setForm({ ...form, url: e.currentTarget.value })}
-            placeholder={t("commandFormFields.urlPlaceholder")}
-            data-testid="command-url-input"
-          />
-          <Select
-            label={t("commandFormFields.method")}
-            data={["POST", "GET", "PUT", "PATCH"]}
-            value={form.method}
-            onChange={(val) => setForm({ ...form, method: val ?? "POST" })}
-            allowDeselect={false}
-            data-testid="command-method-select"
-          />
-          <NumberInput
-            label={t("commandFormFields.timeoutMs")}
-            min={100}
-            value={form.timeoutMs}
-            onChange={(val) => setForm({ ...form, timeoutMs: typeof val === "number" ? val : 0 })}
-          />
-          <Select
-            label={t("commandFormFields.returnsTableOptional")}
-            placeholder={t("commandFormFields.noneInlineType")}
-            data={virtualTableOptions}
-            value={form.returns || null}
-            onChange={(val) => setForm({ ...form, returns: val ?? "" })}
-          />
-          <TextInput
-            label={t("commandFormFields.visibleTo")}
-            value={form.visibleTo}
-            onChange={(e) => setForm({ ...form, visibleTo: e.currentTarget.value })}
-            placeholder={t("commandFormFields.visibleToPlaceholder")}
-          />
-          {/* REQ-209: a call is made only once the deployment's approval hook approves it. */}
-          <Switch
-            label={t("commandFormFields.requiresApproval")}
-            description={t("commandFormFields.requiresApprovalHint")}
-            checked={form.requiresApproval}
-            onChange={(e) => setForm({ ...form, requiresApproval: e.currentTarget.checked })}
-            data-testid="webhook-requires-approval-switch"
-          />
-          {!form.returns && (
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Title order={5} mb="xs">
-                {t("commandFormFields.inlineReturnType")}
-              </Title>
-              {form.inlineReturnType.map((f, i) => (
-                <React.Fragment key={i}>
-                  <Group gap="xs" mb="xs" align="center" wrap="nowrap">
-                    <TextInput
-                      value={f.name}
-                      onChange={(e) => handleInlineFieldChange(i, "name", e.currentTarget.value)}
-                      placeholder={t("commandFormFields.fieldNamePlaceholder")}
-                      style={{ flex: 1, minWidth: 0 }}
-                    />
-                    <Select
-                      value={f.type}
-                      onChange={(val) => handleInlineFieldChange(i, "type", val ?? "String")}
-                      data={GRAPHQL_TYPES}
-                      allowDeselect={false}
-                      w={120}
-                    />
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      aria-label={t("commandFormFields.removeField", { name: f.name || i + 1 })}
-                      onClick={() => handleRemoveInlineField(i)}
-                    >
-                      <X size={14} />
-                    </ActionIcon>
-                  </Group>
-                  {/* REQ-1679: the webhook's response is governed like a table's rows. */}
-                  <ColumnGovernanceFields
-                    col={f}
-                    onChange={(patch) => patchInlineField(i, patch)}
-                    testId={`inline-field-governance-${i}`}
-                  />
-                </React.Fragment>
-              ))}
-              <Button variant="subtle" size="xs" onClick={handleAddInlineField}>
-                {t("commandFormFields.addField")}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-      {!isSourceOperation && (
-        <Select
-          label={t("commandFormFields.kind")}
-          data={[
-            { value: "mutation", label: t("commandFormFields.mutation") },
-            { value: "query", label: t("commandFormFields.query") },
-          ]}
-          value={form.kind}
-          onChange={(val) => setForm({ ...form, kind: val ?? "mutation" })}
-          allowDeselect={false}
-        />
-      )}
-      <Select
-        label={t("commandFormFields.domain")}
-        placeholder={t("commandFormFields.selectDomain")}
-        data={domainHints}
-        value={form.domainId || null}
-        // REQ-1531: every command and webhook sits in a domain, so one that is chosen cannot
-        // be cleared — only replaced. Saving with none is refused by the server.
-        allowDeselect={false}
-        withAsterisk
-        onChange={(val) => setForm({ ...form, domainId: val ?? form.domainId })}
-      />
-      {form.actionType === "function" && (
-        <Select
-          label={t("commandFormFields.dataProduct")}
-          placeholder={t("commandFormFields.dataProductPlaceholder")}
-          // REQ-1634: a command may only join a data product owned by its own domain.
-          data={dataProducts
-            .filter((dp) => dp.domainId === form.domainId)
-            .map((dp) => ({ value: dp.id, label: dp.name }))}
-          value={form.productId || null}
-          onChange={(val) => setForm({ ...form, productId: val ?? "" })}
-          disabled={!form.domainId}
-          clearable
-          searchable
-          data-testid="command-data-product-select"
-        />
-      )}
-      <TextInput
-        label={t("commandFormFields.description")}
-        value={form.description}
-        onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
-        placeholder={t("commandFormFields.descriptionPlaceholder")}
-      />
-      {!isSourceOperation && (
-        <div style={{ gridColumn: "1 / -1" }}>
-          <Title order={5} mb="xs">
-            {t("commandFormFields.arguments")}
-          </Title>
-          {form.arguments.map((arg, i) => (
-            <div key={i}>
-              <Group gap="xs" mb="xs" align="center" wrap="nowrap">
-                <TextInput
-                  value={arg.name}
-                  onChange={(e) => handleArgChange(i, "name", e.currentTarget.value)}
-                  placeholder={t("commandFormFields.argNamePlaceholder")}
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-                <Select
-                  value={arg.type}
-                  onChange={(val) => handleArgChange(i, "type", val ?? "String")}
-                  data={GRAPHQL_TYPES}
+                  label={t("commandFormFields.implementation")}
+                  data={IMPL_KINDS}
+                  value={form.implKind}
+                  onChange={(val) => setForm({ ...form, implKind: val ?? "source_procedure" })}
                   allowDeselect={false}
-                  w={120}
+                  data-testid="command-impl-kind-select"
                 />
-                {form.actionType === "function" && form.implKind !== "source_procedure" && (
-                  <Select
-                    aria-label={t("commandFormFields.argKind")}
-                    value={arg.argKind ?? "column_value"}
-                    onChange={(val) => handleArgChange(i, "argKind", val ?? "column_value")}
-                    data={ARG_KINDS}
-                    allowDeselect={false}
-                    w={200}
-                    data-testid={`command-arg-kind-${i}`}
-                  />
-                )}
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  aria-label={t("commandFormFields.removeArgument", { name: arg.name || i + 1 })}
-                  onClick={() => handleRemoveArg(i)}
-                >
-                  <X size={14} />
-                </ActionIcon>
-              </Group>
-              {/* REQ-1159: a dataset arg (table_ref/result_set) carries an IR-typed column contract. */}
-              {form.actionType === "function" &&
-                DATASET_ARG_KINDS.has(arg.argKind ?? "column_value") && (
-                  <div
-                    style={{ marginInlineStart: 24, marginBottom: 12 }}
-                    data-testid={`dataset-columns-${i}`}
-                  >
-                    <Title order={6} c="dimmed" mb={4}>
-                      input dataset columns
-                    </Title>
-                    {(arg.columns ?? []).map((col, ci) => (
-                      <Group key={ci} gap="xs" mb={4} align="center" wrap="nowrap">
-                        <TextInput
-                          value={col.name}
-                          onChange={(e) => changeArgColumn(i, ci, "name", e.currentTarget.value)}
-                          placeholder="column"
-                          size="xs"
-                          style={{ flex: 1, minWidth: 0 }}
-                        />
+              </FormField>
+              {(form.implKind === "source_procedure" || isSourceOperation) && (
+                <>
+                  <FormLayout>
+                    <FormField size="medium">
+                      <Select
+                        label={t("commandFormFields.source")}
+                        placeholder={t("commandFormFields.selectSource")}
+                        required
+                        data={sources.map((s) => ({ value: s.id, label: `${s.id} (${s.type})` }))}
+                        value={form.sourceId || null}
+                        onChange={(val) => {
+                          const selectedSrc = sources.find((s) => s.id === val);
+                          const schema = selectedSrc
+                            ? OPERATION_SCHEMA[selectedSrc.type]
+                            : undefined;
+                          setForm({
+                            ...form,
+                            sourceId: val ?? "",
+                            implKind: schema ? "source_operation" : "source_procedure",
+                            schemaName: schema ?? form.schemaName,
+                            functionName: "",
+                            ...(schema ? { kind: "mutation", arguments: [], returns: "" } : {}),
+                          });
+                        }}
+                        data-testid="command-source-select"
+                      />
+                    </FormField>
+                    <FormField size="medium">
+                      <TextInput
+                        label={t("commandFormFields.schema")}
+                        value={form.schemaName}
+                        onChange={(e) => setForm({ ...form, schemaName: e.currentTarget.value })}
+                        readOnly={operationSchema !== undefined}
+                        data-testid="command-schema-input"
+                      />
+                    </FormField>
+                    {operationSchema !== undefined ? (
+                      <FormField size="medium">
                         <Select
-                          value={col.type}
-                          onChange={(val) => changeArgColumn(i, ci, "type", val ?? "text")}
-                          data={IR_TYPES}
-                          allowDeselect={false}
-                          size="xs"
-                          w={130}
+                          label={t("commandFormFields.functionName")}
+                          required
+                          data={availableFunctions.map((f) => ({
+                            value: f.name,
+                            label: f.comment ? `${f.name} — ${f.comment}` : f.name,
+                          }))}
+                          value={form.functionName || null}
+                          onChange={(val) => setForm({ ...form, functionName: val ?? "" })}
+                          disabled={loadingFunctions}
+                          placeholder={
+                            loadingFunctions
+                              ? t("commandFormFields.loading")
+                              : t("commandFormFields.selectOperation")
+                          }
+                          data-testid="command-function-select"
                         />
+                      </FormField>
+                    ) : (
+                      // REQ-887: the schema's routines are offered to pick from; picking one registers
+                      // nothing until the command is saved.
+                      <FormField
+                        hint={
+                          availableFunctions.length > 0
+                            ? t("commandFormFields.routinesOffered", {
+                                count: availableFunctions.length,
+                              })
+                            : undefined
+                        }
+                        size="medium"
+                      >
+                        <Autocomplete
+                          label={t("commandFormFields.functionName")}
+                          required
+                          data={availableFunctions.map((f) => f.name)}
+                          value={form.functionName}
+                          onChange={(val) => setForm({ ...form, functionName: val })}
+                          placeholder={t("commandFormFields.dbFunctionNamePlaceholder")}
+                          data-testid="command-function-input"
+                        />
+                      </FormField>
+                    )}
+                  </FormLayout>
+                </>
+              )}
+              {form.implKind === "script" && (
+                <FormField size="long">
+                  <TextInput
+                    label={t("commandFormFields.bindingArgv")}
+                    required
+                    value={bindingStr("argv")}
+                    onChange={(e) =>
+                      setBinding("argv", e.currentTarget.value.split(/\s+/).filter(Boolean))
+                    }
+                    placeholder="/usr/local/bin/transform --json"
+                    data-testid="command-binding-argv"
+                  />
+                </FormField>
+              )}
+              {form.implKind === "http" && (
+                <>
+                  <FormLayout>
+                    <FormField size="long">
+                      <TextInput
+                        label={t("commandFormFields.bindingUrl")}
+                        required
+                        value={bindingStr("url")}
+                        onChange={(e) => setBinding("url", e.currentTarget.value)}
+                        placeholder="https://svc.internal/fn"
+                        data-testid="command-binding-url"
+                      />
+                    </FormField>
+                    <FormField size="medium">
+                      <Select
+                        label={t("commandFormFields.method")}
+                        data={["POST", "GET", "PUT", "PATCH"]}
+                        value={bindingStr("method") || "POST"}
+                        onChange={(val) => setBinding("method", val ?? "POST")}
+                        allowDeselect={false}
+                      />
+                    </FormField>
+                  </FormLayout>
+                </>
+              )}
+              {form.implKind === "grpc" && (
+                <>
+                  <FormLayout>
+                    <FormField size="long">
+                      <TextInput
+                        label={t("commandFormFields.bindingTarget")}
+                        required
+                        value={bindingStr("target")}
+                        onChange={(e) => setBinding("target", e.currentTarget.value)}
+                        placeholder="svc.internal:50051"
+                        data-testid="command-binding-target"
+                      />
+                    </FormField>
+                    <FormField size="medium">
+                      <TextInput
+                        label={t("commandFormFields.bindingGrpcMethod")}
+                        required
+                        value={bindingStr("method")}
+                        onChange={(e) => setBinding("method", e.currentTarget.value)}
+                        placeholder="pkg.Service.Method"
+                        data-testid="command-binding-grpc-method"
+                      />
+                    </FormField>
+                    <FormChecks>
+                      <FormField size="short">
+                        <Switch
+                          label={t("commandFormFields.bindingTls")}
+                          checked={!!form.binding.tls}
+                          onChange={(e) => setBinding("tls", e.currentTarget.checked)}
+                        />
+                      </FormField>
+                    </FormChecks>
+                  </FormLayout>
+                </>
+              )}
+              {form.implKind === "python" && (
+                <FormField size="long">
+                  <TextInput
+                    label={t("commandFormFields.bindingCallable")}
+                    required
+                    value={bindingStr("callable")}
+                    onChange={(e) => setBinding("callable", e.currentTarget.value)}
+                    placeholder="my_pkg.udfs:transform"
+                    data-testid="command-binding-callable"
+                  />
+                </FormField>
+              )}
+              {!essential && (
+                <>
+                  <FormChecks>
+                    {form.implKind !== "source_procedure" && !isSourceOperation && (
+                      <FormField help={t("commandFormFields.materializeHint")} size="long">
+                        <Switch
+                          label={t("commandFormFields.materialize")}
+                          checked={form.materialize}
+                          onChange={(e) =>
+                            setForm({ ...form, materialize: e.currentTarget.checked })
+                          }
+                          data-testid="command-materialize-switch"
+                        />
+                      </FormField>
+                    )}
+                  </FormChecks>
+                  {!isSourceOperation && (
+                    <FormField size="medium">
+                      <Select
+                        label={t("commandFormFields.returnType")}
+                        data={[
+                          { value: "table", label: t("commandFormFields.registeredTable") },
+                          { value: "dataset", label: t("commandFormFields.datasetColumns") },
+                        ]}
+                        value={form.returnSchemaMode}
+                        onChange={(val) =>
+                          setForm({
+                            ...form,
+                            returnSchemaMode: (val ?? "table") as "table" | "dataset",
+                            returns: "",
+                          })
+                        }
+                        allowDeselect={false}
+                        data-testid="command-return-type-select"
+                      />
+                    </FormField>
+                  )}
+                  {!isSourceOperation && form.returnSchemaMode === "table" && (
+                    <FormField size="medium">
+                      <Select
+                        label={t("commandFormFields.returnsTable")}
+                        placeholder={t("commandFormFields.selectTable")}
+                        data={physicalTableOptions(form.sourceId)}
+                        value={form.returns || null}
+                        onChange={(val) => setForm({ ...form, returns: val ?? "" })}
+                        data-testid="command-returns-table-select"
+                      />
+                    </FormField>
+                  )}
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("commandFormFields.visibleTo")}
+                      value={form.visibleTo}
+                      onChange={(e) => setForm({ ...form, visibleTo: e.currentTarget.value })}
+                      placeholder={t("commandFormFields.visibleToPlaceholder")}
+                    />
+                  </FormField>
+                </>
+              )}
+            </FormLayout>
+            {/* REQ-1924, REQ-871: the table a call changes; what is held of it is refreshed after. */}
+            {!essential && (
+              <>
+                <FormLayout>
+                  <FormField help={t("commandFormFields.writesTableHint")} size="medium">
+                    <Select
+                      label={t("commandFormFields.writesTable")}
+                      placeholder={t("commandFormFields.selectTable")}
+                      data={physicalTableOptions(form.sourceId)}
+                      value={form.writesTable || null}
+                      onChange={(val) => setForm({ ...form, writesTable: val ?? "" })}
+                      clearable
+                      data-testid="command-writes-table-select"
+                    />
+                  </FormField>
+                </FormLayout>
+                {/* REQ-1924: a call runs only once the deployment's approval hook approves it. */}
+                <FormLayout>
+                  <FormChecks>
+                    <FormField help={t("commandFormFields.requiresApprovalHint")} size="short">
+                      <Switch
+                        label={t("commandFormFields.requiresApproval")}
+                        checked={form.requiresApproval}
+                        onChange={(e) =>
+                          setForm({ ...form, requiresApproval: e.currentTarget.checked })
+                        }
+                        data-testid="command-requires-approval-switch"
+                      />
+                    </FormField>
+                  </FormChecks>
+                </FormLayout>
+              </>
+            )}
+          </>
+        )}
+        {form.actionType === "webhook" && (
+          <>
+            <FormLayout>
+              <FormField size="long">
+                <TextInput
+                  label={t("commandFormFields.url")}
+                  required
+                  value={form.url}
+                  onChange={(e) => setForm({ ...form, url: e.currentTarget.value })}
+                  placeholder={t("commandFormFields.urlPlaceholder")}
+                  data-testid="command-url-input"
+                />
+              </FormField>
+              {!essential && (
+                <>
+                  <FormField size="medium">
+                    <Select
+                      label={t("commandFormFields.method")}
+                      data={["POST", "GET", "PUT", "PATCH"]}
+                      value={form.method}
+                      onChange={(val) => setForm({ ...form, method: val ?? "POST" })}
+                      allowDeselect={false}
+                      data-testid="command-method-select"
+                    />
+                  </FormField>
+                  <FormField size="short">
+                    <NumberInput
+                      label={t("commandFormFields.timeoutMs")}
+                      min={100}
+                      value={form.timeoutMs}
+                      onChange={(val) =>
+                        setForm({ ...form, timeoutMs: typeof val === "number" ? val : 0 })
+                      }
+                    />
+                  </FormField>
+                  <FormField size="medium">
+                    <Select
+                      label={t("commandFormFields.returnsTableOptional")}
+                      placeholder={t("commandFormFields.noneInlineType")}
+                      data={virtualTableOptions}
+                      value={form.returns || null}
+                      onChange={(val) => setForm({ ...form, returns: val ?? "" })}
+                    />
+                  </FormField>
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("commandFormFields.visibleTo")}
+                      value={form.visibleTo}
+                      onChange={(e) => setForm({ ...form, visibleTo: e.currentTarget.value })}
+                      placeholder={t("commandFormFields.visibleToPlaceholder")}
+                    />
+                  </FormField>
+                </>
+              )}
+            </FormLayout>
+            {/* REQ-209: a call is made only once the deployment's approval hook approves it. */}
+            {!essential && (
+              <>
+                <FormLayout>
+                  <FormChecks>
+                    <FormField help={t("commandFormFields.requiresApprovalHint")} size="short">
+                      <Switch
+                        label={t("commandFormFields.requiresApproval")}
+                        checked={form.requiresApproval}
+                        onChange={(e) =>
+                          setForm({ ...form, requiresApproval: e.currentTarget.checked })
+                        }
+                        data-testid="webhook-requires-approval-switch"
+                      />
+                    </FormField>
+                  </FormChecks>
+                  {!form.returns && (
+                    <FormField size="full">
+                      <div>
+                        <Title order={5} mb="xs">
+                          {t("commandFormFields.inlineReturnType")}
+                        </Title>
+                        {form.inlineReturnType.map((f, i) => (
+                          <React.Fragment key={i}>
+                            <FieldGroup row className="form-field-group--bare">
+                              <FormField size="medium">
+                                <TextInput
+                                  value={f.name}
+                                  onChange={(e) =>
+                                    handleInlineFieldChange(i, "name", e.currentTarget.value)
+                                  }
+                                  placeholder={t("commandFormFields.fieldNamePlaceholder")}
+                                />
+                              </FormField>
+                              <FormField size="medium">
+                                <Select
+                                  value={f.type}
+                                  onChange={(val) =>
+                                    handleInlineFieldChange(i, "type", val ?? "String")
+                                  }
+                                  data={GRAPHQL_TYPES}
+                                  allowDeselect={false}
+                                />
+                              </FormField>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label={t("commandFormFields.removeField", {
+                                  name: f.name || i + 1,
+                                })}
+                                onClick={() => handleRemoveInlineField(i)}
+                              >
+                                <X size={14} />
+                              </ActionIcon>
+                            </FieldGroup>
+                            {/* REQ-1679: the webhook's response is governed like a table's rows. */}
+                            <ColumnGovernanceFields
+                              col={f}
+                              onChange={(patch) => patchInlineField(i, patch)}
+                              testId={`inline-field-governance-${i}`}
+                            />
+                          </React.Fragment>
+                        ))}
+                        <Button variant="subtle" size="xs" onClick={handleAddInlineField}>
+                          {t("commandFormFields.addField")}
+                        </Button>
+                      </div>
+                    </FormField>
+                  )}
+                </FormLayout>
+              </>
+            )}
+          </>
+        )}
+        {/* A command needs its domain in order to exist, so the short step asks it too. */}
+        <FormField size="medium">
+          <Select
+            label={t("commandFormFields.domain")}
+            placeholder={t("commandFormFields.selectDomain")}
+            data={domainHints}
+            value={form.domainId || null}
+            // REQ-1531: every command and webhook sits in a domain, so one that is chosen cannot
+            // be cleared — only replaced. Saving with none is refused by the server.
+            allowDeselect={false}
+            withAsterisk
+            onChange={(val) => setForm({ ...form, domainId: val ?? form.domainId })}
+          />
+        </FormField>
+        {!essential && (
+          <>
+            {!isSourceOperation && (
+              <FormField size="medium">
+                <Select
+                  label={t("commandFormFields.kind")}
+                  data={[
+                    { value: "mutation", label: t("commandFormFields.mutation") },
+                    { value: "query", label: t("commandFormFields.query") },
+                  ]}
+                  value={form.kind}
+                  onChange={(val) => setForm({ ...form, kind: val ?? "mutation" })}
+                  allowDeselect={false}
+                />
+              </FormField>
+            )}
+            {form.actionType === "function" && (
+              <FormField size="medium">
+                <Select
+                  label={t("commandFormFields.dataProduct")}
+                  placeholder={t("commandFormFields.dataProductPlaceholder")}
+                  // REQ-1634: a command may only join a data product owned by its own domain.
+                  data={dataProducts
+                    .filter((dp) => dp.domainId === form.domainId)
+                    .map((dp) => ({ value: dp.id, label: dp.name }))}
+                  value={form.productId || null}
+                  onChange={(val) => setForm({ ...form, productId: val ?? "" })}
+                  disabled={!form.domainId}
+                  clearable
+                  searchable
+                  data-testid="command-data-product-select"
+                />
+              </FormField>
+            )}
+            <FormField size="long">
+              <TextInput
+                label={t("commandFormFields.description")}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.currentTarget.value })}
+                placeholder={t("commandFormFields.descriptionPlaceholder")}
+              />
+            </FormField>
+            {!isSourceOperation && (
+              <FormField size="full">
+                <div>
+                  <Title order={5} mb="xs">
+                    {t("commandFormFields.arguments")}
+                  </Title>
+                  {form.arguments.map((arg, i) => (
+                    <div key={i}>
+                      <FieldGroup row>
+                        <FormField size="medium">
+                          <TextInput
+                            value={arg.name}
+                            onChange={(e) => handleArgChange(i, "name", e.currentTarget.value)}
+                            placeholder={t("commandFormFields.argNamePlaceholder")}
+                            style={{ flex: 1, minWidth: 0 }}
+                          />
+                        </FormField>
+                        <FormField size="medium">
+                          <Select
+                            value={arg.type}
+                            onChange={(val) => handleArgChange(i, "type", val ?? "String")}
+                            data={GRAPHQL_TYPES}
+                            allowDeselect={false}
+                            w={120}
+                          />
+                        </FormField>
+                        {form.actionType === "function" && form.implKind !== "source_procedure" && (
+                          <FormField size="medium">
+                            <Select
+                              aria-label={t("commandFormFields.argKind")}
+                              value={arg.argKind ?? "column_value"}
+                              onChange={(val) =>
+                                handleArgChange(i, "argKind", val ?? "column_value")
+                              }
+                              data={ARG_KINDS}
+                              allowDeselect={false}
+                              w={200}
+                              data-testid={`command-arg-kind-${i}`}
+                            />
+                          </FormField>
+                        )}
                         <ActionIcon
                           variant="subtle"
                           color="red"
-                          aria-label={`remove input column ${col.name || ci + 1}`}
-                          onClick={() => removeArgColumn(i, ci)}
+                          aria-label={t("commandFormFields.removeArgument", {
+                            name: arg.name || i + 1,
+                          })}
+                          onClick={() => handleRemoveArg(i)}
                         >
-                          <X size={12} />
+                          <X size={14} />
                         </ActionIcon>
-                      </Group>
+                      </FieldGroup>
+                      {/* REQ-1159: a dataset arg (table_ref/result_set) carries an IR-typed column contract. */}
+                      {form.actionType === "function" &&
+                        DATASET_ARG_KINDS.has(arg.argKind ?? "column_value") && (
+                          <div
+                            style={{ marginInlineStart: 24, marginBottom: 12 }}
+                            data-testid={`dataset-columns-${i}`}
+                          >
+                            <Title order={6} c="dimmed" mb={4}>
+                              {t("commandFormFields.inputColumnsTitle")}
+                            </Title>
+                            {(arg.columns ?? []).map((col, ci) => (
+                              <FieldGroup row key={ci}>
+                                <FormField size="medium">
+                                  <TextInput
+                                    value={col.name}
+                                    onChange={(e) =>
+                                      changeArgColumn(i, ci, "name", e.currentTarget.value)
+                                    }
+                                    placeholder={t("commandFormFields.datasetColumnPlaceholder")}
+                                    size="xs"
+                                    style={{ flex: 1, minWidth: 0 }}
+                                  />
+                                </FormField>
+                                <FormField size="medium">
+                                  <Select
+                                    value={col.type}
+                                    onChange={(val) =>
+                                      changeArgColumn(i, ci, "type", val ?? "text")
+                                    }
+                                    data={IR_TYPES}
+                                    allowDeselect={false}
+                                    size="xs"
+                                    w={130}
+                                  />
+                                </FormField>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={t("commandFormFields.removeInputColumn", {
+                                    name: col.name || ci + 1,
+                                  })}
+                                  onClick={() => removeArgColumn(i, ci)}
+                                >
+                                  <X size={12} />
+                                </ActionIcon>
+                              </FieldGroup>
+                            ))}
+                            <Button variant="subtle" size="xs" onClick={() => addArgColumn(i)}>
+                              {t("commandFormFields.addInputColumn")}
+                            </Button>
+                          </div>
+                        )}
+                    </div>
+                  ))}
+                  <Button variant="subtle" size="xs" onClick={handleAddArg}>
+                    {t("commandFormFields.addArgument")}
+                  </Button>
+                </div>
+              </FormField>
+            )}
+          </>
+        )}
+      </FormLayout>
+      {/* REQ-1159: canonical IR-typed output dataset contract (returnSchema is its GraphQL projection). */}
+      {!essential && (
+        <>
+          <FormLayout>
+            {form.actionType === "function" &&
+              form.implKind !== "source_procedure" &&
+              !isSourceOperation &&
+              form.returnSchemaMode === "dataset" && (
+                <FormField size="full">
+                  <div data-testid="output-columns">
+                    <Title order={5} mb="xs">
+                      {t("commandFormFields.outputColumnsTitle")}
+                    </Title>
+                    {form.outputColumns.map((col, ci) => (
+                      <React.Fragment key={ci}>
+                        {/* One column of the list: its boxes carry no label, so the remove sits level with them. */}
+                        <FieldGroup row className="form-field-group--bare">
+                          <FormField size="medium">
+                            <TextInput
+                              value={col.name}
+                              onChange={(e) =>
+                                changeOutputColumn(ci, "name", e.currentTarget.value)
+                              }
+                              placeholder={t("commandFormFields.datasetColumnPlaceholder")}
+                            />
+                          </FormField>
+                          <FormField size="medium">
+                            <Select
+                              value={col.type}
+                              onChange={(val) => changeOutputColumn(ci, "type", val ?? "text")}
+                              data={IR_TYPES}
+                              allowDeselect={false}
+                            />
+                          </FormField>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            aria-label={t("commandFormFields.removeOutputColumn", {
+                              name: col.name || ci + 1,
+                            })}
+                            onClick={() => removeOutputColumn(ci)}
+                          >
+                            <X size={14} />
+                          </ActionIcon>
+                        </FieldGroup>
+                        {/* REQ-1679: the function's response is governed like a table's rows. */}
+                        <ColumnGovernanceFields
+                          col={col}
+                          onChange={(patch) => patchOutputColumn(ci, patch)}
+                          testId={`output-column-governance-${ci}`}
+                        />
+                      </React.Fragment>
                     ))}
-                    <Button variant="subtle" size="xs" onClick={() => addArgColumn(i)}>
-                      add input column
+                    <Button variant="subtle" size="xs" onClick={addOutputColumn}>
+                      {t("commandFormFields.addOutputColumn")}
                     </Button>
                   </div>
-                )}
-            </div>
-          ))}
-          <Button variant="subtle" size="xs" onClick={handleAddArg}>
-            {t("commandFormFields.addArgument")}
-          </Button>
-        </div>
+                </FormField>
+              )}
+          </FormLayout>
+        </>
       )}
-      {/* REQ-1159: canonical IR-typed output dataset contract (returnSchema is its GraphQL projection). */}
-      {form.actionType === "function" &&
-        form.implKind !== "source_procedure" &&
-        !isSourceOperation &&
-        form.returnSchemaMode === "dataset" && (
-          <div style={{ gridColumn: "1 / -1" }} data-testid="output-columns">
-            <Title order={5} mb="xs">
-              output dataset columns
-            </Title>
-            {form.outputColumns.map((col, ci) => (
-              <React.Fragment key={ci}>
-                <Group gap="xs" mb="xs" align="center" wrap="nowrap">
-                  <TextInput
-                    value={col.name}
-                    onChange={(e) => changeOutputColumn(ci, "name", e.currentTarget.value)}
-                    placeholder="column"
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <Select
-                    value={col.type}
-                    onChange={(val) => changeOutputColumn(ci, "type", val ?? "text")}
-                    data={IR_TYPES}
-                    allowDeselect={false}
-                    w={130}
-                  />
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    aria-label={`remove output column ${col.name || ci + 1}`}
-                    onClick={() => removeOutputColumn(ci)}
-                  >
-                    <X size={14} />
-                  </ActionIcon>
-                </Group>
-                {/* REQ-1679: the function's response is governed like a table's rows. */}
-                <ColumnGovernanceFields
-                  col={col}
-                  onChange={(patch) => patchOutputColumn(ci, patch)}
-                  testId={`output-column-governance-${ci}`}
-                />
-              </React.Fragment>
-            ))}
-            <Button variant="subtle" size="xs" onClick={addOutputColumn}>
-              add output column
-            </Button>
-          </div>
-        )}
     </>
   );
 }

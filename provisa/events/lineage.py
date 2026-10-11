@@ -81,24 +81,22 @@ def derive_output_schema(
     annotated = annotate_types(tree, schema=schema, dialect=dialect)
     select = annotated if isinstance(annotated, exp.Select) else annotated.find(exp.Select)
     if select is None:
-        raise ValueError(f"REQ-970: no SELECT to derive an output schema from in {sql!r}")
+        raise ValueError(f"no SELECT to derive an output schema from in {sql!r}")
     columns: list[tuple[str, str]] = []
     for proj in select.expressions:
         name = proj.alias_or_name
         dtype = proj.type
         if not name:
-            raise ValueError(
-                f"REQ-970: output column has no name in {sql!r} — alias every computed column"
-            )
+            raise ValueError(f"Output column has no name in {sql!r} — alias every computed column")
         if dtype is None or dtype.this in _UNDETERMINED:
             raise ValueError(
-                f"REQ-970: cannot determine the output type of column {name!r} in {sql!r} "
+                f"Cannot determine the output type of column {name!r} in {sql!r} "
                 f"(got {dtype}); the derived store schema is undeterminable — declare the input "
                 f"schema or cast the expression"
             )
         columns.append((name, to_ir(dtype.sql(dialect=dialect))))
     if not columns:
-        raise ValueError(f"REQ-970: SELECT produced no output columns in {sql!r}")
+        raise ValueError(f"SELECT produced no output columns in {sql!r}")
     return columns
 
 
@@ -146,7 +144,7 @@ def reject_nondeterministic(sql: str, dialect: str = "postgres") -> None:
             hits.add(name)
     if hits:
         raise ValueError(
-            f"REQ-964: MV SQL is non-deterministic ({sorted(hits)}); a pure transform is required "
+            f"MV SQL is non-deterministic ({sorted(hits)}); a pure transform is required "
             f"for addressable/replayable materialization — remove wall-clock/random"
         )
 

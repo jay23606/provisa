@@ -4,7 +4,7 @@
 // This source code is licensed under the Business Source License 1.1
 // found in the LICENSE file in the root directory of this source tree.
 
-import { Group, Text, Tooltip } from "@mantine/core";
+import { LabelWithHelp } from "../../components/form/FormLayout";
 
 // A form-field label with an inline ⓘ help tooltip, shared across the table-edit form and its
 // extracted panels. ``required`` renders the asterisk inline (so it stays on the label row rather
@@ -13,26 +13,13 @@ export function FieldLabel({
   text,
   help,
   required = false,
+  textId,
 }: {
   text: string;
   help: string;
   required?: boolean;
+  /** From useHelpNaming, when the control is to be named by the text alone. */
+  textId?: string;
 }) {
-  return (
-    <Group gap={4} wrap="nowrap">
-      <Text component="span" size="sm">
-        {text}
-        {required && (
-          <Text component="span" c="red" aria-hidden style={{ marginInlineStart: 2 }}>
-            *
-          </Text>
-        )}
-      </Text>
-      <Tooltip label={help} multiline w={320}>
-        <Text component="span" size="xs" c="dimmed" style={{ cursor: "help", lineHeight: 1 }}>
-          ⓘ
-        </Text>
-      </Tooltip>
-    </Group>
-  );
+  return <LabelWithHelp label={text} help={help} required={required} textId={textId} />;
 }

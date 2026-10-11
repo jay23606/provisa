@@ -19,10 +19,13 @@ or the directory cannot be read. It fails a build by name.
 # Requirements: REQ-1923
 from __future__ import annotations
 
+import base64
+import json
 import re
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import httpx
 
@@ -41,6 +44,82 @@ CLIENT = "the organisation's Microsoft 365 client"
 
 class DirectoryRefused(RuntimeError):
     """The mailboxes a source is to read cannot be listed; the message says why."""
+
+
+#: The application permission each read needs, by the least privileged name Microsoft gives
+#: it, and the permissions that grant as much (Graph's permission tables for list users, list
+#: a group's transitive members, list messages).
+USERS = "User.Read.All"
+GROUP_MEMBERS = "GroupMember.Read.All"
+MAIL_READ = "Mail.Read"
+_GRANTS: dict[str, frozenset[str]] = {
+    USERS: frozenset(
+        {"User.Read.All", "User.ReadWrite.All", "Directory.Read.All", "Directory.ReadWrite.All"}
+    ),
+    GROUP_MEMBERS: frozenset(
+        {
+            "GroupMember.Read.All",
+            "GroupMember.ReadWrite.All",
+            "Group.Read.All",
+            "Group.ReadWrite.All",
+            "Directory.Read.All",
+            "Directory.ReadWrite.All",
+        }
+    ),
+    MAIL_READ: frozenset({"Mail.Read", "Mail.ReadWrite"}),
+}
+
+
+def carried(token: str) -> frozenset[str] | None:
+    """The application permissions an access token of the client carries: its ``roles`` claim,
+    which Microsoft fills with what an administrator consented to. A token with none has no
+    such claim. None when the token cannot be read as one.
+
+    This is a diagnosis of a refusal Microsoft already gave, so the signature is not checked;
+    nothing is decided by it. The token itself is never said."""
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    roles = payload.get("roles", [])
+    if not isinstance(roles, list):
+        return None
+    return frozenset(r for r in roles if isinstance(r, str))
+
+
+@dataclass(frozen=True)
+class Granted:
+    """What the client's token carries, set against what a read needs."""
+
+    carries: tuple[str, ...]  # every application permission in the token, in name order
+    missing: tuple[str, ...]  # the needed ones nothing in the token grants
+
+
+def lacks(roles: frozenset[str], need: str) -> bool:
+    """Whether nothing in ``roles`` grants ``need``."""
+    return not roles & _GRANTS[need]
+
+
+def needed(choice: Mailboxes) -> tuple[str, ...]:
+    """The permissions listing ``choice`` needs: a group's members are users, read as such."""
+    if choice.kind == EVERYONE:
+        return (USERS,)
+    if choice.kind == GROUP:
+        return (GROUP_MEMBERS, USERS)
+    return ()
+
+
+def granted(token: str, needs: tuple[str, ...]) -> Granted | None:
+    """The token's permissions against ``needs``; None when the token cannot be read."""
+    roles = carried(token)
+    if roles is None:
+        return None
+    return Granted(tuple(sorted(roles)), tuple(need for need in needs if lacks(roles, need)))
 
 
 #: Posts a token request: (address, form) -> (status, the answer's JSON).

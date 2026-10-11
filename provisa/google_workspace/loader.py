@@ -32,18 +32,25 @@ log, and the count with the first of their ids as the build's note on the replic
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
+import hashlib
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from provisa.core import canonical_mail as cm
-from provisa.core.secrets import resolve_secrets
 from provisa.federation.data_replicator import noted, unreadable_messages_note
 from provisa.google_workspace import settings as gw_settings
-from provisa.google_workspace.gmail import Gmail, GmailNotFound
+from provisa.google_workspace.gmail import (
+    WAIT_SECONDS,
+    Gmail,
+    GmailNotFound,
+    GmailRefused,
+    QuotaExhausted,
+)
 from provisa.google_workspace.mail_rows import PROVIDER, MessageFacts, message_facts
 from provisa.google_workspace.settings import MAIL_HEADERS, MailSettings, Settings
 
@@ -83,16 +90,18 @@ def source_settings(source: Any) -> Settings:
     return gw_settings.parse(dict(getattr(source, "mapping", None) or {}))
 
 
-def _resolved(auth: Any) -> Any:
-    """``auth`` with its vault references resolved, in the context that holds the vault: the
-    token exchange runs in a worker thread, which holds none."""
-    return auth.model_copy(
-        update={
-            name: resolve_secrets(value)
-            for name, value in auth.model_dump().items()
-            if isinstance(value, str)
-        }
+async def _resolved(admin_db: Any, org_id: str, auth: Any) -> Any:
+    """``auth`` ready to use: the organisation's client secret as its field holds it -- a value,
+    or a reference someone typed -- resolved in ``org_id``'s vault, here on the event loop: the
+    token exchange runs in a worker thread, which holds no vault. The vault is bound for this
+    read and never taken from the caller."""
+    from provisa.core import mail_platforms
+    from provisa.google_workspace import SOURCE_TYPE
+
+    client_secret = await mail_platforms.credential(
+        admin_db, org_id, SOURCE_TYPE, mail_platforms.CLIENT_SECRET, auth.client_secret
     )
+    return auth.model_copy(update={"client_secret": client_secret})
 
 
 def _folder(account: str, label: dict) -> dict[str, Any]:
@@ -244,7 +253,12 @@ async def table_rows(
     if table == "folders":
         rows = []
         for label in await gmail.labels():
-            rows.append(_folder(gmail.account, await gmail.label(label["id"])))
+            try:
+                rows.append(_folder(gmail.account, await gmail.label(label["id"])))
+            except GmailNotFound:
+                # Deleted between its listing and its reading: no longer in the mailbox, and
+                # not a row -- as a message deleted meanwhile is not.
+                continue
         yield rows
         return
     unreadable = [] if unreadable is None else unreadable
@@ -252,13 +266,206 @@ async def table_rows(
         yield rows
 
 
+@dataclass(frozen=True)
+class Reading:
+    """What reading a source needs, made where the organisation's vault is bound: the
+    mailboxes to read, by address and in address order; which mail of each to hold; the call
+    that answers the access token a mailbox is read with; and, for a source of the
+    organisation's mailboxes, how many are read at once."""
+
+    accounts: tuple[str, ...]
+    mail: MailSettings
+    token: Callable[[str], Awaitable[str]]
+    organisation: bool = False
+    at_once: int = 1
+    #: Keeps where a completed read of the source reached (``federation.mail_sync_state``
+    #: rows): called once the build that read to it is recorded as completed.
+    keep: Callable[[dict[tuple[str, str, str], str]], Awaitable[None]] | None = None
+    #: For a read that lands a part at a time (:class:`_UnitsRead`): what was kept of where
+    #: each mailbox's last read reached, the keeping of one mailbox's position once a part's
+    #: rows are written, and the forgetting of everything kept for one mailbox.
+    kept: Callable[[], Awaitable[dict[tuple[str, str, str], str]]] | None = None
+    keep_part: Callable[[str, dict[str, str], str], Awaitable[None]] | None = None
+    forget_mailbox: Callable[[str], Awaitable[None]] | None = None
+    #: The most the waits one call Google refuses for now may add up to (the operator's
+    #: ``mail.throttle_wait_seconds`` for a replica's read).
+    wait_seconds: float = WAIT_SECONDS
+    #: Told how long a call Google is throttling is about to wait, and 0 when the wait is
+    #: over: the record of every table the source is building says what it waits on.
+    throttled: Callable[[float], Awaitable[None]] | None = None
+
+
+Connect = Callable[[Any], Awaitable[Reading]]
+
+#: What is kept for a mailbox the last completed read left out, in place of its history id.
+LEFT_OUT = "left_out"
+#: What Gmail answers for a user whose mail service is not turned on (HTTP 400).
+_NO_MAIL_SERVICE = "failedPrecondition"
+
+
+class NoMailboxRead(RuntimeError):
+    """Not one of the organisation's mailboxes could be read: what is wrong is the setup, not
+    a mailbox."""
+
+    def __init__(self, count: int, reason: str) -> None:
+        super().__init__(
+            f"none of the {count} mailboxes could be read ({reason}): check that these "
+            "addresses are users of the organisation's Google Workspace domain with Gmail "
+            "turned on"
+        )
+
+
+def _not_readable(refused: BaseException) -> str | None:
+    """Why a mailbox is one Google will not let be read at all, or None for any other failure:
+    the address is no user of the domain, the user's mail service is not turned on, or there
+    is no such mailbox. Throttling and the project's allowance are never this."""
+    from provisa.google_workspace.directory import NotAUser
+
+    if isinstance(refused, NotAUser):
+        return refused.reason
+    if isinstance(refused, QuotaExhausted):
+        return None
+    if isinstance(refused, GmailNotFound):
+        return f"{refused.status} {refused.reason}"
+    if isinstance(refused, GmailRefused) and refused.status == 400:
+        return f"{refused.status} {refused.reason}" if _NO_MAIL_SERVICE in refused.reason else None
+    return None
+
+
+def _mailbox(reading: Reading, account: str, client: httpx.AsyncClient) -> Gmail:
+    async def token() -> str:
+        return await reading.token(account)
+
+    return Gmail(
+        account,
+        token,
+        client,
+        quota_user=reading.organisation,
+        wait_seconds=reading.wait_seconds,
+        waiting=reading.throttled,
+    )
+
+
+async def _read_mailboxes(
+    reading: Reading,
+    read: Callable[[Gmail], AsyncIterator[Any]],
+    left_out: list[str],
+    reached: dict[str, str] | None = None,
+    failed: dict[str, str] | None = None,
+) -> AsyncIterator[Any]:
+    """What ``read`` gives for each mailbox of ``reading``, as it arrives. Each mailbox is
+    first asked for its profile: its current history id (kept in ``reached`` once the mailbox
+    has been read to its end) and the proof that Google lets it be read. One mailbox is read
+    as it stands: whatever Google refuses fails the read. The organisation's mailboxes are
+    started in address order, ``at_once`` at a time; one Google will not let be read at all
+    (:func:`_not_readable`, at its profile) is added to ``left_out`` and the others go on.
+    Throttling Google does not lift, the project's allowance, a scope the domain has not
+    delegated, and any refusal once a mailbox has answered its profile -- a "not found" for
+    a label or a message inside it among them -- fail the read.
+
+    A read that lands a part at a time gives ``failed``: a mailbox of the organisation that
+    Google refuses part way is then named there with the refusal, keeps what had landed, and
+    the others go on. The project's allowance still fails the read: no mailbox can go on."""
+    async with httpx.AsyncClient() as client:
+
+        async def opened(account: str) -> tuple[Gmail, str]:
+            """The mailbox and its current history id: its profile, the first thing asked of
+            it and the proof that Google lets it be read."""
+            gmail = _mailbox(reading, account, client)
+            history = str((await gmail.profile())["historyId"])
+            # For a reader that needs it with the mailbox (units): where the mailbox stood
+            # when its read began.
+            gmail.opened_at = history
+            return gmail, history
+
+        async def rows_of(gmail: Gmail, account: str, history: str) -> AsyncIterator[Any]:
+            async for item in read(gmail):
+                yield item
+            if reached is not None:
+                reached[account] = history
+
+        if not reading.organisation:
+            (account,) = reading.accounts
+            gmail, history = await opened(account)
+            async for item in rows_of(gmail, account, history):
+                yield item
+            return
+
+        waiting = list(reading.accounts)
+        arrived: asyncio.Queue[Any] = asyncio.Queue(maxsize=max(reading.at_once, 1) * 2)
+        last_refusal: list[str] = []
+
+        async def worker() -> None:
+            while waiting:
+                account = waiting.pop(0)
+                try:
+                    gmail, history = await opened(account)
+                except Exception as refused:  # allow-ble: only a mailbox Google will not let be read at all is taken here; every other failure is re-raised unchanged
+                    why = _not_readable(refused)
+                    if why is None:
+                        raise
+                    left_out.append(account)
+                    last_refusal[:] = [why]
+                    continue
+                # The mailbox answered its profile: it is there and may be read. Whatever
+                # Google refuses of a thing inside it from here on fails the read -- a "not
+                # found" for a label or a message is never a mailbox that cannot be read.
+                try:
+                    async for item in rows_of(gmail, account, history):
+                        await arrived.put(item)
+                except GmailRefused as refused:
+                    if failed is None or isinstance(refused, QuotaExhausted):
+                        raise
+                    failed[account] = f"{refused.status} {refused.reason}"
+
+        workers = [
+            asyncio.ensure_future(worker())
+            for _ in range(max(min(reading.at_once, len(waiting)), 1))
+        ]
+        done = asyncio.ensure_future(asyncio.gather(*workers))
+        try:
+            while True:
+                getter = asyncio.ensure_future(arrived.get())
+                finished, _ = await asyncio.wait(
+                    {getter, done}, return_when=asyncio.FIRST_COMPLETED
+                )
+                if getter in finished:
+                    yield getter.result()
+                    continue
+                getter.cancel()
+                done.result()  # raises what a worker raised
+                while not arrived.empty():
+                    yield arrived.get_nowait()
+                break
+        finally:
+            for task in workers:
+                task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+        if reading.accounts and len(left_out) == len(reading.accounts):
+            raise NoMailboxRead(len(reading.accounts), last_refusal[0])
+        if left_out:
+            log.warning(
+                "google_workspace: %d of %d mailbox(es) were left out, not there or not "
+                "permitted: %s",
+                len(left_out),
+                len(reading.accounts),
+                ", ".join(sorted(left_out)),
+            )
+
+
+def _notes(unreadable: list[str], left_out: list[str]) -> list[Any]:
+    from provisa.federation.data_replicator import mailboxes_left_out_note
+
+    return noted(unreadable_note(unreadable), mailboxes_left_out_note(sorted(left_out)))
+
+
 class _MailboxRead:
-    """One read of a source's mailbox as the rows of several message tables: what a group
+    """One read of a source's mailboxes as the rows of several message tables: what a group
     build streams (``federation.data_replicator.ReplicaGroupJob``)."""
 
     def __init__(
         self,
-        connect: Any,
+        connect: Connect,
         source: Any,
         tables: tuple[str, ...],
         columns: dict[str, list[tuple[str, str]]],
@@ -271,64 +478,236 @@ class _MailboxRead:
         self._tables = tables
         self._columns = columns
         self._unreadable: list[str] = []
+        self._left_out: list[str] = []
+        self._reached: dict[str, str] = {}
+        self._reading: Reading | None = None
 
     def notes(self) -> list[Any]:
-        return noted(unreadable_note(self._unreadable))
+        return _notes(self._unreadable, self._left_out)
+
+    async def committed(self) -> None:
+        """Keep where this read reached, now that the build it fed is recorded as completed
+        (the replica runner awaits this then, and never for a failed build): each read
+        mailbox's history id as it stood when its read BEGAN, so a change made while it was
+        read is seen as one. A mailbox left out is kept as that. What was kept for a mailbox
+        this read did not see is forgotten with the same write.
+
+        Nothing is kept by a read that did not read every one of its mailboxes to the end."""
+        from provisa.federation.mail_sync_state import PROBE
+
+        reading = self._reading
+        if reading is None or reading.keep is None:
+            return
+        gone = set(self._left_out)
+        if set(self._reached) != set(reading.accounts) - gone:
+            return
+        rows = {(account, "", PROBE): history for account, history in self._reached.items()}
+        rows.update({(account, "", PROBE): LEFT_OUT for account in gone})
+        await reading.keep(rows)
 
     async def batches(self, batch_rows: int) -> AsyncIterator[tuple[str, Any]]:
         from provisa.core.ir_arrow import arrow_schema, rows_to_batch
 
-        self._unreadable.clear()  # a build reads once; a read begun again counts again
+        # A build reads once; a read begun again counts again.
+        self._unreadable.clear()
+        self._left_out.clear()
+        self._reached.clear()
         schemas = {table: arrow_schema(self._columns[table]) for table in self._tables}
-        async with self._connect(self._source) as (gmail, mail):
-            async for table, rows in message_table_rows(
-                gmail, mail, self._tables, self._unreadable
-            ):
-                for start in range(0, len(rows), batch_rows):
-                    yield (
-                        table,
-                        rows_to_batch(
-                            rows[start : start + batch_rows], self._columns[table], schemas[table]
-                        ),
-                    )
+        at = dt.datetime.now(dt.UTC)  # one whole build lands together, under one stamp
+        reading = self._reading = await self._connect(self._source)
+        async for table, rows in _read_mailboxes(
+            reading,
+            lambda gmail: message_table_rows(gmail, reading.mail, self._tables, self._unreadable),
+            self._left_out,
+            self._reached,
+        ):
+            cm.stamped(rows, at)
+            for start in range(0, len(rows), batch_rows):
+                yield (
+                    table,
+                    rows_to_batch(
+                        rows[start : start + batch_rows], self._columns[table], schemas[table]
+                    ),
+                )
 
 
-def make_google_workspace_loader(state: Any) -> Any:
-    """The row-fetch of a Google Workspace source: one of its tables, whole, read from Gmail
-    with the source's own credential -- its owner's approval of the organisation's Google
-    client (``core.mail_platforms``, read for the organisation the build runs in), or a service
-    account's key."""
-    from provisa.api_source.oauth_grants import access_token
-    from provisa.core import mail_platforms
-    from provisa.core.request_context import require_current_org
-    from provisa.google_workspace import SOURCE_TYPE
-    from provisa.google_workspace.settings import GOOGLE_ACCOUNT
+def _opened_at(gmail: Gmail) -> str:
+    """The mailbox's history id as its read began (:func:`_read_mailboxes` asks its profile
+    first and notes it)."""
+    if gmail.opened_at is None:
+        raise RuntimeError(f"{gmail.account} is read in units before it was opened")
+    return gmail.opened_at
 
-    @asynccontextmanager
-    async def _connect(source: Any) -> AsyncIterator[tuple[Gmail, MailSettings]]:
-        """The source's mailbox, read with its own credential, and which mail of it to hold."""
-        settings = source_settings(source)
-        if settings.mail is None:
-            raise UnknownMailTable("messages")
-        (account,) = settings.accounts
-        client = None
-        if settings.sign_in == GOOGLE_ACCOUNT:
-            client = await mail_platforms.require(
-                state.admin_db, require_current_org(), SOURCE_TYPE
+
+class _UnitsRead:
+    """One pass over a source's mailboxes that gives their messages as units to be written in
+    place (``federation.mail_units.ReplicaUnitJob``): each mailbox's changes since its last
+    read, or the mailbox from its start (``google_workspace.units``). ``total`` is how many
+    mailboxes the pass reads, known once it has begun."""
+
+    def __init__(self, connect: Connect, source: Any, tables: tuple[str, ...]) -> None:
+        self._connect = connect
+        self._source = source
+        self._tables = tables
+        self._unreadable: list[str] = []
+        self._left_out: list[str] = []
+        self._failed: dict[str, str] = {}
+        self._reading: Reading | None = None
+        self.total = 0
+
+    def notes(self) -> list[Any]:
+        from provisa.federation.data_replicator import mailboxes_failed_note
+
+        return [
+            *_notes(self._unreadable, self._left_out),
+            *([note] if (note := mailboxes_failed_note(sorted(self._failed))) else []),
+        ]
+
+    async def keep(self, account: str, links: dict[str, str]) -> None:
+        from provisa.federation.mail_sync_state import DELTA
+
+        assert self._reading is not None and self._reading.keep_part is not None
+        await self._reading.keep_part(account, links, DELTA)
+
+    async def forget(self, account: str) -> None:
+        assert self._reading is not None and self._reading.forget_mailbox is not None
+        await self._reading.forget_mailbox(account)
+
+    async def units(self) -> AsyncIterator[cm.Unit]:
+        from provisa.federation.mail_sync_state import DELTA
+        from provisa.google_workspace import units
+        from provisa.google_workspace.mail_rows import PROVIDER
+
+        self._unreadable.clear()
+        self._left_out.clear()
+        self._failed.clear()
+        reading = self._reading = await self._connect(self._source)
+        if reading.kept is None or reading.keep_part is None or reading.forget_mailbox is None:
+            raise RuntimeError("a read in units needs somewhere to keep where it reached")
+        kept: dict[str, dict[str, str]] = {}
+        for (account, scope, kind), token in (await reading.kept()).items():
+            links = kept.setdefault(account, {})
+            if kind == DELTA:
+                links[scope] = token
+        accounts = {a.lower() for a in reading.accounts}
+        self.total = len(accounts)
+        # A mailbox the source no longer names: its rows go, and what was kept for it.
+        for account in sorted(set(kept) - accounts):
+            yield cm.Unit(
+                account,
+                removed={t: [{"provider": PROVIDER, "account": account}] for t in self._tables},
+                forget=True,
             )
-        auth = _resolved(settings.auth(account, client))
+        async for unit in _read_mailboxes(
+            reading,
+            lambda gmail: units.mailbox_units(
+                gmail,
+                reading.mail,
+                self._tables,
+                kept.get(gmail.account.lower()),
+                _opened_at(gmail),
+                self._unreadable,
+                threads=_Threads,
+                messages=_messages,
+            ),
+            self._left_out,
+            None,
+            self._failed if reading.organisation else None,
+        ):
+            yield unit
+        if accounts and len(self._failed) == len(accounts):
+            raise RuntimeError(
+                f"none of the {len(accounts)} mailbox(es) could be read to its end; the last "
+                f"refusal: {next(reversed(self._failed.values()))}"
+            )
 
-        async def token() -> str:
-            return await asyncio.to_thread(access_token, auth)
+    async def committed(self) -> None:
+        """Once the pass is recorded as completed: a mailbox left out is kept as that, in
+        place of where an earlier read of it reached."""
+        from provisa.federation.mail_sync_state import PROBE
+        from provisa.google_workspace import units
 
-        async with httpx.AsyncClient() as http:
-            yield Gmail(account, token, http), settings.mail
+        reading = self._reading
+        if reading is None or reading.keep_part is None or reading.forget_mailbox is None:
+            return
+        for account in sorted({a.lower() for a in self._left_out}):
+            await reading.forget_mailbox(account)
+            await reading.keep_part(account, {units.MAILBOX: LEFT_OUT}, PROBE)
+
+
+async def mailbox_token(connect: Connect, source: Any) -> str | None:
+    """The opaque token of the source's mailboxes as they stand now: a digest of each address
+    with the id of its current history record (Gmail's ``users.getProfile``, one quota unit a
+    mailbox). Gmail records a history entry when a message is added or deleted and when its
+    labels change, so an equal token is mailboxes nothing has happened to. A mailbox Google
+    will not let be read at all is in the digest as that, so one that stays unreadable changes
+    nothing and one that becomes readable does.
+
+    None when Google cannot be asked -- refused, throttled past the client's retries, the
+    sign-in not renewable, the organisation's credential not entered or not delegated, the
+    directory not listed. None is never "unchanged": the caller then asks for a read, and the
+    read reports the reason on the replica."""
+    from provisa.api_source.caller import ApiCallError
+    from provisa.core.mail_platforms import MailPlatformRefused
+    from provisa.google_workspace import directory
+
+    try:
+        reading = await connect(source)
+        gate = asyncio.Semaphore(max(reading.at_once, 1))
+        async with httpx.AsyncClient() as client:
+
+            async def seen(account: str) -> str:
+                async with gate:
+                    try:
+                        profile = await _mailbox(reading, account, client).profile()
+                    except Exception as refused:  # allow-ble: only a mailbox Google will not let be read at all is taken here; every other failure is re-raised unchanged
+                        if not reading.organisation or _not_readable(refused) is None:
+                            raise
+                        return f"{account}\x00{LEFT_OUT}"
+                return f"{account}\x00{profile['historyId']}"
+
+            lines = await asyncio.gather(*(seen(account) for account in reading.accounts))
+    except (
+        GmailRefused,
+        ApiCallError,
+        MailPlatformRefused,
+        directory.DelegationRefused,
+        directory.DirectoryRefused,
+        directory.NotAUser,
+        httpx.HTTPError,
+    ) as cannot:
+        log.warning(
+            "Google Workspace source %s: its mailboxes could not be asked whether they "
+            "changed (%s); a read is asked for instead",
+            source.id,
+            cannot,
+        )
+        return None
+    if not lines:
+        return None  # no mailbox to ask: that is not "unchanged"
+    return hashlib.sha256("\n".join(sorted(lines)).encode()).hexdigest()
+
+
+def make_google_workspace_loader(connect: Connect) -> Any:
+    """The row-fetch of a Google Workspace source: one of its tables, whole, read from Google
+    as ``connect`` signs the source in."""
 
     async def _batches(
-        source: Any, table: Any, unreadable: list[str] | None = None
+        source: Any,
+        table: Any,
+        unreadable: list[str] | None = None,
+        left_out: list[str] | None = None,
     ) -> AsyncIterator[list[dict]]:
-        async with _connect(source) as (gmail, mail):
-            async for rows in table_rows(gmail, mail, table.table_name, unreadable):
+        name = table.table_name
+        if name not in TABLES:
+            raise UnknownMailTable(name)
+        reading = await connect(source)
+        async for rows in _read_mailboxes(
+            reading,
+            lambda gmail: table_rows(gmail, reading.mail, name, unreadable),
+            [] if left_out is None else left_out,
+        ):
+            if rows:
                 yield rows
 
     async def _load(source: Any, table: Any) -> list[dict]:
@@ -338,24 +717,194 @@ def make_google_workspace_loader(state: Any) -> Any:
         from provisa.federation.replica_source import CursorSource
 
         unreadable: list[str] = []
+        left_out: list[str] = []
 
-        def read(_batch_rows: int) -> AsyncIterator[list[dict]]:
-            unreadable.clear()  # a build reads once; a read begun again counts again
-            return _batches(source, table, unreadable)
+        async def read(_batch_rows: int) -> AsyncIterator[list[dict]]:
+            # A build reads once; a read begun again counts again.
+            unreadable.clear()
+            left_out.clear()
+            at = dt.datetime.now(dt.UTC)  # one whole build lands together, under one stamp
+            async for rows in _batches(source, table, unreadable, left_out):
+                yield cm.stamped(rows, at)
 
-        return CursorSource(read, columns, notes=lambda: noted(unreadable_note(unreadable)))
+        return CursorSource(read, columns, notes=lambda: _notes(unreadable, left_out))
+
+    def _freshness_probe(source: Any, table: Any) -> Any:
+        """The table's change probe (REQ-855, REQ-982), for a table read from the mailboxes:
+        their messages or their labels. None for any other table: it has no cheap token."""
+        if table.table_name not in TABLES:
+            return None
+
+        async def token() -> str | None:
+            return await mailbox_token(connect, source)
+
+        return token
 
     def _replica_group(_source: Any, table: Any) -> tuple[str, ...] | None:
-        """The tables one read of the mailbox gives together with ``table``, or None when
+        """The tables one read of the mailboxes gives together with ``table``, or None when
         ``table`` is read on its own (folders)."""
         return MESSAGE_TABLES if table.table_name in MESSAGE_TABLES else None
 
     def _replica_group_source(
         source: Any, tables: tuple[str, ...], columns: dict[str, list[tuple[str, str]]]
     ) -> Any:
-        return _MailboxRead(_connect, source, tuple(tables), columns)
+        return _MailboxRead(connect, source, tuple(tables), columns)
 
     _load.replica_source = _replica_source  # type: ignore[attr-defined]
+    _load.freshness_probe = _freshness_probe  # type: ignore[attr-defined]
     _load.replica_group = _replica_group  # type: ignore[attr-defined]
     _load.replica_group_source = _replica_group_source  # type: ignore[attr-defined]
+    _load.replica_unit_source = lambda source, tables: _UnitsRead(  # type: ignore[attr-defined]
+        connect, source, tuple(tables)
+    )
     return _load
+
+
+async def organisation_account(admin_db: Any, org_id: str) -> tuple[Any, str]:
+    """The organisation's Google service account and the administrator address directory calls
+    are made as, for reading the organisation's mailboxes: refused by name unless its
+    administrator has allowed such sources. The key is resolved here in the organisation's own
+    vault, which no caller need have bound (a source of the organisation's mailboxes names no
+    secret of its own, so a replica build binds none for it), and held only by the account."""
+    from provisa.core import mail_platforms
+    from provisa.google_workspace import SOURCE_TYPE
+    from provisa.google_workspace.directory import ServiceAccount
+
+    entry = await mail_platforms.require_organisation(admin_db, org_id, SOURCE_TYPE)
+    admin = entry.settings.get("admin_address")
+    if entry.organisation_key is None or not admin:
+        # require_organisation's switch cannot be on without both (mail_platforms.put).
+        raise mail_platforms.MailPlatformRefused(
+            "incomplete",
+            f"{SOURCE_TYPE} needs organisation_key, admin_address",
+            missing="organisation_key, admin_address",
+        )
+    key = await mail_platforms.credential(
+        admin_db, org_id, SOURCE_TYPE, mail_platforms.ORGANISATION_KEY, entry.organisation_key
+    )
+    return ServiceAccount(key), admin
+
+
+async def listed_mailboxes(account: Any, admin: str, chosen: Any) -> list[str]:
+    """The mailboxes ``chosen`` names, as the directory lists them now, read off the event
+    loop as the organisation's administrator."""
+    from provisa.google_workspace import directory
+
+    def listed() -> list[str]:
+        with httpx.Client() as http:
+            return directory.mailboxes(
+                directory.Directory(lambda scope: account.token(admin, (scope,)), http), chosen
+            )
+
+    return await asyncio.to_thread(listed)
+
+
+def make_connect(state: Any) -> Connect:
+    """How a source is signed in for a read: one mailbox with its owner's approval of the
+    organisation's Google client; the organisation's mailboxes with its service account,
+    reading as each user."""
+    from provisa.api_source import oauth_store
+    from provisa.api_source.oauth_grants import access_token
+    from provisa.core import mail_platforms, settings_registry
+    from provisa.core.request_context import require_current_org
+    from provisa.google_workspace import SOURCE_TYPE
+
+    async def connect(source: Any) -> Reading:
+        settings = source_settings(source)
+        if settings.mail is None:
+            raise UnknownMailTable("messages")
+        org_id = require_current_org()
+
+        async def keep(rows: dict[tuple[str, str, str], str]) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.replace(conn, source.id, rows)
+
+        async def kept() -> dict[tuple[str, str, str], str]:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                return await mail_sync_state.read_all(conn, source.id)
+
+        async def keep_part(account: str, links: dict[str, str], kind: str) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.keep_links(conn, source.id, account, links, kind=kind)
+
+        async def forget_mailbox(account: str) -> None:
+            from provisa.federation import mail_sync_state
+
+            async with state.tenant_db.acquire() as conn:
+                await mail_sync_state.forget_account(conn, source.id, account)
+
+        wait_seconds = float(settings_registry.value("mail.throttle_wait_seconds"))
+
+        async def throttled(seconds: float) -> None:
+            # The record of every table this source is building says what it waits on.
+            from provisa.federation import replica_state
+
+            async with state.tenant_db.acquire() as conn:
+                await replica_state.record_throttled(conn, source.id, seconds=seconds, by="Google")
+
+        if settings.organisation:
+            assert settings.mailboxes is not None  # the organisation shape names its mailboxes
+            # Refused by name unless the organisation's administrator allowed sources that
+            # read its mailboxes: asked here, each time a credential is about to be used.
+            account, admin = await organisation_account(state.admin_db, org_id)
+            scopes = tuple(settings.scopes())
+
+            async def as_user(address: str) -> str:
+                return await asyncio.to_thread(account.token, address, scopes)
+
+            return Reading(
+                tuple(await listed_mailboxes(account, admin, settings.mailboxes)),
+                settings.mail,
+                as_user,
+                organisation=True,
+                at_once=int(settings_registry.value("mail.mailboxes_at_once")),
+                keep=keep,
+                wait_seconds=wait_seconds,
+                throttled=throttled,
+                kept=kept,
+                keep_part=keep_part,
+                forget_mailbox=forget_mailbox,
+            )
+        client = await mail_platforms.require(state.admin_db, org_id, SOURCE_TYPE)
+        (address,) = settings.accounts
+
+        async def earlier() -> str | None:
+            # A source connected before approvals were kept in the state store names its
+            # owner's approval in its own settings: resolved once, in the organisation's
+            # vault, and kept in the state store from then on.
+            if settings.refresh_token is None:
+                return None
+            return await mail_platforms.resolved(state.admin_db, org_id, settings.refresh_token)
+
+        # The owner's approval, kept for this source and mailbox in the organisation's state
+        # store; refused by name when its owner has not signed in. Google does not replace an
+        # approval when it is used, so it is read and nothing is written back.
+        approval = await oauth_store.kept_refresh_token(
+            state.tenant_db, source_id=source.id, account=address, earlier=earlier
+        )
+        # Resolved here, in the organisation's vault: the exchange runs in a worker thread,
+        # which holds none.
+        auth = await _resolved(state.admin_db, org_id, settings.auth(address, client, approval))
+
+        async def signed_in(_address: str) -> str:
+            return await asyncio.to_thread(access_token, auth)
+
+        return Reading(
+            (address,),
+            settings.mail,
+            signed_in,
+            keep=keep,
+            wait_seconds=wait_seconds,
+            throttled=throttled,
+            kept=kept,
+            keep_part=keep_part,
+            forget_mailbox=forget_mailbox,
+        )
+
+    return connect

@@ -69,10 +69,13 @@ LANES: dict[str, Lane] = {
     # test runs in CI only in a lane whose job declares its secrets and checks they are present
     # (integration-suite-lanes.yml), so what a lane runs is decided here, by marker, never by a
     # test skipping itself. The live Salesforce test is in no nightly lane: a cold run costs
-    # about 2,450 API calls of an org allowed 15,000 a day.
+    # about 2,450 API calls of an org allowed 15,000 a day. The live Microsoft 365 test is in no
+    # CI lane at all: its tenant is the maintainer's own and no job declares M365 secrets.
+    # Nor is the live Google Workspace test: its domain is the maintainer's own too.
     "warehouse": Lane(
         ("tests/integration", "tests/steps"),
-        "requires_warehouse and not requires_salesforce",
+        "requires_warehouse and not requires_salesforce and not requires_microsoft_365 "
+        "and not requires_google_workspace",
         clear_addopts=True,
     ),
     # The live Salesforce org: on demand only (workflow_dispatch, include_salesforce), its own job.

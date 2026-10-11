@@ -16,7 +16,9 @@ test.describe.configure({ timeout: 180_000 });
 //    expanded the checker's table again, whose editor has no profiler panel;
 //  - resuming from another page, the first row on screen was a row of the page being left
 //    (/sources), so the tour clicked that one instead of a table row.
-test("the Data quality topic walks from the checker through to the profiler panel", async ({ page }) => {
+test("the Data quality topic walks from the checker through to the profiler panel", async ({
+  page,
+}) => {
   // REQ-1945: these steps are the "Data quality" topic. The core tour has been seen ("seen"), so the
   // navbar tour button opens the Deep Dives menu and the card runs the topic.
   await page.addInitScript(() => localStorage.setItem("provisa_tour_seen", "true"));
@@ -31,9 +33,9 @@ test("the Data quality topic walks from the checker through to the profiler pane
   // Starting the topic navigates to /tables and pays that route's first-visit chunk fetch and data load.
   await expect(title).toHaveText("A quality checker is just a source", { timeout: 60000 });
   await expect(page).toHaveURL(/\/tables\?source=dq-checker$/);
-  await expect(
-    page.locator('[data-table-row="dq-checker.pets_scan"] + tr.list-expand'),
-  ).toBeVisible();
+  // The opened table is the selected row, and its detail is in the panel on the right.
+  await expect(page.locator('[data-table-row="dq-checker.pets_scan"].row-selected')).toBeVisible();
+  await expect(page.getByTestId("tables-split-panel")).toBeVisible();
 
   await next.click();
   await expect(title).toHaveText("Build a quality contract", { timeout: 30000 });
@@ -44,9 +46,9 @@ test("the Data quality topic walks from the checker through to the profiler pane
   await expect(page).toHaveURL(/\/tables\?source=pet-store-sqlite$/);
   // The filter follows the new ?source=, and the row opened is the pet-store table with its editor.
   await expect(page.locator('[data-table-row^="dq-checker."]')).toHaveCount(0);
-  await expect(
-    page.locator('[data-table-row="pet-store-sqlite.pets"] + tr.list-expand'),
-  ).toBeVisible();
+  // The opened table is the selected row, and its detail is in the panel on the right.
+  await expect(page.locator('[data-table-row="pet-store-sqlite.pets"].row-selected')).toBeVisible();
+  await expect(page.getByTestId("tables-split-panel")).toBeVisible();
   await expect(page.locator('[data-tour="profiler-panel"]')).toBeVisible();
 
   await next.click();
@@ -68,14 +70,17 @@ test("the Test data topic walks from the map through the profiler to a fake", as
   await expect(page.locator('[data-testid="table-read-view-edit"]')).toBeVisible();
 
   await next.click();
-  await expect(title).toHaveText("What fakes and synthetic data are built from", { timeout: 30000 });
+  await expect(title).toHaveText("What fakes and synthetic data are built from", {
+    timeout: 30000,
+  });
   await expect(page.locator('[data-tour="profiler-panel"]')).toBeVisible();
 
-  // "Declare a fake" switches the column list to its Test data mode.
+  // "Declare a fake" opens the column list's Testing tab.
   await next.click();
   await expect(title).toHaveText("Declare a fake", { timeout: 30000 });
   await expect(page.locator('[data-testid="testdata-columns"]')).toBeVisible();
-  await expect(
-    page.locator('[data-tour="table-columns-mode"] input[value="testdata"]'),
-  ).toBeChecked();
+  await expect(page.locator('[data-testid="column-tab-testing"]')).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 });

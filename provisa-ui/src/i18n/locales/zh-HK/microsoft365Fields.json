@@ -6,6 +6,7 @@
     "readsMailHelp": "讀取此信箱的郵件、資料夾和附件資料。不會更改信箱中的任何內容。",
     "connect": "連接 Microsoft 帳戶",
     "connected": "已以 {{account}} 的身分連接",
+    "connectedOn": "已於 {{date}} 以 {{account}} 的身分連接",
     "connectFailed": "無法完成登入。",
     "notSetUp": "你的組織尚未連接 Microsoft 365。",
     "setUpLink": "在{{where}}中設定",

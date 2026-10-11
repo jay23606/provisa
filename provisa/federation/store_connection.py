@@ -279,6 +279,18 @@ def apply_cdc_duckdb_native(
     return counts
 
 
+def delete_where_duckdb_native(
+    con: Any, *, catalog: str, schema: str, table: str, matches: list[dict[str, Any]]
+) -> None:
+    """Remove from the DuckDB store's landing table every row that matches all the column
+    values of one of ``matches``: rows named by part of their key (every recipient of one
+    message). The values are bound, never spliced."""
+    qualified = _qualified(catalog, schema, table)
+    for match in matches:
+        where = " AND ".join(f'"{column}" = ?' for column in match)
+        con.execute(f"DELETE FROM {qualified} WHERE {where}", list(match.values()))
+
+
 def upsert_arrow_duckdb_native(
     con: Any,
     *,

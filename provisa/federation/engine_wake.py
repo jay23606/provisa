@@ -111,7 +111,7 @@ def boot_shard() -> str:
     if not shard:
         raise k8s.K8sProvisioningError(
             "this deployment provisions engines on Kubernetes but PROVISA_ENGINE_SHARD is unset, "
-            "so the shard behind TRINO_HOST cannot be woken (REQ-1448)"
+            "so the shard behind TRINO_HOST cannot be woken"
         )
     return shard
 
@@ -218,7 +218,7 @@ async def attach_if_serving(state: Any) -> bool:
     if default is None:
         raise RuntimeError(
             "the default org has no built runtime, so the engine a background job dispatches to "
-            "cannot be resolved (REQ-1448)"
+            "cannot be resolved"
         )
     if default.engine_generation != generation(shard):
         await restore_shared_terminal(state, shard)
@@ -252,7 +252,7 @@ async def engine_state(state: Any, org_id: str) -> str:
         if runtime is None:
             raise RuntimeError(
                 f"org {org_id!r} is bound for this request but has no built runtime, so the engine "
-                "it queries cannot be reported (REQ-1516)"
+                "it queries cannot be reported"
             )
         if runtime.engine_endpoint is not None or runtime.engine_url is not None:
             return "always-on"
@@ -263,7 +263,7 @@ async def engine_state(state: Any, org_id: str) -> str:
         if not shard:
             raise RuntimeError(
                 f"org {org_id!r} has no shard recorded on its runtime, so the engine it queries "
-                "cannot be reported (REQ-1516)"
+                "cannot be reported"
             )
 
     # An in-flight stop is a drain plus the scale-down after it, minutes long, and the Deployment
@@ -337,7 +337,7 @@ async def restore_shared_terminal(state: Any, shard: str) -> None:
     if default is None:
         raise RuntimeError(
             "the default org has no built runtime, so the shared terminal cannot be restored "
-            "after shard %s restarted (REQ-1448)" % shard
+            "after shard %s restarted" % shard
         )
     raw = getattr(state, "raw_config", None)
     if raw is not None:
@@ -500,7 +500,7 @@ def active_shard(state: Any) -> str | None:
     if runtime is None:
         raise RuntimeError(
             f"org {org_id!r} environment {env!r} is bound for this query but has no built "
-            "runtime — the shard it queries cannot be resolved (REQ-1448)"
+            "runtime — the shard it queries cannot be resolved"
         )
     if runtime.engine_endpoint is not None or runtime.engine_url is not None:
         return None
@@ -510,7 +510,7 @@ def active_shard(state: Any) -> str | None:
     if not shard:
         raise RuntimeError(
             f"org {org_id!r} has no shard recorded on its runtime, so the engine it queries cannot "
-            "be resolved (REQ-1450)"
+            "be resolved"
         )
     return shard
 
@@ -617,7 +617,7 @@ async def _rebuild_env_runtime(state: Any, org_id: str, env: str, shard: str) ->
     if runtime is None:
         raise RuntimeError(
             f"org {org_id!r} environment {env!r} is bound for this query but has no built "
-            "runtime — the catalogs it queries cannot be reissued (REQ-1448)"
+            "runtime — the catalogs it queries cannot be reissued"
         )
     if runtime.engine_generation == generation(shard):
         return
@@ -661,7 +661,7 @@ async def ensure_engine_awake(state: Any) -> None:
         if default is None:
             raise RuntimeError(
                 "the default org has no built runtime, so the engine this query dispatches to "
-                "cannot be resolved (REQ-1448)"
+                "cannot be resolved"
             )
         if default.engine_generation != generation(shard):
             await restore_shared_terminal(state, shard)
@@ -672,7 +672,7 @@ async def ensure_engine_awake(state: Any) -> None:
     if runtime is None:
         raise RuntimeError(
             f"org {org_id!r} environment {env!r} is bound for this query but has no built "
-            "runtime — the shard it queries cannot be resolved (REQ-1448)"
+            "runtime — the shard it queries cannot be resolved"
         )
     # REQ-1412/REQ-1418: an org that runs its own coordinator is not on a shard this control plane
     # operates, so there is nothing here to wake.
@@ -685,7 +685,7 @@ async def ensure_engine_awake(state: Any) -> None:
     if not shard:
         raise RuntimeError(
             f"org {org_id!r} has no shard recorded on its runtime, so the engine it queries cannot "
-            "be woken (REQ-1450)"
+            "be woken"
         )
 
     await ensure_shard_awake(shard)

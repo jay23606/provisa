@@ -168,7 +168,7 @@ async def _load_source(source_id: str):
     async with pool.acquire() as conn:
         row = await source_repo.get(conn, source_id)
     if row is None:
-        raise ValueError(f"table references unknown source {source_id!r} (REQ-1143 summary)")
+        raise ValueError(f"table references unknown source {source_id!r}")
     return Source(
         id=row["id"],
         type=SourceTypeEnum(row["type"]),

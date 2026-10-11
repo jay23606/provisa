@@ -11,33 +11,69 @@
 """Admin route: profile a registered table with a sampled SELECT."""
 
 from __future__ import annotations
+
 import logging
-import os
-from typing import TYPE_CHECKING
 
-from provisa.core.read_refusal import ReadRefused
-from provisa.api.admin.engine_auth import run_admin_catalog_sql
+from fastapi import APIRouter, Header, Request
 
-from fastapi import APIRouter, HTTPException, Header, Request
-from sqlalchemy import select
-
-from provisa.api.app import state
 from provisa.api.acting_role import header_role
+from provisa.api.admin.table_read import read_as_caller, table_for_steward
+from provisa.api.admin.viewer_statement import ViewerRequest
+from provisa.api.app import state
 from provisa.api.errors import ApiError
-from provisa.core.schema_org import registered_tables
-from provisa.core.models import DERIVED_SOURCE_ID
-from provisa.api.admin.capabilities import require_capability_request
-
-if TYPE_CHECKING:
-    from provisa.core.database import Connection  # noqa: F401
+from provisa.compiler.limits import role_max_query_time_ms
+from provisa.core import request_deadline
+from provisa.core.limits import request_timeout_for
+from provisa.security.rights import require_role
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/tables", tags=["admin", "tables"])
 
-# Requirements: REQ-452
+# Requirements: REQ-452, REQ-1921
 
 _SAMPLE_LIMIT = 2000
-_TABLESAMPLE_PCT = 10  # BERNOULLI(10) — 10% of blocks
+
+
+async def _rows(
+    request: Request,
+    table_id: int,
+    x_provisa_role: str | None,
+    *,
+    limit: int | None = None,
+    page: ViewerRequest | None = None,
+) -> dict:
+    """Up to ``limit`` rows of the table, read as the caller (admin/table_read.py): the right
+    to register tables in the table's own domain, then the caller's role — its row filters, its
+    masks, the columns it may see."""
+    if state.model_db is None:
+        raise ApiError(503, "profile.database_unavailable", "Database unavailable")
+    if state.federation_engine is None:
+        raise ApiError(503, "profile.query_engine_unavailable", "Query engine unavailable")
+    table = table_for_steward(request, state, table_id)
+    # REQ-273: read as the role the request runs as — the one the auth layer established (a
+    # held role, a set's meta-role), never the raw header text.
+    role_id = header_role(request, x_provisa_role, None)
+    if not role_id:
+        raise ApiError(
+            400,
+            "profile.role_header_required",
+            "X-Provisa-Role header required to read a table's rows",
+        )
+    # The read's time is the role's, as a statement's on /data/sql is (REQ-1905): the deadline
+    # is what a read that waits on a replica's build answers before (ReplicaBuilding, which
+    # the app answers by code).
+    transport_timeout = request_timeout_for("graphql")
+    role_ms = role_max_query_time_ms(require_role(state.roles, role_id))
+    timeout = transport_timeout if role_ms is None else min(transport_timeout, role_ms / 1000.0)
+    with request_deadline.within(timeout):
+        result = await read_as_caller(state, table_id, role_id, limit=limit, request=page)
+    rows = [dict(zip(result.column_names, row)) for row in result.rows]
+    return {
+        "columns": list(result.column_names),
+        "rows": rows,
+        "rowCount": len(rows),
+        "draft": bool(table.get("draft")),
+    }
 
 
 @router.post("/{table_id}/profile")
@@ -46,90 +82,19 @@ async def profile_table(
     table_id: int,
     x_provisa_role: str | None = Header(None),
 ) -> dict:  # REQ-452
-    require_capability_request(request, "table_registration")
-    if state.model_db is None:
-        raise ApiError(503, "profile.database_unavailable", "Database unavailable")
-    if state.federation_engine is None:
-        raise ApiError(503, "profile.query_engine_unavailable", "Query engine unavailable")
-    engine = state.federation_engine
+    """A sample of the table's rows for its profile, read as the caller."""
+    return await _rows(request, table_id, x_provisa_role, limit=_SAMPLE_LIMIT)
 
-    async with state.model_db.acquire() as conn:
-        result = await conn.execute_core(
-            select(
-                registered_tables.c.source_id,
-                registered_tables.c.schema_name,
-                registered_tables.c.table_name,
-                registered_tables.c.view_sql,
-            ).where(registered_tables.c.id == table_id)
-        )
-        row = result.fetchone()
-    if row is None:
-        raise ApiError(
-            404, "profile.table_not_found", f"Table {table_id} not found", table_id=table_id
-        )
 
-    m = row._mapping
-    source_id: str = m["source_id"]
-    schema_name: str = m["schema_name"]
-    table_name: str = m["table_name"]
-    view_sql: str | None = m["view_sql"]
-
-    # __derived__ view SQL is semantic (domain.field refs) and must be compiled,
-    # governed, and routed exactly like an interactive /data/sql query — handing it
-    # raw to the federation engine fails to resolve domain refs (REQ-452).
-    if source_id == DERIVED_SOURCE_ID and view_sql:
-        # ONE pipeline: sample the view through the single governed chokepoint, exactly like /data/sql.
-        from provisa.pgwire._pipeline import _execute_plan, _govern_and_route
-
-        # REQ-273: the sample is governed as the role the request runs as — the one the auth
-        # layer established (a held role, a set's meta-role), never the raw header text.
-        role_id = header_role(request, x_provisa_role, None)
-        if not role_id:
-            raise ApiError(
-                400,
-                "profile.role_header_required",
-                "X-Provisa-Role header required to profile a view",
-            )
-        sampled = f"SELECT * FROM ({view_sql.rstrip().rstrip(';')}) _pv LIMIT {_SAMPLE_LIMIT}"
-        _plan = await _govern_and_route(sampled, role_id)
-        res = await _execute_plan(_plan, state)
-        rows = [dict(zip(res.column_names, r)) for r in res.rows]
-        return {"columns": res.column_names, "rows": rows, "rowCount": len(rows)}
-
-    view_catalog = os.environ.get("PROVISA_VIEW_CATALOG", "memory")
-    catalog = view_catalog if source_id == DERIVED_SOURCE_ID else state.catalog_for(source_id)
-    fqn = f'"{catalog}"."{schema_name}"."{table_name}"'
-    # Try TABLESAMPLE first; fall back to plain LIMIT if unsupported
-    sql = f"SELECT * FROM {fqn} TABLESAMPLE BERNOULLI ({_TABLESAMPLE_PCT}) LIMIT {_SAMPLE_LIMIT}"
-
-    try:
-        # REQ-1912: a table served from its replica is sampled at its replica's address.
-        res = await run_admin_catalog_sql(
-            state, engine, engine.address_replicas(sql), "table profile"
-        )
-        raw_rows = res.rows
-        columns = res.column_names
-    except ReadRefused:
-        raise  # refused by name; the app answers it (core/read_refusal.py), never retried
-    except Exception:
-        if "TABLESAMPLE" in sql:
-            # Retry without TABLESAMPLE
-            try:
-                fqn = f'"{state.catalog_for(source_id)}"."{schema_name}"."{table_name}"'
-                res = await run_admin_catalog_sql(
-                    state,
-                    engine,
-                    engine.address_replicas(f"SELECT * FROM {fqn} LIMIT {_SAMPLE_LIMIT}"),
-                    "table profile",
-                )
-                raw_rows = res.rows
-                columns = res.column_names
-            except ReadRefused:
-                raise
-            except Exception as e:
-                raise HTTPException(400, str(e))
-        else:
-            raise
-
-    rows = [dict(zip(columns, r)) for r in raw_rows]
-    return {"columns": columns, "rows": rows, "rowCount": len(rows)}
+@router.post("/{table_id}/preview")
+async def preview_table(
+    request: Request,
+    table_id: int,
+    page: ViewerRequest,
+    x_provisa_role: str | None = Header(None),
+) -> dict:  # REQ-1921
+    """One page of the table as the table viewer shows it, read as the caller: the viewer of a
+    DRAFT, which no statement a caller sends may read. The body is what the viewer chose — its
+    filters, sorts, grouping and page — and the server writes the statement from it. One row
+    more than the page comes back when a next page exists."""
+    return await _rows(request, table_id, x_provisa_role, page=page)

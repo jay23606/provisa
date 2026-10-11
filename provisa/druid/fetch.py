@@ -107,9 +107,7 @@ def fetch_rows_by_keys(
     bound ``IN (...)`` predicate, never the full-datasource scan ``fetch_rows`` runs. Single-column
     only, mirroring the other keyed loaders' own single-column contract."""
     if len(pk_columns) != 1:
-        raise ValueError(
-            f"Druid keyed fetch on a composite PK {pk_columns!r} is not implemented (REQ-1865)"
-        )
+        raise ValueError(f"Druid keyed fetch on a composite PK {pk_columns!r} is not implemented")
     if not keys:
         return []
     safe_table = table.replace('"', '""')

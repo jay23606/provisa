@@ -107,6 +107,75 @@ def _with_own_rules(view: str, body: str, gov: "GovernanceContext") -> str:
     return _expand_one(own, view, body)
 
 
+def _said_names(row: dict) -> set[str]:
+    """Every name a view's SQL could give the registered table ``row``: its table name and alias,
+    bare and qualified by its domain or its schema — the one rule a served table and a draft are
+    named by (:mod:`provisa.compiler.naming`)."""
+    from provisa.compiler.naming import (  # noqa: PLC0415
+        apply_sql_name,
+        semantic_relation_names,
+        stored_relation_names,
+    )
+
+    domain, name, alias = row["domain_id"], row["table_name"], row.get("alias")
+    said = {name, *stored_relation_names(domain, row["schema_name"], name)}
+    for semantic in {apply_sql_name(alias or name), alias}:
+        if semantic:
+            said.update(semantic_relation_names(domain, semantic))
+    return said
+
+
+def require_inputs_in_service(view_sql: str, state: Any) -> None:
+    """REQ-1921: a view's inputs are in service for its readers. A view is answered from the
+    tables its SQL names; one of them out of service (a draft) is offered to no reader — through
+    a view either. Raises :class:`TableIsDraft` naming it, as a statement naming it directly is
+    refused. The view stays as it is: it is answered again once its input is released.
+
+    A name a table in service also answers to is that table's."""
+    import sqlglot  # noqa: PLC0415
+    from sqlglot import exp  # noqa: PLC0415
+
+    from provisa.compiler.definitions import TableIsDraft  # noqa: PLC0415
+
+    drafts = state.role_build_inputs["draft_tables"]
+    if not drafts:
+        return
+    served: set[str] = set()
+    for row in state.tables:
+        served |= _said_names(row)
+    out_of_service = {
+        said: row["table_name"] for row in drafts for said in _said_names(row) - served
+    }
+    for table in sqlglot.parse_one(view_sql, read="postgres").find_all(exp.Table):
+        qualified = f"{table.db}.{table.name}" if table.db else table.name
+        if qualified in out_of_service:
+            raise TableIsDraft(out_of_service[qualified])
+
+
+def require_inputs_reached(view_sql: str, gov: "GovernanceContext") -> None:
+    """Through a view a reader sees only what it could see in the view's inputs — and a table
+    of which it may read nothing, it does not read through a view either. Governing the view's
+    body for such a reader removes every column of that table, which leaves a statement the
+    engine can only fail. So it is refused here, where the body is chosen, naming the table, in
+    the words a statement that names a table outside the role's reach is refused with
+    (``pgwire._pipeline``, V000).
+
+    Judged from the reader's own governance context: a table it holds with no visible column,
+    and that publishes none to it (REQ-1959). A table the reader sees some columns of is
+    governed as ever — the hidden ones removed."""
+    import sqlglot  # noqa: PLC0415
+    from sqlglot import exp  # noqa: PLC0415
+
+    tree = sqlglot.parse_one(view_sql, read="postgres")
+    for table in tree.find_all(exp.Table):
+        named = f"{table.db}.{table.name}" if table.db else table.name
+        table_id = gov.table_map.get(named, gov.table_map.get(table.name))
+        if table_id is None or table_id in gov.public_tables:
+            continue
+        if gov.visible_columns.get(table_id) == frozenset():
+            raise PermissionError(f"[V000] Table {named!r} not accessible for role {gov.role_id!r}")
+
+
 def view_bodies(
     sql: str,
     view_sql_map: dict[str, str],
@@ -126,6 +195,7 @@ def view_bodies(
         for view, view_sql in view_sql_map.items():
             if view in bodies or view not in text:
                 continue
+            require_inputs_in_service(view_sql, state)
             stored = _stored_rows(view, state)
             home = _home_copy(view, state)
             if home is not None:
@@ -133,6 +203,7 @@ def view_bodies(
             elif stored is not None and sees_everything(view, view_sql_map, gov):
                 body = stored
             else:
+                require_inputs_reached(view_sql, gov)
                 body = govern_fragment(view_sql, gov)
                 pending.append(view_sql)
             bodies[view] = _with_own_rules(view, body, gov)
@@ -180,10 +251,12 @@ def split_for_whole_statement_governance(
         for view, view_sql in view_sql_map.items():
             if view in before or view in after or view not in text:
                 continue
+            require_inputs_in_service(view_sql, state)
             stored = _stored_rows(view, state)
             if stored is not None and sees_everything(view, view_sql_map, gov):
                 after[view] = stored
             else:
+                require_inputs_reached(view_sql, gov)
                 before[view] = _with_own_rules(view, view_sql, gov)
                 pending.append(view_sql)
     return before, after

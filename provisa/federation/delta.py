@@ -174,12 +174,11 @@ async def apply_sql_delta(
     wm = table.watermark_column
     if not wm:
         # Table._validate_delta already guarantees this; a defensive check, never a fallback.
-        raise ValueError(f"table {table.table_name!r}: delta needs watermark_column (REQ-874)")
+        raise ValueError(f"table {table.table_name!r}: delta needs watermark_column")
     pk_columns = list(args.pk_columns or [])
     if not pk_columns:
         raise ValueError(
             f"table {table.table_name!r}: delta apply needs a primary key to upsert/delete by "
-            "(REQ-874)"
         )
     field_list = ", ".join(f'"{name}"' for name, _ in args.columns)
     src = f'"{table.schema_name}"."{table.table_name}"'
@@ -207,7 +206,7 @@ async def source_max_watermark(state: Any, engine: Any, source: Any, table: Any)
     everything. None when the table is empty (no rows yet)."""
     wm = table.watermark_column
     if not wm:
-        raise ValueError(f"table {table.table_name!r}: delta needs watermark_column (REQ-874)")
+        raise ValueError(f"table {table.table_name!r}: delta needs watermark_column")
     src = f'"{table.schema_name}"."{table.table_name}"'
     result = await engine.execute_native(
         state.source_pools, source.id, f'SELECT MAX("{wm}") FROM {src}', []

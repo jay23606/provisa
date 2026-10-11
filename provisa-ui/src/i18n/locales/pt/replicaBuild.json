@@ -3,9 +3,19 @@
     "none": "Nenhuma réplica foi compilada para esta tabela.",
     "requested": "Compilação da réplica solicitada.",
     "waiting": "Compilação da réplica solicitada; aguardando: {{waitingOn}}.",
+    "replicating": "Replicando",
+    "progressAbout": "Cerca de {{percent}}%: {{rows}} de cerca de {{total}} linhas",
+    "progressPast": "{{rows}} linhas copiadas; a última compilação tinha {{total}}",
+    "progressRows": "{{rows}} linhas copiadas",
+    "progressMailboxes": "{{done}} de {{total}} caixas de correio lidas",
+    "progressWaiting": "Aguardando {{seconds}} s: {{by}} está limitando a leitura",
     "building": "Compilando réplica: {{rows}} linhas copiadas, {{rate}} linhas/s ({{how}}).",
     "buildingNoRate": "Compilando réplica ({{how}}).",
+    "buildingWaiting": "Réplica em criação; aguardando {{seconds}} s: {{by}} está limitando a leitura ({{how}}).",
+    "buildingPartial": "A réplica está sendo criada e já pode ser lida. Parcial: {{done}} de {{total}} caixas de correio lidas ({{how}}).",
+    "buildingParts": "A réplica está sendo atualizada: {{done}} de {{total}} caixas de correio verificadas ({{how}}).",
     "built": "Réplica compilada {{when}}: {{rows}} linhas ({{how}}).",
+    "builtChecked": "Réplica compilada {{when}}: {{rows}} linhas ({{how}}). Verificada {{checked}}, sem alterações desde então.",
     "failed": "A compilação da réplica falhou (tentativa {{attempts}}; será tentada novamente): {{error}}",
     "failedNextAt": "A compilação da réplica falhou (tentativa {{attempts}}; nova tentativa {{when}}): {{error}}",
     "retired": "Esta tabela não é mais replicada; sua réplica está sendo removida.",
@@ -14,7 +24,8 @@
       "engine_statement": "copiada pelo mecanismo",
       "stream_batches": "transmitida em lotes",
       "store_pipeline": "carregada pelo próprio pipeline do repositório",
-      "delta": "delta"
+      "delta": "delta",
+      "apply_units": "mantida atualizada no lugar"
     },
     "loadKind": {
       "bulk_stream": "fluxo em massa",
@@ -37,6 +48,9 @@
     "note": {
       "unreadable_messages": "Mensagens mantidas sem o texto porque uma parte não é o que declara: {{total}}. Seus IDs: {{ids}}",
       "mailboxes_left_out": "Caixas de correio deixadas de fora, porque a Microsoft ou a Google indica que não existem ou não podem ser lidas: {{total}}. São: {{accounts}}",
+      "mailboxes_at_quota": "Caixas de correio deixadas de fora, porque atingiram a quota de armazenamento e a Microsoft não acompanhará as suas alterações até ser libertado espaço: {{total}}. São: {{accounts}}",
+      "mailboxes_failed": "Caixas de correio cuja leitura falhou no meio: {{total}}. O que foi lido delas é mantido e a leitura continua na próxima atualização. São: {{accounts}}",
+      "place_not_kept": "Esta cópia está completa, mas não foi possível guardar até onde a leitura chegou, pelo que a próxima verificação de alterações pedirá a leitura novamente: {{reason}}",
       "andMore": "{{ids}} e mais {{more}}",
       "other": "A última compilação registrou: {{code}}"
     }

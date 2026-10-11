@@ -12,7 +12,7 @@
 // it needs; the CA bundle path is optional with every method.
 
 import { useTranslation } from "react-i18next";
-import { PasswordInput, Select, Stack, TextInput } from "@mantine/core";
+import { PasswordInput, Select, TextInput } from "@mantine/core";
 import type { CdcState } from "./SourceFormFields";
 import {
   REGISTRY_AUTH_METHODS,
@@ -21,6 +21,7 @@ import {
   type RegistryAuthMethod,
   type RegistryFieldKey,
 } from "./schemaRegistryAuth";
+import { FormField } from "../../components/form/FormLayout";
 
 interface SchemaRegistryAuthFieldsProps {
   cdc: CdcState;
@@ -74,38 +75,43 @@ export function SchemaRegistryAuthFields({ cdc, setCdc }: SchemaRegistryAuthFiel
   };
   const pathPlaceholder = t("sourceFormFieldsExtended.registryPathPlaceholder");
   return (
-    <Stack gap="xs">
-      <Select
-        label={t("sourceFormFieldsExtended.registryAuth")}
-        value={cdc.schemaRegistryAuth}
-        onChange={(v) => {
-          if (v) setCdc({ ...cdc, schemaRegistryAuth: v });
-        }}
-        data={REGISTRY_AUTH_METHODS.map((m) => ({ value: m, label: methodLabels[m] }))}
-        allowDeselect={false}
-        data-testid="cdc-registry-auth-select"
-      />
+    <>
+      <FormField size="medium">
+        <Select
+          label={t("sourceFormFieldsExtended.registryAuth")}
+          value={cdc.schemaRegistryAuth}
+          onChange={(v) => {
+            if (v) setCdc({ ...cdc, schemaRegistryAuth: v });
+          }}
+          data={REGISTRY_AUTH_METHODS.map((m) => ({ value: m, label: methodLabels[m] }))}
+          allowDeselect={false}
+          data-testid="cdc-registry-auth-select"
+        />
+      </FormField>
       {ALL_FIELDS.filter((key) => METHOD_FIELDS[method].includes(key)).map((key) => {
         const ui = FIELD_UI[key];
         const Input = ui.secret ? PasswordInput : TextInput;
         return (
-          <Input
-            key={key}
-            label={t(`sourceFormFieldsExtended.${ui.label}`)}
-            value={cdc[key]}
-            onChange={(e) => setCdc({ ...cdc, [key]: e.target.value })}
-            placeholder={ui.path ? pathPlaceholder : undefined}
-            data-testid={ui.testId}
-          />
+          <FormField key={key} size={ui.path ? "long" : "medium"}>
+            <Input
+              label={t(`sourceFormFieldsExtended.${ui.label}`)}
+              value={cdc[key]}
+              onChange={(e) => setCdc({ ...cdc, [key]: e.target.value })}
+              placeholder={ui.path ? pathPlaceholder : undefined}
+              data-testid={ui.testId}
+            />
+          </FormField>
         );
       })}
-      <TextInput
-        label={t("sourceFormFieldsExtended.registryCa")}
-        value={cdc.schemaRegistryCa}
-        onChange={(e) => setCdc({ ...cdc, schemaRegistryCa: e.target.value })}
-        placeholder={pathPlaceholder}
-        data-testid="cdc-registry-ca-input"
-      />
-    </Stack>
+      <FormField size="long">
+        <TextInput
+          label={t("sourceFormFieldsExtended.registryCa")}
+          value={cdc.schemaRegistryCa}
+          onChange={(e) => setCdc({ ...cdc, schemaRegistryCa: e.target.value })}
+          placeholder={pathPlaceholder}
+          data-testid="cdc-registry-ca-input"
+        />
+      </FormField>
+    </>
   );
 }

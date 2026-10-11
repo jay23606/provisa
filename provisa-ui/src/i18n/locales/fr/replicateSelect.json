@@ -1,12 +1,15 @@
 {
   "replicateSelect": {
     "label": "Répliquer",
-    "helpTable": "Quand cette table est servie depuis sa réplique : une copie conservée dans le magasin du moteur et rafraîchie selon les réglages d'actualité de la table (TTL, contrôle de fraîcheur, flux de changements). Ce n'est pas un flux de changements continu. « Par défaut » reprend la valeur de la source ou, si la source n'en a pas, le seuil global. Seul « Toujours » est une garantie ; « Par défaut », « Jamais » et les entrées Hot s'appliquent au mieux.",
-    "helpSource": "Quand les tables de cette source sont servies depuis leurs répliques : des copies conservées dans le magasin du moteur et rafraîchies selon les réglages d'actualité de chaque table. Une table sans valeur propre utilise celle-ci. « Par défaut » applique le seuil global. Seul « Toujours » est une garantie ; « Par défaut », « Jamais » et les entrées Hot s'appliquent au mieux.",
+    "helpTable": "Quand les lectures de cette table proviennent de son réplica, une copie dans le stockage du moteur, actualisée selon les réglages de fraîcheur de la table. Par défaut : le réglage de la source ou, à défaut, le seuil global.",
+    "helpSource": "Quand les lectures des tables de cette source proviennent de leurs réplicas, des copies dans le stockage du moteur, actualisées selon les réglages de fraîcheur de chaque table. Une table sans réglage propre utilise celui-ci. Par défaut : le seuil global.",
+    "helpOptions": "En direct si possible : lecture directe depuis la source ; réplication uniquement lorsque le moteur ne peut pas la lire directement. Hot-N : lecture directe jusqu'à ce que N instructions lisent la table dans l'intervalle, puis depuis le réplica jusqu'à ce qu'elles passent sous la moitié de N ; les réponses issues du cache de réponses ne comptent pas. Toujours : toujours depuis le réplica, le seul réglage qui soit une garantie.",
     "default": "Par défaut",
-    "never": "Jamais",
+    "never": "En direct si possible",
     "always": "Toujours",
     "hot": "Hot-{{threshold}}",
-    "neverWithLoadProtection": "« Jamais » ne peut pas être combiné avec la protection de charge : une table protégée contre la charge n'est jamais lue en direct."
+    "neverWithLoadProtection": "« En direct si possible » ne peut pas être combiné avec la protection de charge : une table protégée contre la charge n'est jamais lue en direct.",
+    "scheduled": "Toujours, source lue uniquement sur planification",
+    "helpScheduled": "Toujours, source lue uniquement sur planification : les lectures viennent toujours du réplica et une requête ne provoque jamais la lecture de la source ; le planificateur actualise le réplica pendant la fenêtre creuse, selon le TTL du cache ou la sonde de changement, et au moins l’un des trois est requis."
   }
 }

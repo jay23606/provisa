@@ -162,7 +162,7 @@ async def seat_platform_admins(pool) -> int:
     root_db = state.platform_model_db
     if root_db is None:
         raise RuntimeError(
-            "REQ-1599: the sandbox org is ready, so the root org's tenant plane is up — "
+            "The sandbox org is ready, so the root org's tenant plane is up — "
             "reading its platform_admin assignments cannot find it unbound"
         )
     async with root_db.acquire() as conn:
@@ -177,9 +177,7 @@ async def seat_platform_admins(pool) -> int:
 
     rt = await ensure_org_runtime(SANDBOX_ORG_ID)
     if rt.model_db is None:
-        raise RuntimeError(
-            f"REQ-1599: the sandbox org is ready but {SANDBOX_ORG_ID} has no runtime"
-        )
+        raise RuntimeError(f"The sandbox org is ready but {SANDBOX_ORG_ID} has no runtime")
     token = set_current_org(SANDBOX_ORG_ID)
     try:
         for user_id in admins:

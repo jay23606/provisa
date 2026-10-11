@@ -24,6 +24,7 @@ test holds the two together.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
@@ -237,7 +238,7 @@ _TABLES = (
     ),
     Table(
         "threads",
-        "Derived by both sources from the messages they hold, grouped by `thread_id`.",
+        "Derived by both sources from the messages they hold, grouped by `thread_id`. Where a replica is kept up to date in place, a thread is worked out again whenever one of its messages is added or changes; Microsoft does not say which thread a removed message was in, so after a removal that thread's counts stand until another of its messages changes or the table is built whole again.",
         (
             Column("provider", "text", "GM", "", "", enum="provider"),
             Column("account", "text", "GM", "", ""),
@@ -561,10 +562,74 @@ _TABLES = (
 TABLES: Mapping[str, Table] = MappingProxyType({t.name: t for t in _TABLES})
 
 
+#: What identifies a row of each mail table, for both providers. A replica that is kept up to
+#: date in place adds, changes and removes rows by these; ``position`` counts from 1 and an
+#: attachment's ``id`` is never empty, so no key column is ever NULL.
+KEYS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        "messages": ("provider", "account", "id"),
+        "message_recipients": ("provider", "account", "message_id", "kind", "position"),
+        "message_folders": ("provider", "account", "message_id", "folder_id"),
+        "attachments": ("provider", "account", "message_id", "id"),
+        "threads": ("provider", "account", "id"),
+        "folders": ("provider", "account", "id"),
+    }
+)
+
+#: When the row was written to the replica. It is not a provider's value and no reader sets
+#: it: the landing writes one stamp on every row it writes together, each later than the last
+#: for the source, so a row that lands later always carries a later stamp than any row a
+#: subscriber has already been sent. It is these tables' watermark for live delivery;
+#: ``updated_at`` stays the provider's own time, which a row landing later may precede.
+LANDED_AT = "landed_at"
+
+
 def ir_columns(table: str) -> list[tuple[str, str]]:
-    """The landing columns of a canonical table, in order: (name, IR type) pairs, as
-    ``CursorSource`` takes them."""
+    """The columns a provider's reader gives for a canonical table, in order: (name, IR type)
+    pairs, as ``CursorSource`` takes them."""
     return [(c.name, c.type) for c in TABLES[table].columns]
+
+
+def landing_columns(table: str) -> list[tuple[str, str]]:
+    """The columns of a canonical table as its replica holds them and as it is registered:
+    the reader's (:func:`ir_columns`) and, for a mail table kept by key, :data:`LANDED_AT`,
+    which the landing writes."""
+    columns = ir_columns(table)
+    if table in KEYS:
+        columns.append((LANDED_AT, "timestamp"))
+    return columns
+
+
+def stamped(rows: list[dict], at: datetime) -> list[dict]:
+    """``rows`` carrying ``at`` (a time) as when they landed."""
+    for row in rows:
+        row[LANDED_AT] = at
+    return rows
+
+
+@dataclass
+class Unit:
+    """What one part of a mailbox's read changes in the mail tables, to be written together:
+    a reader of the tables sees all of it or none of it.
+
+    ``removed`` names rows by part of their key (every recipient of one message; every row of
+    the mailbox) and is applied before ``rows``, so naming a message's dependants there and
+    giving its current ones in ``rows`` replaces them whole. ``links`` is where the read
+    reached, by the reader's own scope (a folder's id, the mailbox itself): kept once the unit's rows are written, never
+    before. ``forget`` says the links kept for the mailbox before this read no longer stand.
+    ``last`` marks the mailbox's last unit."""
+
+    account: str
+    rows: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    removed: dict[str, list[dict[str, object]]] = field(default_factory=dict)
+    links: dict[str, str] = field(default_factory=dict)
+    forget: bool = False
+    last: bool = False
+
+
+def key_columns(table: str) -> tuple[str, ...]:
+    """The columns that identify a row of ``table``; empty for a table not kept by key."""
+    return KEYS.get(table, ())
 
 
 # --------------------------------------------------------------------------- enumerations

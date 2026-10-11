@@ -172,7 +172,7 @@ PROVISA_DIRECTIVES = [
             )
         },
         description=(
-            "Opt this request into the response cache (REQ-544): accept a result up to ttl "
+            "Opt this request into the response cache: accept a result up to ttl "
             "seconds old for speed. Without it the request neither reads nor writes the cache. "
             "Never reads fresher than the operator's settings allow."
         ),
@@ -182,7 +182,7 @@ PROVISA_DIRECTIVES = [
         locations=_QMS,
         args={},
         description=(
-            "Ask for a debug trace of this request (REQ-1910): a span per pipeline stage and "
+            "Ask for a debug trace of this request: a span per pipeline stage and "
             "per source call, with SQL text. Rejected unless the operator permits the hint for "
             "the request's role."
         ),

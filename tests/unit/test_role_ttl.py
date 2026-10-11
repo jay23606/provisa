@@ -164,7 +164,7 @@ _LANDING_FLAGS = [
 ]
 
 
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 @pytest.mark.parametrize(("table_flag", "source_flag"), _LANDING_FLAGS)
 def test_config_rejects_a_landed_ttl_signal_with_no_table_or_source_cache_ttl(
     signal, table_flag, source_flag
@@ -178,7 +178,7 @@ def test_config_rejects_a_landed_ttl_signal_with_no_table_or_source_cache_ttl(
         _validate_landing_ttl(_landing_cfg(table_flag, {"change_signal": signal, **source_flag}))
 
 
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 def test_config_accepts_a_ttl_table_config_does_not_force_to_land(signal):
     """Whether it lands depends on the engine's reach -- the read path judges it."""
     from provisa.core.config_loader import _validate_landing_ttl
@@ -190,7 +190,7 @@ def test_config_accepts_a_ttl_table_config_does_not_force_to_land(signal):
     )
 
 
-@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe", "probe"])
 @pytest.mark.parametrize("floor", [{"replicate": 0}, {"load_protected": True}])
 def test_a_table_cannot_opt_out_of_a_source_floored_as_a_whole(signal, floor):
     """A source set to always, or load-protected, has no live attach: every table of it is served
@@ -217,7 +217,20 @@ def test_config_accepts_a_landed_ttl_table_with_a_table_or_source_cache_ttl(
     )
 
 
-@pytest.mark.parametrize("signal", ["probe", "native", "debezium", "kafka", "signal"])
+@pytest.mark.parametrize(("table_flag", "source_flag"), _LANDING_FLAGS)
+def test_config_accepts_a_probe_with_no_cache_ttl_on_a_freshness_gated_source(
+    table_flag, source_flag
+):
+    """REQ-860: a gated source's probe is judged at each read, which is its cadence; ttl and
+    ttl_probe still need the cache_ttl the gate's own strategy is built from."""
+    from provisa.core.config_loader import _validate_landing_ttl
+
+    gated = {"freshness_gate": True, **source_flag}
+    _validate_landing_ttl(_landing_cfg({"change_signal": "probe", **table_flag}, gated))
+    _validate_landing_ttl(_landing_cfg(table_flag, {"change_signal": "probe", **gated}))
+
+
+@pytest.mark.parametrize("signal", ["native", "debezium", "kafka", "signal"])
 @pytest.mark.parametrize(("table_flag", "source_flag"), _LANDING_FLAGS)
 def test_config_accepts_the_no_ttl_freshness_signals_on_a_landed_table(
     signal, table_flag, source_flag

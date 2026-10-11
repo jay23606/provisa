@@ -31,7 +31,6 @@ import {
   Text,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useApolloClient, useMutation } from "@apollo/client/react";
 import {
@@ -55,11 +54,13 @@ import { RefreshMv } from "../hooks/admin.graphql";
 import { usePolly } from "../context/pollyState";
 import type { MutationResult } from "../types/admin";
 import type { ChoiceAnswer, ClientToolResult, PresentChoiceRequest } from "../mcp/clientTools";
-import { useLocalStorage } from "./graph/graph-persistence";
+import { useResizableWidth } from "../hooks/useResizableWidth";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
+import { Tip, TipSurface } from "./Tip";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
-const DEFAULT_WIDTH = 420;
+const DEFAULT_WIDTH = 360;
 
 // REQ-1845: every server tool (REQ-1835) that mutates the glossary — used to decide whether to
 // dispatch "provisa:glossary-changed" so an already-open Glossary admin page (REST-backed, never
@@ -108,43 +109,28 @@ export function ChatPanel() {
   const roleId = selectedRoles.map((r) => r.id).join(",") || (role?.id ?? "");
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    open,
-    checkingConfig,
-    unconfiguredReason,
-    setUnconfiguredReason,
-    openPolly,
-    closePolly,
-  } = usePolly();
+  const { open, checkingConfig, unconfiguredReason, setUnconfiguredReason, openPolly, closePolly } =
+    usePolly();
   const [draft, setDraft] = useState("");
 
   // Resizable width (REQ-1795), persisted per browser so it survives closing/reopening the
   // panel and page reloads. Dragged from a handle on the drawer's left edge.
-  const [width, setWidth] = useLocalStorage("provisa.chatPanel.width", DEFAULT_WIDTH);
-  const resizingRef = useRef(false);
-  const startResize = (e: React.PointerEvent) => {
-    e.preventDefault();
-    resizingRef.current = true;
-    const onMove = (ev: PointerEvent) => {
-      if (!resizingRef.current) return;
-      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - ev.clientX));
-      setWidth(next);
-    };
-    const onUp = () => {
-      resizingRef.current = false;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
+  // The mechanism is shared with the pages' detail panels (useResizableWidth).
+  const {
+    ref: panelRef,
+    width,
+    startResize,
+    onHandleKeyDown,
+  } = useResizableWidth<HTMLDivElement>("provisa.chatPanel.width", {
+    initial: DEFAULT_WIDTH,
+    min: MIN_WIDTH,
+    max: MAX_WIDTH,
+  });
 
   // A single pending confirmation at a time — refresh_mv (and future confirm-gated tools) await
   // this Promise before the client tool executor returns its result.
   const pendingResolveRef = useRef<((ok: boolean) => void) | null>(null);
-  const [confirmState, setConfirmState] = useState<{ title: string; message: string } | null>(
-    null,
-  );
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string } | null>(null);
   const confirm = (opts: { title: string; message: string }): Promise<boolean> =>
     new Promise((resolve) => {
       pendingResolveRef.current = resolve;
@@ -175,9 +161,12 @@ export function ChatPanel() {
   // every new question — a drag offset from answering one choice has no reason to apply to the
   // next, unrelated one.
   const [choiceDragOffset, setChoiceDragOffset] = useState<{ x: number; y: number } | null>(null);
-  const choiceDragStateRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(
-    null,
-  );
+  const choiceDragStateRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
   const onChoiceDragPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // jsdom (unit tests) has no Pointer Capture implementation; a real browser always does.
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -334,7 +323,7 @@ export function ChatPanel() {
   if (!open) {
     return (
       <>
-        <Tooltip label="Polly, your data assistant" position="left">
+        <Tip text={t("chatPanel.toggleTooltip")} position="left">
           <ActionIcon
             variant="filled"
             size="xl"
@@ -347,29 +336,31 @@ export function ChatPanel() {
           >
             <MessageCircle size={20} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
 
         <Modal
           opened={unconfiguredReason !== null}
           onClose={() => setUnconfiguredReason(null)}
-          title="Polly isn't set up yet"
+          title={t("chatPanel.notSetUpTitle")}
           data-testid="chat-panel-unconfigured-modal"
         >
           <Text size="sm" mb="md">
-            Polly needs an LLM vendor and credential configured before it can chat
-            {unconfiguredReason ? ` (${unconfiguredReason})` : ""}.
+            {unconfiguredReason
+              ? t("chatPanel.needsVendorReason", { reason: unconfiguredReason })
+              : t("chatPanel.needsVendor")}
           </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setUnconfiguredReason(null)}>
-              Not now
-            </Button>
+          {/* The way on first, at the start; "Not now" follows. */}
+          <Group justify="flex-start">
             <Button
               onClick={() => {
                 setUnconfiguredReason(null);
                 navigate("/admin/ai-models");
               }}
             >
-              Open AI Models settings
+              {t("chatPanel.openAiModels")}
+            </Button>
+            <Button variant="default" onClick={() => setUnconfiguredReason(null)}>
+              {t("chatPanel.notNow")}
             </Button>
           </Group>
         </Modal>
@@ -383,6 +374,7 @@ export function ChatPanel() {
           an overlay, so `<main>` (flex: 1; min-width: 0) shrinks to the remaining width instead
           of being covered. */}
       <Box
+        ref={panelRef}
         data-testid="chat-panel"
         style={{
           position: "relative",
@@ -402,9 +394,11 @@ export function ChatPanel() {
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize chat panel"
+          aria-label={t("chatPanel.resize")}
           data-testid="chat-panel-resize-handle"
+          tabIndex={0}
           onPointerDown={startResize}
+          onKeyDown={onHandleKeyDown}
           style={{
             position: "absolute",
             top: 0,
@@ -419,7 +413,7 @@ export function ChatPanel() {
         <Group justify="space-between" mb="xs">
           <Title order={5}>Polly</Title>
           <Group gap={4}>
-            <Tooltip label="Clear conversation">
+            <Tip text={t("chatPanel.clear")}>
               <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -429,7 +423,7 @@ export function ChatPanel() {
               >
                 <Eraser size={16} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
             <CloseButton data-testid="chat-panel-close" onClick={closePolly} />
           </Group>
         </Group>
@@ -443,9 +437,9 @@ export function ChatPanel() {
           >
             <Group gap={6} wrap="wrap">
               {tools.map((tl, i) => (
-                <Tooltip
+                <TipSurface
                   key={i}
-                  label={
+                  content={
                     <Text
                       component="pre"
                       size="xs"
@@ -454,8 +448,6 @@ export function ChatPanel() {
                       {tl.input !== undefined ? JSON.stringify(tl.input, null, 2) : "(no params)"}
                     </Text>
                   }
-                  withArrow
-                  multiline
                 >
                   <Badge
                     size="sm"
@@ -475,7 +467,7 @@ export function ChatPanel() {
                   >
                     {tl.name}
                   </Badge>
-                </Tooltip>
+                </TipSurface>
               ))}
             </Group>
           </ScrollArea.Autosize>
@@ -502,7 +494,7 @@ export function ChatPanel() {
 
         <ScrollArea style={{ flex: 1 }} mb="sm" viewportRef={messagesScrollRef}>
           {messages.length === 0 && (
-            <Stack gap={6} data-testid="chat-panel-suggestions">
+            <Stack gap={6} align="flex-start" data-testid="chat-panel-suggestions">
               <Text size="xs" c="dimmed">
                 {t("chatPanel.tryAsking")}
               </Text>
@@ -512,6 +504,8 @@ export function ChatPanel() {
                   variant="light"
                   size="xs"
                   justify="flex-start"
+                  // Its own width, but never wider than the panel.
+                  maw="100%"
                   onClick={() => void send(q)}
                   disabled={busy}
                 >
@@ -539,7 +533,7 @@ export function ChatPanel() {
               {m.text && (
                 <CopyButton value={m.text} timeout={1500}>
                   {({ copied, copy }) => (
-                    <Tooltip label={copied ? "Copied" : "Copy"} withArrow>
+                    <Tip text={copied ? "Copied" : "Copy"}>
                       <ActionIcon
                         className="chat-message-copy"
                         size="xs"
@@ -551,7 +545,7 @@ export function ChatPanel() {
                       >
                         {copied ? <Check size={12} /> : <Copy size={12} />}
                       </ActionIcon>
-                    </Tooltip>
+                    </Tip>
                   )}
                 </CopyButton>
               )}
@@ -562,7 +556,7 @@ export function ChatPanel() {
         <Textarea
           ref={textareaRef}
           className={flashPrompt ? "chat-panel-textarea-flash" : undefined}
-          placeholder="Ask me a question, or tell me what to do."
+          placeholder={t("chatPanel.composerPlaceholder")}
           value={draft}
           onChange={(e) => setDraft(e.currentTarget.value)}
           onKeyDown={(e) => {
@@ -578,7 +572,7 @@ export function ChatPanel() {
           rightSectionPointerEvents="auto"
           rightSection={
             speech.supported && (
-              <Tooltip label={speech.listening ? "Stop listening" : "Speak to Polly"}>
+              <Tip text={speech.listening ? t("chatPanel.stopListening") : t("chatPanel.speak")}>
                 <ActionIcon
                   variant={speech.listening ? "filled" : "subtle"}
                   color={speech.listening ? "red" : undefined}
@@ -589,7 +583,7 @@ export function ChatPanel() {
                 >
                   {speech.listening ? <MicOff size={14} /> : <Mic size={14} />}
                 </ActionIcon>
-              </Tooltip>
+              </Tip>
             )
           }
         />
@@ -611,10 +605,10 @@ export function ChatPanel() {
           disabled={!busy && !draft.trim()}
           data-testid="chat-panel-send"
         >
-          {busy ? "Stop" : "Send"}
+          {busy ? t("chatPanel.stop") : t("chatPanel.send")}
         </Button>
 
-      {/* REQ-1812: confined WITHIN the chat panel, not the viewport. Must be a DESCENDANT of this
+        {/* REQ-1812: confined WITHIN the chat panel, not the viewport. Must be a DESCENDANT of this
           Box (not a sibling rendered after it closes) — position: absolute anchors against the
           nearest POSITIONED ancestor, and rendering it outside the panel meant its ancestor was
           effectively the document, so it covered the whole app regardless of where the panel was
@@ -626,154 +620,152 @@ export function ChatPanel() {
           is a light scrim (just enough to show something is modal and to catch a click-outside),
           not the near-opaque one before, so anything it does still cover stays legible
           underneath. The drag handle is the escape hatch for whatever that isn't enough for. */}
-      {choiceState && (
-        <Box
-          data-testid="chat-panel-choice-modal"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            padding: "var(--mantine-spacing-md)",
-            background: "rgba(0, 0, 0, 0.12)",
-            zIndex: 20,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) resolveChoice(choiceState.mode === "multi" ? [] : "");
-          }}
-        >
-          <Paper
-            shadow="md"
-            radius="md"
-            p="md"
-            withBorder
+        {choiceState && (
+          <Box
+            data-testid="chat-panel-choice-modal"
             style={{
-              maxWidth: "90%",
-              width: 340,
-              transform: choiceDragOffset
-                ? `translate(${choiceDragOffset.x}px, ${choiceDragOffset.y}px)`
-                : undefined,
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              padding: "var(--mantine-spacing-md)",
+              background: "rgba(0, 0, 0, 0.12)",
+              zIndex: 20,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget)
+                resolveChoice(choiceState.mode === "multi" ? [] : "");
             }}
           >
-            <Group
-              justify="center"
-              mb="xs"
-              data-testid="chat-panel-choice-modal-drag-handle"
-              onPointerDown={onChoiceDragPointerDown}
-              onPointerMove={onChoiceDragPointerMove}
-              onPointerUp={onChoiceDragPointerUp}
-              onPointerCancel={onChoiceDragPointerUp}
-              style={{ cursor: "grab", touchAction: "none", margin: "-8px -8px 4px" }}
+            <Paper
+              shadow="md"
+              radius="md"
+              p="md"
+              withBorder
+              style={{
+                maxWidth: "90%",
+                width: 340,
+                transform: choiceDragOffset
+                  ? `translate(${choiceDragOffset.x}px, ${choiceDragOffset.y}px)`
+                  : undefined,
+              }}
             >
-              <GripHorizontal size={16} color="var(--mantine-color-dimmed)" />
-            </Group>
-            <Text fw={600} size="sm" mb="sm">
-              {choiceState.question}
-            </Text>
+              <Group
+                justify="center"
+                mb="xs"
+                data-testid="chat-panel-choice-modal-drag-handle"
+                onPointerDown={onChoiceDragPointerDown}
+                onPointerMove={onChoiceDragPointerMove}
+                onPointerUp={onChoiceDragPointerUp}
+                onPointerCancel={onChoiceDragPointerUp}
+                style={{ cursor: "grab", touchAction: "none", margin: "-8px -8px 4px" }}
+              >
+                <GripHorizontal size={16} color="var(--mantine-color-dimmed)" />
+              </Group>
+              <Text fw={600} size="sm" mb="sm">
+                {choiceState.question}
+              </Text>
 
-            {choiceState.mode === "yes_no" &&
-              (yesNoOther ? (
-                <Stack gap="sm">
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                  <Group justify="space-between">
-                    <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
-                      Back to Yes/No
-                    </Button>
-                    <Button
-                      disabled={!otherText.trim()}
-                      onClick={() => resolveChoice(otherText.trim())}
-                    >
-                      Submit
-                    </Button>
-                  </Group>
-                </Stack>
-              ) : (
-                <Stack gap="sm">
-                  <Group justify="flex-end">
+              {choiceState.mode === "yes_no" &&
+                (yesNoOther ? (
+                  <Stack gap="sm">
+                    <TextInput
+                      placeholder={t("chatPanel.typeAnswer")}
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                    <Group justify="flex-start">
+                      <Button
+                        disabled={!otherText.trim()}
+                        onClick={() => resolveChoice(otherText.trim())}
+                      >
+                        {t("chatPanel.submit")}
+                      </Button>
+                      <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
+                        {t("chatPanel.backToYesNo")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                ) : (
+                  <Group justify="flex-start">
+                    <Button onClick={() => resolveChoice(true)}>{t("chatPanel.yes")}</Button>
                     <Button variant="default" onClick={() => resolveChoice(false)}>
-                      No
+                      {t("chatPanel.no")}
                     </Button>
-                    <Button onClick={() => resolveChoice(true)}>Yes</Button>
+                    <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
+                      {t("chatPanel.typeSomethingElse")}
+                    </Button>
                   </Group>
-                  <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
-                    Type something else
-                  </Button>
+                ))}
+
+              {choiceState.mode === "single" && (
+                <Stack gap="sm">
+                  <Radio.Group value={choiceDraft[0] ?? ""} onChange={(v) => setChoiceDraft([v])}>
+                    <Stack gap={6} mt="xs">
+                      {choiceState.options?.map((opt) => (
+                        <Radio key={opt} value={opt} label={opt} />
+                      ))}
+                      <Radio value={OTHER} label={t("chatPanel.typeSomethingElse")} />
+                    </Stack>
+                  </Radio.Group>
+                  {choiceDraft[0] === OTHER && (
+                    <TextInput
+                      placeholder={t("chatPanel.typeAnswer")}
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                  )}
+                  <Group justify="flex-start">
+                    <Button
+                      disabled={!choiceDraft[0] || (choiceDraft[0] === OTHER && !otherText.trim())}
+                      onClick={() =>
+                        resolveChoice(choiceDraft[0] === OTHER ? otherText.trim() : choiceDraft[0])
+                      }
+                    >
+                      {t("chatPanel.submit")}
+                    </Button>
+                  </Group>
                 </Stack>
-              ))}
+              )}
 
-            {choiceState.mode === "single" && (
-              <Stack gap="sm">
-                <Radio.Group value={choiceDraft[0] ?? ""} onChange={(v) => setChoiceDraft([v])}>
-                  <Stack gap={6} mt="xs">
-                    {choiceState.options?.map((opt) => (
-                      <Radio key={opt} value={opt} label={opt} />
-                    ))}
-                    <Radio value={OTHER} label="Type something else" />
-                  </Stack>
-                </Radio.Group>
-                {choiceDraft[0] === OTHER && (
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                )}
-                <Group justify="flex-end">
-                  <Button
-                    disabled={
-                      !choiceDraft[0] || (choiceDraft[0] === OTHER && !otherText.trim())
-                    }
-                    onClick={() =>
-                      resolveChoice(choiceDraft[0] === OTHER ? otherText.trim() : choiceDraft[0])
-                    }
-                  >
-                    Submit
-                  </Button>
-                </Group>
-              </Stack>
-            )}
-
-            {choiceState.mode === "multi" && (
-              <Stack gap="sm">
-                <Checkbox.Group value={choiceDraft} onChange={setChoiceDraft}>
-                  <Stack gap={6} mt="xs">
-                    {choiceState.options?.map((opt) => (
-                      <Checkbox key={opt} value={opt} label={opt} />
-                    ))}
-                    <Checkbox value={OTHER} label="Type something else" />
-                  </Stack>
-                </Checkbox.Group>
-                {choiceDraft.includes(OTHER) && (
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                )}
-                <Group justify="flex-end">
-                  <Button
-                    onClick={() => {
-                      const rest = choiceDraft.filter((v) => v !== OTHER);
-                      const extra = choiceDraft.includes(OTHER) && otherText.trim() ? [otherText.trim()] : [];
-                      resolveChoice([...rest, ...extra]);
-                    }}
-                  >
-                    Submit
-                  </Button>
-                </Group>
-              </Stack>
-            )}
-          </Paper>
-        </Box>
-      )}
+              {choiceState.mode === "multi" && (
+                <Stack gap="sm">
+                  <Checkbox.Group value={choiceDraft} onChange={setChoiceDraft}>
+                    <Stack gap={6} mt="xs">
+                      {choiceState.options?.map((opt) => (
+                        <Checkbox key={opt} value={opt} label={opt} />
+                      ))}
+                      <Checkbox value={OTHER} label={t("chatPanel.typeSomethingElse")} />
+                    </Stack>
+                  </Checkbox.Group>
+                  {choiceDraft.includes(OTHER) && (
+                    <TextInput
+                      placeholder={t("chatPanel.typeAnswer")}
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                  )}
+                  <Group justify="flex-start">
+                    <Button
+                      onClick={() => {
+                        const rest = choiceDraft.filter((v) => v !== OTHER);
+                        const extra =
+                          choiceDraft.includes(OTHER) && otherText.trim() ? [otherText.trim()] : [];
+                        resolveChoice([...rest, ...extra]);
+                      }}
+                    >
+                      {t("chatPanel.submit")}
+                    </Button>
+                  </Group>
+                </Stack>
+              )}
+            </Paper>
+          </Box>
+        )}
       </Box>
 
       <Modal
@@ -781,15 +773,15 @@ export function ChatPanel() {
         onClose={() => resolveConfirm(false)}
         title={confirmState?.title}
       >
-        <Text size="sm" mb="md">
-          {confirmState?.message}
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => resolveConfirm(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => resolveConfirm(true)}>Confirm</Button>
-        </Group>
+        <FormLayout>
+          <FormField size="full">
+            <Text size="sm">{confirmState?.message}</Text>
+          </FormField>
+          <FormFooter
+            onCancel={() => resolveConfirm(false)}
+            action={<Button onClick={() => resolveConfirm(true)}>{t("chatPanel.confirm")}</Button>}
+          />
+        </FormLayout>
       </Modal>
     </>
   );

@@ -22,7 +22,6 @@ import {
   Text,
   TextInput,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import {
   MainContainer,
@@ -39,29 +38,31 @@ import { Check, Copy, Trash2 } from "lucide-react";
 import { HelpBubble } from "../components/HelpBubble";
 import { useAuth } from "../context/AuthContext";
 import { actingRoleHeader } from "../lib/actingRole";
+import { Tip } from "../components/Tip";
 
 /** A copy-to-clipboard button that fades in on bubble hover. */
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      type="button"
-      className="mcp-copy"
-      title="Copy"
-      aria-label="Copy message"
-      data-testid="mcp-chat-copy"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {
-          /* clipboard unavailable (insecure context) — no-op */
-        }
-      }}
-    >
-      {copied ? <Check size={13} /> : <Copy size={13} />}
-    </button>
+    <Tip text="Copy">
+      <button
+        type="button"
+        className="mcp-copy"
+        aria-label="Copy message"
+        data-testid="mcp-chat-copy"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          } catch {
+            /* clipboard unavailable (insecure context) — no-op */
+          }
+        }}
+      >
+        {copied ? <Check size={13} /> : <Copy size={13} />}
+      </button>
+    </Tip>
   );
 }
 
@@ -145,15 +146,11 @@ function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
 
   return (
     <div style={{ marginBottom: "var(--mantine-spacing-sm)" }}>
-      <Tooltip
-        label="Show the config that points Claude Desktop at this MCP server, so the same governed tools are available outside Provisa."
-        multiline
-        w={280}
-      >
+      <Tip text="Show the config that points Claude Desktop at this MCP server, so the same governed tools are available outside Provisa.">
         <Button variant="subtle" size="xs" onClick={() => setOpen((o) => !o)}>
           {open ? "Hide Claude Desktop setup" : "Connect Claude Desktop"}
         </Button>
-      </Tooltip>
+      </Tip>
       <Collapse in={open}>
         <Paper withBorder p="sm" mt={6} radius="sm">
           <Text size="sm" fw={600} mb={4}>
@@ -172,11 +169,7 @@ function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
             )}{" "}
             Edit the URL if Provisa is remote or behind a proxy.
           </Text>
-          <Tooltip
-            label="The endpoint Claude Desktop connects to. Change it if Provisa is remote or behind a proxy — the JSON below updates with it."
-            multiline
-            w={280}
-          >
+          <Tip text="The endpoint Claude Desktop connects to. Change it if Provisa is remote or behind a proxy — the JSON below updates with it.">
             <TextInput
               label="MCP URL"
               size="xs"
@@ -184,7 +177,7 @@ function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
               onChange={(e) => setUrl(e.currentTarget.value)}
               mb={6}
             />
-          </Tooltip>
+          </Tip>
           <Code block>{snippet}</Code>
           <Group gap={6} mt={6}>
             <Button
@@ -415,17 +408,15 @@ export function McpExplorePage() {
       {tools.length > 0 && (
         <Group gap={6} mb="xs" wrap="wrap">
           {tools.map((tl, i) => (
-            <Tooltip
-              key={i}
-              label={
+            <Tip
+              text={
                 tl.error
                   ? t("mcpExplore.toolErrorTooltip", { name: tl.name })
                   : tl.running
                     ? t("mcpExplore.toolRunningTooltip", { name: tl.name })
                     : t("mcpExplore.toolDoneTooltip", { name: tl.name })
               }
-              multiline
-              w={280}
+              key={i}
             >
               <Badge
                 size="sm"
@@ -435,7 +426,7 @@ export function McpExplorePage() {
               >
                 {tl.name}
               </Badge>
-            </Tooltip>
+            </Tip>
           ))}
         </Group>
       )}
@@ -525,16 +516,17 @@ export function McpExplorePage() {
         {draft.trim() && (
           <div className="mcp-input-tools">
             <CopyButton text={draft} />
-            <button
-              type="button"
-              className="mcp-copy"
-              title={t("mcpExplore.clearTooltip")}
-              aria-label={t("mcpExplore.clear")}
-              data-testid="mcp-chat-clear"
-              onClick={() => setDraft("")}
-            >
-              <Trash2 size={13} />
-            </button>
+            <Tip text={t("mcpExplore.clearTooltip")}>
+              <button
+                type="button"
+                className="mcp-copy"
+                aria-label={t("mcpExplore.clear")}
+                data-testid="mcp-chat-clear"
+                onClick={() => setDraft("")}
+              >
+                <Trash2 size={13} />
+              </button>
+            </Tip>
           </div>
         )}
       </div>

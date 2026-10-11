@@ -63,9 +63,7 @@ async def run_producer(source: Any) -> None:
     """
     cmd = source.producer_command
     if not cmd:
-        raise ValueError(
-            f"source {source.id!r}: run_producer called with no producer_command (REQ-861)"
-        )
+        raise ValueError(f"source {source.id!r}: run_producer called with no producer_command")
     await asyncio.to_thread(_run, list(cmd), source.id)
 
 

@@ -34,6 +34,11 @@
     "operatorSignInTitle": "כניסת מפעיל",
     "backToSignIn": "חזרה לכניסה",
     "signInWithSso": "כניסה עם כניסה יחידה (SSO)",
-    "samlSignInFailed": "הכניסה היחידה (SSO) לא הושלמה. נסו שוב או פנו למנהל המערכת."
+    "samlSignInFailed": "הכניסה היחידה (SSO) לא הושלמה. נסו שוב או פנו למנהל המערכת.",
+    "sandboxBuildingTitle": "בונים את ארגז החול שלכם…",
+    "sandboxBuildingBody": "מכינים עותק פרטי של נתוני הדוגמה במיוחד בשבילכם — זה עשוי להימשך כמה דקות.",
+    "sandboxTryTitle": "נסו את Provisa בחינם",
+    "sandboxTryBody": "חקרו את הפלטפורמה המלאה עם נתוני דוגמה — ללא צורך בכרטיס אשראי. ארגז החול שלכם זמני: הוא נעלם כשמתנתקים.",
+    "sandboxHeading": "נסו את Provisa"
   }
 }

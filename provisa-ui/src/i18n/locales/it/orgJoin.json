@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Ruolo concesso con l'adesione automatica",
     "autoJoinRoleDesc": "Il ruolo che ricevono tutti gli ammessi dalla regola.",
     "acceptRisk": "Accetto che questa regola possa ammettere persone esterne alla mia organizzazione",
-    "save": "Salva",
     "saved": "Regola di adesione salvata."
   }
 }

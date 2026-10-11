@@ -18,9 +18,12 @@ What is particular to Gmail's API and decided here:
   message) against 6,000 units a minute for each mailbox. :class:`Pacer` holds a mailbox under
   that figure, so a read is slow rather than refused.
 - **A refusal is named.** Google's rate refusals (429, and 403 ``rateLimitExceeded`` /
-  ``userRateLimitExceeded``) and its server errors are tried again after a wait that doubles,
-  a bounded number of times; then the read fails with Google's own reason
-  (:class:`QuotaExhausted`, :class:`GmailUnavailable`). The project's daily limit, a domain's
+  ``userRateLimitExceeded``) and its server errors are tried again after a wait -- the one
+  Google names (``Retry-After``) where it names one, else one that doubles -- until the waits
+  of the call would add up to more than the read may wait; then the read fails with Google's
+  own reason (:class:`QuotaExhausted`, :class:`GmailUnavailable`). A replica's read may wait
+  as long as the operator's setting says (``mail.throttle_wait_seconds``) and says on the
+  build's record that it is waiting. The project's daily limit, a domain's
   policy and a refused credential are not tried again. Nothing here answers a partial read as
   if it were whole.
 
@@ -51,6 +54,8 @@ COST: dict[str, int] = {
     "labels.get": 1,
     "messages.list": 5,
     "messages.get": 20,
+    "history.list": 2,
+    "threads.get": 10,
 }
 #: Units a minute Google allows one mailbox, per project.
 UNITS_PER_MINUTE = 6000
@@ -60,7 +65,10 @@ PAGE_SIZE = 500
 _TIMEOUT = 30.0
 _FIRST_WAIT = 1.0  # Google: start retries at least one second after the error
 _LONGEST_WAIT = 32.0
-_TRIES = 6
+#: How long the waits of one refused call may add up to before the read fails, where the
+#: caller states no bound of its own. A replica's build takes the operator's setting
+#: (``mail.throttle_wait_seconds``); this is the bound of a call a person is waiting on.
+WAIT_SECONDS = 60.0
 _RATE_REASONS = frozenset({"rateLimitExceeded", "userRateLimitExceeded"})
 
 
@@ -83,6 +91,21 @@ class GmailUnavailable(GmailRefused):
 
 class GmailNotFound(GmailRefused):
     """What was asked for does not exist (a message deleted since it was listed)."""
+
+
+def _asked_wait(answer: httpx.Response) -> float | None:
+    """The seconds Google asked the caller to wait (``Retry-After``), or None when it named
+    none or named a date."""
+    asked = answer.headers.get("Retry-After", "").strip()
+    return float(asked) if asked.isdigit() else None
+
+
+def _out_of_wait(reason: str, waited: float, mailbox: "Gmail") -> str:
+    return (
+        f"{reason}; the read waited {waited:g}s of the {mailbox._wait_seconds:g}s it may and "
+        'was still refused. To wait longer, raise the setting "Longest wait when a mail '
+        'service is throttling"; to be throttled less, lower "Mailboxes read at once"'
+    )
 
 
 class Pacer:
@@ -147,15 +170,30 @@ class Gmail:
         *,
         pacer: Pacer | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        quota_user: bool = False,
+        wait_seconds: float = WAIT_SECONDS,
+        waiting: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
         self.account = account
         self._token, self._client, self._sleep = access_token, client, sleep
+        #: The most the waits of one refused call may add up to.
+        self._wait_seconds = wait_seconds
+        #: Told how long a call Google is throttling is about to wait, and 0 when it is over.
+        self._waiting = waiting
         self._pacer = pacer if pacer is not None else Pacer(sleep=sleep)
+        # A service account reading as many users: each call says whose allowance it is
+        # counted against (Google's ``quotaUser`` system parameter).
+        self._quota_user = quota_user
+        #: The mailbox's history id as its read began, set by whoever opens the mailbox for a
+        #: read (its profile is the first thing asked): where that read will have reached.
+        self.opened_at: str | None = None
 
     async def _call(self, call: str, path: str, params: dict[str, Any] | None = None) -> dict:
         url = f"{BASE_URL}{self.account}/{path}"
-        wait = _FIRST_WAIT
-        for attempt in range(1, _TRIES + 1):
+        if self._quota_user:
+            params = {**(params or {}), "quotaUser": self.account}
+        doubling, waited, throttled = _FIRST_WAIT, 0.0, False
+        while True:
             await self._pacer.spend(COST[call])
             answer = await self._client.get(
                 url,
@@ -165,6 +203,8 @@ class Gmail:
             )
             status = answer.status_code
             if status == 200:
+                if throttled and self._waiting is not None:
+                    await self._waiting(0)
                 return answer.json()
             reason = _reason(answer)
             rate_limited = status == 429 or (status == 403 and reason in _RATE_REASONS)
@@ -174,12 +214,19 @@ class Gmail:
                 raise QuotaExhausted(self.account, call, status, reason)
             if not rate_limited and status < 500:
                 raise GmailRefused(self.account, call, status, reason)
-            if attempt == _TRIES:
+            wait = _asked_wait(answer)
+            if wait is None:
+                wait, doubling = doubling, min(doubling * 2, _LONGEST_WAIT)
+            if waited + wait > self._wait_seconds:
+                if throttled and self._waiting is not None:
+                    await self._waiting(0)
                 refusal = QuotaExhausted if rate_limited else GmailUnavailable
-                raise refusal(self.account, call, status, f"{reason}, tried {_TRIES} times")
+                raise refusal(self.account, call, status, _out_of_wait(reason, waited, self))
+            if rate_limited and self._waiting is not None:
+                throttled = True
+                await self._waiting(wait)
             await self._sleep(wait)
-            wait = min(wait * 2, _LONGEST_WAIT)
-        raise AssertionError("the loop answers or raises")  # pragma: no cover
+            waited += wait
 
     async def profile(self) -> dict:
         """The mailbox's own address, totals and current history id."""
@@ -226,6 +273,24 @@ class Gmail:
             if not token:
                 return
             params = {**params, "pageToken": token}
+
+    async def history(self, since: str) -> AsyncIterator[list[dict]]:
+        """What happened to the mailbox after the history record ``since``, a page of records
+        at a time: each names the messages added, deleted, and given or relieved of labels,
+        by id and thread. :class:`GmailNotFound` when Google no longer has ``since`` (it keeps
+        about a week of history): the mailbox is then read from its start."""
+        params: dict[str, Any] = {"startHistoryId": since, "maxResults": PAGE_SIZE}
+        while True:
+            answered = await self._call("history.list", "history", params)
+            yield answered.get("history", [])
+            token = answered.get("nextPageToken")
+            if not token:
+                return
+            params = {**params, "pageToken": token}
+
+    async def thread(self, thread_id: str) -> dict:
+        """One thread: its messages, each with its labels, snippet, date and headers."""
+        return await self._call("threads.get", f"threads/{thread_id}", {"format": "metadata"})
 
     async def message(self, message_id: str, mail: MailSettings) -> dict:
         """One message: whole, or its headers and labels only, as the source reads mail."""

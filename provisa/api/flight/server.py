@@ -21,6 +21,8 @@ The catalog path exposes the semantic layer as a read-only JDBC catalog.
 
 from __future__ import annotations
 
+from provisa.api.role_surface import role_surface
+
 import json
 import logging
 import re
@@ -961,12 +963,13 @@ class ProvisaFlightServer(
         if not query_text:
             raise _flight_error("Ticket must include 'query'")
 
-        if role_id not in self._state.schemas:
+        surface = role_surface(self._state, role_id)  # one snapshot: parts of one build
+        if surface is None:
             raise _flight_error(f"No schema for role {role_id!r}")
 
-        schema = cast("GraphQLSchema", self._state.schemas[role_id])
-        ctx = self._state.contexts[role_id]
-        rls = self._state.rls_contexts.get(role_id, RLSContext.empty())
+        schema = cast("GraphQLSchema", surface.schema)
+        ctx = surface.context
+        rls = surface.rls
         role = self._state.roles.get(role_id)
 
         document = parse_query(schema, query_text, variables, ctx=ctx)

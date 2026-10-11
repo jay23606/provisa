@@ -912,3 +912,73 @@ async def test_a_type_that_owns_no_replica_is_never_judged_for_one(wiring, plane
     assert await _ensure(state, {"pushed"}) == []
     assert wiring.built == [] and wiring.kicks == 0
     assert await _record(plane, written) is None
+
+
+# --- a replica read while its first build fills it ---
+
+
+async def _first_part_landed(plane, table) -> None:
+    """``table``'s first build is running and its first part has landed: there is a replica to
+    read, holding only what has landed so far."""
+    now = datetime.now(UTC)
+    async with plane.acquire() as conn:
+        await replica_state.request_build(conn, _key(table), "model", now=now)
+        await replica_state.claim(
+            conn, _key(table), holder="test:1", retry=RetryPolicy(60, 3600), now=now
+        )
+        await replica_state.record_partial(
+            conn, _key(table), store=STORE, now=now, definition_hash=None, built_columns=None
+        )
+        await replica_state.record_parts(
+            conn, _key(table), done=1, total=40, unit="mailboxes", first=True
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_replica_being_filled_by_its_first_build_is_read_as_it_is(wiring, plane):
+    """A mail table lands mailbox by mailbox and can be read at once: the read does not wait
+    for the pass, and asks for no build."""
+    mail = _table("mail", "messages")
+    state = _state([_source("mail")], [mail], _Backend(), plane)
+    await _first_part_landed(plane, mail)
+    assert await _ensure(state, {"mail"}) == []
+    assert wiring.kicks == 0 and (await _record(plane, mail)).partial
+
+
+@pytest.mark.asyncio
+async def test_a_read_gated_on_freshness_waits_for_the_pass_that_is_filling_it(
+    wiring, plane, monkeypatch
+):
+    """A source whose reads are gated on freshness promises more than the parts landed so
+    far: its reader waits for the build in progress, and reads when it has ended."""
+    mail = _table("mail", "messages")
+    state = _state([_source("mail", freshness_gate=True)], [mail], _Backend(), plane)
+    await _first_part_landed(plane, mail)
+    kicked: list[int] = []
+
+    def kick(org_id) -> None:
+        kicked.append(1)
+
+        async def finish() -> None:
+            await asyncio.sleep(0.05)  # the pass reads its last mailbox
+            async with plane.acquire() as conn:
+                await replica_state.record_completed(
+                    conn,
+                    _key(mail),
+                    rows_copied=10,
+                    method="apply_units",
+                    content_hash=None,
+                    store=STORE,
+                    next_refresh_at=None,
+                    now=datetime.now(UTC),
+                )
+
+        asyncio.get_running_loop().create_task(finish())
+
+    monkeypatch.setattr("provisa.federation.replica_builds.kick", kick)
+    monkeypatch.setattr(
+        "provisa.freshness.source_gate.gate_source",
+        lambda source, subject, now: SimpleNamespace(is_fresh=True),
+    )
+    assert await _ensure(state, {"mail"}) == [("mail", "messages")]
+    assert kicked and not (await _record(plane, mail)).partial

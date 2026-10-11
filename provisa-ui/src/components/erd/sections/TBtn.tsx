@@ -10,6 +10,7 @@
 
 import React from "react";
 import { Button } from "@mantine/core";
+import { Tip } from "../../Tip";
 
 // ── small toolbar-button helper ───────────────────────────────────────────────
 export function TBtn({
@@ -24,32 +25,33 @@ export function TBtn({
   children: React.ReactNode;
 }) {
   return (
-    <Button
-      onClick={onClick}
-      title={title}
-      aria-pressed={active}
-      variant="default"
-      size="compact-xs"
-      data-testid="erd-toolbar-btn"
-      styles={{
-        root: {
-          padding: "2px 8px",
-          fontSize: 11,
-          height: "auto",
-          minHeight: 0,
-          background: active ? "var(--surface-alt)" : "transparent",
-          color: active ? "var(--text)" : "var(--text-muted)",
-          border: "1px solid var(--border)",
-          borderRadius: 4,
-        },
-        label: {
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-        },
-      }}
-    >
-      {children}
-    </Button>
+    <Tip text={title}>
+      <Button
+        onClick={onClick}
+        aria-pressed={active}
+        variant="default"
+        size="compact-xs"
+        data-testid="erd-toolbar-btn"
+        styles={{
+          root: {
+            padding: "2px 8px",
+            fontSize: 11,
+            height: "auto",
+            minHeight: 0,
+            background: active ? "var(--surface-alt)" : "transparent",
+            color: active ? "var(--text)" : "var(--text-muted)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+          },
+          label: {
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          },
+        }}
+      >
+        {children}
+      </Button>
+    </Tip>
   );
 }

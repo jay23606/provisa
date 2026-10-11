@@ -12,7 +12,7 @@
 // the pages, offers "See also" as a choice, and shows every crawl setting with its default.
 
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "../../../test-utils/render";
+import { renderInForm, screen } from "../../../test-utils/render";
 import { BRAND_AUTH, BRAND_CARRIER, SOURCE_TYPES } from "../constants";
 import { SourceFormFieldsExtended } from "../SourceFormFieldsExtended";
 import type { SourceFormFieldsProps } from "../SourceFormFields";
@@ -93,7 +93,7 @@ describe("what a Wikipedia setup still needs", () => {
 describe("the Wikipedia setup form", () => {
   it("has every crawl setting, and asks what See also is called only of an edition it cannot name", () => {
     const setFields = vi.fn();
-    const { rerender } = render(<WikipediaFields fields={{}} setFields={setFields} />);
+    const { rerender } = renderInForm(<WikipediaFields fields={{}} setFields={setFields} />);
     expect(screen.getByTestId("wikipedia-wp_pages")).toBeInTheDocument();
     for (const f of WIKIPEDIA_CRAWL_FIELDS) {
       expect(screen.getByTestId(`wikipedia-wpc_${f.key}`)).toBeInTheDocument();
@@ -102,7 +102,8 @@ describe("the Wikipedia setup form", () => {
     expect(screen.queryByTestId("wikipedia-wp_see_also_heading")).not.toBeInTheDocument();
     rerender(<WikipediaFields fields={{ wp_language: "fr" }} setFields={setFields} />);
     expect(screen.getByTestId("wikipedia-wp_see_also_heading")).toBeInTheDocument();
-    expect(screen.getByText(/as it appears on a page/)).toBeInTheDocument();
+    // The explanation is longer than a line: it is behind the (?) beside the label.
+    expect(screen.getByRole("img", { name: /as it appears on a page/ })).toBeInTheDocument();
     rerender(
       <WikipediaFields fields={{ wp_language: "fr", wp_follow_see_also: "true" }} setFields={setFields} />,
     );
@@ -147,7 +148,7 @@ describe("the Wikipedia setup in the Sources form", () => {
 
   it("asks for no credential: Wikipedia is read without one", () => {
     expect(BRAND_AUTH.wikipedia).toBe("none");
-    render(<SourceFormFieldsExtended {...form("wikipedia")} />);
+    renderInForm(<SourceFormFieldsExtended {...form("wikipedia")} />);
     expect(screen.getByTestId("wikipedia-wp_pages")).toBeTruthy();
     expect(screen.queryByTestId("brand-token-input")).toBeNull();
     expect(screen.queryByLabelText(/token|password|secret|api key/i)).toBeNull();
@@ -155,13 +156,13 @@ describe("the Wikipedia setup in the Sources form", () => {
 
   it("gives no brand a credential by default: each states its own", () => {
     expect(Object.keys(BRAND_AUTH).sort()).toEqual(Object.keys(BRAND_CARRIER).sort());
-    render(<SourceFormFieldsExtended {...form("a_brand_that_states_nothing")} />);
+    renderInForm(<SourceFormFieldsExtended {...form("a_brand_that_states_nothing")} />);
     expect(screen.queryByTestId("brand-token-input")).toBeNull();
   });
 
   it("asks a brand that states a token for it", () => {
     expect(BRAND_AUTH.github).toBe("token");
-    render(<SourceFormFieldsExtended {...form("github")} />);
+    renderInForm(<SourceFormFieldsExtended {...form("github")} />);
     expect(screen.getByTestId("brand-token-input")).toBeTruthy();
   });
 });

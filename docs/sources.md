@@ -545,31 +545,32 @@ Table form reports that the source is still starting. [tool-verified:
 ### Where a source's password lives
 
 A source's password is never stored beside the rest of its connection settings. The
-control-plane `sources` row carries a `password_ref` column holding a *reference* —
-`${env:PG_PASSWORD}`, `${secret:SNOWFLAKE_KEY}` — which is resolved at the moment the source is
-dialled, inside the organization the request is running as (REQ-1695). [tool-verified:
-`provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
+control-plane `sources` row carries a `password_ref` column holding what was entered for the
+password: the value itself, or a reference such as `${env:PG_PASSWORD}` or
+`${secret:SNOWFLAKE_KEY}`. It is resolved at the moment the source is dialled, inside the
+organization the request is running as. [tool-verified: `provisa/core/schema_org.py`,
+`provisa/core/repositories/source.py`]
 
-`${env:VAR}` reads the deployment's process environment and needs nothing bound. `${secret:NAME}`
-names a secret an organization owns, so it resolves only inside that organization's own
-operations: the admin introspection seams and the query terminal every surface reaches establish
-that binding. [tool-verified: `provisa/pgwire/_pipeline.py` `_execute_plan`]
+A value with no `${…}` in it is used as it is. `${env:VAR}` reads the deployment's process
+environment and needs nothing bound. `${secret:NAME}` names a secret an organization owns, so it
+resolves only inside that organization's own operations: the admin introspection seams and the
+query terminal every surface reaches establish that binding. [tool-verified:
+`provisa/core/secrets.py` `resolve_secrets`; `provisa/pgwire/_pipeline.py` `_execute_plan`]
 
-Where the reference points depends on how the source was registered:
+The field holds what you put in it, however the source was registered:
 
-- **From config.** Write the reference yourself. `${env:VAR}` reads the deployment's process
-  environment; `${secret:NAME}` reads the organization's vault (see [Secrets](secrets.md)). The
-  file is the record, and Provisa copies the reference into `password_ref` verbatim.
-- **From the Sources form.** A reference typed into the password field is likewise stored
-  verbatim. A *literal* password is written into the organization's vault under
-  `source_<id>_password` — encrypted at rest, and never readable back by name — and the row keeps
-  the `${secret:source_<id>_password}` that names it. [tool-verified:
-  `provisa/api/admin/schema_common.py` `persist_source_password`]
+- **From config.** The file is the record: Provisa copies the value or the reference into
+  `password_ref` verbatim.
+- **From the Sources form.** What is typed into the password field is stored verbatim, a value
+  or a reference alike. Provisa writes nothing into the organization's vault for it and makes up
+  no secret name. To keep a credential out of the control-plane row, create the secret yourself
+  (see [Secrets](secrets.md)) and type `${secret:NAME}` into the field. [tool-verified:
+  `provisa/api/admin/schema_mutation.py` `create_source`]
 
-Retyping the password on an existing source rotates that one vault entry rather than creating a
-second. Deleting the source removes the entry Provisa minted for it, and only that one: a
-reference you wrote yourself names a secret you own for your own reasons, so it is left alone.
-[tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`]
+A value typed as a value is stored in the control-plane database as typed. Retyping the password
+replaces the field's text. Deleting the source removes its row and nothing from the vault: a
+secret you created is yours. [tool-verified: `provisa/api/admin/schema_mutation.py`
+`delete_source`; `tests/unit/test_no_product_written_secrets.py`]
 
 `password_ref` does not travel between environments (REQ-1491). A branch or a copied environment
 supplies its own connection values, and the vault a reference names belongs to whichever

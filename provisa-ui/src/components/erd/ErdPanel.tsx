@@ -18,7 +18,6 @@ import {
   Group,
   Select,
   Text,
-  Tooltip,
   useComputedColorScheme,
 } from "@mantine/core";
 import { X, Download, ChevronDown, ChevronRight } from "lucide-react";
@@ -40,6 +39,7 @@ import { buildErdStylesheet } from "./sections/erd-stylesheet";
 import { applyTaxiLanes, clearTaxiLanes } from "./sections/erd-taxi";
 import { getErdPalette } from "./sections/erd-palette";
 import type { TooltipState, ErdPanelProps } from "./sections/erd-types";
+import { Tip } from "../Tip";
 
 // ── cytoscape plugin registration ────────────────────────────────────────────
 type CyExt = Parameters<typeof cytoscape.use>[0];
@@ -926,22 +926,23 @@ export function ErdPanel({
           </Group>
 
           {/* collapse/expand all */}
-          <Button
-            size="xs"
-            h={30}
-            variant="default"
-            onClick={toggleAll}
-            title={allCollapsed ? t("erdModal.expandAll") : t("erdModal.collapseAll")}
-            leftSection={allCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-            data-testid="erd-toggle-all"
-          >
-            {allCollapsed ? t("erdModal.expandAll") : t("erdModal.collapseAll")}
-          </Button>
+          <Tip text={allCollapsed ? t("erdModal.expandAll") : t("erdModal.collapseAll")}>
+            <Button
+              size="xs"
+              h={30}
+              variant="default"
+              onClick={toggleAll}
+              leftSection={allCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+              data-testid="erd-toggle-all"
+            >
+              {allCollapsed ? t("erdModal.expandAll") : t("erdModal.collapseAll")}
+            </Button>
+          </Tip>
 
           <div style={{ flex: 1 }} />
 
           {/* exports */}
-          <Tooltip label={t("erdModal.fitAll")}>
+          <Tip text={t("erdModal.fitAll")} named>
             <ActionIcon
               variant="subtle"
               size="md"
@@ -951,51 +952,55 @@ export function ErdPanel({
             >
               <FitScreenIcon size={15} />
             </ActionIcon>
-          </Tooltip>
-          <Button
-            size="xs"
-            h={30}
-            variant="default"
-            leftSection={<Download size={11} />}
-            onClick={exportSvg}
-            title={t("erdModal.downloadSvg")}
-            data-testid="erd-export-svg"
-          >
-            SVG
-          </Button>
-          <Button
-            size="xs"
-            h={30}
-            variant="default"
-            leftSection={<Download size={11} />}
-            onClick={exportPng}
-            title={t("erdModal.downloadPng")}
-            data-testid="erd-export-png"
-          >
-            PNG
-          </Button>
-          <Button
-            size="xs"
-            h={30}
-            variant="default"
-            leftSection={<Download size={11} />}
-            onClick={exportJpeg}
-            title={t("erdModal.downloadJpeg")}
-            data-testid="erd-export-jpeg"
-          >
-            JPEG
-          </Button>
-          <Button
-            size="xs"
-            h={30}
-            variant="default"
-            leftSection={<Download size={11} />}
-            onClick={exportJson}
-            title={t("erdModal.downloadJson")}
-            data-testid="erd-export-json"
-          >
-            JSON
-          </Button>
+          </Tip>
+          <Tip text={t("erdModal.downloadSvg")}>
+            <Button
+              size="xs"
+              h={30}
+              variant="default"
+              leftSection={<Download size={11} />}
+              onClick={exportSvg}
+              data-testid="erd-export-svg"
+            >
+              SVG
+            </Button>
+          </Tip>
+          <Tip text={t("erdModal.downloadPng")}>
+            <Button
+              size="xs"
+              h={30}
+              variant="default"
+              leftSection={<Download size={11} />}
+              onClick={exportPng}
+              data-testid="erd-export-png"
+            >
+              PNG
+            </Button>
+          </Tip>
+          <Tip text={t("erdModal.downloadJpeg")}>
+            <Button
+              size="xs"
+              h={30}
+              variant="default"
+              leftSection={<Download size={11} />}
+              onClick={exportJpeg}
+              data-testid="erd-export-jpeg"
+            >
+              JPEG
+            </Button>
+          </Tip>
+          <Tip text={t("erdModal.downloadJson")}>
+            <Button
+              size="xs"
+              h={30}
+              variant="default"
+              leftSection={<Download size={11} />}
+              onClick={exportJson}
+              data-testid="erd-export-json"
+            >
+              JSON
+            </Button>
+          </Tip>
 
           {onClose && (
             <ActionIcon

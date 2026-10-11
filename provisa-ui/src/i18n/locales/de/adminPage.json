@@ -190,6 +190,8 @@
     "policyApplyFailed": "Anwenden der Domänenrichtlinie fehlgeschlagen",
     "settingsPanel": "Einstellungen",
     "maxRows": "Max. Zeilen pro Lesevorgang",
-    "maxRowsHint": "Die maximale Anzahl Zeilen, die ein Lesevorgang einer seitenweise gelesenen entfernten Tabelle holt, indem er ihrem Cursor Seite für Seite folgt."
+    "maxRowsHint": "Die maximale Anzahl Zeilen, die ein Lesevorgang einer seitenweise gelesenen entfernten Tabelle holt, indem er ihrem Cursor Seite für Seite folgt.",
+    "deleteDomainTitle": "Domäne „{{id}}“ löschen?",
+    "deleteDomainConsequence": "Die Domäne wird entfernt. Eine Domäne, die noch verwendet wird, kann nicht gelöscht werden."
   }
 }

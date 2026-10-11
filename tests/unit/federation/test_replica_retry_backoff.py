@@ -281,10 +281,12 @@ def test_the_admin_record_of_a_failed_replica_says_when_it_is_tried_next(monkeyp
     record = SimpleNamespace(
         key=KEY, build_state="failed", retired_at=None, requested_reason="read",
         build_method=None, load_kind=None, build_started_at=None, rows_copied=None,
-        completed_at=None, next_refresh_at=None, last_error="connection refused",
+        completed_rows=None, completed_at=None, next_refresh_at=None, last_error="connection refused",
         last_error_code=None, last_error_params=None, failed_attempts=3, failed_at=T0,
         waiting_on=None, feed_down_since=None, feed_error=None, delta_skipped=None,
-        delta_cursor=None, build_notes=[],
+        delta_cursor=None, build_notes=[], verified_at=None,
+        build_wait=None,
+        build_progress=None, partial=False,
     )  # fmt: skip
     assert build_view(record, T0)["next_attempt_at"] == "2026-10-09T12:04:00+00:00"
     record.build_state = "idle"

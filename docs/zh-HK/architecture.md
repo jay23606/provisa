@@ -76,7 +76,7 @@ Client ←(Arrow batches)← Provisa Flight Server ←(Arrow batches)← Zaychik
 
 ### Protobuf gRPC（連接埠 50051）
 
-依角色自動由數據結構描述產生 `.proto`。（REQ-525）串流式查詢（每列一則訊息）、單向 (unary) mutation。已啟用伺服器反射 (server reflection)。（REQ-526）角色透過 `x-provisa-role` metadata 鍵傳遞。
+依角色自動由數據結構描述產生 `.proto`。（REQ-525）串流式查詢（每列一則訊息）、單向 (unary) mutation。已啟用伺服器反射 (server reflection)。（REQ-526）角色透過 `x-provisa-role` metadata 鍵傳遞。 反射向每個呼叫方描述其自身角色的服務。
 
 ### PostgreSQL 線路協定 / pgwire（可設定連接埠）
 
