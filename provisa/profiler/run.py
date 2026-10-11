@@ -129,6 +129,22 @@ def _published_name(meta: Any) -> str:
     return f"{domain}.{semantic_table_name(meta)}"
 
 
+def _relation_columns(state: Any, tm: Any) -> list[Any]:
+    """``tm``'s registered columns that the relation a statement reads holds. A remote GraphQL
+    table registers a field pointing at one object of another registered type as a column; the
+    rows read from the API do not carry it, so no profile statement may select it."""
+    from provisa.graphql_remote.relation_columns import columns_outside_relation
+
+    outside = columns_outside_relation(
+        getattr(state, "graphql_remote_sources", {}), tm.source_id, tm.table_name
+    )
+    return [
+        col
+        for col in state.schema_build_cache["column_types"][tm.table_id]
+        if col.column_name not in outside
+    ]
+
+
 def parents_of(state: Any, table_id: int) -> list[ParentSpec]:
     """The parents ``table_id`` reaches as the org admin reads it, or none when it cannot."""
     ctx = state.contexts.get(PROFILE_ROLE)
@@ -140,7 +156,7 @@ def parents_of(state: Any, table_id: int) -> list[ParentSpec]:
     p2s: dict = ctx.physical_to_sql
     exposed_by_phys = {
         col.column_name: p2s[(table_id, col.column_name)]
-        for col in state.schema_build_cache["column_types"][table_id]
+        for col in _relation_columns(state, tm)
         if (table_id, col.column_name) in p2s
     }
     return parent_relationships(state, ctx, tm, exposed_by_phys, _published_name)
@@ -162,7 +178,7 @@ def resolve_target(state: Any, table_id: int, table_name: str, tags: dict[str, s
     _name = _published_name
 
     p2s: dict = ctx.physical_to_sql
-    col_types = state.schema_build_cache["column_types"][table_id]
+    col_types = _relation_columns(state, tm)
     columns: list[ColumnSpec] = []
     exposed_by_phys: dict[str, str] = {}
     for col in col_types:
@@ -229,7 +245,7 @@ def parent_relationships(
         if child_key is None or parent_key is None:
             continue  # the org admin cannot read the join's keys
         columns = []
-        for col in state.schema_build_cache["column_types"][parent_id]:
+        for col in _relation_columns(state, jm.target):
             exposed = p2s.get((parent_id, col.column_name))
             if exposed is not None:
                 columns.append(
