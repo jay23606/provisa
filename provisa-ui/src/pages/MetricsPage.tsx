@@ -182,25 +182,31 @@ function MetricFormCard({
           data-testid="metric-datatype-input"
         />
       </FormField>
-      <FormField size="full">
-        <Textarea
-          label={t("metricsPage.fieldDescription")}
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          rows={2}
-          data-testid="metric-description-input"
-        />
-      </FormField>
-      <FormField size="full">
-        <Textarea
-          label={t("metricsPage.fieldAiContext")}
-          value={form.aiContext}
-          onChange={(e) => setForm((f) => ({ ...f, aiContext: e.target.value }))}
-          placeholder={t("metricsPage.fieldAiContextPlaceholder")}
-          rows={2}
-          data-testid="metric-ai-context-input"
-        />
-      </FormField>
+      {/* What a metric does not need in order to exist is edited once it does. (Its datatype
+          stays in the first step: the builder derives it from the aggregate, in sight.) */}
+      {editingName !== null && (
+        <>
+          <FormField size="full">
+            <Textarea
+              label={t("metricsPage.fieldDescription")}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={2}
+              data-testid="metric-description-input"
+            />
+          </FormField>
+          <FormField size="full">
+            <Textarea
+              label={t("metricsPage.fieldAiContext")}
+              value={form.aiContext}
+              onChange={(e) => setForm((f) => ({ ...f, aiContext: e.target.value }))}
+              placeholder={t("metricsPage.fieldAiContextPlaceholder")}
+              rows={2}
+              data-testid="metric-ai-context-input"
+            />
+          </FormField>
+        </>
+      )}
       {msg && (
         <FormField size="full">
           <Alert color="red" data-testid="metric-form-error">
@@ -307,7 +313,13 @@ export function MetricsPage() {
       description: form.description.trim() || null,
       aiContext: form.aiContext.trim() || null,
     });
-    if (result.success) {
+    if (result.success && creating) {
+      // The metric exists now, with everything else at its defaults: it is selected in the list
+      // and its detail opens in edit, where its description and AI context are filled in.
+      setCreating(false);
+      setExpanded(form.name.trim());
+      setEditingName(form.name.trim());
+    } else if (result.success) {
       closeForm();
     } else {
       setMsg(result.message || t("metricsPage.saveFailed"));

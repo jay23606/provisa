@@ -231,6 +231,28 @@ describe("MetricsPage: the right-hand detail panel", () => {
     expect(screen.getByTestId("metrics-row-revenue").className).not.toContain("row-selected");
   });
 
+  it("asks a new metric only for what it needs to exist, then opens it in edit", async () => {
+    upsertMetric.mockResolvedValue({ success: true, message: "ok" });
+    render(<MetricsPage />);
+    await userEvent.click(screen.getByTestId("metrics-new-button"));
+    expect(screen.getByTestId("metric-name-input")).toBeInTheDocument();
+    expect(screen.getByTestId("metric-expression-input")).toBeInTheDocument();
+    expect(screen.queryByTestId("metric-description-input")).toBeNull();
+    expect(screen.queryByTestId("metric-ai-context-input")).toBeNull();
+
+    // "revenue" is in the list the mocked query answers, as a saved metric would be.
+    await userEvent.type(screen.getByTestId("metric-name-input"), "revenue");
+    await userEvent.type(screen.getByTestId("metric-expression-input"), "SUM(orders.amount)");
+    await userEvent.click(screen.getByTestId("metric-save-button"));
+
+    expect(screen.getByTestId("metrics-split-title")).toHaveTextContent("revenue");
+    expect(screen.getByTestId("metrics-row-revenue").className).toContain("row-selected");
+    // Its detail is open in edit, with what the first step left out.
+    expect(screen.getByTestId("metric-form")).toBeInTheDocument();
+    expect(screen.getByTestId("metric-description-input")).toBeInTheDocument();
+    expect(screen.getByTestId("metric-ai-context-input")).toBeInTheDocument();
+  });
+
   it("keeps Escape from dropping a metric's form, its actions out of use meanwhile", async () => {
     render(<MetricsPage />);
     await userEvent.click(screen.getByTestId("metrics-row-revenue"));

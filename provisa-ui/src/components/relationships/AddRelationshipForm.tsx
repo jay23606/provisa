@@ -9,12 +9,11 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
+import { Select, Text, TextInput } from "@mantine/core";
 import type { RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelForm } from "./relationship-types";
-import { JunctionPanel } from "./JunctionPanel";
-import { FormChecks, FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 interface AddRelationshipFormProps {
   form: RelForm;
@@ -26,6 +25,11 @@ interface AddRelationshipFormProps {
   onCancel: () => void;
 }
 
+/**
+ * The first step of a new relationship: only what one needs in order to exist -- its id, what it
+ * joins, and how many rows meet. It is the head of the form that edits a relationship; the rest
+ * (aliases, materializing, the junction table) is edited in the detail the save opens.
+ */
 export function AddRelationshipForm({
   form,
   setForm,
@@ -60,24 +64,6 @@ export function AddRelationshipForm({
             />
           </FormField>
         </FormIdentifiers>
-        <FormField size="medium">
-          <TextInput
-            label={t("addRelationshipForm.aliasLabel")}
-            placeholder={t("addRelationshipForm.aliasPlaceholder")}
-            value={form.alias}
-            onChange={(e) => setForm({ ...form, alias: e.currentTarget.value })}
-            data-testid="rel-form-alias"
-          />
-        </FormField>
-        <FormField size="medium">
-          <TextInput
-            label={t("addRelationshipForm.graphqlAliasLabel")}
-            placeholder={t("addRelationshipForm.graphqlAliasPlaceholder")}
-            value={form.graphqlAlias}
-            onChange={(e) => setForm({ ...form, graphqlAlias: e.currentTarget.value })}
-            data-testid="rel-form-graphql-alias"
-          />
-        </FormField>
         <FormField size="medium">
           <Select
             label={t("addRelationshipForm.sourceTableLabel")}
@@ -189,39 +175,6 @@ export function AddRelationshipForm({
               </FormField>
             )}
           </>
-        )}
-        {form.targetType === "table" && (
-          <FormField size="full">
-            <JunctionPanel form={form} setForm={setForm} tables={tables} testIdPrefix="rel-form" />
-          </FormField>
-        )}
-        <FormChecks>
-          <FormField size="long">
-            <Checkbox
-              label={t("addRelationshipForm.materializeLabel")}
-              checked={form.materialize}
-              onChange={(e) => setForm({ ...form, materialize: e.currentTarget.checked })}
-              data-testid="rel-form-materialize"
-            />
-          </FormField>
-          <FormField size="short">
-            <Checkbox
-              label={t("addRelationshipForm.disableCypherLabel")}
-              checked={form.disableCypher}
-              onChange={(e) => setForm({ ...form, disableCypher: e.currentTarget.checked })}
-              data-testid="rel-form-disable-cypher"
-            />
-          </FormField>
-        </FormChecks>
-        {form.materialize && (
-          <FormField size="short">
-            <NumberInput
-              label={t("addRelationshipForm.refreshIntervalLabel")}
-              value={form.refreshInterval}
-              onChange={(v) => setForm({ ...form, refreshInterval: String(v) })}
-              data-testid="rel-form-refresh-interval"
-            />
-          </FormField>
         )}
         <FormFooter
           onSave={onSave}

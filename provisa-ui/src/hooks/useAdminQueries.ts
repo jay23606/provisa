@@ -249,7 +249,8 @@ export interface MetricInput {
 export function useUpsertMetric() {
   const [upsertMetric, { loading }] = useMutation<{ upsertMetric: MutationResult }>(
     UPSERT_METRIC_MUTATION,
-    { refetchQueries: [{ query: METRICS_QUERY }] },
+    // The save is done when the list holds the metric: the page opens it straight away.
+    { refetchQueries: [{ query: METRICS_QUERY }], awaitRefetchQueries: true },
   );
   return {
     upsertMetric: async (input: MetricInput) => {
@@ -575,6 +576,8 @@ export function useUpsertRelationship() {
     UpsertRelationship,
     {
       refetchQueries: [{ query: RELATIONSHIPS_QUERY }],
+      // The save is done when the list holds the relationship: the page opens it straight away.
+      awaitRefetchQueries: true,
     },
   );
   return {

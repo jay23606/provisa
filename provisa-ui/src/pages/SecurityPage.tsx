@@ -139,9 +139,16 @@ export function SecurityRolesPage() {
         setError(serverMessage(res, res.message));
         return;
       }
-      setShowRoleForm(false);
-      setRoleForm({ ...EMPTY_ROLE });
-      setEditingRoleInRow(null);
+      if (showRoleForm) {
+        // The role exists now, with everything else at its defaults: it is selected in the list
+        // and its detail opens in edit, where its capabilities and limits are set.
+        setShowRoleForm(false);
+        setExpandedRole(roleForm.id);
+        setEditingRoleInRow(roleForm.id);
+      } else {
+        setRoleForm({ ...EMPTY_ROLE });
+        setEditingRoleInRow(null);
+      }
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -238,6 +245,8 @@ export function SecurityRolesPage() {
     : selectedRole
       ? selectedRole.id
       : "";
+  // The first step of a new role asks only for what a role needs in order to exist: its id, and a
+  // domain -- its own, or one a parent role hands down. It is a part of the form that edits a role.
   const rolePanelBody = showRoleForm ? (
     <FormLayout>
       <FormIdentifiers>
@@ -251,18 +260,6 @@ export function SecurityRolesPage() {
           />
         </FormField>
       </FormIdentifiers>
-      <CapabilityGrid
-        value={roleForm.capabilities}
-        onToggle={toggleCapability}
-        label={t("securityPage.capabilities")}
-      />
-      <ResidencyGrant
-        held={roleForm.capabilities.includes("data_residency")}
-        values={roleForm.residencyValues}
-        regions={regionChoices.regions}
-        onHeld={() => toggleCapability("data_residency")}
-        onValues={(residencyValues) => setRoleForm({ ...roleForm, residencyValues })}
-      />
       <FormField size="long">
         <MultiSelect
           label={t("securityPage.domainAccess")}
@@ -290,50 +287,6 @@ export function SecurityRolesPage() {
           clearable
           searchable
           data-testid="role-parent-select"
-        />
-      </FormField>
-      {/* REQ-1174: per-role rate + query-complexity limits. Blank = unlimited on that dimension. */}
-      <FormField size="full">
-        <Text size="sm" fw={600}>
-          {t("securityPage.limitsHeading", "Rate & query-complexity limits")}
-        </Text>
-      </FormField>
-      <FormField size="short">
-        <NumberInput
-          label={t("securityPage.rateReqPerSec", "Requests / sec")}
-          placeholder={t("securityPage.unlimited", "unlimited")}
-          min={1}
-          data-testid="role-req-per-sec"
-          value={roleForm.reqPerSec}
-          onChange={(v) => setRoleForm({ ...roleForm, reqPerSec: typeof v === "number" ? v : "" })}
-        />
-      </FormField>
-      <FormField
-        help={t(
-          "securityPage.maxQueryComplexityHint",
-          "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
-        )}
-        size="short"
-      >
-        <NumberInput
-          label={t("securityPage.maxQueryComplexity", "Max query complexity")}
-          placeholder={t("securityPage.unlimited", "unlimited")}
-          min={1}
-          data-testid="role-max-complexity"
-          value={roleForm.maxComplexity}
-          onChange={(v) =>
-            setRoleForm({ ...roleForm, maxComplexity: typeof v === "number" ? v : "" })
-          }
-        />
-      </FormField>
-      <FormField size="short">
-        <NumberInput
-          label={t("securityPage.maxQueryTimeMs", "Max query time (ms)")}
-          placeholder={t("securityPage.unlimited", "unlimited")}
-          min={1}
-          data-testid="role-max-time-ms"
-          value={roleForm.maxTimeMs}
-          onChange={(v) => setRoleForm({ ...roleForm, maxTimeMs: typeof v === "number" ? v : "" })}
         />
       </FormField>
       <FormFooter
@@ -441,6 +394,54 @@ export function SecurityRolesPage() {
                 clearable
                 searchable
                 data-testid={`role-parent-select-${r.id}`}
+              />
+            </FormField>
+            {/* REQ-1174: per-role rate + query-complexity limits. Blank = unlimited on that dimension. */}
+            <FormField size="full">
+              <Text size="sm" fw={600}>
+                {t("securityPage.limitsHeading", "Rate & query-complexity limits")}
+              </Text>
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("securityPage.rateReqPerSec", "Requests / sec")}
+                placeholder={t("securityPage.unlimited", "unlimited")}
+                min={1}
+                data-testid="role-req-per-sec"
+                value={roleForm.reqPerSec}
+                onChange={(v) =>
+                  setRoleForm({ ...roleForm, reqPerSec: typeof v === "number" ? v : "" })
+                }
+              />
+            </FormField>
+            <FormField
+              help={t(
+                "securityPage.maxQueryComplexityHint",
+                "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+              )}
+              size="short"
+            >
+              <NumberInput
+                label={t("securityPage.maxQueryComplexity", "Max query complexity")}
+                placeholder={t("securityPage.unlimited", "unlimited")}
+                min={1}
+                data-testid="role-max-complexity"
+                value={roleForm.maxComplexity}
+                onChange={(v) =>
+                  setRoleForm({ ...roleForm, maxComplexity: typeof v === "number" ? v : "" })
+                }
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("securityPage.maxQueryTimeMs", "Max query time (ms)")}
+                placeholder={t("securityPage.unlimited", "unlimited")}
+                min={1}
+                data-testid="role-max-time-ms"
+                value={roleForm.maxTimeMs}
+                onChange={(v) =>
+                  setRoleForm({ ...roleForm, maxTimeMs: typeof v === "number" ? v : "" })
+                }
               />
             </FormField>
             <FormFooter

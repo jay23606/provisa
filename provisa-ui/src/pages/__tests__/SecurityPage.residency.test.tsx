@@ -12,7 +12,7 @@
 // covers (the org's regions and "No region"), shown only when the platform declares regions.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "../../test-utils/render";
+import { render, screen, fireEvent, waitFor, within } from "../../test-utils/render";
 
 const upsertRoleSpy = vi.fn();
 const choices = vi.hoisted(() => ({
@@ -27,9 +27,20 @@ vi.mock("../../context/DomainFilterContext", () => ({
   }),
 }));
 
+// Stable: a hook that answered a new array each render would re-run the page's effects.
+const RESIDENCY_ROLES = [
+  {
+    id: "eu_steward",
+    capabilities: [],
+    demonstrated: [],
+    domain_access: ["sales"],
+    parentRoleId: null,
+  },
+];
+
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminQueries")>()),
-  useRoles: () => ({ roles: [], loading: false, refetch: vi.fn() }),
+  useRoles: () => ({ roles: RESIDENCY_ROLES, loading: false, refetch: vi.fn() }),
   useTables: () => ({ tables: [], loading: false, refetch: vi.fn() }),
   useDomains: () => ({ domains: [{ id: "sales" }], loading: false, refetch: vi.fn() }),
 }));
@@ -64,14 +75,21 @@ async function newRole(id: string) {
   fireEvent.click(await screen.findByRole("option", { name: "sales", hidden: true }));
 }
 
+// The right is granted in a role's detail: a new role is first created with what it needs to exist.
+async function editRole(id: string) {
+  render(<SecurityRolesPage />);
+  fireEvent.click(within(await screen.findByTestId("roles-list")).getByText(id));
+  fireEvent.click(screen.getByTestId(`edit-role-${id}`));
+}
+
 describe("the role editor's data_residency right (REQ-1921)", () => {
   it("grants the right with the region values chosen, No region among them", async () => {
-    await newRole("eu_steward");
+    await editRole("eu_steward");
     fireEvent.click(screen.getByTestId("residency-grant-checkbox"));
     fireEvent.click(screen.getByRole("textbox", { name: "Region values covered" }));
     fireEvent.click(await screen.findByRole("option", { name: "eu", hidden: true }));
     fireEvent.click(await screen.findByRole("option", { name: "No region", hidden: true }));
-    fireEvent.click(screen.getByTestId("save-role"));
+    fireEvent.click(screen.getByTestId("save-role-eu_steward"));
     await waitFor(() => expect(upsertRoleSpy).toHaveBeenCalled());
     const saved = upsertRoleSpy.mock.calls[0][0];
     expect(saved.capabilities).toContain("data_residency");
@@ -89,7 +107,7 @@ describe("the role editor's data_residency right (REQ-1921)", () => {
 
   it("offers no data_residency when the platform declares no regions", async () => {
     choices.value = { regions: [], connected: null };
-    await newRole("analyst3");
+    await editRole("eu_steward");
     expect(screen.queryByTestId("residency-grant")).toBeNull();
     expect(screen.queryByLabelText("data_residency")).toBeNull();
   });

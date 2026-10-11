@@ -13,7 +13,12 @@
 // under its own title; Escape never drops a form that is being typed into.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "../../test-utils/render";
+import { render, screen, fireEvent, waitFor, within } from "../../test-utils/render";
+
+const upsertRoleSpy = vi.fn(async (_input: Record<string, unknown>) => ({
+  success: true,
+  message: "",
+}));
 
 const role = (id: string, detailsHidden = false) => ({
   id,
@@ -45,7 +50,7 @@ vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
 }));
 vi.mock("../../hooks/useSecurityQueries", () => ({
   useRLSRules: () => ({ rlsRules: RULES, loading: false, refetch: vi.fn() }),
-  useUpsertRole: () => ({ upsertRole: vi.fn(), loading: false }),
+  useUpsertRole: () => ({ upsertRole: upsertRoleSpy, loading: false }),
   useDeleteRole: () => ({ deleteRole: vi.fn(), loading: false }),
   useUpsertRlsRule: () => ({ upsertRlsRule: vi.fn(), loading: false }),
   useDeleteRlsRule: () => ({ deleteRlsRule: vi.fn(), loading: false }),
@@ -97,6 +102,33 @@ describe("SecurityRolesPage: the right-hand detail panel", () => {
       within(screen.getByTestId("roles-split-panel")).getByTestId("role-id-input"),
     ).toBeTruthy();
     expect(rowIn("roles-list", "analyst").className).not.toContain("row-selected");
+  });
+
+  it("asks a new role only for what it needs to exist, then opens it in edit", async () => {
+    upsertRoleSpy.mockClear();
+    render(<SecurityRolesPage />);
+    fireEvent.click(screen.getByTestId("toggle-role-form"));
+    const panel = within(screen.getByTestId("roles-split-panel"));
+    // The short step: the id, and a domain of its own or a parent's. Nothing else.
+    expect(panel.getByTestId("role-parent-select")).toBeTruthy();
+    expect(panel.queryByText("Capabilities")).toBeNull();
+    expect(panel.queryByTestId("role-req-per-sec")).toBeNull();
+
+    // "steward" is in the list the mocked query answers, as a saved role would be.
+    fireEvent.change(screen.getByTestId("role-id-input"), { target: { value: "steward" } });
+    fireEvent.click(screen.getByRole("textbox", { name: "Domain Access" }));
+    fireEvent.click(await screen.findByRole("option", { name: "sales", hidden: true }));
+    fireEvent.click(screen.getByTestId("save-role"));
+
+    await waitFor(() => expect(screen.getByTestId("save-role-steward")).toBeTruthy());
+    expect(upsertRoleSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "steward", capabilities: [], domainAccess: ["sales"] }),
+    );
+    expect(screen.getByTestId("roles-split-title")).toHaveTextContent("steward");
+    expect(rowIn("roles-list", "steward").className).toContain("row-selected");
+    // Its detail is open in edit, with what the first step left out.
+    expect(within(screen.getByTestId("roles-split-panel")).getByText("Capabilities")).toBeTruthy();
+    expect(screen.getByTestId("role-req-per-sec")).toBeTruthy();
   });
 
   it("keeps Escape from dropping the form of a role being edited", () => {

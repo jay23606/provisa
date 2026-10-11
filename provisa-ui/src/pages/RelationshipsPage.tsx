@@ -159,7 +159,7 @@ export function RelationshipsPage() {
     if (form.targetType === "table" && !form.targetTableId) return;
     if (form.targetType === "function" && !form.targetFunctionName) return;
     setSaving("new");
-    await upsertRelationship({
+    const result = await upsertRelationship({
       id: form.id,
       sourceTableId: form.sourceTableId,
       targetTableId: form.targetType === "table" ? form.targetTableId : "",
@@ -182,6 +182,12 @@ export function RelationshipsPage() {
       viaLabelSource: form.viaLabelSource,
     });
     setSaving(null);
+    if (result.success) {
+      // The relationship exists now, with everything else at its defaults: it is selected in the
+      // list and its detail opens in edit, where the rest is filled in.
+      setExpanded(form.id);
+      setEditingRel({ ...form, originalId: form.id });
+    }
     setForm(EMPTY_FORM);
     setShowForm(false);
   }, [form, upsertRelationship]);
