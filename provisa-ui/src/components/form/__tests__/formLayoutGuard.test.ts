@@ -26,7 +26,10 @@ const SRC = resolve(__dirname, "../../..");
  */
 const NOT_A_FORM: Readonly<Record<string, string>> = {
   "components/admin/FilterInput.tsx": "the search box above a list",
+  "components/admin/MergeRequestsPanel.tsx":
+    "the open-only filter above the list of merge requests",
   "components/admin/RegionSelect.tsx": "one reusable control, placed by the form that uses it",
+  "components/admin/RepoBrowser.tsx": "the pickers of what the repository browser shows",
   "components/admin/ReplicateSelect.tsx": "one reusable control, placed by the form that uses it",
   "components/RegionSelector.tsx": "the region switch in the page header",
   "components/GovernedTableViewer.tsx": "the filter above a data preview",
@@ -87,8 +90,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/UserProfileModal.tsx",
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
-  "components/admin/MergeRequestsPanel.tsx",
-  "components/admin/RepoBrowser.tsx",
   "components/admin/SyntheticDatasetsPanel.tsx",
   "components/admin/synthetic/DatasetAssertions.tsx",
   "components/admin/synthetic/DatasetConditions.tsx",
