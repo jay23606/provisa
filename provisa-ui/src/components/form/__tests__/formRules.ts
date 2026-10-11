@@ -41,6 +41,11 @@ export interface FormViolation {
 export interface FormRuleOptions {
   /** The file holds controls that are not a form (a search box, a toolbar, a query editor). */
   notAForm?: boolean;
+  /**
+   * The file edits something in place in a small surface (a popover, a row of a list): its
+   * controls are not a form, and its compact Save/Apply and Cancel need not be the shared footer's.
+   */
+  inPlaceEdit?: boolean;
   /** Buttons that may fill their container: each is matched by a substring of its own JSX. */
   stretchedButtonExceptions?: readonly string[];
   /** The English text of a translation key, so the length of a hint can be held. */
@@ -124,6 +129,8 @@ export function checkFormRules(
   options: FormRuleOptions = {},
 ): FormViolation[] {
   const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  // A surface that edits in place holds controls that are not a form either.
+  const notAForm = options.notAForm === true || options.inPlaceEdit === true;
   const violations: FormViolation[] = [];
   const report = (rule: FormRule, node: ts.Node, detail: string) =>
     violations.push({
@@ -214,7 +221,7 @@ export function checkFormRules(
     if (single && spansRow(n)) {
       report("full-width-single-line", n, `<${tag}> spans the row`);
     }
-    if (options.notAForm || hasAncestor(n, TABLE_CELLS)) return;
+    if (notAForm || hasAncestor(n, TABLE_CELLS)) return;
     if (tag === "select" && !/\bform-select\b/.test(attr(n, "className") ?? "")) {
       report(
         "outside-shared-layout",
@@ -338,7 +345,8 @@ export function checkFormRules(
 
   const checkButton = (n: JsxEl) => {
     const word = buttonWord(n);
-    if (word === "Save" || word === "Cancel") {
+    const compact = /^compact-/.test(attr(n, "size") ?? "");
+    if ((word === "Save" || word === "Cancel") && !(options.inPlaceEdit && compact)) {
       report(
         "save-cancel-not-shared",
         n,
@@ -394,7 +402,7 @@ export function checkFormRules(
       if (!isControl && tag !== "Button" && spansRow(n)) {
         report("outside-shared-layout", n, `<${tag}> placed with gridColumn`);
       }
-      if (OWN_GRIDS.has(tag) && ts.isJsxElement(n) && !options.notAForm && holdsControl(n)) {
+      if (OWN_GRIDS.has(tag) && ts.isJsxElement(n) && !notAForm && holdsControl(n)) {
         report("outside-shared-layout", n, `fields laid out by a <${tag}> with its own columns`);
       }
     }

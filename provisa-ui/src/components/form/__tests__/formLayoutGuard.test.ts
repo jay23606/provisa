@@ -61,6 +61,17 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Permanent: surfaces that edit something in place, in a popover or a row. Their controls are not
+ * a form (as NOT_A_FORM), and their compact Save/Apply and Cancel are not the shared footer's.
+ * Everything else is still held: a full-size Save or Cancel, a stretched button, an action row.
+ */
+const IN_PLACE_EDIT: Readonly<Record<string, string>> = {
+  "components/TagControl.tsx": "a tag assigned and edited in its popover, beside what it tags",
+  "pages/tables/ProfileConstraintsModal.tsx":
+    "a column's constraints edited in the row of the checklist that lists them",
+};
+
+/**
  * Permanent: parts of an explorer that no form rule is applied to. The explorers (query, graph,
  * SQL, JSON:API, OpenAPI, MCP, lineage, and what they alone mount) are a different experience
  * from the forms; these files stay as they are.
@@ -119,12 +130,10 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
  */
 const NOT_YET_CONVERTED: readonly string[] = [
   "components/ChatPanel.tsx",
-  "components/TagControl.tsx",
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
   "components/form/FormLayout.tsx",
   "pages/TablesPage.tsx",
-  "pages/tables/ProfileConstraintsModal.tsx",
 ];
 
 function componentFiles(dir: string, found: string[] = []): string[] {
@@ -162,9 +171,14 @@ function englishOf(key: string): string | undefined {
   return typeof node === "string" ? node : undefined;
 }
 
-function violationsOf(file: string, notAForm = file in NOT_A_FORM): FormViolation[] {
+function violationsOf(
+  file: string,
+  notAForm = file in NOT_A_FORM,
+  inPlaceEdit = file in IN_PLACE_EDIT,
+): FormViolation[] {
   return checkFormRules(file, readFileSync(join(SRC, file), "utf8"), {
     notAForm,
+    inPlaceEdit,
     textOf: englishOf,
     stretchedButtonExceptions: (STRETCHED_BUTTONS[file] ?? []).map((e) => e.marker),
   });
@@ -441,6 +455,20 @@ describe("the shared layout's CSS", () => {
   });
 });
 
+describe("a surface that edits in place", () => {
+  const compact = `<Group><Button size="compact-xs">Apply</Button><Button size="compact-xs" variant="default">Cancel</Button></Group>`;
+  it("may keep its compact Apply and Cancel, and its controls outside a form", () => {
+    expect(rules(compact, { inPlaceEdit: true })).toEqual([]);
+    expect(rules(`<TextInput size="xs" label="Reason" />`, { inPlaceEdit: true })).toEqual([]);
+  });
+  it("is held to the shared footer for a full-size Cancel, and anywhere else for a compact one", () => {
+    expect(rules(`<Button variant="default">Cancel</Button>`, { inPlaceEdit: true })).toContain(
+      "save-cancel-not-shared",
+    );
+    expect(rules(compact)).toContain("save-cancel-not-shared");
+  });
+});
+
 describe("every component follows the form rules", () => {
   const files = componentFiles(SRC);
   const pending = new Set(NOT_YET_CONVERTED);
@@ -454,6 +482,7 @@ describe("every component follows the form rules", () => {
       ...NOT_YET_CONVERTED,
       ...Object.keys(NOT_A_FORM),
       ...Object.keys(EXPLORERS),
+      ...Object.keys(IN_PLACE_EDIT),
       ...Object.keys(STRETCHED_BUTTONS),
     ]) {
       expect(existsSync(join(SRC, file)), `${file} is listed but does not exist`).toBe(true);
@@ -475,6 +504,13 @@ describe("every component follows the form rules", () => {
       ).toBeGreaterThan(0);
     },
   );
+
+  it.each(Object.keys(IN_PLACE_EDIT))("%s still needs its in-place-edit entry", (file) => {
+    expect(
+      violationsOf(file, false, false).length,
+      `${file} breaks no form rule without its entry: drop it`,
+    ).toBeGreaterThan(0);
+  });
 
   it.each(Object.keys(EXPLORERS))("%s still needs its explorer entry", (file) => {
     expect(

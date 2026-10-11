@@ -69,6 +69,11 @@
     "deleteRoleTitle": "Delete role \"{{id}}\"?",
     "deleteRoleConsequence": "The role is removed. A role that is still in use cannot be deleted.",
     "deleteRuleTitle": "Delete this RLS rule?",
-    "deleteRuleConsequence": "Role \"{{role}}\" is no longer limited by this rule."
+    "deleteRuleConsequence": "Role \"{{role}}\" is no longer limited by this rule.",
+    "roleDetailPanel": "Role details",
+    "ruleDetailPanel": "RLS rule details",
+    "panelNewRole": "New role",
+    "panelNewRule": "New RLS rule",
+    "panelRule": "RLS rule {{id}}"
   }
 }

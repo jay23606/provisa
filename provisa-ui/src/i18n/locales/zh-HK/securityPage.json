@@ -69,6 +69,11 @@
     "deleteRoleTitle": "刪除角色「{{id}}」？",
     "deleteRoleConsequence": "該角色將被移除。仍在使用中的角色無法刪除。",
     "deleteRuleTitle": "刪除此 RLS 規則？",
-    "deleteRuleConsequence": "角色「{{role}}」將不再受此規則限制。"
+    "deleteRuleConsequence": "角色「{{role}}」將不再受此規則限制。",
+    "roleDetailPanel": "角色詳情",
+    "ruleDetailPanel": "RLS 規則詳情",
+    "panelNewRole": "新增角色",
+    "panelNewRule": "新增 RLS 規則",
+    "panelRule": "RLS 規則 {{id}}"
   }
 }

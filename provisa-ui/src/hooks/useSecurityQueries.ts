@@ -92,6 +92,8 @@ export function useDeleteRlsRule() {
 export function useUpsertRole() {
   const [createRole, { loading }] = useMutation<{ createRole: MutationResult }>(CreateRole, {
     refetchQueries: [{ query: ROLES_QUERY }],
+    // The save is done when the list holds the role: the page opens it straight away.
+    awaitRefetchQueries: true,
   });
   return {
     upsertRole: async (input: {
@@ -133,12 +135,11 @@ export type GrantKind = "METRIC" | "COMMAND" | "WEBHOOK";
  *  roles, so the role can be deleted (REQ-1918). */
 export function useRevokeRoleGrants() {
   const [fromTable] = useMutation<{ revokeRoleFromTable: MutationResult }>(RevokeRoleFromTable);
-  const [fromObject] = useMutation<{ revokeRoleFromObject: MutationResult }>(
-    RevokeRoleFromObject,
-  );
+  const [fromObject] = useMutation<{ revokeRoleFromObject: MutationResult }>(RevokeRoleFromObject);
   return {
     revokeFromTable: async (roleId: string, tableId: number) => {
-      const answer = (await fromTable({ variables: { roleId, tableId } })).data?.revokeRoleFromTable;
+      const answer = (await fromTable({ variables: { roleId, tableId } })).data
+        ?.revokeRoleFromTable;
       if (!answer) throw new Error("revokeRoleFromTable returned no result");
       return answer;
     },

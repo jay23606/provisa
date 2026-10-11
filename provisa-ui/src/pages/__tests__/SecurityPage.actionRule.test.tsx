@@ -71,7 +71,7 @@ vi.mock("../../hooks/useSecurityQueries", () => ({
   useRevokeRoleGrants: () => ({ revokeFromTable: vi.fn(), revokeFromObject: vi.fn() }),
 }));
 
-import { SecurityRlsPage } from "../SecurityPage";
+import { SecurityRlsPage } from "../security/SecurityRlsPage";
 
 // Mantine Select portals its listbox; jsdom applies no layout so it reads as hidden.
 async function selectOption(combobox: HTMLElement, name: string | RegExp) {

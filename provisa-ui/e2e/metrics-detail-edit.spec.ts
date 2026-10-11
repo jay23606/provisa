@@ -141,8 +141,13 @@ test("REQ-1324: builder composes AGG(fact.column); delete lives inside detail", 
   // row has taken longer than 15s to appear.
   await expect(newRow).toBeVisible({ timeout: 60000 });
 
+  // The new metric is selected and its detail is open in edit, for what the first step left
+  // out; leaving the form shows the detail, whose actions are in the panel's head.
+  await expect(page.getByTestId("metric-description-input")).toBeVisible();
+  await page.getByTestId("metric-cancel-button").click();
+  await expect(page.getByTestId(`metric-detail-${BUILT_METRIC}`)).toBeVisible();
+
   // Delete from within the detail panel (REQ-1323).
-  await newRow.click();
   await page.getByTestId(`metric-detail-delete-${BUILT_METRIC}`).click();
   // Assert on the confirm button: Mantine's Modal-root wrapper (which carries the
   // testid) has an empty bounding box, so Playwright reads it as hidden.

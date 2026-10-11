@@ -50,7 +50,7 @@ const RELS = {
 };
 const TABLES = { tables: [], loading: false };
 const DOMAINS = { domains: [] };
-const UPSERT = { upsertRelationship: vi.fn() };
+const UPSERT = { upsertRelationship: vi.fn(async () => ({ success: true, message: "" })) };
 const DELETE = { deleteRelationship: vi.fn() };
 const AUTH = { capabilities: ["create_relationship"] };
 const FILTER = { domainsEnabled: false, domains: [], checkedDomains: new Set<string>() };
@@ -116,6 +116,21 @@ describe("RelationshipsPage: the right-hand detail panel", () => {
     expect(screen.getByTestId("relationships-split-title")).toHaveTextContent("New relationship");
     expect(within(panel()).getByTestId("add-relationship-form")).toBeTruthy();
     expect(rowOf("orders.customer_id").className).not.toContain("row-selected");
+  });
+
+  it("asks a new relationship only for what it needs to exist", () => {
+    render(<RelationshipsPage />);
+    fireEvent.click(screen.getByTestId("rels-add-toggle"));
+    const form = within(screen.getByTestId("add-relationship-form"));
+    expect(form.getByTestId("rel-form-id")).toBeTruthy();
+    expect(form.getByText("Source Table")).toBeTruthy();
+    expect(form.getByText("Cardinality")).toBeTruthy();
+    // The rest is edited in the detail the save opens.
+    expect(form.queryByTestId("rel-form-alias")).toBeNull();
+    expect(form.queryByTestId("rel-form-graphql-alias")).toBeNull();
+    expect(form.queryByTestId("rel-form-refresh-interval")).toBeNull();
+    expect(form.queryByText(/Materialize/)).toBeNull();
+    expect(form.queryByText(/Junction table/)).toBeNull();
   });
 
   it("opens the reverse form in the panel, with a way back to the relationship", () => {

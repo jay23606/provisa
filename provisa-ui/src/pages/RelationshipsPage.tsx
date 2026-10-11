@@ -159,7 +159,7 @@ export function RelationshipsPage() {
     if (form.targetType === "table" && !form.targetTableId) return;
     if (form.targetType === "function" && !form.targetFunctionName) return;
     setSaving("new");
-    await upsertRelationship({
+    const result = await upsertRelationship({
       id: form.id,
       sourceTableId: form.sourceTableId,
       targetTableId: form.targetType === "table" ? form.targetTableId : "",
@@ -182,6 +182,12 @@ export function RelationshipsPage() {
       viaLabelSource: form.viaLabelSource,
     });
     setSaving(null);
+    if (result.success) {
+      // The relationship exists now, with everything else at its defaults: it is selected in the
+      // list and its detail opens in edit, where the rest is filled in.
+      setExpanded(form.id);
+      setEditingRel({ ...form, originalId: form.id });
+    }
     setForm(EMPTY_FORM);
     setShowForm(false);
   }, [form, upsertRelationship]);
@@ -619,17 +625,19 @@ export function RelationshipsPage() {
         }}
         list={
           <>
-            <ListTable testId="relationships-list" style={{ tableLayout: "fixed" }}>
+            {/* As on Tables: every column keeps its width and a name stays on one line; what the
+                panel leaves too little room for scrolls sideways. */}
+            <ListTable testId="relationships-list">
               <ListHead
                 sortGroup={sortGroup}
                 columns={[
-                  ...(domainsEnabled ? [{ col: "domain", width: "7%" }] : []),
-                  { col: "source", width: "22%" },
-                  { col: "target", width: "22%" },
-                  { label: t("relationshipsPage.gqlCqlAlias"), width: "20%" },
-                  { col: "cardinality", width: "11%" },
-                  { col: "materialize", width: "10%" },
-                  { label: t("relationshipsPage.refreshSeconds"), width: "8%" },
+                  ...(domainsEnabled ? [{ col: "domain" }] : []),
+                  { col: "source" },
+                  { col: "target" },
+                  { label: t("relationshipsPage.gqlCqlAlias") },
+                  { col: "cardinality" },
+                  { col: "materialize" },
+                  { label: t("relationshipsPage.refreshSeconds") },
                 ]}
               />
               <Table.Tbody>

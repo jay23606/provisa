@@ -69,6 +69,11 @@
     "deleteRoleTitle": "Rolle „{{id}}“ löschen?",
     "deleteRoleConsequence": "Die Rolle wird entfernt. Eine Rolle, die noch verwendet wird, kann nicht gelöscht werden.",
     "deleteRuleTitle": "Diese RLS-Regel löschen?",
-    "deleteRuleConsequence": "Die Rolle „{{role}}“ wird durch diese Regel nicht mehr eingeschränkt."
+    "deleteRuleConsequence": "Die Rolle „{{role}}“ wird durch diese Regel nicht mehr eingeschränkt.",
+    "roleDetailPanel": "Details der Rolle",
+    "ruleDetailPanel": "Details der RLS-Regel",
+    "panelNewRole": "Neue Rolle",
+    "panelNewRule": "Neue RLS-Regel",
+    "panelRule": "RLS-Regel {{id}}"
   }
 }

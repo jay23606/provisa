@@ -56,7 +56,7 @@ export function RelationshipRow({
         {domainsEnabled && (
           <td style={{ whiteSpace: "nowrap" }}>{r.sourceDomainId || t("relationshipRow.none")}</td>
         )}
-        <td style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}>
+        <td style={{ whiteSpace: "nowrap" }}>
           <Group gap="0.4rem" wrap="nowrap">
             {r.autoSuggested && (
               <Badge
@@ -84,7 +84,7 @@ export function RelationshipRow({
             <TagControl objectType="relationship" relationshipId={String(r.id)} />
           </Group>
         </td>
-        <td style={{ wordBreak: "break-all", overflowWrap: "anywhere" }}>{targetLabel}</td>
+        <td style={{ whiteSpace: "nowrap" }}>{targetLabel}</td>
         <td>
           <div style={{ fontSize: "0.8rem", lineHeight: 1.4 }}>
             <div>

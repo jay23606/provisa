@@ -25,13 +25,18 @@ vi.mock("../../context/DomainFilterContext", () => ({
   }),
 }));
 
+// Stable: a hook that answered a new array each render would re-run the page's effects.
+const LIMIT_ROLES = [
+  { id: "analyst", capabilities: [], demonstrated: [], domain_access: ["*"], parentRoleId: null },
+];
+
 // Spread the real module: vmThreads + fileParallelism:false share one module registry, so a
 // replace-everything factory here leaks into other files. In particular a stubbed
 // useMaterializeStoreInfo would win over the real Apollo hook that
 // TableEditForm.consistency drives through MockedProvider.
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminQueries")>()),
-  useRoles: () => ({ roles: [], loading: false, refetch: vi.fn() }),
+  useRoles: () => ({ roles: LIMIT_ROLES, loading: false, refetch: vi.fn() }),
   useTables: () => ({ tables: [], loading: false, refetch: vi.fn() }),
   useDomains: () => ({ domains: [], loading: false, refetch: vi.fn() }),
 }));
@@ -69,13 +74,28 @@ function renderPage() {
   return render(<SecurityPage />);
 }
 
+// A role's limits are set in its detail: a new role is first created with what it needs to exist.
+function editRole(id: string) {
+  fireEvent.click(within(screen.getByTestId("roles-list")).getByText(id));
+  fireEvent.click(screen.getByTestId(`edit-role-${id}`));
+}
+
 // Mantine spreads data-testid onto the underlying <input>, so the testid IS the input element.
 const input = (testid: string) => screen.getByTestId(testid) as HTMLInputElement;
 
 describe("SecurityPage — per-role rate & query-complexity limits (REQ-1174)", () => {
-  it("renders the limit fields when the role form is open", () => {
+  it("asks a new role for no limits: they are set once it exists", () => {
     renderPage();
     fireEvent.click(screen.getByTestId("toggle-role-form"));
+    expect(screen.getByTestId("role-id-input")).toBeInTheDocument();
+    expect(screen.queryByTestId("role-req-per-sec")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("role-max-complexity")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("role-max-time-ms")).not.toBeInTheDocument();
+  });
+
+  it("renders the limit fields when a role is edited", () => {
+    renderPage();
+    editRole("analyst");
     expect(screen.getByTestId("role-req-per-sec")).toBeInTheDocument();
     expect(screen.getByTestId("role-max-complexity")).toBeInTheDocument();
     // REQ-1174: the depth and node limits measured a GraphQL document; one complexity limit
@@ -88,15 +108,13 @@ describe("SecurityPage — per-role rate & query-complexity limits (REQ-1174)", 
   it("stages the entered limits through upsertRole", async () => {
     upsertRoleSpy.mockClear();
     renderPage();
-    fireEvent.click(screen.getByTestId("toggle-role-form"));
+    editRole("analyst");
 
-    fireEvent.change(input("role-id-input"), { target: { value: "analyst" } });
     fireEvent.change(input("role-req-per-sec"), { target: { value: "5" } });
     fireEvent.change(input("role-max-complexity"), { target: { value: "200" } });
     fireEvent.change(input("role-max-time-ms"), { target: { value: "3000" } });
-    await chooseAllDomains();
 
-    fireEvent.click(screen.getByTestId("save-role"));
+    fireEvent.click(screen.getByTestId("save-role-analyst"));
 
     await waitFor(() => expect(upsertRoleSpy).toHaveBeenCalledTimes(1));
     expect(upsertRoleSpy).toHaveBeenCalledWith(

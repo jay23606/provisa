@@ -69,6 +69,11 @@
     "deleteRoleTitle": "Rol \"{{id}}\" verwijderen?",
     "deleteRoleConsequence": "De rol wordt verwijderd. Een rol die nog in gebruik is, kan niet worden verwijderd.",
     "deleteRuleTitle": "Deze RLS-regel verwijderen?",
-    "deleteRuleConsequence": "Rol \"{{role}}\" wordt niet langer door deze regel beperkt."
+    "deleteRuleConsequence": "Rol \"{{role}}\" wordt niet langer door deze regel beperkt.",
+    "roleDetailPanel": "Details van de rol",
+    "ruleDetailPanel": "Details van de RLS-regel",
+    "panelNewRole": "Nieuwe rol",
+    "panelNewRule": "Nieuwe RLS-regel",
+    "panelRule": "RLS-regel {{id}}"
   }
 }

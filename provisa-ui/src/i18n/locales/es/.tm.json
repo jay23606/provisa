@@ -5600,5 +5600,11 @@
   "es/viewDefinitionForm.json::viewDefinitionForm.save": "Save view",
   "es/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "es/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
+  "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
+  "es/securityPage.json::securityPage.roleDetailPanel": "Role details",
+  "es/securityPage.json::securityPage.ruleDetailPanel": "RLS rule details",
+  "es/securityPage.json::securityPage.panelNewRole": "New role",
+  "es/securityPage.json::securityPage.panelNewRule": "New RLS rule",
+  "es/securityPage.json::securityPage.panelRule": "RLS rule {{id}}",
+  "es/metricsPage.json::metricsPage.detailPanel": "Metric details"
 }
