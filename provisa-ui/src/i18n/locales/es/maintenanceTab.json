@@ -1,0 +1,20 @@
+{
+  "maintenanceTab": {
+    "title": "Mantenimiento programado",
+    "intro": "Muestra un aviso a todos los usuarios con sesión iniciada, en todas las páginas, hasta que lo desactive. Actívelo antes de un trabajo planificado que interrumpa las consultas —sustituir el clúster del motor, cambiar su topología o actualizar el plano de control— para que la interrupción se entienda como programada y no como una avería.",
+    "live": "El aviso está activo.",
+    "liveSince": "El aviso está activo desde {{time}}.",
+    "messageLabel": "Mensaje",
+    "messagePlaceholder": "Provisa está en mantenimiento programado…",
+    "messageHint": "Déjelo vacío para usar el texto estándar.",
+    "endsAtLabel": "Vuelta prevista",
+    "endsAtHint": "Déjelo vacío para indicar que no se ofrece ninguna estimación, en lugar de dar a entender una.",
+    "showBanner": "Mostrar aviso",
+    "updateBanner": "Actualizar aviso",
+    "clearBanner": "Quitar aviso",
+    "dangerTitle": "Zona de peligro",
+    "dangerIntro": "Detiene el backend y el servidor de desarrollo de la interfaz en esta máquina. Solo funciona con un inicio de escritorio --demo/--native; se rechaza en cualquier otro caso.",
+    "stopAll": "Detener todos los servicios",
+    "stopConfirm": "¿Detener el backend y el servidor de desarrollo de la interfaz en esta máquina? Su sesión terminará de inmediato."
+  }
+}

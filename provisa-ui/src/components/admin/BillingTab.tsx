@@ -24,6 +24,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import {
   BillingError,
@@ -74,6 +75,7 @@ function daysUntil(iso: string): number {
  * moves the engine (REQ-1510).
  */
 function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void }) {
+  const { t } = useTranslation();
   const [offers, setOffers] = useState<PlanOffers | null>(null);
   const [target, setTarget] = useState<PlanOffer | null>(null);
   const [changing, setChanging] = useState(false);
@@ -89,6 +91,16 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
   useEffect(loadPlans, [loadPlans]);
 
   if (offers === null) return null;
+
+  // A fixed price as it is said: the amount, its interval where it has one, and whether it is a
+  // minimum that metered usage counts against.
+  const price = (cents: number, interval: string | null, kind: string | null) => {
+    const amount = formatMoney(cents);
+    if (interval && kind === "minimum")
+      return t("billingTab.pricePerMinimum", { amount, interval });
+    if (interval) return t("billingTab.pricePer", { amount, interval });
+    return kind === "minimum" ? t("billingTab.priceMinimum", { amount }) : amount;
+  };
 
   // The direction is read from the order the server sends the plans in, not from a ranking of plan
   // names held here — the money it decides the wording for is still the merchant of record's.
@@ -126,37 +138,45 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
   return (
     <Card withBorder padding="lg" data-testid="billing-plans">
       <Title order={4} mb="sm">
-        Plans
+        {t("billingTab.plansTitle")}
       </Title>
       <Stack gap="sm">
         {refused && (
-          <Alert color="red" title="Plan change" data-testid="billing-plan-refused">
+          <Alert
+            color="red"
+            title={t("billingTab.planChangeTitle")}
+            data-testid="billing-plan-refused"
+          >
             {refused}
           </Alert>
         )}
         {result && (
           <Alert
             color={result.engine_error ? "orange" : "green"}
-            title={`Now on ${planName(result.plan)}`}
+            title={t("billingTab.nowOn", { plan: planName(result.plan) })}
             data-testid="billing-plan-changed"
           >
             <Stack gap="xs">
               <Text size="sm">
                 {result.prorated === "charged_now"
-                  ? "The difference for the rest of this period has been charged."
-                  : "A credit for the rest of this period lands on your next invoice."}
+                  ? t("billingTab.proratedCharged")
+                  : t("billingTab.proratedCredit")}
               </Text>
               {result.engine_error ? (
                 <Text size="sm">
-                  Your plan changed, but moving your engine did not finish: {result.engine_error}
+                  {t("billingTab.engineMoveFailed", { error: result.engine_error })}
                 </Text>
               ) : result.engine?.lane === "isolated" ? (
                 <Text size="sm">
-                  Your queries now run on a dedicated {result.engine.size?.machine_type} engine
-                  {result.engine.size ? ` (${result.engine.size.label})` : ""}.
+                  {result.engine.size
+                    ? t("billingTab.engineDedicatedSized", {
+                        machine: result.engine.size.machine_type,
+                        size: result.engine.size.label,
+                      })
+                    : t("billingTab.engineDedicated", { machine: "" })}
                 </Text>
               ) : result.engine?.lane === "shared" ? (
-                <Text size="sm">Your queries now run on the shared engine.</Text>
+                <Text size="sm">{t("billingTab.engineShared")}</Text>
               ) : null}
             </Stack>
           </Alert>
@@ -177,24 +197,26 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
                       <Text fw={600}>{planName(offer.plan)}</Text>
                       {current && (
                         <Badge color="green" data-testid={`billing-plan-current-${offer.plan}`}>
-                          Current plan
+                          {t("billingTab.currentPlan")}
                         </Badge>
                       )}
                     </Group>
                     {offer.fixed_cents != null && (
                       <Text size="sm">
-                        {formatMoney(offer.fixed_cents)}
-                        {offer.fixed_interval ? ` per ${offer.fixed_interval}` : ""}
-                        {offer.fixed_kind === "minimum" ? " minimum" : ""}
+                        {price(offer.fixed_cents, offer.fixed_interval, offer.fixed_kind)}
                       </Text>
                     )}
                     <Text size="sm" c="dimmed">
                       {offer.engine
-                        ? `Dedicated engine — ${offer.engine.machine_type}, ${offer.engine.vcpu} vCPU, ${offer.engine.memory_gib} GiB`
-                        : "Shared engine"}
+                        ? t("billingTab.offerDedicated", {
+                            machine: offer.engine.machine_type,
+                            vcpu: offer.engine.vcpu,
+                            memory: offer.engine.memory_gib,
+                          })
+                        : t("billingTab.offerShared")}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Up to {offer.source_limit} data sources
+                      {t("billingTab.sourceLimit", { limit: offer.source_limit })}
                     </Text>
                   </Stack>
                   {!current && (
@@ -204,7 +226,7 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
                       onClick={() => setTarget(offer)}
                       data-testid={`billing-choose-${offer.plan}`}
                     >
-                      Change to {planName(offer.plan)}
+                      {t("billingTab.changeTo", { plan: planName(offer.plan) })}
                     </Button>
                   )}
                 </Stack>
@@ -217,30 +239,26 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
       <Modal
         opened={target !== null}
         onClose={() => (changing ? undefined : setTarget(null))}
-        title={target ? `Change to ${planName(target.plan)}` : ""}
+        title={target ? t("billingTab.changeTo", { plan: planName(target.plan) }) : ""}
       >
         {target && (
           <Stack gap="sm">
             <Text size="sm">
-              {upgrade
-                ? "The difference for the remainder of this period is charged now."
-                : "A credit for the remainder of this period lands on your next invoice rather than as a refund."}
+              {upgrade ? t("billingTab.confirmUpgrade") : t("billingTab.confirmDowngrade")}
             </Text>
             <Text size="sm">
               {target.engine
-                ? `A dedicated ${target.engine.machine_type} engine is started for this organization. It takes a minute or two to come up.`
-                : "This organization moves to the shared engine, and its dedicated engine is released."}
+                ? t("billingTab.confirmDedicated", { machine: target.engine.machine_type })
+                : t("billingTab.confirmShared")}
             </Text>
-            {offers.on_trial && (
-              <Text size="sm">Changing plan ends your trial now and begins billing.</Text>
-            )}
+            {offers.on_trial && <Text size="sm">{t("billingTab.trialEndsOnChange")}</Text>}
             {changing && (
               <Group gap="xs" data-testid="billing-plan-progress">
                 <Loader size="xs" />
                 <Text size="sm">
                   {target.engine
-                    ? "Changing your plan and starting your engine…"
-                    : "Changing your plan and moving your engine…"}
+                    ? t("billingTab.progressStarting")
+                    : t("billingTab.progressMoving")}
                 </Text>
               </Group>
             )}
@@ -249,7 +267,7 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
               cancelProps={{ disabled: changing }}
               action={
                 <Button onClick={confirm} loading={changing} data-testid="billing-plan-confirm">
-                  Change plan
+                  {t("billingTab.changePlan")}
                 </Button>
               }
             />
@@ -271,6 +289,7 @@ function PlanCards({ orgId, onChanged }: { orgId: string; onChanged: () => void 
  * with the invoice the customer receives.
  */
 export function BillingTab() {
+  const { t } = useTranslation();
   const { activeOrgId } = useAuth();
   const appearance = useCheckoutAppearance();
   const [summary, setSummary] = useState<BillingSummary | null>(null);
@@ -287,7 +306,7 @@ export function BillingTab() {
   useEffect(load, [load]);
 
   if (!activeOrgId) {
-    return <Text c="dimmed">Select an organization to see its billing.</Text>;
+    return <Text c="dimmed">{t("billingTab.selectOrg")}</Text>;
   }
 
   const begin = async () => {
@@ -354,15 +373,14 @@ export function BillingTab() {
   return (
     <Stack gap="md">
       <div>
-        <Title order={3}>Billing</Title>
+        <Title order={3}>{t("billingTab.title")}</Title>
         <Text c="dimmed" size="sm">
-          The plan this organization is on, what it has used so far this month, and when the card is
-          charged next.
+          {t("billingTab.intro")}
         </Text>
       </div>
 
       {error && (
-        <Alert color="red" title="Billing" data-testid="billing-error">
+        <Alert color="red" title={t("billingTab.title")} data-testid="billing-error">
           {error}
         </Alert>
       )}
@@ -370,25 +388,17 @@ export function BillingTab() {
       {offerTrial && (
         <Card withBorder padding="lg">
           <Stack gap="sm">
-            <Title order={4}>Start your free Provisa Starter trial</Title>
-            <Text size="sm">
-              Evaluate Starter on live data for 14 days. The trial ends at whichever comes first:
-            </Text>
+            <Title order={4}>{t("billingTab.trialOfferTitle")}</Title>
+            <Text size="sm">{t("billingTab.trialOfferIntro")}</Text>
             <List size="sm">
-              <List.Item>14 days</List.Item>
-              <List.Item>40 active hours — any hour in which you run at least one query</List.Item>
-              <List.Item>25 GB of egress</List.Item>
+              <List.Item>{t("billingTab.trialLimitDays")}</List.Item>
+              <List.Item>{t("billingTab.trialLimitHours")}</List.Item>
+              <List.Item>{t("billingTab.trialLimitEgress")}</List.Item>
             </List>
-            <Text size="sm">
-              A card is captured at signup as a $0 authorization and is not charged during the
-              trial. Card details are entered at Lemon Squeezy, our merchant of record, and never
-              reach Provisa. At the end of the trial the subscription converts to paid Starter —
-              $1.30 per active hour against a $25 monthly minimum, 25 GB of egress included and
-              $0.48 per GB beyond it. You can cancel at any point before it converts.
-            </Text>
+            <Text size="sm">{t("billingTab.trialTerms")}</Text>
             <Group>
               <Button onClick={begin} loading={busy} data-testid="billing-start-trial">
-                Start free trial
+                {t("billingTab.startTrial")}
               </Button>
             </Group>
           </Stack>
@@ -398,31 +408,43 @@ export function BillingTab() {
       {trial && (
         <Card withBorder padding="lg" data-testid="billing-trial">
           <Group justify="space-between" mb="sm">
-            <Title order={4}>Trial</Title>
+            <Title order={4}>{t("billingTab.trialTitle")}</Title>
             {trialRunning ? (
-              <Badge color="blue">{daysUntil(trial.ends_at)} days left</Badge>
+              <Badge color="blue">
+                {t("billingTab.daysLeft", { days: daysUntil(trial.ends_at) })}
+              </Badge>
             ) : (
-              <Badge color="green">Converted {formatDate(trial.converted_at!)}</Badge>
+              <Badge color="green">
+                {t("billingTab.converted", { date: formatDate(trial.converted_at!) })}
+              </Badge>
             )}
           </Group>
           <Stack gap="xs">
             <Text size="sm">
-              Started {formatDate(trial.started_at)}, ends {formatDate(trial.ends_at)}.
+              {t("billingTab.trialDates", {
+                start: formatDate(trial.started_at),
+                end: formatDate(trial.ends_at),
+              })}
             </Text>
             <Text size="sm">
-              Active hours: {trial.active_hours_used} of {trial.active_hours_included}
+              {t("billingTab.activeHours", {
+                used: trial.active_hours_used,
+                included: trial.active_hours_included,
+              })}
             </Text>
             <Progress
               value={(trial.active_hours_used / trial.active_hours_included) * 100}
-              aria-label="Trial active hours used"
+              aria-label={t("billingTab.activeHoursAria")}
             />
             <Text size="sm">
-              Egress: {formatBytes(trial.egress_bytes_used)} of{" "}
-              {formatBytes(trial.egress_bytes_included)}
+              {t("billingTab.egress", {
+                used: formatBytes(trial.egress_bytes_used),
+                included: formatBytes(trial.egress_bytes_included),
+              })}
             </Text>
             <Progress
               value={(trial.egress_bytes_used / trial.egress_bytes_included) * 100}
-              aria-label="Trial egress used"
+              aria-label={t("billingTab.egressAria")}
             />
             {trialRunning && (
               <Group mt="sm">
@@ -432,7 +454,7 @@ export function BillingTab() {
                   loading={busy}
                   data-testid="billing-cancel-trial"
                 >
-                  Cancel trial
+                  {t("billingTab.cancelTrial")}
                 </Button>
               </Group>
             )}
@@ -443,28 +465,46 @@ export function BillingTab() {
       {summary && (
         <Card withBorder padding="lg">
           <Group justify="space-between" mb="sm">
-            <Title order={4}>This month</Title>
+            <Title order={4}>{t("billingTab.monthTitle")}</Title>
             <Badge color={summary.entitled ? "green" : "gray"}>
               {summary.subscription_status ?? summary.plan}
             </Badge>
           </Group>
           <Stack gap="xs">
             <Text size="sm">
-              {formatDate(summary.period_start)} to {formatDate(summary.period_end)}
+              {t("billingTab.period", {
+                start: formatDate(summary.period_start),
+                end: formatDate(summary.period_end),
+              })}
             </Text>
             {sub?.fixed_cents != null && (
               <Text size="sm">
-                {sub.fixed_kind === "minimum" ? "Plan minimum" : "Plan fee"}:{" "}
-                {formatMoney(sub.fixed_cents)}
-                {sub.fixed_interval ? ` per ${sub.fixed_interval}` : ""}
-                {sub.variant_name ? ` — ${sub.variant_name}` : ""}
+                {t(
+                  `billingTab.${sub.fixed_kind === "minimum" ? "planMinimum" : "planFee"}${
+                    sub.variant_name ? "Variant" : ""
+                  }`,
+                  {
+                    // The label says whether it is a minimum; the price is the amount and interval.
+                    price: sub.fixed_interval
+                      ? t("billingTab.pricePer", {
+                          amount: formatMoney(sub.fixed_cents),
+                          interval: sub.fixed_interval,
+                        })
+                      : formatMoney(sub.fixed_cents),
+                    variant: sub.variant_name,
+                  },
+                )}
               </Text>
             )}
             {/* Quantities, not money: the metered charge is the one the merchant of record
                 invoices from posted usage records, and a total computed here would be a second
                 number that disagrees with it. */}
-            <Text size="sm">Active hours metered: {summary.active_hours}</Text>
-            <Text size="sm">Egress metered: {formatBytes(summary.egress_bytes)}</Text>
+            <Text size="sm">
+              {t("billingTab.activeHoursMetered", { hours: summary.active_hours })}
+            </Text>
+            <Text size="sm">
+              {t("billingTab.egressMetered", { amount: formatBytes(summary.egress_bytes) })}
+            </Text>
           </Stack>
         </Card>
       )}
@@ -474,19 +514,15 @@ export function BillingTab() {
       {summary && sub !== null && !summary.has_egress_subscription && (
         <Card withBorder padding="lg" data-testid="billing-add-transfer">
           <Stack gap="sm">
-            <Title order={4}>Data transfer</Title>
-            <Text size="sm">
-              Data transfer is billed on its own subscription — 25 GB included each month and $0.48
-              per GB beyond it. This organization does not have one yet, so the transfer it is
-              metering is not being billed.
-            </Text>
+            <Title order={4}>{t("billingTab.transferTitle")}</Title>
+            <Text size="sm">{t("billingTab.transferIntro")}</Text>
             <Group>
               <Button
                 onClick={addTransfer}
                 loading={busy}
                 data-testid="billing-add-transfer-button"
               >
-                Add data transfer
+                {t("billingTab.addTransfer")}
               </Button>
             </Group>
           </Stack>
@@ -496,35 +532,37 @@ export function BillingTab() {
       {sub && (
         <Card withBorder padding="lg" data-testid="billing-next-charge">
           <Title order={4} mb="sm">
-            Next charge
+            {t("billingTab.nextChargeTitle")}
           </Title>
           <Stack gap="xs">
             {sub.status === "cancelled" || sub.status === "expired" ? (
               <Text size="sm">
-                This subscription is {sub.status}
-                {sub.ends_at ? ` and access ends ${formatDate(sub.ends_at)}` : ""}. There is no
-                further charge.
+                {t(
+                  `billingTab.${sub.status === "cancelled" ? "subCancelled" : "subExpired"}${
+                    sub.ends_at ? "Access" : ""
+                  }`,
+                  { date: sub.ends_at ? formatDate(sub.ends_at) : "" },
+                )}
               </Text>
             ) : sub.status === "past_due" ? (
-              <Text size="sm">
-                The last payment failed. Update the payment method in the customer portal to keep
-                this organization running.
-              </Text>
+              <Text size="sm">{t("billingTab.paymentFailed")}</Text>
             ) : sub.renews_at ? (
               <Text size="sm">
-                {formatDate(sub.renews_at)}
                 {sub.fixed_cents == null
-                  ? ""
-                  : sub.fixed_kind === "minimum"
-                    ? `, at least ${formatMoney(sub.fixed_cents)} — metered usage counts against that minimum`
-                    : `, ${formatMoney(sub.fixed_cents)} plus metered usage`}
+                  ? formatDate(sub.renews_at)
+                  : t(
+                      sub.fixed_kind === "minimum"
+                        ? "billingTab.renewMinimum"
+                        : "billingTab.renewPlus",
+                      { date: formatDate(sub.renews_at), amount: formatMoney(sub.fixed_cents) },
+                    )}
               </Text>
             ) : (
-              <Text size="sm">No renewal date is set on this subscription.</Text>
+              <Text size="sm">{t("billingTab.noRenewal")}</Text>
             )}
             {sub.card_brand && sub.card_last_four && (
               <Text size="sm" c="dimmed">
-                {sub.card_brand} ending {sub.card_last_four}
+                {t("billingTab.cardEnding", { brand: sub.card_brand, last4: sub.card_last_four })}
               </Text>
             )}
             {summary?.has_portal && (
@@ -535,7 +573,7 @@ export function BillingTab() {
                   loading={busy}
                   data-testid="billing-portal"
                 >
-                  Payment method and invoices
+                  {t("billingTab.portal")}
                 </Button>
               </Group>
             )}

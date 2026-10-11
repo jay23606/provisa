@@ -64,6 +64,13 @@
     "writesTable": "写入表",
     "writesTableHint": "此命令更改的已注册表。每次调用后，该表的缓存结果和物化视图都会刷新。",
     "routinesOffered_one": "此架构中有 {{count}} 个例程可供选择",
-    "routinesOffered_other": "此架构中有 {{count}} 个例程可供选择"
+    "routinesOffered_other": "此架构中有 {{count}} 个例程可供选择",
+    "inputColumnsTitle": "输入数据集的列",
+    "addInputColumn": "添加输入列",
+    "removeInputColumn": "移除输入列 {{name}}",
+    "outputColumnsTitle": "输出数据集的列",
+    "addOutputColumn": "添加输出列",
+    "removeOutputColumn": "移除输出列 {{name}}",
+    "datasetColumnPlaceholder": "列"
   }
 }

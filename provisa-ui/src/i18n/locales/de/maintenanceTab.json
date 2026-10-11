@@ -1,0 +1,20 @@
+{
+  "maintenanceTab": {
+    "title": "Geplante Wartung",
+    "intro": "Zeigt allen angemeldeten Benutzern auf jeder Seite ein Banner, bis Sie es ausschalten. Schalten Sie es vor geplanten Arbeiten ein, die Abfragen unterbrechen – Austausch des Engine-Clusters, Wechsel seiner Topologie oder Upgrade der Control Plane –, damit die Unterbrechung als geplant und nicht als Störung erscheint.",
+    "live": "Das Banner ist aktiv.",
+    "liveSince": "Das Banner ist seit {{time}} aktiv.",
+    "messageLabel": "Nachricht",
+    "messagePlaceholder": "Provisa wird gerade planmäßig gewartet…",
+    "messageHint": "Leer lassen für den Standardtext.",
+    "endsAtLabel": "Voraussichtlich zurück um",
+    "endsAtHint": "Leer lassen, um keine Schätzung anzugeben, statt eine anzudeuten.",
+    "showBanner": "Banner anzeigen",
+    "updateBanner": "Banner aktualisieren",
+    "clearBanner": "Banner entfernen",
+    "dangerTitle": "Gefahrenzone",
+    "dangerIntro": "Stoppt das Backend und den UI-Entwicklungsserver auf diesem Rechner. Funktioniert nur bei einem Desktop-Start mit --demo/--native – überall sonst wird es abgelehnt.",
+    "stopAll": "Alle Dienste stoppen",
+    "stopConfirm": "Backend und UI-Entwicklungsserver auf diesem Rechner beenden? Ihre Sitzung endet sofort."
+  }
+}

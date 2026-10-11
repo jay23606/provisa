@@ -680,7 +680,7 @@ export function CommandFormFields({
                             data-testid={`dataset-columns-${i}`}
                           >
                             <Title order={6} c="dimmed" mb={4}>
-                              input dataset columns
+                              {t("commandFormFields.inputColumnsTitle")}
                             </Title>
                             {(arg.columns ?? []).map((col, ci) => (
                               <FieldGroup row key={ci}>
@@ -690,7 +690,7 @@ export function CommandFormFields({
                                     onChange={(e) =>
                                       changeArgColumn(i, ci, "name", e.currentTarget.value)
                                     }
-                                    placeholder="column"
+                                    placeholder={t("commandFormFields.datasetColumnPlaceholder")}
                                     size="xs"
                                     style={{ flex: 1, minWidth: 0 }}
                                   />
@@ -710,7 +710,9 @@ export function CommandFormFields({
                                 <ActionIcon
                                   variant="subtle"
                                   color="red"
-                                  aria-label={`remove input column ${col.name || ci + 1}`}
+                                  aria-label={t("commandFormFields.removeInputColumn", {
+                                    name: col.name || ci + 1,
+                                  })}
                                   onClick={() => removeArgColumn(i, ci)}
                                 >
                                   <X size={12} />
@@ -718,7 +720,7 @@ export function CommandFormFields({
                               </FieldGroup>
                             ))}
                             <Button variant="subtle" size="xs" onClick={() => addArgColumn(i)}>
-                              add input column
+                              {t("commandFormFields.addInputColumn")}
                             </Button>
                           </div>
                         )}
@@ -744,7 +746,7 @@ export function CommandFormFields({
                 <FormField size="full">
                   <div data-testid="output-columns">
                     <Title order={5} mb="xs">
-                      output dataset columns
+                      {t("commandFormFields.outputColumnsTitle")}
                     </Title>
                     {form.outputColumns.map((col, ci) => (
                       <React.Fragment key={ci}>
@@ -756,7 +758,7 @@ export function CommandFormFields({
                               onChange={(e) =>
                                 changeOutputColumn(ci, "name", e.currentTarget.value)
                               }
-                              placeholder="column"
+                              placeholder={t("commandFormFields.datasetColumnPlaceholder")}
                             />
                           </FormField>
                           <FormField size="medium">
@@ -770,7 +772,9 @@ export function CommandFormFields({
                           <ActionIcon
                             variant="subtle"
                             color="red"
-                            aria-label={`remove output column ${col.name || ci + 1}`}
+                            aria-label={t("commandFormFields.removeOutputColumn", {
+                              name: col.name || ci + 1,
+                            })}
                             onClick={() => removeOutputColumn(ci)}
                           >
                             <X size={14} />
@@ -785,7 +789,7 @@ export function CommandFormFields({
                       </React.Fragment>
                     ))}
                     <Button variant="subtle" size="xs" onClick={addOutputColumn}>
-                      add output column
+                      {t("commandFormFields.addOutputColumn")}
                     </Button>
                   </div>
                 </FormField>

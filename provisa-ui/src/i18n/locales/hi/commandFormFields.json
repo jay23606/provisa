@@ -64,6 +64,13 @@
     "writesTable": "तालिका में लिखता है",
     "writesTableHint": "वह पंजीकृत तालिका जिसे यह कमांड बदलता है। प्रत्येक कॉल के बाद उस पर कैश किए गए परिणाम और मटेरियलाइज़्ड व्यू रीफ़्रेश होते हैं।",
     "routinesOffered_one": "इस स्कीमा में {{count}} रूटीन उपलब्ध है",
-    "routinesOffered_other": "इस स्कीमा में {{count}} रूटीन उपलब्ध हैं"
+    "routinesOffered_other": "इस स्कीमा में {{count}} रूटीन उपलब्ध हैं",
+    "inputColumnsTitle": "इनपुट डेटासेट के कॉलम",
+    "addInputColumn": "इनपुट कॉलम जोड़ें",
+    "removeInputColumn": "इनपुट कॉलम {{name}} हटाएँ",
+    "outputColumnsTitle": "आउटपुट डेटासेट के कॉलम",
+    "addOutputColumn": "आउटपुट कॉलम जोड़ें",
+    "removeOutputColumn": "आउटपुट कॉलम {{name}} हटाएँ",
+    "datasetColumnPlaceholder": "कॉलम"
   }
 }

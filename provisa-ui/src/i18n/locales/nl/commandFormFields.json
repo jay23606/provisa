@@ -64,6 +64,13 @@
     "writesTable": "Schrijft tabel",
     "writesTableHint": "De geregistreerde tabel die deze opdracht wijzigt. Na elke aanroep worden gecachte resultaten en gematerialiseerde views erover vernieuwd.",
     "routinesOffered_one": "{{count}} routine in dit schema is beschikbaar",
-    "routinesOffered_other": "{{count}} routines in dit schema zijn beschikbaar"
+    "routinesOffered_other": "{{count}} routines in dit schema zijn beschikbaar",
+    "inputColumnsTitle": "kolommen van de invoerdataset",
+    "addInputColumn": "invoerkolom toevoegen",
+    "removeInputColumn": "invoerkolom {{name}} verwijderen",
+    "outputColumnsTitle": "kolommen van de uitvoerdataset",
+    "addOutputColumn": "uitvoerkolom toevoegen",
+    "removeOutputColumn": "uitvoerkolom {{name}} verwijderen",
+    "datasetColumnPlaceholder": "kolom"
   }
 }
