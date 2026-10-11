@@ -6,6 +6,12 @@
     "admin": "Un administrateur vous a ajouté à {{org}}.",
     "ack": "Compris",
     "leave": "Ce n'est pas mon organisation",
-    "leaveError": "Impossible de quitter l'organisation."
+    "leaveError": "Impossible de quitter l'organisation.",
+    "sandboxIntro": "Vous êtes sur notre instance de démarrage partagée, dans un environnement isolé qui vous est propre. Les données d'exemple sont une copie privée — rien de ce que vous faites ici n'est visible par un autre visiteur, et rien ici ne touche aux données de quelqu'un d'autre.",
+    "sandboxOpen": "Presque toutes les opérations vous sont ouvertes : enregistrez vos propres sources, modélisez-les, écrivez des politiques et des règles de masquage, et interrogez le résultat en SQL, GraphQL ou Cypher.",
+    "sandboxHeldBack": "Sont réservés les contrôles à l'échelle de l'organisation — changer ou gérer les environnements, inviter des personnes et attribuer des rôles, les paramètres de l'organisation et l'observabilité à l'échelle de l'organisation. Ces pages restent visibles, signalées comme faisant partie du système de production.",
+    "sandboxTemporary": "Votre environnement est temporaire. La déconnexion l'efface, et il est aussi récupéré après un jour d'inactivité. Rien de ce que vous construisez ici n'est destiné à être conservé.",
+    "sandboxUpgrade": "Lorsque vous serez prêt pour une organisation durable, passez à une offre Starter.",
+    "sandboxAck": "Commencer à explorer"
   }
 }

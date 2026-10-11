@@ -34,6 +34,11 @@
     "operatorSignInTitle": "Accesso operatore",
     "backToSignIn": "Torna all'accesso",
     "signInWithSso": "Accedi con Single Sign-On",
-    "samlSignInFailed": "L'accesso Single Sign-On non è stato completato. Riprova o rivolgiti all'amministratore."
+    "samlSignInFailed": "L'accesso Single Sign-On non è stato completato. Riprova o rivolgiti all'amministratore.",
+    "sandboxBuildingTitle": "Creazione della tua sandbox…",
+    "sandboxBuildingBody": "Stiamo preparando una copia privata dei dati di esempio solo per te: possono volerci un paio di minuti.",
+    "sandboxTryTitle": "Prova Provisa gratis",
+    "sandboxTryBody": "Esplora l'intera piattaforma con dati di esempio, senza carta di credito. La tua sandbox è temporanea: scompare quando esci.",
+    "sandboxHeading": "Prova Provisa"
   }
 }

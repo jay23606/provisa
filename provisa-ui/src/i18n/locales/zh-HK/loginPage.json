@@ -34,6 +34,11 @@
     "operatorSignInTitle": "營運人員登入",
     "backToSignIn": "返回登入",
     "signInWithSso": "使用單一登入",
-    "samlSignInFailed": "單一登入未完成。請重試，或聯絡管理員。"
+    "samlSignInFailed": "單一登入未完成。請重試，或聯絡管理員。",
+    "sandboxBuildingTitle": "正在建構您的沙盒…",
+    "sandboxBuildingBody": "正在為您單獨準備一份範例資料的私人副本——這可能需要幾分鐘。",
+    "sandboxTryTitle": "免費試用 Provisa",
+    "sandboxTryBody": "使用範例資料探索整個平台——無需信用卡。您的沙盒是臨時的：登出後即消失。",
+    "sandboxHeading": "試用 Provisa"
   }
 }

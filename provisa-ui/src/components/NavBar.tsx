@@ -395,25 +395,23 @@ export function NavBar() {
       <Modal
         opened={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        title="Ready to Build?"
+        title={t("navBar.sandboxExitTitle")}
         centered
         size="sm"
       >
         <Stack gap="md">
-          <Text size="sm">
-            Your sandbox account will be deleted when you log out. You can always create a new
-            sandbox account by using the invite link again.
-          </Text>
-          <Text size="sm">
-            Ready to create your own organization and start with a Starter plan? You'll get 14 days
-            free.
-          </Text>
+          <Text size="sm">{t("navBar.sandboxExitDeleted")}</Text>
+          <Text size="sm">{t("navBar.sandboxExitUpgrade")}</Text>
           {/* The dialog's action first, then the other, at the start of the line. */}
           <FormFooter
-            action={<Button onClick={() => navigate("/admin/orgs")}>Create Organization</Button>}
+            action={
+              <Button onClick={() => navigate("/admin/orgs")}>
+                {t("navBar.sandboxExitCreateOrg")}
+              </Button>
+            }
           >
             <Button variant="default" onClick={proceedWithLogout}>
-              Just Log Out
+              {t("navBar.sandboxExitLogOut")}
             </Button>
           </FormFooter>
         </Stack>

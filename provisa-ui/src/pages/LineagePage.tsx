@@ -13,6 +13,7 @@
 // federation-wide provenance graph over every view/MV with cycles characterized.
 
 import { LINEAGE_EDITOR_PANEL_STYLE, LINEAGE_CONTROLS_PANEL_STYLE } from "./lineageLayout";
+import { Trans, useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -74,6 +75,7 @@ function loadStoredCollapsed(): Set<string> {
 }
 
 export function LineagePage(): React.ReactElement {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const [sql, setSql] = useState(
     params.get("sql") || sessionStorage.getItem(SQL_KEY) || DEFAULT_SQL,
@@ -203,12 +205,9 @@ export function LineagePage(): React.ReactElement {
     // The graph panel grows to the bottom of the page rather than ending at a fixed height, so the
     // canvas is as tall as the window allows and the DAG is not read through a letterbox.
     <Stack p="md" gap="md" style={{ flex: 1, minHeight: 0 }}>
-      <Title order={3}>Data Lineage</Title>
+      <Title order={3}>{t("lineagePage.title")}</Title>
       <Text c="dimmed" size="sm">
-        Trace where data comes from. Paste a query below and Provisa maps each result column back
-        through its transforms and command calls to the original source columns — so you can answer
-        "what feeds this column?" before you publish a view or command. Or choose{" "}
-        <b>Complete Lineage</b> to see provenance across every registered view and dataset at once.
+        <Trans i18nKey="lineagePage.intro" components={{ b: <b /> }} />
       </Text>
       {/* The editor stretches to the height of the control column beside it, so the two read as
           one row whatever the query's length. */}
@@ -216,12 +215,8 @@ export function LineagePage(): React.ReactElement {
         <Input.Wrapper
           label={
             <Group gap={4} component="span">
-              Query to analyze
-              <Tooltip
-                multiline
-                w={360}
-                label="Any SELECT that reads your registered tables, views, or commands. This query is only analyzed, never run — nothing is executed and no data is read."
-              >
+              {t("lineagePage.queryLabel")}
+              <Tooltip multiline w={360} label={t("lineagePage.queryHelp")}>
                 <Text
                   span
                   size="xs"
@@ -267,11 +262,11 @@ export function LineagePage(): React.ReactElement {
               basicSetup={{ lineNumbers: true, highlightActiveLine: true, foldGutter: false }}
               style={{ fontSize: "0.85rem", flex: 1 }}
             />
-            <Tooltip label={sqlCopied ? "Copied" : "Copy query"}>
+            <Tooltip label={sqlCopied ? t("lineagePage.copied") : t("lineagePage.copy")}>
               <ActionIcon
                 variant="default"
                 size="sm"
-                aria-label="Copy query"
+                aria-label={t("lineagePage.copy")}
                 data-testid="lineage-copy"
                 onClick={() => {
                   navigator.clipboard.writeText(sql);
@@ -297,8 +292,8 @@ export function LineagePage(): React.ReactElement {
           <CapabilityGate capability="view_governance">
             <MultiSelect
               size="xs"
-              label="Lineage for role"
-              placeholder={lineageRoles.length ? undefined : "All roles"}
+              label={t("lineagePage.roleLabel")}
+              placeholder={lineageRoles.length ? undefined : t("lineagePage.allRoles")}
               data={orgRoles}
               value={lineageRoles}
               onChange={setLineageRoles}
@@ -314,7 +309,7 @@ export function LineagePage(): React.ReactElement {
               loading={loading}
               data-testid="lineage-build"
             >
-              Statement Lineage
+              {t("lineagePage.statement")}
             </Button>
             <CapabilityGate capability="view_governance">
               <Button
@@ -332,7 +327,7 @@ export function LineagePage(): React.ReactElement {
                 loading={loading}
                 data-testid="lineage-federation"
               >
-                Complete Lineage
+                {t("lineagePage.complete")}
               </Button>
             </CapabilityGate>
           </Group>
@@ -340,7 +335,7 @@ export function LineagePage(): React.ReactElement {
       </Group>
 
       {error && (
-        <Alert color="red" title="Lineage error" data-testid="lineage-error">
+        <Alert color="red" title={t("lineagePage.error")} data-testid="lineage-error">
           {error}
         </Alert>
       )}
@@ -348,7 +343,7 @@ export function LineagePage(): React.ReactElement {
       {cycles.length > 0 && (
         <Alert
           color={cycles.some((c) => c.classification === "error") ? "red" : "yellow"}
-          title="Cycles detected"
+          title={t("lineagePage.cyclesTitle")}
         >
           <Stack gap={4}>
             {cycles.map((c, i) => (
@@ -358,8 +353,8 @@ export function LineagePage(): React.ReactElement {
                 </Badge>
                 {c.nodes.join(" → ")}
                 {c.classification === "feedback"
-                  ? " (legal — crosses a materialized boundary)"
-                  : " (no materialization boundary — likely a design error)"}
+                  ? ` ${t("lineagePage.cycleFeedback")}`
+                  : ` ${t("lineagePage.cycleError")}`}
               </Text>
             ))}
           </Stack>
@@ -367,10 +362,8 @@ export function LineagePage(): React.ReactElement {
       )}
 
       {graph && graph.nodes.length === 0 && (
-        <Alert color="gray" title="Nothing to show" data-testid="lineage-empty">
-          No lineage was found. Complete Lineage spans your registered views — none are defined yet,
-          so there is nothing to trace. Register a view (Model → Views), or analyze a query above to
-          see its lineage directly.
+        <Alert color="gray" title={t("lineagePage.emptyTitle")} data-testid="lineage-empty">
+          {t("lineagePage.emptyBody")}
         </Alert>
       )}
 
@@ -405,7 +398,7 @@ export function LineagePage(): React.ReactElement {
         opened={modalOpen && !!graph}
         onClose={() => setModalOpen(false)}
         size="90%"
-        title="Data Lineage"
+        title={t("lineagePage.title")}
         data-testid="lineage-modal"
         styles={{ body: { padding: 0 } }}
       >

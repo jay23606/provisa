@@ -6,6 +6,12 @@
     "admin": "Un amministratore ti ha aggiunto a {{org}}.",
     "ack": "Ho capito",
     "leave": "Questa non è la mia organizzazione",
-    "leaveError": "Non è stato possibile lasciare l'organizzazione."
+    "leaveError": "Non è stato possibile lasciare l'organizzazione.",
+    "sandboxIntro": "Sei sulla nostra istanza starter condivisa, in un ambiente isolato tutto tuo. I dati di esempio sono una copia privata: nulla di ciò che fai qui è visibile a un altro visitatore e nulla qui tocca i dati di qualcun altro.",
+    "sandboxOpen": "Quasi ogni operazione ti è aperta: registra le tue fonti, modellale, scrivi criteri e regole di mascheramento e interroga il risultato in SQL, GraphQL o Cypher.",
+    "sandboxHeldBack": "Restano riservati i controlli a livello di organizzazione: cambiare o gestire gli ambienti, invitare persone e conferire ruoli, le impostazioni dell'organizzazione e l'osservabilità a livello di organizzazione. Quelle pagine restano visibili, contrassegnate come parte del sistema di produzione.",
+    "sandboxTemporary": "Il tuo ambiente è temporaneo. La disconnessione lo cancella, e viene anche recuperato dopo un giorno di inattività. Nulla di ciò che costruisci qui è pensato per essere conservato.",
+    "sandboxUpgrade": "Quando sei pronto per un'organizzazione che persiste, passa a un piano Starter.",
+    "sandboxAck": "Inizia a esplorare"
   }
 }

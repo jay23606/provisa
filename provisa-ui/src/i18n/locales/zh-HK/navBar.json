@@ -64,6 +64,11 @@
     "profile": "個人檔案",
     "settings": "設定",
     "logout": "登出",
-    "dev": "DEV"
+    "dev": "DEV",
+    "sandboxExitTitle": "準備好開始建構了嗎？",
+    "sandboxExitDeleted": "您的沙盒帳戶將在登出時刪除。您隨時可以再次使用邀請連結建立新的沙盒帳戶。",
+    "sandboxExitUpgrade": "準備好建立自己的組織並從 Starter 計劃開始了嗎？您將獲得 14 天免費試用。",
+    "sandboxExitCreateOrg": "建立組織",
+    "sandboxExitLogOut": "只登出"
   }
 }

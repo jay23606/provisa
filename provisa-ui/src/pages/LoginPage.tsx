@@ -454,23 +454,21 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
       <Alert
         color="violet"
         mb="md"
-        title="Building your sandbox…"
+        title={t("loginPage.sandboxBuildingTitle")}
         icon={<Loader color="violet" size="sm" data-testid="sandbox-provisioning-spinner" />}
         data-testid="sandbox-provisioning-notice"
       >
-        Setting up a private copy of the sample data just for you — this can take a couple of
-        minutes.
+        {t("loginPage.sandboxBuildingBody")}
       </Alert>
     ) : (
       <Alert
         color="violet"
         mb="md"
-        title="Try Provisa Free"
+        title={t("loginPage.sandboxTryTitle")}
         icon={<Text size="xl">✨</Text>}
         data-testid="sandbox-notice"
       >
-        Explore the full platform with sample data — no credit card required. Your sandbox is
-        temporary: it disappears when you log out.
+        {t("loginPage.sandboxTryBody")}
       </Alert>
     )
   ) : null;
@@ -518,7 +516,7 @@ export function LoginPage({ onLoginSuccess, authDisabled }: LoginPageProps) {
         <OrgBrandingHeader branding={branding} />
         <Title order={2}>
           {isSandbox
-            ? "Try Provisa"
+            ? t("loginPage.sandboxHeading")
             : firstLogin
               ? t("loginPage.firstLoginHeading")
               : t("loginPage.signInTitle")}

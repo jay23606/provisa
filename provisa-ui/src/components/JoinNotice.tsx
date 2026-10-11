@@ -85,28 +85,12 @@ export function JoinNotice() {
       <Stack gap="md">
         {isSandbox ? (
           <Stack gap="sm" data-testid="join-notice-sandbox">
-            <Text>
-              You are on our shared starter instance, in an isolated environment of your own. The
-              sample data is a private copy — nothing you do here is visible to another visitor, and
-              nothing here touches anyone else's data.
-            </Text>
+            <Text>{t("joinNotice.sandboxIntro")}</Text>
             <List size="sm" spacing="xs">
-              <List.Item>
-                Almost every operation is open to you: register your own sources, model them, write
-                policies and masking rules, and query the result in SQL, GraphQL, or Cypher.
-              </List.Item>
-              <List.Item>
-                Held back are the org-wide controls — switching or managing environments, inviting
-                people and conferring roles, org settings, and org-wide observability. Those pages
-                stay visible, marked as part of the production system.
-              </List.Item>
-              <List.Item>
-                Your environment is temporary. Signing out wipes it, and it is also reclaimed after
-                a day of inactivity. Nothing you build here is meant to be kept.
-              </List.Item>
-              <List.Item>
-                When you are ready for an organization that persists, upgrade to a Starter plan.
-              </List.Item>
+              <List.Item>{t("joinNotice.sandboxOpen")}</List.Item>
+              <List.Item>{t("joinNotice.sandboxHeldBack")}</List.Item>
+              <List.Item>{t("joinNotice.sandboxTemporary")}</List.Item>
+              <List.Item>{t("joinNotice.sandboxUpgrade")}</List.Item>
             </List>
           </Stack>
         ) : (
@@ -127,7 +111,7 @@ export function JoinNotice() {
               onClick={() => acknowledge(pending.org_id)}
               data-testid="join-notice-ack"
             >
-              {isSandbox ? "Start exploring" : t("joinNotice.ack")}
+              {isSandbox ? t("joinNotice.sandboxAck") : t("joinNotice.ack")}
             </Button>
           }
         >

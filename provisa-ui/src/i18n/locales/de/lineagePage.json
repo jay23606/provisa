@@ -1,0 +1,20 @@
+{
+  "lineagePage": {
+    "title": "Datenherkunft",
+    "intro": "Verfolgen Sie, woher Daten stammen. Fügen Sie unten eine Abfrage ein, und Provisa führt jede Ergebnisspalte über ihre Transformationen und Befehlsaufrufe auf die ursprünglichen Quellspalten zurück – so beantworten Sie „Was speist diese Spalte?“, bevor Sie eine Sicht oder einen Befehl veröffentlichen. Oder wählen Sie <b>Vollständige Herkunft</b>, um die Herkunft über alle registrierten Sichten und Datensätze hinweg zu sehen.",
+    "queryLabel": "Zu analysierende Abfrage",
+    "queryHelp": "Jedes SELECT, das Ihre registrierten Tabellen, Sichten oder Befehle liest. Diese Abfrage wird nur analysiert, nie ausgeführt – nichts wird ausgeführt und keine Daten werden gelesen.",
+    "copy": "Abfrage kopieren",
+    "copied": "Kopiert",
+    "roleLabel": "Herkunft für Rolle",
+    "allRoles": "Alle Rollen",
+    "statement": "Herkunft der Anweisung",
+    "complete": "Vollständige Herkunft",
+    "error": "Herkunftsfehler",
+    "cyclesTitle": "Zyklen erkannt",
+    "cycleFeedback": "(zulässig – überschreitet eine materialisierte Grenze)",
+    "cycleError": "(keine Materialisierungsgrenze – wahrscheinlich ein Entwurfsfehler)",
+    "emptyTitle": "Nichts anzuzeigen",
+    "emptyBody": "Es wurde keine Herkunft gefunden. Die vollständige Herkunft umfasst Ihre registrierten Sichten – es sind noch keine definiert, daher gibt es nichts zu verfolgen. Registrieren Sie eine Sicht (Modell → Sichten) oder analysieren Sie oben eine Abfrage, um deren Herkunft direkt zu sehen."
+  }
+}
