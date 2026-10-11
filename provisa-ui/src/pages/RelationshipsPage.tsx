@@ -619,17 +619,19 @@ export function RelationshipsPage() {
         }}
         list={
           <>
-            <ListTable testId="relationships-list" style={{ tableLayout: "fixed" }}>
+            {/* As on Tables: every column keeps its width and a name stays on one line; what the
+                panel leaves too little room for scrolls sideways. */}
+            <ListTable testId="relationships-list">
               <ListHead
                 sortGroup={sortGroup}
                 columns={[
-                  ...(domainsEnabled ? [{ col: "domain", width: "7%" }] : []),
-                  { col: "source", width: "22%" },
-                  { col: "target", width: "22%" },
-                  { label: t("relationshipsPage.gqlCqlAlias"), width: "20%" },
-                  { col: "cardinality", width: "11%" },
-                  { col: "materialize", width: "10%" },
-                  { label: t("relationshipsPage.refreshSeconds"), width: "8%" },
+                  ...(domainsEnabled ? [{ col: "domain" }] : []),
+                  { col: "source" },
+                  { col: "target" },
+                  { label: t("relationshipsPage.gqlCqlAlias") },
+                  { col: "cardinality" },
+                  { col: "materialize" },
+                  { label: t("relationshipsPage.refreshSeconds") },
                 ]}
               />
               <Table.Tbody>
