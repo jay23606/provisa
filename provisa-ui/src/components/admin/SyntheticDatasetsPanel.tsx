@@ -42,6 +42,7 @@ import { DatasetAssertions } from "./synthetic/DatasetAssertions";
 import { DatasetConditions } from "./synthetic/DatasetConditions";
 import { ListTable, ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
 const PROD = "prod";
 
@@ -81,7 +82,11 @@ const OWN_MEASURES = new Set([
 export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
   const { t } = useTranslation();
   const choices = envs.filter((e) => e !== PROD);
-  const [env, setEnv] = useState<string | null>(choices[0] ?? null);
+  // The environment shown is the one picked, else the first offered. It is read from the list on
+  // each render, not copied once: the Environments page mounts this tab before its list has loaded,
+  // and a copy taken then stayed empty after the environments arrived.
+  const [pickedEnv, setEnv] = useState<string | null>(null);
+  const env = pickedEnv !== null && choices.includes(pickedEnv) ? pickedEnv : (choices[0] ?? null);
   const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -179,97 +184,102 @@ export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
       <Text size="sm" c="dimmed">
         {t("syntheticDatasets.intro")}
       </Text>
-      <Select
-        label={t("syntheticDatasets.environment")}
-        data={choices}
-        value={env}
-        onChange={setEnv}
-        allowDeselect={false}
-        data-testid="synthetic-env"
-      />
+      <FormLayout>
+        <FormField size="medium">
+          <Select
+            label={t("syntheticDatasets.environment")}
+            data={choices}
+            value={env}
+            onChange={setEnv}
+            allowDeselect={false}
+            data-testid="synthetic-env"
+          />
+        </FormField>
+      </FormLayout>
       {error && (
         <Alert color="red" data-testid="synthetic-error">
           {error}
         </Alert>
       )}
       <SortGroupTable
-          testPrefix="synthetic"
-          testId="synthetic-datasets"
-          rows={datasets}
-          columns={[
-            { key: "name", label: t("syntheticDatasets.colName"), sortValue: (d) => d.id },
-            { key: "status", label: t("syntheticDatasets.colStatus"), sortValue: (d) => d.status, groupValue: (d) => d.status },
-            { key: "scale", label: t("syntheticDatasets.colScale"), sortValue: (d) => d.scale },
-            { key: "tables", label: t("syntheticDatasets.colTables"), sortValue: (d) => d.tables.length },
-          ]}
-          headers={[
-            { col: "name" },
-            { col: "status" },
-            { col: "scale" },
-            { col: "tables" },
-            "",
-          ]}
-          colSpan={5}
-          rowKey={(d) => d.id}
-          render={(d) => (
-            <ListRow key={d.id} testId={`synthetic-row-${d.id}`}>
-              <Table.Td>{d.id}</Table.Td>
-              <Table.Td>
-                <Badge
-                  color={
-                    d.status === "generated" ? "green" : d.status === "failed" ? "red" : "gray"
-                  }
+        testPrefix="synthetic"
+        testId="synthetic-datasets"
+        rows={datasets}
+        columns={[
+          { key: "name", label: t("syntheticDatasets.colName"), sortValue: (d) => d.id },
+          {
+            key: "status",
+            label: t("syntheticDatasets.colStatus"),
+            sortValue: (d) => d.status,
+            groupValue: (d) => d.status,
+          },
+          { key: "scale", label: t("syntheticDatasets.colScale"), sortValue: (d) => d.scale },
+          {
+            key: "tables",
+            label: t("syntheticDatasets.colTables"),
+            sortValue: (d) => d.tables.length,
+          },
+        ]}
+        headers={[{ col: "name" }, { col: "status" }, { col: "scale" }, { col: "tables" }, ""]}
+        colSpan={5}
+        rowKey={(d) => d.id}
+        render={(d) => (
+          <ListRow key={d.id} testId={`synthetic-row-${d.id}`}>
+            <Table.Td>{d.id}</Table.Td>
+            <Table.Td>
+              <Badge
+                color={d.status === "generated" ? "green" : d.status === "failed" ? "red" : "gray"}
+              >
+                {t(`syntheticDatasets.status_${d.status}`)}
+              </Badge>
+              {d.error && (
+                <Text size="xs" c="red">
+                  {d.error}
+                </Text>
+              )}
+            </Table.Td>
+            <Table.Td>×{d.scale}</Table.Td>
+            <Table.Td>{d.tables.length}</Table.Td>
+            <Table.Td>
+              <Group gap={4}>
+                <Button
+                  size="xs"
+                  loading={busy === `generate:${d.id}`}
+                  onClick={() => act(`generate:${d.id}`, () => generateDataset(env, d.id))}
+                  data-testid={`synthetic-generate-${d.id}`}
                 >
-                  {t(`syntheticDatasets.status_${d.status}`)}
-                </Badge>
-                {d.error && (
-                  <Text size="xs" c="red">
-                    {d.error}
-                  </Text>
-                )}
-              </Table.Td>
-              <Table.Td>×{d.scale}</Table.Td>
-              <Table.Td>{d.tables.length}</Table.Td>
-              <Table.Td>
-                <Group gap={4}>
-                  <Button
-                    size="xs"
-                    loading={busy === `generate:${d.id}`}
-                    onClick={() => act(`generate:${d.id}`, () => generateDataset(env, d.id))}
-                    data-testid={`synthetic-generate-${d.id}`}
-                  >
-                    {d.status === "generated"
-                      ? t("syntheticDatasets.regenerate")
-                      : t("syntheticDatasets.generate")}
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={d.status !== "generated"}
-                    onClick={() =>
-                      fetchReport(env, d.id)
-                        .then((rows) => setReport({ id: d.id, rows }))
-                        .catch((e: Error) => setError(e.message))
-                    }
-                    data-testid={`synthetic-report-${d.id}`}
-                  >
-                    {t("syntheticDatasets.report")}
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="default"
-                    color="red"
-                    loading={busy === `drop:${d.id}`}
-                    onClick={() => act(`drop:${d.id}`, () => dropDataset(env, d.id))}
-                    data-testid={`synthetic-drop-${d.id}`}
-                  >
-                    {t("syntheticDatasets.drop")}
-                  </Button>
-                </Group>
-              </Table.Td>
-            </ListRow>
-          )}
-        />
+                  {d.status === "generated"
+                    ? t("syntheticDatasets.regenerate")
+                    : t("syntheticDatasets.generate")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  disabled={d.status !== "generated"}
+                  onClick={() =>
+                    fetchReport(env, d.id)
+                      .then((rows) => setReport({ id: d.id, rows }))
+                      .catch((e: Error) => setError(e.message))
+                  }
+                  data-testid={`synthetic-report-${d.id}`}
+                >
+                  {t("syntheticDatasets.report")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="default"
+                  color="red"
+                  loading={busy === `drop:${d.id}`}
+                  onClick={() => act(`drop:${d.id}`, () => dropDataset(env, d.id))}
+                  data-testid={`synthetic-drop-${d.id}`}
+                >
+                  {t("syntheticDatasets.drop")}
+                </Button>
+              </Group>
+            </Table.Td>
+          </ListRow>
+        )}
+      />
 
       {report && (
         <Stack gap={4} data-testid="synthetic-report">
@@ -304,167 +314,188 @@ export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
       )}
 
       <Title order={5}>{t("syntheticDatasets.defineTitle")}</Title>
-      <Group align="end">
-        <TextInput
-          label={t("syntheticDatasets.name")}
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          data-testid="synthetic-name"
-        />
-        <NumberInput
-          label={t("syntheticDatasets.scale")}
-          description={t("syntheticDatasets.scaleHelp")}
-          value={scale}
-          min={0.001}
-          decimalScale={3}
-          onChange={(v) => setScale(Number(v))}
-          data-testid="synthetic-scale"
-        />
-        <NumberInput
-          label={t("syntheticDatasets.seed")}
-          value={seed}
-          allowDecimal={false}
-          onChange={(v) => setSeed(Number(v))}
-          data-testid="synthetic-seed"
-        />
-        <Select
-          label={t("syntheticDatasets.profileEnv")}
-          data={envs}
-          value={profileEnv}
-          onChange={(v) => v && setProfileEnv(v)}
-          allowDeselect={false}
-          data-testid="synthetic-profile-env"
-        />
-      </Group>
-      {runs.length === 0 ? (
-        <Text size="sm" c="dimmed" data-testid="synthetic-no-runs">
-          {t("syntheticDatasets.noRuns", { env: profileEnv })}
-        </Text>
-      ) : (
-        <ListTable testId="synthetic-tables">
-          <Table.Tbody>
-            {runs.map((r) => {
-              const p = picked[r.tableId];
-              return (
-                <ListRow key={r.tableId}>
-                  <Table.Td>
-                    <Checkbox
-                      label={r.tableName}
-                      checked={p !== undefined}
-                      onChange={(e) => {
-                        const next = { ...picked };
-                        if (e.currentTarget.checked)
-                          next[r.tableId] = { runId: r.runs[0].runId, scale: null };
-                        else delete next[r.tableId];
-                        setPicked(next);
-                      }}
-                      data-testid={`synthetic-table-${r.tableName}`}
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <Select
-                      size="xs"
-                      aria-label={t("syntheticDatasets.run")}
-                      disabled={p === undefined}
-                      data={r.runs.map((run) => ({
-                        value: run.runId,
-                        label: t("syntheticDatasets.runOption", {
-                          time: new Date(run.runTime).toLocaleString(),
-                          rows: run.rowCount ?? 0,
-                        }),
-                      }))}
-                      value={p?.runId ?? r.runs[0].runId}
-                      onChange={(v) =>
-                        v &&
-                        setPicked({ ...picked, [r.tableId]: { ...picked[r.tableId], runId: v } })
-                      }
-                    />
-                  </Table.Td>
-                  <Table.Td>
-                    <NumberInput
-                      size="xs"
-                      aria-label={t("syntheticDatasets.tableScale")}
-                      placeholder={t("syntheticDatasets.tableScalePlaceholder")}
-                      disabled={p === undefined}
-                      min={0.001}
-                      decimalScale={3}
-                      value={p?.scale ?? ""}
-                      onChange={(v) =>
-                        setPicked({
-                          ...picked,
-                          [r.tableId]: { ...picked[r.tableId], scale: v === "" ? null : Number(v) },
-                        })
-                      }
-                    />
-                  </Table.Td>
-                </ListRow>
-              );
-            })}
-          </Table.Tbody>
-        </ListTable>
-      )}
-      <Group align="end">
-        <Checkbox
-          label={t("syntheticDatasets.private")}
-          description={t("syntheticDatasets.privateHelp")}
-          checked={epsilon !== null}
-          onChange={(e) => setEpsilon(e.currentTarget.checked ? 1 : null)}
-          data-testid="synthetic-private"
-        />
-        {epsilon !== null && (
+      <FormLayout>
+        <FormField size="medium">
+          <TextInput
+            label={t("syntheticDatasets.name")}
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            data-testid="synthetic-name"
+          />
+        </FormField>
+        <FormField size="short" help={t("syntheticDatasets.scaleHelp")}>
           <NumberInput
-            label={t("syntheticDatasets.epsilon")}
+            label={t("syntheticDatasets.scale")}
+            value={scale}
             min={0.001}
             decimalScale={3}
-            value={epsilon}
-            onChange={(v) => setEpsilon(Number(v))}
-            data-testid="synthetic-epsilon"
+            onChange={(v) => setScale(Number(v))}
+            data-testid="synthetic-scale"
           />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("syntheticDatasets.seed")}
+            value={seed}
+            allowDecimal={false}
+            onChange={(v) => setSeed(Number(v))}
+            data-testid="synthetic-seed"
+          />
+        </FormField>
+        <FormField size="medium">
+          <Select
+            label={t("syntheticDatasets.profileEnv")}
+            data={envs}
+            value={profileEnv}
+            onChange={(v) => v && setProfileEnv(v)}
+            allowDeselect={false}
+            data-testid="synthetic-profile-env"
+          />
+        </FormField>
+        {/* The tables the dataset generates: a list, a line of the form to itself. */}
+        <FormField size="full">
+          {runs.length === 0 ? (
+            <Text size="sm" c="dimmed" data-testid="synthetic-no-runs">
+              {t("syntheticDatasets.noRuns", { env: profileEnv })}
+            </Text>
+          ) : (
+            <ListTable testId="synthetic-tables">
+              <Table.Tbody>
+                {runs.map((r) => {
+                  const p = picked[r.tableId];
+                  return (
+                    <ListRow key={r.tableId}>
+                      <Table.Td>
+                        <Checkbox
+                          label={r.tableName}
+                          checked={p !== undefined}
+                          onChange={(e) => {
+                            const next = { ...picked };
+                            if (e.currentTarget.checked)
+                              next[r.tableId] = { runId: r.runs[0].runId, scale: null };
+                            else delete next[r.tableId];
+                            setPicked(next);
+                          }}
+                          data-testid={`synthetic-table-${r.tableName}`}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Select
+                          size="xs"
+                          aria-label={t("syntheticDatasets.run")}
+                          disabled={p === undefined}
+                          data={r.runs.map((run) => ({
+                            value: run.runId,
+                            label: t("syntheticDatasets.runOption", {
+                              time: new Date(run.runTime).toLocaleString(),
+                              rows: run.rowCount ?? 0,
+                            }),
+                          }))}
+                          value={p?.runId ?? r.runs[0].runId}
+                          onChange={(v) =>
+                            v &&
+                            setPicked({
+                              ...picked,
+                              [r.tableId]: { ...picked[r.tableId], runId: v },
+                            })
+                          }
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <NumberInput
+                          size="xs"
+                          aria-label={t("syntheticDatasets.tableScale")}
+                          placeholder={t("syntheticDatasets.tableScalePlaceholder")}
+                          disabled={p === undefined}
+                          min={0.001}
+                          decimalScale={3}
+                          value={p?.scale ?? ""}
+                          onChange={(v) =>
+                            setPicked({
+                              ...picked,
+                              [r.tableId]: {
+                                ...picked[r.tableId],
+                                scale: v === "" ? null : Number(v),
+                              },
+                            })
+                          }
+                        />
+                      </Table.Td>
+                    </ListRow>
+                  );
+                })}
+              </Table.Tbody>
+            </ListTable>
+          )}
+        </FormField>
+        {/* The two ticks together; the fields each one opens follow them. */}
+        <FormChecks>
+          <FormField size="short" help={t("syntheticDatasets.privateHelp")}>
+            <Checkbox
+              label={t("syntheticDatasets.private")}
+              checked={epsilon !== null}
+              onChange={(e) => setEpsilon(e.currentTarget.checked ? 1 : null)}
+              data-testid="synthetic-private"
+            />
+          </FormField>
+          <FormField size="short" help={t("syntheticDatasets.closenessHelp")}>
+            <Checkbox
+              label={t("syntheticDatasets.closeness")}
+              checked={closeness !== null}
+              onChange={(e) =>
+                setCloseness(e.currentTarget.checked ? { threshold: 0.5, draws: 3 } : null)
+              }
+              data-testid="synthetic-closeness"
+            />
+          </FormField>
+        </FormChecks>
+        {epsilon !== null && (
+          <FormField size="short">
+            <NumberInput
+              label={t("syntheticDatasets.epsilon")}
+              min={0.001}
+              decimalScale={3}
+              value={epsilon}
+              onChange={(v) => setEpsilon(Number(v))}
+              data-testid="synthetic-epsilon"
+            />
+          </FormField>
         )}
-      </Group>
-      <Group align="end">
-        <Checkbox
-          label={t("syntheticDatasets.closeness")}
-          description={t("syntheticDatasets.closenessHelp")}
-          checked={closeness !== null}
-          onChange={(e) =>
-            setCloseness(e.currentTarget.checked ? { threshold: 0.5, draws: 3 } : null)
-          }
-          data-testid="synthetic-closeness"
-        />
         {closeness !== null && (
           <>
-            <NumberInput
-              label={t("syntheticDatasets.closenessThreshold")}
-              min={0.01}
-              decimalScale={2}
-              value={closeness.threshold}
-              onChange={(v) => setCloseness({ ...closeness, threshold: Number(v) })}
-              data-testid="synthetic-closeness-threshold"
-            />
-            <NumberInput
-              label={t("syntheticDatasets.closenessDraws")}
-              min={1}
-              allowDecimal={false}
-              value={closeness.draws}
-              onChange={(v) => setCloseness({ ...closeness, draws: Number(v) })}
-              data-testid="synthetic-closeness-draws"
-            />
+            <FormField size="medium">
+              <NumberInput
+                label={t("syntheticDatasets.closenessThreshold")}
+                min={0.01}
+                decimalScale={2}
+                value={closeness.threshold}
+                onChange={(v) => setCloseness({ ...closeness, threshold: Number(v) })}
+                data-testid="synthetic-closeness-threshold"
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("syntheticDatasets.closenessDraws")}
+                min={1}
+                allowDecimal={false}
+                value={closeness.draws}
+                onChange={(v) => setCloseness({ ...closeness, draws: Number(v) })}
+                data-testid="synthetic-closeness-draws"
+              />
+            </FormField>
           </>
         )}
-      </Group>
-      <DatasetConditions relationships={generated} value={conditions} onChange={setConditions} />
-      <DatasetAssertions value={assertions} onChange={setAssertions} />
-      <Group>
-        <Button
-          onClick={define}
-          loading={busy === "define"}
-          disabled={name.trim() === "" || Object.keys(picked).length === 0}
-          data-testid="synthetic-define"
-        >
-          {t("syntheticDatasets.define")}
-        </Button>
-      </Group>
+        <DatasetConditions relationships={generated} value={conditions} onChange={setConditions} />
+        <DatasetAssertions value={assertions} onChange={setAssertions} />
+        <FormFooter
+          onSave={define}
+          saving={busy === "define"}
+          saveProps={{
+            "data-testid": "synthetic-define",
+            disabled: name.trim() === "" || Object.keys(picked).length === 0,
+          }}
+        />
+      </FormLayout>
     </Stack>
   );
 }

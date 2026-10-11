@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Checkbox, Group, Stack, Text, TextInput, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { FieldGroup, FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 import {
   createRepoRemote,
   fetchRepoIntegration,
@@ -146,93 +147,106 @@ export function RepoIntegrationPanel({
       <Alert color="blue" variant="light">
         {t("environmentsTab.integrationSecretHint")}
       </Alert>
-      <TextInput
-        label={t("environmentsTab.remoteLabel")}
-        description={t("environmentsTab.remoteHelp")}
-        placeholder="https://${env:GIT_TOKEN}@github.com/acme/model.git"
-        value={remote}
-        onChange={(e) => {
-          setRemote(e.currentTarget.value);
-          setProbe(null);
-        }}
-        data-testid="repo-remote-input"
-        disabled={!loaded}
-      />
-      <Group gap="xs" align="center">
-        <Button
-          variant="default"
-          onClick={() => check(remote)}
-          loading={probing}
-          disabled={!loaded || remote.trim() === ""}
-          data-testid="repo-remote-probe"
-        >
-          {t("environmentsTab.probe")}
-        </Button>
+      <FormLayout>
+        {/* The check acts on the address beside it: one row, the button level with the box. */}
+        <FieldGroup row>
+          <FormField size="long" help={t("environmentsTab.remoteHelp")}>
+            <TextInput
+              label={t("environmentsTab.remoteLabel")}
+              placeholder="https://${env:GIT_TOKEN}@github.com/acme/model.git"
+              value={remote}
+              onChange={(e) => {
+                setRemote(e.currentTarget.value);
+                setProbe(null);
+              }}
+              data-testid="repo-remote-input"
+              disabled={!loaded}
+            />
+          </FormField>
+          <Button
+            variant="default"
+            onClick={() => check(remote)}
+            loading={probing}
+            disabled={!loaded || remote.trim() === ""}
+            data-testid="repo-remote-probe"
+          >
+            {t("environmentsTab.probe")}
+          </Button>
+        </FieldGroup>
         {probing && (
-          <Text size="sm" c="dimmed">
-            {t("environmentsTab.probeChecking")}
-          </Text>
+          <FormField size="full">
+            <Text size="sm" c="dimmed">
+              {t("environmentsTab.probeChecking")}
+            </Text>
+          </FormField>
         )}
-      </Group>
-      {probe?.exists && (
-        <Alert color="green" variant="light" data-testid="repo-remote-found">
-          {t("environmentsTab.probeFound", { kind: probe.kind, target: probe.target })}
-        </Alert>
-      )}
-      {probe && !probe.exists && (
-        <Alert color="yellow" variant="light" data-testid="repo-remote-missing">
-          <Stack gap="xs">
-            <Text size="sm">
-              {t("environmentsTab.probeMissing", { target: probe.target, detail: probe.detail })}
-            </Text>
-            {probe.creatable ? (
-              <Group gap="xs" align="center">
-                <Button
-                  size="xs"
-                  onClick={create}
-                  loading={creating}
-                  data-testid="repo-remote-create"
-                >
-                  {t("environmentsTab.probeCreate")}
-                </Button>
-                <Checkbox
-                  size="xs"
-                  label={t("environmentsTab.probeCreatePrivate")}
-                  checked={makePrivate}
-                  onChange={(e) => setMakePrivate(e.currentTarget.checked)}
-                  data-testid="repo-remote-create-private"
-                />
-              </Group>
-            ) : (
-              <Text size="sm" c="dimmed" data-testid="repo-remote-uncreatable">
-                {t("environmentsTab.probeNotCreatable", { detail: probe.detail })}
-              </Text>
-            )}
-            <Text size="xs" c="dimmed">
-              {t("environmentsTab.probeHint")}
-            </Text>
-          </Stack>
-        </Alert>
-      )}
-      <TextInput
-        label={t("environmentsTab.webhookLabel")}
-        description={t("environmentsTab.webhookHelp")}
-        placeholder="https://ci.example.com/hooks/provisa"
-        value={webhook}
-        onChange={(e) => setWebhook(e.currentTarget.value)}
-        data-testid="repo-webhook-input"
-        disabled={!loaded}
-      />
-      <Group>
-        <Button
-          onClick={save}
-          loading={saving}
-          disabled={!loaded}
-          data-testid="repo-integration-save"
-        >
-          {t("environmentsTab.save")}
-        </Button>
-      </Group>
+        {probe?.exists && (
+          <FormField size="full">
+            <Alert color="green" variant="light" data-testid="repo-remote-found">
+              {t("environmentsTab.probeFound", { kind: probe.kind, target: probe.target })}
+            </Alert>
+          </FormField>
+        )}
+        {probe && !probe.exists && (
+          <FormField size="full">
+            <Alert color="yellow" variant="light" data-testid="repo-remote-missing">
+              <Stack gap="xs">
+                <Text size="sm">
+                  {t("environmentsTab.probeMissing", {
+                    target: probe.target,
+                    detail: probe.detail,
+                  })}
+                </Text>
+                {probe.creatable ? (
+                  <Group gap="xs" align="center">
+                    <Button
+                      size="xs"
+                      onClick={create}
+                      loading={creating}
+                      data-testid="repo-remote-create"
+                    >
+                      {t("environmentsTab.probeCreate")}
+                    </Button>
+                    <FormChecks>
+                      <FormField size="short">
+                        <Checkbox
+                          size="xs"
+                          label={t("environmentsTab.probeCreatePrivate")}
+                          checked={makePrivate}
+                          onChange={(e) => setMakePrivate(e.currentTarget.checked)}
+                          data-testid="repo-remote-create-private"
+                        />
+                      </FormField>
+                    </FormChecks>
+                  </Group>
+                ) : (
+                  <Text size="sm" c="dimmed" data-testid="repo-remote-uncreatable">
+                    {t("environmentsTab.probeNotCreatable", { detail: probe.detail })}
+                  </Text>
+                )}
+                <Text size="xs" c="dimmed">
+                  {t("environmentsTab.probeHint")}
+                </Text>
+              </Stack>
+            </Alert>
+          </FormField>
+        )}
+        <FormField size="long" help={t("environmentsTab.webhookHelp")}>
+          <TextInput
+            label={t("environmentsTab.webhookLabel")}
+            placeholder="https://ci.example.com/hooks/provisa"
+            value={webhook}
+            onChange={(e) => setWebhook(e.currentTarget.value)}
+            data-testid="repo-webhook-input"
+            disabled={!loaded}
+          />
+        </FormField>
+        <FormFooter
+          onSave={save}
+          saving={saving}
+          saveProps={{ "data-testid": "repo-integration-save", disabled: !loaded }}
+        />
+      </FormLayout>
     </Stack>
   );
 }
