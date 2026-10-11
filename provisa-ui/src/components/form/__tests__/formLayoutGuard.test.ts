@@ -124,6 +124,13 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
 };
 
 /**
+ * Permanent: the file that IS the shared layout. Its footer is where the form's one Save and one
+ * Cancel are defined, which is the very thing the rules send every other file to use, so the
+ * rules are not read against it. Its own behaviour is held by FormLayout.test.tsx.
+ */
+const THE_SHARED_LAYOUT = "components/form/FormLayout.tsx";
+
+/**
  * Shrinking: files that do not follow the rules yet. A file leaves this list in the commit that
  * converts it, and the guard fails a listed file that already passes. Nothing is added here,
  * except when the rules themselves grow: the files then caught are listed in that same commit.
@@ -132,7 +139,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/ChatPanel.tsx",
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
-  "components/form/FormLayout.tsx",
   "pages/TablesPage.tsx",
 ];
 
@@ -490,10 +496,19 @@ describe("every component follows the form rules", () => {
     expect(pending.size).toBe(NOT_YET_CONVERTED.length);
   });
 
-  it.each(files.filter((f) => !pending.has(f) && !(f in EXPLORERS)))("%s", (file) => {
-    const violations = violationsOf(file);
-    expect(violations, describeViolations(file, violations)).toEqual([]);
+  it("still has the shared layout where the rules expect it", () => {
+    expect(files).toContain(THE_SHARED_LAYOUT);
+    // Were it to stop defining the footer, it would be an ordinary file and must be read again.
+    expect(violationsOf(THE_SHARED_LAYOUT).map((v) => v.rule)).toContain("save-cancel-not-shared");
   });
+
+  it.each(files.filter((f) => !pending.has(f) && !(f in EXPLORERS) && f !== THE_SHARED_LAYOUT))(
+    "%s",
+    (file) => {
+      const violations = violationsOf(file);
+      expect(violations, describeViolations(file, violations)).toEqual([]);
+    },
+  );
 
   it.each([...NOT_YET_CONVERTED])(
     "%s is still to convert: once it passes it leaves the list",
