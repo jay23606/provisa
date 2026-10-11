@@ -36,6 +36,15 @@ def _flight_health(port: int) -> dict:
         client.close()
 
 
+def _beat_free(report: dict) -> dict:
+    """The report without each node's ``last_seen``: a node beats every 15 s (HEARTBEAT in
+    provisa/core/platform_state/nodes.py), so two reads a beat apart differ there and nowhere
+    else (NixOS run 38139824180). Every node still carries the field."""
+    nodes = report["nodes"]
+    assert all("last_seen" in n for n in nodes), nodes
+    return {**report, "nodes": [{k: v for k, v in n.items() if k != "last_seen"} for n in nodes]}
+
+
 def test_flight_healthcheck_reports_what_http_health_reports():
     boot = WorkerBoot(
         _WORKERS,
@@ -58,7 +67,7 @@ def test_flight_healthcheck_reports_what_http_health_reports():
         # Fresh connections, so the action is answered by whichever worker the kernel hands
         # each one to: every answer is the launch's health, as /health's is.
         for _ in range(12):
-            assert _flight_health(boot.ports["flight"]) == http
+            assert _beat_free(_flight_health(boot.ports["flight"])) == _beat_free(http)
         client = fl.connect(f"grpc://127.0.0.1:{boot.ports['flight']}")
         try:
             assert [a.type for a in client.list_actions()] == ["healthcheck"]
