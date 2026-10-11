@@ -272,6 +272,9 @@ describe("FormLayout", () => {
         expect(b).toHaveAttribute("data-variant", "subtle");
         expect(b).toHaveAttribute("data-size", "compact-sm");
       }
+      // Both borderless: Save is marked as the primary (and tinted as one), Cancel is not.
+      expect(save).toHaveAttribute("data-primary", "true");
+      expect(cancel).not.toHaveAttribute("data-primary");
       expect(save.closest(".form-footer")).toHaveClass("form-footer--head");
       // Nothing is left at the foot of the panel's content.
       expect(

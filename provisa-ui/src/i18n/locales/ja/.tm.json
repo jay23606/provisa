@@ -5352,8 +5352,6 @@
   "ja/testData.json::testData.kindCategory.transform": "Transforms",
   "ja/testData.json::testData.kindCategory.values": "Values",
   "ja/testData.json::testData.methodCategory": "Fake method: {{category}}",
-  "ja/testData.json::testData.modeMetadata": "Metadata",
-  "ja/testData.json::testData.modeTestData": "Test data",
   "ja/testData.json::testData.noConfidentMatch": "Tagged pii, with no confident match in the profile: declare its fake.",
   "ja/testData.json::testData.noProposal": "The profile proposes nothing for this column.",
   "ja/testData.json::testData.openDialog": "Choose a fake",
@@ -5606,5 +5604,6 @@
   "ja/securityPage.json::securityPage.panelNewRole": "New role",
   "ja/securityPage.json::securityPage.panelNewRule": "New RLS rule",
   "ja/securityPage.json::securityPage.panelRule": "RLS rule {{id}}",
-  "ja/metricsPage.json::metricsPage.detailPanel": "Metric details"
+  "ja/metricsPage.json::metricsPage.detailPanel": "Metric details",
+  "ja/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing"
 }

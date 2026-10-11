@@ -322,6 +322,8 @@ export function FormFooter({
         <Button
           {...inHeadLook}
           {...saveProps}
+          // In a panel's head both are borderless: the tint is what says which is the primary.
+          data-primary={inHead || undefined}
           type={submit ? "submit" : "button"}
           onClick={submit ? undefined : save}
           leftSection={busy ? <Loader size={14} color="currentColor" /> : <Check size={14} />}

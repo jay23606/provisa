@@ -469,12 +469,12 @@ export const TOUR_STEPS: TourStep[] = [
     key: "stepTestDataProfiler",
   },
   {
-    // REQ-1494: a column's kind of fake is declared in the column list's Test data mode, so the
-    // step switches the column list to that mode and points at the test-data columns.
+    // REQ-1494: a column's kind of fake is declared on the column list's Testing tab, so the
+    // step opens that tab and points at the test-data columns.
     ensureOpen: [
       ...PETS_EDIT_OPEN,
       {
-        click: '[data-tour="table-columns-mode"] input[value="testdata"]',
+        click: '[data-testid="column-tab-testing"]',
         unlessPresent: '[data-testid="testdata-columns"]',
       },
     ],
@@ -482,9 +482,15 @@ export const TOUR_STEPS: TourStep[] = [
     key: "stepFakes",
   },
   {
-    // REQ-1494: the fill-from-profile action sits with the column list's test-data mode.
-    ensureOpen: PETS_EDIT_OPEN,
-    element: '[data-tour="table-columns-mode"]',
+    // REQ-1494: the fill-from-profile action sits on the column list's Testing tab.
+    ensureOpen: [
+      ...PETS_EDIT_OPEN,
+      {
+        click: '[data-testid="column-tab-testing"]',
+        unlessPresent: '[data-testid="testdata-columns"]',
+      },
+    ],
+    element: '[data-tour="fill-from-profile"]',
     key: "stepFakesFill",
     clickAfterNext: PROFILER_ROW,
   },

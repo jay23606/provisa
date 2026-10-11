@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "मेटाडेटा",
-    "modeTestData": "परीक्षण डेटा",
     "fake": "नकली मान",
     "syntheticRule": "सिंथेटिक नियम",
     "stable": "स्थिर",

@@ -164,4 +164,13 @@ describe("the column editor's tabs", () => {
     // An attribute with no value is left out.
     expect(within(card).queryByText("Writable By (R/W)")).toBeNull();
   });
+
+  it("offers no Testing tab: a table not registered yet has no test data", () => {
+    render(<Editor initial={[column("id")]} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Naming",
+      "Type and keys",
+      "Access",
+    ]);
+  });
 });

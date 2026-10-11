@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "Метаданные",
-    "modeTestData": "Тестовые данные",
     "fake": "Фиктивное значение",
     "syntheticRule": "Синтетическое правило",
     "stable": "Стабильный",

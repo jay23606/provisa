@@ -175,4 +175,14 @@ describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
     expect(screen.getByTestId("load-management-panel-toggle")).toBeInTheDocument();
     expect(control(screen.getByTestId("column-row-email"), "SQL Alias")).not.toBeDisabled();
   });
+
+  it("is not offered Testing: its Save writes nothing of a column's test data", () => {
+    renderForm(true);
+    expect(screen.queryByTestId("column-tab-testing")).toBeNull();
+  });
+
+  it("offers Testing to an editor of the whole table", () => {
+    renderForm(false);
+    expect(screen.getByTestId("column-tab-testing")).toHaveTextContent("Testing");
+  });
 });

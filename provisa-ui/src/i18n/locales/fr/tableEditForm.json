@@ -259,8 +259,6 @@
     "pagingPositive": "Utilisez un nombre entier supérieur ou égal à 1.",
     "pagingAboveCeiling": "Au plus {{ceiling}} : une table peut abaisser la limite de l'opérateur, jamais la relever.",
     "pagingFixErrors": "Corrigez les erreurs de pagination avant d'enregistrer.",
-    "draftLabel": "Brouillon",
-    "draftHelp": "Hors service tant que la case est cochée : lue et écrite nulle part, proposée dans aucun schéma et copiée nulle part ; les copies existantes dans chaque région sont supprimées. Une table ou une vue enregistrée ici commence en brouillon ; décochez pour la publier.",
     "delta": {
       "legend": "Rechargement incrémental (delta)",
       "enable": "Rechargement incrémental",
@@ -281,6 +279,8 @@
       "query": "Requête delta (facultative, native de la source)",
       "queryHelp": "Une requête native de la source avec les espaces réservés $wm (curseur) et {{fields}}. Laissez vide pour une source SQL : Provisa génère SELECT {{fields}} FROM <table> WHERE <watermark> > $wm ORDER BY <watermark>."
     },
+    "draftLabel": "Brouillon",
+    "draftHelp": "Hors service tant que la case est cochée : lue et écrite nulle part, proposée dans aucun schéma et copiée nulle part ; les copies existantes dans chaque région sont supprimées. Une table ou une vue enregistrée ici commence en brouillon ; décochez pour la publier.",
     "pagingRowsFieldHelp": "La propriété de la réponse qui contient les lignes, comme values ou data dans une enveloppe de page. Laissez vide quand la réponse est elle-même les lignes. Les colonnes de la table sont celles des objets qui s'y trouvent.",
     "pagingRowsFieldFixed": "Défini à l'enregistrement de la table. Enregistrez de nouveau la table pour lire ses lignes ailleurs.",
     "scopeHelp": "domain : servi aux rôles qui atteignent le domaine de cette table. public : aussi aux rôles en dehors. restricted : uniquement aux rôles nommés dans Visible par.",
@@ -289,6 +289,7 @@
       "naming": "Nommage",
       "type": "Type et clés",
       "access": "Accès",
+      "testing": "Tests",
       "errors": "{{count}} à corriger"
     },
     "offPeakInherited": "Hérité : la source de cette table n'est lue que selon la planification."

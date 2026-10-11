@@ -1,7 +1,5 @@
 {
   "testData": {
-    "modeMetadata": "מטא-נתונים",
-    "modeTestData": "נתוני בדיקה",
     "fake": "ערך מדומה",
     "syntheticRule": "כלל סינתטי",
     "stable": "יציב",
