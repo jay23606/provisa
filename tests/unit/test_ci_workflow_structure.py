@@ -768,3 +768,36 @@ def test_the_primer_names_only_guards_actions_and_scripts_that_exist():
     assert set(re.findall(r"^\| `([a-z-]+)` \|", primer, re.M)) == actions
     for path in re.findall(r"`((?:scripts/ci|\.github/workflows)/[\w./-]+\.(?:py|yml))`", primer):
         assert (REPO / path).exists(), path
+
+
+def test_a_job_checks_out_the_commit_its_workflow_came_from_or_the_one_it_was_asked_for():
+    # A job's local actions (./.github/actions/...) and lane scripts are read from what it
+    # checked out. The nightly warehouse job once checked out a named branch, `integration`:
+    # with the workflow from main and the tree from a branch that had none of main's actions,
+    # its first `uses:` could not be found. A checkout therefore names no branch -- only the
+    # ref a caller or a dispatch passed, or the run's own commit.
+    named = []
+    for where, step in _steps():
+        if not str(step.get("uses", "")).startswith("actions/checkout@"):
+            continue
+        ref = (step.get("with") or {}).get("ref")
+        if ref is None:
+            continue
+        if not re.fullmatch(r"\$\{\{ inputs\.ref \|\| (github\.sha|'') \}\}", str(ref)):
+            named.append(f"{where}: ref {ref!r}")
+    assert named == []
+
+
+def test_no_workflow_is_started_by_a_push_to_a_branch_nobody_pushes_to():
+    # `integration` was where work was pushed before main; nothing moves it now, and the
+    # nightly tests main. A push starts a workflow on main, on a release branch, or on a ci/**
+    # proving branch, and nowhere else.
+    allowed = {"main", "release/**", "ci/**"}
+    other = []
+    for path in WORKFLOWS:
+        triggers = yaml.safe_load(path.read_text())[True]
+        push = triggers.get("push") if isinstance(triggers, dict) else None
+        for branch in (push or {}).get("branches") or []:
+            if branch not in allowed:
+                other.append(f"{path.name}: {branch}")
+    assert other == []

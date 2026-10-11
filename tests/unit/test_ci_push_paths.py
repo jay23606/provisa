@@ -100,7 +100,7 @@ def test_only_pushes_are_filtered():
     triggers = _triggers()
     assert "paths" not in (triggers.get("workflow_dispatch") or {})
     assert triggers["schedule"] == [{"cron": "0 6 * * *"}]
-    assert triggers["push"]["branches"] == ["integration", "main"]
+    assert triggers["push"]["branches"] == ["main"]
 
 
 def test_a_push_of_the_sites_generator_and_its_pages_starts_no_run():

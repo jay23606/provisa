@@ -39,7 +39,6 @@ and passes each leg the same `version` and `publish`.
 | Trigger | Workflows |
 | --- | --- |
 | push to `main` | Unit Tests, UI Unit Tests, Lint, Requirements CI, CVE Audit, Integration suite, Deploy Site, NixOS, amd64-only engines, windows-container-smoke |
-| push to `integration` | Integration suite, UI Unit Tests, NixOS |
 | pull request | Unit Tests, UI Unit Tests, Lint, Requirements CI, CVE Audit, amd64-only engines, windows-container-smoke |
 | tag `v*` | Build Provisa Packages (the release), Release Exports, both extension builds, the three UI e2e lanes |
 | push to `release/**` | the three UI e2e lanes |

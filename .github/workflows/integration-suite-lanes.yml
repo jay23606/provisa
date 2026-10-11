@@ -12,7 +12,7 @@ name: Integration suite lanes
 # The salesforce lane uses a live Salesforce org with a daily API allowance: it runs only when a
 # dispatch asks for it (include_salesforce), never nightly and never on a push.
 # The warehouse lane uses live cloud warehouses and their credentials (repo secrets). It runs
-# nightly against the integration branch and on demand, not on every push. A warehouse test that
+# nightly against main and on demand, not on every push. A warehouse test that
 # cannot run because something is not set FAILS, naming what (tests/skip_is_failure.py).
 #
 # Secrets reach only the jobs and steps that need them (warehouse, e2e, the suite lane's
@@ -385,8 +385,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Nightly: the integration branch. On demand: the ref asked for.
-          ref: ${{ github.event_name == 'schedule' && 'integration' || inputs.ref || github.sha }}
+          # Nightly: main, the commit the schedule runs on. On demand: the ref asked for. The
+          # actions and lane scripts below are read from this checkout, so it is never a branch
+          # other than the one this file came from.
+          ref: ${{ inputs.ref || github.sha }}
       # Fabric's SQL endpoint is reached through ODBC Driver 18
       - name: Install Microsoft ODBC Driver 18 for SQL Server
         uses: ./.github/actions/mssql-odbc

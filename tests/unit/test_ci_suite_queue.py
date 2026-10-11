@@ -53,7 +53,7 @@ def test_a_waiting_run_is_never_cancelled_by_another_branchs_run():
 
 def test_the_suite_runs_on_pushes_to_both_branches_nightly_and_on_demand():
     triggers = _caller()[True]  # YAML reads the key `on` as a boolean
-    assert triggers["push"]["branches"] == ["integration", "main"]
+    assert triggers["push"]["branches"] == ["main"]
     assert "schedule" in triggers and "workflow_dispatch" in triggers
 
 

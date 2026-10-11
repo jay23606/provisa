@@ -14,7 +14,7 @@ name: Integration suite (containers)
 
 on:
   push:
-    branches: [integration, main]
+    branches: [main]
     # A push that touches only the website, the documentation or a markdown file starts no
     # run -- and so replaces none: each push starts a run that cancels its branch's run in
     # flight, and a day of site and docs pushes cancelled every run before its lanes finished.
@@ -32,8 +32,8 @@ on:
       - "!scripts/gen-site-*.mjs"
       - "docs/metadata-export.md"
   schedule:
-    # Nightly, for the warehouse lane only (06:00 UTC). Scheduled runs use the default branch's
-    # copy of this file; the warehouse job checks out `integration` explicitly.
+    # Nightly, for the warehouse lane only (06:00 UTC). A scheduled run uses the default branch's
+    # copy of this file and tests that same commit: main.
     - cron: "0 6 * * *"
   workflow_dispatch:
     inputs:
