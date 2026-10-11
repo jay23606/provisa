@@ -74,7 +74,14 @@ import type {
 } from "../../api/glossary";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
-import { FieldGroup, FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import {
+  FieldGroup,
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+  LabelWithHelp,
+} from "../form/FormLayout";
 
 // Per-viewer list-filter preferences; never reachable from other viewers or the server.
 function readStoredBool(key: string, fallback: boolean): boolean {
@@ -731,8 +738,13 @@ export function GlossaryTab() {
               </Group>
 
               <Checkbox
-                label={t("glossaryTab.excludeFromExportLabel")}
-                description={t("glossaryTab.excludeFromExportHelp")}
+                // What the tick does is behind its (?), not a paragraph under it.
+                label={
+                  <LabelWithHelp
+                    label={t("glossaryTab.excludeFromExportLabel")}
+                    help={t("glossaryTab.excludeFromExportHelp")}
+                  />
+                }
                 checked={exportExcluded}
                 disabled={!canEdit}
                 onChange={(e) => {
@@ -767,6 +779,8 @@ export function GlossaryTab() {
                 </Stack>
                 {canEdit && (
                   <Button
+                    // Saves this one field in place: compact, beside what it saves.
+                    size="compact-sm"
                     variant="default"
                     disabled={definition === (detail.definition ?? "")}
                     onClick={() =>
