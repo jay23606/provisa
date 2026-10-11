@@ -55,11 +55,11 @@ import { RefreshMv } from "../hooks/admin.graphql";
 import { usePolly } from "../context/pollyState";
 import type { MutationResult } from "../types/admin";
 import type { ChoiceAnswer, ClientToolResult, PresentChoiceRequest } from "../mcp/clientTools";
-import { useLocalStorage } from "./graph/graph-persistence";
+import { useResizableWidth } from "../hooks/useResizableWidth";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
-const DEFAULT_WIDTH = 420;
+const DEFAULT_WIDTH = 360;
 
 // REQ-1845: every server tool (REQ-1835) that mutates the glossary — used to decide whether to
 // dispatch "provisa:glossary-changed" so an already-open Glossary admin page (REST-backed, never
@@ -108,43 +108,28 @@ export function ChatPanel() {
   const roleId = selectedRoles.map((r) => r.id).join(",") || (role?.id ?? "");
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    open,
-    checkingConfig,
-    unconfiguredReason,
-    setUnconfiguredReason,
-    openPolly,
-    closePolly,
-  } = usePolly();
+  const { open, checkingConfig, unconfiguredReason, setUnconfiguredReason, openPolly, closePolly } =
+    usePolly();
   const [draft, setDraft] = useState("");
 
   // Resizable width (REQ-1795), persisted per browser so it survives closing/reopening the
   // panel and page reloads. Dragged from a handle on the drawer's left edge.
-  const [width, setWidth] = useLocalStorage("provisa.chatPanel.width", DEFAULT_WIDTH);
-  const resizingRef = useRef(false);
-  const startResize = (e: React.PointerEvent) => {
-    e.preventDefault();
-    resizingRef.current = true;
-    const onMove = (ev: PointerEvent) => {
-      if (!resizingRef.current) return;
-      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - ev.clientX));
-      setWidth(next);
-    };
-    const onUp = () => {
-      resizingRef.current = false;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
+  // The mechanism is shared with the pages' detail panels (useResizableWidth).
+  const {
+    ref: panelRef,
+    width,
+    startResize,
+    onHandleKeyDown,
+  } = useResizableWidth<HTMLDivElement>("provisa.chatPanel.width", {
+    initial: DEFAULT_WIDTH,
+    min: MIN_WIDTH,
+    max: MAX_WIDTH,
+  });
 
   // A single pending confirmation at a time — refresh_mv (and future confirm-gated tools) await
   // this Promise before the client tool executor returns its result.
   const pendingResolveRef = useRef<((ok: boolean) => void) | null>(null);
-  const [confirmState, setConfirmState] = useState<{ title: string; message: string } | null>(
-    null,
-  );
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string } | null>(null);
   const confirm = (opts: { title: string; message: string }): Promise<boolean> =>
     new Promise((resolve) => {
       pendingResolveRef.current = resolve;
@@ -175,9 +160,12 @@ export function ChatPanel() {
   // every new question — a drag offset from answering one choice has no reason to apply to the
   // next, unrelated one.
   const [choiceDragOffset, setChoiceDragOffset] = useState<{ x: number; y: number } | null>(null);
-  const choiceDragStateRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(
-    null,
-  );
+  const choiceDragStateRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
   const onChoiceDragPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // jsdom (unit tests) has no Pointer Capture implementation; a real browser always does.
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -383,6 +371,7 @@ export function ChatPanel() {
           an overlay, so `<main>` (flex: 1; min-width: 0) shrinks to the remaining width instead
           of being covered. */}
       <Box
+        ref={panelRef}
         data-testid="chat-panel"
         style={{
           position: "relative",
@@ -404,7 +393,9 @@ export function ChatPanel() {
           aria-orientation="vertical"
           aria-label="Resize chat panel"
           data-testid="chat-panel-resize-handle"
+          tabIndex={0}
           onPointerDown={startResize}
+          onKeyDown={onHandleKeyDown}
           style={{
             position: "absolute",
             top: 0,
@@ -614,7 +605,7 @@ export function ChatPanel() {
           {busy ? "Stop" : "Send"}
         </Button>
 
-      {/* REQ-1812: confined WITHIN the chat panel, not the viewport. Must be a DESCENDANT of this
+        {/* REQ-1812: confined WITHIN the chat panel, not the viewport. Must be a DESCENDANT of this
           Box (not a sibling rendered after it closes) — position: absolute anchors against the
           nearest POSITIONED ancestor, and rendering it outside the panel meant its ancestor was
           effectively the document, so it covered the whole app regardless of where the panel was
@@ -626,154 +617,154 @@ export function ChatPanel() {
           is a light scrim (just enough to show something is modal and to catch a click-outside),
           not the near-opaque one before, so anything it does still cover stays legible
           underneath. The drag handle is the escape hatch for whatever that isn't enough for. */}
-      {choiceState && (
-        <Box
-          data-testid="chat-panel-choice-modal"
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            padding: "var(--mantine-spacing-md)",
-            background: "rgba(0, 0, 0, 0.12)",
-            zIndex: 20,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) resolveChoice(choiceState.mode === "multi" ? [] : "");
-          }}
-        >
-          <Paper
-            shadow="md"
-            radius="md"
-            p="md"
-            withBorder
+        {choiceState && (
+          <Box
+            data-testid="chat-panel-choice-modal"
             style={{
-              maxWidth: "90%",
-              width: 340,
-              transform: choiceDragOffset
-                ? `translate(${choiceDragOffset.x}px, ${choiceDragOffset.y}px)`
-                : undefined,
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "center",
+              padding: "var(--mantine-spacing-md)",
+              background: "rgba(0, 0, 0, 0.12)",
+              zIndex: 20,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget)
+                resolveChoice(choiceState.mode === "multi" ? [] : "");
             }}
           >
-            <Group
-              justify="center"
-              mb="xs"
-              data-testid="chat-panel-choice-modal-drag-handle"
-              onPointerDown={onChoiceDragPointerDown}
-              onPointerMove={onChoiceDragPointerMove}
-              onPointerUp={onChoiceDragPointerUp}
-              onPointerCancel={onChoiceDragPointerUp}
-              style={{ cursor: "grab", touchAction: "none", margin: "-8px -8px 4px" }}
+            <Paper
+              shadow="md"
+              radius="md"
+              p="md"
+              withBorder
+              style={{
+                maxWidth: "90%",
+                width: 340,
+                transform: choiceDragOffset
+                  ? `translate(${choiceDragOffset.x}px, ${choiceDragOffset.y}px)`
+                  : undefined,
+              }}
             >
-              <GripHorizontal size={16} color="var(--mantine-color-dimmed)" />
-            </Group>
-            <Text fw={600} size="sm" mb="sm">
-              {choiceState.question}
-            </Text>
+              <Group
+                justify="center"
+                mb="xs"
+                data-testid="chat-panel-choice-modal-drag-handle"
+                onPointerDown={onChoiceDragPointerDown}
+                onPointerMove={onChoiceDragPointerMove}
+                onPointerUp={onChoiceDragPointerUp}
+                onPointerCancel={onChoiceDragPointerUp}
+                style={{ cursor: "grab", touchAction: "none", margin: "-8px -8px 4px" }}
+              >
+                <GripHorizontal size={16} color="var(--mantine-color-dimmed)" />
+              </Group>
+              <Text fw={600} size="sm" mb="sm">
+                {choiceState.question}
+              </Text>
 
-            {choiceState.mode === "yes_no" &&
-              (yesNoOther ? (
-                <Stack gap="sm">
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                  <Group justify="space-between">
-                    <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
-                      Back to Yes/No
+              {choiceState.mode === "yes_no" &&
+                (yesNoOther ? (
+                  <Stack gap="sm">
+                    <TextInput
+                      placeholder="Type your answer…"
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                    <Group justify="space-between">
+                      <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
+                        Back to Yes/No
+                      </Button>
+                      <Button
+                        disabled={!otherText.trim()}
+                        onClick={() => resolveChoice(otherText.trim())}
+                      >
+                        Submit
+                      </Button>
+                    </Group>
+                  </Stack>
+                ) : (
+                  <Stack gap="sm">
+                    <Group justify="flex-end">
+                      <Button variant="default" onClick={() => resolveChoice(false)}>
+                        No
+                      </Button>
+                      <Button onClick={() => resolveChoice(true)}>Yes</Button>
+                    </Group>
+                    <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
+                      Type something else
                     </Button>
+                  </Stack>
+                ))}
+
+              {choiceState.mode === "single" && (
+                <Stack gap="sm">
+                  <Radio.Group value={choiceDraft[0] ?? ""} onChange={(v) => setChoiceDraft([v])}>
+                    <Stack gap={6} mt="xs">
+                      {choiceState.options?.map((opt) => (
+                        <Radio key={opt} value={opt} label={opt} />
+                      ))}
+                      <Radio value={OTHER} label="Type something else" />
+                    </Stack>
+                  </Radio.Group>
+                  {choiceDraft[0] === OTHER && (
+                    <TextInput
+                      placeholder="Type your answer…"
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                  )}
+                  <Group justify="flex-end">
                     <Button
-                      disabled={!otherText.trim()}
-                      onClick={() => resolveChoice(otherText.trim())}
+                      disabled={!choiceDraft[0] || (choiceDraft[0] === OTHER && !otherText.trim())}
+                      onClick={() =>
+                        resolveChoice(choiceDraft[0] === OTHER ? otherText.trim() : choiceDraft[0])
+                      }
                     >
                       Submit
                     </Button>
                   </Group>
                 </Stack>
-              ) : (
+              )}
+
+              {choiceState.mode === "multi" && (
                 <Stack gap="sm">
+                  <Checkbox.Group value={choiceDraft} onChange={setChoiceDraft}>
+                    <Stack gap={6} mt="xs">
+                      {choiceState.options?.map((opt) => (
+                        <Checkbox key={opt} value={opt} label={opt} />
+                      ))}
+                      <Checkbox value={OTHER} label="Type something else" />
+                    </Stack>
+                  </Checkbox.Group>
+                  {choiceDraft.includes(OTHER) && (
+                    <TextInput
+                      placeholder="Type your answer…"
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.currentTarget.value)}
+                      autoFocus
+                    />
+                  )}
                   <Group justify="flex-end">
-                    <Button variant="default" onClick={() => resolveChoice(false)}>
-                      No
+                    <Button
+                      onClick={() => {
+                        const rest = choiceDraft.filter((v) => v !== OTHER);
+                        const extra =
+                          choiceDraft.includes(OTHER) && otherText.trim() ? [otherText.trim()] : [];
+                        resolveChoice([...rest, ...extra]);
+                      }}
+                    >
+                      Submit
                     </Button>
-                    <Button onClick={() => resolveChoice(true)}>Yes</Button>
                   </Group>
-                  <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
-                    Type something else
-                  </Button>
                 </Stack>
-              ))}
-
-            {choiceState.mode === "single" && (
-              <Stack gap="sm">
-                <Radio.Group value={choiceDraft[0] ?? ""} onChange={(v) => setChoiceDraft([v])}>
-                  <Stack gap={6} mt="xs">
-                    {choiceState.options?.map((opt) => (
-                      <Radio key={opt} value={opt} label={opt} />
-                    ))}
-                    <Radio value={OTHER} label="Type something else" />
-                  </Stack>
-                </Radio.Group>
-                {choiceDraft[0] === OTHER && (
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                )}
-                <Group justify="flex-end">
-                  <Button
-                    disabled={
-                      !choiceDraft[0] || (choiceDraft[0] === OTHER && !otherText.trim())
-                    }
-                    onClick={() =>
-                      resolveChoice(choiceDraft[0] === OTHER ? otherText.trim() : choiceDraft[0])
-                    }
-                  >
-                    Submit
-                  </Button>
-                </Group>
-              </Stack>
-            )}
-
-            {choiceState.mode === "multi" && (
-              <Stack gap="sm">
-                <Checkbox.Group value={choiceDraft} onChange={setChoiceDraft}>
-                  <Stack gap={6} mt="xs">
-                    {choiceState.options?.map((opt) => (
-                      <Checkbox key={opt} value={opt} label={opt} />
-                    ))}
-                    <Checkbox value={OTHER} label="Type something else" />
-                  </Stack>
-                </Checkbox.Group>
-                {choiceDraft.includes(OTHER) && (
-                  <TextInput
-                    placeholder="Type your answer…"
-                    value={otherText}
-                    onChange={(e) => setOtherText(e.currentTarget.value)}
-                    autoFocus
-                  />
-                )}
-                <Group justify="flex-end">
-                  <Button
-                    onClick={() => {
-                      const rest = choiceDraft.filter((v) => v !== OTHER);
-                      const extra = choiceDraft.includes(OTHER) && otherText.trim() ? [otherText.trim()] : [];
-                      resolveChoice([...rest, ...extra]);
-                    }}
-                  >
-                    Submit
-                  </Button>
-                </Group>
-              </Stack>
-            )}
-          </Paper>
-        </Box>
-      )}
+              )}
+            </Paper>
+          </Box>
+        )}
       </Box>
 
       <Modal
