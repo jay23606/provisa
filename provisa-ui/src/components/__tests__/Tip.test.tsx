@@ -10,6 +10,7 @@
 
 // The one tooltip (components/Tip.tsx): what it shows, when, and what it leaves alone.
 
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ActionIcon, Menu } from "@mantine/core";
 import { fireEvent, render, screen, waitFor } from "../../test-utils/render";
@@ -112,6 +113,31 @@ describe("Tip", () => {
     // The trigger's handler and the control's own both ran.
     expect(own).toEqual(["click"]);
     expect(screen.getByLabelText("More")).toHaveAttribute("aria-haspopup");
+  });
+
+  it("runs the control's own click before a controlled menu's, so a control that toggles the menu itself still opens it", async () => {
+    // The shape of the graph frame's download button: the menu is controlled, and the control
+    // flips the same state in its own handler. Whichever order the two run in must leave it open.
+    function Controlled() {
+      const [opened, setOpened] = useState(false);
+      return (
+        <Menu opened={opened} onChange={setOpened}>
+          <Menu.Target>
+            <Tip text="Download">
+              <ActionIcon aria-label="Download" onClick={() => setOpened((v) => !v)}>
+                d
+              </ActionIcon>
+            </Tip>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item>CSV</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      );
+    }
+    render(<Controlled />);
+    fireEvent.click(screen.getByLabelText("Download"));
+    expect(await screen.findByText("CSV")).toBeInTheDocument();
   });
 
   it("leaves the target's own handlers and its click working", async () => {

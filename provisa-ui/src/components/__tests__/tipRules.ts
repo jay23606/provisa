@@ -45,6 +45,31 @@ const CONTROLS = new Set([
   "ThemeIcon",
 ]);
 
+/**
+ * A hint whose target is also a trigger: the element directly inside a menu's, popover's or hover
+ * card's `.Target`. The trigger hands its click handler, ref and aria state to that element, so
+ * what sits there must pass them on. Tip and TipSurface do (Tip.test.tsx holds it); HelpBubble does
+ * not. Returns the tag of each such child and its line.
+ */
+export function tipsInsideTriggers(file: string, source: string): { tag: string; line: number }[] {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const out: { tag: string; line: number }[] = [];
+  const visit = (n: ts.Node): void => {
+    if (ts.isJsxElement(n) && /\.Target$/.test(n.openingElement.tagName.getText())) {
+      const child = n.children.find((c) => ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c));
+      if (child) {
+        const opening = ts.isJsxElement(child) ? child.openingElement : child;
+        const tag = (opening as ts.JsxOpeningLikeElement).tagName.getText();
+        if (tag === "Tip" || tag === "TipSurface" || tag === "HelpBubble")
+          out.push({ tag, line: sf.getLineAndCharacterOfPosition(child.getStart()).line + 1 });
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return out;
+}
+
 export function checkTipRules(file: string, source: string): TipViolation[] {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const out: TipViolation[] = [];

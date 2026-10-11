@@ -21,7 +21,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkTipRules, type TipViolation } from "./tipRules";
+import { checkTipRules, tipsInsideTriggers, type TipViolation } from "./tipRules";
 
 const SRC = resolve(__dirname, "../..");
 
@@ -90,6 +90,56 @@ describe("the tooltip rules fail what they are meant to fail", () => {
     expect(rules(`const x = <Modal title="Rename" opened onClose={f} />;`)).toEqual([]);
     expect(rules(`const x = <Alert title="Refused">no</Alert>;`)).toEqual([]);
     expect(rules(`const x = <iframe title="Documentation" src="/docs" />;`)).toEqual([]);
+  });
+});
+
+/**
+ * Every control that has a hint AND is the trigger of a menu or popover, by file. A new one is
+ * added here on purpose, after its menu has been opened by a click with the hint in place (the
+ * four below were, in the render harness: tip-menus.cjs). A Tip passes the trigger through; this
+ * list is what makes someone look.
+ */
+const TIPS_INSIDE_TRIGGERS: Readonly<Record<string, number>> = {
+  "components/TagControl.tsx": 1, // the tag picker's toggle
+  "components/graph/GraphFrame.tsx": 1, // the frame's download menu
+  "components/graph/Inspector.tsx": 1, // the inspector's colour chip
+  "pages/sql/ColumnFilterMenu.tsx": 1, // a result column's filter
+};
+
+describe("a hint on a menu's or popover's trigger", () => {
+  const sites = componentFiles(SRC)
+    .map((file) => ({
+      file,
+      found: tipsInsideTriggers(file, readFileSync(join(SRC, file), "utf8")),
+    }))
+    .filter((s) => s.found.length > 0);
+
+  it("is one of the listed sites, each opened by a click before it was listed", () => {
+    expect(Object.fromEntries(sites.map((s) => [s.file, s.found.length]))).toEqual(
+      TIPS_INSIDE_TRIGGERS,
+    );
+  });
+
+  it("is a Tip, which passes the trigger through, never a HelpBubble, which does not", () => {
+    for (const s of sites)
+      for (const f of s.found)
+        expect(f.tag, `${s.file}:${f.line} puts a ${f.tag} directly inside a trigger`).not.toBe(
+          "HelpBubble",
+        );
+  });
+
+  it("is found by the rule", () => {
+    const found = tipsInsideTriggers(
+      "Sample.tsx",
+      `const x = <Menu><Menu.Target><Tip text="t"><ActionIcon /></Tip></Menu.Target></Menu>;`,
+    );
+    expect(found.map((f) => f.tag)).toEqual(["Tip"]);
+    expect(
+      tipsInsideTriggers(
+        "Sample.tsx",
+        `const x = <Menu><Menu.Target><ActionIcon /></Menu.Target></Menu>;`,
+      ),
+    ).toEqual([]);
   });
 });
 

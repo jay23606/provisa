@@ -45,6 +45,7 @@ type TargetProps = {
   ref?: Ref<HTMLElement>;
   onMouseEnter?: (e: MouseEvent<HTMLElement>) => void;
   onMouseLeave?: (e: MouseEvent<HTMLElement>) => void;
+  onMouseDown?: (e: MouseEvent<HTMLElement>) => void;
   onFocus?: (e: FocusEvent<HTMLElement>) => void;
   onBlur?: (e: FocusEvent<HTMLElement>) => void;
   onKeyDown?: (e: KeyboardEvent<HTMLElement>) => void;
@@ -63,9 +64,12 @@ function mergeHandedOn(own: object, handedOn: object): Record<string, unknown> {
     if (key === "className" && typeof mine === "string" && typeof theirs === "string")
       out[key] = `${mine} ${theirs}`;
     else if (/^on[A-Z]/.test(key) && typeof mine === "function" && typeof theirs === "function")
+      // The target's own first, then the wrapper's: the order the library's triggers use when the
+      // control is their direct child. A control that toggles its own menu state and sits in a
+      // controlled menu depends on it (the graph frame's download button does).
       out[key] = (...args: unknown[]) => {
-        (theirs as (...a: unknown[]) => void)(...args);
         (mine as (...a: unknown[]) => void)(...args);
+        (theirs as (...a: unknown[]) => void)(...args);
       };
     else if (theirs !== undefined) out[key] = theirs;
   }
@@ -135,7 +139,7 @@ export function TipSurface({
   };
 
   // What the target is given: its own props, with a wrapper's laid over them -- a handler both
-  // have is called for both, the wrapper's first.
+  // have is called for both, the target's own first.
   const own = mergeHandedOn(children.props, handedOn) as TargetProps;
   // The target's element, kept here and handed on to the refs the target and a wrapper had.
   const attach = useMergedRef<HTMLElement>(setTarget, children.props.ref, ref);
@@ -171,6 +175,12 @@ export function TipSurface({
         onKeyDown: (e) => {
           own.onKeyDown?.(e);
           if (e.key === "Escape") hide();
+        },
+        // Pressing the control is the answer to its hint: the hint goes, so it does not sit over
+        // the menu or dialog the press opens.
+        onMouseDown: (e) => {
+          own.onMouseDown?.(e);
+          hide();
         },
         // A finger has no hover: the hint shows while the target is pressed.
         onTouchStart: (e) => {
