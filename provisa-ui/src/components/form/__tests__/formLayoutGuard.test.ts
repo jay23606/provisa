@@ -70,6 +70,28 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
   "components/OrgSelector.tsx": [
     { marker: "org-selector-option-", reason: "a list row that is itself the action" },
   ],
+  "pages/LoginPage.tsx": [
+    {
+      marker: "saml-signin-button",
+      reason: "the sign-in card's one primary action: a way to sign in, the card's width",
+    },
+    {
+      marker: "firebase-signin-button",
+      reason: "an identity provider of the sign-in card: a peer way to sign in",
+    },
+    {
+      marker: "firebase-signin-github-button",
+      reason: "an identity provider of the sign-in card: a peer way to sign in",
+    },
+    {
+      marker: "firebase-signin-microsoft-button",
+      reason: "an identity provider of the sign-in card: a peer way to sign in",
+    },
+    {
+      marker: "firebase-email-disclosure",
+      reason: "the sign-in card's email method, beside its providers: a peer way to sign in",
+    },
+  ],
 };
 
 /**
@@ -97,7 +119,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/graph/graph-context-menus.tsx",
   "pages/JsonApiPage.tsx",
   "pages/LineagePage.tsx",
-  "pages/LoginPage.tsx",
   "pages/RequestsPage.tsx",
   "pages/TablesPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
