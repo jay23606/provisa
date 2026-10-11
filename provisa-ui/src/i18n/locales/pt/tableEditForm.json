@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "Insira um número inteiro de segundos, 0 ou mais.",
     "roleTtlDuplicateRole": "Esta função já está na lista.",
     "roleTtlFixErrors": "Corrija as linhas de TTL por função antes de salvar.",
-    "loadProtectedLabel": "Protegida contra carga",
-    "loadProtectedHelp": "Protege uma fonte sensível à carga: serve esta tabela inteiramente a partir de um snapshot agendado, de modo que as consultas nunca atinjam a fonte. Requer pelo menos um gatilho de atualização — uma janela fora de pico, uma cadência de TTL de cache ou um sinal de mudança por sondagem. Herdar = seguir o padrão definido na fonte.",
     "offPeakWindowLabel": "Janela fora de pico",
     "offPeakWindowHelp": "Janela de manutenção no formato HH:MM-HH:MM (24h). O agendador atualiza uma tabela protegida contra carga apenas enquanto esta janela está aberta. Deixe em branco para não usar janela (a cadência/sondagem conduz a atualização).",
-    "offPeakWindowPlaceholder": "ex.: 01:00-03:00",
     "offPeakTzLabel": "Fuso horário fora de pico",
     "offPeakTzHelp": "Fuso horário IANA em que a janela fora de pico é avaliada (ex.: UTC, America/New_York). Acompanha o horário de verão.",
     "refreshPolicyTitle": "Política de atualização",
-    "inheritSource": "Herdar da fonte",
-    "on": "Ativado",
-    "off": "Desativado",
     "descriptionLabel": "Descrição",
     "descriptionHelp": "Descrição legível exibida no esquema da API (SDL), no catálogo de dados e na geração de consultas assistida por IA. Boas descrições melhoram a precisão do SQL gerado automaticamente.",
     "descriptionPlaceholder": "Aparece nos docs SDL",
@@ -296,6 +290,7 @@
       "type": "Tipo e chaves",
       "access": "Acesso",
       "errors": "{{count}} por corrigir"
-    }
+    },
+    "offPeakInherited": "Herdado: a origem desta tabela só é lida de acordo com o agendamento."
   }
 }

@@ -105,16 +105,22 @@ describe("SourceLoadManagementPanel", () => {
     const onForm = vi.fn();
     renderInForm(<Harness onForm={onForm} />);
     const { select, listbox } = await openReplicate();
-    expect(screen.queryByTestId("off-peak-window-input")).toBeNull();
+    expect(screen.queryByTestId("off-peak-window")).toBeNull();
     fireEvent.click(within(listbox).getByText(SCHEDULED));
     // The server takes load protection with Always: reads never go to the source.
     expect(onForm).toHaveBeenLastCalledWith(
       expect.objectContaining({ loadProtected: true, replicate: 0 }),
     );
     expect(select).toHaveValue(SCHEDULED);
-    const window = await screen.findByTestId("off-peak-window-input");
-    expect(window).not.toBeRequired();
-    expect(screen.getByTestId("off-peak-tz-input")).not.toBeRequired();
+    // The same control as the table form's: two time boxes and the zone picker, all optional.
+    expect(await screen.findByTestId("off-peak-opens")).not.toBeRequired();
+    expect(screen.getByTestId("off-peak-closes")).not.toBeRequired();
+    expect(screen.getByTestId("off-peak-tz")).not.toBeRequired();
+    fireEvent.change(screen.getByTestId("off-peak-opens"), { target: { value: "01:00" } });
+    fireEvent.change(screen.getByTestId("off-peak-closes"), { target: { value: "05:00" } });
+    expect(onForm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ offPeakWindow: "01:00-05:00" }),
+    );
     expect(
       screen.getByText("Without a window, the refresh follows the Cache TTL or the change probe."),
     ).toBeInTheDocument();
@@ -138,13 +144,13 @@ describe("SourceLoadManagementPanel", () => {
     const { select, listbox } = await openReplicate();
     // A source stored with load protection opens on the choice, whatever its Replicate value.
     expect(select).toHaveValue(SCHEDULED);
-    expect(screen.getByTestId("off-peak-window-input")).toBeInTheDocument();
+    expect(screen.getByTestId("off-peak-window")).toBeInTheDocument();
     fireEvent.click(within(listbox).getByText("Always"));
     expect(onForm).toHaveBeenLastCalledWith(
       expect.objectContaining({ loadProtected: false, replicate: 0 }),
     );
-    expect(screen.queryByTestId("off-peak-window-input")).toBeNull();
-    expect(screen.queryByTestId("off-peak-tz-input")).toBeNull();
+    expect(screen.queryByTestId("off-peak-window")).toBeNull();
+    expect(screen.queryByTestId("off-peak-tz")).toBeNull();
   });
 
   it("says in its help what refreshes a source read only on schedule", async () => {

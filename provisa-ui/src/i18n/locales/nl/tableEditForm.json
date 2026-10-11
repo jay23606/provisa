@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "Voer een geheel aantal seconden in, 0 of meer.",
     "roleTtlDuplicateRole": "Deze rol staat al in de lijst.",
     "roleTtlFixErrors": "Corrigeer de rol-TTL-regels voordat u opslaat.",
-    "loadProtectedLabel": "Belastingbeveiligd",
-    "loadProtectedHelp": "Bescherm een belastinggevoelige bron: bedien deze tabel volledig vanuit een geplande snapshot, zodat query's de bron nooit raken. Vereist ten minste één verversingspoort — een dalurenvenster, een cache-TTL-cadans of een sonderend wijzigingssignaal. Overnemen = volg de standaard op bronniveau.",
     "offPeakWindowLabel": "Dalurenvenster",
     "offPeakWindowHelp": "Onderhoudsvenster als UU:MM-UU:MM (24-uurs). De planner ververst een belastingbeveiligde tabel alleen terwijl dit venster open is. Laat leeg voor geen venster (cadans/probe sturen dan de verversing).",
-    "offPeakWindowPlaceholder": "bijv. 01:00-03:00",
     "offPeakTzLabel": "Tijdzone daluren",
     "offPeakTzHelp": "IANA-tijdzone waarin het dalurenvenster wordt geëvalueerd (bijv. UTC, America/New_York). Volgt zomertijd.",
     "refreshPolicyTitle": "Verversingsbeleid",
-    "inheritSource": "Bron overnemen",
-    "on": "Aan",
-    "off": "Uit",
     "descriptionLabel": "Beschrijving",
     "descriptionHelp": "Leesbare beschrijving die wordt getoond in het API-schema (SDL), de datacatalogus en AI-ondersteunde querygeneratie. Goede beschrijvingen verbeteren de nauwkeurigheid van automatisch gegenereerde SQL.",
     "descriptionPlaceholder": "Verschijnt in SDL-documentatie",
@@ -296,6 +290,7 @@
       "type": "Type en sleutels",
       "access": "Toegang",
       "errors": "{{count}} te herstellen"
-    }
+    },
+    "offPeakInherited": "Overgenomen: de bron van deze tabel wordt alleen volgens schema gelezen."
   }
 }

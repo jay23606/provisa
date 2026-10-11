@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "Introduzca un número entero de segundos, 0 o más.",
     "roleTtlDuplicateRole": "Este rol ya está en la lista.",
     "roleTtlFixErrors": "Corrija las filas de TTL por rol antes de guardar.",
-    "loadProtectedLabel": "Protección de carga",
-    "loadProtectedHelp": "Protege un origen sensible a la carga: sirve esta tabla íntegramente desde una instantánea programada, de modo que las consultas nunca lleguen al origen. Requiere al menos una condición de actualización: una ventana de baja actividad, una cadencia de TTL de caché o una señal de cambio por sondeo. Heredar = seguir el valor predeterminado a nivel de origen.",
     "offPeakWindowLabel": "Ventana de baja actividad",
     "offPeakWindowHelp": "Ventana de mantenimiento en formato HH:MM-HH:MM (24 h). El programador actualiza una tabla con protección de carga solo mientras esta ventana está abierta. Deje en blanco para no usar ventana (la cadencia o el sondeo dirigen la actualización).",
-    "offPeakWindowPlaceholder": "p. ej. 01:00-03:00",
     "offPeakTzLabel": "Zona horaria de baja actividad",
     "offPeakTzHelp": "Zona horaria IANA en la que se evalúa la ventana de baja actividad (p. ej. UTC, America/New_York). Sigue el horario de verano.",
     "refreshPolicyTitle": "Política de actualización",
-    "inheritSource": "Heredar del origen",
-    "on": "Activado",
-    "off": "Desactivado",
     "descriptionLabel": "Descripción",
     "descriptionHelp": "Descripción legible que se muestra en el esquema de la API (SDL), el catálogo de datos y la generación de consultas asistida por IA. Una buena descripción mejora la precisión del SQL generado automáticamente.",
     "descriptionPlaceholder": "Aparece en la documentación SDL",
@@ -296,6 +290,7 @@
       "type": "Tipo y claves",
       "access": "Acceso",
       "errors": "{{count}} por corregir"
-    }
+    },
+    "offPeakInherited": "Heredado: el origen de esta tabla solo se lee según la programación."
   }
 }

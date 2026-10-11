@@ -11,20 +11,18 @@
 // The load and recency controls of the table edit form: the cache lifetime and its per-role list,
 // paging, replication and load protection with its off-peak window.
 
-import { Group, NumberInput, Select, Text } from "@mantine/core";
-import { TimeInput } from "@mantine/dates";
+import { NumberInput, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { RegisteredTable, Source } from "../../types/admin";
 import type { Role } from "../../types/auth";
 import { ReplicateSelect } from "../../components/admin/ReplicateSelect";
 import { FormField, FormLayout } from "../../components/form/FormLayout";
 import { CollapsibleSection } from "./CollapsibleSection";
-import { IANA_TIME_ZONES } from "./constants";
-import { FieldLabel } from "./FieldLabel";
 import { PagingField } from "./PagingField";
 import { ReplicaBuildLine } from "./ReplicaBuildLine";
 import { RoleTtlField } from "./RoleTtlField";
 import type { CacheTtlEdit } from "./TableEditForm";
+import { OffPeakWindowFields } from "../../components/admin/OffPeakWindowFields";
 
 export function TableLoadManagementFields({
   editingTable,
@@ -98,34 +96,13 @@ export function TableLoadManagementFields({
               value={editingTable.replicate}
               onChange={(replicate) => setEditingTable({ ...editingTable, replicate })}
               scope="table"
-              loadProtected={editingTable.loadProtected ?? editSource?.loadProtected ?? false}
+              // REQ-1141: load protection is the list's last choice. Default inherits both settings
+              // from the source; every other choice is this table's own.
+              loadProtected={editingTable.loadProtected === true}
+              onScheduledChange={(replicate, loadProtected) =>
+                setEditingTable({ ...editingTable, replicate, loadProtected })
+              }
               testId="table-replicate-select"
-            />
-          </FormField>
-          <FormField help={t("tableEditForm.loadProtectedHelp")} size="medium">
-            <Select
-              // REQ-1141: load protection — scheduled-refresh-only; the query path never pulls the source.
-              label={t("tableEditForm.loadProtectedLabel")}
-              data={[
-                { value: "inherit", label: t("tableEditForm.inheritSource") },
-                { value: "on", label: t("tableEditForm.on") },
-                { value: "off", label: t("tableEditForm.off") },
-              ]}
-              value={
-                editingTable.loadProtected == null
-                  ? "inherit"
-                  : editingTable.loadProtected
-                    ? "on"
-                    : "off"
-              }
-              onChange={(v) =>
-                setEditingTable({
-                  ...editingTable,
-                  loadProtected: v === "inherit" ? null : v === "on",
-                })
-              }
-              comboboxProps={{ withinPortal: true }}
-              allowDeselect={false}
             />
           </FormField>
           <FormField size="full">
@@ -160,65 +137,22 @@ export function TableLoadManagementFields({
                 testId="mv-protection-panel"
                 defaultOpen
               >
-                {/* REQ-1141: off-peak window "HH:MM-HH:MM"; the scheduler refreshes only while it is
-      open. Two time widgets (opens/closes) compose the string; both blank = no window. */}
+                {/* Said where the table has not chosen it itself: the source is read only on
+                    schedule and this table follows it. */}
+                {editingTable.loadProtected == null && (
+                  <Text size="xs" c="dimmed" data-testid="off-peak-inherited">
+                    {t("tableEditForm.offPeakInherited")}
+                  </Text>
+                )}
                 <FormLayout>
-                  <FormField size="medium" data-testid="off-peak-window">
-                    <FieldLabel
-                      text={t("tableEditForm.offPeakWindowLabel")}
-                      help={t("tableEditForm.offPeakWindowHelp")}
-                    />
-                    <Group gap="xs" grow>
-                      <TimeInput
-                        aria-label={t("tableEditForm.offPeakOpensAria")}
-                        data-testid="off-peak-opens"
-                        label={t("tableEditForm.offPeakOpens")}
-                        value={(editingTable.offPeakWindow ?? "").split("-")[0] ?? ""}
-                        onChange={(e) => {
-                          const end = (editingTable.offPeakWindow ?? "").split("-")[1] ?? "";
-                          const start = e.currentTarget.value;
-                          setEditingTable({
-                            ...editingTable,
-                            offPeakWindow: start || end ? `${start}-${end}` : null,
-                          });
-                        }}
-                      />
-                      <TimeInput
-                        aria-label={t("tableEditForm.offPeakClosesAria")}
-                        data-testid="off-peak-closes"
-                        label={t("tableEditForm.offPeakCloses")}
-                        value={(editingTable.offPeakWindow ?? "").split("-")[1] ?? ""}
-                        onChange={(e) => {
-                          const start = (editingTable.offPeakWindow ?? "").split("-")[0] ?? "";
-                          const end = e.currentTarget.value;
-                          setEditingTable({
-                            ...editingTable,
-                            offPeakWindow: start || end ? `${start}-${end}` : null,
-                          });
-                        }}
-                      />
-                    </Group>
-                  </FormField>
-                  <FormField help={t("tableEditForm.offPeakTzHelp")} size="medium">
-                    <Select
-                      // REQ-1141: IANA zone for the off-peak window. Picklist of the runtime's supported zones
-                      // (Intl.supportedValuesOf) — the same identifiers ZoneInfo accepts server-side — so the
-                      // window can never be saved against an unparseable zone.
-                      label={t("tableEditForm.offPeakTzLabel")}
-                      data={IANA_TIME_ZONES}
-                      value={editingTable.offPeakTz ?? ""}
-                      onChange={(v) =>
-                        setEditingTable({
-                          ...editingTable,
-                          offPeakTz: v || null,
-                        })
-                      }
-                      searchable
-                      clearable
-                      placeholder="UTC"
-                      comboboxProps={{ withinPortal: true }}
-                    />
-                  </FormField>
+                  <OffPeakWindowFields
+                    window={editingTable.offPeakWindow ?? ""}
+                    tz={editingTable.offPeakTz ?? ""}
+                    onWindowChange={(window) =>
+                      setEditingTable({ ...editingTable, offPeakWindow: window || null })
+                    }
+                    onTzChange={(tz) => setEditingTable({ ...editingTable, offPeakTz: tz || null })}
+                  />
                 </FormLayout>
               </CollapsibleSection>
             </FormField>

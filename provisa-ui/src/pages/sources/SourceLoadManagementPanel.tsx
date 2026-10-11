@@ -29,6 +29,7 @@ import {
 } from "./loadManagement";
 import { useSourceKind } from "./sourceKind";
 import { FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
+import { OffPeakWindowFields } from "../../components/admin/OffPeakWindowFields";
 
 export function SourceLoadManagementPanel({
   form,
@@ -70,7 +71,8 @@ export function SourceLoadManagementPanel({
               onChange={(replicate) => setForm({ ...form, replicate })}
               // REQ-1141: load protection is the drop-down's last choice, not a setting beside it.
               onScheduledChange={(replicate, loadProtected) =>
-                setForm({ ...form, replicate, loadProtected })
+                // A source inherits from nothing: the drop-down reports true or false here.
+                setForm({ ...form, replicate, loadProtected: loadProtected === true })
               }
               scope="source"
               loadProtected={form.loadProtected}
@@ -153,26 +155,12 @@ export function SourceLoadManagementPanel({
           {/* REQ-1141: when a source read only on schedule is refreshed. Both are optional: with
               no window the refresh follows the Cache TTL or the change probe. */}
           {form.loadProtected && (
-            <>
-              <FormField size="medium" hint={t("sourceFormFieldsExtended.offPeakWindowHint")}>
-                <TextInput
-                  label={t("sourceFormFieldsExtended.offPeakWindow")}
-                  value={form.offPeakWindow}
-                  onChange={(e) => setForm({ ...form, offPeakWindow: e.currentTarget.value })}
-                  placeholder="01:00-05:00"
-                  data-testid="off-peak-window-input"
-                />
-              </FormField>
-              <FormField size="short">
-                <TextInput
-                  label={t("sourceFormFieldsExtended.offPeakTz")}
-                  value={form.offPeakTz}
-                  onChange={(e) => setForm({ ...form, offPeakTz: e.currentTarget.value })}
-                  placeholder="UTC"
-                  data-testid="off-peak-tz-input"
-                />
-              </FormField>
-            </>
+            <OffPeakWindowFields
+              window={form.offPeakWindow}
+              tz={form.offPeakTz}
+              onWindowChange={(offPeakWindow) => setForm({ ...form, offPeakWindow })}
+              onTzChange={(offPeakTz) => setForm({ ...form, offPeakTz })}
+            />
           )}
           {/* The ticks sit together beneath the fields: caching, the freshness gate. */}
           <FormChecks>

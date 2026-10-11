@@ -21,17 +21,11 @@
     "roleTtlInvalidTtl": "Saisissez un nombre entier de secondes, 0 ou plus.",
     "roleTtlDuplicateRole": "Ce rôle est déjà listé.",
     "roleTtlFixErrors": "Corrigez les lignes TTL par rôle avant d'enregistrer.",
-    "loadProtectedLabel": "Protection de charge",
-    "loadProtectedHelp": "Protège une source sensible à la charge : cette table est servie entièrement depuis un instantané planifié, les requêtes n'atteignent jamais la source. Nécessite au moins un déclencheur de rafraîchissement — une fenêtre creuse, une cadence de TTL du cache ou un signal de changement par sonde. Hériter = suivre la valeur par défaut de la source.",
     "offPeakWindowLabel": "Fenêtre creuse",
     "offPeakWindowHelp": "Fenêtre de maintenance au format HH:MM-HH:MM (24 h). Le planificateur ne rafraîchit une table protégée que pendant l'ouverture de cette fenêtre. Laissez vide pour aucune fenêtre (la cadence ou la sonde pilote alors le rafraîchissement).",
-    "offPeakWindowPlaceholder": "ex. 01:00-03:00",
     "offPeakTzLabel": "Fuseau horaire de la fenêtre creuse",
     "offPeakTzHelp": "Fuseau IANA dans lequel la fenêtre creuse est évaluée (ex. UTC, America/New_York). Suit l'heure d'été.",
     "refreshPolicyTitle": "Politique de rafraîchissement",
-    "inheritSource": "Hériter de la source",
-    "on": "Activé",
-    "off": "Désactivé",
     "descriptionLabel": "Description",
     "descriptionHelp": "Description lisible affichée dans le schéma de l'API (SDL), le catalogue de données et la génération de requêtes assistée par IA. De bonnes descriptions améliorent la précision du SQL auto-généré.",
     "descriptionPlaceholder": "Apparaît dans la documentation SDL",
@@ -296,6 +290,7 @@
       "type": "Type et clés",
       "access": "Accès",
       "errors": "{{count}} à corriger"
-    }
+    },
+    "offPeakInherited": "Hérité : la source de cette table n'est lue que selon la planification."
   }
 }
