@@ -5597,5 +5597,6 @@
   "pt/securityPage.json::securityPage.ruleDetailPanel": "RLS rule details",
   "pt/securityPage.json::securityPage.panelNewRole": "New role",
   "pt/securityPage.json::securityPage.panelNewRule": "New RLS rule",
-  "pt/securityPage.json::securityPage.panelRule": "RLS rule {{id}}"
+  "pt/securityPage.json::securityPage.panelRule": "RLS rule {{id}}",
+  "pt/metricsPage.json::metricsPage.detailPanel": "Metric details"
 }

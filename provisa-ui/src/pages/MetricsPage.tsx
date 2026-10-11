@@ -16,7 +16,6 @@ import {
   Button,
   Group,
   Modal,
-  Paper,
   Select,
   Table,
   Text,
@@ -29,17 +28,10 @@ import { useMetrics, useTables, useUpsertMetric, useDeleteMetric } from "../hook
 import type { Metric, RegisteredTable } from "../types/admin";
 import { OssieInterchangePanel } from "./metrics/OssieInterchangePanel";
 import { HelpBubble } from "../components/HelpBubble";
-import { MetricDetailPanel } from "./metrics/MetricDetailPanel";
+import { MetricActions, MetricDetailPanel } from "./metrics/MetricDetailPanel";
+import { SplitPane } from "../components/list/SplitPane";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
-import {
-  ListTable,
-  ListHead,
-  ListRow,
-  ListExpandRow,
-  ListEmpty,
-  ListDetail,
-  ListItems,
-} from "../components/list/ListTable";
+import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, type ListColumn } from "../components/list/useListSortGroup";
 import { PageLoading } from "../components/PageLoading";
 
@@ -256,6 +248,8 @@ export function MetricsPage() {
     tables.filter((tbl) => tbl.viewMetrics?.metrics.includes(name)).map((tbl) => tbl.tableName);
 
   const openCreate = () => {
+    // One thing in the panel at a time: the form replaces whatever metric was open.
+    setExpanded(null);
     setEditingName(null);
     setForm({ ...EMPTY_FORM });
     setBuilder({ ...EMPTY_BUILDER });
@@ -370,8 +364,46 @@ export function MetricsPage() {
   );
   const sortGroup = useListSortGroup(metrics, metricColumns, "metrics");
 
+  // The right-hand panel: the form that creates a metric while it is open, otherwise the selected
+  // metric -- its detail, or the form that edits it. Nothing selected: no panel.
+  const closePanel = () => {
+    closeForm();
+    setExpanded(null);
+  };
+  const selectedMetric =
+    expanded === null ? null : (metrics.find((m) => m.name === expanded) ?? null);
+  const panelTitle = creating
+    ? t("metricsPage.createTitle")
+    : selectedMetric
+      ? selectedMetric.name
+      : "";
+  const panelBody = creating ? (
+    <div data-testid="metric-create-card">{formCard}</div>
+  ) : selectedMetric ? (
+    editingName === selectedMetric.name ? (
+      <>
+        {/* The metric's actions stay in the panel's head while it is edited, out of use. */}
+        <MetricActions
+          m={selectedMetric}
+          onEdit={() => openEdit(selectedMetric)}
+          onDelete={() => setDeleteTarget(selectedMetric.name)}
+          disabled
+        />
+        {formCard}
+      </>
+    ) : (
+      <MetricDetailPanel
+        m={selectedMetric}
+        dependentViews={dependentViews(selectedMetric.name)}
+        onEdit={() => openEdit(selectedMetric)}
+        onDelete={() => setDeleteTarget(selectedMetric.name)}
+      />
+    )
+  ) : null;
+
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "1rem 1.25rem" }}>
+    // The list and its panel share the height the heading leaves; each scrolls by itself.
+    <div className="page-sticky-head" style={{ padding: "1rem 1.25rem" }}>
       <Group justify="space-between" mb="md">
         <Title order={3}>{t("metricsPage.title")}</Title>
         <Group gap="xs">
@@ -391,7 +423,10 @@ export function MetricsPage() {
       </Group>
 
       {/* REQ-1316: semantic interchange (Ossie) — export endpoint/download + import review. */}
-      <OssieInterchangePanel />
+      {/* An import under review can be long: it scrolls in its own box, the list keeps its place. */}
+      <div style={{ maxHeight: "50vh", overflow: "auto" }}>
+        <OssieInterchangePanel />
+      </div>
 
       {error && (
         <Alert color="red" mb="sm">
@@ -404,108 +439,105 @@ export function MetricsPage() {
         </Alert>
       )}
 
-      {creating && (
-        <Paper withBorder p="md" mb="md" data-testid="metric-create-card">
-          <Title order={5} mb="sm">
-            {t("metricsPage.createTitle")}
-          </Title>
-          {formCard}
-        </Paper>
-      )}
-
       {loading && metrics.length === 0 ? (
         <PageLoading message={t("metricsPage.loading")} />
       ) : (
-        <ListTable testId="metrics-table">
-          <ListHead
-            sortGroup={sortGroup}
-            columns={[
-              { col: "name" },
-              { col: "expression" },
-              { col: "datatype" },
-              { col: "description" },
-              { col: "aiContext" },
-            ]}
-          />
-          <Table.Tbody>
-            {metrics.length === 0 && (
-              <ListEmpty colSpan={5} testId="metrics-empty">
-                {t("metricsPage.empty")}
-              </ListEmpty>
-            )}
-            <ListItems
-              state={sortGroup}
-              colSpan={5}
-              rowKey={(m) => m.name}
-              render={(m) => {
-                const isExpanded = expanded === m.name;
-                const isEditing = editingName === m.name;
-                return (
-                  <React.Fragment key={m.name}>
-                    <ListRow
-                      testId={`metrics-row-${m.name}`}
-                      onClick={() => {
-                        setExpanded(isExpanded ? null : m.name);
-                        if (isEditing && isExpanded) closeForm();
-                      }}
-                    >
-                      <Table.Td>
-                        <Group gap="0.35rem" wrap="nowrap">
-                          <Text size="sm" fw={600} ff="monospace">
-                            {m.name}
-                          </Text>
-                          {m.fromFact && (
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              data-testid={`metrics-from-fact-${m.name}`}
-                            >
-                              {t("metricsPage.fromFact")}
-                            </Badge>
-                          )}
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
-                          {m.expression}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" ff="monospace">
-                          {m.datatype ?? ""}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs">{m.description ?? ""}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" c="var(--text-muted)">
-                          {m.aiContext ?? ""}
-                        </Text>
-                      </Table.Td>
-                    </ListRow>
-                    {isExpanded && (
-                      <ListExpandRow colSpan={5}>
-                        <ListDetail>
-                          {isEditing ? (
-                            formCard
-                          ) : (
-                            <MetricDetailPanel
-                              m={m}
-                              dependentViews={dependentViews(m.name)}
-                              onEdit={() => openEdit(m)}
-                              onDelete={() => setDeleteTarget(m.name)}
-                            />
-                          )}
-                        </ListDetail>
-                      </ListExpandRow>
-                    )}
-                  </React.Fragment>
-                );
-              }}
-            />
-          </Table.Tbody>
-        </ListTable>
+        <SplitPane
+          testId="metrics-split"
+          storageKey="provisa.metrics.detailWidth"
+          title={panelTitle}
+          onClose={closePanel}
+          // Escape closes a metric that is only being looked at; it never drops what is typed.
+          closeOnEscape={!creating && editingName === null}
+          labels={{
+            panel: t("metricsPage.detailPanel"),
+            resize: t("tablesPage.resizeDetail"),
+            expand: t("tablesPage.expandDetail"),
+            restore: t("tablesPage.restoreDetail"),
+            close: t("tablesPage.closeDetail"),
+            backToList: t("tablesPage.backToList"),
+          }}
+          list={
+            <ListTable testId="metrics-table">
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  { col: "name" },
+                  { col: "expression" },
+                  { col: "datatype" },
+                  { col: "description" },
+                  { col: "aiContext" },
+                ]}
+              />
+              <Table.Tbody>
+                {metrics.length === 0 && (
+                  <ListEmpty colSpan={5} testId="metrics-empty">
+                    {t("metricsPage.empty")}
+                  </ListEmpty>
+                )}
+                <ListItems
+                  state={sortGroup}
+                  colSpan={5}
+                  rowKey={(m) => m.name}
+                  render={(m) => {
+                    const isExpanded = expanded === m.name;
+                    return (
+                      <React.Fragment key={m.name}>
+                        <ListRow
+                          testId={`metrics-row-${m.name}`}
+                          // The row whose detail the right-hand panel is showing.
+                          selected={isExpanded}
+                          onClick={() => {
+                            // The row opens its detail in the panel, swaps it, or closes it.
+                            setExpanded(isExpanded ? null : m.name);
+                            closeForm();
+                          }}
+                        >
+                          <Table.Td>
+                            <Group gap="0.35rem" wrap="nowrap">
+                              <Text size="sm" fw={600} ff="monospace">
+                                {m.name}
+                              </Text>
+                              {m.fromFact && (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  data-testid={`metrics-from-fact-${m.name}`}
+                                >
+                                  {t("metricsPage.fromFact")}
+                                </Badge>
+                              )}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
+                              {m.expression}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" ff="monospace">
+                              {m.datatype ?? ""}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">{m.description ?? ""}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" c="var(--text-muted)">
+                              {m.aiContext ?? ""}
+                            </Text>
+                          </Table.Td>
+                        </ListRow>
+                      </React.Fragment>
+                    );
+                  }}
+                />
+              </Table.Tbody>
+            </ListTable>
+          }
+        >
+          {panelBody}
+        </SplitPane>
       )}
 
       {/* Delete confirm */}

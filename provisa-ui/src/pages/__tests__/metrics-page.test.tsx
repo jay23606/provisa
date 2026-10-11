@@ -13,7 +13,7 @@
 // the create/edit dialog composes AGG(fact.column) from the fact registry (REQ-1320).
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "../../test-utils/render";
+import { fireEvent, render, screen, within } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import type { Metric, RegisteredTable, TableColumn } from "../../types/admin";
 
@@ -193,6 +193,52 @@ describe("MetricsPage detail-then-edit", () => {
     await userEvent.click(screen.getByTestId("metrics-row-revenue"));
     await userEvent.click(screen.getByTestId("metric-detail-delete-revenue"));
     expect(screen.getByTestId("metric-delete-modal")).toBeInTheDocument();
+  });
+});
+
+describe("MetricsPage: the right-hand detail panel", () => {
+  it("shows the chosen metric in the panel, not under its row, and marks the row", async () => {
+    const { container } = render(<MetricsPage />);
+    expect(screen.queryByTestId("metrics-split-panel")).toBeNull();
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    const panel = screen.getByTestId("metrics-split-panel");
+    expect(screen.getByTestId("metrics-split-title")).toHaveTextContent("revenue");
+    expect(within(panel).getByTestId("metric-detail-revenue")).toBeInTheDocument();
+    // Its actions are in the panel too, and the list gained no row.
+    expect(within(panel).getByTestId("metric-detail-edit-revenue")).toBeInTheDocument();
+    expect(container.querySelectorAll("tbody tr.list-expand")).toHaveLength(0);
+    expect(screen.getByTestId("metrics-row-revenue").className).toContain("row-selected");
+  });
+
+  it("closes from the row and from the panel's close", async () => {
+    render(<MetricsPage />);
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    expect(screen.queryByTestId("metrics-split-panel")).toBeNull();
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    await userEvent.click(screen.getByTestId("metrics-split-close"));
+    expect(screen.queryByTestId("metrics-split-panel")).toBeNull();
+  });
+
+  it("opens the new-metric form in the panel, in place of the open metric", async () => {
+    render(<MetricsPage />);
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    await userEvent.click(screen.getByTestId("metrics-new-button"));
+    expect(screen.getByTestId("metrics-split-title")).toHaveTextContent("New Metric");
+    expect(
+      within(screen.getByTestId("metrics-split-panel")).getByTestId("metric-create-card"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("metrics-row-revenue").className).not.toContain("row-selected");
+  });
+
+  it("keeps Escape from dropping a metric's form, its actions out of use meanwhile", async () => {
+    render(<MetricsPage />);
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    await userEvent.click(screen.getByTestId("metric-detail-edit-revenue"));
+    fireEvent.keyDown(screen.getByTestId("metrics-split-panel"), { key: "Escape" });
+    expect(screen.getByTestId("metric-form")).toBeInTheDocument();
+    // While the form is open the metric's actions stay in the head, out of use.
+    expect(screen.getByTestId("metric-detail-edit-revenue").closest("fieldset")).toBeDisabled();
   });
 });
 
