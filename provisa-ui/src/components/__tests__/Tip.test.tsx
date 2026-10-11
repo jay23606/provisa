@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: f139a62b-3343-4196-8659-9afc4b3d24f2
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // The one tooltip (components/Tip.tsx): what it shows, when, and what it leaves alone.
 
 import { describe, expect, it, vi } from "vitest";

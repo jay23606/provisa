@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: 2702cbfe-15e7-424f-a749-a50f720dd4cc
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // The one tooltip of the application. Every hint shown on hover or keyboard focus is drawn by
 // this file, on one surface (`.tip-surface` in App.css): a one-line `Tip`, and the titled card
 // `HelpBubble` builds on it. No other file imports Mantine's Tooltip or HoverCard, and no control

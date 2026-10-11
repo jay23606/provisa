@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: aa9739aa-b4d4-482e-8990-5c2dfb48c4a5
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // What the tooltip guard reads out of one component file (tipGuard.test.ts). One style of
 // tooltip: components/Tip.tsx draws every hint, so nothing else imports the library's own
 // tooltip pieces and no control carries a native `title`.

@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: a7d7e39d-4dec-43c0-9079-c10baf60191f
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // One style of tooltip (maintainer, 2026-10-11: "there are 3 styles of tooltips. Standardize them
 // all using the style that the tables page erd icon button uses"). components/Tip.tsx draws every
 // hint -- the one-line Tip and the titled HelpBubble card -- on one surface. This guard keeps the
