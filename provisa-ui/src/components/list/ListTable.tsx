@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Layers } from "lucide-react";
 import type { ListItem, ListSortGroup } from "./useListSortGroup";
 import { Tip } from "../Tip";
+import { useLeaveGuard } from "./panelLeave";
 
 /**
  * REQ-1940: the one list style, taken from the Register Tables page. Every admin page that lists
@@ -294,8 +295,15 @@ export function ListRow({ children, testId, onClick, selected, ...aria }: ListRo
   const cls = ["list-row", onClick ? "clickable" : "", selected ? "row-selected" : ""]
     .filter(Boolean)
     .join(" ");
+  // Beside a detail panel whose form has unsaved changes, choosing a row asks first.
+  const guard = useLeaveGuard();
   return (
-    <Table.Tr {...aria} data-testid={testId} className={cls} onClick={onClick}>
+    <Table.Tr
+      {...aria}
+      data-testid={testId}
+      className={cls}
+      onClick={onClick ? () => guard(onClick) : undefined}
+    >
       {children}
     </Table.Tr>
   );

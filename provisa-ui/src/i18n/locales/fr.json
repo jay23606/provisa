@@ -6,7 +6,10 @@
     "delete": "Supprimer",
     "confirm": "Confirmer",
     "processing": "Traitement...",
-    "identity": "Identité"
+    "identity": "Identité",
+    "discardTitle": "Abandonner vos modifications ?",
+    "discardBody": "Vos modifications de {{what}} ne sont pas enregistrées.",
+    "discard": "Abandonner"
   },
   "app": {
     "apiUnreachable": "Impossible de joindre l'API Provisa.",
