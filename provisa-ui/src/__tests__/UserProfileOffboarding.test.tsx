@@ -103,3 +103,22 @@ describe("UserProfileModal offboarding", () => {
     expect(await screen.findByText(t("userProfileModal.deleteAccountHelp"))).toBeInTheDocument();
   });
 });
+
+describe("UserProfileModal shows only what something honours", () => {
+  it("asks for no email preference, and asks the server for none", async () => {
+    // Nothing reads an email preference, so the dialog does not offer one: a setting that
+    // changes nothing is not shown. (It also showed its three strings as raw keys.)
+    const fetched = vi.spyOn(globalThis, "fetch");
+    render(<UserProfileModal onClose={() => {}} />);
+    await screen.findByTestId("profile-leave-acme");
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(fetched.mock.calls.some(([url]) => String(url).includes("/auth/email"))).toBe(false);
+    fetched.mockRestore();
+  });
+
+  it("shows no translation key in place of text", async () => {
+    render(<UserProfileModal onClose={() => {}} />);
+    await screen.findByTestId("profile-leave-acme");
+    expect(document.body.textContent ?? "").not.toMatch(/userProfileModal\./i);
+  });
+});
