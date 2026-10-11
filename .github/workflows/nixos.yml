@@ -116,6 +116,16 @@ jobs:
           echo "runner:"; bash -c "$probe"
           echo "guest:"; packaging/nixos/vm-run "$probe"
 
+      # The minute the spec below gives AskAmerica's server excludes the cold bundle download
+      # (maintainer, 2026-10-11): the ~900 MB pgwire-govdata bundle is fetched into the service
+      # user's runtime-deps cache first, where the save then finds it.
+      - name: AskAmerica bundle fetched before the spec
+        if: ${{ !cancelled() && steps.service.outcome == 'success' }}
+        run: |
+          packaging/nixos/vm-run '
+            time uv run python -c "from provisa.runtime_deps.pgwire_bundles import BundleResolver, bundle_spec_for; print(BundleResolver().resolve(bundle_spec_for(\"govdata\")))"
+          '
+
       # What the host owes a live AskAmerica source (US government open data), against the service
       # above: saved through the UI, its bundled pgwire server is started and listens, and that
       # server's Python has started its JVM. How long the server then takes to answer its first
