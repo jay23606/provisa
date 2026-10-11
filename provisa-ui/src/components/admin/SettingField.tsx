@@ -278,16 +278,8 @@ export function SettingField({
   );
 
   if (s.type === "bool") {
-    // A tick is its label and its (?): what a field shows beneath it is said in the help.
-    const told = [
-      help,
-      s.restart_required ? t("adminPage.setting.restartRequired") : "",
-      sourceText,
-      runningText,
-      reasonText,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    // A tick is its label and its (?): where its value comes from is said in the help.
+    const told = [help, sourceText, runningText, reasonText].filter(Boolean).join(" · ");
     return (
       <FormField size="short" className="form-field--action">
         <Checkbox
@@ -300,6 +292,12 @@ export function SettingField({
           error={errorNode}
           data-testid={id}
         />
+        {/* A change that needs a restart says so beside the tick, in sight. */}
+        {s.restart_required && (
+          <Badge size="xs" color="orange" data-testid={`${id}-restart`}>
+            {t("adminPage.setting.restartRequired")}
+          </Badge>
+        )}
         {reset}
       </FormField>
     );
