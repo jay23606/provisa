@@ -9,7 +9,6 @@
     "fieldName": "视图名称",
     "fieldNamePlaceholder": "例如 revenue_by_region",
     "fieldDomain": "域",
-    "fieldDescription": "描述",
     "fieldMetrics": "指标",
     "fieldMetricsPlaceholder": "选择一个或多个已注册的指标",
     "fieldDimensions": "维度",

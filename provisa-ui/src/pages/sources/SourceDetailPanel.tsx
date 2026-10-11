@@ -30,6 +30,7 @@ import { uiType } from "./sourceHelpers";
 import { useRefreshKaggleSource } from "../../hooks/useAdminQueries";
 import { runProfiler, type SourceRunOutcome } from "../../api/profiler";
 import { profilerFieldsFromMapping } from "./profilerMapping";
+import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 
 const API_TYPES = new Set(["graphql_remote", "grpc_remote", "openapi"]);
 const PATH_TYPES = new Set(["sqlite", "csv", "parquet", "files"]);
@@ -262,36 +263,45 @@ export function SourceDetailPanel({
           onClose={() => setRefreshModalOpen(false)}
           title={t("sourceDetailPanel.refreshKaggleTitle")}
         >
-          <Stack gap="sm">
-            <Text size="sm" c="dimmed">
-              {t("sourceDetailPanel.refreshKaggleHint", {
-                owner: kaggleOrigin.owner,
-                ref: kaggleOrigin.ref,
-              })}
-            </Text>
-            <PasswordInput
-              label={t("sourceDetailPanel.kaggleTokenLabel")}
-              value={refreshToken}
-              onChange={(e) => setRefreshToken(e.currentTarget.value)}
-              data-testid="source-detail-refresh-kaggle-token"
-            />
+          <FormLayout>
+            <FormField size="full">
+              <Text size="sm" c="dimmed">
+                {t("sourceDetailPanel.refreshKaggleHint", {
+                  owner: kaggleOrigin.owner,
+                  ref: kaggleOrigin.ref,
+                })}
+              </Text>
+            </FormField>
+            <FormField size="medium">
+              <PasswordInput
+                label={t("sourceDetailPanel.kaggleTokenLabel")}
+                value={refreshToken}
+                onChange={(e) => setRefreshToken(e.currentTarget.value)}
+                data-testid="source-detail-refresh-kaggle-token"
+              />
+            </FormField>
             {refreshError && (
-              <Alert color="red" variant="light" py={4} px="sm">
-                {refreshError}
-              </Alert>
+              <FormField size="full">
+                <Alert color="red" variant="light" py={4} px="sm">
+                  {refreshError}
+                </Alert>
+              </FormField>
             )}
-            <Group justify="flex-end">
-              <Button
-                type="button"
-                loading={refreshing}
-                disabled={!refreshToken}
-                onClick={handleRefresh}
-                data-testid="source-detail-refresh-kaggle-submit"
-              >
-                {t("sourceDetailPanel.refreshKaggleSubmit")}
-              </Button>
-            </Group>
-          </Stack>
+            {/* Refreshing is not a save: the button keeps its word, at the start. */}
+            <FormFooter
+              action={
+                <Button
+                  type="button"
+                  loading={refreshing}
+                  disabled={!refreshToken}
+                  onClick={handleRefresh}
+                  data-testid="source-detail-refresh-kaggle-submit"
+                >
+                  {t("sourceDetailPanel.refreshKaggleSubmit")}
+                </Button>
+              }
+            />
+          </FormLayout>
         </Modal>
       )}
       {profileError && (

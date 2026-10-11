@@ -9,7 +9,6 @@
     "fieldName": "שם ה-View",
     "fieldNamePlaceholder": "למשל revenue_by_region",
     "fieldDomain": "דומיין",
-    "fieldDescription": "תיאור",
     "fieldMetrics": "מדדים",
     "fieldMetricsPlaceholder": "בחרו מדד רשום אחד או יותר",
     "fieldDimensions": "ממדים",

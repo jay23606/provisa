@@ -50,6 +50,7 @@ import { fetchOrgRoles } from "../api/admin";
 import type { Role } from "../types/auth";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PanelActions, SplitPane } from "../components/list/SplitPane";
+import { submitForm } from "./panelSubmit";
 import { PanelWorking } from "./sources/PanelWorking";
 import { TagControl } from "../components/TagControl";
 import type { ActionType, FormState } from "./commands/types";
@@ -471,7 +472,7 @@ export function CommandsPage() {
       </>
     </PanelWorking>
   ) : showForm && !editingName ? (
-    <Card component="form" withBorder onSubmit={handleSave}>
+    <Card component="form" id="commands-form" withBorder onSubmit={handleSave}>
       <Stack gap="sm">
         <FormLayout>
           <FormIdentifiers>
@@ -504,7 +505,8 @@ export function CommandsPage() {
             the new command opens in. */}
         <CommandFormFields {...formFieldsProps} essential />
         <FormFooter
-          submit
+          panel
+          onSave={submitForm("commands-form")}
           saving={saving}
           onCancel={handleCancel}
           saveProps={{ "data-testid": "commands-save" }}
@@ -514,9 +516,14 @@ export function CommandsPage() {
   ) : selectedFn ? (
     ((fn: TrackedFunction) =>
       editingName === fn.name ? (
-        <Stack component="form" gap="sm" onSubmit={handleSave}>
+        <Stack component="form" id="commands-form" gap="sm" onSubmit={handleSave}>
           <CommandFormFields {...formFieldsProps} />
-          <FormFooter submit saving={saving} onCancel={handleCancel} />
+          <FormFooter
+            panel
+            onSave={submitForm("commands-form")}
+            saving={saving}
+            onCancel={handleCancel}
+          />
         </Stack>
       ) : (
         <>
@@ -652,9 +659,14 @@ export function CommandsPage() {
   ) : selectedWh ? (
     ((wh: TrackedWebhook) =>
       editingName === wh.name ? (
-        <Stack component="form" gap="sm" onSubmit={handleSave}>
+        <Stack component="form" id="commands-form" gap="sm" onSubmit={handleSave}>
           <CommandFormFields {...formFieldsProps} />
-          <FormFooter submit saving={saving} onCancel={handleCancel} />
+          <FormFooter
+            panel
+            onSave={submitForm("commands-form")}
+            saving={saving}
+            onCancel={handleCancel}
+          />
         </Stack>
       ) : (
         <>

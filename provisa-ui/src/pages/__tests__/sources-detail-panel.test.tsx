@@ -212,3 +212,23 @@ describe("+ Source asks only what a source needs in order to exist", () => {
     expect(within(panel()!).getByTestId("source-load-management-panel-toggle")).toBeInTheDocument();
   });
 });
+
+describe("while a form is open in the panel", () => {
+  it("hides the page's + Source: the panel has its own close", async () => {
+    render(<SourcesPage />);
+    await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    expect(screen.queryByTestId("sources-add-toggle")).toBeNull();
+    await userEvent.click(screen.getByTestId("sources-split-close"));
+    expect(await screen.findByTestId("sources-add-toggle")).toBeInTheDocument();
+  });
+
+  it("has its Save and Cancel in the panel's head, and no row at its foot", async () => {
+    render(<SourcesPage />);
+    await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    const head = screen.getByTestId("sources-split-panel").querySelector(".form-footer--head");
+    expect(head).not.toBeNull();
+    expect(within(head as HTMLElement).getByTestId("sources-submit")).toBeInTheDocument();
+    expect(within(head as HTMLElement).getByTestId("sources-cancel")).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-testid="sources-submit"]')).toHaveLength(1);
+  });
+});

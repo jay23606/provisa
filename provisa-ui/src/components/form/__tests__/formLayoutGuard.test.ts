@@ -125,7 +125,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/GlossaryTab.tsx",
   "components/form/FormLayout.tsx",
   "pages/TablesPage.tsx",
-  "pages/sources/SourceDetailPanel.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
 ];
 

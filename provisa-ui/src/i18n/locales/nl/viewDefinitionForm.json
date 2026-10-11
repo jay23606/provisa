@@ -9,7 +9,6 @@
     "fieldName": "Viewnaam",
     "fieldNamePlaceholder": "bijv. revenue_by_region",
     "fieldDomain": "Domein",
-    "fieldDescription": "Beschrijving",
     "fieldMetrics": "Metrieken",
     "fieldMetricsPlaceholder": "Kies een of meer geregistreerde metrieken",
     "fieldDimensions": "Dimensies",

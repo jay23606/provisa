@@ -16,7 +16,6 @@ import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../component
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
 import {
   ActionIcon,
   Alert,
@@ -98,6 +97,7 @@ import {
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
 import { PanelWorking } from "./sources/PanelWorking";
 import { PanelActions, SplitPane } from "../components/list/SplitPane";
+import { submitForm } from "./panelSubmit";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
@@ -1646,6 +1646,7 @@ export function SourcesPage() {
     (showForm && !editingSourceId ? (
       <FormLayout
         component="form"
+        id="sources-new-form"
         data-tour="sources-form"
         className="form-card"
         onSubmit={
@@ -1727,7 +1728,8 @@ export function SourcesPage() {
             Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
             is created by its own section's button, so it gets Cancel alone. */}
         <FormFooter
-          submit={form.type !== "kaggle"}
+          panel
+          onSave={form.type !== "kaggle" ? submitForm("sources-new-form") : undefined}
           saving={submitting}
           onCancel={handleCancelForm}
           saveProps={{ "data-testid": "sources-submit" }}
@@ -1737,10 +1739,12 @@ export function SourcesPage() {
     ) : selectedSource ? (
       ((s: Source) => (
         <>
-          {sourceActions(s)}
+          {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
+          {editingSourceId !== s.id && sourceActions(s)}
           {editingSourceId === s.id ? (
             <FormLayout
               component="form"
+              id="sources-edit-form"
               className="form-card"
               onSubmit={
                 carrierOf(form.type) === "openapi"
@@ -1775,7 +1779,8 @@ export function SourcesPage() {
               </FormIdentifiers>
               <SourceFormFields {...sourceFormFieldsProps} />
               <FormFooter
-                submit
+                panel
+                onSave={submitForm("sources-edit-form")}
                 saving={submitting}
                 onCancel={handleCancelForm}
                 saveProps={{ "data-testid": "sources-edit-submit" }}
@@ -1832,21 +1837,14 @@ export function SourcesPage() {
           error={regionError}
         />
         <div className="page-actions">
-          {!editingSourceId && (
+          {/* Not shown while its form is open: the panel has its own close. */}
+          {!editingSourceId && !showForm && (
             <Button
               data-tour="sources-add"
               data-testid="sources-add-toggle"
-              variant={showForm ? "outline" : "filled"}
-              aria-label={showForm ? t("sourcesPage.closeForm") : t("sourcesPage.addSource")}
-              onClick={() => {
-                if (showForm) {
-                  handleCancelForm();
-                } else {
-                  setShowForm(true);
-                }
-              }}
+              onClick={() => setShowForm(true)}
             >
-              {showForm ? <X size={14} /> : t("sourcesPage.addSource")}
+              {t("sourcesPage.addSource")}
             </Button>
           )}
           <HelpBubble

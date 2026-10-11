@@ -9,7 +9,6 @@
     "fieldName": "View name",
     "fieldNamePlaceholder": "e.g. revenue_by_region",
     "fieldDomain": "Domain",
-    "fieldDescription": "Description",
     "fieldMetrics": "Metrics",
     "fieldMetricsPlaceholder": "Pick one or more registered metrics",
     "fieldDimensions": "Dimensions",

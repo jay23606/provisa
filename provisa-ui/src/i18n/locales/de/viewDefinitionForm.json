@@ -9,7 +9,6 @@
     "fieldName": "Sichtname",
     "fieldNamePlaceholder": "z. B. revenue_by_region",
     "fieldDomain": "Domäne",
-    "fieldDescription": "Beschreibung",
     "fieldMetrics": "Metriken",
     "fieldMetricsPlaceholder": "Eine oder mehrere registrierte Metriken auswählen",
     "fieldDimensions": "Dimensionen",

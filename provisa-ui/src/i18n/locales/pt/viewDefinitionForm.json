@@ -9,7 +9,6 @@
     "fieldName": "Nome da exibição",
     "fieldNamePlaceholder": "por exemplo, revenue_by_region",
     "fieldDomain": "Domínio",
-    "fieldDescription": "Descrição",
     "fieldMetrics": "Métricas",
     "fieldMetricsPlaceholder": "Escolha uma ou mais métricas registradas",
     "fieldDimensions": "Dimensões",
