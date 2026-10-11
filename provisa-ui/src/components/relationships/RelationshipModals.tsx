@@ -150,6 +150,7 @@ export function ReverseRelationshipForm({
           </FormField>
         )}
         <FormFooter
+          panel
           onSave={onSave}
           saving={saving === "reverse"}
           onCancel={() => setReverseForm(null)}

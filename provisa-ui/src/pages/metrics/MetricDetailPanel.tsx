@@ -23,22 +23,20 @@ interface MetricDetailPanelProps {
 }
 
 // A metric's Edit and Delete. In the page's detail panel they sit in its pinned head
-// (PanelActions), out of use as a set while the metric's form is open.
-export function MetricActions({
+// (PanelActions); the form's Save and Cancel take their place while it is open.
+function MetricActions({
   m,
   onEdit,
   onDelete,
-  disabled = false,
 }: {
   m: Metric;
   onEdit: () => void;
   onDelete: () => void;
-  disabled?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <PanelActions>
-      <fieldset className="panel-action-set" disabled={disabled}>
+      <fieldset className="panel-action-set">
         <Group gap="xs">
           <Tooltip label={t("metricsPage.editMetric", { name: m.name })}>
             <ActionIcon

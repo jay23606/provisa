@@ -377,6 +377,8 @@ export function SecurityRlsPage() {
     <Stack gap="sm">
       {ruleFormFields}
       <FormFooter
+        panel
+        problem={error || undefined}
         onSave={handleSaveRule}
         saving={saving}
         onCancel={() => setShowRuleForm(false)}
@@ -386,46 +388,48 @@ export function SecurityRlsPage() {
   ) : selectedRule ? (
     ((r) => (
       <>
-        {/* The rule's actions sit in the panel's head, out of use while its form is open. */}
-        <PanelActions>
-          <fieldset className="panel-action-set" disabled={editingRuleInRow === r.id}>
-            <Group gap="xs">
-              <ActionIcon
-                variant="subtle"
-                aria-label={t("securityPage.edit")}
-                data-testid={`edit-rule-${r.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditingRule(r);
-                }}
-              >
-                <Pencil size={14} />
-              </ActionIcon>
-              <ConfirmDialog
-                title={t("securityPage.deleteRuleTitle")}
-                consequence={t("securityPage.deleteRuleConsequence", {
-                  role: r.roleId,
-                })}
-                onConfirm={() => handleDeleteRule(r)}
-              >
-                {(open) => (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    aria-label={t("securityPage.delete")}
-                    data-testid={`delete-rule-${r.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      open();
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </ActionIcon>
-                )}
-              </ConfirmDialog>
-            </Group>
-          </fieldset>
-        </PanelActions>
+        {/* Its actions sit in the panel's head; while its form is open the head is the form's. */}
+        {editingRuleInRow !== r.id && (
+          <PanelActions>
+            <fieldset className="panel-action-set">
+              <Group gap="xs">
+                <ActionIcon
+                  variant="subtle"
+                  aria-label={t("securityPage.edit")}
+                  data-testid={`edit-rule-${r.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditingRule(r);
+                  }}
+                >
+                  <Pencil size={14} />
+                </ActionIcon>
+                <ConfirmDialog
+                  title={t("securityPage.deleteRuleTitle")}
+                  consequence={t("securityPage.deleteRuleConsequence", {
+                    role: r.roleId,
+                  })}
+                  onConfirm={() => handleDeleteRule(r)}
+                >
+                  {(open) => (
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={t("securityPage.delete")}
+                      data-testid={`delete-rule-${r.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </ActionIcon>
+                  )}
+                </ConfirmDialog>
+              </Group>
+            </fieldset>
+          </PanelActions>
+        )}
         {editingRuleInRow !== r.id ? (
           <Stack gap="xs">
             <Text>
@@ -459,6 +463,8 @@ export function SecurityRlsPage() {
           <Stack gap="sm">
             {ruleFormFields}
             <FormFooter
+              panel
+              problem={error || undefined}
               onSave={handleSaveRule}
               saving={saving}
               onCancel={() => setEditingRuleInRow(null)}
@@ -472,7 +478,8 @@ export function SecurityRlsPage() {
   return (
     // The list and its panel share the height the heading leaves; each scrolls by itself.
     <Stack gap="md" p="md" className="page-sticky-head">
-      {error && (
+      {/* A form that did not save says so under the panel's head; this is for everything else. */}
+      {error && !showRuleForm && editingRuleInRow === null && (
         <Alert color="red" data-testid="security-rls-error">
           {error}
         </Alert>
