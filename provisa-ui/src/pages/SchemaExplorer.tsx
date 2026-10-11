@@ -8,7 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Alert, Box, Loader, SegmentedControl, Stack, Text } from "@mantine/core";
@@ -19,6 +19,7 @@ import { useSubnavExtraSlot } from "../context/subnavExtraSlot";
 import { useTables, useAllRelationships, useDomains } from "../hooks/useAdminQueries";
 import { ErdPanel } from "../components/erd/ErdPanel";
 import { actingRoleHeader } from "../lib/actingRole";
+import { VOYAGER_THEME_CSS, VOYAGER_VARS_ID, voyagerThemeVars } from "./schemaExplorerTheme";
 
 /**
  * Schema Explorer — SDL sub-tab renders GraphQL Voyager in an iframe.
@@ -39,6 +40,23 @@ export function SchemaExplorer() {
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Voyager's document takes the app's fonts and colours. When the app's colour scheme changes
+  // the values are rewritten in place: the document is not rebuilt, so the graph keeps its
+  // position and its selection.
+  const frame = useRef<HTMLIFrameElement>(null);
+  const applyTheme = useCallback(() => {
+    const vars = frame.current?.contentDocument?.getElementById(VOYAGER_VARS_ID);
+    if (vars) vars.textContent = voyagerThemeVars(document.documentElement);
+  }, []);
+  useEffect(() => {
+    const watch = new MutationObserver(applyTheme);
+    watch.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-mantine-color-scheme"],
+    });
+    return () => watch.disconnect();
+  }, [applyTheme]);
 
   const { tables } = useTables();
   const { relationships } = useAllRelationships();
@@ -71,6 +89,8 @@ export function SchemaExplorer() {
 <meta charset="utf-8">
 <style>body{margin:0;overflow:hidden}#voyager{height:100vh;width:100vw}</style>
 <link rel="stylesheet" href="/voyager/voyager.css">
+<style id="${VOYAGER_VARS_ID}">${voyagerThemeVars(document.documentElement)}</style>
+<style>${VOYAGER_THEME_CSS}</style>
 <script src="/voyager/react.production.min.js"></script>
 <script src="/voyager/react-dom.production.min.js"></script>
 <script src="/voyager/voyager.standalone.js"></script>
@@ -121,6 +141,8 @@ setTimeout(function() {
   } else {
     sdlContent = (
       <iframe
+        ref={frame}
+        onLoad={applyTheme}
         title="GraphQL Voyager"
         style={{ width: "100%", height: "100%", border: "none" }}
         srcDoc={srcDoc}
