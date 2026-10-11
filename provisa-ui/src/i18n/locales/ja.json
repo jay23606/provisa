@@ -6,7 +6,10 @@
     "delete": "削除",
     "confirm": "確認",
     "processing": "処理中...",
-    "identity": "識別"
+    "identity": "識別",
+    "discardTitle": "変更を破棄しますか?",
+    "discardBody": "{{what}} への変更は保存されていません。",
+    "discard": "破棄"
   },
   "app": {
     "apiUnreachable": "Provisa APIに接続できませんでした。",

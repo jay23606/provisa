@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { useMemo, useState } from "react";
+import { usePanelDirty } from "../../components/list/panelLeave";
 import { useTranslation } from "react-i18next";
 import {
   ActionIcon,
@@ -93,6 +94,13 @@ export function ModelingForm({ domains, onSuccess, onCancel }: ModelingFormProps
   const [grain, setGrain] = useState<string[]>([]);
   const [measures, setMeasures] = useState<Record<string, string>>({}); // column -> agg
   const [dimensions, setDimensions] = useState<DimRow[]>([]);
+  // Leaving the panel with something entered asks first (the panel's one mechanism).
+  usePanelDirty(
+    Boolean(name || source || key.length || attributes.length || grain.length) ||
+      Object.keys(measures).length > 0 ||
+      dimensions.length > 0,
+    name || (source ?? ""),
+  );
 
   // Source relations and their columns come from the user-defined registered tables, referenced as
   // {domain}.{table_name} — the domain-namespaced query-surface name the view lowers to.

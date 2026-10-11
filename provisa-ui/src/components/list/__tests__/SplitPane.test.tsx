@@ -15,7 +15,12 @@
 
 import { useState } from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "../../../test-utils/render";
+import { Table } from "@mantine/core";
+import userEvent from "@testing-library/user-event";
+import { act, fireEvent, render, screen, waitFor, within } from "../../../test-utils/render";
+import { FormFooter } from "../../form/FormLayout";
+import { ListRow } from "../ListTable";
+import { usePanelDirty, usePanelLeave } from "../panelLeave";
 import { PanelActions, SplitPane } from "../SplitPane";
 
 const KEY = "provisa.test.splitWidth";
@@ -205,5 +210,162 @@ describe("SplitPane", () => {
     } finally {
       globalThis.ResizeObserver = original;
     }
+  });
+});
+
+// Leaving a form in the panel with changes that are not saved asks first.
+describe("SplitPane — leaving a form that has unsaved changes", () => {
+  function Form({ name, onSaved }: { name: string; onSaved: () => void }) {
+    const [value, setValue] = useState(name);
+    // The form's one line: changed since it opened, and what it is editing.
+    usePanelDirty(value !== name, name);
+    return (
+      <>
+        <input aria-label="alias" value={value} onChange={(e) => setValue(e.target.value)} />
+        <FormFooter panel onSave={onSaved} onCancel={onSaved} />
+      </>
+    );
+  }
+
+  function Tables({ withOpener = false }: { withOpener?: boolean }) {
+    const [open, setOpen] = useState<string | null>(null);
+    const [creating, setCreating] = useState(false);
+    const leave = usePanelLeave();
+    return (
+      <>
+        {withOpener && (
+          <button onClick={() => leave.guard(() => setCreating(true))}>+ Table</button>
+        )}
+        <SplitPane
+          testId="split"
+          storageKey={KEY}
+          labels={LABELS}
+          title={creating ? "New table" : open}
+          onClose={() => setOpen(null)}
+          leave={withOpener ? leave : undefined}
+          onDiscard={() => undefined}
+          list={
+            <Table>
+              <Table.Tbody>
+                {["orders", "customers"].map((name) => (
+                  <ListRow key={name} testId={`row-${name}`} onClick={() => setOpen(name)}>
+                    <Table.Td>{name}</Table.Td>
+                  </ListRow>
+                ))}
+              </Table.Tbody>
+            </Table>
+          }
+        >
+          {creating ? (
+            <p>creating</p>
+          ) : open === null ? null : (
+            <Form key={open} name={open} onSaved={() => setOpen(null)} />
+          )}
+        </SplitPane>
+      </>
+    );
+  }
+
+  const row = (name: string) => screen.getByTestId(`row-${name}`);
+  const title = () => screen.getByTestId("split-title");
+  const edit = async () => {
+    await userEvent.click(row("orders"));
+    await userEvent.type(screen.getByLabelText("alias"), "_v2");
+  };
+  const asked = () => screen.queryByRole("dialog");
+
+  it("asks when another row is chosen, naming what is being edited", async () => {
+    render(<Tables />);
+    await edit();
+    await userEvent.click(row("customers"));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Discard your changes?");
+    expect(dialog).toHaveTextContent("Your changes to orders are not saved.");
+    // Discard first, then the shared Cancel, at the start of the row.
+    const buttons = within(dialog)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(buttons).toEqual(["Discard", "Cancel"]);
+    // Nothing has moved yet.
+    expect(title()).toHaveTextContent("orders");
+  });
+
+  it("Discard leaves, and the edit is gone", async () => {
+    render(<Tables />);
+    await edit();
+    await userEvent.click(row("customers"));
+    await userEvent.click(await screen.findByTestId("discard-changes-confirm"));
+    await waitFor(() => expect(title()).toHaveTextContent("customers"));
+    expect(screen.getByLabelText("alias")).toHaveValue("customers");
+    await waitFor(() => expect(asked()).toBeNull());
+    // Back on the first table its form opens as it was saved.
+    await userEvent.click(row("orders"));
+    expect(screen.getByLabelText("alias")).toHaveValue("orders");
+  });
+
+  it("Cancel stays in the form with the edit intact", async () => {
+    render(<Tables />);
+    await edit();
+    await userEvent.click(row("customers"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(asked()).toBeNull());
+    expect(title()).toHaveTextContent("orders");
+    expect(screen.getByLabelText("alias")).toHaveValue("orders_v2");
+  });
+
+  it("asks for the panel's own close, and for the page's opener of another form", async () => {
+    render(<Tables withOpener />);
+    await edit();
+    await userEvent.click(screen.getByTestId("split-close"));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Discard your changes?");
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }),
+    );
+    await waitFor(() => expect(asked()).toBeNull());
+    await userEvent.click(screen.getByText("+ Table"));
+    await userEvent.click(await screen.findByTestId("discard-changes-confirm"));
+    expect(await screen.findByText("creating")).toBeInTheDocument();
+  });
+
+  it("does not ask when nothing was changed", async () => {
+    render(<Tables />);
+    await userEvent.click(row("orders"));
+    await userEvent.click(row("customers"));
+    expect(title()).toHaveTextContent("customers");
+    expect(asked()).toBeNull();
+    await userEvent.click(screen.getByTestId("split-close"));
+    expect(screen.queryByTestId("split-panel")).toBeNull();
+    expect(asked()).toBeNull();
+  });
+
+  it("does not ask on Save, nor on the form's own Cancel", async () => {
+    render(<Tables />);
+    await edit();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(asked()).toBeNull();
+    expect(screen.queryByTestId("split-panel")).toBeNull();
+    // What was dropped by Save does not leave the next form "changed".
+    await userEvent.click(row("customers"));
+    await userEvent.click(row("orders"));
+    expect(asked()).toBeNull();
+    await userEvent.type(screen.getByLabelText("alias"), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(asked()).toBeNull();
+  });
+
+  it("a row outside any panel is clicked as before", async () => {
+    const onClick = vi.fn();
+    render(
+      <Table>
+        <Table.Tbody>
+          <ListRow testId="lone" onClick={onClick}>
+            <Table.Td>lone</Table.Td>
+          </ListRow>
+        </Table.Tbody>
+      </Table>,
+    );
+    await userEvent.click(screen.getByTestId("lone"));
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

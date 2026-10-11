@@ -6,7 +6,10 @@
     "delete": "Удалить",
     "confirm": "Подтвердить",
     "processing": "Обработка...",
-    "identity": "Идентификация"
+    "identity": "Идентификация",
+    "discardTitle": "Отменить изменения?",
+    "discardBody": "Изменения в {{what}} не сохранены.",
+    "discard": "Отменить изменения"
   },
   "app": {
     "apiUnreachable": "Не удалось подключиться к API Provisa.",

@@ -46,6 +46,7 @@ import {
 import { TableLoadManagementFields } from "./TableLoadManagementFields";
 import { ColumnTabs } from "./ColumnTabs";
 import { COLUMN_TABS, useColumnTab, type ColumnTab } from "./columnTopics";
+import { usePanelDirty } from "../../components/list/panelLeave";
 import type { ColumnDefinitionLine } from "./ColumnGlossaryHover";
 
 export interface CacheTtlEdit {
@@ -77,6 +78,8 @@ interface TableEditFormProps {
   handleSaveEdit: () => void;
   /** What the page has to say of a save that did not go through; shown with Save and Cancel. */
   problem?: string | null;
+  /** Whether anything of the table has been changed since the form opened. */
+  dirty?: boolean;
   updateEditCol: (i: number, key: string, value: string | string[] | boolean) => void;
   /**
    * REQ-1944: the editor holds a hiding right but not table_registration -- only how the columns
@@ -106,6 +109,7 @@ export function TableEditForm({
   cancelEditing,
   handleSaveEdit,
   problem,
+  dirty = false,
   updateEditCol,
   hidingOnly = false,
 }: TableEditFormProps) {
@@ -132,6 +136,10 @@ export function TableEditForm({
   // protection resolves off (table override, else source default) they have no effect, so they are
   // hidden — surfaced only once the table is actually load-protected.
   const editSource = sources.find((s) => s.id === editingTable.sourceId);
+  // Leaving the panel with something changed asks first (the panel's one mechanism).
+  // Named as it was when the form opened: its alias may be what is being changed.
+  const [openedAs] = useState(() => editingTable.alias || editingTable.tableName);
+  usePanelDirty(dirty, openedAs);
   // The column editor shows a topic at a time. A caller not shown grants is not offered Access;
   // one who may change only how columns are hidden is not offered Testing (their Save writes
   // nothing of a column's test data).

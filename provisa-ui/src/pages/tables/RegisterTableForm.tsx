@@ -59,6 +59,7 @@ import {
 import { useSourceKind } from "../sources/sourceKind";
 import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 import { serverMessage } from "../../i18n/serverMessage";
+import { usePanelDirty } from "../../components/list/panelLeave";
 
 // REQ-1663: a checker table's results land under this schema, the same one the shipped demo uses
 // (config/provisa-install.yaml `schema: quality`). It is the schema of record only when domains are
@@ -127,6 +128,8 @@ export function RegisterTableForm({
   const { ensureDomainChecked } = useDomainFilter();
   const [schemaName, setSchemaName] = useState("");
   const [tableName, setTableName] = useState("");
+  // Leaving the panel once something is chosen asks first (the panel's one mechanism).
+  usePanelDirty(Boolean(sourceId || schemaName || tableName), tableName || schemaName || sourceId);
   const [tableAlias, setTableAlias] = useState("");
   const [tableDescription, setTableDescription] = useState("");
   // REQ-318: the table's paging, starting from what its source suggests; the steward accepts

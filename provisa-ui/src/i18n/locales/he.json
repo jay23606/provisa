@@ -6,7 +6,10 @@
     "delete": "מחיקה",
     "confirm": "אישור",
     "processing": "בעיבוד...",
-    "identity": "זהות"
+    "identity": "זהות",
+    "discardTitle": "לבטל את השינויים?",
+    "discardBody": "השינויים ב-{{what}} לא נשמרו.",
+    "discard": "ביטול השינויים"
   },
   "app": {
     "apiUnreachable": "לא ניתן להגיע ל-API של Provisa.",

@@ -29,7 +29,10 @@ import { createPortal } from "react-dom";
 import { ActionIcon, Button, Title } from "@mantine/core";
 import { ArrowLeft, Maximize2, Minimize2, X } from "lucide-react";
 import { useResizableWidth } from "../../hooks/useResizableWidth";
+import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { PanelActionsContext, PanelNoticeContext } from "./panelActions";
+import { PanelLeaveContext, usePanelLeave, type PanelLeave } from "./panelLeave";
 
 /** The narrowest the panel is dragged, and the least room the list keeps beside it. */
 const PANEL_MIN = 360;
@@ -67,6 +70,8 @@ export function SplitPane({
   storageKey,
   labels,
   testId,
+  leave,
+  onDiscard,
 }: {
   list: ReactNode;
   /** The panel's heading. */
@@ -79,7 +84,16 @@ export function SplitPane({
   storageKey: string;
   labels: SplitPaneLabels;
   testId: string;
+  /** The page's own `usePanelLeave()`, where the page guards openers of its own with it. */
+  leave?: PanelLeave;
+  /** Drops the open form's edit: called when the reader chooses Discard, before they leave. */
+  onDiscard?: () => void;
 }) {
+  const { t } = useTranslation();
+  const ownLeave = usePanelLeave();
+  const leaving = leave ?? ownLeave;
+  // The panel's own ways out ask first when its form has changes. Escape keeps its own rule.
+  const close = () => leaving.guard(onClose);
   const open = children !== null;
   const rowRef = useRef<HTMLDivElement>(null);
   const [rowWidth, setRowWidth] = useState<number | null>(null);
@@ -134,12 +148,27 @@ export function SplitPane({
     e.stopPropagation();
     onClose();
   };
+  const provided = (node: ReactNode) => (
+    <PanelLeaveContext.Provider value={leaving}>{node}</PanelLeaveContext.Provider>
+  );
 
   return (
     <div className="split-pane" ref={rowRef} data-testid={testId}>
       <div className="split-pane__list" hidden={alone}>
-        {list}
+        {provided(list)}
       </div>
+      <ConfirmDialog
+        opened={leaving.asking !== null}
+        title={t("common.discardTitle")}
+        consequence={t("common.discardBody", { what: leaving.asking ?? "" })}
+        confirmLabel={t("common.discard")}
+        onCancel={() => leaving.answer(false)}
+        onConfirm={() => {
+          onDiscard?.();
+          leaving.answer(true);
+        }}
+        testId="discard-changes"
+      />
       {open && (
         <>
           {!alone && (
@@ -172,7 +201,7 @@ export function SplitPane({
                   variant="subtle"
                   size="compact-sm"
                   leftSection={<ArrowLeft size={14} />}
-                  onClick={onClose}
+                  onClick={close}
                   data-testid={`${testId}-back`}
                 >
                   {labels.backToList}
@@ -196,7 +225,7 @@ export function SplitPane({
               <ActionIcon
                 variant="subtle"
                 aria-label={labels.close}
-                onClick={onClose}
+                onClick={close}
                 data-testid={`${testId}-close`}
               >
                 <X size={16} />
@@ -207,7 +236,7 @@ export function SplitPane({
             <div className="split-pane__body">
               <PanelActionsContext.Provider value={actionsSlot}>
                 <PanelNoticeContext.Provider value={noticeSlot}>
-                  {children}
+                  {provided(children)}
                 </PanelNoticeContext.Provider>
               </PanelActionsContext.Provider>
             </div>

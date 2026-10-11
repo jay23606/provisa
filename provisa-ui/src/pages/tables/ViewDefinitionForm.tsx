@@ -16,6 +16,7 @@
 // SQL mode. Switching modes happens only through this control — never silently.
 
 import { useMemo, useState } from "react";
+import { usePanelDirty } from "../../components/list/panelLeave";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -83,6 +84,11 @@ export function ViewDefinitionForm({
   const [filtersText, setFiltersText] = useState((editing?.viewMetrics?.filters ?? []).join("\n"));
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  // Leaving the panel with something changed asks first (the panel's one mechanism).
+  const state = JSON.stringify([mode, name, domainId, selectedMetrics, selectedDims, filtersText]);
+  const [openedWith] = useState(state);
+  const [openedAs] = useState(name);
+  usePanelDirty(state !== openedWith, openedAs || name);
 
   // Valid dimensions: columns of tables referenced by the chosen metrics' expressions,
   // plus tables one registered-relationship hop away (mirrors the server's resolution).

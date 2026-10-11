@@ -77,6 +77,7 @@ import { ReplicatingMark } from "./tables/ReplicatingMark";
 import { buildOf } from "./tables/replicaBuild";
 import { ReplicaBuildsContext } from "./tables/replicaBuildsContext";
 import { TablePreviewPane } from "./tables/TablePreviewPane";
+import { usePanelLeave } from "../components/list/panelLeave";
 import { FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import { NativeParamsModal } from "../components/NativeParamsModal";
 import { previewSql, requiredParamColumns } from "../components/nativeParams";
@@ -244,6 +245,11 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   // JSON of the row as copied; while the form still matches it (user hasn't typed),
   // a fresher tables result replaces the form state. First keystroke ends the follow.
   const pristineEdit = useRef<string | null>(null);
+  // The same, where rendering needs it: what the open edit is compared with to say "changed".
+  const [pristine, setPristine] = useState<string | null>(null);
+  // Leaving a form in the panel with unsaved changes asks first; the page's own openers of
+  // other forms go through the same guard as the panel's close and the list's rows.
+  const leave = usePanelLeave();
   const [editingColumnTypes, setEditingColumnTypes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
@@ -320,6 +326,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       const freshJson = JSON.stringify(fresh);
       if (freshJson === pristineEdit.current) return current;
       pristineEdit.current = freshJson;
+      setPristine(freshJson);
       return JSON.parse(freshJson);
     });
   }, [tables]);
@@ -487,6 +494,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   const startEditing = (t: RegisteredTable) => {
     setEditingTable(JSON.parse(JSON.stringify(t)));
     pristineEdit.current = JSON.stringify(t);
+    setPristine(pristineEdit.current);
     setEditingColumnTypes({});
     getAvailableColumnsMetadata(t.sourceId, t.schemaName, t.tableName)
       .then((meta) => {
@@ -877,6 +885,10 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
               cancelEditing={cancelEditing}
               handleSaveEdit={handleSaveEdit}
               problem={error}
+              dirty={
+                JSON.stringify(editingTable) !== pristine ||
+                cacheTtlEdits[editingTable.id]?.dirty === true
+              }
               updateEditCol={updateEditCol}
             />
           </ReplicaBuildsContext.Provider>
@@ -935,7 +947,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
               data-tour="tables-add"
               data-testid="tables-add-toggle"
               variant={showForm ? "outline" : "filled"}
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => leave.guard(() => setShowForm(!showForm))}
               aria-label={showForm ? translate("tablesPage.closeForm") : undefined}
             >
               {showForm ? <X size={14} /> : translate("tablesPage.addTable")}
@@ -947,7 +959,9 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
               data-testid="views-add-toggle"
               // REQ-1318: on the Views page, Add View opens the definition-mode form
               // (SQL | Metrics toggle); elsewhere it keeps routing to the SQL editor.
-              onClick={() => (viewsOnly ? setShowViewForm(true) : navigate("/sql"))}
+              onClick={() =>
+                leave.guard(() => (viewsOnly ? setShowViewForm(true) : navigate("/sql")))
+              }
               title={translate("tablesPage.addViewTitle")}
             >
               {translate("tablesPage.addView")}
@@ -957,7 +971,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             <Button
               variant="default"
               data-testid="tables-model-toggle"
-              onClick={() => setShowModeling(true)}
+              onClick={() => leave.guard(() => setShowModeling(true))}
               title={translate("tablesPage.modelTitle")}
             >
               {translate("tablesPage.model")}
@@ -1043,6 +1057,16 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         storageKey="provisa.tables.detailWidth"
         title={panelTitle}
         onClose={closePanel}
+        leave={leave}
+        // Discard: the open edit or create form is dropped before the reader goes where they
+        // were going.
+        onDiscard={() => {
+          cancelEditing();
+          setShowForm(false);
+          setShowViewForm(false);
+          setShowModeling(false);
+          setEditingViewDef(null);
+        }}
         // Escape closes a table that is only being looked at; it never drops what is being typed.
         closeOnEscape={panelIsReadOnly}
         labels={{

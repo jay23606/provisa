@@ -6,7 +6,10 @@
     "delete": "Verwijderen",
     "confirm": "Bevestigen",
     "processing": "Verwerken...",
-    "identity": "Identiteit"
+    "identity": "Identiteit",
+    "discardTitle": "Wijzigingen verwerpen?",
+    "discardBody": "Uw wijzigingen in {{what}} zijn niet opgeslagen.",
+    "discard": "Verwerpen"
   },
   "app": {
     "apiUnreachable": "Kan de Provisa API niet bereiken.",

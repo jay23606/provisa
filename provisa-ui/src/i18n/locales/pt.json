@@ -6,7 +6,10 @@
     "delete": "Excluir",
     "confirm": "Confirmar",
     "processing": "Processando...",
-    "identity": "Identidade"
+    "identity": "Identidade",
+    "discardTitle": "Descartar as alterações?",
+    "discardBody": "As alterações em {{what}} não foram salvas.",
+    "discard": "Descartar"
   },
   "app": {
     "apiUnreachable": "Não foi possível conectar à API do Provisa.",
