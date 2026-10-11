@@ -61,6 +61,20 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Permanent: parts of an explorer that no form rule is applied to. The explorers (query, graph,
+ * SQL, JSON:API, OpenAPI, MCP, lineage, and what they alone mount) are a different experience
+ * from the forms; these files stay as they are.
+ */
+const EXPLORER_REASON =
+  "an explorer: a different experience, outside the form rules (maintainer, 2026-10-10)";
+const EXPLORERS: Readonly<Record<string, string>> = {
+  "components/graph/Inspector.tsx": EXPLORER_REASON,
+  "components/graph/Neo4jExportModal.tsx": EXPLORER_REASON,
+  "components/graph/graph-context-menus.tsx": EXPLORER_REASON,
+  "pages/sql/ViewModal.tsx": EXPLORER_REASON,
+};
+
+/**
  * Permanent: buttons that may fill their container, by file and a marker in the button's own JSX.
  */
 const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: string }[]>> = {
@@ -110,13 +124,9 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
   "components/form/FormLayout.tsx",
-  "components/graph/Inspector.tsx",
-  "components/graph/Neo4jExportModal.tsx",
-  "components/graph/graph-context-menus.tsx",
   "pages/TablesPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
   "pages/sources/SourceDetailPanel.tsx",
-  "pages/sql/ViewModal.tsx",
   "pages/tables/DataQualityPanel.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
   "pages/tables/RecurrenceBuilder.tsx",
@@ -448,6 +458,7 @@ describe("every component follows the form rules", () => {
     for (const file of [
       ...NOT_YET_CONVERTED,
       ...Object.keys(NOT_A_FORM),
+      ...Object.keys(EXPLORERS),
       ...Object.keys(STRETCHED_BUTTONS),
     ]) {
       expect(existsSync(join(SRC, file)), `${file} is listed but does not exist`).toBe(true);
@@ -455,7 +466,7 @@ describe("every component follows the form rules", () => {
     expect(pending.size).toBe(NOT_YET_CONVERTED.length);
   });
 
-  it.each(files.filter((f) => !pending.has(f)))("%s", (file) => {
+  it.each(files.filter((f) => !pending.has(f) && !(f in EXPLORERS)))("%s", (file) => {
     const violations = violationsOf(file);
     expect(violations, describeViolations(file, violations)).toEqual([]);
   });
@@ -469,6 +480,13 @@ describe("every component follows the form rules", () => {
       ).toBeGreaterThan(0);
     },
   );
+
+  it.each(Object.keys(EXPLORERS))("%s still needs its explorer entry", (file) => {
+    expect(
+      violationsOf(file, false).length,
+      `${file} breaks no form rule: drop its entry`,
+    ).toBeGreaterThan(0);
+  });
 
   it.each(Object.keys(NOT_A_FORM))("%s still needs its not-a-form entry", (file) => {
     const withoutEntry = violationsOf(file, false).filter(
