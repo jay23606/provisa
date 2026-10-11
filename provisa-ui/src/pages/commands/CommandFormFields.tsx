@@ -565,6 +565,20 @@ export function CommandFormFields({
             )}
           </>
         )}
+        {/* A command needs its domain in order to exist, so the short step asks it too. */}
+        <FormField size="medium">
+          <Select
+            label={t("commandFormFields.domain")}
+            placeholder={t("commandFormFields.selectDomain")}
+            data={domainHints}
+            value={form.domainId || null}
+            // REQ-1531: every command and webhook sits in a domain, so one that is chosen cannot
+            // be cleared — only replaced. Saving with none is refused by the server.
+            allowDeselect={false}
+            withAsterisk
+            onChange={(val) => setForm({ ...form, domainId: val ?? form.domainId })}
+          />
+        </FormField>
         {!essential && (
           <>
             {!isSourceOperation && (
@@ -581,19 +595,6 @@ export function CommandFormFields({
                 />
               </FormField>
             )}
-            <FormField size="medium">
-              <Select
-                label={t("commandFormFields.domain")}
-                placeholder={t("commandFormFields.selectDomain")}
-                data={domainHints}
-                value={form.domainId || null}
-                // REQ-1531: every command and webhook sits in a domain, so one that is chosen cannot
-                // be cleared — only replaced. Saving with none is refused by the server.
-                allowDeselect={false}
-                withAsterisk
-                onChange={(val) => setForm({ ...form, domainId: val ?? form.domainId })}
-              />
-            </FormField>
             {form.actionType === "function" && (
               <FormField size="medium">
                 <Select
