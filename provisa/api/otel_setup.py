@@ -137,7 +137,7 @@ class _MetricExports:
     reader stays and what it exports through is what changes."""
 
     def __init__(self, exporter: Any, interval_millis: int) -> None:
-        from opentelemetry.sdk.metrics.export import MetricReader
+        from opentelemetry.sdk.metrics.export import MetricExportResult, MetricReader
 
         exports = self
 
@@ -147,7 +147,8 @@ class _MetricExports:
             ) -> None:
                 current = exports._exporter
                 if current is not None and metrics_data is not None:
-                    current.export(metrics_data, timeout_millis=timeout_millis)
+                    result = current.export(metrics_data, timeout_millis=timeout_millis)
+                    exports._refused = result is not MetricExportResult.SUCCESS
 
             def shutdown(self, timeout_millis: float = 30_000, **_kw: Any) -> None:
                 exports.stop()
@@ -157,29 +158,66 @@ class _MetricExports:
             preferred_aggregation=exporter._preferred_aggregation,
         )
         self._exporter: Any = None
+        self._endpoint = ""
+        # What the last export said, and how many in a row have not reached the collector.
+        self._refused = False
+        self._failed = 0
         self._interval = interval_millis / 1000
         self._thread: Any = None
         self._stop: Any = None
         self._lock = Lock()
 
-    def start(self, exporter: Any) -> None:
-        """Export through ``exporter`` from now on; the exporter it replaces is shut down."""
+    def collect_once(self) -> None:
+        """One export, and what it says about the collector.
+
+        A collector that cannot be reached is an operating condition, not a fault of this
+        process -- a demo runs with none listening. It is said once, in one line naming the
+        endpoint and the reason, when exports start failing, and once more when they reach it
+        again; the exports in between say nothing. The reason is the exporter's own: its failure
+        result, or the error it raised. One of those errors is the exporter library's: after a
+        failed attempt it waits out its backoff and tries again with whatever time is left, and a
+        late wake-up leaves none -- the HTTP client then refuses a timeout of zero or less with a
+        ValueError the library does not treat as a failed send (opentelemetry-exporter-otlp-
+        proto-http 1.42.1, #233). It is a failed export like any other."""
+        import logging
+
+        log = logging.getLogger(__name__)
+        self._refused = False
+        try:
+            self.reader.collect()
+            reason = "the exporter reported a failed export" if self._refused else None
+        except Exception as error:  # allow-ble: an export thread's boundary -- next tick retries
+            reason = f"{type(error).__name__}: {error}"
+            log.debug("OTel metric export raised", exc_info=True)
+        if reason is not None:
+            self._failed += 1
+            if self._failed == 1:
+                log.warning("OTel metrics are not reaching %s: %s", self._endpoint, reason)
+            return
+        if self._failed:
+            log.warning(
+                "OTel metrics are reaching %s again (%d export(s) did not)",
+                self._endpoint,
+                self._failed,
+            )
+            self._failed = 0
+
+    def start(self, exporter: Any, endpoint: str) -> None:
+        """Export through ``exporter``, which sends to ``endpoint``, from now on; the exporter it
+        replaces is shut down."""
         import threading
 
         self.stop()
         with self._lock:
             self._exporter = exporter
+            self._endpoint = endpoint
+            self._failed = 0
             stop = threading.Event()
-            reader, interval = self.reader, self._interval
+            interval = self._interval
 
             def _tick() -> None:
                 while not stop.wait(interval):
-                    try:
-                        reader.collect()
-                    except Exception:  # allow-ble: an export thread's boundary -- next tick retries
-                        import logging
-
-                        logging.getLogger(__name__).exception("OTel metric export failed")
+                    self.collect_once()
 
             self._stop = stop
             self._thread = threading.Thread(target=_tick, name="provisa-otel-metrics", daemon=True)
@@ -230,9 +268,10 @@ def _process_tracer_provider(sampler: Any, resource: Any) -> Any:
     return provider
 
 
-def _export_metrics(exporter: Any, resource: Any) -> None:
-    """Export the process's metrics through ``exporter``: the meter provider is built and
-    installed on the first call, and every call replaces the exporter (the old one shut down)."""
+def _export_metrics(exporter: Any, resource: Any, endpoint: str) -> None:
+    """Export the process's metrics through ``exporter``, which sends to ``endpoint``: the meter
+    provider is built and installed on the first call, and every call replaces the exporter (the
+    old one shut down)."""
     global _metric_exports
     if _metric_exports is None:
         from opentelemetry import metrics
@@ -242,7 +281,7 @@ def _export_metrics(exporter: Any, resource: Any) -> None:
         metrics.set_meter_provider(
             MeterProvider(resource=resource, metric_readers=[_metric_exports.reader])
         )
-    _metric_exports.start(exporter)
+    _metric_exports.start(exporter, endpoint)
 
 
 class SpanBuffer:  # REQ-302, REQ-303
@@ -534,7 +573,7 @@ def attach_otlp_exporters(
                 schedule_delay_millis=settings_registry.value("otel.span_export_delay_millis"),
             ),
         )
-        _export_metrics(_make_metric_exporter(endpoint, otlp_protocol), resource)
+        _export_metrics(_make_metric_exporter(endpoint, otlp_protocol), resource, endpoint)
         _meter = metrics.get_meter("provisa")
         _self.query_counter = _meter.create_counter(
             "provisa.query.executed", description="Total queries executed"
@@ -762,7 +801,7 @@ def setup_otel(
         if endpoint:
             from opentelemetry import metrics
 
-            _export_metrics(_make_metric_exporter(endpoint, otlp_protocol), resource)
+            _export_metrics(_make_metric_exporter(endpoint, otlp_protocol), resource, endpoint)
             _log.info("OTel metrics → %s (service=%s)", endpoint, service_name)
 
             import provisa.api.otel_setup as _self
