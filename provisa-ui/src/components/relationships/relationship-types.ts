@@ -8,6 +8,9 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { domainToSqlName } from "../../naming";
+import type { Relationship } from "../../types/admin";
+
 export interface Candidate {
   id: number;
   source_table_id: number;
@@ -51,3 +54,17 @@ export const EMPTY_FORM = {
 };
 
 export type RelForm = typeof EMPTY_FORM;
+
+/** What a relationship points at, as the list and the detail both show it. */
+export function relationshipTargetLabel(
+  r: Relationship,
+  tableDomainById: Record<string, string>,
+  domainsEnabled: boolean,
+): string {
+  if (r.targetFunctionName) return `fn:${r.targetFunctionName}(${r.functionArg ?? ""})`;
+  const tDomain = domainsEnabled ? tableDomainById[r.targetTableId!] : undefined;
+  const sDomain = domainsEnabled ? domainToSqlName(r.sourceDomainId ?? "") : undefined;
+  return tDomain && tDomain !== sDomain
+    ? `${tDomain}.${r.targetTableName}.${r.targetColumn}`
+    : `${r.targetTableName}.${r.targetColumn}`;
+}

@@ -5581,5 +5581,8 @@
   "hi/loginPage.json::loginPage.sandboxBuildingBody": "Setting up a private copy of the sample data just for you — this can take a couple of minutes.",
   "hi/loginPage.json::loginPage.sandboxTryTitle": "Try Provisa Free",
   "hi/loginPage.json::loginPage.sandboxTryBody": "Explore the full platform with sample data — no credit card required. Your sandbox is temporary: it disappears when you log out.",
-  "hi/loginPage.json::loginPage.sandboxHeading": "Try Provisa"
+  "hi/loginPage.json::loginPage.sandboxHeading": "Try Provisa",
+  "hi/relationshipsPage.json::relationshipsPage.detailPanel": "Relationship details",
+  "hi/relationshipsPage.json::relationshipsPage.panelNewRelationship": "New relationship",
+  "hi/relationshipsPage.json::relationshipsPage.backToRelationship": "Back to {{id}}"
 }

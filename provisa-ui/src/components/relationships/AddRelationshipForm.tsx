@@ -9,7 +9,7 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { Card, Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
+import { Checkbox, NumberInput, Select, Text, TextInput } from "@mantine/core";
 import type { RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelForm } from "./relationship-types";
@@ -47,7 +47,7 @@ export function AddRelationshipForm({
   const functionOptions = functions.map((f) => ({ value: f.name, label: f.name }));
 
   return (
-    <Card withBorder padding="md" data-testid="add-relationship-form">
+    <div data-testid="add-relationship-form">
       <FormLayout>
         <FormIdentifiers>
           <FormField size="medium">
@@ -230,6 +230,6 @@ export function AddRelationshipForm({
           saveProps={{ "data-testid": "rel-form-save" }}
         />
       </FormLayout>
-    </Card>
+    </div>
   );
 }
