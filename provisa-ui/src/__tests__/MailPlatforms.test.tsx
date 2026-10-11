@@ -390,6 +390,23 @@ describe("the organisation's mail platforms", () => {
       ]);
     });
 
+    it("tells a browser not to fill the client or the key", async () => {
+      // A text box followed by a password box reads to a browser as a sign-in; a user name it
+      // filled into Client ID made half a client, which cannot be saved.
+      list.mockResolvedValue({ redirect_address: REDIRECT, platforms: [workspace()] });
+      render(<MailPlatformsSection />);
+      fireEvent.click(await screen.findByTestId(tid("-organisation-mailboxes")));
+      expect(screen.getByTestId(tid("-client-id"))).toHaveAttribute("autocomplete", "off");
+      expect(screen.getByTestId(tid("-client-secret"))).toHaveAttribute(
+        "autocomplete",
+        "new-password",
+      );
+      expect(screen.getByTestId(tid("-organisation-key"))).toHaveAttribute(
+        "autocomplete",
+        "new-password",
+      );
+    });
+
     it("shows only the fields of what is ticked, the two choices first", async () => {
       list.mockResolvedValue({
         redirect_address: REDIRECT,
@@ -452,15 +469,20 @@ describe("the organisation's mail platforms", () => {
       });
       render(<MailPlatformsSection />);
       const at = (suffix: string) => `mail-platform-microsoft_365${suffix}`;
-      fireEvent.click(await screen.findByTestId(at("-own-mailbox")));
-      expect(screen.getByTestId(at("-own-mailbox"))).not.toBeChecked();
-      // The organisation's mailboxes are read with the client: it and the tenant stay, and the
-      // address one person's sign-in returns to goes.
+      // The organisation's mailboxes are read with the client, and an entry that holds a client
+      // is one people can sign in with: the second tick is on and cannot be taken off while the
+      // first is.
+      const own = await screen.findByTestId(at("-own-mailbox"));
+      expect(own).toBeChecked();
+      expect(own).toBeDisabled();
       expect(screen.getByTestId(at("-client-id"))).toHaveValue("client-1");
       expect(screen.getByTestId(at("-client-secret"))).toHaveValue(KEPT);
       expect(screen.getByTestId(at("-setting-tenant"))).toHaveValue("contoso");
-      expect(screen.queryByTestId(at("-redirect"))).toBeNull();
+      expect(screen.getByTestId(at("-redirect"))).toHaveValue(REDIRECT);
       expect(screen.getByTestId(at("-save"))).toBeEnabled();
+      // With the first tick off it is the administrator's to choose again.
+      fireEvent.click(screen.getByTestId(at("-organisation-mailboxes")));
+      expect(screen.getByTestId(at("-own-mailbox"))).toBeEnabled();
     });
 
     it("sends the key as it was typed", async () => {
