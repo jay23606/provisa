@@ -999,7 +999,6 @@ export function JsonApiPage() {
               !effectiveSelectedTable || (groupByCols.length > 0 && selectedFuncs.length === 0)
             }
             loading={running}
-            fullWidth
             mt="sm"
             data-testid="jsonapi-run-button"
           >

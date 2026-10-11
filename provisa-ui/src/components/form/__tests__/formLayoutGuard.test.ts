@@ -105,7 +105,6 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
  */
 const NOT_YET_CONVERTED: readonly string[] = [
   "components/ChatPanel.tsx",
-  "components/NavBar.tsx",
   "components/SchemaDiscovery.tsx",
   "components/TableMappingBuilder.tsx",
   "components/TagControl.tsx",
@@ -116,12 +115,9 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/graph/Inspector.tsx",
   "components/graph/Neo4jExportModal.tsx",
   "components/graph/graph-context-menus.tsx",
-  "pages/JsonApiPage.tsx",
-  "pages/LineagePage.tsx",
   "pages/TablesPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
   "pages/sources/SourceDetailPanel.tsx",
-  "pages/sql/ColumnFilterMenu.tsx",
   "pages/sql/ViewModal.tsx",
   "pages/tables/DataQualityPanel.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",

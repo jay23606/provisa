@@ -307,32 +307,35 @@ export function LineagePage(): React.ReactElement {
               data-testid="lineage-roles"
             />
           </CapabilityGate>
-          <Button
-            onClick={() => run(() => fetchLineageGraph(sql))}
-            loading={loading}
-            data-testid="lineage-build"
-          >
-            Statement Lineage
-          </Button>
-          <CapabilityGate capability="view_governance">
+          {/* The panel's actions: their natural width, at the start of the line. */}
+          <Group gap="xs" justify="flex-start">
             <Button
-              variant="light"
-              onClick={() =>
-                run(
-                  () =>
-                    fetchFederationGraph({
-                      domains: Array.from(checkedDomains),
-                      roles: lineageRoles,
-                    }),
-                  true,
-                )
-              }
+              onClick={() => run(() => fetchLineageGraph(sql))}
               loading={loading}
-              data-testid="lineage-federation"
+              data-testid="lineage-build"
             >
-              Complete Lineage
+              Statement Lineage
             </Button>
-          </CapabilityGate>
+            <CapabilityGate capability="view_governance">
+              <Button
+                variant="light"
+                onClick={() =>
+                  run(
+                    () =>
+                      fetchFederationGraph({
+                        domains: Array.from(checkedDomains),
+                        roles: lineageRoles,
+                      }),
+                    true,
+                  )
+                }
+                loading={loading}
+                data-testid="lineage-federation"
+              >
+                Complete Lineage
+              </Button>
+            </CapabilityGate>
+          </Group>
         </Stack>
       </Group>
 

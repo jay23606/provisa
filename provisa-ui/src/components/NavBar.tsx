@@ -23,6 +23,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 import { BrandMark } from "./BrandMark";
 import { CapabilityGate } from "./CapabilityGate";
 import { HIDING_RIGHTS } from "../lib/capabilities";
@@ -407,14 +408,14 @@ export function NavBar() {
             Ready to create your own organization and start with a Starter plan? You'll get 14 days
             free.
           </Text>
-          <Stack gap="xs">
-            <Button fullWidth onClick={() => navigate("/admin/orgs")}>
-              Create Organization
-            </Button>
-            <Button fullWidth variant="default" onClick={proceedWithLogout}>
+          {/* The dialog's action first, then the other, at the start of the line. */}
+          <FormFooter
+            action={<Button onClick={() => navigate("/admin/orgs")}>Create Organization</Button>}
+          >
+            <Button variant="default" onClick={proceedWithLogout}>
               Just Log Out
             </Button>
-          </Stack>
+          </FormFooter>
         </Stack>
       </Modal>
     </>
