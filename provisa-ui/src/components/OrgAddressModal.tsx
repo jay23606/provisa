@@ -14,6 +14,7 @@ import { Anchor, Button, Code, Group, Modal, Stack, Text } from "@mantine/core";
 import { Globe, Palette } from "lucide-react";
 import { CopyButton } from "./CopyButton";
 import { BrandMark } from "./BrandMark";
+import { Tip } from "./Tip";
 
 /**
  * The org's own address, told to the administrator once the org exists.
@@ -58,7 +59,9 @@ export function OrgAddressModal({
             <Text size="sm">{t("orgAddress.body")}</Text>
             <Group gap="xs" wrap="nowrap">
               <Code data-testid="org-address-url">{url}</Code>
-              <CopyButton text={url} title={t("orgAddress.copy")} />
+              <Tip text={t("orgAddress.copy")} named>
+                <CopyButton text={url} aria-label={t("orgAddress.copy")} />
+              </Tip>
             </Group>
             <Anchor href={url} target="_blank" rel="noreferrer" size="sm">
               {t("orgAddress.open")}

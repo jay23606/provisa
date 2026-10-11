@@ -9,9 +9,10 @@
 // permission from the copyright holder.
 
 import { useEffect, useState } from "react";
-import { Badge, Tooltip } from "@mantine/core";
+import { Badge } from "@mantine/core";
 import { BadgeInfo } from "lucide-react";
 import { fetchLicenseStatus } from "../api/license";
+import { Tip } from "./Tip";
 
 /**
  * A persistent, always-visible "Unregistered" indicator for an unlicensed deployment (companion to
@@ -53,12 +54,7 @@ export function LicenseBadge() {
   if (licensed !== false) return null;
 
   return (
-    <Tooltip
-      label="Provisa is free to register. Registered users' bug reports get priority over unregistered users, plus emails on major releases, use-case walkthroughs, and feature deep dives. Visit provisa.dev/register, or run `provisa license status` for your machine ID."
-      multiline
-      w={300}
-      withArrow
-    >
+    <Tip text="Provisa is free to register. Registered users' bug reports get priority over unregistered users, plus emails on major releases, use-case walkthroughs, and feature deep dives. Visit provisa.dev/register, or run `provisa license status` for your machine ID.">
       <Badge
         component="a"
         href="https://provisa.dev/register"
@@ -78,6 +74,6 @@ export function LicenseBadge() {
       >
         Unregistered
       </Badge>
-    </Tooltip>
+    </Tip>
   );
 }

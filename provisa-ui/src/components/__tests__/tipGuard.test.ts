@@ -34,11 +34,6 @@ const THE_TIP = "components/Tip.tsx";
  * Nothing is added here.
  */
 const STILL_LIBRARY_TOOLTIP: readonly string[] = [
-  "components/ChatPanel.tsx",
-  "components/CopyButton.tsx",
-  "components/DemonstratedFeature.tsx",
-  "components/LicenseBadge.tsx",
-  "components/NavBar.tsx",
   "components/TagControl.tsx",
   "components/erd/ErdPanel.tsx",
   "components/graph/GraphSidebar.tsx",
@@ -51,8 +46,6 @@ const STILL_LIBRARY_TOOLTIP: readonly string[] = [
   "pages/JsonApiPage.tsx",
   "pages/LineagePage.tsx",
   "pages/McpExplorePage.tsx",
-  "pages/data-products/CustomPropertiesEditor.tsx",
-  "pages/data-products/DataProductDetailPanel.tsx",
   "pages/metrics/MetricDetailPanel.tsx",
   "pages/sources/SourceDetailPanel.tsx",
   "pages/sql/SchemaBrowser.tsx",
@@ -66,7 +59,6 @@ const STILL_LIBRARY_TOOLTIP: readonly string[] = [
  * commit that converts it, and nothing is added.
  */
 const STILL_TITLE_ON_CONTROL: readonly string[] = [
-  "components/OrgAddressModal.tsx",
   "components/SchemaDiscovery.tsx",
   "components/SourceTypePicker.tsx",
   "components/SqlModelingModal.tsx",
@@ -78,7 +70,6 @@ const STILL_TITLE_ON_CONTROL: readonly string[] = [
   "components/graph/NodeContextMenu.tsx",
   "components/graph/QueryBar.tsx",
   "components/graph/canvas/CanvasControls.tsx",
-  "components/list/ListTable.tsx",
   "components/relationships/RelationshipDetail.tsx",
   "pages/JsonApiPage.tsx",
   "pages/McpExplorePage.tsx",

@@ -400,7 +400,7 @@ function SecretsVault({ vault, header }: VaultProps) {
               <Table.Td>
                 <Group gap="xs">
                   <Code>{s.reference}</Code>
-                  <Tip text={t("secretsTab.copyReference")}>
+                  <Tip text={t("secretsTab.copyReference")} named>
                     <Button
                       variant="subtle"
                       size="compact-xs"

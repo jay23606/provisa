@@ -9,9 +9,10 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Text, TextInput, Tooltip } from "@mantine/core";
+import { ActionIcon, Text, TextInput } from "@mantine/core";
 import { Plus, Trash2 } from "lucide-react";
 import { FieldGroup, FormField, FormLayout } from "../../components/form/FormLayout";
+import { Tip } from "../../components/Tip";
 
 interface CustomPropertiesEditorProps {
   value: Record<string, string>;
@@ -69,7 +70,7 @@ export function CustomPropertiesEditor({ value, onChange }: CustomPropertiesEdit
               data-testid={`data-product-custom-property-value-${i}`}
             />
           </FormField>
-          <Tooltip label={t("dataProductsTab.customPropertiesRemove", { key: key || i })}>
+          <Tip text={t("dataProductsTab.customPropertiesRemove", { key: key || i })} named>
             <ActionIcon
               variant="subtle"
               color="red"
@@ -79,7 +80,7 @@ export function CustomPropertiesEditor({ value, onChange }: CustomPropertiesEdit
             >
               <Trash2 size={14} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         </FieldGroup>
       ))}
       <FormField size="full">

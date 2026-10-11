@@ -174,7 +174,7 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
         <Text size="sm" c="dimmed">
           {t("columnPresetsEditor.label")}
         </Text>
-        <Tip text={t("columnPresetsEditor.infoTooltip")}>
+        <Tip text={t("columnPresetsEditor.infoTooltip")} named>
           <ActionIcon
             variant="subtle"
             color="gray"

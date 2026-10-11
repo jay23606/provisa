@@ -13,6 +13,7 @@ import { ActionIcon, Group, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Layers } from "lucide-react";
 import type { ListItem, ListSortGroup } from "./useListSortGroup";
+import { Tip } from "../Tip";
 
 /**
  * REQ-1940: the one list style, taken from the Register Tables page. Every admin page that lists
@@ -121,21 +122,22 @@ function ListSortCell<T>({ state, col }: { state: ListSortGroup<T>; col: string 
         label
       )}
       {def.groupValue && (
-        <ActionIcon
-          variant="transparent"
-          size="xs"
-          data-testid={`${state.testPrefix}-group-${col}`}
-          aria-label={groupLabel}
-          title={groupLabel}
-          onClick={() => state.toggleGroup(col)}
-          style={{ opacity: isGrouped ? 1 : 0.35 }}
-        >
-          <Layers
-            size={11}
-            color={isGrouped ? "var(--primary, #6366f1)" : undefined}
-            aria-hidden="true"
-          />
-        </ActionIcon>
+        <Tip text={groupLabel} named>
+          <ActionIcon
+            variant="transparent"
+            size="xs"
+            data-testid={`${state.testPrefix}-group-${col}`}
+            aria-label={groupLabel}
+            onClick={() => state.toggleGroup(col)}
+            style={{ opacity: isGrouped ? 1 : 0.35 }}
+          >
+            <Layers
+              size={11}
+              color={isGrouped ? "var(--primary, #6366f1)" : undefined}
+              aria-hidden="true"
+            />
+          </ActionIcon>
+        </Tip>
       )}
       {def.groupValue && isGrouped && (
         <Text span fz="0.65rem" c="var(--primary, #6366f1)">

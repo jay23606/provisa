@@ -11,17 +11,7 @@
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import {
-  ActionIcon,
-  Collapse,
-  Group,
-  List,
-  Modal,
-  Stack,
-  Table,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Collapse, Group, List, Modal, Stack, Table, Text } from "@mantine/core";
 import {
   Braces,
   Cable,
@@ -44,6 +34,7 @@ import { OwnerResolutionInline } from "../../components/OwnerResolution";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelatedGlossaryTerm } from "../../api/glossary";
 import { cypherRelType, tableSqlRef } from "../../naming";
+import { Tip } from "../../components/Tip";
 
 interface RelatedTable {
   table: RegisteredTable;
@@ -311,11 +302,11 @@ export function DataProductDetailPanel({
             <Text c="dimmed" fw={500} size="sm">
               {t("dataProductsTab.detail.field.outputPorts")}
             </Text>
-            <Tooltip label={t("dataProductsTab.detail.outputPortsHint")}>
+            <Tip text={t("dataProductsTab.detail.outputPortsHint")}>
               <Text size="xs" c="var(--text-muted)" style={{ cursor: "help" }}>
                 ⓘ
               </Text>
-            </Tooltip>
+            </Tip>
           </Group>
           {outputTables.length === 0 ? (
             <Text size="sm" c="var(--text-muted)">
@@ -371,11 +362,11 @@ export function DataProductDetailPanel({
             <Text c="dimmed" fw={500} size="sm">
               {t("dataProductsTab.detail.field.dataQuality")}
             </Text>
-            <Tooltip label={t("dataProductsTab.detail.dataQualityHint")}>
+            <Tip text={t("dataProductsTab.detail.dataQualityHint")}>
               <Text size="xs" c="var(--text-muted)" style={{ cursor: "help" }}>
                 ⓘ
               </Text>
-            </Tooltip>
+            </Tip>
           </Group>
           {dqTables.length === 0 ? (
             <Text size="sm" c="var(--text-muted)">
@@ -391,7 +382,7 @@ export function DataProductDetailPanel({
                     </Text>
                     {/* The scan results are reached through SQL alone here — the other access
                         patterns belong to the output ports, not to the evidence about them. */}
-                    <Tooltip label={t("dataProductsTab.sqlQueryAria", { table: tb.tableName })}>
+                    <Tip text={t("dataProductsTab.sqlQueryAria", { table: tb.tableName })} named>
                       <ActionIcon
                         variant="subtle"
                         size="sm"
@@ -403,7 +394,7 @@ export function DataProductDetailPanel({
                       >
                         <TableIcon size={14} />
                       </ActionIcon>
-                    </Tooltip>
+                    </Tip>
                     {/* The rules the scan enforces, read through the checker's own parser. The
                         checker type comes from the table's source; sources load on their own
                         query, so the control waits for that answer rather than guessing a type. */}
@@ -411,8 +402,8 @@ export function DataProductDetailPanel({
                       const source = sources.find((s) => s.id === tb.sourceId);
                       return (
                         <>
-                          <Tooltip
-                            label={t("dataProductsTab.detail.dqRulesAria", { table: tb.tableName })}
+                          <Tip
+                            text={t("dataProductsTab.detail.dqRulesAria", { table: tb.tableName })}
                           >
                             <ActionIcon
                               variant="subtle"
@@ -426,7 +417,7 @@ export function DataProductDetailPanel({
                             >
                               <ListChecks size={14} />
                             </ActionIcon>
-                          </Tooltip>
+                          </Tip>
                           {source !== undefined && tb.dqContract != null && (
                             <DqRulesModal
                               opened={rulesFor === tb.id}
@@ -501,9 +492,7 @@ export function DataProductDetailPanel({
                       {tb.domainId}.{tb.tableName}
                     </Text>
                     {tb.graphqlFieldName && (
-                      <Tooltip
-                        label={t("dataProductsTab.graphqlQueryAria", { table: tb.tableName })}
-                      >
+                      <Tip text={t("dataProductsTab.graphqlQueryAria", { table: tb.tableName })}>
                         <ActionIcon
                           variant="subtle"
                           size="sm"
@@ -519,9 +508,9 @@ export function DataProductDetailPanel({
                         >
                           <Braces size={14} />
                         </ActionIcon>
-                      </Tooltip>
+                      </Tip>
                     )}
-                    <Tooltip label={t("dataProductsTab.sqlQueryAria", { table: tb.tableName })}>
+                    <Tip text={t("dataProductsTab.sqlQueryAria", { table: tb.tableName })} named>
                       <ActionIcon
                         variant="subtle"
                         size="sm"
@@ -533,8 +522,11 @@ export function DataProductDetailPanel({
                       >
                         <TableIcon size={14} />
                       </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label={t("dataProductsTab.jsonapiQueryAria", { table: tb.tableName })}>
+                    </Tip>
+                    <Tip
+                      text={t("dataProductsTab.jsonapiQueryAria", { table: tb.tableName })}
+                      named
+                    >
                       <ActionIcon
                         variant="subtle"
                         size="sm"
@@ -548,8 +540,11 @@ export function DataProductDetailPanel({
                       >
                         <FileJson size={14} />
                       </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label={t("dataProductsTab.openApiQueryAria", { table: tb.tableName })}>
+                    </Tip>
+                    <Tip
+                      text={t("dataProductsTab.openApiQueryAria", { table: tb.tableName })}
+                      named
+                    >
                       <ActionIcon
                         variant="subtle"
                         size="sm"
@@ -563,9 +558,9 @@ export function DataProductDetailPanel({
                       >
                         <Globe size={14} />
                       </ActionIcon>
-                    </Tooltip>
+                    </Tip>
                     {tb.graphqlFieldName && (
-                      <Tooltip label={t("dataProductsTab.grpcQueryAria", { table: tb.tableName })}>
+                      <Tip text={t("dataProductsTab.grpcQueryAria", { table: tb.tableName })} named>
                         <ActionIcon
                           variant="subtle"
                           size="sm"
@@ -579,7 +574,7 @@ export function DataProductDetailPanel({
                         >
                           <Cable size={14} />
                         </ActionIcon>
-                      </Tooltip>
+                      </Tip>
                     )}
                   </Group>
                 </List.Item>
@@ -590,7 +585,7 @@ export function DataProductDetailPanel({
                     <Text component="span" size="sm" ff="monospace">
                       {type}
                     </Text>
-                    <Tooltip label={t("dataProductsTab.cypherQueryAria", { type })}>
+                    <Tip text={t("dataProductsTab.cypherQueryAria", { type })} named>
                       <ActionIcon
                         variant="subtle"
                         size="sm"
@@ -607,7 +602,7 @@ export function DataProductDetailPanel({
                       >
                         <Share2 size={14} />
                       </ActionIcon>
-                    </Tooltip>
+                    </Tip>
                   </Group>
                 </List.Item>
               ))}
@@ -619,11 +614,11 @@ export function DataProductDetailPanel({
             <Text c="dimmed" fw={500} size="sm">
               {t("dataProductsTab.detail.field.relatedTables")}
             </Text>
-            <Tooltip label={t("dataProductsTab.detail.relatedTablesHint")}>
+            <Tip text={t("dataProductsTab.detail.relatedTablesHint")}>
               <Text size="xs" c="var(--text-muted)" style={{ cursor: "help" }}>
                 ⓘ
               </Text>
-            </Tooltip>
+            </Tip>
           </Group>
           {relatedTables.length === 0 ? (
             <Text size="sm" c="var(--text-muted)">
@@ -690,11 +685,11 @@ export function DataProductDetailPanel({
               <Text c="dimmed" fw={500} size="sm">
                 {t("dataProductsTab.detail.field.inputPorts")}
               </Text>
-              <Tooltip label={t("dataProductsTab.detail.inputPortsHint")}>
+              <Tip text={t("dataProductsTab.detail.inputPortsHint")}>
                 <Text size="xs" c="var(--text-muted)" style={{ cursor: "help" }}>
                   ⓘ
                 </Text>
-              </Tooltip>
+              </Tip>
             </Group>
             {inputPorts.length === 0 ? (
               <Text size="sm" c="var(--text-muted)">
@@ -743,7 +738,7 @@ export function DataProductDetailPanel({
               <Text c="dimmed" fw={500} size="sm">
                 {t("dataProductsTab.detail.field.lineage")}
               </Text>
-              <Tooltip label={t("dataProductsTab.detail.lineageHint")}>
+              <Tip text={t("dataProductsTab.detail.lineageHint")}>
                 <Text
                   size="xs"
                   c="var(--text-muted)"
@@ -752,7 +747,7 @@ export function DataProductDetailPanel({
                 >
                   ⓘ
                 </Text>
-              </Tooltip>
+              </Tip>
             </Group>
             <Collapse in={lineageOpen}>
               {lineageLoading ? (
@@ -803,7 +798,7 @@ export function DataProductDetailPanel({
       </div>
       {canEdit && (
         <Group gap="xs" mt={4}>
-          <Tooltip label={t("dataProductsTab.editDataProduct", { id: p.id })}>
+          <Tip text={t("dataProductsTab.editDataProduct", { id: p.id })} named>
             <ActionIcon
               variant="subtle"
               aria-label={t("dataProductsTab.editDataProduct", { id: p.id })}
@@ -815,8 +810,8 @@ export function DataProductDetailPanel({
             >
               <Pencil size={14} />
             </ActionIcon>
-          </Tooltip>
-          <Tooltip label={t("dataProductsTab.deleteDataProduct", { id: p.id })}>
+          </Tip>
+          <Tip text={t("dataProductsTab.deleteDataProduct", { id: p.id })} named>
             <ActionIcon
               variant="subtle"
               color="red"
@@ -829,7 +824,7 @@ export function DataProductDetailPanel({
             >
               <Trash2 size={14} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         </Group>
       )}
     </Stack>

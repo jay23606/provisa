@@ -409,7 +409,7 @@ export function TagsTab() {
                   </ActionIcon>
                 )}
                 {tag.isSystem ? (
-                  <Tip text={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}>
+                  <Tip text={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")} named>
                     <Lock
                       size={13}
                       aria-label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}
@@ -453,9 +453,8 @@ export function TagsTab() {
                       </span>
                     )}
                     {tag.paramValues.map((v) => (
-                      <Tip text={v.description}>
+                      <Tip key={v.value} text={v.description}>
                         <Badge
-                          key={v.value}
                           size="sm"
                           variant="light"
                           rightSection={

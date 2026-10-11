@@ -176,7 +176,7 @@ function TraceFeed() {
       </span>
 
       <Group flex={1} justify="flex-end" align="center" gap="0.4rem">
-        <Tip text={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")}>
+        <Tip text={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")} named>
           <ActionIcon
             className="trace-pause-btn"
             style={{ marginInlineStart: "0.5rem" }}
@@ -187,7 +187,7 @@ function TraceFeed() {
             {paused ? <Play size={14} /> : <Pause size={14} />}
           </ActionIcon>
         </Tip>
-        <Tip text={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")}>
+        <Tip text={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")} named>
           <ActionIcon
             className="trace-expand-btn"
             onClick={(e) => {

@@ -31,7 +31,6 @@ import {
   Text,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useApolloClient, useMutation } from "@apollo/client/react";
 import {
@@ -57,6 +56,7 @@ import type { MutationResult } from "../types/admin";
 import type { ChoiceAnswer, ClientToolResult, PresentChoiceRequest } from "../mcp/clientTools";
 import { useResizableWidth } from "../hooks/useResizableWidth";
 import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
+import { Tip, TipSurface } from "./Tip";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
@@ -323,7 +323,7 @@ export function ChatPanel() {
   if (!open) {
     return (
       <>
-        <Tooltip label={t("chatPanel.toggleTooltip")} position="left">
+        <Tip text={t("chatPanel.toggleTooltip")} position="left">
           <ActionIcon
             variant="filled"
             size="xl"
@@ -336,7 +336,7 @@ export function ChatPanel() {
           >
             <MessageCircle size={20} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
 
         <Modal
           opened={unconfiguredReason !== null}
@@ -413,7 +413,7 @@ export function ChatPanel() {
         <Group justify="space-between" mb="xs">
           <Title order={5}>Polly</Title>
           <Group gap={4}>
-            <Tooltip label={t("chatPanel.clear")}>
+            <Tip text={t("chatPanel.clear")}>
               <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -423,7 +423,7 @@ export function ChatPanel() {
               >
                 <Eraser size={16} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
             <CloseButton data-testid="chat-panel-close" onClick={closePolly} />
           </Group>
         </Group>
@@ -437,9 +437,9 @@ export function ChatPanel() {
           >
             <Group gap={6} wrap="wrap">
               {tools.map((tl, i) => (
-                <Tooltip
+                <TipSurface
                   key={i}
-                  label={
+                  content={
                     <Text
                       component="pre"
                       size="xs"
@@ -448,8 +448,6 @@ export function ChatPanel() {
                       {tl.input !== undefined ? JSON.stringify(tl.input, null, 2) : "(no params)"}
                     </Text>
                   }
-                  withArrow
-                  multiline
                 >
                   <Badge
                     size="sm"
@@ -469,7 +467,7 @@ export function ChatPanel() {
                   >
                     {tl.name}
                   </Badge>
-                </Tooltip>
+                </TipSurface>
               ))}
             </Group>
           </ScrollArea.Autosize>
@@ -535,7 +533,7 @@ export function ChatPanel() {
               {m.text && (
                 <CopyButton value={m.text} timeout={1500}>
                   {({ copied, copy }) => (
-                    <Tooltip label={copied ? "Copied" : "Copy"} withArrow>
+                    <Tip text={copied ? "Copied" : "Copy"}>
                       <ActionIcon
                         className="chat-message-copy"
                         size="xs"
@@ -547,7 +545,7 @@ export function ChatPanel() {
                       >
                         {copied ? <Check size={12} /> : <Copy size={12} />}
                       </ActionIcon>
-                    </Tooltip>
+                    </Tip>
                   )}
                 </CopyButton>
               )}
@@ -574,9 +572,7 @@ export function ChatPanel() {
           rightSectionPointerEvents="auto"
           rightSection={
             speech.supported && (
-              <Tooltip
-                label={speech.listening ? t("chatPanel.stopListening") : t("chatPanel.speak")}
-              >
+              <Tip text={speech.listening ? t("chatPanel.stopListening") : t("chatPanel.speak")}>
                 <ActionIcon
                   variant={speech.listening ? "filled" : "subtle"}
                   color={speech.listening ? "red" : undefined}
@@ -587,7 +583,7 @@ export function ChatPanel() {
                 >
                   {speech.listening ? <MicOff size={14} /> : <Mic size={14} />}
                 </ActionIcon>
-              </Tooltip>
+              </Tip>
             )
           }
         />

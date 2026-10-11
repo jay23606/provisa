@@ -52,7 +52,7 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
                 {t("uniquesPanel.summary", { count: uniques.length })}
               </Text>
             )}
-            <Tip text={t("uniquesPanel.infoTooltip")}>
+            <Tip text={t("uniquesPanel.infoTooltip")} named>
               <ActionIcon
                 component="span"
                 variant="subtle"

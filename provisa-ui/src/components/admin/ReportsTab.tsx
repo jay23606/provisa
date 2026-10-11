@@ -179,7 +179,7 @@ export function ReportsTab() {
                   data-testid={`report-item-${report.tableName}`}
                   rightSection={
                     custom ? (
-                      <Tip text={t("reportsTab.delete")}>
+                      <Tip text={t("reportsTab.delete")} named>
                         <ActionIcon
                           variant="subtle"
                           color="red"

@@ -9,10 +9,11 @@
 // permission from the copyright holder.
 
 import { useState, type ReactNode } from "react";
-import { Alert, Badge, Box, Button, Group, Modal, Stack, Text, Tooltip } from "@mantine/core";
+import { Alert, Badge, Box, Button, Group, Modal, Stack, Text } from "@mantine/core";
 import { Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FormFooter } from "./form/FormLayout";
+import { Tip } from "./Tip";
 
 interface Props {
   children: ReactNode;
@@ -104,7 +105,7 @@ export function DemonstratedFeature({ children, block, navigable, capability }: 
     );
   }
   return (
-    <Tooltip label={t("capabilityGate.demonstrated.explanation")} multiline w={280} withArrow>
+    <Tip text={t("capabilityGate.demonstrated.explanation")}>
       <Group gap="xs" wrap="nowrap" display="inline-flex">
         {navigable ? (
           // Clickable, and dimmed rather than greyed out: it leads somewhere, and where it leads
@@ -126,6 +127,6 @@ export function DemonstratedFeature({ children, block, navigable, capability }: 
         )}
         {badge}
       </Group>
-    </Tooltip>
+    </Tip>
   );
 }

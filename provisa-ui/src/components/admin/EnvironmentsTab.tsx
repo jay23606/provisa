@@ -676,7 +676,7 @@ export function EnvironmentsTab() {
                       {/* REQ-1546: the repair for a branch the best-effort mirror could not
                             send, and the way to take what the remote holds. Both are asked for
                             here rather than run on a timer. */}
-                      <Tip text={t("environmentsTab.push")}>
+                      <Tip text={t("environmentsTab.push")} named>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
@@ -687,7 +687,7 @@ export function EnvironmentsTab() {
                           <ArrowUpFromLine size={14} aria-hidden />
                         </ActionIcon>
                       </Tip>
-                      <Tip text={t("environmentsTab.pull")}>
+                      <Tip text={t("environmentsTab.pull")} named>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
