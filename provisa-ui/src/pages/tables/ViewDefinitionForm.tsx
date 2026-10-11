@@ -51,7 +51,8 @@ interface ViewDefinitionFormProps {
   domainHints: string[];
   registerTable: (input: Record<string, unknown>) => Promise<MutationResult>;
   updateTable: (input: Record<string, unknown>) => Promise<MutationResult>;
-  onSuccess: () => void;
+  /** Told the name of the view it created, so the page can select it; nothing for an edit. */
+  onSuccess: (created?: string) => void;
   onCancel: () => void;
 }
 
@@ -73,7 +74,6 @@ export function ViewDefinitionForm({
   const [mode, setMode] = useState<DefinitionMode>(editing?.viewMetrics ? "metrics" : "sql");
   const [name, setName] = useState(editing ? editing.alias || editing.tableName : "");
   const [domainId, setDomainId] = useState(editing?.domainId ?? "");
-  const [description, setDescription] = useState(editing?.description ?? "");
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
     editing?.viewMetrics?.metrics ?? [],
   );
@@ -131,7 +131,6 @@ export function ViewDefinitionForm({
           schemaName: "views",
           tableName: name.trim(),
           alias: name.trim(),
-          description: description.trim() || undefined,
           viewMetrics: spec,
           // View output columns = the spec dimensions plus one column per metric.
           columns: [...selectedDims, ...selectedMetrics].map((n) => ({
@@ -140,7 +139,7 @@ export function ViewDefinitionForm({
           })),
         });
       }
-      if (result.success) onSuccess();
+      if (result.success) onSuccess(editing ? undefined : name.trim());
       else setMsg(result.message || t("viewDefinitionForm.saveFailed"));
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -221,17 +220,8 @@ export function ViewDefinitionForm({
               </FormField>
             </FormIdentifiers>
           )}
-          {!editing && (
-            <FormField size="full">
-              <Textarea
-                label={t("viewDefinitionForm.fieldDescription")}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                data-testid="view-definition-description"
-              />
-            </FormField>
-          )}
+          {/* Creating asks only what a view needs in order to exist: its name, where it
+              belongs and its definition. Its description is set in the edit it opens in. */}
           <FormField size="long">
             <MultiSelect
               label={t("viewDefinitionForm.fieldMetrics")}

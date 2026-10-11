@@ -9,7 +9,6 @@
     "fieldName": "Имя представления",
     "fieldNamePlaceholder": "например, revenue_by_region",
     "fieldDomain": "Домен",
-    "fieldDescription": "Описание",
     "fieldMetrics": "Метрики",
     "fieldMetricsPlaceholder": "Выберите одну или несколько зарегистрированных метрик",
     "fieldDimensions": "Измерения",

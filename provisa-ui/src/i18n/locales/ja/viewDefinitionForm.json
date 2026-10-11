@@ -9,7 +9,6 @@
     "fieldName": "ビュー名",
     "fieldNamePlaceholder": "例: revenue_by_region",
     "fieldDomain": "ドメイン",
-    "fieldDescription": "説明",
     "fieldMetrics": "メトリクス",
     "fieldMetricsPlaceholder": "登録済みメトリクスを1つ以上選択",
     "fieldDimensions": "ディメンション",

@@ -9,7 +9,6 @@
     "fieldName": "檢視名稱",
     "fieldNamePlaceholder": "例如 revenue_by_region",
     "fieldDomain": "領域",
-    "fieldDescription": "描述",
     "fieldMetrics": "指標",
     "fieldMetricsPlaceholder": "選取一個或多個已登記的指標",
     "fieldDimensions": "維度",
