@@ -400,10 +400,13 @@ export function ModelingForm({ domains, onSuccess, onCancel }: ModelingFormProps
             </FormField>
           ))}
           <FormField size="full">
-            <FieldLabel
-              text={t("modelingForm.dimensionsLabel")}
-              help={t("modelingForm.dimensionsHelp")}
-            />
+            {/* In the label slot, so it is the size and weight of the form's other labels. */}
+            <Input.Label component="div">
+              <FieldLabel
+                text={t("modelingForm.dimensionsLabel")}
+                help={t("modelingForm.dimensionsHelp")}
+              />
+            </Input.Label>
           </FormField>
           {dimensions.map((dim, i) => (
             // One dimension of the list: its two boxes share the row, the remove level with them.
