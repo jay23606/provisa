@@ -74,7 +74,6 @@ interface TableReadViewProps {
   profileColumnsTable?: RegisteredTable | null;
   /** Render the action row alone: the edit form shows it, disabled, in the panel's head. */
   actionsOnly?: boolean;
-  actionsDisabled?: boolean;
 }
 
 export function TableReadView({
@@ -99,17 +98,16 @@ export function TableReadView({
   onEditDefinition,
   profileColumnsTable,
   actionsOnly = false,
-  actionsDisabled = false,
 }: TableReadViewProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useColumnTab();
 
   // The table's actions. In a detail panel they sit in its pinned head (PanelActions); under a
-  // list row they stay in place. While the table is being edited they are shown but cannot be
-  // used: each of them would leave the form.
+  // list row they stay in place. While the table is being edited they are not there: the form's
+  // Save and Cancel have the head (FormFooter `panel`).
   const actions = (
     <PanelActions>
-      <fieldset className="panel-action-set" disabled={actionsDisabled}>
+      <fieldset className="panel-action-set">
         <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
           <ReplicatingMark build={build} size="detail" />
           {table.viewSql && (

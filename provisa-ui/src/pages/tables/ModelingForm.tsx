@@ -463,6 +463,7 @@ export function ModelingForm({ domains, onSuccess, onCancel }: ModelingFormProps
       )}
       {/* Creating the model is not a save of this form: it keeps its word, first; Cancel follows. */}
       <FormFooter
+        panel
         onCancel={onCancel}
         action={
           <Button onClick={submit} loading={busy} data-testid="modeling-submit">

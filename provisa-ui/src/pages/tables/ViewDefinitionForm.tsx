@@ -175,6 +175,7 @@ export function ViewDefinitionForm({
           </FormField>
           {/* Opening the editor is not a save: it keeps its word, first, and Cancel follows. */}
           <FormFooter
+            panel
             onCancel={onCancel}
             cancelProps={{ "data-testid": "view-definition-cancel" }}
             action={
@@ -268,6 +269,7 @@ export function ViewDefinitionForm({
             </FormField>
           )}
           <FormFooter
+            panel
             onSave={handleSaveMetrics}
             saving={saving}
             saveProps={{ "data-testid": "view-definition-save", disabled: metricsSaveDisabled }}

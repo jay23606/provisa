@@ -29,7 +29,7 @@ import { createPortal } from "react-dom";
 import { ActionIcon, Button, Title } from "@mantine/core";
 import { ArrowLeft, Maximize2, Minimize2, X } from "lucide-react";
 import { useResizableWidth } from "../../hooks/useResizableWidth";
-import { PanelActionsContext } from "./panelActions";
+import { PanelActionsContext, PanelNoticeContext } from "./panelActions";
 
 /** The narrowest the panel is dragged, and the least room the list keeps beside it. */
 const PANEL_MIN = 360;
@@ -85,6 +85,7 @@ export function SplitPane({
   const [rowWidth, setRowWidth] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
+  const [noticeSlot, setNoticeSlot] = useState<HTMLDivElement | null>(null);
 
   const { ref, width, startResize, onHandleKeyDown } = useResizableWidth<HTMLElement>(storageKey, {
     // Not moved yet: the panel takes its share of the row (see `shown`).
@@ -201,9 +202,13 @@ export function SplitPane({
                 <X size={16} />
               </ActionIcon>
             </div>
+            {/* What a form in the panel has to say of itself (a refused save): pinned too. */}
+            <div className="split-pane__notice" ref={setNoticeSlot} />
             <div className="split-pane__body">
               <PanelActionsContext.Provider value={actionsSlot}>
-                {children}
+                <PanelNoticeContext.Provider value={noticeSlot}>
+                  {children}
+                </PanelNoticeContext.Provider>
               </PanelActionsContext.Provider>
             </div>
           </aside>

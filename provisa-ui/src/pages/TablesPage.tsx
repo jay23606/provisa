@@ -732,6 +732,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         }}
         onCancel={() => setShowForm(false)}
         setError={setError}
+        problem={error}
       />
     ) : showViewForm && viewsOnly ? (
       <ViewDefinitionForm
@@ -758,7 +759,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       />
     ) : selectedTable ? (
       ((t: RegisteredTable) => {
-        const readView = (extra: { actionsOnly?: boolean; actionsDisabled?: boolean }) => (
+        const readView = (extra: { actionsOnly?: boolean }) => (
           <TableReadView
             t={t}
             build={buildOf(replicaBuilds?.builds, t)}
@@ -822,8 +823,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         if (editingTable?.id !== t.id) return readView({});
         return (
           <>
-            {/* The table's actions stay in the panel's head while it is edited, out of use. */}
-            {readView({ actionsOnly: true, actionsDisabled: true })}
+            {/* While it is edited the panel's head holds the form's Save and Cancel in place
+                of the table's actions: none of those can be used from inside a form. */}
             <ReplicaBuildsContext.Provider value={replicaBuilds}>
               <TableEditForm
                 hidingOnly={hidingOnly}
@@ -848,6 +849,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                 generateColumnDescription={generateColumnDescription}
                 cancelEditing={cancelEditing}
                 handleSaveEdit={handleSaveEdit}
+                problem={error}
                 updateEditCol={updateEditCol}
               />
             </ReplicaBuildsContext.Provider>
@@ -855,6 +857,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         );
       })(selectedTable)
     ) : null;
+  // A form whose Save reports through the page's error: it shows that with its own actions.
+  const panelFormOpen = (showForm && !viewsOnly) || editingTable !== null;
   const panelIsReadOnly =
     !showForm && !showViewForm && !showModeling && editingTable === null && previewTable === null;
   const panelTitle =
@@ -975,7 +979,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
         </div>
       </div>
 
-      {error && (
+      {/* A form open in the panel says its own problem under the panel's head. */}
+      {error && !panelFormOpen && (
         <Alert color="red" mb="md" data-testid="tables-error">
           {error}
         </Alert>

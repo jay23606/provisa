@@ -446,6 +446,13 @@ export const TOUR_STEPS: TourStep[] = [
     capability: "table_registration",
     prefetch: "settings",
     ensureOpen: [
+      // Entered from the card after it (Back) the edit form is open, and while a table is edited
+      // the panel's head holds Save and Cancel in place of the table's actions: leave the form
+      // first, so the control this card points at is there.
+      {
+        click: '[data-testid="table-edit-cancel"]',
+        unlessPresent: 'body:not(:has([data-testid="table-edit-cancel"]))',
+      },
       {
         click: PROFILER_ROW,
         unlessPresent: '[data-testid="table-read-view-edit"], [data-tour="profiler-panel"]',

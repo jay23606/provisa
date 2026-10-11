@@ -101,6 +101,8 @@ interface RegisterTableFormProps {
   /** Closes the form without registering anything. */
   onCancel: () => void;
   setError: (e: string | null) => void;
+  /** What the page has to say of a registration that did not go through. */
+  problem?: string | null;
 }
 
 export function RegisterTableForm({
@@ -117,6 +119,7 @@ export function RegisterTableForm({
   onSuccess,
   onCancel,
   setError,
+  problem,
 }: RegisterTableFormProps) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState("");
@@ -1081,6 +1084,8 @@ export function RegisterTableForm({
       )}
       {/* Save registers the table, Cancel closes the form. (The page's "+ Table" only opens it.) */}
       <FormFooter
+        panel
+        problem={problem}
         onSave={handleSubmit}
         onCancel={onCancel}
         saveProps={{ "data-testid": "register-table-submit" }}

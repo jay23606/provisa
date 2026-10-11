@@ -20,6 +20,7 @@ import {
   FormIdentifiers,
   FormLayout,
 } from "../FormLayout";
+import { SplitPane } from "../../list/SplitPane";
 
 const t = i18n.getFixedT("en");
 
@@ -221,6 +222,130 @@ describe("FormLayout", () => {
     const buttons = Array.from(footer.querySelectorAll("button"));
     expect(buttons.map((b) => b.textContent)).toEqual([t("common.save"), t("common.cancel")]);
     for (const b of buttons) expect(b.querySelector("svg")).not.toBeNull();
+  });
+
+  describe("as a detail panel's actions", () => {
+    const LABELS = {
+      panel: "Detail",
+      resize: "Resize",
+      expand: "Expand",
+      restore: "Restore",
+      close: "Close",
+      backToList: "Back",
+    };
+    const inPanel = (form: React.ReactNode) =>
+      render(
+        <SplitPane
+          list={<div>list</div>}
+          title="orders"
+          onClose={() => {}}
+          storageKey="test-panel"
+          labels={LABELS}
+          testId="pane"
+        >
+          {form}
+        </SplitPane>,
+      );
+    const head = () => screen.getByTestId("pane-title").parentElement as HTMLElement;
+
+    it("sits in the panel's head beside the name, borderless and compact, with the same ids", async () => {
+      inPanel(
+        <FormFooter
+          panel
+          onSave={() => {}}
+          onCancel={() => {}}
+          saveProps={{ "data-testid": "the-save" }}
+          cancelProps={{ "data-testid": "the-cancel" }}
+        />,
+      );
+      const save = await screen.findByTestId("the-save");
+      const cancel = screen.getByTestId("the-cancel");
+      expect(head()).toContainElement(save);
+      expect(head()).toContainElement(cancel);
+      // Icon and word, as at a form's foot; only the look is lighter.
+      expect([save.textContent, cancel.textContent]).toEqual([
+        t("common.save"),
+        t("common.cancel"),
+      ]);
+      for (const b of [save, cancel]) {
+        expect(b.querySelector("svg")).not.toBeNull();
+        expect(b).toHaveAttribute("data-variant", "subtle");
+        expect(b).toHaveAttribute("data-size", "compact-sm");
+      }
+      expect(save.closest(".form-footer")).toHaveClass("form-footer--head");
+      // Nothing is left at the foot of the panel's content.
+      expect(
+        screen.getByTestId("pane-panel").querySelector(".split-pane__body .form-footer"),
+      ).toBeNull();
+    });
+
+    it("keeps Save's spinner and both buttons' rest while a save runs", async () => {
+      let settle: () => void = () => {};
+      inPanel(
+        <FormFooter
+          panel
+          onSave={() => new Promise<void>((resolve) => (settle = resolve))}
+          onCancel={() => {}}
+        />,
+      );
+      const save = await screen.findByRole("button", { name: t("common.save") });
+      fireEvent.click(save);
+      expect(save).toBeDisabled();
+      expect(screen.getByRole("button", { name: t("common.cancel") })).toBeDisabled();
+      expect(save.querySelector(".mantine-Loader-root")).not.toBeNull();
+      settle();
+      await waitFor(() => expect(save).toBeEnabled());
+    });
+
+    it("says what is wrong in one line under the panel's head", async () => {
+      inPanel(<FormFooter panel onSave={() => {}} onCancel={() => {}} problem="Name is taken" />);
+      const said = await screen.findByTestId("form-problem");
+      expect(said).toHaveAttribute("role", "alert");
+      expect(said).toHaveTextContent("Name is taken");
+      expect(said.parentElement).toHaveClass("split-pane__notice");
+      expect(
+        screen.getByTestId("pane-panel").querySelector(".split-pane__body"),
+      ).not.toContainElement(said);
+    });
+
+    it("keeps another action of the form with them, in Save's place", async () => {
+      inPanel(
+        <FormFooter panel onCancel={() => {}} action={<button data-testid="run">Create</button>} />,
+      );
+      const run = await screen.findByTestId("run");
+      expect(head()).toContainElement(run);
+      expect(
+        run.compareDocumentPosition(screen.getByRole("button", { name: t("common.cancel") })),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("stays the row at the form's foot outside a panel, and for a form that does not ask", () => {
+      render(
+        <FormFooter
+          panel
+          data-testid="footer"
+          onSave={() => {}}
+          onCancel={() => {}}
+          problem="No"
+        />,
+      );
+      const footer = screen.getByTestId("footer");
+      expect(footer).not.toHaveClass("form-footer--head");
+      expect(footer).toContainElement(screen.getByTestId("form-problem"));
+      expect(screen.getByRole("button", { name: t("common.save") })).not.toHaveAttribute(
+        "data-variant",
+        "subtle",
+      );
+    });
+
+    it("leaves a form in a panel that does not ask where it was", async () => {
+      inPanel(<FormFooter data-testid="footer" onSave={() => {}} onCancel={() => {}} />);
+      const footer = await screen.findByTestId("footer");
+      expect(head()).not.toContainElement(footer);
+      expect(screen.getByTestId("pane-panel").querySelector(".split-pane__body")).toContainElement(
+        footer,
+      );
+    });
   });
 
   it("shows a spinner on Save and disables both buttons until the save settles", async () => {

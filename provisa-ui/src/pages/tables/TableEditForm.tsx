@@ -75,6 +75,8 @@ interface TableEditFormProps {
   generateColumnDescription: (id: number, colName: string) => Promise<string>;
   cancelEditing: () => void;
   handleSaveEdit: () => void;
+  /** What the page has to say of a save that did not go through; shown with Save and Cancel. */
+  problem?: string | null;
   updateEditCol: (i: number, key: string, value: string | string[] | boolean) => void;
   /**
    * REQ-1944: the editor holds a hiding right but not table_registration -- only how the columns
@@ -103,6 +105,7 @@ export function TableEditForm({
   generateColumnDescription,
   cancelEditing,
   handleSaveEdit,
+  problem,
   updateEditCol,
   hidingOnly = false,
 }: TableEditFormProps) {
@@ -900,7 +903,11 @@ export function TableEditForm({
           }
         />
       </div>
+      {/* In the detail panel these are its head's actions while the table is edited, in place of
+          the table's own; under a list row they are the form's last row. */}
       <FormFooter
+        panel
+        problem={problem}
         // Starts where the form's fields start: the card's own inset.
         style={{ padding: "0.75rem 1.5rem" }}
         onSave={handleSaveEdit}

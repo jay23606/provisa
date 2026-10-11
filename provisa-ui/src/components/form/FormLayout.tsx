@@ -29,6 +29,8 @@ import {
 import { Button, Loader, Tooltip } from "@mantine/core";
 import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { createPortal } from "react-dom";
+import { PanelActionsContext, PanelNoticeContext } from "../list/panelActions";
 import { useHelpNaming } from "./useHelpNaming";
 
 const FormLayoutContext = createContext(false);
@@ -259,6 +261,13 @@ type ButtonExtras = { "data-testid"?: string; disabled?: boolean };
  * Other actions of the row go in as children, after the two. A form whose first action is not a
  * save (Generate, Run, Delete) passes it as `action`: it takes Save's place, before Cancel, and
  * keeps its own word.
+ *
+ * `panel`: the form is a detail panel's content, and these are the panel's actions while it is
+ * open. In a panel (`SplitPane`) the same two buttons then sit in its pinned head beside the
+ * name -- borderless and compact, so they cost no height -- in place of a row at the form's foot;
+ * outside a panel a form that says `panel` keeps the row at its foot. One implementation, the
+ * same test ids either way. `problem` is what the form has to say of a save that did not go
+ * through: in a panel a line under its head, else a line above the row.
  */
 export function FormFooter({
   onSave,
@@ -268,6 +277,8 @@ export function FormFooter({
   saveProps,
   cancelProps,
   action,
+  panel = false,
+  problem,
   children,
   ...rest
 }: HTMLAttributes<HTMLDivElement> & {
@@ -278,9 +289,14 @@ export function FormFooter({
   saving?: boolean;
   saveProps?: ButtonExtras;
   cancelProps?: ButtonExtras;
+  panel?: boolean;
+  problem?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [pending, setPending] = useState(false);
+  const head = useContext(PanelActionsContext);
+  const notice = useContext(PanelNoticeContext);
+  const inHead = panel && head !== undefined;
   const busy = saving || pending;
   const save = () => {
     const result = onSave?.();
@@ -293,10 +309,18 @@ export function FormFooter({
       );
     }
   };
-  return (
-    <div {...rest} className={classes("form-footer", rest.className)}>
+  // In a panel's head the two are borderless and compact; the words and icons are the same.
+  const inHeadLook = inHead ? ({ variant: "subtle", size: "compact-sm" } as const) : {};
+  const said = problem ? (
+    <div className="form-problem" role="alert" data-testid="form-problem">
+      {problem}
+    </div>
+  ) : null;
+  const buttons = (
+    <>
       {(onSave !== undefined || submit) && (
         <Button
+          {...inHeadLook}
           {...saveProps}
           type={submit ? "submit" : "button"}
           onClick={submit ? undefined : save}
@@ -310,9 +334,10 @@ export function FormFooter({
       {action}
       {onCancel !== undefined && (
         <Button
+          variant="default"
+          {...inHeadLook}
           {...cancelProps}
           type="button"
-          variant="default"
           onClick={onCancel}
           leftSection={<X size={14} />}
           disabled={busy || cancelProps?.disabled === true}
@@ -321,6 +346,31 @@ export function FormFooter({
         </Button>
       )}
       {children}
+    </>
+  );
+  if (inHead) {
+    // The head is not mounted on the first pass; the actions appear with it on the next.
+    return (
+      <>
+        {head !== null &&
+          createPortal(
+            <div
+              {...rest}
+              style={undefined}
+              className={classes("form-footer", "form-footer--head", rest.className)}
+            >
+              {buttons}
+            </div>,
+            head,
+          )}
+        {said !== null && notice && createPortal(said, notice)}
+      </>
+    );
+  }
+  return (
+    <div {...rest} className={classes("form-footer", rest.className)}>
+      {said}
+      {buttons}
     </div>
   );
 }

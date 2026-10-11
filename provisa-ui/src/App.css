@@ -695,16 +695,41 @@ main {
 .split-pane__actions:empty {
   min-height: 1px;
 }
-/* The actions a view puts in the head: one set, out of use as a whole while a form is open. */
+/* A form's Save and Cancel in the head of the panel it is open in, in place of the view's
+ * actions: borderless and compact, beside the name, so the form has the panel's whole height. */
+.form-footer.form-footer--head {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+}
+.form-footer.form-footer--head .mantine-Button-root {
+  min-width: 0;
+}
+/* What a form in the panel says of a save that did not go through: one line under the head. */
+.split-pane__notice {
+  flex: 0 0 auto;
+}
+.split-pane__notice:empty {
+  display: none;
+}
+.form-problem {
+  color: var(--mantine-color-red-text);
+  font-size: var(--mantine-font-size-sm);
+}
+.split-pane__notice > .form-problem {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--mantine-color-red-light);
+}
+.form-footer > .form-problem {
+  flex: 1 1 100%;
+}
+/* The actions a view puts in the head: one set. */
 .panel-action-set {
   border: 0;
   margin: 0;
   padding: 0;
   min-width: 0;
-}
-.panel-action-set:disabled {
-  opacity: 0.45;
-  pointer-events: none;
 }
 .split-pane__body {
   flex: 1 1 auto;

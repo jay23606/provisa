@@ -267,15 +267,38 @@ describe("TablesPage — the detail panel", () => {
     }
   });
 
-  it("shows the actions while editing, out of use until Save or Cancel", async () => {
+  it("puts Save and Cancel in the head while editing, in place of the table's actions", async () => {
     render(<TablesPage />);
     await select("orders");
+    const head = screen.getByTestId("tables-split-title").parentElement as HTMLElement;
+    expect(await within(head).findByTestId("table-read-view-preview")).toBeInTheDocument();
     await userEvent.click(await screen.findByTestId("table-read-view-edit"));
     await screen.findByTestId("table-draft-checkbox");
-    const head = screen.getByTestId("tables-split-title").parentElement as HTMLElement;
-    const preview = await within(head).findByTestId("table-read-view-preview");
-    expect(preview.closest("fieldset")).toBeDisabled();
-    expect(preview).toBeDisabled();
+    // The name, then Save and Cancel: nothing of the read view's actions is left to grey out.
+    const save = await within(head).findByTestId("table-edit-save");
+    const cancel = within(head).getByTestId("table-edit-cancel");
+    expect(head).toHaveTextContent(/orders.*Save.*Cancel/);
+    expect(save.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const gone of ["preview", "profile", "policies", "edit", "delete"]) {
+      expect(within(head).queryByTestId(`table-read-view-${gone}`)).toBeNull();
+    }
+    // The panel has no row of buttons at its foot: the form has its whole height.
+    const body = screen.getByTestId("tables-split-panel").querySelector(".split-pane__body")!;
+    expect(body.querySelector(".form-footer")).toBeNull();
+    // Cancel gives the head back to the table's actions.
+    await userEvent.click(cancel);
+    expect(await within(head).findByTestId("table-read-view-preview")).toBeEnabled();
+    expect(within(head).queryByTestId("table-edit-save")).toBeNull();
+  });
+
+  it("puts a create form's Save and Cancel in the head too", async () => {
+    render(<TablesPage />);
+    await userEvent.click(await screen.findByTestId("tables-add-toggle"));
+    const head = (await screen.findByTestId("tables-split-title")).parentElement as HTMLElement;
+    expect(await within(head).findByTestId("register-table-submit")).toHaveTextContent("Save");
+    expect(within(head).getByTestId("register-table-cancel")).toHaveTextContent("Cancel");
+    const body = screen.getByTestId("tables-split-panel").querySelector(".split-pane__body")!;
+    expect(body.querySelector(".form-footer")).toBeNull();
   });
 
   it("closes on Escape while a table is only being looked at, and not while it is edited", async () => {

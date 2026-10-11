@@ -15,3 +15,7 @@
 import { createContext } from "react";
 
 export const PanelActionsContext = createContext<HTMLElement | null | undefined>(undefined);
+
+// Where a form in a detail panel says what is wrong with it: one line under the panel's pinned
+// head, in view however far the form is scrolled. Same three values as the actions' slot.
+export const PanelNoticeContext = createContext<HTMLElement | null | undefined>(undefined);
