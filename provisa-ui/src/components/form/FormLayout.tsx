@@ -26,12 +26,13 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { Button, Loader, Tooltip } from "@mantine/core";
+import { Button, Loader } from "@mantine/core";
 import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { PanelActionsContext, PanelNoticeContext } from "../list/panelActions";
 import { useHelpNaming } from "./useHelpNaming";
+import { Tip } from "../Tip";
 
 const FormLayoutContext = createContext(false);
 
@@ -101,11 +102,14 @@ export function LabelWithHelp({
           </span>
         )}
       </span>
-      <Tooltip label={help} multiline w={320} events={{ hover: true, focus: true, touch: true }}>
+      {/* The one tooltip of the application. It opens at once: the (?) exists only to be asked,
+          so nothing is gained by waiting. Its name already is the help, so it is not also its
+          description. */}
+      <Tip text={help} openDelay={0} named>
         <span className="form-help" role="img" tabIndex={0} aria-label={help}>
           <CircleHelp size={14} aria-hidden />
         </span>
-      </Tooltip>
+      </Tip>
     </span>
   );
 }
