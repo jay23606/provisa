@@ -25,7 +25,12 @@ import requests
 from opentelemetry.exporter.otlp.proto.http import metric_exporter as lib
 from opentelemetry.sdk.metrics import MeterProvider
 
-from provisa.api.otel_setup import _MetricExports
+from provisa.api.otel_setup import (
+    _make_log_exporter,
+    _make_span_exporter,
+    _MetricExports,
+    _Reported,
+)
 
 ENDPOINT = "http://collector.invalid:4318"
 _OURS = "provisa.api.otel_setup"
@@ -144,3 +149,97 @@ def test_an_export_the_exporter_reports_failed_is_the_same_condition(export, cap
         f"OTel metrics are not reaching {ENDPOINT}: the exporter reported a failed export"
     )
     assert all(t > 0 for t in collector.timeouts)
+
+
+# -- traces and logs: the same report, around the exporter the SDK's batch processor calls --------
+
+
+class _Exporter:
+    """A stand-in span or log exporter: answers what it is told to, or raises it."""
+
+    def __init__(self, success, failure) -> None:
+        self.success, self.failure = success, failure
+        self.answers: list = []
+        self.batches: list = []
+
+    def export(self, batch):
+        self.batches.append(batch)
+        answer = self.answers.pop(0)
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
+
+    def shutdown(self) -> str:
+        return "shut down"
+
+
+def _signal(name: str):
+    if name == "traces":
+        from opentelemetry.sdk.trace.export import SpanExportResult as Result
+    else:
+        from opentelemetry.sdk._logs.export import LogRecordExportResult as Result
+    inner = _Exporter(Result.SUCCESS, Result.FAILURE)
+    return inner, _Reported(inner, name, ENDPOINT, Result.FAILURE)
+
+
+@pytest.mark.parametrize("name", ["traces", "logs"])
+def test_spans_and_logs_that_cannot_be_sent_are_reported_the_same_way(name, caplog):
+    inner, reported = _signal(name)
+    caplog.set_level(logging.DEBUG)
+    late = ValueError(
+        "Attempted to set connect timeout to -0.5, but the timeout cannot be set to a value less than or equal to 0."
+    )
+    inner.answers = [late, inner.failure, inner.failure, inner.success, inner.success]
+
+    # An export that raises is answered to the batch processor as a failed export, not raised
+    # into it (it would log the traceback for every batch).
+    assert reported.export(["a"]) is inner.failure
+    (line,) = _ours(caplog)
+    assert line.getMessage().startswith(f"OTel {name} are not reaching {ENDPOINT}: ValueError: ")
+    assert line.exc_info is None
+    # ... and its traceback is still to be had, at debug level.
+    assert any(
+        r.name == _OURS and r.levelno == logging.DEBUG and r.exc_info for r in caplog.records
+    )
+
+    assert reported.export(["b"]) is inner.failure
+    assert reported.export(["c"]) is inner.failure
+    assert len(_ours(caplog)) == 1, "said once while it lasts"
+
+    assert reported.export(["d"]) is inner.success
+    assert _ours(caplog)[1].getMessage() == (
+        f"OTel {name} are reaching {ENDPOINT} again (3 export(s) did not)"
+    )
+    assert reported.export(["e"]) is inner.success
+    assert len(_ours(caplog)) == 2
+    assert inner.batches == [["a"], ["b"], ["c"], ["d"], ["e"]], "every batch reached the exporter"
+
+
+@pytest.mark.parametrize("name", ["traces", "logs"])
+def test_a_failed_export_the_exporter_reports_is_the_same_condition(name, caplog):
+    inner, reported = _signal(name)
+    caplog.set_level(logging.WARNING)
+    inner.answers = [inner.failure]
+    assert reported.export(["a"]) is inner.failure
+    (line,) = _ours(caplog)
+    assert line.getMessage() == (
+        f"OTel {name} are not reaching {ENDPOINT}: the exporter reported a failed export"
+    )
+
+
+def test_everything_else_is_the_exporters_own():
+    inner, reported = _signal("traces")
+    assert reported.shutdown() == "shut down"
+    assert reported.batches is inner.batches
+
+
+@pytest.mark.parametrize(
+    ("make", "name", "path"),
+    [(_make_span_exporter, "traces", "/v1/traces"), (_make_log_exporter, "logs", "/v1/logs")],
+)
+def test_the_exporters_the_process_makes_are_reported_ones(make, name, path):
+    exporter = make(ENDPOINT, "http/protobuf")
+    assert isinstance(exporter, _Reported)
+    assert exporter._report._signal == name and exporter._report._endpoint == ENDPOINT
+    assert exporter._endpoint == ENDPOINT + path  # the wrapped exporter's own attribute
+    exporter.shutdown()
