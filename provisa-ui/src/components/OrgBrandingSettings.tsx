@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import {
   Button,
   ColorInput,
@@ -112,114 +113,118 @@ export function OrgBrandingSettings({
   };
 
   return (
-    <Stack gap="sm" maw={520} data-testid="org-branding-settings">
+    <FormLayout data-testid="org-branding-settings">
       <Text c="dimmed" size="sm">
         {t("orgBranding.help")}
       </Text>
 
-      <TextInput
-        label={t("orgBranding.displayNameLabel")}
-        description={t("orgBranding.displayNameDesc")}
-        data-testid="branding-display-name"
-        {...field("display_name")}
-      />
-      <ColorInput
-        label={t("orgBranding.primaryColorLabel")}
-        description={t("orgBranding.primaryColorDesc")}
-        format="hex"
-        value={branding.primary_color ?? ""}
-        onChange={(value) => setBranding((prev) => ({ ...prev, primary_color: value }))}
-        data-testid="branding-primary-color"
-      />
-      <ColorInput
-        label={t("orgBranding.accentColorLabel")}
-        description={t("orgBranding.accentColorDesc")}
-        format="hex"
-        value={branding.accent_color ?? ""}
-        onChange={(value) => setBranding((prev) => ({ ...prev, accent_color: value }))}
-        data-testid="branding-accent-color"
-      />
-      <Textarea
-        label={t("orgBranding.welcomeLabel")}
-        description={t("orgBranding.welcomeDesc")}
-        autosize
-        minRows={2}
-        data-testid="branding-welcome"
-        {...field("welcome_message")}
-      />
-      <Textarea
-        label={t("orgBranding.inviteLabel")}
-        description={t("orgBranding.inviteDesc")}
-        autosize
-        minRows={2}
-        data-testid="branding-invite-message"
-        {...field("invite_message")}
-      />
-
-      <Stack gap="xs">
-        <Text size="sm" fw={500}>
-          {t("orgBranding.logoLabel")}
-        </Text>
-        <Text c="dimmed" size="xs">
-          {t("orgBranding.logoDesc")}
-        </Text>
-        {hasLogo ? (
-          <Image
-            src={`${publicLogoUrl(orgId)}&v=${logoVersion}`}
-            alt={branding.display_name ?? orgId}
-            h={48}
-            w="auto"
-            fit="contain"
-            data-testid="branding-logo-preview"
-          />
-        ) : (
-          <Text c="dimmed" size="sm" data-testid="branding-no-logo">
-            {t("orgBranding.noLogo")}
-          </Text>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/png,image/jpeg,image/svg+xml,image/webp"
-          style={{ display: "none" }}
-          data-testid="branding-logo-input"
-          onChange={(e) => {
-            const file = e.currentTarget.files?.[0];
-            e.currentTarget.value = "";
-            if (file) void handleUpload(file);
-          }}
+      <FormField size="medium" hint={t("orgBranding.displayNameDesc")}>
+        <TextInput
+          label={t("orgBranding.displayNameLabel")}
+          data-testid="branding-display-name"
+          {...field("display_name")}
         />
-        <Group gap="xs">
-          <Button
-            variant="default"
-            size="compact-sm"
-            onClick={() => fileRef.current?.click()}
-            data-testid="branding-logo-upload"
-          >
-            {hasLogo ? t("orgBranding.replaceLogo") : t("orgBranding.uploadLogo")}
-          </Button>
-          {hasLogo && (
-            <Button
-              variant="light"
-              color="red"
-              size="compact-sm"
-              onClick={handleRemoveLogo}
-              data-testid="branding-logo-remove"
-            >
-              {t("orgBranding.removeLogo")}
-            </Button>
-          )}
-        </Group>
-      </Stack>
+      </FormField>
+      <FormField size="short" help={t("orgBranding.primaryColorDesc")}>
+        <ColorInput
+          label={t("orgBranding.primaryColorLabel")}
+          format="hex"
+          value={branding.primary_color ?? ""}
+          onChange={(value) => setBranding((prev) => ({ ...prev, primary_color: value }))}
+          data-testid="branding-primary-color"
+        />
+      </FormField>
+      <FormField size="short" help={t("orgBranding.accentColorDesc")}>
+        <ColorInput
+          label={t("orgBranding.accentColorLabel")}
+          format="hex"
+          value={branding.accent_color ?? ""}
+          onChange={(value) => setBranding((prev) => ({ ...prev, accent_color: value }))}
+          data-testid="branding-accent-color"
+        />
+      </FormField>
+      <FormField size="full" hint={t("orgBranding.welcomeDesc")}>
+        <Textarea
+          label={t("orgBranding.welcomeLabel")}
+          autosize
+          minRows={2}
+          data-testid="branding-welcome"
+          {...field("welcome_message")}
+        />
+      </FormField>
+      <FormField size="full" hint={t("orgBranding.inviteDesc")}>
+        <Textarea
+          label={t("orgBranding.inviteLabel")}
+          autosize
+          minRows={2}
+          data-testid="branding-invite-message"
+          {...field("invite_message")}
+        />
+      </FormField>
 
-      <Group gap="xs">
-        <Button onClick={handleSave} data-testid="branding-save">
-          {t("orgBranding.save")}
-        </Button>
+      <FormField size="full">
+        <Stack gap="xs">
+          <Text size="sm" fw={500}>
+            {t("orgBranding.logoLabel")}
+          </Text>
+          <Text c="dimmed" size="xs">
+            {t("orgBranding.logoDesc")}
+          </Text>
+          {hasLogo ? (
+            <Image
+              src={`${publicLogoUrl(orgId)}&v=${logoVersion}`}
+              alt={branding.display_name ?? orgId}
+              h={48}
+              w="auto"
+              fit="contain"
+              data-testid="branding-logo-preview"
+            />
+          ) : (
+            <Text c="dimmed" size="sm" data-testid="branding-no-logo">
+              {t("orgBranding.noLogo")}
+            </Text>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            style={{ display: "none" }}
+            data-testid="branding-logo-input"
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0];
+              e.currentTarget.value = "";
+              if (file) void handleUpload(file);
+            }}
+          />
+          <Group gap="xs">
+            <Button
+              variant="default"
+              size="compact-sm"
+              onClick={() => fileRef.current?.click()}
+              data-testid="branding-logo-upload"
+            >
+              {hasLogo ? t("orgBranding.replaceLogo") : t("orgBranding.uploadLogo")}
+            </Button>
+            {hasLogo && (
+              <Button
+                variant="light"
+                color="red"
+                size="compact-sm"
+                onClick={handleRemoveLogo}
+                data-testid="branding-logo-remove"
+              >
+                {t("orgBranding.removeLogo")}
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      </FormField>
+
+      <FormFooter onSave={handleSave} saveProps={{ "data-testid": "branding-save" }}>
         <Button variant="default" onClick={handlePreview} data-testid="branding-preview-invite">
           {t("orgBranding.previewInvite")}
         </Button>
-      </Group>
+      </FormFooter>
 
       <Modal
         opened={preview !== null}
@@ -245,6 +250,6 @@ export function OrgBrandingSettings({
           </Stack>
         )}
       </Modal>
-    </Stack>
+    </FormLayout>
   );
 }

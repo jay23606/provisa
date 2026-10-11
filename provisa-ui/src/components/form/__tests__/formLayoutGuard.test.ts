@@ -88,6 +88,10 @@ const STRETCHED_BUTTONS: Readonly<Record<string, { marker: string; reason: strin
       reason: "an identity provider of the sign-in card: a peer way to sign in",
     },
     {
+      marker: "firebase-email-submit",
+      reason: "the single call to action of the sign-in card's email form, the card's width",
+    },
+    {
       marker: "firebase-email-disclosure",
       reason: "the sign-in card's email method, beside its providers: a peer way to sign in",
     },
@@ -104,8 +108,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/DemonstratedFeature.tsx",
   "components/JoinNotice.tsx",
   "components/NavBar.tsx",
-  "components/OrgBrandingSettings.tsx",
-  "components/OrgJoinSettings.tsx",
   "components/PersonalAccessTokens.tsx",
   "components/SchemaDiscovery.tsx",
   "components/TableMappingBuilder.tsx",
