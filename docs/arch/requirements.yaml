@@ -77778,3 +77778,34 @@
   related_reqs:
   - REQ-1968
   notes: 'Maintainer 2026-10-10/11: "there are 3 styles of tooltips. Standardize them all using the style that the tables page erd icon button uses." Accepted for what was converted on his machine when this was recorded; the remaining tooltips were still being converted. The following go beyond his words and are the lead''s elaboration: that it opens on keyboard focus and is announced to a screen reader.'
+- id: REQ-1978
+  status: accepted
+  since: 2026-10
+  group: 13. Multi-Tenancy & Organizations
+  category: Environments
+  priority: MUST
+  type: behavioral
+  description: Changing the domain of a registered table or view requires the caller to hold the registering right in the domain it is in AND in the domain it is going to. This applies to an update of the table or view and to a registration that lands on an existing address.
+  use_case: A developer who holds the registering right in the sales domain only cannot move a view from finance into sales, and cannot move a sales view into finance; a caller who holds the right in both domains can do either.
+  scenario: 'Given a view registered in the finance domain and a caller who holds the registering right in the sales domain only
+
+
+    When the caller changes the view''s domain to sales, by an update or by a registration onto the view''s address
+
+
+    Then the change is refused, and the view stays in finance
+
+
+    Given a caller who holds the registering right in both finance and sales
+
+
+    When that caller makes the same change
+
+
+    Then the view is in the sales domain'
+  related_reqs:
+  - REQ-1530
+  - REQ-1531
+  - REQ-433
+  - REQ-1969
+  notes: 'Maintainer 2026-10-11: "table domain change requires you to have the original and future domain rights." The following go beyond his words and are the lead''s elaboration: the rule covers views as well as tables, and a registration onto an existing address as well as an update; confirmed by him 2026-10-11. A physical table''s domain cannot change at all while REQ-433 (first-come ownership of a source table) stands; where that changes, this rule applies to it. Security rule.'
