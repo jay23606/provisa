@@ -1,7 +1,7 @@
 {
   "metricsPage": {
     "title": "מדדים",
-    "newMetric": "מדד חדש",
+    "newMetric": "+ מדד",
     "loading": "טוען...",
     "empty": "עדיין לא נרשמו מדדים.",
     "colName": "שם",

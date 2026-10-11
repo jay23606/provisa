@@ -26,13 +26,12 @@ import {
   Code,
   Divider,
   Group,
-  Modal,
-  Stack,
   Text,
   Title,
 } from "@mantine/core";
 import { Download, Upload } from "lucide-react";
 import { CopyButton } from "../../components/CopyButton";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 import {
   OSSIE_ENDPOINT_PATH,
   fetchDbtSourcesYaml,
@@ -198,6 +197,18 @@ export function OssieInterchangePanel() {
     );
   };
 
+  // A checklist: one proposal to a line, each section under its own heading.
+  const CHECKLIST = { flexDirection: "column", alignItems: "flex-start" } as const;
+  const applyButton = (
+    <Button
+      onClick={handleApply}
+      loading={applying}
+      disabled={checked.size === 0}
+      data-testid="ossie-apply"
+    >
+      {t("ossiePanel.apply", { count: checked.size })}
+    </Button>
+  );
   return (
     <Card withBorder padding="md" mb="md" data-testid="ossie-panel">
       <Group justify="space-between" wrap="wrap" gap="sm">
@@ -232,16 +243,19 @@ export function OssieInterchangePanel() {
           >
             {t("ossiePanel.dbtSources")}
           </Button>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<Upload size={13} />}
-            loading={importing}
-            onClick={() => fileInputRef.current?.click()}
-            data-testid="ossie-import"
-          >
-            {t("ossiePanel.import")}
-          </Button>
+          {/* The opener of the review is hidden while the review is open. */}
+          {!proposals && (
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<Upload size={13} />}
+              loading={importing}
+              onClick={() => fileInputRef.current?.click()}
+              data-testid="ossie-import"
+            >
+              {t("ossiePanel.import")}
+            </Button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -272,127 +286,131 @@ export function OssieInterchangePanel() {
       )}
 
       {/* REQ-1316: registration review — the modeler accepts or trims the proposals. */}
-      <Modal
-        opened={proposals !== null}
-        onClose={() => setProposals(null)}
-        title={
-          <Title order={4}>
-            {t("ossiePanel.reviewTitle", { model: proposals?.model_name ?? "" })}
-          </Title>
-        }
-        size="xl"
-        data-testid="ossie-review-modal"
-      >
-        {proposals && (
-          <Stack gap="sm">
+      {/* A working surface, so it is laid out in the panel, not in a dialog (REQ-1968). */}
+      {proposals && (
+        <FormLayout data-testid="ossie-review-modal" style={{ marginTop: "0.75rem" }}>
+          <FormField size="full">
+            <Title order={4}>{t("ossiePanel.reviewTitle", { model: proposals.model_name })}</Title>
             <Text size="sm" c="dimmed">
               {t("ossiePanel.reviewHint")}
             </Text>
-            <Divider label={t("ossiePanel.tablesSection", { count: proposals.tables.length })} />
+          </FormField>
+          <Divider label={t("ossiePanel.tablesSection", { count: proposals.tables.length })} />
+          <FormChecks style={CHECKLIST}>
             {proposals.tables.map((tbl) => {
               const key: ItemKey = `table:${tbl.name}`;
               return (
-                <Group key={key} gap="sm" wrap="nowrap">
-                  <Checkbox
-                    checked={checked.has(key)}
-                    onChange={() => toggle(key)}
-                    data-testid={`ossie-check-${key}`}
-                    label={
-                      <Text size="sm" ff="monospace">
-                        {tbl.name}{" "}
-                        <Text span size="xs" c="dimmed">
-                          {tbl.source_id}.{tbl.schema_name}.{tbl.table_name} ·{" "}
-                          {t("ossiePanel.columnCount", { count: tbl.columns.length })}
-                          {tbl.modeling_role ? ` · ${tbl.modeling_role}` : ""}
-                        </Text>
-                        {tbl.not_importable.length > 0 && (
-                          <Text
-                            size="xs"
-                            c="orange"
-                            data-testid={`ossie-not-importable-${tbl.name}`}
-                          >
-                            {t("ossiePanel.notImportable", {
-                              count: tbl.not_importable.length,
-                              names: tbl.not_importable.map((f) => f.name).join(", "),
-                            })}
+                <FormField key={key} size="full">
+                  <Group gap="sm" wrap="nowrap">
+                    <Checkbox
+                      checked={checked.has(key)}
+                      onChange={() => toggle(key)}
+                      data-testid={`ossie-check-${key}`}
+                      label={
+                        <Text size="sm" ff="monospace">
+                          {tbl.name}{" "}
+                          <Text span size="xs" c="dimmed">
+                            {tbl.source_id}.{tbl.schema_name}.{tbl.table_name} ·{" "}
+                            {t("ossiePanel.columnCount", { count: tbl.columns.length })}
+                            {tbl.modeling_role ? ` · ${tbl.modeling_role}` : ""}
                           </Text>
-                        )}
-                      </Text>
-                    }
-                  />
-                  {resultBadge(key)}
-                </Group>
+                          {tbl.not_importable.length > 0 && (
+                            <Text
+                              size="xs"
+                              c="orange"
+                              data-testid={`ossie-not-importable-${tbl.name}`}
+                            >
+                              {t("ossiePanel.notImportable", {
+                                count: tbl.not_importable.length,
+                                names: tbl.not_importable.map((f) => f.name).join(", "),
+                              })}
+                            </Text>
+                          )}
+                        </Text>
+                      }
+                    />
+                    {resultBadge(key)}
+                  </Group>
+                </FormField>
               );
             })}
-            <Divider
-              label={t("ossiePanel.relationshipsSection", {
-                count: proposals.relationships.length,
-              })}
-            />
+          </FormChecks>
+          <Divider
+            label={t("ossiePanel.relationshipsSection", { count: proposals.relationships.length })}
+          />
+          <FormChecks style={CHECKLIST}>
             {proposals.relationships.map((rel) => {
               const key: ItemKey = `rel:${rel.name}`;
               return (
-                <Group key={key} gap="sm" wrap="nowrap">
-                  <Checkbox
-                    checked={checked.has(key)}
-                    onChange={() => toggle(key)}
-                    data-testid={`ossie-check-${key}`}
-                    label={
-                      <Text size="sm" ff="monospace">
-                        {rel.name}{" "}
-                        <Text span size="xs" c="dimmed">
-                          {rel.from}.{rel.from_columns.join(",")} → {rel.to}.
-                          {rel.to_columns.join(",")}
+                <FormField key={key} size="full">
+                  <Group gap="sm" wrap="nowrap">
+                    <Checkbox
+                      checked={checked.has(key)}
+                      onChange={() => toggle(key)}
+                      data-testid={`ossie-check-${key}`}
+                      label={
+                        <Text size="sm" ff="monospace">
+                          {rel.name}{" "}
+                          <Text span size="xs" c="dimmed">
+                            {rel.from}.{rel.from_columns.join(",")} → {rel.to}.
+                            {rel.to_columns.join(",")}
+                          </Text>
                         </Text>
-                      </Text>
-                    }
-                  />
-                  {resultBadge(key)}
-                </Group>
+                      }
+                    />
+                    {resultBadge(key)}
+                  </Group>
+                </FormField>
               );
             })}
-            <Divider label={t("ossiePanel.metricsSection", { count: proposals.metrics.length })} />
+          </FormChecks>
+          <Divider label={t("ossiePanel.metricsSection", { count: proposals.metrics.length })} />
+          <FormChecks style={CHECKLIST}>
             {proposals.metrics.map((m) => {
               const key: ItemKey = `metric:${m.name}`;
               return (
-                <Group key={key} gap="sm" wrap="nowrap">
-                  <Checkbox
-                    checked={checked.has(key)}
-                    onChange={() => toggle(key)}
-                    data-testid={`ossie-check-${key}`}
-                    label={
-                      <Text size="sm" ff="monospace">
-                        {m.name}{" "}
-                        <Text span size="xs" c="dimmed">
-                          {m.expression}
+                <FormField key={key} size="full">
+                  <Group gap="sm" wrap="nowrap">
+                    <Checkbox
+                      checked={checked.has(key)}
+                      onChange={() => toggle(key)}
+                      data-testid={`ossie-check-${key}`}
+                      label={
+                        <Text size="sm" ff="monospace">
+                          {m.name}{" "}
+                          <Text span size="xs" c="dimmed">
+                            {m.expression}
+                          </Text>
                         </Text>
-                      </Text>
-                    }
-                  />
-                  {resultBadge(key)}
-                </Group>
+                      }
+                    />
+                    {resultBadge(key)}
+                  </Group>
+                </FormField>
               );
             })}
-            <Group justify="flex-end" gap="sm" mt="sm">
+          </FormChecks>
+          {/* Apply takes Save's place. Until something has been applied the other action is
+              the shared Cancel; after, it is Close. */}
+          {Object.keys(results).length > 0 ? (
+            <FormFooter action={applyButton}>
               <Button
                 variant="default"
                 onClick={() => setProposals(null)}
                 data-testid="ossie-review-close"
               >
-                {Object.keys(results).length > 0 ? t("ossiePanel.close") : t("ossiePanel.cancel")}
+                {t("ossiePanel.close")}
               </Button>
-              <Button
-                onClick={handleApply}
-                loading={applying}
-                disabled={checked.size === 0}
-                data-testid="ossie-apply"
-              >
-                {t("ossiePanel.apply", { count: checked.size })}
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </Modal>
+            </FormFooter>
+          ) : (
+            <FormFooter
+              action={applyButton}
+              onCancel={() => setProposals(null)}
+              cancelProps={{ "data-testid": "ossie-review-close" }}
+            />
+          )}
+        </FormLayout>
+      )}
     </Card>
   );
 }
