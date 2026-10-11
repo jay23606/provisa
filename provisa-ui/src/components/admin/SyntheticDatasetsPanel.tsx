@@ -81,7 +81,11 @@ const OWN_MEASURES = new Set([
 export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
   const { t } = useTranslation();
   const choices = envs.filter((e) => e !== PROD);
-  const [env, setEnv] = useState<string | null>(choices[0] ?? null);
+  // The environment shown is the one picked, else the first offered. It is read from the list on
+  // each render, not copied once: the Environments page mounts this tab before its list has loaded,
+  // and a copy taken then stayed empty after the environments arrived.
+  const [pickedEnv, setEnv] = useState<string | null>(null);
+  const env = pickedEnv !== null && choices.includes(pickedEnv) ? pickedEnv : (choices[0] ?? null);
   const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -193,83 +197,84 @@ export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
         </Alert>
       )}
       <SortGroupTable
-          testPrefix="synthetic"
-          testId="synthetic-datasets"
-          rows={datasets}
-          columns={[
-            { key: "name", label: t("syntheticDatasets.colName"), sortValue: (d) => d.id },
-            { key: "status", label: t("syntheticDatasets.colStatus"), sortValue: (d) => d.status, groupValue: (d) => d.status },
-            { key: "scale", label: t("syntheticDatasets.colScale"), sortValue: (d) => d.scale },
-            { key: "tables", label: t("syntheticDatasets.colTables"), sortValue: (d) => d.tables.length },
-          ]}
-          headers={[
-            { col: "name" },
-            { col: "status" },
-            { col: "scale" },
-            { col: "tables" },
-            "",
-          ]}
-          colSpan={5}
-          rowKey={(d) => d.id}
-          render={(d) => (
-            <ListRow key={d.id} testId={`synthetic-row-${d.id}`}>
-              <Table.Td>{d.id}</Table.Td>
-              <Table.Td>
-                <Badge
-                  color={
-                    d.status === "generated" ? "green" : d.status === "failed" ? "red" : "gray"
-                  }
+        testPrefix="synthetic"
+        testId="synthetic-datasets"
+        rows={datasets}
+        columns={[
+          { key: "name", label: t("syntheticDatasets.colName"), sortValue: (d) => d.id },
+          {
+            key: "status",
+            label: t("syntheticDatasets.colStatus"),
+            sortValue: (d) => d.status,
+            groupValue: (d) => d.status,
+          },
+          { key: "scale", label: t("syntheticDatasets.colScale"), sortValue: (d) => d.scale },
+          {
+            key: "tables",
+            label: t("syntheticDatasets.colTables"),
+            sortValue: (d) => d.tables.length,
+          },
+        ]}
+        headers={[{ col: "name" }, { col: "status" }, { col: "scale" }, { col: "tables" }, ""]}
+        colSpan={5}
+        rowKey={(d) => d.id}
+        render={(d) => (
+          <ListRow key={d.id} testId={`synthetic-row-${d.id}`}>
+            <Table.Td>{d.id}</Table.Td>
+            <Table.Td>
+              <Badge
+                color={d.status === "generated" ? "green" : d.status === "failed" ? "red" : "gray"}
+              >
+                {t(`syntheticDatasets.status_${d.status}`)}
+              </Badge>
+              {d.error && (
+                <Text size="xs" c="red">
+                  {d.error}
+                </Text>
+              )}
+            </Table.Td>
+            <Table.Td>×{d.scale}</Table.Td>
+            <Table.Td>{d.tables.length}</Table.Td>
+            <Table.Td>
+              <Group gap={4}>
+                <Button
+                  size="xs"
+                  loading={busy === `generate:${d.id}`}
+                  onClick={() => act(`generate:${d.id}`, () => generateDataset(env, d.id))}
+                  data-testid={`synthetic-generate-${d.id}`}
                 >
-                  {t(`syntheticDatasets.status_${d.status}`)}
-                </Badge>
-                {d.error && (
-                  <Text size="xs" c="red">
-                    {d.error}
-                  </Text>
-                )}
-              </Table.Td>
-              <Table.Td>×{d.scale}</Table.Td>
-              <Table.Td>{d.tables.length}</Table.Td>
-              <Table.Td>
-                <Group gap={4}>
-                  <Button
-                    size="xs"
-                    loading={busy === `generate:${d.id}`}
-                    onClick={() => act(`generate:${d.id}`, () => generateDataset(env, d.id))}
-                    data-testid={`synthetic-generate-${d.id}`}
-                  >
-                    {d.status === "generated"
-                      ? t("syntheticDatasets.regenerate")
-                      : t("syntheticDatasets.generate")}
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    disabled={d.status !== "generated"}
-                    onClick={() =>
-                      fetchReport(env, d.id)
-                        .then((rows) => setReport({ id: d.id, rows }))
-                        .catch((e: Error) => setError(e.message))
-                    }
-                    data-testid={`synthetic-report-${d.id}`}
-                  >
-                    {t("syntheticDatasets.report")}
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="default"
-                    color="red"
-                    loading={busy === `drop:${d.id}`}
-                    onClick={() => act(`drop:${d.id}`, () => dropDataset(env, d.id))}
-                    data-testid={`synthetic-drop-${d.id}`}
-                  >
-                    {t("syntheticDatasets.drop")}
-                  </Button>
-                </Group>
-              </Table.Td>
-            </ListRow>
-          )}
-        />
+                  {d.status === "generated"
+                    ? t("syntheticDatasets.regenerate")
+                    : t("syntheticDatasets.generate")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="light"
+                  disabled={d.status !== "generated"}
+                  onClick={() =>
+                    fetchReport(env, d.id)
+                      .then((rows) => setReport({ id: d.id, rows }))
+                      .catch((e: Error) => setError(e.message))
+                  }
+                  data-testid={`synthetic-report-${d.id}`}
+                >
+                  {t("syntheticDatasets.report")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="default"
+                  color="red"
+                  loading={busy === `drop:${d.id}`}
+                  onClick={() => act(`drop:${d.id}`, () => dropDataset(env, d.id))}
+                  data-testid={`synthetic-drop-${d.id}`}
+                >
+                  {t("syntheticDatasets.drop")}
+                </Button>
+              </Group>
+            </Table.Td>
+          </ListRow>
+        )}
+      />
 
       {report && (
         <Stack gap={4} data-testid="synthetic-report">

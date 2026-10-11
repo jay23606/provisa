@@ -200,6 +200,19 @@ describe("SyntheticDatasetsPanel", () => {
   });
 });
 
+describe("SyntheticDatasetsPanel before the environments have loaded", () => {
+  it("offers the environment that arrives after it mounted", async () => {
+    // The Environments page mounts this tab with its other tabs, before its list of environments
+    // has loaded: the list is empty at first and filled a moment later.
+    const { rerender } = render(<SyntheticDatasetsPanel envs={[]} />);
+    expect(screen.getByTestId("synthetic-no-env")).toBeInTheDocument();
+    rerender(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    expect(await screen.findByTestId("synthetic-env")).toHaveValue("dev");
+    expect(screen.queryByTestId("synthetic-no-env")).toBeNull();
+    await waitFor(() => expect(api.fetchDatasets).toHaveBeenCalledWith("dev"));
+  });
+});
+
 describe("SyntheticSeedFields", () => {
   it("turns the seed option on and off", () => {
     // The tick sits with the form's other ticks and its fields follow them: two pieces of one
