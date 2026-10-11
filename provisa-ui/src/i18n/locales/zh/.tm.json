@@ -5540,5 +5540,17 @@
   "zh/securityPage.json::securityPage.deleteRuleTitle": "Delete this RLS rule?",
   "zh/securityPage.json::securityPage.deleteRuleConsequence": "Role \"{{role}}\" is no longer limited by this rule.",
   "zh/relationshipRow.json::relationshipRow.deleteTitle": "Delete relationship \"{{id}}\"?",
-  "zh/relationshipRow.json::relationshipRow.deleteConsequence": "The relationship is removed from the model. Queries can no longer join through it."
+  "zh/relationshipRow.json::relationshipRow.deleteConsequence": "The relationship is removed from the model. Queries can no longer join through it.",
+  "zh/tablesPage.json::tablesPage.resizeDetail": "Resize the detail panel",
+  "zh/tablesPage.json::tablesPage.detailPanel": "Table details",
+  "zh/tablesPage.json::tablesPage.closeDetail": "Close the detail panel",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.label": "Column attributes",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.naming": "Naming",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.type": "Type and keys",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.access": "Access",
+  "zh/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix",
+  "zh/tablesPage.json::tablesPage.expandDetail": "Expand the panel",
+  "zh/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
+  "zh/tablesPage.json::tablesPage.backToList": "Back to the list",
+  "zh/tablesPage.json::tablesPage.backToDetail": "Back to details"
 }

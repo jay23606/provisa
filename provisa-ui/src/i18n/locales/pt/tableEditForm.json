@@ -289,6 +289,13 @@
     },
     "pagingRowsFieldHelp": "A propriedade da resposta que contém as linhas, como values ou data em um invólucro de página. Deixe vazio quando a própria resposta são as linhas. As colunas da tabela são as dos objetos que estão ali.",
     "pagingRowsFieldFixed": "Definido quando a tabela foi registrada. Registre a tabela novamente para ler suas linhas de outro lugar.",
-    "scopeHelp": "domain: servida às funções que alcançam o domínio desta tabela. public: também às funções fora dele. restricted: apenas às funções indicadas em Visível para."
+    "scopeHelp": "domain: servida às funções que alcançam o domínio desta tabela. public: também às funções fora dele. restricted: apenas às funções indicadas em Visível para.",
+    "columnTabs": {
+      "label": "Atributos da coluna",
+      "naming": "Nomes",
+      "type": "Tipo e chaves",
+      "access": "Acesso",
+      "errors": "{{count}} por corrigir"
+    }
   }
 }

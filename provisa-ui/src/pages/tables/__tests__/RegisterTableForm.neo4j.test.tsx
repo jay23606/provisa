@@ -125,6 +125,7 @@ describe("RegisterTableForm on a neo4j source (REQ-1670)", () => {
       query: CYPHER,
     });
     expect(screen.getByTestId("register-table-col-selected-adopter_id")).toBeChecked();
+    fireEvent.click(screen.getByTestId("column-tab-type"));
     expect(screen.getByTestId("register-table-col-datatype-adopter_id")).toHaveValue("integer");
     expect(screen.getByTestId("register-table-col-datatype-name")).toHaveValue("text");
   });
@@ -158,7 +159,7 @@ describe("RegisterTableForm on a neo4j source (REQ-1670)", () => {
     const user = await pickSourceAndType();
     await user.click(screen.getByTestId("register-table-neo4j-preview"));
     await waitFor(() =>
-      expect(screen.getByTestId("register-table-col-datatype-name")).toHaveValue("text"),
+      expect(screen.getByTestId("register-table-col-selected-name")).toBeChecked(),
     );
     fireEvent.click(screen.getByTestId("register-table-submit"));
 

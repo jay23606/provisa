@@ -20,19 +20,37 @@ import { useTranslation } from "react-i18next";
 import { fetchGlossaryTermByRef, type GlossaryTermDetail } from "../../api/glossary";
 import { columnGlossaryCache, columnGlossaryKey } from "./columnGlossaryCache";
 
+/** One attribute of a column, as the hover lists it. */
+export interface ColumnDefinitionLine {
+  label: string;
+  value: string;
+}
+
 interface ColumnGlossaryHoverProps {
-  tableId: number;
+  /** Absent for a column of a table that is not registered yet: there is no glossary to read. */
+  tableId?: number;
   columnName: string;
+  /**
+   * The column's full definition, shown read-only above its glossary term: every attribute the
+   * editor holds, whichever tab it is edited on. Lines with no value are left out.
+   */
+  definition?: ColumnDefinitionLine[];
   children: ReactNode;
 }
 
-export function ColumnGlossaryHover({ tableId, columnName, children }: ColumnGlossaryHoverProps) {
+export function ColumnGlossaryHover({
+  tableId,
+  columnName,
+  definition,
+  children,
+}: ColumnGlossaryHoverProps) {
   const { t } = useTranslation();
   const [term, setTerm] = useState<GlossaryTermDetail | null>(null);
   const [hovered, setHovered] = useState(false);
 
   const handleEnter = () => {
     setHovered(true);
+    if (tableId === undefined) return;
     const key = columnGlossaryKey(tableId, columnName);
     if (columnGlossaryCache.has(key)) {
       setTerm(columnGlossaryCache.get(key) ?? null);
@@ -46,6 +64,8 @@ export function ColumnGlossaryHover({ tableId, columnName, children }: ColumnGlo
     });
   };
 
+  const lines = (definition ?? []).filter((line) => line.value !== "");
+
   const edges = term
     ? [
         ...term.edges_out.map((e) => ({ ...e, reverse: false })),
@@ -55,58 +75,81 @@ export function ColumnGlossaryHover({ tableId, columnName, children }: ColumnGlo
 
   return (
     <Popover
-      opened={hovered && term !== null}
+      opened={hovered && (term !== null || lines.length > 0)}
       position="bottom-start"
       withArrow
       shadow="md"
       transitionProps={{ duration: 0 }}
     >
       <Popover.Target>
-        <span onMouseEnter={handleEnter} onMouseLeave={() => setHovered(false)}>
+        {/* Reached by keyboard too when it has a definition to show. */}
+        <span
+          onMouseEnter={handleEnter}
+          onMouseLeave={() => setHovered(false)}
+          onFocus={handleEnter}
+          onBlur={() => setHovered(false)}
+          tabIndex={definition === undefined ? undefined : 0}
+          data-testid={definition === undefined ? undefined : `column-definition-${columnName}`}
+        >
           {children}
         </span>
       </Popover.Target>
-      {term && (
+      {(term || lines.length > 0) && (
         <Popover.Dropdown maw={340} px="0.75rem" py="0.5rem">
-          <Group gap={6} mb={2}>
-            <Text fw={700} fz="0.85rem">
-              {term.name}
-            </Text>
-            {term.deprecated && (
-              <Badge size="xs" color="red" variant="light">
-                {t("glossaryTab.deprecated")}
-              </Badge>
-            )}
-          </Group>
-          {term.definition ? (
-            <Text fz="0.8rem">{term.definition}</Text>
-          ) : (
-            <Text fz="0.8rem" c="dimmed">
-              {t("glossaryTab.hoverNoDefinition")}
-            </Text>
+          {lines.length > 0 && (
+            <dl className="column-definition" data-testid="column-definition-card">
+              {lines.map((line) => (
+                <div key={line.label}>
+                  <dt>{line.label}</dt>
+                  <dd>{line.value}</dd>
+                </div>
+              ))}
+            </dl>
           )}
-          {term.refs.length > 0 && (
-            <Text fz="0.75rem" mt={4}>
-              {t("glossaryTab.hoverRefsLabel")}{" "}
-              {term.refs.map((r) => `${r.alias ?? r.table_name}.${r.column_name}`).join(", ")}
-            </Text>
-          )}
-          {term.experts.length > 0 && (
-            <Text fz="0.75rem" mt={4}>
-              {t("glossaryTab.hoverExpertsLabel")} {term.experts.map((e) => e.user_id).join(", ")}
-            </Text>
-          )}
-          {edges.length > 0 && (
-            <Text fz="0.7rem" c="dimmed" mt={2}>
-              {edges
-                .map((e) => {
-                  const label = t(`glossaryTab.rel_${e.rel_type}`);
-                  // Direction is conveyed by word order, not a separate reverse verb
-                  // (REQ-1590): "{connected} {rel}" for incoming, "{rel}: {connected}" outgoing.
-                  return e.reverse ? `${e.name} ${label}` : `${label}: ${e.name}`;
-                })
-                .join(" · ")}
-            </Text>
+          {term && (
+            <>
+              <Group gap={6} mb={2}>
+                <Text fw={700} fz="0.85rem">
+                  {term.name}
+                </Text>
+                {term.deprecated && (
+                  <Badge size="xs" color="red" variant="light">
+                    {t("glossaryTab.deprecated")}
+                  </Badge>
+                )}
+              </Group>
+              {term.definition ? (
+                <Text fz="0.8rem">{term.definition}</Text>
+              ) : (
+                <Text fz="0.8rem" c="dimmed">
+                  {t("glossaryTab.hoverNoDefinition")}
+                </Text>
+              )}
+              {term.refs.length > 0 && (
+                <Text fz="0.75rem" mt={4}>
+                  {t("glossaryTab.hoverRefsLabel")}{" "}
+                  {term.refs.map((r) => `${r.alias ?? r.table_name}.${r.column_name}`).join(", ")}
+                </Text>
+              )}
+              {term.experts.length > 0 && (
+                <Text fz="0.75rem" mt={4}>
+                  {t("glossaryTab.hoverExpertsLabel")}{" "}
+                  {term.experts.map((e) => e.user_id).join(", ")}
+                </Text>
+              )}
+              {edges.length > 0 && (
+                <Text fz="0.7rem" c="dimmed" mt={2}>
+                  {edges
+                    .map((e) => {
+                      const label = t(`glossaryTab.rel_${e.rel_type}`);
+                      // Direction is conveyed by word order, not a separate reverse verb
+                      // (REQ-1590): "{connected} {rel}" for incoming, "{rel}: {connected}" outgoing.
+                      return e.reverse ? `${e.name} ${label}` : `${label}: ${e.name}`;
+                    })
+                    .join(" · ")}
+                </Text>
+              )}
+            </>
           )}
         </Popover.Dropdown>
       )}

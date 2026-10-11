@@ -289,6 +289,13 @@
     },
     "pagingRowsFieldHelp": "回應中包含資料列的屬性，例如分頁包裝中的 values 或 data。當回應本身就是資料列時請留空。資料表的欄位即該處物件的欄位。",
     "pagingRowsFieldFixed": "在註冊資料表時設定。如要從其他位置讀取資料列，請重新註冊該資料表。",
-    "scopeHelp": "domain：提供予可存取此資料表所屬網域的角色。public：亦提供予該網域以外的角色。restricted：只提供予「可見對象」中指明的角色。"
+    "scopeHelp": "domain：提供予可存取此資料表所屬網域的角色。public：亦提供予該網域以外的角色。restricted：只提供予「可見對象」中指明的角色。",
+    "columnTabs": {
+      "label": "欄位屬性",
+      "naming": "命名",
+      "type": "類型與鍵",
+      "access": "存取",
+      "errors": "{{count}} 項待修正"
+    }
   }
 }

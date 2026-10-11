@@ -1417,6 +1417,8 @@ export async function registerWebsocket(page: Page): Promise<Registration> {
   await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
     timeout: 30000,
   });
+  // A column's data type and primary key are on the Type and keys tab of the column editor.
+  await page.getByTestId("column-tab-type").click();
   await page.getByTestId("register-table-col-pk-id").check();
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
@@ -1801,6 +1803,8 @@ export async function registerKafka(page: Page): Promise<Registration> {
   // regardless of how long a query waits. Missing here before; reproduced live via REQ-1730's own
   // reboot-harness e2e (a genuine restart with no mutation replay — the first harness that ever
   // exercised DuckDB's own kafka leg instead of relying solely on Trino's live connector).
+  // A column's data type and primary key are on the Type and keys tab of the column editor.
+  await page.getByTestId("column-tab-type").click();
   await page.getByTestId("register-table-col-pk-id").check();
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 

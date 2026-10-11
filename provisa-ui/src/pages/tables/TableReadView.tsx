@@ -31,6 +31,7 @@ import { TagControl } from "../../components/TagControl";
 import { ColumnGlossaryHover } from "./ColumnGlossaryHover";
 import { OwnerResolutionIcon } from "../../components/OwnerResolution";
 import { LatestProfilePanel } from "./LatestProfilePanel";
+import { PanelActions } from "../../components/list/SplitPane";
 
 interface TableProfileResult {
   columns: string[];
@@ -68,6 +69,9 @@ interface TableReadViewProps {
   onEditDefinition?: (t: RegisteredTable) => void;
   // REQ-1934: the table's registered profile columns table, when one is registered.
   profileColumnsTable?: RegisteredTable | null;
+  /** Render the action row alone: the edit form shows it, disabled, in the panel's head. */
+  actionsOnly?: boolean;
+  actionsDisabled?: boolean;
 }
 
 export function TableReadView({
@@ -91,8 +95,173 @@ export function TableReadView({
   onPreview,
   onEditDefinition,
   profileColumnsTable,
+  actionsOnly = false,
+  actionsDisabled = false,
 }: TableReadViewProps) {
   const { t } = useTranslation();
+
+  // The table's actions. In a detail panel they sit in its pinned head (PanelActions); under a
+  // list row they stay in place. While the table is being edited they are shown but cannot be
+  // used: each of them would leave the form.
+  const actions = (
+    <PanelActions>
+      <fieldset className="panel-action-set" disabled={actionsDisabled}>
+        <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
+          <ReplicatingMark build={build} size="detail" />
+          {table.viewSql && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-edit-sql"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
+              }}
+              title={t("tableReadView.editSqlTitle")}
+            >
+              {viewsOnly
+                ? t("tableReadView.editSqlButton")
+                : t("tableReadView.openInExplorerButton")}
+            </Button>
+          )}
+          {table.viewSql && onEditDefinition && !hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-edit-definition"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditDefinition(table);
+              }}
+              title={t("tableReadView.editDefinitionTitle")}
+            >
+              {t("tableReadView.editDefinitionButton")}
+            </Button>
+          )}
+          {table.canDeployToDb && !hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-deploy"
+              onClick={async (e) => {
+                e.stopPropagation();
+                setDeploying((prev) => ({ ...prev, [table.id]: true }));
+                setDeployMsg((prev) => {
+                  const next = { ...prev };
+                  delete next[table.id];
+                  return next;
+                });
+                const result = await deployViewToDb(table.id);
+                setDeploying((prev) => ({ ...prev, [table.id]: false }));
+                setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
+                if (result.success) reload();
+              }}
+              title={t("tableReadView.deployToDbTitle")}
+              disabled={deploying[table.id]}
+            >
+              {deploying[table.id]
+                ? t("tableReadView.deployingButton")
+                : t("tableReadView.deployToDbButton")}
+            </Button>
+          )}
+          {/* A table that needs a value for a required parameter is asked for it first: Preview
+              in its own viewer, Profile in the dialog its handler opens. */}
+          <Button
+            size="compact-sm"
+            variant="default"
+            data-testid="table-read-view-preview"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(table);
+            }}
+            title={t("tableReadView.previewTitle")}
+          >
+            {t("tableReadView.previewButton")}
+          </Button>
+          {!hidingOnly && (
+            <Button
+              size="compact-sm"
+              variant="default"
+              data-testid="table-read-view-profile"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleProfile(table.id);
+              }}
+              title={t("tableReadView.profileTitle")}
+              disabled={tableProfiles[table.id] === "loading"}
+            >
+              {tableProfiles[table.id] === "loading"
+                ? t("tableReadView.profilingButton")
+                : t("tableReadView.profileButton")}
+            </Button>
+          )}
+          <Button
+            size="compact-sm"
+            variant="default"
+            data-testid="table-read-view-policies"
+            title={t("tableReadView.policiesTitle")}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate("/security/rls", {
+                state: { tableFilter: table.tableName },
+              });
+            }}
+          >
+            {t("tableReadView.policiesButton")}
+          </Button>
+          {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
+              too; it shows none of them and its save names none, so the store keeps them. */}
+          <ActionIcon
+            variant="subtle"
+            aria-label={t("tableReadView.editButtonLabel", { name: table.tableName })}
+            data-testid="table-read-view-edit"
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing(table);
+            }}
+          >
+            <Pencil size={14} />
+          </ActionIcon>
+          {!hidingOnly && (
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              aria-label={t("tableReadView.deleteButtonLabel", { name: table.tableName })}
+              data-testid="table-read-view-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(table.id);
+              }}
+            >
+              <Trash2 size={14} />
+            </ActionIcon>
+          )}
+          {/* REQ-1921: draft is set and cleared here, beside the table's other actions. It needs
+              the right to register tables in the table's domain; without it the box only shows
+              the state. */}
+          <Tooltip
+            label={
+              hidingOnly || !onSetDraft
+                ? t("tableReadView.draftNoRightTooltip")
+                : t("tableReadView.draftTooltip")
+            }
+            withArrow
+          >
+            <Checkbox
+              size="xs"
+              label={t("tableReadView.draftLabel")}
+              checked={table.draft}
+              disabled={hidingOnly || !onSetDraft}
+              data-testid="table-read-view-draft"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onSetDraft?.(table, e.currentTarget.checked)}
+            />
+          </Tooltip>
+        </Group>
+      </fieldset>
+    </PanelActions>
+  );
+  if (actionsOnly) return actions;
 
   return (
     <>
@@ -305,156 +474,7 @@ export function TableReadView({
           )}
         </Group>
       )}
-      <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
-        <ReplicatingMark build={build} size="detail" />
-        {table.viewSql && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-edit-sql"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
-            }}
-            title={t("tableReadView.editSqlTitle")}
-          >
-            {viewsOnly ? t("tableReadView.editSqlButton") : t("tableReadView.openInExplorerButton")}
-          </Button>
-        )}
-        {table.viewSql && onEditDefinition && !hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-edit-definition"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditDefinition(table);
-            }}
-            title={t("tableReadView.editDefinitionTitle")}
-          >
-            {t("tableReadView.editDefinitionButton")}
-          </Button>
-        )}
-        {table.canDeployToDb && !hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-deploy"
-            onClick={async (e) => {
-              e.stopPropagation();
-              setDeploying((prev) => ({ ...prev, [table.id]: true }));
-              setDeployMsg((prev) => {
-                const next = { ...prev };
-                delete next[table.id];
-                return next;
-              });
-              const result = await deployViewToDb(table.id);
-              setDeploying((prev) => ({ ...prev, [table.id]: false }));
-              setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
-              if (result.success) reload();
-            }}
-            title={t("tableReadView.deployToDbTitle")}
-            disabled={deploying[table.id]}
-          >
-            {deploying[table.id]
-              ? t("tableReadView.deployingButton")
-              : t("tableReadView.deployToDbButton")}
-          </Button>
-        )}
-        {/* A table that needs a value for a required parameter is asked for it first: Preview
-            in its own viewer, Profile in the dialog its handler opens. */}
-        <Button
-          size="compact-sm"
-          variant="default"
-          data-testid="table-read-view-preview"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview(table);
-          }}
-          title={t("tableReadView.previewTitle")}
-        >
-          {t("tableReadView.previewButton")}
-        </Button>
-        {!hidingOnly && (
-          <Button
-            size="compact-sm"
-            variant="default"
-            data-testid="table-read-view-profile"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleProfile(table.id);
-            }}
-            title={t("tableReadView.profileTitle")}
-            disabled={tableProfiles[table.id] === "loading"}
-          >
-            {tableProfiles[table.id] === "loading"
-              ? t("tableReadView.profilingButton")
-              : t("tableReadView.profileButton")}
-          </Button>
-        )}
-        <Button
-          size="compact-sm"
-          variant="default"
-          data-testid="table-read-view-policies"
-          title={t("tableReadView.policiesTitle")}
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate("/security/rls", {
-              state: { tableFilter: table.tableName },
-            });
-          }}
-        >
-          {t("tableReadView.policiesButton")}
-        </Button>
-        {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
-            too; it shows none of them and its save names none, so the store keeps them. */}
-        <ActionIcon
-          variant="subtle"
-          aria-label={t("tableReadView.editButtonLabel", { name: table.tableName })}
-          data-testid="table-read-view-edit"
-          onClick={(e) => {
-            e.stopPropagation();
-            startEditing(table);
-          }}
-        >
-          <Pencil size={14} />
-        </ActionIcon>
-        {!hidingOnly && (
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            aria-label={t("tableReadView.deleteButtonLabel", { name: table.tableName })}
-            data-testid="table-read-view-delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(table.id);
-            }}
-          >
-            <Trash2 size={14} />
-          </ActionIcon>
-        )}
-        {/* REQ-1921: draft is set and cleared here, beside the table's other actions. It needs
-            the right to register tables in the table's domain; without it the box only shows
-            the state. */}
-        <Tooltip
-          label={
-            hidingOnly || !onSetDraft
-              ? t("tableReadView.draftNoRightTooltip")
-              : t("tableReadView.draftTooltip")
-          }
-          withArrow
-        >
-          <Checkbox
-            size="xs"
-            label={t("tableReadView.draftLabel")}
-            checked={table.draft}
-            disabled={hidingOnly || !onSetDraft}
-            data-testid="table-read-view-draft"
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => onSetDraft?.(table, e.currentTarget.checked)}
-          />
-        </Tooltip>
-      </Group>
+      {actions}
       {table.draft && (
         <Text
           size="xs"

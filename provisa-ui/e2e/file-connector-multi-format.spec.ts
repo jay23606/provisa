@@ -135,6 +135,8 @@ test.describe("file connector: every recognized format is discoverable, columned
       expect(colCount, `table ${name} resolved zero columns`).toBeGreaterThan(0);
       // Mantine's Select renders an <input>, not text content — the resolved type lives in its
       // value, not in any visible text node.
+      // A column's data type and primary key are on the Type and keys tab of the column editor.
+      await page.getByTestId("column-tab-type").click();
       const dataType = await page
         .locator('[data-testid^="register-table-col-datatype-"]')
         .first()

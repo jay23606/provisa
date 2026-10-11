@@ -576,6 +576,177 @@ main {
    * show above it. */
   overflow: auto;
 }
+/* A column's full definition in the hover on its name: label and value lines. */
+.column-definition {
+  margin: 0 0 0.25rem;
+  display: grid;
+  gap: 0.125rem;
+  font-size: 0.8rem;
+}
+.column-definition > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+}
+.column-definition dt {
+  color: var(--text-muted);
+}
+.column-definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A list with a detail panel on its right (SplitPane). The two share the height the page's head
+ * leaves; each scrolls by itself, so the list keeps its place while a long form is filled in. */
+.page-sticky-head > .split-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.split-pane {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.split-pane__list {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* The list keeps every column: what the panel leaves it too little room for scrolls sideways. */
+.split-pane__list > .table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.split-pane__list > .table-scroll > table {
+  width: max-content;
+  min-width: 100%;
+}
+.split-pane__list > :not(.table-scroll) {
+  flex: 0 0 auto;
+}
+/* The rule between the two IS the grab handle: a 1px line inside a wider hit area. */
+.split-pane__handle {
+  flex: 0 0 9px;
+  margin-inline: -0.375rem;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+}
+.split-pane__handle > div {
+  width: 1px;
+  background: var(--border);
+}
+.split-pane__handle:focus-visible > div,
+.split-pane__handle:hover > div {
+  width: 3px;
+  background: var(--primary);
+}
+.split-pane__panel {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.split-pane__panel:focus {
+  outline: none;
+}
+/* Expanded, or on a row too narrow for both: the panel has the row and the list is put away. */
+.split-pane__panel[data-alone] {
+  flex: 1 1 auto;
+}
+.split-pane__list[hidden] {
+  display: none;
+}
+/* The pinned head: the title, the content's own actions, then expand and close. When the panel
+   is narrow the actions wrap under the title; nothing is clipped. */
+.split-pane__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.split-pane__title {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.split-pane__actions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.split-pane__actions:empty {
+  min-height: 1px;
+}
+/* The actions a view puts in the head: one set, out of use as a whole while a form is open. */
+.panel-action-set {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.panel-action-set:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.split-pane__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.split-pane__body > * {
+  flex: 0 0 auto;
+}
+/* A view that wants the panel's whole height (a data grid). */
+.split-pane__body > .split-pane__fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* A row of the panel's own controls above a view (the way back from a preview). */
+.split-pane__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.split-pane__fill > :last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* A form's Save and Cancel stay at the foot of the panel while the form scrolls above them. */
+.split-pane__body .form-footer:last-child {
+  position: sticky;
+  bottom: -0.75rem;
+  margin-bottom: -0.75rem;
+  padding-block: 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 2;
+}
+/* A form in the panel is the panel's own content: it needs no card of its own inside it. */
+.split-pane__body > .form-card {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+
 /* An open form (Register Table/Source/Relationship) takes its natural height and is never an
  * inner scroll box: squeezed between the header and the table it hid its own first and last rows
  * (the identity section, Save and Cancel). While a form is open the whole page scrolls instead,

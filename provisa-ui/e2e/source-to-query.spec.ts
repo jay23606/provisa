@@ -112,6 +112,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     await expect(page.getByTestId("register-table-neo4j-preview-rows")).toBeVisible({
       timeout: 60000,
     });
+    // A column's data type and primary key are on the Type and keys tab of the column editor.
+    await page.getByTestId("column-tab-type").click();
     await expect(page.getByTestId("register-table-col-datatype-adopter_id")).toHaveValue("integer");
     await expect(page.getByTestId("register-table-col-datatype-name")).toHaveValue("text");
     const registered = await submitRegisterAndExpectListed(page, sourceId);
@@ -311,6 +313,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     await expect(page.getByTestId("register-table-sparql-preview-rows")).toBeVisible({
       timeout: 60000,
     });
+    // A column's data type and primary key are on the Type and keys tab of the column editor.
+    await page.getByTestId("column-tab-type").click();
     await expect(page.getByTestId("register-table-col-datatype-name")).toHaveValue("text");
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
