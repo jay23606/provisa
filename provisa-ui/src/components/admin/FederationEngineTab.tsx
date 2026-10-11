@@ -10,7 +10,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Checkbox, NumberInput, Select, Stack, Text, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Checkbox,
+  NumberInput,
+  PasswordInput,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import {
   fetchFederationEngine,
   setFederationEngine,
@@ -169,6 +178,21 @@ export function FederationEngineTab() {
                   onChange={(v) =>
                     setValues((cur) => ({ ...cur, [f.config_key]: String(v ?? "") }))
                   }
+                />
+              </FormField>
+            ) : f.secret ? (
+              // A secret is typed and shown masked, with the eye to reveal it.
+              <FormField size="medium" key={f.config_key}>
+                <PasswordInput
+                  label={f.label}
+                  required={f.required}
+                  placeholder={f.placeholder}
+                  value={String(values[f.config_key] ?? "")}
+                  onChange={(e) => {
+                    const next = e.currentTarget.value;
+                    setValues((v) => ({ ...v, [f.config_key]: next }));
+                  }}
+                  autoComplete="new-password"
                 />
               </FormField>
             ) : (
