@@ -34,7 +34,6 @@
     "selectSourceFirst": "Select a source table first.",
     "notKeyable": "not keyable",
     "errorRequired": "Name, source, and domain are required.",
-    "cancel": "Cancel",
     "submit": "Create",
     "createdTitle": "{{name}} created",
     "createdMv": "Built a materialized view — the {{kind}} \"{{name}}\" in domain {{domain}}. It now appears in Registered Tables and is queryable.",

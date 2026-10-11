@@ -8,7 +8,6 @@
     "reasonLabel": "理由",
     "reasonPlaceholder": "— 理由を選択 —",
     "confirm": "確認",
-    "cancel": "キャンセル",
     "empty": "{{tab}}のリクエストはありません。",
     "emptyFiltered": "フィルターに一致する{{tab}}のリクエストはありません。",
     "colId": "ID",

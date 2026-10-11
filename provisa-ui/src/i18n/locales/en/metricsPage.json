@@ -39,8 +39,6 @@
     "fieldDescription": "Description",
     "fieldAiContext": "AI Context",
     "fieldAiContextPlaceholder": "Hints for AI-assisted query generation",
-    "save": "Save",
-    "cancel": "Cancel",
     "saveFailed": "Save failed.",
     "editMetric": "Edit metric {{name}}",
     "deleteMetric": "Delete metric {{name}}",

@@ -8,7 +8,6 @@
     "reasonLabel": "原因",
     "reasonPlaceholder": "— 选择原因 —",
     "confirm": "确认",
-    "cancel": "取消",
     "empty": "没有{{tab}}的请求。",
     "emptyFiltered": "没有符合筛选条件的{{tab}}请求。",
     "colId": "ID",

@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "मेट्रिक्स की टेबलों के कॉलम (एक संबंध हॉप दूर तक शामिल)",
     "fieldFilters": "फ़िल्टर",
     "fieldFiltersHelp": "प्रति पंक्ति एक SQL शर्त; शर्तें AND से जुड़ती हैं।",
-    "save": "व्यू सहेजें",
-    "saveFailed": "सहेजना विफल",
-    "cancel": "रद्द करें"
+    "saveFailed": "सहेजना विफल"
   }
 }

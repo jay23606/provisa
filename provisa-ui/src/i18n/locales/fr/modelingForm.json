@@ -34,7 +34,6 @@
     "selectSourceFirst": "Sélectionnez d'abord une table source.",
     "notKeyable": "non utilisable comme clé",
     "errorRequired": "Le nom, la source et le domaine sont obligatoires.",
-    "cancel": "Annuler",
     "submit": "Créer",
     "createdTitle": "{{name}} créé",
     "createdMv": "Vue matérialisée construite — le {{kind}} « {{name}} » dans le domaine {{domain}}. Il apparaît désormais dans les tables enregistrées et peut être interrogé.",

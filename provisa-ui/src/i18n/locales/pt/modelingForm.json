@@ -34,7 +34,6 @@
     "selectSourceFirst": "Selecione primeiro uma tabela de origem.",
     "notKeyable": "não pode ser chave",
     "errorRequired": "Nome, fonte e domínio são obrigatórios.",
-    "cancel": "Cancelar",
     "submit": "Criar",
     "createdTitle": "{{name}} criado",
     "createdMv": "Uma exibição materializada foi criada — o {{kind}} \"{{name}}\" no domínio {{domain}}. Agora aparece em Tabelas registradas e pode ser consultado.",

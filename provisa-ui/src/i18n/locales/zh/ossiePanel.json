@@ -18,7 +18,6 @@
     "apply": "应用（{{count}}）",
     "applied": "已应用",
     "failed": "失败",
-    "cancel": "取消",
     "close": "关闭"
   }
 }

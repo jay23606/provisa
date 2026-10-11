@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "Columnas de las tablas de las métricas (se incluye un salto de relación)",
     "fieldFilters": "Filtros",
     "fieldFiltersHelp": "Una condición SQL por línea; las condiciones se combinan con AND.",
-    "save": "Guardar vista",
-    "saveFailed": "Error al guardar",
-    "cancel": "Cancelar"
+    "saveFailed": "Error al guardar"
   }
 }

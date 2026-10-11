@@ -39,8 +39,6 @@
     "fieldDescription": "説明",
     "fieldAiContext": "AIコンテキスト",
     "fieldAiContextPlaceholder": "AI支援クエリ生成のためのヒント",
-    "save": "保存",
-    "cancel": "キャンセル",
     "saveFailed": "保存に失敗しました。",
     "editMetric": "メトリクス {{name}} を編集",
     "deleteMetric": "メトリクス {{name}} を削除",

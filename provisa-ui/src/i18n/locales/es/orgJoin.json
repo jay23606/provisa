@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Rol concedido en la unión automática",
     "autoJoinRoleDesc": "El rol que recibe toda persona admitida por la regla.",
     "acceptRisk": "Acepto que esta regla puede admitir a personas ajenas a mi organización",
-    "save": "Guardar",
     "saved": "Regla de unión guardada."
   }
 }

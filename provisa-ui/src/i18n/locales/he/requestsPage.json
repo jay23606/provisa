@@ -8,7 +8,6 @@
     "reasonLabel": "סיבה",
     "reasonPlaceholder": "— בחירת סיבה —",
     "confirm": "אישור",
-    "cancel": "ביטול",
     "empty": "אין בקשות {{tab}}.",
     "emptyFiltered": "אין בקשות {{tab}} התואמות לסינון.",
     "colId": "מזהה",

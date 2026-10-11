@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "メトリクスのテーブルのカラム（リレーションシップ1ホップ先を含む）",
     "fieldFilters": "フィルター",
     "fieldFiltersHelp": "1行につきSQL条件を1つ。条件はANDで結合されます。",
-    "save": "ビューを保存",
-    "saveFailed": "保存に失敗しました",
-    "cancel": "キャンセル"
+    "saveFailed": "保存に失敗しました"
   }
 }

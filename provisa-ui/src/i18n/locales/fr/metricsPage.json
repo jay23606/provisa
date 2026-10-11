@@ -39,8 +39,6 @@
     "fieldDescription": "Description",
     "fieldAiContext": "Contexte IA",
     "fieldAiContextPlaceholder": "Indications pour la génération de requêtes assistée par IA",
-    "save": "Enregistrer",
-    "cancel": "Annuler",
     "saveFailed": "Échec de l'enregistrement.",
     "editMetric": "Modifier la métrique {{name}}",
     "deleteMetric": "Supprimer la métrique {{name}}",

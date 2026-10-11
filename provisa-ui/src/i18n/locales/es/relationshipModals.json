@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "Alias GQL (camelCase)",
     "materializeLabel": "Materializar",
-    "refreshIntervalLabel": "Intervalo de actualización (s)",
-    "cancel": "Cancelar",
-    "save": "Guardar"
+    "refreshIntervalLabel": "Intervalo de actualización (s)"
   }
 }

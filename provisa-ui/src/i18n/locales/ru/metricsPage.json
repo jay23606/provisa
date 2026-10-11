@@ -39,8 +39,6 @@
     "fieldDescription": "Описание",
     "fieldAiContext": "Контекст ИИ",
     "fieldAiContextPlaceholder": "Подсказки для генерации запросов с помощью ИИ",
-    "save": "Сохранить",
-    "cancel": "Отмена",
     "saveFailed": "Не удалось сохранить.",
     "editMetric": "Редактировать метрику {{name}}",
     "deleteMetric": "Удалить метрику {{name}}",

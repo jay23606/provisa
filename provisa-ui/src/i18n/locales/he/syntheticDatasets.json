@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} שורות)",
     "tableScale": "קנה מידה לטבלה",
     "tableScalePlaceholder": "קנה המידה של מערך הנתונים",
-    "define": "שמירת מערך הנתונים",
     "seedOption": "התחלה עם נתונים סינתטיים",
     "seedTables": "טבלאות",
     "relationshipOption": "{{parent}} → {{child}}",

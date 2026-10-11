@@ -20,7 +20,6 @@
     "deleteConfirm": "Eliminare il termine {{name}}?",
     "deleted": "Termine {{name}} eliminato.",
     "deleteDisabledHint": "Questo termine ha riferimenti o relazioni. Ritiralo per toglierlo dal servizio, oppure sposta i suoi riferimenti e rimuovi le sue relazioni per eliminarlo.",
-    "cancel": "Annulla",
     "create": "Crea",
     "created": "Termine {{name}} creato.",
     "refsTitle": "Riferimenti",

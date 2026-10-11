@@ -39,8 +39,6 @@
     "fieldDescription": "描述",
     "fieldAiContext": "AI 內容",
     "fieldAiContextPlaceholder": "供 AI 輔助查詢產生使用的提示",
-    "save": "儲存",
-    "cancel": "取消",
     "saveFailed": "儲存失敗。",
     "editMetric": "編輯指標 {{name}}",
     "deleteMetric": "刪除指標 {{name}}",

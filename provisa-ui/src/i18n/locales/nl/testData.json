@@ -13,7 +13,6 @@
     "dialogTitle": "Testdata: {{column}}",
     "declaration": "Declaratie, bijv. email() of categories((a, b))",
     "methodCategory": "Nepmethode: {{category}}",
-    "cancel": "Annuleren",
     "apply": "Toepassen",
     "kindCategory": {
       "values": "Waarden",

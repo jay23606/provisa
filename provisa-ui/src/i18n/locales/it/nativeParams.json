@@ -2,7 +2,6 @@
   "nativeParams": {
     "title": "Parametri per {{name}}",
     "hint": "Questa tabella si basa su un'API con parametri obbligatori. Forniscili per campionarla.",
-    "cancel": "Annulla",
     "run": "Esegui"
   }
 }

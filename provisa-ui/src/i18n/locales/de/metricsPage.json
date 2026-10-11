@@ -39,8 +39,6 @@
     "fieldDescription": "Beschreibung",
     "fieldAiContext": "KI-Kontext",
     "fieldAiContextPlaceholder": "Hinweise für KI-gestützte Abfragegenerierung",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
     "saveFailed": "Speichern fehlgeschlagen.",
     "editMetric": "Metrik {{name}} bearbeiten",
     "deleteMetric": "Metrik {{name}} löschen",

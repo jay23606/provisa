@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "GQLエイリアス（camelCase）",
     "materializeLabel": "マテリアライズ",
-    "refreshIntervalLabel": "更新間隔（秒）",
-    "cancel": "キャンセル",
-    "save": "保存"
+    "refreshIntervalLabel": "更新間隔（秒）"
   }
 }

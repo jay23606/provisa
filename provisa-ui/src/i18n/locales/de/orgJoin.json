@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "Beim automatischen Beitritt erteilte Rolle",
     "autoJoinRoleDesc": "Die Rolle, die alle von der Regel Zugelassenen erhalten.",
     "acceptRisk": "Ich akzeptiere, dass diese Regel Personen von außerhalb meiner Organisation zulassen kann",
-    "save": "Speichern",
     "saved": "Beitrittsregel gespeichert."
   }
 }

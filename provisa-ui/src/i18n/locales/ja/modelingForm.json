@@ -34,7 +34,6 @@
     "selectSourceFirst": "まずソーステーブルを選択してください。",
     "notKeyable": "キー不可",
     "errorRequired": "名前、ソース、ドメインは必須です。",
-    "cancel": "キャンセル",
     "submit": "作成",
     "createdTitle": "{{name}} を作成しました",
     "createdMv": "マテリアライズドビューを構築しました — ドメイン {{domain}} の{{kind}}「{{name}}」です。「登録済みテーブル」に表示され、クエリ可能になりました。",

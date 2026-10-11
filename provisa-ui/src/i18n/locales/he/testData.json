@@ -13,7 +13,6 @@
     "dialogTitle": "נתוני בדיקה: {{column}}",
     "declaration": "הצהרה, לדוגמה email() או categories((a, b))",
     "methodCategory": "שיטת ערך מדומה: {{category}}",
-    "cancel": "ביטול",
     "apply": "החלה",
     "kindCategory": {
       "values": "ערכים",

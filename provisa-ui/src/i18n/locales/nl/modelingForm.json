@@ -34,7 +34,6 @@
     "selectSourceFirst": "Selecteer eerst een brontabel.",
     "notKeyable": "niet als sleutel bruikbaar",
     "errorRequired": "Naam, bron en domein zijn verplicht.",
-    "cancel": "Annuleren",
     "submit": "Aanmaken",
     "createdTitle": "{{name}} aangemaakt",
     "createdMv": "Er is een gematerialiseerde view gebouwd — het {{kind}} \"{{name}}\" in domein {{domain}}. Deze verschijnt nu in Geregistreerde tabellen en is opvraagbaar.",

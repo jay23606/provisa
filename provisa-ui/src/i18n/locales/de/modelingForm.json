@@ -34,7 +34,6 @@
     "selectSourceFirst": "Wählen Sie zuerst eine Quelltabelle aus.",
     "notKeyable": "nicht als Schlüssel geeignet",
     "errorRequired": "Name, Quelle und Domäne sind erforderlich.",
-    "cancel": "Abbrechen",
     "submit": "Erstellen",
     "createdTitle": "{{name}} erstellt",
     "createdMv": "Materialisierte Sicht erstellt — {{kind}} „{{name}}“ in Domäne {{domain}}. Sie erscheint jetzt unter „Registrierte Tabellen“ und ist abfragbar.",

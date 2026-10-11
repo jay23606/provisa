@@ -39,8 +39,6 @@
     "fieldDescription": "描述",
     "fieldAiContext": "AI 上下文",
     "fieldAiContextPlaceholder": "供 AI 辅助查询生成的提示",
-    "save": "保存",
-    "cancel": "取消",
     "saveFailed": "保存失败。",
     "editMetric": "编辑指标 {{name}}",
     "deleteMetric": "删除指标 {{name}}",

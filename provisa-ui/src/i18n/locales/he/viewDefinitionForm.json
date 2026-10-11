@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "עמודות של טבלאות המדדים (כולל מרחק של קשר אחד)",
     "fieldFilters": "מסננים",
     "fieldFiltersHelp": "תנאי SQL אחד בכל שורה; התנאים מחוברים ב-AND.",
-    "save": "שמירת View",
-    "saveFailed": "השמירה נכשלה",
-    "cancel": "ביטול"
+    "saveFailed": "השמירה נכשלה"
   }
 }

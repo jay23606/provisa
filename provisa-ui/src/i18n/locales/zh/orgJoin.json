@@ -9,7 +9,6 @@
     "autoJoinRoleLabel": "自动加入时授予的角色",
     "autoJoinRoleDesc": "凡经此规则准入的人员所获得的角色。",
     "acceptRisk": "我接受此规则可能允许组织外部人员加入",
-    "save": "保存",
     "saved": "加入规则已保存。"
   }
 }

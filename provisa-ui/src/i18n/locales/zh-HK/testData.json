@@ -13,7 +13,6 @@
     "dialogTitle": "測試數據：{{column}}",
     "declaration": "聲明，例如 email() 或 categories((a, b))",
     "methodCategory": "虛構方法：{{category}}",
-    "cancel": "取消",
     "apply": "套用",
     "kindCategory": {
       "values": "值",

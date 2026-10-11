@@ -36,7 +36,6 @@
     "runOption": "{{time}} ({{rows}} Zeilen)",
     "tableScale": "Tabellenmaßstab",
     "tableScalePlaceholder": "Maßstab des Datensatzes",
-    "define": "Datensatz speichern",
     "seedOption": "Mit synthetischen Daten starten",
     "seedTables": "Tabellen",
     "relationshipOption": "{{parent}} → {{child}}",

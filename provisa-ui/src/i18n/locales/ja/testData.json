@@ -13,7 +13,6 @@
     "dialogTitle": "テストデータ: {{column}}",
     "declaration": "宣言、例: email() または categories((a, b))",
     "methodCategory": "フェイクメソッド: {{category}}",
-    "cancel": "キャンセル",
     "apply": "適用",
     "kindCategory": {
       "values": "値",

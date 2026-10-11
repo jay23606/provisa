@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "指标所属表的列（含一跳关系内的列）",
     "fieldFilters": "筛选条件",
     "fieldFiltersHelp": "每行一个 SQL 条件；各条件按 AND 组合。",
-    "save": "保存视图",
-    "saveFailed": "保存失败",
-    "cancel": "取消"
+    "saveFailed": "保存失败"
   }
 }

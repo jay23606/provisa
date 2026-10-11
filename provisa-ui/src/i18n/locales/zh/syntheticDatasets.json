@@ -36,7 +36,6 @@
     "runOption": "{{time}}（{{rows}} 行）",
     "tableScale": "表规模",
     "tableScalePlaceholder": "数据集规模",
-    "define": "保存数据集",
     "seedOption": "以合成数据开始",
     "seedTables": "表",
     "relationshipOption": "{{parent}} → {{child}}",

@@ -39,8 +39,6 @@
     "fieldDescription": "תיאור",
     "fieldAiContext": "הקשר AI",
     "fieldAiContextPlaceholder": "רמזים ליצירת שאילתות בסיוע AI",
-    "save": "שמירה",
-    "cancel": "ביטול",
     "saveFailed": "השמירה נכשלה.",
     "editMetric": "עריכת המדד {{name}}",
     "deleteMetric": "מחיקת המדד {{name}}",

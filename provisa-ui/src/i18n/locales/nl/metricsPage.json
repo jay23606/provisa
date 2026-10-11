@@ -39,8 +39,6 @@
     "fieldDescription": "Beschrijving",
     "fieldAiContext": "AI-context",
     "fieldAiContextPlaceholder": "Aanwijzingen voor AI-ondersteunde querygeneratie",
-    "save": "Opslaan",
-    "cancel": "Annuleren",
     "saveFailed": "Opslaan mislukt.",
     "editMetric": "Metric {{name}} bewerken",
     "deleteMetric": "Metric {{name}} verwijderen",

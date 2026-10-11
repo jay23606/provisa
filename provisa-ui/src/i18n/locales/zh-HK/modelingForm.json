@@ -34,7 +34,6 @@
     "selectSourceFirst": "請先選取來源表格。",
     "notKeyable": "不可作為索引鍵",
     "errorRequired": "名稱、來源及網域為必填。",
-    "cancel": "取消",
     "submit": "建立",
     "createdTitle": "已建立 {{name}}",
     "createdMv": "已建立具體化檢視 — 網域 {{domain}} 中的{{kind}}「{{name}}」。它現已顯示於「已註冊表格」並可供查詢。",

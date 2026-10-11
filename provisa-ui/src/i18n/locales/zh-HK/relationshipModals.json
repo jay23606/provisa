@@ -14,8 +14,6 @@
     "aliasPlaceholder": "PLACED_BY",
     "graphqlAliasLabel": "GQL 別名（camelCase）",
     "materializeLabel": "具體化",
-    "refreshIntervalLabel": "重新整理間隔（秒）",
-    "cancel": "取消",
-    "save": "儲存"
+    "refreshIntervalLabel": "重新整理間隔（秒）"
   }
 }

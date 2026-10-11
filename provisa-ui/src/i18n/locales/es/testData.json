@@ -13,7 +13,6 @@
     "dialogTitle": "Datos de prueba: {{column}}",
     "declaration": "Declaración, p. ej. email() o categories((a, b))",
     "methodCategory": "Método ficticio: {{category}}",
-    "cancel": "Cancelar",
     "apply": "Aplicar",
     "kindCategory": {
       "values": "Valores",

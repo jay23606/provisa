@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "指標所屬表格的欄（包括相距一個關係躍點的欄）",
     "fieldFilters": "篩選條件",
     "fieldFiltersHelp": "每行一個 SQL 條件；各條件以 AND 結合。",
-    "save": "儲存檢視",
-    "saveFailed": "儲存失敗",
-    "cancel": "取消"
+    "saveFailed": "儲存失敗"
   }
 }

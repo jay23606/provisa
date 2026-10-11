@@ -39,8 +39,6 @@
     "fieldDescription": "Descripción",
     "fieldAiContext": "Contexto de IA",
     "fieldAiContextPlaceholder": "Indicaciones para la generación de consultas asistida por IA",
-    "save": "Guardar",
-    "cancel": "Cancelar",
     "saveFailed": "Error al guardar.",
     "editMetric": "Editar métrica {{name}}",
     "deleteMetric": "Eliminar métrica {{name}}",

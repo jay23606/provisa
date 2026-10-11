@@ -15,8 +15,6 @@
     "fieldDimensionsPlaceholder": "Columns of the metrics' tables (one relationship hop away included)",
     "fieldFilters": "Filters",
     "fieldFiltersHelp": "One SQL condition per line; conditions are ANDed.",
-    "save": "Save view",
-    "saveFailed": "Save failed",
-    "cancel": "Cancel"
+    "saveFailed": "Save failed"
   }
 }

@@ -39,8 +39,6 @@
     "fieldDescription": "Descrizione",
     "fieldAiContext": "Contesto AI",
     "fieldAiContextPlaceholder": "Suggerimenti per la generazione di query assistita dall'AI",
-    "save": "Salva",
-    "cancel": "Annulla",
     "saveFailed": "Salvataggio non riuscito.",
     "editMetric": "Modifica metrica {{name}}",
     "deleteMetric": "Elimina metrica {{name}}",

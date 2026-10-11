@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "Удалить столбец {{index}}",
-    "saveMapping": "Сохранить сопоставление",
     "fieldRedis": "Поле Redis",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "Путь через точку",

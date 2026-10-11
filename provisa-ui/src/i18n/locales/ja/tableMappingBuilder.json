@@ -35,7 +35,6 @@
     "fieldPlaceholderMongo": "$.path.to.field",
     "fieldPlaceholderDefault": "field_name",
     "removeColumn": "列 {{index}} を削除",
-    "saveMapping": "マッピングを保存",
     "fieldRedis": "Redisフィールド",
     "fieldMongo": "JSONPath",
     "fieldElasticsearch": "ドットパス",

@@ -18,7 +18,6 @@
     "apply": "Apply ({{count}})",
     "applied": "Applied",
     "failed": "Failed",
-    "cancel": "Cancel",
     "close": "Close"
   }
 }

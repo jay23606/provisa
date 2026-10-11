@@ -39,8 +39,6 @@
     "fieldDescription": "विवरण",
     "fieldAiContext": "AI संदर्भ",
     "fieldAiContextPlaceholder": "AI-सहायित क्वेरी जनरेशन के लिए संकेत",
-    "save": "सहेजें",
-    "cancel": "रद्द करें",
     "saveFailed": "सहेजना विफल रहा।",
     "editMetric": "मेट्रिक {{name}} संपादित करें",
     "deleteMetric": "मेट्रिक {{name}} हटाएँ",
