@@ -253,14 +253,18 @@ describe("MetricsPage: the right-hand detail panel", () => {
     expect(screen.getByTestId("metric-ai-context-input")).toBeInTheDocument();
   });
 
-  it("keeps Escape from dropping a metric's form, its actions out of use meanwhile", async () => {
+  it("keeps Escape from dropping a metric's form, whose Save and Cancel take the panel's head", async () => {
     render(<MetricsPage />);
     await userEvent.click(screen.getByTestId("metrics-row-revenue"));
     await userEvent.click(screen.getByTestId("metric-detail-edit-revenue"));
     fireEvent.keyDown(screen.getByTestId("metrics-split-panel"), { key: "Escape" });
     expect(screen.getByTestId("metric-form")).toBeInTheDocument();
-    // While the form is open the metric's actions stay in the head, out of use.
-    expect(screen.getByTestId("metric-detail-edit-revenue").closest("fieldset")).toBeDisabled();
+    // While the form is open the panel's head is the form's: Save and Cancel in place of the
+    // metric's own actions.
+    expect(screen.queryByTestId("metric-detail-edit-revenue")).toBeNull();
+    const head = screen.getByTestId("metrics-split-title").parentElement as HTMLElement;
+    expect(within(head).getByTestId("metric-save-button")).toBeInTheDocument();
+    expect(within(head).getByTestId("metric-cancel-button")).toBeInTheDocument();
   });
 });
 

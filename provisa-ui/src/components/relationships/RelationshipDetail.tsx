@@ -9,7 +9,8 @@
 // permission from the copyright holder.
 
 // A relationship's detail, shown in the page's right-hand panel: what it joins, or the form that
-// edits it. Its actions sit in the panel's pinned head, out of use while the form is open.
+// edits it. Its actions sit in the panel's pinned head; the form's Save and Cancel take their
+// place while it is open.
 
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -70,9 +71,10 @@ export function RelationshipDetail({
 
   return (
     <>
-      {canManage && (
+      {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
+      {canManage && editingRel === null && (
         <PanelActions>
-          <fieldset className="panel-action-set" disabled={editingRel !== null}>
+          <fieldset className="panel-action-set">
             <Group gap="sm">
               <ActionIcon
                 variant="subtle"
@@ -451,7 +453,12 @@ export function RelationshipDetail({
               />
             </FormField>
           )}
-          <FormFooter onSave={onEditSave} saving={!!saving} onCancel={() => setEditingRel(null)} />
+          <FormFooter
+            panel
+            onSave={onEditSave}
+            saving={!!saving}
+            onCancel={() => setEditingRel(null)}
+          />
         </FormLayout>
       )}
     </>

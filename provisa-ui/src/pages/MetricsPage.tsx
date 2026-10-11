@@ -28,7 +28,7 @@ import { useMetrics, useTables, useUpsertMetric, useDeleteMetric } from "../hook
 import type { Metric, RegisteredTable } from "../types/admin";
 import { OssieInterchangePanel } from "./metrics/OssieInterchangePanel";
 import { HelpBubble } from "../components/HelpBubble";
-import { MetricActions, MetricDetailPanel } from "./metrics/MetricDetailPanel";
+import { MetricDetailPanel } from "./metrics/MetricDetailPanel";
 import { SplitPane } from "../components/list/SplitPane";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
@@ -207,14 +207,9 @@ function MetricFormCard({
           </FormField>
         </>
       )}
-      {msg && (
-        <FormField size="full">
-          <Alert color="red" data-testid="metric-form-error">
-            {msg}
-          </Alert>
-        </FormField>
-      )}
       <FormFooter
+        panel
+        problem={msg || undefined}
         onSave={onSave}
         saving={saving}
         onCancel={onCancel}
@@ -393,16 +388,8 @@ export function MetricsPage() {
     <div data-testid="metric-create-card">{formCard}</div>
   ) : selectedMetric ? (
     editingName === selectedMetric.name ? (
-      <>
-        {/* The metric's actions stay in the panel's head while it is edited, out of use. */}
-        <MetricActions
-          m={selectedMetric}
-          onEdit={() => openEdit(selectedMetric)}
-          onDelete={() => setDeleteTarget(selectedMetric.name)}
-          disabled
-        />
-        {formCard}
-      </>
+      // While the form is open the panel's head is the form's: its Save and Cancel.
+      formCard
     ) : (
       <MetricDetailPanel
         m={selectedMetric}

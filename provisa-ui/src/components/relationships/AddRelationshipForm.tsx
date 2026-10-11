@@ -177,6 +177,7 @@ export function AddRelationshipForm({
           </>
         )}
         <FormFooter
+          panel
           onSave={onSave}
           saving={saving === "new"}
           onCancel={onCancel}

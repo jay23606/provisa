@@ -290,6 +290,8 @@ export function SecurityRolesPage() {
         />
       </FormField>
       <FormFooter
+        panel
+        problem={error || undefined}
         onSave={handleSaveRole}
         saving={saving}
         onCancel={() => setShowRoleForm(false)}
@@ -300,44 +302,46 @@ export function SecurityRolesPage() {
   ) : selectedRole ? (
     ((r) => (
       <>
-        {/* The role's actions sit in the panel's head, out of use while its form is open. */}
-        <PanelActions>
-          <fieldset className="panel-action-set" disabled={editingRoleInRow === r.id}>
-            <Group gap="xs">
-              <ActionIcon
-                variant="subtle"
-                aria-label={t("securityPage.edit")}
-                data-testid={`edit-role-${r.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditingRole(r);
-                }}
-              >
-                <Pencil size={14} />
-              </ActionIcon>
-              <ConfirmDialog
-                title={t("securityPage.deleteRoleTitle", { id: r.id })}
-                consequence={t("securityPage.deleteRoleConsequence")}
-                onConfirm={() => handleDeleteRole(r.id)}
-              >
-                {(open) => (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    aria-label={t("securityPage.delete")}
-                    data-testid={`delete-role-${r.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      open();
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </ActionIcon>
-                )}
-              </ConfirmDialog>
-            </Group>
-          </fieldset>
-        </PanelActions>
+        {/* Its actions sit in the panel's head; while its form is open the head is the form's. */}
+        {editingRoleInRow !== r.id && (
+          <PanelActions>
+            <fieldset className="panel-action-set">
+              <Group gap="xs">
+                <ActionIcon
+                  variant="subtle"
+                  aria-label={t("securityPage.edit")}
+                  data-testid={`edit-role-${r.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditingRole(r);
+                  }}
+                >
+                  <Pencil size={14} />
+                </ActionIcon>
+                <ConfirmDialog
+                  title={t("securityPage.deleteRoleTitle", { id: r.id })}
+                  consequence={t("securityPage.deleteRoleConsequence")}
+                  onConfirm={() => handleDeleteRole(r.id)}
+                >
+                  {(open) => (
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      aria-label={t("securityPage.delete")}
+                      data-testid={`delete-role-${r.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </ActionIcon>
+                  )}
+                </ConfirmDialog>
+              </Group>
+            </fieldset>
+          </PanelActions>
+        )}
         {editingRoleInRow !== r.id ? (
           <Stack gap="xs">
             <Text>
@@ -445,6 +449,8 @@ export function SecurityRolesPage() {
               />
             </FormField>
             <FormFooter
+              panel
+              problem={error || undefined}
               onSave={handleSaveRole}
               saving={saving}
               onCancel={() => setEditingRoleInRow(null)}
@@ -462,7 +468,8 @@ export function SecurityRolesPage() {
   return (
     // The list and its panel share the height the heading leaves; each scrolls by itself.
     <Stack gap="md" p="md" className="page-sticky-head">
-      {error && (
+      {/* A form that did not save says so under the panel's head; this is for everything else. */}
+      {error && !showRoleForm && editingRoleInRow === null && (
         <Alert color="red" data-testid="security-roles-error">
           {error}
         </Alert>
