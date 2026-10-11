@@ -25,11 +25,15 @@ import {
   replicateValues,
 } from "./replicate";
 
+/** The drop-down's value for load protection: no Replicate value of its own. */
+const SCHEDULED = "scheduled";
+
 export function ReplicateSelect({
   value,
   onChange,
   scope,
   loadProtected,
+  onScheduledChange,
   testId,
 }: {
   /** The stored setting: null = Default. */
@@ -39,6 +43,13 @@ export function ReplicateSelect({
   scope: "table" | "source";
   /** Whether load protection is on for this table or source (Never then contradicts it). */
   loadProtected: boolean;
+  /**
+   * Given, the drop-down also offers "Always, source read only on schedule" (REQ-1141), which is
+   * load protection: choosing it reports Always with load protection on, and any other choice
+   * reports that choice with load protection off. A value stored with load protection shows as
+   * that choice whatever its Replicate value is.
+   */
+  onScheduledChange?: (value: number | null, loadProtected: boolean) => void;
   testId: string;
 }) {
   const { t } = useTranslation();
@@ -53,6 +64,7 @@ export function ReplicateSelect({
   const help = [
     t(scope === "table" ? "replicateSelect.helpTable" : "replicateSelect.helpSource"),
     t("replicateSelect.helpOptions"),
+    ...(onScheduledChange ? [t("replicateSelect.helpScheduled")] : []),
   ].join(" ");
   // Named by the label's text alone; the help is its description.
   const { textId, naming } = useHelpNaming(help);
@@ -60,16 +72,23 @@ export function ReplicateSelect({
     <Select
       {...naming}
       label={<FieldLabel text={t("replicateSelect.label")} help={help} textId={textId} />}
-      data={replicateValues(value).map((replicate) => ({
-        value: replicateOptionValue(replicate),
-        label: label(replicate),
-      }))}
-      value={replicateOptionValue(value)}
+      data={[
+        ...replicateValues(value).map((replicate) => ({
+          value: replicateOptionValue(replicate),
+          label: label(replicate),
+        })),
+        ...(onScheduledChange ? [{ value: SCHEDULED, label: t("replicateSelect.scheduled") }] : []),
+      ]}
+      value={onScheduledChange && loadProtected ? SCHEDULED : replicateOptionValue(value)}
       onChange={(option) => {
-        if (option !== null) onChange(parseReplicateOption(option));
+        if (option === null) return;
+        if (!onScheduledChange) onChange(parseReplicateOption(option));
+        else if (option === SCHEDULED) onScheduledChange(REPLICATE_ALWAYS, true);
+        else onScheduledChange(parseReplicateOption(option), false);
       }}
       error={
-        replicateContradictsLoadProtection(value, loadProtected)
+        // With the scheduled choice in the list the two cannot be set against each other here.
+        !onScheduledChange && replicateContradictsLoadProtection(value, loadProtected)
           ? t("replicateSelect.neverWithLoadProtection")
           : undefined
       }
