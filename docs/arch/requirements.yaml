@@ -77809,3 +77809,15 @@
   - REQ-433
   - REQ-1969
   notes: 'Maintainer 2026-10-11: "table domain change requires you to have the original and future domain rights." The following go beyond his words and are the lead''s elaboration: the rule covers views as well as tables, and a registration onto an existing address as well as an update; confirmed by him 2026-10-11. A physical table''s domain cannot change at all while REQ-433 (first-come ownership of a source table) stands; where that changes, this rule applies to it. Security rule.'
+- id: REQ-1979
+  status: proposed
+  since: 2026-10
+  group: 1. Access Governance & Security
+  category: Data Governance
+  priority: SHOULD
+  type: behavioral
+  description: 'The `deprecated` system tag applies to every object of the model: metrics, commands, roles and row-level rules, as well as source, table/view, column and relationship. The rules are the same for all of them: a reason is required, and expires_on is the planned removal date. The tag is shown wherever the object is listed and is carried into every client schema and catalog export the object appears in. A deprecation changes nothing else about the object.'
+  use_case: A steward marks a metric deprecated with a reason and a removal date; everyone who lists the metric or reads it in a client schema or a catalog export sees that it is deprecated and until when, and the metric keeps answering exactly as before.
+  related_reqs:
+  - REQ-1375
+  notes: 'Maintainer 2026-10-11: "deprecation is documented as a tag. I don''t see why it needs to be more than that. deprecation is just a signal to a dependent to move to a new design within a timeframe. It doesn''t effect anything else." and "expand deprecate scope". The following go beyond his words and are the lead''s elaboration: the four added object types (metrics, commands, roles, row-level rules), and that the tag is carried into every client schema the object appears in.'
