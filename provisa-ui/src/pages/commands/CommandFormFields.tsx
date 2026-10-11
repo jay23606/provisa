@@ -494,7 +494,7 @@ export function CommandFormFields({
                     </Title>
                     {form.inlineReturnType.map((f, i) => (
                       <React.Fragment key={i}>
-                        <FieldGroup row>
+                        <FieldGroup row className="form-field-group--bare">
                           <FormField size="medium">
                             <TextInput
                               value={f.name}
@@ -502,7 +502,6 @@ export function CommandFormFields({
                                 handleInlineFieldChange(i, "name", e.currentTarget.value)
                               }
                               placeholder={t("commandFormFields.fieldNamePlaceholder")}
-                              style={{ flex: 1, minWidth: 0 }}
                             />
                           </FormField>
                           <FormField size="medium">
@@ -513,7 +512,6 @@ export function CommandFormFields({
                               }
                               data={GRAPHQL_TYPES}
                               allowDeselect={false}
-                              w={120}
                             />
                           </FormField>
                           <ActionIcon
@@ -717,13 +715,13 @@ export function CommandFormFields({
                 </Title>
                 {form.outputColumns.map((col, ci) => (
                   <React.Fragment key={ci}>
-                    <FieldGroup row>
+                    {/* One column of the list: its boxes carry no label, so the remove sits level with them. */}
+                    <FieldGroup row className="form-field-group--bare">
                       <FormField size="medium">
                         <TextInput
                           value={col.name}
                           onChange={(e) => changeOutputColumn(ci, "name", e.currentTarget.value)}
                           placeholder="column"
-                          style={{ flex: 1, minWidth: 0 }}
                         />
                       </FormField>
                       <FormField size="medium">
@@ -732,7 +730,6 @@ export function CommandFormFields({
                           onChange={(val) => changeOutputColumn(ci, "type", val ?? "text")}
                           data={IR_TYPES}
                           allowDeselect={false}
-                          w={130}
                         />
                       </FormField>
                       <ActionIcon

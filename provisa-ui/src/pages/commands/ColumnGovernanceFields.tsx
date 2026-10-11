@@ -14,7 +14,8 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Group, Select, TextInput } from "@mantine/core";
+import { Select, TextInput } from "@mantine/core";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 
 export interface GovernedColumn {
   name: string;
@@ -43,76 +44,88 @@ interface Props {
 export function ColumnGovernanceFields({ col, onChange, testId }: Props): React.ReactElement {
   const { t } = useTranslation();
   return (
-    <Group gap="xs" mb="xs" align="flex-end" wrap="wrap" pl="md" data-testid={testId}>
-      <TextInput
-        label={t("commandFormFields.colVisibleTo")}
-        placeholder={t("commandFormFields.colVisibleToPlaceholder")}
-        value={(col.visible_to ?? []).join(", ")}
-        onChange={(e) => {
-          const roles = splitRoles(e.currentTarget.value);
-          onChange({ visible_to: roles.length ? roles : null });
-        }}
-        style={{ flex: 1, minWidth: 140 }}
-        data-testid={`${testId}-visible-to`}
-      />
-      <Select
-        label={t("commandFormFields.colMask")}
-        data={[
-          { value: "", label: t("commandFormFields.maskNone") },
-          { value: "regex", label: t("commandFormFields.maskRegex") },
-          { value: "constant", label: t("commandFormFields.maskConstant") },
-          { value: "truncate", label: t("commandFormFields.maskTruncate") },
-        ]}
-        value={col.mask_type ?? ""}
-        onChange={(v) => onChange({ mask_type: v || null })}
-        allowDeselect={false}
-        w={130}
-        data-testid={`${testId}-mask-type`}
-      />
+    // Who sees the column and how it is masked: one row of fields, set in under the column it governs.
+    <FieldGroup
+      row
+      style={{ paddingInlineStart: "var(--mantine-spacing-md)" }}
+      data-testid={testId}
+    >
+      <FormField size="long">
+        <TextInput
+          label={t("commandFormFields.colVisibleTo")}
+          placeholder={t("commandFormFields.colVisibleToPlaceholder")}
+          value={(col.visible_to ?? []).join(", ")}
+          onChange={(e) => {
+            const roles = splitRoles(e.currentTarget.value);
+            onChange({ visible_to: roles.length ? roles : null });
+          }}
+          data-testid={`${testId}-visible-to`}
+        />
+      </FormField>
+      <FormField size="short">
+        <Select
+          label={t("commandFormFields.colMask")}
+          data={[
+            { value: "", label: t("commandFormFields.maskNone") },
+            { value: "regex", label: t("commandFormFields.maskRegex") },
+            { value: "constant", label: t("commandFormFields.maskConstant") },
+            { value: "truncate", label: t("commandFormFields.maskTruncate") },
+          ]}
+          value={col.mask_type ?? ""}
+          onChange={(v) => onChange({ mask_type: v || null })}
+          allowDeselect={false}
+          data-testid={`${testId}-mask-type`}
+        />
+      </FormField>
       {col.mask_type === "regex" && (
         <>
-          <TextInput
-            label={t("commandFormFields.maskPattern")}
-            value={col.mask_pattern ?? ""}
-            onChange={(e) => onChange({ mask_pattern: e.currentTarget.value })}
-            w={140}
-          />
-          <TextInput
-            label={t("commandFormFields.maskReplace")}
-            value={col.mask_replace ?? ""}
-            onChange={(e) => onChange({ mask_replace: e.currentTarget.value })}
-            w={110}
-          />
+          <FormField size="short">
+            <TextInput
+              label={t("commandFormFields.maskPattern")}
+              value={col.mask_pattern ?? ""}
+              onChange={(e) => onChange({ mask_pattern: e.currentTarget.value })}
+            />
+          </FormField>
+          <FormField size="short">
+            <TextInput
+              label={t("commandFormFields.maskReplace")}
+              value={col.mask_replace ?? ""}
+              onChange={(e) => onChange({ mask_replace: e.currentTarget.value })}
+            />
+          </FormField>
         </>
       )}
       {col.mask_type === "constant" && (
-        <TextInput
-          label={t("commandFormFields.maskValue")}
-          value={col.mask_value == null ? "" : String(col.mask_value)}
-          onChange={(e) => onChange({ mask_value: e.currentTarget.value })}
-          w={120}
-          data-testid={`${testId}-mask-value`}
-        />
+        <FormField size="short">
+          <TextInput
+            label={t("commandFormFields.maskValue")}
+            value={col.mask_value == null ? "" : String(col.mask_value)}
+            onChange={(e) => onChange({ mask_value: e.currentTarget.value })}
+            data-testid={`${testId}-mask-value`}
+          />
+        </FormField>
       )}
       {col.mask_type === "truncate" && (
-        <Select
-          label={t("commandFormFields.maskPrecision")}
-          data={["year", "month", "day", "hour"].map((p) => ({ value: p, label: p }))}
-          value={col.mask_precision ?? null}
-          onChange={(v) => onChange({ mask_precision: v })}
-          w={110}
-        />
+        <FormField size="short">
+          <Select
+            label={t("commandFormFields.maskPrecision")}
+            data={["year", "month", "day", "hour"].map((p) => ({ value: p, label: p }))}
+            value={col.mask_precision ?? null}
+            onChange={(v) => onChange({ mask_precision: v })}
+          />
+        </FormField>
       )}
       {col.mask_type && (
-        <TextInput
-          label={t("commandFormFields.colUnmaskedTo")}
-          placeholder={t("commandFormFields.colVisibleToPlaceholder")}
-          value={(col.unmasked_to ?? []).join(", ")}
-          onChange={(e) => onChange({ unmasked_to: splitRoles(e.currentTarget.value) })}
-          style={{ flex: 1, minWidth: 140 }}
-          data-testid={`${testId}-unmasked-to`}
-        />
+        <FormField size="long">
+          <TextInput
+            label={t("commandFormFields.colUnmaskedTo")}
+            placeholder={t("commandFormFields.colVisibleToPlaceholder")}
+            value={(col.unmasked_to ?? []).join(", ")}
+            onChange={(e) => onChange({ unmasked_to: splitRoles(e.currentTarget.value) })}
+            data-testid={`${testId}-unmasked-to`}
+          />
+        </FormField>
       )}
-    </Group>
+    </FieldGroup>
   );
 }
