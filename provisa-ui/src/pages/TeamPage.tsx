@@ -504,83 +504,86 @@ export function TeamPage() {
               />
             </FormLayout>
 
-            <ListTable minWidth={640} testId="team-invites">
-              <ListHead
-                sortGroup={inviteSortGroup}
-                columns={[
-                  { col: "token" },
-                  { col: "email" },
-                  { col: "role" },
-                  { col: "expires" },
-                  { col: "uses" },
-                  { col: "environment" },
-                  { col: "status" },
-                  t("teamPage.colActions"),
-                ]}
-              />
-              <Table.Tbody>
-                {invites.length === 0 && (
-                  <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
-                )}
-                <ListItems
-                  state={inviteSortGroup}
-                  colSpan={8}
-                  rowKey={(inv) => inv.token}
-                  render={(inv) => (
-                    <ListRow>
-                      <Table.Td>
-                        <Text ff="monospace" span>
-                          {inv.token.slice(0, 8)}…
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>{inv.email ?? "—"}</Table.Td>
-                      <Table.Td>{inv.role_id ?? "—"}</Table.Td>
-                      <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
-                      <Table.Td>
-                        {inv.max_uses === null
-                          ? t("teamPage.usesUnlimited", { used: inv.uses })
-                          : t("teamPage.usesOf", { used: inv.uses, max: inv.max_uses })}
-                      </Table.Td>
-                      <Table.Td>{envSummary(inv)}</Table.Td>
-                      <Table.Td>
-                        {isSpent(inv)
-                          ? t("teamPage.spentStatus")
-                          : inv.used_at
-                            ? t("teamPage.usedStatus", {
-                                date: new Date(inv.used_at).toLocaleDateString(),
-                              })
-                            : t("teamPage.activeStatus")}
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          {!isSpent(inv) && (
-                            <Button
-                              size="compact-xs"
-                              variant="default"
-                              onClick={() => handleCopy(inv.org_id, inv.token)}
-                            >
-                              {copiedToken === inv.token
-                                ? t("teamPage.copiedButton")
-                                : t("teamPage.copyButton")}
-                            </Button>
-                          )}
-                          {!isSpent(inv) && (
-                            <Button
-                              size="compact-xs"
-                              color="red"
-                              variant="light"
-                              onClick={() => handleRevoke(inv.token)}
-                            >
-                              {t("teamPage.revokeButton")}
-                            </Button>
-                          )}
-                        </Group>
-                      </Table.Td>
-                    </ListRow>
-                  )}
+            {/* The table keeps every column; what its card leaves too little room for scrolls. */}
+            <div className="card-table-scroll">
+              <ListTable minWidth={640} testId="team-invites">
+                <ListHead
+                  sortGroup={inviteSortGroup}
+                  columns={[
+                    { col: "token" },
+                    { col: "email" },
+                    { col: "role" },
+                    { col: "expires" },
+                    { col: "uses" },
+                    { col: "environment" },
+                    { col: "status" },
+                    t("teamPage.colActions"),
+                  ]}
                 />
-              </Table.Tbody>
-            </ListTable>
+                <Table.Tbody>
+                  {invites.length === 0 && (
+                    <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
+                  )}
+                  <ListItems
+                    state={inviteSortGroup}
+                    colSpan={8}
+                    rowKey={(inv) => inv.token}
+                    render={(inv) => (
+                      <ListRow>
+                        <Table.Td>
+                          <Text ff="monospace" span>
+                            {inv.token.slice(0, 8)}…
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>{inv.email ?? "—"}</Table.Td>
+                        <Table.Td>{inv.role_id ?? "—"}</Table.Td>
+                        <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
+                        <Table.Td>
+                          {inv.max_uses === null
+                            ? t("teamPage.usesUnlimited", { used: inv.uses })
+                            : t("teamPage.usesOf", { used: inv.uses, max: inv.max_uses })}
+                        </Table.Td>
+                        <Table.Td>{envSummary(inv)}</Table.Td>
+                        <Table.Td>
+                          {isSpent(inv)
+                            ? t("teamPage.spentStatus")
+                            : inv.used_at
+                              ? t("teamPage.usedStatus", {
+                                  date: new Date(inv.used_at).toLocaleDateString(),
+                                })
+                              : t("teamPage.activeStatus")}
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            {!isSpent(inv) && (
+                              <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() => handleCopy(inv.org_id, inv.token)}
+                              >
+                                {copiedToken === inv.token
+                                  ? t("teamPage.copiedButton")
+                                  : t("teamPage.copyButton")}
+                              </Button>
+                            )}
+                            {!isSpent(inv) && (
+                              <Button
+                                size="compact-xs"
+                                color="red"
+                                variant="light"
+                                onClick={() => handleRevoke(inv.token)}
+                              >
+                                {t("teamPage.revokeButton")}
+                              </Button>
+                            )}
+                          </Group>
+                        </Table.Td>
+                      </ListRow>
+                    )}
+                  />
+                </Table.Tbody>
+              </ListTable>
+            </div>
           </Accordion.Panel>
         </Accordion.Item>
 
