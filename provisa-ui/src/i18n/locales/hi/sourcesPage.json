@@ -1,5 +1,13 @@
 {
   "sourcesPage": {
+    "detailPanel": "स्रोत का विवरण",
+    "resizeDetail": "विवरण पैनल का आकार बदलें",
+    "expandDetail": "पैनल बड़ा करें",
+    "restoreDetail": "पैनल पहले जैसा करें",
+    "closeDetail": "विवरण पैनल बंद करें",
+    "backToList": "सूची पर वापस",
+    "backToSource": "स्रोत पर वापस",
+    "panelNewSource": "नया स्रोत",
     "title": "डेटा स्रोत",
     "loading": "स्रोत लोड हो रहे हैं...",
     "filterPlaceholder": "स्रोत ID या प्रकार से फ़िल्टर करें…",

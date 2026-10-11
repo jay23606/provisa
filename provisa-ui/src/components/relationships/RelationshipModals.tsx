@@ -8,17 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import {
-  Button,
-  Card,
-  Checkbox,
-  Modal,
-  NumberInput,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Button, Checkbox, Modal, NumberInput, Stack, Text, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { FormChecks, FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 import type { Relationship } from "../../types/admin";
@@ -98,8 +88,8 @@ interface ReverseRelationshipFormProps {
   onSave: () => void;
 }
 
-/** The form that creates a relationship's reverse. A working surface, so it is laid out on the
- *  page like the form that adds a relationship, not in a dialog (REQ-1968). */
+/** The form that creates a relationship's reverse. A working surface, so it is shown in the
+ *  page's detail panel, which titles it, not in a dialog (REQ-1968). */
 export function ReverseRelationshipForm({
   reverseForm,
   setReverseForm,
@@ -108,10 +98,7 @@ export function ReverseRelationshipForm({
 }: ReverseRelationshipFormProps) {
   const { t } = useTranslation();
   return (
-    <Card withBorder padding="md" data-testid="reverse-relationship-form">
-      <Title order={4} mb="sm">
-        {t("relationshipModals.reverseTitle")}
-      </Title>
+    <div data-testid="reverse-relationship-form">
       <FormLayout>
         <FormIdentifiers>
           <FormField size="medium">
@@ -170,6 +157,6 @@ export function ReverseRelationshipForm({
           cancelProps={{ "data-testid": "reverse-rel-cancel" }}
         />
       </FormLayout>
-    </Card>
+    </div>
   );
 }

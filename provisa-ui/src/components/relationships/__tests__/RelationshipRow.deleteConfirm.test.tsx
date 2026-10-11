@@ -9,16 +9,15 @@
 // permission from the copyright holder.
 
 // A relationship's trash icon asks before it deletes: the shared confirmation names the
-// relationship, and the row's onDelete runs only on confirm.
+// relationship, and onDelete runs only on confirm. The icon is in the relationship's detail.
 
 import { describe, it, expect, vi } from "vitest";
-import { Table } from "@mantine/core";
 import { screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { render } from "../../../test-utils/render";
-import { RelationshipRow } from "../RelationshipRow";
+import { RelationshipDetail } from "../RelationshipDetail";
 import type { ComponentProps } from "react";
 
-type Props = ComponentProps<typeof RelationshipRow>;
+type Props = ComponentProps<typeof RelationshipDetail>;
 
 function row(onDelete: () => void) {
   const props = {
@@ -32,8 +31,6 @@ function row(onDelete: () => void) {
       targetColumn: "id",
       cardinality: "many-to-one",
     },
-    isExpanded: true,
-    onToggle: vi.fn(),
     editingRel: null,
     setEditingRel: vi.fn(),
     canManage: true,
@@ -47,13 +44,7 @@ function row(onDelete: () => void) {
     tableDomainById: {},
     domainsEnabled: true,
   } as unknown as Props;
-  return (
-    <Table>
-      <Table.Tbody>
-        <RelationshipRow {...props} />
-      </Table.Tbody>
-    </Table>
-  );
+  return <RelationshipDetail {...props} />;
 }
 
 describe("RelationshipRow: deleting a relationship", () => {

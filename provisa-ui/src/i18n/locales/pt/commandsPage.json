@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "Detalhes do comando",
+    "resizeDetail": "Redimensionar o painel de detalhes",
+    "expandDetail": "Expandir o painel",
+    "restoreDetail": "Restaurar o painel",
+    "closeDetail": "Fechar o painel de detalhes",
+    "backToList": "Voltar à lista",
+    "backToCommand": "Voltar ao comando",
+    "panelNewCommand": "Novo comando",
     "title": "Comandos",
     "loading": "Carregando comandos...",
     "filterPlaceholder": "Filtrar por nome…",

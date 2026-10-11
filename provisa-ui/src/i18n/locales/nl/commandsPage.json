@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "Opdrachtdetails",
+    "resizeDetail": "Formaat van het detailpaneel wijzigen",
+    "expandDetail": "Paneel uitvouwen",
+    "restoreDetail": "Paneel herstellen",
+    "closeDetail": "Detailpaneel sluiten",
+    "backToList": "Terug naar de lijst",
+    "backToCommand": "Terug naar de opdracht",
+    "panelNewCommand": "Nieuwe opdracht",
     "title": "Opdrachten",
     "loading": "Opdrachten laden...",
     "filterPlaceholder": "Filteren op naam…",

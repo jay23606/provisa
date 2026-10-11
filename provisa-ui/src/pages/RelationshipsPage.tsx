@@ -12,7 +12,7 @@ import { relationshipInCheckedDomains } from "./relationshipDomainFilter";
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Sparkles, Code2, Network, X } from "lucide-react";
+import { ArrowLeft, Sparkles, Code2, Network, X } from "lucide-react";
 import { ActionIcon, Alert, Button, Group, Pagination, Table, Text, Title } from "@mantine/core";
 import { ErdModal } from "../components/erd/ErdModal";
 import { FilterInput } from "../components/admin/FilterInput";
@@ -46,6 +46,8 @@ import {
 } from "../components/relationships/relationship-types";
 import { AddRelationshipForm } from "../components/relationships/AddRelationshipForm";
 import { RelationshipRow } from "../components/relationships/RelationshipRow";
+import { RelationshipDetail } from "../components/relationships/RelationshipDetail";
+import { SplitPane } from "../components/list/SplitPane";
 import { ListTable, ListHead, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
 import {
@@ -421,6 +423,75 @@ export function RelationshipsPage() {
 
   if (loading) return <PageLoading message={t("relationshipsPage.loading")} />;
 
+  // The right-hand panel: the form that adds a relationship while it is open, otherwise the
+  // selected relationship -- its detail, the form that edits it, or the form that creates its
+  // reverse. Nothing selected: no panel, and the list has the page.
+  const closePanel = () => {
+    setShowForm(false);
+    setReverseForm(null);
+    setEditingRel(null);
+    setExpanded(null);
+  };
+  const selectedRel =
+    expanded === null ? null : (rels.find((r) => String(r.id) === expanded) ?? null);
+  const panelBody = showForm ? (
+    <div data-tour="rels-form">
+      <AddRelationshipForm
+        form={form}
+        setForm={setForm}
+        tables={tables}
+        functions={functions}
+        saving={saving}
+        onSave={handleAdd}
+        onCancel={() => setShowForm(false)}
+      />
+    </div>
+  ) : selectedRel && reverseForm ? (
+    <>
+      <div className="split-pane__bar">
+        <Button
+          variant="subtle"
+          size="compact-sm"
+          leftSection={<ArrowLeft size={14} />}
+          onClick={() => setReverseForm(null)}
+          data-testid="reverse-rel-back"
+        >
+          {t("relationshipsPage.backToRelationship", { id: selectedRel.id })}
+        </Button>
+      </div>
+      <ReverseRelationshipForm
+        reverseForm={reverseForm}
+        setReverseForm={setReverseForm}
+        saving={saving}
+        onSave={handleReverseAdd}
+      />
+    </>
+  ) : selectedRel ? (
+    <RelationshipDetail
+      rel={selectedRel}
+      editingRel={editingRel}
+      setEditingRel={setEditingRel}
+      canManage={canManage}
+      onStartEdit={() => startEditing(selectedRel)}
+      onReverse={() => setReverseForm(buildReverse(selectedRel))}
+      onDelete={() => handleDelete(String(selectedRel.id))}
+      onEditSave={handleEditSave}
+      saving={saving}
+      tables={tables}
+      functions={functions}
+      tableDomainById={tableDomainById}
+      domainsEnabled={domainsEnabled}
+    />
+  ) : null;
+  const panelIsReadOnly = !showForm && reverseForm === null && editingRel === null;
+  const panelTitle = showForm
+    ? t("relationshipsPage.panelNewRelationship")
+    : selectedRel && reverseForm
+      ? t("relationshipModals.reverseTitle")
+      : selectedRel
+        ? String(selectedRel.id)
+        : "";
+
   const totalPages = Math.max(1, Math.ceil(filteredRels.length / PAGE_SIZE));
 
   return (
@@ -433,13 +504,19 @@ export function RelationshipsPage() {
           placeholder={t("relationshipsPage.filterPlaceholder")}
         />
         <div className="page-actions">
-          {canManage && !reverseForm && (
+          {canManage && (
             <Button
               data-tour="rels-add"
               data-testid="rels-add-toggle"
               variant={showForm ? "outline" : "filled"}
               aria-label={showForm ? t("relationshipsPage.closeForm") : undefined}
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => {
+                // One thing in the panel at a time: the form replaces whatever row was open.
+                setExpanded(null);
+                setEditingRel(null);
+                setReverseForm(null);
+                setShowForm(!showForm);
+              }}
             >
               {showForm ? <X size={14} /> : t("relationshipsPage.addRelationship")}
             </Button>
@@ -525,135 +602,121 @@ export function RelationshipsPage() {
         </Text>
       )}
 
-      {/* page-aux: `.page-sticky-head`'s overflow:hidden otherwise clips a tall form with no
-          scrollport a mouse wheel can act on — see TablesPage.tsx's RegisterTableForm wrapper
-          for the full explanation; same treatment this page's own candidates block already
-          gets below. */}
-      {showForm && (
-        <div data-tour="rels-form" className="page-aux">
-          <AddRelationshipForm
-            form={form}
-            setForm={setForm}
-            tables={tables}
-            functions={functions}
-            saving={saving}
-            onSave={handleAdd}
-            onCancel={() => setShowForm(false)}
-          />
-        </div>
-      )}
-      {/* The reverse of a relationship is created on the page, as a relationship is added. */}
-      {reverseForm && (
-        <div className="page-aux">
-          <ReverseRelationshipForm
-            reverseForm={reverseForm}
-            setReverseForm={setReverseForm}
-            saving={saving}
-            onSave={handleReverseAdd}
-          />
-        </div>
-      )}
+      <SplitPane
+        testId="relationships-split"
+        storageKey="provisa.relationships.detailWidth"
+        title={panelTitle}
+        onClose={closePanel}
+        // Escape closes a relationship that is only being looked at; it never drops what is typed.
+        closeOnEscape={panelIsReadOnly}
+        labels={{
+          panel: t("relationshipsPage.detailPanel"),
+          resize: t("tablesPage.resizeDetail"),
+          expand: t("tablesPage.expandDetail"),
+          restore: t("tablesPage.restoreDetail"),
+          close: t("tablesPage.closeDetail"),
+          backToList: t("tablesPage.backToList"),
+        }}
+        list={
+          <>
+            <ListTable testId="relationships-list" style={{ tableLayout: "fixed" }}>
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  ...(domainsEnabled ? [{ col: "domain", width: "7%" }] : []),
+                  { col: "source", width: "22%" },
+                  { col: "target", width: "22%" },
+                  { label: t("relationshipsPage.gqlCqlAlias"), width: "20%" },
+                  { col: "cardinality", width: "11%" },
+                  { col: "materialize", width: "10%" },
+                  { label: t("relationshipsPage.refreshSeconds"), width: "8%" },
+                ]}
+              />
+              <Table.Tbody>
+                {(() => {
+                  const filtered = filteredRels;
 
-      <ListTable testId="relationships-list" style={{ tableLayout: "fixed" }}>
-        <ListHead
-          sortGroup={sortGroup}
-          columns={[
-            ...(domainsEnabled ? [{ col: "domain", width: "7%" }] : []),
-            { col: "source", width: "22%" },
-            { col: "target", width: "22%" },
-            { label: t("relationshipsPage.gqlCqlAlias"), width: "20%" },
-            { col: "cardinality", width: "11%" },
-            { col: "materialize", width: "10%" },
-            { label: t("relationshipsPage.refreshSeconds"), width: "8%" },
-          ]}
-        />
-        <Table.Tbody>
-          {(() => {
-            const filtered = filteredRels;
+                  if (filtered.length > 75 && !relSearch.trim() && groupBy.length === 0) {
+                    return (
+                      <ListEmpty colSpan={domainsEnabled ? 7 : 6}>
+                        {t("relationshipsPage.tooManyRelationships", { count: filtered.length })}
+                      </ListEmpty>
+                    );
+                  }
+                  if (filtered.length === 0) {
+                    return (
+                      <ListEmpty colSpan={domainsEnabled ? 7 : 6} testId="relationships-empty">
+                        {t("relationshipsPage.empty")}
+                      </ListEmpty>
+                    );
+                  }
 
-            if (filtered.length > 75 && !relSearch.trim() && groupBy.length === 0) {
-              return (
-                <ListEmpty colSpan={domainsEnabled ? 7 : 6}>
-                  {t("relationshipsPage.tooManyRelationships", { count: filtered.length })}
-                </ListEmpty>
-              );
-            }
-            if (filtered.length === 0) {
-              return (
-                <ListEmpty colSpan={domainsEnabled ? 7 : 6} testId="relationships-empty">
-                  {t("relationshipsPage.empty")}
-                </ListEmpty>
-              );
-            }
-
-            return (
-              <ListItems
-                state={sortGroup}
-                items={pageItems(sortGroup, relPage, PAGE_SIZE)}
-                colSpan={domainsEnabled ? 7 : 6}
-                rowKey={(r) => r.id}
-                render={(r) => {
-                  const id = String(r.id);
                   return (
-                    <RelationshipRow
-                      rel={r}
-                      isExpanded={expanded === id}
-                      onToggle={() => {
-                        setExpanded(expanded === id ? null : id);
-                        setEditingRel(null);
+                    <ListItems
+                      state={sortGroup}
+                      items={pageItems(sortGroup, relPage, PAGE_SIZE)}
+                      colSpan={domainsEnabled ? 7 : 6}
+                      rowKey={(r) => r.id}
+                      render={(r) => {
+                        const id = String(r.id);
+                        return (
+                          <RelationshipRow
+                            rel={r}
+                            selected={expanded === id}
+                            onToggle={() => {
+                              // The row opens its detail in the panel, swaps it, or closes it.
+                              setExpanded(expanded === id ? null : id);
+                              setEditingRel(null);
+                              setReverseForm(null);
+                              setShowForm(false);
+                            }}
+                            tableDomainById={tableDomainById}
+                            domainsEnabled={domainsEnabled}
+                          />
+                        );
                       }}
-                      editingRel={editingRel}
-                      setEditingRel={setEditingRel}
-                      canManage={canManage}
-                      onStartEdit={() => startEditing(r)}
-                      onReverse={reverseForm ? undefined : () => setReverseForm(buildReverse(r))}
-                      onDelete={() => handleDelete(id)}
-                      onEditSave={handleEditSave}
-                      saving={saving}
-                      tables={tables}
-                      functions={functions}
-                      tableDomainById={tableDomainById}
-                      domainsEnabled={domainsEnabled}
                     />
                   );
-                }}
-              />
-            );
-          })()}
-        </Table.Tbody>
-      </ListTable>
-      {totalPages > 1 && groupBy.length === 0 && (
-        <Group gap="sm" align="center" justify="flex-end" py="sm">
-          <ActionIcon
-            variant="subtle"
-            aria-label={t("relationshipsPage.firstPage")}
-            title={t("relationshipsPage.firstPage")}
-            onClick={() => setRelPage(0)}
-            disabled={relPage === 0}
-          >
-            «
-          </ActionIcon>
-          <Pagination
-            total={totalPages}
-            value={relPage + 1}
-            onChange={(p) => setRelPage(p - 1)}
-            size="sm"
-            data-testid="rels-pagination"
-          />
-          <Text fz="sm" data-testid="rels-page-label">
-            {t("relationshipsPage.pageOf", { page: relPage + 1, totalPages })}
-          </Text>
-          <ActionIcon
-            variant="subtle"
-            aria-label={t("relationshipsPage.lastPage")}
-            title={t("relationshipsPage.lastPage")}
-            onClick={() => setRelPage(totalPages - 1)}
-            disabled={relPage >= totalPages - 1}
-          >
-            »
-          </ActionIcon>
-        </Group>
-      )}
+                })()}
+              </Table.Tbody>
+            </ListTable>
+            {totalPages > 1 && groupBy.length === 0 && (
+              <Group gap="sm" align="center" justify="flex-end" py="sm">
+                <ActionIcon
+                  variant="subtle"
+                  aria-label={t("relationshipsPage.firstPage")}
+                  title={t("relationshipsPage.firstPage")}
+                  onClick={() => setRelPage(0)}
+                  disabled={relPage === 0}
+                >
+                  «
+                </ActionIcon>
+                <Pagination
+                  total={totalPages}
+                  value={relPage + 1}
+                  onChange={(p) => setRelPage(p - 1)}
+                  size="sm"
+                  data-testid="rels-pagination"
+                />
+                <Text fz="sm" data-testid="rels-page-label">
+                  {t("relationshipsPage.pageOf", { page: relPage + 1, totalPages })}
+                </Text>
+                <ActionIcon
+                  variant="subtle"
+                  aria-label={t("relationshipsPage.lastPage")}
+                  title={t("relationshipsPage.lastPage")}
+                  onClick={() => setRelPage(totalPages - 1)}
+                  disabled={relPage >= totalPages - 1}
+                >
+                  »
+                </ActionIcon>
+              </Group>
+            )}
+          </>
+        }
+      >
+        {panelBody}
+      </SplitPane>
 
       {showModelingModal && (
         <SqlModelingModal

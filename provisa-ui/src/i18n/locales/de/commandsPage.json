@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "Befehlsdetails",
+    "resizeDetail": "Größe des Detailbereichs ändern",
+    "expandDetail": "Bereich maximieren",
+    "restoreDetail": "Bereich wiederherstellen",
+    "closeDetail": "Detailbereich schließen",
+    "backToList": "Zurück zur Liste",
+    "backToCommand": "Zurück zum Befehl",
+    "panelNewCommand": "Neuer Befehl",
     "title": "Befehle",
     "loading": "Befehle werden geladen...",
     "filterPlaceholder": "Nach Name filtern…",

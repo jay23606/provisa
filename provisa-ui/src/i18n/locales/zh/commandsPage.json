@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "命令详情",
+    "resizeDetail": "调整详情面板大小",
+    "expandDetail": "展开面板",
+    "restoreDetail": "还原面板",
+    "closeDetail": "关闭详情面板",
+    "backToList": "返回列表",
+    "backToCommand": "返回命令",
+    "panelNewCommand": "新建命令",
     "title": "命令",
     "loading": "正在加载命令...",
     "filterPlaceholder": "按名称筛选…",

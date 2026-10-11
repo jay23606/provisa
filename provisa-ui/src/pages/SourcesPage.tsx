@@ -96,17 +96,11 @@ import {
   objectStoreOf,
 } from "./sources/objectStoreHints";
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
+import { PanelWorking } from "./sources/PanelWorking";
+import { PanelActions, SplitPane } from "../components/list/SplitPane";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
-import {
-  ListTable,
-  ListHead,
-  ListRow,
-  ListExpandRow,
-  ListEmpty,
-  ListDetail,
-  ListItems,
-} from "../components/list/ListTable";
+import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
 import { KeptTablesNotice } from "../components/KeptTablesNotice";
 import { keptTablesOf } from "../lib/keptTables";
@@ -807,6 +801,14 @@ export function SourcesPage() {
     setShowForm(false);
   };
 
+  // The source the short create step just made is selected and its detail opens in edit, with
+  // everything the step did not ask for at its default: read from the list as it is now.
+  const openCreated = async (id: string) => {
+    const fresh = await refetchSources();
+    const made = fresh.data?.sources.find((x) => x.id === id);
+    if (made) handleEdit(made);
+  };
+
   const handleCancelForm = () => {
     setShowForm(false);
     setEditingSourceId(null);
@@ -1195,8 +1197,10 @@ export function SourcesPage() {
           if (!domainsResult.success) throw refusalError(domainsResult);
         }
       }
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1328,8 +1332,10 @@ export function SourcesPage() {
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
       if (!cacheResult.success) throw refusalError(cacheResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1372,8 +1378,10 @@ export function SourcesPage() {
       if (ttlValue !== null && isNaN(ttlValue)) throw new Error("TTL must be a number");
       const cacheResult = await updateSourceCache(form.id, form.cacheEnabled, ttlValue);
       if (!cacheResult.success) throw refusalError(cacheResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -1431,8 +1439,10 @@ export function SourcesPage() {
         .filter(Boolean);
       const domainsResult = await updateSourceAllowedDomains(form.id, parsedDomains);
       if (!domainsResult.success) throw refusalError(domainsResult);
+      const created = editingSourceId ? null : form.id.trim();
       handleCancelForm();
       load();
+      if (created) await openCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1535,6 +1545,275 @@ export function SourcesPage() {
 
   if (loading) return <PageLoading message={t("sourcesPage.loading")} />;
 
+  // What a source's row offered beside it: now in the head of its panel, with its name.
+  const sourceActions = (s: Source) => (
+    <PanelActions>
+      <Group gap="xs" wrap="nowrap">
+        {DISCOVERABLE_TYPES.has(s.type) && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-discover-${s.id}`}
+            onClick={() => {
+              setDiscoverSourceId(s.id);
+              setDiscoverSourceType(s.type);
+              setMappingSourceId(null);
+            }}
+          >
+            {t("sourcesPage.discover")}
+          </Button>
+        )}
+        {MAPPING_TYPES.has(s.type) && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-map-table-${s.id}`}
+            onClick={() => {
+              setMappingSourceId(s.id);
+              setMappingSourceType(s.type);
+              setDiscoverSourceId(null);
+            }}
+          >
+            {t("sourcesPage.mapTable")}
+          </Button>
+        )}
+        {(s.type === "graphql" || s.type === "openapi" || s.type === "grpc") && (
+          <Button
+            size="compact-xs"
+            variant="default"
+            data-testid={`sources-refresh-schema-${s.id}`}
+            onClick={() => handleRefreshSchema(s.id, s.type)}
+            disabled={refreshingSourceId === s.id}
+          >
+            {refreshingSourceId === s.id
+              ? t("sourcesPage.refreshing")
+              : t("sourcesPage.refreshSchema")}
+          </Button>
+        )}
+      </Group>
+    </PanelActions>
+  );
+
+  // What the right-hand panel shows: a working surface opened from a source (it has a way back
+  // to the source), the short step that creates one, or the selected source -- being edited, or
+  // read.
+  const selectedSource = expanded ? (sources.find((x) => x.id === expanded) ?? null) : null;
+  const working =
+    discoverSourceId && discoverSourceType ? (
+      <PanelWorking
+        back={t("sourcesPage.backToSource")}
+        onBack={() => {
+          setDiscoverSourceId(null);
+          setDiscoverSourceType(null);
+        }}
+        testId="sources-working-back"
+      >
+        <SchemaDiscovery
+          sourceId={discoverSourceId}
+          sourceType={discoverSourceType}
+          onClose={() => {
+            setDiscoverSourceId(null);
+            setDiscoverSourceType(null);
+          }}
+          onRegistered={load}
+        />
+      </PanelWorking>
+    ) : mappingSourceId && mappingSourceType ? (
+      <PanelWorking
+        back={t("sourcesPage.backToSource")}
+        onBack={() => {
+          setMappingSourceId(null);
+          setMappingSourceType(null);
+        }}
+        testId="sources-working-back"
+      >
+        <TableMappingBuilder
+          sourceType={mappingSourceType}
+          onCancel={() => {
+            setMappingSourceId(null);
+            setMappingSourceType(null);
+          }}
+          onSave={(_mapping: TableMapping) => {
+            setMappingSourceId(null);
+            setMappingSourceType(null);
+            load();
+          }}
+        />
+      </PanelWorking>
+    ) : null;
+  const panelBody: React.ReactNode =
+    working ??
+    (showForm && !editingSourceId ? (
+      <FormLayout
+        component="form"
+        data-tour="sources-form"
+        className="form-card"
+        onSubmit={
+          carrierOf(form.type) === "openapi"
+            ? handleOpenapiRegister
+            : form.type === "grpc"
+              ? handleGrpcRegister
+              : carrierOf(form.type) === "graphql"
+                ? handleGraphqlRegister
+                : // REQ-1780/1783: kaggle registers per-file through KaggleFormSection's own
+                  // "Add Dataset" button (each file needs its own createSource+registerTable
+                  // call, not one createSource for a single "kaggle" type — which does not
+                  // exist as a SourceType) — the outer submit has nothing of its own to do.
+                  form.type === "kaggle"
+                  ? (e: React.FormEvent) => e.preventDefault()
+                  : handleCreate
+        }
+      >
+        <FormIdentifiers>
+          <FormField size="medium">
+            <TextInput
+              label={t("sourcesPage.idLabel")}
+              required
+              value={form.id}
+              onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
+              placeholder={t("sourcesPage.idPlaceholder")}
+              data-testid="sources-id-input"
+            />
+          </FormField>
+          <FormField size="long">
+            <label>
+              {t("sourcesPage.typeLabel")}
+              <select
+                className="form-select"
+                data-tour="sources-type"
+                data-testid="sources-type-select"
+                value={form.type}
+                onChange={(e) => handleTypeChange(e.target.value)}
+                // REQ-1938: clicking the field, or opening it from the keyboard, shows the picker
+                // dialog instead of the long native list. The select still holds the value, so
+                // setting it programmatically (selectOption) works unchanged.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setTypePickerOpen(true);
+                }}
+                // A click that was not preceded by a mouse press (the guided tour's) opens it too.
+                onClick={() => setTypePickerOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " " || (e.altKey && e.key === "ArrowDown")) {
+                    e.preventDefault();
+                    setTypePickerOpen(true);
+                  }
+                }}
+              >
+                {typeSelectData().map((group) => (
+                  <optgroup key={group.group} label={group.group}>
+                    {group.items.map((item) => (
+                      <option key={item.value} value={item.value} disabled={item.disabled}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </FormField>
+        </FormIdentifiers>
+        <SourceTypePicker
+          opened={typePickerOpen}
+          onClose={() => setTypePickerOpen(false)}
+          groups={typeSelectData()}
+          value={form.type}
+          onPick={handleTypeChange}
+        />
+        {/* Only what a source needs in order to exist; the rest is set in the edit form the
+            new source opens in. */}
+        <SourceFormFields {...sourceFormFieldsProps} essential />
+        {/* The same two actions, in the same place and order, as the edit form below: Save first,
+            Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
+            is created by its own section's button, so it gets Cancel alone. */}
+        <FormFooter
+          submit={form.type !== "kaggle"}
+          saving={submitting}
+          onCancel={handleCancelForm}
+          saveProps={{ "data-testid": "sources-submit" }}
+          cancelProps={{ "data-testid": "sources-cancel" }}
+        />
+      </FormLayout>
+    ) : selectedSource ? (
+      ((s: Source) => (
+        <>
+          {sourceActions(s)}
+          {editingSourceId === s.id ? (
+            <FormLayout
+              component="form"
+              className="form-card"
+              onSubmit={
+                carrierOf(form.type) === "openapi"
+                  ? handleOpenapiRegister
+                  : form.type === "grpc"
+                    ? handleGrpcRegister
+                    : carrierOf(form.type) === "graphql"
+                      ? handleGraphqlRegister
+                      : handleCreate
+              }
+              style={{ margin: 0 }}
+            >
+              <FormIdentifiers>
+                <FormField size="medium">
+                  <TextInput
+                    label={t("sourcesPage.idLabel")}
+                    required
+                    value={form.id}
+                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                  />
+                </FormField>
+                <FormField size="long">
+                  <Select
+                    label={t("sourcesPage.typeLabel")}
+                    value={form.type}
+                    onChange={(v) => v && handleTypeChange(v)}
+                    data={typeSelectData()}
+                    allowDeselect={false}
+                    searchable
+                  />
+                </FormField>
+              </FormIdentifiers>
+              <SourceFormFields {...sourceFormFieldsProps} />
+              <FormFooter
+                submit
+                saving={submitting}
+                onCancel={handleCancelForm}
+                saveProps={{ "data-testid": "sources-edit-submit" }}
+                cancelProps={{ "data-testid": "sources-edit-cancel" }}
+              />
+            </FormLayout>
+          ) : (
+            <SourceDetailPanel
+              s={s}
+              domainsEnabled={domainsEnabled}
+              getEffectiveTtl={getEffectiveTtl}
+              onEdit={() => handleEdit(s)}
+              onNavigate={() => navigate(`/tables?source=${encodeURIComponent(s.id)}`)}
+              onDelete={async () => {
+                const result = await deleteSource(s.id);
+                if (refusal.refused(result, s.id)) return;
+                if (expanded === s.id) updateExpanded(null);
+                load();
+              }}
+            />
+          )}
+        </>
+      ))(selectedSource)
+    ) : null);
+  const panelIsReadOnly = working === null && !showForm && editingSourceId === null;
+  const panelTitle =
+    showForm && !editingSourceId
+      ? t("sourcesPage.panelNewSource")
+      : (selectedSource?.id ?? discoverSourceId ?? mappingSourceId ?? "");
+  const closePanel = () => {
+    setDiscoverSourceId(null);
+    setDiscoverSourceType(null);
+    setMappingSourceId(null);
+    setMappingSourceType(null);
+    if (showForm || editingSourceId) handleCancelForm();
+    updateExpanded(null);
+  };
+
   return (
     <div className="page page-sticky-head">
       <div className="page-header">
@@ -1591,367 +1870,155 @@ export function SourcesPage() {
       )}
       <KeptTablesNotice kept={keptTables} onClose={() => setKeptTables([])} />
 
-      {/* page-aux: `.page-sticky-head`'s overflow:hidden otherwise clips a tall form (many
-          source-type fields, or Kaggle's dataset picker) with no scrollport a mouse wheel can
-          act on — see TablesPage.tsx's RegisterTableForm wrapper for the full explanation. */}
-      {showForm && !editingSourceId && (
-        <div className="page-aux">
-          <FormLayout
-            component="form"
-            data-tour="sources-form"
-            className="form-card"
-            onSubmit={
-              carrierOf(form.type) === "openapi"
-                ? handleOpenapiRegister
-                : form.type === "grpc"
-                  ? handleGrpcRegister
-                  : carrierOf(form.type) === "graphql"
-                    ? handleGraphqlRegister
-                    : // REQ-1780/1783: kaggle registers per-file through KaggleFormSection's own
-                      // "Add Dataset" button (each file needs its own createSource+registerTable
-                      // call, not one createSource for a single "kaggle" type — which does not
-                      // exist as a SourceType) — the outer submit has nothing of its own to do.
-                      form.type === "kaggle"
-                      ? (e: React.FormEvent) => e.preventDefault()
-                      : handleCreate
-            }
-          >
-            <FormIdentifiers>
-              <FormField size="medium">
-                <TextInput
-                  label={t("sourcesPage.idLabel")}
-                  required
-                  value={form.id}
-                  onChange={(e) => setForm({ ...form, id: e.currentTarget.value })}
-                  placeholder={t("sourcesPage.idPlaceholder")}
-                  data-testid="sources-id-input"
-                />
-              </FormField>
-              <FormField size="long">
-                <label>
-                  {t("sourcesPage.typeLabel")}
-                  <select
-                    className="form-select"
-                    data-tour="sources-type"
-                    data-testid="sources-type-select"
-                    value={form.type}
-                    onChange={(e) => handleTypeChange(e.target.value)}
-                    // REQ-1938: clicking the field, or opening it from the keyboard, shows the picker
-                    // dialog instead of the long native list. The select still holds the value, so
-                    // setting it programmatically (selectOption) works unchanged.
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setTypePickerOpen(true);
-                    }}
-                    // A click that was not preceded by a mouse press (the guided tour's) opens it too.
-                    onClick={() => setTypePickerOpen(true)}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" ||
-                        e.key === " " ||
-                        (e.altKey && e.key === "ArrowDown")
-                      ) {
-                        e.preventDefault();
-                        setTypePickerOpen(true);
-                      }
-                    }}
-                  >
-                    {typeSelectData().map((group) => (
-                      <optgroup key={group.group} label={group.group}>
-                        {group.items.map((item) => (
-                          <option key={item.value} value={item.value} disabled={item.disabled}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-              </FormField>
-            </FormIdentifiers>
-            <SourceTypePicker
-              opened={typePickerOpen}
-              onClose={() => setTypePickerOpen(false)}
-              groups={typeSelectData()}
-              value={form.type}
-              onPick={handleTypeChange}
-            />
-            <SourceFormFields {...sourceFormFieldsProps} />
-            {/* The same two actions, in the same place and order, as the edit form below: Save first,
-                Cancel beside it, at the start of the row and as wide as their labels. A Kaggle source
-                is created by its own section's button, so it gets Cancel alone. */}
-            <FormFooter
-              submit={form.type !== "kaggle"}
-              saving={submitting}
-              onCancel={handleCancelForm}
-              saveProps={{ "data-testid": "sources-submit" }}
-              cancelProps={{ "data-testid": "sources-cancel" }}
-            />
-          </FormLayout>
-        </div>
-      )}
-
-      {/* REQ-1587: the page owns the vertical scroll, so the table's own scroller is the plain
-          horizontal one — a Table.ScrollContainer would become the scrollport the header sticks to
-          and, growing to its content, would never scroll vertically. */}
-      <ListTable minWidth={860} testId="sources-list">
-        <ListHead
-          sortGroup={sortGroup}
-          columns={[
-            { col: "id" },
-            { col: "type" },
-            { col: "host" },
-            { col: "port" },
-            { col: "database" },
-            ...(hasRegions ? [{ col: "region" }] : []),
-            { col: "naming" },
-            { col: "cache" },
-            t("sourcesPage.colEffectiveTtl"),
-            t("sourcesPage.colActions"),
-          ]}
-        />
-        <Table.Tbody>
-          {(() => {
-            if (regionSources.length === 0) {
-              return <ListEmpty colSpan={hasRegions ? 10 : 9}>{t("sourcesPage.empty")}</ListEmpty>;
-            }
-            return (
-              <ListItems
-                state={sortGroup}
-                items={pageItems(sortGroup, page, PAGE_SIZE)}
-                colSpan={hasRegions ? 10 : 9}
-                rowKey={(s) => s.id}
-                render={(s) => {
-                  const isExpanded = expanded === s.id;
-                  const isEditing = editingSourceId === s.id;
-                  return (
-                    <React.Fragment key={s.id}>
-                      <ListRow
-                        testId={`sources-row-${s.id}`}
-                        onClick={() => {
-                          updateExpanded(isExpanded ? null : s.id);
-                          if (isEditing && isExpanded) {
-                            setEditingSourceId(null);
-                            handleCancelForm();
-                          }
-                        }}
-                      >
-                        <Table.Td>
-                          {/* As on Tables: the tag chips follow the identifier, the edit-tags control follows the chips. */}
-                          <Group gap="0.35rem">
-                            {s.id}
-                            <TagControl objectType="source" sourceId={s.id} />
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>{sourceTypeLabel(s.type, s.federationHintsJson)}</Table.Td>
-                        <Table.Td>{s.host}</Table.Td>
-                        <Table.Td>{s.port || "—"}</Table.Td>
-                        <Table.Td>{s.database || "—"}</Table.Td>
-                        {hasRegions && (
-                          <Table.Td c="dimmed" fz="0.85rem">
-                            {s.region ?? t("regionSelector.noRegion")}
-                          </Table.Td>
-                        )}
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {s.gqlNamingConvention || t("sourcesPage.naOrInherit")}
-                        </Table.Td>
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {s.cacheEnabled ? t("sourcesPage.cacheOn") : t("sourcesPage.cacheOff")}
-                        </Table.Td>
-                        <Table.Td c="dimmed" fz="0.85rem">
-                          {getEffectiveTtl(s)}
-                        </Table.Td>
-                        <Table.Td onClick={(e) => e.stopPropagation()}>
-                          <Group gap="xs" wrap="wrap">
-                            {DISCOVERABLE_TYPES.has(s.type) && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-discover-${s.id}`}
-                                onClick={() => {
-                                  setDiscoverSourceId(s.id);
-                                  setDiscoverSourceType(s.type);
-                                  setMappingSourceId(null);
-                                }}
-                              >
-                                {t("sourcesPage.discover")}
-                              </Button>
-                            )}
-                            {MAPPING_TYPES.has(s.type) && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-map-table-${s.id}`}
-                                onClick={() => {
-                                  setMappingSourceId(s.id);
-                                  setMappingSourceType(s.type);
-                                  setDiscoverSourceId(null);
-                                }}
-                              >
-                                {t("sourcesPage.mapTable")}
-                              </Button>
-                            )}
-                            {(s.type === "graphql" ||
-                              s.type === "openapi" ||
-                              s.type === "grpc") && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                data-testid={`sources-refresh-schema-${s.id}`}
-                                onClick={() => handleRefreshSchema(s.id, s.type)}
-                                disabled={refreshingSourceId === s.id}
-                              >
-                                {refreshingSourceId === s.id
-                                  ? t("sourcesPage.refreshing")
-                                  : t("sourcesPage.refreshSchema")}
-                              </Button>
-                            )}
-                          </Group>
-                        </Table.Td>
-                      </ListRow>
-                      {isExpanded && (
-                        <ListExpandRow colSpan={hasRegions ? 10 : 9}>
-                          <ListDetail>
-                            {isEditing ? (
-                              <FormLayout
-                                component="form"
-                                className="form-card"
-                                onSubmit={
-                                  carrierOf(form.type) === "openapi"
-                                    ? handleOpenapiRegister
-                                    : form.type === "grpc"
-                                      ? handleGrpcRegister
-                                      : carrierOf(form.type) === "graphql"
-                                        ? handleGraphqlRegister
-                                        : handleCreate
-                                }
-                                style={{ margin: 0 }}
-                              >
-                                <FormIdentifiers>
-                                  <FormField size="medium">
-                                    <TextInput
-                                      label={t("sourcesPage.idLabel")}
-                                      required
-                                      value={form.id}
-                                      onChange={(e) => setForm({ ...form, id: e.target.value })}
-                                    />
-                                  </FormField>
-                                  <FormField size="long">
-                                    <Select
-                                      label={t("sourcesPage.typeLabel")}
-                                      value={form.type}
-                                      onChange={(v) => v && handleTypeChange(v)}
-                                      data={typeSelectData()}
-                                      allowDeselect={false}
-                                      searchable
-                                    />
-                                  </FormField>
-                                </FormIdentifiers>
-                                <SourceFormFields {...sourceFormFieldsProps} />
-                                <FormFooter
-                                  submit
-                                  saving={submitting}
-                                  onCancel={handleCancelForm}
-                                />
-                              </FormLayout>
-                            ) : (
-                              <SourceDetailPanel
-                                s={s}
-                                domainsEnabled={domainsEnabled}
-                                getEffectiveTtl={getEffectiveTtl}
-                                onEdit={() => handleEdit(s)}
-                                onNavigate={() =>
-                                  navigate(`/tables?source=${encodeURIComponent(s.id)}`)
-                                }
-                                onDelete={async () => {
-                                  const result = await deleteSource(s.id);
-                                  if (refusal.refused(result, s.id)) return;
-                                  if (expanded === s.id) updateExpanded(null);
-                                  load();
-                                }}
-                              />
-                            )}
-                          </ListDetail>
-                        </ListExpandRow>
-                      )}
-                    </React.Fragment>
-                  );
-                }}
+      <SplitPane
+        testId="sources-split"
+        storageKey="provisa.sources.detailWidth"
+        title={panelTitle}
+        onClose={closePanel}
+        // Escape closes a source that is only being looked at; it never drops what is being typed.
+        closeOnEscape={panelIsReadOnly}
+        labels={{
+          panel: t("sourcesPage.detailPanel"),
+          resize: t("sourcesPage.resizeDetail"),
+          expand: t("sourcesPage.expandDetail"),
+          restore: t("sourcesPage.restoreDetail"),
+          close: t("sourcesPage.closeDetail"),
+          backToList: t("sourcesPage.backToList"),
+        }}
+        list={
+          <>
+            {/* REQ-1587: the page owns the vertical scroll, so the table's own scroller is the plain
+                horizontal one — a Table.ScrollContainer would become the scrollport the header sticks to
+                and, growing to its content, would never scroll vertically. */}
+            <ListTable minWidth={860} testId="sources-list">
+              <ListHead
+                sortGroup={sortGroup}
+                columns={[
+                  { col: "id" },
+                  { col: "type" },
+                  { col: "host" },
+                  { col: "port" },
+                  { col: "database" },
+                  ...(hasRegions ? [{ col: "region" }] : []),
+                  { col: "naming" },
+                  { col: "cache" },
+                  t("sourcesPage.colEffectiveTtl"),
+                ]}
               />
-            );
-          })()}
-        </Table.Tbody>
-      </ListTable>
+              <Table.Tbody>
+                {(() => {
+                  if (regionSources.length === 0) {
+                    return (
+                      <ListEmpty colSpan={hasRegions ? 9 : 8}>{t("sourcesPage.empty")}</ListEmpty>
+                    );
+                  }
+                  return (
+                    <ListItems
+                      state={sortGroup}
+                      items={pageItems(sortGroup, page, PAGE_SIZE)}
+                      colSpan={hasRegions ? 9 : 8}
+                      rowKey={(s) => s.id}
+                      render={(s) => {
+                        const isExpanded = expanded === s.id;
+                        const isEditing = editingSourceId === s.id;
+                        return (
+                          <React.Fragment key={s.id}>
+                            <ListRow
+                              testId={`sources-row-${s.id}`}
+                              // The row whose detail the right-hand panel is showing.
+                              selected={isExpanded}
+                              onClick={() => {
+                                updateExpanded(isExpanded ? null : s.id);
+                                if (isEditing && isExpanded) {
+                                  setEditingSourceId(null);
+                                  handleCancelForm();
+                                }
+                              }}
+                            >
+                              <Table.Td>
+                                {/* As on Tables: the tag chips follow the identifier, the edit-tags control follows the chips. */}
+                                <Group gap="0.35rem">
+                                  {s.id}
+                                  <TagControl objectType="source" sourceId={s.id} />
+                                </Group>
+                              </Table.Td>
+                              <Table.Td>{sourceTypeLabel(s.type, s.federationHintsJson)}</Table.Td>
+                              <Table.Td>{s.host}</Table.Td>
+                              <Table.Td>{s.port || "—"}</Table.Td>
+                              <Table.Td>{s.database || "—"}</Table.Td>
+                              {hasRegions && (
+                                <Table.Td c="dimmed" fz="0.85rem">
+                                  {s.region ?? t("regionSelector.noRegion")}
+                                </Table.Td>
+                              )}
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {s.gqlNamingConvention || t("sourcesPage.naOrInherit")}
+                              </Table.Td>
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {s.cacheEnabled
+                                  ? t("sourcesPage.cacheOn")
+                                  : t("sourcesPage.cacheOff")}
+                              </Table.Td>
+                              <Table.Td c="dimmed" fz="0.85rem">
+                                {getEffectiveTtl(s)}
+                              </Table.Td>
+                            </ListRow>
+                          </React.Fragment>
+                        );
+                      }}
+                    />
+                  );
+                })()}
+              </Table.Tbody>
+            </ListTable>
 
-      {(() => {
-        const filtered = filteredSources;
-        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-        if (totalPages === 1 || sortGroup.groupBy.length > 0) return null;
-        return (
-          <Group justify="flex-end" gap="xs" align="center" py="xs">
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.firstPage")}
-              onClick={() => setPage(0)}
-              disabled={page === 0}
-            >
-              «
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.previousPage")}
-              onClick={() => setPage((p) => p - 1)}
-              disabled={page === 0}
-            >
-              ‹
-            </ActionIcon>
-            <Text fz="sm">{t("sourcesPage.pageStatus", { page: page + 1, totalPages })}</Text>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.nextPage")}
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= totalPages - 1}
-            >
-              ›
-            </ActionIcon>
-            <ActionIcon
-              variant="default"
-              aria-label={t("sourcesPage.lastPage")}
-              onClick={() => setPage(totalPages - 1)}
-              disabled={page >= totalPages - 1}
-            >
-              »
-            </ActionIcon>
-          </Group>
-        );
-      })()}
-
-      {discoverSourceId && discoverSourceType && (
-        <SchemaDiscovery
-          sourceId={discoverSourceId}
-          sourceType={discoverSourceType}
-          onClose={() => {
-            setDiscoverSourceId(null);
-            setDiscoverSourceType(null);
-          }}
-          onRegistered={load}
-        />
-      )}
-
-      {mappingSourceId && mappingSourceType && (
-        <TableMappingBuilder
-          sourceType={mappingSourceType}
-          onCancel={() => {
-            setMappingSourceId(null);
-            setMappingSourceType(null);
-          }}
-          onSave={(_mapping: TableMapping) => {
-            setMappingSourceId(null);
-            setMappingSourceType(null);
-            load();
-          }}
-        />
-      )}
+            {(() => {
+              const filtered = filteredSources;
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              if (totalPages === 1 || sortGroup.groupBy.length > 0) return null;
+              return (
+                <Group justify="flex-end" gap="xs" align="center" py="xs">
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.firstPage")}
+                    onClick={() => setPage(0)}
+                    disabled={page === 0}
+                  >
+                    «
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.previousPage")}
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 0}
+                  >
+                    ‹
+                  </ActionIcon>
+                  <Text fz="sm">{t("sourcesPage.pageStatus", { page: page + 1, totalPages })}</Text>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.nextPage")}
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    ›
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="default"
+                    aria-label={t("sourcesPage.lastPage")}
+                    onClick={() => setPage(totalPages - 1)}
+                    disabled={page >= totalPages - 1}
+                  >
+                    »
+                  </ActionIcon>
+                </Group>
+              );
+            })()}
+          </>
+        }
+      >
+        {panelBody}
+      </SplitPane>
       {refusal.dialog}
     </div>
   );
