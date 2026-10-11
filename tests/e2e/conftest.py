@@ -15,7 +15,6 @@ import time
 
 import pytest
 
-from tests import ci_images
 from tests._noauth_config import pin_no_auth_config
 from tests.itest_stack import E2E_PROJECT, acquire_stack_slot, reap_orphaned_projects
 from tests.port_lease import lease_ports
@@ -35,11 +34,6 @@ _COMPOSE_ARGS = [
     "-f",
     "docker-compose.e2e.yml",
 ]
-# In CI this stack's pulled images are this repository's copies too (tests/ci_images.py).
-_COMPOSE_ARGS += ci_images.compose_args(
-    [os.path.join(_REPO_ROOT, arg) for arg in _COMPOSE_ARGS if arg != "-f"],
-    os.path.join(_REPO_ROOT, ".itest-trino", E2E_PROJECT, "ci-images.yml"),
-)
 # kafka backs the kafka-source query (REQ-147) and kafka/debezium live-delivery
 # strategies that Provisa consumes; producer-side messages are written by tests.
 _SERVICES = ["postgres", "trino", "redis", "pgbouncer", "zaychik", "minio", "kafka"]

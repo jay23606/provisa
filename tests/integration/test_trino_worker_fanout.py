@@ -31,7 +31,6 @@ from pathlib import Path
 import pytest
 import trino.dbapi
 
-from tests.itest_stack import CI_IMAGES_ARGS
 from tests.itest_stack import ITEST_PROJECT as _ITEST_PROJECT
 
 pytestmark = [pytest.mark.integration]
@@ -52,7 +51,6 @@ def _compose(*args: str) -> subprocess.CompletedProcess:
     cmd = ["docker", "compose", "-p", _ITEST_PROJECT]
     for f in _COMPOSE_FILES:
         cmd += ["-f", str(f)]
-    cmd += CI_IMAGES_ARGS  # the stack's images, as it was started with them
     cmd += list(args)
     return subprocess.run(cmd, cwd=_REPO_ROOT, capture_output=True, text=True, timeout=300)
 

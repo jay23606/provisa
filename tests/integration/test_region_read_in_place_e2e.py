@@ -33,7 +33,6 @@ import psycopg
 import pytest
 import yaml
 
-from tests.ci_images import image
 from tests.integration.test_pg_engine_landing_never_writes_source_e2e import _SourceAndEngine
 
 pytestmark = [pytest.mark.integration]
@@ -152,7 +151,7 @@ class _Stack(_SourceAndEngine):
                 conn.execute(f"CREATE DATABASE {region}_store")
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--name", self._redis]
-            + ["-p", f"127.0.0.1:{self.redis_port}:6379", image("redis:7-alpine")],
+            + ["-p", f"127.0.0.1:{self.redis_port}:6379", "redis:7-alpine"],
             check=True,
             capture_output=True,
         )

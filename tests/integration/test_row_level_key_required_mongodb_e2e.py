@@ -32,8 +32,6 @@ import httpx
 import pytest
 import yaml
 
-from tests.ci_images import image
-
 pytestmark = [pytest.mark.integration]
 
 _ROLE = "org_admin"
@@ -60,19 +58,13 @@ class _Stores:
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--memory", "512m", "--name", self._pg]
             + ["-e", "POSTGRES_USER=provisa", "-e", "POSTGRES_PASSWORD=provisa"]
-            + [
-                "-e",
-                "POSTGRES_DB=provisa",
-                "-p",
-                f"127.0.0.1:{self.pg_port}:5432",
-                image("postgres:16"),
-            ],
+            + ["-e", "POSTGRES_DB=provisa", "-p", f"127.0.0.1:{self.pg_port}:5432", "postgres:16"],
             check=True,
             capture_output=True,
         )
         subprocess.run(
             ["docker", "run", "-d", "--rm", "--memory", "512m", "--name", self._mongo]
-            + ["-p", f"127.0.0.1:{self.mongo_port}:27017", image("mongo:7"), "--profile", "2"],
+            + ["-p", f"127.0.0.1:{self.mongo_port}:27017", "mongo:7", "--profile", "2"],
             check=True,
             capture_output=True,
         )

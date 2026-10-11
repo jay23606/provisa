@@ -26,8 +26,6 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from tests.ci_images import image
-
 pytestmark = [pytest.mark.integration]
 
 _KEY, _SECRET, _BUCKET = "provisa-test", "provisa-test-secret", "provisa-results"
@@ -48,7 +46,7 @@ def store():
         + ["-e", f"MINIO_ROOT_USER={_KEY}", "-e", f"MINIO_ROOT_PASSWORD={_SECRET}"]
         # The image the core stack runs (docker-compose.core.yml): MinIO's own repositories refuse
         # anonymous pulls, and bitnamilegacy/minio keeps its data under /bitnami/minio/data.
-        + ["-p", f"127.0.0.1:{port}:9000", image("bitnamilegacy/minio:latest")]
+        + ["-p", f"127.0.0.1:{port}:9000", "bitnamilegacy/minio:latest"]
         + ["server", "/bitnami/minio/data"],
         check=True,
         capture_output=True,

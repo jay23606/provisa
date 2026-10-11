@@ -21,8 +21,6 @@ import time
 import pytest
 from pytest_bdd import given, scenario, then, when
 
-from tests.ci_images import image
-
 pytestmark = [pytest.mark.integration]
 
 # A FULLY ISOLATED container name so the fixture never touches the dev stack, the
@@ -48,16 +46,7 @@ def _mongodb_service():
     subprocess.run(["docker", "rm", "-f", _MONGO_CONTAINER], capture_output=True, check=False)
     port = _free_port()
     subprocess.run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            _MONGO_CONTAINER,
-            "-p",
-            f"{port}:27017",
-            image("mongo:7"),
-        ],
+        ["docker", "run", "-d", "--name", _MONGO_CONTAINER, "-p", f"{port}:27017", "mongo:7"],
         check=True,
         capture_output=True,
     )

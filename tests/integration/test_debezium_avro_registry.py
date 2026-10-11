@@ -38,7 +38,6 @@ import pytest
 
 from provisa.kafka.avro_registry import RegistrySettings, SchemaRegistryRefusal
 from provisa.subscriptions.debezium_provider import DebeziumNotificationProvider
-from tests.ci_images import image
 from tests.itest_stack import ITEST_PROJECT
 from tests.port_lease import lease_port
 
@@ -48,7 +47,7 @@ pytestmark = [
     pytest.mark.asyncio(loop_scope="session"),
 ]
 
-_IMAGE = image("confluentinc/cp-schema-registry:7.6.0")  # the stack's own registry image
+_IMAGE = "confluentinc/cp-schema-registry:7.6.0"  # the stack's own registry image
 _USER, _PASSWORD = "reader", "s3cret-registry"
 _STORE_PASSWORD = "changeit"
 

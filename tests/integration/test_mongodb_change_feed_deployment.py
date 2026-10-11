@@ -19,15 +19,13 @@ import time
 
 import pytest
 
-from tests.ci_images import image
-
 pytestmark = [pytest.mark.integration]
 
 
 def _start(name: str, port: int, *args: str) -> None:
     subprocess.run(
         ["docker", "run", "-d", "--rm", "--memory", "384m", "--name", name]
-        + ["-p", f"127.0.0.1:{port}:27017", image("mongo:7"), "--bind_ip_all", *args],
+        + ["-p", f"127.0.0.1:{port}:27017", "mongo:7", "--bind_ip_all", *args],
         check=True,
         capture_output=True,
     )

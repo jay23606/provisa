@@ -48,8 +48,6 @@ import signal
 import subprocess
 import time
 
-from tests import ci_images
-
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CORE_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.core.yml")
 TEST_COMPOSE = os.path.join(_REPO_ROOT, "docker-compose.test.yml")
@@ -81,15 +79,6 @@ _PREFIXES = (_ITEST_PREFIX, _E2E_PREFIX)
 ITEST_PROJECT = session_project(_ITEST_PREFIX, "PROVISA_ITEST_PROJECT")
 E2E_PROJECT = session_project(_E2E_PREFIX, "PROVISA_E2E_PROJECT")
 COMPOSE_ARGS = ["-p", ITEST_PROJECT, "-f", CORE_COMPOSE, "-f", TEST_COMPOSE, "-f", ITEST_COMPOSE]
-# In CI the stack's pulled images are this repository's copies (tests/ci_images.py): one more
-# compose file, written per session and added last, that points each pulled service at its copy.
-# Empty anywhere else. A harness that builds its own file list for THIS stack appends it too, or
-# compose reads the services as changed.
-CI_IMAGES_ARGS = ci_images.compose_args(
-    [arg for arg in COMPOSE_ARGS if arg.endswith(".yml")],
-    os.path.join(_REPO_ROOT, ".itest-trino", ITEST_PROJECT, "ci-images.yml"),
-)
-COMPOSE_ARGS += CI_IMAGES_ARGS
 
 
 def _session_trino_etc() -> str:
