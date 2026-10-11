@@ -133,7 +133,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/GlossaryRelationships.tsx",
   "components/admin/GlossaryTab.tsx",
   "components/form/FormLayout.tsx",
-  "pages/TablesPage.tsx",
 ];
 
 function componentFiles(dir: string, found: string[] = []): string[] {

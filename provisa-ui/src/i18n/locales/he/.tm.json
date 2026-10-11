@@ -5190,7 +5190,6 @@
   "he/tablesPage.json::tablesPage.resizeDetail": "Resize the detail panel",
   "he/tablesPage.json::tablesPage.restoreDetail": "Restore the panel",
   "he/tablesPage.json::tablesPage.runNow": "Run Now",
-  "he/tablesPage.json::tablesPage.runNowCancel": "Cancel",
   "he/tablesPage.json::tablesPage.runNowModalTitle": "Run {{table}} now",
   "he/tablesPage.json::tablesPage.runNowQueued": "Run queued for {{table}}.",
   "he/tablesPage.json::tablesPage.runNowQueuing": "Queuing...",

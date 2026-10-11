@@ -37,7 +37,6 @@
     "runNowSubmit": "今すぐ実行",
     "runNowQueuing": "キューに追加中...",
     "runNowQueued": "{{table}} の実行をキューに追加しました。",
-    "runNowCancel": "キャンセル",
     "dependentsTitle": "これらの列は他のアーティファクトから参照されています",
     "dependentsIntro": "列の SQL エイリアスを変更または列を削除すると、現在の名前で列を参照している以下のアーティファクトが壊れます。このまま保存しますか？",
     "dependentsCancel": "戻る",

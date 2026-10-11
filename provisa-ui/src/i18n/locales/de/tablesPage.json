@@ -37,7 +37,6 @@
     "runNowSubmit": "Jetzt ausführen",
     "runNowQueuing": "Wird eingereiht...",
     "runNowQueued": "Lauf für {{table}} eingereiht.",
-    "runNowCancel": "Abbrechen",
     "dependentsTitle": "Andere Artefakte verwenden diese Spalten",
     "dependentsIntro": "Wenn Sie den SQL-Alias einer Spalte umbenennen oder die Spalte entfernen, brechen die unten aufgeführten Artefakte, die die Spalte unter ihrem heutigen Namen ansprechen. Trotzdem speichern?",
     "dependentsCancel": "Zurück",

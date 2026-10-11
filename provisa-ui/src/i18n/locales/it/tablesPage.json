@@ -37,7 +37,6 @@
     "runNowSubmit": "Esegui ora",
     "runNowQueuing": "In coda...",
     "runNowQueued": "Esecuzione in coda per {{table}}.",
-    "runNowCancel": "Annulla",
     "dependentsTitle": "Altri artefatti usano queste colonne",
     "dependentsIntro": "Rinominare l'alias SQL di una colonna o rimuoverla romperà gli artefatti elencati sotto, che chiamano la colonna con il nome attuale. Salvare comunque?",
     "dependentsCancel": "Indietro",

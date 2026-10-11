@@ -37,7 +37,6 @@
     "runNowSubmit": "Ejecutar ahora",
     "runNowQueuing": "Encolando...",
     "runNowQueued": "Ejecución encolada para {{table}}.",
-    "runNowCancel": "Cancelar",
     "dependentsTitle": "Otros artefactos usan estas columnas",
     "dependentsIntro": "Cambiar el alias SQL de una columna o eliminarla romperá los artefactos siguientes, que nombran la columna tal como está hoy. ¿Guardar de todos modos?",
     "dependentsCancel": "Volver",

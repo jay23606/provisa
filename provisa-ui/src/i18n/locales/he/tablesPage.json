@@ -37,7 +37,6 @@
     "runNowSubmit": "הרץ עכשיו",
     "runNowQueuing": "מוסיף לתור...",
     "runNowQueued": "ההרצה עבור {{table}} נוספה לתור.",
-    "runNowCancel": "ביטול",
     "dependentsTitle": "פריטים אחרים משתמשים בעמודות אלה",
     "dependentsIntro": "שינוי הכינוי (alias) של עמודה ב-SQL או הסרתה ישברו את הפריטים שלהלן, המפנים לעמודה בשמה הנוכחי. לשמור בכל זאת?",
     "dependentsCancel": "חזרה",

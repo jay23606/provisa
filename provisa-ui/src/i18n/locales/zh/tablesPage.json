@@ -37,7 +37,6 @@
     "runNowSubmit": "立即运行",
     "runNowQueuing": "正在排队...",
     "runNowQueued": "已为 {{table}} 排队运行。",
-    "runNowCancel": "取消",
     "dependentsTitle": "其他对象正在使用这些列",
     "dependentsIntro": "重命名列的 SQL 别名或删除该列，会破坏下列对象，它们按当前名称引用该列。仍要保存吗？",
     "dependentsCancel": "返回",

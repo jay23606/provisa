@@ -37,7 +37,6 @@
     "runNowSubmit": "Executar agora",
     "runNowQueuing": "Enfileirando...",
     "runNowQueued": "Execução enfileirada para {{table}}.",
-    "runNowCancel": "Cancelar",
     "dependentsTitle": "Outros artefatos usam estas colunas",
     "dependentsIntro": "Renomear o alias SQL de uma coluna ou removê-la vai quebrar os artefatos abaixo, que citam a coluna com o nome atual. Salvar mesmo assim?",
     "dependentsCancel": "Voltar",
