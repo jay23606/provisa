@@ -77682,3 +77682,99 @@
   - REQ-1921
   - REQ-020
   notes: 'Maintainer 2026-10-11: "every save op needs to go through a consequences gate probably same contract - but will have to unique to each object. and agree harmless, just do it, feasible but has consequences, not feasible and why." Earlier the same day: "in detail panel ALL fields, including identity fields should be editable" and "there vast implications for certain changes, for example data source type. how to handle changes that may invalidate dependent objects?" Rationale: a change to one object can invalidate others (a source''s type, a table''s or a column''s name), and today each save path decides for itself what it refuses, what it confirms and what it flags; one gate with one contract makes the answer the same from every entrance and lets identity fields be edited without leaving dependents broken. His words fix the gate on every save, one contract with a judgement unique to each object, and the three verdicts. The following go beyond his words and are the lead''s elaboration, pending his review: that a consequential save proceeds only on confirmation of exactly the listed consequences; that a field no judgement has classified is treated as consequential; which dependents return to draft and which are flagged needs review, and that this happens in the save''s transaction; that the verdict states what it cannot see; that fields are read-only until an object type has its judgement; and the guard named as acceptance.'
+- id: REQ-1970
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: On a list page a row's detail opens in a right-hand panel beside the list, not under the row. The panel is resizable and can be expanded; one row's detail is open at a time. Whether a page uses the right-hand panel or an inline detail is chosen per page. The right-hand panel is used on Tables, Views, Sources, Relationships, Metrics, Commands, and Security's Roles and RLS; Data Products keeps its inline detail. A page's list stretches to the width of the viewport.
+  use_case: An operator scanning a list of tables selects one and reads or edits its detail without losing the list, widens the panel for a long form, and selects the next row to replace what is shown.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "just an expandable, resizable right side detail panel is a common UI idiom"; "perhaps we need to make choices per page on inline vs right hand panel"; "the data products page looked really good"; "page lists should stretch to viewport width (tables does this)". The following go beyond his words and are the lead''s elaboration: that one detail is open at a time; the list of pages the panel is applied to is what was converted on his machine when this was recorded.'
+- id: REQ-1971
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The head of a detail panel is pinned: the item''s name, then its actions. While the item is being edited, Save and Cancel take the place of the actions in the head; nothing is pinned at the foot of the panel. The actions in a detail panel''s head share one style: no background and no border.'
+  use_case: An operator editing a long detail always has Save and Cancel in view at the top of the panel, and the panel's height goes to the fields rather than to a bar of disabled buttons and a footer.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "instead of greying out the detail actions replace them with save/cancel (that will improve use of vertical space. You can make save/cancel borderless to save space." Still being built when this was recorded (proposed, not yet on his machine): "the action buttons in the right hand detail panel have a variety of styles - standardize on no background, no border." The following go beyond his words and are the lead''s elaboration: that the head is pinned and that nothing is pinned at the foot, as the form in which his sentence was built.'
+- id: REQ-1972
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: An item's detail is divided into sections shown as top-level tabs, not as one scrolling form with expanding sections. The read view and the edit view use the SAME tabs, and the read view summarises every detail of the item. For a table the tabs are Identity, Associations, Load and timeliness, Query, Quality, Columns.
+  use_case: An operator looking for a table's refresh settings goes to the same tab whether reading or editing, and sees everything the table is set to without opening an editor.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "all details of the table should be summarized in the table detail info. int the table detail edit, don''t use a scrolling form with expanding sections, instead devide the table details into section and use a top level tab to show them …"; "perhaps same tab layout for both detail view and edit view". The following go beyond his words and are the lead''s elaboration: the six tab names for a table, and that the rule holds for every item''s detail and not only a table''s.'
+- id: REQ-1973
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The column editor is four tabs: Naming, Type and keys, Access, Testing. The column''s name comes first on each tab, and a hover on the name shows the column''s full definition.'
+  use_case: An operator setting access on forty columns works in a table narrow enough to read, with the column's name always in the first position and the rest of its definition one hover away.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the entire column editor is very horizontally hungry"; "you might have a hover over the column name that shows its full definition"; "collapse the column editor into 4 tabs (make testing the 4th tab)". The following go beyond his words and are the lead''s elaboration: the names of the first three tabs.'
+- id: REQ-1974
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: Creating an object is short. The page's + button asks only for what the object needs in order to exist; the object is then created, selected in the list, and its detail opens in edit. The create form is a subset of the edit form. For a table, creating registers every column.
+  use_case: An operator adds a source by giving its identity, sees it in the list at once, and completes the rest in the same editor used for any later change.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the +{object} … could be much shorter - like create the identity field(s) - add to the list - and then open the detail editor"; on building it: "add it". Still being built when this was recorded (proposed, not yet on his machine): for tables, "Register every column". The following go beyond his words and are the lead''s elaboration: that the create form is a subset of the edit form and that the new object is selected in the list.'
+- id: REQ-1975
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'A working surface is not modal: an editor or a form an operator works in is part of the page. A dialog is used only for a short interruption. Every delete of saved state asks for confirmation. Leaving a panel form that has unsaved changes asks "Discard your changes?".'
+  use_case: An operator editing a table can still read the list, switch to another page's information and come back; a dialog appears only to confirm something that cannot be taken back.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "polly argues for a fulid editor (minimize modals)". Still being built when this was recorded (proposed, not yet on his machine): leaving a panel form with unsaved changes asks "Discard your changes?" -- his choice from options put to him. The following go beyond his words and are the lead''s elaboration: that every delete of saved state confirms, and the reading of a dialog as a short interruption only.'
+- id: REQ-1976
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The explorers are outside the form and detail-panel rules: the pages at /query, /graph, /sql, /jsonapi, /openapi, /explore and /lineage are a different experience and keep their own layout. The Schema Explorer''s fonts and colours follow the application''s styles.'
+  use_case: An analyst working in the SQL or graph explorer keeps a workspace built for exploration; the rules for list pages and forms are not imposed on it.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "the explorers were fine"; "its a completely different experience"; on the Schema Explorer, his choice from options: "option 1 - align fonts and colors to the styles used." The following go beyond his words and are the lead''s elaboration: the list of the seven routes that count as explorers.'
+- id: REQ-1977
+  status: accepted
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI & Design Patterns
+  priority: SHOULD
+  type: ui
+  description: 'The application has one tooltip style: the style of the ERD icon button on the Tables page. A tooltip opens on hover and on keyboard focus and is announced to a screen reader.'
+  use_case: An operator sees the same tooltip everywhere, and one who uses the keyboard or a screen reader gets the same text as one who hovers.
+  related_reqs:
+  - REQ-1968
+  notes: 'Maintainer 2026-10-10/11: "there are 3 styles of tooltips. Standardize them all using the style that the tables page erd icon button uses." Accepted for what was converted on his machine when this was recorded; the remaining tooltips were still being converted. The following go beyond his words and are the lead''s elaboration: that it opens on keyboard focus and is announced to a screen reader.'
