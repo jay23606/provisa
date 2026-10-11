@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "Сведения о команде",
+    "resizeDetail": "Изменить размер панели сведений",
+    "expandDetail": "Развернуть панель",
+    "restoreDetail": "Восстановить панель",
+    "closeDetail": "Закрыть панель сведений",
+    "backToList": "Назад к списку",
+    "backToCommand": "Назад к команде",
+    "panelNewCommand": "Новая команда",
     "title": "Команды",
     "loading": "Загрузка команд...",
     "filterPlaceholder": "Фильтр по имени…",

@@ -1,5 +1,13 @@
 {
   "commandsPage": {
+    "detailPanel": "פרטי הפקודה",
+    "resizeDetail": "שינוי גודל חלונית הפרטים",
+    "expandDetail": "הרחבת החלונית",
+    "restoreDetail": "שחזור החלונית",
+    "closeDetail": "סגירת חלונית הפרטים",
+    "backToList": "חזרה לרשימה",
+    "backToCommand": "חזרה לפקודה",
+    "panelNewCommand": "פקודה חדשה",
     "title": "פקודות",
     "loading": "טוען פקודות...",
     "filterPlaceholder": "סינון לפי שם…",
