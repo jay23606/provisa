@@ -48,7 +48,6 @@ const STILL_LIBRARY_TOOLTIP: readonly string[] = [
   "components/admin/TagsTab.tsx",
   "components/admin/UniquesPanel.tsx",
   "components/erd/ErdPanel.tsx",
-  "components/form/FormLayout.tsx",
   "components/graph/GraphSidebar.tsx",
   "components/graph/GraphStatsModal.tsx",
   "components/graph/Inspector.tsx",

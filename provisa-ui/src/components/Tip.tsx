@@ -30,6 +30,7 @@ import {
   type ReactElement,
   type ReactNode,
   type Ref,
+  type TouchEvent,
 } from "react";
 import { Tooltip, type FloatingPosition } from "@mantine/core";
 import { useMergedRef } from "@mantine/hooks";
@@ -46,6 +47,8 @@ type TargetProps = {
   onFocus?: (e: FocusEvent<HTMLElement>) => void;
   onBlur?: (e: FocusEvent<HTMLElement>) => void;
   onKeyDown?: (e: KeyboardEvent<HTMLElement>) => void;
+  onTouchStart?: (e: TouchEvent<HTMLElement>) => void;
+  onTouchEnd?: (e: TouchEvent<HTMLElement>) => void;
   "aria-describedby"?: string;
 };
 
@@ -61,6 +64,7 @@ export function TipSurface({
   position = "top",
   card = false,
   openDelay = TIP_OPEN_DELAY_MS,
+  named = false,
   testId,
 }: {
   content: ReactNode;
@@ -69,6 +73,8 @@ export function TipSurface({
   position?: FloatingPosition;
   card?: boolean;
   openDelay?: number;
+  /** The target's accessible name already IS this text: it is not also made its description. */
+  named?: boolean;
   testId?: string;
 }) {
   const id = useId();
@@ -97,7 +103,9 @@ export function TipSurface({
   const own = children.props;
   // The target's element, kept here and handed on to whatever ref the target already had.
   const attach = useMergedRef<HTMLElement>(setTarget, own.ref);
-  const describedBy = [own["aria-describedby"], armed ? id : undefined].filter(Boolean).join(" ");
+  const describedBy = [own["aria-describedby"], armed && !named ? id : undefined]
+    .filter(Boolean)
+    .join(" ");
   return (
     <>
       {/* eslint-disable-next-line react-hooks/refs --
@@ -126,6 +134,15 @@ export function TipSurface({
         onKeyDown: (e) => {
           own.onKeyDown?.(e);
           if (e.key === "Escape") hide();
+        },
+        // A finger has no hover: the hint shows while the target is pressed.
+        onTouchStart: (e) => {
+          own.onTouchStart?.(e);
+          show(0);
+        },
+        onTouchEnd: (e) => {
+          own.onTouchEnd?.(e);
+          hide();
         },
         "aria-describedby": describedBy || undefined,
       })}
@@ -157,15 +174,26 @@ export function Tip({
   text,
   children,
   position,
+  openDelay,
+  named,
   testId,
 }: {
   text: string;
   children: ReactElement<TargetProps>;
   position?: FloatingPosition;
+  /** Milliseconds of hover before it opens; 0 for a target that exists only to be asked. */
+  openDelay?: number;
+  named?: boolean;
   testId?: string;
 }) {
   return (
-    <TipSurface content={text} position={position} testId={testId}>
+    <TipSurface
+      content={text}
+      position={position}
+      openDelay={openDelay}
+      named={named}
+      testId={testId}
+    >
       {children}
     </TipSurface>
   );
