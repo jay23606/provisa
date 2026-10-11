@@ -23,17 +23,21 @@ import {
   MultiSelect,
   NumberInput,
   Button,
-  Group,
-  Stack,
   Alert,
 } from "@mantine/core";
 import { DateInput, DatePickerInput } from "@mantine/dates";
 import { useCreateCalendar, useDeleteCalendar } from "../../hooks/useAdminQueries";
 import type { CalendarSummary } from "../../hooks/useAdminQueries";
 import { IANA_TIME_ZONES } from "./constants";
-import { FieldLabel } from "./FieldLabel";
 import { presetHolidays, type HolidayPreset } from "./holidayPresets";
 import { serverMessage } from "../../i18n/serverMessage";
+import {
+  FieldGroup,
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+} from "../../components/form/FormLayout";
 
 // Localized month names for the fiscal-anchor picker (value = 1..12), no per-month i18n keys needed.
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
@@ -144,168 +148,194 @@ export function CalendarCreateModal({
       centered
       size="calc(var(--modal-size-md) + 100px)"
     >
-      <Stack gap="sm">
+      <FormLayout>
         {error && (
-          <Alert color="red" data-testid="calendar-create-error">
-            {error}
-          </Alert>
+          <FormField size="full">
+            <Alert color="red" data-testid="calendar-create-error">
+              {error}
+            </Alert>
+          </FormField>
         )}
-        <Group gap="xs" align="flex-start" wrap="nowrap">
-          <TextInput
-            style={{ flex: 3 }}
-            label={t("tableEditForm.calNameLabel")}
-            required
-            data-testid="calendar-name"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            placeholder="fiscal-us"
-            readOnly={isEdit} // the name is the identity; edit revises the definition in place
+        <FormIdentifiers>
+          <FormField size="medium">
+            <TextInput
+              label={t("tableEditForm.calNameLabel")}
+              required
+              data-testid="calendar-name"
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              placeholder="fiscal-us"
+              readOnly={isEdit} // the name is the identity; edit revises the definition in place
+            />
+          </FormField>
+          <FormField size="short">
+            <TextInput
+              label={t("tableEditForm.calVersionLabel")}
+              required
+              data-testid="calendar-version"
+              value={version}
+              onChange={(e) => setVersion(e.currentTarget.value)}
+            />
+          </FormField>
+        </FormIdentifiers>
+        <FormField size="medium">
+          <Select
+            label={t("tableEditForm.calBaseSystemLabel")}
+            data-testid="calendar-base-system"
+            data={[
+              { value: "gregorian", label: t("tableEditForm.calBaseGregorian") },
+              { value: "fiscal", label: t("tableEditForm.calBaseFiscal") },
+              { value: "retail_445", label: t("tableEditForm.calBaseRetail") },
+            ]}
+            value={baseSystem}
+            onChange={(v) => setBaseSystem(v || "gregorian")}
+            comboboxProps={{ withinPortal: true }}
+            allowDeselect={false}
           />
-          <TextInput
-            style={{ flex: 1 }}
-            label={t("tableEditForm.calVersionLabel")}
-            required
-            data-testid="calendar-version"
-            value={version}
-            onChange={(e) => setVersion(e.currentTarget.value)}
-          />
-        </Group>
-        <Select
-          label={t("tableEditForm.calBaseSystemLabel")}
-          data-testid="calendar-base-system"
-          data={[
-            { value: "gregorian", label: t("tableEditForm.calBaseGregorian") },
-            { value: "fiscal", label: t("tableEditForm.calBaseFiscal") },
-            { value: "retail_445", label: t("tableEditForm.calBaseRetail") },
-          ]}
-          value={baseSystem}
-          onChange={(v) => setBaseSystem(v || "gregorian")}
-          comboboxProps={{ withinPortal: true }}
-          allowDeselect={false}
-        />
+        </FormField>
         {baseSystem === "fiscal" && (
-          <Group grow align="flex-start" gap="xs">
+          <>
+            <FormField size="medium" help={t("tableEditForm.calFiscalAnchorHelp")}>
+              <Select
+                label={t("tableEditForm.calFiscalAnchorMonthLabel")}
+                data-testid="calendar-fiscal-month"
+                data={MONTHS}
+                value={fiscalAnchorMonth}
+                onChange={(v) => setFiscalAnchorMonth(v || "1")}
+                comboboxProps={{ withinPortal: true }}
+                allowDeselect={false}
+              />
+            </FormField>
+            <FormField size="short">
+              <NumberInput
+                label={t("tableEditForm.calFiscalAnchorDayLabel")}
+                data-testid="calendar-fiscal-day"
+                min={1}
+                max={31}
+                value={fiscalAnchorDay}
+                onChange={(v) => setFiscalAnchorDay(typeof v === "number" ? v : 1)}
+              />
+            </FormField>
+          </>
+        )}
+        {baseSystem === "retail_445" && (
+          <FormField size="medium" help={t("tableEditForm.calRetailAnchorHelp")}>
+            <DateInput
+              label={t("tableEditForm.calRetailAnchorLabel")}
+              required
+              data-testid="calendar-retail-anchor"
+              valueFormat="YYYY-MM-DD"
+              value={retailAnchor}
+              onChange={setRetailAnchor}
+              popoverProps={{ withinPortal: true }}
+            />
+          </FormField>
+        )}
+        <FormField size="medium">
+          <Select
+            label={t("tableEditForm.calTzLabel")}
+            searchable
+            data-testid="calendar-tz"
+            data={IANA_TIME_ZONES}
+            value={tz}
+            onChange={(v) => setTz(v || "UTC")}
+            comboboxProps={{ withinPortal: true }}
+          />
+        </FormField>
+        <FormField size="medium">
+          <Select
+            label={t("tableEditForm.calWeekStartLabel")}
+            data-testid="calendar-week-start"
+            data={WEEKDAYS}
+            value={weekStart}
+            onChange={(v) => setWeekStart(v || "0")}
+            comboboxProps={{ withinPortal: true }}
+            allowDeselect={false}
+          />
+        </FormField>
+        <FormField size="long" help={t("tableEditForm.calWeekendHelp")}>
+          <MultiSelect
+            label={t("tableEditForm.calWeekendLabel")}
+            data-testid="calendar-weekend"
+            data={WEEKDAYS}
+            value={weekend}
+            onChange={setWeekend}
+            comboboxProps={{ withinPortal: true }}
+            clearable
+          />
+        </FormField>
+        <FormField size="long" help={t("tableEditForm.calHolidaysHelp")}>
+          <DatePickerInput
+            type="multiple"
+            label={t("tableEditForm.calHolidaysLabel")}
+            data-testid="calendar-holidays"
+            valueFormat="YYYY-MM-DD"
+            value={holidays}
+            onChange={setHolidays}
+            popoverProps={{ withinPortal: true }}
+            clearable
+          />
+        </FormField>
+        {/* A preset and the years it is added for: one row, its button level with the boxes. */}
+        <FieldGroup row>
+          <FormField size="medium">
             <Select
-              label={
-                <FieldLabel
-                  text={t("tableEditForm.calFiscalAnchorMonthLabel")}
-                  help={t("tableEditForm.calFiscalAnchorHelp")}
-                />
-              }
-              data-testid="calendar-fiscal-month"
-              data={MONTHS}
-              value={fiscalAnchorMonth}
-              onChange={(v) => setFiscalAnchorMonth(v || "1")}
+              label={t("tableEditForm.calHolidayPresetLabel")}
+              data-testid="calendar-holiday-preset"
+              data={[
+                { value: "us_federal", label: t("tableEditForm.calHolidayPresetFederal") },
+                { value: "us_nyse", label: t("tableEditForm.calHolidayPresetNyse") },
+              ]}
+              value={preset}
+              onChange={(v) => setPreset((v as HolidayPreset) || "us_federal")}
               comboboxProps={{ withinPortal: true }}
               allowDeselect={false}
             />
+          </FormField>
+          <FormField size="short">
             <NumberInput
-              label={t("tableEditForm.calFiscalAnchorDayLabel")}
-              data-testid="calendar-fiscal-day"
-              min={1}
-              max={31}
-              value={fiscalAnchorDay}
-              onChange={(v) => setFiscalAnchorDay(typeof v === "number" ? v : 1)}
+              label={t("tableEditForm.calHolidayPresetFrom")}
+              data-testid="calendar-holiday-from"
+              value={presetFrom}
+              onChange={(v) => setPresetFrom(typeof v === "number" ? v : thisYear)}
             />
-          </Group>
-        )}
-        {baseSystem === "retail_445" && (
-          <DateInput
-            label={
-              <FieldLabel
-                text={t("tableEditForm.calRetailAnchorLabel")}
-                help={t("tableEditForm.calRetailAnchorHelp")}
-                required
-              />
-            }
-            data-testid="calendar-retail-anchor"
-            valueFormat="YYYY-MM-DD"
-            value={retailAnchor}
-            onChange={setRetailAnchor}
-            popoverProps={{ withinPortal: true }}
-          />
-        )}
-        <Select
-          label={t("tableEditForm.calTzLabel")}
-          searchable
-          data-testid="calendar-tz"
-          data={IANA_TIME_ZONES}
-          value={tz}
-          onChange={(v) => setTz(v || "UTC")}
-          comboboxProps={{ withinPortal: true }}
-        />
-        <Select
-          label={t("tableEditForm.calWeekStartLabel")}
-          data-testid="calendar-week-start"
-          data={WEEKDAYS}
-          value={weekStart}
-          onChange={(v) => setWeekStart(v || "0")}
-          comboboxProps={{ withinPortal: true }}
-          allowDeselect={false}
-        />
-        <MultiSelect
-          label={
-            <FieldLabel
-              text={t("tableEditForm.calWeekendLabel")}
-              help={t("tableEditForm.calWeekendHelp")}
+          </FormField>
+          <FormField size="short">
+            <NumberInput
+              label={t("tableEditForm.calHolidayPresetTo")}
+              data-testid="calendar-holiday-to"
+              value={presetTo}
+              onChange={(v) => setPresetTo(typeof v === "number" ? v : thisYear)}
             />
-          }
-          data-testid="calendar-weekend"
-          data={WEEKDAYS}
-          value={weekend}
-          onChange={setWeekend}
-          comboboxProps={{ withinPortal: true }}
-          clearable
-        />
-        <DatePickerInput
-          type="multiple"
-          label={
-            <FieldLabel
-              text={t("tableEditForm.calHolidaysLabel")}
-              help={t("tableEditForm.calHolidaysHelp")}
-            />
-          }
-          data-testid="calendar-holidays"
-          valueFormat="YYYY-MM-DD"
-          value={holidays}
-          onChange={setHolidays}
-          popoverProps={{ withinPortal: true }}
-          clearable
-        />
-        <Group align="flex-end" gap="xs">
-          <Select
-            label={t("tableEditForm.calHolidayPresetLabel")}
-            data-testid="calendar-holiday-preset"
-            data={[
-              { value: "us_federal", label: t("tableEditForm.calHolidayPresetFederal") },
-              { value: "us_nyse", label: t("tableEditForm.calHolidayPresetNyse") },
-            ]}
-            value={preset}
-            onChange={(v) => setPreset((v as HolidayPreset) || "us_federal")}
-            comboboxProps={{ withinPortal: true }}
-            allowDeselect={false}
-            style={{ flex: 1 }}
-          />
-          <NumberInput
-            label={t("tableEditForm.calHolidayPresetFrom")}
-            data-testid="calendar-holiday-from"
-            w={92}
-            value={presetFrom}
-            onChange={(v) => setPresetFrom(typeof v === "number" ? v : thisYear)}
-          />
-          <NumberInput
-            label={t("tableEditForm.calHolidayPresetTo")}
-            data-testid="calendar-holiday-to"
-            w={92}
-            value={presetTo}
-            onChange={(v) => setPresetTo(typeof v === "number" ? v : thisYear)}
-          />
+          </FormField>
           <Button variant="light" data-testid="calendar-holiday-add" onClick={addPreset}>
             {t("tableEditForm.calHolidayPresetAdd")}
           </Button>
-        </Group>
-        <Group justify="space-between">
-          {isEdit ? (
+        </FieldGroup>
+        {/* An existing calendar is saved; a new one is created, and Create keeps its word. Either
+            comes first, Cancel follows, and Delete -- of an existing one -- stands last. */}
+        <FormFooter
+          onSave={isEdit ? submit : undefined}
+          saving={isEdit && loading}
+          saveProps={{
+            "data-testid": "calendar-create-submit",
+            disabled: !name || !version || retailAnchorMissing,
+          }}
+          onCancel={onClose}
+          action={
+            isEdit ? undefined : (
+              <Button
+                data-testid="calendar-create-submit"
+                loading={loading}
+                disabled={!name || !version || retailAnchorMissing}
+                onClick={submit}
+              >
+                {t("tableEditForm.calCreate")}
+              </Button>
+            )
+          }
+        >
+          {isEdit && (
             <Button
               variant="light"
               color="red"
@@ -316,24 +346,9 @@ export function CalendarCreateModal({
             >
               {t("common.delete", "Delete")}
             </Button>
-          ) : (
-            <span />
           )}
-          <Group gap="xs">
-            <Button variant="default" onClick={onClose}>
-              {t("tableEditForm.calCancel")}
-            </Button>
-            <Button
-              data-testid="calendar-create-submit"
-              loading={loading}
-              disabled={!name || !version || retailAnchorMissing}
-              onClick={submit}
-            >
-              {isEdit ? t("tableEditForm.calSave") : t("tableEditForm.calCreate")}
-            </Button>
-          </Group>
-        </Group>
-      </Stack>
+        </FormFooter>
+      </FormLayout>
     </Modal>
   );
 }
