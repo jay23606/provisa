@@ -27,7 +27,6 @@ import {
   Text,
   TextInput,
   Textarea,
-  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { Plus, Trash2 } from "lucide-react";
@@ -36,6 +35,7 @@ import { DERIVED_SOURCE_ID } from "../../types/admin";
 import type { RegisteredTable } from "../../types/admin";
 import { GovernedTableViewer } from "../GovernedTableViewer";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 export function ReportsTab() {
   const { t } = useTranslation();
@@ -179,7 +179,7 @@ export function ReportsTab() {
                   data-testid={`report-item-${report.tableName}`}
                   rightSection={
                     custom ? (
-                      <Tooltip label={t("reportsTab.delete")}>
+                      <Tip text={t("reportsTab.delete")}>
                         <ActionIcon
                           variant="subtle"
                           color="red"
@@ -192,7 +192,7 @@ export function ReportsTab() {
                         >
                           <Trash2 size={13} />
                         </ActionIcon>
-                      </Tooltip>
+                      </Tip>
                     ) : undefined
                   }
                 />

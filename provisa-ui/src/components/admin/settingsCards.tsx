@@ -54,6 +54,7 @@ import {
 import type { PlatformSettings } from "../../api/admin";
 import { ConfigDiffView } from "./ConfigDiffView";
 import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 const FORMAT_OPTIONS = ["parquet", "orc", "json", "ndjson", "csv", "arrow"];
 
@@ -840,14 +841,15 @@ export function ConfigFileSection() {
             onCurrentChange={setRevisedConfig}
           />
           <Group gap="sm" mt="sm">
-            <Button
-              variant="default"
-              onClick={handleDownloadPatch}
-              disabled={revisedConfig === diffOriginal}
-              title={t("adminPage.downloadPatchTitle")}
-            >
-              {t("adminPage.downloadPatch")}
-            </Button>
+            <Tip text={t("adminPage.downloadPatchTitle")}>
+              <Button
+                variant="default"
+                onClick={handleDownloadPatch}
+                disabled={revisedConfig === diffOriginal}
+              >
+                {t("adminPage.downloadPatch")}
+              </Button>
+            </Tip>
             <Button
               onClick={handleApplyRevised}
               disabled={uploading || revisedConfig === diffOriginal}

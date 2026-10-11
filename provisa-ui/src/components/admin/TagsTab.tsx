@@ -23,7 +23,6 @@ import {
   Table,
   TextInput,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { List, Lock, Pencil, Plus, Tag as TagIcon, Trash2, X } from "lucide-react";
@@ -42,6 +41,7 @@ import { HelpBubble } from "../HelpBubble";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 const PAGE_SIZE = 50;
 
@@ -409,12 +409,12 @@ export function TagsTab() {
                   </ActionIcon>
                 )}
                 {tag.isSystem ? (
-                  <Tooltip label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}>
+                  <Tip text={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}>
                     <Lock
                       size={13}
                       aria-label={t(tag.derived ? "tagsTab.derivedTagHelp" : "tagsTab.systemTag")}
                     />
-                  </Tooltip>
+                  </Tip>
                 ) : (
                   <>
                     <ActionIcon
@@ -453,26 +453,27 @@ export function TagsTab() {
                       </span>
                     )}
                     {tag.paramValues.map((v) => (
-                      <Badge
-                        key={v.value}
-                        size="sm"
-                        variant="light"
-                        title={v.description}
-                        rightSection={
-                          <ActionIcon
-                            size="xs"
-                            variant="transparent"
-                            color="gray"
-                            aria-label={t("tagsTab.deleteValue", { value: v.value })}
-                            data-testid={`tags-value-delete-${tag.id}-${v.value}`}
-                            onClick={() => handleDeleteValue(tag.id, v.value)}
-                          >
-                            <X size={10} />
-                          </ActionIcon>
-                        }
-                      >
-                        {v.value}
-                      </Badge>
+                      <Tip text={v.description}>
+                        <Badge
+                          key={v.value}
+                          size="sm"
+                          variant="light"
+                          rightSection={
+                            <ActionIcon
+                              size="xs"
+                              variant="transparent"
+                              color="gray"
+                              aria-label={t("tagsTab.deleteValue", { value: v.value })}
+                              data-testid={`tags-value-delete-${tag.id}-${v.value}`}
+                              onClick={() => handleDeleteValue(tag.id, v.value)}
+                            >
+                              <X size={10} />
+                            </ActionIcon>
+                          }
+                        >
+                          {v.value}
+                        </Badge>
+                      </Tip>
                     ))}
                   </Group>
                   <Group gap="xs" align="flex-end">

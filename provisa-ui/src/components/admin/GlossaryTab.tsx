@@ -33,7 +33,6 @@ import {
   TextInput,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { useSearchParams } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
@@ -82,6 +81,7 @@ import {
   FormLayout,
   LabelWithHelp,
 } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 // Per-viewer list-filter preferences; never reachable from other viewers or the server.
 function readStoredBool(key: string, fallback: boolean): boolean {
@@ -539,11 +539,11 @@ export function GlossaryTab() {
           ) : (
             // REQ-1590: say which of the two rights the viewer holds, so a reader who expected to
             // curate knows a right is missing rather than that the buttons failed to render.
-            <Tooltip label={t("glossaryTab.readOnlyHint")}>
+            <Tip text={t("glossaryTab.readOnlyHint")}>
               <Badge variant="light" color="gray" data-testid="glossary-read-only">
                 {t("glossaryTab.readOnly")}
               </Badge>
-            </Tooltip>
+            </Tip>
           )}
         </Group>
       </Group>
@@ -684,8 +684,8 @@ export function GlossaryTab() {
                     >
                       {t("glossaryTab.rename")}
                     </Button>
-                    <Tooltip
-                      label={
+                    <Tip
+                      text={
                         detail.retired ? t("glossaryTab.unretireHint") : t("glossaryTab.retireHint")
                       }
                     >
@@ -707,13 +707,14 @@ export function GlossaryTab() {
                       >
                         {detail.retired ? t("glossaryTab.unretire") : t("glossaryTab.retire")}
                       </Button>
-                    </Tooltip>
-                    <Tooltip
-                      label={t("glossaryTab.deleteDisabledHint")}
-                      disabled={
+                    </Tip>
+                    <Tip
+                      text={
                         detail.refs.length === 0 &&
                         detail.edges_out.length === 0 &&
                         detail.edges_in.length === 0
+                          ? null
+                          : t("glossaryTab.deleteDisabledHint")
                       }
                     >
                       <span>
@@ -732,7 +733,7 @@ export function GlossaryTab() {
                           {t("glossaryTab.delete")}
                         </Button>
                       </span>
-                    </Tooltip>
+                    </Tip>
                   </>
                 )}
               </Group>

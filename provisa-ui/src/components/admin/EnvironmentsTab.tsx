@@ -28,7 +28,6 @@ import {
   TextInput,
   Textarea,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { ArrowDownToLine, ArrowUpFromLine, GitBranch, GitMerge, Trash2 } from "lucide-react";
@@ -62,6 +61,7 @@ import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayou
 import type { SyntheticSeed } from "./syntheticSeed";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
+import { Tip } from "../Tip";
 
 const PROD = "prod";
 
@@ -585,11 +585,11 @@ export function EnvironmentsTab() {
                     <Group gap="xs">
                       <Text size="sm">{e.name}</Text>
                       {e.drifted && (
-                        <Tooltip label={t("environmentsTab.driftedHelp")}>
+                        <Tip text={t("environmentsTab.driftedHelp")}>
                           <Badge color="orange" data-testid={`env-drifted-${e.name}`}>
                             {t("environmentsTab.drifted")}
                           </Badge>
-                        </Tooltip>
+                        </Tip>
                       )}
                     </Group>
                   </Table.Td>
@@ -633,11 +633,8 @@ export function EnvironmentsTab() {
                     {Object.keys(e.expired_kept_by).length > 0 && (
                       // REQ-1918: past its expiry and still standing, because something still
                       // refers to it. Said on the row so nobody has to read the server's log.
-                      <Tooltip
-                        multiline
-                        w={300}
-                        withArrow
-                        label={t("environmentsTab.expiredKeptHint", {
+                      <Tip
+                        text={t("environmentsTab.expiredKeptHint", {
                           reasons: Object.entries(e.expired_kept_by)
                             .map(
                               ([kind, count]) => `${t(`dependentsDialog.kind.${kind}`)}: ${count}`,
@@ -653,7 +650,7 @@ export function EnvironmentsTab() {
                         >
                           {t("environmentsTab.expiredKept")}
                         </Badge>
-                      </Tooltip>
+                      </Tip>
                     )}
                   </Table.Td>
                   <Table.Td>
@@ -679,7 +676,7 @@ export function EnvironmentsTab() {
                       {/* REQ-1546: the repair for a branch the best-effort mirror could not
                             send, and the way to take what the remote holds. Both are asked for
                             here rather than run on a timer. */}
-                      <Tooltip label={t("environmentsTab.push")}>
+                      <Tip text={t("environmentsTab.push")}>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
@@ -689,8 +686,8 @@ export function EnvironmentsTab() {
                         >
                           <ArrowUpFromLine size={14} aria-hidden />
                         </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t("environmentsTab.pull")}>
+                      </Tip>
+                      <Tip text={t("environmentsTab.pull")}>
                         <ActionIcon
                           variant="subtle"
                           loading={busy === e.name}
@@ -700,7 +697,7 @@ export function EnvironmentsTab() {
                         >
                           <ArrowDownToLine size={14} aria-hidden />
                         </ActionIcon>
-                      </Tooltip>
+                      </Tip>
                       {/* REQ-1552: stepping this environment's history is offered where the
                             change was made -- the environment switcher -- not here. */}
                       {/* prod exists from the org's creation and is refused by the server; the
@@ -875,7 +872,7 @@ export function EnvironmentsTab() {
             </Button>
             {/* REQ-1551: for a target branch the git host governs with pull requests, the review
                 happens there — this opens it, and the comment above becomes its description. */}
-            <Tooltip label={t("environmentsTab.requestReviewHelp")} multiline w={320}>
+            <Tip text={t("environmentsTab.requestReviewHelp")}>
               <Button
                 variant="subtle"
                 onClick={runReview}
@@ -885,7 +882,7 @@ export function EnvironmentsTab() {
               >
                 {t("environmentsTab.requestReview")}
               </Button>
-            </Tooltip>
+            </Tip>
           </FormFooter>
         </FormLayout>
       </Modal>

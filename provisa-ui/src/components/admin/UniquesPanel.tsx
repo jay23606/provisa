@@ -12,20 +12,12 @@
 // constraint with a Name field and a multi-select checkbox of the table's columns.
 
 import { useTranslation } from "react-i18next";
-import {
-  ActionIcon,
-  Accordion,
-  Button,
-  Group,
-  MultiSelect,
-  Text,
-  TextInput,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Accordion, Button, Group, MultiSelect, Text, TextInput } from "@mantine/core";
 import { CircleHelp, Plus, X } from "lucide-react";
 import type { UniqueConstraint } from "../../types/admin";
 import { usePanelState } from "../../hooks/usePanelState";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 interface Props {
   uniques: UniqueConstraint[];
@@ -60,7 +52,7 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
                 {t("uniquesPanel.summary", { count: uniques.length })}
               </Text>
             )}
-            <Tooltip label={t("uniquesPanel.infoTooltip")} multiline w={320}>
+            <Tip text={t("uniquesPanel.infoTooltip")}>
               <ActionIcon
                 component="span"
                 variant="subtle"
@@ -73,7 +65,7 @@ export function UniquesPanel({ uniques, columns, onChange }: Props) {
               >
                 <CircleHelp size={14} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           </Group>
         </Accordion.Control>
         <Accordion.Panel>

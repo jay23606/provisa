@@ -178,7 +178,8 @@ export function Tip({
   named,
   testId,
 }: {
-  text: string;
+  /** The hint; with none (empty, null, undefined, false) the target is rendered as it is. */
+  text: string | null | undefined | false;
   children: ReactElement<TargetProps>;
   position?: FloatingPosition;
   /** Milliseconds of hover before it opens; 0 for a target that exists only to be asked. */
@@ -186,6 +187,7 @@ export function Tip({
   named?: boolean;
   testId?: string;
 }) {
+  if (!text) return children;
   return (
     <TipSurface
       content={text}

@@ -28,7 +28,6 @@ import {
   Table,
   Text,
   TextInput,
-  Tooltip,
 } from "@mantine/core";
 import { Copy, Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -54,6 +53,7 @@ import {
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 /**
  * REQ-1557, REQ-1558: the org's secrets — NAMES GO IN, VALUES NEVER COME BACK OUT.
@@ -400,7 +400,7 @@ function SecretsVault({ vault, header }: VaultProps) {
               <Table.Td>
                 <Group gap="xs">
                   <Code>{s.reference}</Code>
-                  <Tooltip label={t("secretsTab.copyReference")}>
+                  <Tip text={t("secretsTab.copyReference")}>
                     <Button
                       variant="subtle"
                       size="compact-xs"
@@ -409,7 +409,7 @@ function SecretsVault({ vault, header }: VaultProps) {
                     >
                       <Copy size={14} />
                     </Button>
-                  </Tooltip>
+                  </Tip>
                 </Group>
               </Table.Td>
               <Table.Td>

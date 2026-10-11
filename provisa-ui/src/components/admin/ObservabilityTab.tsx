@@ -35,6 +35,7 @@ import type { PlatformSettings } from "../../api/admin";
 import { DebugTracePanel } from "./DebugTracePanel";
 import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 import { FilterInput } from "./FilterInput";
+import { Tip } from "../Tip";
 
 interface ObsTabProps {
   settings: PlatformSettings;
@@ -175,28 +176,30 @@ function TraceFeed() {
       </span>
 
       <Group flex={1} justify="flex-end" align="center" gap="0.4rem">
-        <ActionIcon
-          className="trace-pause-btn"
-          style={{ marginInlineStart: "0.5rem" }}
-          onClick={() => setPaused((p) => !p)}
-          aria-label={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")}
-          title={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")}
-          variant="subtle"
-        >
-          {paused ? <Play size={14} /> : <Pause size={14} />}
-        </ActionIcon>
-        <ActionIcon
-          className="trace-expand-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded((v) => !v);
-          }}
-          aria-label={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")}
-          title={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")}
-          variant="subtle"
-        >
-          {expanded ? <X size={14} /> : <Maximize2 size={14} />}
-        </ActionIcon>
+        <Tip text={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")}>
+          <ActionIcon
+            className="trace-pause-btn"
+            style={{ marginInlineStart: "0.5rem" }}
+            onClick={() => setPaused((p) => !p)}
+            aria-label={paused ? t("observabilityTab.resume") : t("observabilityTab.pause")}
+            variant="subtle"
+          >
+            {paused ? <Play size={14} /> : <Pause size={14} />}
+          </ActionIcon>
+        </Tip>
+        <Tip text={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")}>
+          <ActionIcon
+            className="trace-expand-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
+            aria-label={expanded ? t("observabilityTab.collapse") : t("observabilityTab.expand")}
+            variant="subtle"
+          >
+            {expanded ? <X size={14} /> : <Maximize2 size={14} />}
+          </ActionIcon>
+        </Tip>
       </Group>
     </>
   );

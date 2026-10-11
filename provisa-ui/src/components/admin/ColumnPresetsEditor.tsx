@@ -10,20 +10,11 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActionIcon,
-  Button,
-  Group,
-  Select,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Button, Group, Select, Stack, Table, Text, TextInput } from "@mantine/core";
 import { CircleHelp, Plus, X } from "lucide-react";
 import type { ColumnPreset } from "../../types/admin";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
+import { Tip } from "../Tip";
 
 interface Props {
   presets: ColumnPreset[];
@@ -183,7 +174,7 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
         <Text size="sm" c="dimmed">
           {t("columnPresetsEditor.label")}
         </Text>
-        <Tooltip label={t("columnPresetsEditor.infoTooltip")} multiline w={320}>
+        <Tip text={t("columnPresetsEditor.infoTooltip")}>
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -192,7 +183,7 @@ export function ColumnPresetsEditor({ presets, columns, columnTypes, onChange }:
           >
             <CircleHelp size={14} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
       </Group>
       {presets.length > 0 && (
         <Table>
