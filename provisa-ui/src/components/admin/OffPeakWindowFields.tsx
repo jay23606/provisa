@@ -1,3 +1,13 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: 8d23cce9-1114-41ed-b148-e767777c9a27
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
 // The off-peak window of a table or source read only on schedule (REQ-1141), shared by the table
 // form and the source's Load Management panel: two time boxes (opens / closes) compose the stored
 // "HH:MM-HH:MM", both blank is no window; the zone is picked from the runtime's own zone list, the
