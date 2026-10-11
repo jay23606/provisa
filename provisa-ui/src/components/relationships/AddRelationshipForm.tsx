@@ -21,6 +21,8 @@ interface AddRelationshipFormProps {
   tables: RegisteredTable[];
   functions: TrackedFunction[];
   saving: string | null;
+  /** What the form says of a save that did not go through. */
+  problem: string;
   onSave: () => void;
   onCancel: () => void;
 }
@@ -36,6 +38,7 @@ export function AddRelationshipForm({
   tables,
   functions,
   saving,
+  problem,
   onSave,
   onCancel,
 }: AddRelationshipFormProps) {
@@ -178,6 +181,7 @@ export function AddRelationshipForm({
         )}
         <FormFooter
           panel
+          problem={problem || undefined}
           onSave={onSave}
           saving={saving === "new"}
           onCancel={onCancel}

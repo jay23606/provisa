@@ -59,6 +59,7 @@ import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { domainToSqlName } from "../naming";
 import { Tip } from "../components/Tip";
+import { serverMessage } from "../i18n/serverMessage";
 
 export function RelationshipsPage() {
   // REQ-1918: a delete is refused while anything depends on the object; this lists them.
@@ -75,6 +76,8 @@ export function RelationshipsPage() {
   const [functions, setFunctions] = useState<TrackedFunction[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
+  // What the open form has to say of a save that did not go through.
+  const [saveProblem, setSaveProblem] = useState("");
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState("");
   const [discoverMsg, setDiscoverMsg] = useState("");
@@ -160,6 +163,7 @@ export function RelationshipsPage() {
     if (form.targetType === "table" && !form.targetTableId) return;
     if (form.targetType === "function" && !form.targetFunctionName) return;
     setSaving("new");
+    setSaveProblem("");
     const result = await upsertRelationship({
       id: form.id,
       sourceTableId: form.sourceTableId,
@@ -183,12 +187,15 @@ export function RelationshipsPage() {
       viaLabelSource: form.viaLabelSource,
     });
     setSaving(null);
-    if (result.success) {
-      // The relationship exists now, with everything else at its defaults: it is selected in the
-      // list and its detail opens in edit, where the rest is filled in.
-      setExpanded(form.id);
-      setEditingRel({ ...form, originalId: form.id });
+    if (!result.success) {
+      // Refused: the form stays open and says why.
+      setSaveProblem(serverMessage(result, result.message));
+      return;
     }
+    // The relationship exists now, with everything else at its defaults: it is selected in the
+    // list and its detail opens in edit, where the rest is filled in.
+    setExpanded(form.id);
+    setEditingRel({ ...form, originalId: form.id });
     setForm(EMPTY_FORM);
     setShowForm(false);
   }, [form, upsertRelationship]);
@@ -196,7 +203,8 @@ export function RelationshipsPage() {
   const handleEditSave = useCallback(async () => {
     if (!editingRel?.id) return;
     setSaving(editingRel.originalId || editingRel.id);
-    await upsertRelationship({
+    setSaveProblem("");
+    const result = await upsertRelationship({
       id: editingRel.id,
       sourceTableId: editingRel.sourceTableId,
       targetTableId: editingRel.targetType === "table" ? editingRel.targetTableId : "",
@@ -219,6 +227,11 @@ export function RelationshipsPage() {
       viaTypeValue: editingRel.viaTypeValue || null,
       viaLabelSource: editingRel.viaLabelSource,
     });
+    if (!result.success) {
+      setSaving(null);
+      setSaveProblem(serverMessage(result, result.message));
+      return;
+    }
     if (editingRel.originalId && editingRel.originalId !== editingRel.id) {
       await deleteRelationship(editingRel.originalId);
     }
@@ -358,7 +371,8 @@ export function RelationshipsPage() {
     if (!reverseForm || !reverseForm.id || !reverseForm.sourceTableId || !reverseForm.targetTableId)
       return;
     setSaving("reverse");
-    await upsertRelationship({
+    setSaveProblem("");
+    const result = await upsertRelationship({
       id: reverseForm.id,
       sourceTableId: reverseForm.sourceTableId,
       targetTableId: reverseForm.targetTableId,
@@ -373,6 +387,10 @@ export function RelationshipsPage() {
       graphqlAlias: reverseForm.graphqlAlias || null,
     });
     setSaving(null);
+    if (!result.success) {
+      setSaveProblem(serverMessage(result, result.message));
+      return;
+    }
     setReverseForm(null);
   }, [reverseForm, upsertRelationship]);
 
@@ -434,6 +452,7 @@ export function RelationshipsPage() {
   // selected relationship -- its detail, the form that edits it, or the form that creates its
   // reverse. Nothing selected: no panel, and the list has the page.
   const closePanel = () => {
+    setSaveProblem("");
     setShowForm(false);
     setReverseForm(null);
     setEditingRel(null);
@@ -449,6 +468,7 @@ export function RelationshipsPage() {
         tables={tables}
         functions={functions}
         saving={saving}
+        problem={saveProblem}
         onSave={handleAdd}
         onCancel={() => setShowForm(false)}
       />
@@ -470,6 +490,7 @@ export function RelationshipsPage() {
         reverseForm={reverseForm}
         setReverseForm={setReverseForm}
         saving={saving}
+        problem={saveProblem}
         onSave={handleReverseAdd}
       />
     </>
@@ -479,11 +500,18 @@ export function RelationshipsPage() {
       editingRel={editingRel}
       setEditingRel={setEditingRel}
       canManage={canManage}
-      onStartEdit={() => startEditing(selectedRel)}
-      onReverse={() => setReverseForm(buildReverse(selectedRel))}
+      onStartEdit={() => {
+        setSaveProblem("");
+        startEditing(selectedRel);
+      }}
+      onReverse={() => {
+        setSaveProblem("");
+        setReverseForm(buildReverse(selectedRel));
+      }}
       onDelete={() => handleDelete(String(selectedRel.id))}
       onEditSave={handleEditSave}
       saving={saving}
+      problem={saveProblem}
       tables={tables}
       functions={functions}
       tableDomainById={tableDomainById}
@@ -519,6 +547,7 @@ export function RelationshipsPage() {
               aria-label={showForm ? t("relationshipsPage.closeForm") : undefined}
               onClick={() => {
                 // One thing in the panel at a time: the form replaces whatever row was open.
+                setSaveProblem("");
                 setExpanded(null);
                 setEditingRel(null);
                 setReverseForm(null);
@@ -674,6 +703,7 @@ export function RelationshipsPage() {
                             selected={expanded === id}
                             onToggle={() => {
                               // The row opens its detail in the panel, swaps it, or closes it.
+                              setSaveProblem("");
                               setExpanded(expanded === id ? null : id);
                               setEditingRel(null);
                               setReverseForm(null);

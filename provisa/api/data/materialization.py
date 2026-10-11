@@ -239,23 +239,15 @@ async def _mat_gql_remote_table(
         for _fname, _gql_sel in extra_selections.items():
             if _fname not in _existing_names:
                 col_dicts.append({"name": _fname, "type": "jsonb", "gql_selection": _gql_sel})
-    _gql_srcs = getattr(state, "graphql_remote_sources", {})
-    _governed_gql_types = {
-        tbl.get("gql_type_name")
-        for reg in _gql_srcs.values()
-        for tbl in reg.get("tables", [])
-        if tbl.get("gql_type_name")
-    }
-    if _governed_gql_types:
-        _governed_excluded = {
-            c["name"]
-            for c in col_dicts
-            if c.get("gql_object_type")
-            and not c.get("gql_is_list", False)
-            and c["gql_object_type"] in _governed_gql_types
-        }
-        if _governed_excluded:
-            col_dicts = [c for c in col_dicts if c["name"] not in _governed_excluded]
+    # The columns the relation holds: a field pointing at one object of a registered type is a
+    # relationship, not data (graphql_remote.relation_columns -- the one statement of that rule).
+    from provisa.graphql_remote.relation_columns import governed_types, reference_columns
+
+    _governed_excluded = reference_columns(
+        {"columns": col_dicts}, governed_types(getattr(state, "graphql_remote_sources", {}))
+    )
+    if _governed_excluded:
+        col_dicts = [c for c in col_dicts if c["name"] not in _governed_excluded]
     from provisa.compiler.naming import (
         apply_sql_name as _apply_sql_name,
         apply_gql_name as _apply_gql_name,
