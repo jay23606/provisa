@@ -79,6 +79,9 @@
     "expandDetail": "パネルを広げる",
     "restoreDetail": "パネルを元に戻す",
     "backToList": "一覧に戻る",
-    "backToDetail": "詳細に戻る"
+    "backToDetail": "詳細に戻る",
+    "panelRegisterTable": "テーブルを登録",
+    "panelNewView": "新しいビュー",
+    "panelNewModel": "新しいモデル"
   }
 }

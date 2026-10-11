@@ -859,11 +859,11 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     !showForm && !showViewForm && !showModeling && editingTable === null && previewTable === null;
   const panelTitle =
     showForm && !viewsOnly
-      ? translate("tablesPage.addTable")
+      ? translate("tablesPage.panelRegisterTable")
       : showViewForm && viewsOnly
-        ? translate("tablesPage.addView")
+        ? translate("tablesPage.panelNewView")
         : showModeling
-          ? translate("tablesPage.modelTitle")
+          ? translate("tablesPage.panelNewModel")
           : selectedTable
             ? (selectedTable.alias ?? selectedTable.tableName)
             : "";

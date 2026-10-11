@@ -5553,5 +5553,8 @@
   "hi/tablesPage.json::tablesPage.backToDetail": "Back to details",
   "hi/replicateSelect.json::replicateSelect.scheduled": "Always, source read only on schedule",
   "hi/replicateSelect.json::replicateSelect.helpScheduled": "Always, source read only on schedule: reads always come from the replica and a query never causes the source to be read; the scheduler refreshes the replica on the off-peak window, the Cache TTL or the change probe, and at least one of the three is required.",
-  "hi/sourceFormFieldsExtended.json::sourceFormFieldsExtended.offPeakWindowHint": "Without a window, the refresh follows the Cache TTL or the change probe."
+  "hi/sourceFormFieldsExtended.json::sourceFormFieldsExtended.offPeakWindowHint": "Without a window, the refresh follows the Cache TTL or the change probe.",
+  "hi/tablesPage.json::tablesPage.panelRegisterTable": "Register table",
+  "hi/tablesPage.json::tablesPage.panelNewView": "New view",
+  "hi/tablesPage.json::tablesPage.panelNewModel": "New model"
 }

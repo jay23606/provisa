@@ -79,6 +79,9 @@
     "expandDetail": "Развернуть панель",
     "restoreDetail": "Восстановить панель",
     "backToList": "Назад к списку",
-    "backToDetail": "Назад к сведениям"
+    "backToDetail": "Назад к сведениям",
+    "panelRegisterTable": "Регистрация таблицы",
+    "panelNewView": "Новое представление",
+    "panelNewModel": "Новая модель"
   }
 }

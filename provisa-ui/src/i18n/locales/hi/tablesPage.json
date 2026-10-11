@@ -79,6 +79,9 @@
     "expandDetail": "पैनल बड़ा करें",
     "restoreDetail": "पैनल पहले जैसा करें",
     "backToList": "सूची पर वापस",
-    "backToDetail": "विवरण पर वापस"
+    "backToDetail": "विवरण पर वापस",
+    "panelRegisterTable": "तालिका पंजीकृत करें",
+    "panelNewView": "नया व्यू",
+    "panelNewModel": "नया मॉडल"
   }
 }

@@ -79,6 +79,9 @@
     "expandDetail": "Bereich maximieren",
     "restoreDetail": "Bereich wiederherstellen",
     "backToList": "Zurück zur Liste",
-    "backToDetail": "Zurück zu den Details"
+    "backToDetail": "Zurück zu den Details",
+    "panelRegisterTable": "Tabelle registrieren",
+    "panelNewView": "Neue Ansicht",
+    "panelNewModel": "Neues Modell"
   }
 }
