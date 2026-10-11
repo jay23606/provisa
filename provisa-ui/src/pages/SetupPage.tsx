@@ -11,6 +11,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import {
   Alert,
   Box,
@@ -241,11 +242,11 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
       )}
 
       {step === 3 && (
-        <form onSubmit={handleFinish}>
-          <Stack gap="md">
-            {provider === "basic" && (
-              <>
-                <Title order={3}>{t("setupPage.adminAccountHeading")}</Title>
+        <FormLayout component="form" onSubmit={handleFinish}>
+          {provider === "basic" && (
+            <>
+              <Title order={3}>{t("setupPage.adminAccountHeading")}</Title>
+              <FormField size="medium">
                 <TextInput
                   id="setup-username"
                   label={t("setupPage.username")}
@@ -254,6 +255,8 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                   required
                   autoComplete="username"
                 />
+              </FormField>
+              <FormField size="medium">
                 <PasswordInput
                   id="setup-password"
                   label={t("setupPage.password")}
@@ -262,6 +265,8 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                   required
                   autoComplete="new-password"
                 />
+              </FormField>
+              <FormField size="medium">
                 <PasswordInput
                   id="setup-confirm"
                   label={t("setupPage.confirmPassword")}
@@ -270,11 +275,13 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                   required
                   autoComplete="new-password"
                 />
-              </>
-            )}
-            {provider === "firebase" && (
-              <>
-                <Title order={3}>{t("setupPage.firebaseConfigHeading")}</Title>
+              </FormField>
+            </>
+          )}
+          {provider === "firebase" && (
+            <>
+              <Title order={3}>{t("setupPage.firebaseConfigHeading")}</Title>
+              <FormField size="medium">
                 <TextInput
                   id="setup-project-id"
                   label={t("setupPage.firebaseProjectId")}
@@ -283,39 +290,43 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                   required
                   placeholder={t("setupPage.firebaseProjectIdPlaceholder")}
                 />
-                <Alert variant="light" color="gray">
-                  <Text fw={700} size="sm">
-                    {t("setupPage.requiredEnvVars")}
-                  </Text>
-                  <List size="sm" mt="xs">
-                    <List.Item>VITE_FIREBASE_API_KEY</List.Item>
-                    <List.Item>VITE_FIREBASE_AUTH_DOMAIN</List.Item>
-                    <List.Item>VITE_FIREBASE_PROJECT_ID</List.Item>
-                    <List.Item>FIREBASE_PROJECT_ID (backend)</List.Item>
-                  </List>
-                </Alert>
-              </>
-            )}
-            {error && (
-              <Alert variant="light" color="red" data-testid="setup-error">
-                {error}
+              </FormField>
+              <Alert variant="light" color="gray">
+                <Text fw={700} size="sm">
+                  {t("setupPage.requiredEnvVars")}
+                </Text>
+                <List size="sm" mt="xs">
+                  <List.Item>VITE_FIREBASE_API_KEY</List.Item>
+                  <List.Item>VITE_FIREBASE_AUTH_DOMAIN</List.Item>
+                  <List.Item>VITE_FIREBASE_PROJECT_ID</List.Item>
+                  <List.Item>FIREBASE_PROJECT_ID (backend)</List.Item>
+                </List>
               </Alert>
-            )}
-            <Group>
-              <Button
-                type="button"
-                variant="default"
-                data-testid="setup-back-3"
-                onClick={() => setStep(2)}
-              >
-                {t("setupPage.back")}
-              </Button>
+            </>
+          )}
+          {error && (
+            <Alert variant="light" color="red" data-testid="setup-error">
+              {error}
+            </Alert>
+          )}
+          {/* The step's action first, then the way back. */}
+          <FormFooter
+            action={
               <Button type="submit" data-testid="setup-submit" loading={loading}>
                 {loading ? t("setupPage.settingUp") : t("setupPage.completeSetup")}
               </Button>
-            </Group>
-          </Stack>
-        </form>
+            }
+          >
+            <Button
+              type="button"
+              variant="default"
+              data-testid="setup-back-3"
+              onClick={() => setStep(2)}
+            >
+              {t("setupPage.back")}
+            </Button>
+          </FormFooter>
+        </FormLayout>
       )}
     </Box>
   );
