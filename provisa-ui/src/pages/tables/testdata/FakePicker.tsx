@@ -8,11 +8,12 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Group, Select, Stack, TextInput } from "@mantine/core";
+import { Select, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FakeCatalog } from "../../../api/fakes";
 import { chosen, compose, type ArgValues, type Choice } from "./declaration";
+import { FieldGroup, FormField } from "../../../components/form/FormLayout";
 
 // REQ-1494: a kind of fake or fake method picked by name within its category, its arguments
 // filled in, written as the declaration the column saves. The declaration stays editable as text.
@@ -58,45 +59,45 @@ export function FakePicker({
     onChange(next ? compose(catalog, next, nextArgs) : "");
   };
   return (
-    <Stack gap={4}>
-      <Select
-        label={label}
-        searchable
-        clearable
-        data={data}
-        value={choice ? `${choice.type}:${choice.name}` : null}
-        onChange={(v) => {
-          const [type, name] = (v ?? ":").split(":");
-          pick(v ? { type: type as "kind" | "method", name } : null, {});
-        }}
-        comboboxProps={{ withinPortal: true }}
-        data-testid={`${testId}-pick`}
-      />
-      {argNames.length > 0 && (
-        <Group gap="xs" wrap="wrap">
-          {argNames.map((a) => (
-            <TextInput
-              key={a}
-              size="xs"
-              label={a}
-              value={args[a] ?? ""}
-              onChange={(e) => choice && pick(choice, { ...args, [a]: e.target.value })}
-              data-testid={`${testId}-arg-${a}`}
-            />
-          ))}
-        </Group>
-      )}
-      <TextInput
-        size="xs"
-        aria-label={t("testData.declaration")}
-        placeholder={t("testData.declaration")}
-        value={value}
-        onChange={(e) => {
-          setChoice(chosen(catalog, e.target.value));
-          onChange(e.target.value);
-        }}
-        data-testid={`${testId}-text`}
-      />
-    </Stack>
+    // One declaration, a row to itself: what is picked, its arguments, and the text they compose.
+    <FieldGroup row>
+      <FormField size="medium">
+        <Select
+          label={label}
+          searchable
+          clearable
+          data={data}
+          value={choice ? `${choice.type}:${choice.name}` : null}
+          onChange={(v) => {
+            const [type, name] = (v ?? ":").split(":");
+            pick(v ? { type: type as "kind" | "method", name } : null, {});
+          }}
+          comboboxProps={{ withinPortal: true }}
+          data-testid={`${testId}-pick`}
+        />
+      </FormField>
+      {argNames.map((a) => (
+        <FormField size="short" key={a}>
+          <TextInput
+            label={a}
+            value={args[a] ?? ""}
+            onChange={(e) => choice && pick(choice, { ...args, [a]: e.target.value })}
+            data-testid={`${testId}-arg-${a}`}
+          />
+        </FormField>
+      ))}
+      <FormField size="long">
+        <TextInput
+          // Labelled as the boxes beside it are, so it stands level with them.
+          label={t("testData.declaration")}
+          value={value}
+          onChange={(e) => {
+            setChoice(chosen(catalog, e.target.value));
+            onChange(e.target.value);
+          }}
+          data-testid={`${testId}-text`}
+        />
+      </FormField>
+    </FieldGroup>
   );
 }

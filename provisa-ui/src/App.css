@@ -2571,6 +2571,8 @@ main {
 .form-field-group > .form-field {
   flex: 0 0 auto;
   width: var(--form-field-width);
+  /* never wider than its row: a long box in a dialog stops at the dialog's edge */
+  max-width: 100%;
 }
 /* An action at the end of a field (Connect, Copy, a preview) lines up with the field's control:
  * below the label's line, whatever sits under the control. */

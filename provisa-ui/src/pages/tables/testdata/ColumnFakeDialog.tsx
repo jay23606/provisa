@@ -8,12 +8,13 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Button, Group, Modal, Stack, Switch, Text } from "@mantine/core";
+import { Button, Modal, Switch, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { checkColumnFake, proposeFakes, type FakeCatalog } from "../../../api/fakes";
 import type { RegisteredTable, TableColumn } from "../../../types/admin";
 import { FakePicker } from "./FakePicker";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../../../components/form/FormLayout";
 
 const CHECK_DELAY_MS = 400;
 
@@ -79,7 +80,7 @@ export function ColumnFakeDialog({
       size="lg"
       title={t("testData.dialogTitle", { column: column.columnName })}
     >
-      <Stack data-testid="testdata-dialog">
+      <FormLayout data-testid="testdata-dialog">
         <FakePicker
           catalog={catalog}
           label={t("testData.fake")}
@@ -88,18 +89,27 @@ export function ColumnFakeDialog({
           rule={false}
           testId="testdata-dialog-fake"
         />
-        <Switch
-          label={t("testData.stable")}
-          description={t("testData.stableHint")}
-          checked={stable}
-          onChange={(e) => setStable(e.currentTarget.checked)}
-          data-testid="testdata-dialog-stable"
-        />
-        {stable && column.fakeStable && column.fakeStableVersion != null && fake.trim() === column.fake && (
-          <Text size="xs" c="dimmed" data-testid="testdata-dialog-stable-version">
-            {t("testData.stableVersion", { version: column.fakeStableVersion })}
-          </Text>
-        )}
+        {/* About the fake above it, so it stays beneath it and before the synthetic rule. */}
+        <FormChecks>
+          <FormField size="short" help={t("testData.stableHint")}>
+            <Switch
+              label={t("testData.stable")}
+              checked={stable}
+              onChange={(e) => setStable(e.currentTarget.checked)}
+              data-testid="testdata-dialog-stable"
+            />
+          </FormField>
+        </FormChecks>
+        {stable &&
+          column.fakeStable &&
+          column.fakeStableVersion != null &&
+          fake.trim() === column.fake && (
+            <FormField size="full">
+              <Text size="xs" c="dimmed" data-testid="testdata-dialog-stable-version">
+                {t("testData.stableVersion", { version: column.fakeStableVersion })}
+              </Text>
+            </FormField>
+          )}
         <FakePicker
           catalog={catalog}
           label={t("testData.syntheticRule")}
@@ -109,31 +119,38 @@ export function ColumnFakeDialog({
           testId="testdata-dialog-rule"
         />
         {note && (
-          <Text size="sm" c="dimmed" data-testid="testdata-dialog-note">
-            {note}
-          </Text>
+          <FormField size="full">
+            <Text size="sm" c="dimmed" data-testid="testdata-dialog-note">
+              {note}
+            </Text>
+          </FormField>
         )}
         {refusal && (
-          <Text c="red" size="sm" data-testid="testdata-dialog-refusal">
-            {refusal}
-          </Text>
+          <FormField size="full">
+            <Text c="red" size="sm" data-testid="testdata-dialog-refusal">
+              {refusal}
+            </Text>
+          </FormField>
         )}
-        <Group justify="flex-end">
-          <Button variant="light" mr="auto" onClick={fill} data-testid="testdata-dialog-fill">
+        {/* Apply puts the declarations on the table's form, which saves them: it keeps its word,
+            first; Cancel follows, then the helper that fills the boxes. */}
+        <FormFooter
+          onCancel={onClose}
+          action={
+            <Button
+              disabled={refusal !== null}
+              onClick={() => onSave(fake.trim(), rule.trim(), stable)}
+              data-testid="testdata-dialog-save"
+            >
+              {t("testData.apply")}
+            </Button>
+          }
+        >
+          <Button variant="light" onClick={fill} data-testid="testdata-dialog-fill">
             {t("testData.fillFromProfile")}
           </Button>
-          <Button variant="default" onClick={onClose}>
-            {t("testData.cancel")}
-          </Button>
-          <Button
-            disabled={refusal !== null}
-            onClick={() => onSave(fake.trim(), rule.trim(), stable)}
-            data-testid="testdata-dialog-save"
-          >
-            {t("testData.apply")}
-          </Button>
-        </Group>
-      </Stack>
+        </FormFooter>
+      </FormLayout>
     </Modal>
   );
 }
