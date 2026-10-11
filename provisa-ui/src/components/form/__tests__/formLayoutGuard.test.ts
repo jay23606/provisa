@@ -111,7 +111,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sources/SourceDetailPanel.tsx",
   "pages/sql/ColumnFilterMenu.tsx",
   "pages/sql/ViewModal.tsx",
-  "pages/tables/CalendarCreateModal.tsx",
   "pages/tables/DataQualityPanel.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
   "pages/tables/RecurrenceBuilder.tsx",
