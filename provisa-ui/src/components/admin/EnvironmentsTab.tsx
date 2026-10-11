@@ -57,7 +57,8 @@ import { MergeRequestsPanel } from "./MergeRequestsPanel";
 import { RepoBrowser } from "./RepoBrowser";
 import { RepoIntegrationPanel } from "./RepoIntegrationPanel";
 import { SyntheticDatasetsPanel } from "./SyntheticDatasetsPanel";
-import { SyntheticSeedFields } from "./SyntheticSeedFields";
+import { SyntheticSeedFields, SyntheticSeedTick } from "./SyntheticSeedFields";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 import type { SyntheticSeed } from "./syntheticSeed";
 import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
@@ -474,46 +475,64 @@ export function EnvironmentsTab() {
         <Tabs.Panel value="environments" pt="md">
           <Stack gap="md">
             <Title order={4}>{t("environmentsTab.title")}</Title>
-            <Group align="end">
-              <TextInput
-                label={t("environmentsTab.newName")}
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-                data-testid="env-new-name"
-              />
-              <Select
-                label={t("environmentsTab.branchFrom")}
-                data={names}
-                value={from}
-                onChange={(v) => setFrom(v ?? PROD)}
-                data-testid="env-new-from"
-              />
-              <Group gap={4} align="center">
-                <Checkbox
-                  label={t("environmentsTab.inheritConnections")}
-                  checked={inherits}
-                  disabled={!canAdminister}
-                  onChange={(e) => setInheritConnections(e.currentTarget.checked)}
-                  data-testid="env-new-inherit"
+            <FormLayout>
+              <FormField size="medium">
+                <TextInput
+                  label={t("environmentsTab.newName")}
+                  value={name}
+                  onChange={(e) => setName(e.currentTarget.value)}
+                  data-testid="env-new-name"
                 />
-                <HelpBubble
-                  title={t("environmentsTab.inheritTitle")}
-                  paragraphs={[t("environmentsTab.inheritHelp"), t("environmentsTab.inheritHelp2")]}
-                  ariaLabel={t("environmentsTab.inheritTitle")}
-                  testId="env-inherit-help"
+              </FormField>
+              <FormField size="medium">
+                <Select
+                  label={t("environmentsTab.branchFrom")}
+                  data={names}
+                  value={from}
+                  onChange={(v) => setFrom(v ?? PROD)}
+                  data-testid="env-new-from"
                 />
-              </Group>
-              <Button
-                leftSection={<GitBranch size={14} aria-hidden />}
-                onClick={create}
-                loading={creating}
-                disabled={name.trim() === ""}
-                data-testid="env-create"
-              >
-                {t("environmentsTab.create")}
-              </Button>
-            </Group>
-            <SyntheticSeedFields envs={names} seed={synthetic} setSeed={setSynthetic} />
+              </FormField>
+              {/* The ticks together after the fields; the fields the second one opens follow. */}
+              <FormChecks>
+                <FormField size="short">
+                  <Group gap={4} align="center" wrap="nowrap">
+                    <Checkbox
+                      label={t("environmentsTab.inheritConnections")}
+                      checked={inherits}
+                      disabled={!canAdminister}
+                      onChange={(e) => setInheritConnections(e.currentTarget.checked)}
+                      data-testid="env-new-inherit"
+                    />
+                    <HelpBubble
+                      title={t("environmentsTab.inheritTitle")}
+                      paragraphs={[
+                        t("environmentsTab.inheritHelp"),
+                        t("environmentsTab.inheritHelp2"),
+                      ]}
+                      ariaLabel={t("environmentsTab.inheritTitle")}
+                      testId="env-inherit-help"
+                    />
+                  </Group>
+                </FormField>
+                <SyntheticSeedTick seed={synthetic} setSeed={setSynthetic} />
+              </FormChecks>
+              <SyntheticSeedFields envs={names} seed={synthetic} setSeed={setSynthetic} />
+              {/* Create is not a save and the form is always open: it keeps its word, alone. */}
+              <FormFooter
+                action={
+                  <Button
+                    leftSection={<GitBranch size={14} aria-hidden />}
+                    onClick={create}
+                    loading={creating}
+                    disabled={name.trim() === ""}
+                    data-testid="env-create"
+                  >
+                    {t("environmentsTab.create")}
+                  </Button>
+                }
+              />
+            </FormLayout>
 
             <SortGroupTable
               testPrefix="environments"

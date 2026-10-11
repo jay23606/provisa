@@ -26,7 +26,8 @@ const api = vi.hoisted(() => ({
 vi.mock("../../../api/synthetic", () => api);
 
 import { SyntheticDatasetsPanel } from "../SyntheticDatasetsPanel";
-import { SyntheticSeedFields } from "../SyntheticSeedFields";
+import { SyntheticSeedFields, SyntheticSeedTick } from "../SyntheticSeedFields";
+import { FormLayout } from "../../form/FormLayout";
 import { EMPTY_SEED } from "../syntheticSeed";
 
 const DATASET = {
@@ -201,13 +202,20 @@ describe("SyntheticDatasetsPanel", () => {
 
 describe("SyntheticSeedFields", () => {
   it("turns the seed option on and off", () => {
+    // The tick sits with the form's other ticks and its fields follow them: two pieces of one
+    // form, mounted here as the environment form mounts them.
     const setSeed = vi.fn();
-    const { rerender } = render(
-      <SyntheticSeedFields envs={["prod"]} seed={null} setSeed={setSeed} />,
+    const both = (seed: typeof EMPTY_SEED | null) => (
+      <FormLayout>
+        <SyntheticSeedTick seed={seed} setSeed={setSeed} />
+        <SyntheticSeedFields envs={["prod"]} seed={seed} setSeed={setSeed} />
+      </FormLayout>
     );
+    const { rerender } = render(both(null));
+    expect(screen.queryByTestId("env-new-synthetic-name")).toBeNull();
     fireEvent.click(screen.getByTestId("env-new-synthetic"));
     expect(setSeed).toHaveBeenCalledWith(EMPTY_SEED);
-    rerender(<SyntheticSeedFields envs={["prod"]} seed={EMPTY_SEED} setSeed={setSeed} />);
+    rerender(both(EMPTY_SEED));
     expect(screen.getByTestId("env-new-synthetic-name")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("env-new-synthetic"));
     expect(setSeed).toHaveBeenLastCalledWith(null);

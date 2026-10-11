@@ -92,7 +92,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "components/admin/RepoBrowser.tsx",
   "components/admin/RepoIntegrationPanel.tsx",
   "components/admin/SyntheticDatasetsPanel.tsx",
-  "components/admin/SyntheticSeedFields.tsx",
   "components/admin/synthetic/DatasetAssertions.tsx",
   "components/admin/synthetic/DatasetConditions.tsx",
   "components/form/FormLayout.tsx",
