@@ -48,6 +48,7 @@ import { Play, Plus, Trash2 } from "lucide-react";
 import { useDqContract, useTables } from "../../hooks/useAdminQueries";
 import type { DqCheck, DqCheckCatalog, DqCheckKind, DqDryRun } from "../../types/admin";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { FieldGroup, FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 
 /** A column-less key for the dataset-level checks, matching the server's empty `column_name`. */
 const DATASET_SCOPE = "";
@@ -247,20 +248,23 @@ export function DataQualityPanel({
     }
   }, [contractText, dryRunContract, sourceId, t]);
 
-  const runNowClick = useCallback(async (id: number) => {
-    setRunningNow(true);
-    try {
-      const result = await runCheckNow({ tableId: id });
-      setRunNowResult(result);
-    } catch (error) {
-      setRunNowResult({
-        success: false,
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setRunningNow(false);
-    }
-  }, [runCheckNow]);
+  const runNowClick = useCallback(
+    async (id: number) => {
+      setRunningNow(true);
+      try {
+        const result = await runCheckNow({ tableId: id });
+        setRunNowResult(result);
+      } catch (error) {
+        setRunNowResult({
+          success: false,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        setRunningNow(false);
+      }
+    },
+    [runCheckNow],
+  );
 
   return (
     // REQ-1358: `tourId` marks the whole section, not just its header, so the tour step highlights
@@ -274,26 +278,30 @@ export function DataQualityPanel({
       <Stack gap="sm">
         {/* The dataset the contract observes, offered as the server-derived pgwire dataset and
             shown as the logical name {domain-slug}.{table}. */}
-        <Select
-          label={t("dataQualityPanel.datasetTableLabel")}
-          data-testid="dq-dataset-table-select"
-          searchable
-          data={governedTables
-            // Provisa's own meta/ops tables are governed too, but a checker observes the
-            // operator's data, not the platform's bookkeeping.
-            .filter((tbl) => tbl.dqDataset !== null && !SYSTEM_DOMAIN_IDS.has(tbl.domainId))
-            .map((tbl) => {
-              const [, domain, table] = (tbl.dqDataset as string).split("/");
-              return { value: tbl.dqDataset as string, label: `${domain}.${table}` };
-            })}
-          value={datasetDraft || null}
-          onChange={(v) => {
-            if (v === null) return;
-            setDatasetDraft(v);
-            void rewrite(checks, v);
-          }}
-          comboboxProps={{ withinPortal: true }}
-        />
+        <FormLayout>
+          <FormField size="long">
+            <Select
+              label={t("dataQualityPanel.datasetTableLabel")}
+              data-testid="dq-dataset-table-select"
+              searchable
+              data={governedTables
+                // Provisa's own meta/ops tables are governed too, but a checker observes the
+                // operator's data, not the platform's bookkeeping.
+                .filter((tbl) => tbl.dqDataset !== null && !SYSTEM_DOMAIN_IDS.has(tbl.domainId))
+                .map((tbl) => {
+                  const [, domain, table] = (tbl.dqDataset as string).split("/");
+                  return { value: tbl.dqDataset as string, label: `${domain}.${table}` };
+                })}
+              value={datasetDraft || null}
+              onChange={(v) => {
+                if (v === null) return;
+                setDatasetDraft(v);
+                void rewrite(checks, v);
+              }}
+              comboboxProps={{ withinPortal: true }}
+            />
+          </FormField>
+        </FormLayout>
         {parseError !== null && (
           <Alert color="red" data-testid="dq-parse-error">
             {parseError}
@@ -365,128 +373,150 @@ export function DataQualityPanel({
 
         {/* The picker. Offering only what this checker can express against this column's type is the
             reason the catalog is a server call rather than a constant in the browser. */}
-        <Group align="flex-end" gap="xs" wrap="wrap">
-          <Select
-            label={t("dataQualityPanel.columnLabel")}
-            data-testid="dq-column"
-            data={[
-              { value: DATASET_SCOPE, label: t("dataQualityPanel.datasetScope") },
-              ...(catalog?.columns ?? []).map((c) => ({
-                value: c.name,
-                label: c.dataType === null ? c.name : `${c.name} — ${c.dataType}`,
-              })),
-            ]}
-            value={column}
-            onChange={(v) => {
-              setColumn(v ?? DATASET_SCOPE);
-              setCheckType("");
-              setParams({});
-            }}
-            allowDeselect={false}
-            comboboxProps={{ withinPortal: true }}
-          />
-          <Select
-            label={t("dataQualityPanel.checkLabel")}
-            data-testid="dq-check-type"
-            data={kinds.map((k) => ({ value: k.checkType, label: k.checkType }))}
-            value={checkType || null}
-            onChange={(v) => {
-              setCheckType(v ?? "");
-              setParams({});
-              const picked = kinds.find((k) => k.checkType === v) ?? null;
-              setComparator(picked?.comparators[0] ?? "");
-              setMetric(picked?.metrics[0] ?? "");
-              setUnit(picked?.thresholdUnits[0] ?? "");
-              setLevel(picked?.levels.includes("fail") ? "fail" : (picked?.levels[0] ?? "fail"));
-            }}
-            placeholder={t("dataQualityPanel.checkPlaceholder")}
-            comboboxProps={{ withinPortal: true }}
-          />
-          {kind?.metrics.length ? (
-            <Select
-              label={t("dataQualityPanel.metricLabel")}
-              data-testid="dq-metric"
-              data={kind.metrics}
-              value={metric || null}
-              onChange={(v) => setMetric(v ?? "")}
-              comboboxProps={{ withinPortal: true }}
-            />
-          ) : null}
-          {kind?.comparators.length ? (
-            <>
+        <FormLayout>
+          {/* One check, a row of its parts. */}
+          <FieldGroup row>
+            <FormField size="medium">
               <Select
-                label={t("dataQualityPanel.comparatorLabel")}
-                data-testid="dq-comparator"
-                data={kind.comparators}
-                value={comparator || null}
-                onChange={(v) => setComparator(v ?? "")}
+                label={t("dataQualityPanel.columnLabel")}
+                data-testid="dq-column"
+                data={[
+                  { value: DATASET_SCOPE, label: t("dataQualityPanel.datasetScope") },
+                  ...(catalog?.columns ?? []).map((c) => ({
+                    value: c.name,
+                    label: c.dataType === null ? c.name : `${c.name} — ${c.dataType}`,
+                  })),
+                ]}
+                value={column}
+                onChange={(v) => {
+                  setColumn(v ?? DATASET_SCOPE);
+                  setCheckType("");
+                  setParams({});
+                }}
+                allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
-                w={90}
               />
-              <NumberInput
-                label={t("dataQualityPanel.thresholdLabel")}
-                data-testid="dq-threshold"
-                value={threshold ?? ""}
-                onChange={(v) => setThreshold(v === "" ? null : Number(v))}
-                w={120}
+            </FormField>
+            <FormField size="medium">
+              <Select
+                label={t("dataQualityPanel.checkLabel")}
+                data-testid="dq-check-type"
+                data={kinds.map((k) => ({ value: k.checkType, label: k.checkType }))}
+                value={checkType || null}
+                onChange={(v) => {
+                  setCheckType(v ?? "");
+                  setParams({});
+                  const picked = kinds.find((k) => k.checkType === v) ?? null;
+                  setComparator(picked?.comparators[0] ?? "");
+                  setMetric(picked?.metrics[0] ?? "");
+                  setUnit(picked?.thresholdUnits[0] ?? "");
+                  setLevel(
+                    picked?.levels.includes("fail") ? "fail" : (picked?.levels[0] ?? "fail"),
+                  );
+                }}
+                placeholder={t("dataQualityPanel.checkPlaceholder")}
+                comboboxProps={{ withinPortal: true }}
               />
-            </>
-          ) : null}
-          {kind?.thresholdUnits.length ? (
-            <Select
-              label={t("dataQualityPanel.unitLabel")}
-              data-testid="dq-unit"
-              data={kind.thresholdUnits}
-              value={unit || null}
-              onChange={(v) => setUnit(v ?? "")}
-              comboboxProps={{ withinPortal: true }}
-              w={110}
-            />
-          ) : null}
-          {/* Severity per check: warn means the threshold WAS breached and only the reaction is
+            </FormField>
+            {kind?.metrics.length ? (
+              <FormField size="short">
+                <Select
+                  label={t("dataQualityPanel.metricLabel")}
+                  data-testid="dq-metric"
+                  data={kind.metrics}
+                  value={metric || null}
+                  onChange={(v) => setMetric(v ?? "")}
+                  comboboxProps={{ withinPortal: true }}
+                />
+              </FormField>
+            ) : null}
+            {kind?.comparators.length ? (
+              <>
+                <FormField size="short">
+                  <Select
+                    label={t("dataQualityPanel.comparatorLabel")}
+                    data-testid="dq-comparator"
+                    data={kind.comparators}
+                    value={comparator || null}
+                    onChange={(v) => setComparator(v ?? "")}
+                    comboboxProps={{ withinPortal: true }}
+                  />
+                </FormField>
+                <FormField size="short">
+                  <NumberInput
+                    label={t("dataQualityPanel.thresholdLabel")}
+                    data-testid="dq-threshold"
+                    value={threshold ?? ""}
+                    onChange={(v) => setThreshold(v === "" ? null : Number(v))}
+                  />
+                </FormField>
+              </>
+            ) : null}
+            {kind?.thresholdUnits.length ? (
+              <FormField size="short">
+                <Select
+                  label={t("dataQualityPanel.unitLabel")}
+                  data-testid="dq-unit"
+                  data={kind.thresholdUnits}
+                  value={unit || null}
+                  onChange={(v) => setUnit(v ?? "")}
+                  comboboxProps={{ withinPortal: true }}
+                />
+              </FormField>
+            ) : null}
+            {/* Severity per check: warn means the threshold WAS breached and only the reaction is
               milder — the outcome the export publishes is still a failure. */}
-          {kind?.levels.length ? (
-            <Select
-              label={t("dataQualityPanel.levelLabel")}
-              data-testid="dq-level"
-              data={kind.levels}
-              value={level}
-              onChange={(v) => setLevel(v ?? "fail")}
-              allowDeselect={false}
-              comboboxProps={{ withinPortal: true }}
-              w={110}
-            />
-          ) : null}
-          {(kind?.params ?? []).map((p) =>
-            p.choices.length > 0 ? (
-              <Select
-                key={p.name}
-                label={p.name}
-                data-testid={`dq-param-${p.name}`}
-                data={p.choices}
-                value={params[p.name] ?? null}
-                onChange={(v) => setParams({ ...params, [p.name]: v ?? "" })}
-                comboboxProps={{ withinPortal: true }}
-              />
-            ) : (
-              <TextInput
-                key={p.name}
-                label={p.name}
-                data-testid={`dq-param-${p.name}`}
-                value={params[p.name] ?? ""}
-                onChange={(e) => setParams({ ...params, [p.name]: e.currentTarget.value })}
-              />
-            ),
-          )}
-          <Button
-            leftSection={<Plus size={14} />}
-            data-testid="dq-add-check"
-            disabled={checkType === "" || dataset === null}
-            onClick={() => void addCheck()}
-          >
-            {t("dataQualityPanel.addCheck")}
-          </Button>
-        </Group>
+            {kind?.levels.length ? (
+              <FormField size="short">
+                <Select
+                  label={t("dataQualityPanel.levelLabel")}
+                  data-testid="dq-level"
+                  data={kind.levels}
+                  value={level}
+                  onChange={(v) => setLevel(v ?? "fail")}
+                  allowDeselect={false}
+                  comboboxProps={{ withinPortal: true }}
+                />
+              </FormField>
+            ) : null}
+            {(kind?.params ?? []).map((p) =>
+              p.choices.length > 0 ? (
+                <FormField size="short" key={p.name}>
+                  <Select
+                    label={p.name}
+                    data-testid={`dq-param-${p.name}`}
+                    data={p.choices}
+                    value={params[p.name] ?? null}
+                    onChange={(v) => setParams({ ...params, [p.name]: v ?? "" })}
+                    comboboxProps={{ withinPortal: true }}
+                  />
+                </FormField>
+              ) : (
+                <FormField size="short" key={p.name}>
+                  <TextInput
+                    label={p.name}
+                    data-testid={`dq-param-${p.name}`}
+                    value={params[p.name] ?? ""}
+                    onChange={(e) => setParams({ ...params, [p.name]: e.currentTarget.value })}
+                  />
+                </FormField>
+              ),
+            )}
+          </FieldGroup>
+          {/* Adding is not a save: it keeps its word, on the line beneath the parts it adds. */}
+          <FormFooter
+            action={
+              <Button
+                leftSection={<Plus size={14} />}
+                data-testid="dq-add-check"
+                disabled={checkType === "" || dataset === null}
+                onClick={() => void addCheck()}
+              >
+                {t("dataQualityPanel.addCheck")}
+              </Button>
+            }
+          />
+        </FormLayout>
         {buildError !== null && (
           <Alert color="red" data-testid="dq-build-error">
             {buildError}

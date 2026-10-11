@@ -127,7 +127,6 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/TablesPage.tsx",
   "pages/commands/ColumnGovernanceFields.tsx",
   "pages/sources/SourceDetailPanel.tsx",
-  "pages/tables/DataQualityPanel.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
 ];
 
