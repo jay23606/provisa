@@ -8,9 +8,10 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Alert, Button, Group, List, Modal, Stack, Text } from "@mantine/core";
+import { Alert, Button, List, Modal, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 import { acknowledgeJoin, leaveOrg } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
 
@@ -118,7 +119,18 @@ export function JoinNotice() {
             {error}
           </Alert>
         )}
-        <Group justify="flex-end">
+        {/* The notice's action first, then the way out, at the start of the line. */}
+        <FormFooter
+          action={
+            <Button
+              loading={busy}
+              onClick={() => acknowledge(pending.org_id)}
+              data-testid="join-notice-ack"
+            >
+              {isSandbox ? "Start exploring" : t("joinNotice.ack")}
+            </Button>
+          }
+        >
           {!isSandbox && UNASKED_FOR.includes(pending.joined_via ?? "") && (
             <Button
               variant="subtle"
@@ -130,14 +142,7 @@ export function JoinNotice() {
               {t("joinNotice.leave")}
             </Button>
           )}
-          <Button
-            loading={busy}
-            onClick={() => acknowledge(pending.org_id)}
-            data-testid="join-notice-ack"
-          >
-            {isSandbox ? "Start exploring" : t("joinNotice.ack")}
-          </Button>
-        </Group>
+        </FormFooter>
       </Stack>
     </Modal>
   );

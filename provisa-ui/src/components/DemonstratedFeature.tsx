@@ -12,6 +12,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Badge, Box, Button, Group, Modal, Stack, Text, Tooltip } from "@mantine/core";
 import { Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { FormFooter } from "./form/FormLayout";
 
 interface Props {
   children: ReactNode;
@@ -76,11 +77,13 @@ export function DemonstratedFeature({ children, block, navigable, capability }: 
                 .map((para) => (
                   <Text key={para}>{para}</Text>
                 ))}
-              <Group justify="flex-end">
-                <Button onClick={() => setExplaining(false)}>
-                  {t("capabilityGate.demonstrated.dismiss")}
-                </Button>
-              </Group>
+              <FormFooter
+                action={
+                  <Button onClick={() => setExplaining(false)}>
+                    {t("capabilityGate.demonstrated.dismiss")}
+                  </Button>
+                }
+              />
             </Stack>
           </Modal>
         )}

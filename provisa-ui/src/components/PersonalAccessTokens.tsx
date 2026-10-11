@@ -21,6 +21,7 @@ import {
 } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormField, FormFooter, FormLayout } from "./form/FormLayout";
 import {
   issuePersonalAccessToken,
   listPersonalAccessTokens,
@@ -129,31 +130,37 @@ export function PersonalAccessTokens() {
         </Alert>
       )}
 
-      <Group gap="xs" align="flex-end" mb="xs">
-        <TextInput
-          label={t("userProfileModal.patName")}
-          value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
-          data-testid="profile-pat-name"
+      <FormLayout style={{ marginBottom: "0.75rem" }}>
+        <FormField size="medium">
+          <TextInput
+            label={t("userProfileModal.patName")}
+            value={name}
+            onChange={(e) => setName(e.currentTarget.value)}
+            data-testid="profile-pat-name"
+          />
+        </FormField>
+        <FormField size="short">
+          <NumberInput
+            label={t("userProfileModal.patExpiresInDays")}
+            value={expiresInDays}
+            onChange={(v) => setExpiresInDays(typeof v === "number" ? v : "")}
+            min={1}
+            max={366}
+            data-testid="profile-pat-expiry"
+          />
+        </FormField>
+        <FormFooter
+          action={
+            <Button
+              disabled={!name.trim() || issuing}
+              onClick={handleIssue}
+              data-testid="profile-pat-issue"
+            >
+              {issuing ? t("userProfileModal.patIssuing") : t("userProfileModal.patIssue")}
+            </Button>
+          }
         />
-        <NumberInput
-          label={t("userProfileModal.patExpiresInDays")}
-          value={expiresInDays}
-          onChange={(v) => setExpiresInDays(typeof v === "number" ? v : "")}
-          min={1}
-          max={366}
-          w={140}
-          data-testid="profile-pat-expiry"
-        />
-        <Button
-          size="xs"
-          disabled={!name.trim() || issuing}
-          onClick={handleIssue}
-          data-testid="profile-pat-issue"
-        >
-          {issuing ? t("userProfileModal.patIssuing") : t("userProfileModal.patIssue")}
-        </Button>
-      </Group>
+      </FormLayout>
 
       {tokens && tokens.length === 0 ? (
         <Text fz="0.85rem" c="dimmed">
