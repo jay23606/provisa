@@ -40,6 +40,7 @@ import {
   telemetryIdKind,
   type TelemetryIdKind,
 } from "../../components/telemetry/traceDetails";
+import { Tip } from "../../components/Tip";
 
 interface ResultsGridProps {
   grid: ResultsGridState;
@@ -209,45 +210,48 @@ export function ResultsGrid({
         >
           {t("sqlResultsPanel.downloadCsv")}
         </Button>
-        <Button
-          variant="default"
-          size="compact-xs"
-          onClick={() => void handleDownloadXlsx()}
-          loading={exporting}
-          title={t("sqlResultsPanel.downloadXlsxTitle")}
-          data-testid="download-xlsx-btn"
-        >
-          {t("sqlResultsPanel.downloadXlsx")}
-        </Button>
-        <Button
-          variant="default"
-          size="compact-xs"
-          onClick={handleCopyResults}
-          title={t("sqlResultsPanel.copyResultsTitle")}
-          data-testid="copy-results-btn"
-          leftSection={
-            copiedResults ? (
-              <Check size={11} style={{ color: "var(--approve)" }} />
-            ) : (
-              <Copy size={11} />
-            )
-          }
-        >
-          {copiedResults ? t("sqlResultsPanel.copied") : t("sqlResultsPanel.copy")}
-        </Button>
+        <Tip text={t("sqlResultsPanel.downloadXlsxTitle")}>
+          <Button
+            variant="default"
+            size="compact-xs"
+            onClick={() => void handleDownloadXlsx()}
+            loading={exporting}
+            data-testid="download-xlsx-btn"
+          >
+            {t("sqlResultsPanel.downloadXlsx")}
+          </Button>
+        </Tip>
+        <Tip text={t("sqlResultsPanel.copyResultsTitle")}>
+          <Button
+            variant="default"
+            size="compact-xs"
+            onClick={handleCopyResults}
+            data-testid="copy-results-btn"
+            leftSection={
+              copiedResults ? (
+                <Check size={11} style={{ color: "var(--approve)" }} />
+              ) : (
+                <Copy size={11} />
+              )
+            }
+          >
+            {copiedResults ? t("sqlResultsPanel.copied") : t("sqlResultsPanel.copy")}
+          </Button>
+        </Tip>
         {/* REQ-1442: always on the toolbar, disabled when there is nothing to clear — the reader
             who filtered several columns to nothing needs one control, not one per column. */}
-        <Button
-          variant="default"
-          size="compact-xs"
-          onClick={clearFilters}
-          disabled={!hasFilters}
-          title={t("sqlResultsPanel.clearFiltersTitle")}
-          data-testid="clear-filters-btn"
-          leftSection={<FilterX size={11} />}
-        >
-          {t("sqlResultsPanel.clearFilters")}
-        </Button>
+        <Tip text={t("sqlResultsPanel.clearFiltersTitle")}>
+          <Button
+            variant="default"
+            size="compact-xs"
+            onClick={clearFilters}
+            disabled={!hasFilters}
+            data-testid="clear-filters-btn"
+            leftSection={<FilterX size={11} />}
+          >
+            {t("sqlResultsPanel.clearFilters")}
+          </Button>
+        </Tip>
         <Text component="span" size="xs" c="dimmed">
           {t("sqlResultsPanel.rowCount", { count: displayRows.length })}
           {!serverPaged && displayRows.length < totalRowCount && groupBy.length === 0
@@ -402,33 +406,37 @@ export function ResultsGrid({
                         {c}
                       </span>
                       {isGroupable && (
-                        <ActionIcon
-                          component="span"
-                          variant="transparent"
-                          size="xs"
-                          data-testid={`results-group-${c}`}
-                          aria-label={
+                        <Tip
+                          text={
                             isGrouped
                               ? t("sqlResultsPanel.ungroupLevel", { level: groupLevel + 1 })
                               : t("sqlResultsPanel.groupByCol", { label: c })
                           }
-                          title={
-                            isGrouped
-                              ? t("sqlResultsPanel.ungroupLevel", { level: groupLevel + 1 })
-                              : t("sqlResultsPanel.groupByCol", { label: c })
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleGroupBy(c);
-                          }}
-                          style={{ opacity: isGrouped ? 1 : 0.35, flexShrink: 0 }}
+                          named
                         >
-                          <Layers
-                            size={11}
-                            color={isGrouped ? "var(--primary, #6366f1)" : undefined}
-                            aria-hidden="true"
-                          />
-                        </ActionIcon>
+                          <ActionIcon
+                            component="span"
+                            variant="transparent"
+                            size="xs"
+                            data-testid={`results-group-${c}`}
+                            aria-label={
+                              isGrouped
+                                ? t("sqlResultsPanel.ungroupLevel", { level: groupLevel + 1 })
+                                : t("sqlResultsPanel.groupByCol", { label: c })
+                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGroupBy(c);
+                            }}
+                            style={{ opacity: isGrouped ? 1 : 0.35, flexShrink: 0 }}
+                          >
+                            <Layers
+                              size={11}
+                              color={isGrouped ? "var(--primary, #6366f1)" : undefined}
+                              aria-hidden="true"
+                            />
+                          </ActionIcon>
+                        </Tip>
                       )}
                       {isGroupable && isGrouped && (
                         <Text span fz="0.65rem" c="var(--primary, #6366f1)">
@@ -581,15 +589,16 @@ export function ResultsGrid({
                         {text === null ? (
                           <span className="null-val">{t("sqlResultsPanel.nullValue")}</span>
                         ) : kind !== null && TELEMETRY_ID_RE.test(text) ? (
-                          <Anchor
-                            component="button"
-                            type="button"
-                            inherit
-                            title={t("traceDetails.openDetails")}
-                            onClick={() => setDetail({ kind, id: text })}
-                          >
-                            {text}
-                          </Anchor>
+                          <Tip text={t("traceDetails.openDetails")}>
+                            <Anchor
+                              component="button"
+                              type="button"
+                              inherit
+                              onClick={() => setDetail({ kind, id: text })}
+                            >
+                              {text}
+                            </Anchor>
+                          </Tip>
                         ) : (
                           text
                         )}

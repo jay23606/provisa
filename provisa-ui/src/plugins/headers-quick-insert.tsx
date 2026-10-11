@@ -19,6 +19,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useGraphiQL } from "@graphiql/react";
+import { Tip } from "../components/Tip";
 
 interface HeaderDef {
   label: string;
@@ -190,14 +191,14 @@ export function HeadersQuickInsert() {
     <div className="provisa-headers-buttons">
       <span className="provisa-headers-label">X-Provisa</span>
       {PROVISA_HEADERS.map((def) => (
-        <button
-          key={`${def.key}:${def.defaultValue}`}
-          className={`provisa-header-btn${headers[def.key] === def.defaultValue ? " active" : ""}`}
-          title={def.title}
-          onClick={() => toggle(def)}
-        >
-          {def.label}
-        </button>
+        <Tip key={`${def.key}:${def.defaultValue}`} text={def.title}>
+          <button
+            className={`provisa-header-btn${headers[def.key] === def.defaultValue ? " active" : ""}`}
+            onClick={() => toggle(def)}
+          >
+            {def.label}
+          </button>
+        </Tip>
       ))}
     </div>,
     portalTarget,

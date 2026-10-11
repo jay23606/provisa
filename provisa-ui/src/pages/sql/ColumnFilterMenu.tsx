@@ -37,6 +37,7 @@ import {
   type FilterOp,
   type FilterSpec,
 } from "./columnFilter";
+import { Tip } from "../../components/Tip";
 
 interface Props {
   col: string;
@@ -128,24 +129,25 @@ export function ColumnFilterMenu({
       shadow="md"
     >
       <Popover.Target>
-        <ActionIcon
-          variant="subtle"
-          data-active={current ? "true" : undefined}
-          size="xs"
-          className="th-filter-btn"
-          aria-label={t("columnFilter.open", { column: col })}
-          title={t("columnFilter.open", { column: col })}
-          data-testid={`${id}-btn`}
-          onClick={(e) => {
-            // A controlled Popover does not toggle itself from its target.
-            e.stopPropagation();
-            if (opened) setOpened(false);
-            else open();
-          }}
-        >
-          {/* An applied filter fills the icon; the button keeps the text box's background. */}
-          <Filter size={11} fill={current ? "currentColor" : "none"} />
-        </ActionIcon>
+        <Tip text={t("columnFilter.open", { column: col })} named>
+          <ActionIcon
+            variant="subtle"
+            data-active={current ? "true" : undefined}
+            size="xs"
+            className="th-filter-btn"
+            aria-label={t("columnFilter.open", { column: col })}
+            data-testid={`${id}-btn`}
+            onClick={(e) => {
+              // A controlled Popover does not toggle itself from its target.
+              e.stopPropagation();
+              if (opened) setOpened(false);
+              else open();
+            }}
+          >
+            {/* An applied filter fills the icon; the button keeps the text box's background. */}
+            <Filter size={11} fill={current ? "currentColor" : "none"} />
+          </ActionIcon>
+        </Tip>
       </Popover.Target>
       <Popover.Dropdown onClick={(e) => e.stopPropagation()} data-testid={`${id}-menu`}>
         <Stack gap="xs">

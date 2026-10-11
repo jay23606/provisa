@@ -30,8 +30,8 @@ test("auto-impute fires and returns integer-id edges for meta node query", async
     { timeout: 90000 }
   );
 
-  // Enable auto-impute if not already active (button title changes based on state)
-  const imputeBtn = page.locator('button[title*="Auto-impute"]').first();
+  // Enable auto-impute if not already active (button name changes based on state)
+  const imputeBtn = page.locator('button[aria-label*="Auto-impute"]').first();
   await imputeBtn.waitFor({ timeout: 10000 });
   const isActive = await imputeBtn.evaluate((el) => el.classList.contains("gf-icon-btn--on"));
   if (!isActive) {

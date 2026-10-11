@@ -30,7 +30,6 @@ import {
   Text,
   TextInput,
   Title,
-  Tooltip,
 } from "@mantine/core";
 import {
   AlertCircle,
@@ -58,6 +57,7 @@ import {
 } from "./jsonapi/document";
 import "./JsonApiPage.css";
 import { actingRoleHeader } from "../lib/actingRole";
+import { Tip } from "../components/Tip";
 
 function ResourceCard({
   item,
@@ -93,14 +93,11 @@ function ResourceCard({
                     !includedSet || includedSet.has(`${r.type}::${r.id}`),
                 )
                 .map((r: JsonApiRelationshipRef) => (
-                  <Anchor
-                    key={`${relName}-${r.id}`}
-                    className="jsonapi-rel-link"
-                    href={`#res-${r.type}-${r.id}`}
-                    title={relationshipTitle(relName, r)}
-                  >
-                    {relName} #{r.id}
-                  </Anchor>
+                  <Tip key={`${relName}-${r.id}`} text={relationshipTitle(relName, r)}>
+                    <Anchor className="jsonapi-rel-link" href={`#res-${r.type}-${r.id}`}>
+                      {relName} #{r.id}
+                    </Anchor>
+                  </Tip>
                 ));
             })}
           </span>
@@ -807,19 +804,19 @@ export function JsonApiPage() {
                     {(tableObj?.columns ?? []).map((col) => {
                       const apiName = toApiName(col);
                       return (
-                        <Checkbox
-                          key={col.columnName}
-                          className="jsonapi-field-item"
-                          size="xs"
-                          title={col.description ?? undefined}
-                          checked={checkedFields.has(apiName)}
-                          onChange={() => toggleField(apiName)}
-                          label={
-                            <span className="jsonapi-field-name">
-                              {col.alias ?? col.columnName}
-                            </span>
-                          }
-                        />
+                        <Tip key={col.columnName} text={col.description ?? undefined}>
+                          <Checkbox
+                            className="jsonapi-field-item"
+                            size="xs"
+                            checked={checkedFields.has(apiName)}
+                            onChange={() => toggleField(apiName)}
+                            label={
+                              <span className="jsonapi-field-name">
+                                {col.alias ?? col.columnName}
+                              </span>
+                            }
+                          />
+                        </Tip>
                       );
                     })}
                   </div>
@@ -1013,7 +1010,7 @@ export function JsonApiPage() {
             </Badge>
             <span className="jsonapi-url">{displayUrl || "—"}</span>
             {displayUrl && (
-              <Tooltip label={copied ? t("jsonApiPage.copied") : t("jsonApiPage.copyUrlAria")}>
+              <Tip text={copied ? t("jsonApiPage.copied") : t("jsonApiPage.copyUrlAria")} named>
                 <ActionIcon
                   className="jsonapi-copy-btn"
                   variant="default"
@@ -1024,7 +1021,7 @@ export function JsonApiPage() {
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />}
                 </ActionIcon>
-              </Tooltip>
+              </Tip>
             )}
           </div>
 

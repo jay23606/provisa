@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import cytoscape, { type NodeSingular } from "cytoscape";
 import elkRaw from "cytoscape-elk";
-import { ActionIcon, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Text } from "@mantine/core";
 import { Download, Expand, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { FitScreenIcon } from "../graph/GraphIcons";
 import type { LineageGraphData } from "../../api/lineage";
@@ -24,6 +24,7 @@ import { LineageLegend } from "./LineageLegend";
 import type { DescribeColumn } from "./column-descriptions";
 import { FOOTER_H, ROLE_STYLE, ROW_H, buildLineageModel, rowWidth } from "./lineage-layout";
 import type { Role } from "./lineage-layout";
+import { Tip, TipSurface } from "../Tip";
 
 // ELK lays the relation boxes out in layers (REQ-1665); the ERD registers it the same way.
 type CyExt = Parameters<typeof cytoscape.use>[0];
@@ -682,8 +683,11 @@ export function LineageDag({
         </Text>
       )}
       {hint && (
-        <Tooltip
-          label={
+        <TipSurface
+          // Placed by the diagram at the box being pointed at, so it is held open here.
+          opened
+          position="top"
+          content={
             <div data-testid="lineage-box-hint">
               <div style={{ fontWeight: 600 }}>{hint.text}</div>
               {hint.columns.map((c) => (
@@ -693,9 +697,6 @@ export function LineageDag({
               ))}
             </div>
           }
-          opened
-          withArrow
-          position="top"
         >
           <div
             style={{
@@ -707,7 +708,7 @@ export function LineageDag({
               pointerEvents: "none",
             }}
           />
-        </Tooltip>
+        </TipSurface>
       )}
       <div
         style={{
@@ -722,7 +723,7 @@ export function LineageDag({
         }}
       >
         {onExpandAll && (
-          <Tooltip label="Expand all datasets">
+          <Tip text="Expand all datasets" named>
             <ActionIcon
               variant="default"
               onClick={onExpandAll}
@@ -731,10 +732,10 @@ export function LineageDag({
             >
               <ChevronsUpDown size={16} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         )}
         {onCollapseAll && (
-          <Tooltip label="Collapse all datasets">
+          <Tip text="Collapse all datasets" named>
             <ActionIcon
               variant="default"
               onClick={onCollapseAll}
@@ -743,10 +744,10 @@ export function LineageDag({
             >
               <ChevronsDownUp size={16} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         )}
         {onOpenModal && (
-          <Tooltip label="Open full view">
+          <Tip text="Open full view" named>
             <ActionIcon
               variant="default"
               onClick={onOpenModal}
@@ -755,9 +756,9 @@ export function LineageDag({
             >
               <Expand size={16} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         )}
-        <Tooltip label="Fit to screen">
+        <Tip text="Fit to screen" named>
           <ActionIcon
             variant="default"
             onClick={fitToScreen}
@@ -766,8 +767,8 @@ export function LineageDag({
           >
             <FitScreenIcon size={16} />
           </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Download PNG">
+        </Tip>
+        <Tip text="Download PNG" named>
           <ActionIcon
             variant="default"
             onClick={downloadPng}
@@ -776,7 +777,7 @@ export function LineageDag({
           >
             <Download size={16} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
       </div>
     </div>
   );

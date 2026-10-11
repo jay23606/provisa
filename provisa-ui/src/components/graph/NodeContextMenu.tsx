@@ -19,6 +19,7 @@ import type { Relationship } from "../../types/admin";
 import type { GNode, GEdge } from "./graph-model";
 import type { CyInstance } from "./cytoscape-types";
 import { tableLabel as dbTableLabel } from "../../naming";
+import { Tip } from "../Tip";
 
 export interface NodeCtxMenuState {
   x: number;
@@ -108,33 +109,36 @@ export function NodeContextMenu({
       style={{ left: nodeCtxMenu.x, top: nodeCtxMenu.y, visibility: "hidden" }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <UnstyledButton
-        component="button"
-        role="menuitem"
-        className="gf-node-ctx-item"
-        data-testid="node-ctx-exclude"
-        disabled={!hasPk}
-        aria-disabled={!hasPk}
-        title={
+      <Tip
+        text={
           hasPk ? t("nodeContextMenu.excludeTooltip") : t("nodeContextMenu.excludeDisabledTooltip")
         }
-        style={!hasPk ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-        onClick={() => {
-          if (!hasPk) return;
-          const cy = cyRef.current;
-          nodeCtxMenu.selectedNodeIds.forEach((id) => {
-            anchoredRef.current.delete(id);
-            if (cy) cy.remove(cy.$id(id));
-          });
-          onExcludeNode(nodeCtxMenu.selectedNodeIds);
-          onSelect(null);
-          setNodeCtxMenu(null);
-        }}
       >
-        {multiSelected
-          ? t("nodeContextMenu.excludeCount", { count: nodeCtxMenu.selectedNodeIds.length })
-          : t("nodeContextMenu.excludeFromQuery")}
-      </UnstyledButton>
+        <UnstyledButton
+          component="button"
+          role="menuitem"
+          className="gf-node-ctx-item"
+          data-testid="node-ctx-exclude"
+          disabled={!hasPk}
+          aria-disabled={!hasPk}
+          style={!hasPk ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          onClick={() => {
+            if (!hasPk) return;
+            const cy = cyRef.current;
+            nodeCtxMenu.selectedNodeIds.forEach((id) => {
+              anchoredRef.current.delete(id);
+              if (cy) cy.remove(cy.$id(id));
+            });
+            onExcludeNode(nodeCtxMenu.selectedNodeIds);
+            onSelect(null);
+            setNodeCtxMenu(null);
+          }}
+        >
+          {multiSelected
+            ? t("nodeContextMenu.excludeCount", { count: nodeCtxMenu.selectedNodeIds.length })
+            : t("nodeContextMenu.excludeFromQuery")}
+        </UnstyledButton>
+      </Tip>
       {nodeCtxMenu.selectedNodeIds.some((id) => anchoredRef.current.has(id)) && (
         <UnstyledButton
           component="button"
@@ -165,90 +169,98 @@ export function NodeContextMenu({
           {t("nodeContextMenu.unfixPosition")}
         </UnstyledButton>
       )}
-      <UnstyledButton
-        component="button"
-        role="menuitem"
-        className="gf-node-ctx-item"
-        data-testid="node-ctx-toggle-children"
-        disabled={!hasChildRels}
-        aria-disabled={!hasChildRels}
-        style={!hasChildRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-        title={hasChildRels ? undefined : t("nodeContextMenu.noOutgoingTooltip")}
-        onClick={() => {
-          if (!hasChildRels) return;
-          onToggleChildrenBatch(nodeCtxMenu.selectedNodeIds, false);
-          setNodeCtxMenu(null);
-        }}
-      >
-        {showingChildrenNatural.has(nodeCtxMenu.nodeId)
-          ? t("nodeContextMenu.hideChildren")
-          : t("nodeContextMenu.showChildren")}
-      </UnstyledButton>
-      <UnstyledButton
-        component="button"
-        role="menuitem"
-        className="gf-node-ctx-item"
-        data-testid="node-ctx-toggle-children-circular"
-        disabled={!hasChildRels}
-        aria-disabled={!hasChildRels}
-        style={!hasChildRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-        title={
+      <Tip text={hasChildRels ? undefined : t("nodeContextMenu.noOutgoingTooltip")}>
+        <UnstyledButton
+          component="button"
+          role="menuitem"
+          className="gf-node-ctx-item"
+          data-testid="node-ctx-toggle-children"
+          disabled={!hasChildRels}
+          aria-disabled={!hasChildRels}
+          style={!hasChildRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          onClick={() => {
+            if (!hasChildRels) return;
+            onToggleChildrenBatch(nodeCtxMenu.selectedNodeIds, false);
+            setNodeCtxMenu(null);
+          }}
+        >
+          {showingChildrenNatural.has(nodeCtxMenu.nodeId)
+            ? t("nodeContextMenu.hideChildren")
+            : t("nodeContextMenu.showChildren")}
+        </UnstyledButton>
+      </Tip>
+      <Tip
+        text={
           hasChildRels
             ? t("nodeContextMenu.showChildrenCircularTooltip")
             : t("nodeContextMenu.noOutgoingTooltip")
         }
-        onClick={() => {
-          if (!hasChildRels) return;
-          onToggleChildrenBatch(nodeCtxMenu.selectedNodeIds, true);
-          setNodeCtxMenu(null);
-        }}
       >
-        {showingChildrenCircular.has(nodeCtxMenu.nodeId)
-          ? t("nodeContextMenu.hideChildrenCircular")
-          : t("nodeContextMenu.showChildrenCircular")}
-      </UnstyledButton>
-      <UnstyledButton
-        component="button"
-        role="menuitem"
-        className="gf-node-ctx-item"
-        data-testid="node-ctx-toggle-parents"
-        disabled={!hasParentRels}
-        aria-disabled={!hasParentRels}
-        style={!hasParentRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-        title={hasParentRels ? undefined : t("nodeContextMenu.noIncomingTooltip")}
-        onClick={() => {
-          if (!hasParentRels) return;
-          onToggleParentsBatch(nodeCtxMenu.selectedNodeIds, false);
-          setNodeCtxMenu(null);
-        }}
-      >
-        {showingParents.has(nodeCtxMenu.nodeId)
-          ? t("nodeContextMenu.hideParents")
-          : t("nodeContextMenu.showParents")}
-      </UnstyledButton>
-      <UnstyledButton
-        component="button"
-        role="menuitem"
-        className="gf-node-ctx-item"
-        data-testid="node-ctx-toggle-parents-circular"
-        disabled={!hasParentRels}
-        aria-disabled={!hasParentRels}
-        style={!hasParentRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-        title={
+        <UnstyledButton
+          component="button"
+          role="menuitem"
+          className="gf-node-ctx-item"
+          data-testid="node-ctx-toggle-children-circular"
+          disabled={!hasChildRels}
+          aria-disabled={!hasChildRels}
+          style={!hasChildRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          onClick={() => {
+            if (!hasChildRels) return;
+            onToggleChildrenBatch(nodeCtxMenu.selectedNodeIds, true);
+            setNodeCtxMenu(null);
+          }}
+        >
+          {showingChildrenCircular.has(nodeCtxMenu.nodeId)
+            ? t("nodeContextMenu.hideChildrenCircular")
+            : t("nodeContextMenu.showChildrenCircular")}
+        </UnstyledButton>
+      </Tip>
+      <Tip text={hasParentRels ? undefined : t("nodeContextMenu.noIncomingTooltip")}>
+        <UnstyledButton
+          component="button"
+          role="menuitem"
+          className="gf-node-ctx-item"
+          data-testid="node-ctx-toggle-parents"
+          disabled={!hasParentRels}
+          aria-disabled={!hasParentRels}
+          style={!hasParentRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          onClick={() => {
+            if (!hasParentRels) return;
+            onToggleParentsBatch(nodeCtxMenu.selectedNodeIds, false);
+            setNodeCtxMenu(null);
+          }}
+        >
+          {showingParents.has(nodeCtxMenu.nodeId)
+            ? t("nodeContextMenu.hideParents")
+            : t("nodeContextMenu.showParents")}
+        </UnstyledButton>
+      </Tip>
+      <Tip
+        text={
           hasParentRels
             ? t("nodeContextMenu.showParentsCircularTooltip")
             : t("nodeContextMenu.noIncomingTooltip")
         }
-        onClick={() => {
-          if (!hasParentRels) return;
-          onToggleParentsBatch(nodeCtxMenu.selectedNodeIds, true);
-          setNodeCtxMenu(null);
-        }}
       >
-        {showingParentsCircular.has(nodeCtxMenu.nodeId)
-          ? t("nodeContextMenu.hideParentsCircular")
-          : t("nodeContextMenu.showParentsCircular")}
-      </UnstyledButton>
+        <UnstyledButton
+          component="button"
+          role="menuitem"
+          className="gf-node-ctx-item"
+          data-testid="node-ctx-toggle-parents-circular"
+          disabled={!hasParentRels}
+          aria-disabled={!hasParentRels}
+          style={!hasParentRels ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+          onClick={() => {
+            if (!hasParentRels) return;
+            onToggleParentsBatch(nodeCtxMenu.selectedNodeIds, true);
+            setNodeCtxMenu(null);
+          }}
+        >
+          {showingParentsCircular.has(nodeCtxMenu.nodeId)
+            ? t("nodeContextMenu.hideParentsCircular")
+            : t("nodeContextMenu.showParentsCircular")}
+        </UnstyledButton>
+      </Tip>
       <UnstyledButton
         component="button"
         role="menuitem"

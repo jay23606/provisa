@@ -9,12 +9,13 @@
 // permission from the copyright holder.
 
 import type { MutableRefObject } from "react";
-import { ActionIcon, Divider, Group, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Divider, Group, Text } from "@mantine/core";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from "../GraphIcons";
 import type { LayoutMode } from "./canvas-types";
 import type { CyInstance } from "../cytoscape-types";
+import { Tip } from "../../Tip";
 
 interface CanvasControlsProps {
   cyRef: MutableRefObject<CyInstance | null>;
@@ -57,7 +58,7 @@ export function CanvasControls({
       role="toolbar"
       aria-label={t("canvasControls.toolbarLabel")}
     >
-      <Tooltip label={t("canvasControls.zoomIn")}>
+      <Tip text={t("canvasControls.zoomIn")} named>
         <ActionIcon
           variant="subtle"
           size="md"
@@ -67,8 +68,8 @@ export function CanvasControls({
         >
           <ZoomInIcon size={15} />
         </ActionIcon>
-      </Tooltip>
-      <Tooltip label={t("canvasControls.zoomOut")}>
+      </Tip>
+      <Tip text={t("canvasControls.zoomOut")} named>
         <ActionIcon
           variant="subtle"
           size="md"
@@ -78,8 +79,8 @@ export function CanvasControls({
         >
           <ZoomOutIcon size={15} />
         </ActionIcon>
-      </Tooltip>
-      <Tooltip label={t("canvasControls.fitToScreen")}>
+      </Tip>
+      <Tip text={t("canvasControls.fitToScreen")} named>
         <ActionIcon
           variant="subtle"
           size="md"
@@ -89,9 +90,9 @@ export function CanvasControls({
         >
           <FitScreenIcon size={15} />
         </ActionIcon>
-      </Tooltip>
+      </Tip>
       <Divider orientation="horizontal" className="gf-ctrl-divider" />
-      <Tooltip label={toggleLayoutLabel}>
+      <Tip text={toggleLayoutLabel} named>
         <ActionIcon
           variant={layoutMode === "hierarchy" ? "filled" : "subtle"}
           size="md"
@@ -104,8 +105,8 @@ export function CanvasControls({
             {layoutMode === "force" ? "⋮" : "⊟"}
           </Text>
         </ActionIcon>
-      </Tooltip>
-      <Tooltip label={t("canvasControls.nudgeLayout")}>
+      </Tip>
+      <Tip text={t("canvasControls.nudgeLayout")} named>
         <ActionIcon
           variant="subtle"
           size="md"
@@ -127,39 +128,36 @@ export function CanvasControls({
         >
           <RefreshCw size={15} aria-hidden />
         </ActionIcon>
-      </Tooltip>
+      </Tip>
       <Divider orientation="horizontal" className="gf-ctrl-divider" />
-      <Text
-        component="label"
-        htmlFor="canvas-edge-distance"
-        size="sm"
-        c="dimmed"
-        title={t("canvasControls.edgeLength")}
-      >
-        ↔
-      </Text>
+      <Tip text={t("canvasControls.edgeLength")}>
+        <Text component="label" htmlFor="canvas-edge-distance" size="sm" c="dimmed">
+          ↔
+        </Text>
+      </Tip>
       {/* Native vertical range — Mantine Slider has no vertical orientation, and
           this control must stack in the narrow vertical canvas toolbar. */}
-      <input
-        type="range"
-        id="canvas-edge-distance"
-        className="gf-ctrl-slider"
-        min={40}
-        max={400}
-        step={10}
-        value={edgeDistance}
-        title={t("canvasControls.edgeLengthValue", { value: edgeDistance })}
-        aria-label={t("canvasControls.edgeLength")}
-        data-testid="canvas-edge-distance"
-        onChange={(e) => {
-          const v = Number(e.currentTarget.value);
-          edgeDistanceRef.current = v;
-          setEdgeDistance(v);
-          localStorage.setItem("provisa.graph.edgeDistance", String(v));
-          if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
-          nudgeTimerRef.current = setTimeout(() => nudgeLayoutRef.current(), 150);
-        }}
-      />
+      <Tip text={t("canvasControls.edgeLengthValue", { value: edgeDistance })}>
+        <input
+          type="range"
+          id="canvas-edge-distance"
+          className="gf-ctrl-slider"
+          min={40}
+          max={400}
+          step={10}
+          value={edgeDistance}
+          aria-label={t("canvasControls.edgeLength")}
+          data-testid="canvas-edge-distance"
+          onChange={(e) => {
+            const v = Number(e.currentTarget.value);
+            edgeDistanceRef.current = v;
+            setEdgeDistance(v);
+            localStorage.setItem("provisa.graph.edgeDistance", String(v));
+            if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+            nudgeTimerRef.current = setTimeout(() => nudgeLayoutRef.current(), 150);
+          }}
+        />
+      </Tip>
     </Group>
   );
 }

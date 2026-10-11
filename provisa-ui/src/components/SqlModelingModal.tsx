@@ -52,6 +52,7 @@ import { ProfilePanel } from "./sql-modeling/ProfilePanel";
 import { CandidatesPanel } from "./sql-modeling/CandidatesPanel";
 import { ErrorsPanel } from "./sql-modeling/ErrorsPanel";
 import { HistoryPanel } from "./sql-modeling/HistoryPanel";
+import { Tip } from "./Tip";
 
 // ── SqlModelingModal ─────────────────────────────────────────────────────────
 
@@ -617,15 +618,16 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     style={{ flex: 1 }}
                     data-testid="sql-modeling-nl-input"
                   />
-                  <Switch
-                    size="xs"
-                    label={t("sqlEditorPanel.nlStrict")}
-                    title={t("sqlEditorPanel.nlStrictHint")}
-                    checked={nlStrict}
-                    onChange={(e) => setNlStrict(e.currentTarget.checked)}
-                    data-testid="sql-modeling-nl-strict-toggle"
-                    style={{ whiteSpace: "nowrap" }}
-                  />
+                  <Tip text={t("sqlEditorPanel.nlStrictHint")}>
+                    <Switch
+                      size="xs"
+                      label={t("sqlEditorPanel.nlStrict")}
+                      checked={nlStrict}
+                      onChange={(e) => setNlStrict(e.currentTarget.checked)}
+                      data-testid="sql-modeling-nl-strict-toggle"
+                      style={{ whiteSpace: "nowrap" }}
+                    />
+                  </Tip>
                   <Button
                     size="xs"
                     disabled={!nlText.trim() || nlLoading}
@@ -651,16 +653,17 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                       : t("sqlModelingModal.generateSql")}
                   </Button>
                   {nlCypher && (
-                    <Badge
-                      variant="light"
-                      size="sm"
-                      data-testid="sql-modeling-nl-cypher-badge"
-                      title={nlCypher}
-                      style={{ cursor: "pointer", maxWidth: "300px" }}
-                      onClick={() => navigator.clipboard.writeText(nlCypher)}
-                    >
-                      {t("sqlEditorPanel.nlCypherBadge")}
-                    </Badge>
+                    <Tip text={nlCypher}>
+                      <Badge
+                        variant="light"
+                        size="sm"
+                        data-testid="sql-modeling-nl-cypher-badge"
+                        style={{ cursor: "pointer", maxWidth: "300px" }}
+                        onClick={() => navigator.clipboard.writeText(nlCypher)}
+                      >
+                        {t("sqlEditorPanel.nlCypherBadge")}
+                      </Badge>
+                    </Tip>
                   )}
                 </Group>
 
@@ -692,35 +695,36 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     }}
                     style={{ fontSize: "0.8rem" }}
                   />
-                  <Button
-                    className="copy-sql-btn"
-                    onClick={handleCopy}
-                    aria-label={t("sqlModelingModal.copySql")}
-                    title={t("sqlModelingModal.copySql")}
-                    variant="filled"
-                    color="gray"
-                    size="compact-xs"
-                    leftSection={
-                      copied ? (
-                        <Check size={11} style={{ color: "var(--approve)" }} />
-                      ) : (
-                        <Copy size={11} />
-                      )
-                    }
-                    style={{
-                      position: "absolute",
-                      top: "0.4rem",
-                      insetInlineEnd: "0.4rem",
-                      opacity: 0,
-                      transition: "opacity 0.15s",
-                      background: "rgba(30,30,40,0.85)",
-                      border: "1px solid var(--border)",
-                      fontSize: "0.72rem",
-                    }}
-                    data-testid="sql-modeling-copy-sql"
-                  >
-                    {copied ? t("sqlModelingModal.copied") : t("sqlModelingModal.copy")}
-                  </Button>
+                  <Tip text={t("sqlModelingModal.copySql")} named>
+                    <Button
+                      className="copy-sql-btn"
+                      onClick={handleCopy}
+                      aria-label={t("sqlModelingModal.copySql")}
+                      variant="filled"
+                      color="gray"
+                      size="compact-xs"
+                      leftSection={
+                        copied ? (
+                          <Check size={11} style={{ color: "var(--approve)" }} />
+                        ) : (
+                          <Copy size={11} />
+                        )
+                      }
+                      style={{
+                        position: "absolute",
+                        top: "0.4rem",
+                        insetInlineEnd: "0.4rem",
+                        opacity: 0,
+                        transition: "opacity 0.15s",
+                        background: "rgba(30,30,40,0.85)",
+                        border: "1px solid var(--border)",
+                        fontSize: "0.72rem",
+                      }}
+                      data-testid="sql-modeling-copy-sql"
+                    >
+                      {copied ? t("sqlModelingModal.copied") : t("sqlModelingModal.copy")}
+                    </Button>
+                  </Tip>
                 </div>
 
                 {/* Toolbar */}

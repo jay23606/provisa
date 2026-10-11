@@ -24,6 +24,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { CopySymbolButton } from "../CopyButton";
 import type { CypherSchema } from "./graph-schema-types";
+import { Tip } from "../Tip";
 
 interface QueryBarProps {
   onRun: (query: string) => void;
@@ -109,13 +110,11 @@ export function QueryBar({
       <div className="graph-query-prompt">$</div>
       <div className="graph-query-editor-wrap">
         {!focused && (
-          <div
-            className="gf-header-query-collapsed"
-            onClick={handleCollapsedClickWithFormat}
-            title={query}
-          >
-            {query.replace(/\s*\n\s*/g, " ") || "MATCH (n) RETURN n LIMIT 25"}
-          </div>
+          <Tip text={query}>
+            <div className="gf-header-query-collapsed" onClick={handleCollapsedClickWithFormat}>
+              {query.replace(/\s*\n\s*/g, " ") || "MATCH (n) RETURN n LIMIT 25"}
+            </div>
+          </Tip>
         )}
         {focused && (
           <CodeMirror
@@ -168,26 +167,28 @@ export function QueryBar({
         )}
         <CopySymbolButton text={query} className="gf-copy-query-btn" title="Copy query" />
       </div>
-      <ActionIcon
-        className={`gf-icon-btn${autoImpute ? " gf-icon-btn--on" : ""}`}
-        variant={autoImpute ? "filled" : "subtle"}
-        aria-label={t(autoImpute ? "queryBar.autoImputeOn" : "queryBar.autoImputeOff")}
-        aria-pressed={autoImpute}
-        title={t(autoImpute ? "queryBar.autoImputeOn" : "queryBar.autoImputeOff")}
-        onClick={onToggleAutoImpute}
-        style={{ marginInlineEnd: 4, alignSelf: "stretch", height: "auto", width: 38 }}
-      >
-        <CirclePlus size={16} aria-hidden />
-      </ActionIcon>
-      <ActionIcon
-        className="graph-run-btn"
-        aria-label={t("queryBar.run")}
-        title={t("queryBar.run")}
-        onClick={() => onRun(query.trim())}
-        style={{ alignSelf: "stretch", height: "auto" }}
-      >
-        <Play size={16} aria-hidden />
-      </ActionIcon>
+      <Tip text={t(autoImpute ? "queryBar.autoImputeOn" : "queryBar.autoImputeOff")} named>
+        <ActionIcon
+          className={`gf-icon-btn${autoImpute ? " gf-icon-btn--on" : ""}`}
+          variant={autoImpute ? "filled" : "subtle"}
+          aria-label={t(autoImpute ? "queryBar.autoImputeOn" : "queryBar.autoImputeOff")}
+          aria-pressed={autoImpute}
+          onClick={onToggleAutoImpute}
+          style={{ marginInlineEnd: 4, alignSelf: "stretch", height: "auto", width: 38 }}
+        >
+          <CirclePlus size={16} aria-hidden />
+        </ActionIcon>
+      </Tip>
+      <Tip text={t("queryBar.run")} named>
+        <ActionIcon
+          className="graph-run-btn"
+          aria-label={t("queryBar.run")}
+          onClick={() => onRun(query.trim())}
+          style={{ alignSelf: "stretch", height: "auto" }}
+        >
+          <Play size={16} aria-hidden />
+        </ActionIcon>
+      </Tip>
     </div>
   );
 }

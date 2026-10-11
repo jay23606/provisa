@@ -22,7 +22,7 @@ async function seedFavoriteAndOpenPanel(page: Page) {
   await page.goto("/graph");
 
   // Click the Favorites tab (tabs are icon-only; identified by title attribute)
-  const favTab = page.locator(".graph-sidebar-tab[title='Favorites']");
+  const favTab = page.locator(".graph-sidebar-tab[aria-label='Favorites']");
   // The sidebar is inside GraphPage, and OnboardGate withholds its children until the auth
   // bootstrap (/auth/me, roles, domains) settles — so this waits on the whole shell, not a widget.
   // On a 4-worker CI runner that settles well past 15s: the passing retries of these tests measured

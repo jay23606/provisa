@@ -97,7 +97,7 @@ test("query panel in expanded modal shows all lines without clipping", async ({ 
   await expect(inlineEditor).toBeVisible({ timeout: 5000 });
 
   // Now open the modal; queryFocused=true carries into the modal header so the editor is visible
-  const expandBtn = page.locator(".gf-icon-btn[title='Expand']").first();
+  const expandBtn = page.locator(".gf-icon-btn[aria-label='Expand']").first();
   await expect(expandBtn).toBeVisible({ timeout: 5000 });
   await expandBtn.click();
 

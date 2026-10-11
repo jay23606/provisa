@@ -65,6 +65,7 @@ export function TipSurface({
   card = false,
   openDelay = TIP_OPEN_DELAY_MS,
   named = false,
+  opened,
   testId,
 }: {
   content: ReactNode;
@@ -75,6 +76,11 @@ export function TipSurface({
   openDelay?: number;
   /** The target's accessible name already IS this text: it is not also made its description. */
   named?: boolean;
+  /**
+   * True holds it open whatever the pointer does: for a hint the caller places itself, on a
+   * target it draws where something on a canvas is being pointed at.
+   */
+  opened?: boolean;
   testId?: string;
 }) {
   const id = useId();
@@ -146,10 +152,10 @@ export function TipSurface({
         },
         "aria-describedby": describedBy || undefined,
       })}
-      {armed && (
+      {(armed || opened) && (
         <Tooltip
           target={target}
-          opened={open}
+          opened={open || opened === true}
           keepMounted
           // The floating element takes an id of its own from the library, so what describes the
           // target is the text inside it, under the id this component chose.

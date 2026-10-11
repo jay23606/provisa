@@ -10,9 +10,10 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Card, Group, Loader, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
+import { Card, Group, Loader, SimpleGrid, Stack, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { GNode, GEdge } from "./graph-model";
+import { Tip } from "../Tip";
 
 interface GraphWideStats {
   // Instant
@@ -203,7 +204,7 @@ interface Props {
 
 function StatRow({ label, tooltip, value }: { label: string; tooltip?: string; value: ReactNode }) {
   const labelNode = tooltip ? (
-    <Tooltip label={tooltip} multiline w={260} withArrow>
+    <Tip text={tooltip}>
       <Text
         size="sm"
         c="dimmed"
@@ -211,7 +212,7 @@ function StatRow({ label, tooltip, value }: { label: string; tooltip?: string; v
       >
         {label}
       </Text>
-    </Tooltip>
+    </Tip>
   ) : (
     <Text size="sm" c="dimmed">
       {label}
@@ -234,13 +235,7 @@ function CardTitle({ children, tooltip }: { children: ReactNode; tooltip?: strin
       {children}
     </Text>
   );
-  return tooltip ? (
-    <Tooltip label={tooltip} multiline w={260} withArrow>
-      {title}
-    </Tooltip>
-  ) : (
-    title
-  );
+  return tooltip ? <Tip text={tooltip}>{title}</Tip> : title;
 }
 
 export function GraphStatsPanel({ nodes, edges, queryStats }: Props) {

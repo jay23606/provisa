@@ -9,12 +9,13 @@
 // permission from the copyright holder.
 
 import { useState } from "react";
-import { ActionIcon, Box, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { ActionIcon, Box, Text, UnstyledButton } from "@mantine/core";
 import { ChevronRight, ChevronDown, Table2, Columns3 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Domain, RegisteredTable } from "../../types/admin";
 import type { TopTab } from "./types";
 import { columnSqlRef, tableSqlRef } from "../../naming";
+import { Tip } from "../Tip";
 
 interface SchemaSidebarProps {
   domainGroups: Record<string, RegisteredTable[]>;
@@ -50,8 +51,9 @@ export function SchemaSidebar({
       }}
     >
       {/* Drawer toggle tab */}
-      <Tooltip
-        label={sidebarOpen ? t("schemaSidebar.collapse") : t("schemaSidebar.expand")}
+      <Tip
+        text={sidebarOpen ? t("schemaSidebar.collapse") : t("schemaSidebar.expand")}
+        named
         position="right"
       >
         <ActionIcon
@@ -78,7 +80,7 @@ export function SchemaSidebar({
         >
           {sidebarOpen ? "‹" : "›"}
         </ActionIcon>
-      </Tooltip>
+      </Tip>
 
       <div
         style={{
@@ -152,9 +154,9 @@ export function SchemaSidebar({
             return (
               <div key={domain}>
                 {domainDescription ? (
-                  <Tooltip label={domainDescription} position="right">
+                  <Tip text={domainDescription} position="right">
                     {domainButton}
-                  </Tooltip>
+                  </Tip>
                 ) : (
                   domainButton
                 )}
@@ -204,8 +206,8 @@ export function SchemaSidebar({
                     return (
                       <div key={tbl.tableName}>
                         <div style={{ display: "flex", alignItems: "center" }}>
-                          <Tooltip
-                            label={
+                          <Tip
+                            text={
                               topTab === "canvas"
                                 ? t("schemaSidebar.dragToCanvas")
                                 : t("schemaSidebar.doubleClickToInsert")
@@ -213,9 +215,9 @@ export function SchemaSidebar({
                             position="right"
                           >
                             {tableButton}
-                          </Tooltip>
+                          </Tip>
                           {/* → insert button */}
-                          <Tooltip label={t("schemaSidebar.insertTableReference")}>
+                          <Tip text={t("schemaSidebar.insertTableReference")} named>
                             <ActionIcon
                               onClick={() => insertAtCursor(tableSqlRef(tbl))}
                               aria-label={t("schemaSidebar.insertTableReference")}
@@ -232,9 +234,9 @@ export function SchemaSidebar({
                             >
                               →
                             </ActionIcon>
-                          </Tooltip>
+                          </Tip>
                           {tbl.description && (
-                            <Tooltip label={tbl.description}>
+                            <Tip text={tbl.description}>
                               <Box
                                 style={{
                                   flexShrink: 0,
@@ -248,7 +250,7 @@ export function SchemaSidebar({
                               >
                                 ⓘ
                               </Box>
-                            </Tooltip>
+                            </Tip>
                           )}
                         </div>
                         {tOpen &&
@@ -313,14 +315,14 @@ export function SchemaSidebar({
                                 style={{ display: "flex", alignItems: "center" }}
                               >
                                 {columnTooltip ? (
-                                  <Tooltip label={columnTooltip} position="right">
+                                  <Tip text={columnTooltip} position="right">
                                     {columnButton}
-                                  </Tooltip>
+                                  </Tip>
                                 ) : (
                                   columnButton
                                 )}
                                 {col.description && (
-                                  <Tooltip label={col.description}>
+                                  <Tip text={col.description}>
                                     <Box
                                       style={{
                                         flexShrink: 0,
@@ -334,7 +336,7 @@ export function SchemaSidebar({
                                     >
                                       ⓘ
                                     </Box>
-                                  </Tooltip>
+                                  </Tip>
                                 )}
                               </div>
                             );

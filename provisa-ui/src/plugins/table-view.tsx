@@ -27,6 +27,7 @@ import { setCurrentQueryStats, subscribeQueryStats, type QueryStats } from "../q
 import { useAuth } from "../context/AuthContext";
 import { MermaidDiagram } from "../components/MermaidDiagram";
 import { actingRoleHeader } from "../lib/actingRole";
+import { Tip } from "../components/Tip";
 
 type ViewMode = "json" | "table" | "stats";
 
@@ -526,81 +527,94 @@ export function ResponseTableOverlay() {
   return createPortal(
     <>
       <div className="response-view-toggle">
-        <button
-          className={viewMode === "json" ? "active" : ""}
-          onClick={() => setViewMode("json")}
-          title="JSON"
-        >
-          {"{ }"}
-        </button>
-        <button
-          className={viewMode === "table" ? "active" : ""}
-          onClick={() => setViewMode("table")}
-          disabled={!hasData}
-          title="Table"
-        >
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zM10 4H6v3h4V4zm0 4H6v3h4V8zm0 4H6v3h4v-3zM5 4H1v3h4V4zm0 4H1v3h4V8zm0 4H1v2a1 1 0 0 0 1 1h3v-3z" />
-          </svg>
-        </button>
-        <button
-          className={viewMode === "stats" ? "active" : ""}
-          onClick={() => setViewMode("stats")}
-          disabled={!queryStats}
-          title="Query Stats"
-        >
-          ⚡
-        </button>
+        <Tip text="JSON">
+          <button
+            className={viewMode === "json" ? "active" : ""}
+            onClick={() => setViewMode("json")}
+          >
+            {"{ }"}
+          </button>
+        </Tip>
+        <Tip text="Table" named>
+          <button
+            className={viewMode === "table" ? "active" : ""}
+            onClick={() => setViewMode("table")}
+            disabled={!hasData}
+            aria-label="Table"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+              <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zM10 4H6v3h4V4zm0 4H6v3h4V8zm0 4H6v3h4v-3zM5 4H1v3h4V4zm0 4H1v3h4V8zm0 4H1v2a1 1 0 0 0 1 1h3v-3z" />
+            </svg>
+          </button>
+        </Tip>
+        <Tip text="Query Stats">
+          <button
+            className={viewMode === "stats" ? "active" : ""}
+            onClick={() => setViewMode("stats")}
+            disabled={!queryStats}
+          >
+            ⚡
+          </button>
+        </Tip>
         <span className="response-toggle-separator" />
-        <button onClick={handleDownloadJSON} disabled={!responseText} title="Download JSON">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-          </svg>
-          {" JSON"}
-        </button>
-        <button onClick={handleCopyJSON} disabled={!responseText} title="Copy JSON to clipboard">
-          {copiedJson ? (
+        <Tip text="Download JSON">
+          <button onClick={handleDownloadJSON} disabled={!responseText}>
             <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
             </svg>
-          ) : (
+            {" JSON"}
+          </button>
+        </Tip>
+        <Tip text="Copy JSON to clipboard">
+          <button onClick={handleCopyJSON} disabled={!responseText}>
+            {copiedJson ? (
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
+                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
+              </svg>
+            )}
+          </button>
+        </Tip>
+        <Tip text="Download CSV">
+          <button onClick={handleDownloadCSV} disabled={!hasData}>
             <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-              <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
-              <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
             </svg>
-          )}
-        </button>
-        <button onClick={handleDownloadCSV} disabled={!hasData} title="Download CSV">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-          </svg>
-          {" CSV"}
-        </button>
-        <button
-          onClick={handleDownloadNormalizedCSV}
-          disabled={!hasData || !currentTable?.arrayColumns.length}
-          title="Normalized CSV — arrays expanded into rows (cross-join if multiple arrays)"
-        >
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-          </svg>
-          {" CSV±"}
-        </button>
-        <button onClick={handleCopyCSV} disabled={!hasData} title="Copy CSV to clipboard">
-          {copiedCsv ? (
+            {" CSV"}
+          </button>
+        </Tip>
+        <Tip text="Normalized CSV — arrays expanded into rows (cross-join if multiple arrays)">
+          <button
+            onClick={handleDownloadNormalizedCSV}
+            disabled={!hasData || !currentTable?.arrayColumns.length}
+          >
             <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
             </svg>
-          ) : (
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-              <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
-              <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
-            </svg>
-          )}
-        </button>
+            {" CSV±"}
+          </button>
+        </Tip>
+        <Tip text="Copy CSV to clipboard">
+          <button onClick={handleCopyCSV} disabled={!hasData}>
+            {copiedCsv ? (
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
+                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
+              </svg>
+            )}
+          </button>
+        </Tip>
       </div>
       {viewMode === "stats" && queryStats && (
         <div className="response-table-overlay">
@@ -652,16 +666,18 @@ export function ResponseTableOverlay() {
                         <td colSpan={7}>
                           <div className="stats-sql-wrap">
                             <pre className="stats-sql">{s.physical_sql}</pre>
-                            <button
-                              className="stats-sql-copy"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(s.physical_sql!);
-                              }}
-                              title="Copy SQL"
-                            >
-                              <Copy size={12} />
-                            </button>
+                            <Tip text="Copy SQL" named>
+                              <button
+                                className="stats-sql-copy"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(s.physical_sql!);
+                                }}
+                                aria-label="Copy SQL"
+                              >
+                                <Copy size={12} />
+                              </button>
+                            </Tip>
                           </div>
                         </td>
                       </tr>
@@ -702,17 +718,17 @@ export function ResponseTableOverlay() {
             )}
             {hasData && (
               <span className="response-table-pager">
-                <button onClick={handlePrevPage} disabled={page === 0} title="Previous page">
-                  ‹
-                </button>
+                <Tip text="Previous page">
+                  <button onClick={handlePrevPage} disabled={page === 0}>
+                    ‹
+                  </button>
+                </Tip>
                 {` p${page + 1} `}
-                <button
-                  onClick={handleNextPage}
-                  disabled={rows.length < PAGE_SIZE}
-                  title="Next page"
-                >
-                  ›
-                </button>
+                <Tip text="Next page">
+                  <button onClick={handleNextPage} disabled={rows.length < PAGE_SIZE}>
+                    ›
+                  </button>
+                </Tip>
               </span>
             )}
           </div>

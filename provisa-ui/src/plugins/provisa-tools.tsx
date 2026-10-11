@@ -36,6 +36,7 @@ const _toolsCypherLangExts = _getToolsCypherExts({ cypherLanguage: true });
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useMantineColorScheme } from "@mantine/core";
 import { EditorView } from "@codemirror/view";
+import { Tip } from "../components/Tip";
 
 function SqlPanel({
   compiled,
@@ -190,59 +191,62 @@ function SqlPanel({
               )}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button
-                className="provisa-tools-copy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCopy();
-                }}
-                title="Copy SQL"
-              >
-                {copied ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="14"
-                    height="14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                )}
-              </button>
-              <button
-                className="provisa-tools-copy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate("/sql", { state: { sql: formatted, autoRun: true } });
-                }}
-                title="Open in SQL"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="14"
-                  height="14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+              <Tip text="Copy SQL">
+                <button
+                  className="provisa-tools-copy"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopy();
+                  }}
                 >
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              </button>
+                  {copied ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  )}
+                </button>
+              </Tip>
+              <Tip text="Open in SQL" named>
+                <button
+                  className="provisa-tools-copy"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate("/sql", { state: { sql: formatted, autoRun: true } });
+                  }}
+                  aria-label="Open in SQL"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </button>
+              </Tip>
               <span className="provisa-tools-chevron">{sqlExpanded ? "▾" : "▸"}</span>
             </span>
           </div>
@@ -320,39 +324,40 @@ function CombinedSqlPanel({
           )}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button
-            className="provisa-tools-copy"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCopy();
-            }}
-            title="Copy SQL"
-          >
-            {copied ? (
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <rect x="9" y="9" width="13" height="13" rx="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            )}
-          </button>
+          <Tip text="Copy SQL">
+            <button
+              className="provisa-tools-copy"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopy();
+              }}
+            >
+              {copied ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
+            </button>
+          </Tip>
           <span className="provisa-tools-chevron">{sqlExpanded ? "▾" : "▸"}</span>
         </span>
       </div>
@@ -507,63 +512,66 @@ function ProvisaToolsContent({ roleId }: { roleId: string }) {
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {cypherQuery && (
                     <>
-                      <button
-                        className="provisa-tools-copy"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(displayedCypher).then(() => {
-                            setCypherCopied(true);
-                            setTimeout(() => setCypherCopied(false), 2000);
-                          });
-                        }}
-                        title="Copy Cypher"
-                      >
-                        {cypherCopied ? (
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="14"
-                            height="14"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : (
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="14"
-                            height="14"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <rect x="9" y="9" width="13" height="13" rx="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        className="provisa-tools-copy"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          localStorage.setItem("provisa.graph.pending_query", displayedCypher);
-                          navigate("/graph");
-                        }}
-                        title="Open in Graph"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="14"
-                          height="14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
+                      <Tip text="Copy Cypher">
+                        <button
+                          className="provisa-tools-copy"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(displayedCypher).then(() => {
+                              setCypherCopied(true);
+                              setTimeout(() => setCypherCopied(false), 2000);
+                            });
+                          }}
                         >
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                          <polyline points="12 5 19 12 12 19" />
-                        </svg>
-                      </button>
+                          {cypherCopied ? (
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <rect x="9" y="9" width="13" height="13" rx="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
+                      </Tip>
+                      <Tip text="Open in Graph" named>
+                        <button
+                          className="provisa-tools-copy"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            localStorage.setItem("provisa.graph.pending_query", displayedCypher);
+                            navigate("/graph");
+                          }}
+                          aria-label="Open in Graph"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="14"
+                            height="14"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                          </svg>
+                        </button>
+                      </Tip>
                     </>
                   )}
                   <span className="provisa-tools-chevron">{cypherExpanded ? "▾" : "▸"}</span>

@@ -29,7 +29,6 @@ import {
   Stack,
   Text,
   Title,
-  Tooltip,
   useMantineColorScheme,
 } from "@mantine/core";
 import { Copy, Check } from "lucide-react";
@@ -46,6 +45,7 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import { useAuth } from "../context/AuthContext";
 import { CapabilityGate } from "../components/CapabilityGate";
 import { fetchOrgRoles } from "../api/admin";
+import { Tip } from "../components/Tip";
 
 const DEFAULT_SQL =
   "SELECT o.id, e.embedding, upper(e.geo) AS geo_u\nFROM orders o JOIN enrich_grpc_set('main.public.orders') e ON o.id = e.id";
@@ -216,7 +216,7 @@ export function LineagePage(): React.ReactElement {
           label={
             <Group gap={4} component="span">
               {t("lineagePage.queryLabel")}
-              <Tooltip multiline w={360} label={t("lineagePage.queryHelp")}>
+              <Tip text={t("lineagePage.queryHelp")}>
                 <Text
                   span
                   size="xs"
@@ -226,7 +226,7 @@ export function LineagePage(): React.ReactElement {
                 >
                   ⓘ
                 </Text>
-              </Tooltip>
+              </Tip>
             </Group>
           }
           data-testid="lineage-editor-panel"
@@ -262,7 +262,7 @@ export function LineagePage(): React.ReactElement {
               basicSetup={{ lineNumbers: true, highlightActiveLine: true, foldGutter: false }}
               style={{ fontSize: "0.85rem", flex: 1 }}
             />
-            <Tooltip label={sqlCopied ? t("lineagePage.copied") : t("lineagePage.copy")}>
+            <Tip text={sqlCopied ? t("lineagePage.copied") : t("lineagePage.copy")}>
               <ActionIcon
                 variant="default"
                 size="sm"
@@ -285,7 +285,7 @@ export function LineagePage(): React.ReactElement {
               >
                 {sqlCopied ? <Check size={14} /> : <Copy size={14} />}
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           </div>
         </Input.Wrapper>
         <Stack gap="xs" data-testid="lineage-controls-panel" style={LINEAGE_CONTROLS_PANEL_STYLE}>

@@ -9,7 +9,7 @@
 // permission from the copyright holder.
 
 import React, { useMemo, useState } from "react";
-import { ActionIcon, ScrollArea, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { ActionIcon, ScrollArea, Text, UnstyledButton } from "@mantine/core";
 import { ChevronRight, ChevronDown, Table2, Columns3, Info, Sigma } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { groupModelingTables } from "./sqlHelpers";
@@ -18,6 +18,7 @@ import { DOMAIN_PAGE_SIZE } from "./types";
 import type { TopTab } from "./types";
 import type { Domain, Metric } from "../../types/admin";
 import type { RegisteredTable } from "../../types/admin";
+import { Tip } from "../../components/Tip";
 
 interface SchemaBrowserProps {
   sidebarOpen: boolean;
@@ -54,35 +55,46 @@ function ModelingTableRow({
   const { t } = useTranslation();
   const ref = tableSqlRef(tbl);
   return (
-    <UnstyledButton
-      onClick={() => insertAtCursor(ref)}
-      draggable={topTab === "canvas"}
-      onDragStart={
-        topTab === "canvas" ? (e) => e.dataTransfer.setData("tableName", tbl.tableName) : undefined
-      }
-      data-testid={`schema-${group}-table-${tbl.tableName}`}
-      title={
+    <Tip
+      text={
         topTab === "canvas"
           ? t("schemaBrowser.dragToCanvas")
           : t("schemaBrowser.insertTableReference")
       }
-      style={{
-        width: "100%",
-        textAlign: "left",
-        cursor: topTab === "canvas" ? "grab" : "pointer",
-        padding: "0.18rem 0.5rem 0.18rem 1.5rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.3rem",
-        color: "var(--text)",
-        fontSize: "0.75rem",
-      }}
+      named
     >
-      <Table2 size={9} aria-hidden style={{ flexShrink: 0, color: "var(--primary)" }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {tbl.alias || tbl.tableName}
-      </span>
-    </UnstyledButton>
+      <UnstyledButton
+        onClick={() => insertAtCursor(ref)}
+        draggable={topTab === "canvas"}
+        onDragStart={
+          topTab === "canvas"
+            ? (e) => e.dataTransfer.setData("tableName", tbl.tableName)
+            : undefined
+        }
+        data-testid={`schema-${group}-table-${tbl.tableName}`}
+        aria-label={
+          topTab === "canvas"
+            ? t("schemaBrowser.dragToCanvas")
+            : t("schemaBrowser.insertTableReference")
+        }
+        style={{
+          width: "100%",
+          textAlign: "left",
+          cursor: topTab === "canvas" ? "grab" : "pointer",
+          padding: "0.18rem 0.5rem 0.18rem 1.5rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.3rem",
+          color: "var(--text)",
+          fontSize: "0.75rem",
+        }}
+      >
+        <Table2 size={9} aria-hidden style={{ flexShrink: 0, color: "var(--primary)" }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {tbl.alias || tbl.tableName}
+        </span>
+      </UnstyledButton>
+    </Tip>
   );
 }
 
@@ -127,31 +139,37 @@ export function SchemaBrowser({
         position: "relative",
       }}
     >
-      <ActionIcon
-        onClick={() => setSidebarOpen((v) => !v)}
-        aria-label={sidebarOpen ? t("schemaBrowser.collapsePanel") : t("schemaBrowser.expandPanel")}
-        title={sidebarOpen ? t("schemaBrowser.collapsePanel") : t("schemaBrowser.expandPanel")}
-        data-testid="schema-browser-toggle"
-        variant="default"
-        radius={0}
-        style={{
-          position: "absolute",
-          insetInlineEnd: -13,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 30,
-          width: 13,
-          height: 40,
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderInlineStart: "none",
-          borderRadius: "0 4px 4px 0",
-          color: "var(--text-muted)",
-          fontSize: "0.55rem",
-        }}
+      <Tip
+        text={sidebarOpen ? t("schemaBrowser.collapsePanel") : t("schemaBrowser.expandPanel")}
+        named
       >
-        {sidebarOpen ? "‹" : "›"}
-      </ActionIcon>
+        <ActionIcon
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label={
+            sidebarOpen ? t("schemaBrowser.collapsePanel") : t("schemaBrowser.expandPanel")
+          }
+          data-testid="schema-browser-toggle"
+          variant="default"
+          radius={0}
+          style={{
+            position: "absolute",
+            insetInlineEnd: -13,
+            top: "50%",
+            transform: "translateY(-50%)",
+            zIndex: 30,
+            width: 13,
+            height: 40,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderInlineStart: "none",
+            borderRadius: "0 4px 4px 0",
+            color: "var(--text-muted)",
+            fontSize: "0.55rem",
+          }}
+        >
+          {sidebarOpen ? "‹" : "›"}
+        </ActionIcon>
+      </Tip>
 
       <div
         style={{
@@ -212,50 +230,59 @@ export function SchemaBrowser({
                     id === "metrics" &&
                     metrics.map((m) => (
                       <div key={m.name} style={{ display: "flex", alignItems: "center" }}>
-                        <UnstyledButton
-                          onClick={() => insertAtCursor(`SELECT value FROM metrics.${m.name}`)}
-                          draggable={topTab === "canvas"}
-                          onDragStart={
-                            topTab === "canvas"
-                              ? (e) => e.dataTransfer.setData("metricName", m.name)
-                              : undefined
-                          }
-                          data-testid={`schema-metric-${m.name}`}
-                          title={
+                        <Tip
+                          text={
                             topTab === "canvas"
                               ? t("schemaBrowser.dragMetricToCanvas")
                               : t("schemaBrowser.insertMetricQuery")
                           }
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                            textAlign: "left",
-                            cursor: topTab === "canvas" ? "grab" : "pointer",
-                            padding: "0.18rem 0 0.18rem 1.5rem",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.3rem",
-                            color: "var(--text)",
-                            fontSize: "0.75rem",
-                          }}
+                          named
                         >
-                          <Sigma
-                            size={9}
-                            aria-hidden
-                            style={{ flexShrink: 0, color: "var(--accent)" }}
-                          />
-                          <span
+                          <UnstyledButton
+                            onClick={() => insertAtCursor(`SELECT value FROM metrics.${m.name}`)}
+                            draggable={topTab === "canvas"}
+                            onDragStart={
+                              topTab === "canvas"
+                                ? (e) => e.dataTransfer.setData("metricName", m.name)
+                                : undefined
+                            }
+                            data-testid={`schema-metric-${m.name}`}
+                            aria-label={
+                              topTab === "canvas"
+                                ? t("schemaBrowser.dragMetricToCanvas")
+                                : t("schemaBrowser.insertMetricQuery")
+                            }
                             style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
+                              flex: 1,
+                              minWidth: 0,
+                              textAlign: "left",
+                              cursor: topTab === "canvas" ? "grab" : "pointer",
+                              padding: "0.18rem 0 0.18rem 1.5rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                              color: "var(--text)",
+                              fontSize: "0.75rem",
                             }}
                           >
-                            {m.name}
-                          </span>
-                        </UnstyledButton>
+                            <Sigma
+                              size={9}
+                              aria-hidden
+                              style={{ flexShrink: 0, color: "var(--accent)" }}
+                            />
+                            <span
+                              style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {m.name}
+                            </span>
+                          </UnstyledButton>
+                        </Tip>
                         {m.description && (
-                          <Tooltip label={m.description} withinPortal>
+                          <Tip text={m.description}>
                             <Info
                               size={10}
                               aria-hidden
@@ -266,7 +293,7 @@ export function SchemaBrowser({
                                 opacity: 0.7,
                               }}
                             />
-                          </Tooltip>
+                          </Tip>
                         )}
                       </div>
                     ))}
@@ -312,48 +339,49 @@ export function SchemaBrowser({
               const domainOpen = expandedDomains.has(domain);
               return (
                 <div key={domain}>
-                  <UnstyledButton
-                    onClick={() => toggleDomain(domain)}
-                    title={domainMap[domain]?.description || undefined}
-                    aria-expanded={domainOpen}
-                    data-testid={`schema-domain-${domain}`}
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "0.2rem 0.75rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                      color: "var(--text-muted)",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {domainOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-                    <span
+                  <Tip text={domainMap[domain]?.description || undefined}>
+                    <UnstyledButton
+                      onClick={() => toggleDomain(domain)}
+                      aria-expanded={domainOpen}
+                      data-testid={`schema-domain-${domain}`}
                       style={{
-                        flex: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "0.2rem 0.75rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                        color: "var(--text-muted)",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
                       }}
                     >
-                      {domain}
-                    </span>
-                    {domainMap[domain]?.description && (
-                      <Tooltip label={domainMap[domain]?.description} withinPortal>
-                        <Info
-                          size={10}
-                          aria-hidden
-                          style={{
-                            flexShrink: 0,
-                            color: "var(--text-muted)",
-                            opacity: 0.5,
-                          }}
-                        />
-                      </Tooltip>
-                    )}
-                  </UnstyledButton>
+                      {domainOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                      <span
+                        style={{
+                          flex: 1,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {domain}
+                      </span>
+                      {domainMap[domain]?.description && (
+                        <Tip text={domainMap[domain]?.description}>
+                          <Info
+                            size={10}
+                            aria-hidden
+                            style={{
+                              flexShrink: 0,
+                              color: "var(--text-muted)",
+                              opacity: 0.5,
+                            }}
+                          />
+                        </Tip>
+                      )}
+                    </UnstyledButton>
+                  </Tip>
                   {domainOpen &&
                     (() => {
                       const dp = domainPages[domain] ?? 0;
@@ -369,72 +397,77 @@ export function SchemaBrowser({
                             return (
                               <div key={tbl.tableName}>
                                 <div style={{ display: "flex", alignItems: "center" }}>
-                                  <UnstyledButton
-                                    onClick={() => toggleTable(tbl.tableName)}
-                                    draggable={topTab === "canvas"}
-                                    onDragStart={
-                                      topTab === "canvas"
-                                        ? (e) => e.dataTransfer.setData("tableName", tbl.tableName)
-                                        : undefined
-                                    }
-                                    data-testid={`schema-table-${tbl.tableName}`}
-                                    aria-expanded={tOpen}
-                                    style={{
-                                      flex: 1,
-                                      minWidth: 0,
-                                      textAlign: "left",
-                                      cursor: topTab === "canvas" ? "grab" : "pointer",
-                                      padding: "0.18rem 0 0.18rem 1.5rem",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "0.3rem",
-                                      color: "var(--text)",
-                                      fontSize: "0.75rem",
-                                    }}
-                                    title={
+                                  <Tip
+                                    text={
                                       topTab === "canvas"
                                         ? t("schemaBrowser.dragToCanvas")
                                         : t("schemaBrowser.insertQualifiedName")
                                     }
-                                    onDoubleClick={
-                                      topTab === "sql"
-                                        ? () => insertAtCursor(tableSqlRef(tbl))
-                                        : undefined
-                                    }
                                   >
-                                    {tOpen ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
-                                    <Table2
-                                      size={9}
-                                      aria-hidden
-                                      style={{ flexShrink: 0, color: "var(--primary)" }}
-                                    />
-                                    <span
+                                    <UnstyledButton
+                                      onClick={() => toggleTable(tbl.tableName)}
+                                      draggable={topTab === "canvas"}
+                                      onDragStart={
+                                        topTab === "canvas"
+                                          ? (e) =>
+                                              e.dataTransfer.setData("tableName", tbl.tableName)
+                                          : undefined
+                                      }
+                                      data-testid={`schema-table-${tbl.tableName}`}
+                                      aria-expanded={tOpen}
                                       style={{
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
+                                        flex: 1,
+                                        minWidth: 0,
+                                        textAlign: "left",
+                                        cursor: topTab === "canvas" ? "grab" : "pointer",
+                                        padding: "0.18rem 0 0.18rem 1.5rem",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.3rem",
+                                        color: "var(--text)",
+                                        fontSize: "0.75rem",
+                                      }}
+                                      onDoubleClick={
+                                        topTab === "sql"
+                                          ? () => insertAtCursor(tableSqlRef(tbl))
+                                          : undefined
+                                      }
+                                    >
+                                      {tOpen ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+                                      <Table2
+                                        size={9}
+                                        aria-hidden
+                                        style={{ flexShrink: 0, color: "var(--primary)" }}
+                                      />
+                                      <span
+                                        style={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {tbl.alias || tbl.tableName}
+                                      </span>
+                                    </UnstyledButton>
+                                  </Tip>
+                                  <Tip text={t("schemaBrowser.insertTableReference")} named>
+                                    <ActionIcon
+                                      onClick={() => insertAtCursor(tableSqlRef(tbl))}
+                                      aria-label={t("schemaBrowser.insertTableReference")}
+                                      variant="subtle"
+                                      size="sm"
+                                      data-testid={`schema-insert-table-${tbl.tableName}`}
+                                      style={{
+                                        flexShrink: 0,
+                                        color: "var(--primary)",
+                                        opacity: 0.6,
                                       }}
                                     >
-                                      {tbl.alias || tbl.tableName}
-                                    </span>
-                                  </UnstyledButton>
-                                  <ActionIcon
-                                    onClick={() => insertAtCursor(tableSqlRef(tbl))}
-                                    aria-label={t("schemaBrowser.insertTableReference")}
-                                    title={t("schemaBrowser.insertTableReference")}
-                                    variant="subtle"
-                                    size="sm"
-                                    data-testid={`schema-insert-table-${tbl.tableName}`}
-                                    style={{
-                                      flexShrink: 0,
-                                      color: "var(--primary)",
-                                      opacity: 0.6,
-                                    }}
-                                  >
-                                    →
-                                  </ActionIcon>
+                                      →
+                                    </ActionIcon>
+                                  </Tip>
                                   {tbl.description && (
-                                    <Tooltip label={tbl.description} withinPortal>
+                                    <Tip text={tbl.description}>
                                       <Info
                                         size={10}
                                         aria-hidden
@@ -445,7 +478,7 @@ export function SchemaBrowser({
                                           opacity: 0.7,
                                         }}
                                       />
-                                    </Tooltip>
+                                    </Tip>
                                   )}
                                 </div>
                                 {tOpen &&
@@ -473,69 +506,72 @@ export function SchemaBrowser({
                                       key={col.columnName}
                                       style={{ display: "flex", alignItems: "center" }}
                                     >
-                                      <UnstyledButton
-                                        onClick={() =>
-                                          topTab === "sql"
-                                            ? insertAtCursor(columnSqlRef(tbl, col.columnName))
-                                            : undefined
-                                        }
-                                        data-testid={`schema-column-${tbl.tableName}-${col.columnName}`}
-                                        style={{
-                                          flex: 1,
-                                          minWidth: 0,
-                                          textAlign: "left",
-                                          cursor: topTab === "sql" ? "pointer" : "default",
-                                          padding: "0.15rem 0 0.15rem 2.5rem",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: "0.3rem",
-                                          color: "var(--text-muted)",
-                                          fontSize: "0.72rem",
-                                          fontFamily: "monospace",
-                                          opacity: col.virtual ? 0.6 : 1,
-                                        }}
-                                        title={
+                                      <Tip
+                                        text={
                                           col.description ??
                                           (topTab === "sql"
                                             ? t("schemaBrowser.insertQuotedColumn")
                                             : undefined)
                                         }
                                       >
-                                        <Columns3
-                                          size={8}
-                                          aria-hidden
+                                        <UnstyledButton
+                                          onClick={() =>
+                                            topTab === "sql"
+                                              ? insertAtCursor(columnSqlRef(tbl, col.columnName))
+                                              : undefined
+                                          }
+                                          data-testid={`schema-column-${tbl.tableName}-${col.columnName}`}
                                           style={{
-                                            flexShrink: 0,
-                                            color: col.virtual ? "var(--accent)" : undefined,
-                                          }}
-                                        />
-                                        <span
-                                          style={{
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
                                             flex: 1,
+                                            minWidth: 0,
+                                            textAlign: "left",
+                                            cursor: topTab === "sql" ? "pointer" : "default",
+                                            padding: "0.15rem 0 0.15rem 2.5rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.3rem",
+                                            color: "var(--text-muted)",
+                                            fontSize: "0.72rem",
+                                            fontFamily: "monospace",
+                                            opacity: col.virtual ? 0.6 : 1,
                                           }}
                                         >
-                                          {col.columnName}
-                                        </span>
-                                        {col.dataType && (
-                                          <span
+                                          <Columns3
+                                            size={8}
+                                            aria-hidden
                                             style={{
                                               flexShrink: 0,
-                                              fontSize: "0.6rem",
-                                              color: "var(--text-muted)",
-                                              opacity: 0.5,
-                                              fontFamily: "monospace",
-                                              paddingInlineEnd: "0.1rem",
+                                              color: col.virtual ? "var(--accent)" : undefined,
+                                            }}
+                                          />
+                                          <span
+                                            style={{
+                                              overflow: "hidden",
+                                              textOverflow: "ellipsis",
+                                              whiteSpace: "nowrap",
+                                              flex: 1,
                                             }}
                                           >
-                                            {col.dataType}
+                                            {col.columnName}
                                           </span>
-                                        )}
-                                      </UnstyledButton>
+                                          {col.dataType && (
+                                            <span
+                                              style={{
+                                                flexShrink: 0,
+                                                fontSize: "0.6rem",
+                                                color: "var(--text-muted)",
+                                                opacity: 0.5,
+                                                fontFamily: "monospace",
+                                                paddingInlineEnd: "0.1rem",
+                                              }}
+                                            >
+                                              {col.dataType}
+                                            </span>
+                                          )}
+                                        </UnstyledButton>
+                                      </Tip>
                                       {col.description && (
-                                        <Tooltip label={col.description} withinPortal>
+                                        <Tip text={col.description}>
                                           <Info
                                             size={10}
                                             aria-hidden
@@ -546,7 +582,7 @@ export function SchemaBrowser({
                                               opacity: 0.6,
                                             }}
                                           />
-                                        </Tooltip>
+                                        </Tip>
                                       )}
                                     </div>
                                   ))}
@@ -564,18 +600,21 @@ export function SchemaBrowser({
                                 color: "var(--text-muted)",
                               }}
                             >
-                              <ActionIcon
-                                onClick={() => setDomainPages((p) => ({ ...p, [domain]: dp - 1 }))}
-                                disabled={dp === 0}
-                                aria-label={t("schemaBrowser.previousPage")}
-                                title={t("schemaBrowser.previousPage")}
-                                variant="subtle"
-                                size="xs"
-                                data-testid={`schema-page-prev-${domain}`}
-                                style={{ color: "var(--text-muted)" }}
-                              >
-                                ‹
-                              </ActionIcon>
+                              <Tip text={t("schemaBrowser.previousPage")} named>
+                                <ActionIcon
+                                  onClick={() =>
+                                    setDomainPages((p) => ({ ...p, [domain]: dp - 1 }))
+                                  }
+                                  disabled={dp === 0}
+                                  aria-label={t("schemaBrowser.previousPage")}
+                                  variant="subtle"
+                                  size="xs"
+                                  data-testid={`schema-page-prev-${domain}`}
+                                  style={{ color: "var(--text-muted)" }}
+                                >
+                                  ‹
+                                </ActionIcon>
+                              </Tip>
                               <Text
                                 component="span"
                                 style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}
@@ -584,18 +623,21 @@ export function SchemaBrowser({
                                 {Math.min((dp + 1) * DOMAIN_PAGE_SIZE, domainTables.length)} /{" "}
                                 {domainTables.length}
                               </Text>
-                              <ActionIcon
-                                onClick={() => setDomainPages((p) => ({ ...p, [domain]: dp + 1 }))}
-                                disabled={dp >= totalDomainPages - 1}
-                                aria-label={t("schemaBrowser.nextPage")}
-                                title={t("schemaBrowser.nextPage")}
-                                variant="subtle"
-                                size="xs"
-                                data-testid={`schema-page-next-${domain}`}
-                                style={{ color: "var(--text-muted)" }}
-                              >
-                                ›
-                              </ActionIcon>
+                              <Tip text={t("schemaBrowser.nextPage")} named>
+                                <ActionIcon
+                                  onClick={() =>
+                                    setDomainPages((p) => ({ ...p, [domain]: dp + 1 }))
+                                  }
+                                  disabled={dp >= totalDomainPages - 1}
+                                  aria-label={t("schemaBrowser.nextPage")}
+                                  variant="subtle"
+                                  size="xs"
+                                  data-testid={`schema-page-next-${domain}`}
+                                  style={{ color: "var(--text-muted)" }}
+                                >
+                                  ›
+                                </ActionIcon>
+                              </Tip>
                             </div>
                           )}
                         </>
