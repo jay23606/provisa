@@ -261,19 +261,20 @@ export function ResultsGrid({
         <div style={{ flex: 1 }} />
         {/* REQ-1438: rows per page is the reader's choice, offered whether or not the current
             result happens to spill past one page. */}
-        <Select
-          size="xs"
-          w={78}
-          aria-label={t("sqlResultsPanel.rowsPerPage")}
-          title={t("sqlResultsPanel.rowsPerPage")}
-          data={PAGE_SIZES.map((n) => String(n))}
-          value={String(pageSize)}
-          onChange={(v) => {
-            if (v !== null) setPageSize(Number(v));
-          }}
-          allowDeselect={false}
-          data-testid="page-size-select"
-        />
+        <Tip text={t("sqlResultsPanel.rowsPerPage")} named>
+          <Select
+            size="xs"
+            w={78}
+            aria-label={t("sqlResultsPanel.rowsPerPage")}
+            data={PAGE_SIZES.map((n) => String(n))}
+            value={String(pageSize)}
+            onChange={(v) => {
+              if (v !== null) setPageSize(Number(v));
+            }}
+            allowDeselect={false}
+            data-testid="page-size-select"
+          />
+        </Tip>
         {(totalPages > 1 || serverPaged) && (
           <>
             <ActionIcon
@@ -471,24 +472,25 @@ export function ResultsGrid({
                     </div>
                     {baseColumns.includes(c) && (
                       <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
-                        <TextInput
-                          style={{ flex: 1 }}
-                          size="xs"
-                          variant="unstyled"
-                          className="th-filter"
-                          aria-label={`${t("sqlResultsPanel.filterPlaceholder")} ${c}`}
-                          title={t("columnFilter.syntaxHint")}
-                          value={filters[c] ?? ""}
-                          onChange={(e) => {
-                            // Read before the updater: React runs a functional updater on a later
-                            // render pass, when the synthetic event has been pooled and
-                            // currentTarget is null — typing a filter threw there.
-                            const next = e.currentTarget.value;
-                            setFilterText(c, next);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          placeholder={t("sqlResultsPanel.filterPlaceholder")}
-                        />
+                        <Tip text={t("columnFilter.syntaxHint")}>
+                          <TextInput
+                            style={{ flex: 1 }}
+                            size="xs"
+                            variant="unstyled"
+                            className="th-filter"
+                            aria-label={`${t("sqlResultsPanel.filterPlaceholder")} ${c}`}
+                            value={filters[c] ?? ""}
+                            onChange={(e) => {
+                              // Read before the updater: React runs a functional updater on a later
+                              // render pass, when the synthetic event has been pooled and
+                              // currentTarget is null — typing a filter threw there.
+                              const next = e.currentTarget.value;
+                              setFilterText(c, next);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder={t("sqlResultsPanel.filterPlaceholder")}
+                          />
+                        </Tip>
                         <ColumnFilterMenu
                           col={c}
                           kind={columnKinds[c] ?? "text"}

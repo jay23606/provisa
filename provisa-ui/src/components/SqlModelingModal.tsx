@@ -586,38 +586,39 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     background: "var(--surface)",
                   }}
                 >
-                  <TextInput
-                    value={nlText}
-                    placeholder={t("sqlModelingModal.nlPlaceholder")}
-                    aria-label={t("sqlModelingModal.nlPlaceholder")}
-                    onChange={(e) => {
-                      setNlText(e.target.value);
-                      setNlError("");
-                    }}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && nlText.trim() && !nlLoading) {
-                        setNlLoading(true);
+                  <Tip text={nlError || undefined}>
+                    <TextInput
+                      value={nlText}
+                      placeholder={t("sqlModelingModal.nlPlaceholder")}
+                      aria-label={t("sqlModelingModal.nlPlaceholder")}
+                      onChange={(e) => {
+                        setNlText(e.target.value);
                         setNlError("");
-                        setNlCypher("");
-                        const result = await nlToSql(nlText.trim(), role, nlStrict);
-                        setNlLoading(false);
-                        if (result.error) {
-                          setNlError(result.error);
-                        } else {
-                          setSqlText(result.sql);
-                          setNlCypher(result.cypher ?? "");
+                      }}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && nlText.trim() && !nlLoading) {
+                          setNlLoading(true);
+                          setNlError("");
+                          setNlCypher("");
+                          const result = await nlToSql(nlText.trim(), role, nlStrict);
+                          setNlLoading(false);
+                          if (result.error) {
+                            setNlError(result.error);
+                          } else {
+                            setSqlText(result.sql);
+                            setNlCypher(result.cypher ?? "");
+                          }
                         }
-                      }
-                    }}
-                    rightSection={nlLoading ? <Loader size="xs" /> : null}
-                    disabled={nlLoading}
-                    error={!!nlError}
-                    title={nlError || undefined}
-                    aria-busy={nlLoading}
-                    size="xs"
-                    style={{ flex: 1 }}
-                    data-testid="sql-modeling-nl-input"
-                  />
+                      }}
+                      rightSection={nlLoading ? <Loader size="xs" /> : null}
+                      disabled={nlLoading}
+                      error={!!nlError}
+                      aria-busy={nlLoading}
+                      size="xs"
+                      style={{ flex: 1 }}
+                      data-testid="sql-modeling-nl-input"
+                    />
+                  </Tip>
                   <Tip text={t("sqlEditorPanel.nlStrictHint")}>
                     <Switch
                       size="xs"
@@ -762,17 +763,18 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     w={100}
                     data-testid="sql-modeling-sample-mode"
                   />
-                  <NumberInput
-                    size="xs"
-                    value={sampleSize}
-                    min={1}
-                    max={10000}
-                    onChange={(v) => setSampleSize(Math.max(1, typeof v === "number" ? v : 100))}
-                    aria-label={t("sqlModelingModal.sampleSizeLabel")}
-                    title={t("sqlModelingModal.sampleSizeLabel")}
-                    w={70}
-                    data-testid="sql-modeling-sample-size"
-                  />
+                  <Tip text={t("sqlModelingModal.sampleSizeLabel")} named>
+                    <NumberInput
+                      size="xs"
+                      value={sampleSize}
+                      min={1}
+                      max={10000}
+                      onChange={(v) => setSampleSize(Math.max(1, typeof v === "number" ? v : 100))}
+                      aria-label={t("sqlModelingModal.sampleSizeLabel")}
+                      w={70}
+                      data-testid="sql-modeling-sample-size"
+                    />
+                  </Tip>
                   <Select
                     size="xs"
                     aria-label={t("sqlModelingModal.roleLabel")}

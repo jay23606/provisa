@@ -19,6 +19,7 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import "./GrpcPage.css";
 import { requestFailed, serverMessage, type ServerMessageShape } from "../i18n/serverMessage";
 import { actingRoleHeader } from "../lib/actingRole";
+import { Tip } from "../components/Tip";
 
 type OperationType = "query" | "mutation" | "command";
 type LeftTab = "body" | "proto";
@@ -616,16 +617,17 @@ export function GrpcPage() {
         </Group>
         <Group className="grpc-topbar-right" wrap="nowrap" gap="sm">
           {protoError && (
-            <Text
-              size="xs"
-              c="red"
-              data-testid="grpc-proto-error"
-              style={{ maxWidth: 300 }}
-              truncate="end"
-              title={protoError}
-            >
-              {protoError}
-            </Text>
+            <Tip text={protoError}>
+              <Text
+                size="xs"
+                c="red"
+                data-testid="grpc-proto-error"
+                style={{ maxWidth: 300 }}
+                truncate="end"
+              >
+                {protoError}
+              </Text>
+            </Tip>
           )}
           {!protoError && funcsRequired && (
             <Text size="xs" c="red" data-testid="grpc-funcs-required-hint">

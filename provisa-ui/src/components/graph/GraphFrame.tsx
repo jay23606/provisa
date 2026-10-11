@@ -576,19 +576,20 @@ export function GraphFrame({
             </Tip>
           )}
           {hasGraph && frame.status === "done" && groupableAttrs.length > 0 && (
-            <Select
-              aria-label={t("graphFrame.groupTooltip")}
-              title={t("graphFrame.groupTooltip")}
-              className={`gf-attr-select${groupableAttrs.includes(clusterLevel) ? " gf-icon-btn--on" : ""}`}
-              size="xs"
-              placeholder={t("graphFrame.groupPlaceholder")}
-              value={groupableAttrs.includes(clusterLevel) ? clusterLevel : null}
-              onChange={(val) => setClusterLevel((val ?? "none") as ClusterLevel)}
-              data={groupableAttrs.map((a) => ({ value: a, label: a }))}
-              clearable
-              comboboxProps={{ withinPortal: true }}
-              data-testid="graph-frame-group-select"
-            />
+            <Tip text={t("graphFrame.groupTooltip")} named>
+              <Select
+                aria-label={t("graphFrame.groupTooltip")}
+                className={`gf-attr-select${groupableAttrs.includes(clusterLevel) ? " gf-icon-btn--on" : ""}`}
+                size="xs"
+                placeholder={t("graphFrame.groupPlaceholder")}
+                value={groupableAttrs.includes(clusterLevel) ? clusterLevel : null}
+                onChange={(val) => setClusterLevel((val ?? "none") as ClusterLevel)}
+                data={groupableAttrs.map((a) => ({ value: a, label: a }))}
+                clearable
+                comboboxProps={{ withinPortal: true }}
+                data-testid="graph-frame-group-select"
+              />
+            </Tip>
           )}
           {activeView === "table" && frame.rows.length > 0 && (
             <Tip text={t("graphFrame.wrapCellText")} named>

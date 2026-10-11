@@ -524,19 +524,20 @@ export function SqlEditorPanel({
           data-testid="sql-sample-mode"
           style={{ width: "110px" }}
         />
-        <NumberInput
-          aria-label={t("sqlEditorPanel.rowCountLabel")}
-          title={t("sqlEditorPanel.rowCountLabel")}
-          value={sampleSize}
-          min={1}
-          max={10000}
-          onChange={(v) =>
-            setSampleSize(Math.max(1, typeof v === "number" ? v : parseInt(String(v)) || 100))
-          }
-          size="xs"
-          data-testid="sql-sample-size"
-          style={{ width: "90px" }}
-        />
+        <Tip text={t("sqlEditorPanel.rowCountLabel")} named>
+          <NumberInput
+            aria-label={t("sqlEditorPanel.rowCountLabel")}
+            value={sampleSize}
+            min={1}
+            max={10000}
+            onChange={(v) =>
+              setSampleSize(Math.max(1, typeof v === "number" ? v : parseInt(String(v)) || 100))
+            }
+            size="xs"
+            data-testid="sql-sample-size"
+            style={{ width: "90px" }}
+          />
+        </Tip>
         <Select
           aria-label={t("sqlEditorPanel.roleLabel")}
           size="xs"
