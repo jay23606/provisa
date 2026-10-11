@@ -21,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   Button,
-  Group,
   SegmentedControl,
   Select,
   Stack,
@@ -35,6 +34,12 @@ import { metricDimensionTables } from "../sql/sqlHelpers";
 import type { MutationResult, RegisteredTable, Relationship } from "../../types/admin";
 import { DERIVED_SOURCE_ID } from "../../types/admin";
 import { buildTableUpdateInput } from "./helpers";
+import {
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+} from "../../components/form/FormLayout";
 
 type DefinitionMode = "sql" | "metrics";
 
@@ -160,103 +165,116 @@ export function ViewDefinitionForm({
       />
 
       {mode === "sql" ? (
-        <Stack gap="sm" data-testid="view-definition-sql-panel">
-          <Text size="sm" c="dimmed">
-            {editing ? t("viewDefinitionForm.sqlEditHint") : t("viewDefinitionForm.sqlCreateHint")}
-          </Text>
-          <Group gap="sm">
-            <Button
-              variant="default"
-              data-testid="view-definition-open-sql"
-              onClick={() =>
-                editing
-                  ? navigate("/sql", { state: { sql: editing.viewSql, viewTable: editing } })
-                  : navigate("/sql")
-              }
-            >
+        <FormLayout data-testid="view-definition-sql-panel">
+          <FormField size="full">
+            <Text size="sm" c="dimmed">
               {editing
-                ? t("viewDefinitionForm.editInSqlEditor")
-                : t("viewDefinitionForm.openSqlEditor")}
-            </Button>
-            <Button variant="subtle" onClick={onCancel} data-testid="view-definition-cancel">
-              {t("viewDefinitionForm.cancel")}
-            </Button>
-          </Group>
-        </Stack>
+                ? t("viewDefinitionForm.sqlEditHint")
+                : t("viewDefinitionForm.sqlCreateHint")}
+            </Text>
+          </FormField>
+          {/* Opening the editor is not a save: it keeps its word, first, and Cancel follows. */}
+          <FormFooter
+            onCancel={onCancel}
+            cancelProps={{ "data-testid": "view-definition-cancel" }}
+            action={
+              <Button
+                variant="default"
+                data-testid="view-definition-open-sql"
+                onClick={() =>
+                  editing
+                    ? navigate("/sql", { state: { sql: editing.viewSql, viewTable: editing } })
+                    : navigate("/sql")
+                }
+              >
+                {editing
+                  ? t("viewDefinitionForm.editInSqlEditor")
+                  : t("viewDefinitionForm.openSqlEditor")}
+              </Button>
+            }
+          />
+        </FormLayout>
       ) : (
-        <Stack gap="sm" data-testid="view-definition-metrics-panel">
+        <FormLayout data-testid="view-definition-metrics-panel">
           {!editing && (
-            <Group grow>
-              <TextInput
-                label={t("viewDefinitionForm.fieldName")}
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("viewDefinitionForm.fieldNamePlaceholder")}
-                data-testid="view-definition-name"
-              />
-              <Select
-                label={t("viewDefinitionForm.fieldDomain")}
-                required
-                searchable
-                data={domainHints}
-                value={domainId || null}
-                onChange={(v) => setDomainId(v ?? "")}
-                data-testid="view-definition-domain"
-              />
-            </Group>
+            <FormIdentifiers>
+              <FormField size="medium">
+                <TextInput
+                  label={t("viewDefinitionForm.fieldName")}
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("viewDefinitionForm.fieldNamePlaceholder")}
+                  data-testid="view-definition-name"
+                />
+              </FormField>
+              <FormField size="medium">
+                <Select
+                  label={t("viewDefinitionForm.fieldDomain")}
+                  required
+                  searchable
+                  data={domainHints}
+                  value={domainId || null}
+                  onChange={(v) => setDomainId(v ?? "")}
+                  data-testid="view-definition-domain"
+                />
+              </FormField>
+            </FormIdentifiers>
           )}
           {!editing && (
-            <Textarea
-              label={t("viewDefinitionForm.fieldDescription")}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              data-testid="view-definition-description"
+            <FormField size="full">
+              <Textarea
+                label={t("viewDefinitionForm.fieldDescription")}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                data-testid="view-definition-description"
+              />
+            </FormField>
+          )}
+          <FormField size="long">
+            <MultiSelect
+              label={t("viewDefinitionForm.fieldMetrics")}
+              options={metrics.map((m) => ({ id: m.name, label: m.name }))}
+              value={selectedMetrics}
+              onChange={setSelectedMetrics}
+              placeholder={t("viewDefinitionForm.fieldMetricsPlaceholder")}
             />
-          )}
-          <MultiSelect
-            label={t("viewDefinitionForm.fieldMetrics")}
-            options={metrics.map((m) => ({ id: m.name, label: m.name }))}
-            value={selectedMetrics}
-            onChange={setSelectedMetrics}
-            placeholder={t("viewDefinitionForm.fieldMetricsPlaceholder")}
-          />
-          <MultiSelect
-            label={t("viewDefinitionForm.fieldDimensions")}
-            options={dimensionOptions}
-            value={selectedDims}
-            onChange={setSelectedDims}
-            placeholder={t("viewDefinitionForm.fieldDimensionsPlaceholder")}
-          />
-          <Textarea
-            label={t("viewDefinitionForm.fieldFilters")}
-            description={t("viewDefinitionForm.fieldFiltersHelp")}
-            value={filtersText}
-            onChange={(e) => setFiltersText(e.target.value)}
-            rows={2}
-            styles={{ input: { fontFamily: "monospace" } }}
-            data-testid="view-definition-filters"
-          />
+          </FormField>
+          <FormField size="long">
+            <MultiSelect
+              label={t("viewDefinitionForm.fieldDimensions")}
+              options={dimensionOptions}
+              value={selectedDims}
+              onChange={setSelectedDims}
+              placeholder={t("viewDefinitionForm.fieldDimensionsPlaceholder")}
+            />
+          </FormField>
+          <FormField size="full" hint={t("viewDefinitionForm.fieldFiltersHelp")}>
+            <Textarea
+              label={t("viewDefinitionForm.fieldFilters")}
+              value={filtersText}
+              onChange={(e) => setFiltersText(e.target.value)}
+              rows={2}
+              styles={{ input: { fontFamily: "monospace" } }}
+              data-testid="view-definition-filters"
+            />
+          </FormField>
           {msg && (
-            <Alert color="red" data-testid="view-definition-error">
-              {msg}
-            </Alert>
+            <FormField size="full">
+              <Alert color="red" data-testid="view-definition-error">
+                {msg}
+              </Alert>
+            </FormField>
           )}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onCancel} data-testid="view-definition-cancel">
-              {t("viewDefinitionForm.cancel")}
-            </Button>
-            <Button
-              onClick={handleSaveMetrics}
-              loading={saving}
-              disabled={metricsSaveDisabled}
-              data-testid="view-definition-save"
-            >
-              {t("viewDefinitionForm.save")}
-            </Button>
-          </Group>
-        </Stack>
+          <FormFooter
+            onSave={handleSaveMetrics}
+            saving={saving}
+            saveProps={{ "data-testid": "view-definition-save", disabled: metricsSaveDisabled }}
+            onCancel={onCancel}
+            cancelProps={{ "data-testid": "view-definition-cancel" }}
+          />
+        </FormLayout>
       )}
     </Stack>
   );

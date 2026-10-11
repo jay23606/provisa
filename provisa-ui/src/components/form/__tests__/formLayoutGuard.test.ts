@@ -32,6 +32,7 @@ const NOT_A_FORM: Readonly<Record<string, string>> = {
   "components/admin/RepoBrowser.tsx": "the pickers of what the repository browser shows",
   "components/admin/ReplicateSelect.tsx": "one reusable control, placed by the form that uses it",
   "components/RegionSelector.tsx": "the region switch in the page header",
+  "pages/tables/DescriptionField.tsx": "one reusable control, placed by the form that uses it",
   "components/GovernedTableViewer.tsx": "the filter above a data preview",
   "components/NavBar.tsx": "the do-not-ask-again tick of the sign-out dialog",
   "components/SourceTypePicker.tsx": "the search box of the source-type picker",
@@ -112,11 +113,9 @@ const NOT_YET_CONVERTED: readonly string[] = [
   "pages/sql/ViewModal.tsx",
   "pages/tables/CalendarCreateModal.tsx",
   "pages/tables/DataQualityPanel.tsx",
-  "pages/tables/DescriptionField.tsx",
   "pages/tables/ModelingForm.tsx",
   "pages/tables/ProfileConstraintsModal.tsx",
   "pages/tables/RecurrenceBuilder.tsx",
-  "pages/tables/ViewDefinitionForm.tsx",
 ];
 
 function componentFiles(dir: string, found: string[] = []): string[] {
