@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActionIcon,
   Button,
-  Group,
+  Input,
   NumberInput,
   SegmentedControl,
   Select,
@@ -22,6 +22,7 @@ import {
   Title,
 } from "@mantine/core";
 import type { DatasetRelationship, FanoutCondition, FanoutCount } from "../../../api/synthetic";
+import { FieldGroup, FormField, FormLayout } from "../../form/FormLayout";
 
 type Kind = "fixed" | "range" | "measured";
 
@@ -60,63 +61,83 @@ export function DatasetConditions({
     }),
   }));
   return (
-    <Stack gap="xs" data-testid="synthetic-conditions">
-      <Title order={6}>{t("syntheticDatasets.conditionsTitle")}</Title>
-      <Text size="xs" c="dimmed">
-        {t("syntheticDatasets.conditionsHelp")}
-      </Text>
+    <FormLayout data-testid="synthetic-conditions">
+      <FormField size="full">
+        <Stack gap={2}>
+          <Title order={6}>{t("syntheticDatasets.conditionsTitle")}</Title>
+          <Text size="xs" c="dimmed">
+            {t("syntheticDatasets.conditionsHelp")}
+          </Text>
+        </Stack>
+      </FormField>
       {value.map((c, i) => {
         const count = c.count;
         return (
-          <Group key={i} align="end" data-testid={`synthetic-condition-${i}`}>
-            <Select
-              label={t("syntheticDatasets.relationship")}
-              data={options}
-              value={c.relationship || null}
-              onChange={(v) => v && set(i, { relationship: v })}
-              allowDeselect={false}
-            />
-            <TextInput
-              label={t("syntheticDatasets.condition")}
-              placeholder="status = 'cancelled'"
-              value={c.condition}
-              onChange={(e) => set(i, { condition: e.currentTarget.value })}
-            />
-            <SegmentedControl
-              aria-label={t("syntheticDatasets.countKind")}
-              value={kindOf(count)}
-              onChange={(k) => set(i, { count: countOf(k as Kind) })}
-              data={[
-                { value: "fixed", label: t("syntheticDatasets.countFixed") },
-                { value: "range", label: t("syntheticDatasets.countRange") },
-                { value: "measured", label: t("syntheticDatasets.countMeasured") },
-              ]}
-            />
-            {"fixed" in count && (
-              <NumberInput
-                label={t("syntheticDatasets.count")}
-                min={0}
-                allowDecimal={false}
-                value={count.fixed}
-                onChange={(v) => set(i, { count: { fixed: Number(v) } })}
+          // One entry of the list, a row to itself; its remove sits level with the boxes.
+          <FieldGroup row key={i} data-testid={`synthetic-condition-${i}`}>
+            <FormField size="medium">
+              <Select
+                label={t("syntheticDatasets.relationship")}
+                data={options}
+                value={c.relationship || null}
+                onChange={(v) => v && set(i, { relationship: v })}
+                allowDeselect={false}
               />
+            </FormField>
+            <FormField size="medium">
+              <TextInput
+                label={t("syntheticDatasets.condition")}
+                placeholder="status = 'cancelled'"
+                value={c.condition}
+                onChange={(e) => set(i, { condition: e.currentTarget.value })}
+              />
+            </FormField>
+            <FormField size="medium">
+              {/* Labelled as the boxes beside it are, so it stands level with them. */}
+              <Input.Wrapper label={t("syntheticDatasets.countKind")}>
+                <SegmentedControl
+                  aria-label={t("syntheticDatasets.countKind")}
+                  value={kindOf(count)}
+                  onChange={(k) => set(i, { count: countOf(k as Kind) })}
+                  data={[
+                    { value: "fixed", label: t("syntheticDatasets.countFixed") },
+                    { value: "range", label: t("syntheticDatasets.countRange") },
+                    { value: "measured", label: t("syntheticDatasets.countMeasured") },
+                  ]}
+                />
+              </Input.Wrapper>
+            </FormField>
+            {"fixed" in count && (
+              <FormField size="short">
+                <NumberInput
+                  label={t("syntheticDatasets.count")}
+                  min={0}
+                  allowDecimal={false}
+                  value={count.fixed}
+                  onChange={(v) => set(i, { count: { fixed: Number(v) } })}
+                />
+              </FormField>
             )}
             {"low" in count && (
               <>
-                <NumberInput
-                  label={t("syntheticDatasets.low")}
-                  min={0}
-                  allowDecimal={false}
-                  value={count.low}
-                  onChange={(v) => set(i, { count: { ...count, low: Number(v) } })}
-                />
-                <NumberInput
-                  label={t("syntheticDatasets.high")}
-                  min={0}
-                  allowDecimal={false}
-                  value={count.high}
-                  onChange={(v) => set(i, { count: { ...count, high: Number(v) } })}
-                />
+                <FormField size="short">
+                  <NumberInput
+                    label={t("syntheticDatasets.low")}
+                    min={0}
+                    allowDecimal={false}
+                    value={count.low}
+                    onChange={(v) => set(i, { count: { ...count, low: Number(v) } })}
+                  />
+                </FormField>
+                <FormField size="short">
+                  <NumberInput
+                    label={t("syntheticDatasets.high")}
+                    min={0}
+                    allowDecimal={false}
+                    value={count.high}
+                    onChange={(v) => set(i, { count: { ...count, high: Number(v) } })}
+                  />
+                </FormField>
               </>
             )}
             <ActionIcon
@@ -126,10 +147,10 @@ export function DatasetConditions({
             >
               ×
             </ActionIcon>
-          </Group>
+          </FieldGroup>
         );
       })}
-      <Group>
+      <FormField size="full">
         <Button
           size="xs"
           variant="light"
@@ -141,7 +162,7 @@ export function DatasetConditions({
         >
           {t("syntheticDatasets.addCondition")}
         </Button>
-      </Group>
-    </Stack>
+      </FormField>
+    </FormLayout>
   );
 }
