@@ -41,6 +41,7 @@ import {
 } from "../api/admin";
 import type { OrgInvite, OrgMember } from "../api/admin";
 import { OrgBrandingSettings } from "../components/OrgBrandingSettings";
+import { FormChecks, FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import { OrgJoinSettings } from "../components/OrgJoinSettings";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "../components/graph/graph-persistence";
@@ -339,19 +340,24 @@ export function TeamPage() {
           </Accordion.Control>
           <Accordion.Panel>
             <ListTable minWidth={640} testId="team-members">
-                <ListHead
- sortGroup={memberSortGroup}
- columns={[{ col: "person" }, { col: "provider" }, { col: "orgAdmin" }, t("teamPage.colActions")]}
- />
-                <Table.Tbody>
-                  {members.length === 0 && (
-                    <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>
-                  )}
-                  <ListItems
-                    state={memberSortGroup}
-                    colSpan={4}
-                    rowKey={(m) => m.user_id}
-                    render={(m) => {
+              <ListHead
+                sortGroup={memberSortGroup}
+                columns={[
+                  { col: "person" },
+                  { col: "provider" },
+                  { col: "orgAdmin" },
+                  t("teamPage.colActions"),
+                ]}
+              />
+              <Table.Tbody>
+                {members.length === 0 && (
+                  <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>
+                )}
+                <ListItems
+                  state={memberSortGroup}
+                  colSpan={4}
+                  rowKey={(m) => m.user_id}
+                  render={(m) => {
                     const lastAdmin = m.is_org_admin && adminCount <= 1;
                     return (
                       <ListRow testId={`team-member-${m.user_id}`}>
@@ -398,9 +404,9 @@ export function TeamPage() {
                         </Table.Td>
                       </ListRow>
                     );
-                    }}
-                  />
-                </Table.Tbody>
+                  }}
+                />
+              </Table.Tbody>
             </ListTable>
           </Accordion.Panel>
         </Accordion.Item>
@@ -410,109 +416,117 @@ export function TeamPage() {
             <Title order={4}>{t("teamPage.inviteHeading")}</Title>
           </Accordion.Control>
           <Accordion.Panel>
-            <Stack gap="sm" maw={480}>
+            <FormLayout data-testid="team-invite-form" style={{ marginBottom: "1rem" }}>
               <Text c="dimmed" size="sm">
                 {t("teamPage.inviteHelp")}
               </Text>
-              <TextInput
-                label={t("teamPage.emailLabel")}
-                description={t("teamPage.emailDesc")}
-                placeholder="person@acme.com"
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.currentTarget.value)}
-                data-testid="team-invite-email"
-              />
-              {/* The button sits beside the role, bottom-aligned with its input: picking the role
-                  is the last thing done before creating the link, and it is the field the button
-                  is disabled on. */}
-              <Group align="flex-end" gap="sm" wrap="nowrap">
+              <FormField size="long" hint={t("teamPage.emailDesc")}>
+                <TextInput
+                  label={t("teamPage.emailLabel")}
+                  placeholder="person@acme.com"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.currentTarget.value)}
+                  data-testid="team-invite-email"
+                />
+              </FormField>
+              <FormField size="medium" hint={t("teamPage.roleDesc")}>
                 <Select
                   label={t("teamPage.roleLabel")}
-                  description={t("teamPage.roleDesc")}
                   placeholder={t("teamPage.rolePlaceholder")}
                   data={roleOptions}
                   value={roleId}
                   onChange={setRoleId}
                   data-testid="team-invite-role"
-                  style={{ flex: 1 }}
                 />
-                <Button
-                  onClick={handleCreate}
-                  disabled={!activeOrgId || !roleId || !(Number(expiresInDays) >= 1)}
-                  data-testid="team-invite-create"
-                >
-                  {inviteEmail.trim() === ""
-                    ? t("teamPage.generateInvite")
-                    : t("teamPage.sendInvite")}
-                </Button>
-              </Group>
-              {/* REQ-1594/REQ-1595: who the link admits, and what it gives them. Both sit under the
-                  role because both are answered about the invitation as a whole, not per invitee. */}
-              <NumberInput
-                label={t("teamPage.expiresLabel")}
-                description={t("teamPage.expiresDesc")}
-                min={1}
-                max={36500}
-                allowDecimal={false}
-                value={expiresInDays}
-                onChange={setExpiresInDays}
-                data-testid="team-invite-expires-days"
-              />
-              <Switch
-                label={t("teamPage.openLinkLabel")}
-                description={t("teamPage.openLinkDesc")}
-                checked={openLink}
-                onChange={(e) => setOpenLink(e.currentTarget.checked)}
-                data-testid="team-invite-open-link"
-              />
-              <Select
-                label={t("teamPage.envPolicyLabel")}
-                description={t("teamPage.envPolicyDesc")}
-                data={[
-                  { value: ENV_POLICY_NONE, label: t("teamPage.envPolicyNone") },
-                  { value: ENV_POLICY_PER_VISITOR, label: t("teamPage.envPolicyPerVisitor") },
-                ]}
-                value={envPolicy}
-                onChange={(v) => setEnvPolicy(v ?? ENV_POLICY_NONE)}
-                allowDeselect={false}
-                data-testid="team-invite-env-policy"
-              />
-              {envPolicy === ENV_POLICY_PER_VISITOR && (
+              </FormField>
+              {/* REQ-1594/REQ-1595: who the link admits, and what it gives them: both are answered
+                  about the invitation as a whole, not per invitee. */}
+              <FormField size="short" help={t("teamPage.expiresDesc")}>
+                <NumberInput
+                  label={t("teamPage.expiresLabel")}
+                  min={1}
+                  max={36500}
+                  allowDecimal={false}
+                  value={expiresInDays}
+                  onChange={setExpiresInDays}
+                  data-testid="team-invite-expires-days"
+                />
+              </FormField>
+              <FormField size="medium" help={t("teamPage.envPolicyDesc")}>
                 <Select
-                  label={t("teamPage.envTtlLabel")}
-                  data={ttlOptions}
-                  value={envTtl}
-                  onChange={(v) => setEnvTtl(v ?? "3600")}
+                  label={t("teamPage.envPolicyLabel")}
+                  data={[
+                    { value: ENV_POLICY_NONE, label: t("teamPage.envPolicyNone") },
+                    { value: ENV_POLICY_PER_VISITOR, label: t("teamPage.envPolicyPerVisitor") },
+                  ]}
+                  value={envPolicy}
+                  onChange={(v) => setEnvPolicy(v ?? ENV_POLICY_NONE)}
                   allowDeselect={false}
-                  data-testid="team-invite-env-ttl"
+                  data-testid="team-invite-env-policy"
                 />
+              </FormField>
+              {envPolicy === ENV_POLICY_PER_VISITOR && (
+                <FormField size="short">
+                  <Select
+                    label={t("teamPage.envTtlLabel")}
+                    data={ttlOptions}
+                    value={envTtl}
+                    onChange={(v) => setEnvTtl(v ?? "3600")}
+                    allowDeselect={false}
+                    data-testid="team-invite-env-ttl"
+                  />
+                </FormField>
               )}
-            </Stack>
+              <FormChecks>
+                <FormField size="long" help={t("teamPage.openLinkDesc")}>
+                  <Switch
+                    label={t("teamPage.openLinkLabel")}
+                    checked={openLink}
+                    onChange={(e) => setOpenLink(e.currentTarget.checked)}
+                    data-testid="team-invite-open-link"
+                  />
+                </FormField>
+              </FormChecks>
+              {/* The form's one action: it creates the link (or sends it, with an address). */}
+              <FormFooter
+                action={
+                  <Button
+                    onClick={handleCreate}
+                    disabled={!activeOrgId || !roleId || !(Number(expiresInDays) >= 1)}
+                    data-testid="team-invite-create"
+                  >
+                    {inviteEmail.trim() === ""
+                      ? t("teamPage.generateInvite")
+                      : t("teamPage.sendInvite")}
+                  </Button>
+                }
+              />
+            </FormLayout>
 
             <ListTable minWidth={640} testId="team-invites">
-                <ListHead
- sortGroup={inviteSortGroup}
- columns={[
-{ col: "token" },
-{ col: "email" },
-{ col: "role" },
-{ col: "expires" },
-{ col: "uses" },
-{ col: "environment" },
-{ col: "status" },
-t("teamPage.colActions"),
-]}
- />
-                <Table.Tbody>
-                  {invites.length === 0 && (
-                    <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
-                  )}
-                  <ListItems
-                    state={inviteSortGroup}
-                    colSpan={8}
-                    rowKey={(inv) => inv.token}
-                    render={(inv) => (
+              <ListHead
+                sortGroup={inviteSortGroup}
+                columns={[
+                  { col: "token" },
+                  { col: "email" },
+                  { col: "role" },
+                  { col: "expires" },
+                  { col: "uses" },
+                  { col: "environment" },
+                  { col: "status" },
+                  t("teamPage.colActions"),
+                ]}
+              />
+              <Table.Tbody>
+                {invites.length === 0 && (
+                  <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
+                )}
+                <ListItems
+                  state={inviteSortGroup}
+                  colSpan={8}
+                  rowKey={(inv) => inv.token}
+                  render={(inv) => (
                     <ListRow>
                       <Table.Td>
                         <Text ff="monospace" span>
@@ -563,9 +577,9 @@ t("teamPage.colActions"),
                         </Group>
                       </Table.Td>
                     </ListRow>
-                    )}
-                  />
-                </Table.Tbody>
+                  )}
+                />
+              </Table.Tbody>
             </ListTable>
           </Accordion.Panel>
         </Accordion.Item>
@@ -632,32 +646,36 @@ t("teamPage.colActions"),
           title={t("teamPage.deleteModalTitle")}
           transitionProps={{ duration: 0 }}
         >
-          <Stack gap="sm" data-testid="team-delete-modal">
+          <FormLayout data-testid="team-delete-modal">
             <Alert color="red">{t("teamPage.deleteWarning", { org: activeOrgId })}</Alert>
-            <Button
-              variant="default"
-              onClick={handleExport}
-              style={{ alignSelf: "flex-start" }}
-              data-testid="team-export-config"
+            <FormField size="long">
+              <TextInput
+                label={t("teamPage.confirmLabel", { org: activeOrgId })}
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.currentTarget.value)}
+                data-testid="team-delete-confirm"
+              />
+            </FormField>
+            {/* Delete takes Save's place, then the shared Cancel; the download is the row's other
+                action. */}
+            <FormFooter
+              onCancel={() => setDeleteOpen(false)}
+              action={
+                <Button
+                  color="red"
+                  disabled={confirmText !== activeOrgId}
+                  onClick={handleDeleteOrg}
+                  data-testid="team-delete-submit"
+                >
+                  {t("teamPage.deleteConfirmButton")}
+                </Button>
+              }
             >
-              {exported ? t("teamPage.downloadedButton") : t("teamPage.downloadButton")}
-            </Button>
-            <TextInput
-              label={t("teamPage.confirmLabel", { org: activeOrgId })}
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.currentTarget.value)}
-              data-testid="team-delete-confirm"
-            />
-            <Button
-              color="red"
-              disabled={confirmText !== activeOrgId}
-              onClick={handleDeleteOrg}
-              style={{ alignSelf: "flex-start" }}
-              data-testid="team-delete-submit"
-            >
-              {t("teamPage.deleteConfirmButton")}
-            </Button>
-          </Stack>
+              <Button variant="default" onClick={handleExport} data-testid="team-export-config">
+                {exported ? t("teamPage.downloadedButton") : t("teamPage.downloadButton")}
+              </Button>
+            </FormFooter>
+          </FormLayout>
         </Modal>
       )}
     </Stack>
