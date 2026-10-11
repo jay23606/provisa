@@ -11,17 +11,7 @@
 import { PanelActions } from "../../components/list/SplitPane";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Group,
-  Modal,
-  PasswordInput,
-  Stack,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Alert, Button, Group, Modal, PasswordInput, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2, ArrowRight, RefreshCw, Play } from "lucide-react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import type { Source } from "../../types/admin";
@@ -31,6 +21,7 @@ import { useRefreshKaggleSource } from "../../hooks/useAdminQueries";
 import { runProfiler, type SourceRunOutcome } from "../../api/profiler";
 import { profilerFieldsFromMapping } from "./profilerMapping";
 import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
+import { Tip } from "../../components/Tip";
 
 const API_TYPES = new Set(["graphql_remote", "grpc_remote", "openapi"]);
 const PATH_TYPES = new Set(["sqlite", "csv", "parquet", "files"]);
@@ -172,7 +163,7 @@ export function SourceDetailPanel({
       {/* In a panel these sit in its pinned head, beside the source's name. */}
       <PanelActions>
         <Group gap="xs" wrap="nowrap">
-          <Tooltip label={t("sourceDetailPanel.editTitle")}>
+          <Tip text={t("sourceDetailPanel.editTitle")} named>
             <ActionIcon
               variant="subtle"
               aria-label={t("sourceDetailPanel.editTitle")}
@@ -184,9 +175,9 @@ export function SourceDetailPanel({
             >
               <Pencil size={14} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
           {s.id !== "provisa-otel" && (
-            <Tooltip label={t("sourceDetailPanel.navigateTitle")}>
+            <Tip text={t("sourceDetailPanel.navigateTitle")} named>
               <ActionIcon
                 variant="subtle"
                 aria-label={t("sourceDetailPanel.navigateTitle")}
@@ -198,10 +189,10 @@ export function SourceDetailPanel({
               >
                 <ArrowRight size={14} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           )}
           {kaggleOrigin && (
-            <Tooltip label={t("sourceDetailPanel.refreshKaggleTitle")}>
+            <Tip text={t("sourceDetailPanel.refreshKaggleTitle")} named>
               <ActionIcon
                 variant="subtle"
                 aria-label={t("sourceDetailPanel.refreshKaggleTitle")}
@@ -214,11 +205,11 @@ export function SourceDetailPanel({
               >
                 <RefreshCw size={14} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           )}
           {isProfiler && (
             // REQ-1934: an ad hoc run of every member table, beside the source's other actions.
-            <Tooltip label={t("sourceDetailPanel.runProfilerTitle")}>
+            <Tip text={t("sourceDetailPanel.runProfilerTitle")} named>
               <ActionIcon
                 variant="subtle"
                 aria-label={t("sourceDetailPanel.runProfilerTitle")}
@@ -231,7 +222,7 @@ export function SourceDetailPanel({
               >
                 <Play size={14} />
               </ActionIcon>
-            </Tooltip>
+            </Tip>
           )}
           <ConfirmDialog
             title={t("sourceDetailPanel.deleteTitle", { id: s.id })}
@@ -239,7 +230,7 @@ export function SourceDetailPanel({
             onConfirm={onDelete}
           >
             {(open) => (
-              <Tooltip label={t("sourceDetailPanel.deleteTitleShort")}>
+              <Tip text={t("sourceDetailPanel.deleteTitleShort")} named>
                 <ActionIcon
                   variant="subtle"
                   color="red"
@@ -252,7 +243,7 @@ export function SourceDetailPanel({
                 >
                   <Trash2 size={14} />
                 </ActionIcon>
-              </Tooltip>
+              </Tip>
             )}
           </ConfirmDialog>
         </Group>

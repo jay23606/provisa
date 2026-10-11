@@ -30,6 +30,7 @@ import type { DiscoveredColumn } from "../api/admin";
 import { useRegisterTable, useRoles } from "../hooks/useAdminQueries";
 import { IR_TYPES_FALLBACK, toIrType } from "../irTypes";
 import { refusalError } from "../i18n/serverMessage";
+import { Tip } from "./Tip";
 
 interface ColumnRow {
   selected: boolean;
@@ -420,17 +421,18 @@ export function SchemaDiscovery({
                       {col.sourcePath}
                     </Table.Td>
                     <Table.Td ta="center">
-                      <Checkbox
-                        checked={col.isPrimaryKey}
-                        onChange={(e) =>
-                          updateColumn(idx, { isPrimaryKey: e.currentTarget.checked })
-                        }
-                        title={t("schemaDiscovery.primaryKeyTitle")}
-                        aria-label={t("schemaDiscovery.primaryKeyAriaLabel", {
-                          name: col.name || idx + 1,
-                        })}
-                        data-testid={`discover-col-pk-${col.name || idx}`}
-                      />
+                      <Tip text={t("schemaDiscovery.primaryKeyTitle")}>
+                        <Checkbox
+                          checked={col.isPrimaryKey}
+                          onChange={(e) =>
+                            updateColumn(idx, { isPrimaryKey: e.currentTarget.checked })
+                          }
+                          aria-label={t("schemaDiscovery.primaryKeyAriaLabel", {
+                            name: col.name || idx + 1,
+                          })}
+                          data-testid={`discover-col-pk-${col.name || idx}`}
+                        />
+                      </Tip>
                     </Table.Td>
                     <Table.Td>
                       <ActionIcon

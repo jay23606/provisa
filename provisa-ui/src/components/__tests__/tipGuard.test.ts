@@ -36,7 +36,6 @@ const THE_TIP = "components/Tip.tsx";
 const STILL_LIBRARY_TOOLTIP: readonly string[] = [
   "components/TagControl.tsx",
   "pages/metrics/MetricDetailPanel.tsx",
-  "pages/sources/SourceDetailPanel.tsx",
   "pages/tables/CollapsibleSection.tsx",
   "pages/tables/DescriptionField.tsx",
   "pages/tables/TableReadView.tsx",
@@ -47,8 +46,6 @@ const STILL_LIBRARY_TOOLTIP: readonly string[] = [
  * commit that converts it, and nothing is added.
  */
 const STILL_TITLE_ON_CONTROL: readonly string[] = [
-  "components/SchemaDiscovery.tsx",
-  "components/SourceTypePicker.tsx",
   "components/TagControl.tsx",
   "components/relationships/RelationshipDetail.tsx",
   "pages/RelationshipsPage.tsx",
