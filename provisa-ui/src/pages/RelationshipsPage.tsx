@@ -58,6 +58,7 @@ import { CandidatesTable } from "../components/relationships/CandidatesTable";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { domainToSqlName } from "../naming";
+import { Tip } from "../components/Tip";
 
 export function RelationshipsPage() {
   // REQ-1918: a delete is refused while anything depends on the object; this lists them.
@@ -690,15 +691,16 @@ export function RelationshipsPage() {
             </ListTable>
             {totalPages > 1 && groupBy.length === 0 && (
               <Group gap="sm" align="center" justify="flex-end" py="sm">
-                <ActionIcon
-                  variant="subtle"
-                  aria-label={t("relationshipsPage.firstPage")}
-                  title={t("relationshipsPage.firstPage")}
-                  onClick={() => setRelPage(0)}
-                  disabled={relPage === 0}
-                >
-                  «
-                </ActionIcon>
+                <Tip text={t("relationshipsPage.firstPage")} named>
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={t("relationshipsPage.firstPage")}
+                    onClick={() => setRelPage(0)}
+                    disabled={relPage === 0}
+                  >
+                    «
+                  </ActionIcon>
+                </Tip>
                 <Pagination
                   total={totalPages}
                   value={relPage + 1}
@@ -709,15 +711,16 @@ export function RelationshipsPage() {
                 <Text fz="sm" data-testid="rels-page-label">
                   {t("relationshipsPage.pageOf", { page: relPage + 1, totalPages })}
                 </Text>
-                <ActionIcon
-                  variant="subtle"
-                  aria-label={t("relationshipsPage.lastPage")}
-                  title={t("relationshipsPage.lastPage")}
-                  onClick={() => setRelPage(totalPages - 1)}
-                  disabled={relPage >= totalPages - 1}
-                >
-                  »
-                </ActionIcon>
+                <Tip text={t("relationshipsPage.lastPage")} named>
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={t("relationshipsPage.lastPage")}
+                    onClick={() => setRelPage(totalPages - 1)}
+                    disabled={relPage >= totalPages - 1}
+                  >
+                    »
+                  </ActionIcon>
+                </Tip>
               </Group>
             )}
           </>

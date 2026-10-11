@@ -10,10 +10,11 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Group, Stack, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Metric } from "../../types/admin";
 import { PanelActions } from "../../components/list/SplitPane";
+import { Tip } from "../../components/Tip";
 
 interface MetricDetailPanelProps {
   m: Metric;
@@ -38,7 +39,7 @@ function MetricActions({
     <PanelActions>
       <fieldset className="panel-action-set">
         <Group gap="xs">
-          <Tooltip label={t("metricsPage.editMetric", { name: m.name })}>
+          <Tip text={t("metricsPage.editMetric", { name: m.name })} named>
             <ActionIcon
               variant="subtle"
               aria-label={t("metricsPage.editMetric", { name: m.name })}
@@ -50,8 +51,8 @@ function MetricActions({
             >
               <Pencil size={14} />
             </ActionIcon>
-          </Tooltip>
-          <Tooltip label={t("metricsPage.deleteMetric", { name: m.name })}>
+          </Tip>
+          <Tip text={t("metricsPage.deleteMetric", { name: m.name })} named>
             <ActionIcon
               variant="subtle"
               color="red"
@@ -64,7 +65,7 @@ function MetricActions({
             >
               <Trash2 size={14} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         </Group>
       </fieldset>
     </PanelActions>
