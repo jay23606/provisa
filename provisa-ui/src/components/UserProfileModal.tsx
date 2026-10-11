@@ -143,7 +143,7 @@ export function UserProfileModal({ onClose }: Props) {
               saveProps={{ "data-testid": "profile-save", disabled: !dirty }}
             />
           </FormLayout>
-          <Table withRowBorders={false} verticalSpacing={4} fz="0.85rem">
+          <Table withRowBorders={false} verticalSpacing={4} fz="0.85rem" mt="md">
             <Table.Tbody>
               {displayName && (
                 <Table.Tr>

@@ -162,7 +162,7 @@ describe("a command's detail is a panel at the right of the lists", () => {
 });
 
 describe("+ Command asks only what a command needs in order to exist", () => {
-  it("asks a function for its name and what it calls, and nothing a command can exist without", async () => {
+  it("asks a function for its name, what it calls and its domain, and nothing a command can exist without", async () => {
     render(<CommandsPage />);
     await userEvent.click(await screen.findByTestId("commands-toggle-form"));
     const step = within(panel()!);
@@ -170,7 +170,9 @@ describe("+ Command asks only what a command needs in order to exist", () => {
     expect(step.getByLabelText(/^Name/)).toBeInTheDocument();
     expect(step.getByLabelText(/^Source/)).toBeInTheDocument();
     expect(step.getByLabelText(/^Function Name/)).toBeInTheDocument();
-    for (const later of ["Description", "Domain", "Visible To", "Requires approval"]) {
+    // The server refuses a command that names no domain, so its domain is asked here too.
+    expect(step.getByLabelText(/^Domain/)).toBeInTheDocument();
+    for (const later of ["Description", "Visible To", "Requires approval"]) {
       expect(step.queryByLabelText(new RegExp(`^${later}`))).toBeNull();
     }
     expect(step.queryByText("Arguments")).toBeNull();

@@ -842,8 +842,8 @@ export function CommandsPage() {
   if (loading) return <PageLoading message={t("commandsPage.loading")} />;
 
   return (
-    <Stack gap="md" p="md">
-      <Group justify="space-between" wrap="wrap">
+    <div className="page page-sticky-head">
+      <div className="page-header">
         <Title order={2}>{t("commandsPage.title")}</Title>
         <FilterInput
           value={cmdSearch}
@@ -854,7 +854,7 @@ export function CommandsPage() {
           }}
           placeholder={t("commandsPage.filterPlaceholder")}
         />
-        <Group>
+        <div className="page-actions">
           {!editingName && !showForm && (
             <Button
               leftSection={<Plus size={14} />}
@@ -864,16 +864,16 @@ export function CommandsPage() {
               {t("commandsPage.addCommand")}
             </Button>
           )}
-        </Group>
-      </Group>
+        </div>
+      </div>
 
       {error && (
-        <Alert color="red" data-testid="commands-error">
+        <Alert color="red" mb="md" data-testid="commands-error">
           {error}
         </Alert>
       )}
       {msg && (
-        <Alert color="green" data-testid="commands-success">
+        <Alert color="green" mb="md" data-testid="commands-success">
           {msg}
         </Alert>
       )}
@@ -1066,6 +1066,6 @@ export function CommandsPage() {
       >
         {panelBody}
       </SplitPane>
-    </Stack>
+    </div>
   );
 }
