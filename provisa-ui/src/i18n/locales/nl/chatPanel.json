@@ -8,6 +8,26 @@
       "inflation": "Zoek inflatiegegevens voor me",
       "profile": "Profileer de tabel orders",
       "fakes": "Geef de tabel customers nepnamen voor testgegevens"
-    }
+    },
+    "toggleTooltip": "Polly, uw gegevensassistent",
+    "notSetUpTitle": "Polly is nog niet ingesteld",
+    "needsVendor": "Polly heeft een geconfigureerde LLM-leverancier en referentie nodig voordat het kan chatten.",
+    "needsVendorReason": "Polly heeft een geconfigureerde LLM-leverancier en referentie nodig voordat het kan chatten ({{reason}}).",
+    "openAiModels": "Instellingen voor AI-modellen openen",
+    "notNow": "Niet nu",
+    "resize": "Grootte van chatvenster wijzigen",
+    "clear": "Gesprek wissen",
+    "composerPlaceholder": "Stel me een vraag of zeg wat ik moet doen.",
+    "stopListening": "Stoppen met luisteren",
+    "speak": "Tegen Polly spreken",
+    "stop": "Stoppen",
+    "send": "Verzenden",
+    "typeAnswer": "Typ uw antwoord…",
+    "submit": "Versturen",
+    "backToYesNo": "Terug naar Ja/Nee",
+    "yes": "Ja",
+    "no": "Nee",
+    "typeSomethingElse": "Iets anders typen",
+    "confirm": "Bevestigen"
   }
 }

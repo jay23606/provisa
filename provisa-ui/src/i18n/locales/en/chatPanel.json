@@ -8,6 +8,26 @@
       "inflation": "Find me inflation data",
       "profile": "Profile the orders table",
       "fakes": "Give the customers table fake names for test data"
-    }
+    },
+    "toggleTooltip": "Polly, your data assistant",
+    "notSetUpTitle": "Polly isn't set up yet",
+    "needsVendor": "Polly needs an LLM vendor and credential configured before it can chat.",
+    "needsVendorReason": "Polly needs an LLM vendor and credential configured before it can chat ({{reason}}).",
+    "openAiModels": "Open AI Models settings",
+    "notNow": "Not now",
+    "resize": "Resize chat panel",
+    "clear": "Clear conversation",
+    "composerPlaceholder": "Ask me a question, or tell me what to do.",
+    "stopListening": "Stop listening",
+    "speak": "Speak to Polly",
+    "stop": "Stop",
+    "send": "Send",
+    "typeAnswer": "Type your answer…",
+    "submit": "Submit",
+    "backToYesNo": "Back to Yes/No",
+    "yes": "Yes",
+    "no": "No",
+    "typeSomethingElse": "Type something else",
+    "confirm": "Confirm"
   }
 }

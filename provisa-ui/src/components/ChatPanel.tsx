@@ -323,7 +323,7 @@ export function ChatPanel() {
   if (!open) {
     return (
       <>
-        <Tooltip label="Polly, your data assistant" position="left">
+        <Tooltip label={t("chatPanel.toggleTooltip")} position="left">
           <ActionIcon
             variant="filled"
             size="xl"
@@ -341,12 +341,13 @@ export function ChatPanel() {
         <Modal
           opened={unconfiguredReason !== null}
           onClose={() => setUnconfiguredReason(null)}
-          title="Polly isn't set up yet"
+          title={t("chatPanel.notSetUpTitle")}
           data-testid="chat-panel-unconfigured-modal"
         >
           <Text size="sm" mb="md">
-            Polly needs an LLM vendor and credential configured before it can chat
-            {unconfiguredReason ? ` (${unconfiguredReason})` : ""}.
+            {unconfiguredReason
+              ? t("chatPanel.needsVendorReason", { reason: unconfiguredReason })
+              : t("chatPanel.needsVendor")}
           </Text>
           {/* The way on first, at the start; "Not now" follows. */}
           <Group justify="flex-start">
@@ -356,10 +357,10 @@ export function ChatPanel() {
                 navigate("/admin/ai-models");
               }}
             >
-              Open AI Models settings
+              {t("chatPanel.openAiModels")}
             </Button>
             <Button variant="default" onClick={() => setUnconfiguredReason(null)}>
-              Not now
+              {t("chatPanel.notNow")}
             </Button>
           </Group>
         </Modal>
@@ -393,7 +394,7 @@ export function ChatPanel() {
         <div
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize chat panel"
+          aria-label={t("chatPanel.resize")}
           data-testid="chat-panel-resize-handle"
           tabIndex={0}
           onPointerDown={startResize}
@@ -412,7 +413,7 @@ export function ChatPanel() {
         <Group justify="space-between" mb="xs">
           <Title order={5}>Polly</Title>
           <Group gap={4}>
-            <Tooltip label="Clear conversation">
+            <Tooltip label={t("chatPanel.clear")}>
               <ActionIcon
                 variant="subtle"
                 color="gray"
@@ -557,7 +558,7 @@ export function ChatPanel() {
         <Textarea
           ref={textareaRef}
           className={flashPrompt ? "chat-panel-textarea-flash" : undefined}
-          placeholder="Ask me a question, or tell me what to do."
+          placeholder={t("chatPanel.composerPlaceholder")}
           value={draft}
           onChange={(e) => setDraft(e.currentTarget.value)}
           onKeyDown={(e) => {
@@ -573,7 +574,9 @@ export function ChatPanel() {
           rightSectionPointerEvents="auto"
           rightSection={
             speech.supported && (
-              <Tooltip label={speech.listening ? "Stop listening" : "Speak to Polly"}>
+              <Tooltip
+                label={speech.listening ? t("chatPanel.stopListening") : t("chatPanel.speak")}
+              >
                 <ActionIcon
                   variant={speech.listening ? "filled" : "subtle"}
                   color={speech.listening ? "red" : undefined}
@@ -606,7 +609,7 @@ export function ChatPanel() {
           disabled={!busy && !draft.trim()}
           data-testid="chat-panel-send"
         >
-          {busy ? "Stop" : "Send"}
+          {busy ? t("chatPanel.stop") : t("chatPanel.send")}
         </Button>
 
         {/* REQ-1812: confined WITHIN the chat panel, not the viewport. Must be a DESCENDANT of this
@@ -672,7 +675,7 @@ export function ChatPanel() {
                 (yesNoOther ? (
                   <Stack gap="sm">
                     <TextInput
-                      placeholder="Type your answer…"
+                      placeholder={t("chatPanel.typeAnswer")}
                       value={otherText}
                       onChange={(e) => setOtherText(e.currentTarget.value)}
                       autoFocus
@@ -682,21 +685,21 @@ export function ChatPanel() {
                         disabled={!otherText.trim()}
                         onClick={() => resolveChoice(otherText.trim())}
                       >
-                        Submit
+                        {t("chatPanel.submit")}
                       </Button>
                       <Button variant="subtle" size="xs" onClick={() => setYesNoOther(false)}>
-                        Back to Yes/No
+                        {t("chatPanel.backToYesNo")}
                       </Button>
                     </Group>
                   </Stack>
                 ) : (
                   <Group justify="flex-start">
-                    <Button onClick={() => resolveChoice(true)}>Yes</Button>
+                    <Button onClick={() => resolveChoice(true)}>{t("chatPanel.yes")}</Button>
                     <Button variant="default" onClick={() => resolveChoice(false)}>
-                      No
+                      {t("chatPanel.no")}
                     </Button>
                     <Button variant="subtle" size="xs" onClick={() => setYesNoOther(true)}>
-                      Type something else
+                      {t("chatPanel.typeSomethingElse")}
                     </Button>
                   </Group>
                 ))}
@@ -708,12 +711,12 @@ export function ChatPanel() {
                       {choiceState.options?.map((opt) => (
                         <Radio key={opt} value={opt} label={opt} />
                       ))}
-                      <Radio value={OTHER} label="Type something else" />
+                      <Radio value={OTHER} label={t("chatPanel.typeSomethingElse")} />
                     </Stack>
                   </Radio.Group>
                   {choiceDraft[0] === OTHER && (
                     <TextInput
-                      placeholder="Type your answer…"
+                      placeholder={t("chatPanel.typeAnswer")}
                       value={otherText}
                       onChange={(e) => setOtherText(e.currentTarget.value)}
                       autoFocus
@@ -726,7 +729,7 @@ export function ChatPanel() {
                         resolveChoice(choiceDraft[0] === OTHER ? otherText.trim() : choiceDraft[0])
                       }
                     >
-                      Submit
+                      {t("chatPanel.submit")}
                     </Button>
                   </Group>
                 </Stack>
@@ -739,12 +742,12 @@ export function ChatPanel() {
                       {choiceState.options?.map((opt) => (
                         <Checkbox key={opt} value={opt} label={opt} />
                       ))}
-                      <Checkbox value={OTHER} label="Type something else" />
+                      <Checkbox value={OTHER} label={t("chatPanel.typeSomethingElse")} />
                     </Stack>
                   </Checkbox.Group>
                   {choiceDraft.includes(OTHER) && (
                     <TextInput
-                      placeholder="Type your answer…"
+                      placeholder={t("chatPanel.typeAnswer")}
                       value={otherText}
                       onChange={(e) => setOtherText(e.currentTarget.value)}
                       autoFocus
@@ -759,7 +762,7 @@ export function ChatPanel() {
                         resolveChoice([...rest, ...extra]);
                       }}
                     >
-                      Submit
+                      {t("chatPanel.submit")}
                     </Button>
                   </Group>
                 </Stack>
@@ -780,7 +783,7 @@ export function ChatPanel() {
           </FormField>
           <FormFooter
             onCancel={() => resolveConfirm(false)}
-            action={<Button onClick={() => resolveConfirm(true)}>Confirm</Button>}
+            action={<Button onClick={() => resolveConfirm(true)}>{t("chatPanel.confirm")}</Button>}
           />
         </FormLayout>
       </Modal>

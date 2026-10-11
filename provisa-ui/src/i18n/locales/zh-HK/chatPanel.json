@@ -8,6 +8,26 @@
       "inflation": "幫我找通脹數據",
       "profile": "對 orders 表進行剖析",
       "fakes": "為測試數據給 customers 表設定虛構姓名"
-    }
+    },
+    "toggleTooltip": "Polly，你的數據助手",
+    "notSetUpTitle": "Polly 尚未設定",
+    "needsVendor": "Polly 需要先設定 LLM 供應商和憑證才能對話。",
+    "needsVendorReason": "Polly 需要先設定 LLM 供應商和憑證才能對話（{{reason}}）。",
+    "openAiModels": "開啟 AI 模型設定",
+    "notNow": "暫時不要",
+    "resize": "調整對話面板大小",
+    "clear": "清除對話",
+    "composerPlaceholder": "向我提問，或告訴我要做甚麼。",
+    "stopListening": "停止聆聽",
+    "speak": "對 Polly 說話",
+    "stop": "停止",
+    "send": "傳送",
+    "typeAnswer": "輸入你的回答…",
+    "submit": "提交",
+    "backToYesNo": "返回是/否",
+    "yes": "是",
+    "no": "否",
+    "typeSomethingElse": "輸入其他內容",
+    "confirm": "確認"
   }
 }
