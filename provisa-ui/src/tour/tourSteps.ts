@@ -199,13 +199,11 @@ export const TOUR_STEPS: TourStep[] = [
     key: "step2",
   },
   {
-    // REQ-1938: clicking the Type field opens the picker dialog; the search box is the anchor. Next
-    // closes the dialog. The form stays open until the tour leaves /sources.
+    // REQ-1938: "+ Source" opens the type picker dialog; its search box is the anchor. Next
+    // closes the dialog without a choice, so no form opens.
     element: '[data-testid="source-type-picker-search"]',
     key: "step3",
-    // Entered cold (Back from /tables, or a resume) the form is closed: open it, then the picker.
-    ensureOpen: [{ click: SOURCES_ADD, unlessPresent: '[data-tour="sources-type"]' }],
-    clickBefore: '[data-tour="sources-type"]',
+    clickBefore: SOURCES_ADD,
     clickAfterNext: '[data-testid="source-type-picker-close"]',
   },
   {

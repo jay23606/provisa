@@ -146,6 +146,8 @@ export function SourcesPage() {
   const [readSeeded, setReadSeeded] = useState<string | null>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
+  // "+ Source" opens the type picker first; the create form opens on a choice, with that type.
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
   // Only the type-specific branches below (snowflake/databricks/.../sparql) rebuild
   // federation_hints on submit -- any OTHER type's hints (e.g. kaggle_owner/kaggle_ref, stashed on
   // create by KaggleFormSection with no UI field of its own to reconstruct them from) fell through
@@ -1576,11 +1578,22 @@ export function SourcesPage() {
             <Button
               data-tour="sources-add"
               data-testid="sources-add-toggle"
-              onClick={() => setShowForm(true)}
+              onClick={() => setAddPickerOpen(true)}
             >
               {t("sourcesPage.addSource")}
             </Button>
           )}
+          {/* Closed without a choice, it opens nothing. */}
+          <SourceTypePicker
+            opened={addPickerOpen}
+            onClose={() => setAddPickerOpen(false)}
+            groups={typeSelectData()}
+            value={form.type}
+            onPick={(type) => {
+              handleTypeChange(type);
+              setShowForm(true);
+            }}
+          />
           <HelpBubble
             title={t("sourcesPage.purposeTitle")}
             paragraphs={[t("sourcesPage.purposeBody"), t("sourcesPage.purposeAdd")]}

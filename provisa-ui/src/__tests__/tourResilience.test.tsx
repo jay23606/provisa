@@ -65,7 +65,9 @@ vi.mock("../context/pollyState", async (importOriginal) => ({
 // every right the tour's steps name — the whole tour is on the itinerary and nothing is dropped.
 vi.mock("../context/AuthContext", async () => {
   const { TOUR_STEPS } = await import("../tour/tourSteps");
-  const capabilities = [...new Set(TOUR_STEPS.flatMap((s) => (s.capability ? [s.capability] : [])))];
+  const capabilities = [
+    ...new Set(TOUR_STEPS.flatMap((s) => (s.capability ? [s.capability] : []))),
+  ];
   return { useAuth: () => ({ loading: false, capabilities }) };
 });
 
@@ -234,33 +236,19 @@ describe("a step that opens its own starting state", () => {
     document.getElementById("sources-stand-in")?.remove();
   });
 
-  it("resumes at the source-types step with the add-source form closed, and reaches the picker", async () => {
-    // A stand-in for /sources: the Add button toggles the form; the Type field opens the picker.
+  it("resumes at the source-types step and reaches the picker from + Source", async () => {
+    // A stand-in for /sources: the Add button opens the type picker.
     const root = document.createElement("div");
     root.id = "sources-stand-in";
     document.body.appendChild(root);
-    let formOpen = false;
-    const draw = () => {
-      root.innerHTML = "";
-      const add = document.createElement("button");
-      add.setAttribute("data-tour", "sources-add");
-      add.addEventListener("click", () => {
-        formOpen = !formOpen;
-        draw();
-      });
-      root.appendChild(add);
-      if (formOpen) {
-        const type = document.createElement("select");
-        type.setAttribute("data-tour", "sources-type");
-        type.addEventListener("click", () => {
-          const search = document.createElement("input");
-          search.setAttribute("data-testid", "source-type-picker-search");
-          root.appendChild(search);
-        });
-        root.appendChild(type);
-      }
-    };
-    draw();
+    const add = document.createElement("button");
+    add.setAttribute("data-tour", "sources-add");
+    add.addEventListener("click", () => {
+      const search = document.createElement("input");
+      search.setAttribute("data-testid", "source-type-picker-search");
+      root.appendChild(search);
+    });
+    root.appendChild(add);
 
     // step3 belongs to the Connect topic: the core tour has been seen, so the tour button opens the
     // Deep Dives menu, and picking the topic runs it from its first step.
@@ -277,7 +265,6 @@ describe("a step that opens its own starting state", () => {
       });
     }
 
-    expect(formOpen).toBe(true);
     expect(root.querySelector('[data-testid="source-type-picker-search"]')).not.toBeNull();
   });
 });
