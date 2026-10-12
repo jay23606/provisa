@@ -21,7 +21,8 @@
       "microsoft": "Microsoft",
       "google": "Google",
       "web": "שרתי אינטרנט ופרוקסי",
-      "databases": "מסדי נתונים וסביבות ריצה"
+      "databases": "מסדי נתונים וסביבות ריצה",
+      "linux": "קונטיינרים ולינוקס"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -72,7 +73,11 @@
       "log4j2_default": "log4j 2 (default pattern)",
       "logback_default": "logback (default pattern)",
       "python_logging": "Python logging (default format)",
-      "windows_evtx": "Windows Event Log (.evtx)"
+      "windows_evtx": "Windows Event Log (.evtx)",
+      "kubernetes_cri": "Kubernetes (CRI) – יומן",
+      "journald_json": "systemd journal (journalctl -o json)",
+      "linux_auditd": "Linux auditd – יומן ביקורת",
+      "linux_dmesg": "Kernel ring buffer (dmesg)"
     }
   }
 }

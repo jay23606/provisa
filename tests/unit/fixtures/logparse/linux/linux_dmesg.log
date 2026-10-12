@@ -1,0 +1,4 @@
+[    0.000000] Linux version 6.1.0-9-amd64 (debian-kernel@lists.debian.org) (gcc-12 (Debian 12.2.0-14) 12.2.0) #1 SMP PREEMPT_DYNAMIC Debian 6.1.27-1 (2023-05-08)
+[   12.345678] usb 1-1: new high-speed USB device number 2 using xhci_hcd
+kern  :warn  : [   13.000001] ACPI Warning: SystemIO range conflicts with OpRegion
+[Thu May 11 08:15:23 2023] e1000e: enp0s31f6 NIC Link is Up 1000 Mbps Full Duplex

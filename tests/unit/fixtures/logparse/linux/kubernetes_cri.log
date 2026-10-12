@@ -1,0 +1,5 @@
+2023-05-11T08:15:23.456789012Z stdout F Server listening on :8080
+2023-05-11T08:15:24.000000001Z stderr P {"level":"error","msg":"a long line
+2023-05-11T08:15:24.000000002Z stderr P  the runtime split",
+2023-05-11T08:15:24.000000003Z stderr F "code":500}
+2023-05-11T08:15:25.100000000Z stdout F done
