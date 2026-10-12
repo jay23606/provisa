@@ -215,8 +215,17 @@ def _integrity_ok(data: bytes, integrity: str) -> bool:
     return False
 
 
-def fetch_npm(code: NpmCode, registries: Sequence[Resolved], http: Http, dest: Path) -> Path:
-    """The package's files at its exact version, checked against the registry's integrity."""
+def fetch_npm(
+    code: NpmCode,
+    registries: Sequence[Resolved],
+    http: Http,
+    dest: Path,
+    *,
+    pinned_integrity: str | None = None,
+) -> Path:
+    """The package's files at its exact version, checked against the registry's integrity -- and,
+    for a package Provisa itself pins, against ``pinned_integrity``, which the registry must
+    give too: a mirror cannot substitute another tarball."""
     if not _EXACT_VERSION.match(code.version):
         raise BundleRefused(
             "version_not_exact",
@@ -240,6 +249,13 @@ def fetch_npm(code: NpmCode, registries: Sequence[Resolved], http: Http, dest: P
         )
     dist = found.get("dist") or {}
     tarball, integrity = dist.get("tarball"), dist.get("integrity")
+    if pinned_integrity is not None and integrity != pinned_integrity:
+        raise BundleRefused(
+            "integrity_mismatch",
+            f"{base} gives {code.package}@{code.version} the integrity {integrity}, not the pinned "
+            f"{pinned_integrity}",
+            package=code.package,
+        )
     if not tarball or not integrity:
         raise BundleRefused(
             "no_integrity",

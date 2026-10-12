@@ -140,6 +140,8 @@ def test_an_archive_is_unpacked_to_its_single_top_level_directory(tmp_path):
         ("b.rar", b"rar", "node.archive_kind"),
         ("b.zip", b"not a zip", "node.archive_unreadable"),
     ],
+    # Archive bytes carry a timestamp: named ids keep collection the same on every worker.
+    ids=["zip-escapes", "tgz-escapes", "unknown-kind", "unreadable-zip"],
 )
 def test_an_archive_that_cannot_be_used_is_refused_by_name(tmp_path, filename, data, code):
     with pytest.raises(BundleRefused) as refused:
