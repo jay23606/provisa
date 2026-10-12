@@ -1183,20 +1183,27 @@ def rest_same_governance_as_graphql(shared_data):
     # Governance is applied to both entry points by the SAME stage of the one pipeline:
     # ``_govern_and_route_compiled`` -> ``_govern_and_route_compiled_planned`` -> ``_govern_compiled``
     # (provisa/pgwire/_pipeline.py), where ``build_governance_context`` takes the role's row
-    # filters (``state.rls_contexts``) and masks (``state.masking_rules``) and
+    # filters (its surface's ``rls``) and masks (``state.masking_rules``) and
     # ``compiler.stage2.apply_governance`` writes them into the statement. Proven by behaviour,
     # not by what the source text mentions: the REST-derived statement and the hand-written
     # GraphQL one are each governed as a role that has a row filter on orders, and as one that
     # has none.
     from types import SimpleNamespace
 
+    from provisa.api.role_surface import RoleSurface
     from provisa.compiler.rls import RLSContext
     from provisa.pgwire import _pipeline
 
     ctx = shared_data["ctx"]
+    # A request takes its role's context and row filters from one surface (role_surface).
     state = SimpleNamespace(
-        contexts={"filtered": ctx, "unfiltered": ctx},
-        rls_contexts={"filtered": RLSContext(rules={1: "amount > 100"})},  # table 1 = orders
+        surfaces={
+            "filtered": RoleSurface(
+                context=ctx,
+                rls=RLSContext(rules={1: "amount > 100"}),  # table 1 = orders
+            ),
+            "unfiltered": RoleSurface(context=ctx),
+        },
         masking_rules={},
         # A role always lists the domains it reaches; both reach every domain here, so the row
         # filter is the only difference between them.
