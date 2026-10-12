@@ -1013,7 +1013,7 @@ def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
     resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=_dl)
     started: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         started.append(cwd)
         return _FakeProc()
 

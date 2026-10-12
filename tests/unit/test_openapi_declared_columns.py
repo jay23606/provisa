@@ -45,7 +45,14 @@ def _query():
 
 
 def _col(name: str, data_type: str | None, native: str | None = None) -> Column:
-    return Column(name=name, data_type=data_type, visible_to=["admin"], native_filter_type=native)
+    # A parameter column states whether its source requires it: the path parameter does.
+    return Column(
+        name=name,
+        data_type=data_type,
+        visible_to=["admin"],
+        native_filter_type=native,
+        native_filter_required=True if native else None,
+    )
 
 
 def test_the_operation_is_offered_as_a_table_whose_columns_are_declared():

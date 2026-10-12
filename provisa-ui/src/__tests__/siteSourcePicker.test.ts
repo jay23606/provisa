@@ -14,13 +14,9 @@
 // renamed there must be regenerated into the site (node scripts/gen-site-source-picker.mjs).
 
 import { describe, it, expect } from "vitest";
+// prettier-ignore
 // @ts-expect-error the generator is plain ESM outside the UI's tsconfig
-import {
-  renderPicker,
-  staleCounts,
-  stalePages,
-  REQUIREMENT_ONLY,
-} from "../../../scripts/gen-site-source-picker.mjs";
+import { renderPicker, staleCounts, stalePages, REQUIREMENT_ONLY } from "../../../scripts/gen-site-source-picker.mjs";
 import { SOURCE_TYPES } from "../pages/sources/constants";
 
 describe("site source picker", () => {
