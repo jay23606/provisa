@@ -65,6 +65,7 @@
     "action": "Action",
     "actionPrefix": "action:",
     "loadActionsFailed": "Could not load actions: {{message}}",
+    "ruleMissing": "Before saving, choose or fill in: {{fields}}",
     "labelAction": "Action:",
     "deleteRoleTitle": "Delete role \"{{id}}\"?",
     "deleteRoleConsequence": "The role is removed. A role that is still in use cannot be deleted.",

@@ -136,12 +136,24 @@ export function SecurityRlsPage() {
   };
 
   const handleSaveRule = async () => {
-    const valid = ruleForm.applyToAction
-      ? ruleForm.actionName && ruleForm.roleId && ruleForm.filterExpr
+    // The footer names every field a rule still lacks, by its label, instead of a Save that
+    // does nothing.
+    const target = ruleForm.applyToAction
+      ? [ruleForm.actionName, "securityPage.action"]
       : ruleForm.applyToDomain
-        ? ruleForm.domainFilter && ruleForm.roleId && ruleForm.filterExpr
-        : ruleForm.tableId && ruleForm.roleId && ruleForm.filterExpr;
-    if (!valid) return;
+        ? [ruleForm.domainFilter, "securityPage.domain"]
+        : [ruleForm.tableId, "securityPage.table"];
+    const missing = [
+      target,
+      [ruleForm.roleId, "securityPage.role"],
+      [ruleForm.filterExpr, "securityPage.filterExpression"],
+    ]
+      .filter(([value]) => !value)
+      .map(([, label]) => t(label));
+    if (missing.length > 0) {
+      setError(t("securityPage.ruleMissing", { fields: missing.join(", ") }));
+      return;
+    }
     setSaving(true);
     setError("");
     try {

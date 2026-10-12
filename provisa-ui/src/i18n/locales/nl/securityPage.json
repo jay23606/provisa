@@ -65,6 +65,7 @@
     "action": "Actie",
     "actionPrefix": "actie:",
     "loadActionsFailed": "Acties laden mislukt: {{message}}",
+    "ruleMissing": "Kies of vul in vóór het opslaan: {{fields}}",
     "labelAction": "Actie:",
     "deleteRoleTitle": "Rol \"{{id}}\" verwijderen?",
     "deleteRoleConsequence": "De rol wordt verwijderd. Een rol die nog in gebruik is, kan niet worden verwijderd.",

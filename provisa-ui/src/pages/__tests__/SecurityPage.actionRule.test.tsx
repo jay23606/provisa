@@ -117,6 +117,23 @@ describe("SecurityPage — RLS rules on actions (REQ-1679)", () => {
     });
   });
 
+  it("names in the footer what a rule still lacks, and saves nothing", async () => {
+    upsertRlsRuleSpy.mockClear();
+    render(<SecurityRlsPage />);
+    fireEvent.click(screen.getByTestId("toggle-rule-form"));
+    fireEvent.click(screen.getByTestId("save-rule"));
+    expect(await screen.findByTestId("form-problem")).toHaveTextContent(
+      "Before saving, choose or fill in: Table, Role, Filter Expression",
+    );
+    await selectOption(screen.getByTestId("rule-apply-to"), /Action/);
+    await selectOption(screen.getByTestId("rule-role-select"), "analyst");
+    fireEvent.click(screen.getByTestId("save-rule"));
+    expect(screen.getByTestId("form-problem")).toHaveTextContent(
+      "Before saving, choose or fill in: Action, Filter Expression",
+    );
+    expect(upsertRlsRuleSpy).not.toHaveBeenCalled();
+  });
+
   it("asks before it deletes a rule, and deletes only on confirm", async () => {
     deleteRlsRuleSpy.mockClear();
     render(<SecurityRlsPage />);

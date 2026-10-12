@@ -65,6 +65,7 @@
     "action": "動作",
     "actionPrefix": "動作：",
     "loadActionsFailed": "無法載入動作：{{message}}",
+    "ruleMissing": "儲存前請選擇或填寫：{{fields}}",
     "labelAction": "動作：",
     "deleteRoleTitle": "刪除角色「{{id}}」？",
     "deleteRoleConsequence": "該角色將被移除。仍在使用中的角色無法刪除。",
