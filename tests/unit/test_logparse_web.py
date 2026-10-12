@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 3e73951c-8843-4668-8831-994ec4d24d19
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the web server and proxy log presets read the lines each project's documentation

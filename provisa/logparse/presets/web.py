@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 0933223e-074d-44c6-b631-89db96fc7d04
 #
 # This source code is licensed under the Business Source License 1.1
 """Web server and proxy log presets (REQ-1996): nginx and Apache error logs, HAProxy's HTTP log,
