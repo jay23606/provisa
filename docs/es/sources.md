@@ -7,7 +7,7 @@ Toda consulta se ejecuta en última instancia a través del motor de federación
 | **Con capacidad directa** | Sí | Sí | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Solo federación** | No | Sí | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (respaldado por S3) |
 | **Lectura directa (réplica)** | Sí | Sí | Snowflake, Databricks, ClickHouse — el controlador lee los datos y crea una réplica; las consultas se ejecutan contra la réplica en el motor activo |
-| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 Los orígenes **con capacidad directa** ejecutan consultas de un solo origen mediante su controlador nativo (menos de 100 ms), evitando el motor de federación (REQ-027, REQ-229). Conservan el soporte completo del conector y participan en la federación cuando se combinan con otros orígenes (REQ-028).
 
@@ -20,7 +20,7 @@ Los orígenes de **materialización** no tienen conector federado. Provisa obtie
 ---
 
 ## Todos los orígenes
-Provisa registra **57** tipos de origen. Las tablas siguientes cubren los 57; el índice es el recuento. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle se cuenta como un origen distinto aunque internamente se registra mediante el conector `files`]
+Provisa registra **58** tipos de origen. Las tablas siguientes cubren los 58; el índice es el recuento. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle se cuenta como un origen distinto aunque internamente se registra mediante el conector `files`]
 
 | # | Grupo | Tipos de origen |
 | --- | --- | --- |
@@ -28,17 +28,17 @@ Provisa registra **57** tipos de origen. Las tablas siguientes cubren los 57; el
 | 14–21 | [Almacenes de datos en la nube](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [Analítica / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Data lake / Formatos de tabla abiertos](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [Receptor push](#push-receiver) | `ingest` |
-| 40–41 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
-| 42–45 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
-| 48–50 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 57 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Receptor push](#push-receiver) | `ingest` |
+| 41–42 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
+| 43–46 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
+| 49–51 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 58 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
 
 Referencia de todos los tipos de origen que soporta Provisa. "Controlador directo" significa que las consultas de un solo origen se ejecutan de forma nativa contra el origen (menos de 100 ms) (REQ-027). "Nombre del conector" es el conector federado que se usa cuando el origen participa en JOIN entre varios orígenes (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

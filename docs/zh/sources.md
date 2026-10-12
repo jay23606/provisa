@@ -9,7 +9,7 @@
 | **直连型** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **仅联邦型** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支持） |
 | **直读型（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse — 驱动读取数据并落地一份副本；查询在活动引擎中针对该副本执行 |
-| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant |
+| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant、Azure Cosmos DB |
 
 **直连型**数据源通过其原生驱动执行单数据源查询（亚 100 毫秒），绕过联邦引擎（REQ-027、REQ-229）。它们保留完整的连接器支持，并在与其他数据源联接时参与联邦（REQ-028）。
 
@@ -23,7 +23,7 @@
 
 ## 所有数据源
 
-Provisa 注册了 **57** 种数据源类型。下表覆盖全部 57 种；索引即为计数。[tool-verified: `provisa/core/models.py` `SourceType`；Kaggle 虽然内部通过 `files` 连接器注册，但仍作为独立数据源计数]
+Provisa 注册了 **58** 种数据源类型。下表覆盖全部 58 种；索引即为计数。[tool-verified: `provisa/core/models.py` `SourceType`；Kaggle 虽然内部通过 `files` 连接器注册，但仍作为独立数据源计数]
 
 | # | 分组 | 数据源类型 |
 | --- | --- | --- |
@@ -31,17 +31,17 @@ Provisa 注册了 **57** 种数据源类型。下表覆盖全部 57 种；索引
 | 14–21 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
 | 22–26 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
 | 27–31 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hudi`、`hive`、`hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`、`qdrant`、`cassandra`、`redis` |
-| 36–38 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
-| 39 | [推送接收器](#push-receiver) | `ingest` |
-| 40–41 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
-| 42–45 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
-| 46–47 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 48–50 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
-| 51–53 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
-| 57 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 32–36 | [NoSQL](#nosql) | `mongodb`、`cosmosdb`、`qdrant`、`cassandra`、`redis` |
+| 37–39 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
+| 40 | [推送接收器](#push-receiver) | `ingest` |
+| 41–42 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
+| 43–46 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
+| 47–48 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
+| 49–51 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
+| 52–54 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
+| 58 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
 
 Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动）表示单数据源查询直接针对该数据源原生执行（亚 100 毫秒）（REQ-027）。"Connector Name"（连接器名称）是当该数据源参与多数据源 JOIN 时所使用的联邦连接器（REQ-028）。[tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`；`provisa/federation/trino_connectors.py` `trino_connector_name`]
 

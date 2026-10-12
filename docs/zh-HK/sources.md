@@ -7,7 +7,7 @@
 | **可直接執行** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **僅聯邦** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支援） |
 | **直接讀取（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse——驅動程式讀取數據並落地一份副本；查詢在啟用中的引擎裡針對該副本執行 |
-| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant |
+| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant、Azure Cosmos DB |
 
 **可直接執行**的數據來源經其原生驅動程式執行單一來源查詢（低於 100 毫秒），繞過聯邦引擎（REQ-027、REQ-229）。它們保有完整的連接器支援，並在與其他數據來源聯結時參與聯邦（REQ-028）。
 
@@ -20,7 +20,7 @@
 ---
 
 ## 所有數據來源
-Provisa 註冊了 **56** 種數據來源類型。下方表格涵蓋全部 56 種；索引即為計數。 [tool-verified: `provisa/core/models.py` `SourceType`]
+Provisa 註冊了 **57** 種數據來源類型。下方表格涵蓋全部 57 種；索引即為計數。 [tool-verified: `provisa/core/models.py` `SourceType`]
 
 | # | 群組 | 數據來源類型 |
 | --- | --- | --- |
@@ -28,16 +28,16 @@ Provisa 註冊了 **56** 種數據來源類型。下方表格涵蓋全部 56 種
 | 14–21 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [推送接收器](#push-receiver) | `ingest` |
-| 40–41 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
-| 42–45 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
-| 48–50 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [推送接收器](#push-receiver) | `ingest` |
+| 41–42 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
+| 43–46 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
+| 49–51 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
 
 Provisa 支援的每一種數據來源類型的參照。「直接驅動程式」指單一來源查詢原生地針對該數據來源執行（低於 100 毫秒）（REQ-027）。「連接器名稱」是該數據來源參與多來源 JOIN 時所用的聯邦連接器（REQ-028）。 [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

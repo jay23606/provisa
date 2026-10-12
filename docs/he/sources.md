@@ -9,7 +9,7 @@
 | **תמיכה ישירה** | כן | כן | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **פדרציה בלבד** | לא | כן | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **קריאה ישירה (עותק משוכפל)** | כן | כן | Snowflake, Databricks, ClickHouse — הדרייבר קורא נתונים ומנחית עותק משוכפל; השאילתות רצות מול העותק המשוכפל במנוע הפעיל |
-| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 מקורות מסוג **תמיכה ישירה** מבצעים שאילתות חד-מקוריות דרך הדרייבר הילידי שלהם (מתחת ל-100ms), תוך עקיפת מנוע הפדרציה (REQ-027, REQ-229). הם שומרים על תמיכה מלאה במחבר ומשתתפים בפדרציה כשהם מוצטרפים (joined) עם מקורות אחרים (REQ-028).
 
@@ -23,7 +23,7 @@
 
 ## כל המקורות
 
-Provisa רושמת **57** סוגי מקור. הטבלאות שלהלן מכסות את כל 57; המספור הוא הספירה. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle נספר כמקור נפרד למרות שהוא נרשם באופן פנימי דרך מחבר `files`]
+Provisa רושמת **58** סוגי מקור. הטבלאות שלהלן מכסות את כל 58; המספור הוא הספירה. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle נספר כמקור נפרד למרות שהוא נרשם באופן פנימי דרך מחבר `files`]
 
 | # | קבוצה | סוגי מקור |
 | --- | --- | --- |
@@ -31,17 +31,17 @@ Provisa רושמת **57** סוגי מקור. הטבלאות שלהלן מכסו�
 | 14–21 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
-| 39 | [Push Receiver](#push-receiver) | `ingest` |
-| 40–41 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
-| 42–45 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
-| 48–50 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
-| 57 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
+| 40 | [Push Receiver](#push-receiver) | `ingest` |
+| 41–42 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
+| 43–46 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
+| 49–51 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
+| 58 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
 
 מסמך עזר לכל סוג מקור שנתמך על ידי Provisa. "דרייבר ישיר" פירושו ששאילתות חד-מקוריות מבוצעות מול המקור באופן ילידי (מתחת ל-100ms) (REQ-027). "שם המחבר" הוא המחבר המפודרר שבו נעשה שימוש כאשר המקור משתתף ב-JOIN רב-מקורי (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

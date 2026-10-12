@@ -9,7 +9,7 @@ Jede Abfrage wird letztlich über die Federation-Engine ausgeführt, die Federat
 | **Direktfähig** | Ja | Ja | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Nur Federation** | Nein | Ja | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-gestützt) |
 | **Direktlesen (Replikat)** | Ja | Ja | Snowflake, Databricks, ClickHouse — Treiber liest Daten und landet ein Replikat; Abfragen laufen gegen das Replikat in der aktiven Engine |
-| **Materialisieren → Federation** | Nein | Nein | REST/OpenAPI, Remote-GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (Push-Empfänger), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **Materialisieren → Federation** | Nein | Nein | REST/OpenAPI, Remote-GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (Push-Empfänger), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 **Direktfähige** Quellen führen Einzelquellen-Abfragen über ihren nativen Treiber aus (unter 100 ms) und umgehen dabei die Federation-Engine (REQ-027, REQ-229). Sie behalten volle Connector-Unterstützung und nehmen an der Federation teil, wenn sie mit anderen Quellen gejoint werden (REQ-028).
 
@@ -23,7 +23,7 @@ Jede Abfrage wird letztlich über die Federation-Engine ausgeführt, die Federat
 
 ## Alle Quellen
 
-Provisa registriert **57** Quelltypen. Die folgenden Tabellen decken alle 57 ab; der Index ist die Zählung. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle zählt als eigenständige Quelle, obwohl es intern über den `files`-Connector registriert]
+Provisa registriert **58** Quelltypen. Die folgenden Tabellen decken alle 58 ab; der Index ist die Zählung. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle zählt als eigenständige Quelle, obwohl es intern über den `files`-Connector registriert]
 
 | # | Gruppe | Quelltypen |
 | --- | --- | --- |
@@ -31,17 +31,17 @@ Provisa registriert **57** Quelltypen. Die folgenden Tabellen decken alle 57 ab;
 | 14–21 | [Cloud-Data-Warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Data-Lake / offene Tabellenformate](#data-lake-offene-tabellenformate) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [Push-Empfänger](#push-empfänger) | `ingest` |
-| 40–41 | [Graph & Semantic](#graph-semantic) | `neo4j`, `sparql` |
-| 42–45 | [Dateibasiert](#dateibasiert) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Observability & Sonstiges](#observability-sonstiges) | `google_sheets`, `prometheus` |
-| 48–50 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [API-Quellen](#api-quellen) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [Data-Quality-Checker](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 57 | [Kaggle-Datasets](#kaggle-datasets) | Kaggle (über das Sources-Formular bereitgestellt; registriert als `files`-Quelle — siehe [Kaggle-Datasets](#kaggle-datasets)) |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Push-Empfänger](#push-empfänger) | `ingest` |
+| 41–42 | [Graph & Semantic](#graph-semantic) | `neo4j`, `sparql` |
+| 43–46 | [Dateibasiert](#dateibasiert) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observability & Sonstiges](#observability-sonstiges) | `google_sheets`, `prometheus` |
+| 49–51 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [API-Quellen](#api-quellen) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [Data-Quality-Checker](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 58 | [Kaggle-Datasets](#kaggle-datasets) | Kaggle (über das Sources-Formular bereitgestellt; registriert als `files`-Quelle — siehe [Kaggle-Datasets](#kaggle-datasets)) |
 
 Referenz für jeden Quelltyp, den Provisa unterstützt. „Direkter Treiber" bedeutet, dass Einzelquellen-Abfragen nativ gegen die Quelle ausgeführt werden (unter 100 ms) (REQ-027). „Connector-Name" ist der föderierte Connector, der verwendet wird, wenn die Quelle an Mehrquellen-JOINs teilnimmt (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
