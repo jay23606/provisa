@@ -180,10 +180,13 @@ def test_a_query_table_that_cannot_be_read_is_refused(params, reason):
         check_table(_table(_QUERY, *params))
 
 
-def test_a_container_table_has_one_partition_key_and_no_query_arguments():
+def test_a_container_table_takes_its_partition_key_and_no_query_arguments():
     assert check_table(_table(None, _param("customerId", "partition_key"))) is None
-    with pytest.raises(CosmosTableRefused, match="one partition key"):
+    # A hierarchical key: one parameter per level.
+    assert (
         check_table(_table(None, _param("a", "partition_key"), _param("b", "partition_key")))
+        is None
+    )
     with pytest.raises(CosmosTableRefused, match="no query to take arguments"):
         check_table(_table(None, _param("status", "query_arg")))
 
@@ -233,6 +236,18 @@ def test_a_query_reads_with_its_arguments_as_json_parameters():
         {"name": "@status", "value": '{"$ne": 1}'},  # operator syntax stays a string
         {"name": "@min", "value": 9.5},
     ]
+
+
+def test_a_hierarchical_key_is_read_by_the_levels_given_from_the_top():
+    table = _state_table(
+        None, ("tenant", "partition_key", "text"), ("customerId", "partition_key", "text")
+    )
+    both = {"tenant": "t1", "customerId": "c-7"}
+    assert plan(table, both)[3] == ["t1", "c-7"]
+    assert plan(table, {"tenant": "t1"})[3] == ["t1"]  # a prefix of the key
+    assert plan(table, {})[3] is None
+    with pytest.raises(CosmosTableRefused, match="'customerId' is given without the level above"):
+        plan(table, {"customerId": "c-7"})
 
 
 def test_a_container_read_given_its_partition_key_reads_that_partition():
@@ -387,6 +402,46 @@ async def test_a_keyed_fetch_on_another_key_is_one_parameterized_query():
 
 
 # --- what Register Table offers ---
+
+
+async def test_a_hierarchical_keys_suggested_parameters_make_a_table_that_registers():
+    """Introspection suggests one parameter per level of a hierarchical key; the table built
+    from them was refused ("a table has one partition key parameter")."""
+    from provisa.cosmosdb import introspect
+
+    docs = [{"id": "o1", "tenant": "t1", "customerId": "c-7", "total": 3.5}]
+    with (
+        patch(
+            "provisa.federation.registry_view.registered_sources",
+            AsyncMock(return_value=[_source()]),
+        ),
+        patch("provisa.cosmosdb.fetch.sample", return_value=docs),
+        patch(
+            "provisa.cosmosdb.fetch.partition_key_paths", return_value=["/tenant", "/customerId"]
+        ),
+    ):
+        columns = await introspect.columns(SimpleNamespace(), "cosmos", "orders")
+    suggested = [
+        Column(
+            name=c["name"],
+            visible_to=[],
+            data_type=c["data_type"],
+            path=c["path"],
+            native_filter_type=c["native_filter_type"],
+            native_filter_required=c["native_filter_required"],
+        )
+        for c in columns or []
+    ]
+    levels = [c.name for c in suggested if c.native_filter_type == "partition_key"]
+    assert levels == ["_nf_tenant", "_nf_customerId"]
+    table = Table(
+        source_id="cosmos",
+        domain_id="shop",
+        schema_name="shop",
+        table_name="orders",
+        columns=suggested,
+    )
+    assert check_table(table) is None
 
 
 async def test_a_containers_columns_are_suggested_with_its_partition_key_as_a_parameter():

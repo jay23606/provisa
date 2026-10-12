@@ -14,7 +14,9 @@ A container table is named for its container. A query table holds ``{"container"
 "query": "SELECT ... FROM c WHERE c.x = @x"}`` in its ``query_template``; each ``@name`` is a
 parameter of the table (``query_arg``, REQ-1986) whose value the SDK sends beside the query's
 text, never inside it. Either kind may expose the container's partition key as a parameter
-(``partition_key``): given, the read is one partition's. A table with parameters is read per
+(``partition_key``): given, the read is one partition's. A hierarchical key has one parameter
+per level, in the table's column order (as introspection suggests them); a read giving the top
+levels reads that prefix of the key, and a level given without the level above it is refused. A table with parameters is read per
 statement, under the arguments given (the materialization step); one without is read whole,
 as a replica reads it.
 
@@ -91,7 +93,8 @@ def _columns(table: Any) -> list[Any]:
 
 def check_table(table: Any) -> CosmosQuery | None:
     """A Cosmos table as registered: its query (if any) names exactly its declared query
-    arguments; it has at most one partition key parameter and no parameter of another kind; every
+    arguments; its partition key parameters are the levels of the container's key (one, or one
+    per level of a hierarchical key), and it has no parameter of another kind; every
     column is typed. Returns the parsed query, or None for a container table."""
     name = _get(table, "table_name")
     kinds = _kinds(table)
@@ -100,8 +103,6 @@ def check_table(table: Any) -> CosmosQuery | None:
         raise CosmosTableRefused(
             name, f"a Cosmos table's parameters are query_arg or partition_key, not {other}"
         )
-    if len(kinds.get(PARTITION_KEY, [])) > 1:
-        raise CosmosTableRefused(name, "a table has one partition key parameter")
     untyped = [
         _get(c, "name") or _get(c, "column_name")
         for c in _columns(table)
@@ -182,17 +183,40 @@ def plan(table: dict, given: dict | None) -> tuple[str, str, list[dict], Any]:
     partition key value (None for a read across partitions)."""
     query = check_table(table)
     arguments = _arguments(table, given)
-    partition = next(
-        (v for v, col in arguments.values() if col["native_filter_type"] == PARTITION_KEY), None
-    )
+    partition = _partition(table["table_name"], arguments)
     if query is None:
-        return table["table_name"], "SELECT * FROM c", [], json_value(partition)
+        return table["table_name"], "SELECT * FROM c", [], partition
     parameters = [
         {"name": f"@{name}", "value": json_value(value)}
         for name, (value, col) in arguments.items()
         if col["native_filter_type"] == QUERY_ARG
     ]
-    return query.container, query.query, parameters, json_value(partition)
+    return query.container, query.query, parameters, partition
+
+
+def _partition(name: str, arguments: dict[str, tuple[Any, Any]]) -> Any:
+    """The partition key value a read gives: one level's value, or a hierarchical key's given
+    levels as a list (a prefix of the key, top level first); None for a read across partitions.
+    A level given without the level above it is refused naming both."""
+    levels = [
+        (level, value)
+        for level, (value, col) in arguments.items()
+        if col["native_filter_type"] == PARTITION_KEY
+    ]
+    if len(levels) == 1:
+        return json_value(levels[0][1])
+    given = [json_value(value) for _, value in levels]
+    prefix = 0
+    while prefix < len(given) and given[prefix] is not None:
+        prefix += 1
+    for level, value in levels[prefix:]:
+        if value is not None:
+            raise CosmosTableRefused(
+                name,
+                f"partition key level {level!r} is given without the level above it, "
+                f"{levels[prefix][0]!r}",
+            )
+    return given[:prefix] or None
 
 
 async def read(state: Any, table: dict, given: dict | None) -> Any:
