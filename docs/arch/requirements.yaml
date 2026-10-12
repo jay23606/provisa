@@ -77821,3 +77821,39 @@
   related_reqs:
   - REQ-1375
   notes: 'Maintainer 2026-10-11: "deprecation is documented as a tag. I don''t see why it needs to be more than that. deprecation is just a signal to a dependent to move to a new design within a timeframe. It doesn''t effect anything else." and "expand deprecate scope". The following go beyond his words and are the lead''s elaboration: the four added object types (metrics, commands, roles, row-level rules), and that the tag is carried into every client schema the object appears in.'
+- id: REQ-1981
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Amazon Athena is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Amazon Athena is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1982
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Azure Cosmos DB for NoSQL is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Azure Cosmos DB for NoSQL is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1983
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Qdrant is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Qdrant is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1984
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Node is a source type. A source holds a Node bundle (TypeScript, or JavaScript with JSDoc types); each exported function tagged with the JSDoc tag @table is offered as a table and each tagged @command as a command; untagged exports are ignored. A table''s rows are its function''s return value; the function''s parameters are the table''s parameters (a non-optional parameter is required by the source, an optional one can be made required by a steward); its columns come from the function''s TypeScript return type, or a preview when the type cannot be mapped. The JSDoc text is the description. No Provisa package is imported by the bundle. An unknown tag, or a tagged function whose types cannot be mapped, is reported by name when the bundle is loaded. Each exported async generator function tagged @stream is offered as a live table: each row it yields is delivered as it arrives, on the surfaces that serve subscriptions, and its parameters and columns follow the same rules as @table. The types a tagged function refers to (its parameters, its return type and every type they reference) become types on every surface; a type that cannot be mapped is refused by name when the bundle is loaded. A function tagged @table returns a collection (an array or an iterable, synchronous or asynchronous) whose elements are the table''s rows; one that returns a single object is reported by name when the bundle is loaded. The source names its runtime: Node, Bun or Deno; a bundle''s tables, commands and streams are the same on each. A bundle is JavaScript plus TypeScript declarations carrying the tags; any language that compiles to them can be used, TypeScript being the one tested and documented. A source names its code in one of three ways: an npm package at an exact version, from a public or private registry; a Git repository at a commit or tag, with a subdirectory; or an archive uploaded to Provisa. The reference is pinned, and the content''s hash is recorded with the source. The bundle carries a lockfile (or is a single pre-bundled file); its dependencies are installed with the runtime''s frozen-lockfile mode when the bundle is loaded, not per call, and cached by content hash. A registry token or Git deploy key is a credential field of the source.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement; the description is his decisions, verbatim. Not built. The group, category, priority and type are ci-fix''s choices, not his. To be related to the MongoDB pipeline tables requirement and to the parameterized-tables requirement once both are in this file.'

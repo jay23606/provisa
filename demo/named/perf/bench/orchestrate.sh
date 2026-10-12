@@ -72,10 +72,16 @@ fi
 # Trace collector: in production the collector and the trace database run on other machines, so
 # on this one VM they are replaced by a no-op OTLP receiver (noop_otlp_receiver.py): Provisa still
 # serializes and exports every batch, and nothing downstream of the wire competes for the vCPUs.
-# It listens where `--demo` points the exporters (OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4319).
-# The real collector must not be running: PROVISA_OPS_DB_URL (the trace database otlp2sql writes)
-# is unset for the server, and a foreign listener on the port stops the run.
+# A demo names no exporter endpoint (it starts no receiver), so the bench names its own: exported
+# here, the server inherits it through start-ui-install.sh, which starts the backend with the
+# environment it was given. The real collector must not be running: PROVISA_OPS_DB_URL (the trace
+# database otlp2sql writes) is unset for the server, and a foreign listener on the port stops the run.
 OTLP_PORT=4319
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:$OTLP_PORT"
+# The no-op receiver speaks OTLP/HTTP only. The transport is declared, never read off the scheme
+# (REQ-549) -- the default is gRPC, which it does not serve.
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+export OTEL_SERVICE_NAME="provisa"
 unset PROVISA_OPS_DB_URL
 export PROVISA_BENCH_TRACE_COLLECTOR="noop"
 NOOP_COLLECTOR_PID=""
