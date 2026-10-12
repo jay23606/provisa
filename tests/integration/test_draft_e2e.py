@@ -345,7 +345,8 @@ def test_a_views_inputs_are_in_service_for_its_readers(server):
     refused = through_the_view()
     assert refused.status_code != 200, refused.text
     assert "'orders' is a draft" in refused.text, refused.text
-    graphql = _graphql(srv, "{ order_amounts { id amount } }")
+    # The root field follows the deployment's GraphQL convention (apollo_graphql: camelCase).
+    graphql = _graphql(srv, "{ orderAmounts { id amount } }")
     assert graphql.status_code != 200 or "errors" in graphql.json(), graphql.text
     assert "'orders' is a draft" in graphql.text, graphql.text
 
