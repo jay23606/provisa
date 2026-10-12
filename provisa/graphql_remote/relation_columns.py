@@ -16,10 +16,15 @@ carry it (the related table is reached through the relationship, under its own g
 relation a statement reads -- the rows inlined into it, or the cache table they land in -- is
 built without such columns. Whoever lists a table's columns in order to SELECT them names the same
 set through this module, so a statement never asks the relation for a column it does not have.
+
+Cypher reads a table's node over every field pointing at a registered type -- one object or a
+list -- as an edge, not a property; an embedded object of a type that is not a registered table is
+a map property of the node, as GraphQL returns it nested (REQ-1991).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 
@@ -45,20 +50,42 @@ def reference_columns(table: dict[str, Any], governed: set[str]) -> set[str]:
     }
 
 
+def edge_columns(table: dict[str, Any], governed: set[str]) -> set[str]:  # REQ-1991
+    """The names of ``table``'s registered columns Cypher reaches as edges rather than reading as
+    properties: each points at one object, or a list of objects, of a registered type."""
+    return {c["name"] for c in table.get("columns", []) if c.get("gql_object_type") in governed}
+
+
+def _by_table_id(
+    sources: dict[str, Any],
+    table_ids: dict[tuple[str, str], int],
+    rule: Callable[[dict[str, Any], set[str]], set[str]],
+) -> set[tuple[int, str]]:
+    governed = governed_types(sources)
+    named: set[tuple[int, str]] = set()
+    for source_id, reg in sources.items():
+        for tbl in reg.get("tables", []):
+            table_id = table_ids.get((source_id, tbl["sql_name"]))
+            if table_id is not None:
+                named |= {(table_id, name) for name in rule(tbl, governed)}
+    return named
+
+
 def table_columns_outside_relation(
     sources: dict[str, Any], table_ids: dict[tuple[str, str], int]
 ) -> set[tuple[int, str]]:
     """(table id, column) for each registered column of a remote GraphQL table that its relation
     does not hold. ``sources`` is keyed by source id; ``table_ids`` maps (source id, table name) to
     the registered table's id. A remote table with no registered table has no columns to read."""
-    governed = governed_types(sources)
-    outside: set[tuple[int, str]] = set()
-    for source_id, reg in sources.items():
-        for tbl in reg.get("tables", []):
-            table_id = table_ids.get((source_id, tbl["sql_name"]))
-            if table_id is not None:
-                outside |= {(table_id, name) for name in reference_columns(tbl, governed)}
-    return outside
+    return _by_table_id(sources, table_ids, reference_columns)
+
+
+def table_edge_columns(  # REQ-1991
+    sources: dict[str, Any], table_ids: dict[tuple[str, str], int]
+) -> set[tuple[int, str]]:
+    """(table id, column) for each registered column of a remote GraphQL table that Cypher reaches
+    as an edge (``edge_columns``); keyed as ``table_columns_outside_relation``."""
+    return _by_table_id(sources, table_ids, edge_columns)
 
 
 def columns_outside_relation(sources: dict[str, Any], source_id: str, table_name: str) -> set[str]:

@@ -477,3 +477,49 @@ def test_from_schema_tags_cross_domain_traversal_node_role():
     )
     assert lm.nodes["Sales_Orders"].role_label == "Fact"
     assert lm.nodes["Logistics_Shipments"].role_label == "Dimension"
+
+
+# ---------------------------------------------------------------------------
+# A remote GraphQL table's object fields (REQ-1991)
+# ---------------------------------------------------------------------------
+
+
+def test_an_embedded_object_is_a_property_and_a_registered_reference_is_not():
+    """An embedded object of an unregistered type is a (map) property of the node; a field pointing
+    at a registered type, one object or a list, is reached over its edge instead."""
+    from provisa.graphql_remote.relation_columns import table_edge_columns
+
+    sources = {
+        "remote": {
+            "tables": [
+                {
+                    "sql_name": "sa_orders",
+                    "gql_type_name": "Order",
+                    "columns": [
+                        {"name": "id", "type": "integer"},
+                        {"name": "address", "type": "jsonb", "gql_object_type": "Address"},
+                        {"name": "customer", "type": "jsonb", "gql_object_type": "Customer"},
+                        {
+                            "name": "lines",
+                            "type": "jsonb",
+                            "gql_object_type": "Line",
+                            "gql_is_list": True,
+                        },
+                    ],
+                },
+                {"sql_name": "customers", "gql_type_name": "Customer", "columns": []},
+                {"sql_name": "lines", "gql_type_name": "Line", "columns": []},
+            ]
+        }
+    }
+    ctx = _make_ctx()
+    ctx.tables["sales__orders"].source_id = "remote"
+    ctx.aggregate_columns = {
+        1: [("id", "integer"), ("address", "jsonb"), ("customer", "jsonb"), ("lines", "jsonb")]
+    }
+    ctx.gql_governed_object_cols = table_edge_columns(sources, {("remote", "sa_orders"): 1})
+    assert ctx.gql_governed_object_cols == {(1, "customer"), (1, "lines")}
+
+    lm = CypherLabelMap.from_schema(ctx, domain_access=["*"])
+    (node,) = lm.nodes.values()
+    assert set(node.properties) == {"id", "address"}

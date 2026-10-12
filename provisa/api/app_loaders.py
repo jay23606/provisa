@@ -1694,28 +1694,16 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
     """Build and register GraphQL schemas, contexts, and protos for each role."""
     from provisa.api.app import state
 
-    _governed_gql_types = {
-        tbl.get("gql_type_name")
-        for reg in getattr(state, "graphql_remote_sources", {}).values()
-        for tbl in reg.get("tables", [])
-        if tbl.get("gql_type_name")
-    }
-    _tbl_id_map = {(t["source_id"], t["table_name"]): t["id"] for t in tables}
-    _gov_obj_cols: set[tuple[int, str]] = set()
-    for _reg in getattr(state, "graphql_remote_sources", {}).values():
-        _src_id = _reg.get("source_id", "")
-        for _tbl in _reg.get("tables", []):
-            _tbl_id = _tbl_id_map.get((_src_id, _tbl.get("sql_name") or _tbl.get("name", "")))
-            if _tbl_id is None:
-                continue
-            for _col in _tbl.get("columns", []):
-                if _col.get("gql_object_type") in _governed_gql_types or _col.get(
-                    "gql_object_fields"
-                ):
-                    _gov_obj_cols.add((_tbl_id, _col["name"]))
-
-    from provisa.graphql_remote.relation_columns import table_columns_outside_relation
+    from provisa.graphql_remote.relation_columns import (
+        governed_types,
+        table_columns_outside_relation,
+        table_edge_columns,
+    )
     from provisa.grpc.proto_gen import generate_proto
+
+    _remote_sources = getattr(state, "graphql_remote_sources", {})
+    _governed_gql_types = governed_types(_remote_sources)
+    _tbl_id_map = {(t["source_id"], t["table_name"]): t["id"] for t in tables}
 
     # What any role's surface is built from, kept so a role made later in this generation — a
     # meta-role (security/meta_role.py) — is built exactly as the stored roles are here.
@@ -1734,10 +1722,9 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
         "webhooks": tracked_webhooks,
         "gql_object_columns": gql_object_cols,
         "governed_gql_types": _governed_gql_types,
-        "gql_governed_object_cols": _gov_obj_cols,
-        "columns_outside_relation": table_columns_outside_relation(
-            getattr(state, "graphql_remote_sources", {}), _tbl_id_map
-        ),
+        # REQ-1991: the columns Cypher reaches as edges, not properties.
+        "gql_governed_object_cols": table_edge_columns(_remote_sources, _tbl_id_map),
+        "columns_outside_relation": table_columns_outside_relation(_remote_sources, _tbl_id_map),
         "tables": tables,
         "draft_tables": draft_tables,
         "metrics": metrics,
