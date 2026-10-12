@@ -35,6 +35,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.exc import DBAPIError
 
 from provisa.api._meta_views import (
     _META_TABLE_VIEWS,
@@ -114,6 +115,16 @@ def _adapt_view_ddl(ddl: str, dialect: str) -> str:
     return f"DROP VIEW IF EXISTS {view_name}{cascade};\nCREATE VIEW {view_name} AS {select_sql}"
 
 
+#: SQLSTATE invalid_table_definition: what PostgreSQL's CREATE OR REPLACE VIEW raises when the new
+#: definition does not keep the view's existing columns, in the same order, names and types. It
+#: may only add columns at the end; dropping, renaming, reordering or retyping one is refused.
+_VIEW_RESHAPE_REFUSED = "42P16"
+
+
+def _reshape_refused(exc: DBAPIError) -> bool:
+    return getattr(exc.orig, "sqlstate", None) == _VIEW_RESHAPE_REFUSED
+
+
 async def _seed_view(conn: "Connection", ddl: str, dialect: str) -> None:
     """Create/refresh one built-in view, without the DROP...CASCADE's blast radius when nothing
     about the view actually changed.
@@ -132,9 +143,9 @@ async def _seed_view(conn: "Connection", ddl: str, dialect: str) -> None:
 
     Postgres's plain ``CREATE OR REPLACE VIEW`` locks only the one view (no CASCADE, no
     dependent chain) and is a true no-op when the definition is unchanged — the common case on
-    every ordinary restart. It only fails with ``cannot drop columns from view`` when the shape
-    genuinely narrowed (a real upgrade), which is the one case the CASCADE fallback below still
-    exists for. SQLite/DuckDB have no ``CREATE OR REPLACE VIEW`` (see ``_adapt_view_ddl``'s own
+    every ordinary restart. It fails only when the view's columns genuinely changed in a way it
+    cannot keep (a column dropped, renamed, moved or retyped: SQLSTATE 42P16, a real upgrade), which
+    is the one case the CASCADE fallback below still exists for. SQLite/DuckDB have no ``CREATE OR REPLACE VIEW`` (see ``_adapt_view_ddl``'s own
     docstring) and no multi-worker story either, so they skip straight to the existing path.
     """
     if dialect == "postgresql":
@@ -142,8 +153,8 @@ async def _seed_view(conn: "Connection", ddl: str, dialect: str) -> None:
             async with conn.transaction():
                 await conn.execute(ddl)
             return
-        except Exception as exc:
-            if "cannot drop columns from view" not in str(exc):
+        except DBAPIError as exc:
+            if not _reshape_refused(exc):
                 raise
     await conn.execute(_adapt_view_ddl(ddl, dialect))
 

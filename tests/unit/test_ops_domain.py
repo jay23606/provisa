@@ -527,8 +527,25 @@ async def test_report_views_functional(uri):
 class TestViewDdlIsReseedableAfterNarrowing:
     """A release that REMOVES a column from an ops view (the reports dropping tenant_id) must
     still seed against the previous release's view. PostgreSQL's CREATE OR REPLACE VIEW accepts
-    only added trailing columns — a narrowed one raises "cannot drop columns from view" and the
-    app never finishes startup."""
+    only added trailing columns — a narrowed, renamed, moved or retyped one raises SQLSTATE 42P16
+    ("cannot drop columns from view", "cannot change name of view column", ...) and the app never
+    finishes startup."""
+
+    def test_every_refused_reshape_is_recognised_by_its_sqlstate_and_nothing_else(self):
+        from sqlalchemy.exc import DBAPIError
+
+        from provisa.api.startup_seed import _reshape_refused
+
+        class _Pg(Exception):
+            def __init__(self, sqlstate: str) -> None:
+                super().__init__(sqlstate)
+                self.sqlstate = sqlstate
+
+        def _raised(sqlstate: str) -> DBAPIError:
+            return DBAPIError("CREATE OR REPLACE VIEW v AS ...", None, _Pg(sqlstate))
+
+        assert _reshape_refused(_raised("42P16"))  # dropped, renamed, moved or retyped column
+        assert not _reshape_refused(_raised("42P01"))  # a table it reads is missing: raised
 
     def test_every_dialect_drops_the_view_before_recreating_it(self):
         from provisa.api.startup_seed import _adapt_view_ddl
