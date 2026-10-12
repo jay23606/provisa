@@ -13,7 +13,6 @@ import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import {
-  Accordion,
   ActionIcon,
   Alert,
   Button,
@@ -67,7 +66,7 @@ import { EmailTab } from "../components/admin/EmailTab";
 import { SettingsCatalogPanel } from "../components/admin/SettingField";
 import { DomainModeCard, NamingConventionsCard } from "../components/admin/settingsCards";
 import { PageLoading } from "../components/PageLoading";
-import { usePanelState } from "../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../components/collapsible/Collapsible";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ListTable, ListHead, ListRow, ListEmpty, ListItems } from "../components/list/ListTable";
 import { useListSortGroup, pageItems, type ListColumn } from "../components/list/useListSortGroup";
@@ -123,8 +122,6 @@ export function AdminPage() {
   // REQ-1918: a delete is refused while anything depends on the object; this lists them.
   const refusal = useDependentsDialog();
   const { t } = useTranslation();
-  const [domainPanel, setDomainPanel] = usePanelState("domain-settings");
-  const [mcpPanel, setMcpPanel] = usePanelState("mcp-server");
   const location = useLocation();
   const activeTab = ROUTE_TO_SECTION[location.pathname] ?? "Dashboard";
   const { capabilities } = useAuth();
@@ -295,21 +292,11 @@ export function AdminPage() {
               </Title>
               <SystemHealth />
             </div>
-            <Accordion
-              variant="separated"
-              value={mcpPanel}
-              onChange={setMcpPanel}
-              data-testid="mcp-server-panel"
-            >
-              <Accordion.Item value="mcp">
-                <Accordion.Control>
-                  <Title order={4}>{t("navBar.itemMcpServer")}</Title>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <McpServerTab />
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
+            <Collapsibles id="admin.dashboard.mcp-server" testId="mcp-server-panel">
+              <CollapsibleItem value="mcp" defaultOpen={false} title={t("navBar.itemMcpServer")}>
+                <McpServerTab />
+              </CollapsibleItem>
+            </Collapsibles>
           </>
         )}
 
@@ -320,26 +307,18 @@ export function AdminPage() {
             {/* REQ-1349: the org's domain mode is set HERE, not on Overview — this is the tab whose
                 subject is domains, and it is the only place a single-domain org can turn them back
                 on, so the tab renders the card whether or not domains are in use. */}
-            {/* variant="separated" with a Title order={4} control is the admin section panel —
-                the same shape TeamPage's sections use. */}
-            <Accordion
-              variant="separated"
-              value={domainPanel}
-              onChange={setDomainPanel}
-              data-testid="domain-settings-panel"
-            >
-              <Accordion.Item value="settings">
-                <Accordion.Control>
-                  <Title order={4}>{t("adminPage.settingsPanel")}</Title>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                    <DomainModeCard onApplied={() => refetchDomains()} />
-                    <NamingConventionsCard />
-                  </SimpleGrid>
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
+            <Collapsibles id="admin.domains.settings" testId="domain-settings-panel">
+              <CollapsibleItem
+                value="settings"
+                defaultOpen={false}
+                title={t("adminPage.settingsPanel")}
+              >
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                  <DomainModeCard onApplied={() => refetchDomains()} />
+                  <NamingConventionsCard />
+                </SimpleGrid>
+              </CollapsibleItem>
+            </Collapsibles>
             {domainMsg && (
               <Alert color="green" variant="light">
                 {domainMsg}

@@ -20,7 +20,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Accordion,
   Alert,
   Badge,
   Button,
@@ -36,6 +35,7 @@ import {
 import { fetchSettingsCatalog, updateSettingsCatalog } from "../../api/admin";
 import type { CatalogSetting, SettingsCatalog } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { CARD_GROUPS } from "./settingGroups";
 import { FormChecks, FormField, FormFooter, FormLayout, LabelWithHelp } from "../form/FormLayout";
 import { useHelpNaming } from "../form/useHelpNaming";
@@ -144,61 +144,59 @@ function MapRows({
   onChange: (rowKey: string, draft: string) => void;
 }) {
   const { t } = useTranslation();
-  const [opened, setOpened] = useState(false);
   const value = (s.value ?? {}) as Record<string, unknown>;
   const hasError = keys.some((mk) => Boolean(errors[rowId(s, mk)]));
   return (
-    <Accordion
-      variant="contained"
-      value={opened || hasError ? s.key : null}
-      onChange={(v) => setOpened(v === s.key)}
-      data-testid={`setting-${s.key}`}
-    >
-      <Accordion.Item value={s.key}>
-        <Accordion.Control data-testid={`setting-${s.key}-toggle`}>
-          <Text fw={500} fz="sm" component="span">
-            {t(`settings.${s.key}.label`)}
-          </Text>
-          {s.restart_required && (
-            <Badge size="xs" color="orange" ml={4} data-testid={`setting-${s.key}-restart`}>
-              {t("adminPage.setting.restartRequired")}
-            </Badge>
-          )}
-        </Accordion.Control>
-        <Accordion.Panel>
-          <Text fz="xs" c="dimmed" mb="xs">
-            {t(`settings.${s.key}.help`)}
-          </Text>
-          <FormLayout data-testid={`setting-${s.key}-grid`}>
-            {keys.map((mk) => {
-              const id = `setting-${rowId(s, mk)}`;
-              const source = s.sources?.[mk];
-              const error = errors[rowId(s, mk)];
-              return (
-                <FormField size="short" key={mk}>
-                  <TextInput
-                    label={t(`settings.${s.key}.keys.${mk}`)}
-                    placeholder={toDraft(value[mk], "str")}
-                    value={drafts[rowId(s, mk)] ?? ""}
-                    disabled={!s.editable}
-                    onChange={(e) => onChange(rowId(s, mk), e.currentTarget.value)}
-                    error={error ? <span data-testid={`${id}-error`}>{error}</span> : undefined}
-                    data-testid={id}
-                  />
-                  {source && source !== "stored" && (
-                    <div className="form-status" data-testid={`${id}-source`}>
-                      {t("adminPage.setting.sourceLabel", {
-                        source: t(`adminPage.setting.source.${source}`),
-                      })}
-                    </div>
-                  )}
-                </FormField>
-              );
-            })}
-          </FormLayout>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <Collapsibles id={`admin.settings.${s.key}`} testId={`setting-${s.key}`}>
+      <CollapsibleItem
+        value={s.key}
+        defaultOpen={false}
+        // A value it holds that the save would refuse keeps it open.
+        forceOpen={hasError}
+        controlTestId={`setting-${s.key}-toggle`}
+        title={
+          <>
+            <span>{t(`settings.${s.key}.label`)}</span>
+            {s.restart_required && (
+              <Badge size="xs" color="orange" ml={4} data-testid={`setting-${s.key}-restart`}>
+                {t("adminPage.setting.restartRequired")}
+              </Badge>
+            )}
+          </>
+        }
+      >
+        <Text fz="xs" c="dimmed" mb="xs">
+          {t(`settings.${s.key}.help`)}
+        </Text>
+        <FormLayout data-testid={`setting-${s.key}-grid`}>
+          {keys.map((mk) => {
+            const id = `setting-${rowId(s, mk)}`;
+            const source = s.sources?.[mk];
+            const error = errors[rowId(s, mk)];
+            return (
+              <FormField size="short" key={mk}>
+                <TextInput
+                  label={t(`settings.${s.key}.keys.${mk}`)}
+                  placeholder={toDraft(value[mk], "str")}
+                  value={drafts[rowId(s, mk)] ?? ""}
+                  disabled={!s.editable}
+                  onChange={(e) => onChange(rowId(s, mk), e.currentTarget.value)}
+                  error={error ? <span data-testid={`${id}-error`}>{error}</span> : undefined}
+                  data-testid={id}
+                />
+                {source && source !== "stored" && (
+                  <div className="form-status" data-testid={`${id}-source`}>
+                    {t("adminPage.setting.sourceLabel", {
+                      source: t(`adminPage.setting.source.${source}`),
+                    })}
+                  </div>
+                )}
+              </FormField>
+            );
+          })}
+        </FormLayout>
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }
 
@@ -393,7 +391,6 @@ export function CatalogCard({
   groupBy?: (s: CatalogSetting) => string;
 }) {
   const { t } = useTranslation();
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       settings.flatMap((s) => {
@@ -544,43 +541,34 @@ export function CatalogCard({
   return (
     <>
       {/* The card folds as its groups do: a contained accordion item, open to begin with. */}
-      <Accordion multiple variant="contained" defaultValue={[cardId]} data-testid="settings-card">
-        <Accordion.Item value={cardId}>
-          <Accordion.Control data-testid={`settings-card-${cardId}-toggle`}>
-            <Text fw={500} fz="sm" component="span">
-              {title}
-            </Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            {groupBy ? (
-              <Accordion
-                multiple
-                variant="contained"
-                value={groups
-                  .filter((g) => openGroups.includes(g.id) || g.settings.some(hasError))
-                  .map((g) => g.id)}
-                onChange={setOpenGroups}
-              >
-                {groups.map((g) => (
-                  <Accordion.Item key={g.id} value={g.id}>
-                    <Accordion.Control data-testid={`settings-group-${g.id}-toggle`}>
-                      <Text fw={500} fz="sm" component="span">
-                        {t(`adminPage.setting.group.${g.id}`)}
-                      </Text>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                      {fieldGrid(g.settings, `settings-group-${g.id}-flow`)}
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                ))}
-              </Accordion>
-            ) : (
-              fieldGrid(settings, "settings-card-grid")
-            )}
-            <SaveRow save={save} saving={saving} msg={msg} />
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+      <Collapsibles id="admin.deployment-settings" testId="settings-card">
+        <CollapsibleItem
+          value={cardId}
+          title={title}
+          controlTestId={`settings-card-${cardId}-toggle`}
+        >
+          {groupBy ? (
+            <Collapsibles id={`admin.deployment-settings.${cardId}`}>
+              {groups.map((g) => (
+                <CollapsibleItem
+                  key={g.id}
+                  value={g.id}
+                  defaultOpen={false}
+                  // A group holding a value the save would refuse is kept open.
+                  forceOpen={g.settings.some(hasError)}
+                  controlTestId={`settings-group-${g.id}-toggle`}
+                  title={t(`adminPage.setting.group.${g.id}`)}
+                >
+                  {fieldGrid(g.settings, `settings-group-${g.id}-flow`)}
+                </CollapsibleItem>
+              ))}
+            </Collapsibles>
+          ) : (
+            fieldGrid(settings, "settings-card-grid")
+          )}
+          <SaveRow save={save} saving={saving} msg={msg} />
+        </CollapsibleItem>
+      </Collapsibles>
       <Modal
         opened={pending !== null}
         onClose={() => setPending(null)}

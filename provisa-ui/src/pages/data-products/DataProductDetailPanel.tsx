@@ -12,12 +12,11 @@ import { DetailFields, type DetailField } from "../../components/detail/DetailFi
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ActionIcon, Collapse, Group, List, Modal, Stack, Table, Text } from "@mantine/core";
+import { ActionIcon, Group, List, Modal, Stack, Table, Text } from "@mantine/core";
+import { CollapsibleItem, Collapsibles } from "../../components/collapsible/Collapsible";
 import {
   Braces,
   Cable,
-  ChevronDown,
-  ChevronRight,
   FileJson,
   Globe,
   ListChecks,
@@ -186,7 +185,6 @@ export function DataProductDetailPanel({
     });
   // The DAG is the tallest panel on this page by far — start it closed so it doesn't dominate
   // the masonry layout before the user has asked to see it.
-  const [lineageOpen, setLineageOpen] = useState(false);
   // REQ-1443 clause 10: the checker table whose rules modal is open, by table id.
   const [rulesFor, setRulesFor] = useState<number | null>(null);
 
@@ -707,77 +705,73 @@ export function DataProductDetailPanel({
           </div>
         )}
         {canSeeLineage && (
-          <div style={{ ...panelStyle, columnSpan: "all", marginTop: "var(--mantine-spacing-sm)" }}>
-            <Group
-              gap={4}
-              align="baseline"
-              style={{ cursor: "pointer" }}
-              onClick={() => setLineageOpen((v) => !v)}
-              data-testid={`data-product-detail-lineage-toggle-${p.id}`}
-            >
-              {lineageOpen ? (
-                <ChevronDown size={14} color="var(--text-muted)" />
-              ) : (
-                <ChevronRight size={14} color="var(--text-muted)" />
-              )}
-              <Text c="dimmed" fw={500} size="sm">
-                {t("dataProductsTab.detail.field.lineage")}
-              </Text>
-              <Tip text={t("dataProductsTab.detail.lineageHint")}>
-                <Text
-                  size="xs"
-                  c="var(--text-muted)"
-                  style={{ cursor: "help" }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  ⓘ
-                </Text>
-              </Tip>
-            </Group>
-            <Collapse in={lineageOpen}>
-              {lineageLoading ? (
-                <Text size="sm" c="var(--text-muted)">
-                  {t("dataProductsTab.detail.lineageLoading")}
-                </Text>
-              ) : lineageError ? (
-                <Text size="sm" c="red">
-                  {lineageError}
-                </Text>
-              ) : !lineageGraph || lineageGraph.nodes.length === 0 ? (
-                <Text size="sm" c="var(--text-muted)">
-                  {t("dataProductsTab.detail.lineageEmpty")}
-                </Text>
-              ) : (
-                <div data-testid={`data-product-detail-lineage-${p.id}`}>
-                  <LineageDag
-                    graph={lineageGraph}
-                    height={320}
-                    collapsedRelations={collapsed}
-                    onToggleRelation={toggleRelation}
-                    lanes={lineageMembers && { members: lineageMembers, title: laneTitle }}
-                    onOpenModal={() => setLineageModalOpen(true)}
-                    describeColumn={describeColumn}
-                  />
-                  <Modal
-                    opened={lineageModalOpen}
-                    onClose={() => setLineageModalOpen(false)}
-                    size="90%"
-                    title={t("dataProductsTab.detail.field.lineage")}
-                    data-testid={`data-product-detail-lineage-modal-${p.id}`}
-                    styles={{ body: { padding: "var(--mantine-spacing-xs)" } }}
-                  >
+          <div style={{ columnSpan: "all", marginTop: "var(--mantine-spacing-sm)" }}>
+            <Collapsibles id="data-products.lineage">
+              <CollapsibleItem
+                value="lineage"
+                defaultOpen={false}
+                controlTestId={`data-product-detail-lineage-toggle-${p.id}`}
+                title={
+                  <Group gap={4} align="baseline" component="span">
+                    <span>{t("dataProductsTab.detail.field.lineage")}</span>
+                    <Tip text={t("dataProductsTab.detail.lineageHint")}>
+                      <Text
+                        size="xs"
+                        c="var(--text-muted)"
+                        component="span"
+                        style={{ cursor: "help" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        ⓘ
+                      </Text>
+                    </Tip>
+                  </Group>
+                }
+              >
+                {lineageLoading ? (
+                  <Text size="sm" c="var(--text-muted)">
+                    {t("dataProductsTab.detail.lineageLoading")}
+                  </Text>
+                ) : lineageError ? (
+                  <Text size="sm" c="red">
+                    {lineageError}
+                  </Text>
+                ) : !lineageGraph || lineageGraph.nodes.length === 0 ? (
+                  <Text size="sm" c="var(--text-muted)">
+                    {t("dataProductsTab.detail.lineageEmpty")}
+                  </Text>
+                ) : (
+                  <div data-testid={`data-product-detail-lineage-${p.id}`}>
                     <LineageDag
                       graph={lineageGraph}
-                      height="calc(90vh - 140px)"
+                      height={320}
                       collapsedRelations={collapsed}
                       onToggleRelation={toggleRelation}
                       lanes={lineageMembers && { members: lineageMembers, title: laneTitle }}
+                      onOpenModal={() => setLineageModalOpen(true)}
                       describeColumn={describeColumn}
                     />
-                  </Modal>
-                </div>
-              )}
-            </Collapse>
+                    <Modal
+                      opened={lineageModalOpen}
+                      onClose={() => setLineageModalOpen(false)}
+                      size="90%"
+                      title={t("dataProductsTab.detail.field.lineage")}
+                      data-testid={`data-product-detail-lineage-modal-${p.id}`}
+                      styles={{ body: { padding: "var(--mantine-spacing-xs)" } }}
+                    >
+                      <LineageDag
+                        graph={lineageGraph}
+                        height="calc(90vh - 140px)"
+                        collapsedRelations={collapsed}
+                        onToggleRelation={toggleRelation}
+                        lanes={lineageMembers && { members: lineageMembers, title: laneTitle }}
+                        describeColumn={describeColumn}
+                      />
+                    </Modal>
+                  </div>
+                )}
+              </CollapsibleItem>
+            </Collapsibles>
           </div>
         )}
       </div>

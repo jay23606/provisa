@@ -11,18 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Collapse,
-  Group,
-  Paper,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Alert, Badge, Button, Code, Group, Text, TextInput, Title } from "@mantine/core";
+import { CollapsibleItem, Collapsibles } from "../components/collapsible/Collapsible";
 import {
   MainContainer,
   ChatContainer,
@@ -92,7 +82,6 @@ function useCopy(): [boolean, (text: string) => void] {
 }
 
 function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
-  const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [bridgeCommand, setBridgeCommand] = useState("");
   const [bridgeArgs, setBridgeArgs] = useState<string[]>([]);
@@ -146,16 +135,10 @@ function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
 
   return (
     <div style={{ marginBottom: "var(--mantine-spacing-sm)" }}>
-      <Tip text="Show the config that points Claude Desktop at this MCP server, so the same governed tools are available outside Provisa.">
-        <Button variant="subtle" size="xs" onClick={() => setOpen((o) => !o)}>
-          {open ? "Hide Claude Desktop setup" : "Connect Claude Desktop"}
-        </Button>
-      </Tip>
-      <Collapse in={open}>
-        <Paper withBorder p="sm" mt={6} radius="sm">
-          <Text size="sm" fw={600} mb={4}>
-            Connect Claude Desktop
-          </Text>
+      {/* The config that points Claude Desktop at this MCP server, so the same governed tools are
+          available outside Provisa. */}
+      <Collapsibles id="mcp-explore.claude-desktop">
+        <CollapsibleItem value="setup" defaultOpen={false} title="Connect Claude Desktop">
           <Text size="xs" c="dimmed" mb={6}>
             In Claude Desktop, open Settings → Developer → Edit Config (this creates the file if it
             doesn&apos;t exist yet), paste the JSON below, then restart Claude.{" "}
@@ -198,8 +181,8 @@ function ConnectClaudeDesktop({ roleId }: { roleId: string }) {
             a local server — Anthropic connects to it from their servers, so it needs a public,
             internet-reachable HTTPS endpoint. For a local install, use the config above.
           </Text>
-        </Paper>
-      </Collapse>
+        </CollapsibleItem>
+      </Collapsibles>
     </div>
   );
 }

@@ -20,22 +20,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Accordion,
-  Alert,
-  Checkbox,
-  Code,
-  NumberInput,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Alert, Checkbox, Code, NumberInput, Stack, Text, TextInput, Title } from "@mantine/core";
 import { TriangleAlert } from "lucide-react";
 import { fetchCacheStorage, setCacheStorage, type CacheStorageState } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
 import { useSettingsBlocks } from "./useSettingsBlocks";
-import { usePanelState } from "../../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
 import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
@@ -85,18 +75,12 @@ function useCacheStorage(blocks: StorageBlock[]) {
 
 function SettingsPanel({ testId, children }: { testId: string; children: React.ReactNode }) {
   const { t } = useTranslation();
-  const [panel, setPanel] = usePanelState(testId);
   return (
-    <Accordion variant="separated" value={panel} onChange={setPanel} data-testid={testId}>
-      <Accordion.Item value="settings">
-        <Accordion.Control>
-          <Title order={4}>{t("adminPage.settingsPanel")}</Title>
-        </Accordion.Control>
-        <Accordion.Panel>
-          <Stack gap="md">{children}</Stack>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <Collapsibles id={`admin.cache-storage.${testId}`} testId={testId}>
+      <CollapsibleItem value="settings" defaultOpen={false} title={t("adminPage.settingsPanel")}>
+        <Stack gap="md">{children}</Stack>
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }
 

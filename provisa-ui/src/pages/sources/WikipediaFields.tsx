@@ -118,7 +118,7 @@ export function WikipediaFields({ fields, setFields }: Props) {
       </FormField>
       {/* The crawl's own settings all have defaults: folded away until they are wanted. */}
       <FormField size="full">
-        <FormFolds data-testid="wikipedia-crawl-settings">
+        <FormFolds id="wikipedia-crawl-settings">
           <FormFold value="crawl" title={t("sourceFormFieldsExtended.wpCrawlSettings")}>
             {WIKIPEDIA_CRAWL_FIELDS.map((f) => {
               const key = `wpc_${f.key}`;

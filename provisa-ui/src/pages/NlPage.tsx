@@ -26,9 +26,8 @@ import {
   Table,
   Text,
   Textarea,
-  UnstyledButton,
 } from "@mantine/core";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CollapsibleItem, Collapsibles } from "../components/collapsible/Collapsible";
 import { HelpBubble } from "../components/HelpBubble";
 import { useAuth } from "../context/AuthContext";
 import { submitNlQuery, streamNlResult, type NlBranchEvent } from "../api/admin";
@@ -42,45 +41,14 @@ const EXPLORER_ROUTES: Record<string, { path: string; stateKey: string }> = {
   openapi: { path: "/openapi", stateKey: "openApiUrl" },
 };
 
-const GUIDE_KEY = "provisa.nl.guide.collapsed";
-
 function GuidanceBanner() {
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(GUIDE_KEY) === "1");
 
   const examples = [t("nlPage.example1"), t("nlPage.example2"), t("nlPage.example3")];
 
-  const toggle = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(GUIDE_KEY, next ? "1" : "0");
-      return next;
-    });
-  }, []);
   return (
-    <Paper withBorder radius="md" data-testid="nl-guide">
-      <UnstyledButton
-        onClick={toggle}
-        aria-expanded={!collapsed}
-        data-testid="nl-guide-toggle"
-        p="sm"
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text fw={600} size="sm">
-          {t("nlPage.guideTitle")}
-        </Text>
-        {collapsed ? (
-          <ChevronRight size={14} aria-hidden="true" />
-        ) : (
-          <ChevronDown size={14} aria-hidden="true" />
-        )}
-      </UnstyledButton>
-      {!collapsed && (
+    <Collapsibles id="nl.guide" testId="nl-guide">
+      <CollapsibleItem value="guide" title={t("nlPage.guideTitle")} controlTestId="nl-guide-toggle">
         <Stack gap="sm" p="sm" pt={0}>
           <Text size="sm" c="dimmed">
             {t("nlPage.guideDesc")}
@@ -117,8 +85,8 @@ function GuidanceBanner() {
             ))}
           </Stack>
         </Stack>
-      )}
-    </Paper>
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }
 
@@ -371,7 +339,12 @@ export function NlPage() {
       </Group>
 
       {globalError && (
-        <Alert color="red" variant="light" className="nl-global-error" data-testid="nl-global-error">
+        <Alert
+          color="red"
+          variant="light"
+          className="nl-global-error"
+          data-testid="nl-global-error"
+        >
           {globalError}
         </Alert>
       )}

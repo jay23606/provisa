@@ -287,7 +287,9 @@ describe("SecretsTab secrets-service panel", () => {
 
   it("remembers that it was opened, and restores that on the next visit", async () => {
     await openService();
-    expect(localStorage.getItem("provisa.panel.secretsService")).toBe(JSON.stringify("service"));
+    expect(
+      JSON.parse(localStorage.getItem("provisa.collapsibles") ?? "{}")["admin.secrets.service"],
+    ).toEqual({ service: true });
     cleanup();
     render(<SecretsTab />);
     await waitFor(() => expect(screen.getByTestId("secrets-service")).toBeInTheDocument());

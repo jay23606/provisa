@@ -920,7 +920,7 @@ export function SourceFormFieldsExtended({
           )}
           {cdcTransportApplicable(form.type) && (
             <FormField size="full" section="load">
-              <FormFolds data-testid="cdc-transport-accordion">
+              <FormFolds id="cdc-transport-accordion">
                 <FormFold
                   value="cdc"
                   title={t("sourceFormFieldsExtended.cdcTransportHeading")}

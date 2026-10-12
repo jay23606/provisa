@@ -8,15 +8,16 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// A per-MV config panel that collapses to reduce clutter. Children stay mounted (Mantine Collapse),
-// so form state and testability are unaffected — the header only toggles visibility.
+// A per-MV config panel that collapses to reduce clutter: one item of the one collapsible
+// (components/collapsible), so it looks like every other panel and opens as it was left.
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
-import { ActionIcon, Badge, Collapse, Group, Text } from "@mantine/core";
+import type { ReactNode } from "react";
+import { ActionIcon, Badge, Group } from "@mantine/core";
 import { Tip } from "../../components/Tip";
 import { CircleHelp } from "lucide-react";
 import { FormLayout } from "../../components/form/FormLayout";
 import { useFormRead } from "../../components/form/formRead";
+import { CollapsibleItem, Collapsibles } from "../../components/collapsible/Collapsible";
 
 export function CollapsibleSection({
   title,
@@ -29,6 +30,7 @@ export function CollapsibleSection({
   children,
 }: {
   title: string;
+  /** Also the panel's id: what the viewer left it, open or closed, is kept under it. */
   testId: string;
   /** REQ-1358: `data-tour` on the section wrapper, so a tour step can highlight the whole panel. */
   tourId?: string;
@@ -40,8 +42,6 @@ export function CollapsibleSection({
   flat?: boolean;
   children: ReactNode;
 }) {
-  const [toggled, setOpen] = useState(defaultOpen);
-  const open = flat || toggled;
   // In a form read the section is open, its title heading its fields.
   if (useFormRead()) {
     return (
@@ -53,72 +53,56 @@ export function CollapsibleSection({
       </>
     );
   }
+  const heading = (
+    <Group gap="xs" wrap="nowrap" component="span">
+      <span>{title}</span>
+      {badge && (
+        <Badge size="xs" variant="light" color="grape">
+          {badge}
+        </Badge>
+      )}
+      {info && (
+        <Tip text={info.text}>
+          <ActionIcon
+            component="span"
+            variant="subtle"
+            color="gray"
+            size="xs"
+            role="button"
+            tabIndex={0}
+            aria-label={info.label}
+            data-testid={`${testId}-info`}
+            // The icon sits in the heading; using it must not also open or close the section.
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <CircleHelp size={14} aria-hidden />
+          </ActionIcon>
+        </Tip>
+      )}
+    </Group>
+  );
+  if (flat) {
+    // A whole tab's content: its heading over its fields, which start where it starts.
+    return (
+      <div className="form-section" data-tour={tourId} data-testid={testId}>
+        {heading}
+        <FormLayout style={{ paddingTop: "var(--mantine-spacing-xs)" }}>{children}</FormLayout>
+      </div>
+    );
+  }
   return (
     <div className="form-section" data-tour={tourId} data-testid={testId}>
-      <Group
-        gap="xs"
-        wrap="nowrap"
-        {...(flat
-          ? {}
-          : {
-              style: { cursor: "pointer" },
-              onClick: () => setOpen((o) => !o),
-              // A button by keyboard too: reached by Tab, pressed by Enter or Space.
-              tabIndex: 0,
-              onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
-                if (e.key !== "Enter" && e.key !== " ") return;
-                e.preventDefault();
-                setOpen((o) => !o);
-              },
-              "data-testid": `${testId}-toggle`,
-              role: "button",
-              "aria-expanded": open,
-            })}
-      >
-        {!flat && (
-          <ActionIcon variant="subtle" size="sm" aria-hidden>
-            {open ? "−" : "+"}
-          </ActionIcon>
-        )}
-        <Text fw={600} size="sm">
-          {title}
-        </Text>
-        {badge && (
-          <Badge size="xs" variant="light" color="grape">
-            {badge}
-          </Badge>
-        )}
-        {info && (
-          <Tip text={info.text}>
-            <ActionIcon
-              component="span"
-              variant="subtle"
-              color="gray"
-              size="xs"
-              role="button"
-              tabIndex={0}
-              aria-label={info.label}
-              data-testid={`${testId}-info`}
-              // The icon sits in the toggle row; using it must not also open/close the section.
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <CircleHelp size={14} aria-hidden />
-            </ActionIcon>
-          </Tip>
-        )}
-      </Group>
-      <Collapse in={open}>
-        <FormLayout
-          style={{
-            paddingTop: "var(--mantine-spacing-xs)",
-            // Flat, it is a heading over the tab's own fields, which start where it starts.
-            paddingInline: flat ? 0 : "var(--mantine-spacing-md)",
-          }}
+      <Collapsibles id={testId}>
+        <CollapsibleItem
+          value="section"
+          title={heading}
+          defaultOpen={defaultOpen}
+          controlTestId={`${testId}-toggle`}
         >
-          {children}
-        </FormLayout>
-      </Collapse>
+          <FormLayout>{children}</FormLayout>
+        </CollapsibleItem>
+      </Collapsibles>
     </div>
   );
 }

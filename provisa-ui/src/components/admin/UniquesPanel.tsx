@@ -12,10 +12,10 @@
 // constraint with a Name field and a multi-select checkbox of the table's columns.
 
 import { useTranslation } from "react-i18next";
-import { ActionIcon, Accordion, Button, Group, MultiSelect, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Button, Group, MultiSelect, Text, TextInput } from "@mantine/core";
 import { CircleHelp, Plus, X } from "lucide-react";
 import type { UniqueConstraint } from "../../types/admin";
-import { usePanelState } from "../../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { FieldGroup, FormField, FormLayout } from "../form/FormLayout";
 import { Tip } from "../Tip";
 
@@ -29,7 +29,6 @@ interface Props {
 
 export function UniquesPanel({ uniques, columns, onChange, flat = false }: Props) {
   const { t } = useTranslation();
-  const [panel, setPanel] = usePanelState("uniques");
 
   const update = (i: number, patch: Partial<UniqueConstraint>) => {
     onChange(uniques.map((u, idx) => (idx === i ? { ...u, ...patch } : u)));
@@ -122,17 +121,10 @@ export function UniquesPanel({ uniques, columns, onChange, flat = false }: Props
       </div>
     );
   return (
-    <Accordion
-      variant="separated"
-      mt="md"
-      value={panel}
-      onChange={setPanel}
-      data-testid="uniques-panel"
-    >
-      <Accordion.Item value="uniques">
-        <Accordion.Control>{heading}</Accordion.Control>
-        <Accordion.Panel>{editor}</Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <Collapsibles id="tables.uniques" testId="uniques-panel">
+      <CollapsibleItem value="uniques" defaultOpen={false} title={heading}>
+        {editor}
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }

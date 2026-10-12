@@ -23,9 +23,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettingsBlocks } from "./useSettingsBlocks";
-import { usePanelState } from "../../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import {
-  Accordion,
   Alert,
   Button,
   Card,
@@ -107,7 +106,6 @@ export function ServerLimitsCard() {
   const [def, setDef] = useState("");
   const [rowLimit, setRowLimit] = useState("");
   const [per, setPer] = useState<Record<string, string>>({});
-  const [perOpen, setPerOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -264,60 +262,54 @@ export function ServerLimitsCard() {
             />
           </FormField>
         </FormLayout>
-        <Accordion
-          variant="contained"
-          value={perOpen || TRANSPORTS.some((k) => Boolean(errors[k])) ? "per-transport" : null}
-          onChange={(v) => setPerOpen(v === "per-transport")}
-        >
-          <Accordion.Item value="per-transport">
-            <Accordion.Control data-testid="limit-timeouts-toggle">
-              <Text fw={500} fz="sm" component="span">
-                {t("settings.limits.request_timeouts.label")}
-              </Text>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Text fz="xs" c="dimmed" mb="xs">
-                {t("settings.limits.request_timeouts.help")}
-              </Text>
-              <FormLayout data-testid="limit-timeouts-grid">
-                {TRANSPORTS.map((k) => (
-                  <FormField size="short" key={k}>
-                    <TextInput
-                      label={t(`adminPage.transport.${k}`)}
-                      value={per[k] ?? ""}
-                      onChange={(e) => setPer({ ...per, [k]: e.currentTarget.value })}
-                      error={
-                        errors[k] && (
-                          <span data-testid={`limit-timeout-${k}-error`}>{errors[k]}</span>
-                        )
-                      }
-                      data-testid={`limit-timeout-${k}`}
-                    />
-                    <div className="form-status">
-                      {k in TRANSPORT_HELP && (
-                        <span data-testid={`limit-timeout-${k}-help`}>
-                          {t(`adminPage.transportHelp.${k}`)}{" "}
+        <Collapsibles id="admin.limits">
+          <CollapsibleItem
+            value="per-transport"
+            defaultOpen={false}
+            // A timeout the save would refuse keeps the panel open.
+            forceOpen={TRANSPORTS.some((k) => Boolean(errors[k]))}
+            controlTestId="limit-timeouts-toggle"
+            title={t("settings.limits.request_timeouts.label")}
+          >
+            <Text fz="xs" c="dimmed" mb="xs">
+              {t("settings.limits.request_timeouts.help")}
+            </Text>
+            <FormLayout data-testid="limit-timeouts-grid">
+              {TRANSPORTS.map((k) => (
+                <FormField size="short" key={k}>
+                  <TextInput
+                    label={t(`adminPage.transport.${k}`)}
+                    value={per[k] ?? ""}
+                    onChange={(e) => setPer({ ...per, [k]: e.currentTarget.value })}
+                    error={
+                      errors[k] && <span data-testid={`limit-timeout-${k}-error`}>{errors[k]}</span>
+                    }
+                    data-testid={`limit-timeout-${k}`}
+                  />
+                  <div className="form-status">
+                    {k in TRANSPORT_HELP && (
+                      <span data-testid={`limit-timeout-${k}-help`}>
+                        {t(`adminPage.transportHelp.${k}`)}{" "}
+                      </span>
+                    )}
+                    {(per[k] ?? "").trim() === "" && shipped[k] !== undefined && (
+                      <span data-testid={`limit-timeout-${k}-shipped`}>
+                        {t("adminPage.requestTimeoutUsesShipped", { seconds: shipped[k] })}
+                      </span>
+                    )}
+                    {(per[k] ?? "").trim() === "" &&
+                      shipped[k] === undefined &&
+                      effective !== null && (
+                        <span data-testid={`limit-timeout-${k}-effective`}>
+                          {t("adminPage.requestTimeoutUsesDefault", { seconds: effective })}
                         </span>
                       )}
-                      {(per[k] ?? "").trim() === "" && shipped[k] !== undefined && (
-                        <span data-testid={`limit-timeout-${k}-shipped`}>
-                          {t("adminPage.requestTimeoutUsesShipped", { seconds: shipped[k] })}
-                        </span>
-                      )}
-                      {(per[k] ?? "").trim() === "" &&
-                        shipped[k] === undefined &&
-                        effective !== null && (
-                          <span data-testid={`limit-timeout-${k}-effective`}>
-                            {t("adminPage.requestTimeoutUsesDefault", { seconds: effective })}
-                          </span>
-                        )}
-                    </div>
-                  </FormField>
-                ))}
-              </FormLayout>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
+                  </div>
+                </FormField>
+              ))}
+            </FormLayout>
+          </CollapsibleItem>
+        </Collapsibles>
       </Stack>
       <SaveRow save={save} saving={saving} msg={msg} />
     </Card>
@@ -538,7 +530,6 @@ export function DomainModeCard({ onApplied }: { onApplied?: () => void }) {
 /** Sampling, CDC and the GraphQL-remote ceilings (deployment-wide). Federation tab. */
 export function FederationSettingsCards() {
   const { t } = useTranslation();
-  const [panel, setPanel] = usePanelState("federation-settings");
   const { settings, setSettings, save, saving, msg } = useSettingsBlocks([
     "sampling",
     "cdc",
@@ -549,137 +540,126 @@ export function FederationSettingsCards() {
   if (!sampling || !cdc || !remote) return null;
 
   return (
-    /* The admin section panel shape: separated accordion, Title order={4} control. */
-    <Accordion
-      variant="separated"
-      value={panel}
-      onChange={setPanel}
-      data-testid="federation-settings"
-    >
-      <Accordion.Item value="settings">
-        <Accordion.Control>
-          <Title order={4}>{t("adminPage.settingsPanel")}</Title>
-        </Accordion.Control>
-        <Accordion.Panel>
-          <Stack gap="md">
-            <Card withBorder padding="md">
-              <Title order={4} mb="sm">
-                {t("adminPage.sampling")}
-              </Title>
-              <FormLayout>
-                <FormField help={t("adminPage.defaultSampleSizeHint")} size="short">
-                  <NumberInput
-                    label={t("adminPage.defaultSampleSize")}
-                    value={sampling.default_sample_size}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        sampling: { default_sample_size: typeof v === "number" ? v : 0 },
-                      })
-                    }
-                  />
-                </FormField>
-              </FormLayout>
-            </Card>
+    <Collapsibles id="admin.federation-settings" testId="federation-settings">
+      <CollapsibleItem value="settings" defaultOpen={false} title={t("adminPage.settingsPanel")}>
+        <Stack gap="md">
+          <Card withBorder padding="md">
+            <Title order={4} mb="sm">
+              {t("adminPage.sampling")}
+            </Title>
+            <FormLayout>
+              <FormField help={t("adminPage.defaultSampleSizeHint")} size="short">
+                <NumberInput
+                  label={t("adminPage.defaultSampleSize")}
+                  value={sampling.default_sample_size}
+                  onChange={(v) =>
+                    setSettings({
+                      ...settings,
+                      sampling: { default_sample_size: typeof v === "number" ? v : 0 },
+                    })
+                  }
+                />
+              </FormField>
+            </FormLayout>
+          </Card>
 
-            <Card withBorder padding="md">
-              <Title order={4} mb="sm">
-                {t("adminPage.cdc")}
-              </Title>
-              <FormLayout>
-                <FormField help={t("adminPage.consumerGroupIdHint")} size="medium">
-                  <TextInput
-                    label={t("adminPage.consumerGroupId")}
-                    placeholder={t("adminPage.consumerGroupIdPlaceholder")}
-                    value={cdc.consumer_group_id}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        cdc: { consumer_group_id: e.currentTarget.value },
-                      })
-                    }
-                  />
-                </FormField>
-              </FormLayout>
-            </Card>
+          <Card withBorder padding="md">
+            <Title order={4} mb="sm">
+              {t("adminPage.cdc")}
+            </Title>
+            <FormLayout>
+              <FormField help={t("adminPage.consumerGroupIdHint")} size="medium">
+                <TextInput
+                  label={t("adminPage.consumerGroupId")}
+                  placeholder={t("adminPage.consumerGroupIdPlaceholder")}
+                  value={cdc.consumer_group_id}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      cdc: { consumer_group_id: e.currentTarget.value },
+                    })
+                  }
+                />
+              </FormField>
+            </FormLayout>
+          </Card>
 
-            <Card withBorder padding="md">
-              <Title order={4} mb="sm">
-                {t("adminPage.graphqlRemote")}
-              </Title>
-              <FormLayout>
-                <FormField help={t("adminPage.maxObjectDepthHint")} size="short">
-                  <NumberInput
-                    label={t("adminPage.maxObjectDepth")}
-                    min={1}
-                    value={remote.max_object_depth}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        graphql_remote: {
-                          ...remote,
-                          max_object_depth: typeof v === "number" ? v : 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-                <FormField help={t("adminPage.maxListDepthHint")} size="short">
-                  <NumberInput
-                    label={t("adminPage.maxListDepth")}
-                    min={1}
-                    value={remote.max_list_depth}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        graphql_remote: {
-                          ...remote,
-                          max_list_depth: typeof v === "number" ? v : 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-                <FormField help={t("adminPage.maxListItemsHint")} size="short">
-                  <NumberInput
-                    label={t("adminPage.maxListItems")}
-                    min={1}
-                    value={remote.max_list_items}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        graphql_remote: {
-                          ...remote,
-                          max_list_items: typeof v === "number" ? v : 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-                <FormField help={t("adminPage.maxRowsHint")} size="short">
-                  <NumberInput
-                    label={t("adminPage.maxRows")}
-                    min={1}
-                    value={remote.max_rows}
-                    onChange={(v) =>
-                      setSettings({
-                        ...settings,
-                        graphql_remote: {
-                          ...remote,
-                          max_rows: typeof v === "number" ? v : 0,
-                        },
-                      })
-                    }
-                  />
-                </FormField>
-              </FormLayout>
-            </Card>
-            <ServerLimitsCard />
-            <SaveRow save={save} saving={saving} msg={msg} />
-          </Stack>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+          <Card withBorder padding="md">
+            <Title order={4} mb="sm">
+              {t("adminPage.graphqlRemote")}
+            </Title>
+            <FormLayout>
+              <FormField help={t("adminPage.maxObjectDepthHint")} size="short">
+                <NumberInput
+                  label={t("adminPage.maxObjectDepth")}
+                  min={1}
+                  value={remote.max_object_depth}
+                  onChange={(v) =>
+                    setSettings({
+                      ...settings,
+                      graphql_remote: {
+                        ...remote,
+                        max_object_depth: typeof v === "number" ? v : 0,
+                      },
+                    })
+                  }
+                />
+              </FormField>
+              <FormField help={t("adminPage.maxListDepthHint")} size="short">
+                <NumberInput
+                  label={t("adminPage.maxListDepth")}
+                  min={1}
+                  value={remote.max_list_depth}
+                  onChange={(v) =>
+                    setSettings({
+                      ...settings,
+                      graphql_remote: {
+                        ...remote,
+                        max_list_depth: typeof v === "number" ? v : 0,
+                      },
+                    })
+                  }
+                />
+              </FormField>
+              <FormField help={t("adminPage.maxListItemsHint")} size="short">
+                <NumberInput
+                  label={t("adminPage.maxListItems")}
+                  min={1}
+                  value={remote.max_list_items}
+                  onChange={(v) =>
+                    setSettings({
+                      ...settings,
+                      graphql_remote: {
+                        ...remote,
+                        max_list_items: typeof v === "number" ? v : 0,
+                      },
+                    })
+                  }
+                />
+              </FormField>
+              <FormField help={t("adminPage.maxRowsHint")} size="short">
+                <NumberInput
+                  label={t("adminPage.maxRows")}
+                  min={1}
+                  value={remote.max_rows}
+                  onChange={(v) =>
+                    setSettings({
+                      ...settings,
+                      graphql_remote: {
+                        ...remote,
+                        max_rows: typeof v === "number" ? v : 0,
+                      },
+                    })
+                  }
+                />
+              </FormField>
+            </FormLayout>
+          </Card>
+          <ServerLimitsCard />
+          <SaveRow save={save} saving={saving} msg={msg} />
+        </Stack>
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }
 
