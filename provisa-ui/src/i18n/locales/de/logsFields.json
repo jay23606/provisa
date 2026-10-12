@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "Dateien",
-    "globHint": "Ein vollständiger Pfad oder ein Glob wie /var/log/system.log*; rotierte und komprimierte Dateien werden mitgelesen.",
+    "globHelp": "Ein vollständiger Pfad oder ein Glob wie /var/log/system.log*; rotierte und komprimierte Dateien werden mitgelesen.",
     "format": "Format",
     "formatHelp": "Wie jeder Eintrag der Dateien geschrieben ist. Eine Zeile, die das Format nicht lesen kann, bleibt mit ihrem Rohtext und dem Grund erhalten.",
     "loadingFormats": "Formate werden geladen…",
     "pattern": "Muster",
     "patternHint": "Ein regulärer Ausdruck; jede benannte Gruppe wie (?P<level>…) ist eine Spalte.",
     "recordStart": "Eintragsbeginn",
-    "recordStartHint": "Womit die erste Zeile eines Eintrags beginnt, wenn ein Eintrag mehrere Zeilen umfasst; leer lassen für einen Eintrag je Zeile.",
+    "recordStartHelp": "Womit die erste Zeile eines Eintrags beginnt, wenn ein Eintrag mehrere Zeilen umfasst; leer lassen für einen Eintrag je Zeile.",
     "preview": "Vorschau",
     "filesFound": "Gefundene Dateien: {{count}}",
     "columns": "Spalten",

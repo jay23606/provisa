@@ -94,7 +94,7 @@ export function LogsFields({ fields, setFields }: Props) {
   return (
     <>
       <FieldGroup>
-        <FormField size="long" hint={t("logsFields.globHint")}>
+        <FormField size="long" help={t("logsFields.globHelp")}>
           <TextInput
             required
             label={t("logsFields.glob")}
@@ -134,7 +134,7 @@ export function LogsFields({ fields, setFields }: Props) {
               data-testid="logs-pattern"
             />
           </FormField>
-          <FormField size="long" hint={t("logsFields.recordStartHint")}>
+          <FormField size="long" help={t("logsFields.recordStartHelp")}>
             <TextInput
               label={t("logsFields.recordStart")}
               placeholder="\d{4}-\d{2}-\d{2} "

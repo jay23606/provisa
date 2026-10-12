@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "Files",
-    "globHint": "A full path, or a glob such as /var/log/system.log*; rotated and compressed files are read too.",
+    "globHelp": "A full path, or a glob such as /var/log/system.log*; rotated and compressed files are read too.",
     "format": "Format",
     "formatHelp": "How each record of the files is written. A line the format cannot read is kept with its raw text and the reason.",
     "loadingFormats": "Loading formats…",
     "pattern": "Pattern",
     "patternHint": "A regular expression; each named group, such as (?P<level>…), is a column.",
     "recordStart": "Record start",
-    "recordStartHint": "What the first line of a record starts with, when a record spans lines; leave empty for one record a line.",
+    "recordStartHelp": "What the first line of a record starts with, when a record spans lines; leave empty for one record a line.",
     "preview": "Preview",
     "filesFound": "Files matched: {{count}}",
     "columns": "Columns",

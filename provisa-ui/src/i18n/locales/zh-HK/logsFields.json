@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "檔案",
-    "globHint": "完整路徑，或 /var/log/system.log* 這類 glob；輪替及壓縮的檔案亦會讀取。",
+    "globHelp": "完整路徑，或 /var/log/system.log* 這類 glob；輪替及壓縮的檔案亦會讀取。",
     "format": "格式",
     "formatHelp": "檔案中每條記錄的寫法。格式無法讀取的行會連同原始文字和原因一併保留。",
     "loadingFormats": "正在載入格式…",
     "pattern": "模式",
     "patternHint": "一個正規表示式；每個具名群組（例如 (?P<level>…)）都是一欄。",
     "recordStart": "記錄開頭",
-    "recordStartHint": "當一條記錄跨越多行時，其第一行以甚麼開頭；每行一條記錄則留空。",
+    "recordStartHelp": "當一條記錄跨越多行時，其第一行以甚麼開頭；每行一條記錄則留空。",
     "preview": "預覽",
     "filesFound": "相符的檔案：{{count}}",
     "columns": "欄",

@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "Fichiers",
-    "globHint": "Un chemin complet, ou un glob comme /var/log/system.log* ; les fichiers archivés et compressés sont lus aussi.",
+    "globHelp": "Un chemin complet, ou un glob comme /var/log/system.log* ; les fichiers archivés et compressés sont lus aussi.",
     "format": "Format",
     "formatHelp": "La façon dont chaque entrée des fichiers est écrite. Une ligne que le format ne sait pas lire est conservée avec son texte brut et la raison.",
     "loadingFormats": "Chargement des formats…",
     "pattern": "Motif",
     "patternHint": "Une expression régulière ; chaque groupe nommé, comme (?P<level>…), est une colonne.",
     "recordStart": "Début d'entrée",
-    "recordStartHint": "Ce par quoi commence la première ligne d'une entrée qui s'étend sur plusieurs lignes ; laissez vide pour une entrée par ligne.",
+    "recordStartHelp": "Ce par quoi commence la première ligne d'une entrée qui s'étend sur plusieurs lignes ; laissez vide pour une entrée par ligne.",
     "preview": "Aperçu",
     "filesFound": "Fichiers trouvés : {{count}}",
     "columns": "Colonnes",

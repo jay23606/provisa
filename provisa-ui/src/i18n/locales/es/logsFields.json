@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "Archivos",
-    "globHint": "Una ruta completa o un glob como /var/log/system.log*; también se leen los archivos rotados y comprimidos.",
+    "globHelp": "Una ruta completa o un glob como /var/log/system.log*; también se leen los archivos rotados y comprimidos.",
     "format": "Formato",
     "formatHelp": "Cómo está escrito cada registro de los archivos. Una línea que el formato no puede leer se conserva con su texto sin procesar y el motivo.",
     "loadingFormats": "Cargando formatos…",
     "pattern": "Patrón",
     "patternHint": "Una expresión regular; cada grupo con nombre, como (?P<level>…), es una columna.",
     "recordStart": "Inicio de registro",
-    "recordStartHint": "Con qué empieza la primera línea de un registro cuando ocupa varias líneas; déjelo vacío para un registro por línea.",
+    "recordStartHelp": "Con qué empieza la primera línea de un registro cuando ocupa varias líneas; déjelo vacío para un registro por línea.",
     "preview": "Vista previa",
     "filesFound": "Archivos encontrados: {{count}}",
     "columns": "Columnas",

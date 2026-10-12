@@ -1,14 +1,14 @@
 {
   "logsFields": {
     "glob": "Bestanden",
-    "globHint": "Een volledig pad, of een glob zoals /var/log/system.log*; geroteerde en gecomprimeerde bestanden worden ook gelezen.",
+    "globHelp": "Een volledig pad, of een glob zoals /var/log/system.log*; geroteerde en gecomprimeerde bestanden worden ook gelezen.",
     "format": "Formaat",
     "formatHelp": "Hoe elke regel van de bestanden geschreven is. Een regel die het formaat niet kan lezen, blijft bewaard met de ruwe tekst en de reden.",
     "loadingFormats": "Formaten laden…",
     "pattern": "Patroon",
     "patternHint": "Een reguliere expressie; elke benoemde groep, zoals (?P<level>…), is een kolom.",
     "recordStart": "Begin van een record",
-    "recordStartHint": "Waarmee de eerste regel van een record begint, als een record meerdere regels beslaat; laat leeg voor één record per regel.",
+    "recordStartHelp": "Waarmee de eerste regel van een record begint, als een record meerdere regels beslaat; laat leeg voor één record per regel.",
     "preview": "Voorbeeld",
     "filesFound": "Gevonden bestanden: {{count}}",
     "columns": "Kolommen",
