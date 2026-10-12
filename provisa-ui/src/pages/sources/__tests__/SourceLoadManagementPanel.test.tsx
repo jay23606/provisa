@@ -60,13 +60,12 @@ function Harness({ onForm }: { onForm?: (f: SourceFormState) => void }) {
 }
 
 describe("SourceLoadManagementPanel", () => {
-  it("is titled, collapsed by default, and opens to its help text and settings", async () => {
+  it("is titled and open, with no toggle, showing its help text and settings", async () => {
     renderInForm(<Harness />);
-    const toggle = screen.getByTestId("source-load-management-panel-toggle");
-    expect(toggle).toHaveTextContent("Load Management and Timeliness");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("source-load-management-panel")).toHaveTextContent(
+      "Load Management and Timeliness",
+    );
+    expect(screen.queryByTestId("source-load-management-panel-toggle")).toBeNull();
     expect(screen.getByTestId("source-load-management-help")).toHaveTextContent(
       "How current the data must be for each reader, balanced against load on the platform and upstream sources.",
     );
@@ -77,7 +76,6 @@ describe("SourceLoadManagementPanel", () => {
 
   const SCHEDULED = "Always, source read only on schedule";
   async function openReplicate() {
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const select = await screen.findByTestId("source-replicate-select");
     fireEvent.click(select);
     const listbox = document.getElementById(select.getAttribute("aria-controls") as string);
@@ -155,7 +153,6 @@ describe("SourceLoadManagementPanel", () => {
 
   it("says in its help what refreshes a source read only on schedule", async () => {
     renderInForm(<Harness />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const help = (await screen.findByTestId("source-replicate-select")).getAttribute(
       "aria-description",
     );
@@ -174,22 +171,20 @@ describe("SourceLoadManagementPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the explanation on hover without toggling the section", async () => {
+  it("shows the explanation on hover, and its settings stay in view", async () => {
     renderInForm(<Harness />);
-    const toggle = screen.getByTestId("source-load-management-panel-toggle");
     const icon = screen.getByTestId("source-load-management-panel-info");
     await userEvent.hover(icon);
     expect(
       await screen.findByText(/A table the engine reads live ignores the TTL settings/),
     ).toBeInTheDocument();
     await userEvent.click(icon);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("source-load-management-help")).toBeVisible();
   });
 
   it("edits the sentinel path, freshness gate and live-concurrency cap", async () => {
     const onForm = vi.fn();
     renderInForm(<Harness onForm={onForm} />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await userEvent.type(await screen.findByTestId("sentinel-path-input"), "https://x/_SUCCESS");
     expect(onForm).toHaveBeenLastCalledWith(
       expect.objectContaining({ sentinelPath: "https://x/_SUCCESS" }),
@@ -203,7 +198,6 @@ describe("SourceLoadManagementPanel", () => {
   it("sets Replicate through the shared drop-down, in place of the old checkbox", async () => {
     const onForm = vi.fn();
     renderInForm(<Harness onForm={onForm} />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const select = await screen.findByTestId("source-replicate-select");
     expect(select).toHaveValue("Default");
     expect(screen.queryByTestId("prefer-materialized-checkbox")).toBeNull();
@@ -230,7 +224,6 @@ describe("SourceLoadManagementPanel", () => {
 
   it("flags a sentinel path with an unsupported scheme", async () => {
     renderInForm(<Harness />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await userEvent.type(await screen.findByTestId("sentinel-path-input"), "s3://b/_SUCCESS");
     expect(
       await screen.findByText("Use a file:, ftp:, sftp:, http: or https: URL, or leave empty."),
@@ -247,7 +240,6 @@ describe("SourceLoadManagementPanel", () => {
       return <SourceLoadManagementPanel form={form} setForm={setForm} />;
     }
     renderInForm(<NoTtl />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     const msg = "The ttl change signal judges staleness by the Cache TTL, so set a Cache TTL.";
     expect(await screen.findByText(msg)).toBeInTheDocument();
     await userEvent.type(screen.getByTestId("cache-ttl-input"), "30");
@@ -263,14 +255,12 @@ describe("SourceLoadManagementPanel", () => {
         setForm={vi.fn()}
       />,
     );
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await screen.findByTestId("cache-ttl-input");
     expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
   });
 
   it("does not error for a live-read ttl source with no Cache TTL", async () => {
     renderInForm(<SourceLoadManagementPanel form={{ ...FORM, cacheTtl: "" }} setForm={vi.fn()} />);
-    await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
     await screen.findByTestId("cache-ttl-input");
     expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();
   });
@@ -285,7 +275,7 @@ describe("SourceLoadManagementPanel", () => {
       });
     }
 
-    it("opens the panel, marks the Cache TTL required and errors until one is given", async () => {
+    it("marks the Cache TTL required and errors until one is given", async () => {
       const asked = kinds({ microsoft_365: true });
       function Mail() {
         const [form, setForm] = useState<SourceFormState>({
@@ -296,14 +286,9 @@ describe("SourceLoadManagementPanel", () => {
         return <SourceLoadManagementPanel form={form} setForm={setForm} />;
       }
       renderInForm(<Mail />);
-      // No click: the panel opens itself, since the field in it must be filled.
-      await vi.waitFor(() =>
-        expect(screen.getByTestId("source-load-management-panel-toggle")).toHaveAttribute(
-          "aria-expanded",
-          "true",
-        ),
-      );
-      expect(screen.getByTestId("cache-ttl-input")).toBeRequired();
+      // The field that must be filled is in view: the panel is always open. It is required once
+      // the server has said what the kind needs.
+      await vi.waitFor(() => expect(screen.getByTestId("cache-ttl-input")).toBeRequired());
       const msg = "The ttl change signal judges staleness by the Cache TTL, so set a Cache TTL.";
       expect(await screen.findByText(msg)).toBeInTheDocument();
       await userEvent.type(screen.getByTestId("cache-ttl-input"), "300");
@@ -348,7 +333,6 @@ describe("SourceLoadManagementPanel", () => {
         />,
       );
       await vi.waitFor(() => expect(asked).toHaveBeenCalled());
-      await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
       expect(await screen.findByTestId("cache-ttl-input")).not.toBeRequired();
       expect(screen.getByTestId("sentinel-path-input")).toBeInTheDocument();
       expect(screen.queryByText(/judges staleness by the Cache TTL/)).toBeNull();

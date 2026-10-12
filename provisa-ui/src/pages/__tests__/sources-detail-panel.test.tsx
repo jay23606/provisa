@@ -187,7 +187,7 @@ describe("+ Source asks only what a source needs in order to exist", () => {
     // What a source can exist without is set afterwards, in its edit form.
     expect(step.queryByLabelText("Description")).toBeNull();
     expect(step.queryByTestId("source-region-select")).toBeNull();
-    expect(step.queryByTestId("source-load-management-panel-toggle")).toBeNull();
+    expect(step.queryByTestId("source-load-management-panel")).toBeNull();
   });
 
   it("selects the source it created and opens its detail in edit, the rest at defaults", async () => {
@@ -209,7 +209,7 @@ describe("+ Source asks only what a source needs in order to exist", () => {
     await screen.findByTestId("sources-edit-submit");
     expect(screen.getByTestId("sources-split-title")).toHaveTextContent("crm");
     expect(within(panel()!).getByLabelText("Description")).toHaveValue("");
-    expect(within(panel()!).getByTestId("source-load-management-panel-toggle")).toBeInTheDocument();
+    expect(within(panel()!).getByTestId("source-load-management-panel")).toBeInTheDocument();
   });
 });
 
