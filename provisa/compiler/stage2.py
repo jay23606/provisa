@@ -77,6 +77,10 @@ class GovernanceContext:  # REQ-263, REQ-264, REQ-265
     # REQ-1942: per table with kept mutations (a Reversible environment), its change log's
     # address and primary key; the table is read with the log applied.
     kept: dict[int, tuple[str, list[str]]] = field(default_factory=dict)
+    # REQ-421/423: per table, its embedding columns (by the name a statement uses) and each one's
+    # model; and the registered models' dimensions, which the pipeline sets for the statement.
+    embedding_columns: dict[int, dict[str, str]] = field(default_factory=dict)
+    embedding_dims: dict[str, int] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -204,6 +208,13 @@ def build_governance_context(  # REQ-002, REQ-005, REQ-040, REQ-263, REQ-265, RE
             # A column the relation a statement reads does not hold is not expanded from `*`.
             if (table_id, c["column_name"]) not in ctx.columns_outside_relation
         ]
+        embeddings = {
+            c["column_name"]: c["embedding_model"]
+            for c in cols
+            if c.get("embedding") and c.get("embedding_model")
+        }
+        if embeddings:
+            gov.embedding_columns[table_id] = embeddings
         gov.writable_columns[table_id] = frozenset(
             c["column_name"] for c in cols if role_id in (c.get("writable_by") or [])
         )
@@ -432,6 +443,21 @@ def _govern_select(
             # fakes -- a written row is never faked again.
             _project_kept(node, tbl, faked, tid, gov_ctx)
             projected.add(id(tbl))
+
+    # --- REQ-423/426: a similarity search names an embedding column the role is served, and is
+    # completed with its model and dimensions -- before a hidden column becomes NULL below, so a
+    # search of one is refused by name rather than scoring nothing.
+    from provisa.vector.similarity import govern_calls
+
+    if any(True for _ in node.find_all(exp.Anonymous)):
+        govern_calls(
+            node,
+            alias_to_tid,
+            gov_ctx.embedding_columns,
+            gov_ctx.embedding_dims,
+            lambda col: _is_column_visible(col, alias_to_tid, gov_ctx),
+            gov_ctx.role_id,
+        )
 
     # --- Every other reference to a governed column (expressions, WHERE, JOIN ON, GROUP BY,
     # HAVING, ORDER BY, windows): the role computes only over what it can see. Done before the

@@ -6071,21 +6071,19 @@
   category: Vector Search
   priority: SHOULD
   type: behavioral
-  description: 'Source capability auto-detection at registration time must identify native vector support:
-    pgvector extension for PostgreSQL, Atlas Vector Search for MongoDB, Cortex for Snowflake. Sources
-    without detected capability are flagged as requiring fallback.'
+  description: 'A source''s native vector capability is detected when its driver connects, at boot and when the source is registered (executor.pool.SourcePool.add): what its own SQL computes a cosine_similarity search with. A PostgreSQL source has it when the pgvector extension is installed, probed on the connection; Snowflake''s SQL always has its VECTOR functions. A source without it is flagged for the federation engine, which computes the search. MongoDB Atlas, Qdrant and Azure Cosmos DB search natively in a query form, not a SQL scalar: their own nearest-neighbour search is a pipeline or search table (REQ-1980, REQ-1982, REQ-1983).'
   use_case: Early capability detection allows fallback materialization strategy to be planned at source
     registration.
   code:
   - provisa/vector/capability.py
-  - provisa/vector/support.py
+  - provisa/executor/pool.py
   tests:
   - tests/unit/test_vector.py
   scenario: 'Given a PostgreSQL source being registered
 
     When Provisa checks for native vector support
 
-    Then it detects the pgvector extension and marks the source as native-capable, or flags it for fallback
+    Then it detects the pgvector extension and marks the source as native-capable, or flags it for the engine
 
     '
   integration_test: deferred
@@ -6101,23 +6099,20 @@
     rationale: Automatic vector capability detection at source registration time (pgvector, MongoDB Atlas
       Vector Search, Snowflake Cortex) with planned fallback materialization strategy is not present in
       any competitor federation platform; vector search is only available within individual source silos.
-  notes: 'Audit 2026-10-03: was marked complete; partly built. Missing: Detection is never run at source
-    registration and nothing flags a source as requiring fallback. native_vector_capability / supports_native_vectors
-    / has_pgvector (provisa/vector/capability.py:26,31,35) and check_native_vector_support (provisa/vector/support.py:20)
-    have no caller outside provisa/vector/; no registration path (provisa/api/admin, provisa/core) references
-    them. Maintainer 2026-10-03: finish it; accepted for build.'
+  notes: 'Audit 2026-10-03: was marked complete; partly built. Missing: Detection is never run at source registration and nothing flags a source as requiring fallback. native_vector_capability / supports_native_vectors / has_pgvector (provisa/vector/capability.py:26,31,35) and check_native_vector_support (provisa/vector/support.py:20) have no caller outside provisa/vector/; no registration path (provisa/api/admin, provisa/core) references them. Maintainer 2026-10-03: finish it; accepted for build. Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-423
-  status: complete
+  status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: SHOULD
   type: behavioral
-  description: A `cosine_similarity(column, query_vector)` UDF must be available in Provisa SQL. It translates
-    to the native vector operator for sources with native capability (pgvector `<=>`, Snowflake `VECTOR_COSINE_SIMILARITY()`,
-    etc.) and to the pgvector fallback cache for sources without.
+  description: 'A `cosine_similarity(column, query)` function is available in Provisa SQL (and so in Cypher, which compiles to it). The column is an embedding column (REQ-421); the query is a vector (a bound value or a ''[...]'' literal), a text embedded by the column''s model (REQ-430), or another embedding column of the same model. The call is governed with the whole statement and lowered to the terminal that runs it: on a source whose own SQL computes it, that source''s form (pgvector''s cosine_distance on PostgreSQL with the extension, a plain array computation without it, Snowflake VECTOR_COSINE_SIMILARITY); elsewhere the statement routes to the federation engine, which computes it exactly (DuckDB array_cosine_similarity, Trino cosine_similarity over arrays). Over a table of a source whose native vector search is a query form (MongoDB Atlas, Qdrant, Cosmos DB), the engine computes it exactly over the landed or replicated rows; the source''s own nearest-neighbour search is its pipeline or search table.'
   use_case: Unified UDF hides native vs. fallback complexity from analysts.
   code:
-  - provisa/compiler/sql_gen.py
+  - provisa/vector/similarity.py
+  - provisa/compiler/stage2.py
+  - provisa/transpiler/transpile.py
+  - provisa/pgwire/_pipeline.py
   tests:
   - tests/unit/test_vector.py
   since: 2026-01
@@ -6125,8 +6120,7 @@
 
     When compiled for a native-capable source
 
-    Then the UDF translates to the native vector operator; for non-native sources it routes to the pgvector
-    fallback cache
+    Then the call is written in that source''s own SQL; for a source without it the statement routes to the engine, which computes it
 
     '
   integration_test: deferred
@@ -6142,8 +6136,9 @@
     rationale: A unified cosine_similarity UDF that transparently routes to native vector operators (pgvector
       <=>), Snowflake VECTOR_COSINE_SIMILARITY, or fallback cache is a unique federation-layer abstraction;
       no competitor provides a cross-source unified vector search UDF.
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-424
-  status: complete
+  status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: SHOULD
@@ -6180,8 +6175,9 @@
     rationale: Transparent pgvector fallback materialization with HNSW index for sources lacking native
       vector capability is unique to Provisa; competitors require vector search to be handled within the
       native source and provide no cross-source fallback path.
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-425
-  status: complete
+  status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: MUST
@@ -6218,18 +6214,18 @@
   - REQ-826
   - REQ-844
   - REQ-856
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-426
-  status: complete
+  status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: MUST
   type: constraint
-  description: 'Embedding columns are subject to the full Provisa governance stack: RLS, column masking,
-    domain boundary rules, and sensitivity tiers. A `restricted` sensitivity tier on an embedding column
-    must prevent cosine similarity search for unauthorized roles.'
+  description: 'Embedding columns are subject to the full Provisa governance stack: row filters, domain boundary rules, and sensitivity tiers. A role may search an embedding column with cosine_similarity only if it is served that column (its visible_to grant and scope; a restricted scope is the sensitivity tier, admitting only whom visible_to names); a search of any other column is refused naming it.'
   use_case: Embedding vectors inherit standard governance, preventing privacy bypass through vector search.
   code:
-  - provisa/compiler/sql_gen.py
+  - provisa/vector/similarity.py
+  - provisa/compiler/stage2.py
   tests:
   - tests/unit/test_vector.py
   since: 2026-01
@@ -6237,7 +6233,7 @@
 
     When an unauthorized role attempts a cosine_similarity search on that column
 
-    Then the query is rejected and the column is absent from the schema for that role
+    Then the query is rejected naming the column, and the column is absent from the schema for that role
 
     '
   integration_test: deferred
@@ -6251,6 +6247,7 @@
     rationale: Embedding columns subject to Provisa's full governance stack (RLS, masking, sensitivity
       tiers, domain boundaries) with all-or-nothing access enforcement prevents privacy bypass through
       vector search — a governance gap in all competitor platforms that expose vector search.
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-427
   status: complete
   group: 4. Source Connectors
@@ -6870,19 +6867,17 @@
       that participates identically in query compilation is a unified schema model not present in Hasura
       (separate remote schema type system) or Trino (no remote schema concept).
 - id: REQ-652
-  status: complete
+  status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: MUST
   type: constraint
-  description: Column masking does not apply to embedding columns — a vector cannot be partially masked
-    and remain semantically meaningful. Access to an embedding column is enforced via visibility (hide
-    entirely), RLS (filter rows), sensitivity tier (block search), and domain boundary rules; the column
-    is either visible and searchable for a given role, or absent from the schema entirely.
+  description: 'Column masking does not apply to embedding columns — a vector cannot be partially masked and remain semantically meaningful. Registration refuses a mask on an embedding column. Access to an embedding column is enforced via visibility (hide entirely), row filters, sensitivity tier (block search), and domain boundary rules; the column is either visible and searchable for a given role, or absent from the schema entirely.'
   use_case: Preventing partial-masking of vectors ensures access control is all-or-nothing for embedding
     columns, which cannot be meaningfully redacted at the field level.
   code:
-  - provisa/vector/governance.py
+  - provisa/core/models.py
+  - provisa/vector/similarity.py
   tests:
   - tests/unit/test_vector.py
   since: 2026-01
@@ -6904,6 +6899,7 @@
     rationale: All-or-nothing governance for embedding columns (no partial masking; must be fully visible
       or entirely absent) is a principled vector access control model not present in any competitor; Snowflake
       Cortex has no cross-source governance enforcement on embeddings.
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-007
   status: complete
   group: 5. Query Languages, Compilation & Operations

@@ -12,10 +12,7 @@ import types
 
 import pytest
 
-from provisa.vector.capability import (
-    native_vector_capability,
-    supports_native_vectors,
-)
+from provisa.vector.capability import detect_vector_capability
 from provisa.vector.providers import (
     EmbeddingError,
     OllamaProvider,
@@ -204,27 +201,35 @@ class TestProviders:
 # --- REQ-422: source vector capability ---
 
 
+class _Driver:
+    """A connected direct driver whose probe answers ``rows``."""
+
+    def __init__(self, rows):
+        self.rows = rows
+        self.asked: list[str] = []
+
+    async def execute(self, sql, params=None):
+        self.asked.append(sql)
+        return types.SimpleNamespace(rows=self.rows)
+
+
 class TestCapability:
-    async def test_native_capability_by_source_type(self):
-        assert native_vector_capability("postgresql") == "pgvector"
-        assert native_vector_capability("mongodb") == "atlas_vector"
-        assert native_vector_capability("snowflake") == "cortex"
-        assert native_vector_capability("mysql") is None
-        assert supports_native_vectors("postgresql") is True
-        assert supports_native_vectors("mysql") is False
+    async def test_a_postgres_source_with_the_extension_has_pgvector(self):
+        driver = _Driver([(1,)])
+        assert await detect_vector_capability("postgres", driver) == "pgvector"
+        assert "pg_extension" in driver.asked[0]
 
-    async def test_has_pgvector_probe(self):
-        from provisa.vector.capability import has_pgvector
+    async def test_a_postgres_source_without_it_is_the_engines(self):
+        assert await detect_vector_capability("postgres", _Driver([])) is None
 
-        class _Conn:
-            def __init__(self, val):
-                self._val = val
+    async def test_snowflake_always_has_its_vector_functions(self):
+        driver = _Driver([])
+        assert await detect_vector_capability("snowflake", driver) == "snowflake"
+        assert driver.asked == []
 
-            async def fetchval(self, q):
-                return self._val
-
-        assert await has_pgvector(_Conn(1)) is True
-        assert await has_pgvector(_Conn(None)) is False
+    async def test_every_other_source_is_the_engines(self):
+        for dialect in ("mysql", "tsql", "bigquery", "clickhouse", "mongodb"):
+            assert await detect_vector_capability(dialect, _Driver([(1,)])) is None
 
 
 # --- REQ-421: embedding column declaration ---
@@ -271,39 +276,7 @@ class TestConfigWiring:
         assert reg.is_allowed("m")
 
 
-# --- Phase B1: native tier (REQ-423/429/430) ---
-
-
-class TestCosineSimilaritySql:
-    async def test_pgvector_translation(self):
-        from provisa.vector.query import cosine_similarity_sql
-
-        sql = cosine_similarity_sql("title_vec", [0.1, 0.2, 0.3], "pgvector")
-        assert sql == "(1 - (title_vec <=> '[0.1,0.2,0.3]'::vector))"
-
-    async def test_cortex_translation(self):
-        from provisa.vector.query import cosine_similarity_sql
-
-        sql = cosine_similarity_sql("v", [0.1, 0.2], "cortex")
-        assert sql == "VECTOR_COSINE_SIMILARITY(v, [0.1,0.2]::VECTOR(FLOAT, 2))"
-
-    async def test_atlas_has_no_sql_scalar(self):
-        from provisa.vector.query import VectorQueryError, cosine_similarity_sql
-
-        with pytest.raises(VectorQueryError, match="vectorSearch"):
-            cosine_similarity_sql("v", [0.1], "atlas_vector")
-
-    async def test_no_native_capability_directs_to_fallback(self):
-        from provisa.vector.query import VectorQueryError, cosine_similarity_sql
-
-        with pytest.raises(VectorQueryError, match="fallback"):
-            cosine_similarity_sql("v", [0.1], None)
-
-    async def test_empty_vector_rejected(self):
-        from provisa.vector.query import VectorQueryError, cosine_similarity_sql
-
-        with pytest.raises(VectorQueryError, match="empty"):
-            cosine_similarity_sql("v", [], "pgvector")
+# --- REQ-429: model locking ---
 
 
 class TestModelLocking:
@@ -318,47 +291,6 @@ class TestModelLocking:
 
         with pytest.raises(VectorModelError, match="expects 3"):
             validate_vector_dimensions([1.0, 2.0], VectorModel("m", "openai", 3))
-
-
-class TestResolveQueryVector:
-    async def test_raw_vector_passthrough_with_validation(self):
-        from provisa.vector.query import resolve_query_vector
-
-        m = VectorModel("m", "openai", 3)
-        assert await resolve_query_vector([0.1, 0.2, 0.3], m) == [0.1, 0.2, 0.3]
-
-    async def test_raw_vector_wrong_dimension_rejected(self):
-        from provisa.vector.query import resolve_query_vector
-
-        with pytest.raises(VectorModelError):
-            await resolve_query_vector([0.1, 0.2], VectorModel("m", "openai", 3))
-
-    async def test_text_input_vectorized_via_locked_model(self):
-        from provisa.vector.query import resolve_query_vector
-
-        class _Provider:
-            async def embed(self, texts, model):
-                assert texts == ["hello"]
-                return [[0.5, 0.6, 0.7]]
-
-        m = VectorModel("m", "openai", 3)
-        assert await resolve_query_vector("hello", m, provider=_Provider()) == [0.5, 0.6, 0.7]
-
-    async def test_text_input_dimension_mismatch_rejected(self):
-        from provisa.vector.query import resolve_query_vector
-
-        class _Provider:
-            async def embed(self, texts, model):
-                return [[0.1, 0.2]]  # 2 dims, model expects 3
-
-        with pytest.raises(VectorModelError):
-            await resolve_query_vector("hello", VectorModel("m", "openai", 3), provider=_Provider())
-
-    async def test_bad_input_type_rejected(self):
-        from provisa.vector.query import VectorQueryError, resolve_query_vector
-
-        with pytest.raises(VectorQueryError, match="text or a vector"):
-            await resolve_query_vector(42, VectorModel("m", "openai", 3))
 
 
 # --- Phase B2: fallback cache + invalidation (REQ-424/425) ---
@@ -548,36 +480,57 @@ class TestScheduledRefresh:
         assert plan.mode is RefreshMode.FULL
 
 
-class TestEmbeddingGovernance:
-    async def test_visible_role_can_search(self):
+class TestEmbeddingIsNeverMasked:
+    async def test_registration_refuses_a_mask_on_an_embedding_column(self):  # REQ-652
+        import pydantic
+
         from provisa.core.models import Column
-        from provisa.vector.governance import can_search_embedding
 
-        col = Column(name="v", visible_to=["admin", "analyst"], embedding=True)
-        assert can_search_embedding("analyst", col) is True
-        assert can_search_embedding("guest", col) is False
+        with pytest.raises(pydantic.ValidationError, match="cannot be masked"):
+            Column(
+                name="v",
+                visible_to=["admin"],
+                mask_type="constant",
+                unmasked_to=["admin"],
+                embedding=True,
+                embedding_model="m",
+            )
 
-    async def test_masked_column_blocks_search_for_masked_role(self):
+    async def test_a_mask_on_another_column_is_kept(self):
         from provisa.core.models import Column
-        from provisa.vector.governance import can_search_embedding
 
-        col = Column(
-            name="v",
-            visible_to=["admin", "analyst"],
-            mask_type="constant",
-            unmasked_to=["admin"],
-            embedding=True,
-        )
-        assert can_search_embedding("admin", col) is True
-        assert can_search_embedding("analyst", col) is False  # masked for analyst
-
-    async def test_assert_raises_for_unauthorized(self):
-        from provisa.core.models import Column
-        from provisa.vector.governance import EmbeddingAccessError, assert_search_allowed
-
-        col = Column(name="v", visible_to=["admin"], embedding=True)
-        with pytest.raises(EmbeddingAccessError):
-            assert_search_allowed("guest", col)
+        assert Column(name="email", visible_to=["admin"], mask_type="constant").mask_type
 
 
 _ = types  # silence unused-import lints in some environments
+
+
+class TestCapabilityIsDetectedWhenASourceConnects:  # REQ-422
+    async def test_the_pool_holds_each_sources_capability(self, monkeypatch):
+        import provisa.executor.pool as P
+
+        class _Fake:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def configure(self, extra):
+                pass
+
+            async def connect(self, *a):
+                pass
+
+            async def execute(self, sql, params=None):
+                return types.SimpleNamespace(rows=self.rows)
+
+            async def close(self):
+                pass
+
+        drivers = {"postgresql": _Fake([(1,)]), "mysql": _Fake([(1,)])}
+        monkeypatch.setattr(P, "create_driver", lambda t, use_pgbouncer=False: drivers[t])
+        pool = P.SourcePool()
+        await pool.add("pg", "postgresql", "h", 5432, "db", "u", "p")
+        await pool.add("my", "mysql", "h", 3306, "db", "u", "p")
+        assert pool.vector_capability("pg") == "pgvector"
+        assert pool.vector_capability("my") is None
+        await pool.remove("pg")
+        assert pool.vector_capability("pg") is None

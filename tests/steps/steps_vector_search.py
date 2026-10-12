@@ -612,274 +612,98 @@ def assert_transparent_fallback(shared_data):
 
 
 # ---------------------------------------------------------------------------
-# REQ-422: Source capability auto-detection at registration time
+# REQ-422: Source capability detection when a source's driver connects
 # ---------------------------------------------------------------------------
+
+
+class _ProbedDriver:
+    """A connected PostgreSQL driver whose pg_extension probe answers ``rows``."""
+
+    def __init__(self, rows):
+        self.rows = rows
+
+    async def execute(self, sql, params=None):
+        return types.SimpleNamespace(rows=self.rows)
 
 
 @given("a PostgreSQL source being registered")
 def postgresql_source_being_registered(shared_data):
-    """
-    Set up two representative PostgreSQL source descriptors:
-
-    1. A source whose PostgreSQL instance has the pgvector extension installed —
-       ``native_capable`` should be True after detection.
-    2. A source whose instance does NOT have pgvector — it must be flagged as
-       requiring fallback.
-
-    We use ``native_vector_capability`` from
-    ``provisa.vector.capability`` to probe each source descriptor.
-    The function accepts a source descriptor mapping that includes at minimum
-    a ``source_type`` key and, for PostgreSQL sources, an ``extensions``
-    sequence that lists installed extensions (as would be discovered by
-    querying ``pg_extension``).
-    """
-    # Source with pgvector extension present.
-    pgvector_source = {
-        "source_type": "postgresql",
-        "host": "pg-with-pgvector.example.com",
-        "port": 5432,
-        "database": "mydb",
-        # Simulates the result of: SELECT extname FROM pg_extension
-        "extensions": ["plpgsql", "pgvector", "pg_trgm"],
+    """Two PostgreSQL sources, one with the pgvector extension installed and one without, and a
+    Snowflake source, whose SQL always has its VECTOR functions."""
+    shared_data["drivers"] = {
+        "pgvector": ("postgres", _ProbedDriver([(1,)])),
+        "plain_pg": ("postgres", _ProbedDriver([])),
+        "snowflake": ("snowflake", _ProbedDriver([])),
+        "mysql": ("mysql", _ProbedDriver([(1,)])),
     }
-
-    # Source without pgvector extension.
-    plain_pg_source = {
-        "source_type": "postgresql",
-        "host": "pg-plain.example.com",
-        "port": 5432,
-        "database": "mydb",
-        "extensions": ["plpgsql"],
-    }
-
-    # MongoDB source with Atlas Vector Search capability.
-    mongodb_atlas_source = {
-        "source_type": "mongodb",
-        "host": "atlas-cluster.mongodb.net",
-        "port": 27017,
-        "database": "mydb",
-        "features": ["atlas_vector_search"],
-    }
-
-    # MongoDB source without Atlas Vector Search.
-    mongodb_plain_source = {
-        "source_type": "mongodb",
-        "host": "plain-mongo.example.com",
-        "port": 27017,
-        "database": "mydb",
-        "features": [],
-    }
-
-    # Snowflake source with Cortex capability.
-    snowflake_cortex_source = {
-        "source_type": "snowflake",
-        "account": "myaccount.snowflakecomputing.com",
-        "database": "mydb",
-        "features": ["cortex"],
-    }
-
-    # Snowflake source without Cortex.
-    snowflake_plain_source = {
-        "source_type": "snowflake",
-        "account": "myaccount.snowflakecomputing.com",
-        "database": "mydb",
-        "features": [],
-    }
-
-    shared_data["pgvector_source"] = pgvector_source
-    shared_data["plain_pg_source"] = plain_pg_source
-    shared_data["mongodb_atlas_source"] = mongodb_atlas_source
-    shared_data["mongodb_plain_source"] = mongodb_plain_source
-    shared_data["snowflake_cortex_source"] = snowflake_cortex_source
-    shared_data["snowflake_plain_source"] = snowflake_plain_source
-
-    # Confirm all are typed correctly.
-    assert pgvector_source["source_type"] == "postgresql"
-    assert plain_pg_source["source_type"] == "postgresql"
-    assert mongodb_atlas_source["source_type"] == "mongodb"
-    assert mongodb_plain_source["source_type"] == "mongodb"
-    assert snowflake_cortex_source["source_type"] == "snowflake"
-    assert snowflake_plain_source["source_type"] == "snowflake"
 
 
 @when("Provisa checks for native vector support")
 def check_native_vector_support(shared_data):
-    """
-    Call the native vector support check and record the result.
-    """
-    from provisa.vector.support import check_native_vector_support as _check
+    from provisa.vector.capability import detect_vector_capability
 
-    results = {}
-    for key, source in [
-        ("pgvector", shared_data.get("pgvector_source")),
-        ("mongodb_atlas", shared_data.get("mongodb_atlas_source")),
-        ("mongodb_plain", shared_data.get("mongodb_plain_source")),
-        ("snowflake_cortex", shared_data.get("snowflake_cortex_source")),
-        ("snowflake_plain", shared_data.get("snowflake_plain_source")),
-    ]:
-        if source is not None:
-            results[key] = _check(source)
-    shared_data["native_vector_support"] = results
+    shared_data["capability"] = {
+        key: asyncio.run(detect_vector_capability(dialect, driver))
+        for key, (dialect, driver) in shared_data["drivers"].items()
+    }
 
 
 @then(
-    "it detects the pgvector extension and marks the source as native-capable, or flags it for fallback"
+    "it detects the pgvector extension and marks the source as native-capable, or flags it for the engine"
 )
 def assert_native_vector_detection(shared_data):
-    """
-    Verify REQ-422: capability detection produces the correct True/False result for
-    each source descriptor prepared in the Given step.
-    """
-    from provisa.vector.capability import native_vector_capability, supports_native_vectors
-
-    results = shared_data["native_vector_support"]
-
-    # PostgreSQL with pgvector extension → native-capable.
-    assert results["pgvector"] is True, "pgvector source must be detected as native-capable"
-
-    # MongoDB with Atlas Vector Search flag → native-capable.
-    assert results["mongodb_atlas"] is True, (
-        "MongoDB Atlas source must be detected as native-capable"
-    )
-
-    # MongoDB without Atlas Vector Search flag → fallback.
-    assert results["mongodb_plain"] is False, "Plain MongoDB must be flagged for fallback"
-
-    # Snowflake with Cortex flag → native-capable.
-    assert results["snowflake_cortex"] is True, (
-        "Snowflake Cortex source must be detected as native-capable"
-    )
-
-    # Snowflake without Cortex flag → fallback.
-    assert results["snowflake_plain"] is False, "Plain Snowflake must be flagged for fallback"
-
-    # Sanity-check the underlying capability helpers directly.
-    assert native_vector_capability("postgresql") == "pgvector"
-    assert native_vector_capability("mongodb") == "atlas_vector"
-    assert native_vector_capability("snowflake") == "cortex"
-    assert native_vector_capability("mysql") is None
-
-    assert supports_native_vectors("postgresql") is True
-    assert supports_native_vectors("mongodb") is True
-    assert supports_native_vectors("snowflake") is True
-    assert supports_native_vectors("mysql") is False
-    assert supports_native_vectors("unknown") is False
+    """REQ-422: a source with a native capability is marked with it; any other is the engine's."""
+    assert shared_data["capability"] == {
+        "pgvector": "pgvector",
+        "plain_pg": None,
+        "snowflake": "snowflake",
+        "mysql": None,
+    }
 
 
 # ---------------------------------------------------------------------------
-# REQ-423: cosine_similarity UDF — native translation and fallback routing
+# REQ-423: cosine_similarity, governed and lowered to the terminal that runs it
 # ---------------------------------------------------------------------------
-
-_UDF_DIMENSIONS = 3
 
 
 @given("a query using cosine_similarity(column, query_vector)")
 def cosine_similarity_query(shared_data):
-    """
-    Prepare a cosine_similarity query expression along with source descriptors
-    for the native and non-native paths.
-    """
-    shared_data["column"] = "doc_embedding"
-    shared_data["query_vector"] = [0.1, 0.2, 0.3]
-    shared_data["udf_dimensions"] = _UDF_DIMENSIONS
+    from provisa.compiler.stage2 import GovernanceContext, apply_governance
 
-    # Native-capable source: PostgreSQL with pgvector.
-    shared_data["native_source_capability"] = "pgvector"
-
-    # Non-native source: a source type with no vector capability.
-    shared_data["fallback_source_capability"] = None
-
-    assert len(shared_data["query_vector"]) == _UDF_DIMENSIONS
-    assert shared_data["native_source_capability"] == "pgvector"
-    assert shared_data["fallback_source_capability"] is None
+    gov = GovernanceContext()
+    gov.role_id = "analyst"
+    gov.table_map = {"docs": 1}
+    gov.all_columns = {1: [("id", "integer"), ("doc_embedding", "array(float)")]}
+    gov.visible_columns = {1: None}
+    gov.embedding_columns = {1: {"doc_embedding": "m"}}
+    gov.embedding_dims = {"m": 3}
+    shared_data["governed"] = apply_governance(
+        "SELECT d.id, cosine_similarity(d.doc_embedding, $1) AS s FROM docs d", gov
+    )
 
 
 @when("compiled for a native-capable source")
 def compile_for_native_source(shared_data):
-    """
-    Call cosine_similarity_sql for both a native-capable and a non-native source
-    and record the results (or the exception) in shared_data.
-    """
-    from provisa.vector.query import VectorQueryError, cosine_similarity_sql
+    from types import SimpleNamespace as _NS
 
-    column = shared_data["column"]
-    query_vector = shared_data["query_vector"]
+    from provisa.pgwire._pipeline import _similarity_needs_engine
+    from provisa.transpiler.transpile import transpile
 
-    # Native path.
-    shared_data["native_sql"] = cosine_similarity_sql(
-        column=column,
-        query_vector=query_vector,
-        capability=shared_data["native_source_capability"],
-    )
-
-    # Non-native path — must raise VectorQueryError.
-    try:
-        cosine_similarity_sql(
-            column=column,
-            query_vector=query_vector,
-            capability=shared_data["fallback_source_capability"],
-        )
-        shared_data["fallback_error"] = None
-    except VectorQueryError as exc:
-        shared_data["fallback_error"] = exc
-
-    # Also exercise the Snowflake Cortex path.
-    shared_data["cortex_sql"] = cosine_similarity_sql(
-        column=column,
-        query_vector=query_vector,
-        capability="cortex",
-    )
-
-    # Empty vector must be rejected regardless of capability.
-    try:
-        cosine_similarity_sql(column=column, query_vector=[], capability="pgvector")
-        shared_data["empty_vector_error"] = None
-    except VectorQueryError as exc:
-        shared_data["empty_vector_error"] = exc
+    governed = shared_data["governed"]
+    shared_data["pgvector_sql"] = transpile(governed, "postgres", pgvector=True)
+    shared_data["snowflake_sql"] = transpile(governed, "snowflake")
+    state = _NS(source_dialects={"pg": "postgres", "my": "mysql"})
+    shared_data["mysql_to_engine"] = _similarity_needs_engine(governed, _NS(source_id="my"), state)
+    shared_data["pg_to_engine"] = _similarity_needs_engine(governed, _NS(source_id="pg"), state)
+    shared_data["engine_sql"] = transpile(governed, "duckdb")
 
 
 @then(
-    "the UDF translates to the native vector operator; for non-native sources it routes to the pgvector fallback cache"
+    "the call is written in that source's own SQL; for a source without it the statement routes to the engine, which computes it"
 )
 def assert_udf_translation(shared_data):
-    """
-    Verify REQ-423: cosine_similarity UDF translates to the correct native operator
-    for capable sources and raises an error for non-native sources so the compiler
-    can route to the fallback cache.
-    """
-    from provisa.vector.query import VectorQueryError
-
-    native_sql = shared_data["native_sql"]
-    cortex_sql = shared_data["cortex_sql"]
-    column = shared_data["column"]
-    query_vector = shared_data["query_vector"]
-
-    # pgvector: must use the <=> cosine distance operator with (1 - distance) form.
-    assert "<=>" in native_sql, "pgvector translation must use the <=> operator"
-    assert column in native_sql, "native SQL must reference the embedding column"
-    assert "(1 -" in native_sql, "pgvector expression must wrap distance as (1 - ...)"
-    assert "::vector" in native_sql.lower(), "pgvector literal must be cast to ::vector"
-    # The query vector components must appear in the literal.
-    for component in query_vector:
-        assert str(component) in native_sql or repr(float(component)) in native_sql
-
-    # Snowflake Cortex: must use VECTOR_COSINE_SIMILARITY.
-    assert "VECTOR_COSINE_SIMILARITY" in cortex_sql
-    assert column in cortex_sql
-
-    # Non-native source: the compiler must receive a VectorQueryError so it can
-    # route to the fallback cache rather than pushing down to the source.
-    assert shared_data["fallback_error"] is not None, (
-        "non-native source must raise VectorQueryError to trigger fallback routing"
-    )
-    assert isinstance(shared_data["fallback_error"], VectorQueryError)
-    assert (
-        "fallback" in str(shared_data["fallback_error"]).lower()
-        or "native" in str(shared_data["fallback_error"]).lower()
-    )
-
-    # Empty query vector must always be rejected.
-    assert shared_data["empty_vector_error"] is not None, (
-        "empty query_vector must raise VectorQueryError"
-    )
-    assert isinstance(shared_data["empty_vector_error"], VectorQueryError)
+    assert "COSINE_DISTANCE(" in shared_data["pgvector_sql"]
+    assert "VECTOR_COSINE_SIMILARITY(" in shared_data["snowflake_sql"]
+    assert shared_data["pg_to_engine"] is False
+    assert shared_data["mysql_to_engine"] is True
+    assert "ARRAY_COSINE_SIMILARITY(" in shared_data["engine_sql"]

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import types
 
 import pytest
 
@@ -262,6 +263,9 @@ async def test_source_pool_add_creates_one_driver_under_concurrency():
 
         async def connect(self, *a):
             await asyncio.sleep(0.003)  # widen the interleaving window
+
+        async def execute(self, sql, params=None):  # the vector-capability probe (REQ-422)
+            return types.SimpleNamespace(rows=[])
 
         async def close(self):
             pass

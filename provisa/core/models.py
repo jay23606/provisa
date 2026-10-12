@@ -885,6 +885,17 @@ class Column(
     scope: str = "domain"  # "domain" | "public" | "restricted" (core/column_scope.py, REQ-1959)
 
     @model_validator(mode="after")
+    def _embedding_is_not_masked(self) -> "Column":  # REQ-652
+        # A vector cannot be partly masked and still be compared; an embedding column is served
+        # whole or not at all (visibility, scope, row filters).
+        if self.embedding and self.mask_type is not None:
+            raise ValueError(
+                f"column {self.name!r}: an embedding column cannot be masked; restrict who sees "
+                "it with visible_to or its scope instead"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _parameter_is_stated(self) -> "Column":  # REQ-1986
         from provisa.core.parameters import PARAMETER_KINDS
 

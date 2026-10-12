@@ -31,6 +31,8 @@ class SourcePool:  # REQ-052, REQ-053
     def __init__(self) -> None:
         self._drivers: dict[str, DirectDriver] = {}
         self._dialects: dict[str, str] = {}
+        # REQ-422: each source's native vector capability, detected when its driver connects.
+        self._vector: dict[str, str | None] = {}
         # add() is a check-then-connect-then-set across an await; concurrent first-adds for one
         # source would each open a driver and leak all but the last. Serialise adds so "one driver
         # per source_id" holds (startup-only, so the coarse single lock costs nothing). Cross-loop:
@@ -72,8 +74,12 @@ class SourcePool:  # REQ-052, REQ-053
             )  # warehouse drivers read federation_hints; RDBMS drivers no-op
             connect_port = pgbouncer_port if use_pgbouncer else port
             await driver.connect(host, connect_port, database, user, password, min_size, max_size)
+            from provisa.vector.capability import detect_vector_capability
+
+            dialect = SOURCE_TO_DIALECT.get(source_type, source_type)
+            self._vector[source_id] = await detect_vector_capability(dialect, driver)
             self._drivers[source_id] = driver
-            self._dialects[source_id] = SOURCE_TO_DIALECT.get(source_type, source_type)
+            self._dialects[source_id] = dialect
 
     async def add_driver(self, source_id: str, driver: DirectDriver, dialect: str) -> None:
         """Hold ``driver``, already connected, as ``source_id``'s — for a source whose driver is
@@ -85,6 +91,10 @@ class SourcePool:  # REQ-052, REQ-053
                 return
             self._drivers[source_id] = driver
             self._dialects[source_id] = dialect
+
+    def vector_capability(self, source_id: str) -> str | None:  # REQ-422
+        """The source's native vector capability (``"pgvector"``, ``"snowflake"``), or None."""
+        return self._vector.get(source_id)
 
     def dialect_for(self, source_id: str) -> str | None:  # REQ-550
         """Return the sqlglot dialect string for a source, or None if unknown."""
@@ -122,6 +132,7 @@ class SourcePool:  # REQ-052, REQ-053
     async def remove(self, source_id: str) -> None:  # REQ-550
         """Close and remove a driver for a source."""
         driver = self._drivers.pop(source_id, None)
+        self._vector.pop(source_id, None)
         if driver is not None:
             await driver.close()
 
