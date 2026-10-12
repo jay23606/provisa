@@ -215,3 +215,38 @@ async def test_a_user_edited_description_survives_reseeding(seeded_schema):
     row = await seeded_schema.row("provisa-otel")
     assert row["description"] == "ours"
     assert row["dialect"] == "trino"
+
+
+async def test_a_view_whose_columns_moved_is_rebuilt_over_the_older_definition(seeded_schema):
+    """A release that inserts a column into a view (query_audit_log_ops gaining table_names after
+    table_ids) seeds over the previous release's view. PostgreSQL's CREATE OR REPLACE VIEW keeps
+    the old columns in place, so the new one lands where "source" was: "cannot change name of
+    view column" (SQLSTATE 42P16), which a boot once raised. The seed rebuilds the view instead."""
+    from provisa.api._meta_views import _OPS_LOG_TABLE_VIEWS
+    from provisa.api.startup_seed import _seed_view
+
+    await seeded_schema.seed("trino")
+    schema = seeded_schema.schema
+    current = _OPS_LOG_TABLE_VIEWS["query_audit_log"]
+    older = current.replace("q.table_ids, q.table_names, q.source", "q.table_ids, q.source")
+    assert older != current
+
+    async def _columns() -> list[str]:
+        async with seeded_schema.db.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT column_name FROM information_schema.columns"
+                f" WHERE table_schema = '{schema}' AND table_name = 'query_audit_log_ops'"
+                " ORDER BY ordinal_position"
+            )
+        return [r[0] for r in rows]
+
+    async with seeded_schema.db.acquire() as conn:
+        await conn.execute("DROP VIEW IF EXISTS query_audit_log_ops CASCADE")
+        await conn.execute(older)
+    assert "table_names" not in await _columns()
+
+    async with seeded_schema.db.acquire() as conn:
+        await _seed_view(conn, current, "postgresql")
+    columns = await _columns()
+    assert columns.index("table_names") == columns.index("table_ids") + 1
+    assert columns.index("source") == columns.index("table_names") + 1

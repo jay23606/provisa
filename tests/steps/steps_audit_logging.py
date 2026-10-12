@@ -101,6 +101,7 @@ def given_any_query(shared_data: dict):
     shared_data["user_id"] = f"user-{uuid.uuid4()}"
     shared_data["role_id"] = "analyst"
     shared_data["table_ids"] = ["customers"]
+    shared_data["table_names"] = ["crm.public.customers"]
     shared_data["source"] = "graphql"
     shared_data["status_code"] = 200
     shared_data["duration_ms"] = 42
@@ -121,6 +122,7 @@ def when_query_completes(shared_data: dict, audit_pool):
             role_id=shared_data["role_id"],
             query_text=shared_data["query_text"],
             table_ids=shared_data["table_ids"],
+            table_names=shared_data["table_names"],
             source=shared_data["source"],
             status_code=shared_data["status_code"],
             duration_ms=shared_data["duration_ms"],
@@ -144,7 +146,7 @@ def then_recorded_with_hash_only(shared_data: dict, audit_pool):
             async with pool.acquire() as conn:
                 await conn.execute("SET search_path TO org_default")
                 row = await conn.fetchrow(
-                    "SELECT tenant_id, user_id, role_id, query_hash, table_ids,"
+                    "SELECT tenant_id, user_id, role_id, query_hash, table_ids, table_names,"
                     " source, status_code, duration_ms, logged_at"
                     " FROM query_audit_log WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
                     shared_data["user_id"],
@@ -162,6 +164,10 @@ def then_recorded_with_hash_only(shared_data: dict, audit_pool):
                 assert row["user_id"] == shared_data["user_id"]
                 assert row["role_id"] == shared_data["role_id"]
                 assert list(table_ids) == shared_data["table_ids"]
+                table_names = row["table_names"]
+                if isinstance(table_names, str):
+                    table_names = json.loads(table_names)
+                assert list(table_names) == shared_data["table_names"]
                 assert row["source"] == shared_data["source"]
                 assert row["status_code"] == shared_data["status_code"]
                 assert row["duration_ms"] == shared_data["duration_ms"]

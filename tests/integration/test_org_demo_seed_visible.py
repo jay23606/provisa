@@ -188,8 +188,10 @@ async def test_a_view_backed_query_reads_the_views_sql_never_a_bare_view(demo_or
         sdl_joins=True,
     )
     assert plan.exec_sql is not None
+    # Each table read, by its schema and name: the last two of its parts, whether the driver's
+    # "public"."orders" or the engine's "<catalog>"."sales_pg"."public"."orders".
     read = [
-        (t.db, t.name)
+        tuple(p.name for p in t.parts)[-2:]
         for t in sqlglot.parse_one(plan.exec_sql, read="postgres").find_all(exp.Table)
     ]
     assert ("public", "orders") in read, (plan.route, plan.exec_sql)
