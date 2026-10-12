@@ -134,6 +134,10 @@ def planes(monkeypatch):
         storage_url=None,
     ):
         from provisa.api.org_runtime import OrgRuntime
+        from tests.helpers import ready_org_folder
+
+        # The org's folder, as the real build makes it ready first (REQ-1992).
+        ready_org_folder(org_id)
 
         return OrgRuntime(org_id=org_id, model_db=admin_db, record_db=admin_db, tenant_db=admin_db)
 

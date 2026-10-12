@@ -228,7 +228,11 @@ async def test_a_demo_org_starts_as_its_config_at_every_build(clean, tmp_path, m
         return sorted(held["capabilities"])
 
     async def _demo(state):
+        from tests.helpers import register_org, unregister_org
+
         token = set_current_org(_DEMO_ID)
+        # An org is created before its runtime is built (REQ-1992 reads its row).
+        registered = await register_org(state.admin_db, _DEMO_ID)
         try:
             rt = await build_org_runtime(_DEMO_ID, include_demo=True)
             assert await _auditor(rt) == ["usage"]
@@ -251,5 +255,7 @@ async def test_a_demo_org_starts_as_its_config_at_every_build(clean, tmp_path, m
             return await _auditor(rebuilt)
         finally:
             reset_current_org(token)
+            if registered:
+                await unregister_org(state.admin_db, _DEMO_ID)
 
     assert await _boot(config, monkeypatch, then=_demo) == ["usage"]

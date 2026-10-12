@@ -202,6 +202,18 @@ def server(emulator, tmp_path_factory):
                 ],
             },
         ],
+        # The join the tests make is a registered relationship: a join outside the registered
+        # ones is refused to a role that may not ignore them (REQ-603).
+        "relationships": [
+            {
+                "id": "order-customer",
+                "source_table_id": "orders",
+                "target_table_id": "customers",
+                "source_column": "customerId",
+                "target_column": "id",
+                "cardinality": "many-to-one",
+            }
+        ],
     }
     work = tmp_path_factory.mktemp("cosmos_e2e")
     path = work / "config.yaml"

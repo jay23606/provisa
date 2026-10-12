@@ -30,6 +30,8 @@ from provisa.core.environments import PROD, org_schema
 from provisa.core.schema_admin import environments
 from provisa.core.schema_org import domains
 
+from tests.helpers import ready_org_folder
+
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 DEV = "dev"
@@ -45,6 +47,12 @@ async def planes(docker_postgres):
     from provisa.core.schema_admin import init_registry_schema
 
     org_id = f"envappr{uuid.uuid4().hex[:8]}"
+
+    # The org's folder, as its runtime's build makes it (REQ-1992): the environment's
+
+    # repository lives in it, and this test drives the environment paths directly.
+
+    ready_org_folder(org_id)
     url = (
         f"postgresql+psycopg://provisa:{os.environ.get('PG_PASSWORD', 'provisa')}@"
         f"{docker_postgres['host']}:{docker_postgres['port']}/provisa"

@@ -173,6 +173,10 @@ def planes(monkeypatch):
     # code under test.
     async def _fake_build(org_id, **_kwargs):
         from provisa.api.org_runtime import OrgRuntime
+        from tests.helpers import ready_org_folder
+
+        # The org's folder, as the real build makes it ready first (REQ-1992).
+        ready_org_folder(org_id)
 
         return OrgRuntime(
             org_id=org_id, model_db=tenant_db, tenant_db=tenant_db, record_db=tenant_db

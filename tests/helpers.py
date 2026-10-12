@@ -392,3 +392,29 @@ def ready_org_folder(org_id: str | None = None):
     path = org_files.folder(org_id or require_current_org())
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+async def register_org(admin_db, org_id: str) -> bool:
+    """The org's row on the admin plane, as creating an org writes it, for a test that builds the
+    org's runtime directly (REQ-1992: the build reads the org's file-folder setting from that row).
+    True when this call wrote it; a row already there is left as it is."""
+    from sqlalchemy import insert, select
+
+    from provisa.core.schema_admin import orgs
+
+    async with admin_db.acquire() as conn:
+        held = (await conn.execute_core(select(orgs.c.id).where(orgs.c.id == org_id))).fetchone()
+        if held is not None:
+            return False
+        await conn.execute_core(insert(orgs).values(id=org_id, name=org_id))
+    return True
+
+
+async def unregister_org(admin_db, org_id: str) -> None:
+    """Remove the row :func:`register_org` wrote."""
+    from sqlalchemy import delete
+
+    from provisa.core.schema_admin import orgs
+
+    async with admin_db.acquire() as conn:
+        await conn.execute_core(delete(orgs).where(orgs.c.id == org_id))
