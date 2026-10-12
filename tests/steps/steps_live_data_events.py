@@ -55,6 +55,12 @@ class _FakeEngine:
         self._result = result
         self.sql: str | None = None
 
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
+
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
 

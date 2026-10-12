@@ -119,7 +119,8 @@ def _register(ctx, monkeypatch):
         # _sync_view_mv resolves the MV's materialize target from the bound engine (REQ: never a
         # hardcoded catalog). Stub the (catalog, schema) the store would expose.
         federation_engine=types.SimpleNamespace(
-            materialize_store_target=lambda _org: ("mat_store", "public")
+            materialize_store_target=lambda _org: ("mat_store", "public"),
+            engine=types.SimpleNamespace(catalog_qualified=True),  # REQ-1730: it names catalogs
         ),
         # What a saved view's inputs are checked against (provisa/mv/readable_inputs.py).
         api_endpoints={},

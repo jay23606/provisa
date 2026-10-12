@@ -23,6 +23,8 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+from types import SimpleNamespace
+
 import duckdb
 import pytest
 from provisa.core.database import create_engine_from_url
@@ -66,6 +68,12 @@ class _DuckEngine(_StoreWriteFace):
         super().__init__(store_dsn)
         self.con = con
         self._caps = caps
+
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
