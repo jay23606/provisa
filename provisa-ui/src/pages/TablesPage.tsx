@@ -105,6 +105,7 @@ import { useListSortGroup, type ListColumn } from "../components/list/useListSor
 import { PageLoading } from "../components/PageLoading";
 import { useCapability } from "../hooks/useCapability";
 import { hidingDomains } from "../lib/capabilities";
+import { actingRoleHeader } from "../lib/actingRole";
 import { domainToSqlName } from "../naming";
 import { SplitPane } from "../components/list/SplitPane";
 
@@ -232,7 +233,10 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     : filterByRegion(filteredTables, regionSel, connected, (t) => t.region ?? null);
   const sortGroup = useListSortGroup(regionTables, listColumns, "tables");
   const groupBy = sortGroup.groupBy;
-  const { domainAccess, role: activeRole } = useAuth();
+  const { domainAccess } = useAuth();
+  // REQ-1620: the rows are read as the roles the user acts as -- one role, or under "Role: All"
+  // the set, which the server serves as its meta-role -- as every other page reads them.
+  const actingRole = actingRoleHeader(selectedRoles);
   // REQ-1592: the model-report download. Busy while the server builds the workbook.
   const [reportBusy, setReportBusy] = useState(false);
 
@@ -471,7 +475,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       });
       return;
     }
-    if (!activeRole) {
+    if (!actingRole) {
       setTableProfiles((prev) => ({ ...prev, [tableId]: "No active role" }));
       return;
     }
@@ -486,7 +490,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     setTableProfiles((prev) => ({ ...prev, [tableId]: "loading" }));
     try {
       if (table && paramValues !== undefined) {
-        const result = await runSql(previewSql(table, paramValues), activeRole.id);
+        const result = await runSql(previewSql(table, paramValues), actingRole);
         if (result.error) throw new Error(result.error);
         // A sample landed in the results store is there, not here: said, not profiled as empty.
         if (result.redirect)
@@ -496,7 +500,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           [tableId]: { columns: result.columns, rows: result.rows, rowCount: result.rows.length },
         }));
       } else {
-        const result = await profileTable(tableId, activeRole.id);
+        const result = await profileTable(tableId, actingRole);
         setTableProfiles((prev) => ({ ...prev, [tableId]: result }));
       }
     } catch (e) {
@@ -882,11 +886,7 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           <div className="split-pane__fill" data-testid="table-preview-modal">
             {/* The table's actions stay in the panel's head while its rows are looked at. */}
             {readView({ actionsOnly: true })}
-            <TablePreviewPane
-              table={t}
-              role={activeRole?.id ?? null}
-              onBack={() => setPreviewTable(null)}
-            />
+            <TablePreviewPane table={t} role={actingRole} onBack={() => setPreviewTable(null)} />
           </div>
         );
       }
