@@ -301,19 +301,17 @@ describe("SettingField", () => {
 });
 
 describe("CatalogCard", () => {
-  it("starts open and folds by its header, by pointer or by keyboard", async () => {
+  it("starts open and folds by its header, as its groups do", () => {
     wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={vi.fn()} />);
+    // The header is the accordion's own button: reached by Tab, pressed by Enter or Space.
     const header = screen.getByTestId("settings-card-limits-toggle");
-    expect(header).toHaveAttribute("role", "button");
-    expect(header).toHaveAttribute("tabindex", "0");
+    expect(header.tagName).toBe("BUTTON");
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByTestId(id(num.key))).toBeVisible();
     fireEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "false");
-    fireEvent.keyDown(header, { key: "Enter" });
+    fireEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");
-    fireEvent.keyDown(header, { key: " " });
-    expect(header).toHaveAttribute("aria-expanded", "false");
   });
 
   it("flows an ungrouped card in the shared form layout; a number is a short field, a list a long one", () => {
