@@ -278,3 +278,43 @@ describe("CommandFormFields — a database source's routines on offer (REQ-887)"
     expect(screen.getByTestId("picked")).toHaveTextContent("get_customers_by_region");
   });
 });
+
+describe("CommandFormFields — lists laid out as the shared form lays out a list", () => {
+  it("sets each output column apart as one entry, its row and its governance together", () => {
+    render(
+      <Harness
+        initial={{
+          actionType: "function",
+          implKind: "script",
+          returnSchemaMode: "dataset",
+          outputColumns: [
+            { name: "id", type: "integer" },
+            { name: "name", type: "text" },
+          ],
+        }}
+      />,
+    );
+    for (const i of [0, 1]) {
+      const entry = screen.getByTestId(`output-column-${i}`);
+      expect(entry).toHaveClass("form-entry");
+      expect(entry).toContainElement(screen.getByTestId(`output-column-governance-${i}`));
+    }
+    expect(screen.getByText("Output Dataset Columns")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Add Output Column" })).toBeInTheDocument();
+  });
+
+  it("keeps an argument's remove on its row, beside its boxes", () => {
+    render(
+      <Harness
+        initial={{
+          actionType: "function",
+          implKind: "script",
+          arguments: [{ name: "name", type: "String" }],
+        }}
+      />,
+    );
+    const remove = screen.getByRole("button", { name: /Remove argument name/i });
+    expect(remove.parentElement).toHaveClass("form-field-group--bare");
+    expect(remove.parentElement).toContainElement(screen.getByDisplayValue("name"));
+  });
+});

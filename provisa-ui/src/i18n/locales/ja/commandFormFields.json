@@ -66,10 +66,10 @@
     "routinesOffered_one": "このスキーマで {{count}} 件のルーチンを選択できます",
     "routinesOffered_other": "このスキーマで {{count}} 件のルーチンを選択できます",
     "inputColumnsTitle": "入力データセットの列",
-    "addInputColumn": "入力列を追加",
+    "addInputColumn": "+ 入力列を追加",
     "removeInputColumn": "入力列 {{name}} を削除",
     "outputColumnsTitle": "出力データセットの列",
-    "addOutputColumn": "出力列を追加",
+    "addOutputColumn": "+ 出力列を追加",
     "removeOutputColumn": "出力列 {{name}} を削除",
     "datasetColumnPlaceholder": "列"
   }

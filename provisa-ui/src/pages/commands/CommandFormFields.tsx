@@ -38,7 +38,13 @@ import {
 import type { FormState } from "./types";
 import { ColumnGovernanceFields } from "./ColumnGovernanceFields";
 import { physicalRelationName } from "../../naming";
-import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
+import {
+  FieldGroup,
+  FormChecks,
+  FormEntry,
+  FormField,
+  FormLayout,
+} from "../../components/form/FormLayout";
 
 interface CommandFormFieldsProps {
   /** The short step that creates a command: only what it needs in order to exist -- what it
@@ -508,57 +514,57 @@ export function CommandFormFields({
                     </FormField>
                   </FormChecks>
                   {!form.returns && (
-                    <FormField size="full">
-                      <div>
-                        <Title order={5} mb="xs">
-                          {t("commandFormFields.inlineReturnType")}
-                        </Title>
-                        {form.inlineReturnType.map((f, i) => (
-                          <React.Fragment key={i}>
-                            <FieldGroup row className="form-field-group--bare">
-                              <FormField size="medium">
-                                <TextInput
-                                  value={f.name}
-                                  onChange={(e) =>
-                                    handleInlineFieldChange(i, "name", e.currentTarget.value)
-                                  }
-                                  placeholder={t("commandFormFields.fieldNamePlaceholder")}
-                                />
-                              </FormField>
-                              <FormField size="medium">
-                                <Select
-                                  value={f.type}
-                                  onChange={(val) =>
-                                    handleInlineFieldChange(i, "type", val ?? "String")
-                                  }
-                                  data={GRAPHQL_TYPES}
-                                  allowDeselect={false}
-                                />
-                              </FormField>
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label={t("commandFormFields.removeField", {
-                                  name: f.name || i + 1,
-                                })}
-                                onClick={() => handleRemoveInlineField(i)}
-                              >
-                                <X size={14} />
-                              </ActionIcon>
-                            </FieldGroup>
-                            {/* REQ-1679: the webhook's response is governed like a table's rows. */}
-                            <ColumnGovernanceFields
-                              col={f}
-                              onChange={(patch) => patchInlineField(i, patch)}
-                              testId={`inline-field-governance-${i}`}
-                            />
-                          </React.Fragment>
-                        ))}
+                    // The response's fields: each an entry of its row and who sees it and how it is
+                    // masked, set apart from the next.
+                    <FormLayout data-testid="inline-return-type">
+                      <Title order={5}>{t("commandFormFields.inlineReturnType")}</Title>
+                      {form.inlineReturnType.map((f, i) => (
+                        <FormEntry key={i}>
+                          <FieldGroup row className="form-field-group--bare">
+                            <FormField size="medium">
+                              <TextInput
+                                value={f.name}
+                                onChange={(e) =>
+                                  handleInlineFieldChange(i, "name", e.currentTarget.value)
+                                }
+                                placeholder={t("commandFormFields.fieldNamePlaceholder")}
+                              />
+                            </FormField>
+                            <FormField size="medium">
+                              <Select
+                                value={f.type}
+                                onChange={(val) =>
+                                  handleInlineFieldChange(i, "type", val ?? "String")
+                                }
+                                data={GRAPHQL_TYPES}
+                                allowDeselect={false}
+                              />
+                            </FormField>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              aria-label={t("commandFormFields.removeField", {
+                                name: f.name || i + 1,
+                              })}
+                              onClick={() => handleRemoveInlineField(i)}
+                            >
+                              <X size={14} />
+                            </ActionIcon>
+                          </FieldGroup>
+                          {/* REQ-1679: the webhook's response is governed like a table's rows. */}
+                          <ColumnGovernanceFields
+                            col={f}
+                            onChange={(patch) => patchInlineField(i, patch)}
+                            testId={`inline-field-governance-${i}`}
+                          />
+                        </FormEntry>
+                      ))}
+                      <FormField size="full">
                         <Button variant="subtle" size="xs" onClick={handleAddInlineField}>
                           {t("commandFormFields.addField")}
                         </Button>
-                      </div>
-                    </FormField>
+                      </FormField>
+                    </FormLayout>
                   )}
                 </FormLayout>
               </>
@@ -622,116 +628,115 @@ export function CommandFormFields({
               />
             </FormField>
             {!isSourceOperation && (
-              <FormField size="full">
-                <div>
-                  <Title order={5} mb="xs">
-                    {t("commandFormFields.arguments")}
-                  </Title>
-                  {form.arguments.map((arg, i) => (
-                    <div key={i}>
-                      <FieldGroup row>
-                        <FormField size="medium">
-                          <TextInput
-                            value={arg.name}
-                            onChange={(e) => handleArgChange(i, "name", e.currentTarget.value)}
-                            placeholder={t("commandFormFields.argNamePlaceholder")}
-                            style={{ flex: 1, minWidth: 0 }}
-                          />
-                        </FormField>
+              // The arguments: one row each (its boxes carry no label, so the remove sits level
+              // with them); an argument that takes a dataset is an entry of its row and the
+              // dataset's columns, set apart from the next.
+              <FormLayout data-testid="command-arguments">
+                <Title order={5}>{t("commandFormFields.arguments")}</Title>
+                {form.arguments.map((arg, i) => {
+                  const row = (
+                    <FieldGroup row className="form-field-group--bare">
+                      <FormField size="medium">
+                        <TextInput
+                          value={arg.name}
+                          onChange={(e) => handleArgChange(i, "name", e.currentTarget.value)}
+                          placeholder={t("commandFormFields.argNamePlaceholder")}
+                        />
+                      </FormField>
+                      <FormField size="medium">
+                        <Select
+                          value={arg.type}
+                          onChange={(val) => handleArgChange(i, "type", val ?? "String")}
+                          data={GRAPHQL_TYPES}
+                          allowDeselect={false}
+                        />
+                      </FormField>
+                      {form.actionType === "function" && form.implKind !== "source_procedure" && (
                         <FormField size="medium">
                           <Select
-                            value={arg.type}
-                            onChange={(val) => handleArgChange(i, "type", val ?? "String")}
-                            data={GRAPHQL_TYPES}
+                            aria-label={t("commandFormFields.argKind")}
+                            value={arg.argKind ?? "column_value"}
+                            onChange={(val) => handleArgChange(i, "argKind", val ?? "column_value")}
+                            data={ARG_KINDS}
                             allowDeselect={false}
-                            w={120}
+                            data-testid={`command-arg-kind-${i}`}
                           />
                         </FormField>
-                        {form.actionType === "function" && form.implKind !== "source_procedure" && (
-                          <FormField size="medium">
-                            <Select
-                              aria-label={t("commandFormFields.argKind")}
-                              value={arg.argKind ?? "column_value"}
-                              onChange={(val) =>
-                                handleArgChange(i, "argKind", val ?? "column_value")
-                              }
-                              data={ARG_KINDS}
-                              allowDeselect={false}
-                              w={200}
-                              data-testid={`command-arg-kind-${i}`}
-                            />
-                          </FormField>
-                        )}
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          aria-label={t("commandFormFields.removeArgument", {
-                            name: arg.name || i + 1,
-                          })}
-                          onClick={() => handleRemoveArg(i)}
-                        >
-                          <X size={14} />
-                        </ActionIcon>
-                      </FieldGroup>
-                      {/* REQ-1159: a dataset arg (table_ref/result_set) carries an IR-typed column contract. */}
-                      {form.actionType === "function" &&
-                        DATASET_ARG_KINDS.has(arg.argKind ?? "column_value") && (
-                          <div
-                            style={{ marginInlineStart: 24, marginBottom: 12 }}
-                            data-testid={`dataset-columns-${i}`}
-                          >
-                            <Title order={6} c="dimmed" mb={4}>
-                              {t("commandFormFields.inputColumnsTitle")}
-                            </Title>
-                            {(arg.columns ?? []).map((col, ci) => (
-                              <FieldGroup row key={ci}>
-                                <FormField size="medium">
-                                  <TextInput
-                                    value={col.name}
-                                    onChange={(e) =>
-                                      changeArgColumn(i, ci, "name", e.currentTarget.value)
-                                    }
-                                    placeholder={t("commandFormFields.datasetColumnPlaceholder")}
-                                    size="xs"
-                                    style={{ flex: 1, minWidth: 0 }}
-                                  />
-                                </FormField>
-                                <FormField size="medium">
-                                  <Select
-                                    value={col.type}
-                                    onChange={(val) =>
-                                      changeArgColumn(i, ci, "type", val ?? "text")
-                                    }
-                                    data={IR_TYPES}
-                                    allowDeselect={false}
-                                    size="xs"
-                                    w={130}
-                                  />
-                                </FormField>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={t("commandFormFields.removeInputColumn", {
-                                    name: col.name || ci + 1,
-                                  })}
-                                  onClick={() => removeArgColumn(i, ci)}
-                                >
-                                  <X size={12} />
-                                </ActionIcon>
-                              </FieldGroup>
-                            ))}
-                            <Button variant="subtle" size="xs" onClick={() => addArgColumn(i)}>
-                              {t("commandFormFields.addInputColumn")}
-                            </Button>
-                          </div>
-                        )}
-                    </div>
-                  ))}
+                      )}
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        aria-label={t("commandFormFields.removeArgument", {
+                          name: arg.name || i + 1,
+                        })}
+                        onClick={() => handleRemoveArg(i)}
+                      >
+                        <X size={14} />
+                      </ActionIcon>
+                    </FieldGroup>
+                  );
+                  // REQ-1159: a dataset arg (table_ref/result_set) carries an IR-typed column contract.
+                  if (
+                    !(
+                      form.actionType === "function" &&
+                      DATASET_ARG_KINDS.has(arg.argKind ?? "column_value")
+                    )
+                  )
+                    return <React.Fragment key={i}>{row}</React.Fragment>;
+                  return (
+                    <FormEntry key={i}>
+                      {row}
+                      <FormLayout
+                        style={{ paddingInlineStart: "var(--mantine-spacing-md)" }}
+                        data-testid={`dataset-columns-${i}`}
+                      >
+                        <Title order={6}>{t("commandFormFields.inputColumnsTitle")}</Title>
+                        {(arg.columns ?? []).map((col, ci) => (
+                          <FieldGroup row className="form-field-group--bare" key={ci}>
+                            <FormField size="medium">
+                              <TextInput
+                                value={col.name}
+                                onChange={(e) =>
+                                  changeArgColumn(i, ci, "name", e.currentTarget.value)
+                                }
+                                placeholder={t("commandFormFields.datasetColumnPlaceholder")}
+                              />
+                            </FormField>
+                            <FormField size="medium">
+                              <Select
+                                value={col.type}
+                                onChange={(val) => changeArgColumn(i, ci, "type", val ?? "text")}
+                                data={IR_TYPES}
+                                allowDeselect={false}
+                              />
+                            </FormField>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              aria-label={t("commandFormFields.removeInputColumn", {
+                                name: col.name || ci + 1,
+                              })}
+                              onClick={() => removeArgColumn(i, ci)}
+                            >
+                              <X size={14} />
+                            </ActionIcon>
+                          </FieldGroup>
+                        ))}
+                        <FormField size="full">
+                          <Button variant="subtle" size="xs" onClick={() => addArgColumn(i)}>
+                            {t("commandFormFields.addInputColumn")}
+                          </Button>
+                        </FormField>
+                      </FormLayout>
+                    </FormEntry>
+                  );
+                })}
+                <FormField size="full">
                   <Button variant="subtle" size="xs" onClick={handleAddArg}>
                     {t("commandFormFields.addArgument")}
                   </Button>
-                </div>
-              </FormField>
+                </FormField>
+              </FormLayout>
             )}
           </>
         )}
@@ -744,56 +749,54 @@ export function CommandFormFields({
               form.implKind !== "source_procedure" &&
               !isSourceOperation &&
               form.returnSchemaMode === "dataset" && (
-                <FormField size="full">
-                  <div data-testid="output-columns">
-                    <Title order={5} mb="xs">
-                      {t("commandFormFields.outputColumnsTitle")}
-                    </Title>
-                    {form.outputColumns.map((col, ci) => (
-                      <React.Fragment key={ci}>
-                        {/* One column of the list: its boxes carry no label, so the remove sits level with them. */}
-                        <FieldGroup row className="form-field-group--bare">
-                          <FormField size="medium">
-                            <TextInput
-                              value={col.name}
-                              onChange={(e) =>
-                                changeOutputColumn(ci, "name", e.currentTarget.value)
-                              }
-                              placeholder={t("commandFormFields.datasetColumnPlaceholder")}
-                            />
-                          </FormField>
-                          <FormField size="medium">
-                            <Select
-                              value={col.type}
-                              onChange={(val) => changeOutputColumn(ci, "type", val ?? "text")}
-                              data={IR_TYPES}
-                              allowDeselect={false}
-                            />
-                          </FormField>
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            aria-label={t("commandFormFields.removeOutputColumn", {
-                              name: col.name || ci + 1,
-                            })}
-                            onClick={() => removeOutputColumn(ci)}
-                          >
-                            <X size={14} />
-                          </ActionIcon>
-                        </FieldGroup>
-                        {/* REQ-1679: the function's response is governed like a table's rows. */}
-                        <ColumnGovernanceFields
-                          col={col}
-                          onChange={(patch) => patchOutputColumn(ci, patch)}
-                          testId={`output-column-governance-${ci}`}
-                        />
-                      </React.Fragment>
-                    ))}
+                // The output dataset's columns: each an entry of its row and who sees it and how it
+                // is masked, set apart from the next.
+                <FormLayout data-testid="output-columns">
+                  <Title order={5}>{t("commandFormFields.outputColumnsTitle")}</Title>
+                  {form.outputColumns.map((col, ci) => (
+                    <FormEntry key={ci} data-testid={`output-column-${ci}`}>
+                      {/* Its boxes carry no label, so the remove sits level with them. */}
+                      <FieldGroup row className="form-field-group--bare">
+                        <FormField size="medium">
+                          <TextInput
+                            value={col.name}
+                            onChange={(e) => changeOutputColumn(ci, "name", e.currentTarget.value)}
+                            placeholder={t("commandFormFields.datasetColumnPlaceholder")}
+                          />
+                        </FormField>
+                        <FormField size="medium">
+                          <Select
+                            value={col.type}
+                            onChange={(val) => changeOutputColumn(ci, "type", val ?? "text")}
+                            data={IR_TYPES}
+                            allowDeselect={false}
+                          />
+                        </FormField>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={t("commandFormFields.removeOutputColumn", {
+                            name: col.name || ci + 1,
+                          })}
+                          onClick={() => removeOutputColumn(ci)}
+                        >
+                          <X size={14} />
+                        </ActionIcon>
+                      </FieldGroup>
+                      {/* REQ-1679: the function's response is governed like a table's rows. */}
+                      <ColumnGovernanceFields
+                        col={col}
+                        onChange={(patch) => patchOutputColumn(ci, patch)}
+                        testId={`output-column-governance-${ci}`}
+                      />
+                    </FormEntry>
+                  ))}
+                  <FormField size="full">
                     <Button variant="subtle" size="xs" onClick={addOutputColumn}>
                       {t("commandFormFields.addOutputColumn")}
                     </Button>
-                  </div>
-                </FormField>
+                  </FormField>
+                </FormLayout>
               )}
           </FormLayout>
         </>

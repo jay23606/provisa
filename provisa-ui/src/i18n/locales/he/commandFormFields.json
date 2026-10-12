@@ -66,10 +66,10 @@
     "routinesOffered_one": "שגרה {{count}} בסכמה זו זמינה לבחירה",
     "routinesOffered_other": "{{count}} שגרות בסכמה זו זמינות לבחירה",
     "inputColumnsTitle": "עמודות מערך הנתונים של הקלט",
-    "addInputColumn": "הוספת עמודת קלט",
+    "addInputColumn": "+ הוספת עמודת קלט",
     "removeInputColumn": "הסרת עמודת הקלט {{name}}",
     "outputColumnsTitle": "עמודות מערך הנתונים של הפלט",
-    "addOutputColumn": "הוספת עמודת פלט",
+    "addOutputColumn": "+ הוספת עמודת פלט",
     "removeOutputColumn": "הסרת עמודת הפלט {{name}}",
     "datasetColumnPlaceholder": "עמודה"
   }

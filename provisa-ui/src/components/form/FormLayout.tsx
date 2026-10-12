@@ -234,6 +234,20 @@ export function FieldGroup({
   );
 }
 
+/**
+ * One entry of a list the form edits that takes more than one row (a column, then who sees it and
+ * how it is masked): its rows kept together, and set apart from the next entry by a rule, so each
+ * entry reads as one group. An entry of a single row is a `FieldGroup row` instead.
+ */
+export function FormEntry({ children, className, ...rest }: LayoutElementProps) {
+  useInsideFormLayout("FormEntry");
+  return (
+    <FormLayout {...rest} className={classes("form-entry", className)}>
+      {children}
+    </FormLayout>
+  );
+}
+
 /** The fields that name the object. They sit above the flow, in a section of their own. */
 export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElement>) {
   useInsideFormLayout("FormIdentifiers");

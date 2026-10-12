@@ -65,11 +65,11 @@
     "writesTableHint": "La table enregistrée que cette commande modifie. Après chaque appel, les résultats en cache et les vues matérialisées qui l'utilisent sont actualisés.",
     "routinesOffered_one": "{{count}} routine de ce schéma est proposée",
     "routinesOffered_other": "{{count}} routines de ce schéma sont proposées",
-    "inputColumnsTitle": "colonnes du jeu de données d'entrée",
-    "addInputColumn": "ajouter une colonne d'entrée",
+    "inputColumnsTitle": "Colonnes du jeu de données d'entrée",
+    "addInputColumn": "+ Ajouter une colonne d'entrée",
     "removeInputColumn": "retirer la colonne d'entrée {{name}}",
-    "outputColumnsTitle": "colonnes du jeu de données de sortie",
-    "addOutputColumn": "ajouter une colonne de sortie",
+    "outputColumnsTitle": "Colonnes du jeu de données de sortie",
+    "addOutputColumn": "+ Ajouter une colonne de sortie",
     "removeOutputColumn": "retirer la colonne de sortie {{name}}",
     "datasetColumnPlaceholder": "colonne"
   }

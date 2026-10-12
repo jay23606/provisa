@@ -66,10 +66,10 @@
     "routinesOffered_one": "此架构中有 {{count}} 个例程可供选择",
     "routinesOffered_other": "此架构中有 {{count}} 个例程可供选择",
     "inputColumnsTitle": "输入数据集的列",
-    "addInputColumn": "添加输入列",
+    "addInputColumn": "+ 添加输入列",
     "removeInputColumn": "移除输入列 {{name}}",
     "outputColumnsTitle": "输出数据集的列",
-    "addOutputColumn": "添加输出列",
+    "addOutputColumn": "+ 添加输出列",
     "removeOutputColumn": "移除输出列 {{name}}",
     "datasetColumnPlaceholder": "列"
   }

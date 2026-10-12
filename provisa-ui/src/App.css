@@ -2739,6 +2739,12 @@ main {
 .form-layout > .form-layout {
   flex: 1 1 100%;
 }
+/* One entry of a list that takes more than one row: a rule and the layout's own row gap set it
+ * apart from the entry before it. */
+.form-entry + .form-entry {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
 .form-field-group > .form-field {
   flex: 0 0 auto;
   width: var(--form-field-width);
