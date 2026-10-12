@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "APIs",
+    "lead": "The instance's own APIs. One switched on is offered through {{companion}}, where its operations are registered as tables and commands. {{count}} switched on.",
+    "filter": "Filter APIs",
+    "loadFailed": "Could not read the instance's APIs: {{error}}",
+    "importSetsTitle": "Import sets",
+    "importSetRow": "{{staging}}, into {{table}}",
+    "removeImportSet": "Remove this import set",
+    "table": "Table",
+    "importSet": "Import set",
+    "addImportSet": "Add import set"
+  }
+}

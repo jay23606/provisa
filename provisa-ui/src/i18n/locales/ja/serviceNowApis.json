@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "インスタンス独自の API。オンにした API は {{companion}} から提供され、その操作はテーブルやコマンドとして登録されます。オン: {{count}}。",
+    "filter": "API を絞り込む",
+    "loadFailed": "インスタンスの API を読み取れませんでした: {{error}}",
+    "importSetsTitle": "インポートセット",
+    "importSetRow": "{{staging}}（{{table}} へ）",
+    "removeImportSet": "このインポートセットを削除",
+    "table": "テーブル",
+    "importSet": "インポートセット",
+    "addImportSet": "インポートセットを追加"
+  }
+}

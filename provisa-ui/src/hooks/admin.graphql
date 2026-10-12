@@ -1232,3 +1232,46 @@ query AvailableImportSets($sourceId: String!, $schemaName: String!, $tableName: 
     importSet
   }
 }
+
+# REQ-1954: a ServiceNow source's own APIs, offered through its companion OpenAPI source.
+query ServicenowApis($sourceId: String!) {
+  servicenowApis(sourceId: $sourceId) {
+    namespace
+    name
+    route
+    description
+    scripted
+    added
+  }
+  servicenowImportSets(sourceId: $sourceId) {
+    staging
+    table
+  }
+}
+
+mutation SetServicenowApi(
+  $sourceId: String!
+  $namespace: String!
+  $name: String!
+  $added: Boolean!
+) {
+  setServicenowApi(sourceId: $sourceId, namespace: $namespace, name: $name, added: $added) {
+    ...MutationResult
+  }
+}
+
+mutation SetServicenowImportSet(
+  $sourceId: String!
+  $tableName: String!
+  $importSet: String!
+  $added: Boolean!
+) {
+  setServicenowImportSet(
+    sourceId: $sourceId
+    tableName: $tableName
+    importSet: $importSet
+    added: $added
+  ) {
+    ...MutationResult
+  }
+}
