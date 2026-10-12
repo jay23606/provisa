@@ -37,6 +37,7 @@ import subprocess  # noqa: S404 - launches the pinned first-party pgwire bundle 
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePath
+from collections.abc import Hashable
 from typing import Any, Callable
 
 from provisa.core.secrets import resolve_secrets
@@ -531,18 +532,19 @@ class PortAllocator:  # REQ-955
         self._calcite_base = calcite_base
         self._calcite_host = calcite_host
         self._is_free = is_free if is_free is not None else _port_is_free
-        self._assigned: dict[str, PortPair] = {}
+        self._assigned: dict[Hashable, PortPair] = {}
         self._used: set[int] = set()
 
-    def allocate(self, source_id: str) -> PortPair:
-        """The stable port pair for ``source_id`` — allocated once, returned unchanged thereafter."""
-        existing = self._assigned.get(source_id)
+    def allocate(self, key: Hashable) -> PortPair:
+        """The stable port pair for ``key`` (a source, by its org and id: REQ-1992) — allocated
+        once, returned unchanged thereafter."""
+        existing = self._assigned.get(key)
         if existing is not None:
             return existing
         pgwire_port = self._next(self._pgwire_base)
         calcite_port = self._next(self._calcite_base)
         pair = PortPair(pgwire_port, self._calcite_host, calcite_port)
-        self._assigned[source_id] = pair
+        self._assigned[key] = pair
         return pair
 
     def _next(self, base: int) -> int:
@@ -661,7 +663,9 @@ def _tcp_health(host: str, port: int) -> bool:
         return False
 
 
-def server_state_dir(bundle_dir: Path, version: str, source_id: str) -> Path:  # REQ-955
+def server_state_dir(
+    bundle_dir: Path, version: str, org_id: str, source_id: str
+) -> Path:  # REQ-955, REQ-1992
     """The directory one source's server runs in on this instance: its own ``model/model.json``,
     its working directory (where the Calcite adapter keeps its per-schema state, ``.aperio/`` and
     ``catalog-cache-*.pkl``) and its log — with the bundle's read-only parts (launcher, jars,
@@ -673,9 +677,10 @@ def server_state_dir(bundle_dir: Path, version: str, source_id: str) -> Path:  #
     model and one adapter state keyed by schema name, so one served the other's files. Linking
     ``bin`` makes ``$HERE`` this directory. Kept under the instance's data directory
     (``$PROVISA_DATA_DIR``, else ``~/.provisa``, as the instance's other per-instance state is),
-    by bundle version and source id (the key a server's ports are allocated by)."""
+    by bundle version, org and source id (the key a server's ports are allocated by): a source
+    id is unique only within its org."""
     data_dir = Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-    state = data_dir / "pgwire" / version / source_id
+    state = data_dir / "pgwire" / version / org_id / source_id
     state.mkdir(parents=True, exist_ok=True)
     for entry in Path(bundle_dir).iterdir():
         name = entry.name
@@ -1000,6 +1005,11 @@ class ConnectorReplica:  # REQ-954/955/956
         prepare_catalog: Callable[[PortPair], None] | None = None,
     ) -> None:
         self._source = source
+        # REQ-1992: the source by its org and id, bound when the replica is made: its ports, its
+        # state directory and its registry entry are this org's source's and no other's.
+        from provisa.core.org_scope import source_key
+
+        self._key = source_key(source.id)
         self._resolver = resolver if resolver is not None else BundleResolver()
         self._allocator = allocator if allocator is not None else PortAllocator()
         self._spawn = spawn
@@ -1039,7 +1049,7 @@ class ConnectorReplica:  # REQ-954/955/956
         if self._server is not None:
             return self._server
         bundle_dir = self._resolver.resolve(self._spec)  # REQ-956 (resolve + cache)
-        ports = self._allocator.allocate(self._source.id)  # REQ-955 (unique ports)
+        ports = self._allocator.allocate(self._key)  # REQ-955 (unique ports), REQ-1992
         model: dict | None
         if _source_type(self._source) in BUNDLE_MODEL_TYPES:
             # The installed bundle, started by its own launcher as it is: its model and the
@@ -1056,7 +1066,7 @@ class ConnectorReplica:  # REQ-954/955/956
         else:
             # The server runs from its own state directory, the bundle's code linked in: the
             # shared bundle is never written to (one model and one adapter state per server).
-            run_dir = server_state_dir(bundle_dir, self._spec.version, self._source.id)
+            run_dir = server_state_dir(bundle_dir, self._spec.version, *self._key)
             model = build_model_json(self._source, state_dir=run_dir)  # REQ-955 (config)
         server = PgwireServer(
             bundle_dir=run_dir,
@@ -1207,7 +1217,8 @@ class ConnectorReplica:  # REQ-954/955/956
 # One replica (one server) per source id, shared by every engine connection that attaches it; the
 # shared allocator keeps concurrent sources on distinct ports. Stopped by ``stop_all_servers``.
 _ENDPOINT_ALLOCATOR = PortAllocator()
-_ENDPOINTS: dict[str, ConnectorReplica] = {}
+#: By the source's org and id (REQ-1992): a source id is unique only within its org.
+_ENDPOINTS: dict[tuple[str, str], ConnectorReplica] = {}
 # One server per source id: an engine attach, a discovery call and a write can each be the first
 # to ask for a source's endpoint, from different threads.
 _ENDPOINTS_LOCK = threading.Lock()
@@ -1215,17 +1226,20 @@ _ENDPOINTS_LOCK = threading.Lock()
 
 def _endpoint_replica(source: Any) -> ConnectorReplica:
     """The one replica for ``source``."""
+    from provisa.core.org_scope import source_key
+
+    key = source_key(source.id)
     with _ENDPOINTS_LOCK:
-        replica = _ENDPOINTS.get(source.id)
+        replica = _ENDPOINTS.get(key)
         if replica is None:
             stype = _source_type(source)
             if stype in BUNDLE_MODEL_TYPES:
                 # One source of such a type runs from the one installed bundle.
-                for held_by, other in _ENDPOINTS.items():
+                for (_org, held_by), other in _ENDPOINTS.items():
                     if other.source_type == stype:
                         raise InstalledBundleInUse(source.id, stype, held_by)
             replica = ConnectorReplica(source, allocator=_ENDPOINT_ALLOCATOR)
-            _ENDPOINTS[source.id] = replica
+            _ENDPOINTS[key] = replica
         _reap_on_exit()
     return replica
 
@@ -1265,7 +1279,9 @@ def require_serving(source_id: str, source_type: str) -> None:
     process is not a refusal: the engine's attach starts one."""
     if source_type not in STARTED_WHEN_SAVED:
         return
-    replica = _ENDPOINTS.get(source_id)
+    from provisa.core.org_scope import source_key
+
+    replica = _ENDPOINTS.get(source_key(source_id))
     if replica is not None:
         replica.require_serving()
 
@@ -1397,8 +1413,10 @@ def stop_endpoint(source_id: str) -> None:
     recreated under the same id keeps serving whatever schema the first server was started with,
     however stale (confirmed live: a deleted-and-recreated `files` source, same name/id/path,
     that was never re-scanned for its new format because the old server was still answering)."""
+    from provisa.core.org_scope import source_key
+
     with _ENDPOINTS_LOCK:
-        replica = _ENDPOINTS.pop(source_id, None)
+        replica = _ENDPOINTS.pop(source_key(source_id), None)
     if replica is not None:
         replica.close()
 
@@ -1411,7 +1429,7 @@ def make_pgwire_loader(
     health_check: Callable[[str, int], bool] | None = None,
     connect: Callable[[str, int], Any] | None = None,
     port_is_free: Callable[[int], bool] | None = None,
-    replicas: dict[str, "ConnectorReplica"] | None = None,
+    replicas: dict[tuple[str, str], "ConnectorReplica"] | None = None,
 ) -> Callable[[Any, Any], Any]:
     """Build a TYPE-level ``adapter_loaders`` row-fetch for pgwire-replica sources (REQ-954), fitting
     the ``SourceRowLoader`` adapter seam ``async (source, table) -> list[dict]``. One
@@ -1422,10 +1440,13 @@ def make_pgwire_loader(
     type so the whole-table and keyed loaders share one server per source id instead of each
     starting its own -- defaults to a private dict when this loader is built alone."""
     alloc = allocator if allocator is not None else PortAllocator()
-    _replicas: dict[str, ConnectorReplica] = replicas if replicas is not None else {}
+    _replicas: dict[tuple[str, str], ConnectorReplica] = replicas if replicas is not None else {}
 
     async def _load(source: Any, table: Any) -> list[dict]:
-        replica = _replicas.get(source.id)
+        from provisa.core.org_scope import source_key
+
+        key = source_key(source.id)
+        replica = _replicas.get(key)
         if replica is None:
             replica = ConnectorReplica(
                 source,
@@ -1436,7 +1457,7 @@ def make_pgwire_loader(
                 connect=connect,
                 port_is_free=port_is_free,
             )
-            _replicas[source.id] = replica
+            _replicas[key] = replica
         return await replica.load(table)
 
     return _load
@@ -1450,19 +1471,22 @@ def make_pgwire_keyed_loader(
     health_check: Callable[[str, int], bool] | None = None,
     connect: Callable[[str, int], Any] | None = None,
     port_is_free: Callable[[int], bool] | None = None,
-    replicas: dict[str, "ConnectorReplica"] | None = None,
+    replicas: dict[tuple[str, str], "ConnectorReplica"] | None = None,
 ) -> Callable[[Any, Any, list[str], list[tuple[Any, ...]]], Any]:
     """Build a TYPE-level ``keyed_adapter_loaders`` row-fetch for pgwire-replica sources (REQ-1865)
     -- the ``load_keys`` counterpart to :func:`make_pgwire_loader`. Pass the SAME ``replicas`` dict
     (and allocator/resolver/etc.) given to this source's :func:`make_pgwire_loader` call, or a
     second server starts for the same source id."""
     alloc = allocator if allocator is not None else PortAllocator()
-    _replicas: dict[str, ConnectorReplica] = replicas if replicas is not None else {}
+    _replicas: dict[tuple[str, str], ConnectorReplica] = replicas if replicas is not None else {}
 
     async def _load(
         source: Any, table: Any, pk_columns: list[str], keys: list[tuple[Any, ...]]
     ) -> list[dict]:
-        replica = _replicas.get(source.id)
+        from provisa.core.org_scope import source_key
+
+        key = source_key(source.id)
+        replica = _replicas.get(key)
         if replica is None:
             replica = ConnectorReplica(
                 source,
@@ -1473,7 +1497,7 @@ def make_pgwire_keyed_loader(
                 connect=connect,
                 port_is_free=port_is_free,
             )
-            _replicas[source.id] = replica
+            _replicas[key] = replica
         return await replica.load_keys(table, pk_columns, keys)
 
     return _load

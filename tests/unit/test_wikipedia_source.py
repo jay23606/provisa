@@ -77,7 +77,10 @@ def test_a_crawls_files_land_in_the_sources_own_directory_under_the_data_directo
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
-    assert crawl_landing_directory("wiki") == tmp_path / "crawl" / "wiki"
+    from provisa.core.request_context import require_current_org
+
+    # REQ-1992: under its org, a source id being unique only within one.
+    assert crawl_landing_directory("wiki") == tmp_path / "crawl" / require_current_org() / "wiki"
 
 
 # -- Wikipedia --------------------------------------------------------------------------------------
@@ -170,7 +173,10 @@ def test_creating_a_wikipedia_source_writes_the_whole_crawl_into_the_files_sourc
     mapping = json.loads(given.mapping_json)
     assert mapping["refresh_interval"] == "1 days"
     assert mapping["crawl"]["start_urls"] == ["https://en.wikipedia.org/wiki/Dubai"]
-    assert given.path == str(tmp_path / "crawl" / "wiki") and (tmp_path / "crawl" / "wiki").is_dir()
+    from provisa.core.request_context import require_current_org
+
+    landed = tmp_path / "crawl" / require_current_org() / "wiki"  # REQ-1992: under its org
+    assert given.path == str(landed) and landed.is_dir()
     # What it wrote is a crawl the files source's connectors accept as written.
     assert crawl_operand("wiki", mapping)["maxDepth"] == 0
 

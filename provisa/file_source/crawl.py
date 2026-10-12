@@ -94,6 +94,9 @@ def crawl_operand(source_id: str, mapping: dict | None) -> dict | None:
 
 def crawl_landing_directory(source_id: str) -> Path:
     """Where a crawling source's files land when the source names no directory of its own: a
-    directory of the source's under the data directory, as a staged dataset has one."""
+    directory of the source's under the data directory, as a staged dataset has one -- under its
+    org, as a source id is unique only within its org (REQ-1992)."""
+    from provisa.core.org_scope import current_org_segment
+
     root = Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-    return root / "crawl" / source_id
+    return root / "crawl" / current_org_segment() / source_id
