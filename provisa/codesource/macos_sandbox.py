@@ -46,8 +46,10 @@ def _quote(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def profile(*, executable: Path, read: Sequence[Path], socket_path: Path, proxy_port: int) -> str:
-    """The sandbox profile for one worker."""
+def profile(
+    *, executable: Path, read: Sequence[Path], socket_path: Path | None, proxy_port: int
+) -> str:
+    """The sandbox profile for one worker (or, with no ``socket_path``, one run of a reader)."""
     readable = [os.path.realpath(p) for p in (*read, executable.parent)]
     lines = [
         "(version 1)",
@@ -69,7 +71,11 @@ def profile(*, executable: Path, read: Sequence[Path], socket_path: Path, proxy_
         "(allow ipc-posix-shm-read-data ipc-posix-shm-read-metadata)",
         "(allow system-socket)",
         "(allow network-outbound",
-        f"  (remote unix-socket (path-literal {_quote(os.path.realpath(socket_path))}))",
+        *(
+            [f"  (remote unix-socket (path-literal {_quote(os.path.realpath(socket_path))}))"]
+            if socket_path is not None
+            else []
+        ),
         f'  (remote ip "localhost:{proxy_port}"))',
     ]
     return "\n".join(lines) + "\n"
@@ -80,7 +86,7 @@ def confined_argv(
     *,
     executable: Path,
     read: Sequence[Path],
-    socket_path: Path,
+    socket_path: Path | None,
     proxy_port: int,
 ) -> list[str]:
     """``argv`` run under the sandbox."""

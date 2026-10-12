@@ -19,7 +19,7 @@ stderr is kept (the last lines) to name a crash.
 
 Frames are a 4-byte big-endian length and that many bytes of UTF-8 JSON. A timestamp travels as
 ``{"$date": iso}``, an integer outside JSON's exact range as ``{"$bigint": digits}``, a decimal as
-``{"$decimal": digits}``.
+``{"$decimal": digits}``, a calendar date with no time as ``{"$day": iso}``.
 
     Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args}
                      {op: "cancel", id}      {op: "ping", id}
@@ -120,7 +120,7 @@ def encode(value: Any) -> Any:
     if isinstance(value, datetime):
         return {"$date": value.isoformat()}
     if isinstance(value, date):
-        return {"$date": value.isoformat()}
+        return {"$day": value.isoformat()}
     if isinstance(value, dict):
         return {str(k): encode(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -137,6 +137,8 @@ def decode(value: Any) -> Any:
         if len(value) == 1:
             if "$date" in value:
                 return datetime.fromisoformat(value["$date"].replace("Z", "+00:00"))
+            if "$day" in value:
+                return date.fromisoformat(value["$day"])
             if "$bigint" in value:
                 return int(value["$bigint"])
             if "$decimal" in value:

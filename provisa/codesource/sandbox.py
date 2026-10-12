@@ -82,3 +82,26 @@ def sandboxed(
 
         return HostCommand(argv=_linux, env=env, cwd=cwd, inherit_socket=True)
     raise SandboxUnavailable(f"a code source cannot run on {system}: it has no code-source sandbox")
+
+
+def sandboxed_once(
+    argv: Sequence[str],
+    *,
+    executable: Path,
+    read: Sequence[Path],
+    env: dict[str, str],
+    egress: Iterable[str],
+) -> tuple[list[str], dict[str, str]]:
+    """``argv`` and its environment for one confined run with no worker socket (a reader, which
+    imports the code to read its types, and importing code is running it)."""
+    proxy = egress_proxy(egress)
+    env = {**env, **proxy.environment()}
+    system = platform.system()
+    if system == "Darwin":
+        return macos_sandbox.confined_argv(
+            argv, executable=executable, read=read, socket_path=None, proxy_port=proxy.port
+        ), env
+    if system == "Linux":
+        readable = [str(p) for p in (*read, executable.parent)]
+        return launcher_argv(sys.executable, read=readable, proxy_port=proxy.port, argv=argv), env
+    raise SandboxUnavailable(f"a code source cannot run on {system}: it has no code-source sandbox")

@@ -34,7 +34,7 @@ JSDoc tags and its signature's types as trees. This module applies REQ-1984's ru
 Every problem is collected, and the bundle is refused with all of them at once.
 """
 
-# Requirements: REQ-1984
+# Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -60,12 +60,30 @@ STANDARD_TAGS = frozenset(
 )  # fmt: skip
 
 
+@dataclass(frozen=True)
+class Rules:
+    """What a language's declarations may say beside Provisa's tags."""
+
+    #: The language's own documentation tags, which an export may carry and Provisa ignores.
+    #: Any other tag is unknown, and a problem.
+    standard_tags: frozenset[str]
+    #: Whether a ``@stream`` may be a plain (synchronous) generator as well as an async one.
+    sync_streams: bool
+
+
+#: Node (REQ-1984): JSDoc and TSDoc tags; a stream is an async generator.
+NODE_RULES = Rules(standard_tags=STANDARD_TAGS, sync_streams=False)
+#: Python (REQ-1993): a docstring has no standard tag beginning with ``@``, so every one but
+#: Provisa's is unknown; a stream is a generator or an async generator.
+PYTHON_RULES = Rules(standard_tags=frozenset(), sync_streams=True)
+
+
 # -- shapes -----------------------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class Scalar:
-    #: The IR type: text, double, bigint, boolean, timestamp or json.
+    #: The IR type: text, double, bigint, numeric, boolean, timestamp, date or json.
     ir: str
 
 
@@ -199,13 +217,17 @@ class _Mapper:
         kind = node["kind"]
         simple = {
             "string": "text",
-            "number": "double",
             "bigint": "bigint",
             "boolean": "boolean",
             "date": "timestamp",
+            "day": "date",  # a calendar date with no time (Python's date)
+            "decimal": "numeric",  # Python's Decimal (decision P5)
         }
         if kind in simple:
             return Scalar(simple[kind])
+        if kind == "number":
+            # A Python int is an integer; a JavaScript number, and a Python float, a double.
+            return Scalar("bigint" if node.get("integer") else "double")
         if kind in ("any", "unknown", "record"):
             return LOOSE
         if kind == "literal":
@@ -255,9 +277,9 @@ def _rows(mapper: _Mapper, export: str, element: dict) -> tuple[Shape, bool]:
     return shape, False
 
 
-def read_manifest(raw: dict) -> Manifest:
-    """The bundle's tables, commands and streams, from the reader's output; refused with every
-    problem when any rule is broken."""
+def read_manifest(raw: dict, rules: Rules = NODE_RULES) -> Manifest:
+    """The bundle's tables, commands and streams, from the reader's output, under its language's
+    ``rules``; refused with every problem when any rule is broken."""
     mapper = _Mapper(raw.get("types", {}))
     problems = mapper.problems
     for diagnostic in raw.get("diagnostics", []):
@@ -266,7 +288,7 @@ def read_manifest(raw: dict) -> Manifest:
     for entry in raw["exports"]:
         name, tags = entry["name"], entry["tags"]
         for tag in tags:
-            if tag not in PROVISA_TAGS and tag not in STANDARD_TAGS:
+            if tag not in PROVISA_TAGS and tag not in rules.standard_tags:
                 problems.append(f"{name}: unknown tag @{tag}")
         kinds = sorted(PROVISA_TAGS.intersection(tags))
         if not kinds:
@@ -304,9 +326,11 @@ def read_manifest(raw: dict) -> Manifest:
                 Export(name, kind, entry["description"], tuple(parameters), row, preview)
             )
         elif kind == STREAM:
-            if not (returns["kind"] == "iterable" and returns["async"]):
+            if not (returns["kind"] == "iterable" and (returns["async"] or rules.sync_streams)):
                 problems.append(
-                    f"{name}: @stream is an async generator (returns AsyncGenerator<T>)"
+                    f"{name}: @stream is a generator or an async generator"
+                    if rules.sync_streams
+                    else f"{name}: @stream is an async generator (returns AsyncGenerator<T>)"
                 )
                 continue
             row, preview = _rows(mapper, name, returns["element"])

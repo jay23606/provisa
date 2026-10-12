@@ -47,6 +47,7 @@ function revive(value) {
   if (Array.isArray(value)) return value.map(revive);
   if (value && typeof value === "object") {
     if (typeof value.$date === "string") return new Date(value.$date);
+    if (typeof value.$day === "string") return new Date(`${value.$day}T00:00:00.000Z`);
     if (typeof value.$bigint === "string") return BigInt(value.$bigint);
     const out = {};
     for (const [k, v] of Object.entries(value)) out[k] = revive(v);

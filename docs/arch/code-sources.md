@@ -34,7 +34,7 @@ Each language's reader prints one JSON document, the same for both:
 
 Types are the trees Node's reader already writes: `string`, `number`, `bigint`, `boolean`, `date`, `literal`, `union`, `array`, `object`, `ref`, `record`, `any`, `unknown`, `promise`, `iterable` (async, generator), `undefined`, `null`, `unsupported`.
 
-Python's reader writes the same trees. Its mapping (section 6.2) adds two values the tree already has room for: `int` is written as `number` with `integer: true`, so it maps to `bigint` rather than `double` *(proposed: a Python int is an integer; Node's number stays double)*, and `Decimal` as `decimal`, which maps to numeric and travels as a string on the wire (decision P5). Node has no decimal type, so its reader never writes one.
+Python's reader writes the same trees. Its mapping (section 6.2) adds three kinds: `int` is written as `number` with `integer: true`, so it maps to `bigint` rather than `double` (a Python int is an integer; Node's number stays double); `date` as `day`, which maps to date; and `Decimal` as `decimal`, which maps to numeric and travels as a string on the wire (decision P5). Node has neither, so its reader never writes them. The rules differ in two places only (`manifest.Rules`): Python has no standard `@` docstring tag, so every tag but Provisa's is unknown; and a Python `@stream` may be a plain generator as well as an async one (REQ-1993).
 
 The rules in `manifest.read_manifest` apply unchanged to both languages: which exports are tables, commands and streams; a table returns a collection; a stream is an async generator (for Python, a generator or an async generator, per REQ-1993); columns from the row type or a preview for a loose row; every referenced type mapped; every problem by name, all at once.
 
@@ -44,7 +44,7 @@ One long-running process per code source per Provisa process, in its runtime, st
 
 - **Transport:** a Unix domain socket in a private directory (mode 0700). Provisa listens; the host connects. A socket, not the process's stdout, so anything the code prints never reaches the protocol.
 - **Frames:** a 4-byte big-endian length, then UTF-8 JSON.
-- **Values:** JSON, with a timestamp as `{"$date": iso}`, a big integer as `{"$bigint": digits}`, a decimal as `{"$decimal": digits}`, a missing value as null.
+- **Values:** JSON, with a timestamp as `{"$date": iso}`, a big integer as `{"$bigint": digits}`, a decimal as `{"$decimal": digits}`, a calendar date as `{"$day": iso}`, a missing value as null.
 - **Messages:**
 
   | From | Message | Meaning |
@@ -61,7 +61,7 @@ One long-running process per code source per Provisa process, in its runtime, st
 - **Calls:** multiplexed by id; a request's deadline sends `cancel`; a crash fails every call in flight, naming the source and the export.
 - **Pool:** keyed by `(source, content hash)`.
 
-`codesource/worker.py` is Provisa's side (`Worker`, `WorkerPool`, `HostCommand`); `host.mjs` (Node part 4) is Node's host. Deno is granted the socket as `--allow-net=unix:<socket>`. `host.py` *(proposed)* is the same program in Python, built on asyncio: it imports the code's module, says hello, and serves calls, iterating sync and async generators and lists alike.
+`codesource/worker.py` is Provisa's side (`Worker`, `WorkerPool`, `HostCommand`); `host.mjs` (Node part 4) is Node's host. Deno is granted the socket as `--allow-net=unix:<socket>`. `provisa/python/host.py` is the same program in Python, built on asyncio (standard library only): it imports the code's module, says hello, and serves calls; a coroutine is awaited, a generator or async generator iterated (a sync one a step at a time on a thread), any other function run on a thread. A row is a dict, a dataclass, a NamedTuple or an annotated object.
 
 ## 4. The sandbox, for every runtime
 
@@ -131,7 +131,7 @@ def churn_risk(account_id: str, as_of: datetime | None = None) -> list[RiskRow]:
 
 Python's annotations are not readable without importing the module: a type hint can name a type from another module or a dependency. So the Python reader imports the code, and **it runs in the same sandbox as the worker** (section 4). Importing the code is running it.
 
-`reader.py` *(proposed)* is shipped with Provisa and runs under the source's pinned Python, with the installed code on its path. It imports the entry module and:
+`provisa/python/reader.py` (standard library only) is shipped with Provisa and runs under the source's pinned Python, with the installed code on its path. It imports the entry module and:
 - for each module-level function, reads its docstring with `inspect.getdoc` and its hints with `typing.get_type_hints(include_extras=True)`;
 - writes the trees of section 2;
 - writes an import error as a diagnostic: the code is refused, with the error.
@@ -140,6 +140,8 @@ Python's annotations are not readable without importing the module: a type hint 
 - the entry module is the code's single top-level import: for a wheel, from its `top_level.txt` or `RECORD`; for an upload or a Git subdirectory, its single top-level module or package;
 - when there is more than one, the source registration form names the module, a field Provisa keeps with the source;
 - when there is more than one and the form names none, the source is refused, naming the candidates.
+
+Built in part P1 for a code directory (`provisa/python/source.entry_module`: setup.py, conftest.py and the like, test modules and `tests/` are not the code); the wheel's `top_level.txt` comes with the PyPI fetch in part P2. The reader and the host run sandboxed (`read_code`, `host_command`), the reader once per read with no worker socket.
 
 ### 6.3 Fetching the code and installing its dependencies
 
