@@ -183,6 +183,25 @@ describe("nativeParams", () => {
       expect(sql).toContain(`ORDER BY "status" ASC, "name" DESC`);
     });
 
+    // #248: a grouped column was always ordered ascending, so sorting the column a report
+    // is grouped by (usage_ranking by query_count) did nothing: its groups kept their ascending
+    // order. A grouped column takes the direction of its own sort.
+    it("orders a grouped column the way it is sorted", () => {
+      const { sql } = pagedViewerSql(
+        TABLE,
+        {},
+        [],
+        [
+          { col: "status", dir: "desc" },
+          { col: "name", dir: "asc" },
+        ],
+        ["status"],
+        0,
+        100,
+      );
+      expect(sql).toContain(`ORDER BY "status" DESC, "name" ASC`);
+    });
+
     // The defect: a sorted or grouped column was written between bare double quotes, so a column
     // whose name holds a double quote ended its own identifier and the rest of the name was read
     // as SQL. Every identifier goes through the one quoter (naming.quoteIdent).
