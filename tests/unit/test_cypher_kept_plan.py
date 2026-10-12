@@ -62,6 +62,8 @@ def _ctx(table_id: int = 1) -> SimpleNamespace:
         native_filter_columns={},
         physical_to_sql={},
         gql_governed_object_cols=set(),
+        gql_json_columns=set(),
+        exposed_to_physical={},
     )
 
 

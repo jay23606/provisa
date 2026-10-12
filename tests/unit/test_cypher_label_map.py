@@ -11,6 +11,8 @@
 
 """Unit tests for provisa/cypher/label_map.py — focus on _resolve_id_column and cross-domain traversal."""
 
+import pytest
+
 from provisa.cypher.label_map import CypherLabelMap, NodeMapping, _resolve_id_column
 from provisa.compiler.introspect import ColumnMetadata
 
@@ -146,6 +148,8 @@ def _make_ctx(owned_table_id: int = 1):
         native_filter_columns={},
         physical_to_sql={},
         gql_governed_object_cols=set(),
+        gql_json_columns=set(),
+        exposed_to_physical={},
     )
     return ctx
 
@@ -520,6 +524,47 @@ def test_an_embedded_object_is_a_property_and_a_registered_reference_is_not():
     ctx.gql_governed_object_cols = table_edge_columns(sources, {("remote", "sa_orders"): 1})
     assert ctx.gql_governed_object_cols == {(1, "customer"), (1, "lines")}
 
+    # The schema names its declared object columns (gql_json_columns) as it spells them.
+    ctx.gql_json_columns = {(1, "address"), (1, "customer"), (1, "lines")}
     lm = CypherLabelMap.from_schema(ctx, domain_access=["*"])
     (node,) = lm.nodes.values()
     assert set(node.properties) == {"id", "address"}
+    assert node.map_properties == {"address"}
+
+
+def _map_property_label_map() -> CypherLabelMap:
+    ctx = _make_ctx()
+    ctx.aggregate_columns = {1: [("id", "integer"), ("ship_to", "jsonb"), ("note", "varchar")]}
+    # Spelled by the schema as shipTo, its physical name ship_to.
+    ctx.gql_json_columns = {(1, "shipTo")}
+    ctx.exposed_to_physical = {(1, "shipTo"): "ship_to"}
+    return CypherLabelMap.from_schema(ctx, domain_access=["*"])
+
+
+@pytest.mark.parametrize(
+    "cypher, column",
+    [
+        ("MATCH (o:Orders) RETURN o.shipTo, o.note", "shipto"),
+        ("MATCH (o:Orders) RETURN o.shipTo AS address, o.note", "address"),
+    ],
+)
+def test_a_returned_map_property_is_a_map_whatever_form_the_engine_gives(cypher, column):
+    """REQ-1991: a declared object column comes back as JSON text from one engine and decoded
+    from another; either way the client receives a map. A text column is left as it is."""
+    from provisa.cypher.assembler import assemble_rows
+    from provisa.cypher.parser import parse_cypher
+    from provisa.cypher.translator import cypher_to_sql
+    from provisa.cypher.translator_types import GraphVarKind
+
+    lm = _map_property_label_map()
+    (node,) = lm.nodes.values()
+    assert node.map_properties == {"shipTo"}
+    _, _, graph_vars = cypher_to_sql(parse_cypher(cypher), lm, {})
+    assert graph_vars == {column: GraphVarKind.MAP}
+
+    as_text = {column: '{"city": "Oslo"}', "note": '{"not": "a map"}'}
+    as_decoded = {column: {"city": "Oslo"}, "note": '{"not": "a map"}'}
+    for row in (as_text, as_decoded):
+        assert assemble_rows([row], graph_vars) == [
+            {column: {"city": "Oslo"}, "note": '{"not": "a map"}'}
+        ]

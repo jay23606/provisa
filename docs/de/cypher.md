@@ -78,6 +78,8 @@ Provisa übersetzt eine Teilmenge von openCypher nach SQL über das Modul `provi
 | `n { .*, extra: expr }` | Alle Schema-Eigenschaften plus benannter Schlüssel; kombinierte MAP |
 | `n { key: expr }` | `MAP(ARRAY['key'], ARRAY[expr])` |
 
+**Objekteigenschaften.** Eine Spalte mit einem deklarierten Objekt (dem eingebetteten Objekt eines Remote-GraphQL-Typs oder jeder mit Objektfeldern registrierten Spalte) ist eine Map-Eigenschaft: `RETURN n.address` liefert sie als Map, in welcher Form die Engine sie auch zurückgibt, und der Knoten `n` trägt sie unter seinen Eigenschaften. Ein Remote-GraphQL-Feld, das auf einen registrierten Typ zeigt, ein Objekt oder eine Liste, ist keine Eigenschaft; es wird über seine Beziehung erreicht. (REQ-1991) [tool-verified: `provisa/cypher/label_map.py`, `provisa/cypher/assembler.py`]
+
 ### Aggregationsfunktionen
 
 | Cypher | SQL |
