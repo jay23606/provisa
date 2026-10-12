@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "此數據來源的簡短描述",
     "host": "主機",
     "port": "連接埠",
+    "mongoHostHint": "主機名稱，或 mongodb:// 或 mongodb+srv:// 連線字串（用於 Atlas）。使用者名稱和密碼填寫在各自的欄位中。",
     "username": "使用者名稱",
     "password": "密碼",
     "database": "數據庫",

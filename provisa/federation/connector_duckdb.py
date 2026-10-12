@@ -383,9 +383,14 @@ class DuckDBMongoConnector(_DuckDBExtensionConnector):  # REQ-899
     probe_symbol = "mongo_scan"
 
     def details(self, source: Source) -> dict:
-        dsn = f"host={source.host} port={source.port}"
+        from provisa.compiler.sql_literals import sql_literal
+        from provisa.mongodb.fetch import MongoConnection
+
+        # REQ-1985: the extension takes a mongodb:// or mongodb+srv:// connection string; the
+        # source's credentials are encoded into it.
+        dsn = sql_literal(MongoConnection.from_source(source).url(), "duckdb")
         return {
-            "attach": f"ATTACH '{dsn}' AS \"_src_{source.id}\" (TYPE mongo)",
+            "attach": f'ATTACH {dsn} AS "_src_{source.id}" (TYPE mongo)',
             "raw_alias": f"_src_{source.id}",
         }
 

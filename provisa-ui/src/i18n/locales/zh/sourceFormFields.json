@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "此数据源的简要描述",
     "host": "主机",
     "port": "端口",
+    "mongoHostHint": "主机名，或 mongodb:// 或 mongodb+srv:// 连接字符串（用于 Atlas）。用户名和密码填写在各自的字段中。",
     "username": "用户名",
     "password": "密码",
     "database": "数据库",

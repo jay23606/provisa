@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "Kurze Beschreibung dieser Datenquelle",
     "host": "Host",
     "port": "Port",
+    "mongoHostHint": "Ein Hostname oder eine Verbindungszeichenfolge mongodb:// bzw. mongodb+srv:// (für Atlas). Benutzername und Passwort gehören in ihre eigenen Felder.",
     "username": "Benutzername",
     "password": "Passwort",
     "database": "Datenbank",

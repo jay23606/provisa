@@ -77859,3 +77859,34 @@
   - REQ-429
   - REQ-1159
   notes: 'Maintainer 2026-10-12, via the lead: approved the job to match Hasura DDN native queries over MongoDB (collection-representation native queries, Atlas $search/$searchMeta/$vectorSearch, as sources in relational queries, with typed, validated and interpolated arguments), design first. Shape A (this requirement) is a table registered from a pipeline. Shape B, which follows separately, is a query command (Function kind query) that runs a pipeline whose output has no stable schema. The following go beyond his words and are the lead''s elaboration: arguments as parameter columns with a new native_filter_type pipeline_arg and native_filter_required per argument; output columns declared or found by one run with sample arguments; the native pymongo reader as the only reader of such a table; tests on the mongodb/mongodb-atlas-local image in an isolated stack, CI only. Design note docs/arch/mongodb-native-queries.md.'
+- id: REQ-1985
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: MUST
+  type: behavioral
+  description: 'A MongoDB source can be reached by a connection string, so a MongoDB Atlas cluster can be registered. The source''s host holds either a host name (with the port in its own field, as today) or a mongodb:// or mongodb+srv:// connection string carrying the hosts and the connection options, among them tls. The credentials stay in the source''s username and password, where a secret reference is resolved at use, and are percent-encoded wherever they are written into a connection string. With a connection string the source has no port; a source that gives both is refused, naming the source. Every reach of the source uses the same connection: the native reader, the change-feed check, and the Trino and DuckDB attaches. The ClickHouse engine''s MongoDB table engine takes one host and port only, so a source given by a connection string is refused there, naming the source and the engine. On the Sources form, a connection string in the host field hides the port.'
+  use_case: 'A developer registers an Atlas cluster as a MongoDB source with host mongodb+srv://cluster0.example.mongodb.net/?retryWrites=true, username app and password ${env:ATLAS_PASSWORD}; its tables and its search and vector-search pipelines are read through that one connection.'
+  scenario: 'Given a MongoDB source whose host is a mongodb+srv:// connection string and whose password holds a character that must be percent-encoded
+
+
+    When a table of the source is read on DuckDB, on Trino, or by the native reader
+
+
+    Then each connects with the connection string, the username and the encoded password
+
+
+    Given the same source with its port also set
+
+
+    When it is saved
+
+
+    Then it is refused, and the message names the source and says the connection string carries the hosts'
+  related_reqs:
+  - REQ-1980
+  - REQ-1730
+  - REQ-899
+  - REQ-1861
+  notes: 'Maintainer 2026-10-12, via the lead: "Atlas connections, mongodb+srv and TLS, so a real Atlas cluster can be reached. Write it as its own requirement and build it first, since search needs it." The following go beyond his words and are the lead''s elaboration: the connection string held in the host field (as a SPARQL source holds its endpoint URL there) rather than a new field; credentials kept out of the string; the port refused alongside a connection string; the ClickHouse refusal (ClickHouse 24.3''s MongoDB engine takes host:port only).'
