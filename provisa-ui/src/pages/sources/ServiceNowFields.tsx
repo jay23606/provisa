@@ -47,7 +47,7 @@ export function ServiceNowFields<F extends ConnectionForm>({ form, setForm }: Pr
         />
       </FormField>
       <FieldGroup>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <TextInput
             required
             label={t("sourceFormFieldsExtended.username")}
@@ -56,7 +56,7 @@ export function ServiceNowFields<F extends ConnectionForm>({ form, setForm }: Pr
             data-testid="servicenow-username-input"
           />
         </FormField>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <PasswordInput
             required
             label={t("sourceFormFieldsExtended.password")}

@@ -35,14 +35,14 @@ export function ObjectStoreCredentialFields({ store, fields, setFields }: Props)
     return (
       <>
         <FieldGroup>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <TextInput
               label={t("sourceFormFields.accessKeyId")}
               placeholder="${secret:aws_access_key_id}"
               {...field("access_key_id")}
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <PasswordInput
               label={t("sourceFormFields.secretAccessKey")}
               placeholder="${secret:aws_secret_access_key}"
@@ -77,7 +77,7 @@ export function ObjectStoreCredentialFields({ store, fields, setFields }: Props)
             {...field("gcs_access_id")}
           />
         </FormField>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <PasswordInput
             label={t("sourceFormFields.gcsHmacSecret")}
             placeholder="${secret:gcs_hmac_secret}"
@@ -92,7 +92,7 @@ export function ObjectStoreCredentialFields({ store, fields, setFields }: Props)
       <FormField size="medium">
         <TextInput label={t("sourceFormFields.storageAccount")} {...field("azure_account_name")} />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <PasswordInput
           label={t("sourceFormFields.accessKey")}
           placeholder="${secret:azure_account_key}"

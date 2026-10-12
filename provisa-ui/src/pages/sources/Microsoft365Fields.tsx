@@ -181,7 +181,11 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
         <>
           {/* The button that connects the mailbox sits at the end of its address. */}
           <FieldGroup>
-            <FormField hint={t("microsoft365Fields.accountHelp")} size="medium">
+            <FormField
+              section="authentication"
+              hint={t("microsoft365Fields.accountHelp")}
+              size="medium"
+            >
               <TextInput
                 label={t("microsoft365Fields.account")}
                 placeholder="ada@example.com"

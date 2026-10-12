@@ -13,9 +13,9 @@
 // secret as set, and a registration a remote API source's list does not hold named as an error.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "../../test-utils/render";
+import { render, screen, waitFor } from "../../test-utils/render";
 import userEvent from "@testing-library/user-event";
-import type { Source } from "../../types/admin";
+import type { RegisteredTable, Source } from "../../types/admin";
 
 vi.mock("../../api/admin", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/admin")>()),
@@ -39,11 +39,21 @@ vi.mock("../../context/AuthContext", async (importOriginal) => ({
 }));
 
 let SOURCES: Source[] = [];
+let TABLES: RegisteredTable[] = [];
 
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminQueries")>()),
   useSources: () => ({ sources: SOURCES, loading: false, refetch: vi.fn().mockResolvedValue({}) }),
   useDomains: () => ({ domains: [], loading: false, refetch: vi.fn() }),
+  useTables: () => ({ tables: TABLES, loading: false, refetch: vi.fn() }),
+}));
+
+vi.mock("../../api/actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/actions")>()),
+  fetchActions: vi.fn().mockResolvedValue({
+    functions: [{ name: "add_pet", sourceId: "pets", kind: "mutation" }],
+    webhooks: [],
+  }),
 }));
 
 import { SourcesPage } from "../SourcesPage";
@@ -80,12 +90,16 @@ describe("a registered source's read view", () => {
     await userEvent.click(await screen.findByTestId("sources-row-sales"));
     await screen.findByTestId("source-read");
     expect(valueOf("Host")).toBe("db.example.test");
-    expect(valueOf("Password")).toBe("Set");
     // Not the description a new source is given from its type: this one has none.
     expect(valueOf("Description")).toBe("—");
     // A registered source's form has its naming convention; Inherit is a value, not empty.
     expect(valueOf("Naming Convention")).toBe("Inherit (global)");
     expect(valueOf("Allowed Domains")).toBe("—");
+    // The credentials are read on the Authentication tab, as they are edited there.
+    expect(valueOf("Password")).toBeUndefined();
+    await userEvent.click(screen.getByTestId("source-section-authentication"));
+    expect(valueOf("Password")).toBe("Set");
+    expect(valueOf("Host")).toBeUndefined();
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
@@ -101,5 +115,56 @@ describe("a registered source's read view", () => {
       await screen.findByText(/\/admin\/openapi\/list holds no registration for source pets/),
     ).toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+
+  it("shows the sections a source's kind has: Operations only for those with their own", async () => {
+    SOURCES = [
+      source({}),
+      source({ id: "pets", type: "openapi", host: null, path: "https://x.test" }),
+    ];
+    render(<SourcesPage />);
+    await userEvent.click(await screen.findByTestId("sources-row-sales"));
+    await screen.findByTestId("source-read");
+    const tabs = () =>
+      screen
+        .getAllByRole("tab")
+        .map((tab) => tab.getAttribute("data-testid")?.replace("source-section-", ""));
+    expect(tabs()).toEqual(["connection", "authentication", "load", "tables"]);
+    await userEvent.click(screen.getByTestId("sources-row-pets"));
+    await waitFor(() => expect(tabs()).toContain("operations"));
+    await userEvent.click(screen.getByTestId("source-section-operations"));
+    expect(await screen.findByTestId("source-commands")).toHaveTextContent("add_pet");
+  });
+
+  it("lists the tables registered from the source, each linked, a draft marked", async () => {
+    SOURCES = [source({}), source({ id: "empty" })];
+    TABLES = [
+      {
+        id: 4,
+        sourceId: "sales",
+        tableName: "orders",
+        alias: null,
+        domainId: "sales",
+        draft: false,
+      },
+      {
+        id: 5,
+        sourceId: "sales",
+        tableName: "returns",
+        alias: null,
+        domainId: "sales",
+        draft: true,
+      },
+      { id: 6, sourceId: "other", tableName: "x", alias: null, domainId: "sales", draft: false },
+    ] as unknown as RegisteredTable[];
+    render(<SourcesPage />);
+    await userEvent.click(await screen.findByTestId("sources-row-sales"));
+    await userEvent.click(await screen.findByTestId("source-section-tables"));
+    expect(screen.getByRole("link", { name: "orders" })).toHaveAttribute("href", "/tables?table=4");
+    expect(screen.getByTestId("source-table-5")).toHaveTextContent("Draft");
+    expect(screen.queryByTestId("source-table-6")).toBeNull();
+    await userEvent.click(screen.getByTestId("sources-row-empty"));
+    expect(await screen.findByTestId("source-tables-none")).toHaveTextContent("—");
+    TABLES = [];
   });
 });

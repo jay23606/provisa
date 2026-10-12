@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "Sezioni dell'origine",
+    "connection": "Connessione",
+    "authentication": "Autenticazione",
+    "load": "Caricamento",
+    "tables": "Tabelle",
+    "operations": "Operazioni",
+    "tableName": "Tabella",
+    "tableDomain": "Dominio",
+    "draft": "Bozza",
+    "commands": "Comandi",
+    "commandName": "Comando",
+    "commandKind": "Tipo"
+  }
+}

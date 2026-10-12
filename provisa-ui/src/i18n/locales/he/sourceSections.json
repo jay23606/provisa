@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "מקטעי המקור",
+    "connection": "חיבור",
+    "authentication": "אימות",
+    "load": "טעינה",
+    "tables": "טבלאות",
+    "operations": "פעולות",
+    "tableName": "טבלה",
+    "tableDomain": "תחום",
+    "draft": "טיוטה",
+    "commands": "פקודות",
+    "commandName": "פקודה",
+    "commandKind": "סוג"
+  }
+}

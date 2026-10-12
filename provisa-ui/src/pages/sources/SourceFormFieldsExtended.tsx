@@ -57,6 +57,7 @@ import {
   FormField,
   FormFold,
   FormFolds,
+  FormSection,
 } from "../../components/form/FormLayout";
 
 export function SourceFormFieldsExtended({
@@ -171,7 +172,7 @@ export function SourceFormFieldsExtended({
               data-testid="prometheus-url-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFieldsExtended.authentication")}
               value={authType}
@@ -188,7 +189,7 @@ export function SourceFormFieldsExtended({
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "bearer" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
@@ -202,7 +203,7 @@ export function SourceFormFieldsExtended({
       )}
       {form.type === "google_sheets" && (
         <>
-          <FormField size="long">
+          <FormField section="authentication" size="long">
             <TextInput
               required
               label={t("sourceFormFieldsExtended.credentialsJsonPath")}
@@ -253,7 +254,11 @@ export function SourceFormFieldsExtended({
       )}
       {/* REQ-1923: a brand asks for the credential it states (BRAND_AUTH), never one by default. */}
       {BRAND_AUTH[form.type] === "token" && (
-        <FormField hint={t("sourceFormFieldsExtended.accessTokenHint")} size="long">
+        <FormField
+          section="authentication"
+          hint={t("sourceFormFieldsExtended.accessTokenHint")}
+          size="long"
+        >
           <PasswordInput
             required
             label={t("sourceFormFieldsExtended.accessToken")}
@@ -306,7 +311,7 @@ export function SourceFormFieldsExtended({
               data-testid="graphql-cache-ttl-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFieldsExtended.authentication")}
               value={authType}
@@ -324,7 +329,7 @@ export function SourceFormFieldsExtended({
             />
           </FormField>
           {authType === "bearer" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
@@ -408,7 +413,7 @@ export function SourceFormFieldsExtended({
               data-testid="grpc-import-paths-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFieldsExtended.authentication")}
               value={authType}
@@ -422,7 +427,7 @@ export function SourceFormFieldsExtended({
             />
           </FormField>
           {authType === "bearer" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
@@ -448,7 +453,7 @@ export function SourceFormFieldsExtended({
                   data-testid="grpc-header-name-input"
                 />
               </FormField>
-              <FormField size="long">
+              <FormField section="authentication" size="long">
                 <PasswordInput
                   required
                   label={t("sourceFormFieldsExtended.apiKey")}
@@ -511,7 +516,7 @@ export function SourceFormFieldsExtended({
             </FormField>
           </FormChecks>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 label={t("sourceFormFieldsExtended.username")}
                 value={form.username}
@@ -520,7 +525,7 @@ export function SourceFormFieldsExtended({
                 data-testid="neo4j-username-input"
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 label={t("sourceFormFieldsExtended.password")}
                 value={form.password}
@@ -562,7 +567,7 @@ export function SourceFormFieldsExtended({
             </Checkbox.Group>
           </FormField>
           <FieldGroup>
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 label={t("sourceFormFieldsExtended.askAmericaApiKey")}
                 value={form.username}
@@ -614,7 +619,7 @@ export function SourceFormFieldsExtended({
               data-testid="kafka-schema-registry-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFieldsExtended.authentication")}
               value={authType}
@@ -745,7 +750,7 @@ export function SourceFormFieldsExtended({
               {transportMeta.needsAuth === "s3" && (
                 <>
                   <FieldGroup>
-                    <FormField size="medium">
+                    <FormField section="authentication" size="medium">
                       <TextInput
                         label={t("sourceFormFieldsExtended.accessKeyId")}
                         value={form.username}
@@ -753,7 +758,7 @@ export function SourceFormFieldsExtended({
                         data-testid="files-access-key-input"
                       />
                     </FormField>
-                    <FormField size="medium">
+                    <FormField section="authentication" size="medium">
                       <PasswordInput
                         label={t("sourceFormFieldsExtended.secretAccessKey")}
                         value={form.password}
@@ -767,7 +772,7 @@ export function SourceFormFieldsExtended({
               {transportMeta.needsAuth === "userpass" && (
                 <>
                   <FieldGroup>
-                    <FormField size="medium">
+                    <FormField section="authentication" size="medium">
                       <TextInput
                         label={t("sourceFormFieldsExtended.username")}
                         value={form.username}
@@ -775,7 +780,7 @@ export function SourceFormFieldsExtended({
                         data-testid="files-username-input"
                       />
                     </FormField>
-                    <FormField size="medium">
+                    <FormField section="authentication" size="medium">
                       <PasswordInput
                         label={t("sourceFormFieldsExtended.password")}
                         value={form.password}
@@ -788,7 +793,7 @@ export function SourceFormFieldsExtended({
               )}
               {transportMeta.needsAuth === "cert-or-userpass" && (
                 <>
-                  <FormField size="medium">
+                  <FormField section="authentication" size="medium">
                     <Select
                       label={t("sourceFormFieldsExtended.authMethod")}
                       value={filesAuthMode}
@@ -815,7 +820,7 @@ export function SourceFormFieldsExtended({
                   {filesAuthMode === "userpass" && (
                     <>
                       <FieldGroup>
-                        <FormField size="medium">
+                        <FormField section="authentication" size="medium">
                           <TextInput
                             label={t("sourceFormFieldsExtended.username")}
                             value={form.username}
@@ -823,7 +828,7 @@ export function SourceFormFieldsExtended({
                             data-testid="files-userpass-username-input"
                           />
                         </FormField>
-                        <FormField size="medium">
+                        <FormField section="authentication" size="medium">
                           <PasswordInput
                             label={t("sourceFormFieldsExtended.password")}
                             value={form.password}
@@ -836,7 +841,7 @@ export function SourceFormFieldsExtended({
                   )}
                   {filesAuthMode === "certificate" && (
                     <>
-                      <FormField size="long">
+                      <FormField section="authentication" size="long">
                         <TextInput
                           label={t("sourceFormFieldsExtended.pfxCertificatePath")}
                           value={filesCertPath}
@@ -845,7 +850,7 @@ export function SourceFormFieldsExtended({
                           data-testid="files-cert-path-input"
                         />
                       </FormField>
-                      <FormField size="medium">
+                      <FormField section="authentication" size="medium">
                         <PasswordInput
                           label={t("sourceFormFieldsExtended.certificatePassword")}
                           value={filesCertPassword}
@@ -864,9 +869,13 @@ export function SourceFormFieldsExtended({
           source whose tables land needs its cache TTL before a table is registered. */}
       {/* The short step asks for them only where the source cannot exist without one: a kind
           whose tables land must state its Cache TTL. */}
-      {(!essential || landsWithTtl) && <SourceLoadManagementPanel form={form} setForm={setForm} />}
+      {(!essential || landsWithTtl) && (
+        <FormSection id="load">
+          <SourceLoadManagementPanel form={form} setForm={setForm} />
+        </FormSection>
+      )}
       {!essential && (
-        <FormField size="medium">
+        <FormField size="medium" section="load">
           <RegionSelect
             value={form.region}
             onChange={(region) => setForm({ ...form, region })}
@@ -902,7 +911,7 @@ export function SourceFormFieldsExtended({
             </FormField>
           )}
           {cdcTransportApplicable(form.type) && (
-            <FormField size="full">
+            <FormField size="full" section="load">
               <FormFolds data-testid="cdc-transport-accordion">
                 <FormFold
                   value="cdc"

@@ -157,6 +157,8 @@ describe("saving a source sends its Cache TTL with the source", () => {
   it("stops a mail source with no Cache TTL in the form, before anything is sent", async () => {
     SOURCES = [source({ id: "mail-b", cacheTtl: null })];
     await openForEdit("mail-b");
+    // The Cache TTL is a Load setting: its section's tab.
+    await userEvent.click(screen.getByTestId("source-section-load"));
     await screen.findByTestId("cache-ttl-input");
     await waitFor(() => expect(screen.getByTestId("cache-ttl-input")).toBeRequired());
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -194,6 +196,7 @@ describe("saving a source sends its Cache TTL with the source", () => {
         } as Partial<Source>),
       ];
       await openForEdit("sales-pg");
+      await userEvent.click(await screen.findByTestId("source-section-authentication"));
       const field = await screen.findByLabelText(/^Password/);
       expect(field).toHaveValue(entered);
       expect(field).toHaveAttribute("type", "password"); // behind the reveal control

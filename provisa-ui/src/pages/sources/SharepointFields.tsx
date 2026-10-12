@@ -56,7 +56,7 @@ export function SharepointFields({
           data-testid="sharepoint-site-url-input"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <TextInput
           required
           label={t("sourceFormFieldsExtended.tenantId")}
@@ -66,7 +66,7 @@ export function SharepointFields({
           data-testid="sharepoint-tenant-id-input"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <Select
           label={t("sourceFormFieldsExtended.authType")}
           value={spAuthType}
@@ -86,7 +86,7 @@ export function SharepointFields({
           data-testid="sharepoint-auth-type-select"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <TextInput
           required
           label={t("sourceFormFieldsExtended.clientId")}
@@ -97,7 +97,7 @@ export function SharepointFields({
         />
       </FormField>
       {spAuthType === "CLIENT_CREDENTIALS" && (
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <PasswordInput
             label={t("sourceFormFieldsExtended.clientSecret")}
             value={form.password}
@@ -110,7 +110,7 @@ export function SharepointFields({
       {spAuthType === "USERNAME_PASSWORD" && (
         <>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 required
                 label={t("sourceFormFieldsExtended.spUsername")}
@@ -120,7 +120,7 @@ export function SharepointFields({
                 data-testid="sharepoint-sp-username-input"
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.spPassword")}
@@ -134,7 +134,7 @@ export function SharepointFields({
       )}
       {spAuthType === "CERTIFICATE" && (
         <>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <PasswordInput
               label={t("sourceFormFieldsExtended.clientSecret")}
               value={form.password}
@@ -143,7 +143,7 @@ export function SharepointFields({
               data-testid="sharepoint-cert-client-secret-input"
             />
           </FormField>
-          <FormField size="long">
+          <FormField section="authentication" size="long">
             <TextInput
               required
               label={t("sourceFormFieldsExtended.certificatePath")}
@@ -153,7 +153,7 @@ export function SharepointFields({
               data-testid="sharepoint-cert-path-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <PasswordInput
               label={t("sourceFormFieldsExtended.certificatePassword")}
               value={spCertPassword}

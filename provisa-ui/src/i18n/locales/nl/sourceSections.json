@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "Secties van de bron",
+    "connection": "Verbinding",
+    "authentication": "Authenticatie",
+    "load": "Laden",
+    "tables": "Tabellen",
+    "operations": "Bewerkingen",
+    "tableName": "Tabel",
+    "tableDomain": "Domein",
+    "draft": "Concept",
+    "commands": "Opdrachten",
+    "commandName": "Opdracht",
+    "commandKind": "Soort"
+  }
+}

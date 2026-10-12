@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "स्रोत के अनुभाग",
+    "connection": "कनेक्शन",
+    "authentication": "प्रमाणीकरण",
+    "load": "लोड",
+    "tables": "तालिकाएँ",
+    "operations": "संचालन",
+    "tableName": "तालिका",
+    "tableDomain": "डोमेन",
+    "draft": "मसौदा",
+    "commands": "कमांड",
+    "commandName": "कमांड",
+    "commandKind": "प्रकार"
+  }
+}

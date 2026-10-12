@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "Abschnitte der Quelle",
+    "connection": "Verbindung",
+    "authentication": "Authentifizierung",
+    "load": "Laden",
+    "tables": "Tabellen",
+    "operations": "Operationen",
+    "tableName": "Tabelle",
+    "tableDomain": "Domäne",
+    "draft": "Entwurf",
+    "commands": "Befehle",
+    "commandName": "Befehl",
+    "commandKind": "Art"
+  }
+}

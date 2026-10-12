@@ -100,6 +100,7 @@ describe("object-store credentials round-trip through the source form", () => {
     await openForEdit("lake");
     expect(screen.getByDisplayValue("eu-west-1")).toBeInTheDocument();
     // The lake form's secret is required and never read back: it is entered again, as by a user.
+    await userEvent.click(screen.getByTestId("source-section-authentication"));
     await userEvent.type(screen.getByLabelText(/Secret Access Key/), "${{secret:aws_secret}");
     const hints = await saved();
     expect(hints).toEqual({
@@ -127,6 +128,7 @@ describe("object-store credentials round-trip through the source form", () => {
     updateSource.mockClear();
     await openForEdit("lake");
     expect(screen.getByTestId("iceberg-iceberg_catalog_uri")).toHaveValue("http://catalog:8181");
+    await userEvent.click(screen.getByTestId("source-section-authentication"));
     await userEvent.type(screen.getByLabelText(/Secret Access Key/), "${{secret:aws_secret}");
     const hints = await saved();
     expect(hints).toEqual({
@@ -143,7 +145,10 @@ describe("object-store credentials round-trip through the source form", () => {
         id: "gcs-csv",
         type: "csv",
         path: "gs://bucket/customers.csv",
-        federationHintsJson: JSON.stringify({ gcs_access_id: "GOOG1", gcs_secret_key: "${secret:h}" }),
+        federationHintsJson: JSON.stringify({
+          gcs_access_id: "GOOG1",
+          gcs_secret_key: "${secret:h}",
+        }),
       } as Partial<Source>),
     ];
     updateSource.mockClear();

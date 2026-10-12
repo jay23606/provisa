@@ -18,8 +18,9 @@ import {
   FormIdentifiers,
   FormLayout,
   FormRead,
+  FormSections,
 } from "../components/form/FormLayout";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -51,6 +52,7 @@ import {
   useUpdateSourceNaming,
   useUpdateSourceAllowedDomains,
   useDomains,
+  useTables,
 } from "../hooks/useAdminQueries";
 import { useGovdataSubjects } from "../hooks/useGovdataSubjects";
 import { schemasForSubjects } from "./sources/govdataSubjects";
@@ -96,6 +98,10 @@ import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
 import { CLOUD_FILE_TYPES, objectStoreHints, objectStoreOf } from "./sources/objectStoreHints";
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
+import { SourceSectionTabs } from "./sources/SourceSectionTabs";
+import { SourceTablesList } from "./sources/SourceTablesList";
+import { SourceOperations } from "./sources/SourceOperations";
+import { shownSourceSections, type SourceSection } from "./sources/sourceSections";
 import {
   EMPTY_CDC,
   fetchRemoteSeed,
@@ -129,6 +135,16 @@ export function SourcesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { sources, loading: sourcesLoading, refetch: refetchSources } = useSources();
+  // The tables registered from each source, for its panel's Tables section.
+  const { tables: registeredTables } = useTables();
+  // The section of the source's panel in view, the same in its read view and its edit form, and
+  // the form's sections that have fields for the source's kind (reported by the form as drawn).
+  const [section, setSection] = useState<SourceSection>("connection");
+  const [formSections, setFormSections] = useState<string[]>([]);
+  const noteFormSections = (found: string[]) =>
+    setFormSections((held) =>
+      held.length === found.length && held.every((x) => found.includes(x)) ? held : found,
+    );
   const { domains } = useDomains();
   const { createSource } = useCreateSource();
   const { updateSource } = useUpdateSource();
@@ -1508,42 +1524,59 @@ export function SourcesPage() {
         />
       </FormLayout>
     ) : selectedSource ? (
-      ((s: Source) => (
-        <>
-          {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
-          {editingSourceId !== s.id && sourceActions(s)}
-          {editingSourceId === s.id ? (
-            sourceForm
-          ) : (
-            <SourceDetailPanel
-              s={s}
-              fields={
-                readSeeded === s.id ? (
-                  <FormRead
-                    testId="source-read"
-                    derived={[
-                      {
-                        label: t("sourceDetailPanel.field.effectiveTtl"),
-                        value: getEffectiveTtl(s),
-                      },
-                    ]}
-                  >
-                    {sourceForm}
-                  </FormRead>
-                ) : null
-              }
-              onEdit={() => handleEdit(s)}
-              onNavigate={() => navigate(`/tables?source=${encodeURIComponent(s.id)}`)}
-              onDelete={async () => {
-                const result = await deleteSource(s.id);
-                if (refusal.refused(result, s.id)) return;
-                if (expanded === s.id) updateExpanded(null);
-                load();
-              }}
-            />
-          )}
-        </>
-      ))(selectedSource)
+      ((s: Source) => {
+        const shown = shownSourceSections(s.type, formSections);
+        // A section the source's kind does not have is not in view; its first is.
+        const inView: SourceSection = shown.includes(section) ? section : "connection";
+        const sectioned = (node: ReactNode) => (
+          <FormSections active={inView} fallback="connection" onSections={noteFormSections}>
+            {node}
+          </FormSections>
+        );
+        return (
+          <>
+            {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
+            {editingSourceId !== s.id && sourceActions(s)}
+            <SourceSectionTabs value={inView} shown={shown} onChange={setSection} />
+            {inView === "tables" && <SourceTablesList sourceId={s.id} tables={registeredTables} />}
+            {inView === "operations" && <SourceOperations sourceId={s.id} type={s.type} />}
+            {editingSourceId === s.id ? (
+              sectioned(sourceForm)
+            ) : (
+              <SourceDetailPanel
+                s={s}
+                fields={
+                  readSeeded === s.id ? (
+                    <FormRead
+                      testId="source-read"
+                      derived={
+                        inView === "load"
+                          ? [
+                              {
+                                label: t("sourceDetailPanel.field.effectiveTtl"),
+                                value: getEffectiveTtl(s),
+                              },
+                            ]
+                          : []
+                      }
+                    >
+                      {sectioned(sourceForm)}
+                    </FormRead>
+                  ) : null
+                }
+                onEdit={() => handleEdit(s)}
+                onNavigate={() => navigate(`/tables?source=${encodeURIComponent(s.id)}`)}
+                onDelete={async () => {
+                  const result = await deleteSource(s.id);
+                  if (refusal.refused(result, s.id)) return;
+                  if (expanded === s.id) updateExpanded(null);
+                  load();
+                }}
+              />
+            )}
+          </>
+        );
+      })(selectedSource)
     ) : null);
   const panelIsReadOnly = working === null && !showForm && editingSourceId === null;
   const panelTitle =

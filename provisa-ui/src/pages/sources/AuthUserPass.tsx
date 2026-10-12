@@ -24,7 +24,7 @@ export function AuthUserPass({
   return (
     <>
       <FieldGroup>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <TextInput
             label={t("authUserPass.username")}
             required
@@ -32,7 +32,7 @@ export function AuthUserPass({
             onChange={(e) => setAuthFields({ ...authFields, username: e.currentTarget.value })}
           />
         </FormField>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <PasswordInput
             label={t("authUserPass.password")}
             required

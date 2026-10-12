@@ -20,6 +20,7 @@ import {
   isValidElement,
   useContext,
   useId,
+  useLayoutEffect,
   useState,
   type CSSProperties,
   type FormEventHandler,
@@ -36,7 +37,14 @@ import { useHelpNaming } from "./useHelpNaming";
 import { Tip } from "../Tip";
 import { readValue } from "./readValue";
 import type { DetailField } from "../detail/DetailFields";
-import { FormReadContext, useFormRead } from "./formRead";
+import {
+  FormReadContext,
+  FormSectionIdContext,
+  FormSectionsContext,
+  useFormRead,
+  useFormSectionInView,
+  type FormSectionsState,
+} from "./formRead";
 
 const FormLayoutContext = createContext(false);
 
@@ -212,6 +220,7 @@ export function FormField({
   size,
   hint,
   help,
+  section,
   className,
   style,
   children,
@@ -221,11 +230,24 @@ export function FormField({
   hint?: string;
   help?: string;
   style?: CSSProperties;
+  /** The section of a sectioned form (`FormSections`) the field is in; its `FormSection`'s, else
+   *  the form's first, when not given. */
+  section?: string;
   children: ReactNode;
 }) {
   useInsideFormLayout("FormField");
   const { textId, naming } = useHelpNaming(help);
-  if (useFormRead()) return <ReadField>{children}</ReadField>;
+  const inView = useFormSectionInView(section);
+  const read = useFormRead();
+  if (!inView) return null;
+  // The fields inside a field (a fold of further fields) are in its section too.
+  const within = (node: ReactNode) =>
+    section ? (
+      <FormSectionIdContext.Provider value={section}>{node}</FormSectionIdContext.Provider>
+    ) : (
+      node
+    );
+  if (read) return within(<ReadField>{children}</ReadField>);
   let content = children;
   if (hint !== undefined || help !== undefined) {
     const only = Children.toArray(children);
@@ -257,14 +279,14 @@ export function FormField({
         : {}),
     });
   }
-  return (
+  return within(
     <div
       {...rest}
       style={style}
       className={classes("form-field", `form-field--${size}`, className)}
     >
       {content}
-    </div>
+    </div>,
   );
 }
 
@@ -333,6 +355,40 @@ export function FormEntry({ children, className, ...rest }: LayoutElementProps) 
 }
 
 /**
+ * A form whose fields are in sections, one in view: a field shows when its section is ``active``.
+ * A field names its section (`FormField section`), or is in a `FormSection`, or is in the form's
+ * first, ``fallback``. ``onSections`` hears, after each render, the sections the form has for
+ * what it shows (a section none of whose fields applies is not among them), so the tabs can hide
+ * the others. The same in a form read (`FormRead`).
+ */
+export function FormSections({
+  active,
+  fallback,
+  onSections,
+  children,
+}: {
+  active: string;
+  fallback: string;
+  onSections: (sections: string[]) => void;
+  children: ReactNode;
+}) {
+  const state: FormSectionsState = { active, fallback, seen: new Set<string>() };
+  // The fields note their sections as they render, before this effect runs.
+  useLayoutEffect(() => onSections([...state.seen]));
+  return <FormSectionsContext.Provider value={state}>{children}</FormSectionsContext.Provider>;
+}
+
+/** Fields of one section of a `FormSections` form, shown while it is the section in view. */
+export function FormSection({ id, children }: { id: string; children: ReactNode }) {
+  const inView = useFormSectionInView(id);
+  return (
+    <FormSectionIdContext.Provider value={id}>
+      {inView ? children : null}
+    </FormSectionIdContext.Provider>
+  );
+}
+
+/**
  * Fields folded away under headings until they are wanted (settings that all have defaults). Read,
  * every fold is open: its heading heads its fields.
  */
@@ -397,6 +453,9 @@ export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElemen
   const { t } = useTranslation();
   const headingId = useId();
   const read = useFormRead();
+  // The fields that name the object are in the form's first section: not drawn in another.
+  const inView = useFormSectionInView();
+  if (!inView) return null;
   if (read) return <>{children}</>;
   return (
     <section

@@ -5889,5 +5889,17 @@
   "zh-HK/tableSections.json::tableSections.outcome.warn": "Warn",
   "zh-HK/tableSections.json::tableSections.outcome.fail": "Fail",
   "zh-HK/tableSections.json::tableSections.outcome.error": "Error",
-  "zh-HK/tableSections.json::tableSections.outcome.skipped": "Skipped"
+  "zh-HK/tableSections.json::tableSections.outcome.skipped": "Skipped",
+  "zh-HK/sourceSections.json::sourceSections.label": "Source sections",
+  "zh-HK/sourceSections.json::sourceSections.connection": "Connection",
+  "zh-HK/sourceSections.json::sourceSections.authentication": "Authentication",
+  "zh-HK/sourceSections.json::sourceSections.load": "Load",
+  "zh-HK/sourceSections.json::sourceSections.tables": "Tables",
+  "zh-HK/sourceSections.json::sourceSections.operations": "Operations",
+  "zh-HK/sourceSections.json::sourceSections.tableName": "Table",
+  "zh-HK/sourceSections.json::sourceSections.tableDomain": "Domain",
+  "zh-HK/sourceSections.json::sourceSections.draft": "Draft",
+  "zh-HK/sourceSections.json::sourceSections.commands": "Commands",
+  "zh-HK/sourceSections.json::sourceSections.commandName": "Command",
+  "zh-HK/sourceSections.json::sourceSections.commandKind": "Kind"
 }

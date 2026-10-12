@@ -56,7 +56,7 @@ export function SparqlFormSection({
           data-testid="sparql-default-graph-uri-input"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <Select
           label={t("sourceFormFieldsExtended.authentication")}
           value={authType}
@@ -75,7 +75,7 @@ export function SparqlFormSection({
         />
       </FormField>
       {authType === "bearer" && (
-        <FormField size="long">
+        <FormField section="authentication" size="long">
           <PasswordInput
             required
             label={t("sourceFormFieldsExtended.token")}

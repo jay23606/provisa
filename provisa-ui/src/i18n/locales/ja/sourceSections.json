@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "ソースのセクション",
+    "connection": "接続",
+    "authentication": "認証",
+    "load": "読み込み",
+    "tables": "テーブル",
+    "operations": "操作",
+    "tableName": "テーブル",
+    "tableDomain": "ドメイン",
+    "draft": "下書き",
+    "commands": "コマンド",
+    "commandName": "コマンド",
+    "commandKind": "種類"
+  }
+}
