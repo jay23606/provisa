@@ -42,6 +42,8 @@ pytestmark = [pytest.mark.integration]
 _ROLE = "org_admin"
 _ANALYST = "analyst"
 _IMAGE = "mongodb/mongodb-atlas-local:8.0"
+# The code a search index command fails with while mongot is not yet answering.
+_SEARCH_NOT_READY = 125
 _DB = "films"
 
 _MOVIES = [
@@ -127,6 +129,7 @@ class _Atlas:
         return pymongo.MongoClient(self.uri, serverSelectionTimeoutMS=120_000)
 
     def start(self) -> None:
+        from pymongo.errors import OperationFailure
         from pymongo.operations import SearchIndexModel
 
         subprocess.run(
@@ -149,6 +152,18 @@ class _Atlas:
             db = c[_DB]
             db.movies.insert_many([dict(m) for m in _MOVIES])
             db.reviews.insert_many([dict(r) for r in _REVIEWS])
+            # mongod answers before mongot, the search process beside it, is up: until it is, a
+            # search index command fails with code 125 ("Error connecting to Search Index
+            # Management service"). Wait for mongot itself before creating the indexes.
+            deadline = time.monotonic() + 300
+            while True:
+                try:
+                    list(db.movies.list_search_indexes())
+                    break
+                except OperationFailure as exc:
+                    if exc.code != _SEARCH_NOT_READY or time.monotonic() > deadline:
+                        raise
+                    time.sleep(2)
             db.movies.create_search_index(
                 SearchIndexModel(
                     definition={

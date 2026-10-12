@@ -71,8 +71,11 @@ def client_querying_jsonapi_endpoint(shared_data):
     from typing import cast
 
     from graphql import (
+        GraphQLArgument,
         GraphQLField,
         GraphQLFloat,
+        GraphQLInputField,
+        GraphQLInputObjectType,
         GraphQLInt,
         GraphQLList,
         GraphQLObjectType,
@@ -106,9 +109,21 @@ def client_querying_jsonapi_endpoint(shared_data):
             "customer": _field(customer_type),
         },
     )
+    # The where argument a generated table field has (schema_gen), for the columns filtered here:
+    # JSON:API sends a filter as this argument's value.
+    string_comparison = GraphQLInputObjectType(
+        "StringComparison", {"eq": GraphQLInputField(GraphQLString)}
+    )
+    order_where = GraphQLInputObjectType(
+        "OrderWhere", {"region": GraphQLInputField(string_comparison)}
+    )
     query_type = GraphQLObjectType(
         "Query",
-        {"orders": _field(GraphQLList(order_type))},
+        {
+            "orders": GraphQLField(
+                GraphQLList(order_type), args={"where": GraphQLArgument(order_where)}
+            )
+        },
     )
     schema = GraphQLSchema(query=cast(GraphQLObjectType, query_type))
 

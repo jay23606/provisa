@@ -63,10 +63,12 @@ def container():
         capture_output=True,
     )
     try:
-        client = CosmosClient(f"http://127.0.0.1:{port}/", credential=_KEY)
+        # The client's constructor already asks the account for its endpoints, so it is made inside
+        # the wait: until the emulator listens, the port's proxy resets the connection.
         deadline = time.monotonic() + 300
         while True:
             try:
+                client = CosmosClient(f"http://127.0.0.1:{port}/", credential=_KEY)
                 db = client.create_database_if_not_exists("spike")
                 break
             except Exception:  # allow-blind-except: polling the emulator until it answers

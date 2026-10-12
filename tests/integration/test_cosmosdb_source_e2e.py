@@ -72,10 +72,12 @@ class _Emulator:
             check=True,
             capture_output=True,
         )
-        client = CosmosClient(self.endpoint, credential=_KEY)
+        # The client's constructor already asks the account for its endpoints, so it is made inside
+        # the wait: until the emulator listens, the port's proxy resets the connection.
         deadline = time.monotonic() + 300
         while True:
             try:
+                client = CosmosClient(self.endpoint, credential=_KEY)
                 db = client.create_database_if_not_exists("shop")
                 break
             except Exception:  # allow-blind-except: polling the emulator until it answers
