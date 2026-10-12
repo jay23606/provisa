@@ -352,9 +352,9 @@ describe("TablesPage — the writes a table takes", () => {
     expect(writes).not.toHaveTextContent("UPDATE");
   });
 
-  it("says none for a table whose source takes no writes", async () => {
+  it("shows the empty mark for a table whose source takes no writes", async () => {
     await openTable("graph");
-    expect(await screen.findByTestId("table-read-view-writable")).toHaveTextContent("none");
+    expect(await screen.findByTestId("table-read-view-writable")).toHaveTextContent("—");
   });
 });
 

@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import { NumberInput, Select, Text, TextInput } from "@mantine/core";
 import type { Paging, PagingKind, PagingType } from "../../types/admin";
 import { FieldLabel } from "./FieldLabel";
-import { NO_PAGING, pagingProblem } from "./paging";
+import { PAGING_READS as READS, NO_PAGING, pagingProblem } from "./paging";
 import { FormField, FormLayout } from "../../components/form/FormLayout";
 
 interface PagingFieldProps {
@@ -31,37 +31,6 @@ interface PagingFieldProps {
 }
 
 const TYPES: PagingType[] = ["offset", "page_number", "cursor", "last_row", "link_header"];
-
-// Which declared fields each paging type reads (provisa/api_source/caller.py), with the name the
-// caller sends when a parameter field is left empty. A field one type reads differently is named
-// for that type (label).
-const READS: Record<PagingType, { field: keyof Paging; fallback?: string; label?: string }[]> = {
-  offset: [
-    { field: "pageParam", fallback: "offset" },
-    { field: "pageSizeParam", fallback: "limit" },
-    { field: "pageSize" },
-  ],
-  page_number: [
-    { field: "pageParam", fallback: "page" },
-    { field: "pageSizeParam", fallback: "per_page" },
-    { field: "pageSize" },
-  ],
-  cursor: [
-    { field: "cursorParam", fallback: "cursor" },
-    { field: "cursorField", fallback: "next_cursor" },
-    // No fallback: with no size parameter named, none is sent and the remote's own page applies.
-    { field: "pageSizeParam" },
-    { field: "pageSize" },
-  ],
-  // The next page starts after the last row of this one, named by a field of that row.
-  last_row: [
-    { field: "cursorParam", fallback: "starting_after", label: "afterParam" },
-    { field: "cursorField", fallback: "id", label: "lastRowField" },
-    { field: "pageSizeParam", fallback: "limit" },
-    { field: "pageSize" },
-  ],
-  link_header: [],
-};
 
 const NUMERIC = new Set<keyof Paging>(["pageSize", "maxPages", "maxRows"]);
 

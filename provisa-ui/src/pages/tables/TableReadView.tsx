@@ -10,7 +10,7 @@
 
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { DatabaseZap, Trash2, Pencil } from "lucide-react";
+import { ChartColumn, DatabaseZap, Eye, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { Tip } from "../../components/Tip";
 import { ActionIcon, Badge, Box, Button, Checkbox, Group, Table, Text } from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
@@ -186,20 +186,28 @@ export function TableReadView({
           )}
           {/* A table that needs a value for a required parameter is asked for it first: Preview
               in its own viewer, Profile in the dialog its handler opens. */}
+          {/* Preview, Profile and Policies are icon actions, named by their word, with the
+              word's longer telling in the tip. */}
           <Tip text={t("tableReadView.previewTitle")}>
-            <Button
+            <ActionIcon
+              aria-label={t("tableReadView.previewButton")}
               data-testid="table-read-view-preview"
               onClick={(e) => {
                 e.stopPropagation();
                 onPreview(table);
               }}
             >
-              {t("tableReadView.previewButton")}
-            </Button>
+              <Eye size={14} />
+            </ActionIcon>
           </Tip>
           {!hidingOnly && (
             <Tip text={t("tableReadView.profileTitle")}>
-              <Button
+              <ActionIcon
+                aria-label={
+                  tableProfiles[table.id] === "loading"
+                    ? t("tableReadView.profilingButton")
+                    : t("tableReadView.profileButton")
+                }
                 data-testid="table-read-view-profile"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -207,16 +215,16 @@ export function TableReadView({
                   // The profile is read on Quality, where it lands.
                   setSection("quality");
                 }}
+                loading={tableProfiles[table.id] === "loading"}
                 disabled={tableProfiles[table.id] === "loading"}
               >
-                {tableProfiles[table.id] === "loading"
-                  ? t("tableReadView.profilingButton")
-                  : t("tableReadView.profileButton")}
-              </Button>
+                <ChartColumn size={14} />
+              </ActionIcon>
             </Tip>
           )}
           <Tip text={t("tableReadView.policiesTitle")}>
-            <Button
+            <ActionIcon
+              aria-label={t("tableReadView.policiesButton")}
               data-testid="table-read-view-policies"
               onClick={(e) => {
                 e.stopPropagation();
@@ -225,8 +233,8 @@ export function TableReadView({
                 });
               }}
             >
-              {t("tableReadView.policiesButton")}
-            </Button>
+              <ShieldCheck size={14} />
+            </ActionIcon>
           </Tip>
           {onInvalidateCache && (
             <Tip text={t("tablesPage.invalidateCache")} named>

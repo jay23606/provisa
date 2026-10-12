@@ -17,8 +17,6 @@
     "noTerms": "Geen woordenlijstterm benoemt een kolom van deze tabel",
     "relationships": "Relaties",
     "noRelationships": "Deze tabel neemt aan geen relatie deel",
-    "yes": "Ja",
-    "no": "Nee",
     "fromSource": "{{value}} (van de bron)",
     "fromSourceAsIs": "Zoals bij de bron",
     "contractSet": "Ingesteld",

@@ -2698,6 +2698,8 @@ main {
 .detail-code {
   font-size: 0.78rem;
   word-break: break-all;
+  /* A query or a script keeps its lines. */
+  white-space: pre-wrap;
 }
 /* The column editor's topics inside the Columns section: a second, smaller row of tabs. */
 .column-tabs--nested .mantine-Tabs-tab {

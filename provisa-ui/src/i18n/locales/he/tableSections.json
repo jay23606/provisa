@@ -17,8 +17,6 @@
     "noTerms": "אף מונח במילון המונחים אינו נותן שם לעמודה בטבלה זו",
     "relationships": "קשרים",
     "noRelationships": "טבלה זו אינה משתתפת באף קשר",
-    "yes": "כן",
-    "no": "לא",
     "fromSource": "{{value}} (מהמקור)",
     "fromSourceAsIs": "כפי שמוגדר במקור",
     "contractSet": "מוגדר",

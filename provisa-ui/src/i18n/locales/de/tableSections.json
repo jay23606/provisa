@@ -17,8 +17,6 @@
     "noTerms": "Kein Glossarbegriff benennt eine Spalte dieser Tabelle",
     "relationships": "Beziehungen",
     "noRelationships": "Diese Tabelle ist an keiner Beziehung beteiligt",
-    "yes": "Ja",
-    "no": "Nein",
     "fromSource": "{{value}} (von der Quelle)",
     "fromSourceAsIs": "Wie bei der Quelle",
     "contractSet": "Festgelegt",

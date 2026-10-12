@@ -5781,8 +5781,6 @@
   "zh/tableSections.json::tableSections.noTerms": "No glossary term names a column of this table",
   "zh/tableSections.json::tableSections.relationships": "Relationships",
   "zh/tableSections.json::tableSections.noRelationships": "This table takes part in no relationship",
-  "zh/tableSections.json::tableSections.yes": "Yes",
-  "zh/tableSections.json::tableSections.no": "No",
   "zh/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "zh/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "zh/tableSections.json::tableSections.contractSet": "Set",

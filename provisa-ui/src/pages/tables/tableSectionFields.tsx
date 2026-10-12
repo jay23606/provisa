@@ -47,7 +47,7 @@ export function unset(text: string) {
 
 /** A tick read as words. */
 export function yesNo(t: TFunction, value: boolean) {
-  return value ? t("tableSections.yes") : t("tableSections.no");
+  return value ? t("detailFields.yes") : t("detailFields.no");
 }
 
 /** The data product line of Associations, read-only. */

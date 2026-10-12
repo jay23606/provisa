@@ -17,8 +17,6 @@
     "noTerms": "कोई शब्दावली शब्द इस तालिका के किसी कॉलम का नाम नहीं देता",
     "relationships": "संबंध",
     "noRelationships": "यह तालिका किसी संबंध में शामिल नहीं है",
-    "yes": "हाँ",
-    "no": "नहीं",
     "fromSource": "{{value}} (स्रोत से)",
     "fromSourceAsIs": "जैसा स्रोत में है",
     "contractSet": "सेट है",
