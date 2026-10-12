@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { FunctionRead, WebhookRead } from "./commands/CommandRead";
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -523,77 +524,14 @@ export function CommandsPage() {
       ) : (
         <>
           <Stack gap="sm">
-            <Table withRowBorders={false} verticalSpacing={2}>
-              <Table.Tbody>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailName")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.name}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailKind")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.kind ?? "mutation"}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailSource")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.sourceId}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailSchema")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.schemaName}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailFunction")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.functionName}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailReturns")}</strong>
-                  </Table.Td>
-                  <Table.Td>
-                    {fn.returns ||
-                      (fn.returnSchema ? t("commandsPage.customSchema") : t("commandsPage.dash"))}
-                  </Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailDomain")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.domainId || t("commandsPage.dash")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailDescription")}</strong>
-                  </Table.Td>
-                  <Table.Td>{fn.description || t("commandsPage.dash")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailArguments")}</strong>
-                  </Table.Td>
-                  <Table.Td>
-                    {fn.arguments.length === 0
-                      ? t("commandsPage.none")
-                      : fn.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
-                  </Table.Td>
-                </Table.Tr>
-              </Table.Tbody>
-            </Table>
+            <FunctionRead
+              fn={fn}
+              productName={
+                fn.productId
+                  ? (dataProducts.find((dp) => dp.id === fn.productId)?.name ?? fn.productId)
+                  : null
+              }
+            />
             <PanelActions>
               <Group gap="sm" wrap="nowrap">
                 <ActionIcon
@@ -662,99 +600,7 @@ export function CommandsPage() {
                 {t("commandsPage.webhookPendingHint")}
               </Alert>
             )}
-            <Table withRowBorders={false} verticalSpacing={2}>
-              <Table.Tbody>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailName")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.name}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailStatus")}</strong>
-                  </Table.Td>
-                  <Table.Td>
-                    {wh.approved === false
-                      ? t("commandsPage.statusPending")
-                      : t("commandsPage.statusApproved")}
-                  </Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailKind")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.kind ?? "mutation"}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailUrl")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.url}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailMethod")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.method}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailTimeout")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.timeoutMs}ms</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailReturns")}</strong>
-                  </Table.Td>
-                  <Table.Td>
-                    {wh.returns ||
-                      t("commandsPage.inlineReturns", {
-                        count: wh.inlineReturnType.length,
-                      })}
-                  </Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailVisibleTo")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.visibleTo.join(", ") || t("commandsPage.all")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailDomain")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailDescription")}</strong>
-                  </Table.Td>
-                  <Table.Td>{wh.description || t("commandsPage.dash")}</Table.Td>
-                </Table.Tr>
-                <Table.Tr>
-                  <Table.Td c="dimmed">
-                    <strong>{t("commandsPage.detailArguments")}</strong>
-                  </Table.Td>
-                  <Table.Td>
-                    {wh.arguments.length === 0
-                      ? t("commandsPage.none")
-                      : wh.arguments.map((a) => `${a.name}: ${a.type}`).join(", ")}
-                  </Table.Td>
-                </Table.Tr>
-                {wh.inlineReturnType.length > 0 && (
-                  <Table.Tr>
-                    <Table.Td c="dimmed">
-                      <strong>{t("commandsPage.detailInlineFields")}</strong>
-                    </Table.Td>
-                    <Table.Td>
-                      {wh.inlineReturnType.map((f) => `${f.name}: ${f.type}`).join(", ")}
-                    </Table.Td>
-                  </Table.Tr>
-                )}
-              </Table.Tbody>
-            </Table>
+            <WebhookRead wh={wh} />
             <PanelActions>
               <Group gap="sm" wrap="nowrap">
                 <ActionIcon

@@ -43,6 +43,14 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "residencyGrant.right": "the data_residency capability's tick: shown in Capabilities",
     },
   },
+  "Commands (functions and webhooks)": {
+    read: ["pages/commands/CommandRead.tsx"],
+    form: [
+      "pages/CommandsPage.tsx",
+      "pages/commands/CommandFormFields.tsx",
+      "pages/commands/ColumnGovernanceFields.tsx",
+    ],
+  },
   Metrics: {
     read: ["pages/metrics/MetricDetailPanel.tsx"],
     form: ["pages/MetricsPage.tsx"],
