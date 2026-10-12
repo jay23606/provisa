@@ -1,0 +1,106 @@
+# Release: cut
+#
+# How a release is made. Run by hand on main (Actions -> Release: cut -> Run workflow) with the
+# version to cut (v0.1.0-alpha.480). In order, and stopping at the first failure:
+#
+#   1. scripts/release_cut_check.py: the version is a release tag, its tag does not exist, no
+#      hand-written docs/releases/<version>.md would be overwritten, and the previous release's
+#      tag is found.
+#   2. scripts/gen_release_notes.py from the previous tag to HEAD. Its exit 2 stops the cut here:
+#      nothing is committed and no tag is made. A release before the first one shown writes no
+#      page, and the cut stops too: a release's body is its page. A hand-written page under
+#      docs/releases that the generator changed or removed stops it as well (--written).
+#   3. The notes -- the UI's releaseNotes.json, docs/releases/<version>.md, mkdocs.yml and
+#      CHANGELOG.md -- are committed to main, the annotated tag is made on that commit, and both
+#      are pushed. Nothing else may have changed.
+#   4. A tag pushed with this workflow's token starts no workflow, so each workflow a v* tag
+#      starts is started here on the tag: build-dmg.yml (the release orchestrator) with
+#      publish=true, which it honours on a run started on the tag it names, and the others with
+#      no inputs. ensure-release takes the draft release's body from the tag's
+#      docs/releases/<version>.md.
+#
+# A cut that failed after pushing main and before pushing the tag is run again: the page it wrote
+# is its own (its commit's subject), the generator writes the same notes, and nothing new is
+# committed before the tag is made.
+name: "Release: cut"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The release tag to cut (v0.1.0-alpha.480).
+        type: string
+        required: true
+
+# One cut at a time, and a cut is never cancelled half-way.
+concurrency:
+  group: release-cut
+  cancel-in-progress: false
+
+permissions:
+  contents: write # the notes commit on main and the tag
+  actions: write # starting the release's workflows on the tag
+
+jobs:
+  cut:
+    name: Generate the notes, commit them and tag the release
+    runs-on: ubuntu-latest
+    # A release is cut from main only.
+    if: github.ref == 'refs/heads/main'
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      # The run's own commit: main as it was when the cut was started. Should main move before
+      # the notes are pushed, the push is refused rather than the tag made on another commit.
+      - uses: actions/checkout@v4
+        with:
+          # The generator reads the log of the range and requirements.yaml at both ends of it.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: ./.github/actions/setup-python
+
+      - name: Check the release can be cut
+        id: check
+        run: uv run python scripts/release_cut_check.py --version "$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate the release notes
+        env:
+          PREVIOUS: ${{ steps.check.outputs.previous }}
+        run: |
+          set -euo pipefail
+          uv run python scripts/gen_release_notes.py --from "$PREVIOUS" --to HEAD --version "$VERSION"
+          if [ ! -f "docs/releases/$VERSION.md" ]; then
+            echo "::error::no notes were written for $VERSION (a release before the first one shown); it has no release body"
+            exit 1
+          fi
+          uv run python scripts/release_cut_check.py --version "$VERSION" --written
+
+      - name: Commit the notes, tag the release and push both
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A provisa-ui/src/generated/releaseNotes.json docs/releases mkdocs.yml CHANGELOG.md
+          if [ -n "$(git status --porcelain --untracked-files=no -- . ':!provisa-ui/src/generated/releaseNotes.json' ':!docs/releases' ':!mkdocs.yml' ':!CHANGELOG.md')" ]; then
+            echo "::error::the notes generator changed files other than the notes:"
+            git status --porcelain
+            exit 1
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): $VERSION notes"
+          fi
+          git tag -a "$VERSION" -m "$VERSION"
+          git push origin HEAD:main
+          git push origin "refs/tags/$VERSION"
+
+      - name: Start the release on its tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run build-dmg.yml --ref "$VERSION" -f version="$VERSION" -f publish=true
+          for workflow in build-duckdb-extensions.yml build-pg-extensions.yml release-exports.yml \
+                          ui-e2e-core.yml ui-e2e-swap-amd64.yml ui-e2e-trino.yml; do
+            gh workflow run "$workflow" --ref "$VERSION"
+          done
