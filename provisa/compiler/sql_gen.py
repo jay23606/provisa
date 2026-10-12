@@ -20,8 +20,6 @@ Table aliases (t0, t1, ...) used when JOINs are present.
 
 from __future__ import annotations
 
-from provisa.compiler.sql_literals import sql_literal
-
 
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Protocol
@@ -58,6 +56,8 @@ from provisa.compiler.sql_rewrite import (
     _table_ref,
 )
 from provisa.compiler.sql_where import (
+    native_arg_conditions,
+    native_args,
     _VIRTUAL_COLS,
     _compile_order_by,
     _compile_where,
@@ -498,24 +498,12 @@ def _compile_root_field(  # REQ-009, REQ-011, REQ-032, REQ-033, REQ-034, REQ-035
             sql += f" OFFSET {collector.add(int(args['offset']))}"
 
     # Collect native filter args (any arg not handled by SQL compilation above)
-    _STANDARD_ARGS = {"where", "order_by", "limit", "offset", "distinct_on", "as_of", "sample"}
-    api_args = {k: v for k, v in args.items() if k not in _STANDARD_ARGS}
+    api_args = native_args(args, _STANDARD_ARGS, ctx.native_filter_columns.get(table.table_id, {}))
 
     # Inject _nf_-prefixed WHERE conditions so the SQL/CQL preview shows the filter.
     # nf_extractor strips these before the engine execution; endpoint.py uses api_args for the REST call.
     if api_args:
-        nf_conditions = []
-        for k, v in api_args.items():
-            col = f"_nf_{k}"
-            quoted_col = _q(col)
-            if isinstance(v, bool):
-                lit = "TRUE" if v else "FALSE"
-            elif isinstance(v, (int, float)):
-                lit = str(v)
-            else:
-                lit = sql_literal(v, "postgres")
-            nf_conditions.append(f"{quoted_col} = {lit}")
-        nf_where = " AND ".join(nf_conditions)
+        nf_where = " AND ".join(native_arg_conditions(api_args))
         if " WHERE " in sql:
             sql += f" AND {nf_where}"
         else:
@@ -708,6 +696,12 @@ class UnknownRootField(ValueError):
         self.field_name = field_name
         self.params = {"field": field_name}
         super().__init__(f"Unknown root query field: {field_name!r}")
+
+
+#: A root field's arguments that are not a table's parameters (REQ-1986).
+_STANDARD_ARGS = frozenset(
+    {"where", "order_by", "limit", "offset", "distinct_on", "as_of", "sample"}
+)
 
 
 def compile_query(  # REQ-007, REQ-009, REQ-010, REQ-011, REQ-262, REQ-263, REQ-266, REQ-300

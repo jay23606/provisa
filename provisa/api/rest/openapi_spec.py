@@ -292,7 +292,7 @@ def generate_rest_openapi_spec(
         table_parameters = native_arguments(field)
         if table_parameters:
             required = [
-                n for n, a in table_parameters.items() if isinstance(a.type, GraphQLNonNull)
+                n for n, (_, a) in table_parameters.items() if isinstance(a.type, GraphQLNonNull)
             ]
             parameters.append(
                 {
@@ -305,7 +305,7 @@ def generate_rest_openapi_spec(
                                 "type": "object",
                                 "properties": {
                                     n: _gql_to_openapi_schema(a.type)
-                                    for n, a in table_parameters.items()
+                                    for n, (_, a) in table_parameters.items()
                                 },
                                 "required": required,
                                 "additionalProperties": False,

@@ -31,6 +31,9 @@ PARAMETER_KINDS = frozenset(
 )
 
 NF_PREFIX = "_nf_"
+# The key under which a native GraphQL argument records the parameter it fills (its argument name
+# is ``_<name>`` when ``<name>`` is also one of the field's own).
+PARAMETER_EXTENSION = "provisa_parameter"
 
 
 def _get(column: Any, key: str) -> Any:
