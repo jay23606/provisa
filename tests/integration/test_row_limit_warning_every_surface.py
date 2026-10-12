@@ -20,9 +20,11 @@ three rows -- never the fourth -- and the warning in that surface's own channel;
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
+import uuid
 import urllib.error
 import urllib.request
 
@@ -113,8 +115,13 @@ def _http(boot, role: str, path: str, body: dict) -> tuple[int, dict, list[str]]
         raise AssertionError(f"{exc.code} {exc.read().decode()}") from exc
 
 
-def _sql_http(boot, role: str, table: str) -> tuple[int, list[str]]:
-    _, body, codes = _http(boot, role, "/data/sql", {"sql": f"SELECT id FROM sales.{table}"})
+def _statement(table: str, note: str = "") -> str:
+    """The read of ``table``; ``note`` is a comment that makes one read's statement its own."""
+    return f"SELECT id FROM sales.{table}{note}"
+
+
+def _sql_http(boot, role: str, table: str, note: str = "") -> tuple[int, list[str]]:
+    _, body, codes = _http(boot, role, "/data/sql", {"sql": _statement(table, note)})
     return len(body["data"]["sql"]), codes
 
 
@@ -124,7 +131,7 @@ def _cypher_http(boot, role: str, table: str) -> tuple[int, list[str]]:
     return len(body["rows"]), codes
 
 
-def _pgwire(boot, role: str, table: str) -> tuple[int, list[str]]:
+def _pgwire(boot, role: str, table: str, note: str = "") -> tuple[int, list[str]]:
     import psycopg
 
     notices: list[str] = []
@@ -145,7 +152,7 @@ def _pgwire(boot, role: str, table: str) -> tuple[int, list[str]]:
                 else None
             )
         )
-        rows = conn.execute(f"SELECT id FROM sales.{table}").fetchall()
+        rows = conn.execute(_statement(table, note)).fetchall()
     return len(rows), notices
 
 
@@ -280,8 +287,8 @@ def test_a_cut_read_says_so_again_each_time_it_is_asked(server):
         assert rows == _LIMIT and codes.count(_CUT) == 1, (rows, codes)
 
 
-def _newest_audit_row(boot, role: str) -> dict:
-    """``role``'s newest audit row, waiting for the writer (it inserts in batches)."""
+def _audit_row(boot, role: str, statement: str) -> dict | None:
+    """The audit row of ``statement`` read as ``role``, once the writer has inserted it."""
     engine = sa.create_engine(boot.url)
     try:
         with engine.connect() as conn:
@@ -291,45 +298,41 @@ def _newest_audit_row(boot, role: str) -> dict:
                     "WHERE table_name = 'query_audit_log' AND table_schema LIKE 'org%' LIMIT 1"
                 )
             ).scalar_one()
-        return _last_row(engine, schema, role)
+            row = conn.execute(
+                sa.text(
+                    f"SELECT id, route, row_count, enforced FROM {schema}.query_audit_log "
+                    "WHERE role_id = :role AND query_hash = :hash"
+                ),
+                {"role": role, "hash": hashlib.sha256(statement.encode()).hexdigest()},
+            ).first()
     finally:
         engine.dispose()
+    return dict(row._mapping) if row is not None else None
 
 
-def _last_row(engine, schema: str, role: str) -> dict:
-    with engine.connect() as conn:
-        row = conn.execute(
-            sa.text(
-                f"SELECT id, route, row_count, enforced FROM {schema}.query_audit_log "
-                "WHERE role_id = :role ORDER BY id DESC LIMIT 1"
-            ),
-            {"role": role},
-        ).first()
-    return dict(row._mapping) if row is not None else {"id": 0}
-
-
-def _audited(boot, role: str, read) -> dict:
-    """The audit row ``read()`` wrote for ``role``: the first one newer than the newest before."""
-    before = _newest_audit_row(boot, role)["id"]
-    read()
+def _audited(boot, role: str, table: str, read) -> dict:
+    """The audit row ``read(note)`` wrote for ``role``, reading ``table``. The writer inserts in
+    batches, so an earlier read's row can land after this read began: the row is found by its own
+    statement, which ``note`` makes unique, never by the order rows arrive in."""
+    note = f" /* audited {uuid.uuid4().hex} */"
+    read(note)
+    statement = _statement(table, note)
     deadline = time.monotonic() + 60
-    while True:
-        row = _newest_audit_row(boot, role)
-        if row["id"] != before:
-            return row
-        assert time.monotonic() < deadline, "no audit row was written for the read"
+    while (row := _audit_row(boot, role, statement)) is None:
+        assert time.monotonic() < deadline, f"no audit row was written for {statement!r}"
         time.sleep(0.5)
+    return row
 
 
 def test_the_audit_row_says_what_the_limit_did_to_the_answer(server):
     """REQ-1949: the warning is a fact about what the caller was given, so the statement's own
     audit row holds it, beside the limit itself; a whole answer's row says nothing of a cut."""
-    cut = _audited(server, "limited", lambda: _sql_http(server, "limited", "four"))
+    cut = _audited(server, "limited", "four", lambda n: _sql_http(server, "limited", "four", n))
     assert cut["row_count"] == _LIMIT, cut
     assert cut["enforced"]["row_limit"] == {"limit": _LIMIT, "kind": "role", "outcome": "cut"}
-    whole = _audited(server, "limited", lambda: _sql_http(server, "limited", "three"))
+    whole = _audited(server, "limited", "three", lambda n: _sql_http(server, "limited", "three", n))
     assert whole["row_count"] == _LIMIT and "row_limit" not in whole["enforced"], whole
-    free = _audited(server, "whole", lambda: _sql_http(server, "whole", "four"))
+    free = _audited(server, "whole", "four", lambda n: _sql_http(server, "whole", "four", n))
     assert free["row_count"] == 4 and "row_limit" not in free["enforced"], free
 
 
@@ -339,10 +342,10 @@ def test_a_stream_read_from_the_source_is_checked_when_it_ends(server):
     open. The route is asserted, not assumed: this case proves nothing on any other route."""
     seen: dict = {}
 
-    def read() -> None:
-        seen["rows"], seen["codes"] = _pgwire(server, "limited", "four")
+    def read(note: str) -> None:
+        seen["rows"], seen["codes"] = _pgwire(server, "limited", "four", note)
 
-    row = _audited(server, "limited", read)
+    row = _audited(server, "limited", "four", read)
     assert row["route"] == "direct", row  # served from the source, not through the engine
     assert seen["rows"] == _LIMIT and seen["codes"].count(_CUT) == 1, seen
     assert row["enforced"]["row_limit"]["outcome"] == "cut", row
