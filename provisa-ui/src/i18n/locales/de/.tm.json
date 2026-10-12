@@ -5796,5 +5796,12 @@
   "de/commandsPage.json::commandsPage.yes": "Yes",
   "de/commandsPage.json::commandsPage.no": "No",
   "de/detailFields.json::detailFields.yes": "Yes",
-  "de/detailFields.json::detailFields.no": "No"
+  "de/detailFields.json::detailFields.no": "No",
+  "de/navBar.json::navBar.whatsNew": "What's new",
+  "de/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "de/whatsNew.json::whatsNew.released": "Released {{date}}",
+  "de/whatsNew.json::whatsNew.features": "Features",
+  "de/whatsNew.json::whatsNew.changes": "Changes",
+  "de/whatsNew.json::whatsNew.general": "General",
+  "de/whatsNew.json::whatsNew.empty": "No user-visible changes."
 }

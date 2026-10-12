@@ -1,0 +1,10 @@
+{
+  "whatsNew": {
+    "title": "Nieuw in {{version}}",
+    "released": "Uitgebracht op {{date}}",
+    "features": "Functies",
+    "changes": "Wijzigingen",
+    "general": "Algemeen",
+    "empty": "Geen voor gebruikers zichtbare wijzigingen."
+  }
+}

@@ -1,0 +1,4 @@
+# The first release the generated release notes show (scripts/gen_release_notes.py): a date,
+# YYYY-MM-DD, or the tag of the first release to include. A release before it is left out of the
+# UI's notes, the docs pages, CHANGELOG.md and the release body. Empty: every release is shown.
+start:

@@ -23,6 +23,8 @@ import { OrgSwitcher } from "./OrgSwitcher";
 import { EnvSwitcher } from "./EnvSwitcher";
 import { ColorSchemeToggle } from "../theme/ColorSchemeToggle";
 import { UserProfileModal } from "./UserProfileModal";
+import { WhatsNewModal } from "./WhatsNewModal";
+import { RELEASE_NOTES } from "../lib/releaseNotes";
 import { useDomainFilter } from "../context/DomainFilterContext";
 import { useSubnavExtraSlot } from "../context/subnavExtraSlot";
 import { useAuth } from "../context/AuthContext";
@@ -56,6 +58,7 @@ export function NavBar() {
   const { setNode: setSubnavExtraNode } = useSubnavExtraSlot();
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const subnavRef = useRef<HTMLElement>(null);
@@ -345,6 +348,12 @@ export function NavBar() {
                     </Menu.Item>
                   </CapabilityGate>
                 )}
+                {/* The release this UI was built with, from the notes bundled with it. */}
+                {RELEASE_NOTES && (
+                  <Menu.Item onClick={() => setWhatsNewOpen(true)} data-testid="navbar-whats-new">
+                    {t("navBar.whatsNew")}
+                  </Menu.Item>
+                )}
                 {authEnabled && (
                   <Menu.Item color="red" onClick={handleLogout}>
                     {t("navBar.logout")}
@@ -383,6 +392,13 @@ export function NavBar() {
         </nav>
       )}
       {profileOpen && <UserProfileModal onClose={() => setProfileOpen(false)} />}
+      {RELEASE_NOTES && (
+        <WhatsNewModal
+          notes={RELEASE_NOTES}
+          opened={whatsNewOpen}
+          onClose={() => setWhatsNewOpen(false)}
+        />
+      )}
       <Modal
         opened={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}

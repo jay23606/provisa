@@ -5796,5 +5796,12 @@
   "hi/commandsPage.json::commandsPage.yes": "Yes",
   "hi/commandsPage.json::commandsPage.no": "No",
   "hi/detailFields.json::detailFields.yes": "Yes",
-  "hi/detailFields.json::detailFields.no": "No"
+  "hi/detailFields.json::detailFields.no": "No",
+  "hi/navBar.json::navBar.whatsNew": "What's new",
+  "hi/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "hi/whatsNew.json::whatsNew.released": "Released {{date}}",
+  "hi/whatsNew.json::whatsNew.features": "Features",
+  "hi/whatsNew.json::whatsNew.changes": "Changes",
+  "hi/whatsNew.json::whatsNew.general": "General",
+  "hi/whatsNew.json::whatsNew.empty": "No user-visible changes."
 }

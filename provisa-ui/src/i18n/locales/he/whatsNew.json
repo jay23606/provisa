@@ -1,0 +1,10 @@
+{
+  "whatsNew": {
+    "title": "מה חדש ב-{{version}}",
+    "released": "פורסם ב-{{date}}",
+    "features": "תכונות",
+    "changes": "שינויים",
+    "general": "כללי",
+    "empty": "אין שינויים גלויים למשתמש."
+  }
+}

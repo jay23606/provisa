@@ -1,0 +1,10 @@
+{
+  "whatsNew": {
+    "title": "Neu in {{version}}",
+    "released": "Veröffentlicht am {{date}}",
+    "features": "Funktionen",
+    "changes": "Änderungen",
+    "general": "Allgemein",
+    "empty": "Keine für Nutzer sichtbaren Änderungen."
+  }
+}
