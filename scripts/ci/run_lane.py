@@ -74,14 +74,16 @@ LANES: dict[str, Lane] = {
     # Nor is the live Google Workspace test: its domain is the maintainer's own too.
     "warehouse": Lane(
         ("tests/integration", "tests/steps"),
-        "requires_warehouse and not requires_salesforce and not requires_microsoft_365 "
-        "and not requires_google_workspace",
+        "requires_warehouse and not requires_salesforce and not requires_athena "
+        "and not requires_microsoft_365 and not requires_google_workspace",
         clear_addopts=True,
     ),
     # The live Salesforce org: on demand only (workflow_dispatch, include_salesforce), its own job.
     "salesforce": Lane(
         ("tests/integration", "tests/steps"), "requires_salesforce", clear_addopts=True
     ),
+    # The live Amazon Athena account (REQ-1981): on demand only (include_athena), its own job.
+    "athena": Lane(("tests/integration", "tests/steps"), "requires_athena", clear_addopts=True),
 }
 
 

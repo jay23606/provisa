@@ -85,7 +85,7 @@ def test_all_is_every_suite_lane_with_its_shards():
     assert [m["shard"] for m in include if m["lane"] == "core"] == [f"{k}/6" for k in range(1, 7)]
     assert [m["shard"] for m in include if m["lane"] == "app"] == ["1/3", "2/3", "3/3"]
     assert {"lane": "kafka", "shard": "", "timeout": 90} in include
-    assert not [m for m in include if m["lane"] in ("cluster", "warehouse", "salesforce")]
+    assert not [m for m in include if m["lane"] in ("cluster", "warehouse", "salesforce", "athena")]
 
 
 def test_a_selection_runs_only_those_lanes():
@@ -232,7 +232,7 @@ def _plugin_cache_steps(steps: list[dict]) -> tuple[int, int]:
     return at_restore, at_save
 
 
-@pytest.mark.parametrize("job", ["suite", "cluster", "warehouse", "salesforce"])
+@pytest.mark.parametrize("job", ["suite", "cluster", "warehouse", "salesforce", "athena"])
 def test_every_collecting_job_caches_the_pinned_trino_plugins_around_its_lane(job):
     """tests/conftest.py fetches the pinned Trino plugin jars from Maven Central at collection, and
     a refused fetch ended the lane before any test ran (run 37573213103: neo4j 403, kafka 404).
@@ -308,13 +308,13 @@ def test_the_live_salesforce_test_is_in_no_lane_but_its_own():
     run_lane = _runner()
     marker = run_lane.LANES["warehouse"].marker
     assert marker == (
-        "requires_warehouse and not requires_salesforce and not requires_microsoft_365 "
-        "and not requires_google_workspace"
+        "requires_warehouse and not requires_salesforce and not requires_athena "
+        "and not requires_microsoft_365 and not requires_google_workspace"
     )
     assert run_lane.LANES["salesforce"].marker == "requires_salesforce"
     # Every other lane excludes the live tests through the base exclusion or its own marker.
     for name, lane in run_lane.LANES.items():
-        if name in ("warehouse", "salesforce"):
+        if name in ("warehouse", "salesforce", "athena"):
             continue
         assert "not requires_warehouse" in lane.marker or name in ("isolated", "e2e", "cluster")
     for test in ("test_salesforce_source_e2e.py", "test_cloudops_source_e2e.py"):
@@ -333,6 +333,34 @@ def test_the_salesforce_lane_runs_only_when_a_dispatch_asks_for_it():
     assert caller["jobs"]["lanes"]["with"]["include_salesforce"] == (
         "${{ inputs.include_salesforce || false }}"
     )
+
+
+def test_the_athena_lane_runs_only_when_a_dispatch_asks_for_it_with_its_secrets():
+    """REQ-1981: the live account is used only when a dispatch asks for it, and a missing
+    credential fails the lane by name."""
+    run_lane = _runner()
+    assert run_lane.LANES["athena"].marker == "requires_athena"
+    job = _lanes_workflow()["jobs"]["athena"]
+    assert job["if"] == "github.event_name == 'workflow_dispatch' && inputs.include_athena"
+    names = (
+        "ATHENA_AWS_ACCESS_KEY_ID",
+        "ATHENA_AWS_SECRET_ACCESS_KEY",
+        "ATHENA_REGION",
+        "ATHENA_S3_BUCKET",
+    )
+    assert {k: job["env"][k] for k in names} == {k: f"${{{{ secrets.{k} }}}}" for k in names}
+    assert all(k in _credentials_step("athena")["run"] for k in names)
+    import yaml
+
+    caller = yaml.safe_load((REPO / ".github" / "workflows" / "integration-suite.yml").read_text())
+    assert caller[True]["workflow_dispatch"]["inputs"]["include_athena"]["default"] is False
+    assert caller["jobs"]["lanes"]["with"]["include_athena"] == (
+        "${{ inputs.include_athena || false }}"
+    )
+    assert "athena" in _lanes_workflow()["jobs"]["report"]["needs"]
+    for test in ("test_athena_source_e2e.py", "test_athena_pipeline_e2e.py"):
+        source = (REPO / "tests" / "integration" / test).read_text()
+        assert "pytest.mark.requires_athena" in source
 
 
 def test_the_salesforce_lane_keeps_its_describe_caches_between_runs_by_org():
@@ -465,6 +493,7 @@ def test_every_job_that_collects_the_container_suite_restores_the_trino_plugins_
         assert at_restore < tests_at[0] < at_save, f"{workflow}:{job}"
     assert sorted(collecting) == [
         "amd64-engines.yml:exasol",
+        "integration-suite-lanes.yml:athena",
         "integration-suite-lanes.yml:cluster",
         "integration-suite-lanes.yml:salesforce",
         "integration-suite-lanes.yml:suite",

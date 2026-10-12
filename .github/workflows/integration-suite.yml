@@ -55,6 +55,11 @@ on:
         type: boolean
         required: false
         default: false
+      include_athena:
+        description: "Also run the Amazon Athena lane (live account; a few cents of scanned data)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -73,6 +78,10 @@ jobs:
       SPLUNKBASE_USERNAME: ${{ secrets.SPLUNKBASE_USERNAME }}
       SPLUNKBASE_PASSWORD: ${{ secrets.SPLUNKBASE_PASSWORD }}
       ASKAMERICA_API_KEY: ${{ secrets.ASKAMERICA_API_KEY }}
+      ATHENA_AWS_ACCESS_KEY_ID: ${{ secrets.ATHENA_AWS_ACCESS_KEY_ID }}
+      ATHENA_AWS_SECRET_ACCESS_KEY: ${{ secrets.ATHENA_AWS_SECRET_ACCESS_KEY }}
+      ATHENA_REGION: ${{ secrets.ATHENA_REGION }}
+      ATHENA_S3_BUCKET: ${{ secrets.ATHENA_S3_BUCKET }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_ENDPOINT_OVERRIDE: ${{ secrets.AWS_ENDPOINT_OVERRIDE }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -134,6 +143,7 @@ jobs:
       lanes: ${{ inputs.lanes || 'all' }}
       include_warehouse: ${{ inputs.include_warehouse || false }}
       include_salesforce: ${{ inputs.include_salesforce || false }}
+      include_athena: ${{ inputs.include_athena || false }}
     concurrency:
       group: integration-suite
       queue: max
