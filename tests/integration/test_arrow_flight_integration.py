@@ -39,6 +39,7 @@ flight = pytest.importorskip("pyarrow.flight")
 
 from provisa.api.flight.server import ProvisaFlightServer  # noqa: E402
 from tests.integration.conftest import no_replica_routes  # noqa: E402
+from tests.helpers import serve_surfaces  # noqa: E402
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
 
@@ -113,6 +114,7 @@ def _make_minimal_state():
     from provisa.federation.runtime import EngineRuntime
 
     state.federation_engine = EngineRuntime(build_trino_engine(), state)  # REQ-825
+    serve_surfaces(state)
     return state
 
 
@@ -368,6 +370,7 @@ class TestFlightDoGetWithRealData:
         from tests.helpers import stub_materialization_noop
 
         stub_materialization_noop(state)
+        serve_surfaces(state)
         # REQ-074/REQ-1386: every governed statement this server executes writes an audit row, and
         # that row lands in the org's tenant schema — so a state that serves real queries carries a
         # real tenant database (stub_materialization_noop leaves it None, which the audit write

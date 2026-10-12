@@ -523,6 +523,9 @@ class TestRestEndpointsHTTP:
         app_state.schemas = {"org_admin": schema}
         app_state.contexts = {"org_admin": ctx}
         app_state.rls_contexts = {"org_admin": RLSContext.empty()}
+        # A built surface always has a path map (app_loaders.register_role_surface); this role's
+        # has no tables, so the one asked for is unknown.
+        app_state.table_path_maps = {"org_admin": {}}
 
         app = FastAPI()
         app.include_router(create_rest_router(app_state))

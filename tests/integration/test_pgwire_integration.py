@@ -52,6 +52,7 @@ from provisa.executor.result import QueryResult as EngineResult
 from tests.pgwire_describe_parity import describes_as
 from provisa.pgwire.server import ProvisaConnection, ProvisaServer
 from tests.integration.conftest import no_replica_routes
+from tests.helpers import serve_surfaces
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
 
@@ -136,6 +137,7 @@ def _make_mock_state(role: str = "admin", provider: str = "simple") -> MagicMock
     state.source_pools = MagicMock()
     state.server_limits = {}
     state.engine_conn = None
+    serve_surfaces(state)
     return state
 
 
