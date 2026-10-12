@@ -1,0 +1,10 @@
+{
+  "whatsNew": {
+    "title": "{{version}} の新機能",
+    "released": "{{date}} リリース",
+    "features": "機能",
+    "changes": "変更",
+    "general": "全般",
+    "empty": "ユーザーに見える変更はありません。"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "whatsNew": {
+    "title": "{{version}} 的新功能",
+    "released": "发布于 {{date}}",
+    "features": "功能",
+    "changes": "变更",
+    "general": "通用",
+    "empty": "没有用户可见的变更。"
+  }
+}

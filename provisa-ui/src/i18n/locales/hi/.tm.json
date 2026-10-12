@@ -5796,5 +5796,12 @@
   "hi/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
   "hi/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
   "hi/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
-  "hi/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
+  "hi/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment",
+  "hi/navBar.json::navBar.whatsNew": "What's new",
+  "hi/whatsNew.json::whatsNew.title": "What's new in {{version}}",
+  "hi/whatsNew.json::whatsNew.released": "Released {{date}}",
+  "hi/whatsNew.json::whatsNew.features": "Features",
+  "hi/whatsNew.json::whatsNew.changes": "Changes",
+  "hi/whatsNew.json::whatsNew.general": "General",
+  "hi/whatsNew.json::whatsNew.empty": "No user-visible changes."
 }
