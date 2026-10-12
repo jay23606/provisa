@@ -198,6 +198,10 @@ class _Plan:
     sources: frozenset[str] = field(default_factory=frozenset)
     route_reason: str | None = field(default=None)
     optimizations: tuple[str, ...] = field(default=())
+    # REQ-2002: the statement's embed() calls as governance resolved them (embed_fn.Folded): the
+    # select-list columns whose texts are embedded once the rows are read, and the models used,
+    # which its audit record names. None: the statement calls no embed().
+    embedded: Any = field(default=None)
     # REQ-1865: row-materialize predicate resolution — the concrete PK bound(s) this statement's
     # compiled plan resolved against every row_materialize table it references (empty when the
     # statement touches no such table, or none of its predicates resolve to a bounded PK set).
@@ -1062,6 +1066,13 @@ async def _off_loop(fn, *args, **kwargs):
     return await loop.run_in_executor(None, fn, *args)
 
 
+def embedding_provider(model: Any) -> Any:  # REQ-2002
+    """The embedding provider of a registered model."""
+    from provisa.vector.providers import get_provider
+
+    return get_provider(model.provider)
+
+
 async def vector_registry(state: Any) -> Any:  # REQ-419, REQ-423
     """The org's embedding-model registry (``vector_models``), as the AI Models settings hold it."""
     from provisa.api.mcp.tools import effective_config
@@ -1474,6 +1485,23 @@ async def govern_statement(
     if _registry is not None:
         # REQ-430: a text the statement searches for is embedded once, with the statement.
         governed_semantic = await _similarity.embed_text_queries(governed_semantic, _registry)
+    from provisa.vector import embed_fn as _embed_fn
+
+    _memo: dict[str, Any] = {}
+    if _embed_fn.mentions(governed_semantic):
+        # REQ-2002: embed() is Provisa's: a literal text is embedded now, a text of rows once the
+        # rows are read (the plan's ``embedded``); no source or engine sees the call.
+        _folded = await _embed_fn.fold(
+            governed_semantic, _registry or await vector_registry(state), embedding_provider
+        )
+        import sqlglot.expressions as _exp
+
+        if _folded.rows and isinstance(_parsed_input, _exp.Insert):
+            raise _embed_fn.EmbedRefused(
+                "an INSERT ... SELECT that embeds the text of its rows is not yet written"
+            )
+        governed_semantic = _folded.sql
+        _memo["embed"] = _folded
 
     # REQ-1120/REQ-1682: resolve RLS session predicates (current_setting('provisa.<var>')) to
     # SQL literals on EVERY route. A caller that supplies session vars out-of-band (the airport
@@ -1496,6 +1524,7 @@ async def govern_statement(
         governed_semantic=governed_semantic,
         schema_generation=(state.schema_boot_id, state.schema_version),
         stamp=_mint_stamp(),
+        memo=_memo,
     )
     # Not kept: a write (its admission checks run per call) and a statement that runs a registered
     # command while it is prepared. The slot itself refuses one governed while a schema rebuild
@@ -1513,6 +1542,7 @@ async def _route_bounded(governed: "_Governed", **how: Any) -> _Plan:
     plan = await route_governed(governed, **how)
     if how.get("explain") is None:
         plan.row_limit = governed.gov_ctx.row_limit
+    plan.embedded = governed.memo.get("embed")  # REQ-2002
     return plan
 
 
@@ -2583,6 +2613,12 @@ async def _execute_plan_bound(plan: _Plan, state: Any) -> QueryResult:
     """``_execute_plan`` once the request deadline is settled: the org's secrets, the terminal,
     then what the statement does to a temporary table of its session with the rows (REQ-615)."""
     result = await _execute_plan_with_secrets(plan, state)
+    if plan.embedded is not None and plan.embedded.rows:
+        from provisa.vector.embed_fn import embed_rows
+
+        result = await embed_rows(
+            result, plan.embedded.rows, await vector_registry(state), embedding_provider
+        )
     if plan.temp is not None:
         from provisa.pgwire.temp_exec import apply
 
@@ -2659,21 +2695,38 @@ async def _settle_cut(plan: _Plan, state: Any) -> None:
         plan.limit_outcome = "cut"
 
 
+def streams_from_terminal(plan: _Plan) -> bool:  # REQ-2002
+    """Whether a surface may stream ``plan``'s rows straight from its terminal. Not when Provisa
+    still has work to do on them: a select-list ``embed()`` of rows is embedded once the rows are
+    read, in :func:`_execute_plan`, which such a plan is run through."""
+    return plan.embedded is None or not plan.embedded.rows
+
+
 def _enforced_with_limit_outcome(enforced: Any, plan: _Plan) -> Any:
     """What was enforced on the statement, with what its row limit did to the answer
     (REQ-1949): the audit row says the caller was given a cut answer, or one whose cut could not
-    be checked, beside the limit itself (``enforced.row_cap`` / ``table_caps``)."""
-    if plan.limit_outcome is None or enforced is None:
+    be checked, beside the limit itself (``enforced.row_cap`` / ``table_caps``). A statement that
+    embedded texts names each model it used, with its version (REQ-2002)."""
+    embedded = plan.embedded.audit if plan.embedded is not None else None
+    if (plan.limit_outcome is None and embedded is None) or enforced is None:
         return enforced
-    said = {
-        "limit": plan.row_limit.limit,
-        "kind": plan.row_limit.kind,
-        "outcome": plan.limit_outcome,
-    }
+    said = (
+        None
+        if plan.limit_outcome is None
+        else {
+            "limit": plan.row_limit.limit,
+            "kind": plan.row_limit.kind,
+            "outcome": plan.limit_outcome,
+        }
+    )
 
     def resolved() -> dict[str, Any]:
         was = cast("dict[str, Any]", enforced() if callable(enforced) else enforced)
-        return {**was, "row_limit": said}
+        return {
+            **was,
+            **({"row_limit": said} if said is not None else {}),
+            **({"embed": embedded} if embedded is not None else {}),
+        }
 
     return resolved
 
@@ -4591,6 +4644,14 @@ async def describe_pgwire_statement(sql: str, role_id: str) -> _Described:  # RE
             governed.ctx,
             state.schema_build_cache["column_types"],
         )
+        folded = governed.memo.get("embed")
+        if folded is not None:
+            from provisa.vector.embed_fn import VECTOR_TYPE
+
+            # REQ-2002: a select-list embed() of rows holds the texts' vectors, not the texts.
+            shape = list(shape)
+            for spec in folded.rows:
+                shape[spec.position] = (shape[spec.position][0], VECTOR_TYPE)
         governed.memo["result_shape"] = shape
     return _Described(shape, governed)
 

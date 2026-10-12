@@ -28,6 +28,8 @@
     "vectorDimensions": "維度",
     "vectorApiKeyEnv": "API 金鑰",
     "vectorBaseUrl": "基底 URL",
+    "vectorVersion": "版本",
+    "vectorVersionPlaceholder": "可選",
     "vectorEnabled": "已啟用",
     "addVectorModel": "新增向量模型",
     "removeVectorModel": "移除",

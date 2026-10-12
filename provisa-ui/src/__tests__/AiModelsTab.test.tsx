@@ -57,6 +57,7 @@ function state(overrides: Partial<AiModelsState> = {}): AiModelsState {
         api_key_env: "OPENAI_API_KEY",
         base_url: null,
         enabled: true,
+        version: null,
       },
     ],
     ai_endpoints: [],
@@ -107,6 +108,20 @@ describe("AiModelsTab", () => {
     expect(arg.ai_models?.sql_generation).toBe("claude-opus-4-8");
     expect(arg.nl).toEqual({ rate_limit: 60 });
     expect(arg.vector_models?.[0].id).toBe("text-embedding-3-small");
+  });
+
+  it("saves a vector model's stated version", async () => {
+    // REQ-2002: the version recorded with every use of the model, where its provider reports none.
+    mockFetch.mockResolvedValue(state());
+    mockSet.mockResolvedValue({ success: true, updated: ["vector_models"], restart_required: true });
+    render(<AiModelsTab />);
+
+    const version = await screen.findByRole("textbox", { name: "Version" });
+    fireEvent.change(version, { target: { value: "2024-01" } });
+    fireEvent.click(screen.getByTestId("ai-models-save"));
+
+    await waitFor(() => expect(mockSet).toHaveBeenCalledTimes(1));
+    expect(mockSet.mock.calls[0][0].vector_models?.[0].version).toBe("2024-01");
   });
 
   it("changing a role vendor away from anthropic saves the full vendor/model object", async () => {

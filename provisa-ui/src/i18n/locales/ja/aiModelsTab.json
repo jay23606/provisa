@@ -28,6 +28,8 @@
     "vectorDimensions": "次元数",
     "vectorApiKeyEnv": "API キー",
     "vectorBaseUrl": "ベースURL",
+    "vectorVersion": "バージョン",
+    "vectorVersionPlaceholder": "任意",
     "vectorEnabled": "有効",
     "addVectorModel": "ベクトルモデルを追加",
     "removeVectorModel": "削除",

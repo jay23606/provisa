@@ -33,6 +33,9 @@ export interface VectorModel {
   api_key_env: string | null;
   base_url: string | null;
   enabled: boolean;
+  // REQ-2002: the model's version as the operator states it; a provider that reports one
+  // (Ollama, a local HuggingFace model) gives that instead in every audit record.
+  version: string | null;
 }
 
 // REQ-1790: a custom LLM endpoint reached over the OpenAI or Anthropic wire protocol — lets a

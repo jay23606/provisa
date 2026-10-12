@@ -28,6 +28,8 @@
     "vectorDimensions": "डाइमेंशन",
     "vectorApiKeyEnv": "API कुंजी",
     "vectorBaseUrl": "बेस URL",
+    "vectorVersion": "संस्करण",
+    "vectorVersionPlaceholder": "वैकल्पिक",
     "vectorEnabled": "सक्षम",
     "addVectorModel": "वेक्टर मॉडल जोड़ें",
     "removeVectorModel": "हटाएँ",

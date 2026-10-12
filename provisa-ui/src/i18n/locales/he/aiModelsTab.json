@@ -28,6 +28,8 @@
     "vectorDimensions": "ממדים",
     "vectorApiKeyEnv": "מפתח API",
     "vectorBaseUrl": "כתובת URL בסיסית",
+    "vectorVersion": "גרסה",
+    "vectorVersionPlaceholder": "אופציונלי",
     "vectorEnabled": "מופעל",
     "addVectorModel": "הוספת מודל וקטור",
     "removeVectorModel": "הסרה",

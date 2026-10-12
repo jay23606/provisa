@@ -23024,6 +23024,6 @@ A command can be implemented by a Provisa SQL statement with typed arguments (im
 
 embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model not in the registry, or one the registry has disabled, is refused naming it. A literal text is embedded once, with the statement. A text read from rows is embedded on the rows a statement reads, so embed() of a column or expression is an item of the select list; anywhere else it is refused by name. Each registered model has a version: where the provider reports one it is taken from the provider (an Ollama model's digest, a local HuggingFace model's revision or commit hash), otherwise it is the value the operator enters (a model name such as OpenAI's carries none); it is set in the AI Models settings. The audit record of every statement that calls embed() holds each model it used: its id, provider, dimensions and version.
 
-**Code:** —
+**Code:** `provisa/vector/embed_fn.py`, `provisa/vector/providers.py`, `provisa/pgwire/_pipeline.py`, `provisa-ui/src/components/admin/AiModelsTab.tsx`
 
-**Tests:** —
+**Tests:** `tests/unit/test_embed_fn.py`, `provisa-ui/src/__tests__/AiModelsTab.test.tsx`

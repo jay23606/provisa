@@ -336,6 +336,8 @@
   "ja/aiModelsTab.json::aiModelsTab.vectorId": "Model ID",
   "ja/aiModelsTab.json::aiModelsTab.vectorIntro": "Registered embedding models available for semantic search. The registry is an allowlist.",
   "ja/aiModelsTab.json::aiModelsTab.vectorProvider": "Provider",
+  "ja/aiModelsTab.json::aiModelsTab.vectorVersion": "Version",
+  "ja/aiModelsTab.json::aiModelsTab.vectorVersionPlaceholder": "optional",
   "ja/aiModelsTab.json::aiModelsTab.vendorLabel": "Vendor",
   "ja/athenaFields.json::athenaFields.accessKeyHint": "Empty: the AWS credential chain (instance role, environment, profile)",
   "ja/athenaFields.json::athenaFields.accessKeyId": "Access key ID",

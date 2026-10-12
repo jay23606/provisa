@@ -28,6 +28,8 @@
     "vectorDimensions": "Dimensions",
     "vectorApiKeyEnv": "API key",
     "vectorBaseUrl": "Base URL",
+    "vectorVersion": "Version",
+    "vectorVersionPlaceholder": "optional",
     "vectorEnabled": "Enabled",
     "addVectorModel": "Add vector model",
     "removeVectorModel": "Remove",

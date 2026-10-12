@@ -31,6 +31,19 @@ class EmbeddingProvider(ABC):  # REQ-420
     @abstractmethod
     async def embed(self, texts: list[str], model: VectorModel) -> list[list[float]]: ...
 
+    async def reported_version(self, model: VectorModel) -> str | None:  # REQ-2002
+        """The version the provider reports for ``model``, or None where it reports none (a
+        model name such as OpenAI's carries no version)."""
+        del model
+        return None
+
+
+async def model_version(model: VectorModel, provider: EmbeddingProvider) -> str | None:  # REQ-2002
+    """The version recorded for a use of ``model``: the one its provider reports, else the one
+    the operator states in the registry, else none (neither knows one)."""
+    reported = await provider.reported_version(model)
+    return reported if reported is not None else model.version
+
 
 async def _api_key(model: VectorModel) -> str | None:  # REQ-1827
     """The vector model's API key from its ``api_key_env`` field — the SAME shared grammar
@@ -87,6 +100,23 @@ class OllamaProvider(EmbeddingProvider):  # REQ-420
                 out.append(emb)
         return out
 
+    async def reported_version(self, model: VectorModel) -> str | None:  # REQ-2002
+        """The model's digest, as the server's model list gives it."""
+        import httpx
+
+        base = (model.base_url or "http://localhost:11434").rstrip("/")
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(f"{base}/api/tags")
+            resp.raise_for_status()
+            listed = resp.json().get("models")
+        if not isinstance(listed, list):
+            raise EmbeddingError("Ollama model list missing 'models'")
+        names = {model.id, f"{model.id}:latest"}
+        for entry in listed:
+            if entry.get("name") in names or entry.get("model") in names:
+                return entry.get("digest")
+        raise EmbeddingError(f"Ollama does not list model {model.id!r}")
+
 
 class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
     """Local sentence-transformers model — no network."""
@@ -105,6 +135,18 @@ class HuggingFaceLocalProvider(EmbeddingProvider):  # REQ-420
             st = SentenceTransformer(model.id)
             self._cache[model.id] = st
         return [list(map(float, v)) for v in st.encode(texts)]
+
+    async def reported_version(self, model: VectorModel) -> str | None:  # REQ-2002
+        """The commit of the model's local snapshot: the hub cache names each snapshot by it."""
+        from pathlib import Path
+
+        try:
+            from huggingface_hub import snapshot_download  # pyright: ignore[reportMissingImports]
+        except ImportError as exc:
+            raise EmbeddingError(
+                "huggingface provider requires sentence-transformers: pip install provisa[vector]"
+            ) from exc
+        return Path(snapshot_download(model.id, local_files_only=True)).name
 
 
 _PROVIDERS: dict[str, type[EmbeddingProvider]] = {

@@ -94,6 +94,7 @@ const EMPTY_VECTOR_MODEL: VectorModel = {
   api_key_env: null,
   base_url: null,
   enabled: true,
+  version: null,
 };
 
 const STYLE_OPTIONS = [
@@ -435,6 +436,7 @@ export function AiModelsTab() {
               <Table.Th>{t("aiModelsTab.vectorDimensions")}</Table.Th>
               <Table.Th>{t("aiModelsTab.vectorApiKeyEnv")}</Table.Th>
               <Table.Th>{t("aiModelsTab.vectorBaseUrl")}</Table.Th>
+              <Table.Th>{t("aiModelsTab.vectorVersion")}</Table.Th>
               <Table.Th>{t("aiModelsTab.vectorEnabled")}</Table.Th>
               <Table.Th />
             </Table.Tr>
@@ -477,6 +479,14 @@ export function AiModelsTab() {
                     aria-label={t("aiModelsTab.vectorBaseUrl")}
                     value={vm.base_url ?? ""}
                     onChange={(e) => setVector(i, { base_url: e.currentTarget.value || null })}
+                  />
+                </Table.Td>
+                <Table.Td>
+                  <TextInput
+                    aria-label={t("aiModelsTab.vectorVersion")}
+                    placeholder={t("aiModelsTab.vectorVersionPlaceholder")}
+                    value={vm.version ?? ""}
+                    onChange={(e) => setVector(i, { version: e.currentTarget.value || null })}
                   />
                 </Table.Td>
                 <Table.Td>

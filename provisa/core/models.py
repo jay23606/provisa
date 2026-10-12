@@ -2142,6 +2142,10 @@ class VectorModelConfig(BaseModel):  # REQ-500
     api_key_env: str | None = None  # env var holding the API key
     base_url: str | None = None  # provider base URL override
     enabled: bool = True
+    # REQ-2002: the model's version as the operator states it, recorded with every use of the
+    # model; a provider that reports its model's version (Ollama, a local HuggingFace model)
+    # gives that instead.
+    version: str | None = None
 
 
 class AiEndpointConfig(BaseModel):  # REQ-1790
