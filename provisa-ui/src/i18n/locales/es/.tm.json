@@ -5838,5 +5838,14 @@
   "es/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
   "es/orgFilesTab.json::orgFilesTab.warn2": "Store it in your organization's secrets vault now; it will not be shown again.",
   "es/orgFilesTab.json::orgFilesTab.panelTitle": "File folder encryption",
-  "es/orgFilesTab.json::orgFilesTab.generatedLabel": "New key"
+  "es/orgFilesTab.json::orgFilesTab.generatedLabel": "New key",
+  "es/tableSections.json::tableSections.checkedBy": "Checked by",
+  "es/tableSections.json::tableSections.checkerTable": "Checker table",
+  "es/tableSections.json::tableSections.checkerSource": "Checker source",
+  "es/tableSections.json::tableSections.lastScan": "Last scan",
+  "es/tableSections.json::tableSections.outcome.pass": "Pass",
+  "es/tableSections.json::tableSections.outcome.warn": "Warn",
+  "es/tableSections.json::tableSections.outcome.fail": "Fail",
+  "es/tableSections.json::tableSections.outcome.error": "Error",
+  "es/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

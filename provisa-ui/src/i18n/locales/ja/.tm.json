@@ -5838,5 +5838,14 @@
   "ja/orgFilesTab.json::orgFilesTab.referenceLabel": "Key reference",
   "ja/orgFilesTab.json::orgFilesTab.encrypt": "Encrypt the organization's file folder",
   "ja/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
-  "ja/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference."
+  "ja/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
+  "ja/tableSections.json::tableSections.checkedBy": "Checked by",
+  "ja/tableSections.json::tableSections.checkerTable": "Checker table",
+  "ja/tableSections.json::tableSections.checkerSource": "Checker source",
+  "ja/tableSections.json::tableSections.lastScan": "Last scan",
+  "ja/tableSections.json::tableSections.outcome.pass": "Pass",
+  "ja/tableSections.json::tableSections.outcome.warn": "Warn",
+  "ja/tableSections.json::tableSections.outcome.fail": "Fail",
+  "ja/tableSections.json::tableSections.outcome.error": "Error",
+  "ja/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

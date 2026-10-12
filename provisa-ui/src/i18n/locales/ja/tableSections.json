@@ -19,6 +19,17 @@
     "noRelationships": "このテーブルはどのリレーションシップにも含まれていません",
     "fromSource": "{{value}}（ソースから）",
     "fromSourceAsIs": "ソースの設定どおり",
-    "notScheduledLikeSource": "ソースはスケジュールでのみ読み取られますが、このテーブルはそうではありません: クエリがソースを読み取ることがあります。"
+    "notScheduledLikeSource": "ソースはスケジュールでのみ読み取られますが、このテーブルはそうではありません: クエリがソースを読み取ることがあります。",
+    "checkedBy": "チェック元",
+    "checkerTable": "チェッカーテーブル",
+    "checkerSource": "チェッカーソース",
+    "lastScan": "最終スキャン",
+    "outcome": {
+      "pass": "合格",
+      "warn": "警告",
+      "fail": "不合格",
+      "error": "エラー",
+      "skipped": "スキップ"
+    }
   }
 }

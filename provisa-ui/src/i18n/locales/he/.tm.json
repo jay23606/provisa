@@ -5838,5 +5838,14 @@
   "he/orgFilesTab.json::orgFilesTab.referenceWrong": "Write the key's name as ${secret:NAME}, not the key itself.",
   "he/orgFilesTab.json::orgFilesTab.generate": "Generate key",
   "he/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
-  "he/orgFilesTab.json::orgFilesTab.referenceHelp": "The key's name in your organization's secrets vault, written ${secret:NAME}. Provisa stores only this reference, never the key."
+  "he/orgFilesTab.json::orgFilesTab.referenceHelp": "The key's name in your organization's secrets vault, written ${secret:NAME}. Provisa stores only this reference, never the key.",
+  "he/tableSections.json::tableSections.checkedBy": "Checked by",
+  "he/tableSections.json::tableSections.checkerTable": "Checker table",
+  "he/tableSections.json::tableSections.checkerSource": "Checker source",
+  "he/tableSections.json::tableSections.lastScan": "Last scan",
+  "he/tableSections.json::tableSections.outcome.pass": "Pass",
+  "he/tableSections.json::tableSections.outcome.warn": "Warn",
+  "he/tableSections.json::tableSections.outcome.fail": "Fail",
+  "he/tableSections.json::tableSections.outcome.error": "Error",
+  "he/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

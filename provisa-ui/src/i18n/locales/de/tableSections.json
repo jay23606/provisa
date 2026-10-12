@@ -19,6 +19,17 @@
     "noRelationships": "Diese Tabelle ist an keiner Beziehung beteiligt",
     "fromSource": "{{value}} (von der Quelle)",
     "fromSourceAsIs": "Wie bei der Quelle",
-    "notScheduledLikeSource": "Nicht nur nach Zeitplan gelesen, obwohl ihre Quelle es wird: Eine Abfrage kann die Quelle lesen."
+    "notScheduledLikeSource": "Nicht nur nach Zeitplan gelesen, obwohl ihre Quelle es wird: Eine Abfrage kann die Quelle lesen.",
+    "checkedBy": "Geprüft von",
+    "checkerTable": "Prüftabelle",
+    "checkerSource": "Prüfquelle",
+    "lastScan": "Letzte Prüfung",
+    "outcome": {
+      "pass": "Bestanden",
+      "warn": "Warnung",
+      "fail": "Nicht bestanden",
+      "error": "Fehler",
+      "skipped": "Übersprungen"
+    }
   }
 }

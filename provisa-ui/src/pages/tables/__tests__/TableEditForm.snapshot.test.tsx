@@ -85,6 +85,7 @@ function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
     uniqueConstraints: [],
     graphqlFieldName: null,
     dqDataset: null,
+    qualityCheckers: [],
     ...overrides,
   };
 }

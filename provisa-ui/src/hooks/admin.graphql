@@ -231,6 +231,13 @@ query TablesQuery {
     gqlNamingConvention
     graphqlFieldName
     dqDataset
+    qualityCheckers {
+      tableId
+      tableName
+      sourceId
+      outcome
+      scanTime
+    }
     watermarkColumn
     changeSignal
     probeQuery

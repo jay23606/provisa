@@ -19,6 +19,17 @@
     "noRelationships": "This table takes part in no relationship",
     "fromSource": "{{value}} (from the source)",
     "fromSourceAsIs": "As the source has it",
-    "notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source."
+    "notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
+    "checkedBy": "Checked by",
+    "checkerTable": "Checker table",
+    "checkerSource": "Checker source",
+    "lastScan": "Last scan",
+    "outcome": {
+      "pass": "Pass",
+      "warn": "Warn",
+      "fail": "Fail",
+      "error": "Error",
+      "skipped": "Skipped"
+    }
   }
 }

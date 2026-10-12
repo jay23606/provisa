@@ -19,6 +19,17 @@
     "noRelationships": "Deze tabel neemt aan geen relatie deel",
     "fromSource": "{{value}} (van de bron)",
     "fromSourceAsIs": "Zoals bij de bron",
-    "notScheduledLikeSource": "Niet alleen volgens schema gelezen, hoewel de bron dat wel is: een query kan de bron lezen."
+    "notScheduledLikeSource": "Niet alleen volgens schema gelezen, hoewel de bron dat wel is: een query kan de bron lezen.",
+    "checkedBy": "Gecontroleerd door",
+    "checkerTable": "Controletabel",
+    "checkerSource": "Controlebron",
+    "lastScan": "Laatste scan",
+    "outcome": {
+      "pass": "Geslaagd",
+      "warn": "Waarschuwing",
+      "fail": "Mislukt",
+      "error": "Fout",
+      "skipped": "Overgeslagen"
+    }
   }
 }

@@ -297,6 +297,17 @@ export interface Paging {
   rowsField: string | null;
 }
 
+/** A data-quality checker table whose contract scans a table (REQ-1443). */
+export interface QualityChecker {
+  tableId: number;
+  tableName: string;
+  sourceId: string;
+  /** pass | fail | warn | error | skipped: the last scan's worst check; null before a first scan. */
+  outcome: string | null;
+  /** When the last scan ran (ISO 8601); null before a first scan. */
+  scanTime: string | null;
+}
+
 export interface RegisteredTable {
   id: number;
   sourceId: string;
@@ -326,6 +337,8 @@ export interface RegisteredTable {
   // REQ-1443: "provisa/<domain-slug>/<table>" — the pgwire names a contract's dataset uses,
   // server-derived (provisa.dq.contract.meta_dataset) — null if no role's context exposes it.
   dqDataset: string | null;
+  // REQ-1443: the checker tables whose contracts scan this table, and each one's last scan.
+  qualityCheckers: QualityChecker[];
   watermarkColumn: string | null;
   changeSignal: string | null;
   probeQuery: string | null;

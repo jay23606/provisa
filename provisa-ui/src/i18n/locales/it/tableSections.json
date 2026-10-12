@@ -19,6 +19,17 @@
     "noRelationships": "Questa tabella non partecipa ad alcuna relazione",
     "fromSource": "{{value}} (dall'origine)",
     "fromSourceAsIs": "Come nell'origine",
-    "notScheduledLikeSource": "Non letta solo secondo la pianificazione, anche se la sua origine lo è: una query può leggere l'origine."
+    "notScheduledLikeSource": "Non letta solo secondo la pianificazione, anche se la sua origine lo è: una query può leggere l'origine.",
+    "checkedBy": "Controllato da",
+    "checkerTable": "Tabella del controllo",
+    "checkerSource": "Origine del controllo",
+    "lastScan": "Ultima scansione",
+    "outcome": {
+      "pass": "Superato",
+      "warn": "Avviso",
+      "fail": "Non superato",
+      "error": "Errore",
+      "skipped": "Saltato"
+    }
   }
 }
