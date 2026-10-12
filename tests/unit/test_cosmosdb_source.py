@@ -422,3 +422,54 @@ def test_a_timestamp_column_reads_an_iso_string():
     }
     with pytest.raises(PipelineOutputMismatch, match="column 'at'"):
         project("t", {"at": "yesterday"}, cols, dates_as_text=True)
+
+
+# --- the native change signal: the container's change feed ---
+
+
+class _Feed:
+    """A container whose change feed gives ``batches`` in turn, with an etag continuation."""
+
+    def __init__(self, batches: list[list[dict]]) -> None:
+        self._batches = list(batches)
+        self.asked: list[dict] = []
+        self.client_connection = SimpleNamespace(last_response_headers={"etag": "0"})
+
+    def query_items_change_feed(self, **kw):
+        self.asked.append(kw)
+        self.client_connection.last_response_headers = {"etag": str(len(self.asked))}
+        return iter(self._batches.pop(0) if self._batches else [])
+
+
+async def test_the_change_feed_is_read_from_now_and_carried_by_its_continuation():
+    from provisa.cosmosdb.change_feed import open_change_feed
+
+    container = _Feed([[], [{"id": "o1"}, {"id": "o2"}], []])
+    connection = SimpleNamespace(container=lambda name: container)
+    async with open_change_feed(connection=connection, container="orders", wait_ms=1) as feed:
+        assert container.asked == [{"start_time": "Now"}]  # placed at now when opened
+        assert await feed.try_next() == {"id": "o1"}
+        assert await feed.try_next() == {"id": "o2"}
+        assert await feed.try_next() is None  # quiet: none arrived within the wait
+    assert container.asked[1:] == [{"continuation": "1"}, {"continuation": "2"}]
+
+
+def test_a_cosmos_table_follows_its_change_feed_and_needs_nothing_of_the_account():
+    import asyncio
+
+    from provisa.mongodb.change_feed import follows_change_feed, require_change_feed
+
+    assert follows_change_feed("cosmosdb", "native", None)
+    assert not follows_change_feed("cosmosdb", "ttl", "native")
+    source = SimpleNamespace(id="cosmos", type=SimpleNamespace(value="cosmosdb"))
+    asyncio.run(require_change_feed(source))  # no server question is asked
+
+
+def test_a_table_read_under_arguments_has_no_change_feed_to_follow():
+    table = _table(None, _param("customerId", "partition_key"))
+    table.change_signal = "native"
+    with pytest.raises(CosmosTableRefused, match="change feed follows a whole container"):
+        check_table(table)
+    whole = _table(None)
+    whole.change_signal = "native"
+    assert check_table(whole) is None

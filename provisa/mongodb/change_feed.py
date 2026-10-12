@@ -34,14 +34,19 @@ def follows_change_feed(
     source_type: str, table_signal: str | None, source_signal: str | None
 ) -> bool:
     """Whether a table of a ``source_type`` source follows the source's change feed: a MongoDB
-    table whose effective change signal (its own, else its source's) is ``native``."""
+    (REQ-1861) or Cosmos DB (REQ-1982) table whose effective change signal (its own, else its
+    source's) is ``native``."""
     signal = table_signal if table_signal is not None else source_signal
-    return source_type == "mongodb" and signal == CHANGE_FEED_SIGNAL
+    return source_type in ("mongodb", "cosmosdb") and signal == CHANGE_FEED_SIGNAL
 
 
 async def require_change_feed(source: Any) -> None:
     """Refuse a source whose server serves no change streams (:class:`ChangeStreamsUnavailable`).
     The source's connection values are resolved here, at use; a server that cannot be reached
-    raises the driver's own error."""
+    raises the driver's own error. A Cosmos DB container always serves its change feed
+    (REQ-1982): nothing is asked."""
+    source_type = source.type.value if hasattr(source.type, "value") else str(source.type)
+    if source_type == "cosmosdb":
+        return
     conn = MongoConnection.from_source(source)
     await asyncio.to_thread(require_change_streams, conn, source.id)

@@ -110,6 +110,12 @@ def check_table(table: Any) -> CosmosQuery | None:
     if untyped:
         raise CosmosTableRefused(name, f"the columns {untyped} have no data type")
     text = _get(table, "query_template")
+    if _get(table, "change_signal") == "native" and (text or kinds):
+        raise CosmosTableRefused(
+            name,
+            "the change feed follows a whole container; a table read under arguments has none "
+            "to follow -- use a TTL",
+        )
     declared = {parameter_name(c) for c in kinds.get(QUERY_ARG, [])}
     if not text:
         if declared:
