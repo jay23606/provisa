@@ -28,12 +28,9 @@ Nothing here is cached: every call reads the current pointer and fresh credentia
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Mapping
+from typing import Any, Mapping
 
 import httpx
-
-if TYPE_CHECKING:
-    from provisa.core.models import Source
 
 
 @dataclass(frozen=True)
@@ -50,9 +47,13 @@ class DatabricksIcebergTable:
     credentials: tuple[StorageCredential, ...]
 
 
-def _required(source: "Source") -> tuple[str, str]:
+def _required(source: Any) -> tuple[str, str]:
     """The schema and table of ``source``, after checking every field the lookup needs. None has a
-    sane default; guessing one would point ``iceberg_scan`` at the wrong table."""
+    sane default; guessing one would point ``iceberg_scan`` at the wrong table.
+
+    ``source`` is a registered TABLE of a Databricks source (the runtime's merged source): its
+    ``schema_name`` / ``table_name`` are the Unity Catalog schema and table, its ``database`` the
+    catalog."""
     if not source.host:
         raise ValueError(f"databricks source {source.id!r} requires 'host' (workspace hostname)")
     if not source.password:
@@ -63,16 +64,17 @@ def _required(source: "Source") -> tuple[str, str]:
         raise ValueError(
             f"databricks source {source.id!r} requires 'database' (Unity Catalog catalog name)"
         )
-    schema = source.federation_hints.get("schema")
-    table = source.federation_hints.get("table")
+    schema = getattr(source, "schema_name", None)
+    table = getattr(source, "table_name", None)
     if not schema or not table:
         raise ValueError(
-            f"databricks source {source.id!r} requires 'schema' and 'table' in federation_hints"
+            f"databricks source {source.id!r}: an in-place read needs the registered table's "
+            "schema and table name"
         )
     return schema, table
 
 
-def resolve_databricks_iceberg_table(source: "Source") -> DatabricksIcebergTable:
+def resolve_databricks_iceberg_table(source: Any) -> DatabricksIcebergTable:
     """The table's current Iceberg ``metadata-location`` and the storage credentials Unity Catalog
     vends for it. A table that is neither native Iceberg nor UniForm, or a catalog that vends no
     credentials (external data access off, or no EXTERNAL USE SCHEMA on the schema), raises here,

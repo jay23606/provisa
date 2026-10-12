@@ -161,7 +161,7 @@ def _duckdb_runtime():
 def test_duckdb_attach_loads_iceberg_issues_the_vended_secret_and_points_the_view(stub_resolver):
     rt = _duckdb_runtime()
     phys = '"dbx"."itest"."people"'
-    rt._attach_databricks(_src({"reach": "scan"}), ", allow_moved_paths := true", phys)
+    rt._attach_databricks(_pg_source({"reach": "scan"}), ", allow_moved_paths := true", phys)
     sql = rt._con.sql
     assert "INSTALL iceberg" in sql and "LOAD iceberg" in sql and "LOAD httpfs" in sql
     secret = next(s for s in sql if s.startswith("CREATE OR REPLACE SECRET"))
@@ -180,7 +180,7 @@ def test_duckdb_attach_loads_iceberg_issues_the_vended_secret_and_points_the_vie
 def test_duckdb_re_points_the_view_before_each_statement_that_names_it(stub_resolver):
     rt = _duckdb_runtime()
     phys = '"dbx"."itest"."people"'
-    rt._attach_databricks(_src({"reach": "scan"}), ", allow_moved_paths := true", phys)
+    rt._attach_databricks(_pg_source({"reach": "scan"}), ", allow_moved_paths := true", phys)
     rt._refresh_databricks_relations(f"SELECT count(*) FROM {phys.upper()}")
     rt._refresh_databricks_relations('SELECT 1 FROM "other"."t"')
     rt._refresh_databricks_relations(f"SELECT * FROM {phys}")

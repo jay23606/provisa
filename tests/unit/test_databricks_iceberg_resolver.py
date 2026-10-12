@@ -20,7 +20,9 @@ import httpx
 import pytest
 import respx
 
-from provisa.core.models import Source, SourceType
+from types import SimpleNamespace
+
+from provisa.core.models import SourceType
 from provisa.federation.databricks_iceberg_resolver import (
     StorageCredential,
     resolve_databricks_iceberg_table,
@@ -35,17 +37,17 @@ _TABLE = f"{_BASE}/catalogs/ext/namespaces/itest/tables/people"
 _METADATA = "s3://bucket/uc/ext/itest/people/metadata/00002-abc.metadata.json"
 
 
-def _src(**kw) -> Source:
-    return Source(
+def _src(**kw) -> SimpleNamespace:
+    """A registered table of a Databricks source, as the runtime hands it over (merged source)."""
+    return SimpleNamespace(
         id=kw.pop("id", "dbx"),
         type=SourceType.databricks,
         host=kw.pop("host", _HOST),
         password=kw.pop("password", "dapiTOKEN"),
         database=kw.pop("database", "ext"),
-        federation_hints=kw.pop(
-            "federation_hints", {"schema": "itest", "table": "people", "reach": "scan"}
-        ),
-        **kw,
+        schema_name=kw.pop("schema_name", "itest"),
+        table_name=kw.pop("table_name", "people"),
+        federation_hints={"reach": "scan"},
     )
 
 
@@ -141,7 +143,8 @@ def test_a_catalog_whose_config_names_no_prefix_fails():
         ("host", {"host": ""}),
         ("password", {"password": ""}),
         ("database", {"database": ""}),
-        ("schema", {"federation_hints": {"table": "people"}}),
+        ("schema and table name", {"schema_name": ""}),
+        ("schema and table name", {"table_name": ""}),
     ],
 )
 def test_a_source_missing_a_field_the_lookup_needs_fails_before_any_call(field, kw):

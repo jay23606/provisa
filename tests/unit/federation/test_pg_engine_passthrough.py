@@ -44,6 +44,9 @@ class _Backend:
         self.asked.append(state)
         return self._borrow()
 
+    def refresh_live_relations(self, state, sql) -> None:
+        """REQ-1867: no in-place relation is attached, so there is nothing to re-point."""
+
 
 def test_the_engine_passthrough_reads_on_a_connection_from_the_engines_own_pool():
     """REQ-1863 (amended 2026-10-01): no URL is read and no connection opened — the engine's

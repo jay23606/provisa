@@ -904,7 +904,11 @@ export function SourcesPage() {
                   .map((k) => [k, authFields[k]]),
               )
             : form.type === "databricks" && authFields.http_path
-              ? { http_path: authFields.http_path }
+              ? {
+                  http_path: authFields.http_path,
+                  // REQ-1867: read in place only when the steward chose it; the default lands
+                  ...(authFields.reach === "scan" ? { reach: "scan" } : {}),
+                }
               : form.type === "bigquery" &&
                   authType === "service_account" &&
                   authFields.credentials_json
