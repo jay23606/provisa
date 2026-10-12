@@ -1,3 +1,6 @@
+# Every hook below runs at the pre-commit stage unless it names its own; the commit-msg hook
+# reads the message, not the staged files (.githooks/commit-msg hands git's file to it).
+default_stages: [pre-commit]
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.16
@@ -34,3 +37,8 @@ repos:
         language: system
         entry: provisa-ui/scripts/precommit-eslint.sh
         files: ^provisa-ui/src/.*\.(ts|tsx)$
+      - id: revert-names-commit
+        name: a revert names the commit it undoes
+        language: system
+        entry: .venv/bin/python scripts/check_revert_message.py
+        stages: [commit-msg]

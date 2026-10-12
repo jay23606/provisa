@@ -69,7 +69,6 @@ Released 2026-10-09.
 
 - A column's scope is changed only with the right to change who is served it (#194)
 - Only widening a column's scope needs the right to grant it (#194)
-- A source kind declares columns sensitive, and registering its table hides and tags them
 
 #### mail-platforms
 

@@ -297,6 +297,26 @@ def test_a_revert_of_an_earlier_release_s_commit_is_left_out(repo: Fixture):
     assert _all_changes(repo) == ["A later page"]
 
 
+def test_a_commit_the_settings_exclude_is_left_out(repo: Fixture):
+    sha = repo.git("log", "-1", "--format=%H", "--grep=float subclass").strip()
+    (repo.root / "scripts" / "release_notes.yaml").write_text(
+        f"start:\nexclude:\n  - sha: {sha[:9]}\n    reason: reverted by hand before the release\n"
+    )
+    assert repo.run("v1", "v2") == 0
+    assert "A float subclass is encoded as its number" not in _all_changes(repo)
+    assert "float subclass" not in repo.page("v2").read_text()
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["  - sha: 0000000000\n    reason: no such commit\n", "  - sha: HEAD\n"],
+    ids=["unknown sha", "no reason"],
+)
+def test_an_exclude_entry_naming_no_commit_or_no_reason_fails_the_run(repo: Fixture, entry: str):
+    (repo.root / "scripts" / "release_notes.yaml").write_text(f"start:\nexclude:\n{entry}")
+    assert repo.run("v1", "v2") == 2
+
+
 def test_an_unknown_ref_fails_the_run(repo: Fixture):
     assert repo.run("v1", "no-such-tag") == 2
 

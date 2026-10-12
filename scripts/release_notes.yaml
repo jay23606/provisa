@@ -2,3 +2,12 @@
 # YYYY-MM-DD, or the tag of the first release to include. A release before it is left out of the
 # UI's notes, the docs pages, CHANGELOG.md and the release body. Empty: every release is shown.
 start:
+
+# Commits left out of every release's notes, each with the reason. A revert names the commit it
+# undoes in git's own line and is left out by it; these predate that rule (the commit-msg check in
+# scripts/check_revert_message.py), so the pair is named here.
+exclude:
+  - sha: 0c81e2505
+    reason: reverted by 363148f03 before v0.1.0-alpha.479; a source kind declares no columns sensitive
+  - sha: 363148f03
+    reason: the revert of 0c81e2505, written without git's "This reverts commit" line
