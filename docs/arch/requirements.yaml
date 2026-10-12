@@ -78145,7 +78145,7 @@
   category: Tenant Isolation
   priority: MUST
   type: infrastructure
-  description: 'Every file Provisa itself generates (a source''s conversion caches and crawl downloads, the Calcite file adapter''s working files, replicas, checker and profiler output, large results, downloaded runtimes'' and bundles'' per-org state, and any other file a source or engine writes by default) is written only under its org''s directory in the server''s default file location. Each org has its own folder under that location. The files are ephemeral and each node keeps its own copy of an org''s folder. An org setting (with its admin UI) encrypts the org''s folder on each node with a random key created when the folder is mounted and held only in that node''s memory; it is never stored, wrapped or derived from any persistent key, so no one, the platform admin included, can decrypt the files from stored state, and the platform admin role has no path to an org''s folder. When the mount ends (restart, unmount, idle) the key is gone, the folder''s ciphertext is deleted, and the files are rebuilt as needed. When it is on, only ciphertext reaches the underlying storage, and the components that read and write files see plain paths either way, so no adapter, engine, checker or connector needs its own encryption. No generated file is written outside an org''s directory, and an operation that needs an org directory refuses, naming the org, when that directory is not available. Files a client provides (a file source in the client''s own bucket or at the client''s own URL) are the client''s and are read with the credentials the client supplies; this requirement does not govern them.'
+  description: 'Every file Provisa itself generates (a source''s conversion caches and crawl downloads, the Calcite file adapter''s working files, replicas, checker and profiler output, large results, downloaded runtimes'' and bundles'' per-org state, and any other file a source or engine writes by default) is written only under its org''s directory in the server''s default file location. Each org has its own folder under that location. Every file Provisa keeps for an org, generated or persistent (environment fork copies and the model''s history repository included), lives in that folder; only immutable artifacts holding no org data (downloaded runtime bundles, the public GovData seed, a downloaded embedding model) are shared. The files are durable, as they are today, and each node keeps its own copy of an org''s folder. An org setting (with its admin UI) encrypts the org''s folder with a key from the org''s key ring (REQ-1574), supplied to the encrypted mount without being written to a file, an argument or the environment; a folder records the ring entry it was initialised under, so rotating the org key leaves it readable. Nothing in the folder is deleted on unmount, restart, idle or crash. Turning encryption on encrypts the existing contents and turning it off decrypts them; nothing is lost either way. The platform admin role has no path to an org''s folder or its key. The files can be rebuilt, so no recovery path exists: if the key a folder was initialised under is unavailable, the folder is reinitialised and its contents rebuilt, and that is logged naming the org. When it is on, only ciphertext reaches the underlying storage, and the components that read and write files see plain paths either way, so no adapter, engine, checker or connector needs its own encryption. No generated file is written outside an org''s directory, and an operation that needs an org directory refuses, naming the org, when that directory is not available. Files a client provides (a file source in the client''s own bucket or at the client''s own URL) are the client''s and are read with the credentials the client supplies; this requirement does not govern them.'
   use_case: 'On the SaaS deployment, two orgs whose file sources the Calcite file adapter converts from Excel to Parquet each have their caches written to their own folder, encrypted for an org that has turned encryption on, on the shared storage; a copy of the storage, a misconfigured bucket or a leaked backup holds only ciphertext, and neither org''s files can be read under the other''s key.'
   scenario: 'Given orgs A and B on one node, org A with folder encryption on
 
@@ -78155,14 +78155,14 @@
 
     When the node restarts
 
-    Then org A''s old ciphertext is deleted and the cache is rebuilt on the next conversion
+    Then org A''s cache is still there and is read through the encrypted mount
 
     When org A''s directory is not available
 
     Then the conversion is refused with an error naming org A, and no file is written elsewhere'
   related_reqs:
   - REQ-1984
-  notes: 'Maintainer 2026-10-12, through the lead: "any datasource that generates files must scope the files to the org''s private file repo"; "the file repo should be encrypted using the org''s secret key"; "the file adapter - in particular can write a lot of files"; "the issue is files we write into saas shared storage"; "there are tools that can encrypt a directory" / "so that friction for file i/o is low"; "if its a file source provided by client - not our concern"; "it basically the default file location for where the server is located"; "each org should get its own folder under that . and it should be an option to encrypt it based on org key". Further maintainer rulings: "the platform admin should never be able to decrypt those files"; "these are ephemeral files - so a break glass isn''t needed"; folders are "per node"; and, should consolidation across nodes ever be required: "we would set up terraform/helm to write to folder on the coordinator node" (a deployment concern, not product code). The choice of directory-encryption tool (e.g. rclone crypt or gocryptfs) is the lead''s, not the maintainer''s.'
+  notes: 'Maintainer 2026-10-12, through the lead: "any datasource that generates files must scope the files to the org''s private file repo"; "the file repo should be encrypted using the org''s secret key"; "the file adapter - in particular can write a lot of files"; "the issue is files we write into saas shared storage"; "there are tools that can encrypt a directory" / "so that friction for file i/o is low"; "if its a file source provided by client - not our concern"; "it basically the default file location for where the server is located"; "each org should get its own folder under that . and it should be an option to encrypt it based on org key". Further maintainer rulings: "the platform admin should never be able to decrypt those files"; "these are ephemeral files - so a break glass isn''t needed"; folders are "per node"; later the same day, superseding the ephemeral-key reading: "the ephemeral files should not be automatically deleted. That was never the point. They should be durable as they are now. Just encrypted."; "therefore ALL org files can go there."; and, should consolidation across nodes ever be required: "we would set up terraform/helm to write to folder on the coordinator node" (a deployment concern, not product code). The choice of directory-encryption tool (e.g. rclone crypt or gocryptfs) is the lead''s, not the maintainer''s.'
 - id: REQ-1993
   status: proposed
   since: 2026-10
@@ -78192,6 +78192,25 @@
   priority: SHOULD
   type: behavioral
   description: 'A Google Workspace or Microsoft 365 source reads, beside mail, the calendars and To Do / Google Tasks of its accounts, and writes their events, attendees and tasks. A source states which of mail, calendar and tasks it reads; it offers the canonical tables of those (REQ-1923''s canonical mail schema): calendars, events and event_attendees for calendar; task_lists and tasks for tasks. Reminders are columns, not a table: an event''s reminders (Google) or is_reminder_on and reminder_minutes_before_start (Microsoft), a task''s reminder_at and is_reminder_on (Microsoft; Google''s Tasks API has no reminder and keeps only the day a task is due). READING: each calendar and task table is read whole, for every account, at each refresh. The events table holds single events, series masters (with their recurrence as RFC 5545 lines; Microsoft''s pattern is rendered as one RRULE) and exceptions (a moved or cancelled occurrence, with series_id and original_start_at), never the expanded occurrences of a series; on Microsoft the masters come from each calendar''s /events and the exceptions from each master''s exceptionOccurrences. A refresh is asked for when the source''s change token differs from the last: Google, each calendar''s last change time and each task''s update time; Microsoft, each calendar''s events in a window either side of today (calendar_check_days, a setting of the source with a field on its form) by id and change key, and each task''s update time. WRITING: events, event_attendees and tasks take INSERT, UPDATE and DELETE through one write path for the two source types (executor.writable WritePath.API, federation.mail_write), governed like any table write. An INSERT gives literal values; an UPDATE or DELETE names its rows by their write key (provider, account, id; an attendee by event_id and address), or one occurrence of a series by series_id and original_start_at, which a change or removal makes an exception. The rows named are found at the provider as they stand, and each is changed or removed only where the statement''s whole WHERE, row rules included, holds for it. A write sets only the columns the provider keeps of the table''s writable set; any other is refused by name. Recurrence is set on a series, never on one occurrence. NOTIFICATION: a write tells an event''s attendees nothing unless the source''s calendar_send_updates is on (a field on its form). Google takes sendUpdates=none; Microsoft Graph cannot change a meeting''s attendees, or a meeting the account organizes with others attending, without telling them, so such a write is refused by name while the setting is off (the account''s own reminder is changed either way). SCOPES: Google asks calendar.calendarlist.readonly, calendar.events and tasks (with userinfo.email, by which the sign-in names its account); Microsoft asks Calendars.ReadWrite and Tasks.ReadWrite delegated, and a source of the organisation''s mailboxes needs Calendars.ReadWrite and Tasks.ReadWrite.All application permissions (Google: the same scopes on the service account''s domain-wide delegation). The scopes a sign-in asks are the server''s, from the source''s settings as the form states them, never a list the form makes. The scopes the issuer says an approval grants are recorded with it; a source whose approval does not grant what it now reads is refused by name, asking its owner to sign in again.'
+  scenario: 'Given a Microsoft 365 source that reads mail, calendar and tasks for the account a@x.test
+
+
+    When the source refreshes
+
+
+    Then calendars, events, event_attendees, task_lists and tasks hold that account''s rows, a recurring series as its master and its exceptions
+
+
+    When a steward inserts a task into tasks for a@x.test
+
+
+    Then the task exists in To Do and tasks is rebuilt with it
+
+
+    When an attendee is added to a meeting a@x.test organises while calendar_send_updates is off
+
+
+    Then the write is refused, naming the setting'
   related_reqs:
   - REQ-1923
   - REQ-1946
@@ -78213,3 +78232,37 @@
   - provisa/api_source/oauth_store.py
   - provisa/core/source_sign_in.py
   - provisa-ui/src/pages/sources/MailResourcesFields.tsx
+- id: REQ-1995
+  status: proposed
+  since: 2026-10
+  target: 2027-Q1
+  group: 3. Source Registration & Data Modeling
+  category: Registration & Governance
+  priority: SHOULD
+  type: behavioral
+  description: 'A pending creation request can be referred to another domain. A steward refers it with a note, for example "I think this might be in your domain, can you confirm?", and the request stays pending. The stewards of the receiving domain see it on their Requests page and may execute it, reject it with a reason, or refer it on with a reply. The notes form a thread on the request that whoever acts next can read. A request is referred to a domain, never to a person. A proposed source for data that nobody hosts is handled this way: it is referred to the data team''s domain, which researches it and then executes or rejects it.'
+  use_case: 'An agent proposes a carrier shipment-tracking source that no system hosts. The procurement steward refers the request to the data team''s domain with the note "I think this might be in your domain, can you confirm?". A data team steward reads the thread, finds the carriers can push tracking events, registers an ingest source and executes the request.'
+  scenario: 'Given a pending source proposal on the Requests page of the procurement domain
+
+
+    When a procurement steward refers it to the data domain with a note
+
+
+    Then the request is still pending, it is on the data domain stewards'' Requests page, and the note is on its thread
+
+
+    When a data domain steward refers it back with a reply
+
+
+    Then the procurement stewards see it again with both notes in order
+
+
+    When a steward of the domain it is referred to executes or rejects it
+
+
+    Then it is resolved as any request is, and the thread stays with it'
+  related_reqs:
+  - REQ-434
+  - REQ-063
+  - REQ-1792
+  notes: 'Maintainer 2026-10-12: "rather than creating a feature to automatically research - it should just be routed by the admin to a data team for research, or rejected", then "the request feature could be expanded with new action types, and the comms would probably just be a steward to steward comm - like ''I think this might be in your domain, can you confirm?''". He kept the chat assistant''s GovData, Kaggle and web search. Routing to a domain rather than a person, the thread of notes and refer-on are the lead''s proposal, which he accepted with "yes, record it". Not built: creation_requests today has status pending/executed/rejected and no domain, assignee or notes (provisa/core/schema_org.py:907).'
