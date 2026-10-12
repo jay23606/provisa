@@ -175,10 +175,30 @@ describe("a source's detail is a panel at the right of the list", () => {
   });
 });
 
+/** "+ Source", then a type from the picker it opens: the create form, with that type. */
+async function openCreate(type = "postgresql"): Promise<void> {
+  await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+  // An option may be listed under more than one heading of the picker; any one picks the type.
+  await userEvent.click((await screen.findAllByTestId(`source-type-option-${type}`))[0]);
+}
+
 describe("+ Source asks only what a source needs in order to exist", () => {
-  it("asks a database source for its name, its type and how it is reached", async () => {
+  it("opens the type picker first; a choice opens the form with that type, none opens nothing", async () => {
     render(<SourcesPage />);
     await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    expect(await screen.findByTestId("source-type-picker")).toBeInTheDocument();
+    expect(screen.queryByTestId("sources-id-input")).toBeNull();
+    await userEvent.click(await screen.findByTestId("source-type-picker-close"));
+    await waitFor(() => expect(screen.queryByTestId("source-type-picker-search")).toBeNull());
+    expect(screen.queryByTestId("sources-id-input")).toBeNull();
+    await openCreate("mysql");
+    expect(await screen.findByTestId("sources-id-input")).toBeInTheDocument();
+    expect(screen.getByTestId("sources-type-select")).toHaveValue("mysql");
+  });
+
+  it("asks a database source for its name, its type and how it is reached", async () => {
+    render(<SourcesPage />);
+    await openCreate();
     const step = within(panel()!);
     expect(step.getByTestId("sources-id-input")).toBeInTheDocument();
     expect(step.getByTestId("sources-type-select")).toBeInTheDocument();
@@ -192,7 +212,7 @@ describe("+ Source asks only what a source needs in order to exist", () => {
 
   it("selects the source it created and opens its detail in edit, the rest at defaults", async () => {
     render(<SourcesPage />);
-    await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    await openCreate();
     await userEvent.type(screen.getByTestId("sources-id-input"), "crm");
     await userEvent.type(within(panel()!).getByLabelText(/^Host/), "db2");
     await userEvent.type(within(panel()!).getByLabelText(/^Database/), "crm");
@@ -216,7 +236,7 @@ describe("+ Source asks only what a source needs in order to exist", () => {
 describe("while a form is open in the panel", () => {
   it("hides the page's + Source: the panel has its own close", async () => {
     render(<SourcesPage />);
-    await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    await openCreate();
     expect(screen.queryByTestId("sources-add-toggle")).toBeNull();
     await userEvent.click(screen.getByTestId("sources-split-close"));
     expect(await screen.findByTestId("sources-add-toggle")).toBeInTheDocument();
@@ -224,7 +244,7 @@ describe("while a form is open in the panel", () => {
 
   it("has its Save and Cancel in the panel's head, and no row at its foot", async () => {
     render(<SourcesPage />);
-    await userEvent.click(await screen.findByTestId("sources-add-toggle"));
+    await openCreate();
     const head = screen.getByTestId("sources-split-panel").querySelector(".form-footer--head");
     expect(head).not.toBeNull();
     expect(within(head as HTMLElement).getByTestId("sources-submit")).toBeInTheDocument();
