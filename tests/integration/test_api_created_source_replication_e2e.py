@@ -127,9 +127,6 @@ def _read(srv) -> httpx.Response:
     )
 
 
-#: The organisation of a deployment with one organisation.
-_ORG = "default"
-
 #: What the password field holds, and the organisation secret (if any) its operator created
 #: for it beforehand: the value itself; a reference to a secret the operator named; and a
 #: reference in the form a save left before credentials were kept as typed, its secret still in
@@ -144,7 +141,7 @@ _PASSWORD_FIELDS = [
 def _create_secret(srv, name: str, value: str) -> None:
     """The operator's own act, on the one route where a secret is created."""
     response = httpx.put(
-        f"{srv.base_url}/admin/orgs/{_ORG}/secrets/{name}",
+        f"{srv.base_url}/admin/orgs/{srv.org_id}/secrets/{name}",
         json={"value": value},
         headers={"X-Provisa-Role": _ROLE},
         timeout=srv.request_timeout + 10,
@@ -154,7 +151,7 @@ def _create_secret(srv, name: str, value: str) -> None:
 
 def _secret_names(srv) -> list[str]:
     response = httpx.get(
-        f"{srv.base_url}/admin/orgs/{_ORG}/secrets",
+        f"{srv.base_url}/admin/orgs/{srv.org_id}/secrets",
         headers={"X-Provisa-Role": _ROLE},
         timeout=srv.request_timeout + 10,
     )

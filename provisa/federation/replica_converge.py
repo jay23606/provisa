@@ -247,7 +247,9 @@ async def converge_replicas(state: Any) -> Converged:
             if key in drafts or (built and record.definition_hash == wanted_hash):  # type: ignore[union-attr]
                 continue
             reason = replica_state.REASON_DEFINITION if built else replica_state.REASON_MODEL
-            if await replica_state.request_build(conn, key, reason, model_stamp=stamp, now=now):
+            if await replica_state.request_build(
+                conn, key, reason, model_stamp=stamp, now=now, unless_built=(store, wanted_hash)
+            ):
                 done.requested.append(key)
         for key, record in sorted(records.items()):
             # REQ-1922: a copy of a table declared but kept in another region (it named none,

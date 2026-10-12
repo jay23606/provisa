@@ -217,6 +217,16 @@ class TestMaterializeStoreTarget:
         assert rt.mv_store_schema("acme") == "org_acme_mv_cache"
         assert rt.mv_store_schema("acme") != replica_schema("acme")
 
+    def test_pg_runtime_mv_schema_holds_only_materialized_views(self):
+        # REQ-1912: the Postgres engine is its own store; its views go to the schema residency
+        # reads them from, not the replicas'.
+        from provisa.federation.pg_runtime import PgFederationRuntime
+        from provisa.federation.replica_address import mv_schema, replica_schema
+
+        rt = PgFederationRuntime.__new__(PgFederationRuntime)
+        assert rt.mv_store_schema("acme") == mv_schema("acme") == "org_acme_mv_cache"
+        assert rt.mv_store_schema("acme") != replica_schema("acme")
+
     def test_warehouse_runtime_mv_schema_is_org_scoped(self):
         # Databricks/BigQuery isolate MVs in an org-scoped cache namespace in the warehouse/project.
         from provisa.federation.databricks_runtime import DatabricksFederationRuntime

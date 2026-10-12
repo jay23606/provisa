@@ -761,6 +761,13 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         assert row is not None  # SELECT current_database() always returns exactly one row
         return row[0]
 
+    def mv_store_schema(self, org_id: str) -> str:
+        """The schema materialized views are written to: one that holds nothing else (REQ-1912).
+        Replicas have their own (``replica_address.replica_schema``)."""
+        from provisa.federation.replica_address import mv_schema
+
+        return mv_schema(org_id)
+
     #: The advisory lock the processes on one engine database take around attaching another
     #: region's store: they share its foreign servers and foreign tables.
     _REGION_ATTACH_LOCK_KEY = 7339

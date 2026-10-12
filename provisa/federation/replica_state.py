@@ -495,6 +495,7 @@ async def request_build(
     retry: RetryPolicy | None = None,
     model_stamp: int | None = None,
     now: datetime | None = None,
+    unless_built: tuple[str, str] | None = None,
 ) -> bool:
     """Ask for a build of the replica ``key``. True when this call made the request; False when
     a build was already requested or running (the caller has joined it), when
@@ -506,7 +507,12 @@ async def request_build(
 
     ``retry`` is given by a caller that must not ask again too soon after a failure — a read: a
     build whose wait (:class:`RetryPolicy`) has not passed is not requested again. A caller that
-    gives none — an operator's own request — is tried at once, whatever the wait."""
+    gives none — an operator's own request — is tried at once, whatever the wait.
+
+    ``unless_built`` is the store and definition hash a build of the caller's model would
+    record: a replica recorded as built so is not asked for again. Convergence gives it: it
+    decided from records it read before, and another process may have completed the build
+    since (REQ-1915: two servers that see the declaration build the replica once)."""
     if reason not in REASONS:
         raise ValueError(f"unknown build reason {reason!r}; expected one of {REASONS}")
     at = now if now is not None else datetime.now(UTC)
@@ -520,10 +526,19 @@ async def request_build(
     }
     if model_stamp is not None:
         requested["model_stamp"] = model_stamp
+    askable = and_(_t.retired_at.is_(None), or_(_t.build_state == IDLE, retriable))
+    if unless_built is not None:
+        store, definition = unless_built
+        askable = and_(
+            askable,
+            or_(
+                _t.completed_at.is_(None),
+                _t.built_store.is_distinct_from(store),
+                _t.definition_hash.is_distinct_from(definition),
+            ),
+        )
     result = await conn.execute_core(
-        update(replica_state)
-        .where(_is(key), _t.retired_at.is_(None), or_(_t.build_state == IDLE, retriable))
-        .values(**requested, waiting_on=None)
+        update(replica_state).where(_is(key), askable).values(**requested, waiting_on=None)
     )
     if (result.rowcount or 0) > 0:
         return True

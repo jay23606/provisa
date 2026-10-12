@@ -609,3 +609,24 @@ async def test_a_draft_released_is_built_and_kept_as_any_table(model):
     await converge_replicas(model.state)
     model.drafts.discard(key)
     assert (await converge_replicas(model.state)).requested == [key]
+
+
+async def test_a_build_another_server_completes_after_this_one_read_its_records_is_not_asked_again(
+    model, monkeypatch
+):
+    """Two servers converge the same model: the second reads the records while the first's
+    build is running, and the first completes it before the second asks. The second sees the
+    replica built from the model's definition and asks for nothing."""
+    key = model.declare("orders")
+    await converge_replicas(model.state)
+    read_all = replica_state.read_all
+
+    async def read_then_built_elsewhere(conn):
+        records = await read_all(conn)
+        await model.build(key)  # the other server's build completes here
+        return records
+
+    monkeypatch.setattr(replica_state, "read_all", read_then_built_elsewhere)
+    done = await converge_replicas(model.state)
+    assert done.requested == []
+    assert (await model.record(key)).build_state == "idle"
