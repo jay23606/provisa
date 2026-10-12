@@ -28,7 +28,7 @@ import cytoscapeSvgRaw from "cytoscape-svg";
 import { buildErdElements, erdJson } from "./erd-model";
 import type { ColumnDetail, ErdNodeDomain, ErdNodeTable } from "./erd-model";
 import { downloadBlob } from "../graph/graph-export";
-import type { CyInstance, CyEvent, CyLayoutOptions } from "../graph/cytoscape-types";
+import type { CyInstance, CyEvent } from "../graph/cytoscape-types";
 import {
   nodesWithEdges,
   resolveCompoundOverlaps,
@@ -36,6 +36,7 @@ import {
   placeIsolatedGrid,
 } from "./sections/erd-layout";
 import { buildErdStylesheet } from "./sections/erd-stylesheet";
+import { ERD_ELK_LAYOUT } from "./erd-layout-options";
 import { applyTaxiLanes, clearTaxiLanes } from "./sections/erd-taxi";
 import { getErdPalette } from "./sections/erd-palette";
 import type { TooltipState, ErdPanelProps } from "./sections/erd-types";
@@ -535,20 +536,7 @@ export function ErdPanel({
       }
     });
 
-    cy.layout({
-      name: "elk",
-      animate: false,
-      elk: {
-        algorithm: "layered",
-        "elk.direction": "UP",
-        "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "150",
-        "elk.spacing.nodeNode": "60",
-        "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
-        "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-        "elk.padding": "[top=40,left=20,bottom=20,right=20]",
-      },
-    } as CyLayoutOptions).run();
+    cy.layout(ERD_ELK_LAYOUT).run();
 
     return () => {
       cy.destroy();

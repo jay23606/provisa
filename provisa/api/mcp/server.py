@@ -507,6 +507,24 @@ def build_mcp_server(state: Any):
         return await tools.cypher_field_names(state, _role(role), schema, table)
 
     @_tool
+    async def run_cypher(
+        cypher: str, params: dict | None = None, limit: int | None = None, role: str | None = None
+    ) -> dict:
+        """Run a Cypher query under the role and return its rows and the graph they hold as
+        Cytoscape elements ({nodes: [{data: {id, label, tableLabel, properties}}], edges:
+        [{data: {id, source, target, label, properties}}]}), properties as the role sees them.
+        Call cypher_field_names first for the real labels and properties."""
+        return await tools.run_cypher(state, _role(role), cypher, params, limit)
+
+    @_tool
+    async def render_graph(elements: dict, layout: str = "force") -> dict:
+        """How to draw a graph run_cypher returned, as the UI draws it: the elements and the
+        Cytoscape layout options of the UI's graph page -- "force" (fcose), "hierarchy"
+        (breadthfirst) -- or its ERD's "elk". Run the layout in Cytoscape with the extension named
+        ("extension"); no positions are computed server-side."""
+        return tools.render_graph(elements, layout)
+
+    @_tool
     async def generate_explore_queries(question: str, role: str | None = None) -> dict:
         """Generate ready-to-run queries for all six query surfaces (sql, graphql, cypher, grpc,
         jsonapi, openapi) from one natural-language question — the same pipeline the NL Explore

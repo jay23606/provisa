@@ -307,6 +307,8 @@ include = ["provisa", "provisa.*", "buenavista", "buenavista.*"]
 "provisa.openapi" = ["_known_specs/*.json.gz", "_known_specs/*.additions.json", "_known_specs/*.exclusions.json", "_known_specs/THIRD_PARTY_NOTICES"]
 # REQ-1494: the portable fake definition's versioned word lists and templates, and their notice.
 "provisa.fakes" = ["portable/*.json", "portable/THIRD_PARTY_NOTICES"]
+# The graph page's layout options render_graph hands an MCP client (provisa-ui keeps the same).
+"provisa.api.mcp" = ["graph_layouts.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "tests/steps"]
