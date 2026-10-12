@@ -250,7 +250,7 @@ describe("signing a source in from the form", () => {
     source_id: "mail",
     kind: "google_workspace",
     account: "ada@example.test",
-    scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+    mapping: { resources: "mail" },
   };
 
   function page(answers: Record<string, unknown>) {
@@ -303,7 +303,7 @@ describe("signing a source in from the form", () => {
     expect(Object.keys(sent[0].body as object).sort()).toEqual([
       "account",
       "kind",
-      "scopes",
+      "mapping",
       "source_id",
     ]);
     expect(popup.close).toHaveBeenCalled();
