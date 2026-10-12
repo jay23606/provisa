@@ -6005,5 +6005,9 @@
   "he/logsFields.json::logsFields.formats.ms_exchange_tracking": "Microsoft Exchange message tracking log",
   "he/logsFields.json::logsFields.formats.ms_sqlserver_errorlog": "SQL Server error log (ERRORLOG)",
   "he/logsFields.json::logsFields.formats.azure_storage_analytics": "Azure Storage analytics log",
-  "he/logsFields.json::logsFields.formats.azure_monitor": "Azure Monitor / Activity Log export"
+  "he/logsFields.json::logsFields.formats.azure_monitor": "Azure Monitor / Activity Log export",
+  "he/logsFields.json::logsFields.group.google": "Google",
+  "he/logsFields.json::logsFields.formats.gcp_cloud_logging": "Google Cloud Logging export",
+  "he/logsFields.json::logsFields.formats.android_logcat": "Android logcat (threadtime)",
+  "he/logsFields.json::logsFields.formats.chrome_net_export": "Chrome net-export (NetLog)"
 }

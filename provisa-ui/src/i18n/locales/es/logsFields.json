@@ -18,7 +18,8 @@
       "core": "Formatos comunes",
       "custom": "Propio",
       "amazon": "Amazon Web Services",
-      "microsoft": "Microsoft"
+      "microsoft": "Microsoft",
+      "google": "Google"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -48,7 +49,10 @@
       "ms_exchange_tracking": "Microsoft Exchange – seguimiento de mensajes",
       "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – registro de errores",
       "azure_storage_analytics": "Azure Storage analytics – registro",
-      "azure_monitor": "Azure Monitor / Activity Log – exportación"
+      "azure_monitor": "Azure Monitor / Activity Log – exportación",
+      "gcp_cloud_logging": "Google Cloud Logging – exportación",
+      "android_logcat": "Android logcat (threadtime)",
+      "chrome_net_export": "Chrome net-export (NetLog)"
     }
   }
 }

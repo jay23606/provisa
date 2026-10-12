@@ -18,7 +18,8 @@
       "core": "常见格式",
       "custom": "自定义",
       "amazon": "Amazon Web Services",
-      "microsoft": "Microsoft"
+      "microsoft": "Microsoft",
+      "google": "Google"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -48,7 +49,10 @@
       "ms_exchange_tracking": "Microsoft Exchange – 邮件跟踪",
       "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – 错误日志",
       "azure_storage_analytics": "Azure Storage analytics – 日志",
-      "azure_monitor": "Azure Monitor / Activity Log – 导出"
+      "azure_monitor": "Azure Monitor / Activity Log – 导出",
+      "gcp_cloud_logging": "Google Cloud Logging – 导出",
+      "android_logcat": "Android logcat (threadtime)",
+      "chrome_net_export": "Chrome net-export (NetLog)"
     }
   }
 }

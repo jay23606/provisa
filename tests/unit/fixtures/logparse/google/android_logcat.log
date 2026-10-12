@@ -1,0 +1,4 @@
+--------- beginning of main
+06-27 10:41:38.528  1234  1250 I ActivityManager: Start proc 2345:com.example.app/u0a100 for activity com.example.app/.MainActivity
+06-27 10:41:38.612  2345  2345 D MainActivity: onCreate
+06-27 10:41:39.004  2345  2371 E AndroidRuntime: FATAL EXCEPTION: worker

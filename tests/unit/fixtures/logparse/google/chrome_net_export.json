@@ -1,0 +1,6 @@
+{"constants": {"logEventTypes": {"REQUEST_ALIVE": 2, "URL_REQUEST_START_JOB": 104}, "logSourceType": {"NONE": 0, "URL_REQUEST": 1}, "logEventPhase": {"PHASE_BEGIN": 1, "PHASE_END": 2, "PHASE_NONE": 0}, "timeTickOffset": "1683792923000"},
+"events": [
+{"phase": 1, "source": {"id": 14, "start_time": "5000", "type": 1}, "time": "5000", "type": 2},
+{"params": {"load_flags": 0, "method": "GET", "url": "https://www.example.com/"}, "phase": 1, "source": {"id": 14, "start_time": "5000", "type": 1}, "time": "5012", "type": 104},
+{"phase": 2, "source": {"id": 14, "start_time": "5000", "type": 1}, "time": "5240", "type": 2}
+]}
