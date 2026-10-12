@@ -32,8 +32,9 @@ test("define a materialized view with NRT debounce config", async ({ page }) => 
   await editBtn.waitFor({ timeout: 15000 });
   await editBtn.click();
   // After editBtn.click(), Apollo resetStore may briefly clear the table list;
-  // wait 30s for the edit form (and its checkbox) to render after the reset.
-  await page.waitForSelector("input[type='checkbox']", { timeout: 30000 });
+  // wait 30s for the edit form to render after the reset. Materialization and the NRT debounce
+  // are on the Load and timeliness tab.
+  await page.getByTestId("table-section-load").click({ timeout: 30000 });
 
   // dim_pet starts with materialize: true. The Materialized View checkbox (only visible on
   // view tables with viewSql) and the NRT debounce inputs should already be rendered (REQ-963).
@@ -73,8 +74,9 @@ test("define a materialized view with NRT debounce config", async ({ page }) => 
   await editAgain.waitFor({ timeout: 15000 });
   await editAgain.click();
   // After editBtn.click(), Apollo resetStore may briefly clear the table list;
-  // wait 30s for the edit form (and its checkbox) to render after the reset.
-  await page.waitForSelector("input[type='checkbox']", { timeout: 30000 });
+  // wait 30s for the edit form to render after the reset. Materialization and the NRT debounce
+  // are on the Load and timeliness tab.
+  await page.getByTestId("table-section-load").click({ timeout: 30000 });
 
   await expect(page.getByTestId("mv-debounce-quiet")).toHaveValue("2");
   await expect(page.getByTestId("mv-debounce-max-delay")).toHaveValue("10");

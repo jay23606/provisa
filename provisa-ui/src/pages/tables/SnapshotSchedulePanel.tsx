@@ -8,7 +8,6 @@ import {
   ActionIcon,
   Badge,
   Checkbox,
-  Collapse,
   Group,
   NumberInput,
   Select,
@@ -26,10 +25,10 @@ import { FieldLabel } from "./FieldLabel";
 import { RecurrenceBuilder } from "./RecurrenceBuilder";
 import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
 
-// REQ-962/1168/1169: the collapsible Snapshot Schedule panel — the calendar picker, the recurrence
-// grain (nesting preset or a custom Outlook/iCalendar RRULE via RecurrenceBuilder), allowed-lateness,
-// the business-day existence gate, and the REQ-961 preflight fresh-input set. Owns its own open state
-// and the calendar registry, which nothing outside the panel consumes.
+// REQ-962/1168/1169: the Snapshot Schedule panel, shown open on a view's Load and timeliness tab —
+// the calendar picker, the recurrence grain (nesting preset or a custom Outlook/iCalendar RRULE via
+// RecurrenceBuilder), allowed-lateness, the business-day existence gate, and the REQ-961 preflight
+// fresh-input set. Owns the calendar registry, which nothing outside the panel consumes.
 export function SnapshotSchedulePanel({
   editingTable,
   setEditingTable,
@@ -39,27 +38,14 @@ export function SnapshotSchedulePanel({
 }) {
   const { t } = useTranslation();
   const { calendars, refetch: refetchCalendars } = useCalendars();
-  const [snapshotOpen, setSnapshotOpen] = useState(
-    Boolean(editingTable.mvCalendar), // open the panel when a schedule is already configured
-  );
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<CalendarSummary | null>(null);
 
   return (
     <FormField size="full">
-      <div>
-        <Group
-          gap="xs"
-          wrap="nowrap"
-          style={{ cursor: "pointer" }}
-          onClick={() => setSnapshotOpen((o) => !o)}
-          data-testid="mv-snapshot-panel-toggle"
-          role="button"
-          aria-expanded={snapshotOpen}
-        >
-          <ActionIcon variant="subtle" size="sm" aria-hidden>
-            {snapshotOpen ? "−" : "+"}
-          </ActionIcon>
+      {/* On a view's Load and timeliness tab, open with no toggle: the tab is its section. */}
+      <div data-testid="mv-snapshot-panel">
+        <Group gap="xs" wrap="nowrap">
           <Text fw={600} size="sm">
             {t("tableEditForm.snapshotPanel")}
           </Text>
@@ -73,7 +59,7 @@ export function SnapshotSchedulePanel({
             </Badge>
           )}
         </Group>
-        <Collapse in={snapshotOpen}>
+        <div>
           <FormLayout style={{ paddingTop: "var(--mantine-spacing-xs)" }}>
             <FieldGroup style={{ alignItems: "flex-end" }}>
               <FormField help={t("tableEditForm.calendarHelp")} size="medium">
@@ -205,7 +191,7 @@ export function SnapshotSchedulePanel({
               </FormField>
             )}
           </FormLayout>
-        </Collapse>
+        </div>
         <CalendarCreateModal
           key={editingCalendar ? `edit-${editingCalendar.name}-${editingCalendar.version}` : "new"}
           opened={calendarModalOpen}

@@ -156,8 +156,9 @@ async function materialize(page: import("@playwright/test").Page, tableName: str
   await editBtn.waitFor({ timeout: 5000 });
   await editBtn.click();
   // A schema-version advance makes apolloClient.ts re-fetch every active query, delaying the
-  // form render by up to 15s; 30s allows headroom.
-  await page.waitForSelector("input[type='checkbox']", { timeout: 30000 });
+  // form render by up to 15s; 30s allows headroom. Materialization is on the Load and timeliness
+  // tab.
+  await page.getByTestId("table-section-load").click({ timeout: 30000 });
 
   // Mantine's Checkbox renders <input> and <label> as siblings (label uses a `for` attribute rather
   // than wrapping the input), so getByLabel — which resolves that association — is required here;

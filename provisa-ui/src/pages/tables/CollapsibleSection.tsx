@@ -97,7 +97,8 @@ export function CollapsibleSection({
         <FormLayout
           style={{
             paddingTop: "var(--mantine-spacing-xs)",
-            paddingInline: "var(--mantine-spacing-md)",
+            // Flat, it is a heading over the tab's own fields, which start where it starts.
+            paddingInline: flat ? 0 : "var(--mantine-spacing-md)",
           }}
         >
           {children}
