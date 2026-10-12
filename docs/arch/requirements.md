@@ -23010,7 +23010,7 @@ Logs is a source type that turns log files into tables. A source names a file gl
 
 **Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
 
-A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller's rights like any statement, its arguments bound as values, never spliced. It is invocable on every surface commands are, can be run by a scheduled trigger or an event, and every run is audited. An INSERT ... SELECT command writes its result into its target table through that table's write route, so a command can compute rows across sources and write them to one target.
+A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller's rights like any statement, its arguments bound as values, never spliced. An argument is written {{name}} in the statement, as a MongoDB pipeline command writes one: every placeholder is a declared argument and every declared argument is used. A statement command is a query when its statement reads and a mutation when it writes. It is invocable on every surface commands are, a scheduled trigger can run it (the trigger's SQL is one call of the command, run as the trigger's role), and every run is audited, a scheduled run under the scheduler's audit identity. An INSERT ... SELECT whose SELECT reads a source other than its target's, or computes embed(), is run as its governed SELECT read as any read, its rows then written into the target through that table's write route as an INSERT ... VALUES, so a command can compute rows across sources and write them to one target; an ON CONFLICT ... DO UPDATE on it is carried to that write, and a target whose write route has no upsert refuses it by name.
 
 **Code:** —
 
@@ -23022,7 +23022,7 @@ A command can be implemented by a Provisa SQL statement with typed arguments (im
 
 **Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
 
-embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model the caller's role may not use, or one not in the registry, is refused naming it.
+embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model not in the registry, or one the registry has disabled, is refused naming it. A literal text is embedded once, with the statement. A text read from rows is embedded on the rows a statement reads, so embed() of a column or expression is an item of the select list; anywhere else it is refused by name.
 
 **Code:** —
 
