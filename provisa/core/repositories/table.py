@@ -95,6 +95,8 @@ _COLUMN_PROJECTION = [
     table_columns.c.object_fields,
     table_columns.c.scope,
     table_columns.c.gql_selection,
+    table_columns.c.gql_object_type,
+    table_columns.c.gql_is_list,
     table_columns.c.epoch_unit,
     table_columns.c.fake,
     table_columns.c.fake_stable,
@@ -518,6 +520,8 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
                 # REQ-1959: stored only when it is a scope; the last gate on every write path.
                 scope=require_column_scope(col.name, getattr(col, "scope", SCOPE_DOMAIN)),
                 gql_selection=getattr(col, "gql_selection", None),
+                gql_object_type=getattr(col, "gql_object_type", None),
+                gql_is_list=getattr(col, "gql_is_list", False),
                 epoch_unit=getattr(col, "epoch_unit", None),
                 fake=getattr(col, "fake", None),  # REQ-1494
                 fake_stable=getattr(col, "fake_stable", False),

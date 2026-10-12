@@ -388,6 +388,8 @@ async def _upsert_tables_to_semantic_layer(  # REQ-308, REQ-599, REQ-602
                         # The selection carries arguments (a list's row limit, a connection's
                         # page bound) that the object-field shape alone cannot rebuild.
                         gql_selection=c.get("gql_selection"),
+                        gql_object_type=c.get("gql_object_type"),
+                        gql_is_list=c.get("gql_is_list", False),
                     )
                     for c in t.get("columns", [])
                 ]

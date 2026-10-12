@@ -876,6 +876,11 @@ class Column(
         False  # derived from relationships (target_column when PK already exists)
     )
     object_fields: list[ObjectField] = []  # sub-fields for object/jsonb columns
+    # A remote GraphQL table's column holding an object: the object's GraphQL type, and whether
+    # the field is a list of them (#245). A column pointing at a registered type is a
+    # relationship, not data (graphql_remote/relation_columns.py).
+    gql_object_type: str | None = None
+    gql_is_list: bool = False
     scope: str = "domain"  # "domain" | "public" | "restricted" (core/column_scope.py, REQ-1959)
 
     @model_validator(mode="after")

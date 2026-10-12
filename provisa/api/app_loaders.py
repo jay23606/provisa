@@ -1024,6 +1024,10 @@ def _build_graphql_remote_table(tr: dict, col_rows: list[dict], source_id: str) 
         col_dict: dict = {"name": cr["column_name"], "type": cr["data_type"] or "text"}
         if cr["gql_selection"]:
             col_dict["gql_selection"] = cr["gql_selection"]
+        if cr["gql_object_type"]:
+            # #245: what the column points at, as recorded at registration.
+            col_dict["gql_object_type"] = cr["gql_object_type"]
+            col_dict["gql_is_list"] = cr["gql_is_list"]
         raw_of = cr["object_fields"]
         if raw_of:
             # Malformed optional object-field metadata is skipped; any other error is a real
@@ -1172,6 +1176,8 @@ async def _load_graphql_remote_sources_from_db() -> None:
                                     _table_columns_t.c.native_filter_type,
                                     _table_columns_t.c.native_filter_required,
                                     _table_columns_t.c.gql_selection,
+                                    _table_columns_t.c.gql_object_type,
+                                    _table_columns_t.c.gql_is_list,
                                 ).where(_table_columns_t.c.table_id == tr["id"])
                             )
                         ).fetchall()
