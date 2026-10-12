@@ -169,8 +169,8 @@ async def schema_input(tenant_db, trino_conn, _load_config) -> dict:
     source_types = {s["id"]: s["type"] for s in sources}
     for table in tables:
         stype = None if table.get("view_sql") else source_types[table["source_id"]]
-        table["write_ops"] = sorted(table_write_ops(table, stype, None))
-        table["write_returns_rows"] = table_write_returns_rows(table, stype, None)
+        table["write_ops"] = sorted(table_write_ops(table, stype, None, source_path=None))
+        table["write_returns_rows"] = table_write_returns_rows(table, stype, None, source_path=None)
         table["write_refused_forms"] = []
 
     return {

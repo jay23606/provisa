@@ -286,11 +286,17 @@ def _reset(org_id: str, folder: Path, cipher: Path, ref_file: Path, why: str) ->
     ref_file.unlink(missing_ok=True)
 
 
+def is_encrypted(folder: Path) -> bool:
+    """Whether the org folder at ``folder`` is encrypted (its ciphertext set up beside it)."""
+    cipher, _ref_file, _staging, _lock = _paths(folder)
+    return (cipher / _CONF).exists()
+
+
 def changes(folder: Path, settings: FolderSettings) -> bool:
     """Whether applying ``settings`` would move the folder's files: encryption turned on or off,
     or its key changed. Whatever holds files open in the folder is stopped first."""
-    cipher, ref_file, _staging, _lock = _paths(folder)
-    encrypted_now = (cipher / _CONF).exists()
+    _cipher, ref_file, _staging, _lock = _paths(folder)
+    encrypted_now = is_encrypted(folder)
     if settings.encrypted != encrypted_now:
         return True
     recorded = ref_file.read_text().strip() if ref_file.exists() else None

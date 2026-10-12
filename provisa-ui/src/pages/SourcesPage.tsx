@@ -99,6 +99,7 @@ import { useCacheTtlRequired } from "./sources/sourceKind";
 import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
 import { CLOUD_FILE_TYPES, objectStoreHints, objectStoreOf } from "./sources/objectStoreHints";
+import { fileLocationOf } from "./sources/sourceUpload";
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
 import { SourceSectionTabs } from "./sources/SourceSectionTabs";
 import { SourceTablesList } from "./sources/SourceTablesList";
@@ -640,8 +641,8 @@ export function SourcesPage() {
                       ? { credentials_path: authFields.credentials_json }
                       : // REQ-990: a CSV/Parquet file in an object store carries that store's credentials,
                         // the store named by its path (S3, GCS HMAC keys, an Azure account key).
-                        CLOUD_FILE_TYPES.has(form.type) && objectStoreOf(form.path)
-                        ? objectStoreHints(objectStoreOf(form.path)!, authFields)
+                        CLOUD_FILE_TYPES.has(form.type) && objectStoreOf(fileLocationOf(form))
+                        ? objectStoreHints(objectStoreOf(fileLocationOf(form))!, authFields)
                         : // delta_lake/iceberg: DuckDB's _s3_secret_ddl (connector_duckdb.py) reads S3 creds
                           // from federation_hints, never from mapping — unlike hive, which keeps its
                           // storage.aws creds in mapping (Trino's hive connector props). Only "aws" is wired

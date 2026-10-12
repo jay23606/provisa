@@ -6017,5 +6017,16 @@
   "zh-HK/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
   "zh-HK/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
   "zh-HK/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
-  "zh-HK/settings.json::settings.org_files.node_id.label": "Node name"
+  "zh-HK/settings.json::settings.org_files.node_id.label": "Node name",
+  "zh-HK/sourceFormFields.json::sourceFormFields.upload": "Upload file",
+  "zh-HK/sourceFormFields.json::sourceFormFields.uploadReplace": "Upload a new file",
+  "zh-HK/sourceFormFields.json::sourceFormFields.uploadNeedsId": "Enter the source's ID first: the file is kept under it.",
+  "zh-HK/sourceFormFields.json::sourceFormFields.uploadedFileHint": "This source's uploaded file, kept in your organization's folder. Upload a new one to replace it.",
+  "zh-HK/sourceFormFields.json::sourceFormFields.fileLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials; or upload the file.",
+  "zh-HK/sourceFormFields.json::sourceFormFields.fileDatabaseLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials (read-only there); or upload the file.",
+  "zh-HK/serverErrors.json::serverErrors.files.too_large": "The file is larger than the {{limit}} bytes an upload may be.",
+  "zh-HK/serverErrors.json::serverErrors.files.bad_name": "{{name}} cannot be the name of an uploaded file: use letters, digits, '.', '_' and '-'.",
+  "zh-HK/serverErrors.json::serverErrors.files.not_a_file_source": "A {{type}} source is not given a file by upload.",
+  "zh-HK/settings.json::settings.sources.max_upload_bytes.label": "Largest uploaded file",
+  "zh-HK/settings.json::settings.sources.max_upload_bytes.help": "The largest file a SQLite, DuckDB, CSV or Parquet source may be given by upload from the source form; a larger one is refused, naming this limit. A larger file is better read where it is, from an object store."
 }

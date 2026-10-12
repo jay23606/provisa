@@ -91,6 +91,12 @@
     "authMechanism": "Mecanismo de autenticación",
     "authMechanismPlain": "PLAIN (usuario / contraseña)",
     "authMechanismLdap": "LDAP",
-    "authMechanismGssapi": "GSSAPI (Kerberos)"
+    "authMechanismGssapi": "GSSAPI (Kerberos)",
+    "upload": "Subir archivo",
+    "uploadReplace": "Subir un archivo nuevo",
+    "uploadNeedsId": "Escriba primero el ID del origen: el archivo se guarda bajo él.",
+    "uploadedFileHint": "El archivo subido de este origen, guardado en la carpeta de su organización. Suba otro para reemplazarlo.",
+    "fileLocationsHint": "Una ruta en el servidor, una dirección https:// o s3://, gs:// o az:// con las credenciales del almacén; o suba el archivo.",
+    "fileDatabaseLocationsHint": "Una ruta en el servidor, una dirección https:// o s3://, gs:// o az:// con las credenciales del almacén (allí, solo lectura); o suba el archivo."
   }
 }

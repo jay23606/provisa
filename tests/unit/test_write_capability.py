@@ -35,12 +35,15 @@ from provisa.executor.write_capability import table_write_ops
     ],
 )
 def test_a_source_type_offers_what_it_can_carry(source_type, offered):
-    assert table_write_ops({"table_name": "t"}, source_type, None) == offered
+    assert table_write_ops({"table_name": "t"}, source_type, None, source_path=None) == offered
 
 
 def test_a_view_takes_no_writes():
-    assert table_write_ops({"view_sql": "SELECT 1"}, "postgresql", None) == frozenset()
-    assert table_write_ops({"table_name": "v"}, None, None) == frozenset()
+    assert (
+        table_write_ops({"view_sql": "SELECT 1"}, "postgresql", None, source_path=None)
+        == frozenset()
+    )
+    assert table_write_ops({"table_name": "v"}, None, None, source_path=None) == frozenset()
 
 
 def _gov(write_ops: set[str]) -> GovernanceContext:
@@ -101,8 +104,8 @@ def test_a_landed_replica_is_no_write_route_to_its_source():
     from provisa.federation.engine import build_duckdb_engine
 
     engine = build_duckdb_engine().complete_reach()
-    assert table_write_ops({"table_name": "t"}, "neo4j", engine) == frozenset()
-    assert table_write_ops({"table_name": "t"}, "postgresql", engine) == {
+    assert table_write_ops({"table_name": "t"}, "neo4j", engine, source_path=None) == frozenset()
+    assert table_write_ops({"table_name": "t"}, "postgresql", engine, source_path=None) == {
         "insert",
         "update",
         "delete",
@@ -112,4 +115,4 @@ def test_a_landed_replica_is_no_write_route_to_its_source():
 @pytest.mark.parametrize("source_id", ["provisa-admin", "provisa-otel"])
 def test_the_catalog_takes_no_writes(source_id):
     table = {"table_name": "roles", "source_id": source_id}
-    assert table_write_ops(table, "postgresql", None) == frozenset()
+    assert table_write_ops(table, "postgresql", None, source_path=None) == frozenset()

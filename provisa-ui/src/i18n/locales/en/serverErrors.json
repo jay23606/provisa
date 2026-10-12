@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "That is not a Logs source: {{error}}",
       "path_refused": "Those files may not be read: {{reason}}"
+    },
+    "files": {
+      "too_large": "The file is larger than the {{limit}} bytes an upload may be.",
+      "bad_name": "{{name}} cannot be the name of an uploaded file: use letters, digits, '.', '_' and '-'.",
+      "not_a_file_source": "A {{type}} source is not given a file by upload."
     }
   }
 }

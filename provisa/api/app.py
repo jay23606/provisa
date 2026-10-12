@@ -2721,12 +2721,18 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
         for _t in [*tables, *draft_tables]:
             # A view has no source of its own to write to; every other table's source is typed.
             _stype = None if _t.get("view_sql") else state.source_types[_t["source_id"]]
-            _t["write_ops"] = sorted(table_write_ops(_t, _stype, state.federation_engine.engine))
+            # REQ-1997: where the source's file is decides whether it takes writes.
+            _spath = None if _t.get("view_sql") else sources[_t["source_id"]].get("path")
+            _t["write_ops"] = sorted(
+                table_write_ops(_t, _stype, state.federation_engine.engine, source_path=_spath)
+            )
             _t["write_returns_rows"] = table_write_returns_rows(
-                _t, _stype, state.federation_engine.engine
+                _t, _stype, state.federation_engine.engine, source_path=_spath
             )
             _t["write_refused_forms"] = sorted(
-                table_write_refused_forms(_t, _stype, state.federation_engine.engine)
+                table_write_refused_forms(
+                    _t, _stype, state.federation_engine.engine, source_path=_spath
+                )
             )
 
         _build_and_register_schemas(
@@ -3948,6 +3954,10 @@ def create_app() -> FastAPI:
     from provisa.api.admin.logs_router import router as logs_router
 
     app.include_router(logs_router)  # REQ-1996
+
+    from provisa.api.admin.source_files_router import router as source_files_router
+
+    app.include_router(source_files_router)  # REQ-1997
     from provisa.api.admin.google_workspace_router import router as google_workspace_router
 
     app.include_router(google_workspace_router)  # REQ-1923

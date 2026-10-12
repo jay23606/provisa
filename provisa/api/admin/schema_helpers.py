@@ -389,7 +389,11 @@ async def _fetch_table_with_columns(
 
     _write_ops = sorted(
         table_write_ops(
-            dict(row), None if view_sql else _source_type, _state.federation_engine.engine
+            dict(row),
+            None if view_sql else _source_type,
+            _state.federation_engine.engine,
+            # REQ-1997: where the source's file is decides whether it takes writes.
+            source_path=None if view_sql else _state.runtime_sources[row["source_id"]].get("path"),
         )
     )
     can_deploy = False

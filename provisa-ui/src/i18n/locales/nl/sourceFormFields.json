@@ -91,6 +91,12 @@
     "authMechanism": "Authenticatiemechanisme",
     "authMechanismPlain": "PLAIN (gebruikersnaam / wachtwoord)",
     "authMechanismLdap": "LDAP",
-    "authMechanismGssapi": "GSSAPI (Kerberos)"
+    "authMechanismGssapi": "GSSAPI (Kerberos)",
+    "upload": "Bestand uploaden",
+    "uploadReplace": "Nieuw bestand uploaden",
+    "uploadNeedsId": "Vul eerst de ID van de bron in: het bestand wordt daaronder bewaard.",
+    "uploadedFileHint": "Het geüploade bestand van deze bron, bewaard in de map van uw organisatie. Upload een nieuw bestand om het te vervangen.",
+    "fileLocationsHint": "Een pad op de server, een https://-adres, of s3://, gs:// of az:// met de inloggegevens van de opslag; of upload het bestand.",
+    "fileDatabaseLocationsHint": "Een pad op de server, een https://-adres, of s3://, gs:// of az:// met de inloggegevens van de opslag (daar alleen-lezen); of upload het bestand."
   }
 }

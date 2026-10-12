@@ -11,8 +11,10 @@
 """Each org's folder: the one place the files Provisa keeps for it go (REQ-1992).
 
 A source's conversion caches and downloads, its connector server's working files, replicas,
-spools, large results and every temporary file are written under ``<data dir>/orgs/<org id>``
-and nowhere else. The folder is durable.
+spools, large results, the files a source was given by upload (``files/``, REQ-1997) and every
+temporary file are written under ``<data dir>/orgs/<org id>`` and nowhere else. The folder is
+durable: nothing removes its files on their own; each is kept until what it belongs to goes (an
+uploaded file with its source).
 
 A deployment of several nodes shares one mount of the data folder (``org_files.shared_mount``):
 every node reads and writes the same org folders. What belongs to one process -- a connector

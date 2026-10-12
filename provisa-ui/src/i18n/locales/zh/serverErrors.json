@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "这不是 Logs 源：{{error}}",
       "path_refused": "不能读取这些文件：{{reason}}"
+    },
+    "files": {
+      "too_large": "文件超过上传允许的 {{limit}} 字节。",
+      "bad_name": "{{name}} 不能作为上传文件的名称：请使用字母、数字、'.'、'_' 和 '-'。",
+      "not_a_file_source": "{{type}} 数据源不通过上传获得文件。"
     }
   }
 }

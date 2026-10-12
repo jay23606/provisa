@@ -12,7 +12,7 @@ import { NumberInput, PasswordInput, Select, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import type { Domain } from "../../types/admin";
 import type { GovdataSubject } from "./govdataSubjects";
-import { DATA_LAKE, FILE_SOURCES, HOST_PORT_ONLY, SIMPLE_RDBMS } from "./constants";
+import { DATA_LAKE, HOST_PORT_ONLY, SIMPLE_RDBMS } from "./constants";
 import { AuthUserPass } from "./AuthUserPass";
 import { isMongoConnectionString } from "./mongoConnection";
 import { IcebergCatalogFields } from "./IcebergCatalogFields";
@@ -20,6 +20,8 @@ import { ObjectStoreCredentialFields } from "./ObjectStoreCredentialFields";
 import { CLOUD_FILE_TYPES, objectStoreOf } from "./objectStoreHints";
 import { SourceFormFieldsExtended } from "./SourceFormFieldsExtended";
 import { FieldGroup, FormField } from "../../components/form/FormLayout";
+import { FileLocationFields } from "./FileLocationFields";
+import { UPLOAD_TYPES, fileLocationOf } from "./sourceUpload";
 import { AthenaFields } from "./AthenaFields";
 
 export interface SourceFormState {
@@ -165,7 +167,8 @@ export interface SourceFormFieldsProps {
 export function SourceFormFields(props: SourceFormFieldsProps) {
   const { form, setForm, authType, setAuthType, authFields, setAuthFields } = props;
   const { t } = useTranslation();
-  const isFile = FILE_SOURCES.has(form.type);
+  // REQ-1997: a file source's location, wherever the form keeps it.
+  const location = fileLocationOf(form);
   const isSimpleRdbms = SIMPLE_RDBMS.has(form.type);
   const isDataLake = DATA_LAKE.has(form.type);
   const isHostPortOnly = HOST_PORT_ONLY.has(form.type);
@@ -300,43 +303,10 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           />
         </FormField>
       )}
-      {form.type === "duckdb" && (
-        <FormField size="long">
-          <TextInput
-            label={t("sourceFormFields.filePath")}
-            required
-            value={form.database}
-            onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
-            placeholder={t("sourceFormFields.filePathPlaceholder")}
-          />
-        </FormField>
-      )}
-      {isFile && (
-        <FormField size="medium">
-          <TextInput
-            label={
-              form.type === "sqlite"
-                ? t("sourceFormFields.sqliteFilePath")
-                : form.type === "csv"
-                  ? t("sourceFormFields.csvFilePath")
-                  : t("sourceFormFields.parquetFilePath")
-            }
-            required
-            value={form.path}
-            onChange={(e) => setForm({ ...form, path: e.currentTarget.value })}
-            placeholder={
-              form.type === "sqlite"
-                ? "./demo/files/orders.sqlite"
-                : form.type === "csv"
-                  ? "./demo/files/customers.csv"
-                  : "./demo/files/products.parquet"
-            }
-          />
-        </FormField>
-      )}
-      {CLOUD_FILE_TYPES.has(form.type) && objectStoreOf(form.path) && (
+      {UPLOAD_TYPES.has(form.type) && <FileLocationFields form={form} setForm={setForm} />}
+      {CLOUD_FILE_TYPES.has(form.type) && objectStoreOf(location) && (
         <ObjectStoreCredentialFields
-          store={objectStoreOf(form.path)!}
+          store={objectStoreOf(location)!}
           fields={authFields}
           setFields={setAuthFields}
         />

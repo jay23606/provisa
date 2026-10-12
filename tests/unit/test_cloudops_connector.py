@@ -234,9 +234,15 @@ def test_a_cloud_inventory_table_takes_no_writes(build):
     engine = build()
     assert not is_written_through_pgwire_server("cloudops")
     assert resolve_write_path("cloudops", engine) is None
-    assert table_write_ops({"table_name": "compute_resources"}, "cloudops", engine) == frozenset()
     assert (
-        table_write_returns_rows({"table_name": "compute_resources"}, "cloudops", engine) is False
+        table_write_ops({"table_name": "compute_resources"}, "cloudops", engine, source_path=None)
+        == frozenset()
+    )
+    assert (
+        table_write_returns_rows(
+            {"table_name": "compute_resources"}, "cloudops", engine, source_path=None
+        )
+        is False
     )
 
 

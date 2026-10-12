@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import duckdb
@@ -29,12 +31,37 @@ def _is_broken(exc: BaseException) -> bool:
     return isinstance(exc, (duckdb.ConnectionException, duckdb.FatalException))
 
 
-class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068
+#: The statements that only read; any other changes the database and opens it read-write.
+_READS = frozenset(
+    {
+        duckdb.StatementType.SELECT,
+        duckdb.StatementType.EXPLAIN,
+        duckdb.StatementType.PRAGMA,
+        duckdb.StatementType.SET,
+        duckdb.StatementType.VARIABLE_SET,
+        duckdb.StatementType.PREPARE,
+        duckdb.StatementType.RELATION,
+        duckdb.StatementType.TRANSACTION,
+    }
+)
+
+
+def _is_file(database: str) -> bool:
+    return database not in ("", ":memory:") and not database.startswith(":memory:")
+
+
+class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068, REQ-1997
     """A DuckDB connection holds one current result and is not shareable between threads (the
     module declares threadsafety 1). Every request runs on its own thread (REQ-1882), so each
     borrows its own connection from a bounded pool: a CURSOR of the one database connection —
     DuckDB's per-thread connection onto the same database, in-memory databases included — used by
-    one request at a time."""
+    one request at a time.
+
+    REQ-1997: a database file is held READ-ONLY, so every process and node can read it at once
+    (DuckDB shares a file among read-only opens only). A statement that changes it pauses this
+    process's holders of the file (``federation.file_locks.exclusive``: this pool, the engine's
+    attach), opens it read-write for that statement alone and closes it; when another process or
+    node has the file open the open cannot take its lock, and the write is refused as locked."""
 
     # Bounded wait for a pooled connection when all are checked out (request deadline permitting).
     _ACQUIRE_TIMEOUT = 10.0
@@ -43,6 +70,43 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068
         self._database: str = ":memory:"
         self._root: duckdb.DuckDBPyConnection | None = None
         self._pool: BlockingPool[Any] | None = None
+        self._min_pool = 1
+        self._max_pool = 5
+        # Reads hold it shared; a write's pause holds it alone while the file is let go.
+        from provisa.federation.file_locks import ReadersWriterGate
+
+        self._gate = ReadersWriterGate()
+        self._holder: int | None = None
+
+    def _open(self) -> None:
+        database = self._database
+        root = duckdb.connect(database, read_only=_is_file(database))
+        self._root = root
+        self._pool = BlockingPool(
+            root.cursor,
+            lambda c: c.close(),
+            minsize=max(self._min_pool, 1),
+            maxsize=self._max_pool,
+            wait_s=self._ACQUIRE_TIMEOUT,
+            name=f"duckdb:{database}",
+        )
+
+    def _let_go(self) -> None:
+        pool, self._pool = self._pool, None
+        root, self._root = self._root, None
+        if pool is not None:
+            pool.closeall()
+        if root is not None:
+            root.close()
+
+    @contextmanager
+    def _paused(self) -> Iterator[None]:
+        with self._gate.write():
+            self._let_go()
+            try:
+                yield
+            finally:
+                self._open()
 
     # Async only for the DirectDriver awaitable contract; connects synchronously in-thread.
     async def connect(  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -57,24 +121,33 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068
     ) -> None:
         # DuckDB: database is a file path or :memory:
         self._database = database
-        root = duckdb.connect(database)
-        self._root = root
-        self._pool = BlockingPool(
-            root.cursor,
-            lambda c: c.close(),
-            minsize=max(min_pool, 1),
-            maxsize=max_pool,
-            wait_s=self._ACQUIRE_TIMEOUT,
-            name=f"duckdb:{database}",
-        )
+        self._min_pool, self._max_pool = min_pool, max_pool
+        self._open()
+        if _is_file(database):
+            from provisa.federation import file_locks
+
+            self._holder = file_locks.register(database, self._paused)
 
     def _require_pool(self) -> BlockingPool[Any]:
         if self._pool is None:
             raise RuntimeError("DuckDBDriver is not connected")
         return self._pool
 
+    def _writes(self, sql: str) -> bool:
+        if not _is_file(self._database):
+            return False
+        with self._require_pool().connection(is_broken=_is_broken) as conn:
+            return any(s.type not in _READS for s in conn.extract_statements(sql))
+
     # Async only for the DirectDriver awaitable contract; executes synchronously in-thread.
     async def execute(self, sql: str, params: list | None = None) -> QueryResult:
+        with self._gate.read():
+            writes = self._writes(sql)
+            if not writes:
+                return self._read(sql, params)
+        return self._write(sql, params)
+
+    def _read(self, sql: str, params: list | None) -> QueryResult:
         # DuckDB uses $1, $2 natively (like PG)
         with self._require_pool().connection(is_broken=_is_broken) as conn:
             with request_deadline.cancel_on_deadline(conn.interrupt):
@@ -83,14 +156,34 @@ class DuckDBDriver(DirectDriver):  # REQ-027, REQ-068
                 rows = result.fetchall() if result.description else []
         return QueryResult(rows=rows, column_names=columns)
 
+    def _write(self, sql: str, params: list | None) -> QueryResult:
+        from provisa.federation import file_locks
+
+        file_locks.refuse_unprotected(self._database)
+        with file_locks.exclusive(self._database):
+            try:
+                conn = duckdb.connect(self._database)
+            except duckdb.IOException as exc:
+                if file_locks.is_lock_conflict(exc):
+                    raise file_locks.FileLocked(self._database) from None
+                raise
+            try:
+                with request_deadline.cancel_on_deadline(conn.interrupt):
+                    result = conn.execute(sql, params) if params else conn.execute(sql)
+                    columns = [d[0] for d in result.description] if result.description else []
+                    rows = result.fetchall() if result.description else []
+            finally:
+                conn.close()
+        return QueryResult(rows=rows, column_names=columns)
+
     # Async only for the DirectDriver awaitable contract; closes synchronously in-thread.
     async def close(self) -> None:
-        pool, self._pool = self._pool, None
-        root, self._root = self._root, None
-        if pool is not None:
-            pool.closeall()
-        if root is not None:
-            root.close()
+        if self._holder is not None:
+            from provisa.federation import file_locks
+
+            file_locks.unregister(self._database, self._holder)
+            self._holder = None
+        self._let_go()
 
     @property
     def is_connected(self) -> bool:

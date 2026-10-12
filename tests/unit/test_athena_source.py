@@ -203,8 +203,8 @@ def _writes(fmt: str | None) -> tuple[frozenset, frozenset]:
     from provisa.executor.write_capability import table_write_ops, table_write_refused_forms
 
     return (
-        table_write_ops(_table(fmt), "athena", None),
-        table_write_refused_forms(_table(fmt), "athena", None),
+        table_write_ops(_table(fmt), "athena", None, source_path=None),
+        table_write_refused_forms(_table(fmt), "athena", None, source_path=None),
     )
 
 
@@ -222,4 +222,4 @@ def test_an_iceberg_table_takes_every_write_and_a_hive_table_inserts_only():
 def test_a_write_to_athena_returns_no_rows():
     from provisa.executor.write_capability import table_write_returns_rows
 
-    assert table_write_returns_rows(_table("iceberg"), "athena", None) is False
+    assert table_write_returns_rows(_table("iceberg"), "athena", None, source_path=None) is False

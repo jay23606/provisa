@@ -29,6 +29,8 @@ only for the operations the table offers; the admin table page shows them.
   ``event_attendees`` and ``tasks`` tables, through the provider's API, and none on any other
   (REQ-1994).
 * A source with no write route (``executor/writable.resolve_write_path``) takes none.
+* A SQLite or DuckDB file in a remote location (https, s3, gs, az) is attached read-only and takes
+  none (REQ-1997).
 * An Athena table takes all three when it is an Iceberg table, and inserts only otherwise (a Hive
   table), its format recorded when it is registered (REQ-1981).
 * An append-only store takes inserts only: ClickHouse (its UPDATE and DELETE are asynchronous
@@ -58,17 +60,25 @@ WRITE_OPS: tuple[str, ...] = ("insert", "update", "delete")
 ICEBERG = "iceberg"
 _INSERT_ONLY = frozenset({"clickhouse", "iceberg", "delta_lake", "kafka", "ingest"})
 _REMOTE_API = frozenset({"graphql_remote", "openapi", "grpc_remote"})
+#: REQ-1997: the file databases, which a remote location attaches read-only.
+_FILE_DATABASES = frozenset({"sqlite", "duckdb"})
 # The control plane's own sources: the model catalog and the operations log are read from them.
 CONTROL_PLANE_SOURCE_IDS = frozenset({"provisa-admin", "provisa-otel"})
 
 
 def table_write_ops(
-    table: dict[str, Any], source_type: str | None, engine: "FederationEngine | None"
+    table: dict[str, Any],
+    source_type: str | None,
+    engine: "FederationEngine | None",
+    *,
+    source_path: str | None,
 ) -> frozenset[str]:
     """The data writes ``table`` (a registered table record) can take, given its source's type
-    (None for a view, which has no source of its own)."""
+    and path (None for a view, which has no source of its own, and for a source with no path)."""
     if table.get("view_sql") or source_type is None or source_type in _REMOTE_API:
         return frozenset()
+    if source_type in _FILE_DATABASES and _remote(source_path):
+        return frozenset()  # REQ-1997: attached read-only where it is
     if table.get("source_id") in CONTROL_PLANE_SOURCE_IDS:
         return frozenset()
     if resolve_write_path(source_type, engine) is None:
@@ -86,29 +96,43 @@ def table_write_ops(
     return frozenset(WRITE_OPS)
 
 
+def _remote(path: str | None) -> bool:
+    from provisa.federation.connector_duckdb import location_kind
+
+    return location_kind(path) is not None
+
+
 def table_write_returns_rows(
-    table: dict[str, Any], source_type: str | None, engine: "FederationEngine | None"
+    table: dict[str, Any],
+    source_type: str | None,
+    engine: "FederationEngine | None",
+    *,
+    source_path: str | None,
 ) -> bool:
     """Whether a write to ``table`` can return the rows it wrote — its write route's flag
     (``executor/writable.write_returns_rows``), carried on the table's record beside
     ``write_ops`` (``write_returns_rows``). A GraphQL mutation field returns the written rows, so
     one is offered only where this holds; a SQL write with a ``RETURNING`` clause is refused at
     admission where it does not. A table that takes no writes returns none."""
-    if not table_write_ops(table, source_type, engine):
+    if not table_write_ops(table, source_type, engine, source_path=source_path):
         return False
     assert source_type is not None  # a table that takes a write has a source
     return write_returns_rows(source_type, engine)
 
 
 def table_write_refused_forms(
-    table: dict[str, Any], source_type: str | None, engine: "FederationEngine | None"
+    table: dict[str, Any],
+    source_type: str | None,
+    engine: "FederationEngine | None",
+    *,
+    source_path: str | None,
 ) -> frozenset[str]:
     """The statement forms a write to ``table`` does not carry — its write route's own
     (``executor/writable.write_refused_forms``), carried on the table's record beside
     ``write_ops`` (``write_refused_forms``). An upsert is an INSERT ... ON CONFLICT, so GraphQL
     offers none where that form is refused; a SQL statement in a refused form is refused at
     admission, naming the form."""
-    if not table_write_ops(table, source_type, engine):
+    if not table_write_ops(table, source_type, engine, source_path=source_path):
         return frozenset()
     assert source_type is not None  # a table that takes a write has a source
     refused = write_refused_forms(source_type, engine)

@@ -1010,6 +1010,10 @@ async def _delete_source(id: str) -> MutationResult:
         # the exact orphaned-catalog accumulation this closes.
         _drop_source_on_engine(state, id)
         state.source_catalogs.pop(id, None)
+        from provisa.core import source_uploads
+
+        if _existing["type"] in source_uploads.UPLOAD_TYPES:  # REQ-1997: its upload goes too
+            source_uploads.remove(id)
         await _rebuild_schemas()
         if _existing["type"] == "data_profiler":  # REQ-1934: its schedule goes with it
             from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers

@@ -737,6 +737,12 @@
         "label": "Nom du nœud",
         "help": "Le nom de ce nœud parmi les nœuds qui partagent le dossier de données : son nom de pod ou d'hôte, sauf si le lanceur en définit un autre."
       }
+    },
+    "sources": {
+      "max_upload_bytes": {
+        "label": "Plus gros fichier téléversé",
+        "help": "Le plus gros fichier qu'une source SQLite, DuckDB, CSV ou Parquet peut recevoir par téléversement depuis le formulaire de la source ; un fichier plus gros est refusé, avec mention de cette limite. Mieux vaut lire un fichier plus gros là où il se trouve, depuis un stockage d'objets."
+      }
     }
   }
 }

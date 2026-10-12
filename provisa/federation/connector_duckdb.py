@@ -18,9 +18,11 @@ pg_duckdb scan connectors. Extracted from connector.py; leaf module.
 
 from __future__ import annotations
 
+import re
+
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from provisa.compiler.naming import attach_catalog, engine_attach_name
 from provisa.federation.connector_base import (
@@ -104,7 +106,8 @@ class DuckDBCsvConnector(Connector):
 
     def details(self, source: Source) -> dict:
         return {
-            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_csv_auto('{source.path}')"
+            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_csv_auto('{source.path}')",
+            **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
 
 
@@ -128,6 +131,108 @@ def _s3_secret_ddl(source: "Source") -> str | None:
     return f'CREATE OR REPLACE SECRET "_s3_{source.id}" (TYPE s3, {", ".join(clauses)})'
 
 
+_GCS_SCHEMES = frozenset({"gs", "gcs"})
+_AZURE_SCHEMES = frozenset({"az", "azure", "abfs", "abfss", "wasb", "wasbs"})
+
+
+def location_kind(path: str | None) -> str | None:
+    """Where a file source's path is (REQ-1997): ``s3``, ``gcs``, ``azure`` or ``http`` for a
+    remote location, None for a file on this node (a bare path or ``file://``)."""
+    match = re.match(r"^([A-Za-z][A-Za-z0-9+.-]*)://", path or "")
+    if match is None:
+        return None
+    scheme = match.group(1).lower()
+    if scheme == "file":
+        return None
+    if scheme in ("s3", "s3a"):
+        return "s3"
+    if scheme in _GCS_SCHEMES:
+        return "gcs"
+    if scheme in _AZURE_SCHEMES:
+        return "azure"
+    if scheme in ("http", "https"):
+        return "http"
+    raise ValueError(f"{path!r}: DuckDB reads no file at a {scheme}:// location")
+
+
+def _quoted(value: str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _scope(path: str) -> str:
+    """The bucket or container ``path`` is in, as a secret's scope: a source's credentials are
+    used for its own location only, never for another source's."""
+    scheme, rest = path.split("://", 1)
+    return f"{scheme}://{rest.split('/', 1)[0]}"
+
+
+def object_store_secret_ddl(source: "Source") -> str | None:
+    """``CREATE SECRET`` DDL for the object store a file source's path is in (REQ-1997): S3 (and
+    S3-compatible stores, through the endpoint), Google Cloud Storage (an HMAC key) or Azure
+    Blob Storage (an account key), scoped to the path's bucket; None for a path elsewhere or a
+    source that gave no credentials (a public location)."""
+    path = getattr(source, "path", None) or ""
+    kind = location_kind(path)
+    hints = getattr(source, "federation_hints", None) or {}
+    name = f'"_os_{source.id}"'
+    if kind == "s3":
+        if not (hints.get("access_key_id") and hints.get("secret_access_key")):
+            return None
+        clauses = [
+            f"KEY_ID {_quoted(hints['access_key_id'])}",
+            f"SECRET {_quoted(hints['secret_access_key'])}",
+        ]
+        if hints.get("region"):
+            clauses.append(f"REGION {_quoted(hints['region'])}")
+        if hints.get("endpoint"):
+            clauses.append(f"ENDPOINT {_quoted(hints['endpoint'].split('://', 1)[-1])}")
+            clauses.append("URL_STYLE 'path'")
+        return f"CREATE OR REPLACE SECRET {name} (TYPE s3, {', '.join(clauses)}, SCOPE {_quoted(_scope(path))})"
+    if kind == "gcs":
+        if not (hints.get("gcs_access_id") and hints.get("gcs_secret_key")):
+            return None
+        return (
+            f"CREATE OR REPLACE SECRET {name} (TYPE gcs, KEY_ID {_quoted(hints['gcs_access_id'])}, "
+            f"SECRET {_quoted(hints['gcs_secret_key'])}, SCOPE {_quoted(_scope(path))})"
+        )
+    if kind == "azure":
+        account, key = hints.get("azure_account_name"), hints.get("azure_account_key")
+        if not (account and key):
+            return None
+        connection = (
+            f"DefaultEndpointsProtocol=https;AccountName={account};AccountKey={key};"
+            "EndpointSuffix=core.windows.net"
+        )
+        return (
+            f"CREATE OR REPLACE SECRET {name} (TYPE azure, CONNECTION_STRING "
+            f"{_quoted(connection)}, SCOPE {_quoted(_scope(path))})"
+        )
+    return None
+
+
+def file_location_details(source: "Source") -> dict[str, Any]:
+    """What a runtime needs before it reads a file source's path (REQ-1997): the DuckDB
+    extension that reaches the location (httpfs for http, s3 and gcs; azure for Azure) and the
+    location's secret, when the source gave credentials. Nothing for a file on this node."""
+    kind = location_kind(getattr(source, "path", None))
+    if kind is None:
+        return {}
+    details: dict[str, Any] = {"extensions": ["azure" if kind == "azure" else "httpfs"]}
+    secret = object_store_secret_ddl(source)
+    if secret:
+        details["secret_ddl"] = secret
+    return details
+
+
+def _attach_options(source: "Source", kind: str) -> str:
+    """A file database's ATTACH options (REQ-1997): read-only for a file in a remote location,
+    and for every DuckDB file -- DuckDB shares a file among read-only opens only, so a file the
+    engine held read-write would lock every other process and node out of it. A write opens the
+    file read-write for its statement alone (``executor.drivers.duckdb_driver``)."""
+    remote = location_kind(getattr(source, "path", None)) is not None
+    return f"TYPE {kind}, READ_ONLY" if remote or kind == "duckdb" else f"TYPE {kind}"
+
+
 class DuckDBParquetConnector(Connector):
     engine = "duckdb"
     source_type = "parquet"
@@ -139,13 +244,10 @@ class DuckDBParquetConnector(Connector):
         )  # parquet supports predicate + projection pushdown
 
     def details(self, source: Source) -> dict:
-        details: dict[str, str] = {
-            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_parquet('{source.path}')"
+        return {
+            "view_ddl": f"CREATE VIEW {source.id} AS SELECT * FROM read_parquet('{source.path}')",
+            **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
-        secret_ddl = _s3_secret_ddl(source)
-        if secret_ddl:
-            details["secret_ddl"] = secret_ddl
-        return details
 
 
 class DuckDBSqliteConnector(Connector):
@@ -162,9 +264,10 @@ class DuckDBSqliteConnector(Connector):
         # regardless of the registered schema name — the runtime references the remote there.
         alias = f"_src_{source.id}"
         return {
-            "attach": f"ATTACH '{source.path}' AS \"{alias}\" (TYPE sqlite)",
+            "attach": f"ATTACH '{source.path}' AS \"{alias}\" ({_attach_options(source, 'sqlite')})",
             "raw_alias": alias,
             "remote_schema": "main",
+            **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
 
 
@@ -183,9 +286,10 @@ class DuckDBDuckdbConnector(Connector):
         # remote under its default ``main`` schema, aliased away from the physical catalog.
         alias = f"_src_{source.id}"
         return {
-            "attach": f"ATTACH '{source.path}' AS \"{alias}\" (TYPE duckdb)",
+            "attach": f"ATTACH '{source.path}' AS \"{alias}\" ({_attach_options(source, 'duckdb')})",
             "raw_alias": alias,
             "remote_schema": "main",
+            **file_location_details(source),  # REQ-1997: any location, with its credentials
         }
 
 

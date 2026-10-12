@@ -91,6 +91,20 @@ DECLARED: list[Setting] = [
         unit="bytes",
     ),
     Setting(
+        key="sources.max_upload_bytes",
+        card="limits",
+        type="int",
+        effect="live",  # read when an upload begins
+        # REQ-1997: the largest file a file-based source may be given by upload; 1 GiB holds a
+        # working SQLite, DuckDB, CSV or Parquet file, and a larger one is better read where it
+        # is (an object store) than copied into the org's folder.
+        req="REQ-1997",
+        env="PROVISA_SOURCES_MAX_UPLOAD_BYTES",
+        default=1073741824,
+        min=1,
+        unit="bytes",
+    ),
+    Setting(
         key="limits.engine_query_timeout",
         card="limits",
         type="int",

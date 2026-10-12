@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "Dat is geen Logs-bron: {{error}}",
       "path_refused": "Die bestanden mogen niet gelezen worden: {{reason}}"
+    },
+    "files": {
+      "too_large": "Het bestand is groter dan de {{limit}} bytes die een upload mag zijn.",
+      "bad_name": "{{name}} kan niet de naam van een geüpload bestand zijn: gebruik letters, cijfers, '.', '_' en '-'.",
+      "not_a_file_source": "Een {{type}}-bron krijgt geen bestand via upload."
     }
   }
 }

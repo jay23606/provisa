@@ -91,6 +91,12 @@
     "authMechanism": "認証メカニズム",
     "authMechanismPlain": "PLAIN(ユーザー名 / パスワード)",
     "authMechanismLdap": "LDAP",
-    "authMechanismGssapi": "GSSAPI(Kerberos)"
+    "authMechanismGssapi": "GSSAPI(Kerberos)",
+    "upload": "ファイルをアップロード",
+    "uploadReplace": "新しいファイルをアップロード",
+    "uploadNeedsId": "先にソースの ID を入力してください。ファイルはその下に保存されます。",
+    "uploadedFileHint": "このソースにアップロードされたファイルで、組織のフォルダーに保存されています。置き換えるには新しいファイルをアップロードします。",
+    "fileLocationsHint": "サーバー上のパス、https:// のアドレス、またはストアの認証情報付きの s3://、gs://、az://。あるいはファイルをアップロードします。",
+    "fileDatabaseLocationsHint": "サーバー上のパス、https:// のアドレス、またはストアの認証情報付きの s3://、gs://、az://（そこでは読み取り専用）。あるいはファイルをアップロードします。"
   }
 }

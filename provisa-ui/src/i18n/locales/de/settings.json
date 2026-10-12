@@ -737,6 +737,12 @@
         "label": "Knotenname",
         "help": "Der Name dieses Knotens unter den Knoten, die den Datenordner teilen: sein Pod- oder Hostname, sofern der Starter keinen anderen festlegt."
       }
+    },
+    "sources": {
+      "max_upload_bytes": {
+        "label": "Größte hochgeladene Datei",
+        "help": "Die größte Datei, die eine SQLite-, DuckDB-, CSV- oder Parquet-Quelle per Upload im Quellformular erhalten kann; eine größere wird unter Nennung dieses Limits abgelehnt. Eine größere Datei liest man besser dort, wo sie liegt, aus einem Objektspeicher."
+      }
     }
   }
 }

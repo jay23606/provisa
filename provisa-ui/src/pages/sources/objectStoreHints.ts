@@ -18,8 +18,9 @@ export type ObjectStore = "S3" | "GCS" | "AZURE";
 const GCS_SCHEMES = new Set(["gs", "gcs"]);
 const AZURE_SCHEMES = new Set(["az", "azure", "abfs", "abfss", "wasb", "wasbs"]);
 
-/** Source types whose file location may be in an object store, read by its own credentials. */
-export const CLOUD_FILE_TYPES = new Set(["csv", "parquet"]);
+/** Source types whose file location may be in an object store, read by its own credentials
+ * (REQ-1997: the file databases too, attached read-only there). */
+export const CLOUD_FILE_TYPES = new Set(["csv", "parquet", "sqlite", "duckdb"]);
 
 /** The object store a file location is in, or null for a local path or another transport. */
 export function objectStoreOf(path: string | null | undefined): ObjectStore | null {

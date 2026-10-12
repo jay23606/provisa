@@ -6015,5 +6015,16 @@
   "pt/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
   "pt/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
   "pt/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
-  "pt/settings.json::settings.org_files.node_id.label": "Node name"
+  "pt/settings.json::settings.org_files.node_id.label": "Node name",
+  "pt/sourceFormFields.json::sourceFormFields.upload": "Upload file",
+  "pt/sourceFormFields.json::sourceFormFields.uploadReplace": "Upload a new file",
+  "pt/sourceFormFields.json::sourceFormFields.uploadNeedsId": "Enter the source's ID first: the file is kept under it.",
+  "pt/sourceFormFields.json::sourceFormFields.uploadedFileHint": "This source's uploaded file, kept in your organization's folder. Upload a new one to replace it.",
+  "pt/sourceFormFields.json::sourceFormFields.fileLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials; or upload the file.",
+  "pt/sourceFormFields.json::sourceFormFields.fileDatabaseLocationsHint": "A path on the server, an https:// address, or s3://, gs:// or az:// with the store's credentials (read-only there); or upload the file.",
+  "pt/serverErrors.json::serverErrors.files.too_large": "The file is larger than the {{limit}} bytes an upload may be.",
+  "pt/serverErrors.json::serverErrors.files.bad_name": "{{name}} cannot be the name of an uploaded file: use letters, digits, '.', '_' and '-'.",
+  "pt/serverErrors.json::serverErrors.files.not_a_file_source": "A {{type}} source is not given a file by upload.",
+  "pt/settings.json::settings.sources.max_upload_bytes.label": "Largest uploaded file",
+  "pt/settings.json::settings.sources.max_upload_bytes.help": "The largest file a SQLite, DuckDB, CSV or Parquet source may be given by upload from the source form; a larger one is refused, naming this limit. A larger file is better read where it is, from an object store."
 }

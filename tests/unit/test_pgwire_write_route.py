@@ -67,7 +67,7 @@ def test_the_types_written_through_their_server():
 def test_written_on_every_engine(source_type, build):
     engine = build()
     assert resolve_write_path(source_type, engine) is WritePath.PGWIRE
-    assert table_write_ops({"table_name": "Account"}, source_type, engine) == {
+    assert table_write_ops({"table_name": "Account"}, source_type, engine, source_path=None) == {
         "insert",
         "update",
         "delete",
@@ -86,7 +86,9 @@ def test_a_files_or_splunk_source_takes_no_writes(source_type, build):
     engine = build()
     assert not is_written_through_pgwire_server(source_type)
     assert resolve_write_path(source_type, engine) is None
-    assert table_write_ops({"table_name": "t"}, source_type, engine) == frozenset()
+    assert (
+        table_write_ops({"table_name": "t"}, source_type, engine, source_path=None) == frozenset()
+    )
 
 
 @pytest.mark.parametrize("source_type", ["sharepoint", "salesforce"])
@@ -348,7 +350,10 @@ def test_the_pgwire_route_does_not_return_written_rows(source_type):
     from provisa.executor.write_capability import table_write_returns_rows
 
     assert write_returns_rows(source_type, None) is False
-    assert table_write_returns_rows({"table_name": "Account"}, source_type, None) is False
+    assert (
+        table_write_returns_rows({"table_name": "Account"}, source_type, None, source_path=None)
+        is False
+    )
 
 
 def test_the_flag_belongs_to_the_route_not_the_source_type(monkeypatch):
@@ -370,13 +375,19 @@ def test_every_route_declares_whether_it_returns_rows():
 def test_other_sources_return_rows_exactly_when_they_take_writes(source_type, returns):
     from provisa.executor.write_capability import table_write_returns_rows
 
-    assert table_write_returns_rows({"table_name": "t"}, source_type, None) is returns
+    assert (
+        table_write_returns_rows({"table_name": "t"}, source_type, None, source_path=None)
+        is returns
+    )
 
 
 def test_a_view_returns_no_written_rows():
     from provisa.executor.write_capability import table_write_returns_rows
 
-    assert table_write_returns_rows({"view_sql": "SELECT 1"}, "postgresql", None) is False
+    assert (
+        table_write_returns_rows({"view_sql": "SELECT 1"}, "postgresql", None, source_path=None)
+        is False
+    )
 
 
 def _write_gov(returns_rows: bool, refused_forms=()):
@@ -535,7 +546,10 @@ def test_the_pgwire_route_refuses_every_form_beyond_a_plain_write(source_type):
     from provisa.executor.write_capability import table_write_refused_forms
 
     assert write_refused_forms(source_type, None) == WRITE_FORMS == set(_FORMS)
-    assert table_write_refused_forms({"table_name": "Account"}, source_type, None) == WRITE_FORMS
+    assert (
+        table_write_refused_forms({"table_name": "Account"}, source_type, None, source_path=None)
+        == WRITE_FORMS
+    )
 
 
 def test_every_route_declares_the_forms_it_refuses():

@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "Eso no es un origen Logs: {{error}}",
       "path_refused": "Esos archivos no se pueden leer: {{reason}}"
+    },
+    "files": {
+      "too_large": "El archivo supera los {{limit}} bytes que puede tener una subida.",
+      "bad_name": "{{name}} no puede ser el nombre de un archivo subido: use letras, dígitos, '.', '_' y '-'.",
+      "not_a_file_source": "A un origen {{type}} no se le da un archivo por subida."
     }
   }
 }

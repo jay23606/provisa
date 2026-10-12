@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "Ce n'est pas une source Logs : {{error}}",
       "path_refused": "Ces fichiers ne peuvent pas être lus : {{reason}}"
+    },
+    "files": {
+      "too_large": "Le fichier dépasse les {{limit}} octets qu'un téléversement peut faire.",
+      "bad_name": "{{name}} ne peut pas être le nom d'un fichier téléversé : utilisez des lettres, des chiffres, '.', '_' et '-'.",
+      "not_a_file_source": "Une source {{type}} ne reçoit pas de fichier par téléversement."
     }
   }
 }

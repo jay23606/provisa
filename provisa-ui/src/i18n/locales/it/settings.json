@@ -737,6 +737,12 @@
         "label": "Nome del nodo",
         "help": "Il nome di questo nodo tra i nodi che condividono la cartella dati: il suo nome di pod o di host, a meno che il launcher non ne imposti un altro."
       }
+    },
+    "sources": {
+      "max_upload_bytes": {
+        "label": "File caricato più grande",
+        "help": "Il file più grande che una sorgente SQLite, DuckDB, CSV o Parquet può ricevere per caricamento dal modulo della sorgente; uno più grande viene rifiutato indicando questo limite. Un file più grande è meglio leggerlo dove si trova, da un archivio di oggetti."
+      }
     }
   }
 }

@@ -737,6 +737,12 @@
         "label": "Nombre del nodo",
         "help": "El nombre de este nodo entre los nodos que comparten la carpeta de datos: su nombre de pod o de host, salvo que el lanzador establezca otro."
       }
+    },
+    "sources": {
+      "max_upload_bytes": {
+        "label": "Archivo subido más grande",
+        "help": "El archivo más grande que un origen SQLite, DuckDB, CSV o Parquet puede recibir por subida desde el formulario del origen; uno mayor se rechaza indicando este límite. Un archivo mayor conviene leerlo donde está, desde un almacén de objetos."
+      }
     }
   }
 }

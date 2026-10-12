@@ -91,6 +91,12 @@
     "authMechanism": "驗證機制",
     "authMechanismPlain": "PLAIN（使用者名稱／密碼）",
     "authMechanismLdap": "LDAP",
-    "authMechanismGssapi": "GSSAPI (Kerberos)"
+    "authMechanismGssapi": "GSSAPI (Kerberos)",
+    "upload": "上載檔案",
+    "uploadReplace": "上載新檔案",
+    "uploadNeedsId": "請先輸入資料來源的 ID：檔案存放在其下。",
+    "uploadedFileHint": "此資料來源上載的檔案，存放在您機構的資料夾中。上載新檔案即可取代。",
+    "fileLocationsHint": "伺服器上的路徑、https:// 地址，或附存儲憑證的 s3://、gs://、az://；或上載檔案。",
+    "fileDatabaseLocationsHint": "伺服器上的路徑、https:// 地址，或附存儲憑證的 s3://、gs://、az://（在那裡只可讀取）；或上載檔案。"
   }
 }

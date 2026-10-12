@@ -341,7 +341,11 @@ def registry_write_ops(source_type: str, *, view: bool = False) -> list[str]:
     through the engine takes none here."""
     from provisa.executor.write_capability import table_write_ops
 
-    return sorted(table_write_ops({"view_sql": "SELECT 1"} if view else {}, source_type, None))
+    return sorted(
+        table_write_ops(
+            {"view_sql": "SELECT 1"} if view else {}, source_type, None, source_path=None
+        )
+    )
 
 
 def registry_write_returns_rows(source_type: str, *, view: bool = False) -> bool:
@@ -349,7 +353,9 @@ def registry_write_returns_rows(source_type: str, *, view: bool = False) -> bool
     :func:`registry_write_ops`), by the product's own rule."""
     from provisa.executor.write_capability import table_write_returns_rows
 
-    return table_write_returns_rows({"view_sql": "SELECT 1"} if view else {}, source_type, None)
+    return table_write_returns_rows(
+        {"view_sql": "SELECT 1"} if view else {}, source_type, None, source_path=None
+    )
 
 
 def attaching(source, catalog: str):

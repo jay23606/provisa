@@ -449,32 +449,75 @@ def make_sqlite_loader() -> AdapterLoader:
     are the landed replica this loader feeds."""
     from provisa.federation import connector_sqlite
 
-    async def _load(source: Any, table: Any) -> list[dict]:
+    from provisa.federation.connector_duckdb import DuckDBSqliteConnector, location_kind
+
+    def _remote(source: Any) -> dict | None:
+        """REQ-1997: a SQLite file in a remote location, which the stdlib driver cannot open,
+        is read through a scratch DuckDB connection attaching it read-only, as the DuckDB engine
+        attaches it: its details, the sqlite extension, the location's extension and secret."""
+        if location_kind(source.path) is None:
+            return None
+        details = DuckDBSqliteConnector().details(source)
+        return {**details, "extension": "sqlite", "install_from_community": False}
+
+    def _path(source: Any) -> str:
         path = getattr(source, "path", None)
         if not path:
             raise ValueError(f"sqlite source {source.id!r} has no path")
+        return path
+
+    def _from(source: Any, table: Any, remote: dict | None) -> str:
+        if remote is None:
+            return f'"{table.table_name}"'
+        return f'"{remote["raw_alias"]}"."main"."{table.table_name}"'
+
+    async def _load(source: Any, table: Any) -> list[dict]:
+        path = _path(source)
         columns = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
         if not columns:
             return []
         select = ", ".join(f'"{c}"' for c in columns)
-        return await asyncio.to_thread(
-            connector_sqlite.execute_sync, path, f'SELECT {select} FROM "{table.table_name}"'
-        )
+        remote = _remote(source)
+        sql = f"SELECT {select} FROM {_from(source, table, remote)}"
+        if remote is not None:
+            return await asyncio.to_thread(_duckdb_extension_scratch_read, remote, sql)
+        return await asyncio.to_thread(connector_sqlite.execute_sync, path, sql)
 
     def _replica_source(source: Any, table: Any, columns: list[tuple[str, str]]) -> Any:
         from provisa.federation.replica_source import BlockingCursorSource
 
-        path = getattr(source, "path", None)
-        if not path:
-            raise ValueError(f"sqlite source {source.id!r} has no path")
+        path = _path(source)
         select = ", ".join(f'"{name}"' for name, _ in columns)
-        sql = f'SELECT {select} FROM "{table.table_name}"'
+        remote = _remote(source)
+        sql = f"SELECT {select} FROM {_from(source, table, remote)}"
+        if remote is not None:
+            return BlockingCursorSource(
+                lambda batch_rows: _duckdb_extension_scratch_batches(remote, sql, batch_rows),
+                columns,
+            )
         return BlockingCursorSource(
             lambda batch_rows: connector_sqlite.iter_row_batches(path, sql, batch_rows), columns
         )
 
     _load.replica_source = _replica_source  # type: ignore[attr-defined]
     return _load
+
+
+def _scratch_attach(conn: Any, connector_details: dict) -> None:
+    """Attach the source on a scratch connection: its connector's extension, then what its
+    location needs (REQ-1997: the extension reaching a remote file, and its secret)."""
+    from provisa.federation.duckdb_extensions import install_and_load
+
+    install_and_load(
+        conn,
+        connector_details["extension"],
+        from_community=connector_details.get("install_from_community", True),
+    )
+    for ext in connector_details.get("extensions", ()):
+        install_and_load(conn, ext, from_community=False)
+    if connector_details.get("secret_ddl"):
+        conn.execute(connector_details["secret_ddl"])
+    conn.execute(connector_details["attach"])
 
 
 def _duckdb_extension_scratch_read(connector_details: dict, select_sql: str) -> list[dict]:
@@ -488,16 +531,9 @@ def _duckdb_extension_scratch_read(connector_details: dict, select_sql: str) -> 
     engine connection, so this can run regardless of which engine is currently active."""
     import duckdb
 
-    from provisa.federation.duckdb_extensions import install_and_load
-
     conn = duckdb.connect(":memory:")
     try:
-        install_and_load(
-            conn,
-            connector_details["extension"],
-            from_community=connector_details.get("install_from_community", True),
-        )
-        conn.execute(connector_details["attach"])
+        _scratch_attach(conn, connector_details)
         cursor = conn.execute(select_sql)
         columns = [d[0] for d in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -512,16 +548,9 @@ def _duckdb_extension_scratch_batches(
     its cursor fetched ``batch_rows`` rows per step, closed when the iteration ends."""
     import duckdb
 
-    from provisa.federation.duckdb_extensions import install_and_load
-
     conn = duckdb.connect(":memory:")
     try:
-        install_and_load(
-            conn,
-            connector_details["extension"],
-            from_community=connector_details.get("install_from_community", True),
-        )
-        conn.execute(connector_details["attach"])
+        _scratch_attach(conn, connector_details)
         cursor = conn.execute(select_sql)
         names = [d[0] for d in cursor.description]
         while True:

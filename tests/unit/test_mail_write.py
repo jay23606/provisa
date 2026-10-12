@@ -56,11 +56,22 @@ async def test_events_attendees_and_tasks_take_all_three_writes_and_nothing_else
     assert resolve_write_path(source_type) is WritePath.API
     for table in ("events", "event_attendees", "tasks"):
         record = {"table_name": table, "source_id": "s"}
-        assert table_write_ops(record, source_type, None) == {"insert", "update", "delete"}
-        assert table_write_returns_rows(record, source_type, None) is False
-        assert "on_conflict" in table_write_refused_forms(record, source_type, None)
+        assert table_write_ops(record, source_type, None, source_path=None) == {
+            "insert",
+            "update",
+            "delete",
+        }
+        assert table_write_returns_rows(record, source_type, None, source_path=None) is False
+        assert "on_conflict" in table_write_refused_forms(
+            record, source_type, None, source_path=None
+        )
     for table in ("messages", "calendars", "task_lists", "folders"):
-        assert table_write_ops({"table_name": table, "source_id": "s"}, source_type, None) == set()
+        assert (
+            table_write_ops(
+                {"table_name": table, "source_id": "s"}, source_type, None, source_path=None
+            )
+            == set()
+        )
 
 
 # -- the driver --------------------------------------------------------------------------------

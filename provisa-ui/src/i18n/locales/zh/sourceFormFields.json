@@ -91,6 +91,12 @@
     "authMechanism": "身份验证机制",
     "authMechanismPlain": "PLAIN（用户名/密码）",
     "authMechanismLdap": "LDAP",
-    "authMechanismGssapi": "GSSAPI（Kerberos）"
+    "authMechanismGssapi": "GSSAPI（Kerberos）",
+    "upload": "上传文件",
+    "uploadReplace": "上传新文件",
+    "uploadNeedsId": "请先输入数据源的 ID：文件保存在它之下。",
+    "uploadedFileHint": "此数据源上传的文件，保存在您组织的文件夹中。上传新文件即可替换。",
+    "fileLocationsHint": "服务器上的路径、https:// 地址，或带存储凭据的 s3://、gs://、az://；或上传文件。",
+    "fileDatabaseLocationsHint": "服务器上的路径、https:// 地址，或带存储凭据的 s3://、gs://、az://（在那里只读）；或上传文件。"
   }
 }

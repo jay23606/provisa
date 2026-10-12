@@ -737,6 +737,12 @@
         "label": "Nome do nó",
         "help": "O nome deste nó entre os nós que compartilham a pasta de dados: o nome do pod ou do host, a menos que o inicializador defina outro."
       }
+    },
+    "sources": {
+      "max_upload_bytes": {
+        "label": "Maior arquivo enviado",
+        "help": "O maior arquivo que uma fonte SQLite, DuckDB, CSV ou Parquet pode receber por envio no formulário da fonte; um maior é recusado, citando este limite. É melhor ler um arquivo maior onde ele está, em um armazenamento de objetos."
+      }
     }
   }
 }

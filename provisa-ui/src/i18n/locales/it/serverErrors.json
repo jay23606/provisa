@@ -522,6 +522,11 @@
     "logs": {
       "invalid": "Questa non è una sorgente Logs: {{error}}",
       "path_refused": "Questi file non possono essere letti: {{reason}}"
+    },
+    "files": {
+      "too_large": "Il file supera i {{limit}} byte che un caricamento può avere.",
+      "bad_name": "{{name}} non può essere il nome di un file caricato: usa lettere, cifre, '.', '_' e '-'.",
+      "not_a_file_source": "A una sorgente {{type}} non si dà un file per caricamento."
     }
   }
 }

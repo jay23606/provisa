@@ -13,10 +13,14 @@ on:
     paths:
       - 'packaging/windows/**'
       - '.github/workflows/windows-container-smoke.yml'
+      - 'tests/unit/test_file_db_locks.py'
+      - 'provisa/federation/file_locks.py'
   push:
     branches: [main]
     paths:
       - 'packaging/windows/**'
+      - 'tests/unit/test_file_db_locks.py'
+      - 'provisa/federation/file_locks.py'
   workflow_dispatch:
 
 jobs:
@@ -90,3 +94,29 @@ jobs:
             }
           }
           if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+
+  # ── File-database locks on Windows (REQ-1997) ────────────────────────────────
+  # A write to a DuckDB or SQLite file is refused when another process holds the file's lock
+  # (provisa/federation/file_locks.py). What that rests on -- DuckDB's read-only opens share a
+  # file and every other pair excludes; SQLite with no wait refuses a write at once -- is
+  # proven on Linux by the unit job and here on Windows. The test needs only duckdb and
+  # pytest (no conftest, no provisa import), at the versions uv.lock pins.
+  file-db-locks:
+    name: File-database locks (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install duckdb and pytest
+        shell: pwsh
+        run: python -m pip install duckdb==1.5.5 pytest==9.0.3
+
+      - name: Run the lock tests
+        shell: pwsh
+        run: python -m pytest tests/unit/test_file_db_locks.py --noconftest -p no:cacheprovider -q

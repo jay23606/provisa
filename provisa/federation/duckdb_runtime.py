@@ -33,12 +33,14 @@ import shutil
 import sqlite3
 import re
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
 import duckdb
 
 from provisa.federation.duckdb_extensions import install_and_load
+from provisa.federation.file_locks import ReadersWriterGate
 from provisa.executor.result import QueryResult, ResultStream
 from provisa.federation import store_writer
 from provisa.federation.engine import build_duckdb_engine
@@ -100,7 +102,7 @@ def _sql_text(value: str) -> str:
     return value.replace("'", "''")
 
 
-class _CatalogGate:
+class _CatalogGate(ReadersWriterGate):
     """Readers-writer gate over the shared DuckDB connection's catalog.
 
     The control-plane refresh (attach_control_plane, SQLite dialect) rebuilds ``provisa_admin`` in
@@ -116,44 +118,6 @@ class _CatalogGate:
     that opened such a stream may itself be the next one to trigger a refresh — writer preference
     would let that thread block on its own outstanding read. A refresh happens only when the control
     plane has actually committed something, so writer starvation is not a live concern."""
-
-    def __init__(self) -> None:
-        self._cond = threading.Condition()
-        self._readers = 0
-        self._writing = False
-
-    def acquire_read(self) -> None:
-        with self._cond:
-            while self._writing:
-                self._cond.wait()
-            self._readers += 1
-
-    def release_read(self) -> None:
-        with self._cond:
-            self._readers -= 1
-            if self._readers == 0:
-                self._cond.notify_all()
-
-    @contextmanager
-    def read(self):
-        self.acquire_read()
-        try:
-            yield
-        finally:
-            self.release_read()
-
-    @contextmanager
-    def write(self):
-        with self._cond:
-            while self._writing or self._readers:
-                self._cond.wait()
-            self._writing = True
-        try:
-            yield
-        finally:
-            with self._cond:
-                self._writing = False
-                self._cond.notify_all()
 
 
 # REQ-1901: a `mat_store.<schema>.<table>` read on the engine connection (quoted or bare parts).
@@ -259,6 +223,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # ...and the rebuild is invisible to concurrent queries only if they are excluded from it —
         # see _CatalogGate. Held for read by every execution path, for write by the rebuild.
         self._catalog_gate = _CatalogGate()
+        # REQ-1997: local DuckDB files held by this connection, by attach alias: (path, token).
+        self._file_holders: dict[str, tuple[str, int]] = {}
         # One store connection, so one write on it at a time (two lands interleaving on it was a
         # confirmed regression). A lock serializes it, and each write runs on the thread that asked
         # for it — a read-triggered land stays on its request's thread (REQ-1882), where a
@@ -322,8 +288,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             if secret_ddl and not self._httpfs_loaded:
                 install_and_load(self._con, "httpfs", from_community=False)
                 self._httpfs_loaded = True
-            if secret_ddl:
-                self._con.execute(secret_ddl)
+            self._reach_location(details)
             scan = details["view_ddl"].split(" AS ", 1)[1]
             self._con.execute(f"CREATE OR REPLACE VIEW {phys} AS {scan}")
         else:  # ATTACH postgres / sqlite / extension source once, then view the remote table
@@ -506,6 +471,20 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             install_and_load(self._con, "postgres", from_community=False)
             self._pg_ext_loaded = True
 
+    def _reach_location(self, details: dict) -> None:
+        """Load the extensions a file source's location needs on this connection and create its
+        secret (``connector_duckdb.file_location_details``, REQ-1997)."""
+        for ext in details.get("extensions", ()):
+            if ext == "httpfs":
+                if not self._httpfs_loaded:
+                    install_and_load(self._con, "httpfs", from_community=False)
+                    self._httpfs_loaded = True
+            elif ext not in self._ext_loaded:
+                install_and_load(self._con, ext, from_community=False)
+                self._ext_loaded.add(ext)
+        if details.get("secret_ddl"):
+            self._con.execute(details["secret_ddl"])
+
     def _attach_raw(self, source: Any, details: dict) -> str:
         """ATTACH the source's remote database under its private alias (once), loading the DuckDB
         extension its connector rides on first, and return the alias. The connector declares WHERE
@@ -528,6 +507,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                     from_community=getattr(connector, "install_from_community", False),
                 )
                 self._ext_loaded.add(ext)
+        self._reach_location(details)  # REQ-1997: a file database in a remote location
         raw_alias = details.get("raw_alias", source.id)
         attach = details["attach"]
         if raw_alias in self._raw_attached and self._raw_attach_ddl[raw_alias] != attach:
@@ -545,12 +525,43 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 # The environment's binding changed: its old connection is let go.
                 self._con.execute(f'DETACH "{catalog_alias}"')
                 self._raw_attached.discard(catalog_alias)
+                self._let_file_go(catalog_alias)
             raw_alias = catalog_alias
         if raw_alias not in self._raw_attached:
             self._con.execute(attach)
             self._raw_attached.add(raw_alias)
             self._raw_attach_ddl[raw_alias] = attach
+            self._hold_file(source, raw_alias)
         return raw_alias
+
+    def _hold_file(self, source: Any, raw_alias: str) -> None:
+        """REQ-1997: a local DuckDB file this connection attaches (read-only) is let go while a
+        write opens it read-write (``federation.file_locks``): detached under the catalogue gate,
+        so a query in flight finishes first and none starts until it is attached again."""
+        from provisa.federation import file_locks
+        from provisa.federation.connector_duckdb import location_kind
+
+        path = getattr(source, "path", None)
+        if source.type.value != "duckdb" or not path or location_kind(path) is not None:
+            return
+
+        @contextmanager
+        def paused() -> Iterator[None]:
+            with self._catalog_gate.write():
+                self._con.execute(f'DETACH "{raw_alias}"')
+                try:
+                    yield
+                finally:
+                    self._con.execute(self._raw_attach_ddl[raw_alias])
+
+        self._file_holders[raw_alias] = (path, file_locks.register(path, paused))
+
+    def _let_file_go(self, raw_alias: str) -> None:
+        from provisa.federation import file_locks
+
+        held = self._file_holders.pop(raw_alias, None)
+        if held is not None:
+            file_locks.unregister(*held)
 
     # -- source introspection without a registered table (REQ-1673) -------------------------------
 
@@ -708,6 +719,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         if raw_alias in self._raw_attached:
             self._con.execute(f'DETACH "{raw_alias}"')
             self._raw_attached.discard(raw_alias)
+            self._let_file_go(raw_alias)
         # Only now that DuckDB released the previous snapshot can the fresh copy take its place.
         os.replace(scratch, self._cp_snapshot_path)
         self._con.execute(
@@ -1374,6 +1386,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         return schema, _batches()
 
     def close(self) -> None:
+        for raw_alias in list(self._file_holders):
+            self._let_file_go(raw_alias)
         self._con.close()
         with self._cp_lock:  # never tear the snapshot out from under a refresh in flight
             if self._cp_snapshot_dir:

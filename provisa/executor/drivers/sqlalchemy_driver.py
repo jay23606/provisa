@@ -51,6 +51,20 @@ def _to_named_params(sql: str, params: list | None) -> tuple[str, dict[str, Any]
     return out, bind
 
 
+def _writes(sql: str) -> bool:
+    """Whether ``sql`` changes the database: anything but a query, EXPLAIN or PRAGMA."""
+    import sqlglot
+    from sqlglot import exp
+
+    reads = (exp.Query, exp.Pragma, exp.Describe, exp.Show)
+    return any(
+        statement is not None
+        and not isinstance(statement, reads)
+        and not (isinstance(statement, exp.Command) and statement.name.upper() == "EXPLAIN")
+        for statement in sqlglot.parse(sql, read="sqlite")
+    )
+
+
 class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
     """A DirectDriver backed by a synchronous SQLAlchemy engine, offloaded to threads.
 
@@ -99,6 +113,8 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
 
         engine = self._engine
         assert engine is not None
+        if self._drivername.startswith("sqlite") and _writes(sql):
+            return self._write_sqlite(sql, bind)
         with engine.begin() as conn:  # begin() commits on success, rolls back on error
             result = conn.execute(text(sql), bind)
             if result.returns_rows:
@@ -110,6 +126,34 @@ class SQLAlchemyDriver(DirectDriver):  # REQ-229, REQ-550
             return QueryResult(
                 rows=[], column_names=[], rowcount=rowcount if rowcount >= 0 else None
             )
+
+    def _write_sqlite(self, sql: str, bind: dict[str, Any]) -> QueryResult:
+        """REQ-1997, the maintainer's ruling on writes to file databases: "just error them out
+        when they can't a lock on it". A SQLite file is locked by a write transaction: this one
+        does not wait for another (busy_timeout 0), and when the file is locked the write is
+        refused as that, named where the source is known (``executor.pool``)."""
+        from sqlalchemy import exc, text
+
+        from provisa.federation.file_locks import FileLocked, refuse_unprotected
+
+        engine = self._engine
+        assert engine is not None
+        refuse_unprotected(engine.url.database or "")
+        try:
+            with engine.begin() as conn:
+                conn.exec_driver_sql("PRAGMA busy_timeout = 0")
+                result = conn.execute(text(sql), bind)
+                if result.returns_rows:
+                    rows = [tuple(row) for row in result.fetchall()]
+                    return QueryResult(rows=rows, column_names=list(result.keys()))
+                rowcount = result.rowcount
+                return QueryResult(
+                    rows=[], column_names=[], rowcount=rowcount if rowcount >= 0 else None
+                )
+        except exc.OperationalError as failed:
+            if "database is locked" in str(failed.orig):
+                raise FileLocked(engine.url.database or "") from None
+            raise
 
     async def close(self) -> None:
         engine = self._engine

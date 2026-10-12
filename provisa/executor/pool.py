@@ -114,8 +114,13 @@ class SourcePool:  # REQ-052, REQ-053
         params: list | None = None,
     ) -> QueryResult:
         """Execute SQL against a source's driver."""
+        from provisa.federation.file_locks import FileLocked, UnprotectedWrite
+
         driver = self._drivers[source_id]
-        return await driver.execute(sql, params)
+        try:
+            return await driver.execute(sql, params)
+        except (FileLocked, UnprotectedWrite) as refused:
+            raise refused.of(source_id) from None  # REQ-1997: the refusal names the source
 
     def supports_stream(self, source_id: str) -> bool:  # REQ-1190
         """Whether this source's driver can open a bounded server-side cursor (streaming DIRECT read)."""
