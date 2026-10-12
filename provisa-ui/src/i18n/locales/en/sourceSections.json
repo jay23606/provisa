@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "Source sections",
+    "connection": "Connection",
+    "authentication": "Authentication",
+    "load": "Load",
+    "tables": "Tables",
+    "operations": "Operations",
+    "tableName": "Table",
+    "tableDomain": "Domain",
+    "draft": "Draft",
+    "commands": "Commands",
+    "commandName": "Command",
+    "commandKind": "Kind"
+  }
+}

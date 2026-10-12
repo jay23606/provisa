@@ -205,7 +205,11 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
       {!organisation && (
         <FieldGroup>
           {/* The button that connects the mailbox sits at the end of its address. */}
-          <FormField hint={t("googleWorkspaceFields.accountHelp")} size="medium">
+          <FormField
+            section="authentication"
+            hint={t("googleWorkspaceFields.accountHelp")}
+            size="medium"
+          >
             <TextInput
               label={t("googleWorkspaceFields.account")}
               placeholder="ada@example.com"

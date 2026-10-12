@@ -53,7 +53,11 @@ export function SalesforceFields<F extends ConnectionForm>({
     setFields({ ...fields, [key]: e.currentTarget.value });
   return (
     <>
-      <FormField hint={t("sourceFormFieldsExtended.sfLoginUrlHelp")} size="long">
+      <FormField
+        section="authentication"
+        hint={t("sourceFormFieldsExtended.sfLoginUrlHelp")}
+        size="long"
+      >
         <TextInput
           required
           label={t("sourceFormFieldsExtended.sfLoginUrl")}
@@ -68,7 +72,7 @@ export function SalesforceFields<F extends ConnectionForm>({
           data-testid="salesforce-login-url-input"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <Select
           label={t("sourceFormFieldsExtended.authType")}
           value={type}
@@ -83,7 +87,7 @@ export function SalesforceFields<F extends ConnectionForm>({
       </FormField>
       {salesforceUsesConnectedApp(type) && (
         <>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <TextInput
               required
               label={t("sourceFormFieldsExtended.sfConsumerKey")}
@@ -92,7 +96,7 @@ export function SalesforceFields<F extends ConnectionForm>({
               data-testid="salesforce-consumer-key-input"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <PasswordInput
               required
               label={t("sourceFormFieldsExtended.sfConsumerSecret")}
@@ -107,7 +111,7 @@ export function SalesforceFields<F extends ConnectionForm>({
       {type === "USERNAME_PASSWORD" && (
         <>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 required
                 label={t("sourceFormFieldsExtended.sfUsername")}
@@ -117,7 +121,7 @@ export function SalesforceFields<F extends ConnectionForm>({
                 data-testid="salesforce-username-input"
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.sfPassword")}
@@ -128,7 +132,11 @@ export function SalesforceFields<F extends ConnectionForm>({
               />
             </FormField>
           </FieldGroup>
-          <FormField hint={t("sourceFormFieldsExtended.sfSecurityTokenHelp")} size="medium">
+          <FormField
+            section="authentication"
+            hint={t("sourceFormFieldsExtended.sfSecurityTokenHelp")}
+            size="medium"
+          >
             <PasswordInput
               label={t("sourceFormFieldsExtended.sfSecurityToken")}
               value={fields.security_token ?? ""}
@@ -141,7 +149,7 @@ export function SalesforceFields<F extends ConnectionForm>({
       )}
       {type === "ACCESS_TOKEN" && (
         <>
-          <FormField size="long">
+          <FormField section="authentication" size="long">
             <PasswordInput
               required
               label={t("sourceFormFieldsExtended.sfAccessToken")}

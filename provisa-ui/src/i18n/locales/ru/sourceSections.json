@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "Разделы источника",
+    "connection": "Подключение",
+    "authentication": "Аутентификация",
+    "load": "Загрузка",
+    "tables": "Таблицы",
+    "operations": "Операции",
+    "tableName": "Таблица",
+    "tableDomain": "Домен",
+    "draft": "Черновик",
+    "commands": "Команды",
+    "commandName": "Команда",
+    "commandKind": "Вид"
+  }
+}

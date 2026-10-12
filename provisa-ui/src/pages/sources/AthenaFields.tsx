@@ -96,7 +96,7 @@ export function AthenaFields<F extends ConnectionForm>({
         />
       </FormField>
       <FieldGroup>
-        <FormField size="medium" hint={t("athenaFields.accessKeyHint")}>
+        <FormField section="authentication" size="medium" hint={t("athenaFields.accessKeyHint")}>
           <TextInput
             label={t("athenaFields.accessKeyId")}
             value={form.username}
@@ -104,7 +104,7 @@ export function AthenaFields<F extends ConnectionForm>({
             data-testid="athena-access-key-input"
           />
         </FormField>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <PasswordInput
             label={t("athenaFields.secretAccessKey")}
             required={!!form.username}
@@ -114,7 +114,7 @@ export function AthenaFields<F extends ConnectionForm>({
           />
         </FormField>
       </FieldGroup>
-      <FormField size="long" hint={t("athenaFields.roleArnHint")}>
+      <FormField section="authentication" size="long" hint={t("athenaFields.roleArnHint")}>
         <TextInput
           label={t("athenaFields.roleArn")}
           value={fields.role_arn ?? ""}

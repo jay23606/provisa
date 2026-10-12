@@ -215,14 +215,14 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             )}
           </FieldGroup>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 label={t("sourceFormFields.username")}
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 label={t("sourceFormFields.password")}
                 value={form.password}
@@ -252,7 +252,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // REQ-1731: HiveDriver.configure() reads `auth_mechanism` from Source.federation_hints,
         // defaulting to PLAIN when unset (stock HS2's SASL PLAIN, works with any/no credentials).
         // GSSAPI (Kerberos) and LDAP are the other mechanisms impyla supports against a real HS2.
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <Select
             label={t("sourceFormFields.authMechanism")}
             data={[
@@ -376,7 +376,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               placeholder="optional"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <TextInput
               label={t("sourceFormFields.role")}
               value={authFields.role ?? ""}
@@ -384,7 +384,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               placeholder="optional"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -413,7 +413,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {authType === "key_pair" && (
             <>
-              <FormField size="medium">
+              <FormField section="authentication" size="medium">
                 <TextInput
                   label={t("sourceFormFields.username")}
                   required
@@ -423,7 +423,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                   }
                 />
               </FormField>
-              <FormField size="long">
+              <FormField section="authentication" size="long">
                 <TextInput
                   label={t("sourceFormFields.privateKeyPath")}
                   required
@@ -434,7 +434,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                   placeholder="/path/to/rsa_key.p8"
                 />
               </FormField>
-              <FormField size="medium">
+              <FormField section="authentication" size="medium">
                 <PasswordInput
                   label={t("sourceFormFields.passphrase")}
                   value={authFields.passphrase ?? ""}
@@ -447,7 +447,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             </>
           )}
           {authType === "oauth" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 label={t("sourceFormFields.token")}
                 required
@@ -473,7 +473,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               placeholder="my-gcp-project"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -492,7 +492,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             />
           </FormField>
           {authType === "service_account" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <TextInput
                 label={t("sourceFormFields.credentialsJsonPath")}
                 required
@@ -535,7 +535,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               placeholder="/sql/1.0/warehouses/xxxxxxxxxxxxxxxx"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -554,7 +554,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             />
           </FormField>
           {authType === "token" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 label={t("sourceFormFields.accessToken")}
                 required
@@ -569,7 +569,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           {authType === "oauth" && (
             <>
               <FieldGroup>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <TextInput
                     label={t("sourceFormFields.clientId")}
                     required
@@ -579,7 +579,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                     }
                   />
                 </FormField>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <PasswordInput
                     label={t("sourceFormFields.clientSecret")}
                     required
@@ -590,7 +590,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                   />
                 </FormField>
               </FieldGroup>
-              <FormField size="long">
+              <FormField section="authentication" size="long">
                 <TextInput
                   label={t("sourceFormFields.tokenUrl")}
                   required
@@ -665,14 +665,14 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             // handleEdit), unlike authFields which nothing ever repopulated for redshift.
           }
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 label={t("sourceFormFields.username")}
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.currentTarget.value })}
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 label={t("sourceFormFields.password")}
                 value={form.password}
@@ -689,7 +689,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // (models.py's Source.jdbc_url, federation_hints["tls_fingerprint"]) — absent, the driver
         // validates against the truststore as usual.
         <>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -705,7 +705,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             />
           </FormField>
           {authType === "tls_fingerprint" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <TextInput
                 label={t("sourceFormFields.tlsFingerprint")}
                 required
@@ -726,7 +726,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
         // deployments (models.py's Source.jdbc_url, federation_hints["trust_server_certificate"])
         // — absent, the driver validates against the truststore as usual (encrypt=true implies
         // trustServerCertificate=false by default).
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <Select
             data-testid="sqlserver-cert-trust-select"
             label={t("sourceFormFields.sqlserverCertTrust")}
@@ -770,7 +770,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               onChange={(e) => setForm({ ...form, database: e.currentTarget.value })}
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -787,7 +787,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           </FormField>
           {authType === "service_principal" && (
             <>
-              <FormField size="medium">
+              <FormField section="authentication" size="medium">
                 <TextInput
                   label={t("sourceFormFields.tenantId")}
                   required
@@ -798,7 +798,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                 />
               </FormField>
               <FieldGroup>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <TextInput
                     label={t("sourceFormFields.clientId")}
                     required
@@ -808,7 +808,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                     }
                   />
                 </FormField>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <PasswordInput
                     label={t("sourceFormFields.clientSecret")}
                     required
@@ -845,7 +845,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               />
             </FormField>
           </FieldGroup>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.authentication")}
               data={[
@@ -866,7 +866,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             <AuthUserPass authFields={authFields} setAuthFields={setAuthFields} />
           )}
           {authType === "api_key" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 label={t("sourceFormFields.apiKeyBase64")}
                 required
@@ -877,7 +877,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             </FormField>
           )}
           {authType === "bearer" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <PasswordInput
                 label={t("sourceFormFields.token")}
                 required
@@ -938,7 +938,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {/* REQ-229: hive_s3 DECLARES S3 storage — TrinoHiveS3Connector always wires the native S3
               filesystem, so the "none"/hadoop-local option `hive` offers makes no sense here. */}
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <Select
               label={t("sourceFormFields.storageAuthentication")}
               data={
@@ -968,7 +968,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           {authType === "aws" && (
             <>
               <FieldGroup>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <TextInput
                     label={t("sourceFormFields.accessKeyId")}
                     required
@@ -979,7 +979,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                     placeholder="${env:AWS_ACCESS_KEY_ID}"
                   />
                 </FormField>
-                <FormField size="medium">
+                <FormField section="authentication" size="medium">
                   <PasswordInput
                     label={t("sourceFormFields.secretAccessKey")}
                     required
@@ -1038,7 +1038,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                   }
                 />
               </FormField>
-              <FormField size="medium">
+              <FormField section="authentication" size="medium">
                 <PasswordInput
                   label={t("sourceFormFields.accessKey")}
                   value={authFields.access_key ?? ""}
@@ -1048,7 +1048,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                   placeholder="shared key (or use SAS)"
                 />
               </FormField>
-              <FormField size="long">
+              <FormField section="authentication" size="long">
                 <PasswordInput
                   label={t("sourceFormFields.sasToken")}
                   value={authFields.sas_token ?? ""}
@@ -1061,7 +1061,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             </>
           )}
           {authType === "gcs" && (
-            <FormField size="long">
+            <FormField section="authentication" size="long">
               <TextInput
                 label={t("sourceFormFields.credentialsJsonPath")}
                 required

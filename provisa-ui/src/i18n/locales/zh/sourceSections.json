@@ -1,0 +1,16 @@
+{
+  "sourceSections": {
+    "label": "数据源分区",
+    "connection": "连接",
+    "authentication": "身份验证",
+    "load": "加载",
+    "tables": "表",
+    "operations": "操作",
+    "tableName": "表",
+    "tableDomain": "域",
+    "draft": "草稿",
+    "commands": "命令",
+    "commandName": "命令",
+    "commandKind": "类型"
+  }
+}

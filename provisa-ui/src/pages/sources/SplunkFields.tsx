@@ -54,7 +54,7 @@ export function SplunkFields({
           />
         </FormField>
       </FieldGroup>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <Select
           label={t("sourceFormFieldsExtended.authMethod")}
           value={splunkAuthMode}
@@ -68,7 +68,7 @@ export function SplunkFields({
         />
       </FormField>
       {splunkAuthMode === "token" ? (
-        <FormField size="long">
+        <FormField section="authentication" size="long">
           <PasswordInput
             required
             label={t("sourceFormFieldsExtended.authToken")}
@@ -81,7 +81,7 @@ export function SplunkFields({
       ) : (
         <>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <TextInput
                 required
                 label={t("sourceFormFieldsExtended.username")}
@@ -90,7 +90,7 @@ export function SplunkFields({
                 data-testid="splunk-username-input"
               />
             </FormField>
-            <FormField size="medium">
+            <FormField section="authentication" size="medium">
               <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.password")}

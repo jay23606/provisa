@@ -148,7 +148,7 @@ export function OpenApiFormSection({
           data-testid="openapi-cache-ttl-input"
         />
       </FormField>
-      <FormField size="medium">
+      <FormField section="authentication" size="medium">
         <Select
           label={t("openApiFormSection.authenticationLabel")}
           value={authType}
@@ -162,7 +162,7 @@ export function OpenApiFormSection({
         />
       </FormField>
       {authType === "bearer" && (
-        <FormField size="long">
+        <FormField section="authentication" size="long">
           <PasswordInput
             required
             label={t("openApiFormSection.tokenLabel")}
@@ -188,7 +188,7 @@ export function OpenApiFormSection({
               data-testid="openapi-header-name-input"
             />
           </FormField>
-          <FormField size="long">
+          <FormField section="authentication" size="long">
             <PasswordInput
               required
               label={t("openApiFormSection.apiKeyLabel")}

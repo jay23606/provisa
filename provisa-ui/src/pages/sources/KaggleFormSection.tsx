@@ -153,7 +153,11 @@ export function KaggleFormSection({ sourceIdHint, onSourcesRegistered }: KaggleF
 
   return (
     <>
-      <FormField hint={t("kaggleFormSection.tokenDescription")} size="long">
+      <FormField
+        section="authentication"
+        hint={t("kaggleFormSection.tokenDescription")}
+        size="long"
+      >
         <PasswordInput
           required
           label={t("kaggleFormSection.tokenLabel")}

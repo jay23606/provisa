@@ -5888,5 +5888,17 @@
   "pt/tableSections.json::tableSections.outcome.warn": "Warn",
   "pt/tableSections.json::tableSections.outcome.fail": "Fail",
   "pt/tableSections.json::tableSections.outcome.error": "Error",
-  "pt/tableSections.json::tableSections.outcome.skipped": "Skipped"
+  "pt/tableSections.json::tableSections.outcome.skipped": "Skipped",
+  "pt/sourceSections.json::sourceSections.label": "Source sections",
+  "pt/sourceSections.json::sourceSections.connection": "Connection",
+  "pt/sourceSections.json::sourceSections.authentication": "Authentication",
+  "pt/sourceSections.json::sourceSections.load": "Load",
+  "pt/sourceSections.json::sourceSections.tables": "Tables",
+  "pt/sourceSections.json::sourceSections.operations": "Operations",
+  "pt/sourceSections.json::sourceSections.tableName": "Table",
+  "pt/sourceSections.json::sourceSections.tableDomain": "Domain",
+  "pt/sourceSections.json::sourceSections.draft": "Draft",
+  "pt/sourceSections.json::sourceSections.commands": "Commands",
+  "pt/sourceSections.json::sourceSections.commandName": "Command",
+  "pt/sourceSections.json::sourceSections.commandKind": "Kind"
 }

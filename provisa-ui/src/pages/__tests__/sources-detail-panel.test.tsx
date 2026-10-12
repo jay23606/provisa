@@ -229,6 +229,7 @@ describe("+ Source asks only what a source needs in order to exist", () => {
     await screen.findByTestId("sources-edit-submit");
     expect(screen.getByTestId("sources-split-title")).toHaveTextContent("crm");
     expect(within(panel()!).getByLabelText("Description")).toHaveValue("");
+    await userEvent.click(screen.getByTestId("source-section-load"));
     expect(within(panel()!).getByTestId("source-load-management-panel")).toBeInTheDocument();
   });
 });

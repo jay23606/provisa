@@ -51,7 +51,7 @@ export function CosmosDbFields({ form, setForm, fields, setFields }: Props) {
         </FormField>
       </FieldGroup>
       <FieldGroup>
-        <FormField size="medium">
+        <FormField section="authentication" size="medium">
           <Select
             label={t("cosmosDbFields.auth")}
             data={[
@@ -76,7 +76,7 @@ export function CosmosDbFields({ form, setForm, fields, setFields }: Props) {
       </FieldGroup>
       {entra && (
         <FieldGroup>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <TextInput
               required
               label={t("cosmosDbFields.tenantId")}
@@ -85,7 +85,7 @@ export function CosmosDbFields({ form, setForm, fields, setFields }: Props) {
               data-testid="cosmosdb-tenant-id"
             />
           </FormField>
-          <FormField size="medium">
+          <FormField section="authentication" size="medium">
             <TextInput
               required
               label={t("cosmosDbFields.clientId")}
