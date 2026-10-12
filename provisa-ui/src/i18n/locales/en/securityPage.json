@@ -33,11 +33,6 @@
     "chooseDomains": "Choose domains",
     "domainsRequired": "A role must list at least one domain, or All Domains. Choose its domains to save.",
     "detailsHidden": "Details require user management.",
-    "labelId": "ID:",
-    "labelDomain": "Domain:",
-    "labelTable": "Table:",
-    "labelRole": "Role:",
-    "labelFilter": "Filter:",
     "domainPrefix": "domain:",
     "applyTo": "Apply To",
     "applyToTable": "Specific Table",
@@ -63,7 +58,6 @@
     "actionPrefix": "action:",
     "loadActionsFailed": "Could not load actions: {{message}}",
     "ruleMissing": "Before saving, choose or fill in: {{fields}}",
-    "labelAction": "Action:",
     "deleteRoleTitle": "Delete role \"{{id}}\"?",
     "deleteRoleConsequence": "The role is removed. A role that is still in use cannot be deleted.",
     "deleteRuleTitle": "Delete this RLS rule?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Max query complexity",
     "maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
     "maxQueryTimeMs": "Max query time (ms)",
-    "unlimited": "unlimited"
+    "unlimited": "unlimited",
+    "ruleId": "Rule ID"
   }
 }

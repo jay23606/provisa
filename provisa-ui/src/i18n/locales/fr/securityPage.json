@@ -33,11 +33,6 @@
     "chooseDomains": "Choisir des domaines",
     "domainsRequired": "Un rôle doit lister au moins un domaine, ou Tous les domaines. Choisissez ses domaines pour enregistrer.",
     "detailsHidden": "Les détails nécessitent la gestion des utilisateurs.",
-    "labelId": "ID :",
-    "labelDomain": "Domaine :",
-    "labelTable": "Table :",
-    "labelRole": "Rôle :",
-    "labelFilter": "Filtre :",
     "domainPrefix": "domain:",
     "applyTo": "Appliquer à",
     "applyToTable": "Table spécifique",
@@ -63,7 +58,6 @@
     "actionPrefix": "action :",
     "loadActionsFailed": "Impossible de charger les actions : {{message}}",
     "ruleMissing": "Avant d'enregistrer, choisissez ou renseignez : {{fields}}",
-    "labelAction": "Action :",
     "deleteRoleTitle": "Supprimer le rôle « {{id}} » ?",
     "deleteRoleConsequence": "Le rôle est supprimé. Un rôle encore utilisé ne peut pas être supprimé.",
     "deleteRuleTitle": "Supprimer cette règle RLS ?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Complexité maximale de requête",
     "maxQueryComplexityHint": "Relations, jointures, colonnes et requêtes imbriquées d'une instruction, sur chaque interface. La limite de l'organisation s'applique toujours.",
     "maxQueryTimeMs": "Durée maximale de requête (ms)",
-    "unlimited": "illimité"
+    "unlimited": "illimité",
+    "ruleId": "ID de la règle"
   }
 }

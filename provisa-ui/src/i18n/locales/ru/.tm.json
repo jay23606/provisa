@@ -3364,12 +3364,6 @@
   "ru/securityPage.json::securityPage.filterByRoleOrTable": "Filter by role or table…",
   "ru/securityPage.json::securityPage.filterExpression": "Filter Expression",
   "ru/securityPage.json::securityPage.filterExpressionPlaceholder": "region = 'US' AND status = 'active'",
-  "ru/securityPage.json::securityPage.labelAction": "Action:",
-  "ru/securityPage.json::securityPage.labelDomain": "Domain:",
-  "ru/securityPage.json::securityPage.labelFilter": "Filter:",
-  "ru/securityPage.json::securityPage.labelId": "ID:",
-  "ru/securityPage.json::securityPage.labelRole": "Role:",
-  "ru/securityPage.json::securityPage.labelTable": "Table:",
   "ru/securityPage.json::securityPage.loadActionsFailed": "Could not load actions: {{message}}",
   "ru/securityPage.json::securityPage.loadingRoles": "Loading roles...",
   "ru/securityPage.json::securityPage.loadingRules": "Loading RLS rules...",
@@ -5798,5 +5792,6 @@
   "ru/securityPage.json::securityPage.maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
   "ru/securityPage.json::securityPage.maxQueryTimeMs": "Max query time (ms)",
   "ru/securityPage.json::securityPage.unlimited": "unlimited",
-  "ru/detailFields.json::detailFields.empty": "—"
+  "ru/detailFields.json::detailFields.empty": "—",
+  "ru/securityPage.json::securityPage.ruleId": "Rule ID"
 }

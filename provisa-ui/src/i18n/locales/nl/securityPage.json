@@ -33,11 +33,6 @@
     "chooseDomains": "Domeinen kiezen",
     "domainsRequired": "Een rol moet ten minste één domein vermelden, of Alle domeinen. Kies de domeinen om op te slaan.",
     "detailsHidden": "Voor details is gebruikersbeheer vereist.",
-    "labelId": "ID:",
-    "labelDomain": "Domein:",
-    "labelTable": "Tabel:",
-    "labelRole": "Rol:",
-    "labelFilter": "Filter:",
     "domainPrefix": "domain:",
     "applyTo": "Toepassen op",
     "applyToTable": "Specifieke tabel",
@@ -63,7 +58,6 @@
     "actionPrefix": "actie:",
     "loadActionsFailed": "Acties laden mislukt: {{message}}",
     "ruleMissing": "Kies of vul in vóór het opslaan: {{fields}}",
-    "labelAction": "Actie:",
     "deleteRoleTitle": "Rol \"{{id}}\" verwijderen?",
     "deleteRoleConsequence": "De rol wordt verwijderd. Een rol die nog in gebruik is, kan niet worden verwijderd.",
     "deleteRuleTitle": "Deze RLS-regel verwijderen?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Maximale querycomplexiteit",
     "maxQueryComplexityHint": "Relaties, joins, kolommen en geneste queries van één statement, op elke interface. De limiet van de organisatie blijft gelden.",
     "maxQueryTimeMs": "Maximale querytijd (ms)",
-    "unlimited": "onbeperkt"
+    "unlimited": "onbeperkt",
+    "ruleId": "Regel-ID"
   }
 }

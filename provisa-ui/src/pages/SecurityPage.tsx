@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { Tip } from "../components/Tip";
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -308,33 +309,37 @@ export function SecurityRolesPage() {
           <PanelActions>
             <fieldset className="panel-action-set">
               <Group gap="xs">
-                <ActionIcon
-                  aria-label={t("securityPage.edit")}
-                  data-testid={`edit-role-${r.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEditingRole(r);
-                  }}
-                >
-                  <Pencil size={14} />
-                </ActionIcon>
+                <Tip text={t("securityPage.edit")} named>
+                  <ActionIcon
+                    aria-label={t("securityPage.edit")}
+                    data-testid={`edit-role-${r.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditingRole(r);
+                    }}
+                  >
+                    <Pencil size={14} />
+                  </ActionIcon>
+                </Tip>
                 <ConfirmDialog
                   title={t("securityPage.deleteRoleTitle", { id: r.id })}
                   consequence={t("securityPage.deleteRoleConsequence")}
                   onConfirm={() => handleDeleteRole(r.id)}
                 >
                   {(open) => (
-                    <ActionIcon
-                      color="red"
-                      aria-label={t("securityPage.delete")}
-                      data-testid={`delete-role-${r.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        open();
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </ActionIcon>
+                    <Tip text={t("securityPage.delete")} named>
+                      <ActionIcon
+                        color="red"
+                        aria-label={t("securityPage.delete")}
+                        data-testid={`delete-role-${r.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          open();
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </ActionIcon>
+                    </Tip>
                   )}
                 </ConfirmDialog>
               </Group>

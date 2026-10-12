@@ -3365,12 +3365,6 @@
   "zh-HK/securityPage.json::securityPage.filterByRoleOrTable": "Filter by role or table…",
   "zh-HK/securityPage.json::securityPage.filterExpression": "Filter Expression",
   "zh-HK/securityPage.json::securityPage.filterExpressionPlaceholder": "region = 'US' AND status = 'active'",
-  "zh-HK/securityPage.json::securityPage.labelAction": "Action:",
-  "zh-HK/securityPage.json::securityPage.labelDomain": "Domain:",
-  "zh-HK/securityPage.json::securityPage.labelFilter": "Filter:",
-  "zh-HK/securityPage.json::securityPage.labelId": "ID:",
-  "zh-HK/securityPage.json::securityPage.labelRole": "Role:",
-  "zh-HK/securityPage.json::securityPage.labelTable": "Table:",
   "zh-HK/securityPage.json::securityPage.loadActionsFailed": "Could not load actions: {{message}}",
   "zh-HK/securityPage.json::securityPage.loadingRoles": "Loading roles...",
   "zh-HK/securityPage.json::securityPage.loadingRules": "Loading RLS rules...",
@@ -5799,5 +5793,6 @@
   "zh-HK/securityPage.json::securityPage.maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
   "zh-HK/securityPage.json::securityPage.maxQueryTimeMs": "Max query time (ms)",
   "zh-HK/securityPage.json::securityPage.unlimited": "unlimited",
-  "zh-HK/detailFields.json::detailFields.empty": "—"
+  "zh-HK/detailFields.json::detailFields.empty": "—",
+  "zh-HK/securityPage.json::securityPage.ruleId": "Rule ID"
 }

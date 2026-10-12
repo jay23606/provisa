@@ -43,6 +43,10 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "residencyGrant.right": "the data_residency capability's tick: shown in Capabilities",
     },
   },
+  "Security › RLS Rules": {
+    read: ["pages/security/RlsRuleRead.tsx"],
+    form: ["pages/security/SecurityRlsPage.tsx"],
+  },
 };
 
 /** The catalog keys a file gives as a field's label: `label={t("key")}`. */

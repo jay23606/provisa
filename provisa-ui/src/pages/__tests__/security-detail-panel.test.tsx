@@ -13,6 +13,7 @@
 // under its own title; Escape never drops a form that is being typed into.
 
 import { describe, it, expect, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { render, screen, fireEvent, waitFor, within } from "../../test-utils/render";
 
 const upsertRoleSpy = vi.fn(async (_input: Record<string, unknown>) => ({
@@ -162,5 +163,27 @@ describe("SecurityRlsPage: the right-hand detail panel", () => {
     expect(within(panel).getByTestId("save-rule")).toBeTruthy();
     fireEvent.keyDown(panel, { key: "Escape" });
     expect(screen.getByTestId("save-rule")).toBeTruthy();
+  });
+});
+
+describe("the Security panels' head actions", () => {
+  it("name a role's edit and delete in the shared hint", async () => {
+    render(<SecurityRolesPage />);
+    fireEvent.click(rowIn("roles-list", "analyst"));
+    await userEvent.hover(screen.getByTestId("edit-role-analyst"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Edit");
+    await userEvent.unhover(screen.getByTestId("edit-role-analyst"));
+    await userEvent.hover(screen.getByTestId("delete-role-analyst"));
+    await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("Delete"));
+  });
+
+  it("name a rule's edit and delete in the shared hint", async () => {
+    render(<SecurityRlsPage />);
+    fireEvent.click(rowIn("rules-list", "analyst"));
+    await userEvent.hover(screen.getByTestId("edit-rule-1"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Edit");
+    await userEvent.unhover(screen.getByTestId("edit-rule-1"));
+    await userEvent.hover(screen.getByTestId("delete-rule-1"));
+    await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("Delete"));
   });
 });

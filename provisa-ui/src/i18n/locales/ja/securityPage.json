@@ -33,11 +33,6 @@
     "chooseDomains": "ドメインを選択",
     "domainsRequired": "ロールには少なくとも 1 つのドメイン、または「すべてのドメイン」を指定する必要があります。保存するにはドメインを選択してください。",
     "detailsHidden": "詳細の表示にはユーザー管理権限が必要です。",
-    "labelId": "ID:",
-    "labelDomain": "ドメイン:",
-    "labelTable": "テーブル:",
-    "labelRole": "ロール:",
-    "labelFilter": "フィルター:",
     "domainPrefix": "domain:",
     "applyTo": "適用対象",
     "applyToTable": "特定のテーブル",
@@ -63,7 +58,6 @@
     "actionPrefix": "アクション:",
     "loadActionsFailed": "アクションを読み込めませんでした: {{message}}",
     "ruleMissing": "保存する前に次を選択または入力してください: {{fields}}",
-    "labelAction": "アクション:",
     "deleteRoleTitle": "ロール「{{id}}」を削除しますか？",
     "deleteRoleConsequence": "ロールは削除されます。使用中のロールは削除できません。",
     "deleteRuleTitle": "この RLS ルールを削除しますか？",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "最大クエリ複雑度",
     "maxQueryComplexityHint": "1 つの文のリレーション、結合、列、ネストしたクエリ。すべてのインターフェイスで数えます。組織の制限も引き続き適用されます。",
     "maxQueryTimeMs": "最大クエリ時間 (ms)",
-    "unlimited": "無制限"
+    "unlimited": "無制限",
+    "ruleId": "ルール ID"
   }
 }

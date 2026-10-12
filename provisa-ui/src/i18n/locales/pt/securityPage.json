@@ -33,11 +33,6 @@
     "chooseDomains": "Escolher domínios",
     "domainsRequired": "Um papel tem de indicar pelo menos um domínio, ou Todos os domínios. Escolha os seus domínios para salvar.",
     "detailsHidden": "Os detalhes exigem gerenciamento de usuários.",
-    "labelId": "ID:",
-    "labelDomain": "Domínio:",
-    "labelTable": "Tabela:",
-    "labelRole": "Função:",
-    "labelFilter": "Filtro:",
     "domainPrefix": "domain:",
     "applyTo": "Aplicar a",
     "applyToTable": "Tabela específica",
@@ -63,7 +58,6 @@
     "actionPrefix": "ação:",
     "loadActionsFailed": "Não foi possível carregar as ações: {{message}}",
     "ruleMissing": "Antes de salvar, escolha ou preencha: {{fields}}",
-    "labelAction": "Ação:",
     "deleteRoleTitle": "Excluir a função \"{{id}}\"?",
     "deleteRoleConsequence": "A função é removida. Uma função que ainda está em uso não pode ser excluída.",
     "deleteRuleTitle": "Excluir esta regra RLS?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Complexidade máxima de consulta",
     "maxQueryComplexityHint": "Relações, junções, colunas e consultas aninhadas de uma instrução, em cada interface. O limite da organização continua a aplicar-se.",
     "maxQueryTimeMs": "Tempo máximo de consulta (ms)",
-    "unlimited": "ilimitado"
+    "unlimited": "ilimitado",
+    "ruleId": "ID da regra"
   }
 }
