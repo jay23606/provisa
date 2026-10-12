@@ -15,7 +15,7 @@ import { Link } from "react-router-dom";
 import type { RegisteredTable, Relationship } from "../../types/admin";
 import { fetchRelatedGlossaryTerms, type RelatedGlossaryTerm } from "../../api/glossary";
 import { TagControl } from "../../components/TagControl";
-import { DetailFields, type DetailField } from "./DetailFields";
+import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
 
 /**
  * What a table is associated with besides its data product, the same in its read view and its
