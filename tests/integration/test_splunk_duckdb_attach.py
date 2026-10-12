@@ -195,8 +195,15 @@ def splunk_source(prime: ModuleType) -> Source:
 
 @pytest.fixture(scope="module")
 def attached(splunk_source: Source):
-    """The real bundle started for this source, and a DuckDB that has ATTACHed its endpoint."""
-    details = DuckDBSplunkConnector().details(splunk_source)  # starts the server, waits to listen
+    """The real bundle started for this source, and a DuckDB that has ATTACHed its endpoint.
+    Started as work for the deployment's org, as the boot attaches it: the server's state and its
+    port are the org's (REQ-1992), and a module fixture runs outside each test's binding."""
+    from tests.conftest import as_deployment_org
+    from tests.helpers import ready_org_folder
+
+    with as_deployment_org():
+        ready_org_folder()
+        details = DuckDBSplunkConnector().details(splunk_source)  # starts the server, waits
     con = duckdb.connect()
     con.execute("INSTALL postgres")
     con.execute("LOAD postgres")

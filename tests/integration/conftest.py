@@ -339,11 +339,12 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _deployment_org_bound(request: pytest.FixtureRequest):
+def _deployment_org_bound(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch):
     """Integration tests run as work for the deployment's own org (REQ-1266), as the unit harness
     does: a test that drives a core path directly (apply_config, a resolver, a repository) stands in
     for the boot or the request that binds it. An entrypoint under test binds for itself either way;
-    ``@pytest.mark.unbound`` runs a test with nothing bound."""
+    ``@pytest.mark.unbound`` runs a test with nothing bound. It asks for ``monkeypatch`` itself, so
+    monkeypatch is torn down after it: the teardown below undoes it while the org is bound."""
     if request.node.get_closest_marker("unbound") is not None:
         yield
         return
@@ -356,14 +357,11 @@ def _deployment_org_bound(request: pytest.FixtureRequest):
         # stays in that fixture's task.
         import provisa.api.app as app_mod
 
-        request.getfixturevalue("monkeypatch").setattr(
-            app_mod.state, "org_id", served.args[0], raising=False
-        )
+        monkeypatch.setattr(app_mod.state, "org_id", served.args[0], raising=False)
     with as_deployment_org():
         yield
-        if "monkeypatch" in request.fixturenames:
-            # A routed AppState attribute monkeypatch replaced is put back while the org is bound.
-            request.getfixturevalue("monkeypatch").undo()
+        # A routed AppState attribute monkeypatch replaced is put back while the org is bound.
+        monkeypatch.undo()
 
 
 @pytest.fixture(autouse=True, scope="module")

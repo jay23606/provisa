@@ -93,6 +93,7 @@ async def two_orgs():
 
     from provisa.api.app import _rebuild_schemas, build_org_runtime, create_app, state
     from provisa.core.config_loader import apply_config, parse_config_dict
+    from tests.helpers import register_org, unregister_org
 
     mp = MonkeyPatch()
     mp.setenv("PROVISA_CONFIG", _CONFIG)
@@ -115,7 +116,11 @@ async def two_orgs():
                         await conn.execute(
                             f"INSERT INTO {schema}.marks VALUES ($1, $2, $3, $4)", *row
                         )
+            registered = []
             for org, (schema, _rows) in _ORGS.items():
+                # An org is created before its runtime is built (REQ-1992 reads its row).
+                if await register_org(state.admin_db, org):
+                    registered.append(org)
                 rt = await build_org_runtime(org, include_demo=True)
                 assert rt.live_engine is not None, "the org's prod runtime holds its live engine"
                 token = set_current_org(org)
@@ -148,6 +153,8 @@ async def two_orgs():
                 yield state
             finally:
                 await _drop(state)
+                for org in registered:
+                    await unregister_org(state.admin_db, org)
     finally:
         mp.undo()
 

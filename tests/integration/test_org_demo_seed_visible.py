@@ -52,6 +52,7 @@ async def demo_org():
 
     from provisa.api.app import build_org_runtime, create_app, state
     from provisa.core.request_context import reset_current_org, set_current_org
+    from tests.helpers import register_org, unregister_org
 
     # Scoped to this module's fixture, never at import time: pytest imports every test module
     # before running anything, so an import-time PROVISA_CONFIG would point EVERY other in-process
@@ -70,6 +71,8 @@ async def demo_org():
                 await conn.execute(f"DROP SCHEMA IF EXISTS {_SCHEMA} CASCADE")
                 await conn.execute(f"DROP SCHEMA IF EXISTS {_SCHEMA}_mv_cache CASCADE")
 
+            # An org is created before its runtime is built (REQ-1992 reads its row).
+            registered = await register_org(state.admin_db, _ORG_ID)
             rt = await build_org_runtime(_ORG_ID, include_demo=True)
             token = set_current_org(_ORG_ID)
             try:
@@ -80,6 +83,8 @@ async def demo_org():
                 async with rt.tenant_db.acquire() as conn:
                     await conn.execute(f"DROP SCHEMA IF EXISTS {_SCHEMA} CASCADE")
                     await conn.execute(f"DROP SCHEMA IF EXISTS {_SCHEMA}_mv_cache CASCADE")
+                if registered:
+                    await unregister_org(state.admin_db, _ORG_ID)
     finally:
         mp.undo()
 

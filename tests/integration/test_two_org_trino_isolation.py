@@ -90,9 +90,13 @@ async def test_two_orgs_isolated_and_simultaneously_queryable(app_state):
     # The default/bootstrap org keeps the bare catalog name (never org-prefixed).
     assert state.org_registry.get(state.org_id).source_catalogs["sales-pg"] == "sales_pg"
 
-    acme = await build_org_runtime("acme", include_demo=True)
-    beta = await build_org_runtime("beta", include_demo=True)
+    from tests.helpers import register_org, unregister_org
+
+    # An org is created before its runtime is built (REQ-1992 reads its row).
+    registered = [org for org in ("acme", "beta") if await register_org(state.admin_db, org)]
     try:
+        acme = await build_org_runtime("acme", include_demo=True)
+        beta = await build_org_runtime("beta", include_demo=True)
         # Identical demo source_id ("sales-pg") → distinct org-prefixed catalogs, no collision.
         assert acme.source_catalogs["sales-pg"] == "org_acme__sales_pg"
         assert beta.source_catalogs["sales-pg"] == "org_beta__sales_pg"
@@ -127,3 +131,5 @@ async def test_two_orgs_isolated_and_simultaneously_queryable(app_state):
     finally:
         await _drop_catalog(state, "org_acme__sales_pg")
         await _drop_catalog(state, "org_beta__sales_pg")
+        for org in registered:
+            await unregister_org(state.admin_db, org)
