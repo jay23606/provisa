@@ -3366,12 +3366,9 @@
   "zh-HK/securityPage.json::securityPage.filterExpression": "Filter Expression",
   "zh-HK/securityPage.json::securityPage.filterExpressionPlaceholder": "region = 'US' AND status = 'active'",
   "zh-HK/securityPage.json::securityPage.labelAction": "Action:",
-  "zh-HK/securityPage.json::securityPage.labelCapabilities": "Capabilities:",
   "zh-HK/securityPage.json::securityPage.labelDomain": "Domain:",
-  "zh-HK/securityPage.json::securityPage.labelDomainAccess": "Domain Access:",
   "zh-HK/securityPage.json::securityPage.labelFilter": "Filter:",
   "zh-HK/securityPage.json::securityPage.labelId": "ID:",
-  "zh-HK/securityPage.json::securityPage.labelParentRole": "Inherits from:",
   "zh-HK/securityPage.json::securityPage.labelRole": "Role:",
   "zh-HK/securityPage.json::securityPage.labelTable": "Table:",
   "zh-HK/securityPage.json::securityPage.loadActionsFailed": "Could not load actions: {{message}}",
@@ -5794,5 +5791,13 @@
   "zh-HK/tableSections.json::tableSections.contractSet": "Set",
   "zh-HK/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
   "zh-HK/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
-  "zh-HK/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked"
+  "zh-HK/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
+  "zh-HK/securityPage.json::securityPage.demonstrated": "Demonstrated capabilities",
+  "zh-HK/securityPage.json::securityPage.limitsHeading": "Rate & query-complexity limits",
+  "zh-HK/securityPage.json::securityPage.rateReqPerSec": "Requests / sec",
+  "zh-HK/securityPage.json::securityPage.maxQueryComplexity": "Max query complexity",
+  "zh-HK/securityPage.json::securityPage.maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+  "zh-HK/securityPage.json::securityPage.maxQueryTimeMs": "Max query time (ms)",
+  "zh-HK/securityPage.json::securityPage.unlimited": "unlimited",
+  "zh-HK/detailFields.json::detailFields.empty": "—"
 }

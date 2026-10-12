@@ -37,6 +37,7 @@ import { useDomainFilter } from "../context/DomainFilterContext";
 import { PageLoading } from "../components/PageLoading";
 import { useDependentsDialog } from "../hooks/useDependentsDialog";
 import { ResidencyGrant } from "../components/admin/ResidencyGrant";
+import { RoleRead } from "./security/RoleRead";
 import { CapabilityGrid, DomainsNote } from "./security/RoleFormParts";
 import { useRegionChoices } from "../hooks/useRegionQueries";
 import { ListTable, ListHead, ListRow, ListItems } from "../components/list/ListTable";
@@ -341,23 +342,7 @@ export function SecurityRolesPage() {
           </PanelActions>
         )}
         {editingRoleInRow !== r.id ? (
-          <Stack gap="xs">
-            <Text>
-              <strong>{t("securityPage.labelId")}</strong> {r.id}
-            </Text>
-            <Text>
-              <strong>{t("securityPage.labelCapabilities")}</strong>{" "}
-              {r.capabilities.join(", ") || t("securityPage.none")}
-            </Text>
-            <Text>
-              <strong>{t("securityPage.labelDomainAccess")}</strong>{" "}
-              {r.domain_access.join(", ") || t("securityPage.noDomains")}
-            </Text>
-            <Text data-testid={`role-parent-${r.id}`}>
-              <strong>{t("securityPage.labelParentRole")}</strong>{" "}
-              {r.parentRoleId || t("securityPage.none")}
-            </Text>
-          </Stack>
+          <RoleRead role={r} />
         ) : (
           <FormLayout>
             <CapabilityGrid
@@ -401,13 +386,13 @@ export function SecurityRolesPage() {
             {/* REQ-1174: per-role rate + query-complexity limits. Blank = unlimited on that dimension. */}
             <FormField size="full">
               <Text size="sm" fw={600}>
-                {t("securityPage.limitsHeading", "Rate & query-complexity limits")}
+                {t("securityPage.limitsHeading")}
               </Text>
             </FormField>
             <FormField size="short">
               <NumberInput
-                label={t("securityPage.rateReqPerSec", "Requests / sec")}
-                placeholder={t("securityPage.unlimited", "unlimited")}
+                label={t("securityPage.rateReqPerSec")}
+                placeholder={t("securityPage.unlimited")}
                 min={1}
                 data-testid="role-req-per-sec"
                 value={roleForm.reqPerSec}
@@ -416,16 +401,10 @@ export function SecurityRolesPage() {
                 }
               />
             </FormField>
-            <FormField
-              help={t(
-                "securityPage.maxQueryComplexityHint",
-                "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
-              )}
-              size="short"
-            >
+            <FormField help={t("securityPage.maxQueryComplexityHint")} size="short">
               <NumberInput
-                label={t("securityPage.maxQueryComplexity", "Max query complexity")}
-                placeholder={t("securityPage.unlimited", "unlimited")}
+                label={t("securityPage.maxQueryComplexity")}
+                placeholder={t("securityPage.unlimited")}
                 min={1}
                 data-testid="role-max-complexity"
                 value={roleForm.maxComplexity}
@@ -436,8 +415,8 @@ export function SecurityRolesPage() {
             </FormField>
             <FormField size="short">
               <NumberInput
-                label={t("securityPage.maxQueryTimeMs", "Max query time (ms)")}
-                placeholder={t("securityPage.unlimited", "unlimited")}
+                label={t("securityPage.maxQueryTimeMs")}
+                placeholder={t("securityPage.unlimited")}
                 min={1}
                 data-testid="role-max-time-ms"
                 value={roleForm.maxTimeMs}

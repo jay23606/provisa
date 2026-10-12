@@ -16,7 +16,6 @@
     "parentRole": "Eredita da",
     "parentRoleNone": "Nessun genitore",
     "parentRoleHelp": "Le concessioni, la visibilità delle colonne e le regole RLS del ruolo vengono ereditate; la regola RLS propria di questo ruolo per una tabella sostituisce quella del genitore.",
-    "labelParentRole": "Eredita da:",
     "allDomains": "Tutti i domini",
     "save": "Salva",
     "cancel": "Annulla",
@@ -35,8 +34,6 @@
     "domainsRequired": "Un ruolo deve elencare almeno un dominio, oppure Tutti i domini. Scegli i suoi domini per salvare.",
     "detailsHidden": "I dettagli richiedono la gestione degli utenti.",
     "labelId": "ID:",
-    "labelCapabilities": "Capacità:",
-    "labelDomainAccess": "Accesso ai domini:",
     "labelDomain": "Dominio:",
     "labelTable": "Tabella:",
     "labelRole": "Ruolo:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Dettagli della regola RLS",
     "panelNewRole": "Nuovo ruolo",
     "panelNewRule": "Nuova regola RLS",
-    "panelRule": "Regola RLS {{id}}"
+    "panelRule": "Regola RLS {{id}}",
+    "demonstrated": "Capacità mostrate",
+    "limitsHeading": "Limiti di frequenza e di complessità delle query",
+    "rateReqPerSec": "Richieste / s",
+    "maxQueryComplexity": "Complessità massima della query",
+    "maxQueryComplexityHint": "Relazioni, join, colonne e query annidate di un'istruzione, su ogni interfaccia. Il limite dell'organizzazione resta valido.",
+    "maxQueryTimeMs": "Tempo massimo della query (ms)",
+    "unlimited": "illimitato"
   }
 }

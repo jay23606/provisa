@@ -16,7 +16,6 @@
     "parentRole": "繼承自",
     "parentRoleNone": "無父角色",
     "parentRoleHelp": "會繼承此角色的授權、欄位可見性和 RLS 規則；此角色針對某個數據表自有的 RLS 規則會取代父角色的規則。",
-    "labelParentRole": "繼承自：",
     "allDomains": "所有網域",
     "save": "儲存",
     "cancel": "取消",
@@ -35,8 +34,6 @@
     "domainsRequired": "角色必須至少列出一個網域，或選擇「所有網域」。請選擇其網域後再儲存。",
     "detailsHidden": "詳細資料需要用戶管理權限。",
     "labelId": "ID：",
-    "labelCapabilities": "功能：",
-    "labelDomainAccess": "網域存取：",
     "labelDomain": "網域：",
     "labelTable": "數據表：",
     "labelRole": "角色：",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "RLS 規則詳情",
     "panelNewRole": "新增角色",
     "panelNewRule": "新增 RLS 規則",
-    "panelRule": "RLS 規則 {{id}}"
+    "panelRule": "RLS 規則 {{id}}",
+    "demonstrated": "示範的權限",
+    "limitsHeading": "速率與查詢複雜度限制",
+    "rateReqPerSec": "請求 / 秒",
+    "maxQueryComplexity": "最大查詢複雜度",
+    "maxQueryComplexityHint": "一條語句的關係、連接、欄和巢狀查詢，適用於所有介面。組織的限制仍然適用。",
+    "maxQueryTimeMs": "最大查詢時間 (ms)",
+    "unlimited": "無限制"
   }
 }

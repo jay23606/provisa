@@ -3365,12 +3365,9 @@
   "pt/securityPage.json::securityPage.filterExpression": "Filter Expression",
   "pt/securityPage.json::securityPage.filterExpressionPlaceholder": "region = 'US' AND status = 'active'",
   "pt/securityPage.json::securityPage.labelAction": "Action:",
-  "pt/securityPage.json::securityPage.labelCapabilities": "Capabilities:",
   "pt/securityPage.json::securityPage.labelDomain": "Domain:",
-  "pt/securityPage.json::securityPage.labelDomainAccess": "Domain Access:",
   "pt/securityPage.json::securityPage.labelFilter": "Filter:",
   "pt/securityPage.json::securityPage.labelId": "ID:",
-  "pt/securityPage.json::securityPage.labelParentRole": "Inherits from:",
   "pt/securityPage.json::securityPage.labelRole": "Role:",
   "pt/securityPage.json::securityPage.labelTable": "Table:",
   "pt/securityPage.json::securityPage.loadActionsFailed": "Could not load actions: {{message}}",
@@ -5793,5 +5790,13 @@
   "pt/tableSections.json::tableSections.contractSet": "Set",
   "pt/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
   "pt/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
-  "pt/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked"
+  "pt/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
+  "pt/securityPage.json::securityPage.demonstrated": "Demonstrated capabilities",
+  "pt/securityPage.json::securityPage.limitsHeading": "Rate & query-complexity limits",
+  "pt/securityPage.json::securityPage.rateReqPerSec": "Requests / sec",
+  "pt/securityPage.json::securityPage.maxQueryComplexity": "Max query complexity",
+  "pt/securityPage.json::securityPage.maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+  "pt/securityPage.json::securityPage.maxQueryTimeMs": "Max query time (ms)",
+  "pt/securityPage.json::securityPage.unlimited": "unlimited",
+  "pt/detailFields.json::detailFields.empty": "—"
 }

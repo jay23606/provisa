@@ -36,6 +36,13 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "components/relationships/JunctionPanel.tsx",
     ],
   },
+  "Security › Roles": {
+    read: ["pages/security/RoleRead.tsx"],
+    form: ["pages/SecurityPage.tsx", "components/admin/ResidencyGrant.tsx"],
+    notAField: {
+      "residencyGrant.right": "the data_residency capability's tick: shown in Capabilities",
+    },
+  },
 };
 
 /** The catalog keys a file gives as a field's label: `label={t("key")}`. */
