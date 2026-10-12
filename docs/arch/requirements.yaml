@@ -78459,3 +78459,32 @@
   related_reqs:
   - REQ-1992
   notes: 'Maintainer 2026-10-12, through the lead: "the filebased datasource - like duckdb and sqlite, csv, parquet still don''t have a method of uploading the file (effectively putting the file into the org''s file location and updating the path to point to it)"; then "does it support ALL types of URIs?". On several nodes the maintainer settled one shared file mount (the coordinator''s folder, through terraform or helm), so an upload written on one node is seen by every node. The maintainer has ruled that all org files are durable: nothing is deleted on its own. The size-limit setting (1 GiB by default), the replace and remove behaviour, the registrar right, read-only remote attaches with writes refused by name, and downloading a remote SQLite file for an engine that does not attach it are the lead''s. Delta and Iceberg on Azure and GCS stay out (a DuckDB limit). Found while designing: on main only the Parquet connector gave DuckDB an object-store secret, for s3 only; CSV had none, and none gave GCS or Azure. A remote SQLite file on an engine that does not attach it is read through a throwaway DuckDB connection rather than downloaded (the lead''s ruling, 2026-10-12: one secret for every store, and no Azure client among the dependencies). On writes the maintainer ruled (2026-10-12, through the lead): "writes back to file databases in a multi-node env - just error them out when they can''t a lock on it." Measured with duckdb 1.5.5 and the stdlib sqlite3 on macOS, and proven on Linux and Windows by tests/unit/test_file_db_locks.py in CI: DuckDB locks a file for as long as it is open (read-only opens share; any other pair excludes), SQLite per write transaction. gocryptfs does not pass an application''s file locks through (its FUSE lock handlers are an unimplemented TODO, internal/fusefrontend/file_api_check.go; -sharedstorage locks only its own block writes), hence the outright refusal on an encrypted shared folder, the lead''s ruling. org_files.shared_mount is declared with REQ-1992''s multi-node settings and set by Helm''s provisa.orgFiles.sharedVolume.'
+- id: REQ-2001
+  status: proposed
+  since: 2026-10
+  group: 3. Source Registration & Data Modeling
+  category: Commands
+  priority: SHOULD
+  type: behavioral
+  description: 'A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller''s rights like any statement, its arguments bound as values, never spliced. It is invocable on every surface commands are, can be run by a scheduled trigger or an event, and every run is audited. An INSERT ... SELECT command writes its result into its target table through that table''s write route, so a command can compute rows across sources and write them to one target.'
+  scenario: 'Given a statement command embed_tickets(since timestamp) whose statement is INSERT INTO kb.docs (id, title, body_vec) SELECT ticket_id, subject, embed(''text-embedding-3-small'', subject) FROM support.tickets WHERE updated_at > :since
+
+    When a steward runs it with since set to yesterday
+
+    Then the changed tickets are embedded and upserted into the Qdrant collection, and the run is in the audit log
+
+    When a scheduled trigger runs it every hour
+
+    Then each run writes only the rows its argument selects'
+  related_reqs: [REQ-885, REQ-2000, REQ-2002]
+  notes: 'Maintainer 2026-10-12, through the lead: an embedding job into Qdrant, "couldn''t it be a type of mv?", then "so could it be a command then?", then "instead of an mv". The statement kind and its argument binding are the lead''s proposal.'
+- id: REQ-2002
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Vector Search
+  priority: SHOULD
+  type: behavioral
+  description: 'embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model the caller''s role may not use, or one not in the registry, is refused naming it.'
+  related_reqs: [REQ-430, REQ-2001]
+  notes: 'Maintainer 2026-10-12, through the lead, as part of the Qdrant embedding command.'

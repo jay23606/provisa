@@ -23003,3 +23003,27 @@ Logs is a source type that turns log files into tables. A source names a file gl
 **Code:** `provisa/logparse/`, `provisa/logs/`, `provisa/api/admin/logs_router.py`, `provisa-ui/src/pages/sources/LogsFields.tsx`, `provisa-ui/src/pages/sources/logs.ts`
 
 **Tests:** `tests/unit/test_logparse.py`, `tests/unit/test_logparse_amazon.py`, `tests/unit/test_logparse_databases.py`, `tests/unit/test_logparse_evtx.py`, `tests/unit/test_logparse_google.py`, `tests/unit/test_logparse_linux.py`, `tests/unit/test_logparse_microsoft.py`, `tests/unit/test_logparse_security.py`, `tests/unit/test_logparse_web.py`, `tests/unit/test_logs_source.py`, `provisa-ui/src/pages/sources/__tests__/logs.test.tsx`
+
+## 3. Source Registration & Data Modeling
+
+### REQ-2001 · Commands {#REQ-2001}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller's rights like any statement, its arguments bound as values, never spliced. It is invocable on every surface commands are, can be run by a scheduled trigger or an event, and every run is audited. An INSERT ... SELECT command writes its result into its target table through that table's write route, so a command can compute rows across sources and write them to one target.
+
+**Code:** —
+
+**Tests:** —
+
+## 4. Source Connectors
+
+### REQ-2002 · Vector Search {#REQ-2002}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model the caller's role may not use, or one not in the registry, is refused naming it.
+
+**Code:** —
+
+**Tests:** —
