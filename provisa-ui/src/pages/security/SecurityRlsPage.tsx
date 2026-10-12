@@ -406,7 +406,6 @@ export function SecurityRlsPage() {
             <fieldset className="panel-action-set">
               <Group gap="xs">
                 <ActionIcon
-                  variant="subtle"
                   aria-label={t("securityPage.edit")}
                   data-testid={`edit-rule-${r.id}`}
                   onClick={(e) => {
@@ -425,7 +424,6 @@ export function SecurityRlsPage() {
                 >
                   {(open) => (
                     <ActionIcon
-                      variant="subtle"
                       color="red"
                       aria-label={t("securityPage.delete")}
                       data-testid={`delete-rule-${r.id}`}

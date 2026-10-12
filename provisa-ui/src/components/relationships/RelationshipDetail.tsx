@@ -82,7 +82,6 @@ export function RelationshipDetail({
             <Group gap="sm">
               <Tip text={t("relationshipRow.edit")} named>
                 <ActionIcon
-                  variant="subtle"
                   aria-label={t("relationshipRow.edit")}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -94,7 +93,6 @@ export function RelationshipDetail({
               </Tip>
               <Tip text={t("relationshipRow.generateReverse")} named>
                 <ActionIcon
-                  variant="subtle"
                   aria-label={t("relationshipRow.generateReverse")}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -112,7 +110,6 @@ export function RelationshipDetail({
                 {(open) => (
                   <Tip text={t("relationshipRow.delete")} named>
                     <ActionIcon
-                      variant="subtle"
                       color="red"
                       aria-label={t("relationshipRow.delete")}
                       onClick={(e) => {

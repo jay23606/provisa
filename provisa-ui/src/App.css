@@ -753,9 +753,29 @@ main {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A thin line between the object's name and the head's actions: the name's own trailing edge,
+ * so it stays with the name when the actions wrap to a second row. A head with no actions has
+ * nothing for it to separate the name from. */
+.split-pane__head:has(> .split-pane__actions:not(:empty)) > .split-pane__title {
+  line-height: 1.625rem; /* the height of a head action */
+  padding-inline-end: 0.75rem;
+  margin-inline-end: 0.25rem;
+  border-inline-end: 1px solid var(--border);
+}
 .split-pane__actions {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* Every action in the head: one gap, and out of use it is dimmed, never boxed. The look itself
+ * (no background, no border, one height) is PanelHeadStyle's. */
+.split-pane__head .mantine-Group-root {
+  gap: 0.25rem;
+}
+.split-pane__head :is(.mantine-Button-root, .mantine-ActionIcon-root):disabled,
+.split-pane__head :is(.mantine-Button-root, .mantine-ActionIcon-root)[data-disabled] {
+  background: transparent;
+  border-color: transparent;
+  opacity: 0.45;
 }
 .split-pane__actions:empty {
   min-height: 1px;

@@ -165,7 +165,6 @@ export function SourceDetailPanel({
         <Group gap="xs" wrap="nowrap">
           <Tip text={t("sourceDetailPanel.editTitle")} named>
             <ActionIcon
-              variant="subtle"
               aria-label={t("sourceDetailPanel.editTitle")}
               data-testid="source-detail-edit"
               onClick={(e) => {
@@ -179,7 +178,6 @@ export function SourceDetailPanel({
           {s.id !== "provisa-otel" && (
             <Tip text={t("sourceDetailPanel.navigateTitle")} named>
               <ActionIcon
-                variant="subtle"
                 aria-label={t("sourceDetailPanel.navigateTitle")}
                 data-testid="source-detail-navigate"
                 onClick={(e) => {
@@ -194,7 +192,6 @@ export function SourceDetailPanel({
           {kaggleOrigin && (
             <Tip text={t("sourceDetailPanel.refreshKaggleTitle")} named>
               <ActionIcon
-                variant="subtle"
                 aria-label={t("sourceDetailPanel.refreshKaggleTitle")}
                 data-testid="source-detail-refresh-kaggle"
                 onClick={(e) => {
@@ -211,7 +208,6 @@ export function SourceDetailPanel({
             // REQ-1934: an ad hoc run of every member table, beside the source's other actions.
             <Tip text={t("sourceDetailPanel.runProfilerTitle")} named>
               <ActionIcon
-                variant="subtle"
                 aria-label={t("sourceDetailPanel.runProfilerTitle")}
                 data-testid="source-detail-run-profiler"
                 loading={profiling}
@@ -232,7 +228,6 @@ export function SourceDetailPanel({
             {(open) => (
               <Tip text={t("sourceDetailPanel.deleteTitleShort")} named>
                 <ActionIcon
-                  variant="subtle"
                   color="red"
                   aria-label={t("sourceDetailPanel.deleteTitleShort")}
                   data-testid="source-detail-delete"

@@ -111,12 +111,10 @@ export function TableReadView({
   const actions = (
     <PanelActions>
       <fieldset className="panel-action-set">
-        <Group justify="flex-start" p="0.5rem" gap="0.5rem" wrap="wrap">
+        <Group justify="flex-start" wrap="wrap">
           <ReplicatingMark build={build} size="detail" />
           {table.viewSql && (
             <Button
-              size="compact-sm"
-              variant="default"
               data-testid="table-read-view-edit-sql"
               onClick={(e) => {
                 e.stopPropagation();
@@ -131,8 +129,6 @@ export function TableReadView({
           )}
           {table.viewSql && onEditDefinition && !hidingOnly && (
             <Button
-              size="compact-sm"
-              variant="default"
               data-testid="table-read-view-edit-definition"
               onClick={(e) => {
                 e.stopPropagation();
@@ -145,8 +141,6 @@ export function TableReadView({
           )}
           {table.canDeployToDb && !hidingOnly && (
             <Button
-              size="compact-sm"
-              variant="default"
               data-testid="table-read-view-deploy"
               onClick={async (e) => {
                 e.stopPropagation();
@@ -172,8 +166,6 @@ export function TableReadView({
           {/* A table that needs a value for a required parameter is asked for it first: Preview
               in its own viewer, Profile in the dialog its handler opens. */}
           <Button
-            size="compact-sm"
-            variant="default"
             data-testid="table-read-view-preview"
             onClick={(e) => {
               e.stopPropagation();
@@ -185,8 +177,6 @@ export function TableReadView({
           </Button>
           {!hidingOnly && (
             <Button
-              size="compact-sm"
-              variant="default"
               data-testid="table-read-view-profile"
               onClick={(e) => {
                 e.stopPropagation();
@@ -201,8 +191,6 @@ export function TableReadView({
             </Button>
           )}
           <Button
-            size="compact-sm"
-            variant="default"
             data-testid="table-read-view-policies"
             title={t("tableReadView.policiesTitle")}
             onClick={(e) => {
@@ -217,7 +205,6 @@ export function TableReadView({
           {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
               too; it shows none of them and its save names none, so the store keeps them. */}
           <ActionIcon
-            variant="subtle"
             aria-label={t("tableReadView.editButtonLabel", { name: table.tableName })}
             data-testid="table-read-view-edit"
             onClick={(e) => {
@@ -229,7 +216,6 @@ export function TableReadView({
           </ActionIcon>
           {!hidingOnly && (
             <ActionIcon
-              variant="subtle"
               color="red"
               aria-label={t("tableReadView.deleteButtonLabel", { name: table.tableName })}
               data-testid="table-read-view-delete"

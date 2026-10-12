@@ -597,7 +597,6 @@ export function CommandsPage() {
             <PanelActions>
               <Group gap="sm" wrap="nowrap">
                 <ActionIcon
-                  variant="default"
                   aria-label={t("commandsPage.editAria", { name: fn.name })}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -607,8 +606,6 @@ export function CommandsPage() {
                   <Pencil size={14} />
                 </ActionIcon>
                 <Button
-                  variant="light"
-                  size="xs"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTest("function", fn.name);
@@ -631,7 +628,6 @@ export function CommandsPage() {
                 >
                   {(open) => (
                     <ActionIcon
-                      variant="subtle"
                       color="red"
                       aria-label={t("commandsPage.deleteFunctionAria", {
                         name: fn.name,
@@ -762,7 +758,6 @@ export function CommandsPage() {
             <PanelActions>
               <Group gap="sm" wrap="nowrap">
                 <ActionIcon
-                  variant="default"
                   aria-label={t("commandsPage.editAria", { name: wh.name })}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -772,8 +767,6 @@ export function CommandsPage() {
                   <Pencil size={14} />
                 </ActionIcon>
                 <Button
-                  variant="light"
-                  size="xs"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleTest("webhook", wh.name);
@@ -796,7 +789,6 @@ export function CommandsPage() {
                 >
                   {(open) => (
                     <ActionIcon
-                      variant="subtle"
                       color="red"
                       aria-label={t("commandsPage.deleteWebhookAria", {
                         name: wh.name,
