@@ -55,6 +55,7 @@ const LITERAL = { name: "{{name}}", query_vector: "{{query_vector}}" };
 const KEYS = {
   sparql: ["sparqlQueryLabel", "sparqlQueryHint", "sparqlQueryPlaceholder"],
   mongodb: ["pipelineQueryLabel", "pipelineQueryHint", "pipelineQueryPlaceholder"],
+  cosmosdb: ["cosmosQueryLabel", "cosmosQueryHint", "cosmosQueryPlaceholder"],
   neo4j: ["neo4jCypherLabel", "neo4jCypherHint", "neo4jCypherPlaceholder"],
 } as const;
 
@@ -166,7 +167,15 @@ export function QueryTableFields(props: Props) {
   const { t } = useTranslation();
   const { sourceType, pipeline, query, setQuery, previewing } = props;
   const [label, hint, placeholder] =
-    KEYS[pipeline ? "mongodb" : sourceType === "sparql" ? "sparql" : "neo4j"];
+    KEYS[
+      pipeline
+        ? sourceType === "cosmosdb"
+          ? "cosmosdb"
+          : "mongodb"
+        : sourceType === "sparql"
+          ? "sparql"
+          : "neo4j"
+    ];
   return (
     <>
       <FormField size="full">
@@ -187,7 +196,7 @@ export function QueryTableFields(props: Props) {
           placeholder={t(`registerTableForm.${placeholder}`, LITERAL)}
           data-testid={
             pipeline
-              ? "register-table-mongodb-pipeline"
+              ? `register-table-${sourceType}-pipeline`
               : sourceType === "sparql"
                 ? "register-table-sparql-query"
                 : "register-table-neo4j-cypher"

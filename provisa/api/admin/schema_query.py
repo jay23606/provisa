@@ -1395,6 +1395,29 @@ class Query:  # REQ-021, REQ-042
                 cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
             )
 
+    @strawberry.field
+    async def cosmos_query_preview(
+        self,
+        info: StrawberryInfo,
+        source_id: str,
+        native_query: str,
+        arguments: JsonScalar,
+    ) -> QueryPreviewType:
+        """REQ-1982: preview a Cosmos DB query table's query with sample arguments (a list of
+        ``{name, dataType, value}``): up to five documents and the columns they suggest. Failures
+        come back as ``error``."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._query_api_registration import preview_cosmos_query
+
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            return await preview_cosmos_query(
+                cast("Connection", conn),
+                source_id,
+                native_query,
+                cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
+            )
+
     # ── Admin: Data-quality contracts (REQ-1443) ──
 
     @strawberry.field

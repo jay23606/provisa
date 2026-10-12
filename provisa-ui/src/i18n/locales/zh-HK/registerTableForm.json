@@ -124,6 +124,11 @@
     "mongoModeLabel": "表讀取的內容",
     "mongoModeCollection": "集合",
     "mongoModePipeline": "管道",
-    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+    "cosmosModeContainer": "容器",
+    "cosmosModeQuery": "查詢",
+    "cosmosQueryLabel": "查詢",
+    "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- 每個 @name 都是參數，與查詢分開傳送",
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
   }
 }

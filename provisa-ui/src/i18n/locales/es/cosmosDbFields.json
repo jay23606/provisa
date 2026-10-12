@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "Punto de conexión de la cuenta",
+    "endpointHint": "El URI de la cuenta, tal como lo muestra el portal de Azure en Claves.",
+    "database": "Base de datos",
+    "auth": "Iniciar sesión con",
+    "authKey": "Clave de la cuenta",
+    "authEntra": "Entidad de servicio de Microsoft Entra",
+    "accountKey": "Clave de la cuenta",
+    "clientSecret": "Secreto de cliente",
+    "secretHint": "Una referencia a un secreto, como ${env:NAME}, se resuelve al leer el origen.",
+    "tenantId": "Id. de inquilino",
+    "clientId": "Id. de cliente"
+  }
+}

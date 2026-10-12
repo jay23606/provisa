@@ -135,10 +135,10 @@ def check_table(table: Any) -> CosmosQuery | None:
     return query
 
 
-def _json_value(value: Any) -> Any:
+def json_value(value: Any) -> Any:
     """A converted parameter value as the JSON value Cosmos is sent."""
     if isinstance(value, list):
-        return [_json_value(v) for v in value]
+        return [json_value(v) for v in value]
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, (datetime, date)):
@@ -186,13 +186,13 @@ def plan(table: dict, given: dict | None) -> tuple[str, str, list[dict], Any]:
         (v for v, col in arguments.values() if col["native_filter_type"] == PARTITION_KEY), None
     )
     if query is None:
-        return table["table_name"], "SELECT * FROM c", [], _json_value(partition)
+        return table["table_name"], "SELECT * FROM c", [], json_value(partition)
     parameters = [
-        {"name": f"@{name}", "value": _json_value(value)}
+        {"name": f"@{name}", "value": json_value(value)}
         for name, (value, col) in arguments.items()
         if col["native_filter_type"] == QUERY_ARG
     ]
-    return query.container, query.query, parameters, _json_value(partition)
+    return query.container, query.query, parameters, json_value(partition)
 
 
 async def read(state: Any, table: dict, given: dict | None) -> Any:

@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "アカウントのエンドポイント",
+    "endpointHint": "Azure ポータルの [キー] に表示されるアカウントの URI。",
+    "database": "データベース",
+    "auth": "サインイン方法",
+    "authKey": "アカウント キー",
+    "authEntra": "Microsoft Entra サービス プリンシパル",
+    "accountKey": "アカウント キー",
+    "clientSecret": "クライアント シークレット",
+    "secretHint": "${env:NAME} のようなシークレット参照は、ソースを読み取るときに解決されます。",
+    "tenantId": "テナント ID",
+    "clientId": "クライアント ID"
+  }
+}

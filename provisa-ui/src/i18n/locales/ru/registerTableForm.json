@@ -124,6 +124,11 @@
     "mongoModeLabel": "Что читает таблица",
     "mongoModeCollection": "Коллекция",
     "mongoModePipeline": "Конвейер",
-    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+    "cosmosModeContainer": "Контейнер",
+    "cosmosModeQuery": "Запрос",
+    "cosmosQueryLabel": "Запрос",
+    "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- каждый @name -- аргумент, передаваемый отдельно от запроса",
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
   }
 }

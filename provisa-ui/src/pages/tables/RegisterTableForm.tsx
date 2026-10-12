@@ -195,7 +195,9 @@ export function RegisterTableForm({
   const isSparql = sourceType === "sparql";
   const isFilesSource = ["files", "csv", "parquet"].includes(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
-  const isPipeline = sourceType === "mongodb" && mongoMode === "pipeline";
+  // REQ-1980/REQ-1982: a document source's table is a collection or container, or a native query.
+  const isNativeQuerySource = sourceType === "mongodb" || sourceType === "cosmosdb";
+  const isPipeline = isNativeQuerySource && mongoMode === "pipeline";
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
   const pipelineArgs = columns.filter(isPipelineArgument);
   // The short step: what names the table, and only what the server will not do without. The rest
@@ -436,7 +438,11 @@ export function RegisterTableForm({
     setPreviewing(true);
     try {
       const res = await previewQuery({
-        sourceType: isPipeline ? "mongodb" : isSparql ? "sparql" : "neo4j",
+        sourceType: isPipeline
+          ? (sourceType as "mongodb" | "cosmosdb")
+          : isSparql
+            ? "sparql"
+            : "neo4j",
         sourceId,
         query: cypher.trim(),
         ...(isPipeline && {
@@ -758,17 +764,24 @@ export function RegisterTableForm({
             />
           </FormField>
         )}
-        {sourceType === "mongodb" && (
+        {isNativeQuerySource && (
           <FormField size="medium">
             <SegmentedControl
               aria-label={t("registerTableForm.mongoModeLabel")}
               value={mongoMode}
               onChange={(v) => setMongoMode(v as "collection" | "pipeline")}
-              data={[
-                { value: "collection", label: t("registerTableForm.mongoModeCollection") },
-                { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
-              ]}
-              data-testid="register-table-mongodb-mode"
+              data={
+                sourceType === "cosmosdb"
+                  ? [
+                      { value: "collection", label: t("registerTableForm.cosmosModeContainer") },
+                      { value: "pipeline", label: t("registerTableForm.cosmosModeQuery") },
+                    ]
+                  : [
+                      { value: "collection", label: t("registerTableForm.mongoModeCollection") },
+                      { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
+                    ]
+              }
+              data-testid={`register-table-${sourceType}-mode`}
             />
           </FormField>
         )}

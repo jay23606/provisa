@@ -42,6 +42,8 @@ import { SalesforceFields } from "./SalesforceFields";
 import { CloudopsFields } from "./CloudopsFields";
 import { GoogleWorkspaceFields } from "./GoogleWorkspaceFields";
 import { Microsoft365Fields } from "./Microsoft365Fields";
+import { CosmosDbFields } from "./CosmosDbFields";
+import { COSMOSDB } from "./cosmosdb";
 import { WikipediaFields } from "./WikipediaFields";
 import { SparqlFormSection } from "./SparqlFormSection";
 import { SharepointFields } from "./SharepointFields";
@@ -652,6 +654,14 @@ export function SourceFormFieldsExtended({
       )}
       {form.type === "microsoft_365" && ( // REQ-1923
         <Microsoft365Fields sourceId={form.id} fields={authFields} setFields={setAuthFields} />
+      )}
+      {form.type === COSMOSDB && ( // REQ-1982
+        <CosmosDbFields
+          form={form}
+          setForm={setForm}
+          fields={authFields}
+          setFields={setAuthFields}
+        />
       )}
       {form.type === "wikipedia" && (
         <WikipediaFields fields={authFields} setFields={setAuthFields} /> // REQ-1960

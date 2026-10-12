@@ -371,6 +371,19 @@ query MongoPipelinePreview($sourceId: String!, $nativeQuery: String!, $arguments
   }
 }
 
+# REQ-1982: a Cosmos DB query table's query run with sample arguments.
+query CosmosQueryPreview($sourceId: String!, $nativeQuery: String!, $arguments: JSON!) {
+  cosmosQueryPreview(sourceId: $sourceId, nativeQuery: $nativeQuery, arguments: $arguments) {
+    rows
+    columns {
+      name
+      dataType
+      path
+    }
+    error
+  }
+}
+
 query SparqlPreview($sourceId: String!, $query: String!) {
   sparqlPreview(sourceId: $sourceId, query: $query) {
     rows

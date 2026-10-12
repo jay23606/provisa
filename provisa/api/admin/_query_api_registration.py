@@ -135,6 +135,57 @@ async def preview_pipeline(
     )
 
 
+async def preview_cosmos_query(
+    conn: "Connection", source_id: str, native_query: str, arguments: list[dict]
+) -> "QueryPreviewType":
+    """REQ-1982: run a Cosmos DB query table's query ({"container", "query"}) with sample
+    ``arguments`` (each ``{name, dataType, value}``, sent as the query's @parameters) and return
+    up to five documents and the columns they suggest. Failures come back as ``error``."""
+    import asyncio
+    import json
+
+    from provisa.api.admin.types import QueryPreviewColumnType, QueryPreviewType
+    from provisa.cosmosdb.fetch import CosmosConnection, iter_query_batches
+    from provisa.cosmosdb.table import json_value, parse
+    from provisa.core.parameter_values import convert
+    from provisa.federation.registry_view import registered_sources
+    from provisa.mongodb.pipeline_rows import infer_columns
+
+    from provisa.api.app import state
+
+    row = await source_row(conn, source_id)
+    if row is None or row["type"] != "cosmosdb":
+        return QueryPreviewType(error=f"{source_id!r} is not a registered cosmosdb source")
+    try:
+        query = parse("preview", native_query)
+        parameters = [
+            {
+                "name": f"@{a['name']}",
+                "value": json_value(
+                    convert(a.get("value"), a["dataType"], table="preview", parameter=a["name"])
+                ),
+            }
+            for a in arguments
+        ]
+        source = next(s for s in await registered_sources(state, conn) if s.id == source_id)
+        cosmos = CosmosConnection.from_source(source)
+        docs = await asyncio.to_thread(
+            lambda: next(
+                iter_query_batches(cosmos, query.container, query.query, parameters, PREVIEW_ROWS),
+                [],
+            )[:PREVIEW_ROWS]
+        )
+    except Exception as exc:  # allow-blind-except: a preview reports every failure as its error
+        return QueryPreviewType(error=f"{type(exc).__name__}: {exc}")
+    return QueryPreviewType(
+        rows=[json.loads(json.dumps(d, default=str)) for d in docs],
+        columns=[
+            QueryPreviewColumnType(name=c.name, data_type=c.data_type, path=c.path)
+            for c in infer_columns(docs)
+        ],
+    )
+
+
 async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "MutationResult | None":
     """REQ-1980: a MongoDB table registered with a native query is a pipeline table, checked
     before its row lands: the query parses, names only its declared arguments and uses each, and

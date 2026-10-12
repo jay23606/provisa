@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "खाता एंडपॉइंट",
+    "endpointHint": "खाते का URI, जैसा Azure पोर्टल कुंजियाँ के अंतर्गत दिखाता है।",
+    "database": "डेटाबेस",
+    "auth": "इससे साइन इन करें",
+    "authKey": "खाता कुंजी",
+    "authEntra": "Microsoft Entra सेवा प्रिंसिपल",
+    "accountKey": "खाता कुंजी",
+    "clientSecret": "क्लाइंट सीक्रेट",
+    "secretHint": "${env:NAME} जैसा सीक्रेट संदर्भ स्रोत पढ़ते समय हल किया जाता है।",
+    "tenantId": "टेनेंट ID",
+    "clientId": "क्लाइंट ID"
+  }
+}
