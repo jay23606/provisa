@@ -1,0 +1,35 @@
+{
+  "force": {
+    "name": "fcose",
+    "animate": false,
+    "packComponents": true,
+    "nodeRepulsion": 10000,
+    "idealEdgeLength": 80,
+    "gravity": 0.25,
+    "numIter": 2500,
+    "nodeSeparation": 80,
+    "tilingPaddingVertical": 20,
+    "tilingPaddingHorizontal": 20
+  },
+  "hierarchy": {
+    "name": "breadthfirst",
+    "animate": false,
+    "directed": true,
+    "padding": 20,
+    "spacingFactor": 1.4
+  },
+  "elk": {
+    "name": "elk",
+    "animate": false,
+    "elk": {
+      "algorithm": "layered",
+      "elk.direction": "UP",
+      "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "150",
+      "elk.spacing.nodeNode": "60",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+      "elk.padding": "[top=40,left=20,bottom=20,right=20]"
+    }
+  }
+}

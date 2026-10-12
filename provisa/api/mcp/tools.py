@@ -21,7 +21,9 @@ here — this module only shapes catalog metadata and paginates results.
 
 from __future__ import annotations
 
+import json
 import types
+from pathlib import Path
 from typing import Any
 
 from provisa.api.flight.catalog import CatalogTable, _build_catalog_tables_async
@@ -861,6 +863,125 @@ async def run_sql(
         "offset": offset,
         "total_rows": total,
         "truncated": (offset + len(window)) < total,
+    }
+
+
+def cytoscape_elements(rows: list) -> dict:
+    """The graph a Cypher answer holds, as Cytoscape elements: every node and relationship found
+    anywhere in its rows (bare, inside a path, a list or a map), once each.
+
+    The ids are the graph page's own (GraphCanvas.tsx): a node is ``<label>:<id>``, a relationship
+    its identity, an edge's ends the ids of its nodes. Properties are the ones the Cypher
+    pipeline returned under the caller's role -- columns hidden from it are not in the answer, and
+    masked ones carry the masked value -- so nothing is added here."""
+    nodes: dict[str, dict] = {}
+    edges: dict[str, dict] = {}
+
+    def node_id(n: dict) -> str:
+        return f"{n['label']}:{n['id']}"
+
+    def add_node(n: dict) -> None:
+        nodes.setdefault(
+            node_id(n),
+            {
+                "data": {
+                    "id": node_id(n),
+                    "label": n["label"],
+                    "tableLabel": n["tableLabel"],
+                    "properties": n["properties"],
+                }
+            },
+        )
+
+    def walk(v: Any) -> None:
+        if isinstance(v, dict):
+            if "startNode" in v and "endNode" in v and "type" in v:
+                add_node(v["startNode"])
+                add_node(v["endNode"])
+                data = {
+                    "id": str(v["identity"]),
+                    "source": node_id(v["startNode"]),
+                    "target": node_id(v["endNode"]),
+                    "label": v["type"],
+                    "properties": v["properties"],
+                }
+                if "junctionTable" in v:
+                    data["junctionTable"] = v["junctionTable"]
+                edges.setdefault(data["id"], {"data": data})
+            elif "label" in v and "properties" in v and "id" in v:
+                add_node(v)
+            else:
+                for item in v.values():
+                    walk(item)
+        elif isinstance(v, list):
+            for item in v:
+                walk(item)
+
+    walk(rows)
+    return {"nodes": list(nodes.values()), "edges": list(edges.values())}
+
+
+async def run_cypher(
+    state: Any, role: str, cypher: str, params: dict | None = None, limit: int | None = None
+) -> dict:
+    """Run Cypher under ``role`` through the pipeline every Cypher surface uses (the Bolt
+    server's: parse, translate, govern, route, execute -- a write as a write) and answer its rows
+    and the graph they hold as Cytoscape elements. Rows are capped like run_sql's; the elements
+    are those of the rows returned. A PermissionError from governance propagates."""
+    from provisa.bolt.session import _execute_cypher
+
+    require_role(role, state)
+    cap = _max_rows()
+    page = cap if limit is None else min(int(limit), cap)
+    if page <= 0:
+        raise ValueError("limit must be a positive integer")
+    columns, rows, _redirect = await _execute_cypher(cypher, params or {}, role, roles=[role])
+    window = rows[:page]
+    records = [dict(zip(columns, r)) for r in window]
+    return {
+        "columns": columns,
+        "rows": records,
+        "row_count": len(window),
+        "total_rows": len(rows),
+        "truncated": len(window) < len(rows),
+        "elements": cytoscape_elements(records),
+    }
+
+
+#: The layouts render_graph offers, by name -- the UI's own options for a Cypher graph (force,
+#: hierarchy: components/graph/canvas/canvas-types.ts LAYOUT_OPTIONS) and the ERD's ELK layout
+#: (components/erd/erd-layout-options.ts). provisa-ui's graphLayoutsParity test holds the two equal.
+GRAPH_LAYOUTS_FILE = Path(__file__).with_name("graph_layouts.json")
+
+
+def render_graph(elements: dict, layout: str = "force") -> dict:
+    """The elements and the Cytoscape layout to draw them with, as the UI draws them. The client
+    runs the layout (cytoscape.use the fcose / elk extension it names); no positions are computed
+    here -- that would be a second layout engine beside the UI's."""
+    layouts = json.loads(GRAPH_LAYOUTS_FILE.read_text())
+    if layout not in layouts:
+        raise ValueError(f"layout must be one of {sorted(layouts)}, not {layout!r}")
+    nodes, edges = elements.get("nodes"), elements.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        raise ValueError(
+            "elements must be {nodes: [...], edges: [...]}, as run_cypher returns them"
+        )
+    for el in [*nodes, *edges]:
+        if (
+            not isinstance(el, dict)
+            or not isinstance(el.get("data"), dict)
+            or "id" not in el["data"]
+        ):
+            raise ValueError("every element is {data: {id, ...}}")
+    ids = {n["data"]["id"] for n in nodes}
+    for e in edges:
+        for end in ("source", "target"):
+            if e["data"].get(end) not in ids:
+                raise ValueError(f"edge {e['data']['id']!r} {end} names no node in elements")
+    return {
+        "elements": {"nodes": nodes, "edges": edges},
+        "layout": layouts[layout],
+        "extension": {"force": "cytoscape-fcose", "elk": "cytoscape-elk"}.get(layout),
     }
 
 
