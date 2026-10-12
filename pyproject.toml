@@ -359,6 +359,7 @@ markers = [
     "linux_mem: RLIMIT_AS cap test that only discriminates on Linux; on a macOS host the default lanes deselect it and the linux-mem container lane runs it instead (never a phantom skip)",
     "requires_sharepoint: requires a live SharePoint site (SHAREPOINT_* env); no self-provision",
     "requires_salesforce: requires a live Salesforce org (SF_* env); no self-provision",
+    "requires_servicenow: requires a live ServiceNow instance (SERVICENOW_* env); no self-provision",
     "requires_microsoft_365: requires a live Microsoft 365 tenant (M365_* env); no self-provision",
     "requires_google_workspace: requires a live Google Workspace domain (GWS_* env); no self-provision",
     "requires_cloudops: requires live Azure, AWS or GCP credentials (CLOUDOPS_* env); no self-provision",

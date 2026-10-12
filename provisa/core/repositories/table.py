@@ -339,6 +339,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "file_glob": getattr(table, "file_glob", None),  # REQ-788
         "source_file_column": getattr(table, "source_file_column", None),  # REQ-788
         "table_format": getattr(table, "table_format", None),  # REQ-1981
+        "import_set": getattr(table, "import_set", None),  # REQ-1954
         "delta": _delta.model_dump()
         if (_delta := getattr(table, "delta", None))
         else None,  # REQ-874
@@ -401,6 +402,7 @@ async def _upsert(conn: "Connection", table: Table) -> int | None:
         "file_glob",  # REQ-788
         "source_file_column",  # REQ-788
         "table_format",  # REQ-1981
+        "import_set",  # REQ-1954
         "delta",  # REQ-874
         "cache_ttl",  # REQ-1865
         "role_ttl",  # REQ-1907

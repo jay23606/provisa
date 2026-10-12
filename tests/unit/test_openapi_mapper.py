@@ -385,10 +385,20 @@ def _get(operation: dict) -> dict:
 
 
 def test_a_get_that_declares_no_response_schema_is_a_command_that_reads():
-    queries, (command,) = parse_spec(_get({"responses": {"200": {"description": "the diff"}}}))
-    assert queries == []
+    _queries, (command,) = parse_spec(_get({"responses": {"200": {"description": "the diff"}}}))
     assert (command.operation_id, command.method, command.reads) == ("getDiff", "GET", True)
     assert command.binary is False
+
+
+def test_a_get_that_declares_no_response_schema_is_a_table_whose_columns_are_declared():
+    """REQ-1924 (amended): nothing says what its rows hold, so it is also offered as a table
+    whose columns the steward declares when registering it."""
+    (query,), _commands = parse_spec(_get({"responses": {"200": {"description": "the diff"}}}))
+    assert (query.operation_id, query.columns_declared, query.response_schema) == (
+        "getDiff",
+        True,
+        None,
+    )
 
 
 def test_a_get_the_spec_marks_a_mutation_does_not_read():
@@ -469,7 +479,9 @@ def test_a_json_media_type_with_parameters_gives_the_columns():
 def test_the_error_response_is_never_read_as_the_rows():
     untyped = {"200": {"description": "the diff"}, "default": _ERROR}
     queries, (command,) = parse_spec(_get({"responses": untyped}))
-    assert (queries, command.response_schema, command.reads) == ([], None, True)
+    assert (command.response_schema, command.reads) == (None, True)
+    # Offered as a table, its columns are the steward's: never the error's.
+    assert [(q.columns_declared, q.response_schema) for q in queries] == [(True, None)]
 
 
 def test_a_pdf_is_a_file_and_the_error_beside_it_is_not_its_columns():

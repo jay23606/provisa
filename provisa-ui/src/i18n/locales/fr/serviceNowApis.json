@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "Les API propres de l'instance. Une API activée est proposée via {{companion}}, où ses opérations sont enregistrées comme tables et commandes. {{count}} activées.",
+    "filter": "Filtrer les API",
+    "loadFailed": "Impossible de lire les API de l'instance : {{error}}",
+    "importSetsTitle": "Import Sets",
+    "importSetRow": "{{staging}}, vers {{table}}",
+    "removeImportSet": "Retirer cet Import Set",
+    "table": "Table",
+    "importSet": "Import Set",
+    "addImportSet": "Ajouter un Import Set"
+  }
+}

@@ -107,6 +107,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _rebuild_table_input,
     _resolve_admin_context,
     _register_source_on_engine,
+    restart_source_server,
     _remove_view_mv,
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
@@ -963,8 +964,123 @@ def _residency_refusal(
     return None
 
 
+async def _delete_source(id: str) -> MutationResult:
+    """Delete source ``id`` (the deleteSource mutation, its capability already checked)."""
+    from provisa.core.repositories import source as source_repo
+    from provisa.api.app import state
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        _kind = await source_repo.get(cast("Connection", conn), id)
+    if _kind is not None and _kind["type"] == "servicenow":
+        # REQ-1954: its APIs' OpenAPI source goes first, and a dependent of that one stops
+        # the ServiceNow source's deletion too.
+        from provisa.openapi.servicenow import companion_id
+
+        _companion = await _delete_source(companion_id(id))
+        if not _companion.success and _companion.code != "schema.source_not_found":
+            return _companion
+    async with pool.acquire() as conn:
+        _conn = cast("Connection", conn)
+        # REQ-1695: read the reference before the row goes, so the vault entry it names can be
+        # removed with it. A source whose credential outlived it is a credential nothing owns.
+        _existing = await source_repo.get(_conn, id)
+        try:
+            deleted = await source_repo.delete(_conn, id)
+        except source_repo.SourceDeleteRefused as refused:
+            # REQ-1918: nothing is removed; every dependent is named.
+            return MutationResult(
+                success=False,
+                message=str(refused),
+                code=(
+                    "schema.source_has_dependents"
+                    if refused.reason == "dependents"
+                    else "schema.source_is_system"
+                ),
+                params={
+                    "source": id,
+                    "dependents": [d.as_dict() for d in refused.dependents],
+                },
+            )
+    if deleted:
+        assert _existing is not None  # delete reported a row, so get found one
+        state.graphql_remote_sources.pop(id, None)
+        # REQ-1730: was never called here at all — see _drop_source_on_engine's own comment for
+        # the exact orphaned-catalog accumulation this closes.
+        _drop_source_on_engine(state, id)
+        state.source_catalogs.pop(id, None)
+        await _rebuild_schemas()
+        if _existing["type"] == "data_profiler":  # REQ-1934: its schedule goes with it
+            from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
+
+            await reschedule_org_triggers()
+        return MutationResult(
+            success=True,
+            message=f"Source {id!r} deleted",
+            code="schema.source_deleted",
+            params={"source": id},
+        )
+    return MutationResult(
+        success=False,
+        message=f"Source {id!r} not found",
+        code="schema.source_not_found",
+        params={"source": id},
+    )
+
+
 @strawberry.type
 class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
+    @strawberry.mutation
+    async def set_servicenow_api(
+        self, info: StrawberryInfo, source_id: str, namespace: str, name: str, added: bool
+    ) -> MutationResult:
+        """Offer one of a ServiceNow instance's APIs through its source's companion OpenAPI
+        source, or stop offering it (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import set_api
+
+        try:
+            await set_api(source_id, namespace, name, added)
+        except LookupError as exc:
+            return MutationResult(
+                success=False,
+                message=str(exc).strip("'\""),
+                code="schema.servicenow_api_unknown",
+                params={"source": source_id, "api": f"{namespace}/{name}"},
+            )
+        return MutationResult(
+            success=True,
+            message=f"{namespace}/{name} {'added to' if added else 'removed from'} {source_id!r}",
+            code="schema.servicenow_api_set",
+            params={"source": source_id, "api": f"{namespace}/{name}"},
+        )
+
+    @strawberry.mutation
+    async def set_servicenow_import_set(
+        self, info: StrawberryInfo, source_id: str, table_name: str, import_set: str, added: bool
+    ) -> MutationResult:
+        """Offer a typed insert into one of a ServiceNow instance's import sets through its
+        source's companion OpenAPI source, or stop offering it (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import set_import_set
+
+        try:
+            await set_import_set(source_id, table_name, import_set, added)
+        except LookupError as exc:
+            return MutationResult(
+                success=False,
+                message=str(exc).strip("'\""),
+                code="schema.servicenow_import_set_unknown",
+                params={"source": source_id, "importSet": import_set},
+            )
+        return MutationResult(
+            success=True,
+            message=f"import set {import_set!r} {'added to' if added else 'removed from'} "
+            f"{source_id!r}",
+            code="schema.servicenow_import_set_set",
+            params={"source": source_id, "importSet": import_set},
+        )
+
     @strawberry.mutation
     async def rebuild_schemas(self, info: StrawberryInfo) -> MutationResult:
         """Rebuild in-memory schema from DB state. Useful after external DB changes."""
@@ -1373,6 +1489,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         # state.source_catalogs[input.id] moments ago. update_table/register_table already rebuild
         # on every call; create_source alone never did, because a brand-new source has no
         # registered tables yet to rebuild for. An upserted one can.
+        if input.type == "servicenow":  # REQ-1954: its APIs' OpenAPI source, kept beside it
+            from provisa.api.admin._servicenow_companion import sync_companion
+
+            async with pool.acquire() as _companion_conn:
+                await sync_companion(cast("Connection", _companion_conn), input.id)
         await _rebuild_schemas()
         # Same gap update_table's own reconcile call (below, this file) already closed: a
         # materialize-only table replayed onto a new engine here has an EXISTING registered_tables
@@ -1657,44 +1778,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     .values(allowed_domains=input.allowed_domains)
                 )
 
-        # REQ-1690: a pgwire-replica source (files/sharepoint/splunk) keeps its Calcite server
-        # running in pgwire_replica._ENDPOINTS, keyed by this same id, for the life of this
-        # process — delete_source already stops it (stop_endpoint), but an in-place edit (this
-        # mutation) never did, so changing a `files` source's path/mapping in place kept serving
-        # whatever schema the FIRST attach saw. Confirmed live: a `files` source's path edited
-        # from an empty/wrong directory to a real one still resolved zero tables afterward, same
-        # symptom as the delete+recreate bug this session already fixed, just reached by editing
-        # instead of deleting. No-ops when no server was ever started for this id.
-        from provisa.federation.pgwire_replica import stop_endpoint
-
-        try:
-            stop_endpoint(input.id)
-        except Exception as _pgwire_err:
-            logging.getLogger(__name__).warning(
-                "pgwire endpoint teardown for %r failed during update_source: %s",
-                input.id,
-                _pgwire_err,
-            )
-        # REQ-1946: the write pool was connected to the server just stopped; the server is
-        # started again from the edited source, and the next write opens its pool on it.
-        from provisa.executor.writable import PGWIRE_SERVER_WRITTEN
-
-        if input.type in PGWIRE_SERVER_WRITTEN:
-            from provisa.api.app import state as _state
-            from provisa.api.data.pgwire_write import start_write_server
-            from provisa.core.secrets_store import bound_to_request_org as _bound
-
-            await _state.source_pools.remove(input.id)
-            async with _bound():
-                start_write_server(model)
-        from provisa.federation.pgwire_replica import STARTED_WHEN_SAVED, start_when_saved
-
-        if input.type in STARTED_WHEN_SAVED:
-            # The edited source's server was stopped above; it is started again from the edit.
-            from provisa.core.secrets_store import bound_to_request_org as _bound_for_start
-
-            async with _bound_for_start():
-                start_when_saved(model)
+        await restart_source_server(model)
 
         from provisa.api.app import state
         from provisa.executor.drivers.registry import has_driver
@@ -1764,6 +1848,14 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
 
             await reschedule_org_triggers()
+        if (
+            input.type == "servicenow"
+        ):  # REQ-1954: its APIs' source follows its address and credential
+            from provisa.api.admin._servicenow_companion import sync_companion
+
+            async with (await _get_pool()).acquire() as _companion_conn:
+                await sync_companion(cast("Connection", _companion_conn), input.id)
+            await _rebuild_schemas()
         return MutationResult(
             success=True,
             message=f"Source {input.id!r} updated",
@@ -1800,56 +1892,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     @strawberry.mutation
     async def delete_source(self, info: StrawberryInfo, id: str) -> MutationResult:
         require_capability(info, "source_registration")
-        from provisa.core.repositories import source as source_repo
-        from provisa.api.app import state
-
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            _conn = cast("Connection", conn)
-            # REQ-1695: read the reference before the row goes, so the vault entry it names can be
-            # removed with it. A source whose credential outlived it is a credential nothing owns.
-            _existing = await source_repo.get(_conn, id)
-            try:
-                deleted = await source_repo.delete(_conn, id)
-            except source_repo.SourceDeleteRefused as refused:
-                # REQ-1918: nothing is removed; every dependent is named.
-                return MutationResult(
-                    success=False,
-                    message=str(refused),
-                    code=(
-                        "schema.source_has_dependents"
-                        if refused.reason == "dependents"
-                        else "schema.source_is_system"
-                    ),
-                    params={
-                        "source": id,
-                        "dependents": [d.as_dict() for d in refused.dependents],
-                    },
-                )
-        if deleted:
-            assert _existing is not None  # delete reported a row, so get found one
-            state.graphql_remote_sources.pop(id, None)
-            # REQ-1730: was never called here at all — see _drop_source_on_engine's own comment for
-            # the exact orphaned-catalog accumulation this closes.
-            _drop_source_on_engine(state, id)
-            state.source_catalogs.pop(id, None)
-            await _rebuild_schemas()
-            if _existing["type"] == "data_profiler":  # REQ-1934: its schedule goes with it
-                from provisa.api.admin.schema_mutation_ops import reschedule_org_triggers
-
-                await reschedule_org_triggers()
-            return MutationResult(
-                success=True,
-                message=f"Source {id!r} deleted",
-                code="schema.source_deleted",
-                params={"source": id},
-            )
-        return MutationResult(
-            success=False,
-            message=f"Source {id!r} not found",
-            code="schema.source_not_found",
-            params={"source": id},
-        )
+        return await _delete_source(id)
 
     @strawberry.mutation
     async def create_domain(
@@ -2812,6 +2855,12 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 model.table_format = await athena_table_format(
                     model.source_id, model.schema_name, model.table_name
                 )
+
+            from provisa.api.admin._import_set import table_import_set_refusal
+
+            _import_set_refusal = await table_import_set_refusal(_conn, model)  # REQ-1954
+            if _import_set_refusal is not None:
+                return _import_set_refusal
             from provisa.api.admin._fake_guard import table_fake_refusal
 
             _fake_refusal = await table_fake_refusal(_conn, model)  # REQ-1494

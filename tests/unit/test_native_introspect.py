@@ -84,7 +84,16 @@ def test_openapi_is_table_single_object():
 def test_openapi_is_table_no_schema():
     q = MagicMock()
     q.response_schema = None
+    q.columns_declared = False
     assert _openapi_is_table(q) is False
+
+
+def test_openapi_is_table_columns_declared():
+    """REQ-1924 (amended): no response schema, its columns declared at registration."""
+    q = MagicMock()
+    q.response_schema = None
+    q.columns_declared = True
+    assert _openapi_is_table(q) is True
 
 
 def test_openapi_is_table_object_multiple_array_props():
@@ -747,9 +756,10 @@ def test_openapi_is_table_petstore_single_object_response():
     assert _openapi_is_table(q) is True
 
 
-def test_a_petstore_get_with_no_response_schema_is_a_command_not_a_table():
+def test_a_petstore_get_with_no_response_schema_is_a_command_and_a_declared_table():
+    """REQ-1924 (amended): a command that reads, and a table whose columns are declared."""
     queries, commands = parse_spec(_PETSTORE_SPEC)
-    assert "logoutUser" not in {q.operation_id for q in queries}
+    assert _query_by_id(queries, "logoutUser").columns_declared is True
     assert _query_by_id(commands, "logoutUser").reads is True
 
 

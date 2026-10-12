@@ -669,6 +669,50 @@
       "read_before_control_plane": "Ce paramètre est lu avant que le plan de contrôle soit disponible ; il est donc défini en dehors de l'interface.",
       "set_by_launcher": "Le lanceur qui a démarré ce déploiement définit cette valeur.",
       "set_by_desktop_launcher": "Le lanceur de bureau définit cette valeur pour cette installation."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur Cloud Inventory",
+          "help": "Un dossier contenant un paquet serveur Cloud Inventory construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur File Crawler",
+          "help": "Un dossier contenant un paquet serveur File Crawler construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur AskAmerica",
+          "help": "Un dossier contenant un paquet serveur AskAmerica construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur Salesforce",
+          "help": "Un dossier contenant un paquet serveur Salesforce construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur ServiceNow",
+          "help": "Un dossier contenant un paquet serveur ServiceNow construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur SharePoint",
+          "help": "Un dossier contenant un paquet serveur SharePoint construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Dossier du paquet serveur Splunk",
+          "help": "Un dossier contenant un paquet serveur Splunk construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
+        }
+      }
     }
   }
 }

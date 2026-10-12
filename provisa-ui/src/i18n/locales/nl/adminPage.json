@@ -44,6 +44,8 @@
     "maxListDepthHint": "Nestdiepte waarbij lijstvelden niet langer worden gevolgd.",
     "maxListItems": "Max. lijstitems",
     "maxListItemsHint": "Het first:-argument dat Provisa op een extern lijstveld meestuurt.",
+    "maxRows": "Max. rijen per leesbewerking",
+    "maxRowsHint": "Het maximale aantal rijen dat één leesbewerking van een gepagineerde externe tabel ophaalt, door de cursor pagina voor pagina te volgen.",
     "serverLimits": "Time-outs van verzoeken",
     "serverLimitsHint": "Verschillende transporten verwerken verschillende workloads; stel in hoe lang een verzoek op elk ervan mag duren. Een verzoek kan zijn eigen deadline verkorten, maar niet boven deze waarde uitgaan.",
     "rowLimit": "Standaardrijlimiet",
@@ -87,6 +89,7 @@
         "limits": "Serverlimieten",
         "concurrency": "Gelijktijdigheid",
         "engine": "Engine",
+        "connectors": "Connectorservers",
         "security": "Beveiliging",
         "network": "Netwerk en TLS",
         "cache": "Cache",
@@ -189,8 +192,6 @@
     "policyApplied": "Domeinbeleid toegepast.",
     "policyApplyFailed": "Toepassen van domeinbeleid mislukt",
     "settingsPanel": "Instellingen",
-    "maxRows": "Max. rijen per leesbewerking",
-    "maxRowsHint": "Het maximale aantal rijen dat één leesbewerking van een gepagineerde externe tabel ophaalt, door de cursor pagina voor pagina te volgen.",
     "deleteDomainTitle": "Domein \"{{id}}\" verwijderen?",
     "deleteDomainConsequence": "Het domein wordt verwijderd. Een domein dat nog in gebruik is, kan niet worden verwijderd."
   }

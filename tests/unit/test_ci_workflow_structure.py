@@ -148,11 +148,11 @@ LANE = "./.github/workflows/lane.yml"
 _RUNNER = "playwright " + "test"
 _LEAF_CHECK = "ci-leaf-check.yml"
 
-# The suite's three jobs that keep steps of their own (lane.yml's header says why): each carries
-# live credentials or cluster tooling, and the lane workflow declares only the few secrets its
-# callers pass by name instead of inheriting every one.
+# The suite's jobs that keep steps of their own (lane.yml's header says why): each carries live
+# credentials or cluster tooling, and the lane workflow declares only the few secrets its callers
+# pass by name instead of inheriting every one.
 _OWN_STEPS = {
-    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena"},
+    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena", "servicenow"},
 }
 
 
@@ -782,6 +782,12 @@ def test_a_job_checks_out_the_commit_its_workflow_came_from_or_the_one_it_was_as
             continue
         ref = (step.get("with") or {}).get("ref")
         if ref is None:
+            continue
+        if (step.get("with") or {}).get("repository"):
+            # Another repository (the ServiceNow adapter a lane builds, REQ-1954): no action of
+            # this one is read from it, and it too names no branch -- only a ref it was given.
+            if not re.fullmatch(r"\$\{\{ inputs\.\w+ \}\}", str(ref)):
+                named.append(f"{where}: ref {ref!r}")
             continue
         if not re.fullmatch(r"\$\{\{ inputs\.ref \|\| (github\.sha|'') \}\}", str(ref)):
             named.append(f"{where}: ref {ref!r}")

@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 La surface des paramètres couvre la redirection des grands résultats, l'échantillonnage et la limite de lignes par défaut, le TTL du cache de réponses, la convention de nommage, le suivi automatique des clés étrangères de relations, le DSN du magasin de matérialisation, la mémoire du moteur de fédération (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`) ainsi que l'ensemble de la surface de réglage du pipeline de traçage OpenTelemetry (REQ-1082). Les limites de traversée GraphQL distante et les paramètres de niveau tiède / cache de lecture sont également exposés (REQ-1081, REQ-1083).
 
+La carte **Serveurs des connecteurs** nomme, pour chaque connecteur avec un serveur intégré (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica), un dossier contenant un paquet de serveur compilé pour cet hôte (`connectors.<connector>.bundle_dir`, variable d'environnement `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). Vide, le serveur du connecteur est récupéré depuis la version épinglée de `kenstott/calcite`. Défini, le dossier est utilisé tel quel : son lanceur doit se trouver à `bin/pgwire-<connector>`, et un dossier sans lui empêche le démarrage du serveur du connecteur avec une erreur nommant le paramètre ; la version n'est jamais récupérée à sa place. Le paramètre est lu à chaque démarrage du serveur d'un connecteur (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py` ; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 Posture de sécurité — `security.mode` (`standard` | `high`) — appliquée au redémarrage (REQ-1079) :
 
 ```http

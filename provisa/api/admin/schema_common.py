@@ -879,3 +879,47 @@ def remote_source_counts(
         "mutations": 0,
         "available_mutations": available_mutations,
     }
+
+
+async def restart_source_server(model) -> None:
+    """Stop the source's bundled Calcite pgwire server, so its next use starts it again from the
+    source as it now stands: its edited settings, or the tables now registered from it
+    (REQ-1954). A server started when its source is saved, or one that takes the source's writes,
+    is started again here; any other starts on its next use. A statement reading through the
+    server while it is stopped fails.
+
+    REQ-1690: a pgwire-replica source keeps its server running in pgwire_replica._ENDPOINTS, keyed
+    by its id, for the life of this process; without the stop, an edit kept serving whatever
+    schema the first attach saw (confirmed live: a `files` source's path edited to a real
+    directory still resolved zero tables). No-ops when no server was ever started for this id."""
+    from provisa.federation.pgwire_replica import (
+        STARTED_WHEN_SAVED,
+        _source_type,
+        start_when_saved,
+        stop_endpoint,
+    )
+
+    try:
+        stop_endpoint(model.id)
+    except Exception as _pgwire_err:
+        logging.getLogger(__name__).warning(
+            "pgwire endpoint teardown for %r failed: %s", model.id, _pgwire_err
+        )
+    stype = _source_type(model)
+    # REQ-1946: the write pool was connected to the server just stopped; the server is started
+    # again from the source, and the next write opens its pool on it.
+    from provisa.executor.writable import PGWIRE_SERVER_WRITTEN
+
+    if stype in PGWIRE_SERVER_WRITTEN:
+        from provisa.api.app import state as _state
+        from provisa.api.data.pgwire_write import start_write_server
+        from provisa.core.secrets_store import bound_to_request_org as _bound
+
+        await _state.source_pools.remove(model.id)
+        async with _bound():
+            start_write_server(model)
+    if stype in STARTED_WHEN_SAVED:
+        from provisa.core.secrets_store import bound_to_request_org as _bound_for_start
+
+        async with _bound_for_start():
+            start_when_saved(model)

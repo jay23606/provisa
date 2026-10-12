@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "Собственные API экземпляра. Включённый API предлагается через {{companion}}, где его операции регистрируются как таблицы и команды. Включено: {{count}}.",
+    "filter": "Фильтр API",
+    "loadFailed": "Не удалось прочитать API экземпляра: {{error}}",
+    "importSetsTitle": "Import Sets",
+    "importSetRow": "{{staging}}, в {{table}}",
+    "removeImportSet": "Удалить этот Import Set",
+    "table": "Таблица",
+    "importSet": "Import Set",
+    "addImportSet": "Добавить Import Set"
+  }
+}

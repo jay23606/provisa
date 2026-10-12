@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "ממשקי API",
+    "lead": "ממשקי ה-API של המופע עצמו. ממשק מופעל מוצע דרך {{companion}}, שם פעולותיו נרשמות כטבלאות וכפקודות. {{count}} מופעלים.",
+    "filter": "סינון ממשקי API",
+    "loadFailed": "לא ניתן לקרוא את ממשקי ה-API של המופע: {{error}}",
+    "importSetsTitle": "Import Sets",
+    "importSetRow": "{{staging}}, אל {{table}}",
+    "removeImportSet": "הסרת Import Set זה",
+    "table": "טבלה",
+    "importSet": "Import Set",
+    "addImportSet": "הוספת Import Set"
+  }
+}

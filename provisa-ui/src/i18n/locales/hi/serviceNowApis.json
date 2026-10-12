@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "इंस्टेंस के अपने API। चालू किया गया API {{companion}} के ज़रिए उपलब्ध होता है, जहाँ उसके ऑपरेशन टेबल और कमांड के रूप में रजिस्टर होते हैं। {{count}} चालू।",
+    "filter": "API फ़िल्टर करें",
+    "loadFailed": "इंस्टेंस के API पढ़े नहीं जा सके: {{error}}",
+    "importSetsTitle": "Import Sets",
+    "importSetRow": "{{staging}}, {{table}} में",
+    "removeImportSet": "यह Import Set हटाएँ",
+    "table": "टेबल",
+    "importSet": "Import Set",
+    "addImportSet": "Import Set जोड़ें"
+  }
+}

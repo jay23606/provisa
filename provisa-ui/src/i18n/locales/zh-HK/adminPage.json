@@ -44,6 +44,8 @@
     "maxListDepthHint": "達到此巢狀深度後即不再跟隨清單欄位。",
     "maxListItems": "清單項目上限",
     "maxListItemsHint": "Provisa 在遠端清單欄位上傳送的 first: 引數。",
+    "maxRows": "每次讀取的資料列上限",
+    "maxRowsHint": "對分頁的遠端資料表進行一次讀取時，逐頁跟隨其游標所取得的資料列上限。",
     "serverLimits": "請求逾時",
     "serverLimitsHint": "不同傳輸承載不同的工作負載；請設定每種傳輸上請求可執行的時長。請求可以縮短自身的期限，但不能超過此值。",
     "rowLimit": "預設行數上限",
@@ -87,6 +89,7 @@
         "limits": "伺服器限制",
         "concurrency": "並行",
         "engine": "引擎",
+        "connectors": "連接器伺服器",
         "security": "安全",
         "network": "網絡和 TLS",
         "cache": "快取",
@@ -189,8 +192,6 @@
     "policyApplied": "網域政策已套用。",
     "policyApplyFailed": "套用網域原則失敗",
     "settingsPanel": "設定",
-    "maxRows": "每次讀取的資料列上限",
-    "maxRowsHint": "對分頁的遠端資料表進行一次讀取時，逐頁跟隨其游標所取得的資料列上限。",
     "deleteDomainTitle": "刪除網域「{{id}}」？",
     "deleteDomainConsequence": "該網域將被移除。仍在使用中的網域無法刪除。"
   }

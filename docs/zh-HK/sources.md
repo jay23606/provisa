@@ -7,7 +7,7 @@
 | **可直接執行** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **僅聯邦** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支援） |
 | **直接讀取（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse——驅動程式讀取數據並落地一份副本；查詢在啟用中的引擎裡針對該副本執行 |
-| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk |
+| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow |
 
 **可直接執行**的數據來源經其原生驅動程式執行單一來源查詢（低於 100 毫秒），繞過聯邦引擎（REQ-027、REQ-229）。它們保有完整的連接器支援，並在與其他數據來源聯結時參與聯邦（REQ-028）。
 
@@ -34,7 +34,7 @@ Provisa 註冊了 **53** 種數據來源類型。下方表格涵蓋全部 53 種
 | 38–39 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
 | 40–43 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
-| 46–47 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk` |
+| 46–47 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
@@ -209,7 +209,7 @@ Amazon Athena 是一項針對 S3 資料的無伺服器查詢服務，按掃描�
 | `prometheus` | prometheus | 否 |
 
 ### 企業 SaaS 連接器 {#enterprise-saas-connectors}
-SharePoint 與 Splunk 經 Apache Calcite 連接器（kenstott/calcite fork）註冊。兩者都沒有直接驅動程式——Provisa 啟動連接器隨附的 Calcite pgwire 伺服器（`pgwire-sharepoint`、`pgwire-splunk`），以通用 PostgreSQL 端點的身分連線，並把資料列落地到具體化儲存區供聯邦使用（REQ-954）。兩個連接器都一律啟用不分大小寫的名稱比對，以配合各產品自身不分大小寫的語意（REQ-725、REQ-730）。 [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint、Splunk 與 ServiceNow 經 Apache Calcite 連接器（kenstott/calcite fork）註冊。兩者都沒有直接驅動程式——Provisa 啟動連接器隨附的 Calcite pgwire 伺服器（`pgwire-sharepoint`、`pgwire-splunk`、`pgwire-servicenow`），以通用 PostgreSQL 端點的身分連線，並把資料列落地到具體化儲存區供聯邦使用（REQ-954）。三個連接器都一律啟用不分大小寫的名稱比對，以配合各產品自身不分大小寫的語意（REQ-725、REQ-730）。 [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -286,6 +286,40 @@ Salesforce 數據來源需要指定機構的「我的網域」登入 URL 和一�
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+執行個體的每張資料表均可供註冊；不會自動註冊任何內容（REQ-1954）。完整執行個體可能有數千張資料表；Register Table 按主題將它們分組——每個主題是 ServiceNow 套件的顯示名稱，當資料表不屬於任何套件時顯示「(無套件)」。每張資料表以 `名稱 — 標籤` 的形式列出。選取一張資料表會從執行個體讀取其欄位；列出資料表不會這樣做。[tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`、`servicenow_columns`；`provisa/federation/servicenow.py` `TABLE_LIST`、`COLUMN_LIST`]
+
+ServiceNow 數據來源指定執行個體的完整 `https://…` URL 以及使用者名稱和密碼。URL 從 `base_url` 或 `host` 取得；裸主機或其他配置（scheme）將被拒絕，並指出欄位名稱（`instanceUrl`）。缺少使用者名稱或密碼時將被拒絕，並指出欄位名稱。每個值都可以是 `${secret:…}` 或 `${env:…}` 參考。
+
+| 來源欄位 | 配接器屬性 | 說明 |
+| --- | --- | --- |
+| `base_url` 或 `host` | `instanceUrl` | 執行個體的完整 `https://…` URL（例如 `https://acme.service-now.com`）。裸主機或其他配置將被拒絕 |
+| `username` | `username` | 基本驗證使用者名稱 |
+| `password` | `password` | 基本驗證密碼 |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`、`servicenow_settings`]
+
+**讀取。** 在 Trino 上，數據來源透過唯讀的 `servicenow` 目錄讀取。在其他任何引擎上，引擎會掛載數據來源的 pgwire 伺服器並就地讀取。執行個體只接收所選欄位的請求（`sysparm_fields`）。篩選器僅以配接器已在真實執行個體上驗證過的形式傳送至執行個體（`sysparm_query`）；其他所有篩選器以及每個排序和限制，都套用於已讀取的資料列。[inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+參考欄位顯示為兩欄：`<欄位>` 包含被參考記錄的 sys_id，`<欄位>__display` 包含顯示值。空欄位值為 NULL。配接器無法映射其類型的欄位會產生錯誤，錯誤中指出資料表、欄位和類型。[inferred from adapter behavior；本次工作階段中未在 Provisa 原始碼中直接驗證]
+
+資料表搜尋（自然語言）與每張資料表的名稱、標籤和主題匹配。一旦註冊了一張資料表，其欄位就會加入搜尋。[tool-verified: `provisa/discovery/catalog_cache.py` `COLUMNS_PER_TABLE_KINDS` docstring]
+
+**伺服器生命週期。** 伺服器僅提供從中註冊的資料表。註冊或移除一張資料表會重新啟動伺服器並在引擎上重新佈建數據來源；在該重新啟動期間到達的陳述式會失敗。[tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`；`provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**寫入。** 對已註冊資料表的 `INSERT`、`UPDATE` 和 `DELETE` 屬於變更操作：與其他任何變更一樣受治理、經審計，並按環境處理。在每個引擎上（包括 Trino），寫入都在數據來源的 pgwire 伺服器上執行。伺服器會傳回每次寫入後執行個體持有的資料列；因此接受 `RETURNING` 子句，GraphQL 也為這些資料表提供變更欄位。一次寫入是針對一張資料表的單一陳述式：`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING`、`MERGE` 和 `TRUNCATE` 均被拒絕，並指出形式。[tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`、`PGWIRE_SERVER_RETURNS_ROWS`]
+
+**Import sets（匯入集）。** 當一張資料表存在指向它的活動轉換對應時，Register Table 會提供其 import sets，數據管理員可以將資料表綁定到其中一個（有多個對應的資料表會逐一命名）。已綁定資料表的插入操作透過執行個體的 Import Set API 及該對應的轉換進行；未綁定資料表的插入操作以及每次更新和刪除都直接寫入資料表中。轉換拒絕的資料列將被拒絕，並指出該列；已寫入的資料列保持不變。綁定在儲存資料表時進行檢查：它必須是該資料表的活動轉換對應的 import set，且位於 ServiceNow 數據來源上。[tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`；`provisa/federation/servicenow.py` `servicenow_settings`；`provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

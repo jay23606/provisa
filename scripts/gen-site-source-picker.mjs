@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Generates the marketing site's rendering of the product's source-type picker and writes it into
-// site/index.html and site/why/sources.html between the `source-picker` marker comments.
+// site/index.html and site/why/sources.html between the `source-picker` marker comments, and writes
+// the counts it makes ("65 connectors", "80+ kinds of source") wherever a page or document states
+// them (COUNTED).
 //
-//   node scripts/gen-site-source-picker.mjs            write the fragment into both pages
-//   node scripts/gen-site-source-picker.mjs --check    exit 1 when a page is out of step
+//   node scripts/gen-site-source-picker.mjs            write the fragment and every stated count
+//   node scripts/gen-site-source-picker.mjs --check    exit 1 when a page or a count is out of step
 //
 // Source of truth: provisa-ui/src/pages/sources/constants.ts (SOURCE_TYPES: order, labels,
 // categories, the hosted Postgres services in `managed`) and provisa-ui/src/components/SourceLogo.tsx
@@ -22,9 +24,7 @@ const UI = path.join(ROOT, "provisa-ui");
 const require = createRequire(path.join(UI, "package.json"));
 
 // Source types the requirements name that the picker does not list yet (target state).
-export const REQUIREMENT_ONLY = [
-  { value: "servicenow", label: "ServiceNow", category: "Enterprise", after: "salesforce", req: "REQ-1954" },
-];
+export const REQUIREMENT_ONLY = [];
 
 // The kinds of source reached through one tile, and where each list comes from.
 export const SUB_ITEMS = {
@@ -159,6 +159,44 @@ export function splice(page, html) {
   return page.slice(0, a + START.length) + "\n" + html + "\n" + page.slice(b);
 }
 
+// Every file that states the number of connectors or of kinds of source.
+export const COUNTED = [
+  "README.md",
+  "docs/competitive_analysis.md",
+  "docs/marketing.md",
+  "mkdocs.yml",
+  "provisa-ui/public/guides-md/readme.md",
+  "site/index.html",
+  "site/vs/hasura.html",
+  "site/why/one-model.html",
+  "site/why/sources.html",
+];
+
+const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+/** A number from 20 to 99 in words, as the site writes it ("sixty-four"). */
+const inWords = (n) => TENS[Math.floor(n / 10)] + (n % 10 ? "-" + ONES[n % 10] : "");
+
+/** `text` with every stated count made the picker's: the connectors, the kinds of source, the
+    anchor and heading of the full list, and "the other N" beside the one connector set apart. */
+export function withCounts(text, total, kinds) {
+  return text
+    .replace(/\b\d+ connectors\b/g, `${total} connectors`)
+    .replace(/\b\d+\+ kinds of source\b/g, `${kinds}+ kinds of source`)
+    .replace(/#the-\d+"/g, `#the-${total}"`)
+    .replace(/id="the-\d+">The \d+</g, `id="the-${total}">The ${total}<`)
+    .replace(/unlike the other [a-z]+(-[a-z]+)?/g, `unlike the other ${inWords(total - 1)}`);
+}
+
+/** The files of COUNTED whose stated counts are not the picker's. */
+export async function staleCounts() {
+  const { total, kinds } = await renderPicker();
+  return COUNTED.filter((f) => {
+    const cur = fs.readFileSync(path.join(ROOT, f), "utf8");
+    return withCounts(cur, total, kinds) !== cur;
+  });
+}
+
 const ASSETS = path.join(ROOT, "site/assets");
 const spritesOnDisk = () => fs.readdirSync(ASSETS).filter((f) => /^source-marks\.[0-9a-f]{10}\.svg$/.test(f));
 const logoFilesOnDisk = () => fs.readdirSync(ASSETS).filter((f) => /^source-logo-[\w-]+\.[0-9a-f]{10}\.svg$/.test(f));
@@ -185,7 +223,7 @@ export async function stalePages() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { html, total, kinds, sprite, logoFiles } = await renderPicker();
   if (process.argv.includes("--check")) {
-    const stale = await stalePages();
+    const stale = [...(await stalePages()), ...(await staleCounts())];
     if (stale.length) {
       console.error(`out of step with constants.ts: ${stale.join(", ")} (run scripts/gen-site-source-picker.mjs)`);
       process.exit(1);
@@ -199,6 +237,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     for (const p of PAGES) {
       const file = path.join(ROOT, p);
       fs.writeFileSync(file, splice(fs.readFileSync(file, "utf8"), html));
+    }
+    for (const f of COUNTED) {
+      const file = path.join(ROOT, f);
+      fs.writeFileSync(file, withCounts(fs.readFileSync(file, "utf8"), total, kinds));
     }
     console.log(`wrote ${total} tiles (${kinds}+ kinds) into ${PAGES.join(", ")}`);
   }

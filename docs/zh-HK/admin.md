@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 設定介面涵蓋大型結果重新導向、預設取樣與行數上限、回應快取 TTL、命名慣例、關係外部索引鍵自動追蹤、具體化儲存區 DSN、聯邦引擎記憶體（`jvm_heap_gb`、`query_max_memory`、`query_max_memory_per_node`、`query_max_total_memory`、`fault_tolerant_execution`、`fault_tolerant_task_memory`、`exchange_spool_dir`），以及完整的 OpenTelemetry 追蹤管線調校介面（REQ-1082）。遠端 GraphQL 的走訪上限與溫層／讀取快取設定亦一併公開（REQ-1081、REQ-1083）。
 
+**連接器伺服器**卡片為每個附有隨附伺服器的連接器（File Crawler、SharePoint、Salesforce、ServiceNow、Cloud Inventory、Splunk、AskAmerica）命名一個資料夾，其中存放為此主機建置的伺服器套件包（`connectors.<connector>.bundle_dir`，環境變數 `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`）。為空時，連接器伺服器從固定的 `kenstott/calcite` release 取得。已設定時，資料夾依原樣使用：其啟動程式必須位於 `bin/pgwire-<connector>`；沒有該啟動程式的資料夾將阻止連接器伺服器啟動，並顯示指出該設定的錯誤 — release 不會在其位置被取得。該設定在每次連接器伺服器啟動時讀取（REQ-1954）。[tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 安全姿態——`security.mode`（`standard` | `high`）——於重新啟動時套用（REQ-1079）：
 
 ```http

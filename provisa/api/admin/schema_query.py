@@ -54,6 +54,9 @@ from provisa.api.admin.types import (
     JsonScalar,
     AvailableColumnType,
     AvailableTableType,
+    CompanionImportSetType,
+    ImportSetType,
+    InstanceApiType,
     CacheStatsType,
     CacheTableStatType,
     CalendarType,
@@ -1227,6 +1230,71 @@ class Query:  # REQ-021, REQ-042
         columns = await resolve_available_columns_metadata(source_id, schema_name, table_name)
         await _remember_selected_columns(source_id, schema_name, table_name, columns)
         return columns
+
+    @strawberry.field
+    async def sample_openapi_columns(
+        self, info: StrawberryInfo, source_id: str, table_name: str, params: JsonScalar
+    ) -> list[AvailableColumnType]:
+        """Columns suggested from one sample answer of an OpenAPI table whose operation declares
+        no response schema (REQ-1924): suggestions only, nothing stored."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._openapi_sample import sample_columns
+        from provisa.api.app import state
+
+        suggested = await sample_columns(state, source_id, table_name, dict(params or {}))
+        return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in suggested]
+
+    @strawberry.field
+    async def servicenow_apis(self, info: StrawberryInfo, source_id: str) -> list[InstanceApiType]:
+        """The APIs a ServiceNow source's instance publishes, each marked when its companion
+        OpenAPI source offers it (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import instance_apis
+
+        apis, kept = await instance_apis(source_id)
+        added = {(a["namespace"], a["name"]) for a in kept.get("apis", [])}
+        return [
+            InstanceApiType(
+                namespace=a.namespace,
+                name=a.name,
+                route=a.route,
+                description=a.description,
+                scripted=a.scripted,
+                added=(a.namespace, a.name) in added,
+            )
+            for a in apis
+        ]
+
+    @strawberry.field
+    async def servicenow_import_sets(
+        self, info: StrawberryInfo, source_id: str
+    ) -> list[CompanionImportSetType]:
+        """The import sets added to a ServiceNow source's companion (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import _held
+
+        kept = await _held(source_id)
+        return [
+            CompanionImportSetType(staging=s["staging"], table=s["table"])
+            for s in kept.get("import_sets", [])
+        ]
+
+    @strawberry.field
+    async def available_import_sets(
+        self, info: StrawberryInfo, source_id: str, schema_name: str, table_name: str
+    ) -> list[ImportSetType]:
+        """The import sets a ServiceNow table may be bound to (REQ-1954): those of the instance's
+        active transform maps that write into it. A table of no other source has any."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin.introspect import _adapter_bound, _adapter_source
+        from provisa.federation.pgwire_replica import servicenow_transform_maps
+
+        source = await _adapter_source(source_id)
+        if source.type.value != "servicenow":
+            return []
+        async with _adapter_bound():
+            maps = await servicenow_transform_maps(source, schema_name.strip().lower(), table_name)
+        return [ImportSetType(name=name, import_set=staging) for name, staging in maps]
 
     @strawberry.field
     async def suggest_table_alias(

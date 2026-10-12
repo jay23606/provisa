@@ -9,7 +9,7 @@
 | **Прямая поддержка (direct-capable)** | Да | Да | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Только федерация** | Нет | Да | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (на базе S3) |
 | **Прямое чтение (реплика)** | Да | Да | Snowflake, Databricks, ClickHouse — драйвер читает данные и создаёт реплику; запросы выполняются против реплики в активном движке |
-| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk |
+| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow |
 
 Источники с **прямой поддержкой** выполняют однопоточные (single-source) запросы через свой нативный драйвер (менее 100 мс), минуя движок федерации (REQ-027, REQ-229). Они сохраняют полную поддержку коннектора и участвуют в федерации при объединении с другими источниками (REQ-028).
 
@@ -37,7 +37,7 @@ Provisa регистрирует **54** типа источников. Прив�
 | 38–39 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
 | 40–43 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
-| 46–47 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk` |
+| 46–47 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
@@ -246,7 +246,7 @@ Kaggle — это платформа для загрузки файлов. За�
 
 ### Корпоративные SaaS-коннекторы {: #enterprise-saas-connectors }
 
-SharePoint и Splunk регистрируются через коннекторы Apache Calcite (форк kenstott/calcite). Ни у одного нет прямого драйвера — Provisa запускает встроенный в коннектор сервер Calcite pgwire (`pgwire-sharepoint`, `pgwire-splunk`) и обращается к нему как к обычной конечной точке PostgreSQL. На движке DuckDB эта конечная точка подключается вживую через расширение postgres: регистрация таблицы перечисляет таблицы коннектора из подключённого каталога, запросы читают коннектор на месте, а фильтры и проекции проталкиваются в Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Любой другой движок загружает строки в хранилище материализации для федерации (REQ-954). Пакеты загружаются под конкретную ОС/архитектуру из закреплённого релиза `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]. Оба коннектора всегда включают сопоставление имён без учёта регистра, что соответствует собственной регистронезависимой семантике каждого продукта (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Splunk и ServiceNow регистрируются через коннекторы Apache Calcite (форк kenstott/calcite). Ни у одного нет прямого драйвера — Provisa запускает встроенный в коннектор сервер Calcite pgwire (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) и обращается к нему как к обычной конечной точке PostgreSQL. На движке DuckDB эта конечная точка подключается вживую через расширение postgres: регистрация таблицы перечисляет таблицы коннектора из подключённого каталога, запросы читают коннектор на месте, а фильтры и проекции проталкиваются в Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Любой другой движок загружает строки в хранилище материализации для федерации (REQ-954). Пакеты загружаются под конкретную ОС/архитектуру из закреплённого релиза `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Оператор может вместо этого задать папку с пакетом, собранным для данного хоста, отдельно для каждого коннектора, в разделе Admin → Настройки → Серверы коннекторов (`connectors.<connector>.bundle_dir`); см. [Admin](admin.md).. Все три коннектора всегда включают сопоставление имён без учёта регистра, что соответствует собственной регистронезависимой семантике каждого продукта (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -339,6 +339,40 @@ SharePoint и Splunk регистрируются через коннектор�
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+Каждая таблица инстанса доступна для регистрации; ничего не регистрируется автоматически (REQ-1954). Полный инстанс может содержать тысячи таблиц; Register Table группирует их по теме — каждая тема является отображаемым именем пакета ServiceNow, или «(без пакета)», если таблица не принадлежит ни одному пакету. Каждая таблица отображается как `имя — метка`. При выборе таблицы её столбцы считываются из инстанса; простое перечисление таблиц столбцы не загружает. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
+
+Источник ServiceNow указывает полный URL `https://…` инстанса, а также имя пользователя и пароль. URL берётся из `base_url` или `host`; голый хост или любая другая схема отклоняется с указанием поля (`instanceUrl`). Отсутствующее имя пользователя или пароль отклоняется с указанием поля. Каждое значение может быть ссылкой `${secret:…}` или `${env:…}`.
+
+| Поле источника | Свойство адаптера | Примечание |
+| --- | --- | --- |
+| `base_url` или `host` | `instanceUrl` | Полный URL `https://…` инстанса (например, `https://acme.service-now.com`). Голый хост или другая схема отклоняется |
+| `username` | `username` | Имя пользователя для базовой аутентификации |
+| `password` | `password` | Пароль для базовой аутентификации |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`, `servicenow_settings`]
+
+**Чтение.** В Trino источник читается через каталог `servicenow`, который только читает. В любом другом движке движок подключает pgwire-сервер источника и читает его на месте. От инстанса запрашиваются только выбранные столбцы (`sysparm_fields`). Фильтр передаётся в инстанс (`sysparm_query`) только в форме, которую адаптер проверил на реальном инстансе; все прочие фильтры, а также каждая сортировка и лимит применяются к уже прочитанным строкам. [inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+Ссылочное поле представлено двумя столбцами: `<поле>` содержит sys_id referenced записи, а `<поле>__display` — её отображаемое значение. Пустое поле — NULL. Поле, тип которого адаптер не может отобразить, вызывает ошибку с указанием таблицы, поля и типа. [inferred from adapter behavior; в данной сессии не проверялось непосредственно в исходном коде Provisa]
+
+Поиск таблиц (естественный язык) сопоставляется по имени, метке и теме каждой таблицы. После регистрации таблицы её столбцы присоединяются к поиску. [tool-verified: `provisa/discovery/catalog_cache.py` docstring `COLUMNS_PER_TABLE_KINDS`]
+
+**Жизненный цикл сервера.** Сервер обслуживает только зарегистрированные из него таблицы. Регистрация или удаление таблицы перезапускает сервер и повторно провизионирует источник на движке; запрос, поступивший во время перезапуска, завершается ошибкой. [tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`; `provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**Запись.** `INSERT`, `UPDATE` и `DELETE` на зарегистрированной таблице — это мутации: управляемые, проходящие аудит и обрабатываемые по правилам среды, как любая другая мутация. В каждом движке, включая Trino, запись выполняется на pgwire-сервере источника. Сервер возвращает строку, которую инстанс содержит после записи; клауза `RETURNING` поэтому принимается, и GraphQL предлагает поля мутаций для этих таблиц. Запись — это одна инструкция над одной таблицей: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` и `TRUNCATE` отклоняются с указанием формы. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
+
+**Import-сеты.** Если у таблицы есть активная карта преобразования (transform map) в неё, Register Table предлагает её import-сеты, и стюард может привязать таблицу к одному из них (таблица с несколькими картами называет каждую). Вставки в привязанную таблицу проходят через Import Set API инстанса и преобразование той карты; вставки в непривязанную таблицу, а также каждое обновление и удаление записываются в таблицу напрямую. Строка, отклонённая преобразованием, отклоняется с указанием этой строки; уже записанные строки остаются записанными. Привязка проверяется при сохранении таблицы: она должна быть import-сетом активной карты преобразования в эту таблицу, в источнике ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

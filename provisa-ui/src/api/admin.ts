@@ -509,6 +509,11 @@ export async function profileTable(
 export interface TableMetadata {
   name: string;
   comment: string | null;
+  // REQ-1954: the heading the source lists the table under (a ServiceNow table's theme); a
+  // table with one is shown by its name and its label (``comment``).
+  group?: string | null;
+  // REQ-1924: its source says nothing of what its rows hold; the steward declares its columns.
+  columnsDeclared?: boolean;
   // REQ-318: what would read the table page by page once registered, the paging its source
   // suggests, and (a connection table) the operator's row bound.
   pagingKind?: PagingKind | null;

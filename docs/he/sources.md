@@ -9,7 +9,7 @@
 | **תמיכה ישירה** | כן | כן | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **פדרציה בלבד** | לא | כן | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **קריאה ישירה (עותק משוכפל)** | כן | כן | Snowflake, Databricks, ClickHouse — הדרייבר קורא נתונים ומנחית עותק משוכפל; השאילתות רצות מול העותק המשוכפל במנוע הפעיל |
-| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk |
+| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow |
 
 מקורות מסוג **תמיכה ישירה** מבצעים שאילתות חד-מקוריות דרך הדרייבר הילידי שלהם (מתחת ל-100ms), תוך עקיפת מנוע הפדרציה (REQ-027, REQ-229). הם שומרים על תמיכה מלאה במחבר ומשתתפים בפדרציה כשהם מוצטרפים (joined) עם מקורות אחרים (REQ-028).
 
@@ -37,7 +37,7 @@ Provisa רושמת **54** סוגי מקור. הטבלאות שלהלן מכסו�
 | 38–39 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
 | 40–43 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
-| 46–47 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk` |
+| 46–47 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
@@ -245,7 +245,7 @@ Kaggle היא פלטפורמת הורדת קבצים. ערכת נתונים של
 
 ### מחברי SaaS ארגוניים
 
-SharePoint ו-Splunk נרשמים דרך מחברי Apache Calcite (kenstott/calcite fork). לאף אחד מהם אין דרייבר ישיר — Provisa מבצעת מטריאליזציה של השורות שלהם על ידי הפעלת שרת ה-pgwire המצורף של המחבר (`pgwire-sharepoint`, `pgwire-splunk`), התחברות אליו כנקודת קצה גנרית של PostgreSQL, והנחתת השורות למחסן המטריאליזציה לצורך פדרציה (REQ-954). שני המחברים מפעילים תמיד התאמת שמות שאינה תלוית רישיות, בהתאמה לסמנטיקה שאינה תלוית-רישיות של כל מוצר (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (kenstott/calcite fork). לאף אחד מהם אין דרייבר ישיר — Provisa מבצעת מטריאליזציה של השורות שלהם על ידי הפעלת שרת ה-pgwire המצורף של המחבר (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`), התחברות אליו כנקודת קצה גנרית של PostgreSQL, והנחתת השורות למחסן המטריאליזציה לצורך פדרציה (REQ-954). שלושת המחברים מפעילים תמיד התאמת שמות שאינה תלוית רישיות, בהתאמה לסמנטיקה שאינה תלוית-רישיות של כל מוצר (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -338,6 +338,40 @@ SharePoint ו-Splunk נרשמים דרך מחברי Apache Calcite (kenstott/cal
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+כל טבלה של ה-instance זמינה לרישום; דבר אינו נרשם אוטומטית (REQ-1954). ב-instance מלא יכולות להיות אלפי טבלאות; Register Table מקבצת אותן לפי נושא — כל נושא הוא שם התצוגה של חבילת ServiceNow, או "(ללא חבילה)" כשטבלה אינה שייכת לאף אחת. כל טבלה מוצגת כ-`שם — תווית`. בחירת טבלה קוראת את העמודות שלה מה-instance; פשוט לרשום את הטבלאות אינו עושה זאת. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
+
+מקור ServiceNow מציין את כתובת ה-`https://…` המלאה של ה-instance יחד עם שם משתמש וסיסמה. הכתובת נלקחת מ-`base_url` או `host`; מארח בלבד או כל פרוטוקול אחר נדחה תוך ציון השדה (`instanceUrl`). שם משתמש או סיסמה חסרים נדחים תוך ציון השדה. כל ערך יכול להיות הפניה `${secret:…}` או `${env:…}`.
+
+| שדה מקור | מאפיין המתאם | הערות |
+| --- | --- | --- |
+| `base_url` או `host` | `instanceUrl` | כתובת `https://…` המלאה של ה-instance (לדוגמה `https://acme.service-now.com`). מארח בלבד או פרוטוקול אחר נדחה |
+| `username` | `username` | שם משתמש לאימות בסיסי |
+| `password` | `password` | סיסמה לאימות בסיסי |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`, `servicenow_settings`]
+
+**קריאות.** ב-Trino המקור נקרא דרך הקטלוג `servicenow`, שרק קורא. בכל מנוע אחר, המנוע מצרף את שרת ה-pgwire של המקור וקורא אותו במקומו. רק העמודות שנבחרו מתבקשות מה-instance (`sysparm_fields`). פילטר נשלח ל-instance (`sysparm_query`) רק בצורה שהמתאם אימת מול instance חי; כל פילטר אחר, וכל מיון והגבלה, מוחל על השורות שנקראו. [inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+שדה הפניה מופיע כשתי עמודות: `<שדה>` מכיל את ה-sys_id של הרשומה המוזכרת, ו-`<שדה>__display` מכיל את ערך התצוגה. שדה ריק הוא NULL. שדה שסוגו אינו ניתן למיפוי על ידי המתאם מייצר שגיאה הנוקבת בטבלה, בשדה ובסוג. [inferred from adapter behavior; לא אומת ישירות בקוד המקור של Provisa בסשן זה]
+
+חיפוש טבלאות (שפה טבעית) מתאים לשם, לתווית ולנושא של כל טבלה. לאחר רישום טבלה, העמודות שלה מצטרפות לחיפוש. [tool-verified: `provisa/discovery/catalog_cache.py` docstring של `COLUMNS_PER_TABLE_KINDS`]
+
+**מחזור חיים השרת.** השרת משרת רק את הטבלאות הרשומות ממנו. רישום או הסרה של טבלה מפעיל מחדש את השרת ומספק מחדש את המקור על המנוע; פקודה שמגיעה במהלך ההפעלה מחדש נכשלת. [tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`; `provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על טבלה רשומה הן מוטציות: נשלטות, מתועדות בביקורת ומטופלות לפי סביבה ככל מוטציה אחרת. בכל מנוע, כולל Trino, כתיבה רצה על שרת ה-pgwire של המקור. השרת מחזיר את השורה שה-instance מכיל לאחר כל כתיבה; קלוזת `RETURNING` לפיכך מתקבלת, ו-GraphQL מציע שדות מוטציה עבור הטבלאות הללו. כתיבה היא פקודה אחת על טבלה אחת: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` ו-`TRUNCATE` נדחים תוך ציון הצורה. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
+
+**ערכות יבוא (Import sets).** כאשר לטבלה יש מפת טרנספורמציה (transform map) פעילה אליה, Register Table מציגה את ערכות היבוא שלה, והסטיוארד יכול לקשור את הטבלה לאחת מהן (טבלה עם מספר מפות מציינת כל אחת בשמה). הוספות לטבלה קשורה עוברות דרך Import Set API של ה-instance וטרנספורמציית אותה מפה; הוספות לטבלה לא קשורה, וכל עדכון ומחיקה, נכתבים ישירות לטבלה. שורה שהטרנספורמציה דוחה — נדחית תוך ציון השורה; שורות שכבר נכתבו נשארות כתובות. הקישור נבדק בעת שמירת הטבלה: הוא חייב להיות ערכת היבוא של מפת טרנספורמציה פעילה אל הטבלה, במקור ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`
