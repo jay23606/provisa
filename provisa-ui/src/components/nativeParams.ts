@@ -76,7 +76,11 @@ export function pagedViewerSql(
   const where = predicates.length > 0 ? ` WHERE ${predicates.join(" AND ")}` : "";
 
   const orderCols: string[] = [];
-  for (const col of groupBy) orderCols.push(`${quoteIdent(col)} ASC`);
+  // Groups come first, each in the direction its column is sorted (ascending when it is not).
+  for (const col of groupBy) {
+    const dir = sorts.find((s) => s.col === col)?.dir === "desc" ? "DESC" : "ASC";
+    orderCols.push(`${quoteIdent(col)} ${dir}`);
+  }
   for (const s of sorts)
     if (!groupBy.includes(s.col))
       orderCols.push(`${quoteIdent(s.col)} ${s.dir === "desc" ? "DESC" : "ASC"}`);
