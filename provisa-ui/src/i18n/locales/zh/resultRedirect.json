@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "结果（{{rows}} 行）已写入结果存储。",
+    "landedAt": "结果（{{rows}} 行）已写入结果存储：{{url}}",
+    "download": "下载"
+  }
+}

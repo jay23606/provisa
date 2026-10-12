@@ -17,11 +17,13 @@
 // required before any query can run). Choices persist per table and restore on
 // the next visit. Mount with key=table.id — state is per-table by remount.
 
+import { resultRedirectText } from "./resultRedirectText";
+import { ResultRedirectNotice } from "./ResultRedirectNotice";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Alert, Button, Group, Loader, Text, TextInput } from "@mantine/core";
 import { RefreshCw } from "lucide-react";
-import { PreviewRefused, previewTable, runSql } from "../api/admin";
+import { type ResultRedirect, PreviewRefused, previewTable, runSql } from "../api/admin";
 import type { RegisteredTable } from "../types/admin";
 import { ResultsGrid } from "../pages/sql/ResultsGrid";
 import type { ProvenanceEntry } from "../pages/sql/exportXlsx";
@@ -48,6 +50,8 @@ interface PageResult {
   error: string;
   /** REQ-1921: the page was not read because the table's copy is still being built. */
   building: boolean;
+  /** The page was landed in the results store and is there, not in `rows`. */
+  redirect: ResultRedirect | null;
 }
 
 interface GovernedTableViewerProps {
@@ -64,7 +68,7 @@ export function GovernedTableViewer({
   showTitle = false,
   role = null,
 }: GovernedTableViewerProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const requiredCols = requiredParamColumns(table);
   const optionalCols = optionalParamColumns(table);
   const hasParams = requiredCols.length > 0 || optionalCols.length > 0;
@@ -106,6 +110,7 @@ export function GovernedTableViewer({
     rows: Record<string, unknown>[];
     error?: string;
     building?: boolean;
+    redirect?: ResultRedirect;
   }> => {
     if (!table.draft) {
       return runSql(pagedViewerSql(table, params, filters, sorts, groupBy, pageNo, size));
@@ -150,6 +155,7 @@ export function GovernedTableViewer({
           hasMore: r.rows.length > pageSize,
           error: r.error ?? "",
           building: r.building ?? false,
+          redirect: r.redirect ?? null,
         });
         setFetchedKey(queryKey);
       });
@@ -170,6 +176,9 @@ export function GovernedTableViewer({
     for (let chunk = 0; ; chunk++) {
       const r = await readPage(activeParams, chunk, EXPORT_CHUNK_SIZE);
       if (r.error) throw new Error(r.error);
+      // A chunk landed in the results store is there, not here: the export says where, rather than
+      // writing a workbook short of those rows.
+      if (r.redirect) throw new Error(resultRedirectText(t, i18n.language, r.redirect));
       rows.push(...r.rows.slice(0, EXPORT_CHUNK_SIZE));
       if (r.rows.length <= EXPORT_CHUNK_SIZE) return rows;
     }
@@ -289,6 +298,8 @@ export function GovernedTableViewer({
           <Loader size="sm" />
           <Text size="sm">{result.error}</Text>
         </Group>
+      ) : result?.redirect ? (
+        <ResultRedirectNotice redirect={result.redirect} />
       ) : result?.error ? (
         <Alert color="red" data-testid="table-preview-error">
           <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "monospace" }}>

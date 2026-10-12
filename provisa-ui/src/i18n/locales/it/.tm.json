@@ -5827,5 +5827,8 @@
   "it/registerTableForm.json::registerTableForm.mongoModeLabel": "What the table reads",
   "it/registerTableForm.json::registerTableForm.mongoModeCollection": "Collection",
   "it/registerTableForm.json::registerTableForm.mongoModePipeline": "Pipeline",
-  "it/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+  "it/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+  "it/resultRedirect.json::resultRedirect.landed": "The result ({{rows}} rows) was written to the results store.",
+  "it/resultRedirect.json::resultRedirect.landedAt": "The result ({{rows}} rows) was written to the results store: {{url}}",
+  "it/resultRedirect.json::resultRedirect.download": "Download it"
 }

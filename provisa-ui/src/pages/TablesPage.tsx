@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { resultRedirectText } from "../components/resultRedirectText";
 import { useSetTableDraft, useSetTableRegion, useRegionChoices } from "../hooks/useRegionQueries";
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
@@ -109,7 +110,7 @@ import { SplitPane } from "../components/list/SplitPane";
 export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) {
   // REQ-1918: a delete is refused while anything depends on the object; this lists them.
   const refusal = useDependentsDialog();
-  const { t: translate } = useTranslation();
+  const { t: translate, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const {
@@ -486,6 +487,9 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       if (table && paramValues !== undefined) {
         const result = await runSql(previewSql(table, paramValues), activeRole.id);
         if (result.error) throw new Error(result.error);
+        // A sample landed in the results store is there, not here: said, not profiled as empty.
+        if (result.redirect)
+          throw new Error(resultRedirectText(translate, i18n.language, result.redirect));
         setTableProfiles((prev) => ({
           ...prev,
           [tableId]: { columns: result.columns, rows: result.rows, rowCount: result.rows.length },

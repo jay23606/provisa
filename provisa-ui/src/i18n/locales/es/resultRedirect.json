@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "El resultado ({{rows}} filas) se escribió en el almacén de resultados.",
+    "landedAt": "El resultado ({{rows}} filas) se escribió en el almacén de resultados: {{url}}",
+    "download": "Descargarlo"
+  }
+}

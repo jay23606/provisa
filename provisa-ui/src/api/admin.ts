@@ -1395,6 +1395,15 @@ export interface StatementWarning {
   message: string;
 }
 
+/** Where a result landed in the results store is, as /data/sql's redirect handle names it. */
+export interface ResultRedirect {
+  url: string;
+  rowCount: number;
+  /** Seconds until the stored result expires; null when the store keeps it. */
+  expiresIn: number | null;
+  contentType: string | null;
+}
+
 export async function runSql(
   // A statement, or a statement with the values of its $1…$n placeholders. The values are
   // sent beside the text and bound by the server; they are never written into it.
@@ -1410,6 +1419,11 @@ export async function runSql(
   warnings?: StatementWarning[];
   error?: string;
   provisa_stats?: unknown;
+  /**
+   * REQ-1194 / REQ-1224: the result was landed in the results store and is there, not in `rows`
+   * (which is then empty): where it is and how many rows it holds.
+   */
+  redirect?: ResultRedirect;
 }> {
   try {
     const headers: Record<string, string> = {
@@ -1440,11 +1454,36 @@ export async function runSql(
       return { columns: [], column_types: null, rows: [], error: text };
     }
     const json = await resp.json();
+    // A result landed in the results store comes back as a handle to it, not rows.
+    if (json?.redirect) {
+      const handle = json.redirect;
+      return {
+        columns: [],
+        column_types: null,
+        rows: [],
+        warnings: json?.extensions?.warnings ?? [],
+        redirect: {
+          url: handle.redirect_url,
+          rowCount: handle.row_count,
+          expiresIn: handle.expires_in ?? null,
+          contentType: handle.content_type ?? null,
+        },
+      };
+    }
     const rows: Record<string, unknown>[] = json?.data?.sql ?? [];
     // REQ-1436: the projection comes from the response, not from the first row. Read off a row, an
     // empty result has no columns, so a filter matching nothing left the grid with no header row —
     // and therefore no filter input to clear it with. /data/sql returns `columns` on every JSON
-    // response, empty result included.
+    // response, empty result included; an answer without them is not a result, and is said as the
+    // server's own words, never handed on as one with no columns.
+    if (!Array.isArray(json?.columns)) {
+      return {
+        columns: [],
+        column_types: null,
+        rows: [],
+        error: serverMessage(json, requestFailed("runSql", resp.status)),
+      };
+    }
     const columns: string[] = json.columns;
     return {
       columns,

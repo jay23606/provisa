@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "Das Ergebnis ({{rows}} Zeilen) wurde in den Ergebnisspeicher geschrieben.",
+    "landedAt": "Das Ergebnis ({{rows}} Zeilen) wurde in den Ergebnisspeicher geschrieben: {{url}}",
+    "download": "Herunterladen"
+  }
+}

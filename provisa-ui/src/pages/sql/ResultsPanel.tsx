@@ -8,6 +8,8 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import type { ResultRedirect } from "../../api/admin";
+import { ResultRedirectNotice } from "../../components/ResultRedirectNotice";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Box, Button, Modal, Table, Tabs } from "@mantine/core";
@@ -25,6 +27,8 @@ interface ResultsPanelProps {
   setResultTab: React.Dispatch<React.SetStateAction<ResultTab>>;
   running: boolean;
   resultError: string;
+  /** The result was landed in the results store and is there, not in the grid. */
+  resultRedirect?: ResultRedirect | null;
   resultRows: Record<string, unknown>[];
   resultColumns: string[];
   /** REQ-1937: the rows held are only part of the result, so a filter applies to those loaded. */
@@ -45,6 +49,7 @@ export function ResultsPanel({
   setResultTab,
   running,
   resultError,
+  resultRedirect = null,
   resultRows,
   rowsPartial = false,
   grid,
@@ -143,6 +148,8 @@ export function ResultsPanel({
               <span className="btn-spinner" style={{ flexShrink: 0 }} />
               {t("sqlResultsPanel.running")}
             </div>
+          ) : resultRedirect ? (
+            <ResultRedirectNotice redirect={resultRedirect} />
           ) : resultError ? (
             <pre
               style={{

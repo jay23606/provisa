@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useDomainFilter } from "../context/DomainFilterContext";
 import { useAuth } from "../context/AuthContext";
 import { runSql, explainSql } from "../api/admin";
-import type { ExplainResponse } from "../api/admin";
+import type { ExplainResponse, ResultRedirect } from "../api/admin";
 import {
   useRoles,
   useDomains,
@@ -168,6 +168,8 @@ export function SqlPage() {
   const [resultPartial, setResultPartial] = useState<boolean>(active0.resultPartial ?? false);
   const [resultRows, setResultRows] = useState<Record<string, unknown>[]>(active0.resultRows);
   const [resultError, setResultError] = useState(active0.resultError);
+  // The last run's result landed in the results store (not kept with the tab: a run tells it).
+  const [resultRedirect, setResultRedirect] = useState<ResultRedirect | null>(null);
   const [execMs, setExecMs] = useState<number | null>(active0.execMs);
   const [statsEnabled, setStatsEnabled] = useState(
     () => localStorage.getItem("sql:statsEnabled") === "true",
@@ -452,6 +454,7 @@ export function SqlPage() {
       setResultRows(t.resultRows);
       setResultPartial(t.resultPartial ?? false);
       setResultError(t.resultError);
+      setResultRedirect(null);
       setExecMs(t.execMs);
       setQueryStats(null);
       setNlError("");
@@ -655,6 +658,7 @@ export function SqlPage() {
     if (aliased !== sqlText) setSqlText(aliased);
     setRunning(true);
     setResultError("");
+    setResultRedirect(null);
     const t0 = performance.now();
     const inner = aliased.trim().replace(/;+$/, "");
     const sampledSql = wrapSampledSql(inner, sampleMode, sampleSize);
@@ -662,6 +666,7 @@ export function SqlPage() {
     const durationMs = Math.round(performance.now() - t0);
     setExecMs(durationMs);
     setQueryStats(result.provisa_stats ?? null);
+    setResultRedirect(result.redirect ?? null);
     if (result.error) {
       setResultError(result.error);
       setResultColumns([]);
@@ -942,6 +947,7 @@ export function SqlPage() {
               setResultTab={setResultTab}
               running={running}
               resultError={resultError}
+              resultRedirect={resultRedirect}
               resultRows={resultRows}
               resultColumns={resultColumns}
               rowsPartial={resultPartial}
