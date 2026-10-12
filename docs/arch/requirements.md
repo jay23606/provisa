@@ -1888,25 +1888,25 @@ A `cosine_similarity(column, query)` function is available in Provisa SQL (and s
 
 **Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
-For sources without native vector capability, Provisa must transparently materialize the embedding column to an internal pgvector-enabled PostgreSQL cache table, build an HNSW index, rewrite the query against the cache joining PKs back to the source, and return unified results. The caller must not be aware of the fallback path.
+A table served from its replica ([REQ-1912](#REQ-1912)) is the fallback for a vector search: where the engine reads the replica through its store's own SQL, the replica holds an embedding column as a vector with an HNSW index for cosine distance. The DuckDB engine indexes its own copy of a replica in its embedded store; the PostgreSQL engine holds it as a pgvector vector(d), indexed in its own database. A top-k search, a statement with a LIMIT ordered first by cosine_similarity (most similar first) whose embedding column belongs to a replica-served table, reads the index, and its answer carries the "approximate index" warning, since the index may miss a row slightly more similar than the last one returned. Every other search over a replica is computed exactly. On Trino, and on an engine that reads a replica from a store of another kind, the replica holds the embedding as its JSON text and every search is computed exactly, with no index and no warning. There is no separate vector cache.
 
-**Use case:** Transparent fallback enables vector search on any source without source-side changes.
+**Use case:** Vector search over any replicated source reads an index without source-side changes.
 
-**Code:** `provisa/vector/fallback_cache.py`
+**Code:** `provisa/federation/replica_target.py`, `provisa/federation/duckdb_runtime.py`, `provisa/federation/residency.py`, `provisa/federation/runtime.py`, `provisa/core/ir_types.py`, `provisa/vector/similarity.py`
 
-**Tests:** `tests/unit/test_table_search.py`, `tests/unit/test_vector.py`
+**Tests:** `tests/unit/test_vector_replica_index.py`
 
 ### REQ-425 · Vector Search {#REQ-425}
 
 **Status:** ⚙ in-progress · **Priority:** MUST · **Type:** constraint
 
-The pgvector fallback cache must support TTL-based invalidation, mutation-triggered invalidation, manual refresh via admin API, and row count drift detection. Stale cache must not silently serve results beyond configured TTL.
+A replica's vector index ([REQ-424](#REQ-424)) is as fresh as the replica: it is built with each replica build and swapped in with it ([REQ-1915](#REQ-1915)), and the DuckDB engine re-indexes its copy whenever the store changes. Invalidation is the replica's own freshness, set by the table's replica settings ([REQ-030](#REQ-030), [REQ-826](#REQ-826)); no vector cache is kept or invalidated apart from the replica.
 
-**Use case:** Multiple invalidation strategies with drift detection prevent silent data staleness.
+**Use case:** A vector search never reads vectors older than the replica it is answered from.
 
-**Code:** `provisa/vector/cache_invalidation.py`
+**Code:** `provisa/federation/replica_target.py`, `provisa/federation/duckdb_runtime.py`
 
-**Tests:** `tests/unit/test_config_validation_edge_cases.py`, `tests/unit/test_vector.py`
+**Tests:** `tests/unit/test_vector_replica_index.py`
 
 ### REQ-426 · Vector Search {#REQ-426}
 

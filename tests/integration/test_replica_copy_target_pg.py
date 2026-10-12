@@ -98,7 +98,12 @@ class _ReadsStore:
 
 def _target(dsn, pk=("id",)):
     return PostgresStoreTarget(
-        dsn, schema=SCHEMA, table=TABLE, columns=COLUMNS, pk_columns=list(pk)
+        dsn,
+        schema=SCHEMA,
+        table=TABLE,
+        columns=COLUMNS,
+        pk_columns=list(pk),
+        native_vectors=True,
     )
 
 

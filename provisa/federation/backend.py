@@ -240,7 +240,16 @@ class EngineBackend:
             columns=args.columns,
             pk_columns=list(args.pk_columns or ()),
             engine_writes_store=EngineRun.STATEMENT in engine.caps.runs,
+            # REQ-424: this engine reads the store through its own connector, not the store's SQL.
+            native_vectors=False,
         )
+
+    def indexes_replica_vectors(self, state: Any) -> bool:
+        """Whether this engine reads its replicas through its store's own SQL, so a top-k
+        similarity search reads a replica's vector index (REQ-424). The base engine reads its
+        store through a connector of its own: it computes every search exactly."""
+        del state
+        return False
 
     async def after_replica_swap(self, state: Any) -> None:
         """What this engine must do once a new replica stands in its store. Nothing for an

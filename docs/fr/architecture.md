@@ -388,7 +388,7 @@ La boucle de rafraîchissement s'exécute toutes les 30 secondes, vérifie `get_
 | `compiler/` | Parsers GraphQL/SQL, générateur SQL sémantique, RLS, masquage, échantillonnage, gouvernance en deux étapes (`stage2.py`) |
 | `cypher/` | Traducteur Cypher → SQL, parser, carte de label (REQ-351), traducteur d'écriture pour les mutations Cypher |
 | `pgwire/` | Serveur protocole de fil PostgreSQL ; `catalog.py` intercepte pg_catalog/information_schema pour la visibilité d'objet par rôle (REQ-527, REQ-883, REQ-891) |
-| `vector/` | Recherche vectorielle — registre de modèles, fournisseurs d'embedding (openai/ollama/huggingface), traduction `cosine_similarity()`, cache de repli pgvector, génération d'embedding déclarative (REQ-419–431) |
+| `vector/` | Recherche vectorielle — registre de modèles, fournisseurs d'embedding (openai/ollama/huggingface), traduction `cosine_similarity()`, index HNSW sur la colonne d'embedding d'une réplique, génération d'embedding déclarative (REQ-419–431) |
 | `compiler/federation.py` | Support de sous-graphe Apollo Federation v2 |
 | `transpiler/` | Transpilation de dialecte, logique de routage |
 | `executor/` | Exécution fédérée/directe, sérialisation, formats de sortie |

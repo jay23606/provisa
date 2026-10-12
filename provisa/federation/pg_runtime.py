@@ -599,6 +599,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         cur = self._con.cursor()
         cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
         if not require_pg_replica_table(cur, schema, table, action="reconcile the replica at"):
+            _ensure_vector_extension(cur, columns)
             cur.execute(self._create_table_ddl(schema, table, columns, want_pk))
             return "created"
         have_cols = self._existing_columns(cur, schema, table)
@@ -606,6 +607,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         if have_cols == want_cols and sorted(have_pk) == sorted(want_pk):
             return "kept"
         cur.execute(f'DROP TABLE "{schema}"."{table}"')
+        _ensure_vector_extension(cur, columns)
         cur.execute(self._create_table_ddl(schema, table, columns, want_pk))
         return "recreated"
 
@@ -623,6 +625,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         from provisa.federation.replica_guard import require_pg_replica_table
 
         if not require_pg_replica_table(cur, schema, table, action="write the replica"):
+            _ensure_vector_extension(cur, columns)
             cur.execute(self._create_table_ddl(schema, table, columns, pk_columns))
 
     async def land_table(
@@ -1250,3 +1253,11 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         self._read_pool.closeall()
         if self._adbc_pool is not None:
             self._adbc_pool.closeall()
+
+
+def _ensure_vector_extension(cur: Any, columns: list[tuple[str, str]]) -> None:
+    """REQ-424: a replica with an embedding column holds it as a pgvector ``vector``."""
+    from provisa.federation.replica_target import vector_columns
+
+    if vector_columns(columns):
+        cur.execute("CREATE EXTENSION IF NOT EXISTS vector")

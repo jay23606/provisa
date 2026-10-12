@@ -27,6 +27,7 @@ This is the engine primitive a live EngineRuntime dispatch would call; routing/H
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import shutil
@@ -44,6 +45,7 @@ from provisa.federation import store_writer
 from provisa.federation.engine import build_duckdb_engine
 from provisa.core import request_deadline
 from provisa.federation.land_guard import LandGuard
+from provisa.federation.replica_address import is_replicas_schema
 from provisa.federation.runtime_support import (
     close_cursor,
     columns_from_describe,
@@ -932,8 +934,16 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         self.ensure_materialize_attached()
         if self._store_is_duckdb():
             return self._store_broker.reconcile(schema, table, columns)
+        from provisa.federation.replica_target import text_vectors
+
+        # REQ-424: this engine reads a server store through its connector, so an embedding is
+        # held there as its text (as the build writes it, ``PostgresStoreTarget``).
         return await store_writer.reconcile_table(
-            self._store_dsn(), schema=schema, table=table, columns=columns, pk_columns=pk_columns
+            self._store_dsn(),
+            schema=schema,
+            table=table,
+            columns=text_vectors(columns),
+            pk_columns=pk_columns,
         )
 
     async def land_table(
@@ -1146,9 +1156,46 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 cur.execute(f'CREATE OR REPLACE TABLE {target} AS SELECT * FROM "{reg_name}"')
             finally:
                 cur.unregister(reg_name)
+            if is_replicas_schema(schema):
+                self._index_replica_vectors(cur, target, f"{schema}__{table}")
         finally:
             close_cursor(cur)
         self._store_copy_canary[target] = canary
+
+    def _index_replica_vectors(self, cur: Any, target: str, name: str) -> None:
+        """REQ-424: index each embedding column of the copied replica ``target`` with HNSW for
+        cosine distance, so a top-k search reads the index. A replica holds an embedding as
+        ``FLOAT[]`` (``ir_types.Embedding``) and nothing else as a float list; the column is
+        fixed at its vectors' length, and vectors of two lengths in one column fail the read,
+        naming it. A column with no vector has nothing to index."""
+        local_schema, local_table = _LOCAL_STORE_SCHEMA, name
+        columns = [
+            column
+            for column, data_type in cur.execute(
+                "SELECT column_name, data_type FROM information_schema.columns "
+                "WHERE table_schema = ? AND table_name = ?",
+                [local_schema, local_table],
+            ).fetchall()
+            if data_type == "FLOAT[]"
+        ]
+        if not columns:
+            return
+        if "vss" not in self._ext_loaded:
+            install_and_load(cur, "vss", from_community=False)
+            self._ext_loaded.add("vss")
+        for column in columns:
+            quoted = '"' + column.replace('"', '""') + '"'
+            found = cur.execute(
+                f"SELECT len({quoted}) FROM {target} WHERE {quoted} IS NOT NULL LIMIT 1"
+            ).fetchone()
+            if found is None:
+                continue
+            cur.execute(f"ALTER TABLE {target} ALTER {quoted} TYPE FLOAT[{int(found[0])}]")
+            index = "hnsw__" + hashlib.sha256(f"{name}.{column}".encode()).hexdigest()[:24]
+            cur.execute(
+                f'CREATE INDEX "{index}" ON {target} USING HNSW ({quoted}) '
+                "WITH (metric = 'cosine')"
+            )
 
     # -- metadata --------------------------------------------------------------
 

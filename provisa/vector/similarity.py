@@ -40,6 +40,9 @@ import sqlglot
 import sqlglot.expressions as exp
 
 FUNCTION = "cosine_similarity"
+# A governed call's distance (1 - similarity), written where a top-k search reads a replica's
+# index (:func:`index_top_k`): an index serves nearest-first by distance, not by similarity.
+DISTANCE = "provisa_cosine_distance"
 # The governed form: column, query, model id, dimensions.
 _GOVERNED_ARITY = 4
 
@@ -59,9 +62,14 @@ def is_call(node: exp.Expr) -> bool:  # pyright: ignore[reportPrivateImportUsage
     return isinstance(node, exp.Anonymous) and node.name.lower() == FUNCTION
 
 
+def _is_distance(node: exp.Expr) -> bool:  # pyright: ignore[reportPrivateImportUsage]
+    return isinstance(node, exp.Anonymous) and node.name.lower() == DISTANCE
+
+
 def mentions(sql: str) -> bool:
     """Whether ``sql`` may hold a call — a cheap check before parsing."""
-    return FUNCTION in sql.lower()
+    lowered = sql.lower()
+    return FUNCTION in lowered or DISTANCE in lowered
 
 
 def _vector_text(values: Sequence[Any]) -> str:
@@ -264,7 +272,34 @@ _PG_PLAIN = (
 )
 
 
+def _lowered_distance(call: exp.Anonymous, dialect: str, pgvector: bool) -> exp.Expr:  # pyright: ignore[reportPrivateImportUsage]
+    """A governed distance in the form a replica's index serves (REQ-424): DuckDB's
+    ``array_cosine_distance`` and pgvector's ``<=>``; elsewhere one minus the similarity."""
+    col, query, _, dims = call.expressions
+    if dialect == "duckdb":
+        vector_type = exp.DataType.build(f"FLOAT[{int(dims.this)}]", dialect=dialect)
+        return exp.Anonymous(
+            this="array_cosine_distance",
+            expressions=[exp.Cast(this=n.copy(), to=vector_type.copy()) for n in (col, query)],
+        )
+    if dialect == "postgres" and pgvector:
+        vector = exp.DataType.build("vector", udt=True)
+        return exp.Paren(
+            this=exp.Operator(
+                this=exp.Cast(this=col.copy(), to=vector.copy()),
+                operator="<=>",
+                expression=exp.Cast(this=query.copy(), to=vector.copy()),
+            )
+        )
+    similarity = exp.Anonymous(this=FUNCTION, expressions=[e.copy() for e in call.expressions])
+    return exp.Paren(
+        this=exp.Sub(this=exp.Literal.number(1), expression=_lowered(similarity, dialect, pgvector))
+    )
+
+
 def _lowered(call: exp.Anonymous, dialect: str, pgvector: bool) -> exp.Expr:  # pyright: ignore[reportPrivateImportUsage]
+    if _is_distance(call):
+        return _lowered_distance(call, dialect, pgvector)
     col, query, _, dims = call.expressions
     d = int(dims.this)
 
@@ -313,9 +348,79 @@ def lower(sql: str, dialect: str, *, pgvector: bool = False) -> str:  # REQ-423
     if not mentions(sql):
         return sql
     tree = sqlglot.parse_one(sql, read=dialect)
-    calls = _governed_calls(tree)
+    calls = _governed_calls(tree) + [n for n in tree.find_all(exp.Anonymous) if _is_distance(n)]
     if not calls:
         return sql
     for call in calls:
         call.replace(_lowered(call, dialect, pgvector))
     return tree.sql(dialect=dialect)
+
+
+# --------------------------------------------------------------------------------------------- #
+# A replica's index (REQ-424)                                                                   #
+# --------------------------------------------------------------------------------------------- #
+
+
+def _tables_of(select: exp.Select) -> list[exp.Table]:  # pyright: ignore[reportPrivateImportUsage]
+    from_ = select.args.get("from_") or select.args.get("from")
+    sources = [from_.this] if from_ is not None else []
+    sources += [join.this for join in select.args.get("joins") or []]
+    return [t for t in sources if isinstance(t, exp.Table)]
+
+
+def _column_table(column: exp.Expr, select: exp.Select) -> exp.Table | None:  # pyright: ignore[reportPrivateImportUsage]
+    """The table of ``select`` that ``column`` reads, or None when it is not one of them."""
+    if not isinstance(column, exp.Column):
+        return None
+    tables = _tables_of(select)
+    if not column.table:
+        return tables[0] if len(tables) == 1 else None
+    for table in tables:
+        if column.table in (table.alias_or_name, table.name):
+            return table
+    return None
+
+
+def index_top_k(pg_sql: str, replicas: frozenset[tuple[str | None, str, str]]) -> tuple[str, bool]:
+    """``pg_sql`` with each top-k search over a replica written nearest-first by distance, the
+    order a replica's HNSW index serves (REQ-424), and whether there was one.
+
+    A top-k search is a SELECT with a LIMIT ordered first by a governed call, most similar first,
+    whose embedding column is a column of a table read at its replica's address (``replicas``,
+    as ``(catalog, schema, table)``). The index answers it approximately: the caller says so in
+    the statement's warnings (:func:`approximate_index_warning`). Every other ordering is left as
+    it is, and computed exactly."""
+    if not replicas or not mentions(pg_sql):
+        return pg_sql, False
+    tree = sqlglot.parse_one(pg_sql, read="postgres")
+    searched = False
+    for select in tree.find_all(exp.Select):
+        order = select.args.get("order")
+        if select.args.get("limit") is None or order is None or not order.expressions:
+            continue
+        first = order.expressions[0]
+        call = first.this
+        if not (first.args.get("desc") and is_call(call)):
+            continue
+        if len(call.expressions) != _GOVERNED_ARITY:
+            raise SimilarityRefused("cosine_similarity was not governed")
+        table = _column_table(call.expressions[0], select)
+        if table is None or (table.catalog or None, table.db, table.name) not in replicas:
+            continue
+        distance = exp.Anonymous(this=DISTANCE, expressions=[e.copy() for e in call.expressions])
+        first.replace(exp.Ordered(this=distance, desc=False))
+        searched = True
+    return (tree.sql(dialect="postgres"), True) if searched else (pg_sql, False)
+
+
+def approximate_index_warning() -> Any:
+    """What an answer read through a replica's vector index says about itself (REQ-424)."""
+    from provisa.core.statement_warnings import ServerWarning
+
+    return ServerWarning(
+        code="statement.approximate_index",
+        message=(
+            "The most similar rows were found through an approximate vector index: a row "
+            "slightly more similar than the last one returned may be missing."
+        ),
+    )

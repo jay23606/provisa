@@ -173,6 +173,7 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
         columns=COLUMNS,
         pk_columns=["id"],
         engine_writes_store=False,
+        native_vectors=True,
     )
     assert isinstance(target, PostgresStoreTarget)
     assert target.caps.writes == {TargetWrite.COPY_STREAM} and target.caps.atomic_swap
@@ -185,6 +186,7 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
         columns=COLUMNS,
         pk_columns=[],
         engine_writes_store=True,
+        native_vectors=True,
     )
     assert by_engine.caps.writes == {TargetWrite.COPY_STREAM, TargetWrite.STATEMENT_COPY}
     assert PostgresStoreTarget.caps.writes == {TargetWrite.COPY_STREAM}  # the class is untouched
@@ -197,6 +199,7 @@ def test_a_postgresql_store_has_one_write_face_and_other_stores_are_refused_by_n
             columns=COLUMNS,
             pk_columns=[],
             engine_writes_store=False,
+            native_vectors=True,
         )
 
 

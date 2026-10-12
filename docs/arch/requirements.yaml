@@ -6142,28 +6142,37 @@
   category: Vector Search
   priority: SHOULD
   type: behavioral
-  description: For sources without native vector capability, Provisa must transparently materialize the
-    embedding column to an internal pgvector-enabled PostgreSQL cache table, build an HNSW index, rewrite
-    the query against the cache joining PKs back to the source, and return unified results. The caller
-    must not be aware of the fallback path.
-  use_case: Transparent fallback enables vector search on any source without source-side changes.
+  description: 'A table served from its replica (REQ-1912) is the fallback for a vector search: where the
+    engine reads the replica through its store''s own SQL, the replica holds an embedding column as a
+    vector with an HNSW index for cosine distance. The DuckDB engine indexes its own copy of a replica in
+    its embedded store; the PostgreSQL engine holds it as a pgvector vector(d), indexed in its own database.
+    A top-k search, a statement with a LIMIT ordered first by cosine_similarity (most similar first) whose
+    embedding column belongs to a replica-served table, reads the index, and its answer carries the
+    "approximate index" warning, since the index may miss a row slightly more similar than the last one
+    returned. Every other search over a replica is computed exactly. On Trino, and on an engine that reads
+    a replica from a store of another kind, the replica holds the embedding as its JSON text and every
+    search is computed exactly, with no index and no warning. There is no separate vector cache.'
+  use_case: Vector search over any replicated source reads an index without source-side changes.
   code:
-  - provisa/vector/fallback_cache.py
+  - provisa/federation/replica_target.py
+  - provisa/federation/duckdb_runtime.py
+  - provisa/federation/residency.py
+  - provisa/federation/runtime.py
+  - provisa/core/ir_types.py
+  - provisa/vector/similarity.py
   tests:
-  - tests/unit/test_table_search.py
-  - tests/unit/test_vector.py
+  - tests/unit/test_vector_replica_index.py
   since: 2026-01
-  scenario: 'Given a source without native vector capability
+  scenario: 'Given a table with an embedding column served from its replica on the DuckDB engine
 
-    When a cosine_similarity query is executed
+    When a top-k cosine_similarity search is executed
 
-    Then the embedding column is materialized to the pgvector cache, an HNSW index is built, and results
-    are returned transparently
+    Then the replica''s HNSW index answers it and the answer says the index is approximate
 
     '
   integration_test: deferred
-  integration_test_reason: 'Transparent fallback to pgvector cache requires real PostgreSQL, S3, and HNSW
-    indexing. [deferred: requires external infrastructure not in CI stack]'
+  integration_test_reason: 'The PostgreSQL engine''s pgvector index needs a PostgreSQL with pgvector; the
+    DuckDB path runs in-process in the unit tests. [deferred: container test, CI only]'
   bdd: true
   bdd_reason: Behavior expressed as stakeholder-readable Gherkin acceptance criteria.
   stakeholders:
@@ -6171,31 +6180,31 @@
   - ops
   competitive_position:
     status: ahead
-    rationale: Transparent pgvector fallback materialization with HNSW index for sources lacking native
-      vector capability is unique to Provisa; competitors require vector search to be handled within the
-      native source and provide no cross-source fallback path.
-  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". The wording of this amendment beyond the quoted rulings is the teammate''s.'
+    rationale: An HNSW index on the replica of any source makes vector search available over sources
+      lacking native vector capability; competitors require vector search within the native source.
+  notes: 'Maintainer 2026-10-12, through the lead, approving the design for wiring cosine_similarity through the one pipeline (GitHub #251: REQ-423/424/425 were marked complete but not wired): "A1: over a query-form-native collection table, the engine computes it exactly. B1: the fallback is the replica plus an HNSW index; invalidation is the replica''s freshness; REQ-424/425 amended; fallback_cache.py and cache_invalidation.py removed. C1: the index only for top-k over a replica-served table, with the ''approximate index'' warning." Also: "wire REQ-422 detection, remove governance.py''s mask rule per REQ-652 (with registration refusing a mask on an embedding column), set the statuses back to in-progress until built". Lead 2026-10-12, on the engines: "A. The index applies only when the engine reads its own store; on Trino the computation is exact with no index and no warning. Record that in REQ-424." The wording of this amendment beyond the quoted rulings is the teammate''s.'
 - id: REQ-425
   status: in-progress
   group: 4. Source Connectors
   category: Vector Search
   priority: MUST
   type: constraint
-  description: The pgvector fallback cache must support TTL-based invalidation, mutation-triggered invalidation,
-    manual refresh via admin API, and row count drift detection. Stale cache must not silently serve results
-    beyond configured TTL.
-  use_case: Multiple invalidation strategies with drift detection prevent silent data staleness.
+  description: 'A replica''s vector index (REQ-424) is as fresh as the replica: it is built with each
+    replica build and swapped in with it (REQ-1915), and the DuckDB engine re-indexes its copy whenever
+    the store changes. Invalidation is the replica''s own freshness, set by the table''s replica settings
+    (REQ-030, REQ-826); no vector cache is kept or invalidated apart from the replica.'
+  use_case: A vector search never reads vectors older than the replica it is answered from.
   code:
-  - provisa/vector/cache_invalidation.py
+  - provisa/federation/replica_target.py
+  - provisa/federation/duckdb_runtime.py
   tests:
-  - tests/unit/test_config_validation_edge_cases.py
-  - tests/unit/test_vector.py
+  - tests/unit/test_vector_replica_index.py
   since: 2026-01
-  scenario: 'Given a pgvector fallback cache that has exceeded its configured TTL
+  scenario: 'Given a replica-served table with an embedding column whose replica is rebuilt
 
-    When a cosine_similarity query is issued
+    When a cosine_similarity search is issued
 
-    Then the stale cache is not served and invalidation or refresh is triggered
+    Then it reads the rebuilt replica and that replica''s index
 
     '
   integration_test: deferred
@@ -6206,9 +6215,8 @@
   - compliance
   competitive_position:
     status: ahead
-    rationale: Multi-strategy cache invalidation (TTL, mutation-triggered, manual refresh, row count drift
-      detection) for the vector fallback cache is a sophisticated operational feature not present in any
-      competitor federation platform, which lack vector fallback infrastructure entirely.
+    rationale: The vector index lives and refreshes with the replica, so a search over a replicated
+      source has no separate cache to go stale.
   related_reqs:
   - REQ-826
   - REQ-844

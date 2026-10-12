@@ -39,6 +39,11 @@ class LandingArgs:  # REQ-932
     )
 
 
+#: Engines whose replica of a table with an embedding column holds it as an indexed vector
+#: (REQ-424): each reads replicas from a store whose own SQL searches the index.
+EMBEDDING_INDEX_PLATFORMS = frozenset({"duckdb", "postgres"})
+
+
 def resolve_landing_args(
     source: Source, table: Table, *, platform: str | None = None
 ) -> LandingArgs:
@@ -84,7 +89,11 @@ def resolve_landing_args(
                 f"cannot land {table.schema_name}.{table.table_name}: column {c.name!r} has no "
                 f"resolved data_type (startup introspection must fill it before materialization)"
             )
-        columns.append((c.name, to_ir(c.data_type, platform)))
+        # REQ-424: an embedding column lands as a vector where the engine indexes its replica.
+        if c.embedding and platform in EMBEDDING_INDEX_PLATFORMS:
+            columns.append((c.name, "vector"))
+        else:
+            columns.append((c.name, to_ir(c.data_type, platform)))
     # REQ-982: resolve the effective probe_type (validated against the source's capability class;
     # ttl forces none; unset under a probing cadence defaults per class).
     from provisa.events.probes import resolve_probe_type

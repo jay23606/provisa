@@ -388,7 +388,7 @@ STALE → (refresh loop picks up) → REFRESHING → FRESH
 | `compiler/` | GraphQL/SQL 剖析器、語義 SQL 產生器、RLS、遮罩、抽樣、兩階段治理（`stage2.py`） |
 | `cypher/` | Cypher → SQL 轉譯器、剖析器、標籤對照表（REQ-351）、Cypher mutation 寫入轉譯器 |
 | `pgwire/` | PostgreSQL 線路協定伺服器；`catalog.py` 攔截 pg_catalog/information_schema 以實現逐角色物件可視性（REQ-527、REQ-883、REQ-891） |
-| `vector/` | 向量搜尋——模型登記冊、嵌入供應商（openai/ollama/huggingface）、`cosine_similarity()` 轉譯、pgvector 回退快取、宣告式嵌入產生（REQ-419–431） |
+| `vector/` | 向量搜尋——模型登記冊、嵌入供應商（openai/ollama/huggingface）、`cosine_similarity()` 轉譯、副本嵌入欄上的 HNSW 索引、宣告式嵌入產生（REQ-419–431） |
 | `compiler/federation.py` | Apollo Federation v2 子圖支援 |
 | `transpiler/` | 方言轉譯、路由邏輯 |
 | `executor/` | 聯邦式/直接執行、序列化、輸出格式 |
