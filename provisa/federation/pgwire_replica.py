@@ -940,6 +940,22 @@ async def servicenow_columns(source: Any, schema: str, table: str) -> list[tuple
     return [(row[0], row[1]) for row in rows]
 
 
+async def servicenow_transform_maps(source: Any, schema: str, target: str) -> list[tuple[str, str]]:
+    """``[(name, import set), ...]`` of the active transform maps of a ServiceNow source that
+    write into ``target`` (REQ-1954), from the adapter's transform map list
+    (``servicenow.TRANSFORM_MAP_LIST``): the import sets a table may be bound to."""
+    from provisa.federation.servicenow import TRANSFORM_MAP_LIST
+
+    schema = _identifier(schema, "schema")
+    target = _identifier(target, "table")
+    rows = await _read_information_schema(
+        source,
+        f'SELECT name, source_table FROM "{schema}"."{TRANSFORM_MAP_LIST}" '  # noqa: S608 - identifiers
+        f"WHERE target_table = '{target}' AND active ORDER BY name",
+    )
+    return [(row[0], row[1]) for row in rows]
+
+
 async def adapter_columns(
     source: Any, schema: str, table: str | None = None
 ) -> dict[str, list[tuple[str, str]]]:

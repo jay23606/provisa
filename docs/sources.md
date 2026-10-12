@@ -440,6 +440,8 @@ Table search (natural language) matches each table's name, label and theme. Once
 
 **Writes.** `INSERT`, `UPDATE` and `DELETE` on a registered table are mutations: governed, audited and handled per environment as any other mutation is. On every engine, Trino included, a write runs on the source's pgwire server. The server returns the row the instance holds after each write, so a `RETURNING` clause is accepted and GraphQL offers mutation fields for these tables. A write is one plain statement on one table: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` and `TRUNCATE` are refused, naming the form. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
 
+**Import sets.** When a table has an active transform map into it, Register Table offers its import sets, and the steward may bind the table to one (a table with several maps names each). A bound table's inserts go through the instance's Import Set API and that map's transform; an unbound table's inserts, and every update and delete, are written to the table directly. A row the transform rejects is refused, naming the row; rows already written stay written. The binding is checked when the table is saved: it must be the import set of an active transform map into the table, on a ServiceNow source. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow

@@ -364,6 +364,8 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 
 **כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על טבלה רשומה הן מוטציות: נשלטות, מתועדות בביקורת ומטופלות לפי סביבה ככל מוטציה אחרת. בכל מנוע, כולל Trino, כתיבה רצה על שרת ה-pgwire של המקור. השרת מחזיר את השורה שה-instance מכיל לאחר כל כתיבה; קלוזת `RETURNING` לפיכך מתקבלת, ו-GraphQL מציע שדות מוטציה עבור הטבלאות הללו. כתיבה היא פקודה אחת על טבלה אחת: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` ו-`TRUNCATE` נדחים תוך ציון הצורה. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
 
+**ערכות יבוא (Import sets).** כאשר לטבלה יש מפת טרנספורמציה (transform map) פעילה אליה, Register Table מציגה את ערכות היבוא שלה, והסטיוארד יכול לקשור את הטבלה לאחת מהן (טבלה עם מספר מפות מציינת כל אחת בשמה). הוספות לטבלה קשורה עוברות דרך Import Set API של ה-instance וטרנספורמציית אותה מפה; הוספות לטבלה לא קשורה, וכל עדכון ומחיקה, נכתבים ישירות לטבלה. שורה שהטרנספורמציה דוחה — נדחית תוך ציון השורה; שורות שכבר נכתבו נשארות כתובות. הקישור נבדק בעת שמירת הטבלה: הוא חייב להיות ערכת היבוא של מפת טרנספורמציה פעילה אל הטבלה, במקור ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow

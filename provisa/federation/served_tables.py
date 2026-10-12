@@ -17,11 +17,14 @@ tables registered from the source (REQ-1954). Read by the server's model (``pgwi
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 #: Source id -> the tables registered from it that its server serves, for a type whose server
 #: serves only those (``SERVES_REGISTERED_TABLES``). Set from the model on every schema build.
 _SERVED_TABLES: dict[str, tuple[str, ...]] = {}
+#: Source id -> its registered tables bound to an import set: table -> the import set (staging
+#: table) its inserts go through.
+_IMPORT_SETS: dict[str, dict[str, str]] = {}
 #: Types whose server is given the tables registered from the source and serves only those
 #: (REQ-1954): a ServiceNow server resolves every table it serves before it listens, and an
 #: instance has thousands.
@@ -33,11 +36,20 @@ def served_tables(source_id: str) -> tuple[str, ...]:
     return _SERVED_TABLES.get(source_id, ())
 
 
-def serve_tables(source_id: str, names: Iterable[str]) -> bool:
-    """Record the tables registered from ``source_id``; True when they differ from the ones its
-    server was last given (none, before the first record), so a server already running must be
-    started again to serve them."""
+def served_import_sets(source_id: str) -> dict[str, str]:
+    """The registered tables of ``source_id`` bound to an import set: table -> import set."""
+    return dict(_IMPORT_SETS.get(source_id, {}))
+
+
+def serve_tables(
+    source_id: str, names: Iterable[str], import_sets: Mapping[str, str] | None = None
+) -> bool:
+    """Record the tables registered from ``source_id`` and the import sets those bound to one go
+    through; True when either differs from what its server was last given (nothing, before the
+    first record), so a server already running must be started again to serve them."""
     wanted = tuple(sorted(set(names)))
-    before = _SERVED_TABLES.get(source_id, ())
+    bound = dict(import_sets or {})
+    before = (_SERVED_TABLES.get(source_id, ()), _IMPORT_SETS.get(source_id, {}))
     _SERVED_TABLES[source_id] = wanted
-    return before != wanted
+    _IMPORT_SETS[source_id] = bound
+    return before != (wanted, bound)

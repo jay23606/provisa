@@ -34,6 +34,11 @@ INSTANCE_URL_SCHEME = "https://"
 #: columns. The leading underscore keeps it apart from every ServiceNow table name.
 TABLE_LIST = "_servicenow_tables"
 
+#: The table the adapter serves for the instance's transform maps: ``(name, source_table,
+#: target_table, active)``, read for one ``target_table`` at a time. A map's source_table is the
+#: import set (staging table) a table bound to it takes its inserts through.
+TRANSFORM_MAP_LIST = "_servicenow_transform_maps"
+
 #: The table the adapter serves for one table's columns: ``(table_name, column_name, data_type,
 #: ordinal_position)``, read for one ``table_name`` at a time (it refuses a scan of every table),
 #: each data_type the PostgreSQL type the registered table will have.
@@ -59,7 +64,8 @@ def servicenow_instance_url(source: Any) -> str:
 
 def servicenow_settings(source: Any) -> dict:
     """The adapter's settings for ``source``: its instance URL, the credential entered for it,
-    each resolved at use, and the tables registered from it (``pgwire_replica.served_tables``).
+    each resolved at use, the tables registered from it and the import sets those bound to one
+    take their inserts through (``served_tables``).
     A missing username or password is a config error naming it."""
     who = f"servicenow source {source.id!r}"
     username = resolve_secrets(source.username) if source.username else ""
@@ -68,7 +74,7 @@ def servicenow_settings(source: Any) -> dict:
         raise MissingConnectorConfig(f"{who}: requires the username")
     if not password:
         raise MissingConnectorConfig(f"{who}: requires the password")
-    settings: dict[str, str | list[str]] = {
+    settings: dict[str, str | list[str] | dict[str, str]] = {
         "instanceUrl": servicenow_instance_url(source),
         "authType": "basic",
         "username": username,
@@ -76,9 +82,13 @@ def servicenow_settings(source: Any) -> dict:
     }
     # Only the registered tables are served as tables; with none, the server serves its table
     # and column lists alone.
-    from provisa.federation.served_tables import served_tables
+    from provisa.federation.served_tables import served_import_sets, served_tables
 
     tables = served_tables(source.id)
     if tables:
         settings["tables"] = list(tables)
+    # A table bound to an import set takes its inserts through that set's transform map.
+    import_sets = served_import_sets(source.id)
+    if import_sets:
+        settings["importSet"] = import_sets
     return settings

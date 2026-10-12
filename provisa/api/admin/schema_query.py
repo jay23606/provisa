@@ -54,6 +54,7 @@ from provisa.api.admin.types import (
     JsonScalar,
     AvailableColumnType,
     AvailableTableType,
+    ImportSetType,
     CacheStatsType,
     CacheTableStatType,
     CalendarType,
@@ -1227,6 +1228,23 @@ class Query:  # REQ-021, REQ-042
         columns = await resolve_available_columns_metadata(source_id, schema_name, table_name)
         await _remember_selected_columns(source_id, schema_name, table_name, columns)
         return columns
+
+    @strawberry.field
+    async def available_import_sets(
+        self, info: StrawberryInfo, source_id: str, schema_name: str, table_name: str
+    ) -> list[ImportSetType]:
+        """The import sets a ServiceNow table may be bound to (REQ-1954): those of the instance's
+        active transform maps that write into it. A table of no other source has any."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin.introspect import _adapter_bound, _adapter_source
+        from provisa.federation.pgwire_replica import servicenow_transform_maps
+
+        source = await _adapter_source(source_id)
+        if source.type.value != "servicenow":
+            return []
+        async with _adapter_bound():
+            maps = await servicenow_transform_maps(source, schema_name.strip().lower(), table_name)
+        return [ImportSetType(name=name, import_set=staging) for name, staging in maps]
 
     @strawberry.field
     async def suggest_table_alias(

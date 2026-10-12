@@ -364,6 +364,8 @@ ServiceNow 数据源指定实例的完整 `https://…` URL 以及用户名和�
 
 **写入。** 对已注册表的 `INSERT`、`UPDATE` 和 `DELETE` 是变更操作：与其他任何变更一样受治理、被审计，并按环境处理。在每个引擎上（包括 Trino），写入都在数据源的 pgwire 服务器上运行。服务器会返回每次写入后实例持有的行；因此接受 `RETURNING` 子句，GraphQL 也为这些表提供变更字段。一次写入是针对一张表的单一语句：`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING`、`MERGE` 和 `TRUNCATE` 均被拒绝，并指出形式。[tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`、`PGWIRE_SERVER_RETURNS_ROWS`]
 
+**Import sets（导入集）。** 当一张表存在指向它的活动转换映射时，Register Table 会提供其 import sets，数据管理员可以将表绑定到其中一个（有多个映射的表会逐一命名）。绑定表的插入操作通过实例的 Import Set API 和该映射的转换进行；未绑定表的插入操作以及每次更新和删除都直接写入表中。转换拒绝的行将被拒绝，并指出该行；已写入的行保持不变。绑定在保存表时进行检查：它必须是该表的活动转换映射的 import set，且位于 ServiceNow 数据源上。[tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`；`provisa/federation/servicenow.py` `servicenow_settings`；`provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow

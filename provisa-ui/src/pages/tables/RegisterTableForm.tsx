@@ -62,7 +62,8 @@ import { useSourceKind } from "../sources/sourceKind";
 import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 import { serverMessage } from "../../i18n/serverMessage";
 import { usePanelDirty } from "../../components/list/panelLeave";
-import { tableGroups } from "./tableGroups";
+import { TableOptions } from "./TableOptions";
+import { ImportSetField } from "./ImportSetField";
 
 // REQ-1443: a checker's scans append to a relation in the org's control-plane schema, which the
 // server stamps on registration (as for a profiler's results); the form carries this placeholder.
@@ -147,6 +148,7 @@ export function RegisterTableForm({
   const [cacheTtl, setCacheTtl] = useState<string>("");
   const [fileGlob, setFileGlob] = useState(""); // REQ-788
   const [sourceFileColumn, setSourceFileColumn] = useState(""); // REQ-788
+  const [importSet, setImportSet] = useState<string | null>(null); // REQ-1954
   const [discover, setDiscover] = useState(false); // REQ-252: infer columns from the live source
   const [loadingColumns, setLoadingColumns] = useState(false);
   // The columns discovery gave no type: the short step asks a type for each.
@@ -568,6 +570,7 @@ export function RegisterTableForm({
         fileGlob: isFilesSource && fileGlob.trim() ? fileGlob.trim() : undefined, // REQ-788
         sourceFileColumn:
           isFilesSource && sourceFileColumn.trim() ? sourceFileColumn.trim() : undefined, // REQ-788
+        importSet: sourceType === "servicenow" ? importSet : undefined, // REQ-1954
         // REQ-318: only what is declared; nothing declared registers the table with no paging.
         pagination:
           !short && pagingKind !== null && declaredPaging(pagination) !== null
@@ -879,25 +882,7 @@ export function RegisterTableForm({
                           ? t("registerTableForm.tableAllRegistered")
                           : t("registerTableForm.tablePlaceholder")}
                   </option>
-                  {tableGroups(availableTables).map(([group, tables]) => {
-                    const options = tables.map((tbl) => (
-                      <option key={tbl.name} value={tbl.name} disabled={isRegistered(tbl)}>
-                        {group != null && tbl.comment
-                          ? t("registerTableForm.tableWithLabel", {
-                              name: tbl.name,
-                              label: tbl.comment,
-                            })
-                          : tbl.name}
-                      </option>
-                    ));
-                    return group == null ? (
-                      options
-                    ) : (
-                      <optgroup key={group} label={group}>
-                        {options}
-                      </optgroup>
-                    );
-                  })}
+                  <TableOptions tables={availableTables} isRegistered={isRegistered} />
                 </select>
                 {startingTablesTimedOut && (
                   <Text size="xs" c="red" mt={4} data-testid="register-table-starting-timeout">
@@ -906,6 +891,11 @@ export function RegisterTableForm({
                 )}
               </label>
             </FormField>
+            {sourceType === "servicenow" && tableName && (
+              <ImportSetField
+                {...{ sourceId, schemaName, tableName, value: importSet, onChange: setImportSet }}
+              />
+            )}
           </>
         )}
         <FormField size="medium">

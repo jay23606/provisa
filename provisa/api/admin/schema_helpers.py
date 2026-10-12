@@ -441,6 +441,7 @@ async def _fetch_table_with_columns(
         ),
         file_glob=row.get("file_glob"),  # REQ-788
         source_file_column=row.get("source_file_column"),  # REQ-788
+        import_set=row.get("import_set"),  # REQ-1954
         view_metrics=_view_metrics_type_from_row(row.get("view_metrics")),  # REQ-1318
         change_signal=row.get("change_signal"),
         probe_query=row.get("probe_query"),

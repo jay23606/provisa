@@ -904,6 +904,10 @@ class TrinoServicenowConnector(_TrinoConnector):
         }
         if "tables" in settings:
             props["tables"] = ",".join(settings["tables"])
+        if "importSet" in settings:
+            props["import-set"] = ",".join(
+                f"{target}:{staging}" for target, staging in sorted(settings["importSet"].items())
+            )
         return props
 
 

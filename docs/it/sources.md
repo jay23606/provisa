@@ -364,6 +364,8 @@ La ricerca di tabelle (linguaggio naturale) corrisponde a nome, etichetta e tema
 
 **Scritture.** `INSERT`, `UPDATE` e `DELETE` su una tabella registrata sono mutazioni: governate, sottoposte ad audit e gestite per ambiente come ogni altra mutazione. Su ogni motore, Trino incluso, una scrittura viene eseguita sul server pgwire della fonte. Il server restituisce la riga che l'istanza contiene dopo ogni scrittura; una clausola `RETURNING` è quindi accettata e GraphQL offre campi di mutazione per queste tabelle. Una scrittura è una singola istruzione su una tabella: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` e `TRUNCATE` vengono rifiutati, nominando la forma. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
 
+**Import set.** Quando una tabella ha una transform map attiva verso di essa, Register Table offre i suoi import set, e lo steward può vincolare la tabella a uno (una tabella con più map nomina ciascuno). Le inserzioni in una tabella vincolata passano attraverso l'Import Set API dell'istanza e la trasformazione di quella map; le inserzioni in una tabella non vincolata, e ogni aggiornamento ed eliminazione, vengono scritte direttamente nella tabella. Una riga che la trasformazione rifiuta viene respinta, nominando la riga; le righe già scritte restano scritte. Il vincolo viene verificato quando la tabella viene salvata: deve essere l'import set di una transform map attiva verso la tabella, su una fonte ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow

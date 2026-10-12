@@ -1240,6 +1240,11 @@ class Table(
     # "hive"), read from the source when the table is registered, never set by a steward. It
     # decides the writes the table takes (``executor/write_capability``).
     table_format: str | None = None
+    # REQ-1954: a ServiceNow table bound to one of the instance's import sets: the staging table
+    # of the transform map (targeting this table) its inserts go through, by the instance's Import
+    # Set API. None: its inserts are written to the table directly. Updates and deletes are always
+    # direct.
+    import_set: str | None = None
     # REQ-874: incremental (delta) reload of this table's replica. None = whole rebuild only.
     delta: "DeltaConfig | None" = None
     mv_refresh_interval: int = 300  # seconds between MV refreshes (only used when materialize=True)

@@ -291,8 +291,9 @@ async def serve_registered_tables(state) -> None:
     for source in config.sources:
         if source.type.value not in SERVES_REGISTERED_TABLES:
             continue
-        names = [t.table_name for t in config.tables if t.source_id == source.id]
-        if not serve_tables(source.id, names):
+        own = [t for t in config.tables if t.source_id == source.id]
+        import_sets = {t.table_name: t.import_set for t in own if t.import_set}
+        if not serve_tables(source.id, [t.table_name for t in own], import_sets):
             continue
         await restart_source_server(source)
         state.federation_engine.register_source(

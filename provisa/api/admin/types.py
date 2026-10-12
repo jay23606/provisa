@@ -366,6 +366,8 @@ class RegisteredTableType:  # REQ-013, REQ-014, REQ-016, REQ-135
     # carrying each row's file path. None = a single-file table.
     file_glob: str | None = None
     source_file_column: str | None = None
+    # REQ-1954: a ServiceNow table's import set (the staging table its inserts go through).
+    import_set: str | None = None
     change_signal: str | None = None  # REQ-929: override source change signal; None = inherit
     probe_query: str | None = None  # REQ-929: source-native freshness probe
     probe_type: str | None = None  # REQ-982: input-probe method; None = resolve per source class
@@ -524,6 +526,15 @@ class TableColumnType:  # REQ-040, REQ-041, REQ-393, REQ-399
     synthetic_rule: str | None = None
     # REQ-1494: the column is tagged pii.
     is_pii: bool = False
+
+
+@strawberry.type
+class ImportSetType:  # REQ-1954
+    """One of a ServiceNow instance's active transform maps into a table: its name, and the import
+    set (staging table) a table bound to it takes its inserts through."""
+
+    name: str
+    import_set: str
 
 
 @strawberry.type
@@ -965,6 +976,9 @@ class TableInput:  # REQ-013, REQ-016, REQ-133, REQ-135, REQ-252
     # file path. None = a single-file table.
     file_glob: str | None = None
     source_file_column: str | None = None
+    # REQ-1954: a ServiceNow table's import set: the staging table of the transform map its inserts
+    # go through. None: its inserts are written to the table directly.
+    import_set: str | None = None
     # REQ-1318: declarative metric-composed view definition; mutually exclusive with view_sql.
     # The server generates (and regenerates on metric change) the view SELECT from this spec.
     view_metrics: ViewMetricsInput | None = None

@@ -365,6 +365,8 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 **Запись.** `INSERT`, `UPDATE` и `DELETE` на зарегистрированной таблице — это мутации: управляемые, проходящие аудит и обрабатываемые по правилам среды, как любая другая мутация. В каждом движке, включая Trino, запись выполняется на pgwire-сервере источника. Сервер возвращает строку, которую инстанс содержит после записи; клауза `RETURNING` поэтому принимается, и GraphQL предлагает поля мутаций для этих таблиц. Запись — это одна инструкция над одной таблицей: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` и `TRUNCATE` отклоняются с указанием формы. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
 
+**Import-сеты.** Если у таблицы есть активная карта преобразования (transform map) в неё, Register Table предлагает её import-сеты, и стюард может привязать таблицу к одному из них (таблица с несколькими картами называет каждую). Вставки в привязанную таблицу проходят через Import Set API инстанса и преобразование той карты; вставки в непривязанную таблицу, а также каждое обновление и удаление записываются в таблицу напрямую. Строка, отклонённая преобразованием, отклоняется с указанием этой строки; уже записанные строки остаются записанными. Привязка проверяется при сохранении таблицы: она должна быть import-сетом активной карты преобразования в эту таблицу, в источнике ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow

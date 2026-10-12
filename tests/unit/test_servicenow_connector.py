@@ -287,7 +287,7 @@ async def test_a_changed_registration_restarts_the_server_and_provisions_the_sou
             (source.id, catalog_name)
         )
     )
-    table = SimpleNamespace(source_id="snow-ops", table_name="incident")
+    table = SimpleNamespace(source_id="snow-ops", table_name="incident", import_set=None)
     state = SimpleNamespace(
         config=SimpleNamespace(sources=[_source()], tables=[table]),
         federation_engine=engine,
@@ -318,3 +318,90 @@ def test_the_other_pgwire_written_sources_still_return_no_rows():
 
     table = {"source_id": "sf", "table_name": "Account"}
     assert table_write_returns_rows(table, "salesforce", None) is False
+
+
+# -- a table bound to an import set ---------------------------------------------------------------
+
+
+def test_a_bound_tables_import_set_reaches_both_readers(tmp_path, served):
+    served_tables.serve_tables(
+        "snow-ops", ["incident", "sys_user"], {"sys_user": "imp_user", "incident": "u_imp_inc"}
+    )
+    operand = _operand(_source(), tmp_path)
+    assert operand["tables"] == ["incident", "sys_user"]
+    assert operand["importSet"] == {"sys_user": "imp_user", "incident": "u_imp_inc"}
+    props = _build_catalog_properties(_source(), "")
+    assert props["import-set"] == "incident:u_imp_inc,sys_user:imp_user"
+
+
+def test_an_unbound_source_names_no_import_set(tmp_path, served):
+    served_tables.serve_tables("snow-ops", ["incident"])
+    assert "importSet" not in _operand(_source(), tmp_path)
+    assert "import-set" not in _build_catalog_properties(_source(), "")
+
+
+def test_binding_or_unbinding_a_table_is_a_change(served):
+    assert served_tables.serve_tables("snow-ops", ["incident"]) is True
+    assert served_tables.serve_tables("snow-ops", ["incident"], {"incident": "u_imp_inc"}) is True
+    assert served_tables.serve_tables("snow-ops", ["incident"], {"incident": "u_imp_inc"}) is False
+    assert served_tables.serve_tables("snow-ops", ["incident"]) is True
+
+
+async def test_the_transform_maps_into_a_table_are_read_for_it_alone(adapter_reads):
+    sent, answers = adapter_reads
+    answers["_servicenow_transform_maps"] = [("User Import", "imp_user")]
+    maps = await pr.servicenow_transform_maps(_source(), "snow_ops", "sys_user")
+    assert maps == [("User Import", "imp_user")]
+    assert sent == [
+        'SELECT name, source_table FROM "snow_ops"."_servicenow_transform_maps" '
+        "WHERE target_table = 'sys_user' AND active ORDER BY name"
+    ]
+
+
+@pytest.fixture
+def bound_check(monkeypatch):
+    """The save-time import set check, against a stored source of ``kind`` whose instance has one
+    active transform map into sys_user."""
+    from provisa.api.admin import _import_set
+    from provisa.core.repositories import source as source_repo
+
+    kind = {"type": "servicenow"}
+
+    async def stored(conn, source_id):
+        return {"id": source_id, "type": kind["type"]}
+
+    async def maps(source, schema, target):
+        return [("User Import", "imp_user")] if target == "sys_user" else []
+
+    monkeypatch.setattr(source_repo, "get", stored)
+    monkeypatch.setattr("provisa.core.repositories.source.source_from_row", lambda row: row)
+    monkeypatch.setattr(pr, "servicenow_transform_maps", maps)
+    monkeypatch.setattr("provisa.core.secrets_store.bound_to_request_org", contextlib.nullcontext)
+    return _import_set.table_import_set_refusal, kind
+
+
+def _table(import_set, table_name="sys_user"):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        source_id="snow-ops", schema_name="snow_ops", table_name=table_name, import_set=import_set
+    )
+
+
+async def test_a_table_bound_to_a_transform_maps_import_set_is_saved(bound_check):
+    check, _kind = bound_check
+    assert await check(None, _table("imp_user")) is None
+    assert await check(None, _table(None)) is None
+
+
+async def test_an_import_set_no_active_map_writes_into_the_table_from_is_refused(bound_check):
+    check, _kind = bound_check
+    refused = await check(None, _table("imp_user", table_name="incident"))
+    assert refused is not None and refused.code == "schema.import_set_unknown"
+
+
+async def test_an_import_set_on_a_table_of_another_source_type_is_refused(bound_check):
+    check, kind = bound_check
+    kind["type"] = "postgresql"
+    refused = await check(None, _table("imp_user"))
+    assert refused is not None and refused.code == "schema.import_set_not_servicenow"

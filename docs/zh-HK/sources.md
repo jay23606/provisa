@@ -312,6 +312,8 @@ ServiceNow 數據來源指定執行個體的完整 `https://…` URL 以及使�
 
 **寫入。** 對已註冊資料表的 `INSERT`、`UPDATE` 和 `DELETE` 屬於變更操作：與其他任何變更一樣受治理、經審計，並按環境處理。在每個引擎上（包括 Trino），寫入都在數據來源的 pgwire 伺服器上執行。伺服器會傳回每次寫入後執行個體持有的資料列；因此接受 `RETURNING` 子句，GraphQL 也為這些資料表提供變更欄位。一次寫入是針對一張資料表的單一陳述式：`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING`、`MERGE` 和 `TRUNCATE` 均被拒絕，並指出形式。[tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`、`PGWIRE_SERVER_RETURNS_ROWS`]
 
+**Import sets（匯入集）。** 當一張資料表存在指向它的活動轉換對應時，Register Table 會提供其 import sets，數據管理員可以將資料表綁定到其中一個（有多個對應的資料表會逐一命名）。已綁定資料表的插入操作透過執行個體的 Import Set API 及該對應的轉換進行；未綁定資料表的插入操作以及每次更新和刪除都直接寫入資料表中。轉換拒絕的資料列將被拒絕，並指出該列；已寫入的資料列保持不變。綁定在儲存資料表時進行檢查：它必須是該資料表的活動轉換對應的 import set，且位於 ServiceNow 數據來源上。[tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`；`provisa/federation/servicenow.py` `servicenow_settings`；`provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
 ```yaml
 - id: helpdesk-sn
   type: servicenow
