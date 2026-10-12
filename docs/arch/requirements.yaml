@@ -77976,3 +77976,41 @@
   related_reqs:
   - REQ-1984
   notes: 'Maintainer 2026-10-12, through the lead, ruling on the Node connector design note (docs/arch/node-connector.md, open decision 1): full named types, for every source, as its own requirement and its own part of the work. Not built. Today a nested value is a json column with per-column object fields: one object type per column, no list of objects, no enum, and a JSON string on gRPC. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1990
+  status: complete
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: MCP & AI Integration
+  priority: SHOULD
+  type: behavioral
+  description: The external MCP server reaches the graph surface as the UI does. run_cypher runs Cypher
+    under the caller's role through the pipeline every Cypher surface uses and answers its rows and the
+    graph they hold as Cytoscape elements (nodes and edges with the graph page's ids and only the properties
+    the role is served). render_graph hands back those elements with the Cytoscape layout the UI draws
+    them with -- the graph page's force (fcose) or hierarchy (breadthfirst) options, or the ERD's ELK layout
+    -- for the client to run; no positions are computed and no Node runs on the server. One layout file
+    is read by the server and held equal to the UI's own options by a test. generate_explore_queries answers
+    all six query surfaces under the caller's role.
+  use_case: An agent connected to Provisa over MCP asks a graph question and gets back a graph its client
+    can draw exactly as the Provisa UI would, without the server rendering images or the client re-deriving
+    the layout.
+  code:
+  - provisa/api/mcp/tools.py
+  - provisa/api/mcp/server.py
+  - provisa/api/mcp/graph_layouts.json
+  - provisa-ui/src/components/erd/erd-layout-options.ts
+  tests:
+  - tests/unit/test_mcp_graph_tools.py
+  - provisa-ui/src/components/graph/__tests__/graphLayoutsParity.test.ts
+  e2e: false
+  scenario: 'Given an agent connected to the MCP server under role "analyst"
+
+    When it calls run_cypher with a MATCH that returns nodes and a relationship
+
+    Then it receives the rows and Cytoscape elements carrying only the properties analyst is served
+
+    When it calls render_graph with those elements and layout "elk"
+
+    Then it receives the elements and the ERD''s ELK layout options, with no positions computed
+
+    '
