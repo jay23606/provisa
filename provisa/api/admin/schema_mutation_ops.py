@@ -199,6 +199,15 @@ def default_mail_watermark(model: Any, source_type: str | None) -> None:
         and any(column.name == mail.LANDED_AT for column in model.columns)
     ):
         model.watermark_column = mail.LANDED_AT
+    # REQ-1996: likewise a Logs table, whose rows land file by file.
+    from provisa import logs
+
+    if (
+        source_type == logs.SOURCE_TYPE
+        and model.watermark_column is None
+        and any(column.name == logs.LANDED_AT for column in model.columns)
+    ):
+        model.watermark_column = logs.LANDED_AT
 
 
 async def register_table(

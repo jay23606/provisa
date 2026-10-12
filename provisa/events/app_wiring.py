@@ -222,6 +222,10 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     from provisa.microsoft365.loader import make_connect, make_microsoft365_loader
 
     loaders["microsoft_365"] = make_microsoft365_loader(make_connect(state))
+    # REQ-1996: log files, read by their own loader on every engine.
+    from provisa.logs.loader import make_logs_loader
+
+    loaders["logs"] = make_logs_loader(state)
     loaders["google_workspace"] = make_google_workspace_loader(google_connect(state))
     bare_engine = getattr(engine, "engine", engine)
     # REQ-1672: an engine that does not read Elasticsearch LIVE (every native engine — its

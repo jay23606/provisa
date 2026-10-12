@@ -77,6 +77,44 @@ def test_the_macos_install_log_reads_its_hours_only_offset():
     row = BUILT_IN["macos_install"].parse(line, _CTX)
     assert row["timestamp"] == datetime(2026, 8, 30, 14, 18, 15, tzinfo=_EDT)
     assert (row["process"], row["pid"]) == ("softwareupdated", 36904)
+    spaced = "2026-10-11 19:51:31-04 host-b Software Update[55042]: Launched with args: {"
+    row = BUILT_IN["macos_install"].parse(spaced, _CTX)
+    assert (row["process"], row["pid"], row["message"]) == (
+        "Software Update",
+        55042,
+        "Launched with args: {",
+    )
+    # What the system writes there while it starts is in the BSD form.
+    booted = BUILT_IN["macos_install"].parse(
+        "Oct 11 20:03:24 localhost opendirectoryd[69]: up", _CTX
+    )
+    assert booted["timestamp"] == datetime(2026, 10, 11, 20, 3, 24, tzinfo=_EDT)
+    assert BUILT_IN["macos_install"].record_start.match("Oct 11 20:03:24 localhost x[1]: y")
+
+
+def test_an_indented_line_continues_the_syslog_record_above_it():
+    fmt = BUILT_IN["rfc3164"]
+    lines = [
+        (0, "Oct 12 00:05:00 host-a syslogd[603]: Configuration Notice:"),
+        (60, '\tASL Module "com.apple.cdscheduler" claims selected messages.'),
+        (120, "Oct 12 00:05:01 host-a syslogd[603]: ASL Sender Statistics"),
+    ]
+    (first, at), (second, _) = [(text, offset) for offset, text in records(lines, fmt.record_start)]
+    assert at == 0
+    assert fmt.parse(first, _CTX)["message"] == (
+        'Configuration Notice:\n\tASL Module "com.apple.cdscheduler" claims selected messages.'
+    )
+    install = BUILT_IN["macos_install"]
+    framed = list(
+        records(
+            [
+                (0, "2026-08-30 14:18:15-04 host-b installer[1]: Packages:"),
+                (55, "\t140-17812\t | Tools"),
+            ],
+            install.record_start,
+        )
+    )
+    assert install.parse(framed[0][1], _CTX)["message"] == "Packages:\n\t140-17812\t | Tools"
 
 
 def test_a_line_not_in_the_form_is_refused_by_the_format_s_label():

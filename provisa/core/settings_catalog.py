@@ -63,6 +63,32 @@ DECLARED: list[Setting] = [
         unit="points",
     ),
     Setting(
+        key="logs.preview_lines",
+        card="limits",
+        type="int",
+        effect="live",  # read when a Logs source's columns are worked out
+        # REQ-1996: a JSON-lines or logfmt source's columns are the fields its first lines
+        # name; 1000 lines sees the fields of a log's usual records without reading it whole.
+        req="REQ-1996",
+        env="PROVISA_LOGS_PREVIEW_LINES",
+        default=1000,
+        min=1,
+        unit="lines",
+    ),
+    Setting(
+        key="logs.max_line_bytes",
+        card="limits",
+        type="int",
+        effect="live",  # read when a Logs source's files are read
+        # REQ-1996: a longer record keeps its first bytes as its raw text and says why it was
+        # not parsed; 65536 holds any ordinary log line and a stack trace of some depth.
+        req="REQ-1996",
+        env="PROVISA_LOGS_MAX_LINE_BYTES",
+        default=65536,
+        min=256,
+        unit="bytes",
+    ),
+    Setting(
         key="limits.engine_query_timeout",
         card="limits",
         type="int",
@@ -427,6 +453,19 @@ DECLARED: list[Setting] = [
         # through the settings page replaces both — it is the whole list.
         env_adds_to_config=True,
         guard="confirm",  # each entry opens an outbound path for hosted functions
+    ),
+    Setting(
+        key="logs.allowed_roots",
+        card="security",
+        type="list",
+        effect="live",  # read when a Logs source is saved, previewed and read
+        # REQ-1996 (maintainer ruling, 2026-10-12): the directories a Logs source's glob may
+        # resolve into, after following symlinks; by default /var/log. Each entry lets the
+        # server's own files under it be read into tables.
+        req="REQ-1996",
+        env="PROVISA_LOGS_ALLOWED_ROOTS",
+        default=("/var/log",),
+        guard="confirm",
     ),
     Setting(
         key="redis.require_tls",

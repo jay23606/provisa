@@ -102,6 +102,7 @@ _MATERIALIZE_ONLY = frozenset(
         "prometheus",
         "google_workspace",  # REQ-1923: read by its loader and landed
         "microsoft_365",  # REQ-1923: read by its loader and landed
+        "logs",  # REQ-1996: read by its loader and landed
         "sparql",
         "neo4j",
         "splunk",

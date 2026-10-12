@@ -2167,6 +2167,28 @@ async def _redis_columns(source_id: str, table_name: str) -> list[AvailableColum
     return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in cols]
 
 
+async def _logs_columns(source_id: str) -> list[AvailableColumnType]:
+    """REQ-1996: a Logs table's columns: the row's own (its file, offset, raw text and parse
+    error), its format's -- from the files' first lines for a format whose records name their
+    own fields -- and its landing stamp. The file and offset are its key."""
+    import asyncio as _asyncio
+
+    from provisa.api.app import state
+    from provisa.federation.registry_view import registered_sources
+    from provisa.logs import KEY
+    from provisa.logs.loader import source_settings
+    from provisa.logs.preview import columns
+
+    source = next((s for s in await registered_sources(state) if s.id == source_id), None)
+    if source is None:
+        raise LookupError(f"no Logs source {source_id!r} is registered")
+    found = await _asyncio.to_thread(columns, source_settings(source))
+    return [
+        AvailableColumnType(name=name, data_type=ir, comment=None, is_primary_key=name in KEY)
+        for name, ir in found
+    ]
+
+
 async def _cosmosdb_columns(source_id: str, container: str) -> list[AvailableColumnType]:
     """REQ-1982: a container's columns as its documents suggest them, its partition key as an
     optional parameter."""
@@ -2385,6 +2407,8 @@ async def resolve_available_columns_metadata(
             )
             for name, ir_type in landing_columns(table_name)
         ]
+    if source_type == "logs":
+        return await _logs_columns(source_id)
     if source_type == "rss":
         # REQ-1745: an rss/Atom feed has no catalog to introspect at all (native_schemas/
         # native_tables give it a synthetic single "default"/<source_id> pick so the picker isn't

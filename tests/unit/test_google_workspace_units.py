@@ -381,7 +381,10 @@ async def _run(read) -> tuple[list[cm.Unit], list[list]]:
     async def written(unit):
         given.append(unit)
 
-    parts = {t: Part("mail", t, list(cm.landing_columns(t))) for t in MESSAGE_TABLES}
+    parts = {
+        t: Part("mail", t, list(cm.landing_columns(t)), cm.key_columns(t), cm.LANDED_AT)
+        for t in MESSAGE_TABLES
+    }
     await ReplicaUnitJob(read, parts, apply, written=written).run()
     return given, applied
 
@@ -392,7 +395,9 @@ class TestAPassOverMailboxes:
             return passes.reading
 
         mail_loader = loader.make_google_workspace_loader(connect)
-        read = mail_loader.replica_unit_source(SimpleNamespace(id="org-mail"), list(MESSAGE_TABLES))
+        read = mail_loader.replica_unit_source(
+            SimpleNamespace(id="org-mail"), list(MESSAGE_TABLES), {}
+        )
         assert isinstance(read, loader._UnitsRead)
 
     async def test_each_mailbox_is_read_from_its_start_and_its_place_kept_once_written(

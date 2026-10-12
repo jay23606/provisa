@@ -33,7 +33,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from provisa.core.canonical_mail import LANDED_AT, Unit, key_columns
+from provisa.core.canonical_mail import Unit
 from provisa.federation.change_group import Change, TableChanges
 from provisa.federation.mail_landing import Stamps
 
@@ -47,11 +47,16 @@ METHOD = "apply_units"
 
 @dataclass(frozen=True)
 class Part:
-    """One table's part: where its replica is, and its columns as the replica holds them."""
+    """One table's part: where its replica is, its columns as the replica holds them, the
+    columns that identify a row of it, and the column a row's landing is stamped in (None for
+    a replica that has none). A source's loader says the last two (``replica_key_columns``,
+    ``replica_stamp_column``): a mail table's canonical key, a log's file and offset."""
 
     schema: str
     table: str
     columns: list[tuple[str, str]]
+    keys: tuple[str, ...]
+    stamp: str | None
 
 
 class UnitSource(Protocol):
@@ -76,10 +81,6 @@ class Landed:
     wrote: bool = False
 
 
-def _stamped_columns(part: Part) -> bool:
-    return any(name == LANDED_AT for name, _ in part.columns)
-
-
 def changes_of(unit: Unit, parts: dict[str, Part], at: Any) -> list[TableChanges]:
     """``unit`` as changes to the replicas ``parts`` names, in the order that never shows a
     message without its dependants where the store cannot write the tables as one: first what
@@ -93,12 +94,12 @@ def changes_of(unit: Unit, parts: dict[str, Part], at: Any) -> list[TableChanges
         part = parts[name]
         events = []
         if rows:
-            stamp = _stamped_columns(part)
+            stamp = part.stamp if any(c == part.stamp for c, _ in part.columns) else None
             for row in unit.rows.get(name, ()):
-                events.append(Change("upsert", {**row, LANDED_AT: at} if stamp else dict(row)))
+                events.append(Change("upsert", {**row, stamp: at} if stamp else dict(row)))
         matches = list(unit.removed.get(name, ())) if removed else []
         changes = TableChanges(
-            part.schema, part.table, part.columns, list(key_columns(name)), events, matches
+            part.schema, part.table, part.columns, list(part.keys), events, matches
         )
         return None if changes.idle else changes
 

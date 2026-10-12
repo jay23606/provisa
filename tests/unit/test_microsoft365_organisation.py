@@ -1240,7 +1240,7 @@ def _units_read(org_read, kept: _Kept, accounts):
         )
 
     made = loader.make_microsoft365_loader(connect)
-    return made.replica_unit_source(SOURCE, ("messages", "message_recipients"))
+    return made.replica_unit_source(SOURCE, ("messages", "message_recipients"), {})
 
 
 async def _pass(read) -> list:
@@ -1386,7 +1386,7 @@ def _dated_read(org_read, kept: _Kept, accounts, since):
         )
 
     made = loader.make_microsoft365_loader(connect)
-    return made.replica_unit_source(SOURCE, ("messages", "message_recipients")), connect
+    return made.replica_unit_source(SOURCE, ("messages", "message_recipients"), {}), connect
 
 
 def test_a_pass_holds_nothing_received_before_the_date_and_keeps_the_date_it_read_with(org_read):

@@ -73,19 +73,21 @@ def _pri(groups: dict[str, str | None]) -> dict[str, int | None]:
     }
 
 
-def _rfc3164(groups: dict[str, str | None], ctx: FileContext) -> dict[str, Any]:
-    stamp = groups["timestamp"] or ""
+def _bsd_time(stamp: str, ctx: FileContext) -> datetime:
     month = _MONTHS.get(stamp[:3])
     if month is None:
         raise ParseError(f"no month in {stamp!r}")
     # The line carries no year: the year it was written in is the file's, unless the line's month
     # comes after the file's last write -- then it was written the year before.
     year = ctx.mtime.year - (1 if month > ctx.mtime.month else 0)
-    when = datetime.strptime(f"{year} {stamp}", "%Y %b %d %H:%M:%S").replace(
+    return datetime.strptime(f"{year} {stamp}", "%Y %b %d %H:%M:%S").replace(
         tzinfo=ctx.mtime.tzinfo
     )
+
+
+def _rfc3164(groups: dict[str, str | None], ctx: FileContext) -> dict[str, Any]:
     return {
-        "timestamp": when,
+        "timestamp": _bsd_time(groups["timestamp"] or "", ctx),
         **_pri(groups),
         "host": groups["host"],
         "process": groups["process"],
@@ -110,6 +112,9 @@ RFC3164 = RegexFormat(
         Column("message", "string"),
     ],
     _rfc3164,
+    # macOS writes a message's further lines indented under it (an ASL module's rules): a
+    # record is a line that starts with a timestamp and the lines after it that do not.
+    record_start=r"(?:<\d{1,3}>)?[A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} ",
     flags=re.DOTALL,
 )
 
@@ -179,10 +184,11 @@ RFC5424 = RegexFormat(
 
 
 def _macos_install(groups: dict[str, str | None], ctx: FileContext) -> dict[str, Any]:
-    stamp = groups["timestamp"] or ""
     # "2026-08-30 14:18:15-04": an hours-only offset, which fromisoformat reads as it stands.
+    # The entries written while the system starts are in the BSD form, with no year or offset.
+    iso = groups["timestamp"]
     return {
-        "timestamp": datetime.fromisoformat(stamp),
+        "timestamp": datetime.fromisoformat(iso) if iso else _bsd_time(groups["bsd"] or "", ctx),
         "host": groups["host"],
         "process": groups["process"],
         "pid": _int(groups["pid"]),
@@ -194,8 +200,10 @@ MACOS_INSTALL = RegexFormat(
     "macos_install",
     "macOS install log",
     CORE,
-    r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}(?::?\d{2})?) (?P<host>\S+) "
-    r"(?P<process>[^\s:\[]+)(?:\[(?P<pid>\d+)\])?: ?(?P<message>.*)$",
+    r"^(?:(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}(?::?\d{2})?)"
+    r"|(?P<bsd>[A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2})) (?P<host>\S+) "
+    # A process's name may hold spaces ("Software Update[55042]"): it runs to its [pid] or ':'.
+    r"(?P<process>[^:\[\n]+?)(?:\[(?P<pid>\d+)\])?: ?(?P<message>.*)$",
     [
         Column("timestamp", "timestamp"),
         Column("host", "string"),
@@ -204,6 +212,8 @@ MACOS_INSTALL = RegexFormat(
         Column("message", "string"),
     ],
     _macos_install,
+    # An installer's package list and a script's output go on indented lines under the entry.
+    record_start=r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}|[A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} ",
     flags=re.DOTALL,
 )
 

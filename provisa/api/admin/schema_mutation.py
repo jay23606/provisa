@@ -111,6 +111,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _remove_view_mv,
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
+    logs_refusal,
     google_workspace_organisation_refusal,
     microsoft_365_organisation_refusal,
     microsoft_365_refusal,
@@ -1341,6 +1342,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 ) or await microsoft_365_organisation_refusal(input)  # REQ-1923
                 if _m365_refusal is not None:
                     return _m365_refusal
+                _logs_refusal = logs_refusal(input)  # REQ-1996
+                if _logs_refusal is not None:
+                    return _logs_refusal
                 await _add_source_pool(state, input)
         except Exception as _conn_err:
             logging.getLogger(__name__).exception(
@@ -1724,6 +1728,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             ) or await microsoft_365_organisation_refusal(input)  # REQ-1923
             if _m365_refusal is not None:
                 return _m365_refusal
+            _logs_refusal = logs_refusal(input)  # REQ-1996
+            if _logs_refusal is not None:
+                return _logs_refusal
             # As entered: a value, or a reference the operator typed.
             password_ref = input.password or ""
             _stored_mapping = _parse_mapping_json(input.mapping_json)
