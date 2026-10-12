@@ -11,7 +11,7 @@
 // A per-MV config panel that collapses to reduce clutter. Children stay mounted (Mantine Collapse),
 // so form state and testability are unaffected — the header only toggles visibility.
 
-import { useState, type ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { ActionIcon, Badge, Collapse, Group, Text } from "@mantine/core";
 import { Tip } from "../../components/Tip";
 import { CircleHelp } from "lucide-react";
@@ -63,6 +63,13 @@ export function CollapsibleSection({
           : {
               style: { cursor: "pointer" },
               onClick: () => setOpen((o) => !o),
+              // A button by keyboard too: reached by Tab, pressed by Enter or Space.
+              tabIndex: 0,
+              onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                setOpen((o) => !o);
+              },
               "data-testid": `${testId}-toggle`,
               role: "button",
               "aria-expanded": open,
