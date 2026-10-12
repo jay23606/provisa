@@ -61,9 +61,16 @@ describe("a cell of text", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(TOKEN);
   });
 
-  it("a few short words stay on one line: wrapping them would gain nothing", () => {
-    render(<ListCell text="300s (custom)" />);
-    expect(screen.getByText("300s (custom)")).toHaveClass("list-cell--value");
+  it("a few short words are words: they wrap at their spaces, with no minimum width", () => {
+    render(<ListCell text="10/9/2026, 6:00:00 AM" />);
+    const cell = screen.getByText("10/9/2026, 6:00:00 AM");
+    expect(cell).toHaveClass("list-cell--words");
+    expect(cell).not.toHaveClass("list-cell--wide");
+  });
+
+  it("words longer than a wrapped column's minimum keep that minimum", () => {
+    render(<ListCell text={WORDS} />);
+    expect(screen.getByText(WORDS)).toHaveClass("list-cell--words", "list-cell--wide");
   });
 
   it("a single value no longer than its squeezed minimum keeps its whole width", () => {
@@ -220,9 +227,8 @@ describe("a list row", () => {
     expect(target.querySelector(".list-cell-drawn .list-cell--words code")).toHaveTextContent(
       WORDS,
     );
-    expect(target.querySelector(".list-cell-drawn .list-cell--value")).toHaveTextContent(
-      "runs as admin",
-    );
+    const [, runsAs] = target.querySelectorAll(".list-cell-drawn .list-cell--words");
+    expect(runsAs).toHaveTextContent("runs as admin");
   });
 
   it("gives the list its cap and its row maximum once, and a column its own where it states one", async () => {
@@ -271,6 +277,8 @@ describe("the rules that make it so in a browser", () => {
 
   it("several words wrap up to the row's maximum of lines", () => {
     expect(rule(".list-cell--words")).toContain("-webkit-line-clamp: var(--list-row-lines)");
+    // A page that set nowrap on the cell does not stop it.
+    expect(rule(".list-cell--words")).toContain("white-space: normal");
   });
 
   it("a list is as wide as its container, and its columns give way inside it", () => {
@@ -288,7 +296,7 @@ describe("the rules that make it so in a browser", () => {
   });
 
   it("wrapped text and a long single value give up width down to their minimums", () => {
-    expect(rule(".list-cell--words")).toContain("min-width: var(--list-wrap-min)");
+    expect(rule(".list-cell--wide")).toContain("min-width: var(--list-wrap-min)");
     expect(rule(".list-cell--token")).toContain("min-width: var(--list-cut-min)");
   });
 

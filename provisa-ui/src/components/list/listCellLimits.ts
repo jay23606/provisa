@@ -19,8 +19,8 @@ export const LIST_COLUMN_CAP_PX = 320;
 export const LIST_ROW_MAX_LINES = 3;
 /**
  * The narrowest a column of wrapped text is squeezed to, in characters: it gives up width to keep
- * the list inside the window, but never so much that it reads one word to a line. Text no longer
- * than this has nothing to gain from wrapping and stays on one line.
+ * the list inside the window, but never so much that it reads one word to a line. A phrase no
+ * longer than this has no such minimum: it may wrap at its spaces down to its longest word.
  */
 export const LIST_WRAP_MIN_CHARS = 24;
 /**

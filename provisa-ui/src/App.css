@@ -560,7 +560,7 @@ main {
   overflow: hidden;
   min-width: 0;
 }
-/* A short value, or a few short words: one line, at its whole width. */
+/* A short single value: one line, at its whole width. */
 .list-cell--value {
   white-space: nowrap;
 }
@@ -586,12 +586,18 @@ main {
 /* Several words: wraps, the row grows to its maximum of lines, the last ends with an ellipsis.
  * Its column gives up width to keep the list in the window, but not below this minimum. */
 .list-cell--words {
-  min-width: var(--list-wrap-min);
+  /* Wraps whatever the page set on its cell. */
+  white-space: normal;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: var(--list-row-lines);
   line-clamp: var(--list-row-lines);
   overflow-wrap: anywhere;
+}
+/* Words longer than a wrapped column's minimum keep that minimum; a short phrase wraps down to its
+ * longest word. */
+.list-cell--wide {
+  min-width: var(--list-wrap-min);
 }
 /* Pills: wrap inside the cap up to the row's maximum; the rest are counted in "+N more". */
 .list-cell--pills {

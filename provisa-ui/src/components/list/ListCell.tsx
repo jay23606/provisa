@@ -38,13 +38,13 @@ function useCut(text: string) {
 /**
  * The text of one cell of a page list, held to the column's cap and the row's maximum height:
  *
- * - a short value, or a few short words that would gain nothing by wrapping: one line, at its
- *   whole width;
+ * - a short single value: one line, at its whole width;
  * - a long single value (an id, an address, a path: no space in it): one line, cut with an
  *   ellipsis; its column gives up width before the list grows past the window, down to a minimum;
- * - too long and several words: its column gives up width before the list grows past the window,
- *   down to a minimum; the text wraps and the row grows, up to the row's maximum of lines, where
- *   the last line ends with an ellipsis.
+ * - words (anything with a space in it, however short): its column gives up width before the list
+ *   grows past the window and the text wraps at its spaces, the row growing up to its maximum of
+ *   lines, where the last line ends with an ellipsis. A long text keeps a minimum width so it does
+ *   not read one word to a line; a short phrase may wrap down to its longest word.
  *
  * A cell that is cut shows its whole value on hover, and takes keyboard focus so the same can be
  * read without a pointer. A cell that is not cut is not a tab stop.
@@ -59,21 +59,18 @@ export function ListCell({
   children?: ReactNode;
 }) {
   const { ref, cut } = useCut(text);
-  // Several words wrap only when there are enough of them for a wrapped column to read well; a
-  // single value gives up width only when it is longer than what it keeps when squeezed.
+  // Text with a space in it wraps; a single value gives up width only when it is longer than what
+  // it keeps when squeezed.
   const value = text.trim();
-  const kind = /\s/.test(value)
-    ? value.length > LIST_WRAP_MIN_CHARS
-      ? "words"
-      : "value"
-    : value.length > LIST_CUT_MIN_CHARS
-      ? "token"
-      : "value";
+  const words = /\s/.test(value);
+  const kind = words ? "words" : value.length > LIST_CUT_MIN_CHARS ? "token" : "value";
+  // Only text longer than a wrapped column's minimum is held to that minimum.
+  const wide = words && value.length > LIST_WRAP_MIN_CHARS;
   return (
     <Tip text={cut ? text : false}>
       <div
         ref={ref}
-        className={`list-cell list-cell--${kind}`}
+        className={`list-cell list-cell--${kind}${wide ? " list-cell--wide" : ""}`}
         data-cut={cut || undefined}
         tabIndex={cut ? 0 : undefined}
       >
