@@ -8,13 +8,15 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// The navbar's domain multi-select narrows the Relationships list: a relationship stays when its
-// source, target or owner domain is checked. No selection, or every domain selected, is no
-// narrowing (as on the Tables page). `narrowTo` holds normalized domain ids.
+// The navbar's domain multi-select narrows the Relationships list: a relationship stays when the
+// domain of its source table or of its target table is checked -- the domains its row shows. No
+// selection, or every domain selected, is no narrowing (as on the Tables page). `narrowTo` holds
+// normalized domain ids.
 export function relationshipInCheckedDomains(
   narrowTo: ReadonlySet<string> | null,
-  domains: ReadonlyArray<string | null | undefined>,
+  source: string | null | undefined,
+  target: string | null | undefined,
 ): boolean {
   if (narrowTo === null) return true;
-  return domains.some((d) => d != null && narrowTo.has(d));
+  return [source, target].some((d) => d != null && narrowTo.has(d));
 }

@@ -44,7 +44,6 @@ const base: Relationship = {
   viaTypeColumn: "relation_type",
   viaTypeValue: "bonded pair",
   viaLabelSource: "column",
-  ownerDomainId: "zoo",
 };
 
 function show(rel: Relationship, domainsEnabled = true) {

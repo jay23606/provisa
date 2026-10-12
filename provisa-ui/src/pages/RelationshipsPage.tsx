@@ -399,8 +399,7 @@ export function RelationshipsPage() {
     if (remoteTableIds.has(r.sourceTableId)) return false;
     const srcDomain = r.sourceDomainId ? domainToSqlName(r.sourceDomainId) : undefined;
     const tgtDomain = r.targetTableId != null ? tableDomainById[r.targetTableId] : null;
-    const ownerDomain = r.ownerDomainId ? domainToSqlName(r.ownerDomainId) : null;
-    if (!relationshipInCheckedDomains(narrowTo, [srcDomain, tgtDomain, ownerDomain])) return false;
+    if (!relationshipInCheckedDomains(narrowTo, srcDomain, tgtDomain)) return false;
     if (!relSearch.trim()) return true;
     const q = relSearch.toLowerCase();
     return (
