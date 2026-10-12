@@ -480,16 +480,15 @@ def _duckdb_extension_scratch_read(connector_details: dict, select_sql: str) -> 
     engine connection, so this can run regardless of which engine is currently active."""
     import duckdb
 
+    from provisa.federation.duckdb_extensions import install_and_load
+
     conn = duckdb.connect(":memory:")
     try:
-        install_from_community = connector_details.get("install_from_community", True)
-        extension = connector_details["extension"]
-        conn.execute(
-            f"INSTALL {extension} FROM community"
-            if install_from_community
-            else f"INSTALL {extension}"
+        install_and_load(
+            conn,
+            connector_details["extension"],
+            from_community=connector_details.get("install_from_community", True),
         )
-        conn.execute(f"LOAD {extension}")
         conn.execute(connector_details["attach"])
         cursor = conn.execute(select_sql)
         columns = [d[0] for d in cursor.description]
@@ -505,16 +504,15 @@ def _duckdb_extension_scratch_batches(
     its cursor fetched ``batch_rows`` rows per step, closed when the iteration ends."""
     import duckdb
 
+    from provisa.federation.duckdb_extensions import install_and_load
+
     conn = duckdb.connect(":memory:")
     try:
-        install_from_community = connector_details.get("install_from_community", True)
-        extension = connector_details["extension"]
-        conn.execute(
-            f"INSTALL {extension} FROM community"
-            if install_from_community
-            else f"INSTALL {extension}"
+        install_and_load(
+            conn,
+            connector_details["extension"],
+            from_community=connector_details.get("install_from_community", True),
         )
-        conn.execute(f"LOAD {extension}")
         conn.execute(connector_details["attach"])
         cursor = conn.execute(select_sql)
         names = [d[0] for d in cursor.description]
