@@ -340,7 +340,6 @@ done
 
 if [ "$DEMO" = true ]; then
   # Demo servers (petstore-mock, graphql-demo) run as host processes, not Docker.
-  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.observability.yml"
   echo "Resetting volumes for pristine demo environment..."
   docker compose $COMPOSE_FILES down -v 2>/dev/null || true
   # The demo control plane is the embedded PostgreSQL (REQ-1535) — REQ-1535 itself says a pristine
@@ -389,11 +388,7 @@ if [ "$NATIVE" = true ]; then
   echo "Native mode (--native): no Docker — embedded control-plane PG + DuckDB engine + fakeredis."
 fi
 if [ "$NATIVE" = false ]; then
-if [ "$DEMO" = true ]; then
-  echo "Starting Docker Compose services (core + observability + demo)..."
-else
-  echo "Starting Docker Compose services (core only)..."
-fi
+echo "Starting Docker Compose services (core only)..."
 cd "$SCRIPT_DIR"
 # shellcheck disable=SC2086
 docker compose $COMPOSE_FILES up -d || true
@@ -675,30 +670,8 @@ start_backend() {
   fi
   # Telemetry lands in its own embedded-pg instance when available.
   [ -n "${TELEM_OPS_URL:-}" ] && _BACKEND_ENV+=( PROVISA_OPS_DB_URL="$TELEM_OPS_URL" )
-  if [ "$DEMO" = true ]; then
-    _BACKEND_ENV+=(
-      PROVISA_REDIRECT_ENABLED="true"
-      PROVISA_REDIRECT_ENDPOINT="http://localhost:9000"
-      PROVISA_REDIRECT_ACCESS_KEY="${PROVISA_REDIRECT_ACCESS_KEY:-minioadmin}"
-      PROVISA_REDIRECT_SECRET_KEY="${PROVISA_REDIRECT_SECRET_KEY:-minioadmin}"
-      PROVISA_REDIRECT_BUCKET="${PROVISA_REDIRECT_BUCKET:-provisa-results}"
-      PROVISA_OTEL_S3_ENDPOINT="http://localhost:9000"
-      PROVISA_OTEL_S3_ACCESS_KEY="${PROVISA_OTEL_S3_ACCESS_KEY:-minioadmin}"
-      PROVISA_OTEL_S3_SECRET_KEY="${PROVISA_OTEL_S3_SECRET_KEY:-minioadmin}"
-    )
-  fi
-  # The OTel exporter sends to otlp2parquet, which only the Docker observability stack starts.
-  # Native mode (every --demo) starts no receiver, so it names none: an endpoint with nothing
-  # listening failed every export.
-  if [ "$DEMO" = true ] && [ "$NATIVE" = false ]; then
-    _BACKEND_ENV+=(
-      OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4319"
-      # 4319 is otlp2parquet, which speaks OTLP/HTTP only. The transport is declared, never read
-      # off the scheme (REQ-549) — the default is gRPC, which this receiver does not serve.
-      OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
-      OTEL_SERVICE_NAME="provisa"
-    )
-  fi
+  # A demo runs native: it starts no MinIO and no OTel receiver, so it names neither -- no
+  # result redirect, no OTel object store, no exporter endpoint.
   # One auto-reloading process for development. PROVISA_WORKERS=N runs N worker processes
   # instead (uvicorn cannot combine --reload with --workers): one Python process executes on one
   # core at a time, so a load test on a multi-core host needs a worker per core to use them.
