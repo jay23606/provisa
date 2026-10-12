@@ -165,6 +165,8 @@ def _config(spec_path: str, base_url: str) -> dict:
                         "name": "petId",
                         "data_type": "integer",
                         "native_filter_type": "path_param",
+                        # REQ-1986: a path parameter is one its source cannot be read without.
+                        "native_filter_required": True,
                         **visible,
                     },
                 ],
