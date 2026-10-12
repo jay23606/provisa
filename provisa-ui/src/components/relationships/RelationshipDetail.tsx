@@ -15,24 +15,15 @@
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { FormChecks, FormField, FormFooter, FormLayout } from "../form/FormLayout";
-import {
-  ActionIcon,
-  Checkbox,
-  Group,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  NumberInput,
-} from "@mantine/core";
+import { ActionIcon, Checkbox, Group, Select, Text, TextInput, NumberInput } from "@mantine/core";
 import { Trash2, Pencil, ArrowLeftRight } from "lucide-react";
 import type { Relationship, RegisteredTable } from "../../types/admin";
 import type { TrackedFunction } from "../../api/actions";
 import type { RelForm } from "./relationship-types";
 import { domainToSqlName } from "../../naming";
+import { RelationshipRead } from "./RelationshipRead";
 import { JunctionPanel } from "./JunctionPanel";
 import { PanelActions } from "../list/SplitPane";
-import { relationshipTargetLabel } from "./relationship-types";
 import { Tip } from "../Tip";
 
 interface RelationshipDetailProps {
@@ -71,7 +62,6 @@ export function RelationshipDetail({
   domainsEnabled,
 }: RelationshipDetailProps) {
   const { t } = useTranslation();
-  const targetLabel = relationshipTargetLabel(r, tableDomainById, domainsEnabled);
 
   return (
     <>
@@ -127,78 +117,11 @@ export function RelationshipDetail({
         </PanelActions>
       )}
       {!editingRel ? (
-        <Stack gap="sm">
-          <dl
-            style={{
-              display: "grid",
-              gridTemplateColumns: "max-content 1fr",
-              gap: "0.25rem 1rem",
-              margin: 0,
-              color: "var(--text)",
-            }}
-          >
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.source")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>
-              {`${r.sourceTableName}.${r.sourceColumn}`}
-            </dd>
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.target")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>{targetLabel}</dd>
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.gqlAlias")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>
-              <code>{r.graphqlAlias ?? t("relationshipRow.none")}</code>
-            </dd>
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.cqlAlias")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>
-              <code>
-                {r.alias ?? (
-                  <Text span c="dimmed" fs="italic">
-                    {r.computedCypherAlias ?? t("relationshipRow.none")}
-                  </Text>
-                )}
-              </code>
-            </dd>
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.cardinality")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>{r.cardinality}</dd>
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.materialize")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>
-              {r.materialize ? t("relationshipRow.yes") : t("relationshipRow.no")}
-            </dd>
-            {r.materialize && (
-              <>
-                <dt style={{ color: "var(--text-muted)" }}>
-                  <strong>{t("relationshipRow.refreshIntervalSeconds")}</strong>
-                </dt>
-                <dd style={{ color: "var(--text)", margin: 0 }}>
-                  {r.refreshInterval ?? t("relationshipRow.none")}
-                </dd>
-              </>
-            )}
-            <dt style={{ color: "var(--text-muted)" }}>
-              <strong>{t("relationshipRow.cypherGraph")}</strong>
-            </dt>
-            <dd style={{ color: "var(--text)", margin: 0 }}>
-              {r.disableCypher ? (
-                <Text span c="dimmed" fs="italic">
-                  {t("relationshipRow.excluded")}
-                </Text>
-              ) : (
-                t("relationshipRow.included")
-              )}
-            </dd>
-          </dl>
-        </Stack>
+        <RelationshipRead
+          rel={r}
+          tableDomainById={tableDomainById}
+          domainsEnabled={domainsEnabled}
+        />
       ) : (
         <FormLayout>
           <FormField size="medium">
