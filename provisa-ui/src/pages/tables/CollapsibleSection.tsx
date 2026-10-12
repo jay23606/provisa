@@ -23,6 +23,7 @@ export function CollapsibleSection({
   badge,
   info,
   defaultOpen = false,
+  flat = false,
   children,
 }: {
   title: string;
@@ -33,23 +34,32 @@ export function CollapsibleSection({
   /** Explanatory text behind an (i) icon in the header, shown on hover or keyboard focus. */
   info?: { label: string; text: string };
   defaultOpen?: boolean;
+  /** Always open, with no toggle: a section that is a whole tab's content, or most of it. */
+  flat?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [toggled, setOpen] = useState(defaultOpen);
+  const open = flat || toggled;
   return (
-    <div className="form-section" data-tour={tourId}>
+    <div className="form-section" data-tour={tourId} data-testid={testId}>
       <Group
         gap="xs"
         wrap="nowrap"
-        style={{ cursor: "pointer" }}
-        onClick={() => setOpen((o) => !o)}
-        data-testid={`${testId}-toggle`}
-        role="button"
-        aria-expanded={open}
+        {...(flat
+          ? {}
+          : {
+              style: { cursor: "pointer" },
+              onClick: () => setOpen((o) => !o),
+              "data-testid": `${testId}-toggle`,
+              role: "button",
+              "aria-expanded": open,
+            })}
       >
-        <ActionIcon variant="subtle" size="sm" aria-hidden>
-          {open ? "−" : "+"}
-        </ActionIcon>
+        {!flat && (
+          <ActionIcon variant="subtle" size="sm" aria-hidden>
+            {open ? "−" : "+"}
+          </ActionIcon>
+        )}
         <Text fw={600} size="sm">
           {title}
         </Text>

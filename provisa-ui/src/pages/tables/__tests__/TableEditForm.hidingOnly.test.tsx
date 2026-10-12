@@ -191,6 +191,15 @@ describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
     expect(control(screen.getByTestId("column-row-email"), "SQL Alias")).not.toBeDisabled();
   });
 
+  it("shows the profiler and the uniques open on Quality, with no expander", () => {
+    renderForm(false);
+    openSection("quality");
+    expect(screen.getByTestId("profiler-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("profiler-panel-toggle")).toBeNull();
+    expect(screen.getByTestId("unique-add-button")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Uniques/ })).toBeNull();
+  });
+
   it("is not offered Testing: its Save writes nothing of a column's test data", () => {
     renderForm(true);
     openSection("columns");

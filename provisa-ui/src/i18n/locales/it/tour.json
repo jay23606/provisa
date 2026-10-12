@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "Profilare una tabella",
-        "description": "📊 Una tabella si unisce a un <strong>Data Profiler</strong> dal proprio editor, una fonte che profila le proprie tabelle membro secondo una pianificazione. Un'esecuzione misura la forma di ogni colonna, le distribuzioni e le frequenze dei valori, e i figli per genitore. <strong>Profila ora</strong> ne avvia una e <strong>Visualizza esecuzioni di profilo</strong> le legge. I risultati arrivano come tabelle che registra e governa come qualsiasi altra; finché non le registra, nessun lettore vede un profilo. La scheda successiva vi aggiunge controlli."
+        "description": "📊 Una tabella si unisce a un <strong>Data Profiler</strong> dalla scheda <strong>Qualità</strong> del proprio editor, una fonte che profila le proprie tabelle membro secondo una pianificazione. Un'esecuzione misura la forma di ogni colonna, le distribuzioni e le frequenze dei valori, e i figli per genitore. <strong>Profila ora</strong> ne avvia una e <strong>Visualizza esecuzioni di profilo</strong> le legge. I risultati arrivano come tabelle che registra e governa come qualsiasi altra; finché non le registra, nessun lettore vede un profilo. La scheda successiva vi aggiunge controlli."
       },
       "stepProfilerChecks": {
         "title": "Controlli sui risultati del profilo",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "Dichiarare un valore fittizio",
-        "description": "🎭 La modalità <strong>Dati di test</strong> dell'elenco colonne mostra il <strong>valore fittizio</strong> di ogni colonna, come <code>email()</code>. Simuli solo le colonne identificative e lasci reali le altre. Una colonna può inoltre avere una <strong>regola sintetica</strong>, usata solo quando si generano dati sintetici."
+        "description": "🎭 La scheda <strong>Test</strong> delle <strong>Colonne</strong> di una tabella mostra il <strong>valore fittizio</strong> di ogni colonna, come <code>email()</code>. Simuli solo le colonne identificative e lasci reali le altre. Una colonna può inoltre avere una <strong>regola sintetica</strong>, usata solo quando si generano dati sintetici."
       },
       "stepFakesFill": {
         "title": "Riempire i valori fittizi da un profilo",

@@ -728,6 +728,7 @@ export function TableEditForm({
             {/* REQ-1093: table-level UNIQUE constraints editor */}
             <div>
               <UniquesPanel
+                flat
                 uniques={editingTable.uniqueConstraints ?? []}
                 columns={editingTable.columns.map((c) => c.columnName)}
                 onChange={(uniques) =>

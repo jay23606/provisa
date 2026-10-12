@@ -28,7 +28,6 @@ test("the Data quality topic walks from the checker through to the profiler pane
 
   const title = page.locator(".driver-popover-title");
   const next = page.locator(".driver-popover-next-btn");
-  const editButton = page.locator('[data-testid="table-read-view-edit"]');
 
   // Starting the topic navigates to /tables and pays that route's first-visit chunk fetch and data load.
   await expect(title).toHaveText("A quality checker is just a source", { timeout: 60000 });
@@ -49,7 +48,10 @@ test("the Data quality topic walks from the checker through to the profiler pane
   // The opened table is the selected row, and its detail is in the panel on the right.
   await expect(page.locator('[data-table-row="pet-store-sqlite.pets"].row-selected')).toBeVisible();
   await expect(page.getByTestId("tables-split-panel")).toBeVisible();
+  // The card opens the editor on its Quality tab, where the profiler is, open.
+  await expect(page.getByTestId("table-section-quality")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[data-tour="profiler-panel"]')).toBeVisible();
+  await expect(page.getByTestId("profiler-panel-toggle")).toHaveCount(0);
 
   await next.click();
   await expect(title).toHaveText("Checks on profile results", { timeout: 30000 });
@@ -75,7 +77,7 @@ test("the Test data topic walks from the map through the profiler to a fake", as
   });
   await expect(page.locator('[data-tour="profiler-panel"]')).toBeVisible();
 
-  // "Declare a fake" opens the column list's Testing tab.
+  // "Declare a fake" opens the Testing tab of the table's Columns.
   await next.click();
   await expect(title).toHaveText("Declare a fake", { timeout: 30000 });
   await expect(page.locator('[data-testid="testdata-columns"]')).toBeVisible();

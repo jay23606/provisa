@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "Profiler une table",
-        "description": "📊 Une table rejoint un <strong>Data Profiler</strong> depuis son éditeur, une source qui profile ses tables membres selon un calendrier. Une exécution mesure la forme de chaque colonne, les distributions et les fréquences de valeurs, ainsi que les enfants par parent. <strong>Profiler maintenant</strong> en lance une et <strong>Voir les exécutions de profil</strong> les lit. Les résultats arrivent sous forme de tables que vous enregistrez et gouvernez comme les autres ; tant que vous ne les enregistrez pas, aucun lecteur ne voit de profil. La carte suivante y ajoute des contrôles."
+        "description": "📊 Une table rejoint un <strong>Data Profiler</strong> depuis l'onglet <strong>Qualité</strong> de son éditeur, une source qui profile ses tables membres selon un calendrier. Une exécution mesure la forme de chaque colonne, les distributions et les fréquences de valeurs, ainsi que les enfants par parent. <strong>Profiler maintenant</strong> en lance une et <strong>Voir les exécutions de profil</strong> les lit. Les résultats arrivent sous forme de tables que vous enregistrez et gouvernez comme les autres ; tant que vous ne les enregistrez pas, aucun lecteur ne voit de profil. La carte suivante y ajoute des contrôles."
       },
       "stepProfilerChecks": {
         "title": "Contrôles sur les résultats du profil",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "Déclarer une valeur fictive",
-        "description": "🎭 Le mode <strong>Données de test</strong> de la liste des colonnes affiche la <strong>valeur fictive</strong> de chaque colonne, comme <code>email()</code>. Ne masquez que les colonnes identifiantes et laissez le reste réel. Une colonne peut aussi porter une <strong>règle synthétique</strong>, utilisée uniquement pour générer des données synthétiques."
+        "description": "🎭 L'onglet <strong>Tests</strong> des <strong>Colonnes</strong> d'une table affiche la <strong>valeur fictive</strong> de chaque colonne, comme <code>email()</code>. Ne masquez que les colonnes identifiantes et laissez le reste réel. Une colonne peut aussi porter une <strong>règle synthétique</strong>, utilisée uniquement pour générer des données synthétiques."
       },
       "stepFakesFill": {
         "title": "Remplir les valeurs fictives depuis un profil",

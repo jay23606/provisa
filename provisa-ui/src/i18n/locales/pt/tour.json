@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "Perfilar uma tabela",
-        "description": "📊 Uma tabela entra em um <strong>Data Profiler</strong> pelo seu editor, uma fonte que perfila suas tabelas-membro conforme um agendamento. Uma execução mede o formato de cada coluna, as distribuições e as frequências de valor, e os filhos por pai. <strong>Perfilar agora</strong> inicia uma e <strong>Ver execuções de perfil</strong> as lê. Os resultados chegam como tabelas que você registra e governa como qualquer outra; até registrá-las, nenhum leitor vê um perfil. O próximo cartão coloca verificações sobre elas."
+        "description": "📊 Uma tabela entra em um <strong>Data Profiler</strong> pela aba <strong>Qualidade</strong> do seu editor, uma fonte que perfila suas tabelas-membro conforme um agendamento. Uma execução mede o formato de cada coluna, as distribuições e as frequências de valor, e os filhos por pai. <strong>Perfilar agora</strong> inicia uma e <strong>Ver execuções de perfil</strong> as lê. Os resultados chegam como tabelas que você registra e governa como qualquer outra; até registrá-las, nenhum leitor vê um perfil. O próximo cartão coloca verificações sobre elas."
       },
       "stepProfilerChecks": {
         "title": "Verificações sobre os resultados do perfil",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "Declarar um valor fictício",
-        "description": "🎭 O modo <strong>Dados de teste</strong> da lista de colunas mostra o <strong>valor fictício</strong> de cada coluna, como <code>email()</code>. Simule apenas as colunas identificadoras e mantenha o resto real. Uma coluna também pode ter uma <strong>regra sintética</strong>, usada somente ao gerar dados sintéticos."
+        "description": "🎭 A aba <strong>Testes</strong> das <strong>Colunas</strong> de uma tabela mostra o <strong>valor fictício</strong> de cada coluna, como <code>email()</code>. Simule apenas as colunas identificadoras e mantenha o resto real. Uma coluna também pode ter uma <strong>regra sintética</strong>, usada somente ao gerar dados sintéticos."
       },
       "stepFakesFill": {
         "title": "Preencher valores fictícios a partir de um perfil",

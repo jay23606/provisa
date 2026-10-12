@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "Perfilar una tabla",
-        "description": "📊 Una tabla se une a un <strong>Data Profiler</strong> desde su editor, una fuente que perfila sus tablas miembro según un calendario. Una ejecución mide la forma de cada columna, las distribuciones y las frecuencias de valores, y los hijos por padre. <strong>Perfilar ahora</strong> inicia una y <strong>Ver ejecuciones de perfil</strong> las lee. Los resultados llegan como tablas que registra y gobierna como cualquier otra; hasta que las registre, ningún lector ve un perfil. La siguiente tarjeta les añade comprobaciones."
+        "description": "📊 Una tabla se une a un <strong>Data Profiler</strong> desde la pestaña <strong>Calidad</strong> de su editor, una fuente que perfila sus tablas miembro según un calendario. Una ejecución mide la forma de cada columna, las distribuciones y las frecuencias de valores, y los hijos por padre. <strong>Perfilar ahora</strong> inicia una y <strong>Ver ejecuciones de perfil</strong> las lee. Los resultados llegan como tablas que registra y gobierna como cualquier otra; hasta que las registre, ningún lector ve un perfil. La siguiente tarjeta les añade comprobaciones."
       },
       "stepProfilerChecks": {
         "title": "Comprobaciones sobre los resultados del perfil",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "Declarar un valor ficticio",
-        "description": "🎭 El modo <strong>Datos de prueba</strong> de la lista de columnas muestra el <strong>valor ficticio</strong> de cada columna, como <code>email()</code>. Use valores ficticios solo en las columnas identificativas y deje el resto real. Una columna puede llevar además una <strong>regla sintética</strong>, que solo se usa al generar datos sintéticos."
+        "description": "🎭 La pestaña <strong>Pruebas</strong> de las <strong>Columnas</strong> de una tabla muestra el <strong>valor ficticio</strong> de cada columna, como <code>email()</code>. Use valores ficticios solo en las columnas identificativas y deje el resto real. Una columna puede llevar además una <strong>regla sintética</strong>, que solo se usa al generar datos sintéticos."
       },
       "stepFakesFill": {
         "title": "Rellenar valores ficticios desde un perfil",

@@ -65,7 +65,7 @@ describe("ProfilerPanel", () => {
         setEditingTable={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId("profiler-panel-toggle")).toBeNull();
+    expect(screen.queryByTestId("profiler-panel")).toBeNull();
   });
 
   it("is not offered for a table with a required argument of another kind (#204)", () => {
@@ -78,7 +78,7 @@ describe("ProfilerPanel", () => {
         setEditingTable={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId("profiler-panel-toggle")).toBeNull();
+    expect(screen.queryByTestId("profiler-panel")).toBeNull();
   });
 
   it("adds the table to a picked profiler, listed with its schedule, as an unsaved edit", async () => {
@@ -90,7 +90,8 @@ describe("ProfilerPanel", () => {
         setEditingTable={setEditingTable}
       />,
     );
-    fireEvent.click(screen.getByTestId("profiler-panel-toggle"));
+    // Open on the Quality tab: no expander to open first.
+    expect(screen.queryByTestId("profiler-panel-toggle")).toBeNull();
     // Nothing is asked of the server until the picker opens.
     expect(api.fetchProfilers).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("profiler-add"));

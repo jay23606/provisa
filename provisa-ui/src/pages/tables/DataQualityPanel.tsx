@@ -273,7 +273,8 @@ export function DataQualityPanel({
       title={t("dataQualityPanel.title")}
       testId="dq-contract-panel"
       tourId="dq-panel"
-      defaultOpen
+      // On the table's Quality tab, open: the tab is its section.
+      flat
     >
       <Stack gap="sm">
         {/* The dataset the contract observes, offered as the server-derived pgwire dataset and

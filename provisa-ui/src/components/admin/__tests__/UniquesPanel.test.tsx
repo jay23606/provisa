@@ -43,3 +43,31 @@ describe("UniquesPanel", () => {
     expect(onChange).toHaveBeenCalledWith([{ name: "new_name", columns: ["sku"] }]);
   });
 });
+
+describe("UniquesPanel's two forms", () => {
+  const panel = (flat: boolean) =>
+    render(
+      <MantineProvider>
+        <UniquesPanel
+          uniques={[{ name: "sku_key", columns: ["sku"] }]}
+          columns={["sku"]}
+          onChange={vi.fn()}
+          flat={flat}
+        />
+      </MantineProvider>,
+    );
+
+  it("is open with no expander when flat, as on a table's Quality tab", () => {
+    panel(true);
+    expect(screen.queryByRole("button", { name: /Uniques/ })).toBeNull();
+    expect(screen.getByTestId("unique-name-0")).toBeVisible();
+  });
+
+  it("is an expander by default, as on the register form", () => {
+    panel(false);
+    expect(screen.getByRole("button", { name: /Uniques/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+});

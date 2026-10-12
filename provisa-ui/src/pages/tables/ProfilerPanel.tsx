@@ -78,13 +78,14 @@ export function ProfilerPanel({
 
   if (needsFilter) return null;
   return (
-    <div style={{ paddingInline: "1.5rem" }}>
+    <div>
+      {/* On the table's Quality tab, open: the tab is its section. */}
       <CollapsibleSection
         title={t("profilerPanel.title")}
         testId="profiler-panel"
         tourId="profiler-panel"
         badge={memberOf ?? undefined}
-        defaultOpen={memberOf != null}
+        flat
       >
         {loadError && (
           <Alert color="red" data-testid="profiler-load-error">

@@ -422,7 +422,7 @@ export const TOUR_STEPS: TourStep[] = [
     clickAfterNext: QUALITY_ROW,
   },
   {
-    // REQ-1934: a table joins a Data Profiler from its editor. The profiler panel is not shown on a
+    // REQ-1934: a table joins a Data Profiler on its editor's Quality tab. The profiler panel is not shown on a
     // checker's results table, so the profiler cards open the demo's plain pet-store `pets` table.
     // The quality topic's reading of the panel: what a run measures and where results land.
     route: "/tables?source=pet-store-sqlite",

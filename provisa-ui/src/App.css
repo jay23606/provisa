@@ -2891,3 +2891,7 @@ main {
   border: 1px solid var(--tip-border);
   z-index: 1;
 }
+/* A flat Uniques list's heading: the title and its count, above the rows. */
+.uniques-panel__heading {
+  margin-block: 1rem 0.5rem;
+}

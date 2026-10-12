@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "為表格做剖析",
-        "description": "📊 表格透過自己的編輯器加入 <strong>Data Profiler</strong>，這是一種按排程為成員表格做剖析的來源。一次執行會量度每個欄位的形態、分布、數值頻率，以及每個父列的子列數目。<strong>立即剖析</strong>啟動一次執行，<strong>檢視剖析執行</strong>讀取執行記錄。結果以表格形式落地，您像登記其他表格一樣登記並管治它們；登記之前，沒有讀取者能看到剖析。 下一張卡片會為它們加上檢查。"
+        "description": "📊 表格透過其編輯器的<strong>質素</strong>分頁加入 <strong>Data Profiler</strong>，這是一種按排程為成員表格做剖析的來源。一次執行會量度每個欄位的形態、分布、數值頻率，以及每個父列的子列數目。<strong>立即剖析</strong>啟動一次執行，<strong>檢視剖析執行</strong>讀取執行記錄。結果以表格形式落地，您像登記其他表格一樣登記並管治它們；登記之前，沒有讀取者能看到剖析。 下一張卡片會為它們加上檢查。"
       },
       "stepProfilerChecks": {
         "title": "對剖析結果的檢查",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "宣告虛構值",
-        "description": "🎭 欄位列表的<strong>測試數據</strong>模式會顯示每個欄位的<strong>虛構值</strong>，例如 <code>email()</code>。只對可識別個人的欄位使用虛構值，其餘保持真實。每個欄位亦可附帶一條<strong>合成規則</strong>，只在產生合成數據時使用。"
+        "description": "🎭 資料表<strong>欄位</strong>中的<strong>測試</strong>分頁會顯示每個欄位的<strong>虛構值</strong>，例如 <code>email()</code>。只對可識別個人的欄位使用虛構值，其餘保持真實。每個欄位亦可附帶一條<strong>合成規則</strong>，只在產生合成數據時使用。"
       },
       "stepFakesFill": {
         "title": "根據剖析填入虛構值",

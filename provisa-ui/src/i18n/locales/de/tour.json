@@ -185,7 +185,7 @@
       },
       "stepQualityProfile": {
         "title": "Eine Tabelle profilieren",
-        "description": "📊 Eine Tabelle wird in ihrem Editor einem <strong>Data Profiler</strong> hinzugefügt, einer Quelle, die ihre Mitgliedstabellen nach Zeitplan profiliert. Ein Lauf misst die Form jeder Spalte, Verteilungen und Werthäufigkeiten sowie die Kinder pro Elternzeile. <strong>Profil jetzt erstellen</strong> startet einen Lauf, <strong>Profilläufe anzeigen</strong> liest sie. Die Ergebnisse landen als Tabellen, die Sie wie jede andere registrieren und steuern; bis Sie sie registrieren, sieht kein Leser ein Profil. Die nächste Karte setzt Prüfungen darauf."
+        "description": "📊 Eine Tabelle wird auf dem Tab <strong>Qualität</strong> ihres Editors einem <strong>Data Profiler</strong> hinzugefügt, einer Quelle, die ihre Mitgliedstabellen nach Zeitplan profiliert. Ein Lauf misst die Form jeder Spalte, Verteilungen und Werthäufigkeiten sowie die Kinder pro Elternzeile. <strong>Profil jetzt erstellen</strong> startet einen Lauf, <strong>Profilläufe anzeigen</strong> liest sie. Die Ergebnisse landen als Tabellen, die Sie wie jede andere registrieren und steuern; bis Sie sie registrieren, sieht kein Leser ein Profil. Die nächste Karte setzt Prüfungen darauf."
       },
       "stepProfilerChecks": {
         "title": "Prüfungen auf Profilergebnissen",
@@ -205,7 +205,7 @@
       },
       "stepFakes": {
         "title": "Einen Fake-Wert deklarieren",
-        "description": "🎭 Der Modus <strong>Testdaten</strong> der Spaltenliste zeigt den <strong>Fake-Wert</strong> jeder Spalte, etwa <code>email()</code>. Ersetzen Sie nur identifizierende Spalten und lassen Sie den Rest echt. Eine Spalte kann zusätzlich eine <strong>synthetische Regel</strong> tragen, die nur bei der Erzeugung synthetischer Daten gilt."
+        "description": "🎭 Der Tab <strong>Testen</strong> unter den <strong>Spalten</strong> einer Tabelle zeigt den <strong>Fake-Wert</strong> jeder Spalte, etwa <code>email()</code>. Ersetzen Sie nur identifizierende Spalten und lassen Sie den Rest echt. Eine Spalte kann zusätzlich eine <strong>synthetische Regel</strong> tragen, die nur bei der Erzeugung synthetischer Daten gilt."
       },
       "stepFakesFill": {
         "title": "Fake-Werte aus einem Profil füllen",
