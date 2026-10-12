@@ -13,6 +13,8 @@
 // provisa/core/replicate.py: not set = Default (the global threshold), -1 = Never, N > 0 = once
 // the table passes N governed statements per interval (Hot-N), 0 = Always.
 
+import type { TFunction } from "i18next";
+
 export const REPLICATE_NEVER = -1;
 export const REPLICATE_ALWAYS = 0;
 
@@ -66,4 +68,12 @@ export function replicateContradictsLoadProtection(
   loadProtected: boolean,
 ): boolean {
   return loadProtected && replicate === REPLICATE_NEVER;
+}
+
+/** A stored Replicate setting as the drop-down names it; a read view shows the same words. */
+export function replicateLabel(t: TFunction, replicate: number | null): string {
+  if (replicate === null) return t("replicateSelect.default");
+  if (replicate === REPLICATE_NEVER) return t("replicateSelect.never");
+  if (replicate === REPLICATE_ALWAYS) return t("replicateSelect.always");
+  return t("replicateSelect.hot", { threshold: replicate });
 }

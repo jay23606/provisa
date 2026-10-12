@@ -18,9 +18,9 @@ import { FieldLabel } from "../../pages/tables/FieldLabel";
 import { useHelpNaming } from "../form/useHelpNaming";
 import {
   REPLICATE_ALWAYS,
-  REPLICATE_NEVER,
   parseReplicateOption,
   replicateContradictsLoadProtection,
+  replicateLabel,
   replicateOptionValue,
   replicateValues,
 } from "./replicate";
@@ -57,12 +57,7 @@ export function ReplicateSelect({
   testId: string;
 }) {
   const { t } = useTranslation();
-  const label = (replicate: number | null): string => {
-    if (replicate === null) return t("replicateSelect.default");
-    if (replicate === REPLICATE_NEVER) return t("replicateSelect.never");
-    if (replicate === REPLICATE_ALWAYS) return t("replicateSelect.always");
-    return t("replicateSelect.hot", { threshold: replicate });
-  };
+  const label = (replicate: number | null) => replicateLabel(t, replicate);
   // One sentence for the setting and its Default, which differ by scope, then each other option
   // once.
   const help = [

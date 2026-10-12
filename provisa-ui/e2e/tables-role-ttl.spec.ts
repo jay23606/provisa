@@ -27,11 +27,10 @@ async function openPetsEditor(page: Page) {
   const editBtn = page.getByTestId("table-read-view-edit").first();
   await editBtn.waitFor({ timeout: 10000 });
   await editBtn.click();
-  // The load settings sit in the collapsed "Load Management and Timeliness" panel.
-  const toggle = page.getByTestId("load-management-panel-toggle");
-  await expect(toggle).toContainText("Load Management and Timeliness");
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await toggle.click();
+  // The load settings are on the table's "Load and timeliness" section.
+  const tab = page.getByTestId("table-section-load");
+  await expect(tab).toContainText("Load and timeliness");
+  await tab.click();
   await page.getByTestId("role-ttl-field").waitFor({ state: "visible", timeout: 15000 });
 }
 

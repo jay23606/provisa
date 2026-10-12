@@ -13,8 +13,18 @@
 
 import { describe, it, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { fireEvent, render, screen } from "../../../test-utils/render";
+import { fireEvent, render, screen, within } from "../../../test-utils/render";
+// The glossary terms that name the table's columns, as the server answers: one rooted term, and an
+// abstract one reachable from it (which names no column).
+vi.mock("../../../api/glossary", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../api/glossary")>()),
+  fetchRelatedGlossaryTerms: vi.fn(async () => [
+    { id: 1, name: "Customer", definition: null, is_abstract: false, live: true, domains: [] },
+    { id: 2, name: "Revenue", definition: null, is_abstract: true, live: true, domains: [] },
+  ]),
+}));
 import { TableReadView } from "../TableReadView";
+import type { Relationship } from "../../../types/admin";
 import type { RegisteredTable } from "../../../types/admin";
 
 function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
@@ -102,6 +112,7 @@ function renderView(hidingOnly: boolean, shown: RegisteredTable = TABLE, acts = 
       handleDelete={vi.fn()}
       handleProfile={vi.fn()}
       onPreview={vi.fn()}
+      relationships={[]}
       {...acts}
     />,
   );
@@ -223,7 +234,9 @@ describe("TableReadView — a column's test data is the fourth tab", () => {
       false,
       withColumns({ ...COLUMN, fake: "email()", syntheticRule: "sql_group(1)", fakeStable: true }),
     );
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+    fireEvent.click(screen.getByTestId("table-section-columns"));
+    const topics = within(screen.getByRole("tablist", { name: "Column attributes" }));
+    expect(topics.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Naming",
       "Type and keys",
       "Access",
@@ -241,6 +254,7 @@ describe("TableReadView — a column's test data is the fourth tab", () => {
 
   it("says a column with no fake shows its real value, and marks a pii column with none", () => {
     renderView(false, withColumns({ ...COLUMN, isPii: true }));
+    fireEvent.click(screen.getByTestId("table-section-columns"));
     fireEvent.click(screen.getByTestId("column-tab-testing"));
     expect(screen.getByTestId("read-fake-email")).toHaveTextContent("real value");
     expect(screen.getByTestId("read-fake-email")).toHaveTextContent("pii, no fake");
@@ -248,7 +262,66 @@ describe("TableReadView — a column's test data is the fourth tab", () => {
 
   it("is not offered to a caller who may change only how columns are hidden", () => {
     renderView(true, withColumns(COLUMN));
+    fireEvent.click(screen.getByTestId("table-section-columns"));
     expect(screen.queryByTestId("column-tab-testing")).toBeNull();
     expect(screen.getByTestId("column-tab-access")).toBeInTheDocument();
+  });
+});
+
+describe("TableReadView — the table's six sections", () => {
+  const rel = (id: number, source: string, target: string, sourceTableId: number) =>
+    ({
+      id,
+      sourceTableId,
+      targetTableId: sourceTableId === 7 ? 9 : 7,
+      sourceTableName: source,
+      targetTableName: target,
+      sourceColumn: "customer_id",
+      targetColumn: "id",
+    }) as unknown as Relationship;
+
+  it("shows the same six sections as the edit form, Identity first", () => {
+    renderView(false, makeTable({ id: 7 }));
+    const sections = within(screen.getByRole("tablist", { name: "Table sections" }));
+    expect(sections.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Identity",
+      "Associations",
+      "Load and timeliness",
+      "Query",
+      "Quality",
+      "Columns",
+    ]);
+    expect(screen.getByTestId("table-identity")).toHaveTextContent("orders");
+  });
+
+  it("lists the relationships the table takes part in and the terms that name its columns", async () => {
+    renderView(false, makeTable({ id: 7 }), {
+      relationships: [rel(1, "orders", "customers", 7), rel(2, "returns", "orders", 9)],
+    });
+    fireEvent.click(screen.getByTestId("table-section-associations"));
+    expect(screen.getByTestId("table-association-relationship-1")).toHaveTextContent(
+      "orders.customer_id → customers.id",
+    );
+    expect(screen.getByTestId("table-association-relationship-2")).toHaveAttribute(
+      "href",
+      "/relationships?search=returns",
+    );
+    expect(await screen.findByText("Customer")).toBeInTheDocument();
+    expect(screen.getByTestId("table-associations-terms")).not.toHaveTextContent("Revenue");
+  });
+
+  it("says when the table takes part in no relationship", () => {
+    renderView(false, makeTable({ id: 7 }));
+    fireEvent.click(screen.getByTestId("table-section-associations"));
+    expect(screen.getByTestId("table-associations-relationships")).toHaveTextContent(
+      "This table takes part in no relationship",
+    );
+  });
+
+  it("goes to Quality when the table is profiled, where the profile lands", () => {
+    renderView(false, makeTable({ id: 7 }), { handleProfile: vi.fn() });
+    fireEvent.click(screen.getByTestId("table-read-view-profile"));
+    expect(screen.getByTestId("table-section-quality")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("table-quality")).toBeInTheDocument();
   });
 });

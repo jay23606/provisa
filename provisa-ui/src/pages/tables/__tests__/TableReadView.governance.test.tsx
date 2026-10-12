@@ -105,6 +105,10 @@ function column(name: string, grants: Partial<TableColumn>): TableColumn {
 function renderView(table: RegisteredTable, startEditing = vi.fn()) {
   render(
     <TableReadView
+      // What this file tests is on the columns section.
+      relationships={[]}
+      section="columns"
+      onSectionChange={vi.fn()}
       t={table}
       dataProducts={[]}
       navigate={vi.fn()}

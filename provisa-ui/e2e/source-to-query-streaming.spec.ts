@@ -352,8 +352,8 @@ test.describe("source to query through the UI — streaming/push types (REQ-1739
     const editBtn = page.getByTestId("table-read-view-edit").first();
     await editBtn.waitFor({ timeout: 10000 });
     await editBtn.click();
-    // Cache TTL lives in the collapsed "Load Management and Timeliness" panel.
-    await page.getByTestId("load-management-panel-toggle").click();
+    // Cache TTL is on the table's "Load and timeliness" section.
+    await page.getByTestId("table-section-load").click();
     await page.getByLabel(/^Cache TTL/).fill("5");
     await page.getByTestId("table-edit-save").click();
     await expect(page.getByTestId("table-edit-save")).toBeHidden({ timeout: 15000 });
@@ -514,6 +514,8 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
 
     // getByLabel matches BOTH the Select's own input and its open listbox (Mantine wires
     // aria-labelledby on both) — scope to the textbox role to avoid a strict-mode violation.
+    // Change Signal and live delivery are on the table's "Load and timeliness" section.
+    await page.getByTestId("table-section-load").click();
     await page.getByRole("textbox", { name: /^Change Signal/ }).click();
     await page.getByRole("option", { name: "kafka", exact: true }).click();
     // LiveDeliveryFieldset.tsx: every outbound-delivery field (including the topic input) is
@@ -681,6 +683,8 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await editBtn.waitFor({ timeout: 10000 });
     await editBtn.click();
 
+    // Change Signal and live delivery are on the table's "Load and timeliness" section.
+    await page.getByTestId("table-section-load").click();
     await page.getByRole("textbox", { name: /^Change Signal/ }).click();
     await page.getByRole("option", { name: "kafka", exact: true }).click();
     await page.getByTestId("live-delivery-enable").check();
@@ -792,6 +796,8 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     await editBtn.waitFor({ timeout: 10000 });
     await editBtn.click();
 
+    // Change Signal and live delivery are on the table's "Load and timeliness" section.
+    await page.getByTestId("table-section-load").click();
     await page.getByRole("textbox", { name: /^Change Signal/ }).click();
     await page.getByRole("option", { name: "kafka", exact: true }).click();
     await page.getByTestId("live-delivery-enable").check();

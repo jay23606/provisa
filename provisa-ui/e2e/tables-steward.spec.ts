@@ -46,5 +46,8 @@ test("a data steward reaches Tables and edits only how columns are hidden", asyn
 
   await page.getByTestId("table-read-view-edit").click();
   await expect(page.getByTestId("table-edit-hiding-only")).toBeVisible();
-  await expect(page.getByTestId("load-management-panel-toggle")).toHaveCount(0);
+  // The load settings are read, not edited, by a caller who may change only how columns are hidden.
+  await page.getByTestId("table-section-load").click();
+  await expect(page.getByTestId("table-load")).toBeVisible();
+  await expect(page.getByTestId("load-management-panel")).toHaveCount(0);
 });

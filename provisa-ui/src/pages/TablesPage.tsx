@@ -73,6 +73,7 @@ import { RegisterTableForm } from "./tables/RegisterTableForm";
 import { ViewDefinitionForm } from "./tables/ViewDefinitionForm";
 import { ModelingForm } from "./tables/ModelingForm";
 import { TableReadView } from "./tables/TableReadView";
+import type { TableSection } from "./tables/tableSections";
 import { ReplicatingMark } from "./tables/ReplicatingMark";
 import { buildOf } from "./tables/replicaBuild";
 import { ReplicaBuildsContext } from "./tables/replicaBuildsContext";
@@ -121,6 +122,9 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
   const { domains, refetch: refetchDomains } = useDomains();
   const { dataProducts } = useDataProducts(); // REQ-1634
   const { relationships } = useAllRelationships();
+  // The detail's section in view: the same in the read view and the edit form, so opening the
+  // editor keeps the tab that was being read.
+  const [section, setSection] = useState<TableSection>("identity");
   const [showErd, setShowErd] = useState(false);
   const { roles, refetch: refetchRoles } = useRoles();
   const domainHints = domains.map((d) => d.id);
@@ -829,6 +833,10 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           handleProfile={handleProfile}
           onPreview={setPreviewTable}
           onSetDraft={handleSetDraft}
+          source={sources.find((s) => s.id === t.sourceId)}
+          relationships={relationships}
+          section={section}
+          onSectionChange={setSection}
           profileColumnsTable={
             // REQ-1934: this table's profile, if its columns table is registered.
             tables.find(
@@ -890,6 +898,9 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                 cacheTtlEdits[editingTable.id]?.dirty === true
               }
               updateEditCol={updateEditCol}
+              relationships={relationships}
+              section={section}
+              onSectionChange={setSection}
             />
           </ReplicaBuildsContext.Provider>
         </>

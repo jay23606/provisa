@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "Table sections",
+    "errors": "{{count}} to fix",
+    "identity": "Identity",
+    "associations": "Associations",
+    "load": "Load and timeliness",
+    "query": "Query",
+    "quality": "Quality",
+    "columns": "Columns",
+    "source": "Source",
+    "schema": "Schema",
+    "table": "Table",
+    "domain": "Domain",
+    "tags": "Tags",
+    "glossaryTerms": "Glossary terms",
+    "noTerms": "No glossary term names a column of this table",
+    "relationships": "Relationships",
+    "noRelationships": "This table takes part in no relationship",
+    "yes": "Yes",
+    "no": "No",
+    "fromSource": "{{value}} (from the source)",
+    "fromSourceAsIs": "As the source has it",
+    "contractSet": "Set",
+    "notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source."
+  }
+}

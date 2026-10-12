@@ -16,8 +16,7 @@ import { useTranslation } from "react-i18next";
 import type { RegisteredTable, Source } from "../../types/admin";
 import type { Role } from "../../types/auth";
 import { ReplicateSelect } from "../../components/admin/ReplicateSelect";
-import { FormField, FormLayout } from "../../components/form/FormLayout";
-import { CollapsibleSection } from "./CollapsibleSection";
+import { FormField, FormLayout, LabelWithHelp } from "../../components/form/FormLayout";
 import { PagingField } from "./PagingField";
 import { ReplicaBuildLine } from "./ReplicaBuildLine";
 import { RoleTtlField } from "./RoleTtlField";
@@ -48,18 +47,15 @@ export function TableLoadManagementFields({
   const { t } = useTranslation();
   return (
     <FormField size="full">
-      <CollapsibleSection
-        title={t("tableEditForm.loadManagementTitle")}
-        testId="load-management-panel"
-        info={{
-          label: t("tableEditForm.loadManagementInfoLabel"),
-          text: t("tableEditForm.loadManagementInfo"),
-        }}
-      >
-        {/* The operator's load and recency controls, grouped: cache TTL (the floor), the per-role
-    TTL list (REQ-1907), materialization and load protection (REQ-826/1141). */}
-        <Text size="xs" c="dimmed" data-testid="load-management-help">
-          {t("tableEditForm.loadManagementHelp")}
+      {/* The operator's load and recency controls, on the table's Load and timeliness tab: cache
+          TTL (the floor), the per-role TTL list (REQ-1907), materialization and load protection
+          (REQ-826/1141). Shown in full; the tab is their section. */}
+      <div data-testid="load-management-panel">
+        <Text size="xs" c="dimmed" component="div" data-testid="load-management-help">
+          <LabelWithHelp
+            label={t("tableEditForm.loadManagementHelp")}
+            help={t("tableEditForm.loadManagementInfo")}
+          />
         </Text>
         <FormLayout>
           {/* The three settings share a line; what each one lists or reports follows beneath. */}
@@ -105,6 +101,18 @@ export function TableLoadManagementFields({
               testId="table-replicate-select"
             />
           </FormField>
+          {/* A table stored as not read only on schedule while its source is: no choice of the
+              drop-down makes that pair (it comes from config or the API), so the drop-down shows
+              Default and this line says what is stored. Choosing Default stores Default. */}
+          {editingTable.loadProtected === false &&
+            editingTable.replicate === null &&
+            editSource?.loadProtected === true && (
+              <FormField size="full">
+                <Text size="xs" c="dimmed" data-testid="table-not-scheduled-like-source">
+                  {t("tableSections.notScheduledLikeSource")}
+                </Text>
+              </FormField>
+            )}
           <FormField size="full">
             <ReplicaBuildLine
               sourceId={editingTable.sourceId}
@@ -132,11 +140,10 @@ export function TableLoadManagementFields({
           )}
           {effLoadProtected && (
             <FormField size="full">
-              <CollapsibleSection
-                title={t("tableEditForm.sourceProtectionPanel")}
-                testId="mv-protection-panel"
-                defaultOpen
-              >
+              <div data-testid="mv-protection-panel">
+                <Text fw={600} size="sm" mb={4}>
+                  {t("tableEditForm.sourceProtectionPanel")}
+                </Text>
                 {/* Said where the table has not chosen it itself: the source is read only on
                     schedule and this table follows it. */}
                 {editingTable.loadProtected == null && (
@@ -154,11 +161,11 @@ export function TableLoadManagementFields({
                     onTzChange={(tz) => setEditingTable({ ...editingTable, offPeakTz: tz || null })}
                   />
                 </FormLayout>
-              </CollapsibleSection>
+              </div>
             </FormField>
           )}
         </FormLayout>
-      </CollapsibleSection>
+      </div>
     </FormField>
   );
 }

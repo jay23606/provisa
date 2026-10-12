@@ -13,7 +13,7 @@
 // whose declaration the server checks as it is typed -- and sends them with the table's columns.
 
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "../../../test-utils/render";
+import { fireEvent, render, screen, waitFor, within } from "../../../test-utils/render";
 
 const api = vi.hoisted(() => ({
   fetchFakeCatalog: vi.fn(),
@@ -93,6 +93,10 @@ function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
 function renderForm(table: RegisteredTable, sources: Source[], updateEditCol = vi.fn()) {
   render(
     <TableEditForm
+      // What this file tests is on the columns section.
+      relationships={[]}
+      section="columns"
+      onSectionChange={vi.fn()}
       savedProfilerId={null}
       editingTable={table}
       setEditingTable={vi.fn()}
@@ -194,8 +198,10 @@ describe("TableEditForm — a column's test data (REQ-1494)", () => {
   it("offers a column's test data as the fourth tab of one bar, the fake edited in its cell", () => {
     const updateEditCol = vi.fn();
     renderForm(makeTable({ columns: [{ ...EMAIL, fake: "email()" }] }), [SOURCE], updateEditCol);
-    // One tab bar, and no switch above it.
-    const tabs = screen.getAllByRole("tab").map((tab) => tab.textContent);
+    // One tab bar of column topics, and no switch above it.
+    const tabs = within(screen.getByRole("tablist", { name: "Column attributes" }))
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent);
     expect(tabs).toEqual(["Naming", "Type and keys", "Access", "Testing"]);
     expect(screen.queryByTestId("table-columns-mode")).toBeNull();
     expect(screen.queryByText("Metadata")).toBeNull();

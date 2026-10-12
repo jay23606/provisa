@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "Sezioni della tabella",
+    "errors": "{{count}} da correggere",
+    "identity": "Identità",
+    "associations": "Associazioni",
+    "load": "Gestione del carico e tempestività",
+    "query": "Query",
+    "quality": "Qualità",
+    "columns": "Colonne",
+    "source": "Origine",
+    "schema": "Schema",
+    "table": "Tabella",
+    "domain": "Dominio",
+    "tags": "Tag",
+    "glossaryTerms": "Termini del glossario",
+    "noTerms": "Nessun termine del glossario dà il nome a una colonna di questa tabella",
+    "relationships": "Relazioni",
+    "noRelationships": "Questa tabella non partecipa ad alcuna relazione",
+    "yes": "Sì",
+    "no": "No",
+    "fromSource": "{{value}} (dall'origine)",
+    "fromSourceAsIs": "Come nell'origine",
+    "contractSet": "Impostato",
+    "notScheduledLikeSource": "Non letta solo secondo la pianificazione, anche se la sua origine lo è: una query può leggere l'origine."
+  }
+}

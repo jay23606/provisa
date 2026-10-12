@@ -139,9 +139,13 @@ function renderForm(hidingOnly: boolean) {
       cancelEditing={vi.fn()}
       handleSaveEdit={vi.fn()}
       updateEditCol={vi.fn()}
+      relationships={[]}
     />,
   );
 }
+
+const openSection = (section: string) =>
+  fireEvent.click(screen.getByTestId(`table-section-${section}`));
 
 function control(row: HTMLElement, label: string): HTMLInputElement {
   const el = row.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
@@ -150,14 +154,22 @@ function control(row: HTMLElement, label: string): HTMLInputElement {
 }
 
 describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
-  it("shows only the columns, naming what may be changed", () => {
+  it("shows every section, the first five read-only, naming what may be changed", () => {
     renderForm(true);
     expect(screen.getByTestId("table-edit-hiding-only")).toBeInTheDocument();
-    expect(screen.queryByTestId("load-management-panel-toggle")).not.toBeInTheDocument();
+    // Identity is read, not edited: its fields are text, with no SQL alias box.
+    expect(screen.getByTestId("table-identity")).toBeInTheDocument();
+    expect(screen.queryByLabelText("SQL Alias")).toBeNull();
+    openSection("load");
+    expect(screen.getByTestId("table-load")).toBeInTheDocument();
+    expect(screen.queryByTestId("load-management-panel")).not.toBeInTheDocument();
+    openSection("columns");
+    expect(screen.getByTestId("column-row-email")).toBeInTheDocument();
   });
 
   it("keeps grants and masks editable and the rest of a column read-only", () => {
     renderForm(true);
+    openSection("columns");
     // The column editor shows a topic at a time; the row is the same on each tab.
     const row = () => screen.getByTestId("column-row-email");
     expect(control(row(), "SQL Alias")).toBeDisabled();
@@ -172,17 +184,22 @@ describe("TableEditForm for a governance-only editor (REQ-1944)", () => {
   it("is the whole editor for a table editor", () => {
     renderForm(false);
     expect(screen.queryByTestId("table-edit-hiding-only")).not.toBeInTheDocument();
-    expect(screen.getByTestId("load-management-panel-toggle")).toBeInTheDocument();
+    expect(screen.getByLabelText("SQL Alias")).not.toBeDisabled();
+    openSection("load");
+    expect(screen.getByTestId("load-management-panel")).toBeInTheDocument();
+    openSection("columns");
     expect(control(screen.getByTestId("column-row-email"), "SQL Alias")).not.toBeDisabled();
   });
 
   it("is not offered Testing: its Save writes nothing of a column's test data", () => {
     renderForm(true);
+    openSection("columns");
     expect(screen.queryByTestId("column-tab-testing")).toBeNull();
   });
 
   it("offers Testing to an editor of the whole table", () => {
     renderForm(false);
+    openSection("columns");
     expect(screen.getByTestId("column-tab-testing")).toHaveTextContent("Testing");
   });
 });

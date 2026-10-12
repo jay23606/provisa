@@ -95,6 +95,10 @@ function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
 function renderForm(table: RegisteredTable, setEditingTable = vi.fn(), sources: Source[] = []) {
   render(
     <TableEditForm
+      // What this file tests is on the load section.
+      relationships={[]}
+      section="load"
+      onSectionChange={vi.fn()}
       savedProfilerId={null}
       editingTable={table}
       setEditingTable={setEditingTable}
@@ -244,5 +248,39 @@ describe("TableEditForm — load protection + refresh-policy summary (REQ-1141/1
     expect(screen.getByTestId("off-peak-inherited")).toHaveTextContent(
       "Inherited: this table's source is read only on schedule.",
     );
+  });
+
+  // A stored pair no choice of the drop-down makes: not read only on schedule, under a source
+  // that is.
+  it("says a table is not read only on schedule although its source is", () => {
+    renderForm(makeTable({ loadProtected: false, replicate: null }), vi.fn(), [
+      { id: "src", loadProtected: true } as never,
+    ]);
+    expect(screen.getByTestId("table-replicate-select")).toHaveValue("Default");
+    expect(screen.getByTestId("table-not-scheduled-like-source")).toHaveTextContent(
+      "Not read only on schedule, although its source is: a query may read the source.",
+    );
+  });
+
+  it("says nothing of it for Default", () => {
+    renderForm(makeTable({ loadProtected: null, replicate: null }), vi.fn(), [
+      { id: "src", loadProtected: true } as never,
+    ]);
+    expect(screen.queryByTestId("table-not-scheduled-like-source")).toBeNull();
+  });
+
+  it("says nothing of it under a source that is read live", () => {
+    renderForm(makeTable({ loadProtected: false, replicate: null }), vi.fn(), [
+      { id: "src", loadProtected: false } as never,
+    ]);
+    expect(screen.queryByTestId("table-not-scheduled-like-source")).toBeNull();
+  });
+
+  it("marks Load and timeliness when a ttl signal has no Cache TTL", () => {
+    renderForm(makeTable({ changeSignal: "ttl", cacheTtl: null, replicate: 0 }), vi.fn(), [
+      { id: "src", cacheTtl: null } as never,
+    ]);
+    expect(screen.getByTestId("table-section-load-errors")).toHaveTextContent("1");
+    expect(screen.queryByTestId("table-section-identity-errors")).toBeNull();
   });
 });

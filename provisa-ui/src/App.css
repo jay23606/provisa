@@ -2659,6 +2659,33 @@ main {
 .form-required {
   color: var(--mantine-color-error);
 }
+/* A label that stands above something that is not one input (a list of rows, a description with
+ * its generate action): the size and weight of a field's own label beside it. */
+.form-label-standalone {
+  display: inline-block;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+}
+/* A table's section read-only: each label beside its value. */
+.detail-fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+.detail-fields > dd {
+  overflow-wrap: anywhere;
+}
+.detail-code {
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+/* The column editor's topics inside the Columns section: a second, smaller row of tabs. */
+.column-tabs--nested .mantine-Tabs-tab {
+  font-size: var(--mantine-font-size-xs);
+  padding: 0.35rem 0.75rem;
+}
 .form-help {
   display: inline-flex;
   color: var(--text-muted);

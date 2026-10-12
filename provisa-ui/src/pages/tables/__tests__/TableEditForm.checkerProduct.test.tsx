@@ -124,6 +124,10 @@ const PRODUCTS = [
 function renderForm(table: RegisteredTable, sources: Source[]) {
   render(
     <TableEditForm
+      // What this file tests is on the associations section.
+      relationships={[]}
+      section="associations"
+      onSectionChange={vi.fn()}
       savedProfilerId={null}
       editingTable={table}
       setEditingTable={vi.fn()}

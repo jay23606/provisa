@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "מקטעי הטבלה",
+    "errors": "{{count}} לתיקון",
+    "identity": "זהות",
+    "associations": "שיוכים",
+    "load": "ניהול עומס ועדכניות",
+    "query": "שאילתה",
+    "quality": "איכות",
+    "columns": "עמודות",
+    "source": "מקור",
+    "schema": "סכמה",
+    "table": "טבלה",
+    "domain": "תחום",
+    "tags": "תגיות",
+    "glossaryTerms": "מונחי מילון מונחים",
+    "noTerms": "אף מונח במילון המונחים אינו נותן שם לעמודה בטבלה זו",
+    "relationships": "קשרים",
+    "noRelationships": "טבלה זו אינה משתתפת באף קשר",
+    "yes": "כן",
+    "no": "לא",
+    "fromSource": "{{value}} (מהמקור)",
+    "fromSourceAsIs": "כפי שמוגדר במקור",
+    "contractSet": "מוגדר",
+    "notScheduledLikeSource": "אינה נקראת רק לפי לוח זמנים, אף שהמקור שלה כן: שאילתה עשויה לקרוא את המקור."
+  }
+}

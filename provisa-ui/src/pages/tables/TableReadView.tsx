@@ -23,7 +23,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
-import type { RegisteredTable, DataProduct } from "../../types/admin";
+import type { RegisteredTable, DataProduct, Relationship, Source } from "../../types/admin";
 import type { ReplicaBuild } from "../../api/admin";
 import { ReplicatingMark } from "./ReplicatingMark";
 import { computeProfile } from "./helpers";
@@ -35,6 +35,11 @@ import { PanelActions } from "../../components/list/SplitPane";
 import { ColumnTabs } from "./ColumnTabs";
 import { COLUMN_TABS, useColumnTab } from "./columnTopics";
 import { toIrType } from "../../irTypes";
+import { TableSectionTabs } from "./TableSectionTabs";
+import { useTableSection, type TableSection } from "./tableSections";
+import { TableAssociations } from "./TableAssociations";
+import { IdentityRead, LoadRead, QualityRead, QueryRead } from "./TableSectionsRead";
+import { dataProductField } from "./tableSectionFields";
 
 interface TableProfileResult {
   columns: string[];
@@ -74,6 +79,13 @@ interface TableReadViewProps {
   profileColumnsTable?: RegisteredTable | null;
   /** Render the action row alone: the edit form shows it, disabled, in the panel's head. */
   actionsOnly?: boolean;
+  /** The table's source: what Load and timeliness and Quality say depends on it. */
+  source?: Source;
+  /** The relationships the table takes part in are listed on Associations. */
+  relationships: Relationship[];
+  /** The section in view, kept by the page across the read view and the edit form. */
+  section?: TableSection;
+  onSectionChange?: (section: TableSection) => void;
 }
 
 export function TableReadView({
@@ -98,8 +110,13 @@ export function TableReadView({
   onEditDefinition,
   profileColumnsTable,
   actionsOnly = false,
+  source,
+  relationships,
+  section: sectionIn,
+  onSectionChange,
 }: TableReadViewProps) {
   const { t } = useTranslation();
+  const [section, setSection] = useTableSection(sectionIn, onSectionChange);
   // The same topics as the column editor. A caller who may change only how columns are hidden
   // is not offered Testing, here as in the editor.
   const shownTabs = COLUMN_TABS.filter((topic) => !(topic === "testing" && hidingOnly));
@@ -181,6 +198,8 @@ export function TableReadView({
               onClick={(e) => {
                 e.stopPropagation();
                 handleProfile(table.id);
+                // The profile is read on Quality, where it lands.
+                setSection("quality");
               }}
               title={t("tableReadView.profileTitle")}
               disabled={tableProfiles[table.id] === "loading"}
@@ -256,310 +275,445 @@ export function TableReadView({
 
   return (
     <>
-      {table.description && (
-        <Box
-          px="0.75rem"
-          py="0.5rem"
-          fz="0.85rem"
-          c="dimmed"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          {table.description}
-        </Box>
+      {/* The same six sections as the edit form, each read-only. */}
+      <TableSectionTabs value={section} onChange={setSection} />
+      {section === "identity" && <IdentityRead table={table} />}
+      {section === "associations" && (
+        <TableAssociations
+          table={table}
+          relationships={relationships}
+          leading={[dataProductField(t, table, dataProducts)]}
+        />
       )}
-      {/* The same topics as the column editor: the name first, a tab's attributes after. */}
-      <ColumnTabs value={tab} onChange={setTab} shown={shownTabs} />
-      <Table.ScrollContainer minWidth={480}>
-        <Table className="data-table" style={{ margin: 0 }}>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t("tableReadView.colColumn")}</Table.Th>
-              {tab === "naming" && (
-                <>
-                  <Table.Th>{t("tableReadView.colSqlAlias")}</Table.Th>
-                  <Table.Th w="60%">{t("tableReadView.colDescription")}</Table.Th>
-                </>
-              )}
-              {tab === "type" && (
-                <>
-                  <Table.Th>{t("tableEditForm.dataTypeHeader")}</Table.Th>
-                  <Table.Th>{t("tableReadView.colPk")}</Table.Th>
-                  <Table.Th>{t("tableReadView.colScope")}</Table.Th>
-                </>
-              )}
-              {tab === "access" && (
-                <>
-                  <Table.Th>{t("tableReadView.colVisibleTo")}</Table.Th>
-                  <Table.Th>{t("tableReadView.colWritableBy")}</Table.Th>
-                  <Table.Th>{t("tableReadView.colMasking")}</Table.Th>
-                </>
-              )}
-              {tab === "testing" && (
-                <>
-                  <Table.Th>{t("testData.fake")}</Table.Th>
-                  <Table.Th>{t("testData.syntheticRule")}</Table.Th>
-                  <Table.Th>{t("testData.stable")}</Table.Th>
-                </>
-              )}
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {table.columns.map((c) => (
-              <Fragment key={c.id}>
+      {section === "load" && <LoadRead table={table} source={source} />}
+      {section === "query" && <QueryRead table={table} />}
+      {section === "quality" && (
+        <>
+          <QualityRead table={table} source={source} />
+          {profileColumnsTable && <LatestProfilePanel profileTable={profileColumnsTable} />}
+          {(() => {
+            const p = tableProfiles[table.id];
+            if (!p || p === "loading") return null;
+            if (typeof p === "string")
+              return (
+                <Box px="0.75rem" py="0.5rem" c="var(--destructive)" fz="0.8rem">
+                  {p}
+                </Box>
+              );
+            const prof = computeProfile(p.columns, p.rows);
+            return (
+              <Box style={{ borderTop: "1px solid var(--border)" }} px="0.75rem" py="0.5rem">
+                <Box fz="0.75rem" c="dimmed" mb="0.4rem">
+                  {t("tableReadView.profileHeading", { count: p.rowCount })}
+                </Box>
+                <Table.ScrollContainer minWidth={640}>
+                  <Table className="data-table" style={{ fontSize: "0.72rem" }}>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>{t("tableReadView.colColumn")}</Table.Th>
+                        <Table.Th title={t("tableReadView.colNullsTitle")}>
+                          {t("tableReadView.colNulls")}
+                        </Table.Th>
+                        <Table.Th title={t("tableReadView.colBlanksTitle")}>
+                          {t("tableReadView.colBlanks")}
+                        </Table.Th>
+                        <Table.Th title={t("tableReadView.colDistinctTitle")}>
+                          {t("tableReadView.colDistinct")}
+                        </Table.Th>
+                        <Table.Th>{t("tableReadView.colMin")}</Table.Th>
+                        <Table.Th>{t("tableReadView.colMax")}</Table.Th>
+                        <Table.Th>{t("tableReadView.colMean")}</Table.Th>
+                        <Table.Th>{t("tableReadView.colTopValues")}</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {prof.map((c) => {
+                        const nullPct =
+                          p.rowCount > 0 ? Math.round((c.nullCount / p.rowCount) * 100) : 0;
+                        const isHighNull = nullPct >= 50;
+                        return (
+                          <Table.Tr key={c.col}>
+                            <Table.Td style={{ fontFamily: "monospace", fontWeight: 600 }}>
+                              {c.col}
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="0.4rem" wrap="nowrap">
+                                <Box
+                                  style={{
+                                    width: 52,
+                                    height: 5,
+                                    borderRadius: 3,
+                                    background: "var(--border)",
+                                    position: "relative",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {c.nullCount > 0 && (
+                                    <Box
+                                      style={{
+                                        position: "absolute",
+                                        left: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: `${nullPct}%`,
+                                        borderRadius: 3,
+                                        background: isHighNull
+                                          ? "var(--destructive)"
+                                          : "var(--text-muted)",
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                                <Text
+                                  span
+                                  fz="0.7rem"
+                                  c={
+                                    isHighNull
+                                      ? "var(--destructive)"
+                                      : c.nullCount > 0
+                                        ? undefined
+                                        : "dimmed"
+                                  }
+                                >
+                                  {c.nullCount > 0 ? `${nullPct}%` : "—"}
+                                </Text>
+                              </Group>
+                            </Table.Td>
+                            <Table.Td c={c.blankCount > 0 ? undefined : "dimmed"}>
+                              {c.blankCount > 0 ? c.blankCount : "—"}
+                            </Table.Td>
+                            <Table.Td>{c.distinctCount}</Table.Td>
+                            <Table.Td style={{ fontFamily: "monospace" }}>
+                              {c.min !== null ? String(c.min).slice(0, 16) : "—"}
+                            </Table.Td>
+                            <Table.Td style={{ fontFamily: "monospace" }}>
+                              {c.max !== null ? String(c.max).slice(0, 16) : "—"}
+                            </Table.Td>
+                            <Table.Td style={{ fontFamily: "monospace" }}>
+                              {c.mean !== null ? c.mean.toFixed(2) : "—"}
+                            </Table.Td>
+                            <Table.Td>
+                              <Box
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "0.18rem",
+                                  minWidth: 140,
+                                }}
+                              >
+                                {c.topValues.map(({ value, count }) => {
+                                  const barPct =
+                                    c.topValues[0].count > 0
+                                      ? (count / c.topValues[0].count) * 100
+                                      : 0;
+                                  return (
+                                    <Group key={value} gap="0.3rem" wrap="nowrap">
+                                      <Box
+                                        style={{
+                                          width: 52,
+                                          height: 5,
+                                          borderRadius: 2,
+                                          background: "var(--border)",
+                                          position: "relative",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        <Box
+                                          style={{
+                                            position: "absolute",
+                                            left: 0,
+                                            top: 0,
+                                            bottom: 0,
+                                            width: `${barPct}%`,
+                                            borderRadius: 2,
+                                            background: "var(--primary)",
+                                          }}
+                                        />
+                                      </Box>
+                                      <Text
+                                        span
+                                        style={{
+                                          fontFamily: "monospace",
+                                          fontSize: "0.68rem",
+                                          whiteSpace: "nowrap",
+                                          overflow: "hidden",
+                                          maxWidth: 110,
+                                          textOverflow: "ellipsis",
+                                        }}
+                                        title={value}
+                                      >
+                                        {value.slice(0, 22)}
+                                      </Text>
+                                      <Text
+                                        span
+                                        c="dimmed"
+                                        fz="0.65rem"
+                                        ml="auto"
+                                        style={{ flexShrink: 0 }}
+                                      >
+                                        ×{count}
+                                      </Text>
+                                    </Group>
+                                  );
+                                })}
+                              </Box>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </Box>
+            );
+          })()}
+        </>
+      )}
+      {section === "columns" && (
+        <div data-testid="table-section-columns-panel">
+          {/* The same topics as the column editor: the name first, a tab's attributes after. */}
+          <ColumnTabs value={tab} onChange={setTab} shown={shownTabs} nested />
+          <Table.ScrollContainer minWidth={480}>
+            <Table className="data-table" style={{ margin: 0 }}>
+              <Table.Thead>
                 <Table.Tr>
-                  <Table.Td>
-                    {/* REQ-1387: glossary term summary card on column-name hover. */}
-                    <ColumnGlossaryHover
-                      tableId={table.id}
-                      columnName={c.columnName}
-                      // Every attribute of the column, whichever tab shows it.
-                      definition={[
-                        { label: t("tableReadView.colColumn"), value: c.columnName },
-                        { label: t("tableReadView.colSqlAlias"), value: c.computedSqlAlias || "" },
-                        { label: t("tableReadView.colDescription"), value: c.description || "" },
-                        {
-                          label: t("tableEditForm.dataTypeHeader"),
-                          value: c.dataType ? toIrType(c.dataType) : "",
-                        },
-                        { label: t("tableReadView.colPk"), value: c.isPrimaryKey ? "✓" : "" },
-                        {
-                          label: t("tableReadView.colScope"),
-                          value: c.scope || t("tableReadView.scopeDomain"),
-                        },
-                        {
-                          label: t("tableReadView.colVisibleTo"),
-                          value: c.visibleTo === null ? "" : c.visibleTo.join(", "),
-                        },
-                        {
-                          label: t("tableReadView.colWritableBy"),
-                          value: c.writableBy === null ? "" : c.writableBy.join(", "),
-                        },
-                        { label: t("tableReadView.colMasking"), value: c.maskType || "" },
-                      ]}
-                    >
-                      <code>{c.columnName}</code>
-                    </ColumnGlossaryHover>
-                    {c.nativeFilterType && (
-                      <Badge
-                        ml="0.4rem"
-                        size="xs"
-                        variant="light"
-                        color={c.nativeFilterType === "path_param" ? "yellow" : "blue"}
-                        style={{ fontFamily: "monospace" }}
-                      >
-                        {c.nativeFilterType === "path_param"
-                          ? t("tableReadView.pathBadge")
-                          : t("tableReadView.queryBadge")}
-                      </Badge>
-                    )}
-                    {c.isForeignKey && (
-                      <Badge
-                        ml="0.4rem"
-                        size="xs"
-                        variant="light"
-                        color="green"
-                        style={{ fontFamily: "monospace" }}
-                      >
-                        {t("tableReadView.fkBadge")}
-                      </Badge>
-                    )}
-                    {c.isAlternateKey && (
-                      <Badge
-                        ml="0.4rem"
-                        size="xs"
-                        variant="light"
-                        color="yellow"
-                        style={{ fontFamily: "monospace" }}
-                      >
-                        {t("tableReadView.akBadge")}
-                      </Badge>
-                    )}{" "}
-                    <TagControl objectType="column" tableId={table.id} columnName={c.columnName} />
-                  </Table.Td>
+                  <Table.Th>{t("tableReadView.colColumn")}</Table.Th>
                   {tab === "naming" && (
                     <>
-                      <Table.Td c={c.alias ? "white" : "dimmed"}>{c.computedSqlAlias}</Table.Td>
-                      <Table.Td className="reasoning-cell">{c.description || ""}</Table.Td>
+                      <Table.Th>{t("tableReadView.colSqlAlias")}</Table.Th>
+                      <Table.Th w="60%">{t("tableReadView.colDescription")}</Table.Th>
                     </>
                   )}
                   {tab === "type" && (
                     <>
-                      <Table.Td ff="monospace">{c.dataType ? toIrType(c.dataType) : ""}</Table.Td>
-                      <Table.Td ta="center">
-                        {c.isPrimaryKey && (
-                          <Text span c="blue">
-                            &#10003;
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>{c.scope || t("tableReadView.scopeDomain")}</Table.Td>
-                    </>
-                  )}
-                  {tab === "testing" && (
-                    <>
-                      {/* REQ-1494: what the column shows in test data. No fake is the real
-                          value, said as that; a pii column with none is marked. */}
-                      <Table.Td data-testid={`read-fake-${c.columnName}`}>
-                        {c.fake ? (
-                          <Text span ff="monospace" size="sm">
-                            {c.fake}
-                          </Text>
-                        ) : (
-                          <Text span size="sm" c="dimmed">
-                            {t("testData.realValue")}
-                          </Text>
-                        )}
-                        {c.isPii && !c.fake && (
-                          <Badge ml="xs" size="xs" color="red" variant="light">
-                            {t("testData.piiNoFake")}
-                          </Badge>
-                        )}
-                      </Table.Td>
-                      <Table.Td ff="monospace" data-testid={`read-rule-${c.columnName}`}>
-                        {c.syntheticRule || ""}
-                      </Table.Td>
-                      <Table.Td ta="center">
-                        {c.fakeStable && (
-                          <Text span c="blue">
-                            &#10003;
-                          </Text>
-                        )}
-                      </Table.Td>
+                      <Table.Th>{t("tableEditForm.dataTypeHeader")}</Table.Th>
+                      <Table.Th>{t("tableReadView.colPk")}</Table.Th>
+                      <Table.Th>{t("tableReadView.colScope")}</Table.Th>
                     </>
                   )}
                   {tab === "access" && (
                     <>
-                      {/* REQ-1958/REQ-1134: null grant lists are withheld (the caller lacks
-                          view_governance), which is said — never shown as "all" or "none". */}
-                      <Table.Td>
-                        {c.visibleTo === null ? (
-                          <Text span size="sm" c="dimmed" data-testid="grants-not-shown">
-                            {t("tableReadView.notShown")}
-                          </Text>
-                        ) : (
-                          <Group gap={4} wrap="nowrap">
-                            <Text span size="sm">
-                              {c.visibleTo.length > 0
-                                ? c.visibleTo.join(", ")
-                                : t("tableReadView.all")}
-                            </Text>
-                            {c.visibleTo.length > 0 && (
-                              <OwnerResolutionIcon
-                                refs={c.visibleTo}
-                                ariaLabel={t("ownerResolution.columnIconLabel")}
-                              />
-                            )}
-                          </Group>
-                        )}
-                      </Table.Td>
-                      <Table.Td c={c.writableBy === null ? "dimmed" : undefined}>
-                        {c.writableBy === null
-                          ? t("tableReadView.notShown")
-                          : c.writableBy.length > 0
-                            ? c.writableBy.join(", ")
-                            : t("tableReadView.none")}
-                      </Table.Td>
-                      <Table.Td c={c.visibleTo === null ? "dimmed" : undefined}>
-                        {c.visibleTo === null
-                          ? t("tableReadView.notShown")
-                          : c.maskType || t("tableReadView.maskNone")}
-                      </Table.Td>
+                      <Table.Th>{t("tableReadView.colVisibleTo")}</Table.Th>
+                      <Table.Th>{t("tableReadView.colWritableBy")}</Table.Th>
+                      <Table.Th>{t("tableReadView.colMasking")}</Table.Th>
+                    </>
+                  )}
+                  {tab === "testing" && (
+                    <>
+                      <Table.Th>{t("testData.fake")}</Table.Th>
+                      <Table.Th>{t("testData.syntheticRule")}</Table.Th>
+                      <Table.Th>{t("testData.stable")}</Table.Th>
                     </>
                   )}
                 </Table.Tr>
-                {tab === "access" && c.maskType && (
-                  <Table.Tr>
-                    <Table.Td colSpan={2} c="dimmed" fz="0.75rem" pl="1.5rem">
-                      ↳{" "}
-                      {c.maskType === "regex"
-                        ? t("tableReadView.maskRegex", {
-                            pattern: c.maskPattern,
-                            replace: c.maskReplace,
-                          })
-                        : c.maskType === "constant"
-                          ? t("tableReadView.maskConstant", {
-                              value: c.maskValue ?? t("tableReadView.maskConstantNull"),
-                            })
-                          : t("tableReadView.maskTruncate", { precision: c.maskPrecision })}
-                    </Table.Td>
-                    <Table.Td colSpan={2} c="dimmed" fz="0.75rem">
-                      {t("tableReadView.unmaskedTo", {
-                        list:
-                          c.unmaskedTo !== null && c.unmaskedTo.length > 0
-                            ? c.unmaskedTo.join(", ")
-                            : t("tableReadView.none"),
-                      })}
-                    </Table.Td>
-                  </Table.Tr>
-                )}
-              </Fragment>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
-      {table.apiEndpoint && (
-        <Box px="0.75rem" py="0.5rem" fz="0.85rem" c="dimmed">
-          {t("tableReadView.apiEndpoint")} <code>{table.apiEndpoint}</code>
-        </Box>
-      )}
-      {table.watermarkColumn && (
-        <Box px="0.75rem" py="0.5rem" fz="0.85rem" c="dimmed">
-          {t("tableReadView.watermarkColumn")} <code>{table.watermarkColumn}</code>
-        </Box>
-      )}
-      {table.queryTemplate && (
-        <Box px="0.75rem" py="0.5rem" fz="0.85rem" data-testid="table-read-view-query-template">
-          <Text span c="dimmed" mr="0.5rem">
-            {t("tableReadView.queryTemplate")}
-          </Text>
-          <code style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>
-            {table.queryTemplate.length > 120
-              ? table.queryTemplate.slice(0, 120) + "…"
-              : table.queryTemplate}
-          </code>
-        </Box>
-      )}
-      {table.viewSql && (
-        <Box px="0.75rem" py="0.5rem" fz="0.85rem">
-          <Text span c="dimmed" mr="0.5rem">
-            {t("tableReadView.viewSql")}
-          </Text>
-          <code style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>
-            {table.viewSql.length > 120 ? table.viewSql.slice(0, 120) + "…" : table.viewSql}
-          </code>
-        </Box>
-      )}
-      {/* Only what departs from the default is shown: a read-only table with no data product shows
-          no chip at all. */}
-      {(table.writeOps.length > 0 || table.productId != null) && (
-        <Group px="0.75rem" py="0.5rem" gap="0.4rem" data-testid="table-read-view-chips">
-          {table.writeOps.length > 0 && (
-            <Tooltip
-              label={t("tableReadView.writableOps", {
-                ops: table.writeOps.map((op) => op.toUpperCase()).join(", "),
-              })}
-              withArrow
-            >
-              <Badge
-                variant="light"
-                size="sm"
-                data-testid="table-read-view-writable"
-                aria-label={t("tableReadView.writableOps", {
-                  ops: table.writeOps.map((op) => op.toUpperCase()).join(", "),
-                })}
-              >
-                {t("tableReadView.writable")}
-              </Badge>
-            </Tooltip>
-          )}
-          {table.productId != null && (
-            <Tooltip label={t("tableReadView.dataProductChip")} withArrow>
-              <Badge variant="light" color="green" size="sm" data-testid="table-read-view-product">
-                {dataProducts.find((p) => p.id === table.productId)?.name ?? table.productId}
-              </Badge>
-            </Tooltip>
-          )}
-        </Group>
+              </Table.Thead>
+              <Table.Tbody>
+                {table.columns.map((c) => (
+                  <Fragment key={c.id}>
+                    <Table.Tr>
+                      <Table.Td>
+                        {/* REQ-1387: glossary term summary card on column-name hover. */}
+                        <ColumnGlossaryHover
+                          tableId={table.id}
+                          columnName={c.columnName}
+                          // Every attribute of the column, whichever tab shows it.
+                          definition={[
+                            { label: t("tableReadView.colColumn"), value: c.columnName },
+                            {
+                              label: t("tableReadView.colSqlAlias"),
+                              value: c.computedSqlAlias || "",
+                            },
+                            {
+                              label: t("tableReadView.colDescription"),
+                              value: c.description || "",
+                            },
+                            {
+                              label: t("tableEditForm.dataTypeHeader"),
+                              value: c.dataType ? toIrType(c.dataType) : "",
+                            },
+                            { label: t("tableReadView.colPk"), value: c.isPrimaryKey ? "✓" : "" },
+                            {
+                              label: t("tableReadView.colScope"),
+                              value: c.scope || t("tableReadView.scopeDomain"),
+                            },
+                            {
+                              label: t("tableReadView.colVisibleTo"),
+                              value: c.visibleTo === null ? "" : c.visibleTo.join(", "),
+                            },
+                            {
+                              label: t("tableReadView.colWritableBy"),
+                              value: c.writableBy === null ? "" : c.writableBy.join(", "),
+                            },
+                            { label: t("tableReadView.colMasking"), value: c.maskType || "" },
+                          ]}
+                        >
+                          <code>{c.columnName}</code>
+                        </ColumnGlossaryHover>
+                        {c.nativeFilterType && (
+                          <Badge
+                            ml="0.4rem"
+                            size="xs"
+                            variant="light"
+                            color={c.nativeFilterType === "path_param" ? "yellow" : "blue"}
+                            style={{ fontFamily: "monospace" }}
+                          >
+                            {c.nativeFilterType === "path_param"
+                              ? t("tableReadView.pathBadge")
+                              : t("tableReadView.queryBadge")}
+                          </Badge>
+                        )}
+                        {c.isForeignKey && (
+                          <Badge
+                            ml="0.4rem"
+                            size="xs"
+                            variant="light"
+                            color="green"
+                            style={{ fontFamily: "monospace" }}
+                          >
+                            {t("tableReadView.fkBadge")}
+                          </Badge>
+                        )}
+                        {c.isAlternateKey && (
+                          <Badge
+                            ml="0.4rem"
+                            size="xs"
+                            variant="light"
+                            color="yellow"
+                            style={{ fontFamily: "monospace" }}
+                          >
+                            {t("tableReadView.akBadge")}
+                          </Badge>
+                        )}{" "}
+                        <TagControl
+                          objectType="column"
+                          tableId={table.id}
+                          columnName={c.columnName}
+                        />
+                      </Table.Td>
+                      {tab === "naming" && (
+                        <>
+                          <Table.Td c={c.alias ? "white" : "dimmed"}>{c.computedSqlAlias}</Table.Td>
+                          <Table.Td className="reasoning-cell">{c.description || ""}</Table.Td>
+                        </>
+                      )}
+                      {tab === "type" && (
+                        <>
+                          <Table.Td ff="monospace">
+                            {c.dataType ? toIrType(c.dataType) : ""}
+                          </Table.Td>
+                          <Table.Td ta="center">
+                            {c.isPrimaryKey && (
+                              <Text span c="blue">
+                                &#10003;
+                              </Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>{c.scope || t("tableReadView.scopeDomain")}</Table.Td>
+                        </>
+                      )}
+                      {tab === "testing" && (
+                        <>
+                          {/* REQ-1494: what the column shows in test data. No fake is the real
+                              value, said as that; a pii column with none is marked. */}
+                          <Table.Td data-testid={`read-fake-${c.columnName}`}>
+                            {c.fake ? (
+                              <Text span ff="monospace" size="sm">
+                                {c.fake}
+                              </Text>
+                            ) : (
+                              <Text span size="sm" c="dimmed">
+                                {t("testData.realValue")}
+                              </Text>
+                            )}
+                            {c.isPii && !c.fake && (
+                              <Badge ml="xs" size="xs" color="red" variant="light">
+                                {t("testData.piiNoFake")}
+                              </Badge>
+                            )}
+                          </Table.Td>
+                          <Table.Td ff="monospace" data-testid={`read-rule-${c.columnName}`}>
+                            {c.syntheticRule || ""}
+                          </Table.Td>
+                          <Table.Td ta="center">
+                            {c.fakeStable && (
+                              <Text span c="blue">
+                                &#10003;
+                              </Text>
+                            )}
+                          </Table.Td>
+                        </>
+                      )}
+                      {tab === "access" && (
+                        <>
+                          {/* REQ-1958/REQ-1134: null grant lists are withheld (the caller lacks
+                              view_governance), which is said — never shown as "all" or "none". */}
+                          <Table.Td>
+                            {c.visibleTo === null ? (
+                              <Text span size="sm" c="dimmed" data-testid="grants-not-shown">
+                                {t("tableReadView.notShown")}
+                              </Text>
+                            ) : (
+                              <Group gap={4} wrap="nowrap">
+                                <Text span size="sm">
+                                  {c.visibleTo.length > 0
+                                    ? c.visibleTo.join(", ")
+                                    : t("tableReadView.all")}
+                                </Text>
+                                {c.visibleTo.length > 0 && (
+                                  <OwnerResolutionIcon
+                                    refs={c.visibleTo}
+                                    ariaLabel={t("ownerResolution.columnIconLabel")}
+                                  />
+                                )}
+                              </Group>
+                            )}
+                          </Table.Td>
+                          <Table.Td c={c.writableBy === null ? "dimmed" : undefined}>
+                            {c.writableBy === null
+                              ? t("tableReadView.notShown")
+                              : c.writableBy.length > 0
+                                ? c.writableBy.join(", ")
+                                : t("tableReadView.none")}
+                          </Table.Td>
+                          <Table.Td c={c.visibleTo === null ? "dimmed" : undefined}>
+                            {c.visibleTo === null
+                              ? t("tableReadView.notShown")
+                              : c.maskType || t("tableReadView.maskNone")}
+                          </Table.Td>
+                        </>
+                      )}
+                    </Table.Tr>
+                    {tab === "access" && c.maskType && (
+                      <Table.Tr>
+                        <Table.Td colSpan={2} c="dimmed" fz="0.75rem" pl="1.5rem">
+                          ↳{" "}
+                          {c.maskType === "regex"
+                            ? t("tableReadView.maskRegex", {
+                                pattern: c.maskPattern,
+                                replace: c.maskReplace,
+                              })
+                            : c.maskType === "constant"
+                              ? t("tableReadView.maskConstant", {
+                                  value: c.maskValue ?? t("tableReadView.maskConstantNull"),
+                                })
+                              : t("tableReadView.maskTruncate", { precision: c.maskPrecision })}
+                        </Table.Td>
+                        <Table.Td colSpan={2} c="dimmed" fz="0.75rem">
+                          {t("tableReadView.unmaskedTo", {
+                            list:
+                              c.unmaskedTo !== null && c.unmaskedTo.length > 0
+                                ? c.unmaskedTo.join(", ")
+                                : t("tableReadView.none"),
+                          })}
+                        </Table.Td>
+                      </Table.Tr>
+                    )}
+                  </Fragment>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </div>
       )}
       {actions}
       {table.draft && (
@@ -583,181 +737,6 @@ export function TableReadView({
           {deployMsg[table.id].message}
         </Box>
       )}
-      {profileColumnsTable && <LatestProfilePanel profileTable={profileColumnsTable} />}
-      {(() => {
-        const p = tableProfiles[table.id];
-        if (!p || p === "loading") return null;
-        if (typeof p === "string")
-          return (
-            <Box px="0.75rem" py="0.5rem" c="var(--destructive)" fz="0.8rem">
-              {p}
-            </Box>
-          );
-        const prof = computeProfile(p.columns, p.rows);
-        return (
-          <Box style={{ borderTop: "1px solid var(--border)" }} px="0.75rem" py="0.5rem">
-            <Box fz="0.75rem" c="dimmed" mb="0.4rem">
-              {t("tableReadView.profileHeading", { count: p.rowCount })}
-            </Box>
-            <Table.ScrollContainer minWidth={640}>
-              <Table className="data-table" style={{ fontSize: "0.72rem" }}>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>{t("tableReadView.colColumn")}</Table.Th>
-                    <Table.Th title={t("tableReadView.colNullsTitle")}>
-                      {t("tableReadView.colNulls")}
-                    </Table.Th>
-                    <Table.Th title={t("tableReadView.colBlanksTitle")}>
-                      {t("tableReadView.colBlanks")}
-                    </Table.Th>
-                    <Table.Th title={t("tableReadView.colDistinctTitle")}>
-                      {t("tableReadView.colDistinct")}
-                    </Table.Th>
-                    <Table.Th>{t("tableReadView.colMin")}</Table.Th>
-                    <Table.Th>{t("tableReadView.colMax")}</Table.Th>
-                    <Table.Th>{t("tableReadView.colMean")}</Table.Th>
-                    <Table.Th>{t("tableReadView.colTopValues")}</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {prof.map((c) => {
-                    const nullPct =
-                      p.rowCount > 0 ? Math.round((c.nullCount / p.rowCount) * 100) : 0;
-                    const isHighNull = nullPct >= 50;
-                    return (
-                      <Table.Tr key={c.col}>
-                        <Table.Td style={{ fontFamily: "monospace", fontWeight: 600 }}>
-                          {c.col}
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="0.4rem" wrap="nowrap">
-                            <Box
-                              style={{
-                                width: 52,
-                                height: 5,
-                                borderRadius: 3,
-                                background: "var(--border)",
-                                position: "relative",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {c.nullCount > 0 && (
-                                <Box
-                                  style={{
-                                    position: "absolute",
-                                    left: 0,
-                                    top: 0,
-                                    bottom: 0,
-                                    width: `${nullPct}%`,
-                                    borderRadius: 3,
-                                    background: isHighNull
-                                      ? "var(--destructive)"
-                                      : "var(--text-muted)",
-                                  }}
-                                />
-                              )}
-                            </Box>
-                            <Text
-                              span
-                              fz="0.7rem"
-                              c={
-                                isHighNull
-                                  ? "var(--destructive)"
-                                  : c.nullCount > 0
-                                    ? undefined
-                                    : "dimmed"
-                              }
-                            >
-                              {c.nullCount > 0 ? `${nullPct}%` : "—"}
-                            </Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td c={c.blankCount > 0 ? undefined : "dimmed"}>
-                          {c.blankCount > 0 ? c.blankCount : "—"}
-                        </Table.Td>
-                        <Table.Td>{c.distinctCount}</Table.Td>
-                        <Table.Td style={{ fontFamily: "monospace" }}>
-                          {c.min !== null ? String(c.min).slice(0, 16) : "—"}
-                        </Table.Td>
-                        <Table.Td style={{ fontFamily: "monospace" }}>
-                          {c.max !== null ? String(c.max).slice(0, 16) : "—"}
-                        </Table.Td>
-                        <Table.Td style={{ fontFamily: "monospace" }}>
-                          {c.mean !== null ? c.mean.toFixed(2) : "—"}
-                        </Table.Td>
-                        <Table.Td>
-                          <Box
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "0.18rem",
-                              minWidth: 140,
-                            }}
-                          >
-                            {c.topValues.map(({ value, count }) => {
-                              const barPct =
-                                c.topValues[0].count > 0 ? (count / c.topValues[0].count) * 100 : 0;
-                              return (
-                                <Group key={value} gap="0.3rem" wrap="nowrap">
-                                  <Box
-                                    style={{
-                                      width: 52,
-                                      height: 5,
-                                      borderRadius: 2,
-                                      background: "var(--border)",
-                                      position: "relative",
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    <Box
-                                      style={{
-                                        position: "absolute",
-                                        left: 0,
-                                        top: 0,
-                                        bottom: 0,
-                                        width: `${barPct}%`,
-                                        borderRadius: 2,
-                                        background: "var(--primary)",
-                                      }}
-                                    />
-                                  </Box>
-                                  <Text
-                                    span
-                                    style={{
-                                      fontFamily: "monospace",
-                                      fontSize: "0.68rem",
-                                      whiteSpace: "nowrap",
-                                      overflow: "hidden",
-                                      maxWidth: 110,
-                                      textOverflow: "ellipsis",
-                                    }}
-                                    title={value}
-                                  >
-                                    {value.slice(0, 22)}
-                                  </Text>
-                                  <Text
-                                    span
-                                    c="dimmed"
-                                    fz="0.65rem"
-                                    ml="auto"
-                                    style={{ flexShrink: 0 }}
-                                  >
-                                    ×{count}
-                                  </Text>
-                                </Group>
-                              );
-                            })}
-                          </Box>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          </Box>
-        );
-      })()}
     </>
   );
 }

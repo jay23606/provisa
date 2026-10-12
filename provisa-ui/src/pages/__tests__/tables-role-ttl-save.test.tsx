@@ -193,11 +193,10 @@ async function openEditor(name = "orders") {
   const row = (await screen.findByText(name)).closest("tr") as HTMLElement;
   await userEvent.click(row.querySelector("td") as HTMLElement);
   await userEvent.click(await screen.findByTestId("table-read-view-edit"));
-  // The load settings live in the collapsed "Load Management and Timeliness" panel.
-  const toggle = await screen.findByTestId("load-management-panel-toggle");
-  expect(toggle).toHaveAttribute("aria-expanded", "false");
-  expect(toggle).toHaveTextContent("Load Management and Timeliness");
-  await userEvent.click(toggle);
+  // The load settings are on the "Load and timeliness" section, shown in full.
+  const tab = await screen.findByTestId("table-section-load");
+  expect(tab).toHaveTextContent("Load and timeliness");
+  await userEvent.click(tab);
   expect(screen.getByTestId("load-management-help")).toHaveTextContent(
     "How current the data must be for each reader, balanced against load on the platform and upstream sources.",
   );

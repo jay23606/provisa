@@ -35,6 +35,8 @@ test("pets table edit shows enableAggregates and enableGroupBy checked", async (
   await editBtn.waitFor({ timeout: 5000 });
   await editBtn.click();
 
+  // The ticks are on the table's Query section.
+  await page.getByTestId("table-section-query").click();
   // Wait for the edit form's own checkbox. A bare input[type='checkbox'] wait resolves to the
   // first of ~10 on the page — the table's row-selection controls, which sit inside a collapsed
   // container and are therefore never "visible" — so it timed out while the form was already open.
@@ -49,6 +51,7 @@ test("pets table edit shows enableAggregates and enableGroupBy checked", async (
   // REQ-1360: metadata-only implicit measure/dimension badges. `price` (double) is numeric
   // so it qualifies as an implicit measure; with enableAggregates/enableGroupBy both on,
   // every typed column also carries the implicit dimension badge.
+  await page.getByTestId("table-section-columns").click();
   const priceRow = page.getByTestId("column-row-price");
   await expect(priceRow.getByText("Measure", { exact: true })).toBeVisible();
   await expect(priceRow.getByText("Dim", { exact: true })).toBeVisible();

@@ -21,5 +21,9 @@ export function FieldLabel({
   /** From useHelpNaming, when the control is to be named by the text alone. */
   textId?: string;
 }) {
-  return <LabelWithHelp label={text} help={help} required={required} textId={textId} />;
+  return (
+    <span className="form-label-standalone">
+      <LabelWithHelp label={text} help={help} required={required} textId={textId} />
+    </span>
+  );
 }

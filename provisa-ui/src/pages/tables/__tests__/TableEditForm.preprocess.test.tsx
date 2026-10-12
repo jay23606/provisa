@@ -95,6 +95,10 @@ function makeTable(overrides: Partial<RegisteredTable> = {}): RegisteredTable {
 function renderForm(table: RegisteredTable, setEditingTable = vi.fn()) {
   render(
     <TableEditForm
+      // What this file tests is on the load section.
+      relationships={[]}
+      section="load"
+      onSectionChange={vi.fn()}
       savedProfilerId={null}
       editingTable={table}
       setEditingTable={setEditingTable}

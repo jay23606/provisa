@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "Secciones de la tabla",
+    "errors": "{{count}} por corregir",
+    "identity": "Identidad",
+    "associations": "Asociaciones",
+    "load": "Gestión de carga y actualidad",
+    "query": "Consulta",
+    "quality": "Calidad",
+    "columns": "Columnas",
+    "source": "Origen",
+    "schema": "Esquema",
+    "table": "Tabla",
+    "domain": "Dominio",
+    "tags": "Etiquetas",
+    "glossaryTerms": "Términos del glosario",
+    "noTerms": "Ningún término del glosario nombra una columna de esta tabla",
+    "relationships": "Relaciones",
+    "noRelationships": "Esta tabla no participa en ninguna relación",
+    "yes": "Sí",
+    "no": "No",
+    "fromSource": "{{value}} (del origen)",
+    "fromSourceAsIs": "Como lo tiene el origen",
+    "contractSet": "Definido",
+    "notScheduledLikeSource": "No se lee solo según la programación, aunque su origen sí: una consulta puede leer el origen."
+  }
+}

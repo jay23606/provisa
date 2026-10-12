@@ -25,15 +25,23 @@ export function ColumnTabs({
   onChange,
   shown = COLUMN_TABS,
   errors = {},
+  nested = false,
 }: {
   value: ColumnTab;
   onChange: (tab: ColumnTab) => void;
   shown?: ColumnTab[];
   errors?: Partial<Record<ColumnTab, number>>;
+  /** Inside a table's Columns section: the smaller second row under the section tabs. */
+  nested?: boolean;
 }) {
   const { t } = useTranslation();
   return (
-    <Tabs value={value} onChange={(v) => v && onChange(v as ColumnTab)} mb="xs">
+    <Tabs
+      value={value}
+      onChange={(v) => v && onChange(v as ColumnTab)}
+      mb="xs"
+      className={nested ? "column-tabs--nested" : undefined}
+    >
       <Tabs.List aria-label={t("tableEditForm.columnTabs.label")}>
         {shown.map((tab) => {
           const count = errors[tab] ?? 0;

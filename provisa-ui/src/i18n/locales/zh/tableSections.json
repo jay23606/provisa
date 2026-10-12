@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "表的各部分",
+    "errors": "{{count}} 项待修正",
+    "identity": "标识",
+    "associations": "关联",
+    "load": "负载管理与时效性",
+    "query": "查询",
+    "quality": "质量",
+    "columns": "列",
+    "source": "数据源",
+    "schema": "架构",
+    "table": "表",
+    "domain": "域",
+    "tags": "标签",
+    "glossaryTerms": "术语",
+    "noTerms": "没有术语命名此表的列",
+    "relationships": "关系",
+    "noRelationships": "此表未参与任何关系",
+    "yes": "是",
+    "no": "否",
+    "fromSource": "{{value}}（来自数据源）",
+    "fromSourceAsIs": "与数据源相同",
+    "contractSet": "已设置",
+    "notScheduledLikeSource": "并非仅按计划读取，尽管其数据源是：查询可能会读取数据源。"
+  }
+}

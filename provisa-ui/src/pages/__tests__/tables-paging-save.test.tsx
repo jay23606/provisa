@@ -221,7 +221,7 @@ async function openEditor(name: string) {
   const row = (await screen.findByText(name)).closest("tr") as HTMLElement;
   await userEvent.click(row.querySelector("td") as HTMLElement);
   await userEvent.click(await screen.findByTestId("table-read-view-edit"));
-  await userEvent.click(await screen.findByTestId("load-management-panel-toggle"));
+  await userEvent.click(await screen.findByTestId("table-section-load"));
 }
 
 describe("TablesPage — Paging (REQ-318)", () => {
@@ -312,32 +312,31 @@ describe("TablesPage — Paging (REQ-318)", () => {
 });
 
 describe("TablesPage — the writes a table takes", () => {
+  // The writes are read on the table's Query section.
   async function openTable(name: string): Promise<void> {
     render(<TablesPage />);
     const row = (await screen.findByText(name)).closest("tr") as HTMLElement;
     await userEvent.click(row.querySelector("td") as HTMLElement);
+    await userEvent.click(await screen.findByTestId("table-section-query"));
   }
 
-  it("marks a writable table and names every write its source takes", async () => {
+  it("names every write its source takes for a writable table", async () => {
     await openTable("orders");
-    const chip = await screen.findByTestId("table-read-view-writable");
-    expect(chip).toHaveTextContent("Writable");
-    expect(chip.getAttribute("aria-label")).toContain("DELETE, INSERT, UPDATE");
+    expect(await screen.findByTestId("table-read-view-writable")).toHaveTextContent(
+      "DELETE, INSERT, UPDATE",
+    );
   });
 
   it("names only inserts for an append-only source", async () => {
     await openTable("events");
-    const label = (await screen.findByTestId("table-read-view-writable")).getAttribute(
-      "aria-label",
-    );
-    expect(label).toContain("INSERT");
-    expect(label).not.toContain("UPDATE");
+    const writes = await screen.findByTestId("table-read-view-writable");
+    expect(writes).toHaveTextContent("INSERT");
+    expect(writes).not.toHaveTextContent("UPDATE");
   });
 
-  it("shows no writable chip for a table whose source takes no writes", async () => {
+  it("says none for a table whose source takes no writes", async () => {
     await openTable("graph");
-    await screen.findByTestId("table-read-view-preview");
-    expect(screen.queryByTestId("table-read-view-writable")).toBeNull();
+    expect(await screen.findByTestId("table-read-view-writable")).toHaveTextContent("none");
   });
 });
 

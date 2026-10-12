@@ -1,0 +1,27 @@
+{
+  "tableSections": {
+    "label": "テーブルのセクション",
+    "errors": "要修正 {{count}} 件",
+    "identity": "識別",
+    "associations": "関連付け",
+    "load": "負荷管理と鮮度",
+    "query": "クエリ",
+    "quality": "品質",
+    "columns": "列",
+    "source": "ソース",
+    "schema": "スキーマ",
+    "table": "テーブル",
+    "domain": "ドメイン",
+    "tags": "タグ",
+    "glossaryTerms": "用語集の用語",
+    "noTerms": "このテーブルの列を名付ける用語集の用語はありません",
+    "relationships": "リレーションシップ",
+    "noRelationships": "このテーブルはどのリレーションシップにも含まれていません",
+    "yes": "はい",
+    "no": "いいえ",
+    "fromSource": "{{value}}（ソースから）",
+    "fromSourceAsIs": "ソースの設定どおり",
+    "contractSet": "設定済み",
+    "notScheduledLikeSource": "ソースはスケジュールでのみ読み取られますが、このテーブルはそうではありません: クエリがソースを読み取ることがあります。"
+  }
+}
