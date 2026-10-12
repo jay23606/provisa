@@ -284,3 +284,46 @@ def test_a_failed_install_caches_nothing(tmp_path):
     with pytest.raises(install.shared.InstallFailed):
         _ensure(tmp_path, _project({"requirements.txt": HASHED}), _fails)
     assert [p.name for p in (tmp_path / "cache" / "code-bundles" / "python").iterdir()] == []
+
+
+def test_a_wheels_dependencies_install_from_a_lockfile_given_beside_the_package(tmp_path):
+    """A wheel has no place for a lockfile: the source's form gives one beside the reference,
+    hashed with the code, and the install is frozen to it."""
+    name = "rates-1.2.0-py3-none-any.whl"
+    wheel = _wheel({"rates/__init__.py": "import httpx\n"}, requires=("httpx>=0.27",))
+    index = _Index(INDEX.address, {name: wheel})
+    runner = _Runner()
+    beside = install.shared.Lockfile("requirements.txt", HASHED.encode())
+    got = ensure_installed(
+        source_id="rates-src",
+        code=PypiCode("rates", "1.2.0"),
+        expected_hash=None,
+        registries=[INDEX],
+        python=Path("/rt/python/bin/python3.12"),
+        uv=Path("/rt/uv/uv"),
+        cache_root=tmp_path / "cache",
+        lockfile=beside,
+        http=index,
+        run=runner,
+    )
+    assert (got.path / "requirements.txt").read_bytes() == beside.data
+    assert "--require-hashes" in runner.ran[1][0]
+
+
+def test_a_wheels_dependencies_with_no_lockfile_beside_it_are_refused_saying_to_add_one(tmp_path):
+    name = "rates-1.2.0-py3-none-any.whl"
+    index = _Index(INDEX.address, {name: _wheel({"rates/__init__.py": ""}, requires=("httpx",))})
+    with pytest.raises(BundleRefused) as refused:
+        ensure_installed(
+            source_id="rates-src",
+            code=PypiCode("rates", "1.2.0"),
+            expected_hash=None,
+            registries=[INDEX],
+            python=Path("/rt/python"),
+            uv=Path("/rt/uv"),
+            cache_root=tmp_path / "cache",
+            http=index,
+            run=_Runner(),
+        )
+    assert refused.value.code == "codesource.no_lockfile"
+    assert "add one beside the package on the source's form" in str(refused.value)

@@ -169,6 +169,8 @@ The bundle must carry a lockfile the runtime reads (`package-lock.json`, `npm-sh
 
 A lockfile out of step with `package.json` fails the install, and the failure names the source.
 
+A published npm package rarely carries a lockfile (`npm publish` leaves out `package-lock.json`; only `npm-shrinkwrap.json` is published). So the source's form may give one beside the package reference (lead, 2026-10-12): it is kept with the source, put into the code before the content hash is taken, and so hashed like the code (`codesource.install.Lockfile`). Without one, a package that declares dependencies is refused by name, and the refusal says to add one. One the runtime does not read, or one the code already carries, is refused. Python's PyPI packages follow the same rule (docs/arch/code-sources.md, section 6.3).
+
 Install scripts are disabled for every install (`--ignore-scripts` for npm and Bun; Deno runs none without `--allow-scripts`). A dependency that needs its script to build is refused, and the failure names it.
 
 ### 4.4 When, and where it is kept

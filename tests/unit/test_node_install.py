@@ -297,6 +297,7 @@ def _ensure(
     expected=None,
     runner=None,
     registries=(ACME, MIRROR, GITHOST),
+    lockfile=None,
 ):
     node = tmp_path / "rt" / "bin" / "node"
     npm = tmp_path / "rt" / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js"
@@ -311,6 +312,7 @@ def _ensure(
         registries=list(registries),
         runtime_executable=node,
         cache_root=tmp_path / "cache",
+        lockfile=lockfile,
         run=runner or _Runner(),
     )
 
@@ -366,6 +368,39 @@ def test_dependencies_without_the_runtimes_lockfile_are_refused(tmp_path):
         _ensure(tmp_path, _bundle(**files), runtime="bun")
     assert refused.value.code == "codesource.no_lockfile"
     assert "bun.lock or bun.lockb" in str(refused.value)
+    assert "add one beside the package on the source's form" in str(refused.value)
+
+
+NO_LOCK = {k: v for k, v in WITH_DEPS.items() if k != "package-lock.json"}
+
+
+def test_a_lockfile_given_beside_the_package_is_installed_from_and_hashed_with_it(tmp_path):
+    """A published npm package carries no package-lock.json (npm publish leaves it out): the
+    source's form gives one beside the reference, and it is part of what the source records."""
+    runner = _Runner()
+    beside = shared.Lockfile("package-lock.json", b'{"lockfileVersion": 3}')
+    got = _ensure(tmp_path, _bundle(**NO_LOCK), runner=runner, lockfile=beside)
+    assert (got.path / "package-lock.json").read_bytes() == beside.data
+    assert runner.calls[0]["argv"][2] == "ci"
+    with_own = _ensure(
+        tmp_path / "b", _bundle(**{**NO_LOCK, "package-lock.json": '{"lockfileVersion": 3}'})
+    )
+    assert got.content_hash == with_own.content_hash  # hashed exactly as if the code carried it
+
+
+@pytest.mark.parametrize(
+    ("beside", "files", "code"),
+    [
+        (shared.Lockfile("yarn.lock", b""), NO_LOCK, "codesource.lockfile_kind"),
+        (shared.Lockfile("package-lock.json", b"{}"), WITH_DEPS, "codesource.lockfile_twice"),
+    ],
+)
+def test_a_lockfile_beside_the_package_is_one_its_runtime_reads_and_replaces_nothing(
+    tmp_path, beside, files, code
+):
+    with pytest.raises(BundleRefused) as refused:
+        _ensure(tmp_path, _bundle(**files), lockfile=beside)
+    assert refused.value.code == code
 
 
 def test_a_cached_install_is_used_and_not_installed_again(tmp_path):

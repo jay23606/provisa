@@ -155,7 +155,7 @@ A package is fetched as its **wheel** for the pinned Python (`py3`/`cp312` tags,
 **The lockfile** (P4).
 - A code with dependencies (a wheel's `Requires-Dist` without an extra, or a project's `[project].dependencies`) carries `uv.lock` (with its `pyproject.toml`), `pylock.toml` (PEP 751) or a `requirements.txt` with `--hash` on every requirement; one that does not is refused by name;
 - one without dependencies needs none, and runs on the pinned Python itself.
-- **Open (for the lead):** a wheel carries no lockfile, so a PyPI package that declares dependencies is refused as P4 stands. Either such a package names its lockfile some other way, or its `Requires-Dist` is resolved at install (unfrozen, `--no-build`), or it is refused as now.
+- **A lockfile beside the package** (lead, 2026-10-12): a wheel carries no lockfile, so the source's form may give one beside the PyPI reference; it is kept with the source, put into the code before the content hash is taken, and hashed like the code (`codesource.install.Lockfile`). Without one, a package that declares dependencies is refused, and the refusal says to add one. The same rule holds for npm packages, which rarely publish a lockfile. Every install stays frozen.
 
 **The install.**
 - `uv venv --python <pinned python> <install>/.venv`, then the lockfile into it: `uv sync --frozen --no-build --no-install-project` for `uv.lock`; `uv pip sync --no-build [--require-hashes] <file>` for `pylock.toml` and `requirements.txt`;
