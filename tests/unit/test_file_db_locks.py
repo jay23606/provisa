@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 426cd1e8-6fa5-4a7c-a135-bf2d8deee857
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1997: how a database file's lock behaves between two processes on this OS -- what the

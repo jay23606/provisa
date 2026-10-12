@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 321227f5-d531-4a38-ad27-380b7987e9f3
 #
 # This source code is licensed under the Business Source License 1.1
 """A write to a DuckDB database file (REQ-1997).

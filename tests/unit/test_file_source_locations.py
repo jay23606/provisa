@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 62d558aa-1af5-482b-9ca6-febf57f02888
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1997: every kind of location a file-based source reads -- a file on this node, https,

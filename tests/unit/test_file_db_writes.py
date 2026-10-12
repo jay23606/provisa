@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: d9a78763-c288-4bf2-887a-e5ca7bd68205
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1997, the maintainer's ruling: "writes back to file databases in a multi-node env - just
