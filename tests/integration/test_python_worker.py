@@ -13,14 +13,13 @@ code under the sandbox and its tables, commands and streams are the shared manif
 serves rows sandboxed; the code reads nothing outside it and reaches the network only through the
 egress proxy, to the hosts on the allow-list.
 
-The interpreter is this process's base Python (part P2 pins the source's own)."""
+The interpreter is the pinned Python, fetched as a source's is; its dependencies the pinned uv's."""
 
 # Requirements: REQ-1993
 from __future__ import annotations
 
 import shutil
 import socket
-import sys
 import threading
 from pathlib import Path
 
@@ -33,20 +32,16 @@ from provisa.python.source import host_command, read_code
 pytestmark = [pytest.mark.integration]
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "python_source"
-PYTHON_HOME = Path(sys.base_prefix).resolve()
 
 
-def _interpreter() -> Path:
-    """This process's base interpreter itself. A macOS framework build's ``bin/python3`` only
-    starts another program (``Python.app``), which the sandbox, which runs one program, refuses;
-    that program is the interpreter. (The source's pinned Python, part P2, is a plain one.)"""
-    app = PYTHON_HOME / "Resources" / "Python.app" / "Contents" / "MacOS" / "Python"
-    if app.is_file():
-        return app
-    return Path(getattr(sys, "_base_executable", sys.executable)).resolve()
+@pytest.fixture(scope="module")
+def runtimes(tmp_path_factory):
+    """The pinned Python (its interpreter and its prefix) and the pinned uv."""
+    from provisa.runtime_deps.code_runtimes import CodeRuntimeResolver
 
-
-PYTHON = _interpreter()
+    resolver = CodeRuntimeResolver(cache_root=tmp_path_factory.mktemp("runtime-deps"))
+    python = resolver.resolve("python")
+    return python, python.parent.parent, resolver.resolve("uv")
 
 
 @pytest.fixture
@@ -56,17 +51,19 @@ def code(tmp_path):
     return copied
 
 
-def _start(code: Path, egress=()) -> w.Worker:
+def _start(code: Path, runtimes, egress=()) -> w.Worker:
+    python, python_home, _uv = runtimes
     command = host_command(
-        python=PYTHON, python_home=PYTHON_HOME, code=code, entry="orders", egress=list(egress)
+        python=python, python_home=python_home, code=code, entry="orders", egress=list(egress)
     )
     started = w.Worker("python-src", "h", command)
     started.start()
     return started
 
 
-def test_the_code_is_read_inside_the_sandbox(code):
-    manifest = read_code(python=PYTHON, python_home=PYTHON_HOME, code=code, entry="orders")
+def test_the_code_is_read_inside_the_sandbox(code, runtimes):
+    python, python_home, _uv = runtimes
+    manifest = read_code(python=python, python_home=python_home, code=code, entry="orders")
     orders = manifest.export("orders")
     assert orders.returns == Named("Order")
     assert [(p.name, p.shape) for p in orders.parameters] == [
@@ -75,8 +72,8 @@ def test_the_code_is_read_inside_the_sandbox(code):
     ]
 
 
-def test_rows_are_served_inside_the_sandbox(code):
-    started = _start(code)
+def test_rows_are_served_inside_the_sandbox(code, runtimes):
+    started = _start(code, runtimes)
     try:
         [[row]] = list(started.rows("orders", "table", ["acme"]))
         assert row["lines"] == [{"sku": "acme", "qty": 2}]
@@ -85,8 +82,8 @@ def test_rows_are_served_inside_the_sandbox(code):
         started.stop()
 
 
-def test_the_code_reads_nothing_outside_it(code):
-    started = _start(code)
+def test_the_code_reads_nothing_outside_it(code, runtimes):
+    started = _start(code, runtimes)
     try:
         with pytest.raises(w.CodeFailed, match="PermissionError|Operation not permitted"):
             list(started.rows("outside", "table", []))
@@ -121,9 +118,11 @@ def upstream():
     server.close()
 
 
-def test_a_host_on_the_allow_list_is_reached_through_the_proxy_and_no_other(code, upstream):
+def test_a_host_on_the_allow_list_is_reached_through_the_proxy_and_no_other(
+    code, upstream, runtimes
+):
     host, port = upstream
-    started = _start(code, egress=[f"{host}:{port}"])
+    started = _start(code, runtimes, egress=[f"{host}:{port}"])
     try:
         [[reached]] = list(started.rows("fetched", "table", [f"http://{host}:{port}/rates"]))
         assert reached == {"status": 200, "body": "ok"}
@@ -132,5 +131,62 @@ def test_a_host_on_the_allow_list_is_reached_through_the_proxy_and_no_other(code
         assert "not on the egress allow-list" in refused["body"]
         with pytest.raises(w.CodeFailed):
             list(started.rows("direct", "table", [host, port]))  # around the proxy
+    finally:
+        started.stop()
+
+
+# -- the pinned Python and uv (part P2) ----------------------------------------------------------
+
+SIX_WHEEL_SHA256 = "8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
+
+
+def test_dependencies_are_installed_from_the_lockfile_and_imported_in_the_sandbox(
+    tmp_path, runtimes
+):
+    """The pinned uv installs a hashed requirements.txt from the public PyPI into the install's
+    own environment, from the pinned Python, binary wheels only; the sandboxed worker runs that
+    environment's interpreter and imports the dependency."""
+    import io
+    import zipfile
+
+    from provisa.codesource.install import UploadCode
+    from provisa.python.install import ensure_installed, environment_python
+    from provisa.python.source import code_path, entry_module
+
+    python, python_home, uv = runtimes
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr(
+            "rates/requirements.txt", f"six==1.16.0 --hash=sha256:{SIX_WHEEL_SHA256}\n"
+        )
+        archive.writestr(
+            "rates/rates.py",
+            "import six\n\n"
+            "def versions() -> list[dict]:\n"
+            '    """@table"""\n'
+            '    return [{"six": six.__version__}]\n',
+        )
+    installed = ensure_installed(
+        source_id="rates-src",
+        code=UploadCode("rates.zip", buf.getvalue()),
+        expected_hash=None,
+        registries=[],
+        python=python,
+        uv=uv,
+        cache_root=tmp_path / "cache",
+    )
+    code = code_path(installed.path)
+    entry = entry_module(code)
+    interpreter = environment_python(installed.path, python)
+    assert interpreter != python  # the install's own environment
+    manifest = read_code(python=interpreter, python_home=python_home, code=code, entry=entry)
+    assert [e.name for e in manifest.exports] == ["versions"]
+    command = host_command(
+        python=interpreter, python_home=python_home, code=code, entry=entry, egress=[]
+    )
+    started = w.Worker("rates-src", installed.content_hash, command)
+    started.start()
+    try:
+        assert list(started.rows("versions", "table", [])) == [[{"six": "1.16.0"}]]
     finally:
         started.stop()

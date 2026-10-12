@@ -34,6 +34,7 @@ from provisa.codesource.bundle import BundleRefused
 from provisa.codesource.manifest import PYTHON_RULES, Manifest, read_manifest
 from provisa.codesource.sandbox import sandboxed, sandboxed_once
 from provisa.codesource.worker import HostCommand, private_environment
+from provisa.python.install import wheel_top_level
 
 READER = Path(__file__).with_name("reader.py")
 HOST = Path(__file__).with_name("host.py")
@@ -58,11 +59,19 @@ def _top_level(code: Path) -> list[str]:
     return names
 
 
+def code_path(installed: Path) -> Path:
+    """Where the code's modules are, in its install: ``src/`` for a project laid out that way,
+    else the install itself (an unpacked wheel, or a flat project)."""
+    src = installed / "src"
+    return src if src.is_dir() and _top_level(src) else installed
+
+
 def entry_module(code: Path, named: str | None = None) -> str:
     """The module the code is entered by: ``named`` (from the source's registration) when given,
-    which must be one of the code's; else its single top-level module or package. None, or more
-    than one with none named, is refused by name."""
-    found = _top_level(code)
+    which must be one of the code's; else its single top-level import -- a wheel's from its
+    ``top_level.txt`` or ``RECORD``, a project's its single top-level module or package. None,
+    or more than one with none named, is refused by name."""
+    found = wheel_top_level(code) or _top_level(code)
     if named is not None:
         top = named.split(".")[0]
         if top not in found:

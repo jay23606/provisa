@@ -150,28 +150,29 @@ Built in part P1 for a code directory (`provisa/python/source.entry_module`: set
 - a Git repository at a commit, with a subdirectory: the shared Git fetch;
 - an uploaded archive: the shared uploads store.
 
-A package is fetched as its **wheel**, checked against the index's published SHA-256. An sdist is refused *(proposed: building an sdist runs its build backend, the Python counterpart of an install script, which the maintainer ruled out for Node)*.
+A package is fetched as its **wheel** for the pinned Python (`py3`/`cp312` tags, `none`/`abi3`/`cp312` ABI, `any` or this platform's `macosx_*_arm64` / `manylinux*_x86_64`), from the organisation's default index else the public PyPI, and checked against the index's published SHA-256. A release with no such wheel is refused: building an sdist runs its build backend, the Python counterpart of an install script (P2). The entry module is the wheel's `top_level.txt`, else the first part of each path its `RECORD` lists (P1). Built: `provisa/python/install.py`.
 
-**The lockfile.**
-- A code with dependencies carries `uv.lock`, `pylock.toml` (PEP 751) or a `requirements.txt` with `--hash` on every line;
-- one without dependencies needs none.
+**The lockfile** (P4).
+- A code with dependencies (a wheel's `Requires-Dist` without an extra, or a project's `[project].dependencies`) carries `uv.lock` (with its `pyproject.toml`), `pylock.toml` (PEP 751) or a `requirements.txt` with `--hash` on every requirement; one that does not is refused by name;
+- one without dependencies needs none, and runs on the pinned Python itself.
+- **Open (for the lead):** a wheel carries no lockfile, so a PyPI package that declares dependencies is refused as P4 stands. Either such a package names its lockfile some other way, or its `Requires-Dist` is resolved at install (unfrozen, `--no-build`), or it is refused as now.
 
-**The install** *(proposed)*:
-- uv, pinned and hashed like a runtime, installs into a virtual environment inside the code's cache directory;
-- for `uv.lock`: `uv sync --frozen --no-build --no-install-project`;
-- for the other lockfiles: `uv pip install --require-hashes --no-build --only-binary :all:`;
-- the index configuration is written into the install's own directory (`uv.toml` with the index URLs, and credentials in environment variables uv reads per index) and removed after it, exactly as Node's `.npmrc`;
-- the result is cached by content hash.
+**The install.**
+- `uv venv --python <pinned python> <install>/.venv`, then the lockfile into it: `uv sync --frozen --no-build --no-install-project` for `uv.lock`; `uv pip sync --no-build [--require-hashes] <file>` for `pylock.toml` and `requirements.txt`;
+- the indexes reach uv in the install's environment only (`UV_DEFAULT_INDEX` for the default index, `UV_INDEX` for the others, each with its credential in its URL), never in a file; `UV_NO_CONFIG=1`, `UV_PYTHON_DOWNLOADS=never`, a HOME and a cache of the install's own, and Git dependencies through the same Git configuration as Node's;
+- the result is cached by content hash (`<cache>/code-bundles/python/<hash>`), and a worker runs the venv's interpreter (`environment_python`); a project laid out with `src/` is entered there (`code_path`).
 
-**The runtime** *(proposed)*: CPython from astral-sh/python-build-standalone, at a pinned release and Python version, for the three platforms, with each archive's SHA-256 recorded. It is fetched on demand and cached beside the JS runtimes. The release and version are chosen when part P2 is built, from releases at least two weeks old.
+**The credential** of a PyPI index is a token, sent as PyPI's `__token__` user, or `user:password` as entered.
+
+**The runtime** (P3): CPython 3.12.14 from python-build-standalone release 20260924 (`install_only`), and uv 0.12.18, pinned and hashed for the three platforms in `provisa/runtime_deps/code_runtimes.py`.
 
 ### 6.4 Package indexes
 
-REQ-1993 asks for the organisation's package indexes, "like REQ-1984's registries". *(Proposed: the same admin page and table, with a third kind.)*
-- **PyPI index:** a URL and a credential, one of which may be the default index every install goes through, like npm's mirror.
-- **No scope:** Python packages have none, so the page shows no scope for this kind.
+REQ-1993 asks for the organisation's package indexes, "like REQ-1984's registries". Built as a third kind, `pypi`, of the same table and admin page:
+- **PyPI index:** a simple-index URL and a credential; one may be the default index every Python install goes through in place of the public PyPI. The mirror is per kind: one npm mirror and one default index per organisation.
+- **No scope:** Python packages have none; a scope on a PyPI index is refused.
 - **Same rules:** every field is kept as entered and resolved at use.
-- **The page** becomes "Package registries" with three lists: npm registries, PyPI indexes, Git hosts.
+- **The page** "Package registries" has three lists: npm registries, PyPI indexes, Git hosts (13 locales; rendered at 1280 and 1900).
 
 ### 6.5 Tables, commands and live tables
 
