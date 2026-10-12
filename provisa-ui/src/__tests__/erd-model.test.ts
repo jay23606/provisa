@@ -135,7 +135,6 @@ function makeRel(overrides: Partial<Relationship> = {}): Relationship {
     viaTypeColumn: null,
     viaTypeValue: null,
     viaLabelSource: null,
-    ownerDomainId: null,
     ...overrides,
   };
 }

@@ -566,7 +566,6 @@ export interface Relationship {
   viaTypeColumn: string | null;
   viaTypeValue: string | null;
   viaLabelSource: string | null;
-  ownerDomainId: string | null;
 }
 
 export interface RLSRule {

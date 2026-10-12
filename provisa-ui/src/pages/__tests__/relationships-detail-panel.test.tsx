@@ -12,7 +12,7 @@
 // time, the row marked, another row swapping it; the forms that add a relationship and that create
 // a relationship's reverse open in the same panel, the reverse with a way back.
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { screen, fireEvent, within } from "@testing-library/react";
 import { render } from "../../test-utils/render";
 import { RelationshipsPage } from "../RelationshipsPage";
@@ -48,12 +48,16 @@ const RELS = {
   loading: false,
   refetch: vi.fn(),
 };
-const TABLES = { tables: [], loading: false };
+const TABLES: { tables: unknown[]; loading: boolean } = { tables: [], loading: false };
 const DOMAINS = { domains: [] };
 const UPSERT = { upsertRelationship: vi.fn(async () => ({ success: true, message: "" })) };
 const DELETE = { deleteRelationship: vi.fn() };
 const AUTH = { capabilities: ["create_relationship"] };
-const FILTER = { domainsEnabled: false, domains: [], checkedDomains: new Set<string>() };
+const FILTER: { domainsEnabled: boolean; domains: string[]; checkedDomains: Set<string> } = {
+  domainsEnabled: false,
+  domains: [],
+  checkedDomains: new Set<string>(),
+};
 
 vi.mock("../../hooks/useAdminQueries", () => ({
   useRelationships: () => RELS,
@@ -174,5 +178,40 @@ describe("RelationshipsPage: the right-hand detail panel", () => {
     fireEvent.click(within(panel()).getByRole("button", { name: "Cancel" }));
     fireEvent.keyDown(panel(), { key: "Escape" });
     expect(screen.queryByTestId("relationships-split-panel")).toBeNull();
+  });
+});
+
+describe("RelationshipsPage: the domain filter", () => {
+  const regions = RELS.relationships[1];
+  afterEach(() => {
+    RELS.relationships[1] = regions;
+    Object.assign(FILTER, { domainsEnabled: false, domains: [], checkedDomains: new Set() });
+    TABLES.tables = [];
+  });
+
+  it("keeps a relationship whose source or target table is in a checked domain", () => {
+    // Both start in sales; only the customers table is in finance, and regions is its own table.
+    RELS.relationships[1] = { ...regions, targetTableId: 3 };
+    TABLES.tables = [
+      { id: 2, domainId: "finance", tableName: "customers", schemaName: "public", columns: [] },
+    ];
+    Object.assign(FILTER, {
+      domainsEnabled: true,
+      domains: ["sales", "finance"],
+      checkedDomains: new Set(["finance"]),
+    });
+    const { unmount } = render(<RelationshipsPage />);
+    const list = within(screen.getByTestId("relationships-list"));
+    // Its target is in finance: kept. Its target, regions, is in no checked domain: dropped.
+    expect(list.getByText("orders.customer_id")).toBeTruthy();
+    expect(list.queryByText("orders.region_id")).toBeNull();
+    unmount();
+
+    FILTER.checkedDomains = new Set(["sales"]);
+    render(<RelationshipsPage />);
+    const both = within(screen.getByTestId("relationships-list"));
+    // Their source, orders, is in sales: both kept.
+    expect(both.getByText("orders.customer_id")).toBeTruthy();
+    expect(both.getByText("orders.region_id")).toBeTruthy();
   });
 });
