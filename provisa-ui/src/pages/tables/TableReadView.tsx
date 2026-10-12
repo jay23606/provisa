@@ -10,7 +10,8 @@
 
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, Pencil } from "lucide-react";
+import { DatabaseZap, Trash2, Pencil } from "lucide-react";
+import { Tip } from "../../components/Tip";
 import {
   ActionIcon,
   Badge,
@@ -83,6 +84,13 @@ interface TableReadViewProps {
   source?: Source;
   /** The relationships the table takes part in are listed on Associations. */
   relationships: Relationship[];
+  /**
+   * Drops the table's cached results, for a table whose source caches them; absent for any
+   * other table, which then shows no such action.
+   */
+  onInvalidateCache?: (id: number) => void;
+  /** Whether the table's cache is being dropped now. */
+  invalidating?: boolean;
   /** The section in view, kept by the page across the read view and the edit form. */
   section?: TableSection;
   onSectionChange?: (section: TableSection) => void;
@@ -114,6 +122,8 @@ export function TableReadView({
   relationships,
   section: sectionIn,
   onSectionChange,
+  onInvalidateCache,
+  invalidating = false,
 }: TableReadViewProps) {
   const { t } = useTranslation();
   const [section, setSection] = useTableSection(sectionIn, onSectionChange);
@@ -221,6 +231,22 @@ export function TableReadView({
           >
             {t("tableReadView.policiesButton")}
           </Button>
+          {onInvalidateCache && (
+            <Tip text={t("tablesPage.invalidateCache")} named>
+              <ActionIcon
+                aria-label={t("tablesPage.invalidateCache")}
+                data-testid="table-read-view-invalidate-cache"
+                loading={invalidating}
+                disabled={invalidating}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onInvalidateCache(table.id);
+                }}
+              >
+                <DatabaseZap size={14} />
+              </ActionIcon>
+            </Tip>
+          )}
           {/* REQ-1958: the editor opens for a caller who is not shown the grant lists and masks
               too; it shows none of them and its save names none, so the store keeps them. */}
           <ActionIcon

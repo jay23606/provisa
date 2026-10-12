@@ -158,8 +158,25 @@ const TABLES = [
       } as unknown as RegisteredTable["columns"][number],
     ],
   }),
+  // A remote API's table: its source caches results, so it has a cache to drop.
+  table(13, "remote_pets", [], { sourceId: "petstore-api" }),
 ];
 const SOURCES = [
+  {
+    id: "petstore-api",
+    type: "openapi",
+    host: null,
+    port: null,
+    database: null,
+    username: null,
+    dialect: null,
+    cacheEnabled: true,
+    cacheTtl: null,
+    allowedDomains: [],
+    namingConvention: null,
+    path: "https://petstore.example/openapi.json",
+    description: "",
+  },
   {
     id: "sales-pg",
     type: "postgresql",
@@ -183,6 +200,7 @@ const ROLES = [
 ];
 const ok = { success: true, message: "" };
 const updateTable = vi.fn();
+const purgeCacheByTable = vi.fn(async () => ok);
 const updateTableNaming = vi.fn();
 const updateTableCache = vi.fn();
 const updateTableReplicate = vi.fn();
@@ -192,7 +210,7 @@ const updateTablePaging = vi.fn();
 
 vi.mock("../../hooks/useAdminOpsQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminOpsQueries")>()),
-  usePurgeCacheByTable: () => ({ purgeCacheByTable: vi.fn(), loading: false }),
+  usePurgeCacheByTable: () => ({ purgeCacheByTable, loading: false }),
   useUpdateTableRoleTtl: () => ({ updateTableRoleTtl, loading: false }),
   useUpdateTablePaging: () => ({ updateTablePaging, loading: false }),
 }));
@@ -368,5 +386,31 @@ describe("TablesPage — a table that needs a required filter", () => {
     await openTable("orders");
     expect(await screen.findByTestId("table-read-view-preview")).toBeInTheDocument();
     expect(screen.getByTestId("table-read-view-profile")).toBeInTheDocument();
+  });
+});
+
+describe("TablesPage — Invalidate Cache is the panel's, not the list's", () => {
+  async function openTable(name: string): Promise<void> {
+    render(<TablesPage />);
+    const row = (await screen.findByText(name)).closest("tr") as HTMLElement;
+    await userEvent.click(row.querySelector("td") as HTMLElement);
+  }
+
+  it("offers it as an action in the panel's head for a table whose source caches results", async () => {
+    await openTable("remote_pets");
+    expect(screen.queryByRole("button", { name: "Invalidate Cache", hidden: true })).toBe(
+      screen.getByTestId("table-read-view-invalidate-cache"),
+    );
+    const head = screen.getByTestId("tables-split-panel").querySelector(".split-pane__head")!;
+    expect(head).toContainElement(screen.getByTestId("table-read-view-invalidate-cache"));
+    await userEvent.click(screen.getByTestId("table-read-view-invalidate-cache"));
+    expect(purgeCacheByTable).toHaveBeenCalledWith(13);
+  });
+
+  it("offers it nowhere for a table whose source caches nothing, and never in a list row", async () => {
+    await openTable("orders");
+    await screen.findByTestId("table-read-view-preview");
+    expect(screen.queryByTestId("table-read-view-invalidate-cache")).toBeNull();
+    expect(within(screen.getByTestId("tables-list")).queryByText("Invalidate Cache")).toBeNull();
   });
 });
