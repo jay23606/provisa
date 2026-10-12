@@ -15,7 +15,7 @@ import { toSnakeCase } from "../../naming";
 import type { ColumnForm } from "./types";
 
 /** How a pipeline argument reaches the source (REQ-1986). */
-export const PIPELINE_ARG = "pipeline_arg";
+export const QUERY_ARG = "query_arg";
 const NF_PREFIX = "_nf_";
 
 /** A column the preview suggests, granted to every role, as the steward then edits it. */
@@ -51,7 +51,7 @@ export function pipelineArgument(name: string, dataType: string): ColumnForm {
   return {
     ...previewedColumn({ name: NF_PREFIX + name, dataType }, []),
     alias: "",
-    nativeFilterType: PIPELINE_ARG,
+    nativeFilterType: QUERY_ARG,
     nativeFilterRequired: false,
     requiredBySteward: false,
   };
@@ -62,7 +62,7 @@ export function argumentName(c: ColumnForm): string {
 }
 
 export function isPipelineArgument(c: ColumnForm): boolean {
-  return c.nativeFilterType === PIPELINE_ARG;
+  return c.nativeFilterType === QUERY_ARG;
 }
 
 /** The types an argument may take: the IR types, and arrays of the numeric and text ones (a

@@ -32,7 +32,7 @@ Cosmos DB for NoSQL stores JSON documents in **containers**, inside a **database
 **Parameters (REQ-1986).** A query table's `@name` parameters are parameter columns `_nf_<name>`. They need a value for how they reach the source, and there are two choices:
 
 - **(a)** A new kind, `query_arg` (an argument of the table's native query).
-- **(b)** Reuse `pipeline_arg` and rename it to the general `query_arg` for both MongoDB and Cosmos.
+- **(b)** Reuse MongoDB's `pipeline_arg`, renamed to the general `query_arg`, for both MongoDB and Cosmos.
 
 See section 10, decision 1. Either way the steward's required switch and the one enforcement rule apply as they are.
 

@@ -13,7 +13,7 @@
       "query_param": "Parámetro de consulta",
       "graphql_arg": "Argumento de GraphQL",
       "grpc_input": "Campo de la solicitud gRPC",
-      "pipeline_arg": "Argumento de la canalización"
+      "query_arg": "Argumento de la consulta nativa"
     }
   }
 }

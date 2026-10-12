@@ -5813,7 +5813,6 @@
   "it/parametersPanel.json::parametersPanel.kind.query_param": "Query parameter",
   "it/parametersPanel.json::parametersPanel.kind.graphql_arg": "GraphQL argument",
   "it/parametersPanel.json::parametersPanel.kind.grpc_input": "gRPC request field",
-  "it/parametersPanel.json::parametersPanel.kind.pipeline_arg": "Pipeline argument",
   "it/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields.",
   "it/registerTableForm.json::registerTableForm.pipelineQueryLabel": "Native query",
   "it/registerTableForm.json::registerTableForm.pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- an argument is a whole value \"{{name}}\"",
@@ -5825,5 +5824,6 @@
   "it/registerTableForm.json::registerTableForm.mongoModeLabel": "What the table reads",
   "it/registerTableForm.json::registerTableForm.mongoModeCollection": "Collection",
   "it/registerTableForm.json::registerTableForm.mongoModePipeline": "Pipeline",
-  "it/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+  "it/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+  "it/parametersPanel.json::parametersPanel.kind.query_arg": "Native query argument"
 }

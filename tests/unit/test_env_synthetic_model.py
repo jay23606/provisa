@@ -54,7 +54,7 @@ def _table(table_id: int, name: str, source: str, *filters: tuple[str, bool, boo
         ("graphql_arg", True, False, True),
         ("grpc_input", False, False, False),  # proto3 requires no field
         ("grpc_input", False, True, True),
-        ("pipeline_arg", False, True, True),
+        ("query_arg", False, True, True),
     ],
 )
 def test_a_required_parameter_is_one_the_source_or_a_steward_requires(

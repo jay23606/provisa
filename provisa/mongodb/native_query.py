@@ -12,7 +12,7 @@
 
 The table's ``query_template`` holds the native query as one Extended JSON document,
 ``{"inputCollection": ..., "pipeline": [...]}``. An argument is a placeholder string value
-``"{{name}}"`` anywhere in the pipeline, and a parameter of the table (``pipeline_arg``,
+``"{{name}}"`` anywhere in the pipeline, and a parameter of the table (``query_arg``,
 REQ-1986). Binding replaces each placeholder node of the parsed pipeline with the argument's
 value, which the driver then encodes as BSON: a value is never written into the pipeline's text,
 so it can only ever be a value. A pipeline table is read-only: a pipeline that writes ($out,
@@ -29,7 +29,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-PIPELINE_ARG = "pipeline_arg"
+QUERY_ARG = "query_arg"
 _PLACEHOLDER = re.compile(r"^\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$")
 _EMBEDDED = re.compile(r"\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}\}")
 # The stages that write: a pipeline table only reads.
@@ -114,7 +114,7 @@ def placeholders(table: str, query: NativeQuery) -> set[str]:
 
 
 def check(table: str, text: str, arguments: set[str]) -> NativeQuery:
-    """``text`` parsed and checked against the table's declared arguments (its ``pipeline_arg``
+    """``text`` parsed and checked against the table's declared arguments (its ``query_arg``
     parameters, by name): each placeholder names one, and each one is used."""
     query = parse(table, text)
     named = placeholders(table, query)
@@ -179,13 +179,13 @@ def check_table(table: Any) -> NativeQuery:
     its arguments, every column typed, and none of the settings a pipeline cannot take."""
     name = table.table_name
     arguments = {
-        c.name.removeprefix("_nf_") for c in table.columns if c.native_filter_type == PIPELINE_ARG
+        c.name.removeprefix("_nf_") for c in table.columns if c.native_filter_type == QUERY_ARG
     }
     other = sorted(
-        {c.native_filter_type for c in table.columns if c.native_filter_type} - {PIPELINE_ARG}
+        {c.native_filter_type for c in table.columns if c.native_filter_type} - {QUERY_ARG}
     )
     if other:
-        raise NativeQueryRefused(name, f"a pipeline's parameters are pipeline_arg, not {other}")
+        raise NativeQueryRefused(name, f"a pipeline's parameters are query_arg, not {other}")
     untyped = [c.name for c in table.columns if not c.data_type]
     if untyped:
         raise NativeQueryRefused(name, f"the columns {untyped} have no data type")

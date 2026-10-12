@@ -13,7 +13,7 @@
       "query_param": "Параметр запроса",
       "graphql_arg": "Аргумент GraphQL",
       "grpc_input": "Поле запроса gRPC",
-      "pipeline_arg": "Аргумент конвейера"
+      "query_arg": "Аргумент нативного запроса"
     }
   }
 }

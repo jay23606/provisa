@@ -217,7 +217,7 @@ def _pipeline_table(**kw) -> Table:
                 name="_nf_query_vector",
                 visible_to=[],
                 data_type="array(double)",
-                native_filter_type="pipeline_arg",
+                native_filter_type="query_arg",
                 native_filter_required=False,
                 required_by_steward=True,
             ),
@@ -225,14 +225,14 @@ def _pipeline_table(**kw) -> Table:
                 name="_nf_k",
                 visible_to=[],
                 data_type="integer",
-                native_filter_type="pipeline_arg",
+                native_filter_type="query_arg",
                 native_filter_required=False,
             ),
             Column(
                 name="_nf_genre",
                 visible_to=[],
                 data_type="varchar",
-                native_filter_type="pipeline_arg",
+                native_filter_type="query_arg",
                 native_filter_required=False,
             ),
         ],
@@ -316,7 +316,7 @@ def _state_table(required_by_steward: bool = True) -> dict:
         return {
             "column_name": f"_nf_{name}",
             "data_type": data_type,
-            "native_filter_type": "pipeline_arg",
+            "native_filter_type": "query_arg",
             "native_filter_required": False,
             "required_by_steward": steward,
             "path": None,
@@ -462,7 +462,7 @@ def test_a_pipeline_with_arguments_has_no_whole_table_to_replicate():
         query_template=_VECTOR_SEARCH,
         columns=[
             SimpleNamespace(
-                name="_nf_k", data_type="integer", path=None, native_filter_type="pipeline_arg"
+                name="_nf_k", data_type="integer", path=None, native_filter_type="query_arg"
             )
         ],
     )

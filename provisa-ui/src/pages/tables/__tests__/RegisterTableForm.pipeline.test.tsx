@@ -12,7 +12,7 @@
  * REQ-1980: registering a MongoDB table from an aggregation pipeline. The form takes the table's
  * name, its native query and its arguments (each a parameter of the table, REQ-1986), previews the
  * query with sample argument values, and submits the native query as the table's queryTemplate
- * with each argument as a pipeline_arg parameter column under the source's database.
+ * with each argument as a query_arg parameter column under the source's database.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -140,7 +140,7 @@ describe("RegisterTableForm on a MongoDB pipeline (REQ-1980)", () => {
     const genre = input.columns.find((c: { name: string }) => c.name === "_nf_genre");
     expect(genre).toMatchObject({
       dataType: "text",
-      nativeFilterType: "pipeline_arg",
+      nativeFilterType: "query_arg",
       nativeFilterRequired: false,
       requiredBySteward: true,
     });

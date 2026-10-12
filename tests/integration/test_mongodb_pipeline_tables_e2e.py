@@ -97,7 +97,7 @@ def _arg(name: str, data_type: str, *, steward: bool = False) -> dict:
     return {
         "name": f"_nf_{name}",
         "data_type": data_type,
-        "native_filter_type": "pipeline_arg",
+        "native_filter_type": "query_arg",
         "native_filter_required": False,
         "required_by_steward": steward,
         "visible_to": [],

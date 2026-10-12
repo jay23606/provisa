@@ -13,7 +13,7 @@
       "query_param": "Queryparameter",
       "graphql_arg": "GraphQL-argument",
       "grpc_input": "Veld van het gRPC-verzoek",
-      "pipeline_arg": "Pijplijnargument"
+      "query_arg": "Argument van de native query"
     }
   }
 }
