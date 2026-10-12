@@ -599,6 +599,32 @@ class DuckDBDeltaConnector(_DuckDBExtensionConnector):  # REQ-899
         return details
 
 
+class DuckDBDatabricksIcebergConnector(_DuckDBExtensionConnector):  # REQ-1867
+    """Read a Databricks Unity Catalog table IN PLACE via DuckDB's core iceberg extension
+    (``iceberg_scan``), the DuckDB-engine twin of ``PgDuckdbDatabricksIcebergConnector``.
+
+    An OPT-IN reach (``opt_in_reach``): a Databricks source keeps landing through its native
+    driver unless the steward asks for this one with ``federation_hints['reach'] = 'scan'``. Only
+    native Iceberg and UniForm-Iceberg tables resolve; any other fails loud, naming the table.
+
+    Nothing is resolved here: per query, the DuckDB runtime reads the table's CURRENT metadata
+    pointer and the storage credentials Unity Catalog vends for it (``databricks_iceberg_resolver``),
+    issues them as a DuckDB SECRET and re-points the table's view, so every query reads the live
+    snapshot with fresh credentials and nothing is cached."""
+
+    source_type = "databricks"
+    key = "duckdb_databricks_iceberg"
+    extension = "iceberg"
+    install_from_community = False  # core registry — INSTALL iceberg (no FROM community)
+    probe_symbol = "iceberg_scan"
+    mechanism = Mechanism.SCAN  # iceberg_scan scanner view — read in place, no copy (REQ-951)
+    opt_in_reach = True
+
+    def details(self, source: Source) -> dict:
+        # resolved per query by the runtime (metadata pointer + vended credentials), never here
+        return {"databricks_iceberg": ", allow_moved_paths := true"}
+
+
 class DuckDBClickHouseConnector(_DuckDBExtensionConnector):  # REQ-899
     """ClickHouse, read live over its HTTP interface: core httpfs + ``read_parquet`` of
     ``SELECT ... FORMAT Parquet``. There is no ClickHouse DuckDB extension, so no view can stand in
@@ -1314,14 +1340,17 @@ class PgDuckdbSnowflakeIcebergConnector(PgDuckdbIcebergConnector):  # REQ-1867
 
 
 class PgDuckdbDatabricksIcebergConnector(_PgDuckdbScanConnector):  # REQ-1867
-    """Attach a Databricks Unity Catalog table IN PLACE via pg_duckdb's iceberg_scan.
+    """Read a Databricks Unity Catalog table IN PLACE via pg_duckdb's iceberg_scan.
 
-    Adds a live, zero-copy reach for a Databricks source ALONGSIDE its existing Mechanism.DIRECT
-    reach (REQ-987) — not a replacement (``mechanisms`` carries both). The metadata pointer is
-    resolved per-query from Unity Catalog's Iceberg REST catalog endpoint (never cached on the
-    connector: the whole point is reading the table's CURRENT snapshot, not a stale copy), then
-    fed into the same iceberg_scan DDL shape as ``PgDuckdbIcebergConnector``. Only tables that are
-    native Iceberg or UniForm-Iceberg-enabled resolve; anything else fails loud at the REST call.
+    An OPT-IN reach (``opt_in_reach``): a Databricks source keeps landing through its native
+    driver (the engine's per-type reach, REQ-987) unless the steward asks for this one with
+    ``federation_hints['reach'] = 'scan'``. Only tables that are native Iceberg or UniForm-Iceberg
+    can be read this way; any other fails loud, naming the table.
+
+    Nothing is resolved here: the table's CURRENT metadata pointer and the storage credentials
+    Unity Catalog vends for it are read per query by the pg runtime
+    (``databricks_iceberg_resolver``), never cached on the connector, so every query reads the
+    live snapshot with fresh credentials.
     """
 
     source_type = "databricks"
@@ -1329,7 +1358,7 @@ class PgDuckdbDatabricksIcebergConnector(_PgDuckdbScanConnector):  # REQ-1867
     _scan_args = ", allow_moved_paths := true"
     key = "pg_duckdb_databricks_iceberg"
     mechanism = Mechanism.SCAN  # iceberg_scan reads the table in place — no copy (REQ-951)
-    mechanisms = frozenset({Mechanism.SCAN, Mechanism.DIRECT})  # adds to, doesn't replace, DIRECT
+    opt_in_reach = True
     runtime_deps = (
         RuntimeDep("libduckdb", DriverProvider.BUNDLED),  # the embedded DuckDB engine
         # aws-sdk-cpp / avro-c / roaring — static-linked into libduckdb via vcpkg
@@ -1353,15 +1382,11 @@ class PgDuckdbDatabricksIcebergConnector(_PgDuckdbScanConnector):  # REQ-1867
         )
 
     def details(self, source: Source) -> dict:
-        from provisa.federation.databricks_iceberg_resolver import (
-            resolve_databricks_iceberg_metadata_location,
-        )
-
-        metadata_location = resolve_databricks_iceberg_metadata_location(source)
         return {
             "requires_preload": "pg_duckdb",
             "reader": self._reader,
-            "scan": f"{self._reader}('{metadata_location}'{self._scan_args})",
+            # resolved per query (metadata pointer + vended storage credentials), never here
+            "databricks_iceberg": self._scan_args,
         }
 
 

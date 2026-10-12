@@ -143,6 +143,12 @@ class Connector(ABC):  # REQ-842
     # read live — as the ONLY way the engine sees it). Nearly always True; False only for a source
     # that must never be cached.
     materializable: bool = True
+    # REQ-1867: an OPT-IN reach. The engine keeps such a connector apart from its per-type reach
+    # (``FederationEngine.scan_connectors``): a source of this type keeps landing as before, and is
+    # read through this connector only when its ``federation_hints`` ask for it (``reach: "scan"``,
+    # chosen by the steward). Used where reading in place only works for some sources of a type
+    # (a Databricks table must be native Iceberg or UniForm).
+    opt_in_reach: bool = False
     key: str = (
         ""  # stable identity for probe reports + override strike-list (falls back to source_type)
     )

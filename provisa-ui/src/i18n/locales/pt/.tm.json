@@ -5820,5 +5820,9 @@
   "pt/mailResources.json::mailResources.sendUpdates": "Tell attendees of changes",
   "pt/mailResources.json::mailResources.calendar": "Calendars",
   "pt/detailFields.json::detailFields.set": "Set",
-  "pt/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}."
+  "pt/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}.",
+  "pt/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)",
+  "pt/sourceFormFields.json::sourceFormFields.readPolicy": "How Provisa reads this source",
+  "pt/sourceFormFields.json::sourceFormFields.readReplica": "From a landed replica (default)",
+  "pt/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it."
 }

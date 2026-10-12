@@ -67264,7 +67264,22 @@
     here for history; do not implement against it.] it has no REST-catalog client, credential/token handling,
     or table discovery. This closes that gap [END SUPERSEDED BLOCK]: resolve the warehouse''s current
     metadata.json location via its catalog API, then hand the resolved path to the existing scan connector
-    unchanged.'
+    unchanged.
+
+    (Amended 2026-10-12, DATABRICKS IN-PLACE READ IS OPT-IN AND PER QUERY:) A Databricks source
+    keeps landing through its native driver by default; the steward opts a source into the in-place
+    read with its read policy (federation_hints reach: scan; reach: replica or no hint lands). On
+    the duckdb and pg engines the opt-in reach reads each registered table through Unity Catalog
+    Iceberg REST catalog (/api/2.1/unity-catalog/iceberg-rest/v1: config for the catalog prefix,
+    then LoadTable asking for vended credentials; the legacy iceberg/v1 endpoint answers HTTP 400).
+    Before every statement that names the table, the runtime resolves the current metadata-location
+    and fresh vended S3 credentials and re-points the table view (a DuckDB secret, or a pg_duckdb s3
+    server and user mapping); nothing is resolved at catalog projection and nothing is cached. A
+    table that is neither native Iceberg nor UniForm, or one for which Unity Catalog vends no
+    credentials (metastore external data access off, Databricks default storage, or no EXTERNAL USE
+    SCHEMA), fails that query naming the table. An in-place Databricks source needs no landing
+    clock. A reach other than replica or scan is refused naming it; an engine with no in-place
+    reader for the type refuses reach: scan naming the source.'
   use_case: Snowflake/Databricks/BigQuery sources attached to the pg engine currently require a full materialized
     replica even when the underlying table is already Iceberg-format and could be scanned live — closing
     this gap removes that replica lag/cost for customers who already use Iceberg-backed warehouse tables.

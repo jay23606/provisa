@@ -697,7 +697,7 @@ class EngineBackend:
 
         if self.engine.native_store is None:
             return False
-        return self.engine.connector_for(source.type.value).mechanism in (
+        return self.engine.connector_for_source(source).mechanism in (
             Mechanism.ATTACH_RW,
             Mechanism.ATTACH_R,
         )
@@ -757,7 +757,7 @@ class EngineBackend:
         if self.engine.native_store is not None:
             from provisa.federation.connector import Mechanism
 
-            if self.engine.connector_for(source.type.value).mechanism in (
+            if self.engine.connector_for_source(source).mechanism in (
                 Mechanism.DIRECT,
                 Mechanism.FETCH,
             ):

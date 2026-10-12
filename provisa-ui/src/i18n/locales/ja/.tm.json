@@ -5820,5 +5820,9 @@
   "ja/mailResources.json::mailResources.checkDays": "Days checked for changes",
   "ja/mailResources.json::mailResources.sendUpdatesHelp": "A change to an event or its attendees is sent to them only when this is on. While it is off, Microsoft 365 refuses such a change, as it cannot make one without telling them.",
   "ja/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}.",
-  "ja/detailFields.json::detailFields.set": "Set"
+  "ja/detailFields.json::detailFields.set": "Set",
+  "ja/sourceFormFields.json::sourceFormFields.readPolicy": "How Provisa reads this source",
+  "ja/sourceFormFields.json::sourceFormFields.readReplica": "From a landed replica (default)",
+  "ja/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it.",
+  "ja/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)"
 }

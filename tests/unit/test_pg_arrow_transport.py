@@ -25,6 +25,7 @@ driver's own Arrow decoding.
 from __future__ import annotations
 
 import sys
+import threading
 import types
 
 import pytest
@@ -114,6 +115,9 @@ def _runtime(dsn="postgresql://provisa@localhost:5432/warehouse"):
     # REQ-1895: __init__ now also sets _adbc_pool (lazily-created ADBC connection pool) —
     # replicate that subset of __init__'s state since this fixture bypasses __init__ entirely.
     runtime._adbc_pool = None  # pyright: ignore[reportAttributeAccessIssue]
+    # REQ-1867: __init__ also sets the in-place Databricks relations each read re-points.
+    runtime._dbx_relations = {}  # pyright: ignore[reportAttributeAccessIssue]
+    runtime._dbx_lock = threading.Lock()  # pyright: ignore[reportAttributeAccessIssue]
     return runtime
 
 

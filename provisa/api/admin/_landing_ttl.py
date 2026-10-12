@@ -164,6 +164,14 @@ async def replicate_contradiction_refusal(
     return _contradiction(source_id, *saved)
 
 
+async def _stored_hints(conn: Any, source_id: str) -> dict:
+    """The stored federation_hints of ``source_id``; empty for a source not stored yet."""
+    row = (
+        await conn.execute_core(select(sources.c.federation_hints).where(sources.c.id == source_id))
+    ).fetchone()
+    return {} if row is None else dict(row.federation_hints or {})
+
+
 async def _stored_type(conn: Any, source_id: str) -> str | None:
     """The stored type of ``source_id``, or None for a source not stored yet."""
     row = (
@@ -212,12 +220,15 @@ async def landing_ttl_refusal(
     source: SourceTtl | None = None,
     table: TableTtl | None = None,
     source_type: str | None = None,
+    federation_hints: dict | None = None,
 ) -> MutationResult | None:
     """A failing MutationResult naming the first table of ``source_id`` whose ttl / ttl_probe
     signal has no table or source cache_ttl, judged with ``source`` / ``table`` (the values being
     saved) in place of the stored ones; None when every table has a landing clock. A source whose
     kind states the clock itself (``source_states_the_clock``) is refused without one, tables or
-    none; ``source_type`` is the type being saved, for a source not stored yet. Refuses the
+    none; ``source_type`` is the type being saved, for a source not stored yet, and
+    ``federation_hints`` the hints being saved (else the stored ones): a source that asks to be read
+    in place (``reach: "scan"``, REQ-1867) is not landed by the engine. Refuses the
     load_protected / replicate -1 pair first (REQ-826).
 
     A built-in source (provisa-admin, provisa-otel, __derived__) is Provisa's own catalog or MV
@@ -259,7 +270,10 @@ async def landing_ttl_refusal(
     # REQ-1934) is read where it is written and never landed, so it has no landing clock to judge.
     if source_type in NO_REPLICA_TYPES:
         return None
-    engine_lands = not _engine_reads_in_place(source_type)
+    hints = (
+        federation_hints if federation_hints is not None else await _stored_hints(conn, source_id)
+    )
+    engine_lands = not (hints.get("reach") == "scan" or _engine_reads_in_place(source_type))
     for t in tables:
         if not engine_lands and not lands_from_config(
             materialize=t.materialize,

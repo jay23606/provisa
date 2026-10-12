@@ -52,7 +52,14 @@ def _connector_for(source_type):
 
 class _Backend(NativeEngineBackend):
     def __init__(self) -> None:
-        super().__init__(SimpleNamespace(name="test-engine", connector_for=_connector_for))
+        super().__init__(
+            SimpleNamespace(
+                name="test-engine",
+                connector_for=_connector_for,
+                # REQ-1867: the walk asks for the source's own reach; none of these sources hints one
+                connector_for_source=lambda src: _connector_for(src.type.value),
+            )
+        )
         self.runtime = _Runtime()
 
     def _new_runtime(self):

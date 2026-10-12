@@ -36,7 +36,7 @@ class _Backend(NativeEngineBackend):
         self._runtime = _Runtime()
         # The walk attaches only a source its engine reads in place (a postgresql attach here).
         self.engine = SimpleNamespace(
-            name="duckdb", connector_for=lambda _type: SimpleNamespace(reads_in_place=True)
+            name="duckdb", connector_for_source=lambda _src: SimpleNamespace(reads_in_place=True)
         )
         self._attached = set()
         self._detached = set()

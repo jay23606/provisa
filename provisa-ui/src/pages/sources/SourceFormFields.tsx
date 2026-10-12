@@ -602,6 +602,22 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               </FormField>
             </>
           )}
+          <FormField size="long">
+            <Select
+              label={t("sourceFormFields.readPolicy")}
+              description={
+                authFields.reach === "scan" ? t("sourceFormFields.readInPlaceHelp") : undefined
+              }
+              data={[
+                { value: "replica", label: t("sourceFormFields.readReplica") },
+                { value: "scan", label: t("sourceFormFields.readInPlace") },
+              ]}
+              value={authFields.reach === "scan" ? "scan" : "replica"}
+              // allowDeselect={false}: Mantine never hands back null here
+              onChange={(v) => setAuthFields({ ...authFields, reach: v as string })}
+              allowDeselect={false}
+            />
+          </FormField>
         </>
       )}
       {form.type === "redshift" && (

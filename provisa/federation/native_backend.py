@@ -440,9 +440,9 @@ class NativeEngineBackend(EngineBackend):
             # though the table is queryable from its replica (REQ-947/951). Decide from the
             # connector's declared reach, not by catching the failure.
             # A registered source always carries its type; one without fails here, by name.
-            stype: str = src.type.value
             try:
-                if not self.engine.connector_for(stype).reads_in_place:
+                # REQ-1867: the source's own reach (a hinted scan), not only its type's
+                if not self.engine.connector_for_source(src).reads_in_place:
                     return
             except UnreachableSource:
                 return
@@ -915,6 +915,11 @@ class NativeEngineBackend(EngineBackend):
         # hints (FTE retry_policy etc.) are Trino session properties with no native analogue.
         del session_hints
         return self._runtime_for(state).run_sync(sql, params)
+
+    def refresh_live_relations(self, state: Any, sql: str) -> None:
+        """REQ-1867: re-point the in-place reads ``sql`` names at their sources' current data,
+        for a statement the runtime does not run itself (pgwire's raw passthrough)."""
+        self._runtime_for(state).refresh_live_relations(sql)
 
     def borrow_raw_pg_connection(self, state: Any) -> Any:
         """One connection from the runtime's own read pool, for pgwire's raw-DataRow passthrough

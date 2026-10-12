@@ -290,6 +290,10 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         # store is configured. Landed/cached rows live in a schema this same connection reads.
         self._materialize_dsn = materialize_dsn
         self._raw_attached: set[str] = set()
+        # REQ-1867: in-place Databricks views — quoted live view name -> (source, iceberg_scan
+        # arguments); re-pointed before every statement naming one (refresh_live_relations).
+        self._dbx_relations: dict[str, tuple[Any, str]] = {}
+        self._dbx_lock = threading.Lock()
         # REQ-1922: the build of each other region's table this engine last imported.
         self._region_imports: dict[tuple[str, str, str], object] = {}
         # REQ-1895: run_sync's read path borrows from this pool instead of opening a fresh
@@ -319,6 +323,17 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         entry = self._engine.resolve(source)  # picks the (postgres, source_type) connector
         details = entry.details
         cur = self._con.cursor()
+        if "databricks_iceberg" in details:  # REQ-1867: read in place, re-pointed per query
+            with self._dbx_lock:
+                self._dbx_relations[self._live_view_name(source)] = (
+                    source,
+                    details["databricks_iceberg"],
+                )
+                self._point_databricks_view(source, details["databricks_iceberg"])
+            return
+        if "scan" in details:  # pg_duckdb reader (read_csv / read_parquet / iceberg_scan) — #244
+            self._create_live_view(cur, source, self._scan_relation(details["scan"], source))
+            return
         if "attach_ddl" in details:  # postgres_fdw / sqlite_fdw — import a foreign schema
             remote = f'"{details["local_schema"]}"."{source.table_name}"'
             # A connector that can import ONE table (postgres_fdw) is attached per table: the
@@ -381,6 +396,11 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
                 cur.execute(f"ANALYZE {remote}")  # REQ-1900: see the postgres_fdw branch's comment
         else:
             raise KeyError(f"pg connector for {source.type.value!r} has no attach/server DDL")
+        self._create_live_view(cur, source, remote)
+
+    def _create_live_view(self, cur: Any, source: Any, remote: str) -> None:
+        """Expose ``remote`` (a relation expression) as the source's live view, at the name the
+        engine route's physical SQL reads."""
         # REQ-1730: the ENGINE route's own physical SQL, on this catalog-incapable engine, folds
         # catalog.schema into one schema segment (fold_catalog_into_schema, provisa/compiler/
         # sql_rewrite.py) — "{source_to_catalog(source_id)}_{schema_name}" — because two sources
@@ -421,6 +441,74 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
             f"AS SELECT * FROM {remote}"
         )
 
+    def _live_view_name(self, source: Any) -> str:
+        """The live view's quoted ``"schema"."table"``, as the engine route's SQL names it."""
+        from provisa.compiler.naming import live_view_schema
+
+        return f'"{live_view_schema(source.catalog, source.schema_name)}"."{source.table_name}"'
+
+    @staticmethod
+    def _scan_relation(scan: str, source: Any) -> str:
+        """A pg_duckdb reader as a relation with the registered table's named, typed columns: a
+        DuckDB table function exposes its columns through ``r['name']`` only (#244)."""
+        if not source.columns:
+            raise ValueError(
+                f"source {source.id!r} table {source.table_name!r}: a pg_duckdb scan needs the "
+                "table's registered columns"
+            )
+        cols = ", ".join(f"r['{n}']::{t} AS \"{n}\"" for n, t in source.columns)
+        return f"(SELECT {cols} FROM {scan} r) AS _scan"
+
+    def _point_databricks_view(self, source: Any, scan_args: str) -> None:
+        """REQ-1867: resolve the Databricks table's current metadata pointer and the storage
+        credentials Unity Catalog vends for it, store the credentials as pg_duckdb secrets (a
+        ``duckdb`` foreign server per storage prefix, its secret parts in the user mapping), and
+        re-point the live view. Called with ``_dbx_lock`` held."""
+        from provisa.federation.databricks_iceberg_resolver import (
+            resolve_databricks_iceberg_table,
+            s3_secret_options,
+        )
+
+        table = resolve_databricks_iceberg_table(source)
+        cur = self._con.cursor()
+        for i, credential in enumerate(table.credentials):
+            options = s3_secret_options(credential)
+            server = f"_dbx_{source.id}_{i}"
+            cur.execute(
+                f"CREATE SERVER IF NOT EXISTS \"{server}\" TYPE 's3' FOREIGN DATA WRAPPER duckdb"
+            )
+            self._set_server_options(
+                cur,
+                server,
+                {k.lower(): v for k, v in options.items() if k in ("SCOPE", "REGION")},
+            )
+            cur.execute(f'CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER "{server}"')
+            self._set_user_mapping(
+                cur,
+                server,
+                {
+                    k.lower(): v
+                    for k, v in options.items()
+                    if k in ("KEY_ID", "SECRET", "SESSION_TOKEN")
+                },
+            )
+        metadata = table.metadata_location.replace("'", "''")
+        self._create_live_view(
+            cur, source, self._scan_relation(f"iceberg_scan('{metadata}'{scan_args})", source)
+        )
+
+    def refresh_live_relations(self, sql: str) -> None:
+        """REQ-1867: before a statement runs, re-point every in-place Databricks view it names at
+        the table's current snapshot with fresh credentials. Matching is textual on the view's
+        name: a false positive costs one extra Unity Catalog round-trip."""
+        with self._dbx_lock:
+            if not self._dbx_relations:
+                return
+            lowered = sql.lower()
+            for name, (source, scan_args) in self._dbx_relations.items():
+                if name.lower() in lowered:
+                    self._point_databricks_view(source, scan_args)
+
     def detach_source(self, source: Any) -> None:
         """Remove the live view of ``source``'s table (dropped AS a view, on the catalog's word
         that it is one). Called when the table's reads move to its replica (REQ-1912): no query
@@ -430,6 +518,8 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         from provisa.federation.replica_guard import pg_relation_kind
 
         folded_schema = live_view_schema(source.catalog, source.schema_name)
+        with self._dbx_lock:
+            self._dbx_relations.pop(self._live_view_name(source), None)
         cur = self._con.cursor()
         found = pg_relation_kind(cur, folded_schema, source.table_name)
         if found is not None and found[1] == "v":
@@ -961,6 +1051,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         portal from the autocommit write/cache connection and from other concurrent streams, same as
         the prior dedicated-connection isolation. Consumers that call ``.rows`` still get the full list
         — the buffering is then explicit at their call site (REQ-1217)."""
+        self.refresh_live_relations(sql)  # REQ-1867
         # Taking the connection and giving it back are each a section the request's deadline
         # does not interrupt (REQ-1905), so a timed-out read never leaves a pool slot taken.
         shield = request_deadline.shielded()
@@ -1041,6 +1132,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         The connection is BORROWED from ``self._adbc_pool`` (REQ-1895 — same fresh-connection-per-
         call cost as ``run_sync`` before pooling, isolated here from the engine's psycopg2
         write/cache connection) and returned when the table is built, or discarded on failure."""
+        self.refresh_live_relations(sql)  # REQ-1867
         pool = self._get_adbc_pool()
         shield = request_deadline.shielded()
         with shield.lock:
@@ -1068,6 +1160,7 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
         — peak memory is bounded by one batch. The ADBC connection (from ``self._adbc_pool``,
         REQ-1895) returns to the pool when the generator drains or the consumer stops early, or is
         discarded on setup failure."""
+        self.refresh_live_relations(sql)  # REQ-1867
         pool = self._get_adbc_pool()
         shield = request_deadline.shielded()
         with shield.lock:

@@ -5821,5 +5821,9 @@
   "zh-HK/mailResources.json::mailResources.sendUpdates": "Tell attendees of changes",
   "zh-HK/mailResources.json::mailResources.sendUpdatesHelp": "A change to an event or its attendees is sent to them only when this is on. While it is off, Microsoft 365 refuses such a change, as it cannot make one without telling them.",
   "zh-HK/detailFields.json::detailFields.set": "Set",
-  "zh-HK/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}."
+  "zh-HK/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}.",
+  "zh-HK/sourceFormFields.json::sourceFormFields.readReplica": "From a landed replica (default)",
+  "zh-HK/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it.",
+  "zh-HK/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)",
+  "zh-HK/sourceFormFields.json::sourceFormFields.readPolicy": "How Provisa reads this source"
 }

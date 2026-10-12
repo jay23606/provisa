@@ -11,6 +11,7 @@ cuts short included. A timed-out request never leaves a cursor open on the runti
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 import pytest
@@ -89,6 +90,8 @@ def _duckdb() -> tuple[Any, _Conn]:
     rt._con = conn = _Conn()
     rt._catalog_gate = _CatalogGate()
     rt._refresh_store_relations = lambda sql: sql  # type: ignore[method-assign]
+    rt._dbx_relations = {}  # REQ-1867: no in-place Databricks relation is attached
+    rt._dbx_lock = threading.Lock()
     rt._rewrite_clickhouse_relations = lambda sql, params, **kw: (sql, False)  # type: ignore[method-assign]
     return rt, conn
 

@@ -54,6 +54,7 @@ async def _db(
     table_replicate=0,
     source_replicate=None,
     source_type="postgresql",
+    federation_hints=None,
 ):
     """One source ``s`` (of ``source_type``) with one table ``orders``. ``table_replicate`` 0 (always) says the table
     is replicated (REQ-1907 option B); None = it inherits its source's value, which by default
@@ -74,6 +75,7 @@ async def _db(
                 change_signal=source_signal,
                 cache_ttl=source_ttl,
                 replicate=source_replicate,
+                federation_hints=federation_hints or {},
             )
         )
         await conn.execute_core(
@@ -709,6 +711,41 @@ async def test_a_type_that_owns_no_replica_needs_no_cache_ttl_at_save(
 
     monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
     async with _db(tmp_path, source_type=source_type, table_replicate=None) as db:
+        async with db.acquire() as conn:
+            assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("signal", ["ttl", "ttl_probe"])
+async def test_a_databricks_source_read_in_place_needs_no_landing_clock(
+    tmp_path, monkeypatch, signal
+):
+    """REQ-1867: on the DuckDB engine a Databricks source lands unless the steward asks to read it
+    in place (federation hint reach: scan); only the landed one needs a landing clock. The hint is
+    read from the stored source, or from the hints being saved."""
+    import provisa.api.app as appmod
+    from provisa.api.admin._landing_ttl import landing_ttl_refusal
+    from provisa.federation.engine import build_engine
+
+    monkeypatch.setattr(appmod.state, "federation_engine", build_engine("duckdb"), raising=False)
+    async with _db(tmp_path, source_type="databricks", table_replicate=None) as db:
+        async with db.acquire() as conn:
+            bad = await landing_ttl_refusal(conn, "s", table=_t(signal, None))
+            assert bad is not None and bad.code == "schema.landing_ttl_required"
+            # the same source, saved with the hint
+            assert (
+                await landing_ttl_refusal(
+                    conn, "s", table=_t(signal, None), federation_hints={"reach": "scan"}
+                )
+                is None
+            )
+    (tmp_path / "hinted").mkdir()
+    async with _db(
+        tmp_path / "hinted",
+        source_type="databricks",
+        table_replicate=None,
+        federation_hints={"reach": "scan"},
+    ) as db:
         async with db.acquire() as conn:
             assert await landing_ttl_refusal(conn, "s", table=_t(signal, None)) is None
 

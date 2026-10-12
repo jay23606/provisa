@@ -5820,5 +5820,9 @@
   "ru/mailResources.json::mailResources.checkDaysHelp": "How many days either side of today a check for changed events looks at.",
   "ru/mailResources.json::mailResources.mail": "Mail",
   "ru/detailFields.json::detailFields.set": "Set",
-  "ru/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}."
+  "ru/sourcesPage.json::sourcesPage.registrationMissing": "{{list}} holds no registration for source {{source}}.",
+  "ru/sourceFormFields.json::sourceFormFields.readReplica": "From a landed replica (default)",
+  "ru/sourceFormFields.json::sourceFormFields.readPolicy": "How Provisa reads this source",
+  "ru/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it.",
+  "ru/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)"
 }
