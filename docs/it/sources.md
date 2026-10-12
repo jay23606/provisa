@@ -9,7 +9,7 @@ Ogni query viene infine eseguita attraverso il motore di federazione, che fornis
 | **Direct-capable** | Sì | Sì | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Solo federazione** | No | Sì | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (basato su S3) |
 | **Direct-read (replica)** | Sì | Sì | Snowflake, Databricks, ClickHouse — il driver legge i dati e atterra una replica; le query girano contro la replica nel motore attivo |
-| **Materializza → Federazione** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (ricevitore push), GovData, SharePoint, Splunk |
+| **Materializza → Federazione** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (ricevitore push), GovData, SharePoint, Splunk, ServiceNow |
 
 Le origini **Direct-capable** eseguono query a singola origine tramite il loro driver nativo (sub-100ms), bypassando il motore di federazione (REQ-027, REQ-229). Mantengono il pieno supporto del connettore e partecipano alla federazione quando unite ad altre origini (REQ-028).
 
@@ -37,7 +37,7 @@ Provisa registra **54** tipi di origine. Le tabelle qui sotto le coprono tutte e
 | 38–39 | [Grafo e semantico](#grafo-e-semantico) | `neo4j`, `sparql` |
 | 40–43 | [Basate su file](#basate-su-file) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [Osservabilità e altro](#osservabilita-e-altro) | `google_sheets`, `prometheus` |
-| 46–47 | [Connettori SaaS enterprise](#connettori-saas-enterprise) | `sharepoint`, `splunk` |
+| 46–47 | [Connettori SaaS enterprise](#connettori-saas-enterprise) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [Origini API](#origini-api) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [Controlli di qualità dei dati (REQ-1443)](#controlli-di-qualita-dei-dati-req-1443) | `soda`, `great_expectations` |
@@ -245,7 +245,7 @@ Dopo aver aggiunto l'origine, registra le sue tabelle tramite la normale scherma
 
 ### Connettori SaaS enterprise
 
-SharePoint e Splunk si registrano tramite connettori Apache Calcite (fork kenstott/calcite). Nessuno dei due ha un driver diretto — Provisa avvia il server pgwire Calcite integrato del connettore (`pgwire-sharepoint`, `pgwire-splunk`) e lo raggiunge come endpoint PostgreSQL generico. Sul motore DuckDB quell'endpoint viene collegato live tramite l'estensione postgres: Registra tabella elenca le tabelle del connettore dal catalogo collegato, le query leggono il connettore sul posto, e i filtri e le proiezioni vengono spinti fino a Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Ogni altro motore atterra le righe nello store di materializzazione per la federazione (REQ-954). I bundle vengono scaricati per OS/architettura dalla release fissata di `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]. Entrambi i connettori abilitano sempre il matching dei nomi case-insensitive, corrispondente alla semantica case-insensitive propria di ciascun prodotto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Splunk e ServiceNow si registrano tramite connettori Apache Calcite (fork kenstott/calcite). Nessuno dei due ha un driver diretto — Provisa avvia il server pgwire Calcite integrato del connettore (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) e lo raggiunge come endpoint PostgreSQL generico. Sul motore DuckDB quell'endpoint viene collegato live tramite l'estensione postgres: Registra tabella elenca le tabelle del connettore dal catalogo collegato, le query leggono il connettore sul posto, e i filtri e le proiezioni vengono spinti fino a Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Ogni altro motore atterra le righe nello store di materializzazione per la federazione (REQ-954). I bundle vengono scaricati per OS/architettura dalla release fissata di `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]. Tutti e tre i connettori abilitano sempre il matching dei nomi case-insensitive, corrispondente alla semantica case-insensitive propria di ciascun prodotto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -338,6 +338,38 @@ Flusso nome utente e password:
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+Ogni tabella dell'istanza è disponibile per la registrazione; nulla viene registrato automaticamente (REQ-1954). Un'istanza completa può averne migliaia; Register Table le raggruppa quindi per tema — ogni tema è il nome visualizzato di un pacchetto ServiceNow, o "(nessun pacchetto)" quando una tabella non appartiene a nessun pacchetto. Ogni tabella viene mostrata come `nome — etichetta`. Selezionare una tabella ne legge le colonne dall'istanza; elencare le tabelle non lo fa. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
+
+Una fonte ServiceNow indica l'URL completo `https://…` dell'istanza insieme a nome utente e password. L'URL è preso da `base_url` o `host`; un host nudo o qualsiasi altro schema viene rifiutato, nominando il campo (`instanceUrl`). Un nome utente o una password assenti vengono rifiutati, nominando il campo. Ogni valore può essere un riferimento `${secret:…}` o `${env:…}`.
+
+| Campo fonte | Proprietà dell'adattatore | Note |
+| --- | --- | --- |
+| `base_url` o `host` | `instanceUrl` | URL completo `https://…` dell'istanza (ad es. `https://acme.service-now.com`). Un host nudo o un altro schema viene rifiutato |
+| `username` | `username` | Nome utente per l'autenticazione di base |
+| `password` | `password` | Password per l'autenticazione di base |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`, `servicenow_settings`]
+
+**Letture.** Su Trino la fonte viene letta tramite il catalogo `servicenow`, che legge soltanto. Su ogni altro motore, il motore collega il server pgwire della fonte e la legge sul posto. Solo le colonne selezionate vengono richieste all'istanza (`sysparm_fields`). Un filtro viene inviato all'istanza (`sysparm_query`) solo in una forma che l'adattatore ha verificato su un'istanza reale; ogni altro filtro, e ogni ordinamento e limite, viene applicato alle righe lette. [inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+Un campo di riferimento appare come due colonne: `<campo>` contiene il sys_id del record referenziato e `<campo>__display` contiene il valore di visualizzazione. Un campo vuoto è NULL. Un campo il cui tipo non può essere mappato dall'adattatore genera un errore che nomina la tabella, il campo e il tipo. [inferred from adapter behavior; non verificato direttamente nel codice sorgente di Provisa in questa sessione]
+
+La ricerca di tabelle (linguaggio naturale) corrisponde a nome, etichetta e tema di ogni tabella. Una volta registrata una tabella, le sue colonne si uniscono alla ricerca. [tool-verified: `provisa/discovery/catalog_cache.py` docstring di `COLUMNS_PER_TABLE_KINDS`]
+
+**Ciclo di vita del server.** Il server serve solo le tabelle registrate da esso. Registrare o rimuovere una tabella riavvia il server e ri-provisiona la fonte sul motore; un'istruzione che arriva durante quel riavvio fallisce. [tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`; `provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**Scritture.** `INSERT`, `UPDATE` e `DELETE` su una tabella registrata sono mutazioni: governate, sottoposte ad audit e gestite per ambiente come ogni altra mutazione. Su ogni motore, Trino incluso, una scrittura viene eseguita sul server pgwire della fonte. Il server restituisce la riga che l'istanza contiene dopo ogni scrittura; una clausola `RETURNING` è quindi accettata e GraphQL offre campi di mutazione per queste tabelle. Una scrittura è una singola istruzione su una tabella: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` e `TRUNCATE` vengono rifiutati, nominando la forma. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

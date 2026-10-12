@@ -107,6 +107,7 @@ from provisa.api.admin.schema_common import (  # noqa: E402
     _rebuild_table_input,
     _resolve_admin_context,
     _register_source_on_engine,
+    restart_source_server,
     _remove_view_mv,
     _expand_wikipedia_if_needed,
     google_workspace_refusal,
@@ -1655,44 +1656,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     .values(allowed_domains=input.allowed_domains)
                 )
 
-        # REQ-1690: a pgwire-replica source (files/sharepoint/splunk) keeps its Calcite server
-        # running in pgwire_replica._ENDPOINTS, keyed by this same id, for the life of this
-        # process — delete_source already stops it (stop_endpoint), but an in-place edit (this
-        # mutation) never did, so changing a `files` source's path/mapping in place kept serving
-        # whatever schema the FIRST attach saw. Confirmed live: a `files` source's path edited
-        # from an empty/wrong directory to a real one still resolved zero tables afterward, same
-        # symptom as the delete+recreate bug this session already fixed, just reached by editing
-        # instead of deleting. No-ops when no server was ever started for this id.
-        from provisa.federation.pgwire_replica import stop_endpoint
-
-        try:
-            stop_endpoint(input.id)
-        except Exception as _pgwire_err:
-            logging.getLogger(__name__).warning(
-                "pgwire endpoint teardown for %r failed during update_source: %s",
-                input.id,
-                _pgwire_err,
-            )
-        # REQ-1946: the write pool was connected to the server just stopped; the server is
-        # started again from the edited source, and the next write opens its pool on it.
-        from provisa.executor.writable import PGWIRE_SERVER_WRITTEN
-
-        if input.type in PGWIRE_SERVER_WRITTEN:
-            from provisa.api.app import state as _state
-            from provisa.api.data.pgwire_write import start_write_server
-            from provisa.core.secrets_store import bound_to_request_org as _bound
-
-            await _state.source_pools.remove(input.id)
-            async with _bound():
-                start_write_server(model)
-        from provisa.federation.pgwire_replica import STARTED_WHEN_SAVED, start_when_saved
-
-        if input.type in STARTED_WHEN_SAVED:
-            # The edited source's server was stopped above; it is started again from the edit.
-            from provisa.core.secrets_store import bound_to_request_org as _bound_for_start
-
-            async with _bound_for_start():
-                start_when_saved(model)
+        await restart_source_server(model)
 
         from provisa.api.app import state
         from provisa.executor.drivers.registry import has_driver

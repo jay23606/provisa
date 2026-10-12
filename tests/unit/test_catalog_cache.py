@@ -86,6 +86,7 @@ class TestReadCache:
                         "table_name": "orders",
                         "column_names": ["id", "amount"],
                         "comment": "All orders",
+                        "group_name": None,
                         "indexed_at": None,
                     },
                     {
@@ -94,6 +95,7 @@ class TestReadCache:
                         "table_name": "products",
                         "column_names": ["id", "sku"],
                         "comment": None,
+                        "group_name": None,
                         "indexed_at": None,
                     },
                 ]
@@ -227,7 +229,7 @@ async def test_indexing_a_source_writes_its_catalog_where_the_search_reads_it(
         return ["sec"]
 
     async def _tables(source_id, source_type, schema, pools, conn, state):
-        return [SimpleNamespace(name="financial_facts", comment="facts")]
+        return [SimpleNamespace(name="financial_facts", comment="facts", group=None)]
 
     async def _columns(source_id, source_type, schema, table, pools, conn):
         return [("cik", "varchar"), ("value", "double")]
@@ -1461,3 +1463,53 @@ def test_a_specification_kinds_column_names_are_complete_from_the_first_search(f
     assert cc.request_column_fill("petstore", "openapi", "openapi", known, None) is False
     assert cc.column_names_state("petstore", "openapi", "openapi", known) == cc.COLUMNS_COMPLETE
     assert fills == []
+
+
+# -- a source whose catalog lists one table's columns at a time (REQ-1954) ----------------------
+
+
+@pytest.mark.asyncio
+async def test_a_per_table_catalog_is_searched_by_its_listing_and_its_registered_columns(
+    stores, monkeypatch, fills
+):
+    """A ServiceNow schema's column fill reads no table of the source: its search matches on
+    each table's name, label and group, and on the columns of the tables registered from it."""
+    from types import SimpleNamespace
+
+    from provisa.discovery import catalog_cache as cc
+    from provisa.discovery.table_search import TableCandidate, fuzzy_filter
+
+    _, tenant_db = stores
+    await cc.write_cache(
+        tenant_db,
+        "snow",
+        "snow",
+        [
+            cc.CachedTable("snow", "incident", [], "Incident", group="Incident Management"),
+            cc.CachedTable("snow", "cmdb_ci", [], "Configuration Item", group="CMDB"),
+        ],
+    )
+    asked = _columns_through_the_adapter(monkeypatch, AssertionError("the source was read"))
+
+    async def _registered(source_id, schema_name):
+        return {"incident": ["sys_id", "short_description"]}
+
+    monkeypatch.setattr(cc, "registered_columns", _registered)
+    state = SimpleNamespace(tenant_db=tenant_db)
+    known = await cc.read_cache(tenant_db, "snow", "snow")
+    assert cc.request_column_fill("snow", "servicenow", "snow", known, state) is True
+    await fills[0][1]
+    assert asked == []  # no bulk read of the source's columns
+
+    known = await cc.read_cache(tenant_db, "snow", "snow")
+    assert {t.table_name: (t.column_names, t.group) for t in known} == {
+        "incident": (["sys_id", "short_description"], "Incident Management"),
+        "cmdb_ci": ([], "CMDB"),
+    }
+    assert cc.column_names_state("snow", "servicenow", "snow", known) == cc.COLUMNS_COMPLETE
+    candidates = [
+        TableCandidate(t.table_name, t.comment, t.column_names, t.schema_name, t.group)
+        for t in known
+    ]
+    assert [c.name for c in fuzzy_filter("cmdb", candidates)] == ["cmdb_ci"]
+    assert [c.name for c in fuzzy_filter("short description", candidates)] == ["incident"]

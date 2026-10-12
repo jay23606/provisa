@@ -1353,6 +1353,8 @@ source_catalog_cache = Table(
     Column("table_name", Text, nullable=False),
     Column("column_names", JSON, nullable=False, default=list, server_default="[]"),
     Column("comment", Text),
+    # REQ-1954: the heading the source lists the table under (a ServiceNow table's theme).
+    Column("group_name", Text),
     Column("indexed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("source_id", "schema_name", "table_name"),
 )

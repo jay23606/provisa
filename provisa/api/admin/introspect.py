@@ -332,7 +332,7 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
 
         return [SCHEMA]
 
-    if t == "files":
+    if t in ("files", "servicenow"):
         # Schema is always the sql-normalised source-id (matches pgwire_replica.schema_name())
         return [source_id.replace("-", "_")]
 
@@ -1255,6 +1255,18 @@ async def _native_columns_athena(
         return await asyncio.to_thread(columns, source, schema_name, table_name)
 
 
+async def _native_columns_servicenow(
+    source_id: str, schema_name: str, table_name: str
+) -> list[tuple[str, str]]:
+    """One ServiceNow table's columns from the adapter's column list (REQ-1954): read only
+    when the steward selects the table, and for that table alone."""
+    from provisa.federation.pgwire_replica import servicenow_columns
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        return await servicenow_columns(source, schema_name.strip().lower(), table_name)
+
+
 async def native_columns(  # REQ-1732
     source_id: str,
     source_type: str,
@@ -1285,6 +1297,8 @@ async def native_columns(  # REQ-1732
         return await _native_columns_athena(source_id, schema_name, table_name)
     if t == "govdata":
         return await _native_columns_govdata(source_id, schema_name, table_name)
+    if t == "servicenow":
+        return await _native_columns_servicenow(source_id, schema_name, table_name)
     if not pool.has(source_id):
         return None
     if t == "trino":
@@ -1693,6 +1707,20 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
         async with _adapter_bound():
             names = await adapter_tables(source, schema_name.strip().lower())
         return [AvailableTableType(name=name, comment=None) for name in names]
+
+    if t == "servicenow":
+        # REQ-1954: every table of the instance, by name with its label, under its theme; read
+        # from the adapter's table list, so no table's columns are resolved to list them.
+        from provisa.api.admin.types import AvailableTableType
+        from provisa.federation.pgwire_replica import servicenow_table_list
+
+        source = await _adapter_source(source_id)
+        async with _adapter_bound():
+            listed = await servicenow_table_list(source, schema_name.strip().lower())
+        return [
+            AvailableTableType(name=name, comment=label, group=theme)
+            for name, label, theme in listed
+        ]
 
     if t == "openapi":
         return await _native_tables_openapi(source_id, schema_name, state)

@@ -530,6 +530,9 @@ class TableColumnType:  # REQ-040, REQ-041, REQ-393, REQ-399
 class AvailableTableType:  # REQ-533
     name: str
     comment: str | None
+    # REQ-1954: the heading the Register Table list shows the table under, where its source
+    # groups its tables (a ServiceNow table's theme); None lists it ungrouped.
+    group: str | None = None
     # REQ-318: what would read the table page by page once registered ("endpoint" |
     # "connection"), and the paging its source suggests, for the steward to accept or edit.
     paging_kind: str | None = None

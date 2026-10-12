@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "Ancora non pronto dopo una lunga attesa: il connettore dell'origine potrebbe non essersi avviato. Controlla la configurazione dell'origine o riprova.",
     "tableAllRegistered": "Tutte le tabelle sono già registrate",
     "tablePlaceholder": "Seleziona tabella...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "Alias SQL",
     "aliasPlaceholder": "Nome semantico alternativo",
     "descriptionLabel": "Descrizione",

@@ -584,6 +584,7 @@ query AvailableTables($sourceId: String!, $schemaName: String!) {
   availableTables(sourceId: $sourceId, schemaName: $schemaName) {
     name
     comment
+    group
     pagingKind
     pagination {
       type

@@ -147,6 +147,7 @@ class SourceType(str, Enum):
     # Enterprise SaaS via Apache Calcite connectors
     sharepoint = "sharepoint"
     salesforce = "salesforce"
+    servicenow = "servicenow"  # REQ-1954: read through the instance's Table API
     cloudops = "cloudops"  # REQ-1947: Azure / AWS / GCP resource inventory, read only
     splunk = "splunk"
     # File crawler — directory of CSV/Parquet/XLSX/JSON surfaced as tables

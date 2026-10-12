@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "Na lange tijd nog steeds niet gereed — de connector van de bron is mogelijk niet gestart. Controleer de configuratie van de bron of probeer het opnieuw.",
     "tableAllRegistered": "Alle tabellen zijn al geregistreerd",
     "tablePlaceholder": "Tabel selecteren...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "SQL-alias",
     "aliasPlaceholder": "Semantische naam overschrijven",
     "descriptionLabel": "Beschrijving",

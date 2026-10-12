@@ -60,6 +60,7 @@ class CachedTable:
     table_name: str
     column_names: list[str]
     comment: str | None
+    group: str | None = None  # REQ-1954: the heading its source lists it under
 
 
 async def read_cache(pool, source_id: str, schema_name: str) -> list[CachedTable] | None:  # REQ-464
@@ -80,6 +81,7 @@ async def read_cache(pool, source_id: str, schema_name: str) -> list[CachedTable
             table_name=r["table_name"],
             column_names=list(r["column_names"] or []),
             comment=r["comment"],
+            group=r["group_name"],
         )
         for r in rows
     ]
@@ -106,10 +108,11 @@ async def write_cache(
                     # JSON column takes a Python list directly.
                     "column_names": t.column_names,
                     "comment": t.comment,
+                    "group_name": t.group,
                     "indexed_at": func.now(),
                 },
                 index_elements=["source_id", "schema_name", "table_name"],
-                update_columns=["column_names", "comment", "indexed_at"],
+                update_columns=["column_names", "comment", "group_name", "indexed_at"],
             )
 
 
@@ -207,6 +210,13 @@ def _spawn_fill(coro, *, name: str) -> None:
 INDEX_TIME_COLUMN_KINDS = frozenset({"openapi", "graphql", "graphql_remote", "grpc", "grpc_remote"})
 
 
+#: Kinds whose catalog lists one table's columns at a time and never a schema's: a ServiceNow
+#: instance has thousands of tables, and a table's columns are read from it only when the steward
+#: selects it (REQ-1954). Their search reads the listing (each table's name, label and group), and a
+#: table's columns join it once it is registered, read from the model, with no call to the source.
+COLUMNS_PER_TABLE_KINDS = frozenset({"servicenow"})
+
+
 def loads_columns_lazily(source_type: str) -> bool:
     """Whether a source's column names are loaded on first search rather than by the index:
     ONE rule for every kind whose columns cost a statement to list (REQ-464)."""
@@ -235,6 +245,8 @@ async def fetch_schema_columns(
     from provisa.api.admin.schema_query import _source_for_introspection
     from provisa.federation import pgwire_replica
 
+    if source_type in COLUMNS_PER_TABLE_KINDS:
+        return await registered_columns(source_id, schema_name)
     if source_type in pgwire_replica.BUNDLE_MODEL_TYPES or (
         source_type in pgwire_replica.PGWIRE_REPLICA_TYPES
         and state.federation_engine.engine.native_store is not None
@@ -282,6 +294,30 @@ async def fetch_schema_columns(
     for row in res.rows:
         listed.setdefault(row[0], []).append(row[1])
     return listed
+
+
+async def registered_columns(source_id: str, schema_name: str) -> dict[str, list[str]]:
+    """``{table: [column, ...]}`` for the tables of one schema of a source registered in the model,
+    in their order: what is known of a source's columns without a call to it."""
+    from provisa.api.admin.schema import _get_pool
+    from provisa.core.schema_org import registered_tables, table_columns
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute_core(
+            select(registered_tables.c.table_name, table_columns.c.column_name)
+            .join(table_columns, table_columns.c.table_id == registered_tables.c.id)
+            .where(
+                (registered_tables.c.source_id == source_id)
+                & (registered_tables.c.schema_name == schema_name)
+            )
+            .order_by(registered_tables.c.table_name, table_columns.c.id)
+        )
+        rows = result.fetchall()
+    columns: dict[str, list[str]] = {}
+    for table_name, column_name in rows:
+        columns.setdefault(table_name, []).append(column_name)
+    return columns
 
 
 def request_column_fill(source_id: str, source_type: str, schema_name: str, tables, state) -> bool:
@@ -536,6 +572,7 @@ async def _index_source_once(
                     table_name=t.name,
                     column_names=[],
                     comment=t.comment,
+                    group=t.group,
                 )
                 for t in tables
             ]

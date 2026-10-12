@@ -65,6 +65,7 @@ BUNDLE_CONNECTOR: dict[str, str] = {
     "files": "file",
     "sharepoint": "sharepoint",
     "salesforce": "salesforce",
+    "servicenow": "servicenow",  # REQ-1954
     "cloudops": "cloudops",
     "splunk": "splunk",
     "govdata": "govdata",  # AskAmerica (REQ-540)

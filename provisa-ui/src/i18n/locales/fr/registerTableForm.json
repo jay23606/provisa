@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "Toujours pas prêt après une longue attente : le connecteur de la source a peut-être échoué au démarrage. Vérifiez la configuration de la source ou réessayez.",
     "tableAllRegistered": "Toutes les tables sont déjà enregistrées",
     "tablePlaceholder": "Sélectionner une table...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "Alias SQL",
     "aliasPlaceholder": "Nom sémantique de remplacement",
     "descriptionLabel": "Description",

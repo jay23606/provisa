@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "等待很久後仍未就緒 — 該數據來源的連接器可能啟動失敗。請檢查數據來源的設定或重試。",
     "tableAllRegistered": "所有表格均已註冊",
     "tablePlaceholder": "選取表格...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "SQL 別名",
     "aliasPlaceholder": "語義名稱覆寫",
     "descriptionLabel": "描述",

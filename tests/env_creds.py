@@ -67,6 +67,7 @@ _CRED_PREFIXES = (
     "SP_",
     "SF_",  # the Salesforce connected app (REQ-1946)
     "ATHENA_",  # the Amazon Athena test account (REQ-1981)
+    "SERVICENOW_",  # the ServiceNow instance (REQ-1954)
     "M365_",  # the Microsoft 365 tenant, client and test mailboxes (REQ-1923)
     "GWS_",  # the Google Workspace service account key file, administrator and mailboxes
     "CLOUDOPS_",  # the cloud inventory source's clouds (REQ-1947)

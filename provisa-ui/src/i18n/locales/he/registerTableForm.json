@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "עדיין לא מוכן לאחר המתנה ארוכה — ייתכן שהמחבר של המקור לא עלה. בדקו את תצורת המקור או נסו שוב.",
     "tableAllRegistered": "כל הטבלאות כבר רשומות",
     "tablePlaceholder": "בחירת טבלה...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "כינוי SQL",
     "aliasPlaceholder": "דריסת שם סמנטי",
     "descriptionLabel": "תיאור",

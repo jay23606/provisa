@@ -60,6 +60,11 @@ on:
         type: boolean
         required: false
         default: false
+      include_servicenow:
+        description: "Also run the ServiceNow lane (live instance)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -116,6 +121,9 @@ jobs:
       REDSHIFT_AWS_ACCESS_KEY_ID: ${{ secrets.REDSHIFT_AWS_ACCESS_KEY_ID }}
       REDSHIFT_AWS_REGION: ${{ secrets.REDSHIFT_AWS_REGION }}
       REDSHIFT_AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
+      SERVICENOW_INSTANCE_URL: ${{ secrets.SERVICENOW_INSTANCE_URL }}
+      SERVICENOW_PASSWORD: ${{ secrets.SERVICENOW_PASSWORD }}
+      SERVICENOW_USERNAME: ${{ secrets.SERVICENOW_USERNAME }}
       SF_CONSUMER_KEY: ${{ secrets.SF_CONSUMER_KEY }}
       SF_CONSUMER_SECRET: ${{ secrets.SF_CONSUMER_SECRET }}
       SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
@@ -144,6 +152,7 @@ jobs:
       include_warehouse: ${{ inputs.include_warehouse || false }}
       include_salesforce: ${{ inputs.include_salesforce || false }}
       include_athena: ${{ inputs.include_athena || false }}
+      include_servicenow: ${{ inputs.include_servicenow || false }}
     concurrency:
       group: integration-suite
       queue: max

@@ -31,6 +31,7 @@ class TableCandidate:  # REQ-167
     comment: str | None
     columns: list[str]
     schema_name: str
+    group: str | None = None  # REQ-1954: the heading its source lists it under
 
 
 @dataclass
@@ -56,6 +57,8 @@ def _fuzzy_score(query_tokens: set[str], candidate: TableCandidate) -> int:
         target_tokens.update(_tokenize(col))
     if candidate.comment:
         target_tokens.update(_tokenize(candidate.comment))
+    if candidate.group:
+        target_tokens.update(_tokenize(candidate.group))
 
     if not target_tokens:
         return 0
@@ -91,6 +94,8 @@ def build_search_prompt(query: str, candidates: list[TableCandidate]) -> str:  #
     for c in candidates:
         cols = ", ".join(c.columns[:20]) if c.columns else "(no columns)"
         desc = f" — {c.comment}" if c.comment else ""
+        if c.group:
+            desc += f" [{c.group}]"
         lines.append(f"- {c.schema_name}.{c.name}{desc}\n  Columns: {cols}")
 
     lines.append(

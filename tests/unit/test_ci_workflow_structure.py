@@ -148,11 +148,11 @@ LANE = "./.github/workflows/lane.yml"
 _RUNNER = "playwright " + "test"
 _LEAF_CHECK = "ci-leaf-check.yml"
 
-# The suite's three jobs that keep steps of their own (lane.yml's header says why): each carries
-# live credentials or cluster tooling, and the lane workflow declares only the few secrets its
-# callers pass by name instead of inheriting every one.
+# The suite's jobs that keep steps of their own (lane.yml's header says why): each carries live
+# credentials or cluster tooling, and the lane workflow declares only the few secrets its callers
+# pass by name instead of inheriting every one.
 _OWN_STEPS = {
-    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena"},
+    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena", "servicenow"},
 }
 
 

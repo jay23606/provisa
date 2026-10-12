@@ -278,9 +278,36 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                 state.mv_registry.unregister(f"view-{_vr['table_name']}")
 
 
+async def serve_registered_tables(state) -> None:
+    """Give each source whose server serves only its registered tables (REQ-1954) the tables now
+    registered from it. Where they changed, its server is started again with them and the source
+    provisioned on the engine again, so a table just registered is served and one just removed is
+    not."""
+    from provisa.api.admin.schema_common import restart_source_server
+    from provisa.core.secrets import resolve_secrets
+    from provisa.federation.served_tables import SERVES_REGISTERED_TABLES, serve_tables
+
+    config = state.config
+    for source in config.sources:
+        if source.type.value not in SERVES_REGISTERED_TABLES:
+            continue
+        names = [t.table_name for t in config.tables if t.source_id == source.id]
+        if not serve_tables(source.id, names):
+            continue
+        await restart_source_server(source)
+        state.federation_engine.register_source(
+            source,
+            resolve_secrets(source.password) if source.password else "",
+            catalog_name=state.source_catalogs[source.id],
+        )
+
+
 async def _finalize_rebuild_state(_rebuild_log: logging.Logger) -> None:
     """Reconcile live engine (REQ-565) and compile view SQLs after a schema rebuild."""
     from provisa.api.app import state
+
+    if state.config is not None:
+        await serve_registered_tables(state)
 
     # Re-drive the live poll engine from the now-current DB state so admin edits
     # to per-table live config take effect without a restart (REQ-565).

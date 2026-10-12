@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "Auch nach langer Wartezeit noch nicht bereit – der Connector der Quelle konnte möglicherweise nicht starten. Prüfen Sie die Konfiguration der Quelle oder versuchen Sie es erneut.",
     "tableAllRegistered": "Alle Tabellen bereits registriert",
     "tablePlaceholder": "Tabelle auswählen...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "SQL-Alias",
     "aliasPlaceholder": "Semantischer Namensersatz",
     "descriptionLabel": "Beschreibung",

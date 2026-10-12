@@ -81,7 +81,7 @@ class Strategy(str, Enum):  # REQ-826
 # to that server ATTACHes it live instead (DuckDB, REQ-1690) — such an engine has a connector for
 # the type, so it never reaches this gate.
 _CONNECTOR_PGWIRE_REPLICA = frozenset(
-    {"files", "sharepoint", "splunk", "salesforce", "cloudops", "govdata"}
+    {"files", "sharepoint", "splunk", "salesforce", "servicenow", "cloudops", "govdata"}
 )
 
 # Sources with no live/scan representation — APIs, NoSQL, and streaming feeds. They
@@ -107,6 +107,7 @@ _MATERIALIZE_ONLY = frozenset(
         "splunk",
         "sharepoint",
         "salesforce",
+        "servicenow",
         "cloudops",
         "govdata",
         "ingest",

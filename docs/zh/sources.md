@@ -9,7 +9,7 @@
 | **直连型** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **仅联邦型** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支持） |
 | **直读型（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse — 驱动读取数据并落地一份副本；查询在活动引擎中针对该副本执行 |
-| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk |
+| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow |
 
 **直连型**数据源通过其原生驱动执行单数据源查询（亚 100 毫秒），绕过联邦引擎（REQ-027、REQ-229）。它们保留完整的连接器支持，并在与其他数据源联接时参与联邦（REQ-028）。
 
@@ -37,7 +37,7 @@ Provisa 注册了 **54** 种数据源类型。下表覆盖全部 54 种；索引
 | 38–39 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
 | 40–43 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
 | 44–45 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 46–47 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk` |
+| 46–47 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
 | 48–50 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
@@ -245,7 +245,7 @@ Kaggle 是一个文件下载平台。暂存的 Kaggle 数据集会注册为一�
 
 ### Enterprise SaaS Connectors {: #enterprise-saas-connectors }
 
-SharePoint 和 Splunk 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。两者都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-splunk`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]。两个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint、Splunk 和 ServiceNow 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。两者都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-splunk`、`pgwire-servicenow`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]。三个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -338,6 +338,38 @@ Salesforce 数据源需要指定组织的“我的域”登录 URL 和一套完�
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+实例的每张表均可供注册；不会自动注册任何内容（REQ-1954）。完整实例可能有数千张表；Register Table 按主题对它们分组——每个主题是 ServiceNow 包的显示名称，当表不属于任何包时显示"(无包)"。每张表以 `名称 — 标签` 的形式列出。选择一张表会从实例读取其列；列出表格不会这样做。[tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`、`servicenow_columns`；`provisa/federation/servicenow.py` `TABLE_LIST`、`COLUMN_LIST`]
+
+ServiceNow 数据源指定实例的完整 `https://…` URL 以及用户名和密码。URL 从 `base_url` 或 `host` 获取；裸主机或其他方案将被拒绝，并指出字段名称（`instanceUrl`）。缺少用户名或密码时将被拒绝，并指出字段名称。每个值都可以是 `${secret:…}` 或 `${env:…}` 引用。
+
+| 源字段 | 适配器属性 | 说明 |
+| --- | --- | --- |
+| `base_url` 或 `host` | `instanceUrl` | 实例的完整 `https://…` URL（例如 `https://acme.service-now.com`）。裸主机或其他方案将被拒绝 |
+| `username` | `username` | 基本身份验证用户名 |
+| `password` | `password` | 基本身份验证密码 |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`、`servicenow_settings`]
+
+**读取。** 在 Trino 上，数据源通过只读的 `servicenow` 目录读取。在其他任何引擎上，引擎挂载数据源的 pgwire 服务器并就地读取。实例只接收所选列的请求（`sysparm_fields`）。过滤器仅以适配器已在真实实例上验证过的形式发送到实例（`sysparm_query`）；其他所有过滤器以及每个排序和限制，都应用于已读取的行。[inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+引用字段显示为两列：`<字段>` 包含被引用记录的 sys_id，`<字段>__display` 包含显示值。空字段值为 NULL。适配器无法映射其类型的字段会产生错误，错误中指出表、字段和类型。[inferred from adapter behavior；本次会话中未在 Provisa 源代码中直接验证]
+
+表搜索（自然语言）与每张表的名称、标签和主题匹配。一旦注册了一张表，其列就会加入搜索。[tool-verified: `provisa/discovery/catalog_cache.py` `COLUMNS_PER_TABLE_KINDS` docstring]
+
+**服务器生命周期。** 服务器仅提供从中注册的表。注册或移除一张表会重启服务器并在引擎上重新配置数据源；在该重启期间到达的语句会失败。[tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`；`provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**写入。** 对已注册表的 `INSERT`、`UPDATE` 和 `DELETE` 是变更操作：与其他任何变更一样受治理、被审计，并按环境处理。在每个引擎上（包括 Trino），写入都在数据源的 pgwire 服务器上运行。服务器会返回每次写入后实例持有的行；因此接受 `RETURNING` 子句，GraphQL 也为这些表提供变更字段。一次写入是针对一张表的单一语句：`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING`、`MERGE` 和 `TRUNCATE` 均被拒绝，并指出形式。[tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`、`PGWIRE_SERVER_RETURNS_ROWS`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

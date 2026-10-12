@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "Still not ready after a long wait — the source's connector may have failed to start. Check the source's configuration or try again.",
     "tableAllRegistered": "All tables already registered",
     "tablePlaceholder": "Select table...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "SQL Alias",
     "aliasPlaceholder": "Semantic name override",
     "descriptionLabel": "Description",

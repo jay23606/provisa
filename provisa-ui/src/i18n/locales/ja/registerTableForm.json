@@ -13,6 +13,7 @@
     "tableStartingTimedOut": "長時間待っても準備ができません。ソースのコネクタの起動に失敗した可能性があります。ソースの設定を確認するか、もう一度お試しください。",
     "tableAllRegistered": "すべてのテーブルは登録済みです",
     "tablePlaceholder": "テーブルを選択...",
+    "tableWithLabel": "{{name}} — {{label}}",
     "aliasLabel": "SQL エイリアス",
     "aliasPlaceholder": "セマンティック名の上書き",
     "descriptionLabel": "説明",

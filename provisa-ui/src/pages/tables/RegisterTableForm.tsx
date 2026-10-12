@@ -62,6 +62,7 @@ import { useSourceKind } from "../sources/sourceKind";
 import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 import { serverMessage } from "../../i18n/serverMessage";
 import { usePanelDirty } from "../../components/list/panelLeave";
+import { tableGroups } from "./tableGroups";
 
 // REQ-1443: a checker's scans append to a relation in the org's control-plane schema, which the
 // server stamps on registration (as for a profiler's results); the form carries this placeholder.
@@ -878,11 +879,25 @@ export function RegisterTableForm({
                           ? t("registerTableForm.tableAllRegistered")
                           : t("registerTableForm.tablePlaceholder")}
                   </option>
-                  {availableTables.map((tbl) => (
-                    <option key={tbl.name} value={tbl.name} disabled={isRegistered(tbl)}>
-                      {tbl.name}
-                    </option>
-                  ))}
+                  {tableGroups(availableTables).map(([group, tables]) => {
+                    const options = tables.map((tbl) => (
+                      <option key={tbl.name} value={tbl.name} disabled={isRegistered(tbl)}>
+                        {group != null && tbl.comment
+                          ? t("registerTableForm.tableWithLabel", {
+                              name: tbl.name,
+                              label: tbl.comment,
+                            })
+                          : tbl.name}
+                      </option>
+                    ));
+                    return group == null ? (
+                      options
+                    ) : (
+                      <optgroup key={group} label={group}>
+                        {options}
+                      </optgroup>
+                    );
+                  })}
                 </select>
                 {startingTablesTimedOut && (
                   <Text size="xs" c="red" mt={4} data-testid="register-table-starting-timeout">

@@ -22,9 +22,7 @@ const UI = path.join(ROOT, "provisa-ui");
 const require = createRequire(path.join(UI, "package.json"));
 
 // Source types the requirements name that the picker does not list yet (target state).
-export const REQUIREMENT_ONLY = [
-  { value: "servicenow", label: "ServiceNow", category: "Enterprise", after: "salesforce", req: "REQ-1954" },
-];
+export const REQUIREMENT_ONLY = [];
 
 // The kinds of source reached through one tile, and where each list comes from.
 export const SUB_ITEMS = {
