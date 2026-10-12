@@ -596,6 +596,7 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
         DuckDBGsheetsConnector,
         DuckDBIcebergConnector,
         DuckDBMongoConnector,
+        DuckDBMotherDuckConnector,
         DuckDBMssqlConnector,
         DuckDBParquetConnector,
         DuckDBPostgresConnector,
@@ -624,6 +625,7 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
             DuckDBMssqlConnector("synapse"),
             DuckDBMongoConnector(),
             DuckDBSnowflakeConnector(),
+            DuckDBMotherDuckConnector(),  # REQ-1998: core `motherduck` extension, md:<database>
             DuckDBBigQueryConnector(),
             DuckDBFirebirdConnector(),
             DuckDBGsheetsConnector(),

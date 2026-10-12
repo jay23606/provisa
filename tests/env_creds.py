@@ -85,6 +85,8 @@ _CRED_PREFIXES = (
     # The gsheets e2e READS a durable fixture sheet rather than creating one -- the service account
     # has zero Drive quota and cannot self-seed. Its id is the external prerequisite.
     "GSHEETS_",
+    # The MotherDuck account the DuckDB engine's md: attach e2e signs in to (REQ-1998).
+    "MOTHERDUCK_",
 )
 
 
@@ -98,7 +100,7 @@ def _parse_env_file(path: Path) -> dict[str, str]:
         key = key.strip()
         if key.startswith("export "):
             key = key[len("export ") :].strip()
-        if not key.startswith(_CRED_PREFIXES):
+        if not key.upper().startswith(_CRED_PREFIXES):
             continue
         value = value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
