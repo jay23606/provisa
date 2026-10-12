@@ -9,7 +9,8 @@
 | **直连型** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **仅联邦型** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支持） |
 | **直读型（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse — 驱动读取数据并落地一份副本；查询在活动引擎中针对该副本执行 |
-| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant、Azure Cosmos DB |
+| **直连（无跨源连接器）** | 是 | 否 | Athena — 单数据源语句在 Athena 中整体执行；跨源联接会落地完整副本 |
+| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Salesforce、ServiceNow、云资源清单、Splunk、Qdrant、Azure Cosmos DB |
 
 **直连型**数据源通过其原生驱动执行单数据源查询（亚 100 毫秒），绕过联邦引擎（REQ-027、REQ-229）。它们保留完整的连接器支持，并在与其他数据源联接时参与联邦（REQ-028）。
 
@@ -17,31 +18,35 @@
 
 **直读型（副本）**数据源拥有一个 DirectDriver，可原生读取仓库数据（在可用的情况下采用 Arrow 原生方式），将副本落地到活动引擎的物化存储中，随后查询针对该副本执行。参见[作为命名数据源的仓库](#warehouses-as-named-sources)。
 
+**直连（无跨源连接器）**数据源拥有一个 DirectDriver，它在数据源内整体执行单数据源语句 — 所有过滤条件、列和限制都会下推。当语句将该数据源与任何其他数据源联接时，驱动会读取数据并落地一份副本；联接在活动引擎中针对该副本执行。这些数据源不存在 Trino 连接器。
+
 **物化**数据源没有联邦连接器。Provisa 获取其数据（在启动时或查询时），并将其缓存为 S3 或 PostgreSQL 中的 Parquet，使联邦引擎可以进行跨数据源查询（REQ-309）。
 
 ---
 
 ## 所有数据源
 
-Provisa 注册了 **58** 种数据源类型。下表覆盖全部 58 种；索引即为计数。[tool-verified: `provisa/core/models.py` `SourceType`；Kaggle 虽然内部通过 `files` 连接器注册，但仍作为独立数据源计数]
+Provisa 注册了 **65** 种数据源类型，即 Sources 表单所提供的类型。下表覆盖全部 65 种；索引即为计数。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`；Kaggle、Wikipedia、GitHub 和 GitLab 虽然内部通过 `files` 和 `graphql_remote` 连接器注册，但仍作为独立数据源计数]
 
 | # | 分组 | 数据源类型 |
 | --- | --- | --- |
-| 1–13 | [RDBMS](#rdbms) | `postgresql`、`mysql`、`mariadb`、`singlestore`、`sqlserver`、`oracle`、`duckdb`、`cockroachdb`、`yugabytedb`、`greenplum`、`tidb`、`firebird`、`airport` |
-| 14–21 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
-| 22–26 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
-| 27–31 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hudi`、`hive`、`hive_s3` |
-| 32–36 | [NoSQL](#nosql) | `mongodb`、`cosmosdb`、`qdrant`、`cassandra`、`redis` |
-| 37–39 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
-| 40 | [推送接收器](#push-receiver) | `ingest` |
-| 41–42 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
-| 43–46 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
-| 47–48 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 49–51 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
-| 52–54 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
-| 55 | [GovData](#govdata) | `govdata` |
-| 56–57 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
-| 58 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 1–15 | [RDBMS](#rdbms) | `postgresql`、`mysql`、`mariadb`、`singlestore`、`sqlserver`、`oracle`、`duckdb`、`cockroachdb`、`yugabytedb`、`greenplum`、`tidb`、`firebird`、`airport`、`saphana`、`hiveserver2` |
+| 16–23 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
+| 24–28 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
+| 29–32 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hive`、`hive_s3` |
+| 33–37 | [NoSQL](#nosql) | `mongodb`、`cosmosdb`、`qdrant`、`cassandra`、`redis` |
+| 38–40 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
+| 41 | [推送接收器](#push-receiver) | `ingest` |
+| 42–43 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
+| 44–47 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
+| 48–49 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
+| 50–54 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`salesforce`、`servicenow`、`cloudops`、`splunk` |
+| 55–59 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote`、GitHub、GitLab |
+| 60 | [GovData](#govdata) | `govdata` |
+| 61–62 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
+| 63 | [数据剖析器](#data-profiler) | `data_profiler` |
+| 64 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 65 | [Wikipedia](#wikipedia) | Wikipedia（注册为抓取所指定页面的 `files` 数据源 — 参见 [Wikipedia](#wikipedia)） |
 
 Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动）表示单数据源查询直接针对该数据源原生执行（亚 100 毫秒）（REQ-027）。"Connector Name"（连接器名称）是当该数据源参与多数据源 JOIN 时所使用的联邦连接器（REQ-028）。[tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`；`provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -62,10 +67,20 @@ Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动
 | `tidb` | aiomysql (mysql wire) | mysql | mysql | Yes |
 | `firebird` | — | — (DuckDB extension) | — | No |
 | `airport` | — | — (DuckDB extension) | — | No |
+| `saphana` | SQLAlchemy (`hana+hdbcli`) | — | — | No |
+| `hiveserver2` | impyla (HiveServer2 over Thrift) | — | hive | No |
 
 线协议兼容的数据库复用基础线协议的 JDBC 驱动、原生异步驱动和方言 — CockroachDB、YugabyteDB 和 Greenplum 复用 PostgreSQL 线协议；TiDB 复用 MySQL 线协议。它们只需要注册表条目，无需新的连接器代码。[tool-verified: `provisa/core/source_registry.py` `_PG_WIRE_TYPES`、`_MYSQL_WIRE_TYPES`] (REQ-950)
 
 `firebird`（Firebird 3/4/5）和 `airport`（Arrow Flight 服务器）是已注册的数据源类型，当 DuckDB 为活动引擎时，通过 DuckDB 社区扩展就地访问 — 没有直连驱动，也没有联邦连接器。[tool-verified: `provisa/core/models.py` lines 44, 93] (REQ-899)
+
+#### `saphana`
+
+SAP HANA 通过其自有驱动读取，并复制到活动引擎的存储中，因此在每个引擎上都可访问。表单需要主机、端口（默认 39015）、用户名、密码和数据库；在多租户系统中，数据库指定租户。Register Table 列出用户可读取的 schema，不包括 HANA 的系统 schema。[tool-verified: `provisa/executor/drivers/registry.py` `_SQLALCHEMY_FALLBACK`；`provisa/api/admin/introspect.py` `_SAPHANA_SYSTEM_SCHEMAS`] (REQ-1753)
+
+#### `hiveserver2`
+
+通过 Thrift 直接读取的 HiveServer2 端点，适用于只有该端点可达的 Hive 部署。它不同于 `hive` 和 `hive_s3`：后两者读取仓库的文件和 metastore，从不经过 HiveServer2。数据行通过该端点读取，并复制到活动引擎的存储中。表单需要主机、端口（默认 10000）、用户名、密码和数据库；`federation_hints.auth_mechanism` 选择身份验证方式（默认 `PLAIN`，例如 Kerberos 使用 `GSSAPI`）。[tool-verified: `provisa/executor/drivers/hive.py` `HiveDriver`；`provisa/core/models.py` `SourceType.hiveserver2`] (REQ-1731)
 
 ### Cloud Data Warehouses {: #cloud-data-warehouses }
 
@@ -236,6 +251,8 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
   path: s3://bucket/sales/**/*.csv   # glob; local and http(s):// also supported
 ```
 
+任何 `files` 数据源也可以在其 mapping 中声明 `crawl`，设置与 [Wikipedia](#wikipedia) 下列出的相同：此时数据源会先读取网页，并将每个 HTML 数据表和每个链接的数据文件作为表落地到其目录中。[tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
+
 在 DuckDB 引擎上，`files` 以原生方式读取 — 在解析出的目录下，为每个 `<table>.csv` 提供一个 `read_csv_auto` 扫描视图（REQ-229）[tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]。在没有自带 `files` 连接器的引擎上，数据行通过 sharepoint/splunk 所使用的同一个连接器自带 Calcite pgwire 服务器（`pgwire-file`）落地（REQ-954）— 参见下方的[企业级 SaaS 连接器](#enterprise-saas-connectors)。端到端 UI 覆盖（Sources 表单 → Register Table → SQL 查询）以及 pgwire 落地路径已在 REQ-1694 中得到验证。
 
 #### Kaggle 数据集（REQ-1780, REQ-1781, REQ-1782, REQ-1783） {: #kaggle-datasets }
@@ -253,11 +270,70 @@ Kaggle 是一个文件下载平台。暂存的 Kaggle 数据集会注册为一�
 
 **v1 限制。** 包含 `.sqlite` 或 `.db` 文件的数据包会被直接拒绝并给出明确的错误提示。只有 CSV 和 Parquet 文件会被暂存。[tool-verified: `provisa/kaggle/downloader.py` `UnsupportedKaggleDataset`, `_UNSUPPORTED_EXTENSIONS`]
 
-**表命名。** 每个文件都会落在数据集根目录下自己的 `<file-stem>/` 子目录中。pgwire-file 连接器在经过 SMART_CASING 规范化后，将生成的表命名为 `<subdir>__<stem>`。例如：`StatewiseTestingDetails.csv` 落地在 `statewise_testing_details/StatewiseTestingDetails.csv`，成为表 `statewise_testing_details__statewise_testing_details`。对于单文件数据集，这种重复的词干是预期行为。多文件数据集会为每个文件生成一对：`orders__orders`、`customers__customers`。（REQ-471）
+**表命名。** 抓取到的表命名为 `<page>__<name>`：先是页面标题，然后是表的标题（caption），表没有标题时则使用表上方最近的标题，两者都采用数据源的列名拼写。例如，页面 `List_of_tallest_buildings` 上标题"Tallest buildings in the world"下的表是 `list_of_tallest_buildings__tallest_buildings_in_the_world`。链接的数据文件保留其自身名称。[tool-verified: a live crawl of that page through the 0.109.0 file bundle]
 
 **刷新。** 要在 Kaggle 发布新版本后重新获取数据集，请调用 `refreshKaggleSource` GraphQL mutation，并提供数据源 ID 和有效令牌。这会就地重新暂存文件，并清除 pgwire-file 端点缓存，使连接器在下一次查询时能获取到任何 schema 变更。创建时存储在 `federation_hints` 中的 `kaggle_owner` 和 `kaggle_ref` 标识了要重新获取的数据集。[tool-verified: `provisa/api/admin/schema_mutation.py` `refresh_kaggle_source`] (REQ-1780)
 
 **没有静态 YAML 配置路径。** Kaggle 数据源仅能通过 Sources 表单创建。导出为 YAML 的 Kaggle 数据源会显示为 `type: files`，并在 `federation_hints` 中带有 `kaggle_owner` 和 `kaggle_ref`。要从 Kaggle 重新下载，需要使用 UI 刷新流程或 `refreshKaggleSource` mutation — 对于隔离网络（air-gapped）环境，替代方案是将 YAML 中的 `path` 指向一个预先暂存好的目录。
+
+
+#### Wikipedia (REQ-1960) {: #wikipedia }
+
+Wikipedia 会抓取你指定的页面。页面上的每个数据表，以及每个链接的 CSV、TSV、Excel、JSON 或 Parquet 文件，都会成为该数据源的一张表。与 Kaggle 一样，它注册为 mapping 中带有 `crawl` 的 `files` 数据源。添加它不会注册任何表：由数据管理员通过常规的 Register Table 界面注册所需的表。[tool-verified: `provisa/file_source/wikipedia.py` `crawl_settings`、`DATA_FILE_EXTENSIONS`；`provisa-ui/src/pages/sources/constants.ts` `wikipedia: "files"`] (REQ-316)
+
+**设置字段。**
+
+| 字段 | 默认值 | 含义 |
+| --- | --- | --- |
+| Pages to start from | 无（必填） | 每行一个：页面标题，或所选语言版本中某个页面的地址 |
+| Language edition | `en` | 语言版本的代码，例如 `en`、`de` 或 `ja` |
+| Link depth | `1` | 从起始页面向外读取多少层链接；`0` 只读取起始页面 |
+| Page limit | `25` | 一次抓取最多读取的页面数 |
+| Contact | 空 | 随每个请求发送，以便 Wikipedia 按其政策要求联系到你 |
+| Follow "See also" links | 关 | 关闭时，文章中不包含该章节 |
+| What this edition calls its "See also" section | 空 | 仅当上方选项关闭且 Provisa 无法为所选语言版本给出该章节名称时才会询问。填写页面上显示的章节标题，例如 `Voir aussi` |
+| Directory for the crawl's files | 空 | 表和数据文件写入的位置。为空时：`<PROVISA_DATA_DIR>/crawl/<source id>` |
+
+[tool-verified: `provisa-ui/src/pages/sources/WikipediaFields.tsx`；`provisa-ui/src/i18n/locales/en/sourceFormFieldsExtended.json` `wp*`；`provisa/file_source/wikipedia.py` `DEFAULTS`；`provisa/file_source/crawl.py` `crawl_landing_directory`]
+
+Provisa 知道这些语言版本的"See also"标题：`en`、`de`、`es`、`it`、`pt`、`nl`、`pl`、`sv`、`ja`、`zh`、`ru`。对于任何其他语言版本，在"See also"关闭时，表单会询问该版本如何称呼这一章节；填写页面上显示的标题（例如 `Voir aussi`）。未填写就保存的数据源会被拒绝（`wikipedia.see_also_heading_needed`）。[tool-verified: `provisa/file_source/wikipedia.py` `SEE_ALSO_HEADING`、`crawl_settings`]
+
+**跟随哪些链接。** 链接的取舍取决于页面自身标记所声明的类型，而不是其地址中的名称：这类名称在每个语言版本中各不相同，也会出现在普通标题里。[tool-verified: `provisa/file_source/wikipedia.py` module docstring]
+
+- 跟随：位于文章正文、列表和数据表中指向其他文章的链接。标记为 `a[rel='mw:WikiLink']`。
+- 不跟随：尚未撰写的页面、页面自身、图书来源查询、文件页面、其他 wiki 和外部站点。
+- 完全不读取（在收集链接和表之前移除）：导航框、信息框、注释和引用、分类、目录、图片和维护提示。
+- 除非开启该选项否则不读取："See also"章节。
+
+只有编辑者标记为数据表的表（`table.wikitable`）才会成为表，行数少于 2 的表不会提供。[tool-verified: `provisa/file_source/wikipedia.py` `LINK_SELECTOR`、`REMOVE_SELECTORS`、`TABLE_SELECTOR`、`DEFAULTS`]
+
+**高级抓取设置。** 表单将这些设置折叠在"Crawl settings"下，并显示各自的默认值；字段留空即保留默认值。在 `files` 的 mapping 中，同样的名称放在 `crawl:` 下，不在此列表中的名称会被拒绝。[tool-verified: `provisa/file_source/crawl.py` `CRAWL_SETTINGS`、`crawl_operand`；`provisa/file_source/wikipedia.py` `crawl_settings`]
+
+| 设置 | Wikipedia 默认值 | 含义 |
+| --- | --- | --- |
+| `start_urls` | 你指定的页面 | 抓取的起始页面 |
+| `max_depth` | `1` | 链接深度 |
+| `max_pages` | `25` | 页面上限 |
+| `request_delay` | `1 seconds` | 请求之间的延迟 |
+| `user_agent` | `Provisa/<version> (+https://provisa.dev) file-crawler`，并附加你的联系方式 | 抓取使用的自我标识名称 |
+| `content_selector` | `#mw-content-text .mw-parser-output` | CSS 选择器：只在其内部读取链接和表 |
+| `remove_selectors` | 上文所述部分的列表 | 用于排除部分内容的 CSS 选择器。指定后会替换整个列表，包括"See also"规则 |
+| `link_selector` | `a[rel='mw:WikiLink']`，并带排除项 | 链接必须匹配才会被跟随的 CSS 选择器 |
+| `link_exclude_patterns` | 空 | 正则表达式；地址中匹配其中之一的链接不会被跟随 |
+| `follow_external_links` | `false` | 是否跟随指向其他站点的链接 |
+| `allowed_domains` | 未设置 | 抓取可以访问的域 |
+| `table_selector` | `table.wikitable` | 表必须匹配的 CSS 选择器 |
+| `generate_tables_from_html` | 未设置 | HTML 表是否成为表 |
+| `html_table_min_rows` | `2` | 表的最少行数 |
+| `html_table_max_rows` | 未设置 | 表的最多行数 |
+| `allowed_file_extensions` | `csv`、`tsv`、`xlsx`、`xls`、`json`、`parquet` | 会成为表的链接文件类型 |
+| `html_cache_ttl` | `1 days` | 抓取结果保留多久 |
+| `max_html_size` | 未设置 | 读取的最大页面，例如 `10MB` |
+| `max_data_file_size` | 未设置 | 读取的最大数据文件，例如 `100MB` |
+
+**表命名。** 抓取到的表命名为 `<page>__<name>`。名称是表自身的 `id`（若有），否则是其标题（caption），再否则是其上方最近的标题。例如，页面 `List_of_tallest_buildings` 上标题"Tallest buildings"下的表，在名称规范化后成为 `list_of_tallest_buildings__tallest_buildings`。[tool-verified: calcite `file` adapter `HtmlToJsonConverter.java` (`baseFileName + "__" + tableName`), `HtmlTableScanner.java` `getTableName`] [inferred: the exact normalized spelling in the example]
+
+**刷新。** 抓取结果会在缓存期内保留，默认为 `1 days`（`html_cache_ttl`）。只有在该时间过后才会重新获取页面。[tool-verified: `provisa/file_source/wikipedia.py` `DEFAULTS`]
 
 
 ### Observability & Other {: #observability-other }
@@ -271,7 +347,7 @@ Kaggle 是一个文件下载平台。暂存的 Kaggle 数据集会注册为一�
 
 ### Enterprise SaaS Connectors {: #enterprise-saas-connectors }
 
-SharePoint、Splunk 和 ServiceNow 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。两者都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-splunk`、`pgwire-servicenow`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] 操作员也可以为每个连接器单独命名一个为该主机构建的程序包文件夹，路径位于 Admin → 设置 → 连接器服务器（`connectors.<connector>.bundle_dir`）；请参阅 [Admin](admin.md)。。三个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint、Salesforce、ServiceNow、云资源清单和 Splunk 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。它们都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-salesforce`、`pgwire-servicenow`、`pgwire-cloudops`、`pgwire-splunk`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] 操作员也可以为每个连接器单独命名一个为该主机构建的程序包文件夹，路径位于 Admin → 设置 → 连接器服务器（`connectors.<connector>.bundle_dir`）；请参阅 [Admin](admin.md)。。五个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -320,11 +396,11 @@ SharePoint 列表被枚举为 schema 并暴露为可查询的表（REQ-726, REQ-
 
 凭据可以查询的每个 sObject 都是数据管理员可以注册的表（`Account`、`Opportunity`、自定义 `*__c` 对象）；不会自动注册任何内容 (REQ-1946)。列和类型来自 sObject 的 describe。过滤、投影、排序和限制以 SOQL 的形式下推到 Salesforce。 [tool-verified: `provisa/federation/pgwire_replica.py` `_salesforce_operand`; `provisa/federation/trino_connectors.py` `TrinoSalesforceConnector`]
 
-Salesforce 数据源需要指定组织的“我的域”登录 URL 和一套完整的凭据，由 `mapping.auth_type` 选择。使用数据源时，不完整的凭据会被拒绝，并指出缺少的值。每个密钥都可以是 `${secret:…}` 或 `${env:…}` 引用。
+Salesforce 数据源需要指定组织的“我的域”登录 URL 和一套完整的凭据，由 `mapping.auth_type` 选择。登录 URL 是完整的 `https://…` URL（例如 `https://acme.my.salesforce.com`）；裸主机或任何其他方案都会被拒绝，并指出字段名称。使用数据源时，不完整的凭据会被拒绝，并指出缺少的值。每个密钥都可以是 `${secret:…}` 或 `${env:…}` 引用。以字面值输入的密钥会存入组织保管库，数据源保留其引用。
 
 | Source field | Connector property | Notes |
 | --- | --- | --- |
-| `base_url` / `host` | `login-url` | 组织的“我的域”URL（设置，然后是“我的域”）。`login.salesforce.com` 不适用于客户端凭据流程 |
+| `base_url` or `host` | `login-url` | 组织的“我的域”URL（设置，然后是“我的域”）。`login.salesforce.com` 不适用于客户端凭据流程 |
 | `username` | `client-id` | 连接的应用程序的消费者密钥 |
 | `password` | `client-secret` | 连接的应用程序的消费者密码 |
 | `mapping.auth_type` | — | `CLIENT_CREDENTIALS`（默认）、`USERNAME_PASSWORD` 或 `ACCESS_TOKEN` |
@@ -337,9 +413,9 @@ Salesforce 数据源需要指定组织的“我的域”登录 URL 和一套完�
 
 **读取。** 在 Trino 上，数据源通过只读的 `salesforce` 目录读取。在其他任何引擎上，引擎挂载数据源的 pgwire 服务器并就地读取。
 
-**写入。** 对已注册 sObject 的 `INSERT`、`UPDATE` 和 `DELETE` 是变更操作：与其他任何变更一样受治理、被审计，并按环境处理。在每个引擎上（包括 Trino），写入都在数据源的 pgwire 服务器上运行；在 Trino 上，该服务器只为写入而运行。每条语句都会发送到 Salesforce 并在执行时提交，因此无法回滚，并且不支持 `RETURNING`。SharePoint 数据源以同样的方式写入。 [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
+**写入。** 对已注册 sObject 的 `INSERT`、`UPDATE` 和 `DELETE` 是变更操作：与其他任何变更一样受治理、被审计，并按环境处理。在每个引擎上（包括 Trino），写入都在数据源的 pgwire 服务器上运行；在 Trino 上，该服务器只为写入而运行。每条语句都会发送到 Salesforce 并在执行时提交，因此无法回滚。服务器不会返回它所写入的行：带有 `RETURNING` 子句的语句会被拒绝，GraphQL 也不为这些表提供 mutation 字段；SQL 的 `INSERT`、`UPDATE`、`DELETE` 和 `COPY` 是写入路径。一次写入是针对一张表的单一普通语句：`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING`、`MERGE` 和 `TRUNCATE` 均被拒绝，并指出形式。SharePoint 数据源以同样的方式写入。[tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
 
-**启动。** 在开始接受连接之前，数据源的服务器会读取每个 sObject 的列，对于拥有 1,200 个 sObject 的组织大约需要四分钟。这个代价只付一次：describe 结果保存在实例数据目录下该数据源自己的状态目录中。服务器在数据源注册或加载时启动。在它开始接受连接之前，“注册表”会显示连接器正在启动，写入会收到同样的消息而不是等待。 [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
+**启动。** 在开始接受连接之前，数据源的服务器会读取每个 sObject 的列，对于拥有 1,200 个 sObject 的组织大约需要四分钟。这个代价只付一次：describe 结果保存在实例数据目录下该数据源自己的状态目录中。服务器在数据源注册或加载时启动。在 Trino 上，`salesforce` 目录保存自己的 describe 结果，在协调器的 `/data/trino/cache/salesforce-describe` 下每个数据源一个目录，因此当该路径是一个能比容器存活更久的卷时，这里的代价同样只付一次：compose 栈的 `trino_cache` 卷，或 Helm chart 的协调器缓存卷（`trino.coordinator.cache.persistence`）。在它开始接受连接之前，Register Table 会显示连接器正在启动，写入会收到同样的消息而不是等待。[tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
 
 ```yaml
 - id: sales-salesforce
@@ -370,7 +446,7 @@ Salesforce 数据源需要指定组织的“我的域”登录 URL 和一套完�
 
 实例的每张表均可供注册；不会自动注册任何内容（REQ-1954）。完整实例可能有数千张表；Register Table 按主题对它们分组——每个主题是 ServiceNow 包的显示名称，当表不属于任何包时显示"(无包)"。每张表以 `名称 — 标签` 的形式列出。选择一张表会从实例读取其列；列出表格不会这样做。[tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`、`servicenow_columns`；`provisa/federation/servicenow.py` `TABLE_LIST`、`COLUMN_LIST`]
 
-ServiceNow 数据源指定实例的完整 `https://…` URL 以及用户名和密码。URL 从 `base_url` 或 `host` 获取；裸主机或其他方案将被拒绝，并指出字段名称（`instanceUrl`）。缺少用户名或密码时将被拒绝，并指出字段名称。每个值都可以是 `${secret:…}` 或 `${env:…}` 引用。
+ServiceNow 数据源指定实例的完整 `https://…` URL 以及用户名和密码。URL 从 `base_url` 或 `host` 获取；裸主机或其他方案将被拒绝，并指出字段名称（`instanceUrl`）。缺少用户名或密码时将被拒绝，并指出字段名称。每个值都可以是 `${secret:…}` 或 `${env:…}` 引用。以字面值输入的密钥会存入组织保管库，数据源保留其引用。
 
 | 源字段 | 适配器属性 | 说明 |
 | --- | --- | --- |
@@ -402,26 +478,26 @@ ServiceNow 数据源指定实例的完整 `https://…` URL 以及用户名和�
 
 #### `cloudops`
 
-云资源清单把 Azure、AWS 和 GCP 的资源呈现为同一组表：`compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries`, `compute_security_groups`。每张表在三个云上使用同一组列，其 `cloud_provider` 列指明每一行来自哪个云。该数据源只读，其表与其他表一样由数据管理员注册 (REQ-1947)。 [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
+云资源清单把 Azure、AWS 和 GCP 的资源呈现为同一组表：`compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries` 和 `compute_security_groups`（将计算资源与其安全组关联）。每张表在三个云上使用同一组列，其 `cloud_provider` 列指明每一行来自哪个云。该数据源只读，其表与其他表一样由数据管理员注册 (REQ-1947)。 [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
 
-一个数据源指定一个或多个云。每个云要么完整要么不填：只填了部分必填值的云会被拒绝，并指出缺少的值；没有指定任何云的数据源同样会被拒绝。数据源只读取它指定的云。所有值都放在 `mapping` 中；每个密钥都可以是 `${secret:…}` 或 `${env:…}` 引用，直接输入的密钥会存入组织的保管库。
+一个数据源指定一个或多个云。每个云要么完整要么不填：只填了部分必填值的云会被拒绝，并指出缺少的值；没有指定任何云的数据源同样会被拒绝。数据源只读取它指定的云。所有值都放在 `mapping` 中；每个密钥都可以是 `${secret:…}` 或 `${env:…}` 引用。以字面值输入的密钥会存入组织保管库，数据源保留其引用。
 
 | 云 | `mapping` 键 | 连接器属性 | 说明 |
 | --- | --- | --- | --- |
 | Azure | `azure_tenant_id` | `azure.tenant-id` | 必填 |
-| Azure | `azure_client_id` | `azure.client-id` | 必填 |
+| Azure | `azure_client_id` | `azure.client-id` | 必填；应用注册的客户端 ID |
 | Azure | `azure_client_secret` | `azure.client-secret` | 必填；密钥 |
 | Azure | `azure_subscription_ids` | `azure.subscription-ids` | 必填; 以逗号分隔 |
 | AWS | `aws_access_key_id` | `aws.access-key-id` | 必填 |
 | AWS | `aws_secret_access_key` | `aws.secret-access-key` | 必填；密钥 |
-| AWS | `aws_region` | `aws.region` | 必填 |
+| AWS | `aws_region` | `aws.region` | 必填，例如 `us-east-1` |
 | AWS | `aws_account_ids` | `aws.account-ids` | 必填; 以逗号分隔 |
-| AWS | `aws_role_arn` | `aws.role-arn` | 可选 |
-| GCP | `gcp_credentials_path` | `gcp.credentials-path` | 必填 |
+| AWS | `aws_role_arn` | `aws.role-arn` | 可选；为跨账户访问而承担的角色 |
+| GCP | `gcp_credentials_path` | `gcp.credentials-path` | 必填；服务账号 JSON 密钥文件的绝对路径 |
 | GCP | `gcp_project_ids` | `gcp.project-ids` | 必填; 以逗号分隔 |
-| — | `cache_ttl_minutes` | `cache.ttl-minutes` | 可选 |
+| — | `cache_ttl_minutes` | `cache.ttl-minutes` | 可选；结果在再次查询各云之前被复用的时长（适配器默认值为 5） |
 
-GCP 密钥文件由读取数据源的一方打开：在 Trino 上是 Trino 服务器，在其他引擎上是 Provisa 主机上该数据源的 pgwire 服务器。路径必须是绝对路径。
+GCP 密钥文件由读取数据源的一方打开。在 Trino 上是 Trino 服务器，因此该路径必须存在于其上。在其他所有引擎上是 Provisa 主机上该数据源的 pgwire 服务器，其工作目录是它自己的状态目录，因此相对路径会被拒绝。
 
 在 Trino 上，数据源通过 `cloudops` 目录读取。在其他任何引擎上，引擎挂载数据源的 pgwire 服务器并就地读取，与 SharePoint 数据源相同。
 
@@ -479,24 +555,64 @@ API 响应会被获取、缓存在 PostgreSQL 中（TTL 可配置），并暴露
 
 **JSONB 规则**：以 JSONB 存储的复杂列（对象、数组）不可过滤（REQ-119）。子字段访问在 SQL 中使用 `->>` 提取（REQ-151）。表之间的关系通过标量外键列声明 — JSONB blob 列不能作为连接目标。当需要对嵌套字段进行过滤或连接时，使用 JSONB 提升（promotion）将其转换为原生标量列（REQ-119）。
 
+#### GitHub and GitLab {: #github-and-gitlab }
+
+GitHub 和 GitLab 是由 `graphql_remote` 承载的品牌数据源：每个都以自己的名称出现在 Sources 表单中，并注册为记录其品牌的远程 GraphQL 数据源。表单只需要一个个人访问令牌，别无其他。端点（`https://api.github.com/graphql`、`https://gitlab.com/api/graphql`）和 schema 随 Provisa 一同提供，因此注册时不会对 schema 进行内省。令牌在添加数据源时检查。添加数据源不会注册任何表：schema 提供的每张表都在该数据源的命名空间（`gh`、`gl`）下可用，由数据管理员注册所需的表。令牌无权读取的字段在注册表时会被排除。[tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
+
+#### 规范构建数据源上的排除项 {: #exclusions-on-a-specification-built-source }
+
+已发布的 OpenAPI 规范描述了远程 API 接受的一切，包括其供应商已弃用的内容，以及部署绝不能发送的内容。OpenAPI 数据源可以带有排除项：规范中存在但该数据源不提供的内容。(REQ-1957)
+
+| 被排除项 | 指定方式 | 效果 |
+|---|---|---|
+| 一个操作 | `method` 和 `path` | 不会列出供注册为表或命令 |
+| 一个请求参数 | `name`，针对一个操作（`method` 和 `path`），或两者都省略时针对每个包含它的操作 | 不属于该操作的参数，不显示，从不发送 |
+
+排除项设置在数据源 `mapping` 的 `exclusions` 下：
+
+```yaml
+sources:
+  - id: shop-api
+    type: openapi
+    path: https://shop.example.com/openapi.json
+    mapping:
+      exclusions:
+        operations:
+          - {method: POST, path: /v1/tokens}
+        arguments:
+          - {name: source, method: POST, path: /v1/customers}
+          - {name: legacy_token}          # on every operation that has it
+```
+
+它们在加载规范时应用，因此注册列表、生成的命令和发出的请求所看到的规范中，被排除的内容并不存在。请求体属性以及查询、请求头或 cookie 参数可以被排除；路径参数不能，因为它是操作地址的一部分。
+
+如果排除项指定了规范中不存在的操作或参数，该数据源的规范加载会失败，并列出每个过期条目，因此与较新规范不再匹配的列表会被发现。
+
+品牌数据源在其策划中自带排除项，操作员的排除项会追加到其上。Stripe 数据源排除了 Stripe 已弃用的令牌和来源（source）支付集成：创建 charge、Tokens 和 Sources API、凭令牌向客户添加银行卡或银行账户，以及客户和发票支付写入操作中的 `source`、`card`、`bank_account` 和 `default_card` 参数。收款通过 Payment Intents、Payment Methods 和 Setup Intents 完成，数据源提供这些接口。读取和删除账户已有的支付来源仍然可用。
+
+
 ### GovData {: #govdata }
 
 美国政府开放数据。访问权限按主题分组进行划分。[tool-verified: `provisa/core/models.py` lines 543–609]
 
-每个 `govdata` 数据源选择一个主题。该主题决定了暴露哪些 GovData schema。`ref` 和 `geo` schema 始终作为链接 schema 被包含在内 — 它们不按主题单独列出，但始终存在。[tool-verified: `provisa/core/models.py` line 562–563 注释]
+为数据源指定一个或多个主题，每个主题会带来下面列出的适配器 schema。一个 schema 可以属于多个主题（`census`）。`ref` 和 `geo` schema 是链接 schema：每个主题的表都通过它们联接的参考数据和地理数据，因此无论指定了哪些主题，每个数据源都会提供它们。该列表在服务器上只声明一次，并由测试保证与固定版本适配器程序包所提供的 schema 一致。[tool-verified: `provisa/core/models.py` `GOVDATA_SUBJECT_SCHEMAS`、`GOVDATA_LINKER_SCHEMAS`；`tests/unit/test_govdata_subject_schemas.py`]
 
 | Subject | Schemas Exposed |
 | --------- | ----------------- |
-| `COMMERCE` | `sec`, `patents` |
-| `ECONOMY` | `econ` |
-| `EDUCATION` | `census`, `edu` |
+| `COMMERCE` | `sec`, `patents`, `cftc` |
+| `ECONOMY` | `econ`, `econ_reference`, `ag`, `banking`, `fiscal`, `housing`, `transport` |
+| `EDUCATION` | `census`, `edu`, `research` |
 | `HEALTH` | `health` |
 | `CYBER` | `cyber_threat`, `cyber_vuln` |
-| `PUBLIC_SAFETY` | `crime` |
-| `ENVIRONMENT` | `lands` |
+| `PUBLIC_SAFETY` | `crime`, `disasters` |
+| `ENVIRONMENT` | `lands`, `environment` |
 | `WEATHER` | `weather` |
-| `GOVERNMENT` | `fedregister`, `fec` |
-| `ALL` | 以上所有 schema |
+| `ENERGY` | `energy` |
+| `GOVERNMENT` | `fedregister`, `fec`, `officials`, `law` |
+| `DEMOGRAPHICS` | `census` |
+| 每个数据源 | `ref`, `geo` |
+
+`ALL` 是订阅中表示所有主题的简写；它不是 Sources 表单上的选项。
 
 ```yaml
 sources:
@@ -515,37 +631,46 @@ sources:
 | `domain_id` | Yes | — | 该数据源所属的域 |
 | `description` | No | `""` | 人类可读的描述 |
 
+在管理端创建的 AskAmerica 数据源只需要一个凭据，即 API 密钥。Provisa 向 AskAmerica 的 API 出示该密钥，并获得用于读取数据的短期只读存储凭据；如果密钥未知或已被撤销，会在那里按名称被拒绝。[tool-verified: `provisa/federation/askamerica.py`]
+
+随后该数据源就是一个 Postgres 线协议数据源，与 SharePoint、Salesforce 和云资源清单数据源相同：Provisa 为其启动随附的 `pgwire-govdata` 服务器，并将密钥和这些凭据放入服务器的环境中，每个引擎访问该服务器的方式与访问同类服务器相同。DuckDB、Postgres 和 ClickHouse 挂载它并就地读取其表，因此 AskAmerica 的表可以与其他数据源的表联接、位于视图之下，并像其他表一样交付。Trino 没有针对它的连接器，而是读取通过该服务器落地的副本：即保存在物化存储中的表副本，其新鲜度取决于最近一次刷新（遵循表的缓存和复制设置），而不是在查询时读取。表从其指定的适配器 schema（`sec`、`econ` 等）中读取。[tool-verified: `provisa/federation/pgwire_replica.py`、`provisa/federation/connector_duckdb.py`、`provisa/federation/clickhouse_connectors.py`]
+
+服务器在接受连接之前会从对象存储挂载其 schema，首次启动需要数分钟。它在数据源保存时启动；在就绪之前，Register Table 表单会报告该数据源仍在启动。[tool-verified: `provisa/federation/pgwire_replica.py` `start_when_saved`]
+
 ### Where a source's password lives
 
 一个数据源的密码永远不会与其连接设置的其余部分存放在一起。控制平面
-`sources` 表的行携带一个 `password_ref` 列，其中存放的是一个*引用* —
-`${env:PG_PASSWORD}`、`${secret:SNOWFLAKE_KEY}` — 该引用会在数据源被拨号访问的那一刻，
-在发起请求所属的组织内部被解析（REQ-1695）。[tool-verified:
-`provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
+`sources` 表的行携带一个 `password_ref` 列，其中存放的是为密码输入的内容：
+值本身，或者诸如 `${env:PG_PASSWORD}`、`${secret:SNOWFLAKE_KEY}` 之类的引用。它会在数据源被拨号访问的那一刻，
+在发起请求所属的组织内部被解析。[tool-verified: `provisa/core/schema_org.py`,
+`provisa/core/repositories/source.py`]
 
-`${env:VAR}` 读取部署环境的进程环境变量，不需要任何绑定。`${secret:NAME}`
+不含 `${…}` 的值按原样使用。`${env:VAR}` 读取部署环境的进程环境变量，不需要任何绑定。`${secret:NAME}`
 命名某个组织拥有的密钥，因此它只在该组织自身的操作中解析：管理内省接口
-以及各个界面所能触达的查询终端都建立了这种绑定。[tool-verified: `provisa/pgwire/_pipeline.py` `_execute_plan`]
+以及各个界面所能触达的查询终端都建立了这种绑定。[tool-verified:
+`provisa/core/secrets.py` `resolve_secrets`；`provisa/pgwire/_pipeline.py` `_execute_plan`]
 
-引用指向何处取决于该数据源是如何注册的：
+无论数据源是如何注册的，该字段保存的都是你输入的内容：
 
-- **来自配置文件。** 由你自己编写该引用。`${env:VAR}` 读取部署的进程
-  环境变量；`${secret:NAME}` 读取该组织的保管库（参见 [Secrets](secrets.md)）。该
-  文件即为记录本身，Provisa 会将该引用原样复制到 `password_ref` 中。
-- **来自 Sources 表单。** 在密码字段中输入的引用同样会被原样存储。一个*字面*
-  密码会被写入该组织保管库中，键名为
-  `source_<id>_password` — 静态加密存储，且永远无法按名称回读 — 该行保留
-  引用该密钥的 `${secret:source_<id>_password}`。[tool-verified:
-  `provisa/api/admin/schema_common.py` `persist_source_password`]
+- **来自配置文件。** 该文件即为记录本身：Provisa 会将值或引用原样复制到
+  `password_ref` 中。
+- **来自 Sources 表单。** 在密码字段中输入的内容会被原样存储，无论是值还是引用。
+  Provisa 不会为此向组织保管库写入任何内容，也不会自行编造密钥名称。若要让凭据不出现在控制平面行中，
+  请自行创建密钥（参见 [Secrets](secrets.md)），并在该字段中输入 `${secret:NAME}`。[tool-verified:
+  `provisa/api/admin/schema_mutation.py` `create_source`]
 
-在已有数据源上重新输入密码，会轮换该唯一保管库条目，而不是创建
-第二个。删除该数据源会移除 Provisa 为其铸造的那一个条目，且仅移除那一个：你自己编写的
-引用命名的是你出于自身原因所拥有的密钥，因此不会被触碰。
-[tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`]
+以值的形式输入的内容会按输入原样存储在控制平面数据库中。重新输入密码会替换该字段的文本。
+删除数据源会移除其行，但不会动保管库中的任何内容：你创建的密钥归你所有。[tool-verified:
+`provisa/api/admin/schema_mutation.py` `delete_source`；
+`tests/unit/test_no_product_written_secrets.py`]
 
 `password_ref` 不会在环境之间迁移（REQ-1491）。分支环境或复制出的环境
 会提供自己的连接值，而引用所指向的保管库属于提供该引用的那个
 环境。[tool-verified: `provisa/core/env_classes.py` `BINDING_COLUMNS`]
+
+### Data Profiler
+
+数据剖析器（data profiler）是一种只保存名称、调度计划和运行默认值的数据源，别无其他。它从不进行内省。其他数据源的表被添加到它之下，每次运行都会对这些表进行度量，并将结果行写入组织的控制平面，在那里像读取其他数据源的表一样读取。创建剖析器并向其添加表的方法参见[测试数据](test-data.md)。[tool-verified: `provisa/core/models.py` `SourceType.data_profiler`；`provisa/federation/strategy.py` `_MATERIALIZE_ONLY`] (REQ-1934)
 
 ### Data Quality Checkers (REQ-1443) {: #data-quality-checkers-req-1443 }
 
@@ -791,7 +916,7 @@ sources:
 | `cache_schema` | No | `api_cache` | 缓存目录内的 schema |
 | `naming_convention` | No | `null` | 覆盖该数据源的全局命名约定（REQ-194） |
 | `federation_hints` | No | `{}` | 传递给联邦引擎的会话属性，以及仓库类数据源的扩展连接参数（REQ-278, REQ-281） |
-| `mapping` | No | `{}` | NoSQL 和 SaaS 数据源的类型特定连接器设置（例如 SharePoint 的 `auth_type`、Splunk 的 `use_token`）（REQ-251） |
+| `mapping` | No | `{}` | NoSQL 和 SaaS 数据源的类型特定连接器设置（例如 SharePoint 的 `auth_type`、Salesforce 的 `auth_type`、Splunk 的 `use_token`）（REQ-251） |
 | `allowed_domains` | No | `[]` | 将数据源限制到特定域；空 = 不限制 |
 | `description` | No | `""` | 人类可读的描述 |
 

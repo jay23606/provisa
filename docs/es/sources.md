@@ -7,7 +7,8 @@ Toda consulta se ejecuta en última instancia a través del motor de federación
 | **Con capacidad directa** | Sí | Sí | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Solo federación** | No | Sí | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (respaldado por S3) |
 | **Lectura directa (réplica)** | Sí | Sí | Snowflake, Databricks, ClickHouse — el controlador lee los datos y crea una réplica; las consultas se ejecutan contra la réplica en el motor activo |
-| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
+| **Directo (sin conector entre orígenes)** | Sí | No | Athena — las instrucciones de un solo origen se ejecutan íntegras en Athena; las uniones entre orígenes crean una réplica completa |
+| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Salesforce, ServiceNow, inventario de nube, Splunk, Qdrant, Azure Cosmos DB |
 
 Los orígenes **con capacidad directa** ejecutan consultas de un solo origen mediante su controlador nativo (menos de 100 ms), evitando el motor de federación (REQ-027, REQ-229). Conservan el soporte completo del conector y participan en la federación cuando se combinan con otros orígenes (REQ-028).
 
@@ -15,30 +16,34 @@ Los orígenes **solo federación** siempre se consultan a través de la capa de 
 
 Los orígenes de **lectura directa (réplica)** tienen un DirectDriver que lee del almacén de datos de forma nativa (nativo en Arrow cuando está disponible), crea una réplica en el almacén de materialización del motor activo, y luego las consultas se ejecutan contra esa réplica. Consulte [Almacenes de datos como orígenes con nombre](#almacenes-de-datos-como-origenes-con-nombre).
 
+Los orígenes **directos (sin conector entre orígenes)** tienen un DirectDriver que ejecuta las instrucciones de un solo origen íntegras en el origen — cada filtro, columna y límite se traslada. Cuando una instrucción une el origen con cualquier otro, el controlador lee los datos y crea una réplica; la unión se ejecuta contra esa réplica en el motor activo. No existe ningún conector de Trino para estos orígenes.
+
 Los orígenes de **materialización** no tienen conector federado. Provisa obtiene sus datos (al inicio o en el momento de la consulta) y los almacena en caché como Parquet en S3 o en PostgreSQL, haciéndolos accesibles para el motor de federación en consultas entre orígenes (REQ-309).
 
 ---
 
 ## Todos los orígenes
-Provisa registra **58** tipos de origen. Las tablas siguientes cubren los 58; el índice es el recuento. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle se cuenta como un origen distinto aunque internamente se registra mediante el conector `files`]
+Provisa registra **65** tipos de origen, los que ofrece el formulario de Orígenes. Las tablas siguientes cubren los 65; el índice es el recuento. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub y GitLab se cuentan como orígenes distintos aunque internamente se registran mediante los conectores `files` y `graphql_remote`]
 
 | # | Grupo | Tipos de origen |
 | --- | --- | --- |
-| 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–21 | [Almacenes de datos en la nube](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 22–26 | [Analítica / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 27–31 | [Data lake / Formatos de tabla abiertos](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 40 | [Receptor push](#push-receiver) | `ingest` |
-| 41–42 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
-| 43–46 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 47–48 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
-| 49–51 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 52–54 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 55 | [GovData](#govdata) | `govdata` |
-| 56–57 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 58 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
+| 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
+| 16–23 | [Almacenes de datos en la nube](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 24–28 | [Analítica / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 29–32 | [Data lake / Formatos de tabla abiertos](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 38–40 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 41 | [Receptor push](#push-receiver) | `ingest` |
+| 42–43 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
+| 44–47 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 48–49 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
+| 50–54 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
+| 55–59 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
+| 60 | [GovData](#govdata) | `govdata` |
+| 61–62 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 63 | [Perfilador de datos](#data-profiler) | `data_profiler` |
+| 64 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
+| 65 | [Wikipedia](#wikipedia) | Wikipedia (se registra como un origen `files` que rastrea las páginas indicadas — véase [Wikipedia](#wikipedia)) |
 
 Referencia de todos los tipos de origen que soporta Provisa. "Controlador directo" significa que las consultas de un solo origen se ejecutan de forma nativa contra el origen (menos de 100 ms) (REQ-027). "Nombre del conector" es el conector federado que se usa cuando el origen participa en JOIN entre varios orígenes (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -59,10 +64,20 @@ Referencia de todos los tipos de origen que soporta Provisa. "Controlador direct
 | `tidb` | aiomysql (mysql wire) | mysql | mysql | Sí |
 | `firebird` | — | — (extensión de DuckDB) | — | No |
 | `airport` | — | — (extensión de DuckDB) | — | No |
+| `saphana` | SQLAlchemy (`hana+hdbcli`) | — | — | No |
+| `hiveserver2` | impyla (HiveServer2 sobre Thrift) | — | hive | No |
 
 Las bases de datos compatibles a nivel de wire reutilizan el controlador JDBC, el controlador nativo asíncrono y el dialecto de un wire base — CockroachDB, YugabyteDB y Greenplum usan el wire de PostgreSQL; TiDB usa el wire de MySQL. Solo necesitan entradas de registro, sin código de conector nuevo. [tool-verified: `provisa/core/source_registry.py` `_PG_WIRE_TYPES`, `_MYSQL_WIRE_TYPES`] (REQ-950)
 
 `firebird` (Firebird 3/4/5) y `airport` (servidor Arrow Flight) son tipos de origen registrados a los que se accede en el lugar a través de extensiones de la comunidad de DuckDB cuando DuckDB es el motor activo — sin controlador directo, sin conector federado. [tool-verified: `provisa/core/models.py` lines 44, 93] (REQ-899)
+
+#### `saphana`
+
+SAP HANA se lee con su propio controlador y se replica en el almacén del motor activo, de modo que es accesible en todos los motores. El formulario pide host, puerto (predeterminado 39015), usuario, contraseña y base de datos; en un sistema multi-tenant la base de datos nombra el tenant. Register Table lista los esquemas que el usuario puede leer, sin los esquemas de sistema de HANA. [tool-verified: `provisa/executor/drivers/registry.py` `_SQLALCHEMY_FALLBACK`; `provisa/api/admin/introspect.py` `_SAPHANA_SYSTEM_SCHEMAS`] (REQ-1753)
+
+#### `hiveserver2`
+
+Un endpoint HiveServer2 leído directamente sobre Thrift, para un despliegue de Hive donde el endpoint es lo único accesible. Es distinto de `hive` y `hive_s3`, que leen los archivos y el metastore del almacén y nunca pasan por HiveServer2. Las filas se leen a través del endpoint y se replican en el almacén del motor activo. El formulario pide host, puerto (predeterminado 10000), usuario, contraseña y base de datos; `federation_hints.auth_mechanism` selecciona la autenticación (predeterminada `PLAIN`, por ejemplo `GSSAPI` para Kerberos). [tool-verified: `provisa/executor/drivers/hive.py` `HiveDriver`; `provisa/core/models.py` `SourceType.hiveserver2`] (REQ-1731)
 
 ### Almacenes de datos en la nube {#cloud-data-warehouses}
 [tool-verified: `executor/drivers/snowflake.py`, `executor/drivers/databricks.py`, `executor/drivers/registry.py`]
@@ -228,6 +243,8 @@ Los buckets privados necesitan credenciales (región y claves de AWS desde el en
   path: s3://bucket/sales/**/*.csv   # glob; local and http(s):// also supported
 ```
 
+Cualquier origen `files` también puede declarar un `crawl` en su mapping, con los mismos ajustes que se listan en [Wikipedia](#wikipedia): el origen lee entonces primero páginas web y deja cada tabla de datos HTML y cada archivo de datos enlazado en su directorio como una tabla. [tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
+
 En el motor DuckDB, `files` se lee de forma nativa — una vista de escaneo `read_csv_auto` por cada `<table>.csv` bajo el directorio resuelto (REQ-229) [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]. En un motor sin conector `files` propio, las filas aterrizan a través del mismo servidor pgwire de Calcite incluido en el conector (`pgwire-file`) que usan sharepoint/splunk (REQ-954) — véase [Conectores SaaS empresariales](#enterprise-saas-connectors) más abajo. La cobertura de extremo a extremo de la UI (formulario de Orígenes → Register Table → consulta SQL) y la ruta de aterrizaje por pgwire están probadas en REQ-1694.
 
 #### Conjuntos de datos de Kaggle (REQ-1780, REQ-1781, REQ-1782, REQ-1783) {#kaggle-datasets}
@@ -245,11 +262,70 @@ Después de agregar el origen, registre sus tablas mediante la pantalla normal d
 
 **Limitación en v1.** Un paquete que contenga un archivo `.sqlite` o `.db` se rechaza directamente con un error claro. Solo se preparan archivos CSV y Parquet. [tool-verified: `provisa/kaggle/downloader.py` `UnsupportedKaggleDataset`, `_UNSUPPORTED_EXTENSIONS`]
 
-**Nomenclatura de tablas.** Cada archivo aterriza en su propio subdirectorio `<file-stem>/` bajo la raíz del conjunto de datos. El conector pgwire-file nombra la tabla resultante `<subdir>__<stem>` tras la normalización SMART_CASING. Por ejemplo: `StatewiseTestingDetails.csv` aterriza en `statewise_testing_details/StatewiseTestingDetails.csv` y se convierte en la tabla `statewise_testing_details__statewise_testing_details`. El stem duplicado es lo esperado para conjuntos de datos de un solo archivo. Un conjunto de datos de varios archivos produce un par por archivo: `orders__orders`, `customers__customers`. (REQ-471)
+**Nomenclatura de tablas.** Una tabla rastreada se llama `<page>__<name>`: el título de la página y luego el pie de la tabla o, si no tiene, el último encabezado sobre la tabla, ambos con la grafía de nombres de columna del origen. Por ejemplo, la tabla bajo el encabezado "Tallest buildings in the world" en la página `List_of_tallest_buildings` es `list_of_tallest_buildings__tallest_buildings_in_the_world`. Un archivo de datos enlazado conserva su propio nombre. [tool-verified: a live crawl of that page through the 0.109.0 file bundle]
 
 **Actualización.** Para volver a obtener un conjunto de datos después de que Kaggle publique una nueva versión, llame a la mutación GraphQL `refreshKaggleSource` con el ID del origen y un token válido. Esto vuelve a preparar los archivos en el mismo lugar y desaloja la caché del endpoint pgwire-file para que el conector detecte cualquier cambio de esquema en su siguiente consulta. Los valores `kaggle_owner` y `kaggle_ref` almacenados en `federation_hints` al momento de la creación identifican qué conjunto de datos volver a obtener. [tool-verified: `provisa/api/admin/schema_mutation.py` `refresh_kaggle_source`] (REQ-1780)
 
 **Sin ruta de configuración YAML estática.** Los orígenes de Kaggle se crean solo mediante el formulario de Orígenes. Un origen de Kaggle exportado a YAML aparece como `type: files` con `kaggle_owner` y `kaggle_ref` en `federation_hints`. Volver a descargar desde Kaggle requiere el flujo de actualización de la UI o la mutación `refreshKaggleSource` — apuntar el `path` del YAML a un directorio ya preparado es la alternativa para entornos aislados de la red (air-gapped).
+
+#### Wikipedia (REQ-1960) {#wikipedia}
+
+Wikipedia rastrea las páginas que usted indica. Cada tabla de datos de una página, y cada archivo CSV, TSV, Excel, JSON o Parquet enlazado, se convierte en una tabla del origen. Como Kaggle, se registra como un origen `files` con un `crawl` en su mapping. Agregarlo no registra nada: un steward registra las tablas deseadas mediante la pantalla normal de Register Table. [tool-verified: `provisa/file_source/wikipedia.py` `crawl_settings`, `DATA_FILE_EXTENSIONS`; `provisa-ui/src/pages/sources/constants.ts` `wikipedia: "files"`] (REQ-316)
+
+**Campos de configuración.**
+
+| Campo | Predeterminado | Significado |
+| --- | --- | --- |
+| Pages to start from | ninguno (obligatorio) | Uno por línea: el título de una página, o la dirección de una página de la edición elegida |
+| Language edition | `en` | El código de la edición, por ejemplo `en`, `de` o `ja` |
+| Link depth | `1` | A cuántos enlaces de distancia de una página inicial se lee; `0` lee solo las páginas iniciales |
+| Page limit | `25` | El máximo de páginas que lee un rastreo |
+| Contact | vacío | Se envía con cada solicitud para que Wikipedia pueda localizarle, como pide su política |
+| Follow "See also" links | desactivado | Desactivado deja esa sección fuera del artículo |
+| What this edition calls its "See also" section | vacío | Solo se pregunta cuando la casilla anterior está desactivada y Provisa no puede nombrar la sección de la edición elegida. El título de la sección tal como lo muestra una página, por ejemplo `Voir aussi` |
+| Directory for the crawl's files | vacío | Dónde se escriben las tablas y los archivos de datos. Vacío: `<PROVISA_DATA_DIR>/crawl/<source id>` |
+
+[tool-verified: `provisa-ui/src/pages/sources/WikipediaFields.tsx`; `provisa-ui/src/i18n/locales/en/sourceFormFieldsExtended.json` `wp*`; `provisa/file_source/wikipedia.py` `DEFAULTS`; `provisa/file_source/crawl.py` `crawl_landing_directory`]
+
+Provisa conoce el encabezado "See also" de estas ediciones: `en`, `de`, `es`, `it`, `pt`, `nl`, `pl`, `sv`, `ja`, `zh`, `ru`. Para cualquier otra edición con "See also" desactivado, el formulario pregunta cómo llama la edición a esa sección; escriba su título tal como lo muestra una página (por ejemplo `Voir aussi`). Un origen guardado sin él se rechaza (`wikipedia.see_also_heading_needed`). [tool-verified: `provisa/file_source/wikipedia.py` `SEE_ALSO_HEADING`, `crawl_settings`]
+
+**Qué enlaces se siguen.** Un enlace se elige por lo que dice el propio marcado de la página sobre él, nunca por un nombre en su dirección: esos nombres difieren en cada edición de idioma y también aparecen en títulos corrientes. [tool-verified: `provisa/file_source/wikipedia.py` module docstring]
+
+- Se siguen: enlaces a otros artículos que están en el texto, las listas y las tablas de datos del propio artículo. La marca de marcado es `a[rel='mw:WikiLink']`.
+- No se siguen: páginas aún no escritas, la propia página, búsquedas de fuentes de libros, páginas de archivos, otros wikis y sitios externos.
+- No se leen en absoluto (se quitan antes de reunir enlaces y tablas): cuadros de navegación, cuadros de información, notas y citas, categorías, el índice, imágenes y avisos de mantenimiento.
+- No se leen salvo que active la opción: la sección "See also".
+
+Solo las tablas que los editores marcan como tablas de datos (`table.wikitable`) se convierten en tablas, y una tabla con menos de 2 filas no se ofrece. [tool-verified: `provisa/file_source/wikipedia.py` `LINK_SELECTOR`, `REMOVE_SELECTORS`, `TABLE_SELECTOR`, `DEFAULTS`]
+
+**Ajustes avanzados de rastreo.** El formulario los mantiene plegados bajo "Crawl settings" y muestra cada uno con su valor predeterminado; deje un campo vacío para conservarlo. En un mapping de `files` los mismos nombres van bajo `crawl:`, y un nombre fuera de esta lista se rechaza. [tool-verified: `provisa/file_source/crawl.py` `CRAWL_SETTINGS`, `crawl_operand`; `provisa/file_source/wikipedia.py` `crawl_settings`]
+
+| Ajuste | Predeterminado en Wikipedia | Significado |
+| --- | --- | --- |
+| `start_urls` | las páginas que usted indicó | Páginas desde las que empieza el rastreo |
+| `max_depth` | `1` | Profundidad de enlaces |
+| `max_pages` | `25` | Límite de páginas |
+| `request_delay` | `1 seconds` | Pausa entre solicitudes |
+| `user_agent` | `Provisa/<version> (+https://provisa.dev) file-crawler`, con su contacto añadido | El nombre con que se presenta el rastreo |
+| `content_selector` | `#mw-content-text .mw-parser-output` | Selector CSS: los enlaces y las tablas se leen solo dentro de él |
+| `remove_selectors` | la lista de partes descrita arriba | Selectores CSS de las partes que se dejan fuera. Indicarlo reemplaza toda la lista, incluida la regla de "See also" |
+| `link_selector` | `a[rel='mw:WikiLink']` con exclusiones | Selector CSS que un enlace debe cumplir para seguirse |
+| `link_exclude_patterns` | vacío | Expresiones regulares; un enlace cuya dirección coincide con una no se sigue |
+| `follow_external_links` | `false` | Seguir enlaces a otros sitios |
+| `allowed_domains` | sin definir | Dominios que el rastreo puede visitar |
+| `table_selector` | `table.wikitable` | Selector CSS que una tabla debe cumplir |
+| `generate_tables_from_html` | sin definir | Si las tablas HTML se convierten en tablas |
+| `html_table_min_rows` | `2` | Mínimo de filas de una tabla |
+| `html_table_max_rows` | sin definir | Máximo de filas de una tabla |
+| `allowed_file_extensions` | `csv`, `tsv`, `xlsx`, `xls`, `json`, `parquet` | Tipos de archivo enlazados que se convierten en tablas |
+| `html_cache_ttl` | `1 days` | Cuánto tiempo se conserva un rastreo |
+| `max_html_size` | sin definir | Página más grande que se lee, por ejemplo `10MB` |
+| `max_data_file_size` | sin definir | Archivo de datos más grande que se lee, por ejemplo `100MB` |
+
+**Nomenclatura de tablas.** Una tabla rastreada se llama `<page>__<name>`. El nombre es el `id` propio de la tabla si lo tiene; si no, su pie; si no, el encabezado más cercano por encima. Por ejemplo, una tabla bajo el encabezado "Tallest buildings" en la página `List_of_tallest_buildings` pasa a ser `list_of_tallest_buildings__tallest_buildings` tras la normalización del nombre. [tool-verified: calcite `file` adapter `HtmlToJsonConverter.java` (`baseFileName + "__" + tableName`), `HtmlTableScanner.java` `getTableName`] [inferred: the exact normalized spelling in the example]
+
+**Actualización.** Un rastreo se conserva durante el período de caché, `1 days` de forma predeterminada (`html_cache_ttl`). Las páginas solo se obtienen de nuevo cuando ha pasado ese tiempo. [tool-verified: `provisa/file_source/wikipedia.py` `DEFAULTS`]
+
 
 ### Observabilidad y otros {#observability-other}
 `prometheus` tiene un conector de Trino (propiedades construidas a partir del DSL de mapeo del tipo). `google_sheets` es un tipo de origen registrado sin conector de Trino y se materializa a través del pipeline de caché de API. [tool-verified: `provisa/federation/trino_connectors.py:314`; `provisa/core/models.py` lines 87–88]
@@ -260,7 +336,7 @@ Después de agregar el origen, registre sus tablas mediante la pantalla normal d
 | `prometheus` | prometheus | No | Una métrica es una tabla y una muestra es una fila (`timestamp`, `value`, una columna por etiqueta); en cualquier motor sin conector en vivo Provisa lee la API HTTP — nombres de métricas y etiquetas para Register Table, `query_range` sobre el rango de la tabla para el aterrizaje [tool-verified: `provisa/prometheus/fetch.py`] (REQ-1689) |
 
 ### Conectores SaaS empresariales {#enterprise-saas-connectors}
-SharePoint, Splunk y ServiceNow se registran mediante conectores de Apache Calcite (kenstott/calcite fork). Ninguno tiene controlador directo — Provisa lanza el servidor pgwire de Calcite incluido en el conector (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) y lo alcanza como un endpoint genérico de PostgreSQL. En el motor DuckDB ese endpoint se conecta en vivo mediante la extensión postgres: Register Table lista las tablas del conector desde el catálogo conectado, las consultas leen el conector en su sitio, y los filtros y proyecciones se empujan hacia abajo hasta Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Cualquier otro motor lleva las filas al almacén de materialización para la federación (REQ-954). Los paquetes se obtienen por SO/arquitectura desde la versión fijada de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Un operador puede en cambio nombrar una carpeta de paquete construida para este host, por conector, en Admin → Configuración → Servidores de conectores (`connectors.<connector>.bundle_dir`); consulte [Admin](admin.md).. Los tres conectores siempre habilitan la coincidencia de nombres sin distinción de mayúsculas y minúsculas, coincidiendo con la semántica propia de cada producto en ese aspecto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Salesforce, ServiceNow, el inventario de nube y Splunk se registran mediante conectores de Apache Calcite (kenstott/calcite fork). Ninguno tiene controlador directo — Provisa lanza el servidor pgwire de Calcite incluido en el conector (`pgwire-sharepoint`, `pgwire-salesforce`, `pgwire-servicenow`, `pgwire-cloudops`, `pgwire-splunk`) y lo alcanza como un endpoint genérico de PostgreSQL. En el motor DuckDB ese endpoint se conecta en vivo mediante la extensión postgres: Register Table lista las tablas del conector desde el catálogo conectado, las consultas leen el conector en su sitio, y los filtros y proyecciones se empujan hacia abajo hasta Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Cualquier otro motor lleva las filas al almacén de materialización para la federación (REQ-954). Los paquetes se obtienen por SO/arquitectura desde la versión fijada de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Un operador puede en cambio nombrar una carpeta de paquete construida para este host, por conector, en Admin → Configuración → Servidores de conectores (`connectors.<connector>.bundle_dir`); consulte [Admin](admin.md).. Los cinco conectores siempre habilitan la coincidencia de nombres sin distinción de mayúsculas y minúsculas, coincidiendo con la semántica propia de cada producto en ese aspecto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -309,11 +385,11 @@ Autenticación por certificado, con la ruta absoluta y la contraseña siempre pr
 
 Cada sObject que la credencial puede consultar es una tabla que el steward puede registrar (`Account`, `Opportunity`, objetos personalizados `*__c`); nada se registra automáticamente (REQ-1946). Las columnas y los tipos provienen del describe del sObject. Los filtros, las proyecciones, las ordenaciones y los límites se delegan a Salesforce como SOQL. [tool-verified: `provisa/federation/pgwire_replica.py` `_salesforce_operand`; `provisa/federation/trino_connectors.py` `TrinoSalesforceConnector`]
 
-Una fuente Salesforce indica la URL de inicio de sesión de Mi dominio de la organización y un conjunto completo de credenciales, elegido con `mapping.auth_type`. Un conjunto incompleto se rechaza cuando se usa la fuente, indicando el valor que falta. Cada secreto puede ser una referencia `${secret:…}` o `${env:…}`.
+Una fuente Salesforce indica la URL de inicio de sesión de Mi dominio de la organización y un conjunto completo de credenciales, elegido con `mapping.auth_type`. La URL de inicio de sesión es la URL completa `https://…` (por ejemplo `https://acme.my.salesforce.com`); un host simple o cualquier otro esquema se rechaza, nombrando el campo. Un conjunto incompleto se rechaza cuando se usa la fuente, indicando el valor que falta. Cada secreto puede ser una referencia `${secret:…}` o `${env:…}`. Un secreto escrito como literal se guarda en la bóveda de la organización y la fuente conserva su referencia.
 
 | Campo de origen | Propiedad del conector | Notas |
 | --- | --- | --- |
-| `base_url` / `host` | `login-url` | URL de Mi dominio de la organización (Configuración, luego Mi dominio). `login.salesforce.com` no funciona con el flujo de credenciales de cliente |
+| `base_url` o `host` | `login-url` | La URL de Mi dominio de la organización (Configuración, luego Mi dominio). `login.salesforce.com` no funciona con el flujo de credenciales de cliente |
 | `username` | `client-id` | Clave de consumidor de la aplicación conectada |
 | `password` | `client-secret` | Secreto de consumidor de la aplicación conectada |
 | `mapping.auth_type` | — | `CLIENT_CREDENTIALS` (predeterminado), `USERNAME_PASSWORD` o `ACCESS_TOKEN` |
@@ -326,9 +402,9 @@ Para `CLIENT_CREDENTIALS`, la aplicación conectada necesita *Enable Client Cred
 
 **Lecturas.** En Trino la fuente se lee a través del catálogo `salesforce`, que solo lee. En cualquier otro motor, el motor adjunta el servidor pgwire de la fuente y la lee en su lugar.
 
-**Escrituras.** `INSERT`, `UPDATE` y `DELETE` sobre un sObject registrado son mutaciones: gobernadas, auditadas y tratadas por entorno como cualquier otra mutación. En todos los motores, Trino incluido, una escritura se ejecuta en el servidor pgwire de la fuente; en Trino ese servidor se ejecuta solo para las escrituras. Cada sentencia se envía a Salesforce y se confirma al ejecutarse, por lo que no puede revertirse; `RETURNING` no está soportado. Una fuente SharePoint se escribe de la misma manera. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
+**Escrituras.** `INSERT`, `UPDATE` y `DELETE` sobre un sObject registrado son mutaciones: gobernadas, auditadas y tratadas por entorno como cualquier otra mutación. En todos los motores, Trino incluido, una escritura se ejecuta en el servidor pgwire de la fuente; en Trino ese servidor se ejecuta solo para las escrituras. Cada sentencia se envía a Salesforce y se confirma al ejecutarse, por lo que no puede revertirse. El servidor no devuelve las filas que escribe: una sentencia con cláusula `RETURNING` se rechaza y GraphQL no ofrece campos de mutación para estas tablas; `INSERT`, `UPDATE`, `DELETE` y `COPY` de SQL son los caminos de escritura. Una escritura es una sola sentencia sobre una tabla: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` y `TRUNCATE` se rechazan, nombrando la forma. Una fuente SharePoint se escribe de la misma manera. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
 
-**Arranque.** Antes de aceptar conexiones, el servidor de la fuente lee las columnas de cada sObject, unos cuatro minutos para una organización con 1.200. Se paga una vez: los resultados de describe se guardan en el directorio de estado propio de la fuente, bajo el directorio de datos de la instancia. El servidor se inicia cuando la fuente se registra o se carga. Hasta que acepta conexiones, Registrar tabla muestra el conector como iniciándose y una escritura recibe el mismo mensaje en lugar de esperar. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
+**Arranque.** Antes de aceptar conexiones, el servidor de la fuente lee las columnas de cada sObject, unos cuatro minutos para una organización con 1.200. Se paga una vez: los resultados de describe se guardan en el directorio de estado propio de la fuente, bajo el directorio de datos de la instancia. El servidor se inicia cuando la fuente se registra o se carga. En Trino el catálogo `salesforce` conserva sus propios resultados de describe, un directorio por fuente bajo `/data/trino/cache/salesforce-describe` en el coordinador, de modo que el coste también se paga una sola vez allí cuando esa ruta es un volumen que sobrevive al contenedor: el volumen `trino_cache` de la pila compose, o el volumen de caché del coordinador del chart de Helm (`trino.coordinator.cache.persistence`). Hasta que acepta conexiones, Registrar tabla muestra el conector como iniciándose y una escritura recibe el mismo mensaje en lugar de esperar. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
 
 ```yaml
 - id: sales-salesforce
@@ -359,7 +435,7 @@ Flujo de usuario y contraseña:
 
 Cada tabla de la instancia está disponible para su registro; nada se registra automáticamente (REQ-1954). Una instancia completa puede tener miles de tablas; Register Table las agrupa por tema — cada tema es el nombre para mostrar de un paquete de ServiceNow, o "(sin paquete)" cuando una tabla no pertenece a ninguno. Cada tabla aparece como `nombre — etiqueta`. Al seleccionar una tabla se leen sus columnas de la instancia; listar las tablas no lo hace. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
 
-Una fuente ServiceNow nombra la URL `https://…` completa de la instancia junto con un nombre de usuario y contraseña. La URL se toma de `base_url` o `host`; un host simple o cualquier otro esquema se rechaza, nombrando el campo (`instanceUrl`). Un nombre de usuario o contraseña ausente se rechaza, nombrando el campo. Cada valor puede ser una referencia `${secret:…}` o `${env:…}`.
+Una fuente ServiceNow nombra la URL `https://…` completa de la instancia junto con un nombre de usuario y contraseña. La URL se toma de `base_url` o `host`; un host simple o cualquier otro esquema se rechaza, nombrando el campo (`instanceUrl`). Un nombre de usuario o contraseña ausente se rechaza, nombrando el campo. Cada valor puede ser una referencia `${secret:…}` o `${env:…}`. Un secreto escrito como literal se guarda en la bóveda de la organización y la fuente conserva su referencia.
 
 | Campo fuente | Propiedad del adaptador | Notas |
 | --- | --- | --- |
@@ -391,26 +467,26 @@ La búsqueda de tablas (lenguaje natural) coincide con el nombre, la etiqueta y 
 
 #### `cloudops`
 
-El inventario de nube presenta los recursos de Azure, AWS y GCP como un único conjunto de tablas: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries`, `compute_security_groups`. Cada tabla tiene las mismas columnas en las tres nubes, y su columna `cloud_provider` indica la nube de la que procede cada fila. La fuente solo lee, y sus tablas las registra un steward como cualquier otra (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
+El inventario de nube presenta los recursos de Azure, AWS y GCP como un único conjunto de tablas: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries` y `compute_security_groups`, que vincula un recurso de cómputo con sus grupos de seguridad. Cada tabla tiene un único conjunto de columnas en las tres nubes, y su columna `cloud_provider` indica la nube de la que procede cada fila. La fuente solo lee, y sus tablas las registra un steward como cualquier otra (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
 
-Una fuente indica una o varias nubes. Cada nube es todo o nada: una nube con solo parte de sus valores obligatorios se rechaza, indicando lo que falta, igual que una fuente que no indica ninguna nube. La fuente lee exactamente las nubes que indica. Todos los valores están en `mapping`; cada secreto puede ser una referencia `${secret:…}` o `${env:…}`, y un secreto escrito directamente se guarda en el almacén de secretos de la organización.
+Una fuente indica una o varias nubes. Cada nube es todo o nada: una nube con solo parte de sus valores obligatorios se rechaza, indicando lo que falta, igual que una fuente que no indica ninguna nube. La fuente lee exactamente las nubes que indica. Todos los valores están en `mapping`, y cada secreto puede ser una referencia `${secret:…}` o `${env:…}`. Un secreto escrito como literal se guarda en la bóveda de la organización y la fuente conserva su referencia.
 
 | Nube | Clave de `mapping` | Propiedad del conector | Notas |
 | --- | --- | --- | --- |
 | Azure | `azure_tenant_id` | `azure.tenant-id` | Obligatorio |
-| Azure | `azure_client_id` | `azure.client-id` | Obligatorio |
+| Azure | `azure_client_id` | `azure.client-id` | Obligatorio; el ID de cliente del registro de la aplicación |
 | Azure | `azure_client_secret` | `azure.client-secret` | Obligatorio; secreto |
 | Azure | `azure_subscription_ids` | `azure.subscription-ids` | Obligatorio; separados por comas |
 | AWS | `aws_access_key_id` | `aws.access-key-id` | Obligatorio |
 | AWS | `aws_secret_access_key` | `aws.secret-access-key` | Obligatorio; secreto |
-| AWS | `aws_region` | `aws.region` | Obligatorio |
+| AWS | `aws_region` | `aws.region` | Obligatorio, por ejemplo `us-east-1` |
 | AWS | `aws_account_ids` | `aws.account-ids` | Obligatorio; separados por comas |
-| AWS | `aws_role_arn` | `aws.role-arn` | Opcional |
-| GCP | `gcp_credentials_path` | `gcp.credentials-path` | Obligatorio |
+| AWS | `aws_role_arn` | `aws.role-arn` | Opcional; un rol que asumir para el acceso entre cuentas |
+| GCP | `gcp_credentials_path` | `gcp.credentials-path` | Obligatorio; ruta ABSOLUTA a un archivo de clave JSON de una cuenta de servicio |
 | GCP | `gcp_project_ids` | `gcp.project-ids` | Obligatorio; separados por comas |
-| — | `cache_ttl_minutes` | `cache.ttl-minutes` | Opcional |
+| — | `cache_ttl_minutes` | `cache.ttl-minutes` | Opcional; cuánto tiempo se reutiliza un resultado antes de volver a consultar las nubes (predeterminado del adaptador 5) |
 
-El archivo de clave de GCP lo abre quien lee la fuente: en Trino, el servidor Trino; en cualquier otro motor, el servidor pgwire de la fuente en el host de Provisa. La ruta debe ser absoluta.
+El archivo de clave de GCP lo abre quien lee la fuente. En Trino es el servidor Trino, así que la ruta debe existir allí. En cualquier otro motor es el servidor pgwire de la fuente en el host de Provisa, cuyo directorio de trabajo es su propio directorio de estado, por lo que una ruta relativa se rechaza.
 
 En Trino la fuente se lee a través del catálogo `cloudops`. En cualquier otro motor, el motor adjunta el servidor pgwire de la fuente y la lee en su lugar, como una fuente SharePoint.
 
@@ -467,24 +543,65 @@ Las respuestas de la API se obtienen, se almacenan en caché en PostgreSQL (TTL 
 
 **Reglas de JSONB**: Las columnas complejas (objetos, arreglos) almacenadas como JSONB no son filtrables (REQ-119). El acceso a subcampos usa la extracción `->>` en SQL (REQ-151). Las relaciones se declaran entre tablas usando columnas de clave foránea escalares — las columnas de blob JSONB no son destinos de join. Use la promoción de JSONB para convertir campos anidados en columnas escalares nativas cuando se necesite filtrar o hacer join sobre ellos (REQ-119).
 
+#### GitHub y GitLab
+
+GitHub y GitLab son orígenes de marca que transporta `graphql_remote`: cada uno aparece en el formulario de Orígenes con su propio nombre y se registra como un origen GraphQL remoto que anota su marca. El formulario pide un token de acceso personal y nada más. El endpoint (`https://api.github.com/graphql`, `https://gitlab.com/api/graphql`) y el esquema se distribuyen con Provisa, por lo que el esquema no se introspecciona al registrarlo. El token se comprueba al agregar el origen. Agregar el origen no registra ninguna tabla: cada tabla que ofrece el esquema está disponible bajo el espacio de nombres del origen (`gh`, `gl`), y el steward registra las deseadas. Un campo que el token no puede leer se deja fuera de una tabla cuando esta se registra. [tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
+
+#### Exclusiones en un origen construido desde una especificación
+
+Una especificación OpenAPI publicada describe todo lo que acepta la API remota, incluido lo que su proveedor ha marcado como obsoleto y lo que un despliegue nunca debe enviar. Un origen OpenAPI puede llevar exclusiones: cosas de la especificación que el origen no ofrece. (REQ-1957)
+
+| Excluido | Se nombra con | Efecto |
+|---|---|---|
+| Una operación | `method` y `path` | No se lista para registrarla como tabla ni como comando |
+| Un argumento de solicitud | `name`, en una operación (`method` y `path`) o, sin ninguno de los dos, en cada operación que lo tenga | No figura entre los argumentos de la operación, no se muestra, nunca se envía |
+
+Las exclusiones se definen bajo `exclusions` en el `mapping` del origen:
+
+```yaml
+sources:
+  - id: shop-api
+    type: openapi
+    path: https://shop.example.com/openapi.json
+    mapping:
+      exclusions:
+        operations:
+          - {method: POST, path: /v1/tokens}
+        arguments:
+          - {name: source, method: POST, path: /v1/customers}
+          - {name: legacy_token}          # on every operation that has it
+```
+
+Se aplican a la especificación cuando se carga, de modo que la lista de registro, los comandos generados y la solicitud que se envía ven una especificación en la que las cosas excluidas no existen. Se puede excluir una propiedad del cuerpo y un parámetro de consulta, de cabecera o de cookie; un parámetro de ruta no, porque forma parte de la dirección de la operación.
+
+Una exclusión que nombra una operación o un argumento que la especificación no tiene hace fallar la carga de la especificación de ese origen y nombra cada entrada obsoleta, de modo que se advierte una lista que ya no coincide con una especificación más reciente.
+
+Un origen de marca distribuye sus propias exclusiones como parte de su curaduría, y las de un operador se suman a ellas. El origen de Stripe excluye la integración de pagos obsoleta de Stripe basada en tokens y sources: crear un cargo, las API Tokens y Sources, añadir una tarjeta o cuenta bancaria a un cliente a partir de un token, y los argumentos `source`, `card`, `bank_account` y `default_card` de las escrituras de clientes y pagos de facturas. Los pagos se cobran mediante Payment Intents, Payment Methods y Setup Intents, que el origen ofrece. La lectura y eliminación de las fuentes de pago que una cuenta ya tiene sigue disponible.
+
+
 ### GovData
 
 Datos abiertos del gobierno de EE. UU. El acceso está particionado por agrupación temática. [tool-verified: `provisa/core/models.py` lines 543–609]
 
-Cada origen `govdata` selecciona un tema. Ese tema determina qué esquemas de GovData se exponen. Los esquemas `ref` y `geo` siempre se incluyen como esquemas de enlace — no se listan por tema, pero siempre están presentes. [tool-verified: `provisa/core/models.py` line 562–563 comment]
+A un origen se le dan uno o más temas, y cada tema aporta los esquemas del adaptador que se listan abajo. Un esquema puede pertenecer a más de un tema (`census`). Los esquemas `ref` y `geo` son esquemas de enlace: datos de referencia y geografía a través de los cuales se unen las tablas de todos los temas, por lo que todo origen los sirve sean cuales sean los temas que se le den. La lista se declara una vez en el servidor y una prueba la mantiene igual a los esquemas que sirve el paquete del adaptador fijado. [tool-verified: `provisa/core/models.py` `GOVDATA_SUBJECT_SCHEMAS`, `GOVDATA_LINKER_SCHEMAS`; `tests/unit/test_govdata_subject_schemas.py`]
 
 | Tema | Esquemas expuestos |
 | --------- | ----------------- |
-| `COMMERCE` | `sec`, `patents` |
-| `ECONOMY` | `econ` |
-| `EDUCATION` | `census`, `edu` |
+| `COMMERCE` | `sec`, `patents`, `cftc` |
+| `ECONOMY` | `econ`, `econ_reference`, `ag`, `banking`, `fiscal`, `housing`, `transport` |
+| `EDUCATION` | `census`, `edu`, `research` |
 | `HEALTH` | `health` |
 | `CYBER` | `cyber_threat`, `cyber_vuln` |
-| `PUBLIC_SAFETY` | `crime` |
-| `ENVIRONMENT` | `lands` |
+| `PUBLIC_SAFETY` | `crime`, `disasters` |
+| `ENVIRONMENT` | `lands`, `environment` |
 | `WEATHER` | `weather` |
-| `GOVERNMENT` | `fedregister`, `fec` |
-| `ALL` | Todos los esquemas anteriores |
+| `ENERGY` | `energy` |
+| `GOVERNMENT` | `fedregister`, `fec`, `officials`, `law` |
+| `DEMOGRAPHICS` | `census` |
+| todo origen | `ref`, `geo` |
+
+`ALL` es la abreviatura de una suscripción para todos los temas; no es una opción del formulario de Orígenes.
+
 
 ```yaml
 sources:
@@ -503,20 +620,32 @@ sources:
 | `domain_id` | Sí | — | Dominio al que pertenece este origen |
 | `description` | No | `""` | Descripción legible por humanos |
 
+Un origen AskAmerica creado en la administración recibe una credencial, la clave de API. Provisa presenta la clave a la API de AskAmerica y recibe las credenciales de almacenamiento de corta duración y solo lectura con las que se leen los datos; la clave se rechaza allí por su nombre si es desconocida o está revocada. [tool-verified: `provisa/federation/askamerica.py`]
+
+El origen es entonces un origen de protocolo Postgres como los de SharePoint, Salesforce e inventario de nube: Provisa inicia para él el servidor `pgwire-govdata` incluido, con la clave y esas credenciales en el entorno del servidor, y cada motor llega a ese servidor como llega al de un hermano. DuckDB, Postgres y ClickHouse lo adjuntan y leen sus tablas en su lugar, de modo que una tabla de AskAmerica se une con tablas de otros orígenes, queda bajo vistas y se entrega como cualquier otra. Trino no tiene conector para él y lee una réplica creada a través del servidor: una copia de la tabla guardada en el almacén de materialización, tan fresca como su última actualización bajo los ajustes de caché y replicación de la tabla, en lugar de leerse en el momento de la consulta. Una tabla se lee del esquema del adaptador que nombra (`sec`, `econ`, etc.). [tool-verified: `provisa/federation/pgwire_replica.py`, `provisa/federation/connector_duckdb.py`, `provisa/federation/clickhouse_connectors.py`]
+
+El servidor monta sus esquemas desde el almacenamiento de objetos antes de aceptar una conexión, lo que tarda minutos en un primer arranque. Se inicia cuando el origen se guarda; hasta que está listo, el formulario de Register Table informa de que el origen aún se está iniciando. [tool-verified: `provisa/federation/pgwire_replica.py` `start_when_saved`]
+
 ### Dónde vive la contraseña de un origen
 
-La contraseña de un origen nunca se almacena junto al resto de sus ajustes de conexión. La fila `sources` del plano de control lleva una columna `password_ref` que contiene una *referencia* — `${env:PG_PASSWORD}`, `${secret:SNOWFLAKE_KEY}` — que se resuelve en el momento en que se marca el origen, dentro de la organización bajo la que se ejecuta la solicitud (REQ-1695). [tool-verified: `provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
+La contraseña de un origen nunca se almacena junto al resto de sus ajustes de conexión. La fila `sources` del plano de control lleva una columna `password_ref` que contiene lo que se introdujo para la contraseña: el valor mismo, o una referencia como `${env:PG_PASSWORD}` o `${secret:SNOWFLAKE_KEY}`. Se resuelve en el momento en que se marca el origen, dentro de la organización bajo la que se ejecuta la solicitud. [tool-verified: `provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
 
-`${env:VAR}` lee el entorno de proceso del despliegue y no necesita nada vinculado. `${secret:NAME}` nombra un secreto que posee una organización, de modo que solo se resuelve dentro de las propias operaciones de esa organización: las costuras de introspección de administración y la terminal de consulta a las que llega cada superficie establecen ese vínculo. [tool-verified: `provisa/pgwire/_pipeline.py` `_execute_plan`]
+Un valor sin `${…}` se usa tal cual. `${env:VAR}` lee el entorno de proceso del despliegue y no necesita nada vinculado. `${secret:NAME}` nombra un secreto que posee una organización, de modo que solo se resuelve dentro de las propias operaciones de esa organización: las costuras de introspección de administración y la terminal de consulta a las que llega cada superficie establecen ese vínculo. [tool-verified: `provisa/core/secrets.py` `resolve_secrets`; `provisa/pgwire/_pipeline.py` `_execute_plan`]
 
-Adónde apunta la referencia depende de cómo se registró el origen:
+El campo guarda lo que usted escribe en él, sea cual sea la forma en que se registró el origen:
 
-- **Desde la configuración.** Escriba la referencia usted mismo. `${env:VAR}` lee el entorno de proceso del despliegue; `${secret:NAME}` lee la bóveda de la organización (véase [Secretos](secrets.md)). El archivo es el registro, y Provisa copia la referencia en `password_ref` de forma literal.
-- **Desde el formulario de Orígenes.** Una referencia escrita en el campo de contraseña también se almacena de forma literal. Una contraseña *literal* se escribe en la bóveda de la organización bajo `source_<id>_password` — cifrada en reposo, y nunca legible de vuelta por nombre — y la fila conserva `${secret:source_<id>_password}` que la nombra. [tool-verified: `provisa/api/admin/schema_common.py` `persist_source_password`]
+- **Desde la configuración.** El archivo es el registro: Provisa copia el valor o la referencia en `password_ref` de forma literal.
+- **Desde el formulario de Orígenes.** Lo que se escribe en el campo de contraseña se almacena de forma literal, sea un valor o una referencia. Provisa no escribe nada en la bóveda de la organización por ello ni inventa ningún nombre de secreto. Para mantener una credencial fuera de la fila del plano de control, cree usted mismo el secreto (véase [Secretos](secrets.md)) y escriba `${secret:NAME}` en el campo. [tool-verified: `provisa/api/admin/schema_mutation.py` `create_source`]
 
-Volver a escribir la contraseña en un origen existente rota esa única entrada de la bóveda en lugar de crear una segunda. Eliminar el origen quita la entrada que Provisa acuñó para él, y solo esa: una referencia que usted mismo escribió nombra un secreto que usted posee por sus propias razones, así que se deja intacta. [tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`]
+Un valor escrito como valor se almacena en la base de datos del plano de control tal como se escribió. Volver a escribir la contraseña reemplaza el texto del campo. Eliminar el origen quita su fila y nada de la bóveda: un secreto que usted creó es suyo. [tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`; `tests/unit/test_no_product_written_secrets.py`]
+
 
 `password_ref` no viaja entre entornos (REQ-1491). Una rama o un entorno copiado suministra sus propios valores de conexión, y la bóveda que nombra una referencia pertenece a cualquiera que sea el entorno que la suministró. [tool-verified: `provisa/core/env_classes.py` `BINDING_COLUMNS`]
+
+### Perfilador de datos {#data-profiler}
+
+Un perfilador de datos es un origen que guarda un nombre, un horario y valores predeterminados de ejecución, y nada más. Nunca se introspecciona. Se le agregan tablas de otros orígenes, y cada ejecución las mide y escribe sus filas en el plano de control de la organización, donde se leen como las tablas de cualquier otro origen. Para crear un perfilador y agregarle tablas, véase [Datos de prueba](test-data.md). [tool-verified: `provisa/core/models.py` `SourceType.data_profiler`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`] (REQ-1934)
+
 
 ### Verificadores de calidad de datos (REQ-1443) {#data-quality-checkers-req-1443}
 Un verificador de calidad de datos es un tipo de origen, no un subsistema. Su resultado de escaneo es dato: un resultado de verificación es una observación, así que ingresa por la ruta ordinaria de origen y hereda cadencia, frescura, eventos, linaje, gobierno, RLS, grid y exportación de cualquier otro origen. [tool-verified: `provisa/core/models.py` lines 110–116 `SourceType.soda`, `SourceType.great_expectations`; `provisa/events/source_loader.py` `make_dq_loader`]
@@ -754,7 +883,7 @@ Todos los orígenes comparten un conjunto común de campos. [tool-verified: `pro
 | `cache_schema` | No | `api_cache` | Esquema dentro del catálogo de caché |
 | `naming_convention` | No | `null` | Anula la convención de nombres global para este origen (REQ-194) |
 | `federation_hints` | No | `{}` | Propiedades de sesión pasadas al motor de federación, y parámetros de conexión extendidos para orígenes de almacén de datos (REQ-278, REQ-281) |
-| `mapping` | No | `{}` | Configuración de conector específica del tipo para orígenes NoSQL y SaaS (por ejemplo, `auth_type` de SharePoint, `use_token` de Splunk) (REQ-251) |
+| `mapping` | No | `{}` | Configuración de conector específica del tipo para orígenes NoSQL y SaaS (por ejemplo, `auth_type` de SharePoint, `auth_type` de Salesforce, `use_token` de Splunk) (REQ-251) |
 | `allowed_domains` | No | `[]` | Restringe el origen a dominios específicos; vacío = sin restricción |
 | `description` | No | `""` | Descripción legible por humanos |
 
