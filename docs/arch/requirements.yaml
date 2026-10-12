@@ -77821,3 +77821,30 @@
   related_reqs:
   - REQ-1375
   notes: 'Maintainer 2026-10-11: "deprecation is documented as a tag. I don''t see why it needs to be more than that. deprecation is just a signal to a dependent to move to a new design within a timeframe. It doesn''t effect anything else." and "expand deprecate scope". The following go beyond his words and are the lead''s elaboration: the four added object types (metrics, commands, roles, row-level rules), and that the tag is carried into every client schema the object appears in.'
+- id: REQ-1981
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Amazon Athena is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Amazon Athena is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1982
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Azure Cosmos DB for NoSQL is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Azure Cosmos DB for NoSQL is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1983
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Qdrant is a source type.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Qdrant is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'

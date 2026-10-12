@@ -22785,3 +22785,35 @@ The `deprecated` system tag applies to every object of the model: metrics, comma
 **Code:** —
 
 **Tests:** —
+
+## 4. Source Connectors
+
+### REQ-1981 · Source Connectors {#REQ-1981}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Amazon Athena is a source type.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1982 · Source Connectors {#REQ-1982}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Azure Cosmos DB for NoSQL is a source type.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1983 · Source Connectors {#REQ-1983}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Qdrant is a source type.
+
+**Code:** —
+
+**Tests:** —
