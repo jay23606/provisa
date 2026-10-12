@@ -685,6 +685,13 @@ start_backend() {
       PROVISA_OTEL_S3_ENDPOINT="http://localhost:9000"
       PROVISA_OTEL_S3_ACCESS_KEY="${PROVISA_OTEL_S3_ACCESS_KEY:-minioadmin}"
       PROVISA_OTEL_S3_SECRET_KEY="${PROVISA_OTEL_S3_SECRET_KEY:-minioadmin}"
+    )
+  fi
+  # The OTel exporter sends to otlp2parquet, which only the Docker observability stack starts.
+  # Native mode (every --demo) starts no receiver, so it names none: an endpoint with nothing
+  # listening failed every export.
+  if [ "$DEMO" = true ] && [ "$NATIVE" = false ]; then
+    _BACKEND_ENV+=(
       OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4319"
       # 4319 is otlp2parquet, which speaks OTLP/HTTP only. The transport is declared, never read
       # off the scheme (REQ-549) — the default is gRPC, which this receiver does not serve.
