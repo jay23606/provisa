@@ -76,7 +76,7 @@ The source has no credential field. Credentials come from the org's package regi
 These are the existing models, with nothing new except the values listed here.
 
 - **`@table`**: a registered table. Its `source_id` is the Node source and its `table_name` is the export's name.
-  - Each function parameter is a REQ-1986 parameter column named `_nf_<name>`, with `native_filter_type = "node_arg"`. This is a new value in `PARAMETER_KINDS`, which REQ-1986's text would list next to `pipeline_arg`.
+  - Each function parameter is a REQ-1986 parameter column named `_nf_<name>`, with `native_filter_type = "query_arg"`, REQ-1986's shared parameter kind.
   - `native_filter_required` is true for a non-optional parameter, and false for an optional one, which the steward can make required with `required_by_steward`.
   - The data columns come from the return type, or from a preview (section 5.2).
   - The table description is the JSDoc text.
@@ -179,7 +179,7 @@ Install scripts are disabled for every install (`--ignore-scripts` for npm and B
 
 ### 4.5 Uploads
 
-There is no kept, hashed upload store today. An uploaded archive is kept in the platform plane by its content hash: an `org_node_bundles` table keyed by `(org_id, content_hash)` holding the archive's bytes. Deleting a source does not delete its archive while another source names it.
+There is no kept, hashed upload store today. An uploaded archive is kept in the platform plane by its content hash: an `org_code_bundles` table keyed by `(org_id, content_hash)`, shared by every code source (docs/arch/code-sources.md) holding the archive's bytes. Deleting a source does not delete its archive while another source names it.
 
 ## 5. `@table` tables (part 5, after REQ-1986)
 
@@ -258,7 +258,7 @@ Every install resolves the rows with the standard resolution, with the org vault
 ## 7. Worker (part 4)
 
 - **One per bundle per Provisa process.** A long-running process runs per `(source, content_hash)` in each Provisa process, in the source's runtime, started from the installed cache directory.
-- **Host script.** Provisa ships a small host script, the same one for every runtime (*proposed: `provisa/node/host.mjs`*). It imports the bundle's entry and serves calls. The bundle imports nothing of Provisa's.
+- **Host script.** Provisa ships a small host script, the same one for every runtime (`provisa/node/host.mjs`; its protocol is every code source's, docs/arch/code-sources.md section 3). It imports the bundle's entry and serves calls. The bundle imports nothing of Provisa's.
 - **Lifecycle.** The lifecycle copies `pgwire_replica`:
   - The worker starts lazily on first use.
   - It is spawned in its own session with `--owner-pid`, so it dies with its parent.
@@ -326,7 +326,7 @@ Each part ships when it passes its own gate. The docs and the source-type counts
 - Content hash: stable across file order, and changed by any byte.
 - Registries: as-entered storage, resolution at use, one mirror at most, the guard, and the configuration files written and removed (including on a failed install).
 - Worker protocol: framing, multiplexing, cancel on deadline, and a crash failing the calls in flight. These use a stub worker that speaks the protocol.
-- Parameters and landing: `node_arg` in `PARAMETER_KINDS`, `native_filter_required` from optionality, the cache key per argument set, and `would_materialize_optimize` agreeing with the branch.
+- Parameters and landing: the `query_arg` kind, `native_filter_required` from optionality, the cache key per argument set, and `would_materialize_optimize` agreeing with the branch.
 
 **Integration and e2e** (CI only, never run locally). An isolated compose project on unique, unexposed ports, with a private npm registry (Verdaccio) and a Git server. For each runtime:
 - an npm source through a scoped private registry, and through the mirror;

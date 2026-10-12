@@ -72,8 +72,8 @@ NOT_SEARCHED: dict[tuple[str, str], str] = {
     ),
     # --- the platform plane ---
     ("secrets_store", "value"): "the vault's own envelope: the secrets themselves",
-    ("org_node_bundles", "archive"): (
-        "a Node source's uploaded code archive; code, never resolved as a reference"
+    ("org_code_bundles", "archive"): (
+        "a code source's uploaded code archive; code, never resolved as a reference"
     ),
     ("org_config", "encrypted_dek"): "key material",
     ("org_config", "iv"): "key material",

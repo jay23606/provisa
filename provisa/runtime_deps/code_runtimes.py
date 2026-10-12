@@ -8,9 +8,9 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""On-demand, pinned, hash-checked JavaScript runtimes for Node sources (REQ-1984).
+"""On-demand, pinned, hash-checked runtimes for code sources (REQ-1984, REQ-1993).
 
-A Node source names its runtime: Node, Bun or Deno. None of them ships with Provisa. Each is
+A code source names its runtime: Node, Bun or Deno for JavaScript. None of them ships with Provisa. Each is
 fetched on first use from its project's own release, at the version pinned here, checked against
 the SHA-256 recorded here (the project's published sum) BEFORE anything is extracted, and cached
 under the runtime-deps cache root beside the pgwire bundles, version-namespaced. A cache hit never
@@ -21,7 +21,7 @@ fails, an archive whose hash is not the recorded one, or an archive without the 
 executable raises ``RuntimeUnavailable``. There is no unpinned or unchecked fallback.
 """
 
-# Requirements: REQ-1984
+# Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
 import hashlib
@@ -46,7 +46,7 @@ WINDOWS_X64 = ("Windows", "AMD64")
 
 
 class RuntimeUnavailable(Exception):  # REQ-1984
-    """A JavaScript runtime could not be resolved; never a fallback."""
+    """A code source's runtime could not be resolved; never a fallback."""
 
 
 @dataclass(frozen=True)
@@ -190,10 +190,10 @@ def _extract(filename: str, data: bytes, dest: Path) -> None:
         archive.extractall(dest, filter="data")  # nosec B202 - the "data" filter refuses every unsafe member
 
 
-class JsRuntimeResolver:  # REQ-1984
+class CodeRuntimeResolver:  # REQ-1984, REQ-1993
     """Resolves a runtime name to its cached executable, downloading and checking on a miss.
 
-    Caches under ``<cache_root>/js/<name>/<version>/``; the executable's presence there is the
+    Caches under ``<cache_root>/code/<name>/<version>/``; the executable's presence there is the
     marker of a complete resolution, because a resolution is extracted to a staging directory and
     moved into place whole."""
 
@@ -217,7 +217,7 @@ class JsRuntimeResolver:  # REQ-1984
     def home(self, name: str) -> Path:
         """The cached directory of runtime ``name`` at its pinned version."""
         pin = self.pin(name)
-        return self._root / "js" / pin.name / pin.version
+        return self._root / "code" / pin.name / pin.version
 
     def executable(self, name: str) -> Path:
         pin = self.pin(name)

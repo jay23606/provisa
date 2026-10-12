@@ -7,14 +7,16 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// REQ-1984: the host a Node source's worker runs -- the same on Node, Bun and Deno.
+// REQ-1984: the host a Node source's worker runs -- the same on Node, Bun and Deno. The protocol is
+// every code source's (provisa/codesource/worker.py).
 //
 //   <runtime> host.mjs <socket path> <bundle entry module>
 //
 // It imports the bundle (the bundle imports nothing of Provisa's), connects to the socket
 // Provisa listens on, says which exports it has, and serves calls until the socket closes, when
 // it exits. Frames are a 4-byte big-endian length and that many bytes of UTF-8 JSON; a Date is
-// written {"$date": iso}, a bigint {"$bigint": digits}, undefined as null.
+// written {"$date": iso}, a bigint {"$bigint": digits}, undefined as null; a {"$decimal": digits}
+// argument stays as it is, since JavaScript has no decimal.
 //
 //   Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args}
 //                    {op: "cancel", id}      {op: "ping", id}
@@ -30,22 +32,14 @@ const [socketPath, entry] = process.argv.slice(2);
 const bundle = await import(pathToFileURL(entry).href);
 
 function encode(value) {
-  return JSON.stringify(value, (_key, v) => {
+  // A replacer sees a Date after its toJSON has run; the holder's own property is the Date.
+  return JSON.stringify(value, function (key, v) {
+    const raw = this[key];
+    if (raw instanceof Date) return { $date: raw.toISOString() };
     if (typeof v === "bigint") return { $bigint: v.toString() };
     if (v === undefined) return null;
     return v;
-  }, 0).replace(/"__DATE__(.*?)__"/g, (_m, iso) => `{"$date":"${iso}"}`);
-}
-
-function dated(value) {
-  if (value instanceof Date) return `__DATE__${value.toISOString()}__`;
-  if (Array.isArray(value)) return value.map(dated);
-  if (value && typeof value === "object") {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) out[k] = dated(v);
-    return out;
-  }
-  return value;
+  });
 }
 
 function revive(value) {
@@ -62,7 +56,7 @@ function revive(value) {
 
 const socket = net.createConnection(socketPath);
 function send(message) {
-  const body = Buffer.from(encode(dated(message)), "utf8");
+  const body = Buffer.from(encode(message), "utf8");
   const head = Buffer.alloc(4);
   head.writeUInt32BE(body.length, 0);
   socket.write(Buffer.concat([head, body]));

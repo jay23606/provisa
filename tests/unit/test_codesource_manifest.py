@@ -23,8 +23,8 @@ from pathlib import Path
 import pytest
 
 from provisa.node import reader
-from provisa.node.bundle import BundleRefused
-from provisa.node.manifest import (
+from provisa.codesource.bundle import BundleRefused
+from provisa.codesource.manifest import (
     LOOSE,
     Anonymous,
     EnumOf,
@@ -312,7 +312,7 @@ def test_a_bundle_without_its_declarations_is_refused(tmp_path, package):
     (tmp_path.parent / "outside.d.ts").write_text("x")
     with pytest.raises(BundleRefused) as caught:
         reader.entry_declarations(tmp_path)
-    assert caught.value.code == "node.no_declarations"
+    assert caught.value.code == "codesource.no_declarations"
 
 
 def test_each_runtime_runs_the_reader_and_deno_reads_only_what_it_is_given(tmp_path):
@@ -369,7 +369,7 @@ def test_the_compiler_is_fetched_once_and_only_at_its_pinned_integrity(tmp_path,
     monkeypatch.setattr(reader, "fetch_npm", fake_fetch)
     first = reader.ensure_typescript(tmp_path, [])
     assert reader.ensure_typescript(tmp_path, []) == first
-    assert first == tmp_path / "js" / "typescript" / "6.0.3" / "lib" / "typescript.js"
+    assert first == tmp_path / "code" / "typescript" / "6.0.3" / "lib" / "typescript.js"
     assert calls == [(reader.TYPESCRIPT, reader.TYPESCRIPT_INTEGRITY)]
 
 

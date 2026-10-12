@@ -61,7 +61,7 @@ One long-running process per code source per Provisa process, in its runtime, st
 - **Calls:** multiplexed by id; a request's deadline sends `cancel`; a crash fails every call in flight, naming the source and the export.
 - **Pool:** keyed by `(source, content hash)`.
 
-`host.mjs` (Node part 4) implements this. `host.py` *(proposed)* is the same program in Python, built on asyncio: it imports the code's module, says hello, and serves calls, iterating sync and async generators and lists alike.
+`codesource/worker.py` is Provisa's side (`Worker`, `WorkerPool`, `HostCommand`); `host.mjs` (Node part 4) is Node's host. Deno is granted the socket as `--allow-net=unix:<socket>`. `host.py` *(proposed)* is the same program in Python, built on asyncio: it imports the code's module, says hello, and serves calls, iterating sync and async generators and lists alike.
 
 ## 4. The sandbox, for every runtime
 
@@ -81,13 +81,13 @@ The egress allow-list is the deployment's `udf_egress_allowlist`, the one comman
 
 ## 5. What changes in the Node work already built
 
-All of it is a move, on the unmerged design/node-connector branch:
+All of it was a move, on the unmerged design/node-connector branch (done with Node part 4):
 
 - `provisa/node/manifest.py` → `provisa/codesource/manifest.py`.
 - `bundle.py` → `codesource/bundle.py`, and `uploads.py` → `codesource/uploads.py`. The `org_node_bundles` table becomes `org_code_bundles`, keyed `(org_id, content_hash)`.
-- The Git fetch in `install.py` → `codesource/git.py`.
-- `runtime_deps/js_runtimes.py` → `runtime_deps/code_runtimes.py`, with Python's pins beside Node's.
-- `provisa/node/` keeps the Node-only parts: the npm fetch and install, `reader.mjs`, `reader.py`, `host.mjs`.
+- The Git fetch, the upload fetch, the HTTP and command runners and the cache by content hash in `install.py` → `codesource/install.py`; `node/install.py` keeps the npm fetch and install and calls it. The cache is `<cache>/code-bundles/<runtime>/<hash>`.
+- `runtime_deps/js_runtimes.py` → `runtime_deps/code_runtimes.py` (`CodeRuntimeResolver`, cached under `<cache>/code/<name>/<version>`), with Python's pins beside Node's.
+- `provisa/node/` keeps the Node-only parts: the npm fetch and install, `reader.mjs`, `reader.py`, `host.mjs`, and `worker.py` (how each runtime starts the host).
 - The `BundleRefused` codes `node.*` become `codesource.*`.
 
 The Node note keeps its decisions; it points here for the shared parts.

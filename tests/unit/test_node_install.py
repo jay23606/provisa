@@ -30,9 +30,11 @@ from pathlib import Path
 import pytest
 
 from provisa.core.package_registries import Resolved
+from provisa.codesource import install as shared
+from provisa.codesource.bundle import BundleRefused, content_hash, unpack
+from provisa.codesource.install import GitCode, UploadCode
 from provisa.node import install
-from provisa.node.bundle import BundleRefused, content_hash, unpack
-from provisa.node.install import GitCode, NpmCode, UploadCode, ensure_installed
+from provisa.node.install import NpmCode, ensure_installed
 
 pytestmark = pytest.mark.unit
 
@@ -104,7 +106,7 @@ class _Runner:
             }
         )
         if self.fail:
-            raise install.InstallFailed("install_failed", "npm ci exited 1: lockfile out of date")
+            raise shared.InstallFailed("install_failed", "npm ci exited 1: lockfile out of date")
         (cwd / "node_modules").mkdir()
         (cwd / "node_modules" / "dep.js").write_text("// installed")
 
@@ -135,10 +137,10 @@ def test_an_archive_is_unpacked_to_its_single_top_level_directory(tmp_path):
 @pytest.mark.parametrize(
     ("filename", "data", "code"),
     [
-        ("b.zip", _zip({"../escape.js": b"x"}), "node.archive_escapes"),
-        ("b.tgz", _tgz({"../escape.js": b"x"}), "node.archive_escapes"),
-        ("b.rar", b"rar", "node.archive_kind"),
-        ("b.zip", b"not a zip", "node.archive_unreadable"),
+        ("b.zip", _zip({"../escape.js": b"x"}), "codesource.archive_escapes"),
+        ("b.tgz", _tgz({"../escape.js": b"x"}), "codesource.archive_escapes"),
+        ("b.rar", b"rar", "codesource.archive_kind"),
+        ("b.zip", b"not a zip", "codesource.archive_unreadable"),
     ],
     # Archive bytes carry a timestamp: named ids keep collection the same on every worker.
     ids=["zip-escapes", "tgz-escapes", "unknown-kind", "unreadable-zip"],
@@ -151,10 +153,10 @@ def test_an_archive_that_cannot_be_used_is_refused_by_name(tmp_path, filename, d
 
 
 def test_an_archive_that_expands_past_the_bound_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setattr("provisa.node.bundle.MAX_EXPANDED_BYTES", 10)
+    monkeypatch.setattr("provisa.codesource.bundle.MAX_EXPANDED_BYTES", 10)
     with pytest.raises(BundleRefused) as refused:
         unpack("b.zip", _zip({"big.js": b"x" * 11}), tmp_path / "x")
-    assert refused.value.code == "node.archive_too_large"
+    assert refused.value.code == "codesource.archive_too_large"
 
 
 # -- the organisation's registries ----------------------------------------------------------------
@@ -177,7 +179,7 @@ def test_the_npmrc_names_the_mirror_each_scope_and_each_registrys_token():
 
 
 def test_the_git_configuration_carries_each_hosts_token():
-    assert install.gitconfig([ACME, GITHOST]).splitlines() == [
+    assert shared.gitconfig([ACME, GITHOST]).splitlines() == [
         '[url "https://x-access-token:git-token@git.acme.test/"]',
         "\tinsteadOf = https://git.acme.test/",
     ]
@@ -206,14 +208,14 @@ def test_a_tarball_that_is_not_the_registrys_is_refused(tmp_path):
     )
     with pytest.raises(BundleRefused) as refused:
         install.fetch_npm(NpmCode("@acme/rows", "1.2.3"), [ACME], registry, tmp_path / "c")
-    assert refused.value.code == "node.integrity_mismatch"
+    assert refused.value.code == "codesource.integrity_mismatch"
 
 
 @pytest.mark.parametrize("version", ["^1.2.3", "latest", "1.2", "~1.2.3"])
 def test_a_version_that_is_not_exact_is_refused(tmp_path, version):
     with pytest.raises(BundleRefused) as refused:
         install.fetch_npm(NpmCode("left-pad", version), [], lambda u, h: b"", tmp_path / "c")
-    assert refused.value.code == "node.version_not_exact"
+    assert refused.value.code == "codesource.version_not_exact"
 
 
 @pytest.fixture
@@ -246,7 +248,7 @@ def git_repo(tmp_path, monkeypatch):
 
 def test_a_git_repository_is_fetched_at_its_commit_and_subdirectory(tmp_path, git_repo):
     code = GitCode("https://git.acme.test/acme/rows.git", git_repo["first"], "bundle")
-    root = install.fetch_git(code, [GITHOST], tmp_path / "c")
+    root = shared.fetch_git(code, [GITHOST], tmp_path / "c")
     assert (root / "index.d.ts").read_text() == "// first"  # the pinned commit, not the head
     assert not (tmp_path / "c" / ".git").exists()
     assert git_repo["seen"] == {
@@ -258,17 +260,17 @@ def test_a_git_repository_is_fetched_at_its_commit_and_subdirectory(tmp_path, gi
 
 def test_a_git_reference_that_is_not_a_commit_or_not_https_is_refused(tmp_path, git_repo):
     with pytest.raises(BundleRefused) as tag:
-        install.fetch_git(GitCode("https://git.acme.test/r.git", "v1.0.0"), [], tmp_path / "a")
+        shared.fetch_git(GitCode("https://git.acme.test/r.git", "v1.0.0"), [], tmp_path / "a")
     with pytest.raises(BundleRefused) as scheme:
-        install.fetch_git(GitCode("git@git.acme.test:r.git", git_repo["first"]), [], tmp_path / "b")
+        shared.fetch_git(GitCode("git@git.acme.test:r.git", git_repo["first"]), [], tmp_path / "b")
     with pytest.raises(BundleRefused) as missing:
-        install.fetch_git(
+        shared.fetch_git(
             GitCode("https://git.acme.test/r.git", git_repo["first"], "nope"), [], tmp_path / "c"
         )
     assert (tag.value.code, scheme.value.code, missing.value.code) == (
-        "node.commit_not_pinned",
-        "node.not_https",
-        "node.no_subdirectory",
+        "codesource.commit_not_pinned",
+        "codesource.not_https",
+        "codesource.no_subdirectory",
     )
 
 
@@ -317,7 +319,7 @@ def test_a_bundle_with_no_dependencies_needs_no_install(tmp_path):
     runner = _Runner()
     got = _ensure(tmp_path, _bundle(**{"index.js": "1", "index.d.ts": "2"}), runner=runner)
     assert runner.calls == []
-    assert got.path == tmp_path / "cache" / "node-bundles" / "node" / got.content_hash
+    assert got.path == tmp_path / "cache" / "code-bundles" / "node" / got.content_hash
     assert (got.path / "index.d.ts").exists()
 
 
@@ -362,7 +364,7 @@ def test_dependencies_without_the_runtimes_lockfile_are_refused(tmp_path):
     files = {k: v for k, v in WITH_DEPS.items() if k != "package-lock.json"}
     with pytest.raises(BundleRefused) as refused:
         _ensure(tmp_path, _bundle(**files), runtime="bun")
-    assert refused.value.code == "node.no_lockfile"
+    assert refused.value.code == "codesource.no_lockfile"
     assert "bun.lock or bun.lockb" in str(refused.value)
 
 
@@ -376,17 +378,17 @@ def test_a_cached_install_is_used_and_not_installed_again(tmp_path):
 def test_content_that_is_not_what_the_source_recorded_is_refused_by_both_hashes(tmp_path):
     with pytest.raises(BundleRefused) as refused:
         _ensure(tmp_path, _bundle(**WITH_DEPS), expected="0" * 64)
-    assert refused.value.code == "node.content_changed"
+    assert refused.value.code == "codesource.content_changed"
     assert refused.value.params["expected"] == "0" * 64 and refused.value.params["source"] == "rows"
 
 
 def test_a_failed_install_caches_nothing_and_leaves_no_configuration(tmp_path):
     runner = _Runner(fail=True)
-    with pytest.raises(install.InstallFailed):
+    with pytest.raises(shared.InstallFailed):
         _ensure(tmp_path, _bundle(**WITH_DEPS), runner=runner)
     (call,) = runner.calls
     assert not Path(call["env"]["NPM_CONFIG_USERCONFIG"]).exists()
-    assert [p.name for p in (tmp_path / "cache" / "node-bundles" / "node").iterdir()] == []
+    assert [p.name for p in (tmp_path / "cache" / "code-bundles" / "node").iterdir()] == []
 
 
 # -- uploads --------------------------------------------------------------------------------------
@@ -400,14 +402,14 @@ def plane(tmp_path):
     engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
     with engine.begin() as conn:
         schema_admin.metadata.create_all(
-            conn, tables=[schema_admin.orgs, schema_admin.org_node_bundles]
+            conn, tables=[schema_admin.orgs, schema_admin.org_code_bundles]
         )
     yield Database(engine, name="admin")
     engine.dispose()
 
 
 async def test_an_upload_is_kept_by_its_bundles_content_hash(plane, tmp_path):
-    from provisa.node import uploads
+    from provisa.codesource import uploads
 
     data = _zip({"index.js": b"1", "index.d.ts": b"2"})
     found = await uploads.put(plane, "acme", "b.zip", data, actor="uid-ada")
@@ -417,20 +419,20 @@ async def test_an_upload_is_kept_by_its_bundles_content_hash(plane, tmp_path):
     assert (kept.filename, kept.data) == ("b.zip", data)
     with pytest.raises(BundleRefused) as other_org:
         await uploads.read(plane, "globex", found)
-    assert other_org.value.code == "node.upload_not_found"
+    assert other_org.value.code == "codesource.upload_not_found"
 
 
 async def test_an_upload_that_cannot_be_used_is_refused_and_not_kept(plane):
-    from provisa.node import uploads
+    from provisa.codesource import uploads
 
     with pytest.raises(BundleRefused):
         await uploads.put(plane, "acme", "b.zip", _zip({"../x": b"1"}), actor=None)
     async with plane.acquire() as conn:
         from sqlalchemy import func, select
 
-        from provisa.core.schema_admin import org_node_bundles
+        from provisa.core.schema_admin import org_code_bundles
 
         count = (
-            await conn.execute_core(select(func.count()).select_from(org_node_bundles))
+            await conn.execute_core(select(func.count()).select_from(org_code_bundles))
         ).scalar()
     assert count == 0

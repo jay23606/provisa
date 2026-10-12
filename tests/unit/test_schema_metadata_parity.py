@@ -91,7 +91,7 @@ REGISTRY_ONLY_TABLES = {
     "org_package_registries",
     # REQ-1984: the archives uploaded as Node sources' code, by content hash. Portable metadata
     # only.
-    "org_node_bundles",
+    "org_code_bundles",
     # REQ-1574: the org's key ring, held beside ``orgs`` on the platform plane so a blob is
     # decryptable before any org schema is open. Portable metadata only.
     "org_encryption_keys",

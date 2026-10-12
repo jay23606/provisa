@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import pytest
 
-from provisa.node.manifest import EnumOf, Field, ListOf, ManifestRefused, Named, Scalar
+from provisa.codesource.manifest import EnumOf, Field, ListOf, ManifestRefused, Named, Scalar
 from provisa.node.reader import ensure_typescript, read_bundle
-from provisa.runtime_deps.js_runtimes import JsRuntimeResolver
+from provisa.runtime_deps.code_runtimes import CodeRuntimeResolver
 
 pytestmark = [pytest.mark.integration]
 
@@ -64,7 +64,7 @@ def bundle(tmp_path):
 
 @pytest.mark.parametrize("runtime", ["node", "bun", "deno"])
 def test_each_runtime_reads_the_same_tables_commands_and_streams(runtime, cache, compiler, bundle):
-    executable = JsRuntimeResolver(cache_root=cache).resolve(runtime)
+    executable = CodeRuntimeResolver(cache_root=cache).resolve(runtime)
     manifest = read_bundle(runtime=runtime, executable=executable, compiler=compiler, bundle=bundle)
     assert [(e.name, e.kind) for e in manifest.exports] == [
         ("orders", "table"),
@@ -98,7 +98,7 @@ def test_a_bundle_that_breaks_the_rules_is_refused_with_every_problem(cache, com
         export declare function one(): Promise<Order>;
         """
     )
-    executable = JsRuntimeResolver(cache_root=cache).resolve("node")
+    executable = CodeRuntimeResolver(cache_root=cache).resolve("node")
     with pytest.raises(ManifestRefused) as refused:
         read_bundle(runtime="node", executable=executable, compiler=compiler, bundle=tmp_path)
     assert refused.value.problems == [

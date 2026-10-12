@@ -15,8 +15,8 @@
 // and, for a function, its call signatures' parameters and return types; and every named type
 // those refer to. Types are written as trees ({"kind": ...}); a named object type is written
 // once, under "types", and referred to by name. Nothing is decided here: which exports are
-// tables, commands or streams, and which types map to what, is Provisa's (provisa/node/
-// manifest.py). The bundle's JavaScript is never read or run. Node, Bun and Deno run it alike.
+// tables, commands or streams, and which types map to what, is Provisa's (provisa/
+// codesource/manifest.py). The bundle's JavaScript is never read or run. Node, Bun and Deno run it alike.
 
 import { createRequire } from "node:module";
 import process from "node:process";

@@ -14,7 +14,7 @@ The reader (reader.mjs, beside this module) runs under the source's own runtime 
 TypeScript compiler, which Provisa does not ship: it is fetched as the npm package at the version
 pinned here, checked against the integrity recorded here, through the organisation's registries,
 and cached under the runtime-deps root. The reader reads only the bundle's declaration files,
-never its JavaScript, and prints what they say; :mod:`provisa.node.manifest` applies the rules.
+never its JavaScript, and prints what they say; :mod:`provisa.codesource.manifest` applies the rules.
 """
 
 # Requirements: REQ-1984
@@ -29,9 +29,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from provisa.core.package_registries import Resolved
-from provisa.node.bundle import BundleRefused
-from provisa.node.install import Http, NpmCode, fetch_npm, http_get
-from provisa.node.manifest import Manifest, read_manifest
+from provisa.codesource.bundle import BundleRefused
+from provisa.codesource.install import Http, http_get
+from provisa.node.install import NpmCode, fetch_npm
+from provisa.codesource.manifest import Manifest, read_manifest
 
 #: The TypeScript compiler the reader runs, and the npm integrity it must have.
 TYPESCRIPT = NpmCode("typescript", "6.0.3")
@@ -41,7 +42,7 @@ READER = Path(__file__).with_name("reader.mjs")
 
 
 def typescript_home(cache_root: Path) -> Path:
-    return cache_root / "js" / "typescript" / TYPESCRIPT.version
+    return cache_root / "code" / "typescript" / TYPESCRIPT.version
 
 
 def ensure_typescript(
@@ -138,6 +139,6 @@ def read_bundle(
     run=run_reader,
 ) -> Manifest:
     """The bundle's tables, commands and streams, read from its declarations; refused with every
-    problem by name (:func:`provisa.node.manifest.read_manifest`)."""
+    problem by name (:func:`provisa.codesource.manifest.read_manifest`)."""
     entry = entry_declarations(bundle)
     return read_manifest(run(reader_command(runtime, executable, compiler, entry)))

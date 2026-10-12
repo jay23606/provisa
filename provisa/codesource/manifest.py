@@ -8,9 +8,10 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""What a Node bundle offers, from what its declarations say (REQ-1984).
+"""What a code source's bundle offers, from what its declarations say (REQ-1984, REQ-1993).
 
-The reader (provisa/node/reader.mjs) writes every export of the bundle's entry module with its
+Every language's reader writes the same document (docs/arch/code-sources.md, section 2); Node's
+(provisa/node/reader.mjs) writes every export of the bundle's entry module with its
 JSDoc tags and its signature's types as trees. This module applies REQ-1984's rules to that:
 
 - an export tagged ``@table`` is a table, ``@command`` a command, ``@stream`` a live table;
@@ -39,7 +40,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from provisa.node.bundle import BundleRefused
+from provisa.codesource.bundle import BundleRefused
 
 TABLE, COMMAND, STREAM = "table", "command", "stream"
 PROVISA_TAGS = frozenset({TABLE, COMMAND, STREAM})

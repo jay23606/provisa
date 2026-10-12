@@ -8,10 +8,10 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""A Node bundle's files: unpacked from an archive with every entry kept inside its directory,
-and hashed so a source records exactly what it was saved with (REQ-1984)."""
+"""A code source's bundle of files: unpacked from an archive with every entry kept inside its
+directory, and hashed so a source records exactly what it was saved with (REQ-1984, REQ-1993)."""
 
-# Requirements: REQ-1984
+# Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
 import hashlib
@@ -33,7 +33,7 @@ class BundleRefused(ValueError):
 
     def __init__(self, code: str, message: str, **params: str) -> None:
         super().__init__(message)
-        self.code = f"node.{code}"
+        self.code = f"codesource.{code}"
         self.params = params
 
 

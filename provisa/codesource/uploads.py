@@ -8,10 +8,10 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Archives uploaded to Provisa as Node sources' code (REQ-1984), kept in the platform plane per
+"""Archives uploaded to Provisa as code sources' code (REQ-1984, REQ-1993), kept in the platform plane per
 organisation by the content hash of the bundle they unpack to -- the hash a source records."""
 
-# Requirements: REQ-1984
+# Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
 import tempfile
@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from provisa.core.schema_admin import org_node_bundles as _t
-from provisa.node.bundle import BundleRefused, content_hash, unpack
-from provisa.node.install import UploadCode
+from provisa.codesource.bundle import BundleRefused, content_hash, unpack
+from provisa.codesource.install import UploadCode
+from provisa.core.schema_admin import org_code_bundles as _t
 
 if TYPE_CHECKING:
     from provisa.core.database import Database
@@ -34,7 +34,7 @@ async def put(
     """Keep the archive for ``org_id`` and return its bundle's content hash. The archive is
     unpacked first, with every guard an install applies, so one that cannot be used is refused
     here by name and nothing is kept. The same bundle uploaded again is kept once."""
-    with tempfile.TemporaryDirectory(prefix="provisa-node-upload-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="provisa-code-upload-") as scratch:
         found = content_hash(unpack(filename, data, Path(scratch)))
     async with admin_db.acquire() as conn:
         await conn.upsert(

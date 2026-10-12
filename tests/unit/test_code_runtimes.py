@@ -23,12 +23,12 @@ import zipfile
 
 import pytest
 
-from provisa.runtime_deps import js_runtimes
-from provisa.runtime_deps.js_runtimes import (
+from provisa.runtime_deps import code_runtimes
+from provisa.runtime_deps.code_runtimes import (
     DARWIN_ARM64,
     LINUX_X64,
     Asset,
-    JsRuntimeResolver,
+    CodeRuntimeResolver,
     RuntimePin,
     RuntimeUnavailable,
 )
@@ -60,7 +60,7 @@ def _pin(monkeypatch, name: str, filename: str, data: bytes, executable: str) ->
         "https://example.test/{version}/{filename}",
         {LINUX_X64: Asset(filename, hashlib.sha256(data).hexdigest(), executable)},
     )
-    monkeypatch.setitem(js_runtimes.RUNTIMES, name, pin)
+    monkeypatch.setitem(code_runtimes.RUNTIMES, name, pin)
 
 
 class _Fetcher:
@@ -75,11 +75,11 @@ class _Fetcher:
 
 def test_every_pinned_runtime_names_an_archive_for_each_platform_provisa_runs_on():
     for name in ("node", "bun", "deno"):
-        pin = js_runtimes.RUNTIMES[name]
+        pin = code_runtimes.RUNTIMES[name]
         assert set(pin.assets) == {
-            js_runtimes.DARWIN_ARM64,
-            js_runtimes.LINUX_X64,
-            js_runtimes.WINDOWS_X64,
+            code_runtimes.DARWIN_ARM64,
+            code_runtimes.LINUX_X64,
+            code_runtimes.WINDOWS_X64,
         }
         for asset in pin.assets.values():
             assert len(asset.sha256) == 64 and int(asset.sha256, 16) >= 0
@@ -90,9 +90,9 @@ def test_a_runtime_is_fetched_checked_extracted_and_made_executable(tmp_path, mo
     data = _zip({"bun-linux-x64/bun": b"#!/bin/sh\necho bun\n"})
     _pin(monkeypatch, "bun", "bun-linux-x64.zip", data, "bun-linux-x64/bun")
     fetch = _Fetcher(data)
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=fetch, host=LINUX_X64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=fetch, host=LINUX_X64)
     exe = resolver.resolve("bun")
-    assert exe == tmp_path / "js" / "bun" / "9.9.9" / "bun-linux-x64" / "bun"
+    assert exe == tmp_path / "code" / "bun" / "9.9.9" / "bun-linux-x64" / "bun"
     assert exe.read_bytes() == b"#!/bin/sh\necho bun\n"
     assert os.access(exe, os.X_OK)  # a zip keeps no mode bits; it is made executable
     assert fetch.urls == ["https://example.test/9.9.9/bun-linux-x64.zip"]
@@ -102,7 +102,7 @@ def test_a_cached_runtime_is_never_fetched_again(tmp_path, monkeypatch):
     data = _tgz({"node-v9/bin/node": b"node"})
     _pin(monkeypatch, "node", "node-v9.tar.gz", data, "node-v9/bin/node")
     fetch = _Fetcher(data)
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=fetch, host=LINUX_X64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=fetch, host=LINUX_X64)
     first = resolver.resolve("node")
     assert resolver.resolve("node") == first
     assert len(fetch.urls) == 1
@@ -114,40 +114,42 @@ def test_an_archive_whose_hash_is_not_the_pinned_one_is_refused_before_extractio
     good = _zip({"deno": b"deno"})
     _pin(monkeypatch, "deno", "deno.zip", good, "deno")
     tampered = _zip({"deno": b"something else"})
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(tampered), host=LINUX_X64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(tampered), host=LINUX_X64)
     with pytest.raises(RuntimeUnavailable, match="not the pinned"):
         resolver.resolve("deno")
-    assert not (tmp_path / "js" / "deno").exists() or not any((tmp_path / "js" / "deno").iterdir())
+    assert not (tmp_path / "code" / "deno").exists() or not any(
+        (tmp_path / "code" / "deno").iterdir()
+    )
 
 
 def test_an_archive_without_the_executable_is_refused_and_leaves_nothing(tmp_path, monkeypatch):
     data = _zip({"README": b"no binary here"})
     _pin(monkeypatch, "bun", "bun.zip", data, "bun-linux-x64/bun")
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(data), host=LINUX_X64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(data), host=LINUX_X64)
     with pytest.raises(RuntimeUnavailable, match="holds no"):
         resolver.resolve("bun")
     assert not resolver.executable("bun").exists()
-    assert [p.name for p in (tmp_path / "js" / "bun").iterdir()] == []
+    assert [p.name for p in (tmp_path / "code" / "bun").iterdir()] == []
 
 
 def test_an_archive_entry_that_escapes_the_cache_is_refused(tmp_path, monkeypatch):
     data = _zip({"../../evil": b"x", "bun": b"bun"})
     _pin(monkeypatch, "bun", "bun.zip", data, "bun")
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(data), host=LINUX_X64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(data), host=LINUX_X64)
     with pytest.raises(RuntimeUnavailable, match="escapes"):
         resolver.resolve("bun")
     assert not (tmp_path.parent / "evil").exists()
 
 
 def test_an_unknown_runtime_and_an_unpinned_platform_are_refused_by_name(tmp_path):
-    resolver = JsRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=DARWIN_ARM64)
+    resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=DARWIN_ARM64)
     with pytest.raises(RuntimeUnavailable, match="'python' is not a runtime"):
         resolver.resolve("python")
-    other = JsRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=("Plan9", "mips"))
+    other = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=("Plan9", "mips"))
     with pytest.raises(RuntimeUnavailable, match="Plan9/mips"):
         other.resolve("node")
 
 
 def test_only_https_is_fetched():
     with pytest.raises(RuntimeUnavailable, match="non-https"):
-        js_runtimes.fetch_https("http://example.test/node.tar.gz")
+        code_runtimes.fetch_https("http://example.test/node.tar.gz")
