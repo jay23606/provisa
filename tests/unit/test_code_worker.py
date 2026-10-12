@@ -107,7 +107,7 @@ def command(tmp_path):
     host.write_text(_HOST)
     log = tmp_path / "cancels.log"
     return w.HostCommand(
-        argv=lambda socket: [sys.executable, str(host), str(socket), str(log)],
+        argv=lambda address: [sys.executable, str(host), address, str(log)],
         env=w.private_environment(),
         cwd=tmp_path,
     ), log

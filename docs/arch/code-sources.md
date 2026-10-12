@@ -71,13 +71,17 @@ The maintainer's ruling for Node applies to Python (REQ-1993): no file access be
 - **Everything else** (Node, Bun, Python):
   - **Files:** the OS sandbox gives the process read access to its installed code directory, its runtime directory and the socket directory, and nothing else.
   - **Network:** the egress allow-list names hosts, and no OS sandbox filters by host name. So the process may connect only to the socket and to a local proxy Provisa runs, and the proxy admits a connection only to a host on the allow-list (HTTP CONNECT for TLS, and plain HTTP by host). The runtime is pointed at it: `HTTP_PROXY` and `HTTPS_PROXY` for every runtime, plus `NODE_USE_ENV_PROXY=1` for Node 24, whose built-in fetch otherwise ignores them. A program that opens a raw socket to any other address is refused by the OS sandbox, not by the proxy.
-  - **Mechanism** *(proposed)*:
-    - macOS: `sandbox-exec` with a generated profile (`deny default`; read the listed directories; outbound only to `localhost` on the proxy's port; the Unix socket);
-    - Linux: `bwrap` (bubblewrap) with the listed directories bound read-only, a fresh network namespace, and the proxy reached through a Unix socket bound into it *(the proxy listens on a Unix socket, and a small forwarder inside the namespace exposes it as localhost:port)*;
-    - Windows: no supported sandbox; a code source is refused there by name.
-  - **Missing sandbox:** a host where the mechanism is not available refuses to start a code source's worker, naming the source and what is missing. It never starts one unsandboxed.
+  - **Mechanism** (S1, lead 2026-10-12; `provisa/codesource/sandbox.py`):
+    - macOS: `sandbox-exec` with a generated profile (`macos_sandbox.py`): `deny default`; read the code, the runtime, the host program and the system's libraries (and the root directory itself, which Node lists as it starts); write only `/dev/null`; exec only the runtime; connect only to the worker's socket path and to `localhost:<proxy port>`.
+    - Linux: Landlock and seccomp, applied by a launcher (`python -m provisa.codesource.linux_sandbox`) that confines itself and then `exec`s the host. Neither needs a privilege, a user namespace or a capability, so they work under Docker's default seccomp profile and Kubernetes' `RuntimeDefault`; bubblewrap does not (it needs user namespaces, which both refuse).
+      - Landlock (Linux 6.7 or later, ABI 4): read only the code, the runtime, the host program, the system's libraries and certificates and `/proc/<own pid>`; write only `/dev/null`; TCP connect only to the proxy's port; bind nothing. From ABI 6, abstract Unix sockets and signals outside the worker are refused too.
+      - seccomp: `socket()` only for TCP over IPv4 or IPv6; no `socketpair()`, no io_uring (it opens sockets without `socket()`), no x32 calls on x86_64. So there is no UDP (no DNS around the proxy) and no Unix socket: Landlock does not mediate a Unix socket's connect, and a host's Docker or Postgres socket would otherwise be a path away.
+      - The worker's socket is therefore handed to the host already connected, as an inherited descriptor (`fd:N`); the host reads and writes it with `node:fs`, because Bun's `net.Socket` does not take a descriptor.
+    - Windows: no sandbox; a code source is refused there by name (S2).
+  - **Proven by:** `.github/workflows/sandbox-probe.yml` runs the launcher's `--probe` on the runner, under Docker's default seccomp and under containerd's default profile (what `RuntimeDefault` applies); `tests/integration/test_node_worker.py` runs Node, Bun and Deno sandboxed (reads outside the code refused, the allow-list reached through the proxy and nothing else).
+  - **Missing sandbox:** a host where the mechanism is not available (no `sandbox-exec`; a kernel without Landlock ABI 4; a container profile that refuses `landlock_*` or `seccomp`) refuses to start a code source's worker, naming what is missing. It never starts one unsandboxed.
 
-The egress allow-list is the deployment's `udf_egress_allowlist`, the one commands already use (REQ-885). Loopback is not on it for code sources *(proposed: Provisa's own ports are not a code source's to call)*.
+The egress allow-list is the deployment's `udf_egress_allowlist`, the one commands already use (REQ-885). Loopback is never reached by a code source, whatever the list says or a name resolves to (S3): Provisa's own ports are not a code source's to call. The proxy is `provisa/codesource/egress.py`, one per allow-list per process.
 
 ## 5. What changes in the Node work already built
 
@@ -204,6 +208,6 @@ The same shape as Node's.
 - **P4. Python's lockfiles.** `uv.lock`, `pylock.toml`, or a hashed `requirements.txt`.
 - **P5. `Decimal`.** Maps to numeric, sent as a string on the wire. Parity is a rule of query surfaces, not of languages: Node simply has no decimal.
 - **`int`.** Maps to bigint.
-- **S1. The sandbox for Node, Bun and Python.** An OS mechanism (macOS `sandbox-exec`, Linux bubblewrap) with a host-filtering local proxy for the allow-list.
+- **S1. The sandbox for Node, Bun and Python.** An OS mechanism with a host-filtering local proxy for the allow-list: macOS `sandbox-exec`; Linux Landlock plus a seccomp filter for UDP, raw and Unix sockets, applied in the child before exec (bubblewrap was dropped: it cannot run under Docker's default seccomp or Kubernetes' `RuntimeDefault`). A host without it refuses by name.
 - **S2. Windows.** A code source is refused on Windows, by name.
 - **S3. Loopback.** Not reachable from a code source.
