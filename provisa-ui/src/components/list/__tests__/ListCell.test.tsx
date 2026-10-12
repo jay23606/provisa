@@ -16,7 +16,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Button, Table, Text } from "@mantine/core";
+import { Badge, Button, Code, Group, Stack, Table, Text } from "@mantine/core";
 import userEvent from "@testing-library/user-event";
 import { render, screen, within } from "../../../test-utils/render";
 import { ListCell, ListPills } from "../ListCell";
@@ -61,9 +61,16 @@ describe("a cell of text", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(TOKEN);
   });
 
-  it("a few short words stay on one line: wrapping them would gain nothing", () => {
-    render(<ListCell text="300s (custom)" />);
-    expect(screen.getByText("300s (custom)")).toHaveClass("list-cell--value");
+  it("a few short words are words: they wrap at their spaces, with no minimum width", () => {
+    render(<ListCell text="10/9/2026, 6:00:00 AM" />);
+    const cell = screen.getByText("10/9/2026, 6:00:00 AM");
+    expect(cell).toHaveClass("list-cell--words");
+    expect(cell).not.toHaveClass("list-cell--wide");
+  });
+
+  it("words longer than a wrapped column's minimum keep that minimum", () => {
+    render(<ListCell text={WORDS} />);
+    expect(screen.getByText(WORDS)).toHaveClass("list-cell--words", "list-cell--wide");
   });
 
   it("a single value no longer than its squeezed minimum keeps its whole width", () => {
@@ -180,8 +187,48 @@ describe("a list row", () => {
     const [, actions] = within(screen.getByTestId("row")).getAllByRole("cell");
     expect(actions).not.toHaveClass("list-capped");
     expect(actions.querySelector(".list-cell")).toBeNull();
-    // It keeps the width it asks for: it is not squeezed to make room for another column.
     expect(actions.querySelector(".list-cell-drawn button")).toHaveTextContent("Approve");
+  });
+
+  it("holds a name set in a row with its badges like a cell of text, and keeps the badges beside it", () => {
+    list(
+      <>
+        <Table.Td>
+          <Group gap="xs">
+            <Text size="sm">{TOKEN}</Text>
+            <Badge>drifted</Badge>
+          </Group>
+        </Table.Td>
+      </>,
+      ["Name"],
+    );
+    const [name] = within(screen.getByTestId("row")).getAllByRole("cell");
+    expect(name.querySelector(".list-cell-drawn .list-cell--token")).toHaveTextContent(TOKEN);
+    // The badge is drawn as the page drew it, not cut.
+    expect(name.querySelector(".list-cell--token")).not.toHaveTextContent("drifted");
+    expect(name).toHaveTextContent("drifted");
+  });
+
+  it("holds a statement set above a dimmed line like a cell of text", () => {
+    list(
+      <>
+        <Table.Td>
+          <Stack gap={2}>
+            <Code>{WORDS}</Code>
+            <Text size="xs" c="dimmed">
+              runs as admin
+            </Text>
+          </Stack>
+        </Table.Td>
+      </>,
+      ["Target"],
+    );
+    const [target] = within(screen.getByTestId("row")).getAllByRole("cell");
+    expect(target.querySelector(".list-cell-drawn .list-cell--words code")).toHaveTextContent(
+      WORDS,
+    );
+    const [, runsAs] = target.querySelectorAll(".list-cell-drawn .list-cell--words");
+    expect(runsAs).toHaveTextContent("runs as admin");
   });
 
   it("gives the list its cap and its row maximum once, and a column its own where it states one", async () => {
@@ -225,11 +272,13 @@ describe("the rules that make it so in a browser", () => {
 
   it("a long single value shows one line ending with an ellipsis, and may break to give up width", () => {
     expect(rule(".list-cell--token")).toContain("-webkit-line-clamp: 1");
-    expect(rule(".list-cell--token")).toContain("overflow-wrap: anywhere");
+    expect(rule(".list-cell--token")).toContain("word-break: break-all");
   });
 
   it("several words wrap up to the row's maximum of lines", () => {
     expect(rule(".list-cell--words")).toContain("-webkit-line-clamp: var(--list-row-lines)");
+    // A page that set nowrap on the cell does not stop it.
+    expect(rule(".list-cell--words")).toContain("white-space: normal");
   });
 
   it("a list is as wide as its container, and its columns give way inside it", () => {
@@ -238,10 +287,17 @@ describe("the rules that make it so in a browser", () => {
     expect(beside).not.toContain("max-content");
   });
 
-  it("wrapped text gives up width down to a minimum; what a page drew gives up none", () => {
-    expect(rule(".list-cell--words")).toContain("min-width: var(--list-wrap-min)");
+  it("a pill or a control in a cell the page drew keeps its own width", () => {
+    const kept = rule(
+      ".list-cell-drawn .mantine-Badge-root,\n.list-cell-drawn .mantine-Button-root,\n.list-cell-drawn .mantine-ActionIcon-root",
+    );
+    expect(kept).toContain("flex-shrink: 0");
+    expect(kept).toContain("min-width: max-content");
+  });
+
+  it("wrapped text and a long single value give up width down to their minimums", () => {
+    expect(rule(".list-cell--wide")).toContain("min-width: var(--list-wrap-min)");
     expect(rule(".list-cell--token")).toContain("min-width: var(--list-cut-min)");
-    expect(rule(".list-cell-drawn")).toContain("min-width: max-content");
   });
 
   it("a header is shown whole", () => {

@@ -23,7 +23,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { ActionIcon, Code, Group, Table, Text } from "@mantine/core";
+import { ActionIcon, Code, Group, Stack, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Layers } from "lucide-react";
 import type { ListItem, ListSortGroup } from "./useListSortGroup";
@@ -402,11 +402,12 @@ function capCells(
     if (cell.type !== Table.Td) return child;
     const text = cellText(cell.props.children);
     if (text === undefined) {
-      // Whatever else the page drew keeps the width it asks for: only wrapped text gives way.
+      // Whatever else the page drew is not cut: a control or a pill keeps its unbreakable width.
+      // Text set in a row beside it (a name and its badges) is held like a cell of text.
       return cloneElement(
         cell,
         undefined,
-        <div className="list-cell-drawn">{cell.props.children}</div>,
+        <div className="list-cell-drawn">{capGroupText(cell.props.children)}</div>,
       );
     }
     return cloneElement(
@@ -421,6 +422,28 @@ function capCells(
       <ListCell text={text}>{cell.props.children}</ListCell>,
     );
   });
+}
+
+/**
+ * A cell drawn as a row of items (a Mantine Group: a name followed by its badges or controls) or a
+ * column of them (a Mantine Stack: a statement above a dimmed line): each item of plain text in it
+ * is held to the column's cap and the row's maximum like a cell of text. A row keeps to one line,
+ * so the name gives up width and its badges stay beside it.
+ */
+function capGroupText(children: ReactNode): ReactNode {
+  const parts = Children.toArray(children);
+  if (parts.length !== 1 || !isValidElement(parts[0])) return children;
+  if (parts[0].type !== Group && parts[0].type !== Stack) return children;
+  const group = parts[0] as ReactElement<{ children?: ReactNode; wrap?: string }>;
+  let capped = false;
+  const items = Children.map(group.props.children, (item) => {
+    const text = cellText(item);
+    if (text === undefined) return item;
+    capped = true;
+    return <ListCell text={text}>{item}</ListCell>;
+  });
+  if (!capped) return children;
+  return cloneElement(group, group.type === Group ? { wrap: "nowrap" } : undefined, items);
 }
 
 /** Full-width row shown beneath an expanded row. */
