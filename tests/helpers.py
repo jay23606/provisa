@@ -150,9 +150,15 @@ def serve_surfaces(state) -> None:
     per-part maps (``schemas``, ``contexts``, ...) are views of it. A MagicMock set up part by
     part has a mock ``surfaces``, whose ``get(role).context.refusal`` is truthy and refuses every
     query. This builds ``surfaces`` from the maps the state was given and makes each map a view
-    of it. Call it once the maps are set."""
+    of it, as AppState's properties are: reading one is a view, and assigning a whole map (a test
+    that swaps a role's row filters) writes it into ``surfaces``. A MagicMock has a class of its
+    own, so the properties go on that class and no other mock gets them. Call it once the maps
+    are set."""
+    from unittest.mock import NonCallableMock
+
     from provisa.api.role_surface import SurfacePart, set_part
 
+    assert isinstance(state, NonCallableMock), "only a mock's class is its own to give properties"
     surfaces: dict = {}
     for part, view in _SURFACE_VIEWS.items():
         given = getattr(state, view)
@@ -160,7 +166,14 @@ def serve_surfaces(state) -> None:
             set_part(surfaces, part, given)
     state.surfaces = surfaces
     for part, view in _SURFACE_VIEWS.items():
-        setattr(state, view, SurfacePart(surfaces, part))
+        setattr(
+            type(state),
+            view,
+            property(
+                lambda s, p=part: SurfacePart(s.surfaces, p),
+                lambda s, v, p=part: set_part(s.surfaces, p, v),
+            ),
+        )
 
 
 def stub_materialization_noop(state) -> None:

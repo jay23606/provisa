@@ -56,14 +56,19 @@ def test_flight_healthcheck_reports_what_http_health_reports():
         boot.start()
         boot.wait_all_ready(timeout=300)
         # A worker logs "ready" and then registers in the control plane, which is what /health
-        # counts; read /health once every worker has registered (bounded), not at the log line.
+        # counts, and writes its node row (its first beat), which is what /health lists; the two
+        # land apart (suite 38198316000: two ready, one node). Read /health once every worker has
+        # done both (bounded), not at the log line.
         deadline = time.monotonic() + 60
         http = boot.health()
-        while (http is None or http["workers"]["ready"] < _WORKERS) and time.monotonic() < deadline:
+        while (
+            http is None or http["workers"]["ready"] < _WORKERS or len(http["nodes"]) < _WORKERS
+        ) and time.monotonic() < deadline:
             time.sleep(0.5)
             http = boot.health()
         assert http is not None
         assert http["workers"] == {"ready": _WORKERS, "expected": _WORKERS}
+        assert len(http["nodes"]) == _WORKERS, http["nodes"]
         # Fresh connections, so the action is answered by whichever worker the kernel hands
         # each one to: every answer is the launch's health, as /health's is.
         for _ in range(12):
