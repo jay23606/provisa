@@ -273,6 +273,32 @@ describe("SplitPane — leaving a form that has unsaved changes", () => {
     await userEvent.type(screen.getByLabelText("alias"), "_v2");
   };
   const asked = () => screen.queryByRole("dialog");
+  // The dialog's own root in the page: a pane that asks nothing must hold none (a page may
+  // rightly assert that what it shows is not a dialog).
+  const modalRoot = () => document.querySelector(".mantine-Modal-root");
+
+  it("holds no dialog in the page until a leave is attempted, and none after the answer", async () => {
+    render(<Tables />);
+    // Nothing open, then a clean form, then a changed one: no leave attempted, no dialog.
+    expect(modalRoot()).toBeNull();
+    await userEvent.click(row("orders"));
+    expect(modalRoot()).toBeNull();
+    await userEvent.type(screen.getByLabelText("alias"), "_v2");
+    expect(modalRoot()).toBeNull();
+    // A leave attempt on the changed form: the dialog is there.
+    await userEvent.click(row("customers"));
+    await screen.findByRole("dialog");
+    expect(modalRoot()).not.toBeNull();
+    // Cancel: gone again. The pane unmounts the dialog with the answer, so there is no exit
+    // transition to wait out; waitFor only covers the state update.
+    await userEvent.click(within(screen.getByRole("dialog")).getByText("Cancel"));
+    await waitFor(() => expect(modalRoot()).toBeNull());
+    // And after Discard.
+    await userEvent.click(row("customers"));
+    await userEvent.click(await screen.findByTestId("discard-changes-confirm"));
+    await waitFor(() => expect(modalRoot()).toBeNull());
+    expect(title()).toHaveTextContent("customers");
+  });
 
   it("asks when another row is chosen, naming what is being edited", async () => {
     render(<Tables />);
