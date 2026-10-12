@@ -9,7 +9,7 @@ Toute requête finit par s'exécuter à travers le moteur de fédération, qui a
 | **Capable en direct** | Oui | Oui | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Fédération seule** | Non | Oui | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (adossé à S3) |
 | **Lecture directe (réplica)** | Oui | Oui | Snowflake, Databricks, ClickHouse — le pilote lit les données et dépose un réplica ; les requêtes s'exécutent contre le réplica dans le moteur actif |
-| **Matérialisation → fédération** | Non | Non | REST/OpenAPI, GraphQL distant, gRPC, Cypher Neo4j, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (récepteur push), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **Matérialisation → fédération** | Non | Non | REST/OpenAPI, GraphQL distant, gRPC, Cypher Neo4j, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (récepteur push), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 Les sources **capables en direct** exécutent les requêtes mono-source via leur pilote natif (moins de 100 ms), en contournant le moteur de fédération (REQ-027, REQ-229). Elles conservent la prise en charge complète des connecteurs et participent à la fédération lorsqu'elles sont jointes à d'autres sources (REQ-028).
 
@@ -23,7 +23,7 @@ Les sources à **matérialisation** n'ont pas de connecteur fédéré. Provisa r
 
 ## Toutes les sources
 
-Provisa enregistre **57** types de sources. Les tableaux ci-dessous les couvrent tous les 57 ; l'index correspond au décompte. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle compté comme une source distincte bien qu'il s'enregistre en interne via le connecteur `files`]
+Provisa enregistre **58** types de sources. Les tableaux ci-dessous les couvrent tous les 58 ; l'index correspond au décompte. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle compté comme une source distincte bien qu'il s'enregistre en interne via le connecteur `files`]
 
 | # | Groupe | Types de sources |
 | --- | --- | --- |
@@ -31,17 +31,17 @@ Provisa enregistre **57** types de sources. Les tableaux ci-dessous les couvrent
 | 14–21 | [Entrepôts de données cloud](#entrepots-de-donnees-cloud) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [Analytique / OLAP](#analytique-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Lac de données / formats de tables ouverts](#lac-de-donnees-formats-de-tables-ouverts) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [Flux (streaming)](#flux-streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [Récepteur push](#recepteur-push) | `ingest` |
-| 40–41 | [Graphe et sémantique](#graphe-et-semantique) | `neo4j`, `sparql` |
-| 42–45 | [Fondées sur des fichiers](#fondees-sur-des-fichiers) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Observabilité et autres](#observabilite-et-autres) | `google_sheets`, `prometheus` |
-| 48–50 | [SaaS d'entreprise](#connecteurs-saas-dentreprise) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [Sources API](#sources-api) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [Vérificateurs de qualité des données](#verificateurs-de-qualite-des-donnees-req-1443) | `soda`, `great_expectations` |
-| 57 | [Jeux de données Kaggle](#kaggle-datasets) | Kaggle (mis en scène via le formulaire Sources ; s'enregistre comme source `files` — voir [Jeux de données Kaggle](#kaggle-datasets)) |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Flux (streaming)](#flux-streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Récepteur push](#recepteur-push) | `ingest` |
+| 41–42 | [Graphe et sémantique](#graphe-et-semantique) | `neo4j`, `sparql` |
+| 43–46 | [Fondées sur des fichiers](#fondees-sur-des-fichiers) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observabilité et autres](#observabilite-et-autres) | `google_sheets`, `prometheus` |
+| 49–51 | [SaaS d'entreprise](#connecteurs-saas-dentreprise) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [Sources API](#sources-api) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [Vérificateurs de qualité des données](#verificateurs-de-qualite-des-donnees-req-1443) | `soda`, `great_expectations` |
+| 58 | [Jeux de données Kaggle](#kaggle-datasets) | Kaggle (mis en scène via le formulaire Sources ; s'enregistre comme source `files` — voir [Jeux de données Kaggle](#kaggle-datasets)) |
 
 Référence de chaque type de source pris en charge par Provisa. « Pilote direct » signifie que les requêtes mono-source s'exécutent nativement contre la source (moins de 100 ms) (REQ-027). Le « nom du connecteur » est le connecteur fédéré employé lorsque la source participe à des JOIN multi-sources (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

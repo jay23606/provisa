@@ -23,8 +23,17 @@ in the mount's memory from then on. The files are durable: nothing is deleted wh
 - A changed reference (a rotated key) re-encrypts the folder under the new key, read with the one
   the folder was encrypted under.
 - A reference the vault will not resolve (access revoked) refuses the folder, naming the org.
-- A key that no longer opens the folder (lost, replaced in the vault) means the files are reset and
-  rebuilt as needed: the only time anything is discarded, and it is logged naming the org.
+- A key that does not open the folder (lost, replaced in the vault) refuses the folder, naming the
+  org; nothing is reset. The files are discarded only when an org admin deliberately sets a new
+  key and the folder's own key can no longer be read: that reset is logged naming the org.
+
+A deployment of several nodes shares one mount of the data folder (``org_files.shared_mount``):
+every node mounts the same ciphertext, with ``-sharedstorage``, and records that it does under
+``orgs/.<org>.mounted/<node id>``. A change of the folder's encryption (on, off, a new key) moves
+its files, so it applies only while no other node holds a mount, and is refused naming them
+otherwise; they mount the folder again at their next runtime build. Each process records its use
+of its node's mount, and the last one to shut down releases it (:func:`release`), so only a node
+that died leaves its record.
 
 gocryptfs needs FUSE: a Linux host or container with /dev/fuse. On macOS the setting is refused by
 name.
@@ -74,6 +83,20 @@ class FolderEncryptionUnsupported(RuntimeError):
         self.org_id = org_id
 
 
+class FolderInUse(RuntimeError):
+    """A change of the folder's encryption while other nodes hold a mount of it."""
+
+    def __init__(self, org_id: str, nodes: list[str], markers: Path) -> None:
+        super().__init__(
+            f"org {org_id!r}'s file folder is mounted on other nodes ({', '.join(nodes)}); a "
+            "change to its encryption applies once they have released it. A node releases its "
+            "mount when it shuts down; one that died without shutting down holds it until its "
+            f"entry under {markers} is removed"
+        )
+        self.org_id = org_id
+        self.nodes = nodes
+
+
 class InvalidKeyReference(ValueError):
     """A key reference that is not one secret of the org's vault."""
 
@@ -99,6 +122,66 @@ def check_settings(settings: FolderSettings) -> None:
 
 
 Resolve = Callable[[str], Awaitable[str]]
+
+
+def _markers(folder: Path) -> Path:
+    """Where each node that holds a mount of the folder records it: a directory per node id,
+    holding one entry per process of that node using the mount, by its process id."""
+    return folder.parent / f".{folder.name}.mounted"
+
+
+def _alive(pid: str) -> bool:
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Another user's process holds the pid: alive.
+        return True
+    return True
+
+
+def _hold(folder: Path) -> None:
+    """Record that this process uses this node's mount of the folder."""
+    from provisa.core.org_files import node_id
+
+    mine = _markers(folder) / node_id()
+    mine.mkdir(mode=0o700, parents=True, exist_ok=True)
+    (mine / str(os.getpid())).touch()
+
+
+def release(org_id: str, folder: Path) -> None:
+    """This process stops using the folder (its server shutting down: SIGTERM or a stop). The
+    node's mount is released -- unmounted, its record removed -- when no other live process of
+    the node still uses it, so a node that shuts down gracefully leaves no record behind; only a
+    node that died does."""
+    from provisa.core.org_files import node_id
+
+    _cipher, _ref, _staging, lock = _paths(folder)
+    with _locked(lock):
+        mine = _markers(folder) / node_id()
+        if not mine.is_dir():
+            return
+        (mine / str(os.getpid())).unlink(missing_ok=True)
+        for entry in list(mine.iterdir()):
+            if not _alive(entry.name):
+                entry.unlink(missing_ok=True)
+        if any(mine.iterdir()):
+            return
+        if os.path.ismount(folder):
+            _unmount(folder)
+        shutil.rmtree(mine, ignore_errors=True)
+        log.info("org %s: this node released its mount of the org's file folder", org_id)
+
+
+def _mounted_elsewhere(folder: Path) -> list[str]:
+    """The other nodes that hold a mount of the folder."""
+    from provisa.core.org_files import node_id
+
+    markers = _markers(folder)
+    if not markers.is_dir():
+        return []
+    return sorted(m.name for m in markers.iterdir() if m.name != node_id())
 
 
 def _paths(folder: Path) -> tuple[Path, Path, Path, Path]:
@@ -155,14 +238,25 @@ def _init(org_id: str, cipher: Path, key: str) -> None:
 
 
 def _mount(cipher: Path, folder: Path, key: str) -> int:
+    """Mount the ciphertext at the folder, recording that this node holds a mount. On a mount
+    shared across nodes, with ``-sharedstorage``: every node mounts the same ciphertext."""
+    from provisa.core.org_files import shared_mount
+
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-    return _gocryptfs([str(cipher), str(folder)], key)
+    shared = ["-sharedstorage"] if shared_mount() else []
+    code = _gocryptfs([*shared, str(cipher), str(folder)], key)
+    if code == 0:
+        _hold(folder)
+    return code
 
 
 def _unmount(folder: Path) -> None:
+    from provisa.core.org_files import node_id
+
     tool = shutil.which("fusermount3") or shutil.which("fusermount") or "umount"
     args = [tool, "-u", str(folder)] if "fusermount" in tool else [tool, str(folder)]
     subprocess.run(args, check=True, capture_output=True)  # noqa: S603
+    shutil.rmtree(_markers(folder) / node_id(), ignore_errors=True)
 
 
 def _move_contents(source: Path, target: Path) -> None:
@@ -178,10 +272,11 @@ def _move_contents(source: Path, target: Path) -> None:
 
 
 def _reset(org_id: str, folder: Path, cipher: Path, ref_file: Path, why: str) -> None:
-    """The one place an org's files are discarded: its key no longer opens them."""
+    """The one place an org's files are discarded: an org admin set a new key and the folder's
+    own key can no longer be read."""
     log.warning(
-        "org %s: its file folder's key no longer opens it (%s); its files are reset and rebuilt "
-        "as needed",
+        "org %s: a new key was set for its file folder and the key it was encrypted under can no "
+        "longer be read (%s); its files are reset and rebuilt as needed",
         org_id,
         why,
     )
@@ -210,6 +305,10 @@ def apply(
     cipher, ref_file, staging, lock = _paths(folder)
     with _locked(lock):
         encrypted_now = (cipher / _CONF).exists()
+        if changes(folder, settings):
+            others = _mounted_elsewhere(folder)
+            if others:
+                raise FolderInUse(org_id, others, _markers(folder))
         if not settings.encrypted:
             if encrypted_now:
                 _decrypt_out(org_id, folder, cipher, ref_file, staging, key_of)
@@ -226,19 +325,14 @@ def apply(
             _encrypt_in(org_id, folder, cipher, staging, key)
         ref_file.write_text(settings.key_reference)
         if os.path.ismount(folder):
+            # This node's mount, made by another of its processes: this one uses it too.
+            _hold(folder)
             return
         code = _mount(cipher, folder, key)
         if code == _WRONG_PASSWORD:
-            _reset(
-                org_id,
-                folder,
-                cipher,
-                ref_file,
-                "the key in the vault is not the one it was encrypted under",
+            raise FolderKeyUnavailable(
+                org_id, "the key the vault holds is not the one the folder is encrypted under"
             )
-            _init(org_id, cipher, key)
-            ref_file.write_text(settings.key_reference)
-            code = _mount(cipher, folder, key)
         if code != 0:
             raise FolderEncryptionUnsupported(org_id, f"gocryptfs exited with {code} mounting it")
 
@@ -270,13 +364,17 @@ def _decrypt_out(
     recorded = ref_file.read_text().strip() if ref_file.exists() else None
     if not os.path.ismount(folder):
         if recorded is None:
-            _reset(org_id, folder, cipher, ref_file, "no record of its key")
-            return
+            raise FolderKeyUnavailable(
+                org_id, "there is no record of the key it is encrypted under"
+            )
         _require_tool(org_id)
         code = _mount(cipher, folder, key_of(recorded))
+        if code == _WRONG_PASSWORD:
+            raise FolderKeyUnavailable(
+                org_id, "the key the vault holds is not the one the folder is encrypted under"
+            )
         if code != 0:
-            _reset(org_id, folder, cipher, ref_file, f"gocryptfs exited with {code}")
-            return
+            raise FolderEncryptionUnsupported(org_id, f"gocryptfs exited with {code} mounting it")
     staging.mkdir(mode=0o700, parents=True, exist_ok=True)
     _move_contents(folder, staging)
     _unmount(folder)
@@ -296,7 +394,9 @@ def _reencrypt(
     recorded: str | None,
     key: str,
 ) -> None:
-    """A rotated key: the folder is read with the key it was encrypted under and encrypted anew."""
+    """A new key set by an org admin: the folder is read with the key it was encrypted under and
+    encrypted anew. Where that key can no longer be read, the folder is reset under the new one --
+    the admin's deliberate act, the one reset there is."""
     try:
         if recorded is None:
             raise FolderKeyUnavailable(org_id, "no record of the key it was encrypted under")

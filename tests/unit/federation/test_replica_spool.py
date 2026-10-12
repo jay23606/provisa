@@ -408,10 +408,12 @@ def test_a_kind_that_writes_its_own_rows_has_no_replica_to_spool():
 
 
 def test_the_spool_directory_is_in_the_orgs_folder_and_every_org_is_swept_at_start():
-    """REQ-1992: each org spools in its own folder on the node; a node start sweeps them all."""
+    """REQ-1992: each org spools in this node's own part of its folder; a node start sweeps every
+    org's spool of this node."""
     import inspect
 
     from provisa.api import app_startup
+    from provisa.core.org_files import node_id
     from provisa.core.request_context import require_current_org
     from provisa.federation.replica_spool import (
         node_spool_directories,
@@ -420,7 +422,7 @@ def test_the_spool_directory_is_in_the_orgs_folder_and_every_org_is_swept_at_sta
     )
 
     org_folder = Path(os.environ["PROVISA_DATA_DIR"]) / "orgs" / require_current_org()
-    assert spool_directory() == org_folder / "replica-spool"
+    assert spool_directory() == org_folder / "nodes" / node_id() / "replica-spool"
     assert spool_limit() == 2 * 1024**3
     spool_directory().mkdir(parents=True, exist_ok=True)
     assert spool_directory() in node_spool_directories()
@@ -428,12 +430,17 @@ def test_the_spool_directory_is_in_the_orgs_folder_and_every_org_is_swept_at_sta
 
 
 def test_the_nodes_one_bound_counts_every_orgs_spool(tmp_path, monkeypatch):
-    """The node's ``replication.spool_max_bytes`` is one bound, over every org's spool files."""
+    """The node's ``replication.spool_max_bytes`` is one bound, over every org's spool files of
+    this node; another node's sharing the mount are not counted."""
     from provisa.federation import replica_spool
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
-    a = tmp_path / "orgs" / "org_a" / "replica-spool"
-    b = tmp_path / "orgs" / "org_b" / "replica-spool"
+    monkeypatch.setenv("PROVISA_ORG_FILES_NODE_ID", "pod-a")
+    a = tmp_path / "orgs" / "org_a" / "nodes" / "pod-a" / "replica-spool"
+    b = tmp_path / "orgs" / "org_b" / "nodes" / "pod-a" / "replica-spool"
+    other = tmp_path / "orgs" / "org_a" / "nodes" / "pod-b" / "replica-spool"
+    other.mkdir(parents=True)
+    (other / f"x{replica_spool.SPOOL_SUFFIX}").write_bytes(b"x" * 900)
     for directory, size in ((a, 300), (b, 500)):
         directory.mkdir(parents=True)
         (directory / f"x{replica_spool.SPOOL_SUFFIX}").write_bytes(b"x" * size)

@@ -21,8 +21,9 @@ source still produces its whole answer for every build, the parse is a second pa
 length of a build the source's data sits on this node's disk, not encrypted by Provisa. It is
 used only for a source with no cursor and no stream; a store is never loaded from a file.
 
-The files live in one directory this node owns, under its data directory
-(``<data dir>/replica-spool``, mode 0700, files 0600), never the system temporary directory.
+The files live in one directory per org that this node owns, in the node's own subtree of the
+org's folder (``<data dir>/orgs/<org>/nodes/<node id>/replica-spool``, mode 0700, files 0600),
+never the system temporary directory.
 Each file is held under an OS file lock by the process using it and removed when its build
 ends, however it ends. A file found unlocked is one a crashed build left: it is removed at node
 start and before every new spool. The directory's total size is bounded by one operator setting
@@ -86,26 +87,25 @@ SPOOL_DIR_NAME = "replica-spool"
 
 
 def spool_directory() -> Path:
-    """The bound org's spool directory: ``replica-spool`` in its folder on this node."""
-    from provisa.core.org_files import org_root
+    """The bound org's spool directory: ``replica-spool`` in this node's own subtree of its
+    folder, which no other node sharing the mount writes."""
+    from provisa.core.org_files import node_path
 
-    return org_root() / SPOOL_DIR_NAME
+    return node_path(SPOOL_DIR_NAME)
 
 
 def node_spool_directories() -> list[Path]:
-    """Every org's spool directory on this node: what a node start sweeps, and what the node's
-    one bound (``replication.spool_max_bytes``) is counted over."""
-    from provisa.core.org_files import orgs_dir
+    """Every org's spool directory of this node: what a node start sweeps, and what the node's
+    one bound (``replication.spool_max_bytes``) is counted over. Another node's are never swept."""
+    from provisa.core.org_files import node_id, orgs_dir
 
-    return sorted(p for p in orgs_dir().glob(f"*/{SPOOL_DIR_NAME}") if p.is_dir())
+    return sorted(p for p in orgs_dir().glob(f"*/nodes/{node_id()}/{SPOOL_DIR_NAME}") if p.is_dir())
 
 
 def node_used_bytes(directory: Path) -> int:
-    """The bytes this node's spool files hold now: every org's, when ``directory`` is an org's
-    spool directory; else ``directory``'s own."""
-    from provisa.core.org_files import orgs_dir
-
-    if directory.parent.parent != orgs_dir():
+    """The bytes this node's spool files hold now: every org's, when ``directory`` is one of this
+    node's org spool directories; else ``directory``'s own."""
+    if directory not in node_spool_directories():
         return used_bytes(directory)
     return sum(used_bytes(d) for d in node_spool_directories())
 

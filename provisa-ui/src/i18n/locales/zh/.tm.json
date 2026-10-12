@@ -5863,7 +5863,7 @@
   "zh/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it.",
   "zh/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)",
   "zh/orgFilesTab.json::orgFilesTab.referenceLabel": "Key reference",
-  "zh/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "zh/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "zh/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
   "zh/orgFilesTab.json::orgFilesTab.warn3": "Keep a second copy in a separate secure location under your own control.",
   "zh/orgFilesTab.json::orgFilesTab.encrypt": "Encrypt the organization's file folder",
@@ -6015,5 +6015,9 @@
   "zh/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "zh/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "zh/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "zh/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "zh/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "zh/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "zh/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "zh/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "zh/settings.json::settings.org_files.node_id.label": "Node name"
 }

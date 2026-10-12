@@ -727,6 +727,16 @@
         "label": "Registro de log mais longo",
         "help": "Um registro mais longo mantém seus primeiros bytes como texto bruto, e seu erro de leitura diz que era longo demais."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Pasta de dados compartilhada por todos os nós",
+        "help": "Ativado: cada nó da implantação usa uma única montagem compartilhada da pasta de dados, e cada um guarda o que pertence aos seus próprios processos na sua própria parte da pasta de cada organização. O inicializador que iniciou a implantação define isso."
+      },
+      "node_id": {
+        "label": "Nome do nó",
+        "help": "O nome deste nó entre os nós que compartilham a pasta de dados: o nome do pod ou do host, a menos que o inicializador defina outro."
+      }
     }
   }
 }

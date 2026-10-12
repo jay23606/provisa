@@ -9,7 +9,7 @@
 | **Прямая поддержка (direct-capable)** | Да | Да | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Только федерация** | Нет | Да | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (на базе S3) |
 | **Прямое чтение (реплика)** | Да | Да | Snowflake, Databricks, ClickHouse — драйвер читает данные и создаёт реплику; запросы выполняются против реплики в активном движке |
-| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 Источники с **прямой поддержкой** выполняют однопоточные (single-source) запросы через свой нативный драйвер (менее 100 мс), минуя движок федерации (REQ-027, REQ-229). Они сохраняют полную поддержку коннектора и участвуют в федерации при объединении с другими источниками (REQ-028).
 
@@ -23,7 +23,7 @@
 
 ## Все источники
 
-Provisa регистрирует **57** типа источников. Приведённые ниже таблицы охватывают все 57; индекс — это просто счётчик. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle учитывается как отдельный источник, хотя внутренне регистрируется через коннектор `files`]
+Provisa регистрирует **58** типа источников. Приведённые ниже таблицы охватывают все 58; индекс — это просто счётчик. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle учитывается как отдельный источник, хотя внутренне регистрируется через коннектор `files`]
 
 | # | Группа | Типы источников |
 | --- | --- | --- |
@@ -31,17 +31,17 @@ Provisa регистрирует **57** типа источников. Прив�
 | 14–21 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [Приёмник push-данных](#push-receiver) | `ingest` |
-| 40–41 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
-| 42–45 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
-| 48–50 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 57 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Приёмник push-данных](#push-receiver) | `ingest` |
+| 41–42 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
+| 43–46 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
+| 49–51 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 58 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
 
 Справочник по каждому типу источника, поддерживаемому Provisa. «Прямой драйвер» означает, что однопоточные запросы выполняются напрямую к источнику (менее 100 мс) (REQ-027). «Имя коннектора» — это федеративный коннектор, используемый, когда источник участвует в многопоточных (multi-source) JOIN (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

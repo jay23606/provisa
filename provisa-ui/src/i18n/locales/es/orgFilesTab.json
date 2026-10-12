@@ -15,7 +15,7 @@
     "warn2": "Guárdela ahora en el almacén de secretos de su organización; no se volverá a mostrar.",
     "warn3": "Guarde una segunda copia en otro lugar seguro bajo su propio control.",
     "warn4": "Limite quién puede leerla y nunca la envíe por correo electrónico, chat ni ticket.",
-    "warn5": "Si la pierde, los archivos cifrados se restablecen y se vuelven a generar.",
+    "warn5": "Si la pierde, los archivos no se pueden abrir hasta que establezca una clave nueva, y establecerla restablece los archivos cifrados.",
     "warn6": "Para rotarla, genere una clave nueva, guárdela en su almacén y actualice la referencia.",
     "saved": "Guardado. Cada servidor lo aplica la próxima vez que inicie trabajo para esta organización."
   }

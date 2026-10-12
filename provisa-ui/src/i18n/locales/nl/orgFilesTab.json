@@ -15,7 +15,7 @@
     "warn2": "Sla hem nu op in de geheimenkluis van uw organisatie; hij wordt niet opnieuw getoond.",
     "warn3": "Bewaar een tweede kopie op een aparte veilige plek onder uw eigen beheer.",
     "warn4": "Beperk wie hem kan lezen en stuur hem nooit per e-mail, chat of ticket.",
-    "warn5": "Raakt u hem kwijt, dan worden de versleutelde bestanden gewist en opnieuw opgebouwd.",
+    "warn5": "Raakt u hem kwijt, dan zijn de bestanden pas weer te openen als u een nieuwe sleutel instelt, en dat wist de versleutelde bestanden.",
     "warn6": "Om hem te vervangen genereert u een nieuwe sleutel, bewaart u die in uw kluis en werkt u de verwijzing bij.",
     "saved": "Opgeslagen. Elke server past het toe wanneer hij de volgende keer werk voor deze organisatie start."
   }

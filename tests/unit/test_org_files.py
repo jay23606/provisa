@@ -50,9 +50,48 @@ def test_temporary_files_are_made_in_the_orgs_folder(data_dir, bind_org, monkeyp
     bind_org("acme")
     asyncio.run(org_files.prepare("acme"))
     made = org_files.mkdtemp("x-")
-    assert made.startswith(str(data_dir / "orgs" / "acme" / "tmp"))
+    # This node's own temporary directory in the org's folder (REQ-1992: nodes share the mount).
+    assert made.startswith(str(data_dir / "orgs" / "acme" / "nodes" / org_files.node_id() / "tmp"))
 
 
 def test_an_org_id_that_is_not_one_path_segment_never_becomes_a_path(data_dir, monkeypatch):
     with pytest.raises(ValueError):
         org_files.folder("../acme")
+
+
+def test_what_one_process_keeps_is_in_the_nodes_own_subtree(data_dir, bind_org, monkeypatch):
+    """REQ-1992: nodes sharing the mount never write each other's run directories, spools or
+    temporary files."""
+    monkeypatch.setenv("PROVISA_ORG_FILES_NODE_ID", "pod-a")
+    bind_org("acme")
+    asyncio.run(org_files.prepare("acme"))
+    own = data_dir / "orgs" / "acme" / "nodes" / "pod-a"
+    assert org_files.org_tmp() == own / "tmp"
+    assert org_files.node_path("pgwire", "1.0", "src") == own / "pgwire" / "1.0" / "src"
+
+
+@pytest.mark.parametrize("name", ["../pod", "pod/a", ".hidden"])
+def test_a_node_name_that_is_not_one_path_segment_is_refused(monkeypatch, name):
+    monkeypatch.setenv("PROVISA_ORG_FILES_NODE_ID", name)
+    with pytest.raises(ValueError, match="one path segment"):
+        org_files.node_id()
+
+
+def test_the_spool_sweep_reaches_only_this_nodes_spools(data_dir, bind_org, monkeypatch):
+    from provisa.federation.replica_spool import node_spool_directories
+
+    monkeypatch.setenv("PROVISA_ORG_FILES_NODE_ID", "pod-a")
+    for node in ("pod-a", "pod-b"):
+        (data_dir / "orgs" / "acme" / "nodes" / node / "replica-spool").mkdir(parents=True)
+    assert node_spool_directories() == [
+        data_dir / "orgs" / "acme" / "nodes" / "pod-a" / "replica-spool"
+    ]
+
+
+def test_the_embedded_duckdb_store_is_refused_on_a_shared_mount(data_dir, monkeypatch):
+    from provisa.federation.engine import EmbeddedStoreOnSharedMount, embedded_store_dsn
+
+    monkeypatch.setenv("PROVISA_ORG_FILES_SHARED_MOUNT", "true")
+    asyncio.run(org_files.prepare("acme"))
+    with pytest.raises(EmbeddedStoreOnSharedMount, match="materialize_store_url"):
+        embedded_store_dsn("acme")

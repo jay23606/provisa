@@ -727,6 +727,16 @@
         "label": "Längster Logeintrag",
         "help": "Ein längerer Eintrag behält seine ersten Bytes als Rohtext, und sein Lesefehler sagt, dass er zu lang war."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Datenordner von allen Knoten geteilt",
+        "help": "Ein: Jeder Knoten der Bereitstellung nutzt eine gemeinsame Einbindung des Datenordners und hält, was zu seinen eigenen Prozessen gehört, in seinem eigenen Teil des Ordners jeder Organisation. Der Starter der Bereitstellung legt es fest."
+      },
+      "node_id": {
+        "label": "Knotenname",
+        "help": "Der Name dieses Knotens unter den Knoten, die den Datenordner teilen: sein Pod- oder Hostname, sofern der Starter keinen anderen festlegt."
+      }
     }
   }
 }

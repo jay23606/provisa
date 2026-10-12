@@ -727,6 +727,16 @@
         "label": "Registro más largo",
         "help": "Un registro más largo conserva sus primeros bytes como texto sin procesar, y su error de lectura dice que era demasiado largo."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Carpeta de datos compartida por todos los nodos",
+        "help": "Activado: cada nodo de la implementación usa un único montaje compartido de la carpeta de datos, y cada uno guarda lo que pertenece a sus propios procesos en su propia parte de la carpeta de cada organización. Lo establece el lanzador que inició la implementación."
+      },
+      "node_id": {
+        "label": "Nombre del nodo",
+        "help": "El nombre de este nodo entre los nodos que comparten la carpeta de datos: su nombre de pod o de host, salvo que el lanzador establezca otro."
+      }
     }
   }
 }

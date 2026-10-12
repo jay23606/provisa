@@ -3290,6 +3290,13 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
         model_change.detach()
         with tolerate_shutdown_failure("admin_db close"):
             await state.admin_db.close()
+    # REQ-1992: last, once every server, engine and store of this process has closed its files:
+    # the encrypted org folders this process mounted are released, and the node's last process
+    # unmounts, removing its record of the mount -- so only a node that died leaves one.
+    with tolerate_shutdown_failure("org folders release"):
+        from provisa.core import org_files
+
+        await org_files.release_all()
     reset_current_org(_boot_org_token)
 
 

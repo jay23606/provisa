@@ -9,7 +9,7 @@ Toda consulta em última análise é executada através do motor de federação,
 | **Direta-capaz** | Sim | Sim | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Somente federação** | Não | Sim | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (apoiado em S3) |
 | **Leitura direta (réplica)** | Sim | Sim | Snowflake, Databricks, ClickHouse — o driver lê os dados e pousa uma réplica; consultas rodam contra a réplica no motor ativo |
-| **Materializar → Federação** | Não | Não | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
+| **Materializar → Federação** | Não | Não | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
 
 Fontes **direta-capazes** executam consultas de fonte única via seu driver nativo (sub-100ms), contornando o motor de federação (REQ-027, REQ-229). Elas mantêm suporte completo a conectores e participam de federação quando unidas com outras fontes (REQ-028).
 
@@ -23,7 +23,7 @@ Fontes de **materialização** não têm conector federado. O Provisa busca seus
 
 ## Todas as Fontes
 
-O Provisa registra **56** tipos de fonte. As tabelas abaixo cobrem os 56; o índice é a contagem. [tool-verified: `provisa/core/models.py` `SourceType`]
+O Provisa registra **57** tipos de fonte. As tabelas abaixo cobrem os 57; o índice é a contagem. [tool-verified: `provisa/core/models.py` `SourceType`]
 
 | # | Grupo | Tipos de fonte |
 | --- | --- | --- |
@@ -31,16 +31,16 @@ O Provisa registra **56** tipos de fonte. As tabelas abaixo cobrem os 56; o índ
 | 14–21 | [Data warehouses em nuvem](#data-warehouses-em-nuvem) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 22–26 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 27–31 | [Data lake / formatos de tabela aberta](#data-lake-formatos-de-tabela-aberta) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 36–38 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 39 | [Receptor push](#receptor-push) | `ingest` |
-| 40–41 | [Grafo e semântico](#grafo-e-semantico) | `neo4j`, `sparql` |
-| 42–45 | [Baseado em arquivo](#baseado-em-arquivo) | `sqlite`, `csv`, `parquet`, `files` |
-| 46–47 | [Observabilidade e outros](#observabilidade-e-outros) | `google_sheets`, `prometheus` |
-| 48–50 | [SaaS empresarial](#conectores-saas-empresariais) | `sharepoint`, `splunk`, `servicenow` |
-| 51–53 | [Fontes de API](#fontes-de-api) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 54 | [GovData](#govdata) | `govdata` |
-| 55–56 | [Verificadores de qualidade de dados](#verificadores-de-qualidade-de-dados-req-1443) | `soda`, `great_expectations` |
+| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Receptor push](#receptor-push) | `ingest` |
+| 41–42 | [Grafo e semântico](#grafo-e-semantico) | `neo4j`, `sparql` |
+| 43–46 | [Baseado em arquivo](#baseado-em-arquivo) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observabilidade e outros](#observabilidade-e-outros) | `google_sheets`, `prometheus` |
+| 49–51 | [SaaS empresarial](#conectores-saas-empresariais) | `sharepoint`, `splunk`, `servicenow` |
+| 52–54 | [Fontes de API](#fontes-de-api) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 55 | [GovData](#govdata) | `govdata` |
+| 56–57 | [Verificadores de qualidade de dados](#verificadores-de-qualidade-de-dados-req-1443) | `soda`, `great_expectations` |
 
 Referência para todo tipo de fonte que o Provisa suporta. "Driver direto" significa que consultas de fonte única são executadas contra a fonte nativamente (sub-100ms) (REQ-027). "Nome do Conector" é o conector federado usado quando a fonte participa de JOINs multi-fonte (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

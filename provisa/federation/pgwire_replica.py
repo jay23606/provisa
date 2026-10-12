@@ -714,9 +714,10 @@ def server_state_dir(
     (``$PROVISA_DATA_DIR``, else ``~/.provisa``, as the instance's other per-instance state is),
     by bundle version and source id (the key a server's ports are allocated by, with its org) in
     its org's folder on this node (REQ-1992): a source id is unique only within its org."""
-    from provisa.core.org_files import org_path
+    from provisa.core.org_files import node_path
 
-    state = org_path("pgwire", version, source_id, org_id=org_id)
+    # The node's own: each node sharing the mount runs its own server for the source.
+    state = node_path("pgwire", version, source_id, org_id=org_id)
     state.mkdir(parents=True, exist_ok=True)
     for entry in Path(bundle_dir).iterdir():
         name = entry.name

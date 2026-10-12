@@ -159,6 +159,23 @@ provisa:
   # setting to encrypt its folder is refused by name.
   folderEncryption:
     enabled: false
+  # REQ-1992: every replica keeps the organizations' file folders (<data dir>/orgs) on one shared
+  # volume, so a file one replica writes is there for the others. Sets org_files.shared_mount on
+  # every pod and names each pod's own part of each folder by its pod name (org_files.node_id).
+  # The claim must be ReadWriteMany. On a shared volume the materialization store is a server
+  # store: the embedded DuckDB store is refused at startup.
+  orgFiles:
+    sharedVolume:
+      enabled: false
+      # Use a claim you already have; empty creates `<release>-provisa-org-files`.
+      existingClaim: ""
+      size: 10Gi
+      accessMode: ReadWriteMany
+      # "" uses global.storageClass (and that, when empty, the cluster default).
+      storageClass: ""
+      # The data folder when encryption.dataVolume does not set one; the shared volume is mounted
+      # at its orgs folder.
+      dataDir: /var/lib/provisa
   image:
     repository: provisa
     tag: latest

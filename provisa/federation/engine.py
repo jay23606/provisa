@@ -673,11 +673,25 @@ def _embedded_duckdb_materialize_default() -> str | None:  # REQ-989
     return embedded_store_dsn(None)
 
 
+class EmbeddedStoreOnSharedMount(RuntimeError):
+    """The embedded DuckDB store asked for on a data folder shared by several nodes."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the embedded DuckDB materialization store cannot serve a deployment whose nodes "
+            "share one data folder (org_files.shared_mount): DuckDB has one writer, so a second "
+            "node could not open it. Set materialize_store_url to a server store"
+        )
+
+
 def embedded_store_dsn(org_id: str | None) -> str:
     """The embedded DuckDB store of ``org_id`` (the bound org when None): ``materialize.duckdb``
-    in its folder (REQ-1992)."""
-    from provisa.core.org_files import org_root
+    in its folder (REQ-1992). Refused by name on a data folder shared by several nodes, whose
+    deployment uses a server store."""
+    from provisa.core.org_files import org_root, shared_mount
 
+    if shared_mount():
+        raise EmbeddedStoreOnSharedMount()
     return f"duckdb:///{org_root(org_id) / 'materialize.duckdb'}"
 
 

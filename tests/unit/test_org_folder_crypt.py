@@ -94,3 +94,170 @@ def test_the_key_goes_to_gocryptfs_on_its_standard_input_only(monkeypatch):
     assert "the-key" not in " ".join(seen["args"])
     assert "env" not in seen
     assert seen["args"][:4] == ["gocryptfs", "-q", "-passfile", "/dev/stdin"]
+
+
+# -- one mount shared by every node (org_files.shared_mount) ----------------------------------
+
+
+class _Gocryptfs:
+    """gocryptfs and the mount table as the folder's lifecycle calls them: -init writes the
+    folder's config; a mount is recorded; the wrong key exits 12."""
+
+    def __init__(self, monkeypatch, *, key: str = "k1") -> None:
+        self.key = key
+        self.calls: list[list[str]] = []
+        self.mounted: set[str] = set()
+        monkeypatch.setattr(crypt, "_gocryptfs", self.run)
+        monkeypatch.setattr(crypt.os.path, "ismount", lambda p: str(p) in self.mounted)
+        monkeypatch.setattr(crypt.subprocess, "run", self.unmount)
+        monkeypatch.setattr(crypt, "_require_tool", lambda org_id: None)
+
+    def run(self, args: list[str], key: str) -> int:
+        self.calls.append(args)
+        if args[0] == "-init":
+            from pathlib import Path
+
+            (Path(args[1]) / "gocryptfs.conf").write_text(key)
+            return 0
+        from pathlib import Path
+
+        cipher = Path(args[-2])
+        if (cipher / "gocryptfs.conf").read_text() != key:
+            return 12
+        self.mounted.add(args[-1])
+        return 0
+
+    def unmount(self, args, **_kw):
+        self.mounted.discard(args[-1])
+        return type("Done", (), {"returncode": 0})()
+
+
+@pytest.fixture
+def node(monkeypatch):
+    """This node's name and whether the mount is shared, as the settings give them."""
+    from provisa.core import org_files
+
+    names = {"node": "pod-a", "shared": True}
+    monkeypatch.setattr(org_files, "node_id", lambda: names["node"])
+    monkeypatch.setattr(org_files, "shared_mount", lambda: names["shared"])
+    return names
+
+
+_ON = FolderSettings(True, "${secret:k}")
+
+
+def test_each_node_mounts_the_shared_ciphertext_with_sharedstorage_and_records_it(
+    tmp_path, monkeypatch, node
+):
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    assert fake.calls[-1][0] == "-sharedstorage"
+    assert (tmp_path / "orgs" / ".acme.mounted" / "pod-a").exists()
+
+
+def test_a_mount_a_node_keeps_to_itself_takes_no_sharedstorage(tmp_path, monkeypatch, node):
+    node["shared"] = False
+    fake = _Gocryptfs(monkeypatch)
+    crypt.apply("acme", tmp_path / "orgs" / "acme", _ON, lambda r: "k1")
+    assert "-sharedstorage" not in fake.calls[-1]
+
+
+def test_a_change_while_another_node_holds_a_mount_is_refused_naming_it(
+    tmp_path, monkeypatch, node
+):
+    _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    (tmp_path / "orgs" / ".acme.mounted" / "pod-b").touch()
+    with pytest.raises(crypt.FolderInUse, match="'acme'.*pod-b"):
+        crypt.apply("acme", folder, FolderSettings(False, None), lambda r: "k1")
+    # Nothing moved: the folder is still encrypted under its key.
+    assert (tmp_path / "orgs" / ".acme.crypt" / "gocryptfs.conf").exists()
+
+
+def test_with_no_other_node_mounted_the_change_applies(tmp_path, monkeypatch, node):
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    (folder / "cache.parquet").write_text("rows")
+    fake.mounted.discard(str(folder))  # the fake mount holds no files of its own
+    crypt.apply("acme", folder, FolderSettings(False, None), lambda r: "k1")
+    assert not (tmp_path / "orgs" / ".acme.crypt").exists()
+    assert not (tmp_path / "orgs" / ".acme.mounted" / "pod-a").exists()
+
+
+def test_a_key_that_does_not_open_the_folder_refuses_it_and_resets_nothing(
+    tmp_path, monkeypatch, node
+):
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    fake.mounted.clear()  # the node restarted: its mount is gone
+    with pytest.raises(crypt.FolderKeyUnavailable, match="'acme'.*not the one the folder"):
+        crypt.apply("acme", folder, _ON, lambda r: "a-replaced-key")
+    assert (tmp_path / "orgs" / ".acme.crypt" / "gocryptfs.conf").read_text() == "k1"
+
+
+def test_a_new_key_set_while_the_old_one_is_gone_resets_the_folder_under_it(
+    tmp_path, monkeypatch, node
+):
+    """The one reset there is: an org admin's deliberate new key."""
+    _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+
+    def key_of(reference: str) -> str:
+        if reference == "${secret:k}":
+            raise crypt.FolderKeyUnavailable("acme", "AccessDenied")
+        return "k2"
+
+    crypt.apply("acme", folder, FolderSettings(True, "${secret:k2}"), key_of)
+    assert (tmp_path / "orgs" / ".acme.crypt" / "gocryptfs.conf").read_text() == "k2"
+    assert (tmp_path / "orgs" / ".acme.ref").read_text() == "${secret:k2}"
+
+
+def test_the_nodes_last_process_to_shut_down_releases_its_mount(tmp_path, monkeypatch, node):
+    """A node that shuts down gracefully leaves no record of a mount; another of its processes
+    still using the mount keeps it, and one that died does not."""
+    import os
+
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    mine = tmp_path / "orgs" / ".acme.mounted" / "pod-a"
+    assert (mine / str(os.getpid())).exists()
+
+    sibling = mine / "424242"  # another live worker of this node
+    sibling.touch()
+    monkeypatch.setattr(crypt, "_alive", lambda pid: pid == "424242")
+    crypt.release("acme", folder)
+    assert str(folder) in fake.mounted and sibling.exists()
+
+    monkeypatch.setattr(crypt, "_alive", lambda pid: False)  # the sibling has died since
+    crypt.release("acme", folder)
+    assert str(folder) not in fake.mounted
+    assert not mine.exists()
+
+
+def test_a_process_that_finds_the_node_mounted_records_its_use(tmp_path, monkeypatch, node):
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    mine = tmp_path / "orgs" / ".acme.mounted" / "pod-a"
+    for entry in mine.iterdir():
+        entry.unlink()
+    crypt.apply("acme", folder, _ON, lambda r: "k1")  # another worker's build: already mounted
+    assert len(fake.calls) == 2  # -init and the one mount
+    assert any(mine.iterdir())
+
+
+def test_a_server_shutting_down_releases_its_org_folders_last():
+    """SIGTERM reaches the app's lifespan shutdown (uvicorn); the release follows every close."""
+    import inspect
+
+    from provisa.api import app
+
+    source = inspect.getsource(app.lifespan)
+    assert "org_files.release_all()" in source
+    assert source.index("org_files.release_all()") > source.index("admin_db.close()")

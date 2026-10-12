@@ -10,7 +10,7 @@ Every query ultimately executes through the federation engine, which provides fe
 | **Federation only** | No | Yes | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **Direct-read (replica)** | Yes | Yes | Snowflake, Databricks, ClickHouse — driver reads data and lands a replica; queries run against the replica in the active engine |
 | **Direct (no cross-source connector)** | Yes | No | Athena — single-source statements run whole in Athena; cross-source joins land a full replica |
-| **Materialize → Federation** | No | No | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, ServiceNow, Cloud inventory, Splunk, Qdrant |
+| **Materialize → Federation** | No | No | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, ServiceNow, Cloud inventory, Splunk, Qdrant, Azure Cosmos DB |
 
 **Direct-capable** sources execute single-source queries via their native driver (sub-100ms), bypassing the federation engine (REQ-027, REQ-229). They retain full connector support and participate in federation when joined with other sources (REQ-028).
 
@@ -26,7 +26,7 @@ Every query ultimately executes through the federation engine, which provides fe
 
 ## All Sources
 
-Provisa registers **64** source types, the ones the Sources form offers. The tables below cover all 64; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub and GitLab are counted as distinct sources even though they register through the `files` and `graphql_remote` connectors internally]
+Provisa registers **65** source types, the ones the Sources form offers. The tables below cover all 65; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub and GitLab are counted as distinct sources even though they register through the `files` and `graphql_remote` connectors internally]
 
 | # | Group | Source types |
 | --- | --- | --- |
@@ -34,19 +34,19 @@ Provisa registers **64** source types, the ones the Sources form offers. The tab
 | 16–23 | [Cloud data warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 24–28 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 29–32 | [Data lake / open table formats](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 33–36 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
-| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 40 | [Push receiver](#push-receiver) | `ingest` |
-| 41–42 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
-| 43–46 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 47–48 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
-| 49–53 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
-| 54–58 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
-| 59 | [GovData](#govdata) | `govdata` |
-| 60–61 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 62 | [Data profiler](#data-profiler) | `data_profiler` |
-| 63 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
-| 64 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
+| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 38–40 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 41 | [Push receiver](#push-receiver) | `ingest` |
+| 42–43 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
+| 44–47 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 48–49 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
+| 50–54 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
+| 55–59 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
+| 60 | [GovData](#govdata) | `govdata` |
+| 61–62 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 63 | [Data profiler](#data-profiler) | `data_profiler` |
+| 64 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
+| 65 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
 
 Reference for every source type Provisa supports. "Direct driver" means single-source queries execute against the source natively (sub-100ms) (REQ-027). "Connector Name" is the federated connector used when the source participates in multi-source JOINs (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 

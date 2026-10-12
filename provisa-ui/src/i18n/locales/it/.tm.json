@@ -5866,7 +5866,7 @@
   "it/orgFilesTab.json::orgFilesTab.warn2": "Store it in your organization's secrets vault now; it will not be shown again.",
   "it/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
   "it/orgFilesTab.json::orgFilesTab.panelTitle": "File folder encryption",
-  "it/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "it/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "it/orgFilesTab.json::orgFilesTab.referenceWrong": "Write the key's name as ${secret:NAME}, not the key itself.",
   "it/orgFilesTab.json::orgFilesTab.loading": "Loading…",
   "it/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
@@ -6014,5 +6014,9 @@
   "it/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "it/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "it/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "it/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "it/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "it/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "it/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "it/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "it/settings.json::settings.org_files.node_id.label": "Node name"
 }
