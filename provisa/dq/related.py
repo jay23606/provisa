@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 0a76d88a-430e-45c9-8c0c-a253456141cb
 #
 # This source code is licensed under the Business Source License 1.1
 """The data-quality checkers of a table (REQ-1443): every checker table whose contract scans it.
