@@ -142,7 +142,15 @@ def test_each_environments_connection_to_a_source_has_its_own_attach():
         _ext_loaded=set(),
         _engine=SimpleNamespace(connector_for=lambda _type: SimpleNamespace(extension=None)),
         _catalog_of=DuckDBFederationRuntime._catalog_of,
+        _file_holders={},
     )
+    # REQ-1997: what the attach does for a file source's location and a DuckDB file's holder --
+    # nothing for this Postgres source -- run as the runtime runs them.
+    runtime._reach_location = lambda details: DuckDBFederationRuntime._reach_location(
+        runtime, details
+    )
+    runtime._hold_file = lambda src, alias: DuckDBFederationRuntime._hold_file(runtime, src, alias)
+    runtime._let_file_go = lambda alias: DuckDBFederationRuntime._let_file_go(runtime, alias)
 
     def source(catalog: str):
         return SimpleNamespace(

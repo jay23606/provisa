@@ -294,9 +294,12 @@ async def _fetch_table_with_columns(
         )
     )
 
-    _source_type = (
-        await conn.execute_core(select(sources.c.type).where(sources.c.id == row["source_id"]))
-    ).scalar_one()
+    # REQ-1997: the source's path too -- where its file is decides whether it takes writes.
+    _source_type, _source_path = (
+        await conn.execute_core(
+            select(sources.c.type, sources.c.path).where(sources.c.id == row["source_id"])
+        )
+    ).one()
 
     columns = [
         TableColumnType(
@@ -392,8 +395,7 @@ async def _fetch_table_with_columns(
             dict(row),
             None if view_sql else _source_type,
             _state.federation_engine.engine,
-            # REQ-1997: where the source's file is decides whether it takes writes.
-            source_path=None if view_sql else _state.runtime_sources[row["source_id"]].get("path"),
+            source_path=None if view_sql else _source_path,
         )
     )
     can_deploy = False
