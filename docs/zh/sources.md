@@ -9,7 +9,7 @@
 | **直连型** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **仅联邦型** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支持） |
 | **直读型（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse — 驱动读取数据并落地一份副本；查询在活动引擎中针对该副本执行 |
-| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow |
+| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant |
 
 **直连型**数据源通过其原生驱动执行单数据源查询（亚 100 毫秒），绕过联邦引擎（REQ-027、REQ-229）。它们保留完整的连接器支持，并在与其他数据源联接时参与联邦（REQ-028）。
 
@@ -23,25 +23,25 @@
 
 ## 所有数据源
 
-Provisa 注册了 **54** 种数据源类型。下表覆盖全部 54 种；索引即为计数。[tool-verified: `provisa/core/models.py` `SourceType`；Kaggle 虽然内部通过 `files` 连接器注册，但仍作为独立数据源计数]
+Provisa 注册了 **57** 种数据源类型。下表覆盖全部 57 种；索引即为计数。[tool-verified: `provisa/core/models.py` `SourceType`；Kaggle 虽然内部通过 `files` 连接器注册，但仍作为独立数据源计数]
 
 | # | 分组 | 数据源类型 |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`、`mysql`、`mariadb`、`singlestore`、`sqlserver`、`oracle`、`duckdb`、`cockroachdb`、`yugabytedb`、`greenplum`、`tidb`、`firebird`、`airport` |
-| 14–20 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
-| 21–25 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
-| 26–30 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hudi`、`hive`、`hive_s3` |
-| 31–33 | [NoSQL](#nosql) | `mongodb`、`cassandra`、`redis` |
-| 34–36 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
-| 37 | [推送接收器](#push-receiver) | `ingest` |
-| 38–39 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
-| 40–43 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
-| 44–45 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 46–47 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
-| 48–50 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
-| 51 | [GovData](#govdata) | `govdata` |
-| 52–53 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
-| 54 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 14–21 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
+| 22–26 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
+| 27–31 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hudi`、`hive`、`hive_s3` |
+| 32–35 | [NoSQL](#nosql) | `mongodb`、`qdrant`、`cassandra`、`redis` |
+| 36–38 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
+| 39 | [推送接收器](#push-receiver) | `ingest` |
+| 40–41 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
+| 42–45 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
+| 46–47 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
+| 48–50 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`splunk`、`servicenow` |
+| 51–53 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote` |
+| 54 | [GovData](#govdata) | `govdata` |
+| 55–56 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
+| 57 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
 
 Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动）表示单数据源查询直接针对该数据源原生执行（亚 100 毫秒）（REQ-027）。"Connector Name"（连接器名称）是当该数据源参与多数据源 JOIN 时所使用的联邦连接器（REQ-028）。[tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`；`provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -162,6 +162,32 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 | `mongodb` | mongodb | No |
 | `cassandra` | cassandra（Trino）；在其他所有引擎上通过 cassandra-driver 进行 CQL 读取 | No | Keyspace 即为 schema；Register Table 列出某个 keyspace 的表，并根据集群的 schema 元数据为列定型（分区键作为主键）；`cassandra` extra 安装该驱动 [tool-verified: `provisa/cassandra/fetch.py`] (REQ-1676) |
 | `redis` | redis（Trino）；在其他所有引擎上通过 redis-py 进行无 HTTP 读取 | No | 键前缀 `<table>:*` 即为一张表，一个 hash 即为一行；Register Table 列出存在的前缀，并根据前缀的 hash 为其列定型（`mapping.tables` 条目可覆盖模式、键列、值类型和列） [tool-verified: `provisa/redis/fetch.py`] (REQ-1675) |
+
+### Qdrant
+
+`qdrant`（REQ-1983）由 Qdrant 自带的客户端 `qdrant-client` 读取；没有联邦引擎拥有 Qdrant 连接器，因此它在每个引擎上的读取方式相同，并在语句联接它的位置落地。[tool-verified: `provisa/qdrant/fetch.py`；`provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**连接。** `host` 是实例的 URL 及端口（`https://<cluster>.cloud.qdrant.io:6333`，或自托管的 `http://qdrant:6333`）；`password` 是其 API 密钥，是在读取该源时解析的密钥引用，无密钥的实例则留空。`federation_hints.prefer_grpc: true` 改为通过 Qdrant 的 gRPC 端口读取，而非 REST。该源只有一个 schema，即 `default`。[tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`；`provisa/qdrant/introspect.py` `SCHEMA`]
+
+**集合表。** 集合（collection）就是一张表，整张落地为副本（scroll，逐页读取），并按其 TTL 刷新；Qdrant 没有变更源（change feed）。Register Table 提供集合的列：`id`（点 ID，即其键，路径 `@id`）、payload 的字段（已建索引的字段按其索引定型，其他字段按抽样点的提示定型；嵌套字段连同路径展平），以及每个向量一个 `json` 列（路径 `@vector`，命名向量则为 `@vector.<name>`），默认不选中。对 `id` 的按键读取是一次 `retrieve`；对 payload 字段则是一次带过滤的 scroll。[tool-verified: `provisa/qdrant/introspect.py` `columns`；`provisa/qdrant/loader.py`]
+
+**搜索表。** 向量搜索是一张搜索表：其 `query_template` 保存一个 Query API 请求。
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` 始终是参数；`using`、`filter`、`limit`、`score_threshold` 和 `model` 为可选。`using`、`filter`、`limit` 或 `score_threshold` 中恰好为 `"@name"` 的值同样是参数。
+- 每个参数都是该表的参数（`query_arg`，REQ-1986），被严格转换为其声明的类型，并作为 JSON 值放入请求，绝不放入其文本。`query` 的参数是 `array(double)`，且必填。
+- 调用方像传递任何参数一样传递它们：SQL 中为 `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'`，GraphQL 中为字段参数。
+- 未给出的可选参数不做任何过滤：其条件从过滤器中省略。没有 `limit` 时，搜索返回 Qdrant 的默认值，即 10 个点。
+- 过滤器由 Qdrant 在选出最近点之前应用，因此是精确的。语句中的其他条件之后才缩小搜索返回的点；不会取回更多。
+- `score` 是集合自身针对所搜索向量的度量：对 Cosine 集合而言就是余弦相似度。Register Table 列出集合的向量及其大小和距离。
+- `model` 指定一个已注册的嵌入模型（`vector_models`，管理 → AI Models）。此时给定的查询文本由该模型嵌入，给定的向量必须具有该模型的维度（REQ-429、REQ-430）。没有 `model` 时，查询必须是向量。
+
+搜索按每条语句、在其参数下读取，其行在这些参数下保留一个表 TTL 的时间。`cosine_similarity(column, vector)`（REQ-423）不会为 Qdrant 翻译：相似度搜索就是搜索表。不支持写入 Qdrant。[tool-verified: `provisa/qdrant/table.py` `check_table`、`plan`、`read`；`provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming {: #streaming }
 

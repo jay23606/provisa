@@ -7,7 +7,7 @@ Toda consulta se ejecuta en última instancia a través del motor de federación
 | **Con capacidad directa** | Sí | Sí | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Solo federación** | No | Sí | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (respaldado por S3) |
 | **Lectura directa (réplica)** | Sí | Sí | Snowflake, Databricks, ClickHouse — el controlador lee los datos y crea una réplica; las consultas se ejecutan contra la réplica en el motor activo |
-| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow |
+| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
 
 Los orígenes **con capacidad directa** ejecutan consultas de un solo origen mediante su controlador nativo (menos de 100 ms), evitando el motor de federación (REQ-027, REQ-229). Conservan el soporte completo del conector y participan en la federación cuando se combinan con otros orígenes (REQ-028).
 
@@ -20,25 +20,25 @@ Los orígenes de **materialización** no tienen conector federado. Provisa obtie
 ---
 
 ## Todos los orígenes
-Provisa registra **54** tipos de origen. Las tablas siguientes cubren los 54; el índice es el recuento. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle se cuenta como un origen distinto aunque internamente se registra mediante el conector `files`]
+Provisa registra **57** tipos de origen. Las tablas siguientes cubren los 57; el índice es el recuento. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle se cuenta como un origen distinto aunque internamente se registra mediante el conector `files`]
 
 | # | Grupo | Tipos de origen |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [Almacenes de datos en la nube](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 21–25 | [Analítica / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 26–30 | [Data lake / Formatos de tabla abiertos](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
-| 34–36 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 37 | [Receptor push](#push-receiver) | `ingest` |
-| 38–39 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
-| 40–43 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 44–45 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
-| 46–47 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 48–50 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 51 | [GovData](#govdata) | `govdata` |
-| 52–53 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 54 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
+| 14–21 | [Almacenes de datos en la nube](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 22–26 | [Analítica / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 27–31 | [Data lake / Formatos de tabla abiertos](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
+| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
+| 36–38 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 39 | [Receptor push](#push-receiver) | `ingest` |
+| 40–41 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
+| 42–45 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 46–47 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
+| 48–50 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 51–53 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 54 | [GovData](#govdata) | `govdata` |
+| 55–56 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 57 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
 
 Referencia de todos los tipos de origen que soporta Provisa. "Controlador directo" significa que las consultas de un solo origen se ejecutan de forma nativa contra el origen (menos de 100 ms) (REQ-027). "Nombre del conector" es el conector federado que se usa cuando el origen participa en JOIN entre varios orígenes (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -157,6 +157,32 @@ Estos tipos de origen son solo de federación — sin controlador directo, sin d
 | `mongodb` | mongodb | No |
 | `cassandra` | cassandra (Trino); lectura CQL mediante cassandra-driver en cualquier otro motor | No | Los keyspaces son esquemas; Register Table lista las tablas de un keyspace y tipa las columnas a partir de los metadatos de esquema del clúster (las claves de partición como claves primarias); el extra `cassandra` instala el controlador [tool-verified: `provisa/cassandra/fetch.py`] (REQ-1676) |
 | `redis` | redis (Trino); lectura sin HTTP mediante redis-py en cualquier otro motor | No | Un prefijo de clave `<table>:*` es una tabla y un hash es una fila; Register Table lista los prefijos presentes y tipa las columnas de un prefijo a partir de sus hashes (una entrada de `mapping.tables` anula el patrón, la columna de clave, el tipo de valor y las columnas) [tool-verified: `provisa/redis/fetch.py`] (REQ-1675) |
+
+### Qdrant
+
+`qdrant` (REQ-1983) se lee con el cliente propio de Qdrant, `qdrant-client`; ningún motor de federación tiene un conector de Qdrant, así que se lee del mismo modo en cualquier motor y aterriza donde una instrucción lo une. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**Conexión.** `host` es la URL de la instancia con su puerto (`https://<cluster>.cloud.qdrant.io:6333`, o un `http://qdrant:6333` autoalojado); `password` es su clave de API, una referencia a un secreto resuelta cuando se lee el origen, vacía para una instancia sin clave. `federation_hints.prefer_grpc: true` lee por el puerto gRPC de Qdrant en lugar de REST. El origen tiene un esquema, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
+
+**Tablas de colección.** Una colección es una tabla, aterrizada completa como réplica (scroll, página a página) y refrescada con su TTL; Qdrant no tiene change feed. Register Table ofrece las columnas de la colección: `id` (el id del punto, su clave, ruta `@id`), los campos del payload (un campo indexado se tipa por su índice, cualquier otro según sugieren los puntos de muestra; los campos anidados se aplanan con su ruta) y una columna `json` por vector (ruta `@vector`, o `@vector.<name>` para un vector con nombre), ofrecida sin seleccionar. Una lectura por clave sobre `id` es un `retrieve`; sobre un campo del payload, un scroll filtrado. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+
+**Tablas de búsqueda.** La búsqueda vectorial es una tabla de búsqueda: su `query_template` contiene una petición de la Query API.
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` es siempre un argumento; `using`, `filter`, `limit`, `score_threshold` y `model` son opcionales. Cualquier valor de `using`, `filter`, `limit` o `score_threshold` que sea exactamente `"@name"` también es un argumento.
+- Cada argumento es un parámetro de la tabla (`query_arg`, REQ-1986), convertido estrictamente a su tipo declarado e insertado en la petición como valor JSON, nunca en su texto. El argumento de `query` es `array(double)` y obligatorio.
+- Quien llama pasa los argumentos como cualquier parámetro: `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'` en SQL, argumentos de campo en GraphQL.
+- Un argumento opcional no dado no filtra nada: su condición se omite del filtro. Sin `limit`, una búsqueda devuelve el valor por defecto de Qdrant, 10 puntos.
+- Qdrant aplica el filtro antes de elegir sus puntos más cercanos, así que es exacto. Cualquier otra condición de la instrucción estrecha después los puntos que devolvió la búsqueda; no obtiene más.
+- `score` es la métrica propia de la colección para el vector buscado: para una colección Cosine, la similitud del coseno. Register Table lista los vectores de la colección con su tamaño y distancia.
+- `model` nombra un modelo de embeddings registrado (`vector_models`, admin → AI Models). Un texto dado como consulta se incrusta entonces con ese modelo, y un vector dado debe tener las dimensiones de ese modelo (REQ-429, REQ-430). Sin `model`, la consulta debe ser un vector.
+
+Una búsqueda se lee por instrucción con sus argumentos, y sus filas se conservan bajo esos argumentos durante el TTL de la tabla. `cosine_similarity(column, vector)` (REQ-423) no se traduce para Qdrant: una búsqueda de similitud es una tabla de búsqueda. No se admiten escrituras en Qdrant. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming
 

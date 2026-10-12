@@ -9,7 +9,7 @@
 | **תמיכה ישירה** | כן | כן | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **פדרציה בלבד** | לא | כן | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **קריאה ישירה (עותק משוכפל)** | כן | כן | Snowflake, Databricks, ClickHouse — הדרייבר קורא נתונים ומנחית עותק משוכפל; השאילתות רצות מול העותק המשוכפל במנוע הפעיל |
-| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow |
+| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
 
 מקורות מסוג **תמיכה ישירה** מבצעים שאילתות חד-מקוריות דרך הדרייבר הילידי שלהם (מתחת ל-100ms), תוך עקיפת מנוע הפדרציה (REQ-027, REQ-229). הם שומרים על תמיכה מלאה במחבר ומשתתפים בפדרציה כשהם מוצטרפים (joined) עם מקורות אחרים (REQ-028).
 
@@ -23,25 +23,25 @@
 
 ## כל המקורות
 
-Provisa רושמת **54** סוגי מקור. הטבלאות שלהלן מכסות את כל 54; המספור הוא הספירה. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle נספר כמקור נפרד למרות שהוא נרשם באופן פנימי דרך מחבר `files`]
+Provisa רושמת **57** סוגי מקור. הטבלאות שלהלן מכסות את כל 57; המספור הוא הספירה. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle נספר כמקור נפרד למרות שהוא נרשם באופן פנימי דרך מחבר `files`]
 
 | # | קבוצה | סוגי מקור |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 21–25 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 26–30 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
-| 34–36 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
-| 37 | [Push Receiver](#push-receiver) | `ingest` |
-| 38–39 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
-| 40–43 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
-| 44–45 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
-| 46–47 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
-| 48–50 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 51 | [GovData](#govdata) | `govdata` |
-| 52–53 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
-| 54 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
+| 14–21 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 22–26 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 27–31 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
+| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
+| 36–38 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
+| 39 | [Push Receiver](#push-receiver) | `ingest` |
+| 40–41 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
+| 42–45 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
+| 46–47 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
+| 48–50 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
+| 51–53 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 54 | [GovData](#govdata) | `govdata` |
+| 55–56 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
+| 57 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
 
 מסמך עזר לכל סוג מקור שנתמך על ידי Provisa. "דרייבר ישיר" פירושו ששאילתות חד-מקוריות מבוצעות מול המקור באופן ילידי (מתחת ל-100ms) (REQ-027). "שם המחבר" הוא המחבר המפודרר שבו נעשה שימוש כאשר המקור משתתף ב-JOIN רב-מקורי (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -163,6 +163,32 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 | `mongodb` | mongodb | לא |
 | `cassandra` | cassandra | לא |
 | `redis` | redis | לא |
+
+### Qdrant
+
+`qdrant` (REQ-1983) נקרא באמצעות הלקוח של Qdrant עצמה, `qdrant-client`; לאף מנוע פדרציה אין מחבר Qdrant, ולכן הוא נקרא באותו אופן בכל מנוע ונוחת במקום שבו הצהרה מחברת אותו. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**חיבור.** `host` הוא כתובת ה-URL של המופע עם הפורט (`https://<cluster>.cloud.qdrant.io:6333`, או `http://qdrant:6333` באירוח עצמי); `password` הוא מפתח ה-API שלו, הפניה לסוד (secret) הנפתרת כשהמקור נקרא, ריק עבור מופע ללא מפתח. `federation_hints.prefer_grpc: true` קורא דרך פורט ה-gRPC של Qdrant במקום REST. למקור סכמה אחת, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
+
+**טבלאות קולקציה.** קולקציה היא טבלה, הנוחתת במלואה כעותק (scroll, עמוד אחר עמוד) ומתרעננת לפי ה-TTL שלה; ל-Qdrant אין change feed. Register Table מציע את עמודות הקולקציה: `id` (מזהה הנקודה, המפתח שלה, נתיב `@id`), שדות ה-payload (שדה מאונדקס מטיפוס לפי האינדקס שלו, כל שדה אחר לפי מה שמציעות נקודות הדגימה; שדות מקוננים משוטחים עם הנתיב שלהם), ועמודת `json` אחת לכל וקטור (נתיב `@vector`, או `@vector.<name>` לוקטור בעל שם), המוצעת כשהיא לא נבחרת. קריאה לפי מפתח על `id` היא `retrieve` אחד; על שדה payload — scroll מסונן אחד. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+
+**טבלאות חיפוש.** חיפוש וקטורי הוא טבלת חיפוש: ה-`query_template` שלה מחזיק בקשת Query API.
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` הוא תמיד ארגומנט; `using`, `filter`, `limit`, `score_threshold` ו-`model` אופציונליים. כל ערך ב-`using`, `filter`, `limit` או `score_threshold` שהוא בדיוק `"@name"` הוא אף הוא ארגומנט.
+- כל ארגומנט הוא פרמטר של הטבלה (`query_arg`, REQ-1986), המומר בקפדנות לטיפוס שהוצהר לו ומוכנס לבקשה כערך JSON, לעולם לא לטקסט שלה. הארגומנט של `query` הוא `array(double)` והוא חובה.
+- מי שקורא מעביר ארגומנטים כמו כל פרמטר: `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'` ב-SQL, ארגומנטים של שדות ב-GraphQL.
+- ארגומנט אופציונלי שלא ניתן אינו מסנן דבר: התנאי שלו מושמט מהמסנן. ללא `limit` חיפוש מחזיר את ברירת המחדל של Qdrant, 10 נקודות.
+- המסנן מוחל על ידי Qdrant לפני בחירת הנקודות הקרובות ביותר, ולכן הוא מדויק. כל תנאי אחר בהצהרה מצמצם לאחר מכן את הנקודות שהחיפוש החזיר; הוא אינו שולף עוד.
+- `score` הוא המדד של הקולקציה עצמה עבור הוקטור שנחפש: בקולקציית Cosine, דמיון קוסינוס. Register Table מציג את הוקטורים של הקולקציה עם הגודל והמרחק שלהם.
+- `model` נוקב במודל embedding רשום (`vector_models`, admin ← AI Models). טקסט שניתן עבור השאילתה מוטמע אז על ידי אותו מודל, ווקטור שניתן חייב להיות בממדי המודל הזה (REQ-429, REQ-430). ללא `model` השאילתה חייבת להיות וקטור.
+
+חיפוש נקרא לכל הצהרה תחת הארגומנטים שלו, ושורותיו נשמרות תחת אותם ארגומנטים למשך ה-TTL של הטבלה. `cosine_similarity(column, vector)` (REQ-423) אינה מתורגמת עבור Qdrant: חיפוש דמיון הוא טבלת חיפוש. כתיבה ל-Qdrant אינה נתמכת. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### סטרימינג
 

@@ -7,7 +7,7 @@
 | **可直接執行** | 是 | 是 | PostgreSQL、MySQL、MariaDB、SingleStore、SQL Server、Oracle、DuckDB |
 | **僅聯邦** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支援） |
 | **直接讀取（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse——驅動程式讀取數據並落地一份副本；查詢在啟用中的引擎裡針對該副本執行 |
-| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow |
+| **具體化 → 聯邦** | 否 | 否 | REST/OpenAPI、遠端 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Splunk、ServiceNow、Qdrant |
 
 **可直接執行**的數據來源經其原生驅動程式執行單一來源查詢（低於 100 毫秒），繞過聯邦引擎（REQ-027、REQ-229）。它們保有完整的連接器支援，並在與其他數據來源聯結時參與聯邦（REQ-028）。
 
@@ -20,24 +20,24 @@
 ---
 
 ## 所有數據來源
-Provisa 註冊了 **53** 種數據來源類型。下方表格涵蓋全部 53 種；索引即為計數。 [tool-verified: `provisa/core/models.py` `SourceType`]
+Provisa 註冊了 **56** 種數據來源類型。下方表格涵蓋全部 56 種；索引即為計數。 [tool-verified: `provisa/core/models.py` `SourceType`]
 
 | # | 群組 | 數據來源類型 |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 21–25 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 26–30 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
-| 34–36 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
-| 37 | [推送接收器](#push-receiver) | `ingest` |
-| 38–39 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
-| 40–43 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 44–45 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
-| 46–47 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 48–50 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 51 | [GovData](#govdata) | `govdata` |
-| 52–53 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 14–21 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 22–26 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 27–31 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
+| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
+| 36–38 | [串流](#streaming) | `kafka`, `websocket`, `rss` |
+| 39 | [推送接收器](#push-receiver) | `ingest` |
+| 40–41 | [圖形與語意](#graph-semantic) | `neo4j`, `sparql` |
+| 42–45 | [檔案式](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 46–47 | [可觀測性與其他](#observability-other) | `google_sheets`, `prometheus` |
+| 48–50 | [企業 SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 51–53 | [API 數據來源](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 54 | [GovData](#govdata) | `govdata` |
+| 55–56 | [數據品質檢查器](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
 
 Provisa 支援的每一種數據來源類型的參照。「直接驅動程式」指單一來源查詢原生地針對該數據來源執行（低於 100 毫秒）（REQ-027）。「連接器名稱」是該數據來源參與多來源 JOIN 時所用的聯邦連接器（REQ-028）。 [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -156,6 +156,32 @@ Amazon Athena 是一項針對 S3 資料的無伺服器查詢服務，按掃描�
 | `mongodb` | mongodb | 否 |
 | `cassandra` | cassandra | 否 |
 | `redis` | redis | 否 |
+
+### Qdrant
+
+`qdrant`（REQ-1983）由 Qdrant 自家的用戶端 `qdrant-client` 讀取；沒有聯邦引擎擁有 Qdrant 連接器，因此它在每個引擎上的讀取方式相同，並在語句聯結它的位置落地。[tool-verified: `provisa/qdrant/fetch.py`；`provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**連線。** `host` 是實例的 URL 及埠（`https://<cluster>.cloud.qdrant.io:6333`，或自行託管的 `http://qdrant:6333`）；`password` 是其 API 金鑰，是在讀取該來源時解析的密鑰參照，沒有金鑰的實例則留空。`federation_hints.prefer_grpc: true` 改為透過 Qdrant 的 gRPC 埠讀取，而非 REST。該來源只有一個 schema，即 `default`。[tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`；`provisa/qdrant/introspect.py` `SCHEMA`]
+
+**集合表格。** 集合（collection）就是一張表格，整張落地為副本（scroll，逐頁讀取），並按其 TTL 重新整理；Qdrant 沒有變更摘要（change feed）。Register Table 提供集合的欄位：`id`（點 ID，即其鍵，路徑 `@id`）、payload 的欄位（已建立索引的欄位按其索引定型，其他欄位按抽樣點的提示定型；巢狀欄位連同路徑展平），以及每個向量一個 `json` 欄位（路徑 `@vector`，命名向量則為 `@vector.<name>`），預設不選取。對 `id` 的按鍵讀取是一次 `retrieve`；對 payload 欄位則是一次帶篩選的 scroll。[tool-verified: `provisa/qdrant/introspect.py` `columns`；`provisa/qdrant/loader.py`]
+
+**搜尋表格。** 向量搜尋是一張搜尋表格：其 `query_template` 保存一個 Query API 請求。
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` 一律是參數；`using`、`filter`、`limit`、`score_threshold` 和 `model` 為可選。`using`、`filter`、`limit` 或 `score_threshold` 中恰好為 `"@name"` 的值同樣是參數。
+- 每個參數都是該表格的參數（`query_arg`，REQ-1986），被嚴格轉換為其宣告的類型，並作為 JSON 值放入請求，絕不放入其文字。`query` 的參數是 `array(double)`，且必填。
+- 呼叫方像傳遞任何參數一樣傳遞它們：SQL 中為 `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'`，GraphQL 中為欄位參數。
+- 未給出的可選參數不做任何篩選：其條件從篩選器中省略。沒有 `limit` 時，搜尋傳回 Qdrant 的預設值，即 10 個點。
+- 篩選器由 Qdrant 在選出最近點之前套用，因此是精確的。語句中的其他條件之後才縮小搜尋傳回的點；不會取回更多。
+- `score` 是集合自身針對所搜尋向量的度量：對 Cosine 集合而言就是餘弦相似度。Register Table 會列出集合的向量及其大小和距離。
+- `model` 指定一個已註冊的嵌入模型（`vector_models`，管理 → AI Models）。此時給定的查詢文字由該模型嵌入，給定的向量必須具有該模型的維度（REQ-429、REQ-430）。沒有 `model` 時，查詢必須是向量。
+
+搜尋按每條語句、在其參數下讀取，其列在這些參數下保留一個表格 TTL 的時間。`cosine_similarity(column, vector)`（REQ-423）不會為 Qdrant 翻譯：相似度搜尋就是搜尋表格。不支援寫入 Qdrant。[tool-verified: `provisa/qdrant/table.py` `check_table`、`plan`、`read`；`provisa/api/data/materialization.py` `_is_native_read`]
 
 ### 串流 {#streaming}
 | 數據來源類型 | 機制 | 變更操作 |

@@ -9,7 +9,7 @@
 | **Прямая поддержка (direct-capable)** | Да | Да | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Только федерация** | Нет | Да | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (на базе S3) |
 | **Прямое чтение (реплика)** | Да | Да | Snowflake, Databricks, ClickHouse — драйвер читает данные и создаёт реплику; запросы выполняются против реплики в активном движке |
-| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow |
+| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow, Qdrant |
 
 Источники с **прямой поддержкой** выполняют однопоточные (single-source) запросы через свой нативный драйвер (менее 100 мс), минуя движок федерации (REQ-027, REQ-229). Они сохраняют полную поддержку коннектора и участвуют в федерации при объединении с другими источниками (REQ-028).
 
@@ -23,25 +23,25 @@
 
 ## Все источники
 
-Provisa регистрирует **54** типа источников. Приведённые ниже таблицы охватывают все 54; индекс — это просто счётчик. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle учитывается как отдельный источник, хотя внутренне регистрируется через коннектор `files`]
+Provisa регистрирует **57** типа источников. Приведённые ниже таблицы охватывают все 57; индекс — это просто счётчик. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle учитывается как отдельный источник, хотя внутренне регистрируется через коннектор `files`]
 
 | # | Группа | Типы источников |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 21–25 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 26–30 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
-| 34–36 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
-| 37 | [Приёмник push-данных](#push-receiver) | `ingest` |
-| 38–39 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
-| 40–43 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 44–45 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
-| 46–47 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 48–50 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 51 | [GovData](#govdata) | `govdata` |
-| 52–53 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 54 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
+| 14–21 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 22–26 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 27–31 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
+| 32–35 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
+| 36–38 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
+| 39 | [Приёмник push-данных](#push-receiver) | `ingest` |
+| 40–41 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
+| 42–45 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 46–47 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
+| 48–50 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
+| 51–53 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
+| 54 | [GovData](#govdata) | `govdata` |
+| 55–56 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 57 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
 
 Справочник по каждому типу источника, поддерживаемому Provisa. «Прямой драйвер» означает, что однопоточные запросы выполняются напрямую к источнику (менее 100 мс) (REQ-027). «Имя коннектора» — это федеративный коннектор, используемый, когда источник участвует в многопоточных (multi-source) JOIN (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -163,6 +163,32 @@ Amazon Athena — безсерверный сервис запросов к да
 | `mongodb` | mongodb | Нет |
 | `cassandra` | cassandra (Trino); чтение CQL через cassandra-driver на любом другом движке | Нет | Keyspace являются схемами; регистрация таблицы перечисляет таблицы keyspace и типизирует столбцы из метаданных схемы кластера (ключи партиции — как первичные ключи); экстра `cassandra` устанавливает драйвер [tool-verified: `provisa/cassandra/fetch.py`] (REQ-1676) |
 | `redis` | redis (Trino); чтение через redis-py без HTTP на любом другом движке | Нет | Префикс ключа `<table>:*` — это таблица, а хеш — это строка; регистрация таблицы перечисляет присутствующие префиксы и типизирует столбцы префикса по его хешам (запись `mapping.tables` переопределяет шаблон, столбец ключа, тип значения и столбцы) [tool-verified: `provisa/redis/fetch.py`] (REQ-1675) |
+
+### Qdrant
+
+`qdrant` (REQ-1983) читается собственным клиентом Qdrant, `qdrant-client`; ни у одного движка федерации нет коннектора Qdrant, поэтому на любом движке он читается одинаково и выгружается туда, где инструкция его объединяет. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**Подключение.** `host` — URL экземпляра с портом (`https://<cluster>.cloud.qdrant.io:6333` или собственный `http://qdrant:6333`); `password` — его ключ API, ссылка на секрет, разрешаемая при чтении источника; для экземпляра без ключа он пуст. `federation_hints.prefer_grpc: true` читает через порт gRPC Qdrant вместо REST. У источника одна схема, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
+
+**Таблицы коллекций.** Коллекция — это таблица, выгружаемая целиком как реплика (scroll, страница за страницей) и обновляемая по своему TTL; у Qdrant нет change feed. Register Table предлагает столбцы коллекции: `id` (идентификатор точки, её ключ, путь `@id`), поля payload (индексированное поле типизируется по индексу, любое другое — как подсказывают выбранные точки-образцы; вложенные поля разворачиваются вместе с путём) и по одному столбцу `json` на вектор (путь `@vector` или `@vector.<name>` для именованного вектора), предлагаемому невыбранным. Чтение по ключу `id` — это один `retrieve`; по полю payload — один отфильтрованный scroll. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+
+**Таблицы поиска.** Векторный поиск — это таблица поиска: её `query_template` содержит запрос Query API.
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` — всегда аргумент; `using`, `filter`, `limit`, `score_threshold` и `model` необязательны. Любое значение в `using`, `filter`, `limit` или `score_threshold`, равное ровно `"@name"`, тоже является аргументом.
+- Каждый аргумент — параметр таблицы (`query_arg`, REQ-1986), строго приводимый к объявленному типу и помещаемый в запрос как значение JSON, но не в его текст. Аргумент `query` имеет тип `array(double)` и обязателен.
+- Вызывающий передаёт аргументы как любой параметр: `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'` в SQL, аргументы полей в GraphQL.
+- Необязательный аргумент, который не передан, ничего не фильтрует: его условие исключается из фильтра. Без `limit` поиск возвращает значение Qdrant по умолчанию — 10 точек.
+- Qdrant применяет фильтр до выбора ближайших точек, поэтому он точный. Любое другое условие инструкции сужает уже возвращённые поиском точки; новых оно не добавляет.
+- `score` — собственная метрика коллекции для искомого вектора: для коллекции Cosine — косинусное сходство. Register Table перечисляет векторы коллекции с их размерностью и расстоянием.
+- `model` называет зарегистрированную модель эмбеддингов (`vector_models`, admin → AI Models). Текст, переданный как запрос, тогда преобразуется этой моделью, а переданный вектор должен иметь размерность этой модели (REQ-429, REQ-430). Без `model` запрос должен быть вектором.
+
+Поиск читается для каждой инструкции с её аргументами, а его строки хранятся под этими аргументами в течение TTL таблицы. `cosine_similarity(column, vector)` (REQ-423) для Qdrant не транслируется: поиск по сходству — это таблица поиска. Запись в Qdrant не поддерживается. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Потоковая передача {: #streaming }
 
