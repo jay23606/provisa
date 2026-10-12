@@ -64,6 +64,8 @@
       "invalid_as_of": "X-Provisa-As-Of invalide : {{error}}",
       "invalid_filter": "filter doit être un objet associant des noms de champ à des valeurs",
       "invalid_filter_field": "Champ de filter invalide « {{field}} » pour {{type_name}}",
+      "invalid_parameter": "Paramètre invalide « {{field}} » pour {{type_name}}",
+      "invalid_params": "params doit être un objet associant des noms de paramètre à des valeurs",
       "invalid_redirect_format": "Le format de redirection '{{format}}' n'est pas un format dans lequel un résultat peut être livré",
       "invalid_redirect_threshold": "Le seuil de redirection doit être un nombre entier de lignes, et non '{{threshold}}'",
       "invalid_read_mask": "read_mask doit être un objet avec une liste « paths » de chemins de champ",

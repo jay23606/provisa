@@ -3470,6 +3470,8 @@
   "pt/serverErrors.json::serverErrors.data.invalid_as_of": "invalid X-Provisa-As-Of: {{error}}",
   "pt/serverErrors.json::serverErrors.data.invalid_filter": "filter must be an object mapping field names to values",
   "pt/serverErrors.json::serverErrors.data.invalid_filter_field": "Invalid filter field '{{field}}' for {{type_name}}",
+  "pt/serverErrors.json::serverErrors.data.invalid_parameter": "Invalid parameter '{{field}}' for {{type_name}}",
+  "pt/serverErrors.json::serverErrors.data.invalid_params": "params must be an object mapping parameter names to values",
   "pt/serverErrors.json::serverErrors.data.invalid_read_mask": "read_mask must be an object with a 'paths' list of field paths",
   "pt/serverErrors.json::serverErrors.data.invalid_read_mask_path": "Invalid read_mask path '{{path}}' for {{type_name}}",
   "pt/serverErrors.json::serverErrors.data.invalid_redirect_format": "Redirect format '{{format}}' is not a format a result can be delivered in",

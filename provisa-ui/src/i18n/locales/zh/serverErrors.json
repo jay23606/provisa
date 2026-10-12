@@ -64,6 +64,8 @@
       "invalid_as_of": "无效的 X-Provisa-As-Of：{{error}}",
       "invalid_filter": "filter 必须是将字段名映射到值的对象",
       "invalid_filter_field": "{{type_name}} 的 filter 字段 '{{field}}' 无效",
+      "invalid_parameter": "{{type_name}} 的参数 '{{field}}' 无效",
+      "invalid_params": "params 必须是将参数名映射到值的对象",
       "invalid_redirect_format": "重定向格式 '{{format}}' 不是可用于交付结果的格式",
       "invalid_redirect_threshold": "重定向阈值必须是整数行数，而不是 '{{threshold}}'",
       "invalid_read_mask": "read_mask 必须是包含字段路径列表 'paths' 的对象",
