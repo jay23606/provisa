@@ -16,7 +16,8 @@
     "parseError": "पढ़ने में त्रुटि",
     "group": {
       "core": "सामान्य फ़ॉर्मैट",
-      "custom": "आपका अपना"
+      "custom": "आपका अपना",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C विस्तारित (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "रेगुलर एक्सप्रेशन"
+      "regex": "रेगुलर एक्सप्रेशन",
+      "aws_alb": "AWS Application Load Balancer – एक्सेस लॉग",
+      "aws_nlb": "AWS Network Load Balancer – एक्सेस लॉग",
+      "aws_elb": "AWS Classic Load Balancer – एक्सेस लॉग",
+      "aws_cloudfront": "Amazon CloudFront – मानक लॉग",
+      "aws_s3_access": "Amazon S3 – सर्वर एक्सेस लॉग",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – लॉग",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – क्वेरी लॉग"
     }
   }
 }

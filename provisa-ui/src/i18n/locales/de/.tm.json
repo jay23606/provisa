@@ -5958,5 +5958,15 @@
   "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds.",
   "de/settings.json::settings.logs.allowed_roots.label": "Directories log files may be read from",
   "de/logsFields.json::logsFields.loadingFormats": "Loading formats…",
-  "de/logsFields.json::logsFields.pattern": "Pattern"
+  "de/logsFields.json::logsFields.pattern": "Pattern",
+  "de/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "de/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "de/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "de/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "de/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "de/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "de/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "de/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "de/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "de/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

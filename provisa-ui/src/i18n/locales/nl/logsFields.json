@@ -16,7 +16,8 @@
     "parseError": "Leesfout",
     "group": {
       "core": "Gangbare formaten",
-      "custom": "Eigen"
+      "custom": "Eigen",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C uitgebreid (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "Reguliere expressie"
+      "regex": "Reguliere expressie",
+      "aws_alb": "AWS Application Load Balancer – toegangslog",
+      "aws_nlb": "AWS Network Load Balancer – toegangslog",
+      "aws_elb": "AWS Classic Load Balancer – toegangslog",
+      "aws_cloudfront": "Amazon CloudFront – standaardlog",
+      "aws_s3_access": "Amazon S3 – servertoegangslog",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – log",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – querylog"
     }
   }
 }

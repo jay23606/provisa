@@ -5959,5 +5959,16 @@
   "zh-HK/logsFields.json::logsFields.formats.rfc3164": "BSD syslog (RFC 3164)",
   "zh-HK/logsFields.json::logsFields.preview": "Preview",
   "zh-HK/logsFields.json::logsFields.group.custom": "Your own",
-  "zh-HK/serverErrors.json::serverErrors.logs.path_refused": "Those files may not be read: {{reason}}"
+  "zh-HK/serverErrors.json::serverErrors.logs.path_refused": "Those files may not be read: {{reason}}",
+  "zh-HK/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+  "zh-HK/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "zh-HK/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "zh-HK/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "zh-HK/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "zh-HK/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

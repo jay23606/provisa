@@ -5958,5 +5958,16 @@
   "nl/settings.json::settings.logs.preview_lines.label": "Lines read to find a log's columns",
   "nl/settings.json::settings.logs.allowed_roots.label": "Directories log files may be read from",
   "nl/logsFields.json::logsFields.glob": "Files",
-  "nl/logsFields.json::logsFields.firstRows": "First rows: {{count}}"
+  "nl/logsFields.json::logsFields.firstRows": "First rows: {{count}}",
+  "nl/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+  "nl/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "nl/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "nl/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "nl/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "nl/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "nl/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "nl/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "nl/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "nl/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "nl/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

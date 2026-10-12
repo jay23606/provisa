@@ -5958,5 +5958,15 @@
   "pt/serverErrors.json::serverErrors.logs.invalid": "That is not a Logs source: {{error}}",
   "pt/logsFields.json::logsFields.loadingFormats": "Loading formats…",
   "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds.",
-  "pt/replicaBuild.json::replicaBuild.progressFiles": "{{done}} of {{total}} files read"
+  "pt/replicaBuild.json::replicaBuild.progressFiles": "{{done}} of {{total}} files read",
+  "pt/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "pt/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "pt/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "pt/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "pt/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "pt/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "pt/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "pt/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "pt/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "pt/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

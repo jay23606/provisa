@@ -16,7 +16,8 @@
     "parseError": "読み取りエラー",
     "group": {
       "core": "一般的な形式",
-      "custom": "独自"
+      "custom": "独自",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C 拡張 (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "正規表現"
+      "regex": "正規表現",
+      "aws_alb": "AWS Application Load Balancer – アクセスログ",
+      "aws_nlb": "AWS Network Load Balancer – アクセスログ",
+      "aws_elb": "AWS Classic Load Balancer – アクセスログ",
+      "aws_cloudfront": "Amazon CloudFront – 標準ログ",
+      "aws_s3_access": "Amazon S3 – サーバーアクセスログ",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – ログ",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – クエリログ"
     }
   }
 }

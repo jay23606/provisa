@@ -16,7 +16,8 @@
     "parseError": "שגיאת קריאה",
     "group": {
       "core": "תבניות נפוצות",
-      "custom": "משלכם"
+      "custom": "משלכם",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C מורחב (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "ביטוי רגולרי"
+      "regex": "ביטוי רגולרי",
+      "aws_alb": "AWS Application Load Balancer – יומן גישה",
+      "aws_nlb": "AWS Network Load Balancer – יומן גישה",
+      "aws_elb": "AWS Classic Load Balancer – יומן גישה",
+      "aws_cloudfront": "Amazon CloudFront – יומן רגיל",
+      "aws_s3_access": "Amazon S3 – יומן גישה לשרת",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – יומן",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – יומן שאילתות"
     }
   }
 }

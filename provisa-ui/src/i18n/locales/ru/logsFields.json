@@ -16,7 +16,8 @@
     "parseError": "Ошибка разбора",
     "group": {
       "core": "Распространённые форматы",
-      "custom": "Свой"
+      "custom": "Свой",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C расширенный (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "Регулярное выражение"
+      "regex": "Регулярное выражение",
+      "aws_alb": "AWS Application Load Balancer – журнал доступа",
+      "aws_nlb": "AWS Network Load Balancer – журнал доступа",
+      "aws_elb": "AWS Classic Load Balancer – журнал доступа",
+      "aws_cloudfront": "Amazon CloudFront – стандартный журнал",
+      "aws_s3_access": "Amazon S3 – журнал доступа к серверу",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – журнал",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – журнал запросов"
     }
   }
 }

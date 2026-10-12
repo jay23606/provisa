@@ -16,7 +16,8 @@
     "parseError": "Errore di lettura",
     "group": {
       "core": "Formati comuni",
-      "custom": "Personalizzato"
+      "custom": "Personalizzato",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C esteso (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "Espressione regolare"
+      "regex": "Espressione regolare",
+      "aws_alb": "AWS Application Load Balancer – log di accesso",
+      "aws_nlb": "AWS Network Load Balancer – log di accesso",
+      "aws_elb": "AWS Classic Load Balancer – log di accesso",
+      "aws_cloudfront": "Amazon CloudFront – log standard",
+      "aws_s3_access": "Amazon S3 – log di accesso al server",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – log",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – log delle query"
     }
   }
 }

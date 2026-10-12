@@ -16,7 +16,8 @@
     "parseError": "解析错误",
     "group": {
       "core": "常见格式",
-      "custom": "自定义"
+      "custom": "自定义",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C 扩展 (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "正则表达式"
+      "regex": "正则表达式",
+      "aws_alb": "AWS Application Load Balancer – 访问日志",
+      "aws_nlb": "AWS Network Load Balancer – 访问日志",
+      "aws_elb": "AWS Classic Load Balancer – 访问日志",
+      "aws_cloudfront": "Amazon CloudFront – 标准日志",
+      "aws_s3_access": "Amazon S3 – 服务器访问日志",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – 日志",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – 查询日志"
     }
   }
 }

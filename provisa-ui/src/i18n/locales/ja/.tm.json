@@ -5958,5 +5958,16 @@
   "ja/settings.json::settings.logs.preview_lines.label": "Lines read to find a log's columns",
   "ja/serverErrors.json::serverErrors.logs.path_refused": "Those files may not be read: {{reason}}",
   "ja/logsFields.json::logsFields.globHelp": "A full path, or a glob such as /var/log/system.log*; rotated and compressed files are read too.",
-  "ja/logsFields.json::logsFields.formats.rfc5424": "Syslog (RFC 5424)"
+  "ja/logsFields.json::logsFields.formats.rfc5424": "Syslog (RFC 5424)",
+  "ja/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+  "ja/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "ja/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "ja/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "ja/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "ja/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "ja/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "ja/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "ja/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "ja/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "ja/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

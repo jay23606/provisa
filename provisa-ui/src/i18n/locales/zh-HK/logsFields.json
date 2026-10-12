@@ -16,7 +16,8 @@
     "parseError": "解析錯誤",
     "group": {
       "core": "常見格式",
-      "custom": "自訂"
+      "custom": "自訂",
+      "amazon": "Amazon Web Services"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -29,7 +30,16 @@
       "w3c": "W3C 擴展 (IIS)",
       "cef": "ArcSight CEF",
       "gelf": "Graylog GELF",
-      "regex": "正規表示式"
+      "regex": "正規表示式",
+      "aws_alb": "AWS Application Load Balancer – 存取日誌",
+      "aws_nlb": "AWS Network Load Balancer – 存取日誌",
+      "aws_elb": "AWS Classic Load Balancer – 存取日誌",
+      "aws_cloudfront": "Amazon CloudFront – 標準日誌",
+      "aws_s3_access": "Amazon S3 – 伺服器存取日誌",
+      "aws_cloudtrail": "AWS CloudTrail",
+      "aws_vpc_flow": "Amazon VPC Flow Logs",
+      "aws_waf": "AWS WAF – 日誌",
+      "aws_route53_resolver": "Amazon Route 53 Resolver – 查詢日誌"
     }
   }
 }

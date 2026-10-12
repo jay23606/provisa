@@ -5958,5 +5958,16 @@
   "ru/replicaBuild.json::replicaBuild.buildingPartialFiles": "Replica building and already readable. Partial: {{done}} of {{total}} files read ({{how}}).",
   "ru/serverErrors.json::serverErrors.schema.logs_invalid": "Logs source {{source}}: {{error}}",
   "ru/logsFields.json::logsFields.glob": "Files",
-  "ru/serverErrors.json::serverErrors.schema.logs_path_refused": "Logs source {{source}}: {{reason}}"
+  "ru/serverErrors.json::serverErrors.schema.logs_path_refused": "Logs source {{source}}: {{reason}}",
+  "ru/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+  "ru/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "ru/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "ru/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "ru/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "ru/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "ru/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "ru/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "ru/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "ru/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "ru/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }

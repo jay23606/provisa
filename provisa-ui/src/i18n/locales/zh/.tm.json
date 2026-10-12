@@ -5958,5 +5958,19 @@
   "registerTableForm.json::registerTableForm.dqScanIntervalHint": "Each scan adds its results to the table; earlier scans are kept.",
   "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds.",
   "zh/settings.json::settings.logs.max_line_bytes.label": "Longest log record",
-  "zh/serverErrors.json::serverErrors.schema.logs_invalid": "Logs source {{source}}: {{error}}"
+  "zh/serverErrors.json::serverErrors.schema.logs_invalid": "Logs source {{source}}: {{error}}",
+  "zh/serverErrors.json::serverErrors.schema.logs_path_refused": "Logs source {{source}}: {{reason}}",
+  "zh/replicaBuild.json::replicaBuild.progressFiles": "{{done}} of {{total}} files read",
+  "zh/replicaBuild.json::replicaBuild.buildingPartialFiles": "Replica building and already readable. Partial: {{done}} of {{total}} files read ({{how}}).",
+  "zh/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
+  "zh/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
+  "zh/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
+  "zh/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
+  "zh/logsFields.json::logsFields.formats.aws_elb": "AWS Classic Load Balancer access log",
+  "zh/logsFields.json::logsFields.formats.aws_cloudfront": "Amazon CloudFront standard log",
+  "zh/logsFields.json::logsFields.formats.aws_s3_access": "Amazon S3 server access log",
+  "zh/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
+  "zh/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
+  "zh/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
+  "zh/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
 }
