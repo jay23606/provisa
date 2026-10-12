@@ -339,9 +339,8 @@ for _pre_uvicorn in $(pgrep -f "uvicorn main:app" 2>/dev/null); do
 done
 
 if [ "$DEMO" = true ]; then
-  # Demo servers (petstore-mock, graphql-demo) run as host processes, not Docker.
-  echo "Resetting volumes for pristine demo environment..."
-  docker compose $COMPOSE_FILES down -v 2>/dev/null || true
+  # A demo is native and touches no Docker; its servers (petstore-mock, graphql-demo) run as host
+  # processes.
   # The demo control plane is the embedded PostgreSQL (REQ-1535) — REQ-1535 itself says a pristine
   # demo start "drops the database instead of deleting files" (V1 has no migrations, so pristine
   # means rebuilt at the current schema, not a from-scratch cluster). The directory-deletion form
