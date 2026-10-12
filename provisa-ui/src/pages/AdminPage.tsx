@@ -55,6 +55,7 @@ import { BillingTab } from "../components/admin/BillingTab"; // REQ-1469
 import { McpServerTab } from "../components/admin/McpServerTab";
 import { OrgsTab } from "../components/admin/OrgsTab";
 import { AiModelsTab } from "../components/admin/AiModelsTab";
+import { PackageRegistriesTab } from "../components/admin/PackageRegistriesTab";
 import { MetadataExportTab } from "../components/admin/MetadataExportTab";
 import { ImportTab } from "../components/admin/ImportTab";
 import { TagsTab } from "../components/admin/TagsTab";
@@ -92,6 +93,7 @@ const ROUTE_TO_SECTION: Record<string, string> = {
   "/admin/observability": "Observability",
   "/admin/orgs": "Orgs",
   "/admin/ai-models": "AI Models",
+  "/admin/package-registries": "Package Registries", // REQ-1984: what Node installs go through
   "/admin/metadata-export": "Metadata Export",
   "/admin/import": "Import", // REQ-1483: Hasura v2 / DDN import
   "/admin/tags": "Tags",
@@ -503,6 +505,7 @@ export function AdminPage() {
         )}
         {activeTab === "Orgs" && canAdministerAllOrgs && <OrgsTab />}
         {activeTab === "AI Models" && <AiModelsTab />}
+        {activeTab === "Package Registries" && <PackageRegistriesTab />}
         {activeTab === "Metadata Export" && <MetadataExportTab />}
         {activeTab === "Import" && <ImportTab />}
         {activeTab === "Tags" && <TagsTab />}

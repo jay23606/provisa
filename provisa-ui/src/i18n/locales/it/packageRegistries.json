@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "I registri da cui ogni sorgente Node di questa organizzazione installa il proprio codice e le dipendenze. Ogni campo può contenere un valore o un riferimento a un segreto come ${secret:npm_token}. Il registro npm pubblico non richiede alcuna voce.",
+    "npmTitle": "Registri npm",
+    "npmHelp": "Un registro con uno scope fornisce i pacchetti di quello scope. Il mirror fornisce tutti gli altri pacchetti.",
+    "npmNone": "Nessun registro npm. I pacchetti arrivano dal registro npm pubblico.",
+    "add_npm": "Aggiungi registro npm",
+    "gitTitle": "Host Git",
+    "gitHelp": "Gli host da cui le sorgenti Node recuperano codice Git e dipendenze Git.",
+    "gitNone": "Nessun host Git.",
+    "add_git": "Aggiungi host Git",
+    "npmAddress": "URL del registro",
+    "gitHost": "Host",
+    "scope": "Scope",
+    "scopeHelp": "Ad esempio @acme. Lasciare vuoto per un registro senza scope.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "Il token di accesso del registro.",
+    "gitCredential": "Token HTTPS",
+    "gitCredentialHelp": "Un token con accesso in lettura ai repository.",
+    "mirror": "Mirror di ogni installazione",
+    "mirrorHelp": "Ogni pacchetto senza uno scope proprio viene installato tramite questo registro. Un'organizzazione ha un solo mirror.",
+    "saved": "Salvato",
+    "removed": "Rimosso",
+    "remove": "Rimuovi"
+  }
+}

@@ -3875,6 +3875,9 @@ def create_app() -> FastAPI:
     from provisa.api.admin.mail_platforms_router import router as mail_platforms_router
 
     app.include_router(mail_platforms_router)  # REQ-1923
+    from provisa.api.admin.package_registries_router import router as package_registries_router
+
+    app.include_router(package_registries_router)  # REQ-1984
     from provisa.api.admin.microsoft365_router import router as microsoft365_router
 
     app.include_router(microsoft365_router)  # REQ-1923

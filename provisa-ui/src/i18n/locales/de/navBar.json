@@ -44,6 +44,7 @@
     "itemMySecrets": "Ihre Secrets",
     "itemAuthentication": "Authentifizierung",
     "itemAiModels": "KI-Modelle",
+    "itemPackageRegistries": "Paket-Registries",
     "itemMetadataExport": "Exportieren",
     "itemImport": "Importieren",
     "itemTags": "Tags",

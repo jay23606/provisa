@@ -44,6 +44,7 @@
     "itemMySecrets": "你的密鑰",
     "itemAuthentication": "驗證",
     "itemAiModels": "AI 模型",
+    "itemPackageRegistries": "套件登錄庫",
     "itemMetadataExport": "匯出",
     "itemImport": "匯入",
     "itemTags": "標籤",

@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "Los registros desde los que instala cada fuente Node de esta organización, para su propio código y sus dependencias. Cada campo puede contener un valor o una referencia a un secreto como ${secret:npm_token}. El registro público de npm no necesita entrada.",
+    "npmTitle": "Registros npm",
+    "npmHelp": "Un registro con un ámbito sirve los paquetes de ese ámbito. El espejo sirve todos los demás paquetes.",
+    "npmNone": "No hay registros npm. Los paquetes vienen del registro público de npm.",
+    "add_npm": "Añadir registro npm",
+    "gitTitle": "Hosts Git",
+    "gitHelp": "Los hosts de los que las fuentes Node obtienen código Git y dependencias Git.",
+    "gitNone": "No hay hosts Git.",
+    "add_git": "Añadir host Git",
+    "npmAddress": "URL del registro",
+    "gitHost": "Host",
+    "scope": "Ámbito",
+    "scopeHelp": "Por ejemplo @acme. Déjelo vacío para un registro sin ámbito.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "El token de acceso del registro.",
+    "gitCredential": "Token HTTPS",
+    "gitCredentialHelp": "Un token con acceso de lectura a los repositorios.",
+    "mirror": "Espejo de cada instalación",
+    "mirrorHelp": "Cada paquete sin ámbito propio se instala a través de este registro. Una organización tiene un espejo.",
+    "saved": "Guardado",
+    "removed": "Eliminado",
+    "remove": "Eliminar"
+  }
+}

@@ -1,0 +1,239 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: f11b1b2f-5ff1-46fa-9b22-64edb8c04b26
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""A code source's worker (REQ-1984, REQ-1993): the protocol every language's host speaks, against
+a stand-in host written in Python. Rows come batch by batch, a command's value whole, the code's
+own error by its message, a crash names the source and the export, a deadline cancels the call in
+the host and releases the waiting thread, and a pool starts a new process after a crash."""
+
+# Requirements: REQ-1984, REQ-1993, REQ-1882
+from __future__ import annotations
+
+import sys
+import textwrap
+import time
+from datetime import UTC, datetime
+from decimal import Decimal
+
+import pytest
+
+from provisa.codesource import worker as w
+from provisa.core import request_deadline
+
+pytestmark = pytest.mark.unit
+
+# The stand-in host: the protocol of provisa/node/host.mjs, in Python. It records each cancel it
+# is sent in a file beside it, so a test can see the call was stopped in the host.
+_HOST = textwrap.dedent(
+    """
+    import json, socket, struct, sys, threading, time
+    path, log = sys.argv[1], sys.argv[2]
+    conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    conn.connect(path)
+    lock = threading.Lock()
+    cancelled = set()
+
+    def send(m):
+        body = json.dumps(m).encode()
+        with lock:
+            conn.sendall(struct.pack(">I", len(body)) + body)
+
+    def recv():
+        head = b""
+        while len(head) < 4:
+            chunk = conn.recv(4 - len(head))
+            if not chunk:
+                return None
+            head += chunk
+        size, body = struct.unpack(">I", head)[0], b""
+        while len(body) < size:
+            body += conn.recv(size - len(body))
+        return json.loads(body)
+
+    def serve(m):
+        i, name, args = m["id"], m["export"], m["args"]
+        if name == "many":
+            for start in range(0, args[0], 1000):
+                send({"op": "rows", "id": i, "rows": [{"n": n} for n in range(start, min(start + 1000, args[0]))]})
+        elif name == "echo":
+            send({"op": "rows", "id": i, "rows": [{"args": args}]})
+        elif name == "total":
+            send({"op": "value", "id": i, "value": {"$decimal": "12.50"}})
+        elif name == "boom":
+            send({"op": "error", "id": i, "message": "no such customer", "stack": "at boom"})
+            return
+        elif name == "ticks":
+            n = 0
+            while i not in cancelled:
+                send({"op": "rows", "id": i, "rows": [{"tick": n}]})
+                n += 1
+                time.sleep(0.01)
+            open(log, "a").write(f"cancelled {i}\\n")
+            return
+        elif name == "slow":
+            while i not in cancelled:
+                time.sleep(0.01)
+            open(log, "a").write(f"cancelled {i}\\n")
+            return
+        elif name == "die":
+            sys.stderr.write("the code fell over\\n")
+            sys.stderr.flush()
+            import os
+            os._exit(3)
+        send({"op": "end", "id": i})
+
+    send({"op": "hello", "exports": ["many", "echo", "total", "boom", "slow", "ticks", "die"]})
+    while (m := recv()) is not None:
+        if m["op"] == "ping":
+            send({"op": "pong", "id": m["id"]})
+        elif m["op"] == "cancel":
+            cancelled.add(m["id"])
+        elif m["op"] == "call":
+            threading.Thread(target=serve, args=(m,), daemon=True).start()
+    """
+)
+
+
+@pytest.fixture
+def command(tmp_path):
+    host = tmp_path / "host.py"
+    host.write_text(_HOST)
+    log = tmp_path / "cancels.log"
+    return w.HostCommand(
+        argv=lambda socket: [sys.executable, str(host), str(socket), str(log)],
+        env=w.private_environment(),
+        cwd=tmp_path,
+    ), log
+
+
+@pytest.fixture
+def worker(command):
+    started = w.Worker("orders-src", "h1", command[0])
+    started.start()
+    yield started
+    started.stop()
+
+
+def test_the_host_says_which_exports_it_has(worker):
+    assert worker.exports == ["many", "echo", "total", "boom", "slow", "ticks", "die"]
+    assert worker.ping()
+
+
+def test_a_tables_rows_come_batch_by_batch(worker):
+    batches = list(worker.rows("many", "table", [2500]))
+    assert [len(b) for b in batches] == [1000, 1000, 500]
+    assert batches[2][-1] == {"n": 2499}
+
+
+def test_values_cross_the_wire_in_their_own_types(worker):
+    placed = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
+    [[row]] = list(worker.rows("echo", "table", [placed, 2**60, Decimal("1.10"), None, "x"]))
+    assert row == {"args": [placed, 2**60, Decimal("1.10"), None, "x"]}
+
+
+def test_a_commands_value_comes_whole(worker):
+    assert worker.command("total", []) == Decimal("12.50")
+
+
+def test_the_codes_own_error_is_named_by_source_and_export(worker):
+    with pytest.raises(w.CodeFailed) as failed:
+        list(worker.rows("boom", "table", []))
+    assert str(failed.value) == "source 'orders-src', export 'boom': no such customer"
+    assert failed.value.stack == "at boom"
+    assert worker.ping()  # the worker serves on
+
+
+def test_a_deadline_cancels_the_call_in_the_host_and_releases_the_thread(worker, command):
+    _, log = command
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        with request_deadline.within(0.3):
+            list(worker.rows("slow", "table", []))
+    assert time.monotonic() - started < 5.0
+    until = time.monotonic() + 5.0
+    while not log.exists() and time.monotonic() < until:
+        time.sleep(0.02)
+    assert log.read_text().startswith("cancelled ")
+    assert worker.ping()
+
+
+def test_closing_a_stream_early_cancels_it_in_the_host(worker, command):
+    _, log = command
+    rows = worker.rows("ticks", "stream", [])
+    assert [next(rows), next(rows)] == [[{"tick": 0}], [{"tick": 1}]]
+    rows.close()  # the subscriber left
+    until = time.monotonic() + 5.0
+    while not log.exists() and time.monotonic() < until:
+        time.sleep(0.02)
+    assert log.exists()
+
+
+def test_a_crash_fails_the_call_naming_the_source_the_export_and_what_the_host_said(worker):
+    with pytest.raises(w.WorkerFailed) as failed:
+        list(worker.rows("die", "table", []))
+    message = str(failed.value)
+    assert message.startswith("source 'orders-src', export 'die': its host ended (exit 3)")
+    assert "the code fell over" in message
+    assert not worker.alive()
+
+
+def test_a_host_that_never_connects_is_named(tmp_path):
+    never = w.HostCommand(
+        argv=lambda _socket: [
+            sys.executable,
+            "-c",
+            "import sys; sys.stderr.write('no'); sys.exit(2)",
+        ],
+        env=w.private_environment(),
+        cwd=tmp_path,
+    )
+    worker = w.Worker("broken-src", "h", never)
+    with pytest.raises(w.WorkerFailed) as failed:
+        worker.start(timeout=2.0)
+    assert str(failed.value).startswith(
+        "source 'broken-src': its host ended before it connected (exit 2)"
+    )
+
+
+def test_the_pool_starts_a_new_worker_after_a_crash_and_stops_a_sources_workers(command):
+    pool = w.WorkerPool()
+    first = pool.get("orders-src", "h1", lambda: command[0])
+    assert pool.get("orders-src", "h1", lambda: command[0]) is first
+    with pytest.raises(w.WorkerFailed):
+        first.command("die", [])
+    second = pool.get("orders-src", "h1", lambda: command[0])
+    assert second is not first and second.ping()
+    other = pool.get("orders-src", "h2", lambda: command[0])
+    pool.stop_source("orders-src")
+    assert not second.alive() and not other.alive()
+    pool.stop_all()
+
+
+def test_a_worker_gets_only_path_from_the_environment(monkeypatch):
+    monkeypatch.setenv("PROVISA_SECRET", "s3cret")
+    assert set(w.private_environment(NO_COLOR="1")) == {"PATH", "NO_COLOR"}
+
+
+def test_a_value_with_no_wire_form_is_refused():
+    with pytest.raises(TypeError):
+        w.encode(object())
+
+
+def test_a_host_that_neither_connects_nor_exits_is_stopped_at_the_start_timeout(tmp_path):
+    silent = w.HostCommand(
+        argv=lambda _socket: [sys.executable, "-c", "import time; time.sleep(60)"],
+        env=w.private_environment(),
+        cwd=tmp_path,
+    )
+    worker = w.Worker("silent-src", "h", silent)
+    with pytest.raises(w.WorkerFailed) as failed:
+        worker.start(timeout=0.5)
+    assert str(failed.value).startswith("source 'silent-src': its host did not connect within 0.5s")
+    assert not worker.alive()

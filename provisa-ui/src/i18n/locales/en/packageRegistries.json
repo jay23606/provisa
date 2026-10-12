@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "The registries every Node source of this organization installs from, for its own code and its dependencies. Each field can hold a value or a secret reference such as ${secret:npm_token}. The public npm registry needs no entry.",
+    "npmTitle": "npm registries",
+    "npmHelp": "A registry with a scope serves that scope's packages. The mirror serves every other package.",
+    "npmNone": "No npm registries. Packages come from the public npm registry.",
+    "add_npm": "Add npm registry",
+    "gitTitle": "Git hosts",
+    "gitHelp": "The hosts Node sources fetch Git code and Git dependencies from.",
+    "gitNone": "No Git hosts.",
+    "add_git": "Add Git host",
+    "npmAddress": "Registry URL",
+    "gitHost": "Host",
+    "scope": "Scope",
+    "scopeHelp": "For example @acme. Leave empty for a registry with no scope.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "The registry's access token.",
+    "gitCredential": "HTTPS token",
+    "gitCredentialHelp": "A token with read access to the repositories.",
+    "mirror": "Mirror every install",
+    "mirrorHelp": "Every package without a scope of its own is installed through this registry. An organization has one mirror.",
+    "saved": "Saved",
+    "removed": "Removed",
+    "remove": "Remove"
+  }
+}

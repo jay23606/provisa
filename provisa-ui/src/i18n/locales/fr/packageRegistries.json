@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "Les registres depuis lesquels chaque source Node de cette organisation installe son propre code et ses dépendances. Chaque champ peut contenir une valeur ou une référence à un secret comme ${secret:npm_token}. Le registre npm public ne demande aucune entrée.",
+    "npmTitle": "Registres npm",
+    "npmHelp": "Un registre avec une portée sert les paquets de cette portée. Le miroir sert tous les autres paquets.",
+    "npmNone": "Aucun registre npm. Les paquets viennent du registre npm public.",
+    "add_npm": "Ajouter un registre npm",
+    "gitTitle": "Hôtes Git",
+    "gitHelp": "Les hôtes depuis lesquels les sources Node récupèrent le code Git et les dépendances Git.",
+    "gitNone": "Aucun hôte Git.",
+    "add_git": "Ajouter un hôte Git",
+    "npmAddress": "URL du registre",
+    "gitHost": "Hôte",
+    "scope": "Portée",
+    "scopeHelp": "Par exemple @acme. Laissez vide pour un registre sans portée.",
+    "npmCredential": "Jeton",
+    "npmCredentialHelp": "Le jeton d'accès du registre.",
+    "gitCredential": "Jeton HTTPS",
+    "gitCredentialHelp": "Un jeton avec accès en lecture aux dépôts.",
+    "mirror": "Miroir de chaque installation",
+    "mirrorHelp": "Chaque paquet sans portée propre est installé via ce registre. Une organisation a un seul miroir.",
+    "saved": "Enregistré",
+    "removed": "Supprimé",
+    "remove": "Supprimer"
+  }
+}
