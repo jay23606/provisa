@@ -4,6 +4,7 @@
     "sortDescending": "降順にソート済み",
     "sortNone": "ソートなし",
     "groupBy": "{{label}}でグループ化",
-    "ungroupLevel": "グループ解除（レベル {{level}}）"
+    "ungroupLevel": "グループ解除（レベル {{level}}）",
+    "moreValues": "他{{count}}件"
   }
 }

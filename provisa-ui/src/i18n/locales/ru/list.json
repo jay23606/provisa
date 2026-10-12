@@ -4,6 +4,7 @@
     "sortDescending": "сортировка по убыванию",
     "sortNone": "без сортировки",
     "groupBy": "Группировать по {{label}}",
-    "ungroupLevel": "Разгруппировать (уровень {{level}})"
+    "ungroupLevel": "Разгруппировать (уровень {{level}})",
+    "moreValues": "ещё {{count}}"
   }
 }

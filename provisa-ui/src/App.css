@@ -547,6 +547,66 @@ main {
 .data-table th {
   font-weight: 600;
   color: var(--text-muted);
+  /* A header is shown whole, however short its column's content. */
+  white-space: nowrap;
+}
+/* A cell of text asks for no more width than its column's cap (components/list/ListCell.tsx; the
+ * numbers are in listCellLimits.ts). The cap bounds what the column ASKS for: where the list has
+ * room to spare the column is given more and the text uses it. */
+.data-table td.list-capped {
+  max-width: var(--list-cell-cap, var(--list-col-cap));
+}
+.list-cell {
+  overflow: hidden;
+  min-width: 0;
+}
+/* A short value, or a few short words: one line, at its whole width. */
+.list-cell--value {
+  white-space: nowrap;
+}
+/* A long single value: one line, cut with an ellipsis. It may break anywhere, so the column can
+ * give up width to keep the list in the window, down to this minimum; only its first line shows. */
+.list-cell--token {
+  min-width: var(--list-cut-min);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow-wrap: anywhere;
+}
+/* What the page drew in a cell asks for one width and is never squeezed below it. */
+.list-cell-drawn {
+  min-width: max-content;
+}
+/* Several words: wraps, the row grows to its maximum of lines, the last ends with an ellipsis.
+ * Its column gives up width to keep the list in the window, but not below this minimum. */
+.list-cell--words {
+  min-width: var(--list-wrap-min);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--list-row-lines);
+  line-clamp: var(--list-row-lines);
+  overflow-wrap: anywhere;
+}
+/* Pills: wrap inside the cap up to the row's maximum; the rest are counted in "+N more". */
+.list-cell--pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-width: var(--list-cell-cap, var(--list-col-cap));
+  max-height: calc(var(--list-row-lines) * 1.6em);
+}
+.list-cell__more {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  align-self: center;
+}
+.list-cell:focus-visible,
+.list-cell__more:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 /* Pinned table headers (REQ-1587) — the list pages built on .page + .data-table:
  * /relationships, /tables and /sources.
@@ -626,8 +686,13 @@ main {
   min-height: 0;
   overflow: auto;
 }
+/* A list is as wide as its container. Each column asks for its content's width up to its cap
+ * (td.list-capped below). When they do not all fit, the columns of wrapped text and of long,
+ * already-cut single values give up width, down to their minimums; a short value and anything the
+ * page drew (a control, a pill) keep the width they ask for. Only when nothing is left to give does the list pass its
+ * container and scroll sideways. */
 .split-pane__list > .table-scroll > table {
-  width: max-content;
+  width: 100%;
   min-width: 100%;
 }
 .split-pane__list > :not(.table-scroll) {

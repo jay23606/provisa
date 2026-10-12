@@ -4,6 +4,7 @@
     "sortDescending": "absteigend sortiert",
     "sortNone": "nicht sortiert",
     "groupBy": "Nach {{label}} gruppieren",
-    "ungroupLevel": "Gruppierung aufheben (Ebene {{level}})"
+    "ungroupLevel": "Gruppierung aufheben (Ebene {{level}})",
+    "moreValues": "+{{count}} weitere"
   }
 }
