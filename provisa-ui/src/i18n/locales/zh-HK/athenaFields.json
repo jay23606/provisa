@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "區域",
+    "database": "資料庫",
+    "workgroup": "工作群組",
+    "workgroupHint": "留空：primary",
+    "catalog": "資料目錄",
+    "catalogHint": "留空：AwsDataCatalog",
+    "resultLocation": "查詢結果位置",
+    "resultLocationHint": "Athena 寫入結果的位置；工作群組已設定時留空",
+    "resultLocationInvalid": "請輸入 s3:// 位置，例如 s3://my-bucket/athena-results/",
+    "accessKeyId": "存取金鑰 ID",
+    "accessKeyHint": "留空：AWS 憑證鏈（執行個體角色、環境、設定檔）",
+    "secretAccessKey": "秘密存取金鑰",
+    "roleArn": "要承擔的角色",
+    "roleArnHint": "選填；每次呼叫都會承擔"
+  }
+}

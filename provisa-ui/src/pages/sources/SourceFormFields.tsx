@@ -20,6 +20,7 @@ import { ObjectStoreCredentialFields } from "./ObjectStoreCredentialFields";
 import { CLOUD_FILE_TYPES, objectStoreOf } from "./objectStoreHints";
 import { SourceFormFieldsExtended } from "./SourceFormFieldsExtended";
 import { FieldGroup, FormField } from "../../components/form/FormLayout";
+import { AthenaFields } from "./AthenaFields";
 
 export interface SourceFormState {
   id: string;
@@ -457,6 +458,9 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
             </FormField>
           )}
         </>
+      )}
+      {form.type === "athena" && (
+        <AthenaFields form={form} setForm={setForm} fields={authFields} setFields={setAuthFields} />
       )}
       {form.type === "bigquery" && (
         <>

@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "Region",
+    "database": "Database",
+    "workgroup": "Workgroup",
+    "workgroupHint": "Empty: primary",
+    "catalog": "Data catalog",
+    "catalogHint": "Empty: AwsDataCatalog",
+    "resultLocation": "Query result location",
+    "resultLocationHint": "Where Athena writes results; empty when the workgroup sets one",
+    "resultLocationInvalid": "Enter an s3:// location, such as s3://my-bucket/athena-results/",
+    "accessKeyId": "Access key ID",
+    "accessKeyHint": "Empty: the AWS credential chain (instance role, environment, profile)",
+    "secretAccessKey": "Secret access key",
+    "roleArn": "Role to assume",
+    "roleArnHint": "Optional; assumed for every call"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "リージョン",
+    "database": "データベース",
+    "workgroup": "ワークグループ",
+    "workgroupHint": "空: primary",
+    "catalog": "データカタログ",
+    "catalogHint": "空: AwsDataCatalog",
+    "resultLocation": "クエリ結果の場所",
+    "resultLocationHint": "Athena が結果を書き込む場所。ワークグループで設定されている場合は空",
+    "resultLocationInvalid": "s3:// の場所を入力してください（例: s3://my-bucket/athena-results/）",
+    "accessKeyId": "アクセスキー ID",
+    "accessKeyHint": "空: AWS 認証情報チェーン（インスタンスロール、環境、プロファイル）",
+    "secretAccessKey": "シークレットアクセスキー",
+    "roleArn": "引き受けるロール",
+    "roleArnHint": "任意。すべての呼び出しで引き受けます"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "क्षेत्र",
+    "database": "डेटाबेस",
+    "workgroup": "वर्कग्रुप",
+    "workgroupHint": "खाली: primary",
+    "catalog": "डेटा कैटलॉग",
+    "catalogHint": "खाली: AwsDataCatalog",
+    "resultLocation": "क्वेरी परिणाम स्थान",
+    "resultLocationHint": "जहाँ Athena परिणाम लिखता है; वर्कग्रुप में तय होने पर खाली",
+    "resultLocationInvalid": "कोई s3:// स्थान दर्ज करें, जैसे s3://my-bucket/athena-results/",
+    "accessKeyId": "एक्सेस कुंजी ID",
+    "accessKeyHint": "खाली: AWS क्रेडेंशियल शृंखला (इंस्टेंस भूमिका, एनवायरनमेंट, प्रोफ़ाइल)",
+    "secretAccessKey": "गुप्त एक्सेस कुंजी",
+    "roleArn": "धारण की जाने वाली भूमिका",
+    "roleArnHint": "वैकल्पिक; हर कॉल के लिए धारण की जाती है"
+  }
+}

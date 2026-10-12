@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "אזור",
+    "database": "מסד נתונים",
+    "workgroup": "קבוצת עבודה",
+    "workgroupHint": "ריק: primary",
+    "catalog": "קטלוג נתונים",
+    "catalogHint": "ריק: AwsDataCatalog",
+    "resultLocation": "מיקום תוצאות השאילתה",
+    "resultLocationHint": "היכן Athena כותב תוצאות; ריק כשקבוצת העבודה מגדירה מיקום",
+    "resultLocationInvalid": "הזן מיקום s3://‎, למשל s3://my-bucket/athena-results/",
+    "accessKeyId": "מזהה מפתח גישה",
+    "accessKeyHint": "ריק: שרשרת האישורים של AWS (תפקיד מופע, סביבה, פרופיל)",
+    "secretAccessKey": "מפתח גישה סודי",
+    "roleArn": "תפקיד להנחה",
+    "roleArnHint": "אופציונלי; מונח בכל קריאה"
+  }
+}
