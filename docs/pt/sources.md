@@ -28,7 +28,7 @@ O Provisa registra **53** tipos de fonte. As tabelas abaixo cobrem os 53; o índ
 | # | Grupo | Tipos de fonte |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [Data warehouses em nuvem](#data-warehouses-em-nuvem) | `snowflake`, `bigquery`, `databricks`, `redshift`, `fabric`, `synapse`, `trino` |
+| 14–20 | [Data warehouses em nuvem](#data-warehouses-em-nuvem) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 21–25 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 26–30 | [Data lake / formatos de tabela aberta](#data-lake-formatos-de-tabela-aberta) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
 | 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
@@ -76,9 +76,57 @@ Bancos de dados compatíveis com o protocolo de fio reutilizam o driver JDBC, o 
 | `bigquery` | — | bigquery | bigquery | Federada | Sem DirectDriver; alcançado via motor de federação ou ATTACH do motor BigQuery |
 | `databricks` | DatabricksDriver | delta_lake | databricks | Federada | Lê via databricks-sql-connector (Cloud Fetch, Arrow); pousa réplica; `http_path` exigido em `federation_hints` (REQ-987) |
 | `redshift` | — | redshift | redshift | Federada | — |
+| `athena` | AthenaDriver | — | athena | Parcial (INSERT sempre; UPDATE/DELETE/MERGE apenas em Iceberg) | Consulta serverless sobre S3; instruções de fonte única são executadas inteiramente no Athena; junções entre fontes aterram uma réplica; `region` obrigatória em `federation_hints` (REQ-1981) |
 | `fabric` | MssqlWarehouseDriver | — | tsql | Federada | Microsoft Fabric Warehouse; T-SQL sobre TDS, autenticação Azure AD; pousa réplica (REQ-995) |
 | `synapse` | MssqlWarehouseDriver | — | tsql | Federada | Azure Synapse SQL; T-SQL sobre TDS, autenticação Azure AD; pousa réplica (REQ-995) |
 | `trino` | SQLAlchemyDriver | — | — | Federada | Coordenador Trino/Presto remoto lido via o dialeto SQLAlchemy trino; pousa réplica em qualquer motor (REQ-994) |
+
+#### `athena`
+
+Amazon Athena é um serviço de consulta sem servidor sobre dados no S3, cobrado por byte analisado. Uma instrução apenas sobre tabelas Athena é roteada diretamente para o Athena: filtros, listas de colunas e `LIMIT` são transmitidos integralmente, de modo que apenas os bytes necessários ao Athena para responder àquela instrução são analisados e cobrados. Uma instrução que une uma tabela Athena com outra fonte primeiro aterra uma réplica completa do Athena — toda a tabela é lida e o Athena a cobra — e então a junção é executada contra essa réplica. As configurações Replicate e proteção de carga da fonte regem a frequência dos aterramentos; a nota na documentação é a única regra. (REQ-1981)
+
+**Descoberta.** Register Table chama a API de metadados do Athena — `ListDatabases`, `ListTableMetadata`, `GetTableMetadata`. Essas chamadas não executam nenhuma consulta, portanto listar bancos de dados e tabelas e ler as colunas de uma tabela não tem custo por byte. As colunas de uma tabela são lidas apenas quando essa tabela é selecionada. Chaves de partição seguem as colunas regulares. Os tipos são mapeados através da entrada `athena` em `provisa/core/ir_types.py`: `array<…>`, `map<…>` e `struct<…>` tornam-se `text`; um tipo desconhecido é recusado, nomeando-o. [tool-verified: `provisa/federation/athena.py` `databases`, `tables`, `columns`; `provisa/core/ir_types.py` entrada `"athena"`]
+
+**Campos da fonte.**
+
+| Campo | Onde | Obrigatório | Padrão | Notas |
+| --- | --- | --- | --- | --- |
+| `database` | fonte | Sim | — | O banco de dados Glue consultado por padrão |
+| `username` | fonte | Não | — | ID da chave de acesso AWS; pode ser `${secret:…}` ou `${env:…}` |
+| `password` | fonte | Não | — | Chave de acesso secreta AWS; pode ser `${secret:…}` ou `${env:…}` |
+| `region` | `federation_hints` | Sim | — | Região AWS, ex. `us-east-1` |
+| `workgroup` | `federation_hints` | Não | `primary` | Grupo de trabalho do Athena |
+| `s3_staging_dir` | `federation_hints` | Não | padrão do grupo | Onde o Athena grava os resultados; obrigatório quando o grupo de trabalho não define um |
+| `catalog` | `federation_hints` | Não | `AwsDataCatalog` | Catálogo de dados do Athena |
+| `role_arn` | `federation_hints` | Não | — | ARN do perfil IAM assumido a cada chamada |
+
+Ambos `username` e `password` vazios significa que a cadeia de credenciais do boto3 é usada: perfil de instância, variáveis de ambiente (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) ou um perfil nomeado. Um sem o outro é recusado. [tool-verified: `provisa/executor/drivers/athena.py` `AthenaDriver.connect`; `provisa/federation/athena.py` `athena_client`]
+
+**Gravações.** Cada tabela registrada aceita `INSERT`. `UPDATE`, `DELETE` e `MERGE` estão disponíveis apenas em uma tabela Iceberg; o formato é registrado no momento do registro (`registered_tables.table_format`). Uma gravação em uma tabela Hive que solicite `UPDATE`, `DELETE` ou `MERGE` é recusada, nomeando a tabela e a operação. O Athena não retorna as linhas gravadas — uma cláusula `RETURNING` é recusada e o GraphQL não oferece campos de mutação para essas tabelas; `INSERT`, `UPDATE`, `DELETE` e `COPY` são os caminhos de gravação. `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING` e `TRUNCATE` são recusados, nomeando a forma. [tool-verified: `provisa/executor/write_capability.py` `table_write_ops`; `provisa/executor/writable.py` `_TYPE_RETURNS_NO_ROWS`, `_TYPE_REFUSED_FORMS`]
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  username: ${env:ATHENA_ACCESS_KEY_ID}
+  password: ${env:ATHENA_SECRET_ACCESS_KEY}
+  federation_hints:
+    region: us-east-1
+    workgroup: primary
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
+Com um perfil assumido a cada chamada (cadeia de credenciais para a sessão base):
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  federation_hints:
+    region: us-east-1
+    role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
 
 ### Analytics / OLAP
 
