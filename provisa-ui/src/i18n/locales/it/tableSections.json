@@ -19,7 +19,6 @@
     "noRelationships": "Questa tabella non partecipa ad alcuna relazione",
     "fromSource": "{{value}} (dall'origine)",
     "fromSourceAsIs": "Come nell'origine",
-    "contractSet": "Impostato",
     "notScheduledLikeSource": "Non letta solo secondo la pianificazione, anche se la sua origine lo è: una query può leggere l'origine."
   }
 }

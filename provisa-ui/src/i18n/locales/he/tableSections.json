@@ -19,7 +19,6 @@
     "noRelationships": "טבלה זו אינה משתתפת באף קשר",
     "fromSource": "{{value}} (מהמקור)",
     "fromSourceAsIs": "כפי שמוגדר במקור",
-    "contractSet": "מוגדר",
     "notScheduledLikeSource": "אינה נקראת רק לפי לוח זמנים, אף שהמקור שלה כן: שאילתה עשויה לקרוא את המקור."
   }
 }

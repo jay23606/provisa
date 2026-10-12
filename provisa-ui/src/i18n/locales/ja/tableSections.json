@@ -19,7 +19,6 @@
     "noRelationships": "このテーブルはどのリレーションシップにも含まれていません",
     "fromSource": "{{value}}（ソースから）",
     "fromSourceAsIs": "ソースの設定どおり",
-    "contractSet": "設定済み",
     "notScheduledLikeSource": "ソースはスケジュールでのみ読み取られますが、このテーブルはそうではありません: クエリがソースを読み取ることがあります。"
   }
 }

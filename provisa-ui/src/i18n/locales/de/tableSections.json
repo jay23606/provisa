@@ -19,7 +19,6 @@
     "noRelationships": "Diese Tabelle ist an keiner Beziehung beteiligt",
     "fromSource": "{{value}} (von der Quelle)",
     "fromSourceAsIs": "Wie bei der Quelle",
-    "contractSet": "Festgelegt",
     "notScheduledLikeSource": "Nicht nur nach Zeitplan gelesen, obwohl ihre Quelle es wird: Eine Abfrage kann die Quelle lesen."
   }
 }
