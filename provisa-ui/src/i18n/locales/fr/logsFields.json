@@ -22,7 +22,8 @@
       "google": "Google",
       "web": "Serveurs web et proxys",
       "databases": "Bases de données et environnements d'exécution",
-      "linux": "Conteneurs et Linux"
+      "linux": "Conteneurs et Linux",
+      "security": "Surveillance de la sécurité réseau"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -77,7 +78,11 @@
       "kubernetes_cri": "Kubernetes (CRI) – journal",
       "journald_json": "systemd journal (journalctl -o json)",
       "linux_auditd": "Linux auditd – journal d'audit",
-      "linux_dmesg": "Kernel ring buffer (dmesg)"
+      "linux_dmesg": "Kernel ring buffer (dmesg)",
+      "zeek_tsv": "Zeek (tab-separated) – journal",
+      "zeek_json": "Zeek (JSON) – journal",
+      "suricata_eve": "Suricata EVE JSON",
+      "snort_fast": "Snort alert (fast)"
     }
   }
 }

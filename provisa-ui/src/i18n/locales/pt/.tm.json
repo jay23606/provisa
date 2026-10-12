@@ -6006,5 +6006,10 @@
   "pt/logsFields.json::logsFields.formats.kubernetes_cri": "Kubernetes container log (CRI)",
   "pt/logsFields.json::logsFields.formats.journald_json": "systemd journal (journalctl -o json)",
   "pt/logsFields.json::logsFields.formats.linux_auditd": "Linux audit log (auditd)",
-  "pt/logsFields.json::logsFields.formats.linux_dmesg": "Kernel ring buffer (dmesg)"
+  "pt/logsFields.json::logsFields.formats.linux_dmesg": "Kernel ring buffer (dmesg)",
+  "pt/logsFields.json::logsFields.group.security": "Network security monitoring",
+  "pt/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
+  "pt/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
+  "pt/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
+  "pt/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
 }

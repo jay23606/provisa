@@ -1,0 +1,2 @@
+05/11-08:15:23.456789  [**] [1:2019401:2] ET POLICY Vulnerable Java Version 1.8.x Detected [**] [Classification: Potential Corporate Privacy Violation] [Priority: 1] {TCP} 192.168.1.10:51234 -> 93.184.216.34:80
+05/11/23-08:15:24.000001  [**] [1:1000001:1] ICMP test [**] [Priority: 0] {ICMP} 192.168.1.10 -> 192.168.1.1

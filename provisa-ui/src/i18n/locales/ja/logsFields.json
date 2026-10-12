@@ -22,7 +22,8 @@
       "google": "Google",
       "web": "Web サーバーとプロキシ",
       "databases": "データベースとランタイム",
-      "linux": "コンテナと Linux"
+      "linux": "コンテナと Linux",
+      "security": "ネットワークセキュリティ監視"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -77,7 +78,11 @@
       "kubernetes_cri": "Kubernetes (CRI) – ログ",
       "journald_json": "systemd journal (journalctl -o json)",
       "linux_auditd": "Linux auditd – 監査ログ",
-      "linux_dmesg": "Kernel ring buffer (dmesg)"
+      "linux_dmesg": "Kernel ring buffer (dmesg)",
+      "zeek_tsv": "Zeek (tab-separated) – ログ",
+      "zeek_json": "Zeek (JSON) – ログ",
+      "suricata_eve": "Suricata EVE JSON",
+      "snort_fast": "Snort alert (fast)"
     }
   }
 }
