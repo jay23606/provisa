@@ -535,6 +535,10 @@
         "label": "MCP 行数上限",
         "help": "一次 MCP 工具调用向 AI 客户端返回的最大行数。"
       },
+      "render_timeout_s": {
+        "label": "图形渲染时间限制",
+        "help": "render_graph 将一个图绘制为 PNG 时允许的最长时间，超过即停止。"
+      },
       "port": {
         "label": "MCP 端口",
         "help": "MCP 服务器监听的端口；0 表示不启用。需要重启；因会打开或关闭监听器，保存前需确认。"

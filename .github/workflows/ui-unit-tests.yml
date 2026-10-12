@@ -33,9 +33,20 @@ jobs:
       # Node and the install, as the Playwright workflows do them.
       - name: Set up the UI toolchain
         uses: ./.github/actions/setup-ui
+        with:
+          graph-render: "true"
 
       - name: Type check
         run: npx tsc -b --noEmit
 
       - name: Unit tests
         run: npx vitest run
+
+      # render_graph's renderer (REQ-1990): its own package, tested by node --test against its
+      # built bundle -- each layout on each theme, as the MCP server runs it.
+      - name: Graph renderer -- type check, build, test
+        working-directory: provisa-ui/graph-render
+        run: |
+          npm run typecheck
+          npm run build
+          npm test

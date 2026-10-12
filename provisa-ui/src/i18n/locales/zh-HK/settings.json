@@ -535,6 +535,10 @@
         "label": "MCP 行數上限",
         "help": "單次 MCP 工具呼叫最多傳回給 AI 用戶端的行數。"
       },
+      "render_timeout_s": {
+        "label": "圖形渲染時間限制",
+        "help": "render_graph 將一個圖繪製為 PNG 時允許的最長時間，超過即停止。"
+      },
       "port": {
         "label": "MCP 連接埠",
         "help": "MCP 伺服器偵聽的連接埠；0 表示關閉。需要重新啟動；儲存前會要求確認，因為這會開啟或關閉偵聽器。"

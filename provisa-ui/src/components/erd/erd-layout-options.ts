@@ -9,8 +9,7 @@
 // permission from the copyright holder.
 
 // The ERD's ELK layout: layered, upward, children laid out with their parents. The MCP server's
-// render_graph offers it as "elk" (provisa/api/mcp/graph_layouts.json, held equal by
-// graphLayoutsParity.test.ts).
+// render_graph draws with it as "elk" (provisa-ui/graph-render imports it).
 
 import type { CyLayoutOptions } from "../graph/cytoscape-types";
 

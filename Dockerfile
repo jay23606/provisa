@@ -20,13 +20,33 @@ ARG PROVISA_EXTRAS=firebase,vector
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
  && pip install --no-cache-dir ".[${PROVISA_EXTRAS}]"
 
-# Stage 2: lean runtime image — no wheels, only app source + installed packages
+# Stage 2: render_graph's renderer (REQ-1990) — the UI's own Cytoscape stylesheet and layouts,
+# bundled with the packages provisa-ui/graph-render's lockfile pins, drawn by Node into a PNG.
+# npm and the build tools stay in this stage; the runtime takes node, the bundle and the two
+# packages the bundle loads at run time (jsdom, and canvas with its native build for this arch).
+FROM node:22.22.3-bookworm-slim@sha256:e21fc383b50d5347dc7a9f1cae45b8f4e2f0d39f7ade28e4eef7d2934522b752 AS graph-render
+WORKDIR /build/provisa-ui
+COPY provisa-ui/graph-render/package.json provisa-ui/graph-render/package-lock.json ./graph-render/
+RUN cd graph-render && npm ci --no-audit --no-fund
+COPY provisa-ui/graph-render/src ./graph-render/src
+COPY provisa-ui/src/components/graph ./src/components/graph
+COPY provisa-ui/src/components/erd/erd-layout-options.ts ./src/components/erd/
+RUN cd graph-render && npm run build && npm prune --omit=dev
+
+# Stage 3: lean runtime image — no wheels, only app source + installed packages
 FROM python:3.12-slim
 WORKDIR /app
 COPY --from=installer /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=installer /usr/local/bin /usr/local/bin
 COPY main.py pyproject.toml ./
 COPY provisa/ ./provisa/
+# render_graph draws with Node (maintainer, 2026-10-12: "add node to the image and render PNG").
+# Labels need a font: fontconfig's sans-serif is DejaVu Sans.
+COPY --from=graph-render /usr/local/bin/node /usr/local/bin/node
+COPY --from=graph-render /build/provisa-ui/graph-render/dist ./provisa/_graph_render/dist
+COPY --from=graph-render /build/provisa-ui/graph-render/node_modules ./provisa/_graph_render/node_modules
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
 # static/ contains the built React SPA; may be empty in dev builds
 COPY static/ ./static/
 # Bake ONLY the shipped runtime configs — NEVER the whole config/ dir. A blanket copy also

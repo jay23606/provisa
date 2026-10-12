@@ -254,7 +254,7 @@ def build_mcp_server(state: Any):
     may omit it and the pinned PROVISA_MCP_ROLE is used; a remote HTTP caller's
     role is derived from its bearer token by the transport layer and passed in.
     """
-    from mcp.server.fastmcp import Context, FastMCP
+    from mcp.server.fastmcp import Image, Context, FastMCP
 
     # ``from __future__ import annotations`` stringizes the ``ctx: Context`` annotation on the
     # run_sql tool; FastMCP evaluates tool annotations against the module globals, so expose Context
@@ -517,12 +517,18 @@ def build_mcp_server(state: Any):
         return await tools.run_cypher(state, _role(role), cypher, params, limit)
 
     @_tool
-    async def render_graph(elements: dict, layout: str = "force") -> dict:
-        """How to draw a graph run_cypher returned, as the UI draws it: the elements and the
-        Cytoscape layout options of the UI's graph page -- "force" (fcose), "hierarchy"
-        (breadthfirst) -- or its ERD's "elk". Run the layout in Cytoscape with the extension named
-        ("extension"); no positions are computed server-side."""
-        return tools.render_graph(elements, layout)
+    async def render_graph(
+        elements: dict,
+        layout: str = "force",
+        theme: str = "light",
+        width: int = 800,
+        height: int = 600,
+    ):  # an Image: the SDK answers it as MCP image content (its annotation would not resolve here)
+        """Draw a graph run_cypher returned as the Provisa graph page draws it: a PNG with the
+        page's own stylesheet and layout -- "force" (fcose), "hierarchy" (breadthfirst) or the
+        ERD's "elk" -- on the page's light background, or theme="dark". width and height (100 to
+        4000 pixels) are the canvas the layout fills."""
+        return Image(data=tools.render_graph(elements, layout, theme, width, height), format="png")
 
     @_tool
     async def generate_explore_queries(question: str, role: str | None = None) -> dict:

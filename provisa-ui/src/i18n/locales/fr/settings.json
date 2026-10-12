@@ -535,6 +535,10 @@
         "label": "Limite de lignes MCP",
         "help": "Le nombre maximal de lignes qu'un appel d'outil MCP renvoie à un client IA."
       },
+      "render_timeout_s": {
+        "label": "Délai de rendu des graphes",
+        "help": "Durée maximale accordée à render_graph pour dessiner un graphe en PNG avant son arrêt."
+      },
       "port": {
         "label": "Port MCP",
         "help": "Le port sur lequel le serveur MCP écoute ; 0 le désactive. Redémarrage requis ; confirmation demandée car cela ouvre ou ferme un listener."

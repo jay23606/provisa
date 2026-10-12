@@ -11,6 +11,10 @@ inputs:
       Run `npm ci`. False for a job whose own build script installs (packaging's build-wheel.sh
       and the macOS installer scripts), which needs Node and the npm cache only.
     default: "true"
+  graph-render:
+    description: >-
+      Also `npm ci` in provisa-ui/graph-render, render_graph's renderer (its own locked package).
+    default: "false"
   playwright:
     description: >-
       none | chromium | chromium-with-deps. Plain `chromium` installs no system packages: the
@@ -25,12 +29,20 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: npm
-        cache-dependency-path: provisa-ui/package-lock.json
+        cache-dependency-path: |
+          provisa-ui/package-lock.json
+          provisa-ui/graph-render/package-lock.json
 
     - name: Install UI deps
       if: inputs.install == 'true'
       shell: bash
       working-directory: provisa-ui
+      run: npm ci
+
+    - name: Install the graph renderer's deps
+      if: inputs.graph-render == 'true'
+      shell: bash
+      working-directory: provisa-ui/graph-render
       run: npm ci
 
     - name: Install Playwright browser

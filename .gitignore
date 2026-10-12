@@ -134,6 +134,8 @@ coverage.xml
 # Wheel build staging (scripts/build-wheel.sh) — REQ-1127
 provisa/_ui/
 provisa/_config/
+# render_graph's renderer, built from provisa-ui/graph-render (the image builds it in place)
+provisa/_graph_render
 
 # provisa-duckdb-ext blobs are built per-platform by CI (build-duckdb-extensions), not committed.
 packaging/duckdb-ext/provisa_duckdb_ext/_ext/**

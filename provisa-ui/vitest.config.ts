@@ -32,7 +32,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test-setup.ts"],
-    exclude: ["e2e/**", "node_modules/**"],
+    // graph-render is its own package, tested by node --test (npm test there), with its own deps.
+    exclude: ["e2e/**", "node_modules/**", "graph-render/**"],
     // 'threads' (the default) gives each test file its own module registry. Under 'vmThreads' with
     // fileParallelism:false every file shared one registry, so a vi.mock in one file decided which
     // version of that module EVERY file got — mocks silently applied or failed to apply depending
