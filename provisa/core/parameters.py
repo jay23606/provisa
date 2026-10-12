@@ -24,9 +24,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 # How a parameter reaches the source (core/models.py Column.native_filter_type).
-PARAMETER_KINDS = frozenset(
-    {"path_param", "query_param", "graphql_arg", "grpc_input", "pipeline_arg"}
-)
+PARAMETER_KINDS = frozenset({"path_param", "query_param", "graphql_arg", "grpc_input", "query_arg"})
 
 NF_PREFIX = "_nf_"
 

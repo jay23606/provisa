@@ -13,7 +13,7 @@
       "query_param": "クエリパラメーター",
       "graphql_arg": "GraphQL 引数",
       "grpc_input": "gRPC リクエストのフィールド",
-      "pipeline_arg": "パイプライン引数"
+      "query_arg": "ネイティブクエリの引数"
     }
   }
 }

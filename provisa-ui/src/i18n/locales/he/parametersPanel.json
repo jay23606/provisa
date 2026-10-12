@@ -13,7 +13,7 @@
       "query_param": "פרמטר שאילתה",
       "graphql_arg": "ארגומנט GraphQL",
       "grpc_input": "שדה בבקשת gRPC",
-      "pipeline_arg": "ארגומנט של צינור"
+      "query_arg": "ארגומנט של השאילתה המקורית"
     }
   }
 }

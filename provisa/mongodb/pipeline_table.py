@@ -20,7 +20,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from provisa.mongodb.native_query import PIPELINE_ARG
+from provisa.mongodb.native_query import QUERY_ARG
 
 # Documents fetched per round trip of the aggregate cursor.
 _BATCH_ROWS = 1000
@@ -47,7 +47,7 @@ def _arguments(table: dict, given: dict | None) -> dict[str, tuple[Any, str]]:
     by_canon = {apply_sql_name(k.lstrip("_")): v for k, v in (given or {}).items()}
     out: dict[str, tuple[Any, str]] = {}
     for col in table["columns"]:
-        if col["native_filter_type"] != PIPELINE_ARG:
+        if col["native_filter_type"] != QUERY_ARG:
             continue
         name = parameter_name(col)
         value = by_canon.get(apply_sql_name(name.lstrip("_")))
@@ -112,7 +112,7 @@ def whole_batches(conn: Any, database: str, table: Any, batch_rows: int):
     from provisa.mongodb.pipeline_rows import OutputColumn, project
 
     name = table.table_name
-    if any(c.native_filter_type == PIPELINE_ARG for c in table.columns):
+    if any(c.native_filter_type == QUERY_ARG for c in table.columns):
         raise ValueError(f"Table {name!r} is a function of its arguments: it has no whole table")
     query = check(name, table.query_template, set())
     outputs = [

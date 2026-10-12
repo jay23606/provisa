@@ -5777,7 +5777,6 @@
   "zh-HK/parametersPanel.json::parametersPanel.kind.query_param": "Query parameter",
   "zh-HK/parametersPanel.json::parametersPanel.kind.graphql_arg": "GraphQL argument",
   "zh-HK/parametersPanel.json::parametersPanel.kind.grpc_input": "gRPC request field",
-  "zh-HK/parametersPanel.json::parametersPanel.kind.pipeline_arg": "Pipeline argument",
   "zh-HK/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields.",
   "zh-HK/registerTableForm.json::registerTableForm.pipelineQueryLabel": "Native query",
   "zh-HK/registerTableForm.json::registerTableForm.pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- an argument is a whole value \"{{name}}\"",
@@ -5804,5 +5803,6 @@
   "zh-HK/whatsNew.json::whatsNew.features": "Features",
   "zh-HK/whatsNew.json::whatsNew.changes": "Changes",
   "zh-HK/whatsNew.json::whatsNew.general": "General",
-  "zh-HK/whatsNew.json::whatsNew.empty": "No user-visible changes."
+  "zh-HK/whatsNew.json::whatsNew.empty": "No user-visible changes.",
+  "zh-HK/parametersPanel.json::parametersPanel.kind.query_arg": "Native query argument"
 }

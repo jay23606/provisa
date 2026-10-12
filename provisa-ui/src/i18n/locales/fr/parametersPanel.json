@@ -13,7 +13,7 @@
       "query_param": "Paramètre de requête",
       "graphql_arg": "Argument GraphQL",
       "grpc_input": "Champ de la requête gRPC",
-      "pipeline_arg": "Argument du pipeline"
+      "query_arg": "Argument de la requête native"
     }
   }
 }

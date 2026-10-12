@@ -29,7 +29,7 @@ Facts found while reading that bear on the design:
   - OpenAPI skips the table and logs (`materialization.py:728`).
   - gRPC does not check at all.
 
-  This design enforces the flag for `pipeline_arg` only. The general gap is a separate defect and is not fixed here.
+  This design enforces the flag for `query_arg` only. The general gap is a separate defect and is not fixed here.
 - The comment at `core/models.py:845` lists only `path_param | query_param`. In fact gRPC also writes `grpc_input`.
 - `limit_arg`, `offset_arg` and `cursor_arg` are graphql_remote pagination keys. They are not parameter-column types.
 - MongoDB tables route `ENGINE` (`transpiler/router.py:55`). Neo4j tables also route `ENGINE`; their rows are landed by the materialization step before routing. A pipeline table follows the neo4j path.
@@ -59,7 +59,7 @@ No new table and no new column on `registered_tables`.
 
 **Arguments**: one parameter column per argument.
 - Name `_nf_<arg>`.
-- `native_filter_type = "pipeline_arg"`.
+- `native_filter_type = "query_arg"`.
 - `native_filter_required` set per argument (true or false, never None, for this type).
 - `data_type` is the argument's type: an IR type, or `array(<IR scalar>)`.
 - Optional `embedding_model` on an `array(double)` argument fixes its dimension.
@@ -78,9 +78,9 @@ No new table and no new column on `registered_tables`.
 - Both arrive in `nf_args`.
 
 **Required arguments.**
-- In `_materialize_api_to_engine_cache`, the new branch checks every `pipeline_arg` with `native_filter_required = true`.
+- In `_materialize_api_to_engine_cache`, the new branch checks every `query_arg` with `native_filter_required = true`.
 - A missing one goes to `dropped_tables` with the existing reason text ("requires filter(s) [...] — add a WHERE clause with the required parameter(s)"). `apply_dropped_tables` raises it for a lone table, and a UNION sweep (a graph count) drops the branch, as for graphql_remote.
-- In GraphQL, `_build_native_filter_args` makes the argument NonNull when `native_filter_type == "path_param"`, or when it is `"pipeline_arg"` and required. Other types keep today's rule.
+- In GraphQL, `_build_native_filter_args` makes the argument NonNull when `native_filter_type == "path_param"`, or when it is `"query_arg"` and required. Other types keep today's rule.
 
 **Optional arguments.** An absent optional argument binds BSON `null`. A pipeline that must behave differently without it says so itself (`$ifNull`, `$cond`). There is no other default, no fallback and no stage pruning.
 
@@ -158,7 +158,7 @@ The table is a registered table, so governance needs no new code.
 - Cypher: a label over the table, with `_nf_` conditions kept in WHERE (`cypher/translator_helpers.py:420`).
 - REST, JSON:API and gRPC: these are generated from the same schema. I have not checked that each one passes parameter-column arguments. The test plan covers each.
 
-**Profiler.** It refuses a table that has a required argument. `profiler/source.py:180` extends its `path_param` check to required `pipeline_arg`s. A table with optional arguments only is profiled with every argument null.
+**Profiler.** It refuses a table that has a required argument. `profiler/source.py:180` extends its `path_param` check to required `query_arg`s. A table with optional arguments only is profiled with every argument null.
 
 **Writes.** A pipeline table is read-only: registration refuses a pipeline containing `$out` or `$merge` anywhere, nested pipelines included.
 
@@ -202,4 +202,4 @@ With no `output_columns`, it returns a list of JSON documents, so its GraphQL re
 2. **`$out` and `$merge`:** refused at registration.
 3. **Atlas SRV and TLS connections:** built first, as REQ-1985. The source's host holds the connection string; there is no new field.
 4. **Arguments fed by a join:** left out of Shape A.
-5. **`native_filter_required` for every source kind:** enforced by one shared check, under the wider parameter model of REQ-1986 (filed as #239). A table's parameters are required by the source or by a steward; pipeline arguments are parameters like any other, so the argument model of section 2 is REQ-1986's: `pipeline_arg` columns, optional unless a steward requires them.
+5. **`native_filter_required` for every source kind:** enforced by one shared check, under the wider parameter model of REQ-1986 (filed as #239). A table's parameters are required by the source or by a steward; pipeline arguments are parameters like any other, so the argument model of section 2 is REQ-1986's: `query_arg` columns, optional unless a steward requires them.
