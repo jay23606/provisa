@@ -433,3 +433,30 @@ describe("TableReadView — Preview, Profile and Policies are icon actions in th
     expect(navigate).toHaveBeenCalledWith("/security/rls", { state: { tableFilter: "orders" } });
   });
 });
+
+describe("TableReadView — Query shows every stored setting", () => {
+  it("lists the column presets under the editor's headers, and a metric view's parts", () => {
+    renderView(
+      false,
+      makeTable({
+        id: 7,
+        viewSql: "SELECT 1",
+        columnPresets: [
+          { column: "created_at", source: "now", name: null, value: null, dataType: null },
+          { column: "tenant", source: "header", name: "X-Tenant", value: null, dataType: null },
+        ],
+        viewMetrics: { metrics: ["revenue"], dimensions: ["region"], filters: ["year = 2026"] },
+      } as Partial<RegisteredTable>),
+    );
+    fireEvent.click(screen.getByTestId("table-section-query"));
+    const presets = screen.getByTestId("table-read-presets");
+    expect(
+      within(presets)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Column", "Source", "Header / Value"]);
+    expect(presets).toHaveTextContent("X-Tenant");
+    const query = screen.getByTestId("table-query");
+    for (const text of ["revenue", "region", "year = 2026"]) expect(query).toHaveTextContent(text);
+  });
+});

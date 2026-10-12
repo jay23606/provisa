@@ -24,6 +24,7 @@ import {
   pagingFields,
   snapshotFields,
 } from "./loadReadFields";
+import { presetsField, viewMetricsFields } from "./queryReadFields";
 
 // A table's sections read-only: the read view shows them, and so does the edit form to a caller
 // who may change only how columns are hidden. Each lists the fields its edit tab has, in the same
@@ -203,15 +204,7 @@ export function QueryRead({ table }: { table: RegisteredTable }) {
   const fields: DetailField[] = [
     { label: t("tableEditForm.enableAggregatesLabel"), value: yesNo(t, table.enableAggregates) },
     { label: t("tableEditForm.enableGroupByLabel"), value: yesNo(t, table.enableGroupBy) },
-    {
-      label: t("columnPresetsEditor.label"),
-      value:
-        table.columnPresets.length > 0
-          ? table.columnPresets
-              .map((p) => `${p.column} = ${p.source === "literal" ? p.value : p.source}`)
-              .join(", ")
-          : null,
-    },
+    presetsField(t, table),
     {
       label: t("tableReadView.writable"),
       testId: "table-read-view-writable",
@@ -219,7 +212,12 @@ export function QueryRead({ table }: { table: RegisteredTable }) {
         table.writeOps.length > 0 ? table.writeOps.map((op) => op.toUpperCase()).join(", ") : null,
     },
     ...(table.watermarkColumn
-      ? [{ label: t("tableReadView.watermarkColumn"), value: <code>{table.watermarkColumn}</code> }]
+      ? [
+          {
+            label: t("registerTableForm.watermarkLabel"),
+            value: <code>{table.watermarkColumn}</code>,
+          },
+        ]
       : []),
     ...(table.queryTemplate
       ? [
@@ -238,6 +236,7 @@ export function QueryRead({ table }: { table: RegisteredTable }) {
           },
         ]
       : []),
+    ...viewMetricsFields(t, table),
   ];
   return <DetailFields fields={fields} testId="table-query" />;
 }
