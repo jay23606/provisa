@@ -1,0 +1,6 @@
+2023-03-15 10:01:22.34 Server      Microsoft SQL Server 2019 (RTM) - 15.0.2000.5 (X64)
+	Sep 24 2019 13:48:23
+	Copyright (C) 2019 Microsoft Corporation
+2023-03-15 10:01:22.35 spid9s      Starting up database 'master'.
+2023-03-15 10:05:12.10 Logon       Error: 18456, Severity: 14, State: 8.
+2023-03-15 10:05:12.10 Logon       Login failed for user 'sa'. Reason: Password did not match that for the login provided. [CLIENT: 10.0.0.9]

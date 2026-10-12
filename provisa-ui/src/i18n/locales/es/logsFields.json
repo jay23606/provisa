@@ -17,7 +17,8 @@
     "group": {
       "core": "Formatos comunes",
       "custom": "Propio",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – registro",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – registro de consultas"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – registro de consultas",
+      "ms_iis": "Microsoft IIS – registro",
+      "ms_windows_firewall": "Windows Firewall – registro",
+      "ms_dns_debug": "Windows DNS server – registro de depuración",
+      "ms_dhcp_audit": "Windows DHCP server – registro de auditoría",
+      "ms_exchange_tracking": "Microsoft Exchange – seguimiento de mensajes",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – registro de errores",
+      "azure_storage_analytics": "Azure Storage analytics – registro",
+      "azure_monitor": "Azure Monitor / Activity Log – exportación"
     }
   }
 }

@@ -17,7 +17,8 @@
     "group": {
       "core": "Formats courants",
       "custom": "Le vôtre",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – journal",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – journal des requêtes"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – journal des requêtes",
+      "ms_iis": "Microsoft IIS – journal",
+      "ms_windows_firewall": "Windows Firewall – journal",
+      "ms_dns_debug": "Windows DNS server – journal de débogage",
+      "ms_dhcp_audit": "Windows DHCP server – journal d'audit",
+      "ms_exchange_tracking": "Microsoft Exchange – suivi des messages",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – journal des erreurs",
+      "azure_storage_analytics": "Azure Storage analytics – journal",
+      "azure_monitor": "Azure Monitor / Activity Log – export"
     }
   }
 }

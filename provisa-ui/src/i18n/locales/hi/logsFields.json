@@ -17,7 +17,8 @@
     "group": {
       "core": "सामान्य फ़ॉर्मैट",
       "custom": "आपका अपना",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – लॉग",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – क्वेरी लॉग"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – क्वेरी लॉग",
+      "ms_iis": "Microsoft IIS – लॉग",
+      "ms_windows_firewall": "Windows Firewall – लॉग",
+      "ms_dns_debug": "Windows DNS server – डीबग लॉग",
+      "ms_dhcp_audit": "Windows DHCP server – ऑडिट लॉग",
+      "ms_exchange_tracking": "Microsoft Exchange – संदेश ट्रैकिंग",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – त्रुटि लॉग",
+      "azure_storage_analytics": "Azure Storage analytics – लॉग",
+      "azure_monitor": "Azure Monitor / Activity Log – निर्यात"
     }
   }
 }

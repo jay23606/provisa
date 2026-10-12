@@ -1,0 +1,5 @@
+DNS Server log file creation at 4/25/2017 11:13:27 AM
+Log file wrap at 4/25/2017 11:13:27 AM
+
+4/25/2017 11:13:27 AM 0E70 PACKET  000000D8BD1E5DF0 UDP Rcv 10.0.0.5        e36d   Q [0001   D   NOERROR] A      (3)www(7)example(3)com(0)
+4/25/2017 11:13:27 AM 0E70 PACKET  000000D8BD1E5DF0 UDP Snd 10.0.0.5        e36d R Q [8081   DR  NOERROR] A      (3)www(7)example(3)com(0)

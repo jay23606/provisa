@@ -17,7 +17,8 @@
     "group": {
       "core": "תבניות נפוצות",
       "custom": "משלכם",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – יומן",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – יומן שאילתות"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – יומן שאילתות",
+      "ms_iis": "Microsoft IIS – יומן",
+      "ms_windows_firewall": "Windows Firewall – יומן",
+      "ms_dns_debug": "Windows DNS server – יומן ניפוי באגים",
+      "ms_dhcp_audit": "Windows DHCP server – יומן ביקורת",
+      "ms_exchange_tracking": "Microsoft Exchange – מעקב הודעות",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – יומן שגיאות",
+      "azure_storage_analytics": "Azure Storage analytics – יומן",
+      "azure_monitor": "Azure Monitor / Activity Log – ייצוא"
     }
   }
 }

@@ -17,7 +17,8 @@
     "group": {
       "core": "常见格式",
       "custom": "自定义",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – 日志",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – 查询日志"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – 查询日志",
+      "ms_iis": "Microsoft IIS – 日志",
+      "ms_windows_firewall": "Windows Firewall – 日志",
+      "ms_dns_debug": "Windows DNS server – 调试日志",
+      "ms_dhcp_audit": "Windows DHCP server – 审计日志",
+      "ms_exchange_tracking": "Microsoft Exchange – 邮件跟踪",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – 错误日志",
+      "azure_storage_analytics": "Azure Storage analytics – 日志",
+      "azure_monitor": "Azure Monitor / Activity Log – 导出"
     }
   }
 }

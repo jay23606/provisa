@@ -17,7 +17,8 @@
     "group": {
       "core": "一般的な形式",
       "custom": "独自",
-      "amazon": "Amazon Web Services"
+      "amazon": "Amazon Web Services",
+      "microsoft": "Microsoft"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -39,7 +40,15 @@
       "aws_cloudtrail": "AWS CloudTrail",
       "aws_vpc_flow": "Amazon VPC Flow Logs",
       "aws_waf": "AWS WAF – ログ",
-      "aws_route53_resolver": "Amazon Route 53 Resolver – クエリログ"
+      "aws_route53_resolver": "Amazon Route 53 Resolver – クエリログ",
+      "ms_iis": "Microsoft IIS – ログ",
+      "ms_windows_firewall": "Windows Firewall – ログ",
+      "ms_dns_debug": "Windows DNS server – デバッグログ",
+      "ms_dhcp_audit": "Windows DHCP server – 監査ログ",
+      "ms_exchange_tracking": "Microsoft Exchange – メッセージ追跡",
+      "ms_sqlserver_errorlog": "SQL Server (ERRORLOG) – エラーログ",
+      "azure_storage_analytics": "Azure Storage analytics – ログ",
+      "azure_monitor": "Azure Monitor / Activity Log – エクスポート"
     }
   }
 }

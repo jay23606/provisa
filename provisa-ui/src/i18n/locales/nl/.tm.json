@@ -5969,5 +5969,14 @@
   "nl/logsFields.json::logsFields.formats.aws_cloudtrail": "AWS CloudTrail",
   "nl/logsFields.json::logsFields.formats.aws_vpc_flow": "Amazon VPC Flow Logs",
   "nl/logsFields.json::logsFields.formats.aws_waf": "AWS WAF log",
-  "nl/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log"
+  "nl/logsFields.json::logsFields.formats.aws_route53_resolver": "Amazon Route 53 Resolver query log",
+  "nl/logsFields.json::logsFields.group.microsoft": "Microsoft",
+  "nl/logsFields.json::logsFields.formats.ms_iis": "Microsoft IIS log",
+  "nl/logsFields.json::logsFields.formats.ms_windows_firewall": "Windows Firewall log",
+  "nl/logsFields.json::logsFields.formats.ms_dns_debug": "Windows DNS server debug log",
+  "nl/logsFields.json::logsFields.formats.ms_dhcp_audit": "Windows DHCP server audit log",
+  "nl/logsFields.json::logsFields.formats.ms_exchange_tracking": "Microsoft Exchange message tracking log",
+  "nl/logsFields.json::logsFields.formats.ms_sqlserver_errorlog": "SQL Server error log (ERRORLOG)",
+  "nl/logsFields.json::logsFields.formats.azure_storage_analytics": "Azure Storage analytics log",
+  "nl/logsFields.json::logsFields.formats.azure_monitor": "Azure Monitor / Activity Log export"
 }

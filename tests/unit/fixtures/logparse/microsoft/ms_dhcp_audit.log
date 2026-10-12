@@ -1,0 +1,10 @@
+		Microsoft DHCP Service Activity Log
+
+
+Event ID  Meaning
+00	The log was started.
+10	A new IP address was leased to a client.
+
+ID,Date,Time,Description,IP Address,Host Name,MAC Address,User Name, TransactionID, QResult,Probationtime, CorrelationID,Dhcid,VendorClass(Hex),VendorClass(ASCII),UserClass(Hex),UserClass(ASCII),RelayAgentInformation,DnsRegError.
+00,05/11/23,00:00:01,Started,,,,,0,6,,,,,,,,,0
+10,05/11/23,08:15:23,Assign,192.168.1.50,laptop1.contoso.com,AABBCCDDEEFF,,1234567890,0,,,,0x4D53465420352E30,MSFT 5.0,,,,0
