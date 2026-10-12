@@ -20,7 +20,9 @@ messages. A change to a role or to a model is described and served by the next c
 
 from __future__ import annotations
 
+import contextlib
 import socket
+from collections.abc import Iterator
 
 import grpc
 import pytest
@@ -77,6 +79,18 @@ class _Deployment:
         self._compiled[current_org.get()] = value
 
 
+@contextlib.contextmanager
+def _reserved_port() -> Iterator[int]:
+    """A port that stays this test's until its server has bound it. A port found free and then
+    released can be taken by another process (another test worker) before the server binds it.
+    Held with SO_REUSEPORT, which gRPC sets on its own listener, so the server binds beside it;
+    never listened on, so no connection reaches it."""
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as held:
+        held.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        held.bind(("::", 0))
+        yield held.getsockname()[1]
+
+
 @pytest.fixture
 def deployment(monkeypatch):
     """A real server on a loopback port over two organisations with different models. Each
@@ -103,10 +117,8 @@ def deployment(monkeypatch):
     monkeypatch.setattr(grpc_server, "_allow_unsecured_reflection", lambda: True)
     monkeypatch.setattr(grpc_server.ProvisaServicer, "_handle_query_bound", _rows)
     monkeypatch.setattr(grpc_server.ProvisaServicer, "_meter_msg", lambda self, msg: msg)
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    server = grpc_server.start_grpc_server(port, state)
+    with _reserved_port() as port:
+        server = grpc_server.start_grpc_server(port, state)
     channel = grpc.insecure_channel(f"127.0.0.1:{port}")
     try:
         yield state, channel
@@ -353,10 +365,8 @@ def built(monkeypatch):
     monkeypatch.setattr("provisa.grpc.auth.auth_active", lambda _state: False)
     monkeypatch.setattr(grpc_server, "_allow_unsecured_reflection", lambda: True)
     monkeypatch.setattr(state, "security_high", False, raising=False)
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        port = probe.getsockname()[1]
-    server = grpc_server.start_grpc_server(port, state)
+    with _reserved_port() as port:
+        server = grpc_server.start_grpc_server(port, state)
     channel = grpc.insecure_channel(f"127.0.0.1:{port}")
     try:
         yield state, channel

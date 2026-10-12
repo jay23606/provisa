@@ -200,7 +200,8 @@ async def test_a_table_schema_sql_does_not_create_lands_in_the_org_schema(own_da
         conn.exec_driver_sql("SET LOCAL search_path TO audit_reference")
         conn.exec_driver_sql(AUDIT_SCHEMA_SQL.split("DO $$")[0])
     declared = _column_shapes(db, "audit_reference", "query_audit_log")
-    # The record's columns: the statement and its outcome, and the provenance a reader of the
+    # The record's columns: the statement, the tables it read by id and by name, and its outcome,
+    # and the provenance a reader of the
     # record is answered with (model stamp and commit, the rules enforced, why it was routed where
     # it was, the sources read and the age of the data).
     assert {shape[0] for shape in declared} == {
@@ -211,6 +212,7 @@ async def test_a_table_schema_sql_does_not_create_lands_in_the_org_schema(own_da
         "query_hash",
         "query_text_enc",
         "table_ids",
+        "table_names",
         "source",
         "status_code",
         "duration_ms",
