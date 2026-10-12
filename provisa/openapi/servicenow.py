@@ -128,3 +128,91 @@ def merged_spec(title: str, instance_url: str, specs: list[dict]) -> dict:
         "servers": [{"url": resolve_secrets(instance_url).rstrip("/")}],
         "paths": paths,
     }
+
+
+# -- the companion OpenAPI source -------------------------------------------------------------
+#
+# A ServiceNow source's own APIs are offered through an OpenAPI source kept beside it,
+# ``<id>-api``, whose specification is ``servicenow:<id>``: the document assembled here from the
+# APIs a steward added, read from the instance when the source is loaded. Everything after that is
+# the ordinary OpenAPI path: its GET operations are tables or reads, the rest commands.
+
+#: How a companion source's row names its specification (``sources.path``).
+SPEC_SCHEME = "servicenow:"
+
+#: Where a companion source's mapping keeps what its document is assembled from.
+MAPPING_KEY = "servicenow"
+
+# An import set's staging columns as JSON Schema, by the PostgreSQL type the adapter names
+# (``_servicenow_columns``).
+_JSON_TYPES = {
+    "character varying": {"type": "string"},
+    "integer": {"type": "integer"},
+    "bigint": {"type": "integer"},
+    "numeric": {"type": "number"},
+    "double precision": {"type": "number"},
+    "boolean": {"type": "boolean"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "date": {"type": "string", "format": "date"},
+    "time": {"type": "string", "format": "time"},
+}
+
+# The staging columns every import set has, which a caller never writes.
+_SYSTEM_PREFIX = "sys_"
+
+
+def companion_id(source_id: str) -> str:
+    """The id of the OpenAPI source kept beside ServiceNow source ``source_id``."""
+    return f"{source_id}-api"
+
+
+def companion_spec_path(source_id: str) -> str:
+    return f"{SPEC_SCHEME}{source_id}"
+
+
+def import_set_path(staging: str) -> dict:
+    """The operation that writes one row into import set ``staging``, typed from its columns."""
+    return {
+        "post": {
+            "operationId": f"import_{staging}",
+            "summary": f"Insert a row into import set {staging}; its transform map writes it on",
+        }
+    }
+
+
+def _import_set_operation(staging: str, columns: list[list[str]]) -> dict:
+    properties = {}
+    for name, data_type in columns:
+        if name.startswith(_SYSTEM_PREFIX):
+            continue
+        if data_type not in _JSON_TYPES:
+            raise InstanceApiError(
+                f"import set {staging}: column {name} has a type no JSON type is given for: "
+                f"{data_type}"
+            )
+        properties[name] = _JSON_TYPES[data_type]
+    operation = import_set_path(staging)
+    operation["post"]["requestBody"] = {
+        "content": {"application/json": {"schema": {"type": "object", "properties": properties}}}
+    }
+    return operation
+
+
+def companion_spec(mapping: dict) -> dict:
+    """The document a companion source reads its tables and commands from: the instance's
+    document of each API its steward added, and one typed operation for each import set added
+    (``POST /api/now/import/<staging>``, its body the staging table's columns)."""
+    held = mapping[MAPPING_KEY]
+    url, user, password = held["instance_url"], held["username"], held["password"]
+    specs = [
+        fetch_api_spec(url, user, password, api["namespace"], api["name"], api["version"])
+        for api in held["apis"]
+    ]
+    spec = merged_spec(f"{held['source']} APIs", url, specs)
+    for import_set in held["import_sets"]:
+        staging = import_set["staging"]
+        path = f"/api/now/import/{staging}"
+        if path in spec["paths"]:
+            raise InstanceApiError(f"{path} is declared twice")
+        spec["paths"][path] = _import_set_operation(staging, import_set["columns"])
+    return spec

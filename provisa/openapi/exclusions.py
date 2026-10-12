@@ -216,11 +216,15 @@ def load_source_spec(spec_path: str, mapping: dict | None, *, source_id: str) ->
     which an operator sets under ``exclusions`` in the source's mapping. THE way a registered
     source's specification is loaded, so every consumer sees the same one."""
     from provisa.openapi.loader import load_spec
+    from provisa.openapi.servicenow import SPEC_SCHEME, companion_spec
 
     who = f"source {source_id}"
-    return apply(
-        load_spec(spec_path), Exclusions.parse((mapping or {}).get("exclusions"), who=who), who=who
+    # REQ-1954: a ServiceNow source's companion assembles its document from what its mapping
+    # names, read from the instance.
+    spec = (
+        companion_spec(mapping or {}) if spec_path.startswith(SPEC_SCHEME) else load_spec(spec_path)
     )
+    return apply(spec, Exclusions.parse((mapping or {}).get("exclusions"), who=who), who=who)
 
 
 def _normal(operation_id: str) -> str:
@@ -243,7 +247,14 @@ def source_excluded_operations(
     found = dict(brand_excluded_operations(brand)) if brand is not None else {}
     own = Exclusions.parse((mapping or {}).get("exclusions"), who=f"source {source_id}")
     if own:
-        found.update(excluded_operation_ids(load_spec(spec_path), own))
+        from provisa.openapi.servicenow import SPEC_SCHEME, companion_spec
+
+        published = (
+            companion_spec(mapping or {})
+            if spec_path.startswith(SPEC_SCHEME)
+            else load_spec(spec_path)
+        )
+        found.update(excluded_operation_ids(published, own))
     return found
 
 

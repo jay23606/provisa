@@ -110,3 +110,59 @@ def test_two_apis_declaring_one_path_are_refused(instance):
     spec = sn.fetch_api_spec(_URL, "admin", "pw", "now", "Import Set API")
     with pytest.raises(sn.InstanceApiError, match="declared by two"):
         sn.merged_spec("x", _URL, [spec, spec])
+
+
+# -- the companion source's document --------------------------------------------------------------
+
+
+def _mapping(**over) -> dict:
+    held = {
+        "source": "helpdesk",
+        "instance_url": _URL,
+        "username": "admin",
+        "password": "pw",
+        "apis": [{"namespace": "sn_sc", "name": "Service Catalog API", "version": "latest"}],
+        "import_sets": [
+            {
+                "staging": "imp_user",
+                "columns": [
+                    ["sys_id", "character varying"],
+                    ["u_user_name", "character varying"],
+                    ["u_active", "boolean"],
+                    ["u_start", "timestamp"],
+                ],
+            }
+        ],
+    }
+    held.update(over)
+    return {sn.MAPPING_KEY: held}
+
+
+def test_the_companion_document_holds_each_added_api_and_each_import_set(instance):
+    from provisa.openapi.exclusions import load_source_spec
+
+    spec = load_source_spec(
+        sn.companion_spec_path("helpdesk"), _mapping(), source_id=sn.companion_id("helpdesk")
+    )
+    _queries, mutations = parse_spec(spec)
+    by_path = {m.path: m for m in mutations}
+    assert "/api/sn_sc/servicecatalog/cart/submit_order" in by_path
+    # The import set's operation is typed from its staging columns, without the system ones.
+    imported = by_path["/api/now/import/imp_user"]
+    assert imported.operation_id == "import_imp_user"
+    assert imported.input_schema["properties"] == {
+        "u_user_name": {"type": "string"},
+        "u_active": {"type": "boolean"},
+        "u_start": {"type": "string", "format": "date-time"},
+    }
+
+
+def test_an_import_set_column_of_a_type_without_a_json_type_is_refused(instance):
+    mapping = _mapping(import_sets=[{"staging": "imp_x", "columns": [["u_blob", "bytea"]]}])
+    with pytest.raises(sn.InstanceApiError, match="imp_x: column u_blob .* bytea"):
+        sn.companion_spec(mapping)
+
+
+def test_a_companion_with_nothing_added_offers_nothing(instance):
+    spec = sn.companion_spec(_mapping(apis=[], import_sets=[]))
+    assert spec["paths"] == {} and instance == []
