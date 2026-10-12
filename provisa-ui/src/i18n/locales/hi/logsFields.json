@@ -19,7 +19,8 @@
       "custom": "आपका अपना",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "वेब सर्वर और प्रॉक्सी"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – निर्यात",
       "gcp_cloud_logging": "Google Cloud Logging – निर्यात",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – त्रुटि लॉग",
+      "apache_error": "Apache httpd – त्रुटि लॉग",
+      "haproxy_http": "HAProxy HTTP – लॉग",
+      "squid_access": "Squid (native) – एक्सेस लॉग",
+      "envoy_access": "Envoy (default format) – एक्सेस लॉग",
+      "caddy_access": "Caddy – एक्सेस लॉग",
+      "traefik_access": "Traefik (common format) – एक्सेस लॉग"
     }
   }
 }

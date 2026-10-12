@@ -6015,5 +6015,13 @@
   "es/logsFields.json::logsFields.group.google": "Google",
   "es/logsFields.json::logsFields.formats.gcp_cloud_logging": "Google Cloud Logging export",
   "es/logsFields.json::logsFields.formats.android_logcat": "Android logcat (threadtime)",
-  "es/logsFields.json::logsFields.formats.chrome_net_export": "Chrome net-export (NetLog)"
+  "es/logsFields.json::logsFields.formats.chrome_net_export": "Chrome net-export (NetLog)",
+  "es/logsFields.json::logsFields.group.web": "Web servers and proxies",
+  "es/logsFields.json::logsFields.formats.nginx_error": "nginx error log",
+  "es/logsFields.json::logsFields.formats.apache_error": "Apache httpd error log",
+  "es/logsFields.json::logsFields.formats.haproxy_http": "HAProxy HTTP log",
+  "es/logsFields.json::logsFields.formats.squid_access": "Squid access log (native)",
+  "es/logsFields.json::logsFields.formats.envoy_access": "Envoy access log (default format)",
+  "es/logsFields.json::logsFields.formats.caddy_access": "Caddy access log",
+  "es/logsFields.json::logsFields.formats.traefik_access": "Traefik access log (common format)"
 }

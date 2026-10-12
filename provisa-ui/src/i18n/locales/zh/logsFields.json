@@ -19,7 +19,8 @@
       "custom": "自定义",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "Web 服务器和代理"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – 导出",
       "gcp_cloud_logging": "Google Cloud Logging – 导出",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – 错误日志",
+      "apache_error": "Apache httpd – 错误日志",
+      "haproxy_http": "HAProxy HTTP – 日志",
+      "squid_access": "Squid (native) – 访问日志",
+      "envoy_access": "Envoy (default format) – 访问日志",
+      "caddy_access": "Caddy – 访问日志",
+      "traefik_access": "Traefik (common format) – 访问日志"
     }
   }
 }

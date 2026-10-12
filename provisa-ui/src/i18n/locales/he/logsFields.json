@@ -19,7 +19,8 @@
       "custom": "משלכם",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "שרתי אינטרנט ופרוקסי"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – ייצוא",
       "gcp_cloud_logging": "Google Cloud Logging – ייצוא",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – יומן שגיאות",
+      "apache_error": "Apache httpd – יומן שגיאות",
+      "haproxy_http": "HAProxy HTTP – יומן",
+      "squid_access": "Squid (native) – יומן גישה",
+      "envoy_access": "Envoy (default format) – יומן גישה",
+      "caddy_access": "Caddy – יומן גישה",
+      "traefik_access": "Traefik (common format) – יומן גישה"
     }
   }
 }

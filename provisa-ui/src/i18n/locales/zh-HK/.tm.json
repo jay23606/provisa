@@ -5983,5 +5983,13 @@
   "zh-HK/logsFields.json::logsFields.group.google": "Google",
   "zh-HK/logsFields.json::logsFields.formats.gcp_cloud_logging": "Google Cloud Logging export",
   "zh-HK/logsFields.json::logsFields.formats.android_logcat": "Android logcat (threadtime)",
-  "zh-HK/logsFields.json::logsFields.formats.chrome_net_export": "Chrome net-export (NetLog)"
+  "zh-HK/logsFields.json::logsFields.formats.chrome_net_export": "Chrome net-export (NetLog)",
+  "zh-HK/logsFields.json::logsFields.group.web": "Web servers and proxies",
+  "zh-HK/logsFields.json::logsFields.formats.nginx_error": "nginx error log",
+  "zh-HK/logsFields.json::logsFields.formats.apache_error": "Apache httpd error log",
+  "zh-HK/logsFields.json::logsFields.formats.haproxy_http": "HAProxy HTTP log",
+  "zh-HK/logsFields.json::logsFields.formats.squid_access": "Squid access log (native)",
+  "zh-HK/logsFields.json::logsFields.formats.envoy_access": "Envoy access log (default format)",
+  "zh-HK/logsFields.json::logsFields.formats.caddy_access": "Caddy access log",
+  "zh-HK/logsFields.json::logsFields.formats.traefik_access": "Traefik access log (common format)"
 }

@@ -19,7 +19,8 @@
       "custom": "独自",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "Web サーバーとプロキシ"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – エクスポート",
       "gcp_cloud_logging": "Google Cloud Logging – エクスポート",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – エラーログ",
+      "apache_error": "Apache httpd – エラーログ",
+      "haproxy_http": "HAProxy HTTP – ログ",
+      "squid_access": "Squid (native) – アクセスログ",
+      "envoy_access": "Envoy (default format) – アクセスログ",
+      "caddy_access": "Caddy – アクセスログ",
+      "traefik_access": "Traefik (common format) – アクセスログ"
     }
   }
 }

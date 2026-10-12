@@ -19,7 +19,8 @@
       "custom": "Eigen",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "Webservers en proxy's"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – export",
       "gcp_cloud_logging": "Google Cloud Logging – export",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – foutlog",
+      "apache_error": "Apache httpd – foutlog",
+      "haproxy_http": "HAProxy HTTP – log",
+      "squid_access": "Squid (native) – toegangslog",
+      "envoy_access": "Envoy (default format) – toegangslog",
+      "caddy_access": "Caddy – toegangslog",
+      "traefik_access": "Traefik (common format) – toegangslog"
     }
   }
 }

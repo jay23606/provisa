@@ -19,7 +19,8 @@
       "custom": "Свой",
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
-      "google": "Google"
+      "google": "Google",
+      "web": "Веб-серверы и прокси"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -52,7 +53,14 @@
       "azure_monitor": "Azure Monitor / Activity Log – экспорт",
       "gcp_cloud_logging": "Google Cloud Logging – экспорт",
       "android_logcat": "Android logcat (threadtime)",
-      "chrome_net_export": "Chrome net-export (NetLog)"
+      "chrome_net_export": "Chrome net-export (NetLog)",
+      "nginx_error": "nginx – журнал ошибок",
+      "apache_error": "Apache httpd – журнал ошибок",
+      "haproxy_http": "HAProxy HTTP – журнал",
+      "squid_access": "Squid (native) – журнал доступа",
+      "envoy_access": "Envoy (default format) – журнал доступа",
+      "caddy_access": "Caddy – журнал доступа",
+      "traefik_access": "Traefik (common format) – журнал доступа"
     }
   }
 }
