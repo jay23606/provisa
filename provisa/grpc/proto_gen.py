@@ -151,14 +151,16 @@ def parameter_name(column_name: str) -> str:  # REQ-1986
 
 
 def _parameter_proto_types(t) -> dict[str, str]:  # REQ-1986
-    """``{Type}Params`` field name → proto type, for each of the table's parameters, sorted."""
+    """``{Type}Params`` field name → its proto field's label and type (``optional double``,
+    ``repeated double`` for an array parameter such as a query vector), sorted."""
     types: dict[str, str] = {}
     for nfc in sorted(t.native_filter_columns, key=lambda c: c["column_name"]):
         meta = t.column_metadata.get(nfc["column_name"].lower())
         # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded.
         proto_type = _physical_to_proto(meta.data_type) if meta is not None else "string"
         filter_proto = "string" if proto_type == "google.protobuf.Timestamp" else proto_type
-        types[parameter_name(nfc["column_name"])] = filter_proto
+        label = "repeated" if meta is not None and _is_array_type(meta.data_type) else "optional"
+        types[parameter_name(nfc["column_name"])] = f"{label} {filter_proto}"
     return types
 
 
@@ -443,7 +445,7 @@ def generate_proto(
             )
             lines.append(f"message {t.type_name}Params {{")
             for name, proto_type in param_types.items():
-                lines.append(f"  optional {proto_type} {name} = {param_numbers[name]};")
+                lines.append(f"  {proto_type} {name} = {param_numbers[name]};")
             lines.append("}")
             lines.append("")
 
