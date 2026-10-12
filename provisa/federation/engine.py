@@ -584,6 +584,9 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
             DuckDBFilesConnector(),
             # REQ-899 community-extension connectors: external DB / warehouse / SaaS reach in place.
             DuckDBMssqlConnector(),
+            # Fabric Warehouse and Synapse SQL: the same TDS, signed in with Microsoft Entra.
+            DuckDBMssqlConnector("fabric"),
+            DuckDBMssqlConnector("synapse"),
             DuckDBMongoConnector(),
             DuckDBSnowflakeConnector(),
             DuckDBBigQueryConnector(),

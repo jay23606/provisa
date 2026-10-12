@@ -356,21 +356,65 @@ class DuckDBFilesConnector(_DuckDBPgwireConnector):  # REQ-1690
 
 
 class DuckDBMssqlConnector(_DuckDBExtensionConnector):  # REQ-899
-    """Microsoft SQL Server, attached in place via the mssql extension (native TDS)."""
+    """A TDS warehouse attached in place via the mssql extension (native TDS): Microsoft SQL Server
+    with a SQL login, and Microsoft Fabric Warehouse and Azure Synapse SQL, which speak the same
+    TDS but sign in only with a Microsoft Entra token. One class serves the three; each engine holds
+    an instance per source type (an engine keys its connectors by type).
 
-    source_type = "sqlserver"
-    key = "duckdb_mssql"
+    Entra: the extension signs in through an Azure secret. A source that pins its own identity
+    names a service principal in ``federation_hints`` (``tenant_id``/``client_id``/
+    ``client_secret``); one that does not uses the ambient credential (``az login``) -- the same
+    identity rule as the Fabric/Synapse DIRECT driver (executor/drivers/mssql_warehouse.py).
+    Verified live against a Fabric Warehouse (tests/integration/test_tds_inplace_duckdb_e2e.py):
+    sign-in, the extension's catalog (schemas, tables, columns) and a filtered read."""
+
     extension = "mssql"
     probe_symbol = "mssql_scan"
 
+    #: The source types signing in with Microsoft Entra rather than a SQL login.
+    ENTRA_TYPES = frozenset({"fabric", "synapse"})
+
+    def __init__(self, source_type: str = "sqlserver") -> None:
+        if source_type not in self.ENTRA_TYPES | {"sqlserver"}:
+            raise ValueError(f"the mssql extension does not attach {source_type!r} sources")
+        self.source_type = source_type
+        # Unique per instance: the probe report and the disabled-connector list key on it.
+        self.key = "duckdb_mssql" if source_type == "sqlserver" else f"duckdb_mssql_{source_type}"
+
     def details(self, source: Source) -> dict:
-        dsn = (
-            f"Server={source.host},{source.port};Database={source.database};"
-            f"User Id={source.username};Password={source.password}"
-        )
+        alias = f"_src_{source.id}"
+        if self.source_type not in self.ENTRA_TYPES:
+            dsn = (
+                f"Server={source.host},{source.port};Database={source.database};"
+                f"User Id={source.username};Password={source.password}"
+            )
+            return {"attach": f"ATTACH '{dsn}' AS \"{alias}\" (TYPE mssql)", "raw_alias": alias}
+        from provisa.compiler.sql_literals import sql_literal
+        from provisa.core.secrets import resolve_secrets
+
+        hints = {k: resolve_secrets(v) for k, v in source.federation_hints.items()}
+        secret = f"az_{source.id}"
+        if hints.get("tenant_id") and hints.get("client_id") and hints.get("client_secret"):
+            provider = (
+                "PROVIDER service_principal, "
+                f"TENANT_ID {sql_literal(hints['tenant_id'], 'duckdb')}, "
+                f"CLIENT_ID {sql_literal(hints['client_id'], 'duckdb')}, "
+                f"CLIENT_SECRET {sql_literal(hints['client_secret'], 'duckdb')}"
+            )
+        else:
+            # The source names no identity of its own: the ambient one, as the DIRECT driver uses
+            # (DefaultAzureCredential there). The extension's chain does not fall through: given
+            # 'env;cli' with no AZURE_* variables set it fails on 'env' (verified live), so the
+            # ambient identity is the Azure CLI's signed-in one.
+            provider = "PROVIDER credential_chain, CHAIN 'cli'"
+        dsn = f"Server={source.host},{source.port or 1433};Database={source.database}"
         return {
-            "attach": f"ATTACH '{dsn}' AS \"_src_{source.id}\" (TYPE mssql)",
-            "raw_alias": f"_src_{source.id}",
+            "attach": (
+                f'CREATE OR REPLACE SECRET "{secret}" (TYPE azure, {provider}); '
+                f'ATTACH {sql_literal(dsn, "duckdb")} AS "{alias}" '
+                f"(TYPE mssql, AZURE_SECRET '{secret}')"
+            ),
+            "raw_alias": alias,
         }
 
 

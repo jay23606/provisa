@@ -196,3 +196,79 @@ def test_airport_attach_derives_location_from_host_port_when_no_base_url():  # R
 
 if __name__ == "__main__":
     pytest.main([__file__, "-q"])
+
+
+# ---- the TDS warehouses: one mssql connector, signed in by type ----------------
+
+
+def test_fabric_and_synapse_ride_the_mssql_connector_on_duckdb_and_read_in_place():
+    from provisa.federation.engine import build_duckdb_engine, live_source_types
+
+    engine = build_duckdb_engine()
+    for stype in ("sqlserver", "fabric", "synapse"):
+        connector = engine.connectors[stype]
+        assert type(connector) is DuckDBMssqlConnector, stype
+        assert connector.source_type == stype and connector.extension == "mssql"
+        assert connector.reads_in_place, stype
+    # Each instance is reported and disabled under a key of its own.
+    keys = [engine.connectors[t].key for t in ("sqlserver", "fabric", "synapse")]
+    assert keys == ["duckdb_mssql", "duckdb_mssql_fabric", "duckdb_mssql_synapse"]
+    assert {"sqlserver", "fabric", "synapse"} <= set(live_source_types("duckdb"))
+
+
+def test_the_mssql_connector_attaches_no_other_type():
+    with pytest.raises(ValueError, match="does not attach 'oracle'"):
+        DuckDBMssqlConnector("oracle")
+
+
+def test_a_fabric_source_naming_a_service_principal_signs_in_as_it():
+    d = DuckDBMssqlConnector("fabric").details(
+        _src(
+            "fab",
+            SourceType.fabric,
+            host="ws.datawarehouse.fabric.microsoft.com",
+            port=1433,
+            database="sales",
+            federation_hints={"tenant_id": "t-1", "client_id": "c-1", "client_secret": "s'cret"},
+        )
+    )
+    attach = d["attach"]
+    assert attach.startswith(
+        'CREATE OR REPLACE SECRET "az_fab" (TYPE azure, PROVIDER service_principal'
+    )
+    assert "TENANT_ID 't-1'" in attach and "CLIENT_ID 'c-1'" in attach
+    # A quote in the secret is escaped, not left to end the literal.
+    assert "CLIENT_SECRET 's''cret'" in attach
+    assert (
+        "ATTACH 'Server=ws.datawarehouse.fabric.microsoft.com,1433;Database=sales' "
+        "AS \"_src_fab\" (TYPE mssql, AZURE_SECRET 'az_fab')"
+    ) in attach
+    # Entra: no SQL login is sent.
+    assert "User Id" not in attach and "Password" not in attach
+    assert d["raw_alias"] == "_src_fab"
+
+
+def test_a_synapse_source_naming_no_identity_signs_in_as_the_ambient_one():
+    d = DuckDBMssqlConnector("synapse").details(
+        _src(
+            "syn",
+            SourceType.synapse,
+            host="ws-ondemand.sql.azuresynapse.net",
+            port=0,
+            database="db",
+        )
+    )
+    assert "PROVIDER credential_chain, CHAIN 'cli'" in d["attach"]
+    # No port given: TDS's own.
+    assert "Server=ws-ondemand.sql.azuresynapse.net,1433;Database=db" in d["attach"]
+
+
+def test_trino_keeps_landing_fabric_and_synapse():
+    # Trino's sqlserver connector signs in with a SQL login only (connection-user/password); a
+    # Fabric or Synapse endpoint takes a Microsoft Entra token, so Trino reaches them by replica.
+    from provisa.federation.engine import live_source_types, reachable_source_types
+
+    assert "sqlserver" in live_source_types("trino")
+    for stype in ("fabric", "synapse"):
+        assert stype not in live_source_types("trino")
+        assert stype in reachable_source_types("trino")
