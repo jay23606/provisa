@@ -492,6 +492,7 @@ def _pgw_build_state(pool):
     from unittest.mock import MagicMock
 
     from provisa.compiler import naming as _naming
+    from provisa.api.role_surface import RoleSurface, SurfacePart
     from provisa.compiler.context import build_context
     from provisa.compiler.introspect import ColumnMetadata
     from provisa.compiler.schema_gen import SchemaInput
@@ -521,8 +522,12 @@ def _pgw_build_state(pool):
     # REQ-1235: a single-tenant deployment serves one database, "provisa", which the pgwire catalog
     # names; a bare MagicMock here reads as multi-tenant and the catalog demands a bound org.
     state.multitenancy = False
-    state.contexts = {"admin": ctx}
-    state.rls_contexts = {}
+    # A request reads its role's whole surface from `surfaces` (role_surface); `contexts` and
+    # `rls_contexts` are views of it, as in the runtime. On a bare MagicMock, `surfaces.get(...)`
+    # is a mock whose `context.refusal` is truthy, and every query is refused with it.
+    state.surfaces = {"admin": RoleSurface(context=ctx)}
+    state.contexts = SurfacePart(state.surfaces, "context")
+    state.rls_contexts = SurfacePart(state.surfaces, "rls")
     state.roles = {"admin": {"id": "admin", "capabilities": [], "domain_access": ["*"]}}
     state.schema_build_cache = {"column_types": col_types, "tables": [], "domains": []}
     state.auth_config = {"provider": "none"}  # trust mode: username -> role_id
