@@ -319,6 +319,32 @@ class PagingType:  # REQ-318
     rows_field: str | None = None  # REQ-316: where a REST answer's rows are
 
 
+def _dq_dataset_of(table_id: int) -> str | None:
+    """Table ``table_id`` as a data-quality contract dataset, by its compiled TableMeta; None when
+    no role's compiled context exposes it."""
+    from provisa.api.app import state
+    from provisa.dq.contract import meta_dataset
+
+    for ctx in state.contexts.values():
+        for meta in ctx.tables.values():
+            if meta.table_id == table_id:
+                return meta_dataset(meta)
+    return None
+
+
+@strawberry.type
+class QualityCheckerType:  # REQ-1443
+    """A data-quality checker table whose contract scans a table, and its last scan."""
+
+    table_id: int
+    table_name: str
+    source_id: str
+    # pass | fail | warn | error | skipped: the last scan's worst check; null before a first scan.
+    outcome: str | None
+    # When the last scan ran (ISO 8601, UTC); null before a first scan.
+    scan_time: str | None
+
+
 @strawberry.type
 class RegisteredTableType:  # REQ-013, REQ-014, REQ-016, REQ-135
     id: int
@@ -465,14 +491,37 @@ class RegisteredTableType:  # REQ-013, REQ-014, REQ-016, REQ-135
         (provisa.dq.contract.meta_dataset over the compiled TableMeta, REQ-641), so the dataset
         picker never rebuilds them client-side. None when no role's compiled context exposes this
         table (e.g. mid-startup)."""
-        from provisa.api.app import state
-        from provisa.dq.contract import meta_dataset
+        return _dq_dataset_of(self.id)
 
-        for ctx in state.contexts.values():
-            for meta in ctx.tables.values():
-                if meta.table_id == self.id:
-                    return meta_dataset(meta)
-        return None
+    @strawberry.field
+    async def quality_checkers(self, info: strawberry.Info) -> list[QualityCheckerType]:  # REQ-1443
+        """The checker tables whose contracts scan this table, as the caller's catalog lists
+        them, each with its last scan's outcome. A contract scans a table by its dataset
+        (dq_dataset), read from the contract by the checker's own parser; a table no role's
+        compiled context exposes has no dataset, so no contract can name it."""
+        from provisa.api.admin.catalog_scope import catalog_scope
+        from provisa.api.app import state
+        from provisa.dq.related import checkers_of
+
+        dataset = _dq_dataset_of(self.id)
+        if dataset is None:
+            return []
+        if state.model_db is None:
+            raise RuntimeError("tenant database not connected")
+        scope = catalog_scope(info)
+        async with state.model_db.acquire() as conn:
+            found = await checkers_of(conn, dataset)
+        return [
+            QualityCheckerType(
+                table_id=c["table_id"],
+                table_name=c["table_name"],
+                source_id=c["source_id"],
+                outcome=c["outcome"],
+                scan_time=c["scan_time"].isoformat() if c["scan_time"] else None,
+            )
+            for c in found
+            if scope.lists_table(c["table_id"], c["domain_id"])
+        ]
 
 
 @strawberry.type

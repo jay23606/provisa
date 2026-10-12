@@ -5838,5 +5838,14 @@
   "fr/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
   "fr/orgFilesTab.json::orgFilesTab.warn3": "Keep a second copy in a separate secure location under your own control.",
   "fr/orgFilesTab.json::orgFilesTab.loading": "Loading…",
-  "fr/orgFilesTab.json::orgFilesTab.generatedLabel": "New key"
+  "fr/orgFilesTab.json::orgFilesTab.generatedLabel": "New key",
+  "fr/tableSections.json::tableSections.checkedBy": "Checked by",
+  "fr/tableSections.json::tableSections.checkerTable": "Checker table",
+  "fr/tableSections.json::tableSections.checkerSource": "Checker source",
+  "fr/tableSections.json::tableSections.lastScan": "Last scan",
+  "fr/tableSections.json::tableSections.outcome.pass": "Pass",
+  "fr/tableSections.json::tableSections.outcome.warn": "Warn",
+  "fr/tableSections.json::tableSections.outcome.fail": "Fail",
+  "fr/tableSections.json::tableSections.outcome.error": "Error",
+  "fr/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

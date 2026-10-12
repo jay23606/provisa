@@ -5838,5 +5838,14 @@
   "pt/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
   "pt/orgFilesTab.json::orgFilesTab.referenceWrong": "Write the key's name as ${secret:NAME}, not the key itself.",
   "pt/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
-  "pt/orgFilesTab.json::orgFilesTab.warn2": "Store it in your organization's secrets vault now; it will not be shown again."
+  "pt/orgFilesTab.json::orgFilesTab.warn2": "Store it in your organization's secrets vault now; it will not be shown again.",
+  "pt/tableSections.json::tableSections.checkedBy": "Checked by",
+  "pt/tableSections.json::tableSections.checkerTable": "Checker table",
+  "pt/tableSections.json::tableSections.checkerSource": "Checker source",
+  "pt/tableSections.json::tableSections.lastScan": "Last scan",
+  "pt/tableSections.json::tableSections.outcome.pass": "Pass",
+  "pt/tableSections.json::tableSections.outcome.warn": "Warn",
+  "pt/tableSections.json::tableSections.outcome.fail": "Fail",
+  "pt/tableSections.json::tableSections.outcome.error": "Error",
+  "pt/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

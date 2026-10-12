@@ -19,6 +19,17 @@
     "noRelationships": "Esta tabela não participa de nenhum relacionamento",
     "fromSource": "{{value}} (da fonte)",
     "fromSourceAsIs": "Como na fonte",
-    "notScheduledLikeSource": "Não é lida apenas por agendamento, embora a sua fonte seja: uma consulta pode ler a fonte."
+    "notScheduledLikeSource": "Não é lida apenas por agendamento, embora a sua fonte seja: uma consulta pode ler a fonte.",
+    "checkedBy": "Verificado por",
+    "checkerTable": "Tabela do verificador",
+    "checkerSource": "Origem do verificador",
+    "lastScan": "Última verificação",
+    "outcome": {
+      "pass": "Aprovado",
+      "warn": "Aviso",
+      "fail": "Reprovado",
+      "error": "Erro",
+      "skipped": "Ignorado"
+    }
   }
 }

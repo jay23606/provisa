@@ -5839,5 +5839,14 @@
   "it/orgFilesTab.json::orgFilesTab.warnTitle": "Keep this key safe",
   "it/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
   "it/orgFilesTab.json::orgFilesTab.generate": "Generate key",
-  "it/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference."
+  "it/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
+  "it/tableSections.json::tableSections.checkedBy": "Checked by",
+  "it/tableSections.json::tableSections.checkerTable": "Checker table",
+  "it/tableSections.json::tableSections.checkerSource": "Checker source",
+  "it/tableSections.json::tableSections.lastScan": "Last scan",
+  "it/tableSections.json::tableSections.outcome.pass": "Pass",
+  "it/tableSections.json::tableSections.outcome.warn": "Warn",
+  "it/tableSections.json::tableSections.outcome.fail": "Fail",
+  "it/tableSections.json::tableSections.outcome.error": "Error",
+  "it/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

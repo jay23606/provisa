@@ -5838,5 +5838,14 @@
   "nl/orgFilesTab.json::orgFilesTab.saved": "Saved. Each server applies it when it next starts work for this organization.",
   "nl/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
   "nl/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
-  "nl/orgFilesTab.json::orgFilesTab.warn3": "Keep a second copy in a separate secure location under your own control."
+  "nl/orgFilesTab.json::orgFilesTab.warn3": "Keep a second copy in a separate secure location under your own control.",
+  "nl/tableSections.json::tableSections.checkedBy": "Checked by",
+  "nl/tableSections.json::tableSections.checkerTable": "Checker table",
+  "nl/tableSections.json::tableSections.checkerSource": "Checker source",
+  "nl/tableSections.json::tableSections.lastScan": "Last scan",
+  "nl/tableSections.json::tableSections.outcome.pass": "Pass",
+  "nl/tableSections.json::tableSections.outcome.warn": "Warn",
+  "nl/tableSections.json::tableSections.outcome.fail": "Fail",
+  "nl/tableSections.json::tableSections.outcome.error": "Error",
+  "nl/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

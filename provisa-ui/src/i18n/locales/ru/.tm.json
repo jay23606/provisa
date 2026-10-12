@@ -5838,5 +5838,14 @@
   "ru/orgFilesTab.json::orgFilesTab.generate": "Generate key",
   "ru/orgFilesTab.json::orgFilesTab.encrypt": "Encrypt the organization's file folder",
   "ru/orgFilesTab.json::orgFilesTab.referenceLabel": "Key reference",
-  "ru/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it."
+  "ru/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
+  "ru/tableSections.json::tableSections.checkedBy": "Checked by",
+  "ru/tableSections.json::tableSections.checkerTable": "Checker table",
+  "ru/tableSections.json::tableSections.checkerSource": "Checker source",
+  "ru/tableSections.json::tableSections.lastScan": "Last scan",
+  "ru/tableSections.json::tableSections.outcome.pass": "Pass",
+  "ru/tableSections.json::tableSections.outcome.warn": "Warn",
+  "ru/tableSections.json::tableSections.outcome.fail": "Fail",
+  "ru/tableSections.json::tableSections.outcome.error": "Error",
+  "ru/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

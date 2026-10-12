@@ -173,6 +173,14 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     setSeededSource(sourceParam);
     setTableSearch(sourceParam ?? "");
   }
+  // `?table=<id>` opens that table's detail panel: a link from elsewhere (its checkers, its
+  // source) lands on the table itself, again whenever the link changes while the page stays.
+  const tableParam = searchParams.get("table");
+  const [seededTable, setSeededTable] = useState<string | null>(null);
+  if (tableParam !== seededTable) {
+    setSeededTable(tableParam);
+    if (tableParam !== null) setExpanded(Number(tableParam));
+  }
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const { checkedDomains, domainsEnabled } = useDomainFilter();

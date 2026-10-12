@@ -31,7 +31,7 @@ import {
   snapshotFields,
 } from "./loadReadFields";
 import { presetsField, viewMetricsFields } from "./queryReadFields";
-import { uniquesField, useContractFields } from "./qualityReadFields";
+import { checkersField, uniquesField, useContractFields } from "./qualityReadFields";
 
 // A table's sections read-only: the read view shows them, and so does the edit form to a caller
 // who may change only how columns are hidden. Each lists the fields its edit tab has, in the same
@@ -278,6 +278,7 @@ export function QualityRead({ table, source }: { table: RegisteredTable; source?
             value: table.profilerSourceId ?? null,
           },
         ]),
+    checkersField(t, table.qualityCheckers),
     uniquesField(t, table.uniqueConstraints),
   ];
   return <DetailFields fields={fields} testId="table-quality" />;

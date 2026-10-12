@@ -5839,5 +5839,14 @@
   "zh-HK/orgFilesTab.json::orgFilesTab.encrypt": "Encrypt the organization's file folder",
   "zh-HK/orgFilesTab.json::orgFilesTab.referenceLabel": "Key reference",
   "zh-HK/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
-  "zh-HK/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it."
+  "zh-HK/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
+  "zh-HK/tableSections.json::tableSections.checkedBy": "Checked by",
+  "zh-HK/tableSections.json::tableSections.checkerTable": "Checker table",
+  "zh-HK/tableSections.json::tableSections.checkerSource": "Checker source",
+  "zh-HK/tableSections.json::tableSections.lastScan": "Last scan",
+  "zh-HK/tableSections.json::tableSections.outcome.pass": "Pass",
+  "zh-HK/tableSections.json::tableSections.outcome.warn": "Warn",
+  "zh-HK/tableSections.json::tableSections.outcome.fail": "Fail",
+  "zh-HK/tableSections.json::tableSections.outcome.error": "Error",
+  "zh-HK/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

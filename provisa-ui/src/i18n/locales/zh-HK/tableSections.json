@@ -19,6 +19,17 @@
     "noRelationships": "此資料表並未參與任何關係",
     "fromSource": "{{value}}（來自數據來源）",
     "fromSourceAsIs": "與數據來源相同",
-    "notScheduledLikeSource": "並非只按排程讀取，儘管其數據來源是：查詢可能會讀取數據來源。"
+    "notScheduledLikeSource": "並非只按排程讀取，儘管其數據來源是：查詢可能會讀取數據來源。",
+    "checkedBy": "檢查方",
+    "checkerTable": "檢查表",
+    "checkerSource": "檢查資料來源",
+    "lastScan": "上次掃描",
+    "outcome": {
+      "pass": "通過",
+      "warn": "警告",
+      "fail": "未通過",
+      "error": "錯誤",
+      "skipped": "已略過"
+    }
   }
 }

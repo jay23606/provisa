@@ -5838,5 +5838,14 @@
   "de/orgFilesTab.json::orgFilesTab.loading": "Loading…",
   "de/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
   "de/orgFilesTab.json::orgFilesTab.referenceHelp": "The key's name in your organization's secrets vault, written ${secret:NAME}. Provisa stores only this reference, never the key.",
-  "de/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt."
+  "de/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "de/tableSections.json::tableSections.checkedBy": "Checked by",
+  "de/tableSections.json::tableSections.checkerTable": "Checker table",
+  "de/tableSections.json::tableSections.checkerSource": "Checker source",
+  "de/tableSections.json::tableSections.lastScan": "Last scan",
+  "de/tableSections.json::tableSections.outcome.pass": "Pass",
+  "de/tableSections.json::tableSections.outcome.warn": "Warn",
+  "de/tableSections.json::tableSections.outcome.fail": "Fail",
+  "de/tableSections.json::tableSections.outcome.error": "Error",
+  "de/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

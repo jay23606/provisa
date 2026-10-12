@@ -38,6 +38,7 @@ const TABLE = {
   dqContract: "dataset: provisa/sales/orders\nchecks: []",
   profilerSourceId: null,
   uniqueConstraints: [{ name: "order_no", columns: ["id", "line"] }],
+  qualityCheckers: [],
 } as unknown as RegisteredTable;
 
 describe("QualityRead", () => {
@@ -65,5 +66,41 @@ describe("QualityRead", () => {
     ).toEqual(["Name", "Columns"]);
     expect(uniques).toHaveTextContent("id, line");
     expect(screen.queryByTestId("table-read-dq-checks")).not.toBeInTheDocument();
+  });
+
+  it("lists the checkers whose contracts scan the table, each linked, with its last scan", () => {
+    const scanned = {
+      ...TABLE,
+      qualityCheckers: [
+        {
+          tableId: 21,
+          tableName: "orders_rows",
+          sourceId: "soda-dq",
+          outcome: "fail",
+          scanTime: "2026-10-12T09:00:00+00:00",
+        },
+        {
+          tableId: 22,
+          tableName: "orders_nulls",
+          sourceId: "gx-dq",
+          outcome: null,
+          scanTime: null,
+        },
+      ],
+    } as RegisteredTable;
+    render(<QualityRead table={scanned} source={{ id: "pg", type: "postgresql" } as Source} />);
+    const first = screen.getByTestId("table-read-checker-21");
+    expect(within(first).getByRole("link", { name: "orders_rows" })).toHaveAttribute(
+      "href",
+      "/tables?table=21",
+    );
+    expect(first).toHaveTextContent("soda-dq");
+    expect(first).toHaveTextContent("Fail");
+    expect(screen.getByTestId("table-read-checker-22")).toHaveTextContent("—");
+  });
+
+  it("says no checker scans a table none does", () => {
+    render(<QualityRead table={TABLE} source={{ id: "pg", type: "postgresql" } as Source} />);
+    expect(screen.getByTestId("table-read-checkers")).toHaveTextContent("—");
   });
 });

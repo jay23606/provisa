@@ -96,6 +96,7 @@ function table(
     uniqueConstraints: [],
     graphqlFieldName: null,
     dqDataset: null,
+    qualityCheckers: [],
     apiEndpoint: null,
     viewSql: null,
     dqContract: null,

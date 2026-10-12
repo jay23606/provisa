@@ -5838,5 +5838,14 @@
   "hi/orgFilesTab.json::orgFilesTab.loading": "Loading…",
   "hi/orgFilesTab.json::orgFilesTab.warnTitle": "Keep this key safe",
   "hi/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
-  "hi/orgFilesTab.json::orgFilesTab.generate": "Generate key"
+  "hi/orgFilesTab.json::orgFilesTab.generate": "Generate key",
+  "hi/tableSections.json::tableSections.checkedBy": "Checked by",
+  "hi/tableSections.json::tableSections.checkerTable": "Checker table",
+  "hi/tableSections.json::tableSections.checkerSource": "Checker source",
+  "hi/tableSections.json::tableSections.lastScan": "Last scan",
+  "hi/tableSections.json::tableSections.outcome.pass": "Pass",
+  "hi/tableSections.json::tableSections.outcome.warn": "Warn",
+  "hi/tableSections.json::tableSections.outcome.fail": "Fail",
+  "hi/tableSections.json::tableSections.outcome.error": "Error",
+  "hi/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

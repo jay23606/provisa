@@ -5838,5 +5838,14 @@
   "zh/orgFilesTab.json::orgFilesTab.warnTitle": "Keep this key safe",
   "zh/orgFilesTab.json::orgFilesTab.saved": "Saved. Each server applies it when it next starts work for this organization.",
   "zh/orgFilesTab.json::orgFilesTab.panelTitle": "File folder encryption",
-  "zh/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds."
+  "zh/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
+  "zh/tableSections.json::tableSections.checkedBy": "Checked by",
+  "zh/tableSections.json::tableSections.checkerTable": "Checker table",
+  "zh/tableSections.json::tableSections.checkerSource": "Checker source",
+  "zh/tableSections.json::tableSections.lastScan": "Last scan",
+  "zh/tableSections.json::tableSections.outcome.pass": "Pass",
+  "zh/tableSections.json::tableSections.outcome.warn": "Warn",
+  "zh/tableSections.json::tableSections.outcome.fail": "Fail",
+  "zh/tableSections.json::tableSections.outcome.error": "Error",
+  "zh/tableSections.json::tableSections.outcome.skipped": "Skipped"
 }

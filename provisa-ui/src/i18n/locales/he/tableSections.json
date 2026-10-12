@@ -19,6 +19,17 @@
     "noRelationships": "טבלה זו אינה משתתפת באף קשר",
     "fromSource": "{{value}} (מהמקור)",
     "fromSourceAsIs": "כפי שמוגדר במקור",
-    "notScheduledLikeSource": "אינה נקראת רק לפי לוח זמנים, אף שהמקור שלה כן: שאילתה עשויה לקרוא את המקור."
+    "notScheduledLikeSource": "אינה נקראת רק לפי לוח זמנים, אף שהמקור שלה כן: שאילתה עשויה לקרוא את המקור.",
+    "checkedBy": "נבדק על ידי",
+    "checkerTable": "טבלת הבודק",
+    "checkerSource": "מקור הבודק",
+    "lastScan": "סריקה אחרונה",
+    "outcome": {
+      "pass": "עבר",
+      "warn": "אזהרה",
+      "fail": "נכשל",
+      "error": "שגיאה",
+      "skipped": "דולג"
+    }
   }
 }

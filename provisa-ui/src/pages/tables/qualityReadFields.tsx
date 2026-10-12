@@ -10,10 +10,11 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Alert, Table, Text } from "@mantine/core";
+import { Alert, Anchor, Badge, Table, Text } from "@mantine/core";
+import { Link } from "react-router-dom";
 import type { TFunction } from "i18next";
 import { useDqContract } from "../../hooks/useAdminQueries";
-import type { DqContract, UniqueConstraint } from "../../types/admin";
+import type { DqContract, QualityChecker, UniqueConstraint } from "../../types/admin";
 import type { DetailField } from "../../components/detail/DetailFields";
 
 // What the Quality tab reads of a table's stored settings, under the edit controls' own labels.
@@ -109,4 +110,58 @@ function checksTable(t: TFunction, contract: DqContract): ReactNode {
       </Table.Tbody>
     </Table>
   );
+}
+
+const OUTCOME_COLOR: Record<string, string> = {
+  pass: "teal",
+  warn: "yellow",
+  fail: "red",
+  error: "red",
+  skipped: "gray",
+};
+
+/** REQ-1443: the checker tables whose contracts scan this table, each linked to its own panel,
+ *  with its last scan's outcome and time ("—" before a first scan). Read only: a checker names
+ *  its target in its contract, so it is edited there. */
+export function checkersField(t: TFunction, checkers: QualityChecker[]): DetailField {
+  return {
+    label: t("tableSections.checkedBy"),
+    testId: "table-read-checkers",
+    value:
+      checkers.length === 0 ? null : (
+        <Table className="data-table detail-table">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("tableSections.checkerTable")}</Table.Th>
+              <Table.Th>{t("tableSections.checkerSource")}</Table.Th>
+              <Table.Th>{t("tableSections.lastScan")}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {checkers.map((c) => (
+              <Table.Tr key={c.tableId} data-testid={`table-read-checker-${c.tableId}`}>
+                <Table.Td>
+                  <Anchor component={Link} to={`/tables?table=${c.tableId}`} size="sm">
+                    {c.tableName}
+                  </Anchor>
+                </Table.Td>
+                <Table.Td>{c.sourceId}</Table.Td>
+                <Table.Td>
+                  {c.outcome === null ? (
+                    t("detailFields.empty")
+                  ) : (
+                    <>
+                      <Badge size="sm" variant="light" color={OUTCOME_COLOR[c.outcome]} mr="xs">
+                        {t(`tableSections.outcome.${c.outcome}`)}
+                      </Badge>
+                      {c.scanTime && new Date(c.scanTime).toLocaleString()}
+                    </>
+                  )}
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      ),
+  };
 }
