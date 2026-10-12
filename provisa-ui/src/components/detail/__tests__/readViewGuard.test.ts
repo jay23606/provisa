@@ -51,6 +51,11 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "pages/commands/ColumnGovernanceFields.tsx",
     ],
   },
+  // Edited in place: the panel is the form, and the fields it does not edit are listed above it.
+  Glossary: {
+    read: ["components/admin/GlossaryTab.tsx", "components/admin/GlossaryRelationships.tsx"],
+    form: ["components/admin/GlossaryTab.tsx", "components/admin/GlossaryRelationships.tsx"],
+  },
   Metrics: {
     read: ["pages/metrics/MetricDetailPanel.tsx"],
     form: ["pages/MetricsPage.tsx"],

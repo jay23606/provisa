@@ -13,6 +13,7 @@
 // this tab carries the human curation — rename, definitions, ref moves,
 // experts, abstract terms and their typed edges.
 
+import { DetailFields } from "../detail/DetailFields";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -103,6 +104,7 @@ function writeStoredBool(key: string, value: boolean): void {
 
 export function GlossaryTab() {
   const { t } = useTranslation();
+  const yesNo = (v: boolean) => (v ? t("detailFields.yes") : t("detailFields.no"));
   // REQ-1590: `glossary_read` opened this page; curation is the second right. Without it the term
   // list, definitions, refs, relationships and experts all still render — a reader came here to
   // look a term up — but every control that writes is withheld rather than disabled, because the
@@ -660,6 +662,24 @@ export function GlossaryTab() {
                 </Alert>
               )}
 
+              {/* What the term is, beside what is edited below: every value of it is shown. */}
+              <DetailFields
+                testId="glossary-read-fields"
+                fields={[
+                  {
+                    // REQ-1591: derived from the refs for a rooted term, declared for an abstract
+                    // one; none means unscoped, which the create form names as the enterprise.
+                    label: t("glossaryTab.domainsLabel"),
+                    value: detail.domains.length
+                      ? detail.domains.join(", ")
+                      : t("glossaryTab.enterpriseDomainLabel"),
+                  },
+                  { label: t("glossaryTab.abstract"), value: yesNo(detail.is_abstract) },
+                  { label: t("glossaryTab.proposed"), value: yesNo(!detail.live) },
+                  { label: t("glossaryTab.deprecated"), value: yesNo(detail.deprecated) },
+                  { label: t("glossaryTab.retired"), value: yesNo(detail.retired) },
+                ]}
+              />
               <Group align="flex-end" gap="sm">
                 <TextInput
                   label={t("glossaryTab.nameLabel")}

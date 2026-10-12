@@ -5776,5 +5776,7 @@
   "zh-HK/detailFields.json::detailFields.empty": "—",
   "zh-HK/securityPage.json::securityPage.ruleId": "Rule ID",
   "zh-HK/commandsPage.json::commandsPage.yes": "Yes",
-  "zh-HK/commandsPage.json::commandsPage.no": "No"
+  "zh-HK/commandsPage.json::commandsPage.no": "No",
+  "zh-HK/detailFields.json::detailFields.yes": "Yes",
+  "zh-HK/detailFields.json::detailFields.no": "No"
 }

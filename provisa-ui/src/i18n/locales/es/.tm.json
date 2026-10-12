@@ -5775,5 +5775,7 @@
   "es/detailFields.json::detailFields.empty": "—",
   "es/securityPage.json::securityPage.ruleId": "Rule ID",
   "es/commandsPage.json::commandsPage.yes": "Yes",
-  "es/commandsPage.json::commandsPage.no": "No"
+  "es/commandsPage.json::commandsPage.no": "No",
+  "es/detailFields.json::detailFields.yes": "Yes",
+  "es/detailFields.json::detailFields.no": "No"
 }
