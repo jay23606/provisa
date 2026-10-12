@@ -151,10 +151,6 @@ def _surface_with(state: Any, role_id: str, draft: dict) -> RoleSurface:
     return replace(surface, context=ctx)
 
 
-#: The builds a preview started, held until each ends (a task nothing holds may be collected).
-_builds_started: set = set()
-
-
 def _view_body(state: Any, draft: dict) -> str | None:
     """What a draft VIEW's reference becomes for its steward's read; None for a table.
 
@@ -168,28 +164,32 @@ def _view_body(state: Any, draft: dict) -> str | None:
     read does whose copy is still being built; after, it is read from the log."""
     if not draft.get("view_sql"):
         return None
-    body = draft["view_sql"].rstrip().rstrip(";")
+    from provisa.api.app_rebuild import compile_view_sql_to_physical
+
+    # Physical, as every published view's entry is (app_rebuild): the engine is handed the
+    # tables' own addresses, not their model names.
+    body = compile_view_sql_to_physical(draft["view_sql"].rstrip().rstrip(";"), state.view_context)
     # A draft view is materialized exactly when its build is registered (app_rebuild).
     mv = state.mv_registry.get(f"view-{draft['table_name']}")
     if mv is None:
         return body
-    import asyncio
-
+    from provisa.core.connection_loop import spawn_background
     from provisa.mv.models import MVStatus
     from provisa.mv.refresh import refresh_mv
 
     if mv.status not in (MVStatus.FRESH, MVStatus.REFRESHING):
-        build = asyncio.create_task(
+        # On a worker of its own: this read's loop ends with the read, and a task left on it
+        # would never run to its end.
+        spawn_background(
             refresh_mv(
                 state.federation_engine,
                 mv,
                 state.mv_registry,
                 store=state.model_db,
                 ledger=state.tenant_db,
-            )
+            ),
+            name=f"view-build:{draft['table_name']}",
         )
-        _builds_started.add(build)
-        build.add_done_callback(_builds_started.discard)
     if mv.bitemporal is None:
         return body
     if mv.last_refresh_at is None:

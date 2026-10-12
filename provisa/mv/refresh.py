@@ -74,6 +74,27 @@ async def _in_executor(fn):
     return await asyncio.get_running_loop().run_in_executor(None, fn)
 
 
+def _create_schema_sql(engine, catalog: str, schema: str) -> str:
+    """The statement that creates the store schema ``schema`` if it is absent. An engine whose SQL
+    names no catalog (REQ-1730: PostgreSQL, ``catalog_qualified=False``) materializes into its own
+    database and names the schema alone; every other engine qualifies it with the catalog."""
+    if not engine.engine.catalog_qualified:
+        return f'CREATE SCHEMA IF NOT EXISTS "{schema}"'
+    return f'CREATE SCHEMA IF NOT EXISTS "{catalog}"."{schema}"'
+
+
+def _list_tables_sql(engine, catalog: str, schema: str) -> str:
+    """The statement listing the tables of the store schema ``schema``, one name per row. An engine
+    whose SQL names no catalog (REQ-1730) has no ``SHOW TABLES``: it reads its own
+    ``information_schema``. Snowflake spells the listing ``SHOW TABLES IN SCHEMA``; Trino and
+    the rest ``FROM``."""
+    if not engine.engine.catalog_qualified:
+        quoted = schema.replace("'", "''")
+        return f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{quoted}'"
+    scope = "IN SCHEMA" if getattr(engine, "dialect", "") == "snowflake" else "FROM"
+    return f'SHOW TABLES {scope} "{catalog}"."{schema}"'
+
+
 async def _store_statement(engine, sql: str, authorization: SystemAuth) -> list:
     """Run an MV-maintenance statement that acts on the store alone (DROP, SHOW TABLES): through the
     broker for an embedded DuckDB-file store the engine never ATTACHes (REQ-1901), else as engine
@@ -224,7 +245,7 @@ async def apply_bitemporal_append(engine, mv: MVDefinition, *, system_ts: str | 
         )
         return target
     await engine.execute_engine(
-        f'CREATE SCHEMA IF NOT EXISTS "{mv.target_catalog}"."{mv.target_schema}"',
+        _create_schema_sql(engine, mv.target_catalog, mv.target_schema),
         authorization=authorization,
     )
     try:
@@ -734,11 +755,9 @@ async def refresh_mv(  # REQ-135, REQ-160, REQ-235, REQ-879, REQ-1760
                 )
         else:
             # Ensure the target schema exists before the CTAS. The store's MV-cache schema is created on
-            # demand (it need not pre-exist — e.g. a fresh deployment where no source has landed yet). The
-            # catalog-qualified form is portable across the engines that materialize (DuckDB/Trino/
-            # Postgres/Databricks/BigQuery all accept CREATE SCHEMA IF NOT EXISTS "catalog"."schema").
+            # demand (it need not pre-exist — e.g. a fresh deployment where no source has landed yet).
             await engine.execute_engine(
-                f'CREATE SCHEMA IF NOT EXISTS "{mv.target_catalog}"."{mv.target_schema}"',
+                _create_schema_sql(engine, mv.target_catalog, mv.target_schema),
                 authorization=authorization,
             )
 
@@ -928,11 +947,9 @@ async def detect_orphans(  # REQ-234
         # "Error in MV reclamation loop". The store is asked what it holds: nothing, there.
         actual_tables = set(await _in_executor(lambda: broker.tables(schema_name)))
     else:
-        # Snowflake spells the schema-scoped listing ``SHOW TABLES IN SCHEMA``; Trino ``FROM``.
-        scope = "IN SCHEMA" if getattr(engine, "dialect", "") == "snowflake" else "FROM"
         rows = await _store_statement(
             engine,
-            f'SHOW TABLES {scope} "{catalog}"."{schema_name}"',
+            _list_tables_sql(engine, catalog, schema_name),
             SystemAuth(mint_system_token(), reason=f"mv_detect_orphans:{catalog}.{schema_name}"),
         )
         actual_tables = {row[0] for row in rows}

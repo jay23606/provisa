@@ -52,8 +52,8 @@ def _view(semantic: str | None = "SELECT id, home FROM sales.orders") -> MVDefin
 class _Engine:
     dialect = "duckdb"
 
-    def address_replicas(self, sql: str) -> str:
-        return f"/*addressed*/ {sql}"
+    def engine_physical(self, sql: str) -> str:
+        return f"/*as the engine executes it*/ {sql}"
 
 
 @pytest.fixture
@@ -153,7 +153,7 @@ async def test_with_no_platform_regions_a_build_reads_as_before(pipeline, node_i
     node_in(None)
     sql = await view_build_sql(_view(), _Engine())
     assert pipeline.routed == [] and pipeline.resident == []
-    assert sql == '/*addressed*/ SELECT "id", "home" FROM "pg"."public"."orders"'
+    assert sql == '/*as the engine executes it*/ SELECT "id", "home" FROM "pg"."public"."orders"'
 
 
 def _join_view() -> MVDefinition:

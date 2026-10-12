@@ -199,6 +199,9 @@ def test_a_config_load_fails_on_the_first_view_it_cannot_build(state):
 
 
 class _Engine:
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     dialect = "trino"  # the dialect its statements are written in (EngineRuntime.dialect)
 
     def __init__(self) -> None:
@@ -206,6 +209,9 @@ class _Engine:
 
     # The engine seam names its SQL dialect; refresh resolves a view's settings in it.
     dialect = "duckdb"
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them

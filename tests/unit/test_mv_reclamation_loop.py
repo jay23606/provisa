@@ -12,6 +12,8 @@
 # storage-GC path (drop removed MVs + reap orphans) and never recomputes MVs.
 import inspect
 
+from types import SimpleNamespace
+
 import pytest
 
 import provisa.mv.refresh as refresh
@@ -20,9 +22,15 @@ from provisa.mv.registry import MVRegistry
 
 
 class _RecordingEngine:
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     def __init__(self, tables):
         self._tables = list(tables)
         self.executed = []
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
@@ -103,6 +111,9 @@ async def test_a_copy_of_a_view_another_region_keeps_is_an_orphan_here():
 
 class _BrokerBackedEngine:
     """An engine whose views live in an embedded DuckDB-file store, reached through its broker."""
+
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
 
     dialect = "duckdb"
 

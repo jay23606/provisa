@@ -35,6 +35,9 @@ class _Engine:
     def __init__(self, rt: DuckDBFederationRuntime) -> None:
         self.rt = rt
 
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
+
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
 

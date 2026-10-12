@@ -600,7 +600,10 @@ async def test_a_draft_view_is_expanded_for_its_stewards_read_alone(draft_view, 
 
     sql, view = seen[0]
     assert sql == 'SELECT * FROM "sales"."big_orders" LIMIT 5'
-    assert view.view_sql_map["big_orders"] == 'SELECT id FROM "sales"."orders" WHERE id > 5'
+    # Physical, as a published view's entry is: the engine knows the table by its address.
+    assert view.view_sql_map["big_orders"] == (
+        'SELECT id FROM "pg"."public"."orders" AS "orders" WHERE id > 5'
+    )
     # The published map -- what every other statement is expanded from -- never held it.
     assert "big_orders" not in draft_view.view_sql_map
     assert dict(draft_view.view_sql_map) == published

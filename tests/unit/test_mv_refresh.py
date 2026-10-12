@@ -16,6 +16,8 @@ tracking, and error handling without requiring a live Trino instance.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from provisa.executor.result import QueryResult
@@ -29,6 +31,9 @@ class _FakeEngine(RegisteredNames):
     """Records SQL; the zero-row shape read of a join-pattern table / COUNT(*) return configured
     rows. ``side_effect`` and ``raise_all`` reproduce the old cursor.execute side effects (e.g.
     table-not-found)."""
+
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
 
     def __init__(self, count=0, show_columns=None, side_effect=None, raise_all=None):
         self.count = count
