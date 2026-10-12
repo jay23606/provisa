@@ -31,6 +31,8 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from typing import Any
+
 import provisa.google_workspace.sign_in  # noqa: F401  (registers the Google kind)
 import provisa.microsoft365.sign_in  # noqa: F401  (registers the Microsoft kind)
 from provisa.api.admin.capabilities import require_capability_request
@@ -51,7 +53,9 @@ class StartRequest(BaseModel):
     source_id: str
     kind: str
     account: str
-    scopes: list[str]
+    #: REQ-1994: the source's settings as the form states them; the server asks for the scopes
+    #: of what they read (the source kind's ``scopes``), never a list the form makes.
+    mapping: dict[str, Any]
 
 
 class CompleteRequest(BaseModel):
@@ -106,7 +110,7 @@ def _keep_grant(org_id: str):
     """The approval goes to the organisation's state store under the lock the source's renewals
     take (``oauth_store``), so a sign-in and a renewal never write one source's at once."""
 
-    async def keep(source_id: str, account: str, refresh_token: str) -> None:
+    async def keep(source_id: str, account: str, refresh_token: str, scopes: list[str]) -> None:
         from provisa.api_source import oauth_store
         from provisa.core.config_loader import load_control_plane
         from provisa.core.config_location import config_path_str
@@ -118,6 +122,7 @@ def _keep_grant(org_id: str):
             source_id=source_id,
             account=account,
             refresh_token=refresh_token,
+            scopes=scopes,
         )
 
     return keep
@@ -196,7 +201,7 @@ async def start(request: Request, body: StartRequest) -> dict:
             source_id=body.source_id.strip(),
             kind_id=body.kind,
             account=body.account.strip(),
-            scopes=body.scopes,
+            mapping=body.mapping,
             client_id=client.client,
             public_address=_public_address(),
             settings=client.settings,

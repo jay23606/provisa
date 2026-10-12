@@ -35,7 +35,8 @@ from typing import Any
 import httpx
 
 from provisa.core import canonical_mail as cm
-from provisa.microsoft365 import mail
+from provisa.microsoft365 import calendar, directory, mail
+from provisa.microsoft365 import settings as m365_settings
 from provisa.microsoft365.graph import (
     FOLDER_NOT_THERE,
     WAIT_SECONDS,
@@ -46,7 +47,16 @@ from provisa.microsoft365.graph import (
 
 log = logging.getLogger(__name__)
 
-TABLES: tuple[str, ...] = mail.MAIL_TABLES
+MAIL_TABLES: tuple[str, ...] = mail.MAIL_TABLES
+#: Every table a source can offer: its mail, calendar and task tables (REQ-1994). A source
+#: offers those of the resources it reads (``canonical_mail.tables_for``).
+TABLES: tuple[str, ...] = cm.tables_for((cm.MAIL, cm.CALENDAR, cm.TASKS))
+#: The application permission a source of the organisation's mailboxes needs for a calendar or
+#: task table (REQ-1994).
+_NEED: dict[str, str] = {
+    **dict.fromkeys(cm.RESOURCE_TABLES[cm.CALENDAR], directory.CALENDARS_WRITE),
+    **dict.fromkeys(cm.RESOURCE_TABLES[cm.TASKS], directory.TASKS_WRITE),
+}
 #: A mailbox has no schema of its own; its tables are listed under this one.
 SCHEMA = "default"
 
@@ -120,6 +130,46 @@ ANY_AGE = "any"
 UNCHANGED = "unchanged"
 
 
+async def _calendar_token(connect: Connect, source: Any, table: str) -> str | None:
+    """The change token of the source's calendars, or its task lists (``calendar.change_lines``
+    for every mailbox), or None when Graph cannot be asked: None is never "unchanged", so a read
+    is asked for and reports the reason on the replica."""
+    try:
+        reading = await connect(source)
+        settings = m365_settings.parse(dict(getattr(source, "mapping", None) or {}))
+
+        def lines() -> list[str]:
+            with httpx.Client() as client:
+                graph = Graph(http_send(client), reading.token, wait_seconds=reading.wait_seconds)
+                out: list[str] = []
+                for account in reading.accounts:
+                    try:
+                        out.extend(
+                            calendar.change_lines(
+                                graph.for_mailbox(account),
+                                account,
+                                table,
+                                settings.check_days or 0,
+                            )
+                        )
+                    except GraphRefused as refused:
+                        if not (reading.organisation and _not_readable(refused)):
+                            raise
+                        out.append(f"{account}\x00{LEFT_OUT}")
+                return out
+
+        return calendar.token_of(await asyncio.to_thread(lines))
+    except Exception as failed:  # allow-ble: a check that cannot be made, for whatever reason, must ask for a read, which reports that reason on the replica; it must never say "unchanged"
+        log.warning(
+            "microsoft_365 %s: could not check %s for changes, so a read is asked for (%s: %s)",
+            getattr(source, "id", "?"),
+            table,
+            type(failed).__name__,
+            failed,
+        )
+        return None
+
+
 async def unchanged(connect: Connect, source: Any) -> str | None:
     """:data:`UNCHANGED` when nothing of the source's mail changed since its last completed
     read, else None: something changed, or it cannot be told -- nothing was kept yet, a
@@ -180,28 +230,31 @@ class NoMailboxRead(RuntimeError):
     """Not one of the organisation's mailboxes could be read: the client's permission, not a
     mailbox, is what is wrong."""
 
-    def __init__(self, count: int, reason: str, mail_read: bool | None = None) -> None:
-        """``mail_read``: whether the client's token carries Mail.Read; None when it cannot
-        be told. Without it the client reads only what Exchange lets it (a role assignment
-        over a scope of mailboxes), which is a setup that works -- so it is not called a
-        fault, and the scope is what is pointed at."""
+    def __init__(
+        self, count: int, reason: str, mail_read: bool | None = None, need: str = "Mail.Read"
+    ) -> None:
+        """``mail_read``: whether the client's token carries ``need`` (Mail.Read for mail,
+        REQ-1994's Calendars.ReadWrite or Tasks.ReadWrite.All for calendars and tasks); None
+        when it cannot be told. Without it the client reads only what Exchange lets it (a role
+        assignment over a scope of mailboxes), which is a setup that works -- so it is not
+        called a fault, and the scope is what is pointed at."""
         if mail_read is True:
             why = (
-                "the organisation's Microsoft 365 client's token carries Mail.Read, so the "
+                f"the organisation's Microsoft 365 client's token carries {need}, so the "
                 "permission is granted: check that these addresses are mailboxes of this "
                 "tenant, and whether an application access policy in Exchange keeps the "
                 "client from them"
             )
         elif mail_read is False:
             why = (
-                "the organisation's Microsoft 365 client's token does not carry Mail.Read. "
-                "Either grant the application permission Mail.Read with admin consent, or, "
+                f"the organisation's Microsoft 365 client's token does not carry {need}. "
+                f"Either grant the application permission {need} with admin consent, or, "
                 "where the client is given mail through Exchange (a role assignment over a "
                 "scope of mailboxes), put these mailboxes in that scope; a new or changed "
                 "assignment can take up to two hours to apply"
             )
         else:
-            why = "the organisation's Microsoft 365 client has not been granted reading of mail"
+            why = f"the organisation's Microsoft 365 client has not been granted {need}"
         super().__init__(f"none of the {count} mailboxes could be read ({reason}): {why}")
 
 
@@ -253,6 +306,7 @@ async def _read_mailboxes(
     reached: dict[str, dict[str, str]] | None = None,
     at_quota: list[str] | None = None,
     failed: dict[str, str] | None = None,
+    need: str = "Mail.Read",
 ) -> AsyncIterator[Any]:
     """What ``read`` gives for each mailbox of ``reading``, as it arrives. One mailbox is read
     as it stands: whatever Graph refuses fails the read. The organisation's mailboxes are
@@ -339,7 +393,8 @@ async def _read_mailboxes(
             raise NoMailboxRead(
                 len(reading.accounts),
                 last_refusal[0],
-                None if roles is None else not directory.lacks(roles, directory.MAIL_READ),
+                None if roles is None else not directory.lacks(roles, need),
+                need,
             )
         if left_out:
             log.warning(
@@ -381,10 +436,17 @@ def make_microsoft365_loader(connect: Connect) -> Any:
         if name not in TABLES:
             raise UnknownMailTable(name)
         reading = await connect(source)
+        if name in MAIL_TABLES:
+            read = lambda mailbox: mailbox.rows(name, unreadable)  # noqa: E731
+            need = directory.MAIL_READ
+        else:
+            # REQ-1994: a calendar or task table, read whole for every mailbox.
+            read = lambda mailbox: calendar.account_rows(  # noqa: E731
+                mailbox.graph, mailbox.account, name
+            )
+            need = _NEED[name]
         async for rows in _read_mailboxes(
-            reading,
-            lambda mailbox: mailbox.rows(name, unreadable),
-            [] if left_out is None else left_out,
+            reading, read, [] if left_out is None else left_out, need=need
         ):
             if rows:
                 yield rows
@@ -424,8 +486,15 @@ def make_microsoft365_loader(connect: Connect) -> Any:
         """The table's check for changes (REQ-855, REQ-982), for a table read from the
         mailboxes: any of the message tables, and the folders, whose counts change with every
         message. None for any other table."""
-        if table.table_name not in TABLES:
+        name = table.table_name
+        if name not in TABLES:
             return None
+        if name not in MAIL_TABLES:
+
+            async def calendar_token() -> str | None:
+                return await _calendar_token(connect, source, name)
+
+            return calendar_token
 
         async def token() -> str | None:
             return await unchanged(connect, source)
@@ -817,6 +886,15 @@ def make_connect(state: Any) -> Connect:
                 loop,
             ).result()
 
+        # REQ-1994: an approval that does not grant what the source now reads is refused here,
+        # once, naming what to grant. Microsoft names a scope without Graph's address.
+        await oauth_store.require_granted(
+            state.tenant_db,
+            source_id=source.id,
+            account=account,
+            needed=[m365.RESOURCE_SCOPES[r] for r in settings.resources],
+            name=lambda scope: scope.removeprefix("https://graph.microsoft.com/"),
+        )
         return Reading(
             (settings.account,),
             signed_in,

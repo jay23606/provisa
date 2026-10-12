@@ -13,14 +13,15 @@
 // authority on what is valid, and this one only says what is still missing from the form.
 
 import { SignInRefused, shapesOffered, type SignInStatus } from "../../lib/sourceSignIn";
+import { CALENDAR, MAIL, resourcesField, resourcesOf } from "./mailResources";
 
 export const MICROSOFT_365 = "microsoft_365";
 /** Where an administrator enters the organisation's Microsoft client. */
 export const MAIL_PLATFORMS_ROUTE = "/admin/email";
 
-const GRAPH = "https://graph.microsoft.com/";
-/** What Microsoft is asked for: reading the mailbox, a standing approval, and who approved. */
-export const M365_SCOPES = [`${GRAPH}Mail.Read`, "offline_access", `${GRAPH}User.Read`];
+/** What the source reads: mail, calendars, tasks (REQ-1994). What Microsoft is asked to grant
+ * is the server's to say, from the source's mapping (`m365Mapping`). */
+export const m365Resources = (fields: Record<string, string>) => resourcesOf(fields, "m365");
 
 export const M365_ONE = "one";
 export const M365_ORGANISATION = "organisation";
@@ -69,7 +70,17 @@ export function m365ConnectMissing(fields: Record<string, string>, sourceId: str
   const missing: string[] = [];
   if (!sourceId.trim()) missing.push("source_id");
   if (!stated(fields, "m365_account")) missing.push("m365_account");
-  return missing;
+  return [...missing, ...m365ReadsMissing(fields)];
+}
+
+/** What the source reads, still unsaid: at least one resource, and the days a check for
+ * changed events looks at when it reads calendars. */
+export function m365ReadsMissing(fields: Record<string, string>): string[] {
+  const resources = m365Resources(fields);
+  if (resources.length === 0) return ["m365_resources"];
+  return resources.includes(CALENDAR) && !(Number(stated(fields, "m365_check_days")) >= 1)
+    ? ["m365_check_days"]
+    : [];
 }
 
 /** The source's mapping for what the fields say. The organisation's Microsoft client is not
@@ -78,16 +89,27 @@ export function m365ConnectMissing(fields: Record<string, string>, sourceId: str
 export function m365Mapping(fields: Record<string, string>): Record<string, unknown> {
   // Nothing received before this date is held, whichever mailboxes are read; left out, mail
   // of any age is. The same setting, by the same name, as a Google Workspace source's.
-  const since = stated(fields, "m365_mail_since")
-    ? { mail_since: stated(fields, "m365_mail_since") }
+  const resources = m365Resources(fields);
+  const since =
+    resources.includes(MAIL) && stated(fields, "m365_mail_since")
+      ? { mail_since: stated(fields, "m365_mail_since") }
+      : {};
+  // REQ-1994: a source that reads calendars says how many days a check looks at, and whether a
+  // change Microsoft would announce to attendees is made.
+  const calendar = resources.includes(CALENDAR)
+    ? {
+        calendar_check_days: Number(stated(fields, "m365_check_days")),
+        calendar_send_updates: fields.m365_send_updates === "true",
+      }
     : {};
   if (m365Organisation(fields)) {
-    return { resources: ["mail"], mailboxes: m365Mailboxes(fields) ?? {}, ...since };
+    return { resources, mailboxes: m365Mailboxes(fields) ?? {}, ...since, ...calendar };
   }
   const mapping: Record<string, unknown> = {
     accounts: [stated(fields, "m365_account")],
-    resources: ["mail"],
+    resources,
     ...since,
+    ...calendar,
   };
   // The owner's approval is kept by the server, not in the source. A source connected before
   // that still names it here; it is carried through unchanged until the server has taken it.
@@ -101,8 +123,14 @@ export function m365Mapping(fields: Record<string, string>): Record<string, unkn
 export function m365FieldsFromMapping(mappingJson: string): Record<string, string> {
   const mapping = JSON.parse(mappingJson) as Record<string, unknown>;
   const chosen = mapping.mailboxes as Record<string, unknown> | undefined;
-  const since: Record<string, string> =
-    typeof mapping.mail_since === "string" ? { m365_mail_since: mapping.mail_since } : {};
+  const since: Record<string, string> = {
+    ...(typeof mapping.mail_since === "string" ? { m365_mail_since: mapping.mail_since } : {}),
+    ...resourcesField("m365", (mapping.resources as string[] | undefined) ?? []),
+    m365_send_updates: mapping.calendar_send_updates === true ? "true" : "",
+    ...(typeof mapping.calendar_check_days === "number"
+      ? { m365_check_days: String(mapping.calendar_check_days) }
+      : {}),
+  };
   if (chosen !== undefined) {
     const fields: Record<string, string> = { m365_whose: M365_ORGANISATION, ...since };
     if (chosen.everyone === true) fields.m365_choice = M365_EVERYONE;

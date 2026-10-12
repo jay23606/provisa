@@ -23,7 +23,6 @@ import type { SourceFormFieldsProps } from "../SourceFormFields";
 import { backendType } from "../sourceHelpers";
 import * as m365 from "../microsoft365";
 import {
-  M365_SCOPES,
   m365ConnectMissing,
   m365FieldsFromMapping,
   m365Mailboxes,
@@ -101,7 +100,8 @@ describe("what the form asks", () => {
   it("asks for the mailbox, says what is read, and offers one button", async () => {
     form({});
     expect(shown("m365_account")).toBeInTheDocument();
-    expect(shown("reads-mail")).toBeChecked();
+    expect(shown("resource-mail")).toBeChecked();
+    expect(shown("resource-calendar")).not.toBeChecked();
     await waitFor(() => expect(shown("connect")).toBeInTheDocument());
     expect(shown("connect")).toBeDisabled(); // no mailbox named yet
     // Nothing about how Provisa signs in to Microsoft is asked of the person adding a source.
@@ -110,13 +110,14 @@ describe("what the form asks", () => {
     }
   });
 
-  it("asks Microsoft for reading mail and nothing that changes it", () => {
-    expect(M365_SCOPES).toEqual([
-      "https://graph.microsoft.com/Mail.Read",
-      "offline_access",
-      "https://graph.microsoft.com/User.Read",
-    ]);
+  it("needs the mailbox, what is read, and for calendars the days a check looks at", () => {
     expect(m365ConnectMissing({}, "mail")).toEqual(["m365_account"]);
+    expect(m365ConnectMissing({ ...FILLED, m365_resources: "" }, "mail")).toEqual([
+      "m365_resources",
+    ]);
+    expect(m365ConnectMissing({ ...FILLED, m365_resources: "calendar" }, "mail")).toEqual([
+      "m365_check_days",
+    ]);
     expect(m365ConnectMissing(FILLED, " ")).toEqual(["source_id"]);
     expect(m365ConnectMissing(FILLED, "mail")).toEqual([]);
   });
@@ -138,7 +139,8 @@ describe("connecting the mailbox", () => {
       source_id: "mail",
       kind: "microsoft_365",
       account: "megan@contoso.test",
-      scopes: M365_SCOPES,
+      // REQ-1994: what the source reads; the server asks Microsoft for its scopes.
+      mapping: m365Mapping(FILLED),
     });
     const [kept] = setAuthFields.mock.calls.at(-1)!;
     expect(kept).toMatchObject({ ...FILLED, m365_connected_as: "megan@contoso.test" });
@@ -230,6 +232,30 @@ describe("the source's mapping", () => {
     expect(m365FieldsFromMapping(JSON.stringify(mapping))).toEqual({
       m365_whose: "one",
       m365_account: "megan@contoso.test",
+      m365_resources: "mail",
+      m365_send_updates: "",
+    });
+  });
+
+  it("keeps calendars and tasks with the days a check looks at and who is told", () => {
+    const fields = {
+      ...FILLED,
+      m365_resources: "calendar,tasks",
+      m365_check_days: "30",
+      m365_send_updates: "true",
+      m365_mail_since: "2026-01-01",
+    };
+    const mapping = m365Mapping(fields);
+    expect(mapping).toEqual({
+      accounts: ["megan@contoso.test"],
+      resources: ["calendar", "tasks"],
+      calendar_check_days: 30,
+      calendar_send_updates: true,
+    });
+    expect(m365FieldsFromMapping(JSON.stringify(mapping))).toMatchObject({
+      m365_resources: "calendar,tasks",
+      m365_check_days: "30",
+      m365_send_updates: "true",
     });
   });
 

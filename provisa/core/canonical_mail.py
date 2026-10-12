@@ -632,6 +632,96 @@ def key_columns(table: str) -> tuple[str, ...]:
     return KEYS.get(table, ())
 
 
+# ------------------------------------------------------------------- resources and writes
+
+MAIL, CALENDAR, TASKS = "mail", "calendar", "tasks"
+
+#: The tables a source offers for each resource it reads, in the order the table picker lists
+#: them. A calendar or task table is read whole at each refresh: it is not kept by key.
+RESOURCE_TABLES: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        MAIL: (
+            "messages",
+            "message_recipients",
+            "folders",
+            "message_folders",
+            "threads",
+            "attachments",
+        ),
+        CALENDAR: ("calendars", "events", "event_attendees"),
+        TASKS: ("task_lists", "tasks"),
+    }
+)
+
+
+def tables_for(resources: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    """The tables a source reading ``resources`` offers, in picker order."""
+    return tuple(t for r in (MAIL, CALENDAR, TASKS) if r in resources for t in RESOURCE_TABLES[r])
+
+
+#: What names one row of a table a statement writes (REQ-1994): the row a write changes or
+#: removes is found by these, and a write that does not name its rows by them is refused.
+WRITE_KEYS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        "events": ("provider", "account", "id"),
+        "event_attendees": ("provider", "account", "event_id", "address"),
+        "tasks": ("provider", "account", "id"),
+    }
+)
+
+#: The columns a write may set, per writable table (REQ-1994). Every other column is the
+#: provider's to say: a write naming one is refused by name. ``events.recurrence`` is set on a
+#: series (or a single event made one), never on one occurrence.
+WRITABLE_COLUMNS: Mapping[str, frozenset[str]] = MappingProxyType(
+    {
+        "events": frozenset(
+            {
+                "account",
+                "calendar_id",
+                "title",
+                "body",
+                "location",
+                "is_all_day",
+                "start_at",
+                "end_at",
+                "start_date",
+                "end_date",
+                "start_time_zone",
+                "end_time_zone",
+                "show_as",
+                "visibility",
+                "recurrence",
+                "reminders",
+                "is_reminder_on",
+                "reminder_minutes_before_start",
+            }
+        ),
+        "event_attendees": frozenset({"account", "event_id", "address", "name", "kind"}),
+        "tasks": frozenset(
+            {
+                "account",
+                "task_list_id",
+                "title",
+                "notes",
+                "status",
+                "due_date",
+                "due_at",
+                "completed_at",
+                "reminder_at",
+                "is_reminder_on",
+                "importance",
+            }
+        ),
+    }
+)
+
+
+def identity_columns(table: str) -> tuple[str, ...]:
+    """The columns that identify a row of ``table`` to a reader: its key where it is kept by
+    key, else what a write names its rows by, else none."""
+    return KEYS.get(table) or WRITE_KEYS.get(table, ())
+
+
 # --------------------------------------------------------------------------- enumerations
 
 

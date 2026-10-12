@@ -16,6 +16,7 @@ the directory (tenant) the organisation's client is registered in."""
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 import httpx
 
@@ -24,6 +25,7 @@ from provisa.microsoft365 import SOURCE_TYPE
 from provisa.microsoft365.settings import (
     InvalidMicrosoft365Source,
     authorization_url,
+    parse,
     token_url,
 )
 
@@ -67,12 +69,21 @@ async def _approved_account(access_token: str) -> str:
     return account
 
 
+def _scopes(mapping: Mapping[str, Any]) -> list[str]:
+    """What the source the form states reads, and the base a sign-in asks (REQ-1994)."""
+    try:
+        return parse(dict(mapping)).scopes()
+    except InvalidMicrosoft365Source as invalid:
+        raise SignInRefused("settings_invalid", str(invalid)) from None
+
+
 MICROSOFT = SignInKind(
     id=SOURCE_TYPE,
     authorization_endpoint=_endpoint(authorization_url),  # type: ignore[arg-type]
     token_endpoint=_endpoint(token_url),  # type: ignore[arg-type]
     authorization_params=_authorization_params,
     approved_account=_approved_account,
+    scopes=_scopes,
 )
 
 register_kind(MICROSOFT)

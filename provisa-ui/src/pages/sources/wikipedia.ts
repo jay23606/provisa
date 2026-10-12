@@ -35,14 +35,28 @@ export const WIKIPEDIA_CRAWL_FIELDS: WikipediaCrawlField[] = [
   },
   { key: "remove_selectors", kind: "list", placeholder: ".navbox\n.infobox\n.reflist" },
   { key: "link_exclude_patterns", kind: "list", placeholder: "" },
-  { key: "allowed_file_extensions", kind: "list", placeholder: "csv\ntsv\nxlsx\nxls\njson\nparquet" },
+  {
+    key: "allowed_file_extensions",
+    kind: "list",
+    placeholder: "csv\ntsv\nxlsx\nxls\njson\nparquet",
+  },
   { key: "max_html_size", kind: "text", placeholder: "10MB" },
   { key: "max_data_file_size", kind: "text", placeholder: "100MB" },
 ];
 
 /** The language editions whose "See also" heading the server knows. */
 export const WIKIPEDIA_KNOWN_SEE_ALSO = new Set([
-  "en", "de", "es", "it", "pt", "nl", "pl", "sv", "ja", "zh", "ru",
+  "en",
+  "de",
+  "es",
+  "it",
+  "pt",
+  "nl",
+  "pl",
+  "sv",
+  "ja",
+  "zh",
+  "ru",
 ]);
 
 const lines = (text: string | undefined) =>

@@ -78169,3 +78169,32 @@
   related_reqs:
   - REQ-1984
   notes: 'Maintainer 2026-10-12, through the lead: "add a python datasource connector. And an SDK is a huge PITA." The docstring-tag approach mirrors the maintainer''s JSDoc choice for Node ("go with jsdoc"; "the advantage of jsdocs is NO provisa package to download"). The language-neutral worker protocol shared with Node, the dataclass/TypedDict mapping and the sandbox mechanism are the lead''s choices.'
+- id: REQ-1994
+  status: in-progress
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Branded API Sources
+  priority: SHOULD
+  type: behavioral
+  description: 'A Google Workspace or Microsoft 365 source reads, beside mail, the calendars and To Do / Google Tasks of its accounts, and writes their events, attendees and tasks. A source states which of mail, calendar and tasks it reads; it offers the canonical tables of those (REQ-1923''s canonical mail schema): calendars, events and event_attendees for calendar; task_lists and tasks for tasks. Reminders are columns, not a table: an event''s reminders (Google) or is_reminder_on and reminder_minutes_before_start (Microsoft), a task''s reminder_at and is_reminder_on (Microsoft; Google''s Tasks API has no reminder and keeps only the day a task is due). READING: each calendar and task table is read whole, for every account, at each refresh. The events table holds single events, series masters (with their recurrence as RFC 5545 lines; Microsoft''s pattern is rendered as one RRULE) and exceptions (a moved or cancelled occurrence, with series_id and original_start_at), never the expanded occurrences of a series; on Microsoft the masters come from each calendar''s /events and the exceptions from each master''s exceptionOccurrences. A refresh is asked for when the source''s change token differs from the last: Google, each calendar''s last change time and each task''s update time; Microsoft, each calendar''s events in a window either side of today (calendar_check_days, a setting of the source with a field on its form) by id and change key, and each task''s update time. WRITING: events, event_attendees and tasks take INSERT, UPDATE and DELETE through one write path for the two source types (executor.writable WritePath.API, federation.mail_write), governed like any table write. An INSERT gives literal values; an UPDATE or DELETE names its rows by their write key (provider, account, id; an attendee by event_id and address), or one occurrence of a series by series_id and original_start_at, which a change or removal makes an exception. The rows named are found at the provider as they stand, and each is changed or removed only where the statement''s whole WHERE, row rules included, holds for it. A write sets only the columns the provider keeps of the table''s writable set; any other is refused by name. Recurrence is set on a series, never on one occurrence. NOTIFICATION: a write tells an event''s attendees nothing unless the source''s calendar_send_updates is on (a field on its form). Google takes sendUpdates=none; Microsoft Graph cannot change a meeting''s attendees, or a meeting the account organizes with others attending, without telling them, so such a write is refused by name while the setting is off (the account''s own reminder is changed either way). SCOPES: Google asks calendar.calendarlist.readonly, calendar.events and tasks (with userinfo.email, by which the sign-in names its account); Microsoft asks Calendars.ReadWrite and Tasks.ReadWrite delegated, and a source of the organisation''s mailboxes needs Calendars.ReadWrite and Tasks.ReadWrite.All application permissions (Google: the same scopes on the service account''s domain-wide delegation). The scopes a sign-in asks are the server''s, from the source''s settings as the form states them, never a list the form makes. The scopes the issuer says an approval grants are recorded with it; a source whose approval does not grant what it now reads is refused by name, asking its owner to sign in again.'
+  related_reqs:
+  - REQ-1923
+  - REQ-1946
+  notes: 'Maintainer 2026-10-12, through the lead: calendars, tasks and reminders for both sources, read and write (create, update, delete events and tasks, with their reminder fields), through each source''s write route, with the broader scopes. Rulings on the design note: (a) table INSERT/UPDATE/DELETE through one write path for the two source types; (b) attendee writes notify nobody by default, with an explicit option to send updates; (c) masters + exceptions, single occurrences addressable by series_id + original_start. Lead''s calls: (d) masters and exceptions read via /events, a calendarView window for change detection as a source setting with a UI field; the granted-scopes record and re-consent message; a new requirement citing REQ-1923. The Microsoft refusal while calendar_send_updates is off follows from (b): Graph has no way to make such a write silently.'
+  code:
+  - provisa/core/canonical_mail.py
+  - provisa/federation/mail_write.py
+  - provisa/executor/writable.py
+  - provisa/executor/write_capability.py
+  - provisa/google_workspace/calendar_read.py
+  - provisa/google_workspace/calendar_rows.py
+  - provisa/google_workspace/calendar_write.py
+  - provisa/google_workspace/workspace_api.py
+  - provisa/google_workspace/writes.py
+  - provisa/microsoft365/calendar.py
+  - provisa/microsoft365/calendar_write.py
+  - provisa/microsoft365/recurrence.py
+  - provisa/microsoft365/writes.py
+  - provisa/api_source/oauth_store.py
+  - provisa/core/source_sign_in.py
+  - provisa-ui/src/pages/sources/MailResourcesFields.tsx

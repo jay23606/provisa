@@ -39,10 +39,13 @@ import {
   gwConnectMissing,
   gwHeadersOnly,
   gwMailboxes,
+  gwMapping,
   gwOrganisation,
-  gwScopes,
+  gwResources,
   gwShapes,
 } from "./googleWorkspace";
+import { MailResourcesFields } from "./MailResourcesFields";
+import { MAIL } from "./mailResources";
 import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
 import { MailSinceField } from "./MailSinceField";
 
@@ -115,14 +118,16 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
 
   const set = (key: string, value: string) => setFields({ ...fields, [key]: value });
   // A change to what Google was asked for is not what was approved: the approval is asked again.
-  const setAsked = (key: string, value: string) =>
+  const setAsked = (key: string, value: string) => askAgain({ [key]: value });
+  const askAgain = (changed: Record<string, string>) =>
     setFields({
       ...fields,
-      [key]: value,
+      ...changed,
       gw_connected_as: "",
       gw_connected_at: "",
       gw_earlier_approval: "",
     });
+  const readsMail = gwResources(fields).includes(MAIL);
   const text = (key: string, change = set) => ({
     value: fields[key] ?? "",
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -143,7 +148,8 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
         source_id: sourceId.trim(),
         kind: GOOGLE_WORKSPACE,
         account: fields.gw_account.trim(),
-        scopes: gwScopes(fields),
+        // REQ-1994: the server asks Google for the scopes of what this mapping reads.
+        mapping: gwMapping(fields),
       });
       setFields({
         ...fields,
@@ -285,20 +291,30 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           </FormField>
         </>
       )}
-      <FormField hint={t("googleWorkspaceFields.mailContentHelp")} size="medium">
-        <Select
-          label={t("googleWorkspaceFields.mailContent")}
-          data={[
-            { value: GW_MAIL_FULL, label: t("googleWorkspaceFields.mailContentFull") },
-            { value: GW_MAIL_HEADERS, label: t("googleWorkspaceFields.mailContentHeaders") },
-          ]}
-          value={fields.gw_mail_content ?? null}
-          onChange={(value) => setAsked("gw_mail_content", value ?? "")}
-          required
-          allowDeselect={false}
-          data-testid="google-workspace-gw_mail_content"
-        />
-      </FormField>
+      <MailResourcesFields
+        prefix="gw"
+        testPrefix="google-workspace"
+        fields={fields}
+        setAsked={askAgain}
+        set={(changed) => setFields({ ...fields, ...changed })}
+        checkDays={false}
+      />
+      {readsMail && (
+        <FormField hint={t("googleWorkspaceFields.mailContentHelp")} size="medium">
+          <Select
+            label={t("googleWorkspaceFields.mailContent")}
+            data={[
+              { value: GW_MAIL_FULL, label: t("googleWorkspaceFields.mailContentFull") },
+              { value: GW_MAIL_HEADERS, label: t("googleWorkspaceFields.mailContentHeaders") },
+            ]}
+            value={fields.gw_mail_content ?? null}
+            onChange={(value) => setAsked("gw_mail_content", value ?? "")}
+            required
+            allowDeselect={false}
+            data-testid="google-workspace-gw_mail_content"
+          />
+        </FormField>
+      )}
       {notSetUp && (
         <FormField size="full">
           <Alert color="yellow" variant="light" data-testid="google-workspace-not-set-up">
@@ -372,7 +388,7 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
         </FormField>
       )}
       {/* Google does not search mail it serves as headers and labels only. */}
-      {!gwHeadersOnly(fields) && (
+      {readsMail && !gwHeadersOnly(fields) && (
         <>
           <FormField
             // What a search costs is said once one is typed: only Google can say what a search
@@ -397,27 +413,31 @@ export function GoogleWorkspaceFields({ sourceId, fields, setFields }: Props) {
           />
         </>
       )}
-      <FormField hint={t("googleWorkspaceFields.mailLabelsHelp")} size="full">
-        <Textarea
-          label={t("googleWorkspaceFields.mailLabels")}
-          placeholder={"Clients\nInvoices"}
-          autosize
-          minRows={2}
-          {...text("gw_mail_labels")}
-        />
-      </FormField>
-      <FormChecks>
-        <FormField size="long">
-          <Checkbox
-            label={t("googleWorkspaceFields.mailSpamTrash")}
-            checked={fields.gw_mail_include_spam_trash === "true"}
-            onChange={(e) =>
-              set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")
-            }
-            data-testid="google-workspace-gw_mail_include_spam_trash"
-          />
-        </FormField>
-      </FormChecks>
+      {readsMail && (
+        <>
+          <FormField hint={t("googleWorkspaceFields.mailLabelsHelp")} size="full">
+            <Textarea
+              label={t("googleWorkspaceFields.mailLabels")}
+              placeholder={"Clients\nInvoices"}
+              autosize
+              minRows={2}
+              {...text("gw_mail_labels")}
+            />
+          </FormField>
+          <FormChecks>
+            <FormField size="long">
+              <Checkbox
+                label={t("googleWorkspaceFields.mailSpamTrash")}
+                checked={fields.gw_mail_include_spam_trash === "true"}
+                onChange={(e) =>
+                  set("gw_mail_include_spam_trash", e.currentTarget.checked ? "true" : "")
+                }
+                data-testid="google-workspace-gw_mail_include_spam_trash"
+              />
+            </FormField>
+          </FormChecks>
+        </>
+      )}
     </>
   );
 }

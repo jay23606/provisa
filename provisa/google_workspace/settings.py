@@ -46,7 +46,7 @@ MAIL, CALENDAR, TASKS = "mail", "calendar", "tasks"
 #: The resources Google's APIs offer under one credential, in the order the setup shows them.
 RESOURCES: tuple[str, ...] = (MAIL, CALENDAR, TASKS)
 #: The resources this build reads. Another is refused by name until it is built.
-RESOURCES_READ: frozenset[str] = frozenset({MAIL})
+RESOURCES_READ: frozenset[str] = frozenset({MAIL, CALENDAR, TASKS})
 
 #: How much of a message is read. Headers and labels only is Google's gmail.metadata scope:
 #: no body, and Google refuses a search under it.
@@ -57,9 +57,11 @@ MAIL_SCOPES: dict[str, str] = {
     MAIL_FULL: f"{_SCOPE}gmail.readonly",
     MAIL_HEADERS: f"{_SCOPE}gmail.metadata",
 }
+#: REQ-1994: a calendar's events and a task list's tasks are read AND written; the calendars
+#: themselves are only listed.
 RESOURCE_SCOPES: dict[str, tuple[str, ...]] = {
-    CALENDAR: (f"{_SCOPE}calendar.calendarlist.readonly", f"{_SCOPE}calendar.events.readonly"),
-    TASKS: (f"{_SCOPE}tasks.readonly",),
+    CALENDAR: (f"{_SCOPE}calendar.calendarlist.readonly", f"{_SCOPE}calendar.events"),
+    TASKS: (f"{_SCOPE}tasks",),
 }
 
 #: How a source of one mailbox signs in: as the person who approved the organisation's client.
@@ -78,6 +80,8 @@ _MAIL_KEYS = (
     "mail_since",
     "mail_include_spam_trash",
 )
+#: REQ-1994: whether a write to an event's attendees tells them (Google's ``sendUpdates``).
+SEND_UPDATES = "calendar_send_updates"
 _KEYS = frozenset(
     (
         "accounts",
@@ -85,6 +89,7 @@ _KEYS = frozenset(
         "sign_in",
         "refresh_token",
         "mailboxes",
+        SEND_UPDATES,
         *_MAIL_KEYS,
     )
 )
@@ -130,6 +135,8 @@ class Settings:
     #: source's next read (loader), and never written by a sign-in now.
     refresh_token: str | None = None
     mailboxes: Mailboxes | None = None
+    #: REQ-1994: a write to an event tells its attendees only when this is on.
+    send_updates: bool = False
 
     @property
     def organisation(self) -> bool:
@@ -315,4 +322,21 @@ def parse(mapping: dict) -> Settings:
                 f"{', '.join(stated)} is a setting of mail, which this source does not read"
             )
         mail = None
-    return Settings(resources, mail, accounts, token, mailboxes)
+    return Settings(
+        resources, mail, accounts, token, mailboxes, send_updates=_send_updates(mapping, resources)
+    )
+
+
+def _send_updates(mapping: dict, resources: tuple[str, ...]) -> bool:
+    """``calendar_send_updates``, a setting of a source that reads calendars. Unstated, a write
+    tells nobody (REQ-1994: attendee writes notify nobody unless the source says so)."""
+    if SEND_UPDATES not in mapping:
+        return False
+    if CALENDAR not in resources:
+        raise InvalidGoogleWorkspaceSource(
+            f"{SEND_UPDATES} is a setting of calendars, which this source does not read"
+        )
+    value = mapping[SEND_UPDATES]
+    if not isinstance(value, bool):
+        raise InvalidGoogleWorkspaceSource(f"{SEND_UPDATES} must be true or false")
+    return value

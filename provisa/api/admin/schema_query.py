@@ -2286,7 +2286,7 @@ async def resolve_available_columns_metadata(
             return await _hive_s3_columns(source_id, schema_name, table_name)
     if source_type == "google_workspace":
         # REQ-1923: a canonical mail table's columns are the canonical ones, by definition.
-        from provisa.core.canonical_mail import key_columns, landing_columns
+        from provisa.core.canonical_mail import identity_columns, landing_columns
         from provisa.google_workspace.loader import TABLES as _MAIL_TABLES, UnknownMailTable
 
         if table_name not in _MAIL_TABLES:
@@ -2296,13 +2296,13 @@ async def resolve_available_columns_metadata(
                 name=name,
                 data_type=ir_type,
                 comment=None,
-                is_primary_key=name in key_columns(table_name),
+                is_primary_key=name in identity_columns(table_name),
             )
             for name, ir_type in landing_columns(table_name)
         ]
     if source_type == "microsoft_365":
         # REQ-1923: likewise the canonical columns, by definition.
-        from provisa.core.canonical_mail import key_columns, landing_columns
+        from provisa.core.canonical_mail import identity_columns, landing_columns
         from provisa.microsoft365.loader import TABLES as _M365_TABLES
         from provisa.microsoft365.loader import UnknownMailTable as _UnknownM365Table
 
@@ -2313,7 +2313,7 @@ async def resolve_available_columns_metadata(
                 name=name,
                 data_type=ir_type,
                 comment=None,
-                is_primary_key=name in key_columns(table_name),
+                is_primary_key=name in identity_columns(table_name),
             )
             for name, ir_type in landing_columns(table_name)
         ]

@@ -24,7 +24,6 @@ import {
   gwFieldsFromMapping,
   gwMapping,
   gwMissing,
-  gwScopes,
   gwShapes,
 } from "../googleWorkspace";
 
@@ -38,7 +37,6 @@ vi.mock("../../../lib/sourceSignIn", async (original) => ({
   signInSource: signIn.signInSource,
 }));
 
-const READONLY = "https://www.googleapis.com/auth/gmail.readonly";
 const FILLED = { gw_account: "ada@example.test", gw_mail_content: "full" };
 // The same, in a form that has already settled on one mailbox (a new form settles when it
 // learns what the organisation's entry can do).
@@ -122,11 +120,33 @@ describe("what a Google Workspace setup asks", () => {
     expect(screen.queryByTestId("brand-token-input")).toBeNull();
   });
 
-  it("shows nothing it cannot read: no calendar, no tasks, nothing marked as coming", async () => {
+  it("offers mail, calendars and tasks, a new source starting on mail", async () => {
     form(FILLED);
     await connectReady();
-    expect(screen.queryByText(/calendar|tasks|not yet|coming|not supported/i)).toBeNull();
-    expect(screen.queryByRole("checkbox", { name: /calendar|tasks/i })).toBeNull();
+    expect(shown("resource-mail")).toBeChecked();
+    expect(shown("resource-calendar")).not.toBeChecked();
+    expect(shown("resource-tasks")).not.toBeChecked();
+    // Whether attendees are told is a setting of calendars, asked once they are read.
+    expect(shown("send-updates")).toBeNull();
+  });
+
+  it("asks whether attendees are told once calendars are read, and nothing of mail without it", () => {
+    form({ ...FILLED, gw_resources: "calendar,tasks" });
+    expect(shown("send-updates")).not.toBeChecked();
+    expect(shown("gw_mail_content")).toBeNull();
+    expect(shown("gw_mail_labels")).toBeNull();
+  });
+
+  it("ticking calendars is another approval: the one given is asked again", () => {
+    const setAuthFields = form({ ...FILLED, gw_connected_as: "ada@example.test" });
+    fireEvent.click(shown("resource-calendar")!);
+    expect(setAuthFields).toHaveBeenLastCalledWith({
+      ...FILLED,
+      gw_resources: "mail,calendar",
+      gw_connected_as: "",
+      gw_connected_at: "",
+      gw_earlier_approval: "",
+    });
   });
 
   it("does not offer a search over mail read as headers and labels only", () => {
@@ -196,7 +216,8 @@ describe("connecting a Google account", () => {
       source_id: "mail",
       kind: "google_workspace",
       account: "ada@example.test",
-      scopes: [READONLY],
+      // REQ-1994: what the source reads; the server asks Google for its scopes.
+      mapping: gwMapping(FILLED),
     });
     // The server keeps the approval; the form holds who connected and when, and no token.
     const kept = setAuthFields.mock.calls.at(-1)![0] as Record<string, string>;
@@ -316,9 +337,7 @@ describe("what a Google Workspace setup saves", () => {
     });
     expect(mapping).not.toHaveProperty("mail_search");
     expect(mapping).not.toHaveProperty("mail_since");
-    expect(gwScopes({ gw_mail_content: "headers" })).toEqual([
-      "https://www.googleapis.com/auth/gmail.metadata",
-    ]);
+    expect(mapping.mail_content).toBe("headers");
   });
 
   it("is not complete until the account is connected", () => {

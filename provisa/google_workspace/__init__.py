@@ -19,10 +19,14 @@ SOURCE_TYPE = "google_workspace"
 # with it. Sources of the organisation's mailboxes read with a service account the domain has
 # delegated to: its key, and the administrator address directory calls are made as.
 #: The scopes a super administrator authorises the service account's client ID for: reading
-#: mail, and listing the domain's users and a group's members (Directory API users.list,
+#: mail; listing calendars, and reading and writing their events and the users' tasks
+#: (REQ-1994); and listing the domain's users and a group's members (Directory API users.list,
 #: members.list). A source that reads headers and labels only asks for gmail.metadata instead.
 DELEGATED_SCOPES: tuple[str, ...] = (
     "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
     "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
 )

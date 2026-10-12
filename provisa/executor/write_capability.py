@@ -25,6 +25,9 @@ only for the operations the table offers; the admin table page shows them.
   remote's operations, registered as a command.
 * A SharePoint or Salesforce source takes all three through its own pgwire server, whatever
   engine serves its reads (REQ-1946).
+* A Google Workspace or Microsoft 365 source takes all three on its ``events``,
+  ``event_attendees`` and ``tasks`` tables, through the provider's API, and none on any other
+  (REQ-1994).
 * A source with no write route (``executor/writable.resolve_write_path``) takes none.
 * An Athena table takes all three when it is an Iceberg table, and inserts only otherwise (a Hive
   table), its format recorded when it is registered (REQ-1981).
@@ -40,7 +43,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from provisa.executor.writable import resolve_write_path, write_refused_forms, write_returns_rows
+from provisa.executor.writable import (
+    API_WRITTEN,
+    resolve_write_path,
+    write_refused_forms,
+    write_returns_rows,
+)
 
 if TYPE_CHECKING:
     from provisa.federation.engine import FederationEngine
@@ -65,6 +73,10 @@ def table_write_ops(
         return frozenset()
     if resolve_write_path(source_type, engine) is None:
         return frozenset()
+    if source_type in API_WRITTEN:
+        from provisa.core.canonical_mail import WRITABLE_COLUMNS
+
+        return frozenset(WRITE_OPS) if table.get("table_name") in WRITABLE_COLUMNS else frozenset()
     if source_type in _INSERT_ONLY:
         return frozenset({"insert"})
     if source_type == "athena" and table.get("table_format") != ICEBERG:

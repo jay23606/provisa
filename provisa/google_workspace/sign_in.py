@@ -18,11 +18,18 @@ import httpx
 
 from provisa.core.source_sign_in import SignInKind, SignInRefused, register_kind
 from provisa.google_workspace import SOURCE_TYPE
+from collections.abc import Mapping
+from typing import Any
+
+from provisa.google_workspace import settings as gw
 from provisa.google_workspace.settings import TOKEN_URL
 
 #: Google's authorization endpoint, as its OpenID configuration document publishes it.
 AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-PROFILE_URL = "https://gmail.googleapis.com/gmail/v1/users/me/profile"
+#: REQ-1994: who approved, by Google's own account of them -- asked of every sign-in, so a
+#: source that reads no mail (calendars, tasks) names its account as one that does.
+PROFILE_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email"
 _TIMEOUT = 10.0
 
 
@@ -33,16 +40,25 @@ def _authorization_params(account: str) -> dict[str, str]:
 
 
 async def _approved_account(access_token: str) -> str:
-    """The mailbox the token reads, by Gmail's own account of it (users.getProfile)."""
+    """The account the token reads, by Google's own account of who approved it."""
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         answer = await client.get(PROFILE_URL, headers={"Authorization": f"Bearer {access_token}"})
     if answer.status_code != 200:
         raise SignInRefused(
             "account_unread",
-            f"Google approved the sign-in and would not say whose mailbox it is "
-            f"(HTTP {answer.status_code}). Is the Gmail API enabled for the client's project?",
+            f"Google approved the sign-in and would not say whose account it is "
+            f"(HTTP {answer.status_code}).",
         )
-    return answer.json()["emailAddress"]
+    return answer.json()["email"]
+
+
+def _scopes(mapping: Mapping[str, Any]) -> list[str]:
+    """What the source the form states reads, and the account's address (REQ-1994)."""
+    try:
+        settings = gw.parse(dict(mapping))
+    except gw.InvalidGoogleWorkspaceSource as invalid:
+        raise SignInRefused("settings_invalid", str(invalid)) from None
+    return [*settings.scopes(), EMAIL_SCOPE]
 
 
 GOOGLE = SignInKind(
@@ -51,6 +67,7 @@ GOOGLE = SignInKind(
     token_endpoint=TOKEN_URL,
     authorization_params=_authorization_params,
     approved_account=_approved_account,
+    scopes=_scopes,
 )
 
 register_kind(GOOGLE)

@@ -69,7 +69,12 @@ export const CLOUDOPS_CLOUDS: Record<CloudopsCloud, CloudopsField[]> = {
       required: true,
       placeholder: "/etc/provisa/gcp-key.json",
     },
-    { key: "gcp_project_ids", label: "coGcpProjectIds", required: true, placeholder: "proj-1,proj-2" },
+    {
+      key: "gcp_project_ids",
+      label: "coGcpProjectIds",
+      required: true,
+      placeholder: "proj-1,proj-2",
+    },
   ],
 };
 

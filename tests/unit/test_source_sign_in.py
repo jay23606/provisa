@@ -47,6 +47,16 @@ SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 SECRETS = (CLIENT_SECRET, CODE, ACCESS, REFRESH)
 
 
+#: The source's settings as the form states them; the stand-in kind asks for SCOPE for them.
+MAPPING = {"reads": "mail"}
+
+
+def _scopes_of(mapping) -> list[str]:
+    """The stand-in kind's scopes: the server's, from the settings, never a list the form made."""
+    assert mapping == MAPPING
+    return [SCOPE]
+
+
 class _Sealer:
     """Stands in for the vault's cipher: reversible, and not the identity."""
 
@@ -68,7 +78,12 @@ class Issuer:
         self.approved = ACCOUNT
 
     def granted(self, **changed) -> dict:
-        body = {"access_token": ACCESS, "refresh_token": REFRESH, "expires_in": 3599}
+        body = {
+            "access_token": ACCESS,
+            "refresh_token": REFRESH,
+            "expires_in": 3599,
+            "scope": SCOPE,
+        }
         body.update(changed)
         return {k: v for k, v in body.items() if v is not None}
 
@@ -136,6 +151,7 @@ def issuer(monkeypatch):
             token_endpoint="https://issuer.test/token",
             authorization_params=lambda account: {"login_hint": account},
             approved_account=issuer.approved_account,
+            scopes=_scopes_of,
         ),
     )
     return issuer
@@ -149,7 +165,7 @@ async def _start(control_plane, vault, **changed):
         "source_id": "mail",
         "kind_id": "stand_in",
         "account": ACCOUNT,
-        "scopes": [SCOPE],
+        "mapping": MAPPING,
         "client_id": "client-1",
         "public_address": PUBLIC,
     }
@@ -168,12 +184,19 @@ GRANTS: dict[tuple[str, str], str] = {}
 @pytest.fixture(autouse=True)
 def _no_grants():
     GRANTS.clear()
+    GRANTED.clear()
     yield
     GRANTS.clear()
+    GRANTED.clear()
 
 
-async def _keep_grant(source_id: str, account: str, refresh_token: str) -> None:
+#: The scopes kept with each approval, as the issuer said it grants them (REQ-1994).
+GRANTED: dict[tuple[str, str], list[str]] = {}
+
+
+async def _keep_grant(source_id: str, account: str, refresh_token: str, scopes: list[str]) -> None:
     GRANTS[(source_id, account)] = refresh_token
+    GRANTED[(source_id, account)] = scopes
 
 
 async def _forget_grant(source_id: str, account: str) -> None:
@@ -467,6 +490,7 @@ class TestAnIssuerWhoseAddressesDependOnTheSource:
                 token_endpoint=lambda s: f"https://issuer.test/{s['tenant']}/token",
                 authorization_params=lambda account: {},
                 approved_account=issuer.approved_account,
+                scopes=_scopes_of,
             ),
         )
 
@@ -520,6 +544,34 @@ class TestWhereTheRefreshTokenGoes:
         state = _asked(await _start(control_plane, vault))["state"]
         with pytest.raises(RuntimeError, match="cannot be written"):
             await _complete(control_plane, vault, state, keep_grant=refuse)
+
+    async def test_what_the_approval_grants_is_kept_with_it(self, control_plane, vault, issuer):
+        """REQ-1994: the scopes the issuer says it granted, so a source that reads more than its
+        approval grants is told to sign in again."""
+        issuer.answer = httpx.Response(
+            200, json=issuer.granted(scope=f"{SCOPE} https://issuer.test/extra")
+        )
+        state = _asked(await _start(control_plane, vault))["state"]
+        await _complete(control_plane, vault, state)
+        assert GRANTED == {("mail", ACCOUNT): [SCOPE, "https://issuer.test/extra"]}
+
+    async def test_an_approval_that_does_not_say_what_it_grants_is_refused(
+        self, control_plane, vault, issuer
+    ):
+        issuer.answer = httpx.Response(200, json=issuer.granted(scope=None))
+        state = _asked(await _start(control_plane, vault))["state"]
+        with pytest.raises(SignInRefused) as refused:
+            await _complete(control_plane, vault, state)
+        assert refused.value.code.endswith("no_scope")
+        assert GRANTS == {}
+
+    async def test_the_scopes_asked_are_the_kinds_for_the_settings_stated(
+        self, control_plane, vault, issuer
+    ):
+        """The form sends the source's settings; what the issuer is asked is the kind's own
+        reading of them, never a list the form made."""
+        asked = _asked(await _start(control_plane, vault))
+        assert asked["scope"] == SCOPE
 
 
 # -- sign-ins that came to nothing --------------------------------------------------------------

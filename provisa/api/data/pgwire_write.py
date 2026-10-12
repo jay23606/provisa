@@ -54,6 +54,12 @@ async def ensure_write_pool(state: Any, source_id: str) -> None:
     """Open the DIRECT pool a write to ``source_id`` runs on, if its type is written through its
     pgwire server and the pool is not open yet. Raises ``SourceStillStartingError`` while the
     server has not begun listening."""
+    from provisa.executor.writable import API_WRITTEN
+
+    if state.source_types.get(source_id) in API_WRITTEN:
+        # REQ-1994: a mail source's writes go through its provider's API.
+        await ensure_mail_write_pool(state, source_id)
+        return
     if state.source_types.get(source_id) not in PGWIRE_SERVER_WRITTEN:
         return
     if state.source_pools.has(source_id):
@@ -71,4 +77,30 @@ async def ensure_write_pool(state: Any, source_id: str) -> None:
     await driver.connect(
         ports.calcite_child_host, ports.pgwire_port, _SERVER_DATABASE, _SERVER_USER, ""
     )
+    await state.source_pools.add_driver(source_id, driver, "postgres")
+
+
+async def ensure_mail_write_pool(state: Any, source_id: str) -> None:
+    """Hold the write driver of mail source ``source_id`` as its DIRECT pool, if none is held.
+    The driver reads the source as it stands at each write, so a changed setting (who is told
+    of an event's change) applies from the next write."""
+    if state.source_pools.has(source_id):
+        return
+    from provisa.api.admin.schema_query import _source_for_introspection
+
+    async def current() -> Any:
+        source = await _source_for_introspection(source_id)
+        if source is None:
+            raise LookupError(f"source {source_id!r} is not registered")
+        return source
+
+    stype = state.source_types.get(source_id)
+    if stype == "google_workspace":
+        from provisa.google_workspace.writes import write_driver
+    elif stype == "microsoft_365":
+        from provisa.microsoft365.writes import write_driver
+    else:
+        raise LookupError(f"source {source_id!r} ({stype}) is not written through its API")
+    driver = write_driver(state, current)
+    await driver.connect("", 0, "", "", "")
     await state.source_pools.add_driver(source_id, driver, "postgres")

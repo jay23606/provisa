@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "Mail",
+    "calendar": "Agenda's",
+    "tasks": "Taken",
+    "sendUpdates": "Deelnemers op de hoogte brengen van wijzigingen",
+    "sendUpdatesHelp": "Een wijziging van een afspraak of de deelnemers wordt alleen naar hen gestuurd als dit aan staat. Zolang het uit staat, weigert Microsoft 365 zo'n wijziging, omdat het die niet kan maken zonder hen te informeren.",
+    "checkDays": "Dagen gecontroleerd op wijzigingen",
+    "checkDaysHelp": "Hoeveel dagen voor en na vandaag een controle op gewijzigde afspraken bekijkt."
+  }
+}

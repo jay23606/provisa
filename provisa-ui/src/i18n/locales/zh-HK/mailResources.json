@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "郵件",
+    "calendar": "日曆",
+    "tasks": "任務",
+    "sendUpdates": "將更改告知參與者",
+    "sendUpdatesHelp": "只有開啟此項時，對事件或其參與者的更改才會傳送給他們。關閉時，Microsoft 365 會拒絕此類更改，因為它無法在不告知參與者的情況下作出更改。",
+    "checkDays": "檢查更改的天數",
+    "checkDaysHelp": "檢查已更改事件時，查看今天前後多少天。"
+  }
+}

@@ -295,13 +295,52 @@ async def store_refresh_token(
     source_id: str,
     account: str,
     refresh_token: str,
+    scopes: list[str],
     lock_wait_seconds: float = LOCK_WAIT_SECONDS,
 ) -> None:
-    """Keep the approval a sign-in produced, under the lock a refresh takes, and drop the
-    access token this process held under the one it replaces."""
+    """Keep the approval a sign-in produced and the scopes it grants (REQ-1994), under the lock
+    a refresh takes, and drop the access token this process held under the one it replaces."""
     from provisa.federation import mail_sync_state
 
     async with _Locked(platform_url, org_id, source_id, lock_wait_seconds):
         async with state_db.acquire() as conn:
             await mail_sync_state.keep_grant(conn, source_id, account, refresh_token)
+            await mail_sync_state.keep_granted(conn, source_id, account, scopes)
         forget(org_id, source_id, account)
+
+
+class ScopesNotGranted(RuntimeError):
+    """The owner's approval does not grant everything the source now reads (REQ-1994): the
+    source asked for more after its owner signed in."""
+
+
+async def require_granted(
+    state_db: "Database",
+    *,
+    source_id: str,
+    account: str,
+    needed: list[str],
+    name: Callable[[str], str] = lambda scope: scope,
+) -> None:
+    """Refuse by name, asking its owner to sign in again, a source whose kept approval does not
+    grant every scope of ``needed``. ``name`` puts a scope as the issuer writes it in its
+    answer (Microsoft answers ``Mail.Read`` for ``https://graph.microsoft.com/Mail.Read``).
+
+    An approval given before what it grants was recorded has no record: nothing is said of it
+    here, and the provider's own refusal of a call it does not cover names what to do (the
+    Calendar and Tasks clients' ``ScopeNotGranted``). Such a source keeps reading what it was
+    approved for -- the standing rule of approvals kept before (``kept_refresh_token``)."""
+    from provisa.federation import mail_sync_state
+
+    async with state_db.acquire() as conn:
+        granted = await mail_sync_state.granted(conn, source_id, account)
+    if granted is None:
+        return
+    have = {name(s).lower() for s in granted}
+    missing = [s for s in needed if name(s).lower() not in have]
+    if missing:
+        raise ScopesNotGranted(
+            f"source {source_id!r}: {account} signed in before the source asked for "
+            f"{', '.join(name(s) for s in missing)}. Its owner signs in again from the "
+            "source's form to grant it."
+        )

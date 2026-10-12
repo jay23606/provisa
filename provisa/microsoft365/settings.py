@@ -23,20 +23,32 @@ import datetime as dt
 import re
 from dataclasses import dataclass
 
-MAIL = "mail"
-#: What a source can read. Calendar and tasks are named by the product and not yet read.
-RESOURCES: tuple[str, ...] = (MAIL,)
+MAIL, CALENDAR, TASKS = "mail", "calendar", "tasks"
+#: What a source can read: mail, and calendars and To Do tasks, read and written (REQ-1994).
+RESOURCES: tuple[str, ...] = (MAIL, CALENDAR, TASKS)
 
 LOGIN = "https://login.microsoftonline.com"
 _GRAPH = "https://graph.microsoft.com/"
-#: What Microsoft is asked for, by what the source reads. Read-only.
-RESOURCE_SCOPES: dict[str, str] = {MAIL: f"{_GRAPH}Mail.Read"}
+#: What Microsoft is asked for, by what the source reads: mail read-only; calendars and tasks
+#: read and written (REQ-1994).
+RESOURCE_SCOPES: dict[str, str] = {
+    MAIL: f"{_GRAPH}Mail.Read",
+    CALENDAR: f"{_GRAPH}Calendars.ReadWrite",
+    TASKS: f"{_GRAPH}Tasks.ReadWrite",
+}
 #: Asked for by every source: a refresh token, and the name of the account that approved.
 BASE_SCOPES: tuple[str, ...] = ("offline_access", f"{_GRAPH}User.Read")
 
 #: The mapping keys that hold a credential, kept as references into the vault.
 SECRET_KEYS: tuple[str, ...] = ("refresh_token",)
-_KEYS = frozenset({"accounts", "resources", "refresh_token", "mailboxes", "mail_since"})
+#: REQ-1994: whether a write Graph announces to an event's attendees is made at all (Graph has
+#: no way to make one without telling them); and how many days either side of today a check for
+#: changes looks at a calendar's events.
+SEND_UPDATES = "calendar_send_updates"
+CHECK_DAYS = "calendar_check_days"
+_KEYS = frozenset(
+    {"accounts", "resources", "refresh_token", "mailboxes", "mail_since", SEND_UPDATES, CHECK_DAYS}
+)
 #: What the organisation's own credential is asked for (the client-credentials grant): every
 #: permission an administrator consented to for the application.
 ORGANISATION_SCOPE = f"{_GRAPH}.default"
@@ -77,6 +89,11 @@ class Settings:
     mailboxes: Mailboxes | None = None
     #: Nothing received before this date is held (``mail_since``); None: mail of any age.
     since: dt.date | None = None
+    #: REQ-1994: a write Graph would announce to attendees is made only when this is on.
+    send_updates: bool = False
+    #: REQ-1994: days either side of today the check for changes looks at; None when the source
+    #: does not read calendars.
+    check_days: int | None = None
 
     @property
     def organisation(self) -> bool:
@@ -114,7 +131,7 @@ def token_url(tenant: str | None) -> str:
 def _resources(mapping: dict) -> tuple[str, ...]:
     resources = mapping.get("resources")
     if not isinstance(resources, list) or not resources:
-        raise InvalidMicrosoft365Source("resources must say what is read: mail")
+        raise InvalidMicrosoft365Source(f"resources must say what is read: {', '.join(RESOURCES)}")
     unread = [r for r in resources if r not in RESOURCES]
     if unread:
         raise InvalidMicrosoft365Source(
@@ -185,8 +202,12 @@ def parse(mapping: dict) -> Settings:
                 f"a source of the organisation's mailboxes states no {' or '.join(own)}: "
                 "nobody connects it"
             )
+        resources = _resources(mapping)
         return Settings(
-            _resources(mapping), mailboxes=_mailboxes(mapping["mailboxes"]), since=_since(mapping)
+            resources,
+            mailboxes=_mailboxes(mapping["mailboxes"]),
+            since=_since(mapping),
+            **_calendar(mapping, resources),
         )
     accounts = mapping.get("accounts")
     if not isinstance(accounts, list) or len(accounts) != 1 or not isinstance(accounts[0], str):
@@ -204,4 +225,27 @@ def parse(mapping: dict) -> Settings:
         account=account,
         refresh_token=(token or "").strip() or None,
         since=_since(mapping),
+        **_calendar(mapping, resources),
     )
+
+
+def _calendar(mapping: dict, resources: tuple[str, ...]) -> dict:
+    """The calendar settings (REQ-1994). ``calendar_check_days`` is stated by a source that
+    reads calendars (the source form supplies it); ``calendar_send_updates`` unstated is off: a
+    write tells nobody."""
+    if CALENDAR not in resources:
+        stated = [key for key in (SEND_UPDATES, CHECK_DAYS) if key in mapping]
+        if stated:
+            raise InvalidMicrosoft365Source(
+                f"{', '.join(stated)} is a setting of calendars, which this source does not read"
+            )
+        return {}
+    days = mapping.get(CHECK_DAYS)
+    if isinstance(days, bool) or not isinstance(days, int) or days < 1:
+        raise InvalidMicrosoft365Source(
+            f"{CHECK_DAYS} must be a whole number of days, 1 or more, got {days!r}"
+        )
+    send = mapping.get(SEND_UPDATES, False)
+    if not isinstance(send, bool):
+        raise InvalidMicrosoft365Source(f"{SEND_UPDATES} must be true or false")
+    return {"send_updates": send, "check_days": days}

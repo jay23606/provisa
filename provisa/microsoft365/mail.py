@@ -366,6 +366,11 @@ class Mailbox:
         #: id, and one for the list of folders (:data:`MAILBOX`). None until such a read ends.
         self.links: dict[str, str] | None = None
 
+    @property
+    def graph(self) -> Graph:
+        """Graph as this mailbox's reader asks it (REQ-1994: its calendars and tasks too)."""
+        return self._graph
+
     def _held(self, message: dict) -> bool:
         """Whether ``message`` is one this source holds: received on or after its date. A
         message Graph gives no received time for was not received before anything."""

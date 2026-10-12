@@ -88,7 +88,9 @@ export interface SignInRequest {
   source_id: string;
   kind: string;
   account: string;
-  scopes: string[];
+  /** REQ-1994: the source's settings as the form states them; the server asks the provider for
+   * the scopes of what they read. */
+  mapping: Record<string, unknown>;
 }
 
 /** Whether the organisation has connected the platform, and whether the caller may do so. */
