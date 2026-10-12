@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: df6e435b-744d-4c27-845d-e5f9bd576f02
 #
 # This source code is licensed under the Business Source License 1.1
 """Network security monitor log presets (REQ-1996): Zeek logs in their tab-separated form (the

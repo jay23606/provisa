@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 3724306a-2e6e-444d-8e69-f4da417579a2
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the network security monitor log presets read the forms each project's documentation
