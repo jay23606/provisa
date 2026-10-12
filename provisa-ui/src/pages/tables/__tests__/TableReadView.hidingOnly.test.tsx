@@ -409,3 +409,27 @@ describe("TableReadView — Load and timeliness shows every stored setting", () 
     expect(within(load).getByText("Rows are under").nextElementSibling).toHaveTextContent("—");
   });
 });
+
+describe("TableReadView — Preview, Profile and Policies are icon actions in the head", () => {
+  it("names each by its word, shows no word, and keeps what it does", () => {
+    const onPreview = vi.fn();
+    const handleProfile = vi.fn();
+    const navigate = vi.fn();
+    renderView(false, makeTable({ id: 7 }), { onPreview, handleProfile, navigate });
+    for (const [name, testId] of [
+      ["Preview", "table-read-view-preview"],
+      ["Profile", "table-read-view-profile"],
+      ["Policies", "table-read-view-policies"],
+    ]) {
+      const action = screen.getByRole("button", { name });
+      expect(action).toBe(screen.getByTestId(testId));
+      expect(action).toHaveTextContent("");
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+    fireEvent.click(screen.getByRole("button", { name: "Policies" }));
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(handleProfile).toHaveBeenCalledWith(7);
+    expect(navigate).toHaveBeenCalledWith("/security/rls", { state: { tableFilter: "orders" } });
+  });
+});
