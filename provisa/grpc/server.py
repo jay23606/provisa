@@ -34,6 +34,7 @@ import logging
 import re
 import sys
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, cast
 
 from provisa.federation.execution_auth import plan_authorization
 
@@ -43,6 +44,10 @@ from starlette.exceptions import HTTPException
 import grpc
 from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.message import DecodeError
+from google.protobuf.message_factory import GetMessageClass
+
+if TYPE_CHECKING:
+    from google.protobuf.timestamp_pb2 import Timestamp
 
 from provisa.compiler.directives import cache_hint_from_grpc_metadata
 from provisa.core import request_deadline
@@ -110,7 +115,10 @@ def _proto_value(field, value):
     """
     if field.type == FieldDescriptor.TYPE_MESSAGE:
         if field.message_type.full_name == "google.protobuf.Timestamp":
-            ts = field.message_type._concrete_class()
+            # The class of THIS field's Timestamp: an organisation's service is compiled into a
+            # pool of its own, and its descriptor's `_concrete_class` fails under upb ("error
+            # return without exception set") when that pool was built before this module loaded.
+            ts = cast("Timestamp", GetMessageClass(field.message_type)())
             ts.FromDatetime(value if isinstance(value, datetime) else datetime.fromisoformat(value))
             return ts
         return value

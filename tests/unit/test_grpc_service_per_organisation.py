@@ -243,6 +243,47 @@ def test_a_service_is_compiled_once_for_the_text_it_was_written_as():
         current_org.reset(other)
 
 
+_TIMESTAMP_ROW = '''
+from datetime import datetime, timezone
+
+from provisa.grpc.descriptor import OrgDescriptor
+
+orders = OrgDescriptor("""syntax = "proto3";
+package provisa.v1;
+import "google/protobuf/timestamp.proto";
+message Orders { int32 id = 1; google.protobuf.Timestamp created_at = 2; }
+message OrdersRequest { int32 limit = 1; }
+service ProvisaService { rpc QueryOrders (OrdersRequest) returns (stream Orders); }
+""").Orders
+from provisa.grpc.server import _proto_value  # after the organisation's service is compiled
+
+when = datetime(2026, 10, 12, 3, 4, 5, tzinfo=timezone.utc)
+field = orders.DESCRIPTOR.fields_by_name["created_at"]
+row = orders(id=1, created_at=_proto_value(field, when)).SerializeToString()
+assert orders.FromString(row).created_at.ToDatetime(tzinfo=timezone.utc) == when
+'''
+
+
+def test_a_timestamp_column_is_answered_with_the_organisations_own_timestamp():
+    """A row's datetime is set into the Timestamp of the organisation's own service, whose pool
+    is not the default one (a DIRECT read of a TIMESTAMP column). Run in a fresh interpreter: an
+    organisation's service compiled before the server module is loaded is the order a running
+    server meets (a model edit, a new organisation), and the one upb failed in with
+    "error return without exception set" (suite 38198316000, core 1/6)."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    done = subprocess.run(
+        [sys.executable, "-c", _TIMESTAMP_ROW],
+        cwd=Path(__file__).resolve().parents[2],  # this checkout's provisa
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert done.returncode == 0, done.stderr
+
+
 # --- what a role is described is what that role is served -----------------------------------------
 
 
