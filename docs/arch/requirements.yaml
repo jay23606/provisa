@@ -78016,7 +78016,7 @@
   - REQ-885
   - REQ-1159
   notes: 'Maintainer 2026-10-12, via the lead: Shape B of the MongoDB native-query work, "a command (Function kind=query) with typed args that runs a pipeline whose output has no stable schema", after Shape A (REQ-1980). The following go beyond his words and are the lead''s elaboration: the implementation kind source_query and its binding; the refusals at registration, the same as a pipeline table''s; the GraphQL return being the JSON scalar unless the command declares a return schema.'
-- id: REQ-1990
+- id: REQ-1991
   status: proposed
   since: 2026-10
   group: 0. Architecture & Design Principles
