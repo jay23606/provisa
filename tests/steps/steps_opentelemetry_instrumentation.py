@@ -81,6 +81,14 @@ def _exporter_endpoint(exporter) -> str:
     raise AssertionError(f"Could not determine endpoint for exporter {exporter!r}")
 
 
+def _sent_by(exporter) -> type:
+    """The class that sends ``exporter``'s signal. Span and log exporters are handed to the SDK
+    reported (``otel_setup._Reported``), the OTLP exporter inside; metrics' is the exporter."""
+    if isinstance(exporter, otel_setup._Reported):
+        return type(exporter._exporter)
+    return type(exporter)
+
+
 @then(
     "OTLP/HTTP is used with path suffixes /v1/traces, /v1/metrics, /v1/logs appended automatically"
 )
@@ -96,9 +104,9 @@ def then_http_paths_appended(shared_data):
     assert log_ep == base + "/v1/logs", f"log endpoint was {log_ep}"
 
     # Confirm these are the HTTP exporter classes, not gRPC.
-    assert "http" in type(shared_data["span_exporter"]).__module__
-    assert "http" in type(shared_data["metric_exporter"]).__module__
-    assert "http" in type(shared_data["log_exporter"]).__module__
+    assert "http" in _sent_by(shared_data["span_exporter"]).__module__
+    assert "http" in _sent_by(shared_data["metric_exporter"]).__module__
+    assert "http" in _sent_by(shared_data["log_exporter"]).__module__
 
 
 def test_declared_http_protobuf_selects_http():
@@ -121,7 +129,7 @@ def test_is_http_endpoint_empty_string():
 def test_make_span_exporter_http_uses_http_class():
     """_make_span_exporter under http/protobuf returns an OTLP/HTTP span exporter."""
     exporter = otel_setup._make_span_exporter("http://otel-collector:4318", "http/protobuf")
-    assert "http" in type(exporter).__module__
+    assert "http" in _sent_by(exporter).__module__
 
 
 def test_make_span_exporter_http_path_suffix():
@@ -141,7 +149,7 @@ def test_make_span_exporter_https_path_suffix():
 def test_make_metric_exporter_http_uses_http_class():
     """_make_metric_exporter under http/protobuf returns an OTLP/HTTP metric exporter."""
     exporter = otel_setup._make_metric_exporter("http://otel-collector:4318", "http/protobuf")
-    assert "http" in type(exporter).__module__
+    assert "http" in _sent_by(exporter).__module__
 
 
 def test_make_metric_exporter_http_path_suffix():
@@ -154,7 +162,7 @@ def test_make_metric_exporter_http_path_suffix():
 def test_make_log_exporter_http_uses_http_class():
     """_make_log_exporter under http/protobuf returns an OTLP/HTTP log exporter."""
     exporter = otel_setup._make_log_exporter("http://otel-collector:4318", "http/protobuf")
-    assert "http" in type(exporter).__module__
+    assert "http" in _sent_by(exporter).__module__
 
 
 def test_make_log_exporter_http_path_suffix():
@@ -167,26 +175,26 @@ def test_make_log_exporter_http_path_suffix():
 def test_make_span_exporter_grpc_uses_grpc_class():
     """The default transport is gRPC, so an undeclared endpoint gets the gRPC span exporter."""
     exporter = otel_setup._make_span_exporter("http://otel-collector:4317")
-    assert "grpc" in type(exporter).__module__
+    assert "grpc" in _sent_by(exporter).__module__
 
 
 def test_make_metric_exporter_grpc_uses_grpc_class():
     """The default transport is gRPC, so an undeclared endpoint gets the gRPC metric exporter."""
     exporter = otel_setup._make_metric_exporter("http://otel-collector:4317")
-    assert "grpc" in type(exporter).__module__
+    assert "grpc" in _sent_by(exporter).__module__
 
 
 def test_make_log_exporter_grpc_uses_grpc_class():
     """The default transport is gRPC, so an undeclared endpoint gets the gRPC log exporter."""
     exporter = otel_setup._make_log_exporter("http://otel-collector:4317")
-    assert "grpc" in type(exporter).__module__
+    assert "grpc" in _sent_by(exporter).__module__
 
 
 def test_http_and_grpc_exporters_are_different_types():
     """HTTP and gRPC span exporters must be distinct classes."""
     http_exporter = otel_setup._make_span_exporter("http://otel-collector:4318", "http/protobuf")
     grpc_exporter = otel_setup._make_span_exporter("http://otel-collector:4317", "grpc")
-    assert type(http_exporter) is not type(grpc_exporter)
+    assert _sent_by(http_exporter) is not _sent_by(grpc_exporter)
 
 
 def test_an_unknown_protocol_raises_rather_than_guessing():
