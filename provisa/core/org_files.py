@@ -114,7 +114,26 @@ async def prepare(
         before_change(org_id)
     key_of = crypt.vault_key_reader(admin_db, org_id, asyncio.get_running_loop())
     await asyncio.to_thread(crypt.apply, org_id, path, settings, key_of)
+    if settings.encrypted:
+        _mounted[org_id] = path
+    else:
+        _mounted.pop(org_id, None)
     return path
+
+
+#: The org folders this process uses through an encrypted mount, released when it shuts down.
+_mounted: dict[str, Path] = {}
+
+
+async def release_all() -> None:
+    """This process stops using every encrypted org folder it mounted (its server shutting down:
+    SIGTERM or a stop): the last process of the node to go releases the node's mount, so a node
+    that shuts down gracefully leaves no record of one (``org_folder_crypt.release``)."""
+    from provisa.core import org_folder_crypt as crypt
+
+    for org_id, path in list(_mounted.items()):
+        await asyncio.to_thread(crypt.release, org_id, path)
+        _mounted.pop(org_id, None)
 
 
 def org_root(org_id: str | None = None) -> Path:

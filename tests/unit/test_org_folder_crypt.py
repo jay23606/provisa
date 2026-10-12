@@ -215,3 +215,49 @@ def test_a_new_key_set_while_the_old_one_is_gone_resets_the_folder_under_it(
     crypt.apply("acme", folder, FolderSettings(True, "${secret:k2}"), key_of)
     assert (tmp_path / "orgs" / ".acme.crypt" / "gocryptfs.conf").read_text() == "k2"
     assert (tmp_path / "orgs" / ".acme.ref").read_text() == "${secret:k2}"
+
+
+def test_the_nodes_last_process_to_shut_down_releases_its_mount(tmp_path, monkeypatch, node):
+    """A node that shuts down gracefully leaves no record of a mount; another of its processes
+    still using the mount keeps it, and one that died does not."""
+    import os
+
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    mine = tmp_path / "orgs" / ".acme.mounted" / "pod-a"
+    assert (mine / str(os.getpid())).exists()
+
+    sibling = mine / "424242"  # another live worker of this node
+    sibling.touch()
+    monkeypatch.setattr(crypt, "_alive", lambda pid: pid == "424242")
+    crypt.release("acme", folder)
+    assert str(folder) in fake.mounted and sibling.exists()
+
+    monkeypatch.setattr(crypt, "_alive", lambda pid: False)  # the sibling has died since
+    crypt.release("acme", folder)
+    assert str(folder) not in fake.mounted
+    assert not mine.exists()
+
+
+def test_a_process_that_finds_the_node_mounted_records_its_use(tmp_path, monkeypatch, node):
+    fake = _Gocryptfs(monkeypatch)
+    folder = tmp_path / "orgs" / "acme"
+    crypt.apply("acme", folder, _ON, lambda r: "k1")
+    mine = tmp_path / "orgs" / ".acme.mounted" / "pod-a"
+    for entry in mine.iterdir():
+        entry.unlink()
+    crypt.apply("acme", folder, _ON, lambda r: "k1")  # another worker's build: already mounted
+    assert len(fake.calls) == 2  # -init and the one mount
+    assert any(mine.iterdir())
+
+
+def test_a_server_shutting_down_releases_its_org_folders_last():
+    """SIGTERM reaches the app's lifespan shutdown (uvicorn); the release follows every close."""
+    import inspect
+
+    from provisa.api import app
+
+    source = inspect.getsource(app.lifespan)
+    assert "org_files.release_all()" in source
+    assert source.index("org_files.release_all()") > source.index("admin_db.close()")

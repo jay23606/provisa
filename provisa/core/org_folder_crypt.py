@@ -31,7 +31,9 @@ A deployment of several nodes shares one mount of the data folder (``org_files.s
 every node mounts the same ciphertext, with ``-sharedstorage``, and records that it does under
 ``orgs/.<org>.mounted/<node id>``. A change of the folder's encryption (on, off, a new key) moves
 its files, so it applies only while no other node holds a mount, and is refused naming them
-otherwise; they mount the folder again at their next runtime build.
+otherwise; they mount the folder again at their next runtime build. Each process records its use
+of its node's mount, and the last one to shut down releases it (:func:`release`), so only a node
+that died leaves its record.
 
 gocryptfs needs FUSE: a Linux host or container with /dev/fuse. On macOS the setting is refused by
 name.
@@ -87,8 +89,9 @@ class FolderInUse(RuntimeError):
     def __init__(self, org_id: str, nodes: list[str], markers: Path) -> None:
         super().__init__(
             f"org {org_id!r}'s file folder is mounted on other nodes ({', '.join(nodes)}); a "
-            "change to its encryption applies once they have released it. A node that no longer "
-            f"runs still holds its mount until its entry under {markers} is removed"
+            "change to its encryption applies once they have released it. A node releases its "
+            "mount when it shuts down; one that died without shutting down holds it until its "
+            f"entry under {markers} is removed"
         )
         self.org_id = org_id
         self.nodes = nodes
@@ -122,8 +125,53 @@ Resolve = Callable[[str], Awaitable[str]]
 
 
 def _markers(folder: Path) -> Path:
-    """Where each node that holds a mount of the folder records it, by its node id."""
+    """Where each node that holds a mount of the folder records it: a directory per node id,
+    holding one entry per process of that node using the mount, by its process id."""
     return folder.parent / f".{folder.name}.mounted"
+
+
+def _alive(pid: str) -> bool:
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Another user's process holds the pid: alive.
+        return True
+    return True
+
+
+def _hold(folder: Path) -> None:
+    """Record that this process uses this node's mount of the folder."""
+    from provisa.core.org_files import node_id
+
+    mine = _markers(folder) / node_id()
+    mine.mkdir(mode=0o700, parents=True, exist_ok=True)
+    (mine / str(os.getpid())).touch()
+
+
+def release(org_id: str, folder: Path) -> None:
+    """This process stops using the folder (its server shutting down: SIGTERM or a stop). The
+    node's mount is released -- unmounted, its record removed -- when no other live process of
+    the node still uses it, so a node that shuts down gracefully leaves no record behind; only a
+    node that died does."""
+    from provisa.core.org_files import node_id
+
+    _cipher, _ref, _staging, lock = _paths(folder)
+    with _locked(lock):
+        mine = _markers(folder) / node_id()
+        if not mine.is_dir():
+            return
+        (mine / str(os.getpid())).unlink(missing_ok=True)
+        for entry in list(mine.iterdir()):
+            if not _alive(entry.name):
+                entry.unlink(missing_ok=True)
+        if any(mine.iterdir()):
+            return
+        if os.path.ismount(folder):
+            _unmount(folder)
+        shutil.rmtree(mine, ignore_errors=True)
+        log.info("org %s: this node released its mount of the org's file folder", org_id)
 
 
 def _mounted_elsewhere(folder: Path) -> list[str]:
@@ -192,15 +240,13 @@ def _init(org_id: str, cipher: Path, key: str) -> None:
 def _mount(cipher: Path, folder: Path, key: str) -> int:
     """Mount the ciphertext at the folder, recording that this node holds a mount. On a mount
     shared across nodes, with ``-sharedstorage``: every node mounts the same ciphertext."""
-    from provisa.core.org_files import node_id, shared_mount
+    from provisa.core.org_files import shared_mount
 
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     shared = ["-sharedstorage"] if shared_mount() else []
     code = _gocryptfs([*shared, str(cipher), str(folder)], key)
     if code == 0:
-        markers = _markers(folder)
-        markers.mkdir(mode=0o700, parents=True, exist_ok=True)
-        (markers / node_id()).touch()
+        _hold(folder)
     return code
 
 
@@ -210,7 +256,7 @@ def _unmount(folder: Path) -> None:
     tool = shutil.which("fusermount3") or shutil.which("fusermount") or "umount"
     args = [tool, "-u", str(folder)] if "fusermount" in tool else [tool, str(folder)]
     subprocess.run(args, check=True, capture_output=True)  # noqa: S603
-    (_markers(folder) / node_id()).unlink(missing_ok=True)
+    shutil.rmtree(_markers(folder) / node_id(), ignore_errors=True)
 
 
 def _move_contents(source: Path, target: Path) -> None:
@@ -279,6 +325,8 @@ def apply(
             _encrypt_in(org_id, folder, cipher, staging, key)
         ref_file.write_text(settings.key_reference)
         if os.path.ismount(folder):
+            # This node's mount, made by another of its processes: this one uses it too.
+            _hold(folder)
             return
         code = _mount(cipher, folder, key)
         if code == _WRONG_PASSWORD:
