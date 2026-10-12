@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 30035524-316a-4035-bd3a-061141187519
 #
 # This source code is licensed under the Business Source License 1.1
 """The DuckDB extensions an air-gapped install bundles (scripts/ci/mirror_duckdb_extensions.py)
