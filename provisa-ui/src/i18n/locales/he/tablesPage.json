@@ -27,7 +27,6 @@
     "groupBy": "קיבוץ לפי {{label}}",
     "ungroupLevel": "ביטול קיבוץ (רמה {{level}})",
     "invalidateCache": "ביטול תוקף המטמון",
-    "purging": "מנקה...",
     "runNow": "הרץ עכשיו",
     "runNowTitle": "בנה מחדש את נתוני הטבלה עכשיו, בין אם משהו השתנה ובין אם לא",
     "runNowModalTitle": "הרצת {{table}} עכשיו",
