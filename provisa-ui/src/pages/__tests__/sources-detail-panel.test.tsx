@@ -232,3 +232,37 @@ describe("while a form is open in the panel", () => {
     expect(document.querySelectorAll('[data-testid="sources-submit"]')).toHaveLength(1);
   });
 });
+
+describe("a remote schema's refresh in the panel's head", () => {
+  it("is an icon named by its hint, which says so while the refresh runs", async () => {
+    SOURCES = [source({ id: "shop-api", type: "openapi", host: "", port: 0, database: "" })];
+    let finish: (r: Response) => void = () => {};
+    const fetchSpy = vi.mocked(globalThis.fetch);
+    const answered = fetchSpy.getMockImplementation();
+    fetchSpy.mockImplementation(async (url, init) =>
+      String(url).includes("/admin/openapi/refresh/")
+        ? new Promise<Response>((resolve) => (finish = resolve))
+        : answered!(url, init),
+    );
+    render(<SourcesPage />);
+    await userEvent.click(await screen.findByTestId("sources-row-shop-api"));
+    const refresh = screen.getByTestId("sources-refresh-schema-shop-api");
+    // No text of its own: an icon, named, in the head's one style.
+    expect(refresh).toHaveTextContent("");
+    expect(refresh).toHaveAccessibleName("Refresh Schema");
+    expect(refresh).toHaveAttribute("data-variant", "subtle");
+    expect(refresh.querySelector("svg.lucide-refresh-cw")).not.toBeNull();
+    await userEvent.hover(refresh);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Refresh Schema");
+
+    await userEvent.click(refresh);
+    // Running: the icon is busy and its hint says so; its name stays.
+    await waitFor(() => expect(refresh).toHaveAttribute("data-loading", "true"));
+    expect(refresh).toHaveAccessibleName("Refresh Schema");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Refreshing...");
+
+    finish(new Response(JSON.stringify({})));
+    await waitFor(() => expect(refresh).not.toHaveAttribute("data-loading"));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Refresh Schema");
+  });
+});

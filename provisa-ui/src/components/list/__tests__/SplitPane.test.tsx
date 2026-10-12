@@ -13,6 +13,8 @@
 // keyboard and the width is kept; it expands to the whole row and back; on a row too narrow for
 // both, the list gives way; what the content puts in PanelActions sits in the panel's head.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { useState } from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ActionIcon, Button, Table } from "@mantine/core";
@@ -456,6 +458,37 @@ describe("SplitPane — the head's actions", () => {
     expect(head).toHaveClass("split-pane__head");
     expect(head).toContainElement(await screen.findByTestId("preview"));
     expect(title.nextElementSibling).toHaveClass("split-pane__actions");
+  });
+
+  it("puts the actions a page and its view each give in the one row of the slot", async () => {
+    render(
+      <SplitPane
+        testId="split"
+        storageKey={KEY}
+        labels={LABELS}
+        title="orders"
+        onClose={() => undefined}
+        list={<div>list</div>}
+      >
+        <>
+          <PanelActions>
+            <ActionIcon data-testid="page-action" aria-label="Refresh" />
+          </PanelActions>
+          <PanelActions>
+            <ActionIcon data-testid="view-action" aria-label="Edit" />
+          </PanelActions>
+        </>
+      </SplitPane>,
+    );
+    const slot = screen.getByTestId("split-title").nextElementSibling as HTMLElement;
+    expect(slot).toContainElement(await screen.findByTestId("page-action"));
+    expect(slot).toContainElement(screen.getByTestId("view-action"));
+    // jsdom lays nothing out: the slot's own rule is what keeps the two on one line.
+    const css = readFileSync(resolve(__dirname, "../../../App.css"), "utf8");
+    const at = css.indexOf(".split-pane__actions {");
+    const rule = css.slice(at, css.indexOf("}", at));
+    expect(rule).toContain("display: flex");
+    expect(rule).toContain("align-items: center");
   });
 
   it("has an empty actions slot when the view gives none: nothing for a line to part", () => {
