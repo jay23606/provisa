@@ -1932,7 +1932,6 @@
   "zh-HK/metricsPage.json::metricsPage.detail.field.dependentViews": "Dependent metric views",
   "zh-HK/metricsPage.json::metricsPage.detail.field.visibleTo": "Visible to",
   "zh-HK/metricsPage.json::metricsPage.detail.handAuthored": "hand-authored",
-  "zh-HK/metricsPage.json::metricsPage.detail.noDependents": "none",
   "zh-HK/metricsPage.json::metricsPage.detailPanel": "Metric details",
   "zh-HK/metricsPage.json::metricsPage.editMetric": "Edit metric {{name}}",
   "zh-HK/metricsPage.json::metricsPage.editTitle": "Edit Metric",

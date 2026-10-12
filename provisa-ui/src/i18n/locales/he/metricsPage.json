@@ -16,7 +16,6 @@
     "builderNoFacts": "עדיין לא נרשמו טבלאות עובדות",
     "detail": {
       "handAuthored": "נכתב ידנית",
-      "noDependents": "ללא",
       "field": {
         "visibleTo": "גלוי עבור",
         "dependentViews": "Views תלויים של מדדים"

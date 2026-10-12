@@ -2674,7 +2674,8 @@ main {
 /* A table's section read-only: each label beside its value. */
 .detail-fields {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  /* The labels take what they need up to a cap, past which a long one wraps: the values stay near. */
+  grid-template-columns: fit-content(16rem) minmax(0, 1fr);
   gap: 0.35rem 1rem;
   margin: 0 0 0.75rem;
   color: var(--text);
@@ -2687,11 +2688,14 @@ main {
 .form-read > :not(dt, dd, .form-read__heading) {
   display: none;
 }
+/* A group's heading, as the other read views head theirs (RoleRead, RelationshipRead). */
 .form-read__heading {
   grid-column: 1 / -1;
-  margin-top: 0.5rem;
-  font-weight: 600;
-  font-size: var(--mantine-font-size-sm);
+  margin-top: 0.75rem;
+  color: var(--mantine-color-dimmed);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
 }
 /* A table as a value breaks between words only, so its columns size to what they hold. */
 .detail-fields > dd .detail-table {
@@ -2701,7 +2705,7 @@ main {
  * values line up from the first group to the last. */
 .detail-groups {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: fit-content(16rem) minmax(0, 1fr);
   column-gap: 1rem;
 }
 .detail-groups > * {

@@ -16,7 +16,6 @@
     "builderNoFacts": "Noch keine Faktentabellen registriert",
     "detail": {
       "handAuthored": "manuell erstellt",
-      "noDependents": "keine",
       "field": {
         "visibleTo": "Sichtbar für",
         "dependentViews": "Abhängige Metriksichten"

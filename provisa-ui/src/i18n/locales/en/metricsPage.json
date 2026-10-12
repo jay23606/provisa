@@ -16,7 +16,6 @@
     "builderNoFacts": "No fact tables registered yet",
     "detail": {
       "handAuthored": "hand-authored",
-      "noDependents": "none",
       "field": {
         "visibleTo": "Visible to",
         "dependentViews": "Dependent metric views"

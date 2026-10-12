@@ -16,7 +16,6 @@
     "builderNoFacts": "尚未注册任何事实表",
     "detail": {
       "handAuthored": "手工编写",
-      "noDependents": "无",
       "field": {
         "visibleTo": "可见对象",
         "dependentViews": "依赖的指标视图"

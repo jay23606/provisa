@@ -16,7 +16,6 @@
     "builderNoFacts": "Nenhuma tabela de fatos registrada ainda",
     "detail": {
       "handAuthored": "criada manualmente",
-      "noDependents": "nenhuma",
       "field": {
         "visibleTo": "Visível para",
         "dependentViews": "Exibições de métricas dependentes"

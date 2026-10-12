@@ -16,7 +16,6 @@
     "builderNoFacts": "Nog geen feitentabellen geregistreerd",
     "detail": {
       "handAuthored": "handmatig opgesteld",
-      "noDependents": "geen",
       "field": {
         "visibleTo": "Zichtbaar voor",
         "dependentViews": "Afhankelijke metric-views"

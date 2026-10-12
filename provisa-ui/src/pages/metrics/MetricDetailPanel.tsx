@@ -110,9 +110,7 @@ export function MetricDetailPanel({ m, dependentViews, onEdit, onDelete }: Metri
           },
           {
             label: t("metricsPage.detail.field.dependentViews"),
-            value: dependentViews.length
-              ? dependentViews.join(", ")
-              : t("metricsPage.detail.noDependents"),
+            value: dependentViews.join(", "),
           },
         ]}
       />

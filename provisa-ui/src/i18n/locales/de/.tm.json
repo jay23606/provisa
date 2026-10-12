@@ -1931,7 +1931,6 @@
   "de/metricsPage.json::metricsPage.detail.field.dependentViews": "Dependent metric views",
   "de/metricsPage.json::metricsPage.detail.field.visibleTo": "Visible to",
   "de/metricsPage.json::metricsPage.detail.handAuthored": "hand-authored",
-  "de/metricsPage.json::metricsPage.detail.noDependents": "none",
   "de/metricsPage.json::metricsPage.detailPanel": "Metric details",
   "de/metricsPage.json::metricsPage.editMetric": "Edit metric {{name}}",
   "de/metricsPage.json::metricsPage.editTitle": "Edit Metric",
