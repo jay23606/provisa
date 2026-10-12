@@ -49,9 +49,8 @@ export function SourceLoadManagementPanel({
   return (
     <FormField size="full">
       <CollapsibleSection
-        // Opened when the kind needs a Cache TTL, so the field that must be filled is in view.
-        key={kindLands ? "cache-ttl-required" : "optional"}
-        defaultOpen={kindLands}
+        // Open, with no toggle: an expander inside a form opens flat (maintainer, 2026-10-12).
+        flat
         title={t("sourceFormFieldsExtended.loadManagementTitle")}
         testId="source-load-management-panel"
         info={{

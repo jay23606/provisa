@@ -50,7 +50,6 @@ function Harness({ type, seen }: { type: string; seen: (f: SourceFormState) => v
 
 async function openChoices(type: string, seen: (f: SourceFormState) => void = () => undefined) {
   renderInForm(<Harness type={type} seen={seen} />);
-  await userEvent.click(screen.getByTestId("source-load-management-panel-toggle"));
   const input = await screen.findByTestId("change-signal-select");
   await userEvent.click(input);
   // Mantine keeps a drop-down out of the accessibility tree in jsdom: reach this one through

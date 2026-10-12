@@ -85,7 +85,11 @@ describe("what a Wikipedia setup still needs", () => {
       wikipediaMissing({ wp_pages: "Dubaï", wp_language: "fr", wp_follow_see_also: "true" }),
     ).toEqual([]);
     expect(
-      wikipediaMissing({ wp_pages: "Dubaï", wp_language: "fr", wp_see_also_heading: "Articles_connexes" }),
+      wikipediaMissing({
+        wp_pages: "Dubaï",
+        wp_language: "fr",
+        wp_see_also_heading: "Articles_connexes",
+      }),
     ).toEqual([]);
   });
 });
@@ -105,7 +109,10 @@ describe("the Wikipedia setup form", () => {
     // The explanation is longer than a line: it is behind the (?) beside the label.
     expect(screen.getByRole("img", { name: /as it appears on a page/ })).toBeInTheDocument();
     rerender(
-      <WikipediaFields fields={{ wp_language: "fr", wp_follow_see_also: "true" }} setFields={setFields} />,
+      <WikipediaFields
+        fields={{ wp_language: "fr", wp_follow_see_also: "true" }}
+        setFields={setFields}
+      />,
     );
     expect(screen.queryByTestId("wikipedia-wp_see_also_heading")).not.toBeInTheDocument();
   });

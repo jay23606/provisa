@@ -34,12 +34,11 @@ const askedCacheTtl = new WeakMap<Page, number>();
  *  without one shows the field in the create step, and it is filled there; for any other kind
  *  it is set, right after the source is created, in the edit form it opens in. */
 export async function setSourceCacheTtl(page: Page, seconds: number) {
-  const toggle = page.getByTestId("source-load-management-panel-toggle");
-  if ((await toggle.count()) === 0) {
+  // The panel is open with no toggle wherever it is shown.
+  if ((await page.getByTestId("source-load-management-panel").count()) === 0) {
     askedCacheTtl.set(page, seconds);
     return;
   }
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   await page.getByTestId("cache-ttl-input").fill(String(seconds));
 }
 
@@ -91,8 +90,6 @@ export async function submitSourceAndExpectListed(page: Page, sourceId: string) 
   // The new source is selected and its detail is open in edit, everything else at defaults.
   const save = page.getByTestId("sources-edit-submit");
   await expect(save).toBeVisible({ timeout: 60000 });
-  const toggle = page.getByTestId("source-load-management-panel-toggle");
-  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   await page.getByTestId("cache-ttl-input").fill(String(seconds));
   await save.click();
   // Saved: the panel shows the source's detail again.
