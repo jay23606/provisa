@@ -1222,9 +1222,14 @@ def _replica_with_server(
     return replica
 
 
+from provisa.core.org_scope import source_key  # noqa: E402  # REQ-1992: the registry's key
+
+
 def test_a_statement_reading_a_starting_source_is_refused_as_starting(monkeypatch):
     monkeypatch.setitem(
-        pr._ENDPOINTS, "test-askamerica", _replica_with_server(healthy=False, exit_code=None)
+        pr._ENDPOINTS,
+        source_key("test-askamerica"),
+        _replica_with_server(healthy=False, exit_code=None),
     )
     with pytest.raises(pr.SourceStillStartingError, match="STARTING: 'test-askamerica'"):
         pr.require_serving("test-askamerica", "govdata")
@@ -1232,7 +1237,9 @@ def test_a_statement_reading_a_starting_source_is_refused_as_starting(monkeypatc
 
 def test_a_statement_reading_a_source_whose_server_exited_is_told_why(monkeypatch):
     monkeypatch.setitem(
-        pr._ENDPOINTS, "test-askamerica", _replica_with_server(healthy=False, exit_code=3)
+        pr._ENDPOINTS,
+        source_key("test-askamerica"),
+        _replica_with_server(healthy=False, exit_code=3),
     )
     with pytest.raises(pr.ServerExited, match=r"(?s)exited with code 3.*the log's end") as raised:
         pr.require_serving("test-askamerica", "govdata")
@@ -1241,7 +1248,9 @@ def test_a_statement_reading_a_source_whose_server_exited_is_told_why(monkeypatc
 
 def test_a_serving_source_and_a_source_with_no_server_yet_are_not_refused(monkeypatch):
     monkeypatch.setitem(
-        pr._ENDPOINTS, "test-askamerica", _replica_with_server(healthy=True, exit_code=None)
+        pr._ENDPOINTS,
+        source_key("test-askamerica"),
+        _replica_with_server(healthy=True, exit_code=None),
     )
     pr.require_serving("test-askamerica", "govdata")
     pr.require_serving("never-started", "govdata")

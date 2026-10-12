@@ -78,7 +78,7 @@ def staged_mtime(root: Path) -> float | None:  # REQ-1787
 
 async def stage_dataset(token: str, owner: str, ref: str) -> Path:  # REQ-1780, REQ-1781, REQ-1782
     """Download *owner/ref* and unzip its CSV/Parquet members onto local disk, one file per its
-    own subdirectory under ``<data_dir>/kaggle/<owner>/<ref>/<file-stem>/<file-name>``.
+    own subdirectory under ``<data_dir>/kaggle/<org>/<owner>/<ref>/<file-stem>/<file-name>``.
 
     Raises :class:`UnsupportedKaggleDataset` if the bundle's file listing names a SQLite/.db
     file — v1 does not stage or partially stage such a bundle. Idempotent: re-running this is
@@ -104,7 +104,10 @@ async def stage_dataset(token: str, owner: str, ref: str) -> Path:  # REQ-1780, 
         )
 
     bundle = await download_dataset(token, owner, ref)
-    root = _data_dir() / "kaggle" / owner / ref
+    # REQ-1992: under the org that stages it: no org's staged files are another's.
+    from provisa.core.org_scope import current_org_segment
+
+    root = _data_dir() / "kaggle" / current_org_segment() / owner / ref
     root.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(io.BytesIO(bundle)) as zf:
