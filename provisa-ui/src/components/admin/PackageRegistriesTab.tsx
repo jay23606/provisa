@@ -8,10 +8,11 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// REQ-1984: the package registries every Node install of the organisation goes through, entered
-// once by an organisation administrator: npm registries (an address, an optional scope, a
-// credential; one may be the mirror) and Git hosts (a host and a credential). The public npm
-// registry needs no entry.
+// REQ-1984, REQ-1993: the package registries every Node and Python install of the organisation
+// goes through, entered once by an organisation administrator: npm registries (an address, an
+// optional scope, a credential; one may be the mirror), PyPI indexes (an address and a credential;
+// one may be the default index) and Git hosts (a host and a credential). The public npm registry
+// and the public PyPI need no entry.
 //
 // Every field keeps what was typed -- the value, or a reference to a secret the administrator
 // created -- and shows it again; the credential behind the reveal control.
@@ -73,6 +74,34 @@ const blank = (kind: RegistryKind): Draft => ({
   mirror: false,
 });
 
+/** Each kind's own labels and placeholder; only npm has a scope, and Git hosts no mirror. */
+const LABELS: Record<
+  RegistryKind,
+  { address: string; placeholder: string; credential: string; credentialHelp: string; mirror: string | null }
+> = {
+  npm: {
+    address: "packageRegistries.npmAddress",
+    placeholder: "https://npm.example.com/",
+    credential: "packageRegistries.npmCredential",
+    credentialHelp: "packageRegistries.npmCredentialHelp",
+    mirror: "packageRegistries.mirror",
+  },
+  pypi: {
+    address: "packageRegistries.pypiAddress",
+    placeholder: "https://pypi.example.com/simple/",
+    credential: "packageRegistries.pypiCredential",
+    credentialHelp: "packageRegistries.pypiCredentialHelp",
+    mirror: "packageRegistries.pypiMirror",
+  },
+  git: {
+    address: "packageRegistries.gitHost",
+    placeholder: "git.example.com",
+    credential: "packageRegistries.gitCredential",
+    credentialHelp: "packageRegistries.gitCredentialHelp",
+    mirror: null,
+  },
+};
+
 /** The fields an entry cannot be kept without. */
 const missing = (d: Draft): string[] =>
   [
@@ -128,7 +157,7 @@ export function PackageRegistriesTab() {
       address: d.address.trim(),
       scope: d.kind === "npm" ? d.scope.trim() || null : null,
       credential: d.credential,
-      mirror: d.kind === "npm" && d.mirror,
+      mirror: LABELS[d.kind].mirror !== null && d.mirror,
     };
     return run(
       d.key,
@@ -147,13 +176,14 @@ export function PackageRegistriesTab() {
 
   const entry = (d: Draft) => {
     const id = `package-registry-${d.key}`;
+    const labels = LABELS[d.kind];
     return (
       <Card key={d.key} withBorder data-testid={id}>
         <FormLayout>
           <FormField size="long">
             <TextInput
-              label={t(d.kind === "npm" ? "packageRegistries.npmAddress" : "packageRegistries.gitHost")}
-              placeholder={d.kind === "npm" ? "https://npm.example.com/" : "git.example.com"}
+              label={t(labels.address)}
+              placeholder={labels.placeholder}
               required
               value={d.address}
               onChange={(e) => change(d.key, { address: e.currentTarget.value })}
@@ -175,10 +205,10 @@ export function PackageRegistriesTab() {
           )}
           <FormField
             size="long"
-            help={t(d.kind === "npm" ? "packageRegistries.npmCredentialHelp" : "packageRegistries.gitCredentialHelp")}
+            help={t(labels.credentialHelp)}
           >
             <PasswordInput
-              label={t(d.kind === "npm" ? "packageRegistries.npmCredential" : "packageRegistries.gitCredential")}
+              label={t(labels.credential)}
               required
               value={d.credential}
               onChange={(e) => change(d.key, { credential: e.currentTarget.value })}
@@ -186,11 +216,11 @@ export function PackageRegistriesTab() {
               data-testid={`${id}-credential`}
             />
           </FormField>
-          {d.kind === "npm" && (
+          {labels.mirror !== null && (
             <FormChecks>
-              <FormField size="short" help={t("packageRegistries.mirrorHelp")}>
+              <FormField size="short" help={t(`${labels.mirror}Help`)}>
                 <Checkbox
-                  label={t("packageRegistries.mirror")}
+                  label={t(labels.mirror)}
                   checked={d.mirror}
                   onChange={(e) => change(d.key, { mirror: e.currentTarget.checked })}
                   data-testid={`${id}-mirror`}
@@ -257,6 +287,7 @@ export function PackageRegistriesTab() {
     <Stack gap="xl" data-testid="package-registries">
       <Text size="sm">{t("packageRegistries.help")}</Text>
       {section("npm")}
+      {section("pypi")}
       {section("git")}
     </Stack>
   );

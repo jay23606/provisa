@@ -8,8 +8,8 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-// REQ-1984: Admin › Package registries holds the npm registries and Git hosts every Node install
-// of the organisation goes through. Each field is shown again as it was entered, a new entry is
+// REQ-1984, REQ-1993: Admin › Package registries holds the npm registries, PyPI indexes and Git
+// hosts every Node and Python install of the organisation goes through. Each field is shown again as it was entered, a new entry is
 // added with nothing in it, and an entry is not saved until it has its address and credential.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,6 +111,33 @@ describe("Admin › Package registries", () => {
       expect(add).toHaveBeenCalledWith("acme", {
         kind: "npm",
         address: "https://mirror.acme.test/",
+        scope: null,
+        credential: "tok",
+        mirror: true,
+      }),
+    );
+  });
+
+  it("adds a PyPI index with no scope, which may be the default index", async () => {
+    list.mockResolvedValue([]);
+    render(<PackageRegistriesTab />);
+    expect(await screen.findByTestId("package-registries-pypi-none")).toHaveTextContent(
+      en.packageRegistries.pypiNone,
+    );
+    fireEvent.click(screen.getByTestId("package-registries-add-pypi"));
+    const card = await screen.findByTestId(/^package-registry-new-pypi-\d+$/);
+    const id = card.getAttribute("data-testid") as string;
+    expect(screen.queryByTestId(`${id}-scope`)).toBeNull();
+    fireEvent.change(screen.getByTestId(`${id}-address`), {
+      target: { value: "https://pypi.acme.test/simple/" },
+    });
+    fireEvent.change(screen.getByTestId(`${id}-credential`), { target: { value: "tok" } });
+    fireEvent.click(screen.getByTestId(`${id}-mirror`));
+    fireEvent.click(screen.getByTestId(`${id}-save`));
+    await waitFor(() =>
+      expect(add).toHaveBeenCalledWith("acme", {
+        kind: "pypi",
+        address: "https://pypi.acme.test/simple/",
         scope: null,
         credential: "tok",
         mirror: true,

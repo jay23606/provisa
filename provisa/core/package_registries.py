@@ -8,13 +8,16 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""The package registries an organisation's Node installs go through (REQ-1984).
+"""The package registries an organisation's code-source installs go through (REQ-1984, REQ-1993).
 
-An organisation setting, entered by its administrator and used by every Node install of the
-organisation, for a source's own code and for its dependencies:
+An organisation setting, entered by its administrator and used by every Node and Python install
+of the organisation, for a source's own code and for its dependencies:
 
 - npm registries, each with an address (its URL), an optional scope and a credential. One may be
-  the mirror every install goes through.
+  the mirror every npm install goes through.
+- PyPI indexes, each with an address (its simple-index URL) and a credential. Python packages
+  have no scope. One may be the default index every Python install goes through, in place of
+  the public PyPI.
 - Git hosts, each with a host and a credential (an HTTPS token).
 
 Every field holds what was entered -- the value, or a ``${secret:NAME}`` / ``${env:NAME}``
@@ -25,7 +28,7 @@ npm registry needs no entry.
 An organisation reads and writes only its own: every call names the organisation.
 """
 
-# Requirements: REQ-1984
+# Requirements: REQ-1984, REQ-1993
 from __future__ import annotations
 
 import uuid
@@ -41,8 +44,9 @@ if TYPE_CHECKING:
     from provisa.core.database import Database
 
 NPM = "npm"
+PYPI = "pypi"
 GIT = "git"
-KINDS = (NPM, GIT)
+KINDS = (NPM, PYPI, GIT)
 
 
 class PackageRegistryRefused(ValueError):
@@ -109,9 +113,9 @@ async def put(
     names, replaced. Each field is kept exactly as entered. ``credential`` None keeps the one the
     entry already holds, which there must then be.
 
-    Refused by name: an unknown kind; an empty address or credential; a scope or the mirror on a
-    Git host; a second mirror; a scope another npm registry has; a host another Git host entry
-    has."""
+    Refused by name: an unknown kind; an empty address or credential; a scope on a PyPI index or
+    a Git host; the mirror on a Git host; a second mirror of the same kind; a scope another npm
+    registry has; a host another Git host entry has."""
     if kind not in KINDS:
         raise PackageRegistryRefused(
             "unknown_kind", f"{kind!r} is not a kind of package registry", kind=kind
@@ -121,9 +125,13 @@ async def put(
     credential = (credential or "").strip() or None
     if kind == GIT and scope is not None:
         raise PackageRegistryRefused("git_scope", "A Git host has no scope", address=address)
+    if kind == PYPI and scope is not None:
+        raise PackageRegistryRefused(
+            "pypi_scope", "A PyPI index has no scope: Python packages have none", address=address
+        )
     if kind == GIT and mirror:
         raise PackageRegistryRefused(
-            "git_mirror", "Only an npm registry can be the mirror", address=address
+            "git_mirror", "A Git host cannot be the mirror", address=address
         )
     held = None
     if registry_id is not None:
@@ -150,11 +158,11 @@ async def put(
             "incomplete", f"A {kind} entry needs {', '.join(missing)}", missing=", ".join(missing)
         )
     others = [e for e in await entries(admin_db, org_id) if e.id != registry_id]
-    if mirror and any(e.mirror for e in others):
-        (current,) = [e for e in others if e.mirror]
+    if mirror and any(e.mirror and e.kind == kind for e in others):
+        (current,) = [e for e in others if e.mirror and e.kind == kind]
         raise PackageRegistryRefused(
             "second_mirror",
-            f"{current.address} is already the mirror; an organisation has one",
+            f"{current.address} is already the {kind} mirror; an organisation has one",
             mirror=current.address,
         )
     if (

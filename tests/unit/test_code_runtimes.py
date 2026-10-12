@@ -74,8 +74,8 @@ class _Fetcher:
 
 
 def test_every_pinned_runtime_names_an_archive_for_each_platform_provisa_runs_on():
-    for name in ("node", "bun", "deno"):
-        pin = code_runtimes.RUNTIMES[name]
+    assert set(code_runtimes.RUNTIMES) == {"node", "bun", "deno", "python", "uv"}
+    for name, pin in code_runtimes.RUNTIMES.items():
         assert set(pin.assets) == {
             code_runtimes.DARWIN_ARM64,
             code_runtimes.LINUX_X64,
@@ -143,8 +143,8 @@ def test_an_archive_entry_that_escapes_the_cache_is_refused(tmp_path, monkeypatc
 
 def test_an_unknown_runtime_and_an_unpinned_platform_are_refused_by_name(tmp_path):
     resolver = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=DARWIN_ARM64)
-    with pytest.raises(RuntimeUnavailable, match="'python' is not a runtime"):
-        resolver.resolve("python")
+    with pytest.raises(RuntimeUnavailable, match="'ruby' is not a runtime"):
+        resolver.resolve("ruby")
     other = CodeRuntimeResolver(cache_root=tmp_path, fetcher=_Fetcher(b""), host=("Plan9", "mips"))
     with pytest.raises(RuntimeUnavailable, match="Plan9/mips"):
         other.resolve("node")

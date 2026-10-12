@@ -10,7 +10,8 @@
 
 """On-demand, pinned, hash-checked runtimes for code sources (REQ-1984, REQ-1993).
 
-A code source names its runtime: Node, Bun or Deno for JavaScript. None of them ships with Provisa. Each is
+A code source names its runtime: Node, Bun or Deno for JavaScript; Python (with uv, which installs its
+dependencies) for Python. None of them ships with Provisa. Each is
 fetched on first use from its project's own release, at the version pinned here, checked against
 the SHA-256 recorded here (the project's published sum) BEFORE anything is extracted, and cached
 under the runtime-deps cache root beside the pgwire bundles, version-namespaced. A cache hit never
@@ -148,6 +149,54 @@ RUNTIMES: dict[str, RuntimePin] = {
                 "deno-x86_64-pc-windows-msvc.zip",
                 "a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238",
                 "deno.exe",
+            ),
+        },
+    ),
+    # REQ-1993: the Python a Python source runs under (python-build-standalone's install_only
+    # build; SHA256SUMS in the release) and uv, which installs its dependencies (the asset's
+    # .sha256). One CPython version per release of Provisa (decision P3).
+    "python": RuntimePin(
+        "python",
+        "3.12.14+20260924",
+        "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/"
+        "{filename}",
+        {
+            DARWIN_ARM64: Asset(
+                "cpython-3.12.14%2B20260924-aarch64-apple-darwin-install_only.tar.gz",
+                "9763f43db2481a6af36af82ec40302aab7a73632f880129d07a6e81aec846277",
+                "python/bin/python3.12",
+            ),
+            LINUX_X64: Asset(
+                "cpython-3.12.14%2B20260924-x86_64-unknown-linux-gnu-install_only.tar.gz",
+                "5eae8cf79dd47fc2496a4fccc892936be831ce7a84d984b2299dfb1cdb592682",
+                "python/bin/python3.12",
+            ),
+            WINDOWS_X64: Asset(
+                "cpython-3.12.14%2B20260924-x86_64-pc-windows-msvc-install_only.tar.gz",
+                "c5303174bc29f5205decf6721ac549d4eb41c448f9b8c46cbc562d00348865bb",
+                "python/python.exe",
+            ),
+        },
+    ),
+    "uv": RuntimePin(
+        "uv",
+        "0.12.18",
+        "https://github.com/astral-sh/uv/releases/download/{version}/{filename}",
+        {
+            DARWIN_ARM64: Asset(
+                "uv-aarch64-apple-darwin.tar.gz",
+                "cf40e0c6a202190ccd9e0406dcfdd5b2d6668a9a5c779b17948963df32aafe5b",
+                "uv-aarch64-apple-darwin/uv",
+            ),
+            LINUX_X64: Asset(
+                "uv-x86_64-unknown-linux-gnu.tar.gz",
+                "89eadd7c76fc063887959510d5ba0ab1264dfd5f1143b925ddb73021a40acf16",
+                "uv-x86_64-unknown-linux-gnu/uv",
+            ),
+            WINDOWS_X64: Asset(
+                "uv-x86_64-pc-windows-msvc.zip",
+                "cae6a3bc25239f83dffb467a4b180508d9da23986c04639ebfa44e43e6a84bff",
+                "uv.exe",
             ),
         },
     ),
