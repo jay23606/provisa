@@ -99,11 +99,12 @@ def configure_session(state: Any, server_cfg: dict) -> None:
     state.engine_session_hints = hints
 
 
-def register_kafka_catalog(state: Any, kafka_source: dict) -> None:
-    """Write the Trino Kafka catalog files and register the catalog dynamically."""
+def register_kafka_catalog(state: Any, kafka_source: dict, catalog: str) -> None:
+    """Write the Trino Kafka catalog files and register the catalog dynamically, under the
+    source's org-qualified ``catalog``."""
     from provisa.core.trino_catalog_files import write_kafka_catalog_files
 
-    write_kafka_catalog_files(kafka_source, trino_conn=state.engine_conn)
+    write_kafka_catalog_files(kafka_source, catalog, trino_conn=state.engine_conn)
 
 
 def polling_provider(state: Any, catalog: str, schema: str, table: str, watermark_column: str):

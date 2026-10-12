@@ -134,10 +134,13 @@ async def run_contract(
 
 async def _run_worker(payload: dict, *, timeout: float) -> dict:
     """Run the worker on a temp payload file and return its parsed stdout envelope."""
-    import tempfile
     from pathlib import Path
 
-    tmp_dir = tempfile.mkdtemp(prefix="provisa-dq-")
+    # REQ-1992: the payload (which holds the scan's password) is written in the org's folder on
+    # this node, never the node's temporary directory.
+    from provisa.core import org_files
+
+    tmp_dir = org_files.mkdtemp("provisa-dq-")
     payload_path = Path(tmp_dir) / "payload.json"
     try:
         # 0o600 before the secret is written, not after — the endpoint password is in this file.

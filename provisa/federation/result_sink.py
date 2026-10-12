@@ -17,7 +17,8 @@ all of them -- where a result goes, and the statement each engine runs -- so a b
 where the result is and how many rows it holds.
 
 The address is the one the presigner reads (``executor.redirect.presign_ctas_result``):
-``s3a://<bucket>/results/<id>``, the result's objects under that prefix.
+``s3a://<bucket>/results/<org>/<id>``, the result's objects under that prefix (REQ-1992: each
+org's results under a prefix of its own).
 """
 
 # Requirements: REQ-1194
@@ -42,6 +43,13 @@ class ResultFormatNotWritten(ValueError):
         )
 
 
+def results_prefix() -> str:
+    """The bound org's prefix in the results bucket (REQ-1992)."""
+    from provisa.core.org_scope import current_org_segment
+
+    return f"results/{current_org_segment()}"
+
+
 @dataclass(frozen=True)
 class ResultTarget:
     """Where one statement's result is written: its own prefix in the results bucket."""
@@ -51,7 +59,7 @@ class ResultTarget:
 
     @property
     def key_prefix(self) -> str:
-        return f"results/{self.result_id}"
+        return f"{results_prefix()}/{self.result_id}"
 
     @property
     def s3_prefix(self) -> str:

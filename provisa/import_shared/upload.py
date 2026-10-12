@@ -133,7 +133,10 @@ def staged_upload(filename: str, data: bytes, flavor: str = "auto") -> Generator
     if not data:
         raise UploadError("uploaded file is empty")
     name = filename.lower()
-    with tempfile.TemporaryDirectory(prefix="provisa-import-") as tmp:
+    # REQ-1992: extracted in the org's folder on this node, never the node's temporary directory.
+    from provisa.core import org_files
+
+    with tempfile.TemporaryDirectory(prefix="provisa-import-", dir=org_files.org_tmp()) as tmp:
         dest = Path(tmp)
         if name.endswith(".zip"):
             _extract_zip(data, dest)

@@ -363,10 +363,6 @@
         "label": "Cifrar resultados redirigidos",
         "help": "Si los resultados redirigidos se cifran antes de subirse."
       },
-      "local_dir": {
-        "label": "Carpeta local de redirección",
-        "help": "La carpeta donde se escriben los resultados redirigidos cuando no se puede alcanzar ningún almacén de objetos."
-      },
       "access_key": {
         "label": "Clave de acceso de redirección",
         "help": "La clave de acceso del almacén de objetos. Secreto; requiere confirmación al guardar."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Carpeta principal",
         "help": "La carpeta principal de la implementación para certificados y almacenes locales. No es editable: se lee antes de poder leer los ajustes almacenados."
-      },
-      "repo_dir": {
-        "label": "Carpeta del historial de configuración",
-        "help": "La carpeta que guarda el historial de configuración de cada organización. No es editable: se lee antes de poder leer los ajustes almacenados."
       },
       "demo": {
         "label": "Modo demo",

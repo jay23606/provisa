@@ -96,7 +96,9 @@ def _no_unit_test_dials_a_pgwire_server(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture(autouse=True)
-def _deployment_org_bound(request: pytest.FixtureRequest):
+def _deployment_org_bound(request: pytest.FixtureRequest, monkeypatch):
+    # ``monkeypatch`` is set up before this fixture and so torn down after it: what it replaced is
+    # put back below while the org is still bound.
     if request.node.get_closest_marker("unbound") is not None:
         yield
         return
@@ -105,8 +107,11 @@ def _deployment_org_bound(request: pytest.FixtureRequest):
     app = sys.modules.get("provisa.api.app")
     org_id = app.state.org_id if app is not None else _DEPLOYMENT_ORG
     token = set_current_org(org_id)
+    # REQ-1992: the deployment org's folder, as its runtime's build makes it ready on a node.
+    from provisa.core import org_files
+
+    org_files.folder(org_id).mkdir(parents=True, exist_ok=True)
     yield
-    if "monkeypatch" in request.fixturenames:
-        # A routed AppState attribute monkeypatch replaced is put back while the org is bound.
-        request.getfixturevalue("monkeypatch").undo()
+    # A routed AppState attribute monkeypatch replaced is put back while the org is bound.
+    monkeypatch.undo()
     reset_current_org(token)

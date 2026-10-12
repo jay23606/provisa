@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Criptografia da pasta de arquivos",
+    "loading": "Carregando…",
+    "intro": "Os arquivos que o Provisa guarda para sua organização em cada servidor — caches, conversões, réplicas e resultados grandes — ficam na pasta da própria organização. Ative a criptografia para guardá-los criptografados com uma chave que sua organização detém.",
+    "encrypt": "Criptografar a pasta de arquivos da organização",
+    "referenceLabel": "Referência da chave",
+    "referenceHelp": "O nome da chave no cofre de segredos da sua organização, escrito ${secret:NAME}. O Provisa guarda apenas esta referência, nunca a chave.",
+    "referenceWrong": "Escreva o nome da chave como ${secret:NAME}, não a própria chave.",
+    "generate": "Gerar chave",
+    "generatedLabel": "Nova chave",
+    "generatedHelp": "Mostrada uma única vez. Copie-a agora para o cofre de segredos da sua organização e depois defina a referência da chave.",
+    "warnTitle": "Guarde esta chave com segurança",
+    "warn1": "O Provisa não pode recuperar esta chave, e ninguém no Provisa pode vê-la ou redefini-la.",
+    "warn2": "Guarde-a agora no cofre de segredos da sua organização; ela não será mostrada novamente.",
+    "warn3": "Mantenha uma segunda cópia em outro local seguro sob seu próprio controle.",
+    "warn4": "Limite quem pode lê-la e nunca a envie por e-mail, chat ou chamado.",
+    "warn5": "Perdê-la significa que os arquivos criptografados são redefinidos e reconstruídos.",
+    "warn6": "Para trocá-la, gere uma nova chave, guarde-a no cofre e atualize a referência.",
+    "saved": "Salvo. Cada servidor aplica isso na próxima vez que iniciar trabalho para esta organização."
+  }
+}

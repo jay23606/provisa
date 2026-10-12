@@ -22,6 +22,7 @@ from provisa.compiler.rls import RLSContext
 from provisa.security.masking import MaskingRule, MaskType
 from tests.write_governance import write_governance
 from tests.role_state import RoleState
+from tests.helpers import ready_org_folder
 
 _ORDERS = {"sales.orders": (1, ["id", "region", "email"])}
 
@@ -182,7 +183,8 @@ def test_a_row_names_the_commit_only_when_the_stamp_is_proven_and_then_drops_vis
 def _write_through_harness(monkeypatch, tmp_path, stamps: list[int]):
     from provisa.core import env_repo
 
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path))
+    monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))  # REQ-1992: the repo, in the org's folder
+    ready_org_folder("acme")
     positions: list[dict] = []
     seq = iter(stamps)
 

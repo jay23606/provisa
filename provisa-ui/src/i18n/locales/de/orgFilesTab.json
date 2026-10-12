@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Verschlüsselung des Dateiordners",
+    "loading": "Wird geladen…",
+    "intro": "Dateien, die Provisa auf jedem Server für Ihre Organisation aufbewahrt – Caches, Konvertierungen, Replikate und große Ergebnisse –, liegen im eigenen Ordner Ihrer Organisation. Aktivieren Sie die Verschlüsselung, um sie unter einem Schlüssel zu verschlüsseln, den Ihre Organisation verwahrt.",
+    "encrypt": "Dateiordner der Organisation verschlüsseln",
+    "referenceLabel": "Schlüsselreferenz",
+    "referenceHelp": "Der Name des Schlüssels im Secrets-Tresor Ihrer Organisation, geschrieben als ${secret:NAME}. Provisa speichert nur diese Referenz, niemals den Schlüssel.",
+    "referenceWrong": "Geben Sie den Namen des Schlüssels als ${secret:NAME} an, nicht den Schlüssel selbst.",
+    "generate": "Schlüssel erzeugen",
+    "generatedLabel": "Neuer Schlüssel",
+    "generatedHelp": "Wird nur einmal angezeigt. Kopieren Sie ihn jetzt in den Secrets-Tresor Ihrer Organisation und setzen Sie dann die Schlüsselreferenz.",
+    "warnTitle": "Bewahren Sie diesen Schlüssel sicher auf",
+    "warn1": "Provisa kann diesen Schlüssel nicht wiederherstellen, und niemand bei Provisa kann ihn sehen oder zurücksetzen.",
+    "warn2": "Speichern Sie ihn jetzt im Secrets-Tresor Ihrer Organisation; er wird nicht noch einmal angezeigt.",
+    "warn3": "Bewahren Sie eine zweite Kopie an einem separaten sicheren Ort unter Ihrer eigenen Kontrolle auf.",
+    "warn4": "Beschränken Sie, wer ihn lesen darf, und senden Sie ihn nie per E-Mail, Chat oder Ticket.",
+    "warn5": "Geht er verloren, werden die verschlüsselten Dateien zurückgesetzt und neu aufgebaut.",
+    "warn6": "Zum Rotieren erzeugen Sie einen neuen Schlüssel, speichern ihn in Ihrem Tresor und aktualisieren die Referenz.",
+    "saved": "Gespeichert. Jeder Server wendet es an, wenn er das nächste Mal Arbeit für diese Organisation startet."
+  }
+}

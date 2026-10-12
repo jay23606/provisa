@@ -181,14 +181,17 @@ def _table_definitions(source: Source, resolved_password: str) -> tuple[str, lis
 
 
 def write_table_definitions(
-    source: Source, resolved_password: str, etc_dir: Path | None = None
-) -> list[Path]:  # REQ-250, REQ-251
-    """Write per-table JSON table-description files; return the paths written."""
+    source: Source, resolved_password: str, catalog: str, etc_dir: Path | None = None
+) -> list[Path]:  # REQ-250, REQ-251, REQ-1992
+    """Write per-table JSON table-description files; return the paths written.
+
+    Under the source's own catalog (org-qualified: ``org_<id>__...``), so two orgs' tables of
+    one name never share a file, and a catalog reads its own tables and no other's."""
     result = _table_definitions(source, resolved_password)
     if result is None:
         return []
     subdir, definitions = result
-    target_dir = (etc_dir or trino_etc_dir()) / subdir
+    target_dir = (etc_dir or trino_etc_dir()) / subdir / catalog
     target_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for d in definitions:
@@ -199,7 +202,22 @@ def write_table_definitions(
     return written
 
 
+def with_catalog_dirs(source: Source, props: dict[str, str], catalog: str) -> dict[str, str]:
+    """``props`` reading the table descriptions of ``catalog`` alone (REQ-1992): the directory
+    :func:`write_table_definitions` writes them to."""
+    if source.type.value == "redis":
+        from provisa.redis.source import TABLE_DESCRIPTION_DIR
+
+        return {**props, "redis.table-description-dir": f"{TABLE_DESCRIPTION_DIR}/{catalog}"}
+    return props
+
+
 # --- Kafka catalog file generation (REQ-250) ---
+
+#: Where the engine container reads a Kafka catalog's table descriptions and client properties,
+#: each under its own catalog's name (REQ-1992).
+_KAFKA_DESCRIPTIONS = "/etc/trino/kafka"
+_KAFKA_CLIENT = "/etc/trino/kafka-client"
 
 
 def _named_brokers(kafka_source: dict) -> str:
@@ -254,7 +272,7 @@ def _kafka_source_config(kafka_source: dict):
     )
 
 
-def kafka_catalog_props(kafka_source: dict) -> dict[str, str]:  # REQ-147
+def kafka_catalog_props(kafka_source: dict, catalog: str) -> dict[str, str]:  # REQ-147
     """Return the Trino kafka connector properties (minus ``connector.name``) for a
     ``kafka_sources[]`` entry, for a dynamic ``CREATE CATALOG ... USING kafka``.
 
@@ -263,7 +281,9 @@ def kafka_catalog_props(kafka_source: dict) -> dict[str, str]:  # REQ-147
     """
 
     props: dict[str, str] = {}
-    for line in generate_trino_kafka_properties(_kafka_source_config(kafka_source)).splitlines():
+    for line in generate_trino_kafka_properties(
+        _kafka_source_config(kafka_source), catalog
+    ).splitlines():
         line = line.strip()
         if not line or "=" not in line:
             continue
@@ -275,12 +295,13 @@ def kafka_catalog_props(kafka_source: dict) -> dict[str, str]:  # REQ-147
 
 
 def write_kafka_catalog_files(
-    kafka_source: dict, etc_dir: Path | None = None, trino_conn=None
-) -> list[Path]:  # REQ-147, REQ-250
+    kafka_source: dict, catalog: str, etc_dir: Path | None = None, trino_conn=None
+) -> list[Path]:  # REQ-147, REQ-250, REQ-1992
     """Generate the Kafka catalog ``.properties`` (+ client props) from config.
 
-    ``kafka_source`` is a raw ``kafka_sources[]`` config entry. Returns paths
-    written. When ``trino_conn`` is given, also registers the catalog dynamically
+    ``kafka_source`` is a raw ``kafka_sources[]`` config entry; ``catalog`` its org-qualified
+    catalog. Every file is named by the catalog, so two orgs' sources of one id never share one
+    (the client properties can hold a password). Returns paths written. When ``trino_conn`` is given, also registers the catalog dynamically
     (CREATE CATALOG) so it loads regardless of Trino start order — the static
     files are staged under ``catalog-install/`` and not auto-loaded by a
     ``catalog.management=dynamic`` Trino.
@@ -296,14 +317,14 @@ def write_kafka_catalog_files(
     install_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
 
-    props_path = install_dir / f"{cfg.id.replace('-', '_')}.properties"
-    props_path.write_text(generate_trino_kafka_properties(cfg), encoding="utf-8")
+    props_path = install_dir / f"{catalog}.properties"
+    props_path.write_text(generate_trino_kafka_properties(cfg, catalog), encoding="utf-8")
     written.append(props_path)
 
     # No registry → FILE supplier: write per-topic table-description JSON from the
     # manual/sampled columns so Trino can read the topics without Confluent.
     if not cfg.schema_registry_url:
-        kafka_dir = base / "kafka"
+        kafka_dir = base / "kafka" / catalog
         kafka_dir.mkdir(parents=True, exist_ok=True)
         for d in generate_kafka_table_definitions(cfg):
             path = kafka_dir / f"{d['tableName']}.json"
@@ -312,19 +333,23 @@ def write_kafka_catalog_files(
 
     client_props = generate_kafka_client_properties(cfg)
     if client_props is not None:
-        client_path = base / "kafka-client.properties"
+        client_dir = base / "kafka-client"
+        client_dir.mkdir(parents=True, exist_ok=True)
+        client_path = client_dir / f"{catalog}.properties"
         client_path.write_text(client_props, encoding="utf-8")
         written.append(client_path)
 
     if trino_conn is not None:
         from provisa.core.catalog import create_kafka_catalog
 
-        create_kafka_catalog(trino_conn, kafka_source)
+        create_kafka_catalog(trino_conn, kafka_source, catalog)
 
     return written
 
 
-def generate_trino_kafka_properties(source: "KafkaSourceConfig") -> str:  # REQ-147, REQ-250
+def generate_trino_kafka_properties(
+    source: "KafkaSourceConfig", catalog: str
+) -> str:  # REQ-147, REQ-250, REQ-1992
     """Generate Trino Kafka connector properties file content.
 
     Returns the content for a kafka.properties file to be placed
@@ -350,7 +375,7 @@ def generate_trino_kafka_properties(source: "KafkaSourceConfig") -> str:  # REQ-
         lines.append(f"kafka.confluent-schema-registry-url={source.schema_registry_url}")
     else:
         lines.append("kafka.table-description-supplier=FILE")
-        lines.append("kafka.table-description-dir=/etc/trino/kafka")
+        lines.append(f"kafka.table-description-dir={_KAFKA_DESCRIPTIONS}/{catalog}")
         # Table names (sanitized) match the table-description tableName; the
         # description maps each back to its raw topicName.
         table_names = [t.table_name or t.topic for t in source.topics]
@@ -358,6 +383,6 @@ def generate_trino_kafka_properties(source: "KafkaSourceConfig") -> str:  # REQ-
             lines.append("kafka.table-names=" + ",".join(table_names))
 
     if isinstance(source.auth, (KafkaAuthSaslPlain, KafkaAuthSaslScram256, KafkaAuthSaslScram512)):
-        lines.append("kafka.config.resources=/etc/trino/kafka-client.properties")
+        lines.append(f"kafka.config.resources={_KAFKA_CLIENT}/{catalog}.properties")
 
     return "\n".join(lines)

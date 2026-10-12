@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Cifrado de la carpeta de archivos",
+    "loading": "Cargando…",
+    "intro": "Los archivos que Provisa guarda para su organización en cada servidor —cachés, conversiones, réplicas y resultados grandes— se guardan en la carpeta propia de su organización. Active el cifrado para guardarlos cifrados con una clave que custodia su organización.",
+    "encrypt": "Cifrar la carpeta de archivos de la organización",
+    "referenceLabel": "Referencia de la clave",
+    "referenceHelp": "El nombre de la clave en el almacén de secretos de su organización, escrito ${secret:NAME}. Provisa guarda solo esta referencia, nunca la clave.",
+    "referenceWrong": "Escriba el nombre de la clave como ${secret:NAME}, no la clave en sí.",
+    "generate": "Generar clave",
+    "generatedLabel": "Clave nueva",
+    "generatedHelp": "Se muestra una sola vez. Cópiela ahora en el almacén de secretos de su organización y luego indique la referencia de la clave.",
+    "warnTitle": "Guarde esta clave de forma segura",
+    "warn1": "Provisa no puede recuperar esta clave y nadie en Provisa puede verla ni restablecerla.",
+    "warn2": "Guárdela ahora en el almacén de secretos de su organización; no se volverá a mostrar.",
+    "warn3": "Guarde una segunda copia en otro lugar seguro bajo su propio control.",
+    "warn4": "Limite quién puede leerla y nunca la envíe por correo electrónico, chat ni ticket.",
+    "warn5": "Si la pierde, los archivos cifrados se restablecen y se vuelven a generar.",
+    "warn6": "Para rotarla, genere una clave nueva, guárdela en su almacén y actualice la referencia.",
+    "saved": "Guardado. Cada servidor lo aplica la próxima vez que inicie trabajo para esta organización."
+  }
+}

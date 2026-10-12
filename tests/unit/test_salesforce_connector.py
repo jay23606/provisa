@@ -32,6 +32,7 @@ from provisa.federation.engine import (
 from provisa.federation.strategy import Strategy, engine_attaches, federate
 from provisa.federation.trino_connectors import TRINO_CONNECTORS, trino_connector_name
 from provisa.runtime_deps import pgwire_bundles as rd
+from tests.helpers import ready_org_folder
 
 LOGIN_URL = "https://acme.my.salesforce.com"
 
@@ -196,6 +197,7 @@ def test_an_incomplete_credential_set_is_refused_by_name(tmp_path, overrides, na
 
 def test_the_running_server_is_given_its_own_state_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     bundle = tmp_path / "bundle"
     (bundle / "bin").mkdir(parents=True)
 
@@ -213,7 +215,7 @@ def test_the_running_server_is_given_its_own_state_directory(tmp_path, monkeypat
         def exit_code(self):
             return None
 
-    def _spawn(command, cwd):
+    def _spawn(command, cwd, env=None):
         spawned.append(cwd)
         return _Proc()
 

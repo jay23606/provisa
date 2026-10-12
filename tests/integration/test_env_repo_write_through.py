@@ -24,6 +24,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+
+from tests.helpers import ready_org_folder
 from sqlalchemy import MetaData, select
 
 from provisa.core import env_repo
@@ -40,7 +42,9 @@ ACTOR = "uid-ada"
 @pytest.fixture
 def repos(tmp_path, monkeypatch):
     """The org repositories land under the test's own directory, never the maintainer's."""
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv(
+        "PROVISA_DATA_DIR", str(tmp_path / "data")
+    )  # REQ-1992: repos are in each org's folder
     return tmp_path / "repos"
 
 
@@ -52,6 +56,7 @@ async def planes(docker_postgres, repos):
     from provisa.core.schema_admin import init_registry_schema
 
     org_id = f"envrepo{uuid.uuid4().hex[:8]}"
+    ready_org_folder(org_id)
     url = (
         f"postgresql+psycopg://provisa:{os.environ.get('PG_PASSWORD', 'provisa')}@"
         f"{docker_postgres['host']}:{docker_postgres['port']}/provisa"

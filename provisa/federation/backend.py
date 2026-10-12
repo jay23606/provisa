@@ -549,7 +549,7 @@ class EngineBackend:
         """Lifecycle: tear down the engine terminal. An engine with none has nothing to close; a
         native engine closes its runtime (``NativeEngineBackend.close``)."""
 
-    def register_kafka_catalog(self, state: Any, kafka_source: dict) -> None:
+    def register_kafka_catalog(self, state: Any, kafka_source: dict, catalog: str) -> None:
         """Register a Kafka source as an engine catalog. Native engines reach Kafka through their
         own connector (or not at all) — no-op."""
 
@@ -1153,10 +1153,10 @@ class TrinoBackend(EngineBackend):
         if state.engine_conn is not None:
             state.engine_conn.close()
 
-    def register_kafka_catalog(self, state: Any, kafka_source: dict) -> None:
+    def register_kafka_catalog(self, state: Any, kafka_source: dict, catalog: str) -> None:
         from provisa.federation import trino_lifecycle
 
-        trino_lifecycle.register_kafka_catalog(state, kafka_source)
+        trino_lifecycle.register_kafka_catalog(state, kafka_source, catalog)
 
     def reseed_ops(self, state: Any, ops_views: list) -> None:
         """Register the Provisa-owned catalogs and seed the ops views on THIS org's terminal.

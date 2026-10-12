@@ -34,8 +34,8 @@ AWS = SimpleNamespace(
 
 
 def test_a_result_has_its_own_prefix_at_the_address_the_presigner_reads():
-    assert TARGET.s3_prefix == "s3a://provisa-results/results/abc123"
-    assert TARGET.object_url == "s3://provisa-results/results/abc123/data.parquet"
+    assert TARGET.s3_prefix == "s3a://provisa-results/results/default/abc123"
+    assert TARGET.object_url == "s3://provisa-results/results/default/abc123/data.parquet"
     first, second = result_sink.new_target(MINIO), result_sink.new_target(MINIO)
     assert first.bucket == "provisa-results" and first.result_id != second.result_id
 
@@ -44,7 +44,7 @@ def test_duckdb_copies_the_query_with_its_placeholders_kept():
     sql = result_sink.duckdb_copy("SELECT id FROM t WHERE id > ?", TARGET)
     assert sql == (
         "COPY (SELECT id FROM t WHERE id > ?) TO "
-        "'s3://provisa-results/results/abc123/data.parquet' (FORMAT PARQUET)"
+        "'s3://provisa-results/results/default/abc123/data.parquet' (FORMAT PARQUET)"
     )
 
 
@@ -69,14 +69,14 @@ def test_clickhouse_inserts_into_its_s3_function_with_the_keys_as_parameters():
     )
     assert params == {
         "provisa_results_url": (
-            "http://127.0.0.1:9000/provisa-results/results/abc123/data.parquet"
+            "http://127.0.0.1:9000/provisa-results/results/default/abc123/data.parquet"
         ),
         "provisa_results_key": "key",
         "provisa_results_secret": "it's-secret",
     }
     _aws_sql, aws = result_sink.clickhouse_insert("SELECT 1", TARGET, AWS)
     assert aws["provisa_results_url"].startswith(
-        "https://s3.eu-west-1.amazonaws.com/provisa-results/results/abc123/"
+        "https://s3.eu-west-1.amazonaws.com/provisa-results/results/default/abc123/"
     )
     count_sql, count_params = result_sink.clickhouse_count(TARGET, MINIO)
     assert count_sql == (
@@ -94,7 +94,7 @@ def test_snowflake_unloads_through_its_storage_integration_never_with_credential
     config = SimpleNamespace(**vars(AWS), snowflake_storage_integration="provisa_results")
     sql = result_sink.snowflake_copy("SELECT id FROM t WHERE id > ?", TARGET, config)
     assert sql == (
-        "COPY INTO 's3://provisa-results/results/abc123/' FROM (SELECT id FROM t WHERE id > ?) "
+        "COPY INTO 's3://provisa-results/results/default/abc123/' FROM (SELECT id FROM t WHERE id > ?) "
         'STORAGE_INTEGRATION = "provisa_results" '
         "FILE_FORMAT = (TYPE = PARQUET) HEADER = TRUE"
     )
@@ -109,11 +109,11 @@ def test_snowflake_with_no_storage_integration_does_not_write_results_itself():
 
 def test_databricks_overwrites_the_results_directory_and_counts_what_it_wrote():
     assert result_sink.databricks_insert("SELECT id FROM t", TARGET) == (
-        "INSERT OVERWRITE DIRECTORY 's3://provisa-results/results/abc123/' USING PARQUET "
+        "INSERT OVERWRITE DIRECTORY 's3://provisa-results/results/default/abc123/' USING PARQUET "
         "SELECT id FROM t"
     )
     assert result_sink.databricks_count(TARGET) == (
-        "SELECT count(*) FROM parquet.`s3://provisa-results/results/abc123/`"
+        "SELECT count(*) FROM parquet.`s3://provisa-results/results/default/abc123/`"
     )
 
 
@@ -177,3 +177,11 @@ def test_snowflake_writes_results_only_with_a_storage_integration_named(monkeypa
     assert backend.writes_results_now() is False
     named["redirect.snowflake_storage_integration"] = "provisa_results"
     assert backend.writes_results_now() is True
+
+
+def test_each_org_writes_its_results_under_a_prefix_of_its_own(bind_org):
+    """REQ-1992: one org's results never share a prefix with another's."""
+    bind_org("acme")
+    acme = TARGET.key_prefix
+    bind_org("globex")
+    assert (acme, TARGET.key_prefix) == ("results/acme/abc123", "results/globex/abc123")

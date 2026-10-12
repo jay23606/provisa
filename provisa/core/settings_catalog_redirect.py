@@ -21,14 +21,6 @@ from __future__ import annotations
 from provisa.core.settings_registry import Setting
 
 
-def _redirect_local_dir() -> str:
-    """Where a redirected result is written when no object store is reachable (desktop use)."""
-    import os
-    import tempfile
-
-    return os.path.join(tempfile.gettempdir(), "provisa-redirect-results")
-
-
 DECLARED: list[Setting] = [
     # --- Redirect: large results written to the deployment's object store (REQ-029) --------------
     # enabled / threshold / ttl / default_format are the deployment's values; an org may narrow
@@ -122,15 +114,6 @@ DECLARED: list[Setting] = [
         req="REQ-687",
         env="PROVISA_REDIRECT_ENCRYPT",
         default=False,
-    ),
-    Setting(
-        key="redirect.local_dir",
-        card="redirect",
-        type="str",
-        effect="live",
-        req="REQ-029",
-        env="PROVISA_REDIRECT_LOCAL_DIR",
-        default_fn=_redirect_local_dir,
     ),
     Setting(
         key="redirect.access_key",

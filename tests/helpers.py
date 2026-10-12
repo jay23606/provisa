@@ -380,3 +380,15 @@ def release_field(table_id: int) -> str:
 def release_mutation(table_id: int) -> str:
     """:func:`release_field` as a whole mutation document."""
     return f"mutation {{ {release_field(table_id)} {{ success message }} }}"
+
+
+def ready_org_folder(org_id: str | None = None):
+    """The org's folder on this node made ready, as its runtime's build makes it (REQ-1992): the
+    bound org's when ``org_id`` is None. For a test that moved the data directory, or bound an
+    org whose runtime it does not build."""
+    from provisa.core import org_files
+    from provisa.core.request_context import require_current_org
+
+    path = org_files.folder(org_id or require_current_org())
+    path.mkdir(parents=True, exist_ok=True)
+    return path

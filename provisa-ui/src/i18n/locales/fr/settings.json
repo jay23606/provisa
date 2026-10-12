@@ -363,10 +363,6 @@
         "label": "Chiffrer les résultats redirigés",
         "help": "Indique si les résultats redirigés sont chiffrés avant d'être téléversés."
       },
-      "local_dir": {
-        "label": "Dossier local de redirection",
-        "help": "Le dossier dans lequel les résultats redirigés sont écrits lorsqu'aucun magasin d'objets n'est accessible."
-      },
       "access_key": {
         "label": "Clé d'accès de redirection",
         "help": "La clé d'accès du magasin d'objets. Secret ; confirmation demandée."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Dossier personnel",
         "help": "Le dossier personnel du déploiement pour les certificats et les magasins locaux. Non modifiable : il est lu avant que les paramètres stockés puissent l'être."
-      },
-      "repo_dir": {
-        "label": "Dossier de l'historique de configuration",
-        "help": "Le dossier qui contient l'historique de configuration de chaque organisation. Non modifiable : il est lu avant que les paramètres stockés puissent l'être."
       },
       "demo": {
         "label": "Mode démo",

@@ -148,6 +148,11 @@ orgs = Table(
     # page must render it before any session exists, and a tenant-supplied remote URL would make
     # that page fetch from a host the platform does not control.
     Column("branding", Text),
+    # REQ-1992: whether the org's file folder is encrypted on each node, and the reference into
+    # the org's own secrets vault that names its key (${secret:NAME}). The key itself is never
+    # stored: it is read from the vault when a node mounts the folder.
+    Column("files_encrypted", Boolean, nullable=False, server_default=false()),
+    Column("files_key_reference", Text),
     Column("branding_logo", LargeBinary),
     Column("branding_logo_media_type", Text),
     # REQ-1527: where this org's environment repository (REQ-1524) is mirrored, and where the

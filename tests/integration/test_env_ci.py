@@ -20,6 +20,8 @@ from __future__ import annotations
 import os
 import uuid
 import pytest
+
+from tests.helpers import ready_org_folder
 from dulwich.repo import Repo
 
 from provisa.core.env_ci import announce, read_integration, write_integration
@@ -42,13 +44,16 @@ async def registry(docker_postgres):
     )
     admin_db = Database(create_engine_from_url(url, pool_size=2), name="admin")
     await init_registry_schema(admin_db, org_id)
+    ready_org_folder(org_id)
     yield admin_db, org_id
     admin_db.engine.dispose()
 
 
 @pytest.fixture(autouse=True)
 def repo_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv(
+        "PROVISA_DATA_DIR", str(tmp_path / "data")
+    )  # REQ-1992: repos are in each org's folder
 
 
 class TestWhatTheControlPlaneHolds:

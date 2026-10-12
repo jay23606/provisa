@@ -922,17 +922,6 @@ DECLARED: list[Setting] = [
         readonly_reason="read_before_control_plane",
     ),
     Setting(
-        key="bootstrap.repo_dir",
-        card="bootstrap",
-        type="str",
-        effect="restart",
-        req="REQ-1913",
-        env="PROVISA_REPO_DIR",
-        nullable=True,
-        editable=False,
-        readonly_reason="read_before_control_plane",
-    ),
-    Setting(
         key="bootstrap.demo",
         card="bootstrap",
         type="bool",

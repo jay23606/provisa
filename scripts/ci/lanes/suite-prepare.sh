@@ -13,3 +13,8 @@ set -euo pipefail
 
 uv run python -c "from tests.itest_stack import concurrent_session_limit as n; \
   print('docker stack slots on this runner:', n()); assert n() >= 1"
+
+# REQ-1992: tests/integration/test_org_folder_crypt.py mounts an org's encrypted folder with
+# gocryptfs over FUSE, as a node does.
+sudo apt-get update -qq
+sudo apt-get install -y -qq gocryptfs fuse3

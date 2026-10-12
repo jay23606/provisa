@@ -363,10 +363,6 @@
         "label": "Omgeleide resultaten versleutelen",
         "help": "Of omgeleide resultaten worden versleuteld voordat ze worden geüpload."
       },
-      "local_dir": {
-        "label": "Lokale map voor omleiding",
-        "help": "De map waarnaar omgeleide resultaten worden geschreven wanneer geen objectopslag bereikbaar is."
-      },
       "access_key": {
         "label": "Toegangssleutel voor omleiding",
         "help": "De toegangssleutel van de objectopslag. Geheim; met bevestiging."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Homemap",
         "help": "De homemap van de deployment voor certificaten en lokale stores. Niet bewerkbaar: dit wordt gelezen voordat opgeslagen instellingen kunnen worden gelezen."
-      },
-      "repo_dir": {
-        "label": "Map voor configuratiegeschiedenis",
-        "help": "De map die de configuratiegeschiedenis van elke organisatie bevat. Niet bewerkbaar: dit wordt gelezen voordat opgeslagen instellingen kunnen worden gelezen."
       },
       "demo": {
         "label": "Demomodus",

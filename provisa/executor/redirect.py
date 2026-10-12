@@ -90,10 +90,6 @@ class RedirectConfig:  # REQ-029, REQ-137, REQ-142
     region: str = "us-east-1"
     default_format: str = "parquet"  # default S3 upload format
     encrypt: bool = False  # REQ-687: client-side envelope-encrypt the bulk payload before upload
-    # Desktop-dev fallback: when the object store is unreachable (or none is configured), the redirect
-    # result is written here and served by /data/redirect-file/<name> instead of a presigned S3 URL —
-    # so redirect can be exercised locally without standing up MinIO/S3.
-    local_dir: str = ""
     # REQ-1194: the Snowflake storage integration a Snowflake engine unloads results through; None:
     # a Snowflake engine does not write results to the object store itself.
     snowflake_storage_integration: str | None = None
@@ -102,7 +98,7 @@ class RedirectConfig:  # REQ-029, REQ-137, REQ-142
     def from_env() -> RedirectConfig:
         # REQ-1349: an org may narrow WHEN its own results redirect and how long the link lives —
         # enabled, threshold, ttl, default_format. WHERE they land (bucket, endpoint, credentials,
-        # region, local_dir) is the deployment's object store and is never org-overridable.
+        # region) is the deployment's object store and is never org-overridable.
         # REQ-1913: the deployment's value of every field is an operator setting, resolved through
         # the registry (stored, then environment, then the declared default).
         org = _org_redirect_overrides()
@@ -113,7 +109,8 @@ class RedirectConfig:  # REQ-029, REQ-137, REQ-142
 
         def _text(key: str) -> str:
             # An unset endpoint or credential is the empty string in RedirectConfig: "no object
-            # store configured" is a state the redirect path handles (it writes to local_dir).
+            # store configured" is a state the redirect path handles (it writes the result to the
+            # org's folder on the node, REQ-1992).
             unset_or_value = deployment(key)
             return "" if unset_or_value is None else unset_or_value
 
@@ -128,7 +125,6 @@ class RedirectConfig:  # REQ-029, REQ-137, REQ-142
             region=deployment("redirect.region"),
             default_format=_own("default_format"),
             encrypt=deployment("redirect.encrypt"),
-            local_dir=deployment("redirect.local_dir"),
             snowflake_storage_integration=deployment("redirect.snowflake_storage_integration"),
         )
 
@@ -387,14 +383,20 @@ async def upload_and_presign(  # REQ-029, REQ-044, REQ-137, REQ-138, REQ-139, RE
         ext = ext + ".enc"
 
     name = f"{uuid.uuid4()}{ext}"
-    key = f"results/{name}"
+    from provisa.federation.result_sink import results_prefix
+
+    key = f"{results_prefix()}/{name}"
 
     def _store_local(reason: str) -> dict:
         """Write the payload to the local redirect dir and return a ``file://`` URL to it (desktop dev)."""
         from pathlib import Path
 
-        results_dir = os.path.join(config.local_dir, "results")
-        os.makedirs(results_dir, exist_ok=True)
+        # Desktop-dev case: no object store reachable (or none configured). The result is
+        # written in the org's folder on this node (REQ-1992) and served by
+        # /data/redirect-file/<name> instead of a presigned S3 URL.
+        from provisa.core.org_files import org_path
+
+        results_dir = str(org_path("results"))
         path = os.path.join(results_dir, name)
         with open(path, "wb") as fh:
             fh.write(body_bytes)
@@ -568,7 +570,7 @@ async def presign_ctas_result(  # REQ-044, REQ-029
         config=BotoConfig(signature_version="s3v4"),
     )
 
-    # s3_prefix is like "s3a://provisa-results/results/abc123"
+    # s3_prefix is like "s3a://provisa-results/results/<org>/abc123"
     # Strip the s3a://bucket/ to get the S3 key prefix
     bucket = redirect_config.bucket
     prefix = s3_prefix.replace(f"s3a://{bucket}/", "")

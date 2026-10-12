@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.core.env_source_files import (
     FILE_TYPES,
     _local_path,
     discard_file_sources,
     env_files_dir,
-    env_files_root,
 )
 from provisa.core.environments import EnvironmentNameError
 
@@ -32,18 +33,24 @@ from provisa.core.environments import EnvironmentNameError
 @pytest.fixture
 def data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+    ready_org_folder("acme")  # REQ-1992: as the org's runtime makes it ready
     return tmp_path
 
 
 # --- where the files live -------------------------------------------------------
 
 
-def test_root_follows_the_deployments_data_dir(data_dir):
-    assert env_files_root() == data_dir / "env_files"
+def test_each_environment_gets_its_own_directory_in_its_orgs_folder(data_dir):
+    """REQ-1992: an environment's file copies are in its org's folder on the node."""
+    expected = data_dir / "orgs" / "acme" / "env_files" / "feature_x"
+    assert env_files_dir("acme", "feature_x") == expected
 
 
-def test_each_environment_gets_its_own_directory(data_dir):
-    assert env_files_dir("acme", "feature_x") == data_dir / "env_files" / "acme" / "feature_x"
+def test_an_org_whose_folder_is_not_ready_is_refused_by_name(data_dir):
+    from provisa.core.org_files import OrgFolderUnavailable
+
+    with pytest.raises(OrgFolderUnavailable, match="globex"):
+        env_files_dir("globex", "feature_x")
 
 
 def test_two_environments_of_one_org_do_not_share(data_dir):

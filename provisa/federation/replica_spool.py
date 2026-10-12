@@ -81,14 +81,33 @@ class ReplicaSpoolFull(BuildFailure, Exception):
         )
 
 
-def spool_directory() -> Path:
-    """The one directory this node spools into: ``replica-spool`` under its data directory."""
-    from provisa.core import settings_registry
+#: The directory each org spools into, in its folder on this node (REQ-1992).
+SPOOL_DIR_NAME = "replica-spool"
 
-    data_dir = settings_registry.value("bootstrap.data_dir")
-    # The data directory's documented default when the operator names none (REQ-1913).
-    base = Path(data_dir) if data_dir else Path.home() / ".provisa"
-    return base / "replica-spool"
+
+def spool_directory() -> Path:
+    """The bound org's spool directory: ``replica-spool`` in its folder on this node."""
+    from provisa.core.org_files import org_root
+
+    return org_root() / SPOOL_DIR_NAME
+
+
+def node_spool_directories() -> list[Path]:
+    """Every org's spool directory on this node: what a node start sweeps, and what the node's
+    one bound (``replication.spool_max_bytes``) is counted over."""
+    from provisa.core.org_files import orgs_dir
+
+    return sorted(p for p in orgs_dir().glob(f"*/{SPOOL_DIR_NAME}") if p.is_dir())
+
+
+def node_used_bytes(directory: Path) -> int:
+    """The bytes this node's spool files hold now: every org's, when ``directory`` is an org's
+    spool directory; else ``directory``'s own."""
+    from provisa.core.org_files import orgs_dir
+
+    if directory.parent.parent != orgs_dir():
+        return used_bytes(directory)
+    return sum(used_bytes(d) for d in node_spool_directories())
 
 
 def spool_limit() -> int:
@@ -169,7 +188,7 @@ class SpoolFile:
                 continue
             self._file = os.fdopen(fd, "w+b")
             self.path = path
-        self._others = used_bytes(self._directory)
+        self._others = node_used_bytes(self._directory)
         return self
 
     def reserve(self, declared: int) -> None:
@@ -184,7 +203,7 @@ class SpoolFile:
         if self._since_recount >= _RECOUNT_BYTES:
             self._file.flush()
             self._since_recount = 0
-            self._others = used_bytes(self._directory) - self._written
+            self._others = node_used_bytes(self._directory) - self._written
         if self._others + self._written > self._limit:
             raise ReplicaSpoolFull(self._table, self._others + self._written, self._limit)
         self._file.write(chunk)

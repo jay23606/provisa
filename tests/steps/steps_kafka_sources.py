@@ -71,7 +71,7 @@ def register_kafka_topic(shared_data):
 def query_topic(shared_data):
     """Resolve the topic into Trino catalog properties (the routing path)."""
     source = shared_data["source"]
-    props_str = generate_trino_kafka_properties(source)
+    props_str = generate_trino_kafka_properties(source, source.id.replace("-", "_"))
     # Parse key=value lines into a dict for assertions.
     props = {}
     for line in props_str.splitlines():

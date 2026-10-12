@@ -126,7 +126,12 @@ async def _load_config(tenant_db, _init_schema, platform_admin_db):
             # And the Kafka sources' catalogs: their topics are registered tables of the model
             # (REQ-1919), introspected off the engine like every other table.
             for kafka_source in raw.get("kafka_sources", []):
-                app_mod.state.federation_engine.register_kafka_catalog(kafka_source)
+                from provisa.api.app_loaders import catalog_name_for_source
+
+                app_mod.state.federation_engine.register_kafka_catalog(
+                    kafka_source,
+                    catalog_name_for_source(app_mod.state, "kafka", kafka_source["id"]),
+                )
         finally:
             app_mod.state.federation_engine = prior_engine
             app_mod.state.engine_conn = prior_conn

@@ -2346,3 +2346,36 @@ export async function searchSourceTables(
   }
   return res.json();
 }
+
+/** REQ-1992: whether the org's file folder is encrypted, and the vault reference naming its key. */
+export interface OrgFilesState {
+  org_id: string;
+  encrypted: boolean;
+  key_reference: string | null;
+}
+
+export async function fetchOrgFiles(): Promise<OrgFilesState> {
+  const resp = await fetch(`${API_BASE_RAW}/admin/org-files`);
+  if (!resp.ok) throw httpError("Org files fetch", resp.status);
+  return resp.json();
+}
+
+export async function setOrgFiles(body: {
+  encrypted: boolean;
+  key_reference: string | null;
+}): Promise<OrgFilesState> {
+  const resp = await fetch(`${API_BASE_RAW}/admin/org-files`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) throw httpError("Org files save", resp.status);
+  return resp.json();
+}
+
+/** A new 256-bit key, answered once: the server keeps no copy. */
+export async function generateOrgFilesKey(): Promise<string> {
+  const resp = await fetch(`${API_BASE_RAW}/admin/org-files/generate-key`, { method: "POST" });
+  if (!resp.ok) throw httpError("Key generation", resp.status);
+  return ((await resp.json()) as { key: string }).key;
+}

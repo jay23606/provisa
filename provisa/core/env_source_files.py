@@ -44,7 +44,6 @@ copy and nothing to clean up, so those rows are left standing exactly as the cop
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -72,11 +71,6 @@ class SourceFileForkError(Exception):
     """A file-backed source could not be forked into the environment's own directory."""
 
 
-def env_files_root() -> Path:
-    """The deployment's directory of per-environment source files."""
-    return Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa")) / "env_files"
-
-
 def env_files_dir(org_id: str, env: str) -> Path:
     """Where ``env``'s own copies of its file-backed sources live.
 
@@ -91,7 +85,10 @@ def env_files_dir(org_id: str, env: str) -> Path:
     _validate_org_id(org_id)
     if not is_env_name(env):
         raise EnvironmentNameError(f"{env!r} is not an environment name")
-    return env_files_root() / org_id / env
+    from provisa.core.org_files import org_root
+
+    # REQ-1992: in the org's folder on the node, refused by name while it is not ready.
+    return org_root(org_id) / "env_files" / env
 
 
 def _local_path(raw: str) -> Path | None:

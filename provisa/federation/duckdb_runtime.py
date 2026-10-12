@@ -31,7 +31,6 @@ import logging
 import os
 import shutil
 import sqlite3
-import tempfile
 import re
 import threading
 from contextlib import contextmanager
@@ -764,7 +763,10 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         connection has no stale snapshot to be stuck on; the per-refresh cost of opening one is
         negligible next to the backup + DROP/CREATE VIEW work already done on every real change."""
         if self._cp_snapshot_dir == "":
-            self._cp_snapshot_dir = tempfile.mkdtemp(prefix="provisa-control-plane-snapshot-")
+            # REQ-1992: in the org's folder on this node, never the node's temporary directory.
+            from provisa.core import org_files
+
+            self._cp_snapshot_dir = org_files.mkdtemp("provisa-control-plane-snapshot-")
             self._cp_snapshot_path = os.path.join(self._cp_snapshot_dir, "control_plane.sqlite")
         canary = (_file_stat_pair(db_path), _file_stat_pair(f"{db_path}-wal"))
         if canary == self._cp_canary and self._cp_canary is not None:

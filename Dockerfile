@@ -36,6 +36,12 @@ RUN cd graph-render && npm run build && npm prune --omit=dev
 # Stage 3: lean runtime image — no wheels, only app source + installed packages
 FROM python:3.12-slim
 WORKDIR /app
+# REQ-1992: an org may keep its file folder encrypted (gocryptfs over FUSE). The container needs
+# /dev/fuse and CAP_SYS_ADMIN for it (docker-compose.app.yml, the Helm chart); without them the
+# setting is refused by name and plain folders are unaffected.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends gocryptfs fuse3 \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=installer /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=installer /usr/local/bin /usr/local/bin
 COPY main.py pyproject.toml ./

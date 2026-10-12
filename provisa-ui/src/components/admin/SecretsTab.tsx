@@ -37,6 +37,7 @@ import { useCapability } from "../../hooks/useCapability";
 import { usePanelState } from "../../hooks/usePanelState";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { OrgEncryptionTab } from "./OrgEncryptionTab";
+import { OrgFilesTab } from "./OrgFilesTab";
 import {
   fetchSecrets,
   putSecret,
@@ -552,6 +553,13 @@ export function SecretsTab() {
         </Accordion.Control>
         {/* Mounted only when open, so a collapsed panel does not read the key's state. */}
         <Accordion.Panel>{keyPanel === "orgKey" && <OrgEncryptionTab />}</Accordion.Panel>
+      </Accordion.Item>
+      {/* REQ-1992: the org's file folder, encrypted under a key the org holds in its vault. */}
+      <Accordion.Item value="orgFiles">
+        <Accordion.Control data-testid="org-files-toggle">
+          {t("orgFilesTab.panelTitle")}
+        </Accordion.Control>
+        <Accordion.Panel>{keyPanel === "orgFiles" && <OrgFilesTab />}</Accordion.Panel>
       </Accordion.Item>
     </Accordion>
   ) : null;

@@ -22,6 +22,8 @@ import zipfile
 
 import httpx
 import pytest
+
+from tests.helpers import ready_org_folder
 import respx
 
 from provisa.kaggle.client import (
@@ -127,6 +129,8 @@ async def test_stage_dataset_multi_csv(tmp_path, monkeypatch):
     from provisa.kaggle.downloader import stage_dataset
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     respx.get("https://www.kaggle.com/api/v1/datasets/list/acme/orders").mock(
         return_value=httpx.Response(
             200,
@@ -143,7 +147,7 @@ async def test_stage_dataset_multi_csv(tmp_path, monkeypatch):
     from provisa.core.request_context import require_current_org
 
     # REQ-1992: staged under the org that stages it.
-    assert root == tmp_path / "kaggle" / require_current_org() / "acme" / "orders"
+    assert root == tmp_path / "orgs" / require_current_org() / "kaggle" / "acme" / "orders"
     assert (root / "orders" / "orders.csv").read_bytes() == b"id\n1\n"
     assert (root / "customers" / "customers.csv").read_bytes() == b"id\n2\n"
 
@@ -153,6 +157,8 @@ async def test_stage_dataset_rejects_sqlite_bundle(tmp_path, monkeypatch):
     from provisa.kaggle.downloader import UnsupportedKaggleDataset, stage_dataset
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     respx.get("https://www.kaggle.com/api/v1/datasets/list/acme/db").mock(
         return_value=httpx.Response(200, json={"datasetFiles": [{"name": "data.sqlite"}]})
     )
@@ -166,6 +172,8 @@ async def test_stage_dataset_ignores_unsupported_non_data_files(tmp_path, monkey
     from provisa.kaggle.downloader import stage_dataset
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     respx.get("https://www.kaggle.com/api/v1/datasets/list/acme/mixed").mock(
         return_value=httpx.Response(
             200, json={"datasetFiles": [{"name": "readme.md"}, {"name": "data.csv"}]}
@@ -185,6 +193,8 @@ async def test_stage_dataset_no_csv_parquet_raises(tmp_path, monkeypatch):
     from provisa.kaggle.downloader import UnsupportedKaggleDataset, stage_dataset
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     respx.get("https://www.kaggle.com/api/v1/datasets/list/acme/empty").mock(
         return_value=httpx.Response(200, json={"datasetFiles": [{"name": "readme.md"}]})
     )

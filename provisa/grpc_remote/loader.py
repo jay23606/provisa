@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import os
 import re
-import tempfile
 from pathlib import Path
 
 
@@ -208,7 +207,10 @@ def compile_proto_stubs(  # REQ-329
     import grpc_tools
     from grpc_tools import protoc  # type: ignore[import]
 
-    tmp = out_dir or tempfile.mkdtemp(prefix="grpc_remote_stubs_")
+    # REQ-1992: in the org's folder on this node, never the node's temporary directory.
+    from provisa.core import org_files
+
+    tmp = out_dir or org_files.mkdtemp("grpc_remote_stubs_")
     proto_file = os.path.join(tmp, f"{proto_name}.proto")
     Path(proto_file).write_text(proto_text)
 
