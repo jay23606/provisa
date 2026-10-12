@@ -13,27 +13,7 @@ import { Badge } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Tip } from "../Tip";
 import { LIST_CUT_MIN_CHARS, LIST_WRAP_MIN_CHARS } from "./listCellLimits";
-
-/** Whether an element shows less than it holds: cut at the side or at the foot. */
-function isCut(el: HTMLElement): boolean {
-  return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
-}
-
-/** Follows an element's size and says whether it is cut. */
-function useCut(text: string) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [cut, setCut] = useState(false);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => setCut(isCut(el));
-    measure();
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    return () => watch.disconnect();
-  }, [text]);
-  return { ref, cut };
-}
+import { useCut } from "./useCut";
 
 /**
  * The text of one cell of a page list, held to the column's cap and the row's maximum height:

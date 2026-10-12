@@ -2845,6 +2845,8 @@ main {
   box-shadow: var(--mantine-shadow-md);
   padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
   font-size: var(--mantine-font-size-xs);
+  /* a value with no space in it (an id, a name, an address) breaks inside the surface */
+  overflow-wrap: anywhere;
   line-height: var(--mantine-line-height-sm);
   /* a hint never takes the pointer: what is under it stays clickable */
   pointer-events: none;

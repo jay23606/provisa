@@ -39,10 +39,61 @@ import {
 import type { LocalUser, UserAssignment } from "../../api/admin";
 import { useCapability } from "../../hooks/useCapability";
 import { ListRow } from "../list/ListTable";
+import { useCut } from "../list/useCut";
+import { LIST_COLUMN_CAP_PX } from "../list/listCellLimits";
+import { Tip } from "../Tip";
 import { SortGroupTable } from "../list/SortGroupTable";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 
 const PAGE_SIZE = 50;
+
+/**
+ * A user's row opens and closes on its name. The name asks for no more than a list column's cap;
+ * a longer one is cut with an ellipsis and shown whole in the hint.
+ */
+function UserExpandButton({
+  username,
+  expanded,
+  onClick,
+}: {
+  username: string;
+  expanded: boolean;
+  onClick: () => void;
+}) {
+  const { t } = useTranslation();
+  const { ref, cut } = useCut<HTMLSpanElement>(username);
+  return (
+    <Tip text={cut ? username : false}>
+      <Button
+        variant="subtle"
+        size="compact-sm"
+        maw={LIST_COLUMN_CAP_PX}
+        leftSection={expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        aria-expanded={expanded}
+        aria-label={t("localUsers.expandUser", { username })}
+        onClick={onClick}
+        styles={{
+          inner: { minWidth: 0 },
+          label: { fontFamily: "monospace", minWidth: 0, overflow: "hidden" },
+        }}
+        data-testid={`expand-user-${username}`}
+        data-cut={cut || undefined}
+      >
+        <span
+          ref={ref}
+          style={{
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {username}
+        </span>
+      </Button>
+    </Tip>
+  );
+}
 
 interface LocalUsersTabProps {
   allRoles: string[];
@@ -281,17 +332,11 @@ export function LocalUsersTab({ allRoles, allDomains }: LocalUsersTabProps) {
           return (
             <ListRow key={u.id}>
               <Table.Td>
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  leftSection={expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  aria-expanded={expanded}
-                  aria-label={t("localUsers.expandUser", { username: u.username })}
+                <UserExpandButton
+                  username={u.username}
+                  expanded={expanded}
                   onClick={() => handleExpandUser(u.id)}
-                  styles={{ label: { fontFamily: "monospace" } }}
-                >
-                  {u.username}
-                </Button>
+                />
                 <Collapse in={expanded}>
                   <Stack gap="xs" pl="md" py="sm">
                     <Text fw={600} fz="sm">
