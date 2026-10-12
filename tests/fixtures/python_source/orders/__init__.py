@@ -137,5 +137,10 @@ def direct(host: str, port: int) -> list[dict]:
         return [{"connected": True}]
 
 
+def greet(name: str, greeting: str = "hello", punctuation: str = "!") -> list[dict]:
+    """@table"""
+    return [{"text": f"{greeting} {name}{punctuation}"}]
+
+
 def helper() -> int:
     return 1

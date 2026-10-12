@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "Environnement d'exécution",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "Code depuis",
+    "originHint": "Le code est installé et lu à l'enregistrement de la source ; ses fonctions marquées @table, @command ou @stream deviennent ses tables, commandes et tables en direct.",
+    "npm": "Paquet npm",
+    "pypi": "Paquet PyPI",
+    "git": "Dépôt Git",
+    "upload": "Téléversement",
+    "package": "Paquet",
+    "version": "Version",
+    "versionHint": "Une version exacte, par exemple 1.2.0.",
+    "lockfile": "Fichier de verrouillage",
+    "lockfileHint": "Un paquet publié contient rarement son fichier de verrouillage. Fournissez-en un ({{names}}) lorsque le paquet a des dépendances.",
+    "lockfilePlaceholder": "Aucun fichier de verrouillage",
+    "repository": "URL du dépôt",
+    "commit": "Commit",
+    "commitHint": "Le commit complet de 40 caractères.",
+    "subdirectory": "Sous-répertoire",
+    "archive": "Archive",
+    "archiveHint": "Un .zip, .tgz ou .tar.gz du code.",
+    "archivePlaceholder": "Choisir une archive",
+    "entry": "Module d'entrée",
+    "entryHint": "Le module par lequel on entre dans la source. Laissez vide si le code a un seul module ou paquet de premier niveau.",
+    "kept": "Conservé : {{name}}"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "ランタイム",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "コードの取得元",
+    "originHint": "ソースを保存するとコードがインストールされて読み取られます。@table、@command、@stream が付いた関数が、そのテーブル、コマンド、ライブテーブルになります。",
+    "npm": "npm パッケージ",
+    "pypi": "PyPI パッケージ",
+    "git": "Git リポジトリ",
+    "upload": "アップロード",
+    "package": "パッケージ",
+    "version": "バージョン",
+    "versionHint": "1.2.0 のような正確なバージョン。",
+    "lockfile": "ロックファイル",
+    "lockfileHint": "公開されたパッケージにロックファイルが含まれることはまれです。パッケージに依存関係がある場合は指定してください ({{names}})。",
+    "lockfilePlaceholder": "ロックファイルなし",
+    "repository": "リポジトリ URL",
+    "commit": "コミット",
+    "commitHint": "40 文字の完全なコミット。",
+    "subdirectory": "サブディレクトリ",
+    "archive": "アーカイブ",
+    "archiveHint": "コードの .zip、.tgz、または .tar.gz。",
+    "archivePlaceholder": "アーカイブを選択",
+    "entry": "エントリモジュール",
+    "entryHint": "ソースの入口となるモジュール。コードの最上位モジュールまたはパッケージが 1 つだけなら空欄にします。",
+    "kept": "保存済み: {{name}}"
+  }
+}

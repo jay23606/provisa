@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "Среда выполнения",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "Код из",
+    "originHint": "Код устанавливается и читается при сохранении источника; его функции с пометками @table, @command или @stream становятся его таблицами, командами и живыми таблицами.",
+    "npm": "Пакет npm",
+    "pypi": "Пакет PyPI",
+    "git": "Репозиторий Git",
+    "upload": "Загрузка",
+    "package": "Пакет",
+    "version": "Версия",
+    "versionHint": "Точная версия, например 1.2.0.",
+    "lockfile": "Lock-файл",
+    "lockfileHint": "Опубликованный пакет редко содержит свой lock-файл. Укажите его ({{names}}), если у пакета есть зависимости.",
+    "lockfilePlaceholder": "Без lock-файла",
+    "repository": "URL репозитория",
+    "commit": "Коммит",
+    "commitHint": "Полный коммит из 40 символов.",
+    "subdirectory": "Подкаталог",
+    "archive": "Архив",
+    "archiveHint": "Архив кода .zip, .tgz или .tar.gz.",
+    "archivePlaceholder": "Выберите архив",
+    "entry": "Входной модуль",
+    "entryHint": "Модуль, через который открывается источник. Оставьте пустым, если у кода один модуль или пакет верхнего уровня.",
+    "kept": "Сохранено: {{name}}"
+  }
+}

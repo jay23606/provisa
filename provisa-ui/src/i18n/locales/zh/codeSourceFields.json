@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "运行时",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "代码来源",
+    "originHint": "保存数据源时会安装并读取代码；其中标记为 @table、@command 或 @stream 的函数成为它的表、命令和实时表。",
+    "npm": "npm 包",
+    "pypi": "PyPI 包",
+    "git": "Git 仓库",
+    "upload": "上传",
+    "package": "包",
+    "version": "版本",
+    "versionHint": "精确版本，例如 1.2.0。",
+    "lockfile": "锁文件",
+    "lockfileHint": "已发布的包很少附带锁文件。包有依赖时请提供一个（{{names}}）。",
+    "lockfilePlaceholder": "无锁文件",
+    "repository": "仓库 URL",
+    "commit": "提交",
+    "commitHint": "完整的 40 位提交。",
+    "subdirectory": "子目录",
+    "archive": "归档",
+    "archiveHint": "代码的 .zip、.tgz 或 .tar.gz 文件。",
+    "archivePlaceholder": "选择归档",
+    "entry": "入口模块",
+    "entryHint": "进入数据源的模块。代码只有一个顶层模块或包时留空。",
+    "kept": "已保存：{{name}}"
+  }
+}

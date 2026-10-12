@@ -45,6 +45,8 @@ BATCH = 1000
 _EXACT = 2**53 - 1
 _HEAD = struct.Struct(">I")
 _DONE = object()
+#: An argument the read does not give: left out of the call, so the function's default applies.
+_ABSENT = object()
 
 
 def to_wire(value: typing.Any) -> typing.Any:  # a value the code returned: any shape
@@ -88,6 +90,8 @@ def from_wire(value: typing.Any) -> typing.Any:  # a decoded JSON value: any sha
                 return int(value["$bigint"])
             if "$decimal" in value:
                 return decimal.Decimal(value["$decimal"])
+            if value.get("$absent") is True:
+                return _ABSENT
         return {k: from_wire(v) for k, v in value.items()}
     return value
 
@@ -104,6 +108,20 @@ def exported(module: typing.Any) -> list[str]:  # a module object
     ]
 
 
+def _call_arguments(args: list, names: list[str]) -> tuple[list, dict]:
+    """The call's positional arguments up to the first absent one, and every given one after it
+    by its name: an absent one is left out, so its default applies."""
+    if _ABSENT not in args:
+        return args, {}
+    first = args.index(_ABSENT)
+    keywords = {
+        name: value
+        for name, value in zip(names[first:], args[first:], strict=True)
+        if value is not _ABSENT
+    }
+    return args[:first], keywords
+
+
 class Host:
     def __init__(self, module: typing.Any, writer: asyncio.StreamWriter) -> None:
         self.module = module
@@ -115,12 +133,13 @@ class Host:
         self.writer.write(_HEAD.pack(len(body)) + body)
         await self.writer.drain()
 
-    async def serve(self, call_id: int, name: str, kind: str, args: list) -> None:
+    async def serve(self, call_id: int, name: str, kind: str, args: list, names: list[str]) -> None:
         try:
             fn = getattr(self.module, name, None)
             if not inspect.isfunction(fn) or name not in exported(self.module):
                 raise LookupError(f"the code has no function {name}")
-            await self._run(call_id, fn, kind, from_wire(args))
+            positional, keywords = _call_arguments(from_wire(args), names)
+            await self._run(call_id, fn, kind, positional, keywords)
             await self.send({"op": "end", "id": call_id})
         except asyncio.CancelledError:
             pass  # Provisa stopped the call and is no longer waiting for it
@@ -136,13 +155,15 @@ class Host:
         finally:
             self.running.pop(call_id, None)
 
-    async def _run(self, call_id: int, fn: typing.Callable, kind: str, args: list) -> None:
+    async def _run(
+        self, call_id: int, fn: typing.Callable, kind: str, args: list, keywords: dict
+    ) -> None:
         if inspect.isasyncgenfunction(fn) or inspect.isgeneratorfunction(fn):
-            result = fn(*args)
+            result = fn(*args, **keywords)
         elif inspect.iscoroutinefunction(fn):
-            result = await fn(*args)
+            result = await fn(*args, **keywords)
         else:
-            result = await asyncio.to_thread(fn, *args)
+            result = await asyncio.to_thread(fn, *args, **keywords)
         if hasattr(result, "__aiter__"):
             await self._rows(call_id, kind, self._async_rows(result))
         elif isinstance(result, (list, tuple)) and not hasattr(result, "_asdict"):
@@ -219,7 +240,13 @@ async def run(address: str, code: str, entry: str) -> None:
                 task.cancel()
         elif op == "call":
             host.running[message["id"]] = asyncio.create_task(
-                host.serve(message["id"], message["export"], message["kind"], message["args"])
+                host.serve(
+                    message["id"],
+                    message["export"],
+                    message["kind"],
+                    message["args"],
+                    message["names"],
+                )
             )
 
 

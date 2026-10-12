@@ -94,6 +94,8 @@ _MATERIALIZE_ONLY = frozenset(
         "mongodb",
         "cosmosdb",  # REQ-1982: no engine reaches it; read by its SDK and landed
         "qdrant",  # REQ-1983: no engine reaches it; read by its client and landed
+        "node",  # REQ-1984: a function's rows, read in its worker and landed
+        "python",  # REQ-1993: the same, for a Python function
         "cassandra",
         "redis",
         "elasticsearch",

@@ -76,6 +76,7 @@ def test_the_codes_tables_commands_and_streams_are_read_from_docstrings_and_hint
         ("outside", "table"),
         ("fetched", "table"),
         ("direct", "table"),
+        ("greet", "table"),
     }
     orders = manifest.export("orders")
     assert orders.description == "Orders of one customer."
@@ -258,7 +259,7 @@ def worker(tmp_path):
 def test_the_host_says_which_functions_it_has_and_not_what_it_imported(worker):
     assert set(worker.exports) == {
         "orders", "many", "placed", "ticks", "forever", "cancel_order", "boom", "outside",
-        "fetched", "direct", "helper",
+        "fetched", "direct", "greet", "helper",
     }  # fmt: skip
 
 
@@ -303,3 +304,16 @@ def test_a_deadline_stops_a_call_that_never_answers(worker):
             list(worker.rows("forever", "stream", []))
     assert time.monotonic() - started < 10
     assert worker.ping()
+
+
+def test_an_argument_left_out_takes_the_functions_own_default(worker):
+    """An optional parameter the read gives no value for is absent, never None: the function's
+    default applies, even for one after a later given argument."""
+    rows = worker.rows(
+        "greet", "table", ["ada", w.ABSENT, "?"], ["name", "greeting", "punctuation"]
+    )
+    assert list(rows) == [[{"text": "hello ada?"}]]
+    rows = worker.rows(
+        "greet", "table", ["ada", "hi", w.ABSENT], ["name", "greeting", "punctuation"]
+    )
+    assert list(rows) == [[{"text": "hi ada!"}]]

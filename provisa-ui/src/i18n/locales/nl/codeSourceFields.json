@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "Runtime",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "Code uit",
+    "originHint": "De code wordt geïnstalleerd en gelezen wanneer de bron wordt opgeslagen; zijn functies met @table, @command of @stream worden zijn tabellen, opdrachten en live tabellen.",
+    "npm": "npm-pakket",
+    "pypi": "PyPI-pakket",
+    "git": "Git-repository",
+    "upload": "Uploaden",
+    "package": "Pakket",
+    "version": "Versie",
+    "versionHint": "Een exacte versie, zoals 1.2.0.",
+    "lockfile": "Lockfile",
+    "lockfileHint": "Een gepubliceerd pakket bevat zelden zijn lockfile. Geef er een ({{names}}) wanneer het pakket afhankelijkheden heeft.",
+    "lockfilePlaceholder": "Geen lockfile",
+    "repository": "Repository-URL",
+    "commit": "Commit",
+    "commitHint": "De volledige commit van 40 tekens.",
+    "subdirectory": "Submap",
+    "archive": "Archief",
+    "archiveHint": "Een .zip, .tgz of .tar.gz van de code.",
+    "archivePlaceholder": "Kies een archief",
+    "entry": "Ingangsmodule",
+    "entryHint": "De module waarmee de bron wordt geopend. Laat leeg als de code één module of pakket op het hoogste niveau heeft.",
+    "kept": "Bewaard: {{name}}"
+  }
+}

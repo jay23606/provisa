@@ -18,7 +18,7 @@
 // written {"$date": iso}, a bigint {"$bigint": digits}, undefined as null; a {"$decimal": digits}
 // argument stays as it is, since JavaScript has no decimal.
 //
-//   Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args}
+//   Provisa -> host  {op: "call", id, export, kind: "table"|"command"|"stream", args, names}
 //                    {op: "cancel", id}      {op: "ping", id}
 //   host -> Provisa  {op: "hello", exports}  {op: "rows", id, rows}  {op: "value", id, value}
 //                    {op: "end", id}         {op: "error", id, message, stack}  {op: "pong", id}
@@ -48,6 +48,7 @@ function revive(value) {
   if (value && typeof value === "object") {
     if (typeof value.$date === "string") return new Date(value.$date);
     if (typeof value.$day === "string") return new Date(`${value.$day}T00:00:00.000Z`);
+    if (value.$absent === true) return undefined; // the function's own default applies
     if (typeof value.$bigint === "string") return BigInt(value.$bigint);
     const out = {};
     for (const [k, v] of Object.entries(value)) out[k] = revive(v);

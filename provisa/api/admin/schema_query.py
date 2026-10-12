@@ -2265,6 +2265,26 @@ async def _cosmosdb_columns(source_id: str, container: str) -> list[AvailableCol
     ]
 
 
+async def _code_columns(source_id: str, function: str) -> list[AvailableColumnType]:
+    """REQ-1984, REQ-1993: a code table's columns as its function declares them (or, for a loosely
+    typed row, as a preview suggests them), its parameters as query_arg parameters."""
+    from provisa.api.app import state
+    from provisa.codesource import discovery as _code
+
+    suggested = await _code.columns(state, source_id, function)
+    return [
+        AvailableColumnType(
+            name=c["name"],
+            data_type=c["data_type"],
+            comment=None,
+            path=c["path"],
+            native_filter_type=c["native_filter_type"],
+            native_filter_required=c["native_filter_required"],
+        )
+        for c in suggested or []
+    ]
+
+
 async def _elasticsearch_columns(source_id: str, table_name: str) -> list[AvailableColumnType]:
     """REQ-1672: a mapping-DSL table's declared columns, else the live index mapping flattened
     (``discover_schema``), typed in the IR vocabulary — engine-independent."""
@@ -2420,6 +2440,8 @@ async def resolve_available_columns_metadata(
             return await _cosmosdb_columns(source_id, table_name)
         if source_type == "qdrant":
             return await _qdrant_columns(source_id, table_name)
+        if source_type in ("node", "python"):
+            return await _code_columns(source_id, table_name)
         if source_type == "redis":
             return await _redis_columns(source_id, table_name)
         if source_type == "cassandra":

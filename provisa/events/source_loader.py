@@ -78,6 +78,9 @@ _ADAPTER_FETCH_ONLY: frozenset[str] = frozenset(
         # REQ-1983: Qdrant points are read through its client (provisa/qdrant/loader.py); no
         # engine reaches it.
         "qdrant",
+        # REQ-1984, REQ-1993: a code source's rows come from its functions, run in its worker.
+        "node",
+        "python",
         # REQ-1730: same gap as neo4j/sparql above — firebird/airport rows are produced by a
         # scratch DuckDB connection ATTACHed via their own community extension
         # (make_firebird_loader/make_airport_loader), not scanned from a relation Trino can reach

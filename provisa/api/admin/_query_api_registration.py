@@ -221,6 +221,8 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
     before its row lands: the query parses, names only its declared arguments and uses each, and
     only reads. None for every other table."""
     from provisa.api.admin.types import MutationResult
+    from provisa.codesource.bundle import BundleRefused
+    from provisa.codesource.table import CodeTableRefused
     from provisa.cosmosdb.table import CosmosTableRefused
     from provisa.cosmosdb.table import check_table as check_cosmos_table
     from provisa.mongodb.native_query import NativeQueryRefused, check_table
@@ -237,11 +239,34 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
             check_qdrant_table(model)
         elif model.query_template and row is not None and row["type"] == "mongodb":
             check_table(model)
-    except (NativeQueryRefused, CosmosTableRefused, QdrantTableRefused) as refused:
+        elif row is not None and row["type"] in ("node", "python"):
+            # REQ-1984, REQ-1993: checked against the function it names, in the code as read.
+            await _check_code_table(model)
+    except (
+        NativeQueryRefused, CosmosTableRefused, QdrantTableRefused, CodeTableRefused
+    ) as refused:
+        return MutationResult(
+            success=False, message=str(refused), code=refused.code, params=refused.params
+        )
+    except BundleRefused as refused:  # the source's code could not be installed or read
         return MutationResult(
             success=False, message=str(refused), code=refused.code, params=refused.params
         )
     return None
+
+
+async def _check_code_table(model: "Table") -> None:
+    """``model`` against the functions its code source offers, the source prepared (installed and
+    read) as it is for a read."""
+    from provisa.api.app import state
+    from provisa.codesource.source import context_for, prepare
+    from provisa.codesource.table import check_table as check_code_table
+    from provisa.federation.registry_view import registered_sources
+
+    check_code_table(model)
+    (source,) = [s for s in await registered_sources(state) if s.id == model.source_id]
+    prepared = await prepare(source.id, source.type.value, source.mapping, await context_for(state))
+    check_code_table(model, prepared.manifest)
 
 
 async def persist_query_api_registration(

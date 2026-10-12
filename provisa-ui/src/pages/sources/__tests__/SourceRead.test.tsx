@@ -12,6 +12,9 @@
 // fields the form shows for that kind, under the same labels, each with the value it holds.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// A code source's fields (REQ-1984, REQ-1993) upload to the active organisation.
+vi.mock("../../../context/AuthContext", () => ({ useAuth: () => ({ activeOrgId: "acme" }) }));
 import { cleanup, render, screen, within } from "../../../test-utils/render";
 import { FormLayout, FormRead } from "../../../components/form/FormLayout";
 import { SourceFormFields, type SourceFormFieldsProps } from "../SourceFormFields";

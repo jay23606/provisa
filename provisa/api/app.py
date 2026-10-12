@@ -3215,6 +3215,13 @@ async def lifespan(_app: FastAPI):  # pyright: ignore[reportUnusedParameter, rep
 
         stop_all_servers()
 
+    # REQ-1984, REQ-1993: every code source's worker process (each its own child, not ended by
+    # ours unless it is told its socket closed).
+    with tolerate_shutdown_failure("code source workers stop"):
+        from provisa.codesource.worker import pool as _code_workers
+
+        _code_workers.stop_all()
+
     # Stop every org's Live Query Engine (Phase AM, REQ-1266)
     for _live in state.org_registry.live_engines():
         with tolerate_shutdown_failure("live query engine stop"):
@@ -3948,6 +3955,9 @@ def create_app() -> FastAPI:
     from provisa.api.admin.package_registries_router import router as package_registries_router
 
     app.include_router(package_registries_router)  # REQ-1984
+    from provisa.api.admin.code_uploads_router import router as code_uploads_router
+
+    app.include_router(code_uploads_router)  # REQ-1984, REQ-1993
     from provisa.api.admin.microsoft365_router import router as microsoft365_router
 
     app.include_router(microsoft365_router)  # REQ-1923

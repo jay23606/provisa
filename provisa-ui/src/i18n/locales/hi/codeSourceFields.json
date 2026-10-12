@@ -1,0 +1,30 @@
+{
+  "codeSourceFields": {
+    "runtime": "रनटाइम",
+    "runtime_node": "Node.js",
+    "runtime_bun": "Bun",
+    "runtime_deno": "Deno",
+    "origin": "कोड का स्रोत",
+    "originHint": "स्रोत सहेजने पर कोड इंस्टॉल होकर पढ़ा जाता है; @table, @command या @stream से चिह्नित उसके फ़ंक्शन उसकी तालिकाएँ, कमांड और लाइव तालिकाएँ बनते हैं।",
+    "npm": "npm पैकेज",
+    "pypi": "PyPI पैकेज",
+    "git": "Git रिपॉज़िटरी",
+    "upload": "अपलोड",
+    "package": "पैकेज",
+    "version": "संस्करण",
+    "versionHint": "एक सटीक संस्करण, जैसे 1.2.0।",
+    "lockfile": "लॉकफ़ाइल",
+    "lockfileHint": "प्रकाशित पैकेज में शायद ही उसकी लॉकफ़ाइल होती है। पैकेज की निर्भरताएँ हों तो एक ({{names}}) दें।",
+    "lockfilePlaceholder": "कोई लॉकफ़ाइल नहीं",
+    "repository": "रिपॉज़िटरी URL",
+    "commit": "कमिट",
+    "commitHint": "पूरा 40 वर्णों का कमिट।",
+    "subdirectory": "उपनिर्देशिका",
+    "archive": "आर्काइव",
+    "archiveHint": "कोड की .zip, .tgz या .tar.gz फ़ाइल।",
+    "archivePlaceholder": "आर्काइव चुनें",
+    "entry": "प्रवेश मॉड्यूल",
+    "entryHint": "वह मॉड्यूल जिससे स्रोत में प्रवेश होता है। कोड में एक ही शीर्ष-स्तरीय मॉड्यूल या पैकेज हो तो खाली छोड़ें।",
+    "kept": "रखा गया: {{name}}"
+  }
+}
