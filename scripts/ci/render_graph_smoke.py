@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 0fd5f8aa-f691-432f-b8ea-5004efde3330
 #
 # This source code is licensed under the Business Source License 1.1
 """Inside the built image: render_graph draws a graph through the image's own node, renderer and
