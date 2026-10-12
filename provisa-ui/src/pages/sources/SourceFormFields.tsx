@@ -602,12 +602,12 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
               </FormField>
             </>
           )}
-          <FormField size="long">
+          <FormField
+            size="long"
+            hint={authFields.reach === "scan" ? t("sourceFormFields.readInPlaceHelp") : undefined}
+          >
             <Select
               label={t("sourceFormFields.readPolicy")}
-              description={
-                authFields.reach === "scan" ? t("sourceFormFields.readInPlaceHelp") : undefined
-              }
               data={[
                 { value: "replica", label: t("sourceFormFields.readReplica") },
                 { value: "scan", label: t("sourceFormFields.readInPlace") },
