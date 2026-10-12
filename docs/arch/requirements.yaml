@@ -26778,7 +26778,9 @@
     maps its operators/functions to an engine function or rejects them explicitly (convert-or-reject-loudly
     — a surface must NOT claim a capability, e.g. index acceleration, it does not implement). Concrete
     surfaces: pgvector-compatible (vector type + distance operators <-> L2, <=> cosine, <#> inner product,
-    including ORDER BY emb <-> $1 similarity search, NOT advertising ivfflat/hnsw index acceleration);
+    including ORDER BY emb <-> $1 similarity search; <=> is the governed cosine_similarity search of REQ-423,
+    ordered by similarity the other way, so a top-k <=> search over a replica reads its index (REQ-424); a
+    client cannot create an ivfflat/hnsw index);
     PostGIS-subset (geometry/geography + ST_Distance/ST_Contains/ST_DWithin/ST_Intersects/&&); JSON operators
     (-> ->> #> #>> mapped to JSON_VALUE/JSON_QUERY); and compatibility functions (pg_trgm similarity()/%,
     gen_random_uuid(), pgcrypto digest()).'
@@ -26797,7 +26799,9 @@
   - tests/unit/test_pgwire_ext_surfaces.py
   notes: pgvector / json-ops / compat-fns live; postgis-subset partial (geometry/geography types + ST_*
     pass-through + && -> ST_Intersects; geography aliased to geometry, no SRID transforms). Opt-in via
-    PROVISA_PGWIRE_EXT_SURFACES. ivfflat/hnsw index acceleration rejected loudly and never advertised.
+    PROVISA_PGWIRE_EXT_SURFACES. A client's CREATE INDEX ... USING ivfflat/hnsw is rejected loudly. Amended
+    2026-10-12 (lead, approving the vector design of GitHub issue 251, "normalise ext_surfaces pgvector <=> to
+    cosine_similarity") so that <=> is written as cosine_similarity and governed with the statement.
   related_reqs:
   - REQ-883
   - REQ-842
