@@ -1,0 +1,2 @@
+2023-05-11T08:15:23.456789Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.33'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+2023-05-11T08:16:01.000123Z 12 [Warning] [MY-010055] [Server] IP address '10.0.0.9' could not be resolved: Name or service not known

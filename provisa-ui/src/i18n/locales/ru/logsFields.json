@@ -20,7 +20,8 @@
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
       "google": "Google",
-      "web": "Веб-серверы и прокси"
+      "web": "Веб-серверы и прокси",
+      "databases": "Базы данных и среды выполнения"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -60,7 +61,17 @@
       "squid_access": "Squid (native) – журнал доступа",
       "envoy_access": "Envoy (default format) – журнал доступа",
       "caddy_access": "Caddy – журнал доступа",
-      "traefik_access": "Traefik (common format) – журнал доступа"
+      "traefik_access": "Traefik (common format) – журнал доступа",
+      "postgresql_stderr": "PostgreSQL (stderr) – журнал",
+      "postgresql_csvlog": "PostgreSQL csvlog",
+      "postgresql_jsonlog": "PostgreSQL jsonlog",
+      "mysql_error": "MySQL – журнал ошибок",
+      "mysql_slow": "MySQL – журнал медленных запросов",
+      "mongodb": "MongoDB – журнал",
+      "redis": "Redis – журнал",
+      "log4j2_default": "log4j 2 (default pattern)",
+      "logback_default": "logback (default pattern)",
+      "python_logging": "Python logging (default format)"
     }
   }
 }

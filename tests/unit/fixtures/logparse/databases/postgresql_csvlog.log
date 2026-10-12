@@ -1,0 +1,3 @@
+2023-05-11 08:16:01.002 UTC,"app","shop",2345,"10.0.0.9:51234",645ca5f1.929,3,"SELECT",2023-05-11 08:15:59 UTC,3/12,0,ERROR,42P01,"relation ""orderz"" does not exist",,,,,,"SELECT *
+  FROM orderz;",15,,"psql","client backend",,0
+2023-05-11 08:15:23.456 UTC,,,1234,,645ca5d3.4d2,1,,2023-05-11 08:15:23 UTC,,0,LOG,00000,"database system is ready to accept connections",,,,,,,,,"","postmaster",,0

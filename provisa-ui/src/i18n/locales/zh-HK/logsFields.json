@@ -20,7 +20,8 @@
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
       "google": "Google",
-      "web": "網頁伺服器和代理"
+      "web": "網頁伺服器和代理",
+      "databases": "資料庫和執行環境"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -60,7 +61,17 @@
       "squid_access": "Squid (native) – 存取日誌",
       "envoy_access": "Envoy (default format) – 存取日誌",
       "caddy_access": "Caddy – 存取日誌",
-      "traefik_access": "Traefik (common format) – 存取日誌"
+      "traefik_access": "Traefik (common format) – 存取日誌",
+      "postgresql_stderr": "PostgreSQL (stderr) – 日誌",
+      "postgresql_csvlog": "PostgreSQL csvlog",
+      "postgresql_jsonlog": "PostgreSQL jsonlog",
+      "mysql_error": "MySQL – 錯誤日誌",
+      "mysql_slow": "MySQL – 慢查詢日誌",
+      "mongodb": "MongoDB – 日誌",
+      "redis": "Redis – 日誌",
+      "log4j2_default": "log4j 2 (default pattern)",
+      "logback_default": "logback (default pattern)",
+      "python_logging": "Python logging (default format)"
     }
   }
 }

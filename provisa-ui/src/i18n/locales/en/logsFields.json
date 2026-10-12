@@ -20,7 +20,8 @@
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
       "google": "Google",
-      "web": "Web servers and proxies"
+      "web": "Web servers and proxies",
+      "databases": "Databases and runtimes"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -60,7 +61,17 @@
       "squid_access": "Squid access log (native)",
       "envoy_access": "Envoy access log (default format)",
       "caddy_access": "Caddy access log",
-      "traefik_access": "Traefik access log (common format)"
+      "traefik_access": "Traefik access log (common format)",
+      "postgresql_stderr": "PostgreSQL log (stderr)",
+      "postgresql_csvlog": "PostgreSQL csvlog",
+      "postgresql_jsonlog": "PostgreSQL jsonlog",
+      "mysql_error": "MySQL error log",
+      "mysql_slow": "MySQL slow-query log",
+      "mongodb": "MongoDB log",
+      "redis": "Redis log",
+      "log4j2_default": "log4j 2 (default pattern)",
+      "logback_default": "logback (default pattern)",
+      "python_logging": "Python logging (default format)"
     }
   }
 }

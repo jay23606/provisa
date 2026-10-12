@@ -1,0 +1,6 @@
+WARNING:root:Watch out!
+ERROR:app.orders:Failed to load order 7
+Traceback (most recent call last):
+  File "app/orders.py", line 12, in load
+    raise KeyError(order_id)
+KeyError: 7

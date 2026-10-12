@@ -1,0 +1,5 @@
+08:15:23.456 [main] INFO  com.example.App - Starting application
+08:15:24.001 [http-nio-8080-exec-1] ERROR com.example.OrderController - Failed to load order 7
+java.lang.IllegalStateException: no such order
+	at com.example.OrderService.find(OrderService.java:42)
+	at com.example.OrderController.get(OrderController.java:17)

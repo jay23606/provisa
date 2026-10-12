@@ -20,7 +20,8 @@
       "amazon": "Amazon Web Services",
       "microsoft": "Microsoft",
       "google": "Google",
-      "web": "Serveurs web et proxys"
+      "web": "Serveurs web et proxys",
+      "databases": "Bases de données et environnements d'exécution"
     },
     "formats": {
       "rfc3164": "BSD syslog (RFC 3164)",
@@ -60,7 +61,17 @@
       "squid_access": "Squid (native) – journal d'accès",
       "envoy_access": "Envoy (default format) – journal d'accès",
       "caddy_access": "Caddy – journal d'accès",
-      "traefik_access": "Traefik (common format) – journal d'accès"
+      "traefik_access": "Traefik (common format) – journal d'accès",
+      "postgresql_stderr": "PostgreSQL (stderr) – journal",
+      "postgresql_csvlog": "PostgreSQL csvlog",
+      "postgresql_jsonlog": "PostgreSQL jsonlog",
+      "mysql_error": "MySQL – journal des erreurs",
+      "mysql_slow": "MySQL – journal des requêtes lentes",
+      "mongodb": "MongoDB – journal",
+      "redis": "Redis – journal",
+      "log4j2_default": "log4j 2 (default pattern)",
+      "logback_default": "logback (default pattern)",
+      "python_logging": "Python logging (default format)"
     }
   }
 }

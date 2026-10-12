@@ -1,0 +1,4 @@
+2023-05-11 08:15:23.456 UTC [1234] LOG:  database system is ready to accept connections
+2023-05-11 08:16:01.002 UTC [2345] ERROR:  relation "orderz" does not exist at character 15
+2023-05-11 08:16:01.002 UTC [2345] STATEMENT:  SELECT *
+	  FROM orderz;

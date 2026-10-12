@@ -6006,5 +6006,16 @@
   "fr/logsFields.json::logsFields.formats.squid_access": "Squid access log (native)",
   "fr/logsFields.json::logsFields.formats.envoy_access": "Envoy access log (default format)",
   "fr/logsFields.json::logsFields.formats.caddy_access": "Caddy access log",
-  "fr/logsFields.json::logsFields.formats.traefik_access": "Traefik access log (common format)"
+  "fr/logsFields.json::logsFields.formats.traefik_access": "Traefik access log (common format)",
+  "fr/logsFields.json::logsFields.group.databases": "Databases and runtimes",
+  "fr/logsFields.json::logsFields.formats.postgresql_stderr": "PostgreSQL log (stderr)",
+  "fr/logsFields.json::logsFields.formats.postgresql_csvlog": "PostgreSQL csvlog",
+  "fr/logsFields.json::logsFields.formats.postgresql_jsonlog": "PostgreSQL jsonlog",
+  "fr/logsFields.json::logsFields.formats.mysql_error": "MySQL error log",
+  "fr/logsFields.json::logsFields.formats.mysql_slow": "MySQL slow-query log",
+  "fr/logsFields.json::logsFields.formats.mongodb": "MongoDB log",
+  "fr/logsFields.json::logsFields.formats.redis": "Redis log",
+  "fr/logsFields.json::logsFields.formats.log4j2_default": "log4j 2 default pattern",
+  "fr/logsFields.json::logsFields.formats.logback_default": "logback default pattern",
+  "fr/logsFields.json::logsFields.formats.python_logging": "Python logging default format"
 }

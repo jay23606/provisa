@@ -1,0 +1,2 @@
+{"t":{"$date":"2023-05-11T08:15:23.456+00:00"},"s":"I","c":"NETWORK","id":22943,"ctx":"listener","msg":"Connection accepted","attr":{"remote":"10.0.0.9:51234","connectionId":12,"connectionCount":3}}
+{"t":{"$date":"2023-05-11T08:15:24.000+00:00"},"s":"W","c":"COMMAND","id":51803,"ctx":"conn12","msg":"Slow query","attr":{"type":"command","ns":"shop.orders","durationMillis":250}}
