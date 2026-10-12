@@ -3365,12 +3365,9 @@
   "fr/securityPage.json::securityPage.filterExpression": "Filter Expression",
   "fr/securityPage.json::securityPage.filterExpressionPlaceholder": "region = 'US' AND status = 'active'",
   "fr/securityPage.json::securityPage.labelAction": "Action:",
-  "fr/securityPage.json::securityPage.labelCapabilities": "Capabilities:",
   "fr/securityPage.json::securityPage.labelDomain": "Domain:",
-  "fr/securityPage.json::securityPage.labelDomainAccess": "Domain Access:",
   "fr/securityPage.json::securityPage.labelFilter": "Filter:",
   "fr/securityPage.json::securityPage.labelId": "ID:",
-  "fr/securityPage.json::securityPage.labelParentRole": "Inherits from:",
   "fr/securityPage.json::securityPage.labelRole": "Role:",
   "fr/securityPage.json::securityPage.labelTable": "Table:",
   "fr/securityPage.json::securityPage.loadActionsFailed": "Could not load actions: {{message}}",
@@ -5796,5 +5793,13 @@
   "fr/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
   "fr/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
   "fr/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
-  "fr/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
+  "fr/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment",
+  "fr/securityPage.json::securityPage.demonstrated": "Demonstrated capabilities",
+  "fr/securityPage.json::securityPage.limitsHeading": "Rate & query-complexity limits",
+  "fr/securityPage.json::securityPage.rateReqPerSec": "Requests / sec",
+  "fr/securityPage.json::securityPage.maxQueryComplexity": "Max query complexity",
+  "fr/securityPage.json::securityPage.maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+  "fr/securityPage.json::securityPage.maxQueryTimeMs": "Max query time (ms)",
+  "fr/securityPage.json::securityPage.unlimited": "unlimited",
+  "fr/detailFields.json::detailFields.empty": "—"
 }

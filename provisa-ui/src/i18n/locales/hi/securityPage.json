@@ -16,7 +16,6 @@
     "parentRole": "इससे विरासत में",
     "parentRoleNone": "कोई पैरेंट नहीं",
     "parentRoleHelp": "भूमिका की ग्रांट, कॉलम दृश्यता और RLS नियम विरासत में मिलते हैं; किसी टेबल के लिए इस भूमिका का अपना RLS नियम पैरेंट के नियम को बदल देता है।",
-    "labelParentRole": "इससे विरासत में:",
     "allDomains": "सभी डोमेन",
     "save": "सहेजें",
     "cancel": "रद्द करें",
@@ -35,8 +34,6 @@
     "domainsRequired": "भूमिका में कम से कम एक डोमेन, या सभी डोमेन, सूचीबद्ध होना चाहिए। सहेजने के लिए इसके डोमेन चुनें।",
     "detailsHidden": "विवरण के लिए उपयोगकर्ता प्रबंधन आवश्यक है।",
     "labelId": "ID:",
-    "labelCapabilities": "क्षमताएँ:",
-    "labelDomainAccess": "डोमेन एक्सेस:",
     "labelDomain": "डोमेन:",
     "labelTable": "टेबल:",
     "labelRole": "भूमिका:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "RLS नियम का विवरण",
     "panelNewRole": "नई भूमिका",
     "panelNewRule": "नया RLS नियम",
-    "panelRule": "RLS नियम {{id}}"
+    "panelRule": "RLS नियम {{id}}",
+    "demonstrated": "प्रदर्शित क्षमताएँ",
+    "limitsHeading": "दर और क्वेरी-जटिलता सीमाएँ",
+    "rateReqPerSec": "अनुरोध / सेकंड",
+    "maxQueryComplexity": "अधिकतम क्वेरी जटिलता",
+    "maxQueryComplexityHint": "एक कथन के संबंध, जॉइन, कॉलम और नेस्टेड क्वेरी, हर इंटरफ़ेस पर। संगठन की सीमा फिर भी लागू होती है।",
+    "maxQueryTimeMs": "अधिकतम क्वेरी समय (ms)",
+    "unlimited": "असीमित"
   }
 }

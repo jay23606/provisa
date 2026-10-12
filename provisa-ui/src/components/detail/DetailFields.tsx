@@ -10,10 +10,12 @@
 
 import { Fragment, type ReactNode } from "react";
 import { Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 
 /** One read-only field of an object's detail: its label and its value. */
 export interface DetailField {
   label: string;
+  /** Nothing set: null, undefined or "" -- shown as the one empty mark every panel uses. */
   value: ReactNode;
   testId?: string;
 }
@@ -24,6 +26,7 @@ export interface DetailField {
  * same fields.
  */
 export function DetailFields({ fields, testId }: { fields: DetailField[]; testId?: string }) {
+  const { t } = useTranslation();
   return (
     <dl className="detail-fields" data-testid={testId}>
       {fields.map((f) => (
@@ -32,7 +35,9 @@ export function DetailFields({ fields, testId }: { fields: DetailField[]; testId
             {f.label}
           </Text>
           <Text component="dd" m={0} size="sm" data-testid={f.testId}>
-            {f.value}
+            {f.value === null || f.value === undefined || f.value === ""
+              ? t("detailFields.empty")
+              : f.value}
           </Text>
         </Fragment>
       ))}

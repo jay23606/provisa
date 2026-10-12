@@ -16,7 +16,6 @@
     "parentRole": "継承元",
     "parentRoleNone": "親なし",
     "parentRoleHelp": "ロールの権限付与、カラムの可視性、RLS ルールが継承されます。テーブルに対するこのロール自身の RLS ルールは、親のものを置き換えます。",
-    "labelParentRole": "継承元:",
     "allDomains": "すべてのドメイン",
     "save": "保存",
     "cancel": "キャンセル",
@@ -35,8 +34,6 @@
     "domainsRequired": "ロールには少なくとも 1 つのドメイン、または「すべてのドメイン」を指定する必要があります。保存するにはドメインを選択してください。",
     "detailsHidden": "詳細の表示にはユーザー管理権限が必要です。",
     "labelId": "ID:",
-    "labelCapabilities": "ケイパビリティ:",
-    "labelDomainAccess": "ドメインアクセス:",
     "labelDomain": "ドメイン:",
     "labelTable": "テーブル:",
     "labelRole": "ロール:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "RLS ルールの詳細",
     "panelNewRole": "新しいロール",
     "panelNewRule": "新しい RLS ルール",
-    "panelRule": "RLS ルール {{id}}"
+    "panelRule": "RLS ルール {{id}}",
+    "demonstrated": "表示される権限",
+    "limitsHeading": "レートとクエリ複雑度の制限",
+    "rateReqPerSec": "リクエスト / 秒",
+    "maxQueryComplexity": "最大クエリ複雑度",
+    "maxQueryComplexityHint": "1 つの文のリレーション、結合、列、ネストしたクエリ。すべてのインターフェイスで数えます。組織の制限も引き続き適用されます。",
+    "maxQueryTimeMs": "最大クエリ時間 (ms)",
+    "unlimited": "無制限"
   }
 }

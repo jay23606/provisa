@@ -16,7 +16,6 @@
     "parentRole": "Erft van",
     "parentRoleNone": "Geen bovenliggende rol",
     "parentRoleHelp": "De grants, kolomzichtbaarheid en RLS-regels van de rol worden geërfd; de eigen RLS-regel van deze rol voor een tabel vervangt die van de bovenliggende rol.",
-    "labelParentRole": "Erft van:",
     "allDomains": "Alle domeinen",
     "save": "Opslaan",
     "cancel": "Annuleren",
@@ -35,8 +34,6 @@
     "domainsRequired": "Een rol moet ten minste één domein vermelden, of Alle domeinen. Kies de domeinen om op te slaan.",
     "detailsHidden": "Voor details is gebruikersbeheer vereist.",
     "labelId": "ID:",
-    "labelCapabilities": "Mogelijkheden:",
-    "labelDomainAccess": "Domeintoegang:",
     "labelDomain": "Domein:",
     "labelTable": "Tabel:",
     "labelRole": "Rol:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Details van de RLS-regel",
     "panelNewRole": "Nieuwe rol",
     "panelNewRule": "Nieuwe RLS-regel",
-    "panelRule": "RLS-regel {{id}}"
+    "panelRule": "RLS-regel {{id}}",
+    "demonstrated": "Gedemonstreerde rechten",
+    "limitsHeading": "Limieten voor snelheid en querycomplexiteit",
+    "rateReqPerSec": "Verzoeken / s",
+    "maxQueryComplexity": "Maximale querycomplexiteit",
+    "maxQueryComplexityHint": "Relaties, joins, kolommen en geneste queries van één statement, op elke interface. De limiet van de organisatie blijft gelden.",
+    "maxQueryTimeMs": "Maximale querytijd (ms)",
+    "unlimited": "onbeperkt"
   }
 }

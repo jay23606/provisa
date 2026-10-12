@@ -16,7 +16,6 @@
     "parentRole": "Inherits from",
     "parentRoleNone": "No parent",
     "parentRoleHelp": "The role's grants, column visibility and RLS rules are inherited; this role's own RLS rule for a table replaces the parent's.",
-    "labelParentRole": "Inherits from:",
     "allDomains": "All Domains",
     "save": "Save",
     "cancel": "Cancel",
@@ -35,8 +34,6 @@
     "domainsRequired": "A role must list at least one domain, or All Domains. Choose its domains to save.",
     "detailsHidden": "Details require user management.",
     "labelId": "ID:",
-    "labelCapabilities": "Capabilities:",
-    "labelDomainAccess": "Domain Access:",
     "labelDomain": "Domain:",
     "labelTable": "Table:",
     "labelRole": "Role:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "RLS rule details",
     "panelNewRole": "New role",
     "panelNewRule": "New RLS rule",
-    "panelRule": "RLS rule {{id}}"
+    "panelRule": "RLS rule {{id}}",
+    "demonstrated": "Demonstrated capabilities",
+    "limitsHeading": "Rate & query-complexity limits",
+    "rateReqPerSec": "Requests / sec",
+    "maxQueryComplexity": "Max query complexity",
+    "maxQueryComplexityHint": "Relations, joins, columns and nested queries of one statement, on every interface. The org limit still applies.",
+    "maxQueryTimeMs": "Max query time (ms)",
+    "unlimited": "unlimited"
   }
 }

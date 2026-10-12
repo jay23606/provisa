@@ -16,7 +16,6 @@
     "parentRole": "Erbt von",
     "parentRoleNone": "Keine übergeordnete Rolle",
     "parentRoleHelp": "Die Berechtigungen, Spaltensichtbarkeit und RLS-Regeln der Rolle werden geerbt; die eigene RLS-Regel dieser Rolle für eine Tabelle ersetzt die der übergeordneten Rolle.",
-    "labelParentRole": "Erbt von:",
     "allDomains": "Alle Domänen",
     "save": "Speichern",
     "cancel": "Abbrechen",
@@ -35,8 +34,6 @@
     "domainsRequired": "Eine Rolle muss mindestens eine Domäne oder „Alle Domänen“ auflisten. Wählen Sie ihre Domänen aus, um zu speichern.",
     "detailsHidden": "Details erfordern Benutzerverwaltung.",
     "labelId": "ID:",
-    "labelCapabilities": "Fähigkeiten:",
-    "labelDomainAccess": "Domänenzugriff:",
     "labelDomain": "Domäne:",
     "labelTable": "Tabelle:",
     "labelRole": "Rolle:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Details der RLS-Regel",
     "panelNewRole": "Neue Rolle",
     "panelNewRule": "Neue RLS-Regel",
-    "panelRule": "RLS-Regel {{id}}"
+    "panelRule": "RLS-Regel {{id}}",
+    "demonstrated": "Vorgeführte Fähigkeiten",
+    "limitsHeading": "Limits für Rate und Abfragekomplexität",
+    "rateReqPerSec": "Anfragen / s",
+    "maxQueryComplexity": "Max. Abfragekomplexität",
+    "maxQueryComplexityHint": "Relationen, Joins, Spalten und verschachtelte Abfragen einer Anweisung, auf jeder Schnittstelle. Das Limit der Organisation gilt weiterhin.",
+    "maxQueryTimeMs": "Max. Abfragezeit (ms)",
+    "unlimited": "unbegrenzt"
   }
 }

@@ -16,7 +16,6 @@
     "parentRole": "Hérite de",
     "parentRoleNone": "Aucun parent",
     "parentRoleHelp": "Les octrois, la visibilité des colonnes et les règles RLS du rôle sont hérités ; la règle RLS propre à ce rôle pour une table remplace celle du parent.",
-    "labelParentRole": "Hérite de :",
     "allDomains": "Tous les domaines",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -35,8 +34,6 @@
     "domainsRequired": "Un rôle doit lister au moins un domaine, ou Tous les domaines. Choisissez ses domaines pour enregistrer.",
     "detailsHidden": "Les détails nécessitent la gestion des utilisateurs.",
     "labelId": "ID :",
-    "labelCapabilities": "Capacités :",
-    "labelDomainAccess": "Accès aux domaines :",
     "labelDomain": "Domaine :",
     "labelTable": "Table :",
     "labelRole": "Rôle :",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Détails de la règle RLS",
     "panelNewRole": "Nouveau rôle",
     "panelNewRule": "Nouvelle règle RLS",
-    "panelRule": "Règle RLS {{id}}"
+    "panelRule": "Règle RLS {{id}}",
+    "demonstrated": "Capacités présentées",
+    "limitsHeading": "Limites de débit et de complexité des requêtes",
+    "rateReqPerSec": "Requêtes / s",
+    "maxQueryComplexity": "Complexité maximale de requête",
+    "maxQueryComplexityHint": "Relations, jointures, colonnes et requêtes imbriquées d'une instruction, sur chaque interface. La limite de l'organisation s'applique toujours.",
+    "maxQueryTimeMs": "Durée maximale de requête (ms)",
+    "unlimited": "illimité"
   }
 }

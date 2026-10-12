@@ -16,7 +16,6 @@
     "parentRole": "יורש מ-",
     "parentRoleNone": "ללא הורה",
     "parentRoleHelp": "ההענקות, נראות העמודות וכללי ה-RLS של התפקיד עוברים בירושה; כלל ה-RLS של תפקיד זה עצמו עבור טבלה מחליף את זה של ההורה.",
-    "labelParentRole": "יורש מ-:",
     "allDomains": "כל התחומים",
     "save": "שמירה",
     "cancel": "ביטול",
@@ -35,8 +34,6 @@
     "domainsRequired": "תפקיד חייב לפרט לפחות תחום אחד, או כל התחומים. בחרו את התחומים שלו כדי לשמור.",
     "detailsHidden": "הפרטים דורשים ניהול משתמשים.",
     "labelId": "מזהה:",
-    "labelCapabilities": "יכולות:",
-    "labelDomainAccess": "גישה לתחומים:",
     "labelDomain": "תחום:",
     "labelTable": "טבלה:",
     "labelRole": "תפקיד:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "פרטי כלל ה-RLS",
     "panelNewRole": "תפקיד חדש",
     "panelNewRule": "כלל RLS חדש",
-    "panelRule": "כלל RLS {{id}}"
+    "panelRule": "כלל RLS {{id}}",
+    "demonstrated": "יכולות מוצגות",
+    "limitsHeading": "מגבלות קצב ומורכבות שאילתה",
+    "rateReqPerSec": "בקשות / שנייה",
+    "maxQueryComplexity": "מורכבות שאילתה מרבית",
+    "maxQueryComplexityHint": "יחסים, צירופים, עמודות ושאילתות מקוננות של משפט אחד, בכל ממשק. מגבלת הארגון עדיין חלה.",
+    "maxQueryTimeMs": "זמן שאילתה מרבי (ms)",
+    "unlimited": "ללא הגבלה"
   }
 }

@@ -16,7 +16,6 @@
     "parentRole": "Hereda de",
     "parentRoleNone": "Sin rol padre",
     "parentRoleHelp": "Se heredan las concesiones, la visibilidad de columnas y las reglas de RLS del rol; la regla de RLS propia de este rol para una tabla reemplaza la del rol padre.",
-    "labelParentRole": "Hereda de:",
     "allDomains": "Todos los dominios",
     "save": "Guardar",
     "cancel": "Cancelar",
@@ -35,8 +34,6 @@
     "domainsRequired": "Un rol debe incluir al menos un dominio, o Todos los dominios. Elija sus dominios para guardar.",
     "detailsHidden": "Los detalles requieren gestión de usuarios.",
     "labelId": "ID:",
-    "labelCapabilities": "Capacidades:",
-    "labelDomainAccess": "Acceso a dominios:",
     "labelDomain": "Dominio:",
     "labelTable": "Tabla:",
     "labelRole": "Rol:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Detalles de la regla RLS",
     "panelNewRole": "Nuevo rol",
     "panelNewRule": "Nueva regla RLS",
-    "panelRule": "Regla RLS {{id}}"
+    "panelRule": "Regla RLS {{id}}",
+    "demonstrated": "Capacidades mostradas",
+    "limitsHeading": "Límites de tasa y de complejidad de consulta",
+    "rateReqPerSec": "Solicitudes / s",
+    "maxQueryComplexity": "Complejidad máxima de consulta",
+    "maxQueryComplexityHint": "Relaciones, joins, columnas y consultas anidadas de una sentencia, en cada interfaz. El límite de la organización sigue aplicándose.",
+    "maxQueryTimeMs": "Tiempo máximo de consulta (ms)",
+    "unlimited": "ilimitado"
   }
 }

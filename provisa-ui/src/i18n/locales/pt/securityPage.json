@@ -16,7 +16,6 @@
     "parentRole": "Herda de",
     "parentRoleNone": "Sem função pai",
     "parentRoleHelp": "As concessões, a visibilidade de colunas e as regras de RLS da função são herdadas; a regra de RLS própria desta função para uma tabela substitui a da função pai.",
-    "labelParentRole": "Herda de:",
     "allDomains": "Todos os domínios",
     "save": "Salvar",
     "cancel": "Cancelar",
@@ -35,8 +34,6 @@
     "domainsRequired": "Um papel tem de indicar pelo menos um domínio, ou Todos os domínios. Escolha os seus domínios para salvar.",
     "detailsHidden": "Os detalhes exigem gerenciamento de usuários.",
     "labelId": "ID:",
-    "labelCapabilities": "Recursos:",
-    "labelDomainAccess": "Acesso a domínios:",
     "labelDomain": "Domínio:",
     "labelTable": "Tabela:",
     "labelRole": "Função:",
@@ -75,6 +72,13 @@
     "ruleDetailPanel": "Detalhes da regra RLS",
     "panelNewRole": "Novo papel",
     "panelNewRule": "Nova regra RLS",
-    "panelRule": "Regra RLS {{id}}"
+    "panelRule": "Regra RLS {{id}}",
+    "demonstrated": "Capacidades demonstradas",
+    "limitsHeading": "Limites de taxa e de complexidade de consulta",
+    "rateReqPerSec": "Pedidos / s",
+    "maxQueryComplexity": "Complexidade máxima de consulta",
+    "maxQueryComplexityHint": "Relações, junções, colunas e consultas aninhadas de uma instrução, em cada interface. O limite da organização continua a aplicar-se.",
+    "maxQueryTimeMs": "Tempo máximo de consulta (ms)",
+    "unlimited": "ilimitado"
   }
 }
