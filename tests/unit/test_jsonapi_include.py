@@ -8,7 +8,7 @@
 
 from graphql import parse, validate
 
-from provisa.api._query_helpers import build_graphql_query
+from provisa.api._query_helpers import NO_VARIABLES, build_graphql_query
 from provisa.api.jsonapi.generator import (
     _extract_included,
     _get_relationship_fields,
@@ -102,7 +102,7 @@ class TestIncludeQueryValidates:
     def test_include_selection_compiles_against_schema(self):
         schema = _schema()
         fields = ["id", "amount", "customer { id name }"]
-        q = build_graphql_query("orders", fields, {}, [], 25, 0)
+        q = build_graphql_query("orders", fields, NO_VARIABLES, [], 25, 0)
         doc = parse(q)
         assert not validate(schema, doc)  # the relationship sub-selection is valid
 

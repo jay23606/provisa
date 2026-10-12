@@ -78098,3 +78098,28 @@
   type: infrastructure
   description: 'A release is made only by the Release: cut workflow, run by hand on main with the version. It generates the release''s notes from the previous release''s tag (the UI''s bundled notes, docs/releases/<version>.md, the docs navigation and CHANGELOG.md) and commits them to main before it makes the release''s tag on that commit; a generation failure leaves no commit and no tag. A hand-written release page is never overwritten. The release''s body is its notes page, and a tag pushed by hand gets no release.'
   notes: 'Maintainer 2026-10-12, through the lead: release notes generated between two tags and committed with the release, the release body set from them, and a generation failure blocks the tag; he chose a hand-run cut workflow that commits the notes before it tags (option A of ci-fix''s two), and that releases are made only through it. "A hand-written release page is never overwritten" is the lead''s instruction. The rest -- the workflow starting every workflow a v* tag starts, since a tag it pushes starts none -- is ci-fix''s implementation. Group, category, priority and type are ci-fix''s choices.'
+- id: REQ-1991
+  status: proposed
+  since: 2026-10
+  group: 0. Architecture & Design Principles
+  category: Surface Parity
+  priority: SHOULD
+  type: constraint
+  description: 'Every query surface strives to match the capabilities of the other surfaces. A capability one surface offers over the model (reading a parameterized table, a mask, an aggregate, an embedded object) is offered by every other surface in that surface''s own idiom, unless the surface''s protocol cannot express it. In Cypher, a remote table''s field holding an embedded object of a type that is not a registered table is a map property of the node, as GraphQL returns it as a nested object; a field pointing at a registered type, one object or a list, stays a relationship (an edge), not a property.'
+  use_case: 'A remote GraphQL table of orders has an embedded address object (its type is not registered) and a list of line items (a registered table). GraphQL returns address as a nested object and lineItems through the relationship; a Cypher client reads the same order node with address as a map property and reaches the line items over the edge.'
+  scenario: 'Given a remote GraphQL table orders whose address field is an object of the unregistered type Address, and whose lineItems field is a list of the registered type LineItem
+
+
+    When a Cypher client runs MATCH (o:Orders) RETURN o.address
+
+
+    Then o.address is a map with the address''s fields
+
+
+    When the client runs MATCH (o:Orders)-[r]->(l:LineItems) RETURN l
+
+
+    Then the line items are reached over the edge, and lineItems is not a property of o'
+  related_reqs:
+  - REQ-1986
+  notes: 'Maintainer 2026-10-12, via the lead: "every query surface should strive to match the capabilities of other surfaces"; ruled that Cypher exposes an embedded object of an unregistered type as a map property while lists of registered types stay edges. The wording of the general principle beyond his sentence, and the scenario, are the teammate''s.'

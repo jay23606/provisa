@@ -272,8 +272,11 @@ Automatisch generierter reiner REST-Endpunkt für jede registrierte Tabelle. Der
 - `limit` — maximale Zeilenanzahl (≥ 1)
 - `offset` — zu überspringende Zeilen (≥ 0)
 - `fields` — kommagetrennte Spaltennamen (Standard: alle skalaren Felder)
-- `filter` — JSON-Array von `{"field", "comparator", "value"}`-Filterobjekten
+- `filter` — JSON-Array von `{"field", "comparator", "value"}`-Filterobjekten. Ein Wert wird als Typ seiner Spalte gelesen, `"100"` auf einer Zahlenspalte vergleicht also als 100; ein Wert, den der Spaltentyp nicht fassen kann, liefert `400`.
 - `orderBy` — JSON-Array von `{"field", "direction"}`-Sortierobjekten
+- `params` — die Parameter der Tabelle als ein JSON-Objekt, nach Parametername, z. B. `?params={"region":"EU"}`. Eine über eine API registrierte Tabelle oder eine Abfragetabelle hat für jede Eingabe ihrer Quelle einen Parameter. Fehlt ein Pflichtparameter, liefert die Abfrage `400` mit seinem Namen, ebenso bei einem Namen, für den die Tabelle keinen Parameter hat. Jeder Wert wird gegen den Typ seines Parameters geprüft. (REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+Filter- und Parameterwerte reisen als Variablen neben dem GraphQL-Text, den der Endpunkt baut; ein Wert mit Anführungszeichen wird daher so verglichen, wie er geschrieben ist. [tool-verified: `provisa/api/_query_helpers.py`]
 
 Die authentifizierte Rolle ist erforderlich; nicht authentifizierte Anfragen geben `401` zurück. Eine OpenAPI-Spezifikation für diese Routen wird unter `GET /data/rest/openapi.json` bereitgestellt, mit Swagger UI unter `GET /data/rest/docs`.
 
@@ -296,7 +299,8 @@ Automatisch generierter, [JSON:API](https://jsonapi.org)-konformer Endpunkt für
 **Query-Parameter:**
 
 - `fields[<type>]` — Sparse Fieldsets, z. B. `?fields[orders]=amount`
-- `filter[<col>]` / `filter[<col>][<op>]` — z. B. `?filter[region]=US`, `?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — z. B. `?filter[region]=US`, `?filter[amount][gt]=100`. Ein Wert wird als Typ seiner Spalte gelesen; ein Wert, den der Typ nicht fassen kann, liefert `400`.
+- `params` — die Parameter der Tabelle als ein JSON-Objekt, nach Parametername, z. B. `?params={"region":"EU"}`, wie beim REST-Endpunkt. Ein fehlender Pflichtparameter liefert `400` mit seinem Namen; ein unbekannter Name oder ein Wert falschen Typs liefert `400` mit `source.parameter` gleich `params`. Paginierungslinks behalten den Parameter. (REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — kommagetrennt, `-`-Präfix für absteigend, z. B. `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — Paginierung
 - `aggregate` — kommagetrennte Aggregatfunktionen, die anstelle des Zeilenabrufs ausgeführt werden: `count`, `sum`, `avg`, `stddev`, `variance`, `min`, `max`. Verwenden Sie `?aggregate=count,sum`, um eine Teilmenge anzufordern. Aggregat-Antworten geben `data: null` mit Ergebnissen in `meta.aggregate` zurück. (REQ-1359) [tool-verified: `provisa-ui/src/pages/JsonApiPage.tsx:238`]

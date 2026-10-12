@@ -10,6 +10,7 @@
 
 """Unit tests for JSON:API auto-generation (Phase AB6)."""
 
+from provisa.api._query_helpers import NO_VARIABLES, request_variables
 from provisa.api.jsonapi.errors import error_response, jsonapi_error
 from provisa.api.jsonapi.pagination import (
     DEFAULT_PAGE_SIZE,
@@ -330,31 +331,27 @@ class TestSparseFieldsets:
 
 class TestBuildGraphQLQuery:
     def test_simple(self):
-        q = _build_graphql_query("orders", ["id", "amount"], {}, [], None, None)
+        q = _build_graphql_query("orders", ["id", "amount"], NO_VARIABLES, [], None, None)
         assert q == "{ orders { id amount } }"
 
     def test_with_pagination(self):
-        q = _build_graphql_query("orders", ["id"], {}, [], 10, 20)
+        q = _build_graphql_query("orders", ["id"], NO_VARIABLES, [], 10, 20)
         assert "limit: 10" in q
         assert "offset: 20" in q
 
     def test_with_filters(self):
-        q = _build_graphql_query(
-            "orders",
-            ["id"],
-            {"region": {"eq": "US"}},
-            [],
-            None,
-            None,
-        )
-        assert "where:" in q
-        assert 'region: {eq: "US"}' in q
+        schema, _ = _build_test_schema()
+        variables = request_variables(schema, "orders", {"region": {"eq": 'a "quoted" value'}})
+        q = _build_graphql_query("orders", ["id"], variables, [], None, None)
+        assert q.startswith("query($where: ")
+        assert "where: $where" in q
+        assert variables.values == {"where": {"region": {"eq": 'a "quoted" value'}}}
 
     def test_with_sort(self):
         q = _build_graphql_query(
             "orders",
             ["id"],
-            {},
+            NO_VARIABLES,
             [{"field": "created_at", "dir": "desc"}],
             None,
             None,

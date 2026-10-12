@@ -16,6 +16,7 @@ schema built via generate_schema, real compile_query — no mocked pipeline.
 
 from graphql import parse, validate
 
+from provisa.api._query_helpers import NO_VARIABLES, request_variables
 from provisa.api.jsonapi.generator import (
     _build_agg_selection,
     _build_group_by_graphql_query,
@@ -183,24 +184,31 @@ class TestBuildAggSelection:
 class TestBuildGroupByGraphqlQuery:
     def test_basic_by_arg(self):
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {}, [], None, None
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], None, None
         )
         assert q == "{ orders_group_by(by: [region]) { groupKey aggregate { count } } }"
 
     def test_multiple_by_columns(self):
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region", "status"], "count", {}, [], None, None
+            "orders_group_by", ["region", "status"], "count", NO_VARIABLES, [], None, None
         )
         assert "by: [region, status]" in q
 
     def test_with_where_filter(self):
+        schema, _ = _build_schema_and_ctx()
+        variables = request_variables(schema, "orders_group_by", {"region": {"eq": "US"}})
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {"status": {"eq": "active"}}, [], None, None
+            "orders_group_by", ["region"], "count", variables, [], None, None
         )
-        assert 'where: {status: {eq: "active"}}' in q
+        assert q.startswith("query($where: ")
+        assert "where: $where" in q
+        assert variables.values == {"where": {"region": {"eq": "US"}}}
+        assert validate(schema, parse(q)) == []
 
     def test_with_limit_offset(self):
-        q = _build_group_by_graphql_query("orders_group_by", ["region"], "count", {}, [], 10, 5)
+        q = _build_group_by_graphql_query(
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], 10, 5
+        )
         assert "limit: 10" in q
         assert "offset: 5" in q
 
@@ -209,7 +217,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders_group_by",
             ["region"],
             "count",
-            {},
+            NO_VARIABLES,
             [{"field": "region", "dir": "asc"}],
             None,
             None,
@@ -222,7 +230,7 @@ class TestBuildGroupByGraphqlQuery:
         _naming.configure(gql="apollo_graphql")
         try:
             q = _build_group_by_graphql_query(
-                "orders_group_by", ["user_id"], "count", {}, [], None, None
+                "orders_group_by", ["user_id"], "count", NO_VARIABLES, [], None, None
             )
         finally:
             _naming.configure(gql="snake")
@@ -232,20 +240,20 @@ class TestBuildGroupByGraphqlQuery:
     def test_produced_query_parses_and_validates(self):
         schema, _ = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count sum { amount }", {}, [], None, None
+            "orders_group_by", ["region"], "count sum { amount }", NO_VARIABLES, [], None, None
         )
         doc = parse(q)
         assert validate(schema, doc) == []
 
     def test_node_selection_adds_nodes_field(self):
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {}, [], None, None, "id region amount"
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], None, None, "id region amount"
         )
         assert "nodes { id region amount }" in q
 
     def test_no_node_selection_omits_nodes_field(self):
         q = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {}, [], None, None
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], None, None
         )
         assert "nodes" not in q
 
@@ -474,7 +482,7 @@ class TestGroupByNodeSelection:
         schema, ctx = _build_schema_with_relationship()
         selection, _ = _node_selection(schema, ctx, ["id"], "customer.email")
         query = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {}, [], None, None, selection
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], None, None, selection
         )
         assert not validate(schema, parse(query))
 
@@ -514,7 +522,7 @@ class TestGroupByNodeSelection:
         schema, ctx = _build_schema_with_relationship()
         selection, _ = _node_selection(schema, ctx, ["id"], "customer.region.name")
         query = _build_group_by_graphql_query(
-            "orders_group_by", ["region"], "count", {}, [], None, None, selection
+            "orders_group_by", ["region"], "count", NO_VARIABLES, [], None, None, selection
         )
         assert not validate(schema, parse(query))
 

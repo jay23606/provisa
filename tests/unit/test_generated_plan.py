@@ -25,7 +25,7 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.api import generated_plan
-from provisa.api.generated_plan import compile_generated_graphql, request_shape
+from provisa.api.generated_plan import compile_generated_graphql, request_shape, variables_shape
 from provisa.compiler.compiled_query_cache import CompiledQueryCache
 from provisa.compiler.parser import GraphQLValidationError, parse_query
 from provisa.compiler.rls import RLSContext
@@ -61,11 +61,11 @@ def env(monkeypatch):
 
     monkeypatch.setattr(generated_plan, "parse_query", _counting_parse)
 
-    def run(text: str):
-        return compile_generated_graphql(state, _ROLE, schema, ctx, text)
+    def run(text: str, variables: dict | None = None):
+        return compile_generated_graphql(state, _ROLE, schema, ctx, text, variables)
 
-    def fresh(text: str):
-        return compile_query(parse_query(schema, text, ctx=ctx), ctx)
+    def fresh(text: str, variables: dict | None = None):
+        return compile_query(parse_query(schema, text, ctx=ctx), ctx, variables)
 
     return SimpleNamespace(run=run, fresh=fresh, parses=parses, state=state)
 
@@ -216,3 +216,33 @@ def test_a_rejected_value_is_rejected_every_time_and_keeps_nothing(env):
         with pytest.raises(GraphQLValidationError):
             env.run('{ orders(where: {id: {eq: "five"}}) { id } }')
     assert len(env.state.compiled_query_cache) == kept
+
+
+# -- variables (REQ-1986): a request's filter travels beside the text --------------------------
+
+_WHERE_TEXT = "query($where: OrdersWhere) { orders(limit: 25, where: $where) { id } }"
+
+
+def test_variable_values_are_taken_out_of_the_skeleton_in_sorted_order():
+    skeleton, values = variables_shape(
+        {"where": {"region": {"eq": 'a "quoted" value'}, "id": {"in": [3, 4]}}}
+    )
+    assert values == [3, 4, 'a "quoted" value']
+    # The same filter, its keys in another order, has the same skeleton.
+    assert variables_shape({"where": {"id": {"in": [8, 9]}, "region": {"eq": "x"}}})[0] == skeleton
+
+
+def test_requests_that_differ_only_in_a_variable_value_are_compiled_once(env):
+    first = env.run(_WHERE_TEXT, {"where": {"region": {"eq": "US"}}})
+    second = env.run(_WHERE_TEXT, {"where": {"region": {"eq": 'O"Brien'}}})
+    assert second == env.fresh(_WHERE_TEXT, {"where": {"region": {"eq": 'O"Brien'}}})
+    assert first[0].sql == second[0].sql
+    assert 'O"Brien' in second[0].params
+    # One parse for the first request and one for its proof; none for the second.
+    assert len(env.parses) == 2
+
+
+def test_a_variable_filter_of_another_skeleton_is_its_own_shape(env):
+    env.run(_WHERE_TEXT, {"where": {"region": {"eq": "US"}}})
+    other = env.run(_WHERE_TEXT, {"where": {"id": {"eq": 7}}})
+    assert other == env.fresh(_WHERE_TEXT, {"where": {"id": {"eq": 7}}})

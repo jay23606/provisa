@@ -272,8 +272,11 @@ X-Provisa-Redirect-Threshold: 1000
 - `limit` — מספר שורות מרבי (≥ 1)
 - `offset` — דילוג שורות (≥ 0)
 - `fields` — שמות עמודות מופרדים בפסיק (ברירת מחדל: כל השדות הסקלריים)
-- `filter` — מערך JSON של אובייקטי סינון `{"field", "comparator", "value"}`
+- `filter` — מערך JSON של אובייקטי סינון `{"field", "comparator", "value"}`. ערך נקרא לפי סוג העמודה שלו, כך ש-`"100"` בעמודה מספרית מושווה כ-100; ערך שסוג העמודה אינו יכול להכיל מחזיר `400`.
 - `orderBy` — מערך JSON של אובייקטי מיון `{"field", "direction"}`
+- `params` — הפרמטרים של הטבלה כאובייקט JSON אחד לפי שם פרמטר, למשל `?params={"region":"EU"}`. לטבלה שנרשמה מעל API, או לטבלת שאילתה, יש פרמטר לכל קלט שהמקור שלה מקבל. קריאה שחסר בה פרמטר חובה מחזירה `400` ומציינת את שמו, וכך גם שם שאין לטבלה פרמטר בשמו. כל ערך נבדק מול סוג הפרמטר שלו. (REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+ערכי סינון וערכי פרמטרים נשלחים כמשתנים לצד טקסט ה-GraphQL שנקודת הקצה בונה, ולכן ערך שמכיל מירכאות מושווה כפי שנכתב. [tool-verified: `provisa/api/_query_helpers.py`]
 
 התפקיד המאומת נדרש; בקשות לא מאומתות מחזירות `401`. מפרט OpenAPI עבור נתיבים אלה מוגש בכתובת `GET /data/rest/openapi.json` עם Swagger UI בכתובת `GET /data/rest/docs`.
 
@@ -296,7 +299,8 @@ X-Provisa-Redirect-Threshold: 1000
 **פרמטרי שאילתה:**
 
 - `fields[<type>]` — קבוצות שדות דלילות (Sparse Fieldsets), למשל `?fields[orders]=amount`
-- `filter[<col>]` / `filter[<col>][<op>]` — למשל `?filter[region]=US`, `?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — למשל `?filter[region]=US`, `?filter[amount][gt]=100`. ערך נקרא לפי סוג העמודה שלו; ערך שהסוג אינו יכול להכיל מחזיר `400`.
+- `params` — הפרמטרים של הטבלה כאובייקט JSON אחד לפי שם פרמטר, למשל `?params={"region":"EU"}`, כמו בנקודת הקצה של REST. פרמטר חובה חסר מחזיר `400` ומציין את שמו; שם לא מוכר או ערך מסוג שגוי מחזיר `400` עם `source.parameter` שערכו `params`. קישורי העימוד שומרים על הפרמטר. (REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — מופרד בפסיק, קידומת `-` לסדר יורד, למשל `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — עימוד (Pagination)
 - `aggregate` — פונקציות אגרגציה מופרדות בפסיק להרצה במקום שליפת שורות: `count`, `sum`, `avg`, `stddev`, `variance`, `min`, `max`. השתמשו ב-`?aggregate=count,sum` לבקשת תת-קבוצה. תגובות אגרגציה מחזירות `data: null` עם תוצאות ב-`meta.aggregate`. (REQ-1359) [tool-verified: `provisa-ui/src/pages/JsonApiPage.tsx:238`]

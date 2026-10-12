@@ -272,8 +272,11 @@ UI 会轮询此端点，在引擎冷启动期间显示启动横幅。它从不�
 - `limit` — 最大行数（≥ 1）
 - `offset` — 跳过的行数（≥ 0）
 - `fields` — 逗号分隔的列名（默认为所有标量字段）
-- `filter` — `{"field", "comparator", "value"}` 过滤对象的 JSON 数组
+- `filter` — `{"field", "comparator", "value"}` 过滤对象的 JSON 数组。值按其列的类型读取，因此数值列上的 `"100"` 按 100 比较；列类型无法容纳的值返回 `400`。
 - `orderBy` — `{"field", "direction"}` 排序对象的 JSON 数组
+- `params` — 表的参数，作为一个按参数名索引的 JSON 对象，例如 `?params={"region":"EU"}`。基于 API 注册的表或查询表，其源接受的每个输入都有一个参数。缺少必填参数的读取返回 `400` 并指出其名称，表中没有的参数名同样如此。每个值都按其参数的类型检查。(REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+过滤值和参数值作为变量随端点构建的 GraphQL 文本一起传递，因此含引号的值按原样比较。[tool-verified: `provisa/api/_query_helpers.py`]
 
 需要已验证的角色；未验证的请求返回 `401`。这些路由的 OpenAPI 规范在 `GET /data/rest/openapi.json` 提供，Swagger UI 在 `GET /data/rest/docs` 提供。
 
@@ -296,7 +299,8 @@ OpenAPI 浏览器页面（`/app/openapi`）在一个沙盒 iframe 中嵌入 Swag
 **查询参数：**
 
 - `fields[<type>]` — 稀疏字段集，例如 `?fields[orders]=amount`
-- `filter[<col>]` / `filter[<col>][<op>]` — 例如 `?filter[region]=US`、`?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — 例如 `?filter[region]=US`、`?filter[amount][gt]=100`。值按其列的类型读取；类型无法容纳的值返回 `400`。
+- `params` — 表的参数，作为一个按参数名索引的 JSON 对象，例如 `?params={"region":"EU"}`，与 REST 端点相同。缺少必填参数返回 `400` 并指出其名称；未知名称或类型错误的值返回 `400`，`source.parameter` 为 `params`。分页链接保留该参数。(REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — 逗号分隔，`-` 前缀表示降序，例如 `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — 分页
 - `aggregate` — 逗号分隔的聚合函数，用于代替行检索：`count`、`sum`、`avg`、`stddev`、`variance`、`min`、`max`。使用 `?aggregate=count,sum` 请求子集。聚合响应返回 `data: null`，结果放在 `meta.aggregate` 中。(REQ-1359) [tool-verified: `provisa-ui/src/pages/JsonApiPage.tsx:238`]

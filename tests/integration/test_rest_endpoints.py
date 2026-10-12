@@ -24,6 +24,7 @@ import json
 import pytest
 import pytest_asyncio
 
+from provisa.api._query_helpers import NO_VARIABLES, request_variables
 from provisa.api.rest.generator import (
     _build_graphql_query,
     _get_scalar_fields,
@@ -126,52 +127,55 @@ class TestParseOrderByParams:
         assert fields == {"created_at", "amount"}
 
 
+def _schema():
+    from tests.unit.test_rest_generator import _build_test_schema
+
+    return _build_test_schema()[0]
+
+
 class TestBuildGraphQLQuery:
     """Test _build_graphql_query string construction."""
 
     async def test_simple_no_args(self):
-        q = _build_graphql_query("orders", ["id", "amount"], {}, [], None, None)
+        q = _build_graphql_query("orders", ["id", "amount"], NO_VARIABLES, [], None, None)
         assert "orders" in q
         assert "id" in q
         assert "amount" in q
 
     async def test_limit_appears_in_query(self):
-        q = _build_graphql_query("orders", ["id"], {}, [], 5, None)
+        q = _build_graphql_query("orders", ["id"], NO_VARIABLES, [], 5, None)
         assert "limit: 5" in q
 
     async def test_offset_appears_in_query(self):
-        q = _build_graphql_query("orders", ["id"], {}, [], None, 10)
+        q = _build_graphql_query("orders", ["id"], NO_VARIABLES, [], None, 10)
         assert "offset: 10" in q
 
-    async def test_where_clause_appears(self):
-        where = {"region": {"eq": "us-east"}}
-        q = _build_graphql_query("orders", ["id"], where, [], None, None)
-        assert "where" in q
-        assert "region" in q
-        assert "us-east" in q
+    async def test_where_clause_is_a_variable(self):
+        variables = request_variables(_schema(), "orders", {"region": {"eq": "us-east"}})
+        q = _build_graphql_query("orders", ["id"], variables, [], None, None)
+        assert "where: $where" in q
+        assert "us-east" not in q
+        assert variables.values == {"where": {"region": {"eq": "us-east"}}}
 
     async def test_order_by_clause_appears(self):
         order_by = [{"field": "amount", "dir": "desc"}]
-        q = _build_graphql_query("orders", ["id"], {}, order_by, None, None)
+        q = _build_graphql_query("orders", ["id"], NO_VARIABLES, order_by, None, None)
         assert "order_by" in q
         assert "amount" in q
         assert "desc" in q
 
-    async def test_numeric_value_unquoted(self):
-        where = {"amount": {"gt": "100"}}
-        q = _build_graphql_query("orders", ["id"], where, [], None, None)
-        # Numeric string should be emitted without quotes
-        assert '"100"' not in q
-        assert "100" in q
+    async def test_numeric_value_reads_as_its_column_type(self):
+        variables = request_variables(_schema(), "orders", {"amount": {"gt": "100"}})
+        assert variables.values == {"where": {"amount": {"gt": 100.0}}}
 
-    async def test_in_operator_uses_list_syntax(self):
+    async def test_in_operator_value_is_a_list(self):
         where = {"region": {"in": ["us-east", "eu-west"]}}
-        q = _build_graphql_query("orders", ["id"], where, [], None, None)
-        assert "in:" in q or "in :" in q or "[" in q
+        variables = request_variables(_schema(), "orders", where)
+        assert variables.values == {"where": where}
 
     async def test_fields_joined_with_space(self):
         fields = ["id", "amount", "region"]
-        q = _build_graphql_query("orders", fields, {}, [], None, None)
+        q = _build_graphql_query("orders", fields, NO_VARIABLES, [], None, None)
         for field in fields:
             assert field in q
 

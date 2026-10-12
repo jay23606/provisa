@@ -272,8 +272,11 @@ Endpoint REST plano generado automáticamente para cada tabla registrada. La cad
 - `limit` — máximo de filas (≥ 1)
 - `offset` — filas a omitir (≥ 0)
 - `fields` — nombres de columnas separados por comas (por defecto, todos los campos escalares)
-- `filter` — arreglo JSON de objetos de filtro `{"field", "comparator", "value"}`
+- `filter` — arreglo JSON de objetos de filtro `{"field", "comparator", "value"}`. Un valor se lee como el tipo de su columna, así que `"100"` en una columna numérica se compara como 100; un valor que el tipo de la columna no admite devuelve `400`.
 - `orderBy` — arreglo JSON de objetos de ordenamiento `{"field", "direction"}`
+- `params` — los parámetros de la tabla como un objeto JSON por nombre de parámetro, p. ej. `?params={"region":"EU"}`. Una tabla registrada sobre una API, o una tabla de consulta, tiene un parámetro por cada entrada que toma su origen. Una lectura sin un parámetro obligatorio devuelve `400` con su nombre, igual que un nombre para el que la tabla no tiene parámetro. Cada valor se comprueba contra el tipo de su parámetro. (REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+Los valores de filtro y de parámetro viajan como variables junto al texto GraphQL que construye el endpoint, así que un valor con comillas se compara tal como está escrito. [tool-verified: `provisa/api/_query_helpers.py`]
 
 Se requiere el rol autenticado; las solicitudes no autenticadas devuelven `401`. Se sirve una especificación OpenAPI para estas rutas en `GET /data/rest/openapi.json`, con Swagger UI en `GET /data/rest/docs`.
 
@@ -296,7 +299,8 @@ Endpoint compatible con [JSON:API](https://jsonapi.org) generado automáticament
 **Parámetros de consulta:**
 
 - `fields[<type>]` — conjuntos de campos dispersos (sparse fieldsets), p. ej. `?fields[orders]=amount`
-- `filter[<col>]` / `filter[<col>][<op>]` — p. ej. `?filter[region]=US`, `?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — p. ej. `?filter[region]=US`, `?filter[amount][gt]=100`. Un valor se lee como el tipo de su columna; un valor que el tipo no admite devuelve `400`.
+- `params` — los parámetros de la tabla como un objeto JSON por nombre de parámetro, p. ej. `?params={"region":"EU"}`, como en el endpoint REST. Un parámetro obligatorio ausente devuelve `400` con su nombre; un nombre desconocido o un valor de tipo incorrecto devuelve `400` con `source.parameter` igual a `params`. Los enlaces de paginación conservan el parámetro. (REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — separado por comas, prefijo `-` para orden descendente, p. ej. `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — paginación
 - `aggregate` — funciones agregadas separadas por comas que se ejecutan en lugar de la recuperación de filas: `count`, `sum`, `avg`, `stddev`, `variance`, `min`, `max`. Use `?aggregate=count,sum` para solicitar un subconjunto. Las respuestas agregadas devuelven `data: null` con los resultados en `meta.aggregate`. (REQ-1359) [tool-verified: `provisa-ui/src/pages/JsonApiPage.tsx:238`]

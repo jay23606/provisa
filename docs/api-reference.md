@@ -283,8 +283,11 @@ Auto-generated plain REST endpoint for every registered table. The query string 
 - `limit` — max rows (≥ 1)
 - `offset` — skip rows (≥ 0)
 - `fields` — comma-separated field names as the GraphQL schema spells them, camelCase under the default naming convention, e.g. `?fields=orderId,amount` (defaults to all scalar fields). `filter` and `orderBy` field names follow the same spelling. JSON:API takes the physical column name instead (`fields[orders]=order_id`). [tool-verified: `provisa/api/rest/generator.py:547`]
-- `filter` — JSON array of `{"field", "comparator", "value"}` filter objects
+- `filter` — JSON array of `{"field", "comparator", "value"}` filter objects. A value is read as its column's type, so `"100"` on a number column compares as 100; a value its column's type cannot hold returns `400`.
 - `orderBy` — JSON array of `{"field", "direction"}` sort objects
+- `params` — the table's parameters as one JSON object keyed by parameter name, e.g. `?params={"region":"EU"}`. A table registered over an API, or a query table, has a parameter for each input its source takes. A read that leaves out a required parameter returns `400` naming it, as does a name the table has no parameter for. Each value is checked against its parameter's type. (REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+Filter values and parameter values travel beside the GraphQL text the endpoint builds, as variables, so a value containing a quote is compared as written. [tool-verified: `provisa/api/_query_helpers.py`]
 
 The authenticated role is required; unauthenticated requests return `401`. An OpenAPI spec for these routes is served at `GET /data/rest/openapi.json` with Swagger UI at `GET /data/rest/docs`.
 
@@ -307,7 +310,8 @@ Auto-generated [JSON:API](https://jsonapi.org)-compliant endpoint for every regi
 **Query parameters:**
 
 - `fields[<type>]` — sparse fieldsets, e.g. `?fields[orders]=amount`. Names are the physical column names, e.g. `fields[orders]=order_id`, as are `filter[...]`, `sort` and the emitted attribute keys (REQ-1417). REST takes the GraphQL spelling instead (`fields=orderId`). [tool-verified: `provisa/api/jsonapi/generator.py:674`]
-- `filter[<col>]` / `filter[<col>][<op>]` — e.g. `?filter[region]=US`, `?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — e.g. `?filter[region]=US`, `?filter[amount][gt]=100`. A value is read as its column's type; a value the type cannot hold returns `400`.
+- `params` — the table's parameters as one JSON object keyed by parameter name, e.g. `?params={"region":"EU"}`, as on the REST endpoint. A missing required parameter returns `400` naming it; an unknown name or a value of the wrong type returns `400` with `source.parameter` set to `params`. Pagination links keep the parameter. (REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — comma-separated, `-` prefix for descending, e.g. `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — pagination
 - `page[total]` — `true` counts the rows the filter matches and returns `meta.total` and `links.last`. Without it the response carries `links.self`, `links.first`, `links.prev` and `links.next` only, and the database runs no count. Any value other than `true` or `false` returns `400`. Links in a response keep the parameter. (REQ-1197) [tool-verified: `provisa/api/jsonapi/pagination.py:58`]

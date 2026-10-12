@@ -427,16 +427,21 @@ def jsonapi_compliant_response_with_compound_documents(shared_data):
         f"expected scalar fields for orders, got {scalar_fields}"
     )
 
+    from provisa.api._query_helpers import request_variables
+
+    orders_field = _resolve_orders_field(schema)
+    variables = request_variables(schema, orders_field, {"region": {"eq": "US"}})
     gql_query = _build_graphql_query(
-        table="orders",
+        table=orders_field,
         fields=scalar_fields,
-        filters={"region": {"eq": "US"}},
+        variables=variables,
         sort=[{"field": "created_at", "dir": "desc"}],
         limit=25,
         offset=25,
     )
     assert "orders" in gql_query, "compiled GraphQL query must reference orders table"
-    assert "region" in gql_query, "compiled GraphQL query must include filter field"
+    assert "where: $where" in gql_query, "compiled GraphQL query must name the filter variable"
+    assert variables.values == {"where": {"region": {"eq": "US"}}}
 
     # The scenario fully verifies JSON:API compliance through real component calls
     assert True, "JSON:API compliant response with compound documents verified"
@@ -1114,6 +1119,7 @@ def rest_client_querying_endpoint(shared_data):
 @when("the query string maps to GraphQL args")
 def rest_query_string_maps_to_graphql(shared_data):
     """Run the REAL REST param parsers → GraphQL query → compile pipeline."""
+    from provisa.api._query_helpers import request_variables
     from provisa.api.rest.generator import (
         _build_graphql_query,
         _get_scalar_fields,
@@ -1138,12 +1144,13 @@ def rest_query_string_maps_to_graphql(shared_data):
     assert order_by == [{"field": "amount", "dir": "desc"}]
 
     fields = _get_scalar_fields(schema, field)
-    gql_query = _build_graphql_query(field, fields, where, order_by, 10, 0)
+    variables = request_variables(schema, field, where)
+    gql_query = _build_graphql_query(field, fields, variables, order_by, 10, 0)
     shared_data["gql_query"] = gql_query
 
     # Compile the REST-derived GraphQL query through the REAL compiler.
     document = parse_query(schema, gql_query, ctx=ctx)
-    compiled = compile_query(document, ctx)
+    compiled = compile_query(document, ctx, variables.values)
     assert compiled, "REST-derived GraphQL query must compile"
     shared_data["rest_compiled"] = compiled[0]
 

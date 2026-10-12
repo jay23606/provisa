@@ -31,6 +31,7 @@ from graphql import (
     GraphQLString,
 )
 
+from provisa.api._query_helpers import native_arguments
 from provisa.api.rest.generator import _agg_fields_map
 
 _WHERE_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like"]
@@ -286,6 +287,34 @@ def generate_rest_openapi_spec(
                 },
             },
         ]
+
+        # REQ-1986: a table with parameters takes them as one JSON object, by name.
+        table_parameters = native_arguments(field)
+        if table_parameters:
+            required = [
+                n for n, a in table_parameters.items() if isinstance(a.type, GraphQLNonNull)
+            ]
+            parameters.append(
+                {
+                    "name": "params",
+                    "in": "query",
+                    "required": bool(required),
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    n: _gql_to_openapi_schema(a.type)
+                                    for n, a in table_parameters.items()
+                                },
+                                "required": required,
+                                "additionalProperties": False,
+                            }
+                        }
+                    },
+                    "description": "The table's parameters, by name",
+                }
+            )
 
         if agg_map is not None or gb_agg_map is not None:
             parameters.append(

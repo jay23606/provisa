@@ -8,21 +8,34 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-# Requirements: REQ-256
+# Requirements: REQ-256, REQ-1986
 
 from __future__ import annotations
 
+import json
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
 from graphql import (
+    GraphQLArgument,
+    GraphQLBoolean,
     GraphQLEnumType,
+    GraphQLError,
+    GraphQLField,
+    GraphQLFloat,
+    GraphQLInputObjectType,
+    GraphQLInputType,
+    GraphQLInt,
     GraphQLList,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
     GraphQLSchema,
 )
+from graphql.utilities import coerce_input_value
+
+from provisa.compiler.type_map import BigInt
 
 log = logging.getLogger(__name__)
 
@@ -51,15 +64,140 @@ def get_scalar_fields(schema: GraphQLSchema, table: str) -> list[str]:  # REQ-25
     return scalars
 
 
-def build_graphql_query(  # REQ-256
+class RequestRefused(ValueError):
+    """A request's filter or parameters the field does not take, or a value its type refuses;
+    answered with a 400."""
+
+
+#: The description every native argument (a parameter column, REQ-1986) carries in the schema.
+_NATIVE_ARGUMENT = "Native API filter ("
+
+
+def native_arguments(root: GraphQLField) -> dict[str, GraphQLArgument]:  # REQ-1986
+    """A root field's parameters: the arguments its table's parameter columns give it."""
+    return {
+        name: arg
+        for name, arg in root.args.items()
+        if (arg.description or "").startswith(_NATIVE_ARGUMENT)
+    }
+
+
+@dataclass(frozen=True)
+class RequestVariables:  # REQ-1986
+    """A request's filter and parameters as GraphQL variables: the text names them, the values
+    travel beside it, so no value is ever written into the text."""
+
+    declarations: tuple[str, ...] = ()
+    arguments: tuple[str, ...] = ()
+    values: dict[str, Any] = field(default_factory=dict)
+
+    def operation(self, selection: str) -> str:
+        """``selection`` (``{ field(...) { ... } }``) as an operation declaring the variables."""
+        if not self.declarations:
+            return selection
+        return f"query({', '.join(self.declarations)}) {selection}"
+
+
+NO_VARIABLES = RequestVariables()
+
+_SCALAR_READERS: dict[str, Any] = {
+    GraphQLInt.name: int,
+    BigInt.name: int,
+    GraphQLFloat.name: float,
+    GraphQLBoolean.name: {"true": True, "false": False}.__getitem__,
+}
+
+
+def _typed(value: Any, type_: GraphQLInputType) -> Any:
+    """A filter value read from the request's text, as the type it is compared as. A value that
+    does not read as that type is left as given, for the type's coercion to refuse naming it."""
+    nullable = type_.of_type if isinstance(type_, GraphQLNonNull) else type_
+    if isinstance(nullable, GraphQLList):
+        if isinstance(value, list):
+            return [_typed(v, nullable.of_type) for v in value]
+        return value
+    if isinstance(nullable, GraphQLInputObjectType):
+        if not isinstance(value, dict):
+            return value
+        out = {}
+        for key, item in value.items():
+            input_field = nullable.fields.get(key)
+            out[key] = item if input_field is None else _typed(item, input_field.type)
+        return out
+    reader = _SCALAR_READERS.get(getattr(nullable, "name", ""))
+    if reader is None or not isinstance(value, str):
+        return value
+    try:
+        return reader(value)
+    except (KeyError, ValueError):
+        return value
+
+
+def _coerced(value: Any, type_: GraphQLInputType, what: str) -> Any:
+    try:
+        return coerce_input_value(value, type_)
+    except GraphQLError as err:
+        raise RequestRefused(f"{what}: {err.message}") from err
+
+
+def request_variables(  # REQ-1986
+    schema: GraphQLSchema,
+    field_name: str,
+    where: dict[str, dict[str, Any]],
+    params: dict[str, Any] | None = None,
+) -> RequestVariables:
+    """The request's filter (``where``) and parameters (``params``, by argument name) as variables
+    of root field ``field_name``, each declared with the type of the argument it fills.
+
+    A parameter must be a native argument of the field; any other name is refused naming it."""
+    query_type = schema.query_type
+    root = query_type.fields.get(field_name) if query_type is not None else None
+    if root is None:
+        raise RequestRefused(f"no field {field_name!r}")
+    declarations: list[str] = []
+    arguments: list[str] = []
+    values: dict[str, Any] = {}
+    if where:
+        where_arg = root.args.get("where")
+        if where_arg is None:
+            raise RequestRefused(f"{field_name} takes no filter")
+        values["where"] = _coerced(_typed(where, where_arg.type), where_arg.type, "filter")
+        declarations.append(f"$where: {where_arg.type}")
+        arguments.append("where: $where")
+    parameters = native_arguments(root)
+    for name, value in (params or {}).items():
+        arg = parameters.get(name)
+        if arg is None:
+            raise RequestRefused(f"{field_name} takes no parameter {name!r}")
+        values[name] = _coerced(value, arg.type, f"parameter {name!r}")
+        declarations.append(f"${name}: {arg.type}")
+        arguments.append(f"{name}: ${name}")
+    return RequestVariables(tuple(declarations), tuple(arguments), values)
+
+
+def parse_params(raw: str | None) -> dict[str, Any]:  # REQ-1986
+    """The ``params`` query parameter: a JSON object of parameter values by argument name."""
+    if raw is None or not raw.strip():
+        return {}
+    try:
+        params = json.loads(raw)
+    except json.JSONDecodeError as err:
+        raise RequestRefused(f"params is not JSON: {err.msg}") from err
+    if not isinstance(params, dict):
+        raise RequestRefused("params must be a JSON object of parameter values by name")
+    return params
+
+
+def build_graphql_query(  # REQ-256, REQ-1986
     table: str,
     fields: list[str],
-    where: dict[str, dict[str, Any]],
+    variables: RequestVariables,
     order_by: list[dict[str, str]],
     limit: int | None,
     offset: int | None,
 ) -> str:
-    """Build a GraphQL query string from table/field/filter parameters."""
+    """Build a GraphQL query string from table/field parameters; the filter and parameters are
+    the ``variables`` it names."""
     args_parts = []
 
     if limit is not None:
@@ -67,27 +205,7 @@ def build_graphql_query(  # REQ-256
     if offset:
         args_parts.append(f"offset: {offset}")
 
-    if where:
-        where_parts = []
-        for col, ops in where.items():
-            for op, val in ops.items():
-                if isinstance(val, list):
-                    formatted = "[" + ", ".join(f'"{v}"' for v in val) + "]"
-                    where_parts.append(f"{col}: {{{op}: {formatted}}}")
-                elif isinstance(val, str):
-                    try:
-                        numeric = int(val)
-                        where_parts.append(f"{col}: {{{op}: {numeric}}}")
-                    except ValueError:
-                        try:
-                            numeric = float(val)
-                            where_parts.append(f"{col}: {{{op}: {numeric}}}")
-                        except ValueError:
-                            where_parts.append(f'{col}: {{{op}: "{val}"}}')
-                else:
-                    where_parts.append(f"{col}: {{{op}: {val}}}")
-        if where_parts:
-            args_parts.append("where: {" + ", ".join(where_parts) + "}")
+    args_parts.extend(variables.arguments)
 
     if order_by:
         ob_parts = [f"{o['field']}: {o['dir']}" for o in order_by]
@@ -95,4 +213,4 @@ def build_graphql_query(  # REQ-256
 
     args_str = f"({', '.join(args_parts)})" if args_parts else ""
     fields_str = " ".join(fields)
-    return f"{{ {table}{args_str} {{ {fields_str} }} }}"
+    return variables.operation(f"{{ {table}{args_str} {{ {fields_str} }} }}")
