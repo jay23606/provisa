@@ -529,6 +529,28 @@ class TableColumnType:  # REQ-040, REQ-041, REQ-393, REQ-399
 
 
 @strawberry.type
+class InstanceApiType:  # REQ-1954
+    """One of the APIs a ServiceNow instance publishes, and whether its source's companion OpenAPI
+    source offers it."""
+
+    namespace: str
+    name: str
+    route: str
+    description: str
+    scripted: bool
+    added: bool
+
+
+@strawberry.type
+class CompanionImportSetType:  # REQ-1954
+    """An import set added to a ServiceNow source's companion: its staging table and the table its
+    transform map writes into."""
+
+    staging: str
+    table: str
+
+
+@strawberry.type
 class ImportSetType:  # REQ-1954
     """One of a ServiceNow instance's active transform maps into a table: its name, and the import
     set (staging table) a table bound to it takes its inserts through."""

@@ -54,7 +54,9 @@ from provisa.api.admin.types import (
     JsonScalar,
     AvailableColumnType,
     AvailableTableType,
+    CompanionImportSetType,
     ImportSetType,
+    InstanceApiType,
     CacheStatsType,
     CacheTableStatType,
     CalendarType,
@@ -1228,6 +1230,41 @@ class Query:  # REQ-021, REQ-042
         columns = await resolve_available_columns_metadata(source_id, schema_name, table_name)
         await _remember_selected_columns(source_id, schema_name, table_name, columns)
         return columns
+
+    @strawberry.field
+    async def servicenow_apis(self, info: StrawberryInfo, source_id: str) -> list[InstanceApiType]:
+        """The APIs a ServiceNow source's instance publishes, each marked when its companion
+        OpenAPI source offers it (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import instance_apis
+
+        apis, kept = await instance_apis(source_id)
+        added = {(a["namespace"], a["name"]) for a in kept.get("apis", [])}
+        return [
+            InstanceApiType(
+                namespace=a.namespace,
+                name=a.name,
+                route=a.route,
+                description=a.description,
+                scripted=a.scripted,
+                added=(a.namespace, a.name) in added,
+            )
+            for a in apis
+        ]
+
+    @strawberry.field
+    async def servicenow_import_sets(
+        self, info: StrawberryInfo, source_id: str
+    ) -> list[CompanionImportSetType]:
+        """The import sets added to a ServiceNow source's companion (REQ-1954)."""
+        require_capability(info, "source_registration")
+        from provisa.api.admin._servicenow_companion import _held
+
+        kept = await _held(source_id)
+        return [
+            CompanionImportSetType(staging=s["staging"], table=s["table"])
+            for s in kept.get("import_sets", [])
+        ]
 
     @strawberry.field
     async def available_import_sets(
