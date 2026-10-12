@@ -157,6 +157,8 @@ nav:
       - Vectors: arch/vectors.md
       - Change Signal Unification: arch/change-signal-unification.md
       - Requirements: arch/requirements.md
+  - Release Notes:
+      - v0.1.0-alpha.479: releases/v0.1.0-alpha.479.md
 
 # Internal docs — never published to the public site. GTM/pricing, competitor
 # comparisons, and the private multi-tenant/SaaS work must not appear in the

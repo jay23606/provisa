@@ -3,7 +3,142 @@
 All notable changes to Provisa are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## v0.1.0-alpha.479
+
+Released 2026-10-09.
+
+### Features
+
+#### Read Refusals
+
+- A read that needs a table whose replica could not be built is refused, naming the table and the error the build recorded: HTTP 503 with code query.replica_build_failed and the table and reason as parameters, gRPC UNAVAILABLE, and the same message on the transports that carry only a message.
+
+#### Role Assignments
+
+- A multi-tenant deployment reads role assignments from Provisa, never from sign-in claims: a configuration that sets multitenancy with auth.assignments_source claims, stated or by default, does not load, the deployment does not start on it, and a settings change that would produce it is refused, each naming both settings and the value to use.
+
+### Changes
+
+#### api
+
+- A float subclass in a response body is encoded as its number
+
+#### api-source
+
+- A throttled call waits as long as the remote asks
+- An API source may sign in with a refresh token or as a Google service account
+- A refresh-token exchange returns the issuer's replacement, and a client may state no secret
+- An access token for a source whose refresh token the issuer replaces on use
+- A sign-in on a deployment without identities stores its token with no actor
+
+#### auth
+
+- A multi-tenant deployment that reads assignments from sign-in claims does not start
+
+#### catalog
+
+- The catalog types a column by the product's own vocabulary; a nested column is JSON
+- The role's catalog is served over HTTP, and the JDBC driver reads it there
+
+#### catalog-cache
+
+- One rule for every source kind -- column names are loaded lazily
+- A source registered from a specification is indexed with its fields
+
+#### config
+
+- The default public address is where a local install's UI is served
+- An empty public address is not stated, and the shipped configs default to the served one
+
+#### demo
+
+- The demo model lets the org's admin write a prospective adopter
+
+#### deps
+
+- strawberry-graphql 0.327.2 clears CVE-2026-107727 and CVE-2026-107728; feature file regenerated
+
+#### google-workspace
+
+- The settings a Google Workspace source is set up with
+- Reading a mailbox through the Gmail API, and a message into the canonical facts
+- A Google Workspace source is added from the picker and its mail tables registered
+- A source is connected with the organisation's Google client, and its form asks nothing about sign-in
+
+#### governance
+
+- A column's scope is changed only with the right to change who is served it (#194)
+- Only widening a column's scope needs the right to grant it (#194)
+- A source kind declares columns sensitive, and registering its table hides and tags them
+
+#### mail-platforms
+
+- An organisation enters a mail platform's client once
+- The vault keeps a client secret its platform entry names
+
+#### microsoft-365
+
+- A mailbox read through Microsoft Graph as the six canonical mail tables
+- A message whose HTML body Graph will not give keeps its row
+- Microsoft 365 is a source type with its six mail tables and its loader
+- A Microsoft 365 source is connected with the organisation's client and read
+
+#### openapi
+
+- A success answer declared as 2XX gives the table its columns
+
+#### reads
+
+- A table whose replica cannot be built refuses the read by name, not as a server fault
+- The Neo4j endpoint and the table profile answer a refused read as the other surfaces do
+
+#### replication
+
+- A failed replica build is retried with a growing wait, and never given up
+- A build carries what its source says of the rows it read
+- A completed build's note is recorded on the replica and shown beside its state
+
+#### secrets
+
+- Personal secrets are addressed only within an organisation the caller belongs to
+- A central secrets service is read inside the organisation's own prefix
+- A refused secret name is answered 400 with its code; the API source auth writer checks it
+
+#### settings
+
+- A retry ceiling below the interval is refused where settings are loaded too
+
+#### source-sign-in
+
+- A source is signed in to its issuer by a person's approval
+- An issuer's addresses may depend on the source, and the refresh token is written under the refresh lock
+
+#### sources
+
+- The canonical mail, calendar and task tables as one module with its enum translator
+
+#### sql
+
+- /data/sql takes a statement's values apart from its text, and binds them
+- A statement sent without values is governed by the call it always was
+
+#### sql-explorer
+
+- A column of a result that reports no types is typed from its values
+- "filters apply to the rows loaded" follows what the server said, not the editor's text
+- A value checklist over part of a result says so and takes a value typed by hand
+
+#### ui
+
+- The table editor opens for a registrar who is not shown governance
+- The Google Workspace setup, and the page a source sign-in returns to
+- The table viewer binds every value and quotes every identifier through one function (#198)
+- The source picker finds Google Workspace by gmail, mail and email, and its tile names Gmail
+- The Google Workspace setup shows only what it reads
+- Admin › Email holds the organisation's mail platforms beside the mail Provisa sends
+- Admin › Email names Microsoft 365 and labels its tenant setting
+
+## History
 
 ### Phase A: Infrastructure
 - Docker Compose setup (PostgreSQL + Trino), dev and prod overlay
