@@ -1,0 +1,83 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""A worker's host, started inside the operating system's sandbox (REQ-1984, REQ-1993).
+
+Every runtime but Deno (which keeps to its own permissions) is started through here: on macOS
+under ``sandbox-exec`` (:mod:`provisa.codesource.macos_sandbox`), on Linux through the Landlock
+and seccomp launcher (:mod:`provisa.codesource.linux_sandbox`), which needs the worker's socket
+handed down already connected. Either way it reads only the directories named, writes nothing,
+and reaches the network only through the egress proxy. Elsewhere (Windows) a code source is
+refused by name: a worker never runs unsandboxed."""
+
+# Requirements: REQ-1984, REQ-1993
+from __future__ import annotations
+
+import platform
+import sys
+import threading
+from collections.abc import Callable, Iterable, Sequence
+from pathlib import Path
+
+from provisa.codesource import macos_sandbox
+from provisa.codesource.egress import EgressProxy
+from provisa.codesource.linux_sandbox import SandboxUnavailable, launcher_argv
+from provisa.codesource.worker import HostCommand
+
+_proxies: dict[frozenset[str], EgressProxy] = {}
+_proxies_lock = threading.Lock()
+
+
+def egress_proxy(allow: Iterable[str]) -> EgressProxy:
+    """The process's egress proxy for this allow-list, started on first use."""
+    key = frozenset(a.strip().lower() for a in allow if a.strip())
+    with _proxies_lock:
+        proxy = _proxies.get(key)
+        if proxy is None:
+            proxy = _proxies[key] = EgressProxy(key)
+        return proxy
+
+
+def sandboxed(
+    argv: Callable[[str], Sequence[str]],
+    *,
+    executable: Path,
+    read: Sequence[Path],
+    env: dict[str, str],
+    cwd: Path,
+    egress: Iterable[str],
+) -> HostCommand:
+    """The host command ``argv`` (given the socket's address), confined to reading ``read`` and
+    the runtime ``executable``'s own directory, with the network only through the egress proxy."""
+    proxy = egress_proxy(egress)
+    env = {**env, **proxy.environment()}
+    system = platform.system()
+    if system == "Darwin":
+
+        def _macos(address: str) -> list[str]:
+            socket_path = Path(address)
+            return macos_sandbox.confined_argv(
+                argv(address),
+                executable=executable,
+                read=[*read, socket_path.parent],
+                socket_path=socket_path,
+                proxy_port=proxy.port,
+            )
+
+        return HostCommand(argv=_macos, env=env, cwd=cwd)
+    if system == "Linux":
+        readable = [str(p) for p in (*read, executable.parent)]
+
+        def _linux(address: str) -> list[str]:
+            return launcher_argv(
+                sys.executable, read=readable, proxy_port=proxy.port, argv=argv(address)
+            )
+
+        return HostCommand(argv=_linux, env=env, cwd=cwd, inherit_socket=True)
+    raise SandboxUnavailable(f"a code source cannot run on {system}: it has no code-source sandbox")

@@ -14,7 +14,8 @@ every code source's (:mod:`provisa.codesource.worker`).
 
 Deno runs the host under its own permissions: it reads the host, the bundle and the socket's
 directory, writes the socket, and reaches only the hosts on the egress allow-list. Node and Bun
-run under the operating system's sandbox (docs/arch/code-sources.md, section 4)."""
+run under the operating system's sandbox (:mod:`provisa.codesource.sandbox`), reaching the
+network only through the egress proxy."""
 
 # Requirements: REQ-1984
 from __future__ import annotations
@@ -24,6 +25,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from provisa.codesource.bundle import BundleRefused
+from provisa.codesource.sandbox import sandboxed
 from provisa.codesource.worker import HostCommand, private_environment
 
 HOST = Path(__file__).with_name("host.mjs")
@@ -79,16 +81,20 @@ def host_command(
     entry = entry_module(bundle)
     env = private_environment(NO_COLOR="1")
     if runtime in ("node", "bun"):
-        return HostCommand(
-            argv=lambda socket: [str(executable), str(HOST), str(socket), str(entry)],
+        return sandboxed(
+            lambda address: [str(executable), str(HOST), address, str(entry)],
+            executable=executable,
+            read=[HOST.parent, bundle],
             env=env,
             cwd=bundle,
+            egress=egress,
         )
     if runtime == "deno":
         # Deno's npm packages were installed into the bundle's own cache (node/install.py).
         env["DENO_DIR"] = str(bundle / ".deno")
 
-        def _deno(socket: Path) -> list[str]:
+        def _deno(address: str) -> list[str]:
+            socket = Path(address)
             readable = ",".join(str(p) for p in (HOST.parent, bundle, socket.parent))
             argv = [
                 str(executable),

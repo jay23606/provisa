@@ -10,7 +10,7 @@
 // REQ-1984: the host a Node source's worker runs -- the same on Node, Bun and Deno. The protocol is
 // every code source's (provisa/codesource/worker.py).
 //
-//   <runtime> host.mjs <socket path> <bundle entry module>
+//   <runtime> host.mjs <socket path | fd:N> <bundle entry module>
 //
 // It imports the bundle (the bundle imports nothing of Provisa's), connects to the socket
 // Provisa listens on, says which exports it has, and serves calls until the socket closes, when
@@ -23,6 +23,7 @@
 //   host -> Provisa  {op: "hello", exports}  {op: "rows", id, rows}  {op: "value", id, value}
 //                    {op: "end", id}         {op: "error", id, message, stack}  {op: "pong", id}
 
+import fs from "node:fs";
 import net from "node:net";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -54,12 +55,24 @@ function revive(value) {
   return value;
 }
 
-const socket = net.createConnection(socketPath);
+// A path is connected to; fd:N is a socket Provisa already connected and handed down (the Linux
+// sandbox refuses the host any new socket but TCP). An inherited one is read and written as a
+// file descriptor: Bun's net.Socket does not take one, and node:fs does the same on every runtime.
+const inherited = socketPath.startsWith("fd:");
+const fd = inherited ? Number(socketPath.slice(3)) : null;
+const socket = inherited
+  ? fs.createReadStream(null, { fd, autoClose: false })
+  : net.createConnection(socketPath);
 function send(message) {
   const body = Buffer.from(encode(message), "utf8");
   const head = Buffer.alloc(4);
   head.writeUInt32BE(body.length, 0);
-  socket.write(Buffer.concat([head, body]));
+  const frame = Buffer.concat([head, body]);
+  if (!inherited) {
+    socket.write(frame);
+    return;
+  }
+  for (let at = 0; at < frame.length; ) at += fs.writeSync(fd, frame, at);
 }
 
 const running = new Map();
@@ -137,6 +150,7 @@ socket.on("data", (chunk) => {
     dispatch(JSON.parse(body));
   }
 });
-socket.on("connect", () => send({ op: "hello", exports: Object.keys(bundle) }));
-socket.on("close", () => process.exit(0));
+if (inherited) send({ op: "hello", exports: Object.keys(bundle) });
+else socket.on("connect", () => send({ op: "hello", exports: Object.keys(bundle) }));
+socket.on(inherited ? "end" : "close", () => process.exit(0));
 socket.on("error", () => process.exit(1));

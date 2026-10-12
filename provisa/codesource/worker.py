@@ -71,16 +71,19 @@ _EXACT = 2**53 - 1
 
 @dataclass(frozen=True)
 class HostCommand:
-    """How a language starts its host for one source. ``argv`` is given the socket's path (inside
-    a private directory the worker makes for it), because a sandbox names that directory; the
-    process gets exactly ``env``, in ``cwd``."""
+    """How a language starts its host for one source. ``argv`` is given the socket's address,
+    which the host reads as its first argument: a path (inside a private directory the worker
+    makes for it, which a sandbox names), or with ``inherit_socket`` ``fd:N``, a socket already
+    connected and inherited as descriptor N (the Linux sandbox refuses the host any new socket but
+    TCP, so it cannot connect one). The process gets exactly ``env``, in ``cwd``."""
 
-    argv: Callable[[Path], Sequence[str]]
+    argv: Callable[[str], Sequence[str]]
     env: dict[str, str]
     cwd: Path
+    inherit_socket: bool = False
 
-    def argv_for(self, socket_path: Path) -> list[str]:
-        return list(self.argv(socket_path))
+    def argv_for(self, address: str) -> list[str]:
+        return list(self.argv(address))
 
 
 class WorkerFailed(Exception):
@@ -203,33 +206,35 @@ class Worker:
 
     def start(self, timeout: float = START_TIMEOUT_S) -> None:
         """Start the host and wait for its hello; :class:`WorkerFailed` when it does not come."""
-        self._dir = Path(tempfile.mkdtemp(prefix="provisa-code-"))
-        self._dir.chmod(0o700)
-        path = self._dir / "worker.sock"
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            listener.bind(str(path))
-            listener.listen(1)
-            listener.settimeout(_ACCEPT_POLL_S)
-            self._process = subprocess.Popen(  # nosec B603 - the pinned runtime and Provisa's host
-                self._command.argv_for(path),
-                cwd=self._command.cwd,
-                env=self._command.env,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-                errors="replace",
-            )
-            self._stderr_thread = threading.Thread(
-                target=self._drain_stderr, name=f"code-worker-stderr-{self.source_id}", daemon=True
-            )
-            self._stderr_thread.start()
-            conn = self._accept(listener, timeout)
-        finally:
-            listener.close()
+        if self._command.inherit_socket:
+            conn, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                self._spawn(f"fd:{child.fileno()}", (child.fileno(),))
+            finally:
+                child.close()
+        else:
+            self._dir = Path(tempfile.mkdtemp(prefix="provisa-code-"))
+            self._dir.chmod(0o700)
+            path = self._dir / "worker.sock"
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                listener.bind(str(path))
+                listener.listen(1)
+                listener.settimeout(_ACCEPT_POLL_S)
+                self._spawn(str(path), ())
+                conn = self._accept(listener, timeout)
+            finally:
+                listener.close()
         conn.settimeout(timeout)
-        hello = _read_frame(conn)
+        try:
+            hello = _read_frame(conn)
+        except TimeoutError:
+            conn.close()
+            self.stop()
+            raise WorkerFailed(
+                self.source_id,
+                f"its host did not say it was ready within {timeout:g}s{self._said()}",
+            ) from None
         if hello is None or hello.get("op") != "hello":
             conn.close()
             self.stop()
@@ -240,6 +245,23 @@ class Worker:
         threading.Thread(
             target=self._read, name=f"code-worker-{self.source_id}", daemon=True
         ).start()
+
+    def _spawn(self, address: str, pass_fds: tuple[int, ...]) -> None:
+        self._process = subprocess.Popen(  # nosec B603 - the pinned runtime and Provisa's host
+            self._command.argv_for(address),
+            cwd=self._command.cwd,
+            env=self._command.env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            errors="replace",
+            pass_fds=pass_fds,
+        )
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr, name=f"code-worker-stderr-{self.source_id}", daemon=True
+        )
+        self._stderr_thread.start()
 
     def _accept(self, listener: socket.socket, timeout: float) -> socket.socket:
         """The host's connection; a host that exits first, or does not connect in time, is named

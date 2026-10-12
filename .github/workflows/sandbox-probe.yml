@@ -1,0 +1,38 @@
+name: Sandbox probe
+
+# REQ-1984, REQ-1993: proves the code-source sandbox (provisa/codesource/linux_sandbox.py) on
+# the three places a worker runs: a Linux host, a container under Docker's default seccomp
+# profile, and a container under containerd's default profile (what Kubernetes' RuntimeDefault
+# applies). Each run confines itself as a worker would and checks every restriction holds; a host
+# that cannot sandbox fails the job, by name.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The runner's kernel
+        run: uname -a
+
+      - name: On the host
+        run: python3 -m provisa.codesource.linux_sandbox --probe
+
+      - name: Under Docker's default seccomp profile
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" -w /repo python:3.12-slim \
+            python3 -m provisa.codesource.linux_sandbox --probe
+
+      - name: Under containerd's default seccomp profile (Kubernetes RuntimeDefault)
+        run: |
+          sudo ctr -n sandbox-probe images pull docker.io/library/python:3.12-slim
+          sudo ctr -n sandbox-probe run --rm --seccomp --net-host --cwd /repo \
+            --mount "type=bind,src=$PWD,dst=/repo,options=rbind:ro" \
+            docker.io/library/python:3.12-slim sandbox-probe \
+            python3 -m provisa.codesource.linux_sandbox --probe
