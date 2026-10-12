@@ -54,6 +54,8 @@ def _label_map() -> CypherLabelMap:
         native_filter_columns={},
         physical_to_sql={},
         gql_governed_object_cols=set(),
+        gql_json_columns=set(),
+        exposed_to_physical={},
     )
     return CypherLabelMap.from_schema(ctx, domain_access=["*"])
 

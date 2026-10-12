@@ -36,6 +36,7 @@ from graphql import (
 from graphql.utilities import coerce_input_value
 
 from provisa.compiler.type_map import BigInt
+from provisa.core.parameters import PARAMETER_EXTENSION
 
 log = logging.getLogger(__name__)
 
@@ -69,16 +70,13 @@ class RequestRefused(ValueError):
     answered with a 400."""
 
 
-#: The description every native argument (a parameter column, REQ-1986) carries in the schema.
-_NATIVE_ARGUMENT = "Native API filter ("
-
-
-def native_arguments(root: GraphQLField) -> dict[str, GraphQLArgument]:  # REQ-1986
-    """A root field's parameters: the arguments its table's parameter columns give it."""
+def native_arguments(root: GraphQLField) -> dict[str, tuple[str, GraphQLArgument]]:  # REQ-1986
+    """A root field's parameters, by parameter name: the argument each fills, and its name (which
+    is ``_<name>`` when the field has a ``<name>`` of its own)."""
     return {
-        name: arg
+        arg.extensions[PARAMETER_EXTENSION]: (name, arg)
         for name, arg in root.args.items()
-        if (arg.description or "").startswith(_NATIVE_ARGUMENT)
+        if PARAMETER_EXTENSION in (arg.extensions or {})
     }
 
 
@@ -166,17 +164,17 @@ def request_variables(  # REQ-1986
         arguments.append("where: $where")
     parameters = native_arguments(root)
     for name, value in (params or {}).items():
-        arg = parameters.get(name)
-        if arg is None:
+        if name not in parameters:
             raise RequestRefused(f"{field_name} takes no parameter {name!r}")
-        values[name] = _coerced(value, arg.type, f"parameter {name!r}")
-        declarations.append(f"${name}: {arg.type}")
-        arguments.append(f"{name}: ${name}")
+        arg_name, arg = parameters[name]
+        values[arg_name] = _coerced(value, arg.type, f"parameter {name!r}")
+        declarations.append(f"${arg_name}: {arg.type}")
+        arguments.append(f"{arg_name}: ${arg_name}")
     return RequestVariables(tuple(declarations), tuple(arguments), values)
 
 
 def parse_params(raw: str | None) -> dict[str, Any]:  # REQ-1986
-    """The ``params`` query parameter: a JSON object of parameter values by argument name."""
+    """The ``params`` query parameter: a JSON object of parameter values by parameter name."""
     if raw is None or not raw.strip():
         return {}
     try:

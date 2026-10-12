@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import fnmatch as _fnmatch
 import re as _re
+from collections.abc import Iterable
 
 from graphql import (
     BooleanValueNode,
@@ -33,6 +34,7 @@ from graphql import (
 )
 
 from provisa.compiler.params import ParamCollector
+from provisa.compiler.sql_literals import sql_literal
 from provisa.compiler.sql_types import (
     CompilationContext,
 )
@@ -42,6 +44,43 @@ from provisa.compiler.sql_rewrite import (
 
 
 _VIRTUAL_COLS = frozenset({"_name_", "_domain_"})
+
+
+def _parameter_of(argument: str, columns: Iterable[str]) -> str:  # REQ-1986
+    """The parameter (its column without ``_nf_``) a native argument fills. The schema names the
+    argument ``_<name>`` when ``<name>`` is also one of the field's own (schema_gen
+    ``_build_native_filter_args``), so the underscore is not part of the parameter (#247)."""
+    names = {c[4:] if c.startswith("_nf_") else c for c in columns}
+    if argument in names:
+        return argument
+    if argument.startswith("_") and argument[1:] in names:
+        return argument[1:]
+    raise ValueError(f"argument {argument!r} is not a parameter of the table")
+
+
+def native_args(args: dict, standard: frozenset[str], columns: Iterable[str]) -> dict:  # REQ-1986
+    """A root field's native arguments (a table's parameters, every argument but ``standard``),
+    by parameter name. ``columns`` are the table's parameter columns."""
+    columns = list(columns)
+    return {_parameter_of(k, columns): v for k, v in args.items() if k not in standard}
+
+
+def native_arg_conditions(api_args: dict, alias: str | None = None) -> list[str]:  # REQ-1986
+    """Each parameter (by name, from ``native_args``) as ``_nf_<name> = <literal>`` -- the
+    predicate nf_extractor takes back out of the statement before the engine runs it, and the
+    SQL/CQL preview shows."""
+    conditions = []
+    for k, v in api_args.items():
+        col = _q(f"_nf_{k}")
+        quoted_col = f"{_q(alias)}.{col}" if alias else col
+        if isinstance(v, bool):
+            lit = "TRUE" if v else "FALSE"
+        elif isinstance(v, (int, float)):
+            lit = str(v)
+        else:
+            lit = sql_literal(v, "postgres")
+        conditions.append(f"{quoted_col} = {lit}")
+    return conditions
 
 
 # --- Build CompilationContext from SchemaInput ---

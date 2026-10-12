@@ -22,6 +22,7 @@ class GraphVarKind(str, Enum):
     EDGE = "EDGE"
     PATH = "PATH"
     PASSTHROUGH = "PASSTHROUGH"  # pre-built JSON from rel/node union subquery
+    MAP = "MAP"  # a map property: a declared object column, returned as a map (REQ-1991)
 
 
 class CypherTranslateError(Exception):

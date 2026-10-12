@@ -64,6 +64,8 @@
       "invalid_as_of": "X-Provisa-As-Of לא תקין: {{error}}",
       "invalid_filter": "filter חייב להיות אובייקט הממפה שמות שדות לערכים",
       "invalid_filter_field": "שדה filter לא תקין '{{field}}' עבור {{type_name}}",
+      "invalid_parameter": "פרמטר לא תקין '{{field}}' עבור {{type_name}}",
+      "invalid_params": "params חייב להיות אובייקט הממפה שמות פרמטרים לערכים",
       "invalid_redirect_format": "תבנית ה-redirect '{{format}}' אינה תבנית שבה ניתן למסור תוצאה",
       "invalid_redirect_threshold": "סף ה-redirect חייב להיות מספר שלם של שורות, לא '{{threshold}}'",
       "invalid_read_mask": "read_mask חייב להיות אובייקט עם רשימת 'paths' של נתיבי שדות",

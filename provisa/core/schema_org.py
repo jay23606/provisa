@@ -348,6 +348,9 @@ table_columns = Table(
     Column("object_fields", JSON, nullable=False, default=list, server_default="[]"),
     Column("scope", Text, nullable=False, server_default="domain"),
     Column("gql_selection", Text),
+    # A remote GraphQL column's object type, and whether it holds a list of them (#245).
+    Column("gql_object_type", Text),
+    Column("gql_is_list", Boolean, nullable=False, server_default=false()),
     Column("epoch_unit", Text),  # REQ-1908: epoch-number storage unit of a temporal column
     Column("fake", Text),  # REQ-1494: the column's kind of fake, as declared
     Column("fake_stable", Boolean, nullable=False, server_default=false()),  # REQ-1494

@@ -64,6 +64,8 @@
       "invalid_as_of": "недействительный X-Provisa-As-Of: {{error}}",
       "invalid_filter": "filter должен быть объектом, сопоставляющим имена полей со значениями",
       "invalid_filter_field": "Недопустимое поле filter '{{field}}' для {{type_name}}",
+      "invalid_parameter": "Недопустимый параметр '{{field}}' для {{type_name}}",
+      "invalid_params": "params должен быть объектом, сопоставляющим имена параметров со значениями",
       "invalid_redirect_format": "Формат перенаправления '{{format}}' не является форматом, в котором можно выдать результат",
       "invalid_redirect_threshold": "Порог перенаправления должен быть целым числом строк, а не '{{threshold}}'",
       "invalid_read_mask": "read_mask должен быть объектом со списком 'paths' путей к полям",

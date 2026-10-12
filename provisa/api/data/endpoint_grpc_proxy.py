@@ -34,6 +34,7 @@ from provisa.api.errors import ApiError
 from provisa.grpc.query_ir import (
     AGG_FUNCS,
     FilterError,
+    ParameterError,
     ReadMaskError,
     grpc_table_to_aggregate_graphql_text,
     grpc_table_to_group_by_graphql_text,
@@ -79,6 +80,17 @@ def _filter_object(body: dict) -> dict | None:
             400, "data.invalid_filter", "filter must be an object {<field>: <value>, ...}"
         )
     return filter_
+
+
+def _params_object(body: dict) -> dict | None:  # REQ-1986
+    """The request body's ``params`` — parameter name → value, the JSON form of the native
+    request's ``{Type}Params`` message. Absent means none."""
+    params = body.get("params")
+    if params is not None and not isinstance(params, dict):
+        raise ApiError(
+            400, "data.invalid_params", "params must be an object {<parameter>: <value>, ...}"
+        )
+    return params
 
 
 @router.get("/grpc-commands/{role_id}")
@@ -422,7 +434,7 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
     try:
         read_mask = resolve_read_mask(ctx, type_name, _read_mask_paths(body))
         semantic = grpc_table_to_semantic_sql(
-            ctx, type_name, limit, _filter_object(body), read_mask
+            ctx, type_name, limit, _filter_object(body), read_mask, _params_object(body)
         )
     except ReadMaskError as exc:
         raise ApiError(
@@ -431,6 +443,10 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
     except FilterError as exc:
         raise ApiError(
             400, "data.invalid_filter_field", str(exc), field=exc.field, type_name=type_name
+        ) from exc
+    except ParameterError as exc:
+        raise ApiError(
+            400, "data.invalid_parameter", str(exc), field=exc.field, type_name=type_name
         ) from exc
     if semantic is None:
         raise ApiError(

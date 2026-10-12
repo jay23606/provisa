@@ -82,8 +82,14 @@ def apply_graph_rewrites(  # REQ-349, REQ-350
 
         if graph_var is not None:
             kind = graph_vars[graph_var]
-            # EDGE, PATH, and PASSTHROUGH expressions are pre-built; pass through.
-            if kind in (GraphVarKind.EDGE, GraphVarKind.PATH, GraphVarKind.PASSTHROUGH):
+            # EDGE, PATH, and PASSTHROUGH expressions are pre-built, and a MAP is a property column
+            # (REQ-1991); pass through.
+            if kind in (
+                GraphVarKind.EDGE,
+                GraphVarKind.PATH,
+                GraphVarKind.PASSTHROUGH,
+                GraphVarKind.MAP,
+            ):
                 new_expressions.append(sel_expr)
                 continue
             # NODE expressions already containing pre-built JSON (from _rewrite_graph_fns for

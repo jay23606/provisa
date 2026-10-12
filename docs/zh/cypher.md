@@ -78,6 +78,8 @@ Provisa 通过 `provisa/cypher/` 模块将 openCypher 的一个子集转换为 S
 | `n { .*, extra: expr }` | 全部架构属性加上命名键；合并后的 MAP |
 | `n { key: expr }` | `MAP(ARRAY['key'], ARRAY[expr])` |
 
+**对象属性。** 持有已声明对象的列（远程 GraphQL 类型的嵌入对象，或任何带对象字段注册的列）是映射属性：`RETURN n.address` 以映射返回它，无论引擎以何种形式返回，节点 `n` 也在其属性中携带它。指向已注册类型的远程 GraphQL 字段（一个对象或一个列表）不是属性；通过其关系到达。(REQ-1991) [tool-verified: `provisa/cypher/label_map.py`, `provisa/cypher/assembler.py`]
+
 ### 聚合函数
 
 | Cypher | SQL |

@@ -78,6 +78,8 @@ Provisa 透過 `provisa/cypher/` 模組將 openCypher 的子集轉譯為 SQL。(
 | `n { .*, extra: expr }` | 所有結構描述屬性加上具名鍵值；合併的 MAP |
 | `n { key: expr }` | `MAP(ARRAY['key'], ARRAY[expr])` |
 
+**物件屬性。** 持有已宣告物件的欄（遠端 GraphQL 類型的嵌入物件，或任何帶物件欄位登記的欄）是映射屬性：`RETURN n.address` 以映射返回它，無論引擎以何種形式返回，節點 `n` 也在其屬性中攜帶它。指向已登記類型的遠端 GraphQL 欄位（一個物件或一個列表）不是屬性；透過其關聯到達。(REQ-1991) [tool-verified: `provisa/cypher/label_map.py`, `provisa/cypher/assembler.py`]
+
 ### 聚合函式
 
 | Cypher | SQL |

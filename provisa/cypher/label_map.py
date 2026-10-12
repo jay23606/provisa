@@ -68,6 +68,8 @@ class NodeMapping:
     traversal_only: bool = False  # True = cross-domain node; may not be a MATCH starting node
     domain_id: str | None = None  # raw domain id, e.g. "pet-store"; None if no domain
     modeling_role: str | None = None  # REQ-1320: "fact" | "dimension" | None (star-schema role)
+    # REQ-1991: the cypher prop names whose columns are declared objects: map properties
+    map_properties: frozenset[str] = frozenset()
 
     @property
     def sql_table_name(self) -> str:
@@ -440,6 +442,12 @@ def _build_node_mappings(
     nodes_by_table: dict[str, list[str]],
 ) -> None:
     """Populate nodes/domains/nodes_by_table from ctx tables. Mutates all three dicts."""
+    # REQ-1991: the declared object columns, by physical name (gql_json_columns names a column as
+    # the schema spells it).
+    object_columns = {
+        (tid, ctx_typed.exposed_to_physical.get((tid, name), name))
+        for tid, name in ctx_typed.gql_json_columns
+    }
     for field_name, table_meta in ctx_typed.tables.items():
         if (
             field_name.endswith("_connection")
@@ -463,6 +471,9 @@ def _build_node_mappings(
         phys_props: dict[str, str] = {
             _apply_cql_property(c): c for c in col_names if (table_meta.table_id, c) not in _gov_obj
         }
+        map_props = frozenset(
+            prop for prop, c in phys_props.items() if (table_meta.table_id, c) in object_columns
+        )
 
         domain_id = getattr(table_meta, "domain_id", None) or None
         if domain_policy.single_domain():
@@ -493,6 +504,7 @@ def _build_node_mappings(
             physical_properties=phys_props,
             native_filter_columns=nf_cols,
             physical_table_name=physical_table_name,
+            map_properties=map_props,
         )
 
         if domain_label:

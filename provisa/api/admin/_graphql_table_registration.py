@@ -155,6 +155,8 @@ def _column_models(table: dict) -> "list[Column]":
             data_type=_PHYSICAL_TYPE[c["type"]],
             object_fields=_build_object_fields(c.get("gql_object_fields") or []),
             gql_selection=c.get("gql_selection"),
+            gql_object_type=c.get("gql_object_type"),
+            gql_is_list=c.get("gql_is_list", False),
         )
         for c in table["columns"]
     ]
@@ -246,6 +248,8 @@ async def columns_to_register(
                     "data_type": col.data_type,
                     "object_fields": col.object_fields,
                     "gql_selection": col.gql_selection,
+                    "gql_object_type": col.gql_object_type,
+                    "gql_is_list": col.gql_is_list,
                     "native_filter_type": col.native_filter_type,
                     "native_filter_required": col.native_filter_required,
                     "description": pick.description or col.description,

@@ -224,7 +224,10 @@ def test_two_masks_never_share_a_kept_plan_key():
 
 def _request(paths: list[str]):
     return SimpleNamespace(
-        limit=10, read_mask=SimpleNamespace(paths=paths), HasField=lambda _name: False
+        limit=10,
+        read_mask=SimpleNamespace(paths=paths),
+        HasField=lambda _name: False,
+        DESCRIPTOR=SimpleNamespace(fields_by_name={}),
     )
 
 

@@ -78,6 +78,8 @@ Provisa traduit un sous-ensemble d'openCypher en SQL via le module `provisa/cyph
 | `n { .*, extra: expr }` | Toutes les propriétés du schéma plus la clé nommée ; MAP combinée |
 | `n { key: expr }` | `MAP(ARRAY['key'], ARRAY[expr])` |
 
+**Propriétés objet.** Une colonne contenant un objet déclaré (l'objet imbriqué d'un type GraphQL distant, ou toute colonne enregistrée avec des champs d'objet) est une propriété de type map : `RETURN n.address` la donne comme une map, quelle que soit la forme sous laquelle le moteur la renvoie, et le nœud `n` la porte parmi ses propriétés. Un champ GraphQL distant qui pointe vers un type enregistré, un objet ou une liste, n'est pas une propriété ; on l'atteint par sa relation. (REQ-1991) [tool-verified: `provisa/cypher/label_map.py`, `provisa/cypher/assembler.py`]
+
 ### Fonctions d'agrégation
 
 | Cypher | SQL |

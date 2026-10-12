@@ -44,6 +44,8 @@ def _col(**overrides: object) -> dict:
         "native_filter_type": None,
         "native_filter_required": None,
         "gql_selection": None,
+        "gql_object_type": None,
+        "gql_is_list": False,
     }
     base.update(overrides)
     return base
@@ -127,3 +129,71 @@ class TestBuildGraphqlRemoteTable:
         table = _build_graphql_remote_table(tr, col_rows, "src-1")
         assert [c["name"] for c in table["columns"]] == ["id", "amount"]
         assert [a["name"] for a in table["required_args"]] == ["region"]
+
+
+class TestObjectTypeSurvivesAReload:
+    """#245: what a remote column points at is stored with it, so a table rebuilt from the
+    control plane names the same reference columns as at registration."""
+
+    _REGISTERED = {
+        "name": "orders",
+        "sql_name": "orders",
+        "gql_type_name": "Order",
+        "columns": [
+            {"name": "id", "type": "integer"},
+            {
+                "name": "customer",
+                "type": "jsonb",
+                "gql_selection": "customer { id }",
+                "gql_object_fields": [{"name": "id", "type": "integer"}],
+                "gql_object_type": "Customer",
+                "gql_is_list": False,
+            },
+            {
+                "name": "lines",
+                "type": "jsonb",
+                "gql_selection": "lines { sku }",
+                "gql_object_fields": [{"name": "sku", "type": "text"}],
+                "gql_object_type": "Line",
+                "gql_is_list": True,
+            },
+        ],
+    }
+
+    def _reloaded(self) -> dict:
+        from provisa.api.admin._graphql_table_registration import _column_models
+
+        rows = [
+            _col(
+                column_name=c.name,
+                data_type=c.data_type,
+                object_fields=[f.model_dump() for f in c.object_fields],
+                gql_selection=c.gql_selection,
+                gql_object_type=c.gql_object_type,
+                gql_is_list=c.gql_is_list,
+            )
+            for c in _column_models(self._REGISTERED)
+        ]
+        tr = {"table_name": "orders", "domain_id": "sales", "description": None}
+        return _build_graphql_remote_table(tr, rows, "src-1")
+
+    def test_a_reloaded_column_keeps_its_object_type_and_list_flag(self) -> None:
+        by_name = {c["name"]: c for c in self._reloaded()["columns"]}
+        assert (by_name["customer"]["gql_object_type"], by_name["customer"]["gql_is_list"]) == (
+            "Customer",
+            False,
+        )
+        assert (by_name["lines"]["gql_object_type"], by_name["lines"]["gql_is_list"]) == (
+            "Line",
+            True,
+        )
+        assert "gql_object_type" not in by_name["id"]
+
+    def test_a_reloaded_table_names_the_same_reference_columns(self) -> None:
+        from provisa.graphql_remote.relation_columns import reference_columns
+
+        governed = {"Customer", "Line"}
+        assert reference_columns(self._reloaded(), governed) == reference_columns(
+            self._REGISTERED, governed
+        )
+        assert reference_columns(self._reloaded(), governed) == {"customer"}

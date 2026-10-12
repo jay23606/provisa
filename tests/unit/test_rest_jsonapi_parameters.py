@@ -71,6 +71,8 @@ def _table(table_id: int, name: str, columns: list[dict]) -> dict:
         "schema_name": "public",
         "table_name": name,
         "columns": columns,
+        "enable_aggregates": True,
+        "enable_group_by": True,
         "write_ops": [],
         "write_returns_rows": False,
         "write_refused_forms": [],
@@ -88,6 +90,8 @@ def _schema():
                 *data,
                 _param("region", "query_param", required=True),
                 _param("status", "query_param", required=False),
+                # The same name as a data column: its argument is _customer (#247).
+                _param("customer", "query_param", required=False),
             ],
         ),
         # A query table: its query's argument is a parameter.
@@ -106,6 +110,7 @@ def _schema():
                 *types,
                 ColumnMetadata(column_name="_nf_region", data_type="varchar", is_nullable=True),
                 ColumnMetadata(column_name="_nf_status", data_type="varchar", is_nullable=True),
+                ColumnMetadata(column_name="_nf_customer", data_type="varchar", is_nullable=True),
             ],
             2: [
                 *types,
@@ -130,7 +135,7 @@ class _Pipeline:
         return SimpleNamespace(sql=sql, params=list(exec_params or []))
 
     async def execute(self, plan, state):
-        if "COUNT(*)" in plan.sql:
+        if "COUNT(*)" in plan.sql and "GROUP BY" not in plan.sql:
             return SimpleNamespace(rows=[(0,)], redirect=None)
         return SimpleNamespace(rows=[], redirect=None)
 
@@ -216,6 +221,17 @@ async def test_an_optional_parameter_is_sent_when_given_and_left_out_when_not(su
 
 
 @pytest.mark.parametrize("kind", list(_SURFACES))
+async def test_a_parameter_is_named_as_the_table_names_it_whatever_its_argument(surface, kind):
+    """The parameter customer shares its name with a column, so GraphQL offers it as _customer;
+    a caller still names it customer, and its value reaches _nf_customer."""
+    query = {"params": json.dumps({"region": "EU", "customer": "acme"})}
+    resp = await _get(surface, kind, "orders", query)
+    assert resp.status_code == 200, resp.text
+    (sql, _params) = surface.pipeline.statements[0]
+    assert "\"_nf_customer\" = 'acme'" in sql
+
+
+@pytest.mark.parametrize("kind", list(_SURFACES))
 async def test_a_query_tables_argument_is_a_parameter_of_its_own_type(surface, kind):
     resp = await _get(surface, kind, "big_orders", {"params": json.dumps({"min": 100})})
     assert resp.status_code == 200, resp.text
@@ -259,6 +275,25 @@ async def test_a_numeric_filter_value_reads_as_its_column_type(surface, kind):
 
 
 @pytest.mark.parametrize("kind", list(_SURFACES))
+async def test_an_aggregate_of_a_parameterized_table_reads_its_parameters(surface, kind):
+    """REQ-1991: the aggregate field takes the table's parameters, as its base field does."""
+    query = {"aggregate": "count", "params": json.dumps({"region": "EU"})}
+    resp = await _get(surface, kind, "orders", query)
+    assert resp.status_code == 200, resp.text
+    (sql, _params) = surface.pipeline.statements[0]
+    assert "COUNT(*)" in sql and "\"_nf_region\" = 'EU'" in sql
+
+
+@pytest.mark.parametrize("kind", list(_SURFACES))
+async def test_a_group_by_of_a_parameterized_table_reads_its_parameters(surface, kind):
+    query = {"aggregate": "count", "groupBy": "customer", "params": json.dumps({"region": "EU"})}
+    resp = await _get(surface, kind, "orders", query)
+    assert resp.status_code == 200, resp.text
+    (sql, _params) = surface.pipeline.statements[0]
+    assert "GROUP BY" in sql and "\"_nf_region\" = 'EU'" in sql
+
+
+@pytest.mark.parametrize("kind", list(_SURFACES))
 async def test_params_that_are_not_a_json_object_are_refused(surface, kind):
     resp = await _get(surface, kind, "orders", {"params": "region=EU"})
     assert resp.status_code == 400
@@ -279,4 +314,4 @@ def test_the_rest_spec_offers_a_tables_parameters_as_params():
     assert params["required"] is True
     body = params["content"]["application/json"]["schema"]
     assert body["required"] == ["region"]
-    assert set(body["properties"]) == {"region", "status"}
+    assert set(body["properties"]) == {"region", "status", "customer"}

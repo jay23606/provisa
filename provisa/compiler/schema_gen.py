@@ -564,17 +564,21 @@ def _build_native_filter_args(
     args: dict[str, GraphQLArgument],
 ) -> None:
     """Append native filter args to args in-place."""
-    from provisa.core.parameters import is_required
+    from provisa.core.parameters import PARAMETER_EXTENSION, is_required
 
     visible_col_names = [
         c["column_name"] for c in t.visible_columns if c["column_name"].lower() in t.column_metadata
     ]
+    # A parameter takes the same argument name on the base, _aggregate and _group_by fields, so it
+    # steps aside from every argument any of them has of its own.
     response_field_names = set(visible_col_names) | {
         "where",
         "order_by",
         "limit",
         "offset",
         "distinct_on",
+        "by",
+        "having",
     }
     for nfc in t.native_filter_columns:
         col_name = nfc["column_name"]
@@ -587,6 +591,7 @@ def _build_native_filter_args(
         args[arg_name] = GraphQLArgument(
             GraphQLNonNull(scalar) if is_required(nfc) else scalar,
             description=f"Native API filter ({nfc['native_filter_type']})",
+            extensions={PARAMETER_EXTENSION: bare_name},
         )
 
 
@@ -605,6 +610,8 @@ def _build_aggregate_query_field(
     agg_where = _build_where_input(t, f"{t.type_name}Agg", enum_types=enum_types)
     if agg_where:
         agg_args["where"] = GraphQLArgument(agg_where)
+    # REQ-1986, REQ-1991: an aggregate over a parameterized table takes its parameters.
+    _build_native_filter_args(t, agg_args)
     if (t.gql_convention_override or active_gql_convention()) == "apollo_graphql":
         agg_field_name = f"{t.field_name}Aggregate"
     else:
@@ -668,6 +675,8 @@ def _build_group_by_query_field(
         gb_args["distinct_on"] = GraphQLArgument(GraphQLList(GraphQLNonNull(distinct_enum)))
     if having_exp:
         gb_args["having"] = GraphQLArgument(having_exp)
+    # REQ-1986, REQ-1991: a group-by over a parameterized table takes its parameters.
+    _build_native_filter_args(t, gb_args)
 
     conv = t.gql_convention_override or active_gql_convention()
     if conv == "apollo_graphql":

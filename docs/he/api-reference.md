@@ -1194,6 +1194,8 @@ service ProvisaService {
 
 כל טבלה בשורש הסכמה של התפקיד מייצרת RPC זורם `Query{TypeName}`. אלה הטבלאות שהטיפוס `Query` של GraphQL של התפקיד מפרט. לטבלה שהתפקיד מגיע אליה רק דרך קשר אין RPC משלה, כשם שאין לה שדה שורש ב-GraphQL. קריאות `Insert{TypeName}` קיימות לשם סימטריית הסכמה אך נכשלות עם `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
+**פרמטרים.** לטבלה עם פרמטרים (טבלה שנרשמה מעל API, או טבלת שאילתה) יש הודעה `{TypeName}Params`, שדה אופציונלי לכל פרמטר, בשמו ללא הקידומת `_nf_`, ו-`Query{TypeName}Request` נושא אותה כ-`params`. כל ערך שנקבע שם מגיע למקור כפרמטר, כשהוא קשור בהוראה; שם שאינו פרמטר של הטבלה נדחה עם `INVALID_ARGUMENT`, וקריאה שחסר בה פרמטר חובה נדחית ומציינת את שמו. ה-proxy של gRPC מעל HTTP מקבל את אותם ערכים באובייקט `params` של הגוף (HTTP 400, קוד `data.invalid_parameter`, לשם לא מוכר או לערך מסוג JSON שגוי). (REQ-1986, REQ-1991) [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`]
+
 מתודה שאינה חלק מהשירות של תפקיד הקורא משיבה `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
 
 `grpc_reflection.v1alpha` מופעל לגילוי שירותים ללא proto מקומפל מראש. (REQ-529) הרפלקציה מתארת לכל קורא את השירות של התפקיד שבשמו הוא פועל: אותו `.proto` שהתפקיד מוריד מ-`GET /data/proto/{role_id}`. היא מפרטת בשמם את שירות Provisa ואת שירות הרפלקציה, ומתארת את הקובץ של שירות Provisa. [tool-verified: `provisa/grpc/server.py`]

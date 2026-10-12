@@ -205,6 +205,11 @@ def _resolve_join_src_tgt(
     return src_expr, tgt_expr
 
 
+#: An _aggregate / _group_by field's arguments that are not a table's parameters (REQ-1986).
+_AGGREGATE_ARGS = frozenset({"where"})
+_GROUP_BY_ARGS = frozenset({"by", "where", "order_by", "limit", "offset", "distinct_on", "having"})
+
+
 def _build_nodes_subquery(
     field_node: FieldNode,
     ref: str,
@@ -215,6 +220,7 @@ def _build_nodes_subquery(
     use_catalog: bool,
     by_cols: list[str] | None = None,
     phys_by_cols: list[str] | None = None,
+    api_args: dict | None = None,
 ) -> tuple[str | None, list[ColumnRef] | None, list, StatementSources]:
     """Build the nodes sub-query SQL, columns, and params (or Nones when not requested).
 
@@ -317,18 +323,24 @@ def _build_nodes_subquery(
     from_sql = f"{ref} {_q(root_alias)}" if root_alias else ref
     nodes_sql = f"SELECT {', '.join(nodes_select_parts)} FROM {from_sql}"
     nodes_params: list = []
+    nodes_where: list[str] = []
     if "where" in args:
         nodes_collector = ParamCollector()
-        nodes_where_sql = _sw._compile_where(
-            args["where"],
-            nodes_collector,
-            root_alias,
-            _vvals,
-            table.table_id,
-            ctx.exposed_to_physical,
+        nodes_where.append(
+            _sw._compile_where(
+                args["where"],
+                nodes_collector,
+                root_alias,
+                _vvals,
+                table.table_id,
+                ctx.exposed_to_physical,
+            )
         )
-        nodes_sql += f" WHERE {nodes_where_sql}"
         nodes_params = nodes_collector.params
+    # REQ-1986: the rows under the groups are read with the same parameters.
+    nodes_where += _sw.native_arg_conditions(api_args or {}, root_alias)
+    if nodes_where:
+        nodes_sql += f" WHERE {' AND '.join(nodes_where)}"
     return nodes_sql, nodes_cols, nodes_params, sources
 
 
@@ -496,6 +508,11 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
     sql = f"SELECT {', '.join(select_parts)} FROM {ref}"
 
     _vvals = ctx.virtual_columns.get(table.table_id)
+    # REQ-1986, REQ-1991: the table's parameters, as on its base field.
+    api_args = _sw.native_args(
+        args, _GROUP_BY_ARGS, ctx.native_filter_columns.get(table.table_id, {})
+    )
+    nf_conditions = _sw.native_arg_conditions(api_args)
     if "where" in args and not agg_filter_where:
         where_sql = _sw._compile_where(
             args["where"], collector, None, _vvals, table.table_id, ctx.exposed_to_physical
@@ -515,6 +532,8 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
         for p in where_collector.params:
             collector._params.append(p)
         sql += f" WHERE {renumbered}"
+    if nf_conditions:
+        sql += f" {'AND' if 'where' in args else 'WHERE'} {' AND '.join(nf_conditions)}"
 
     if phys_by_cols:
         sql += f" GROUP BY {', '.join(_q(c) for c in phys_by_cols)}"
@@ -552,6 +571,7 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
         use_catalog,
         by_cols=by_cols,
         phys_by_cols=phys_by_cols,
+        api_args=api_args,
     )
     sources.merge(nodes_sources)
 
@@ -565,6 +585,7 @@ def _compile_group_by_field(  # REQ-196, REQ-197, REQ-213
         table_ids=frozenset(sources.table_ids),
         is_group_by=True,
         group_by_columns=list(by_cols),
+        api_args=api_args,
         nodes_sql=nodes_sql,
         nodes_columns=nodes_columns,
         nodes_params=nodes_params,
@@ -649,11 +670,20 @@ def _compile_aggregate_field(  # REQ-196, REQ-197, REQ-198, REQ-199
             args[arg.name.value] = _sw._extract_value(arg.value, variables)
 
     _agg_vvals = ctx.virtual_columns.get(table.table_id)
+    where_parts = []
     if "where" in args:
-        where_sql = _sw._compile_where(
-            args["where"], collector, None, _agg_vvals, table.table_id, ctx.exposed_to_physical
+        where_parts.append(
+            _sw._compile_where(
+                args["where"], collector, None, _agg_vvals, table.table_id, ctx.exposed_to_physical
+            )
         )
-        sql += f" WHERE {where_sql}"
+    # REQ-1986, REQ-1991: the table's parameters, as on its base field.
+    api_args = _sw.native_args(
+        args, _AGGREGATE_ARGS, ctx.native_filter_columns.get(table.table_id, {})
+    )
+    where_parts += _sw.native_arg_conditions(api_args)
+    if where_parts:
+        sql += f" WHERE {' AND '.join(where_parts)}"
 
     # Build nodes SQL: plain SELECT with same WHERE, no aggregate functions
     nodes_sql: str | None = None
@@ -661,7 +691,7 @@ def _compile_aggregate_field(  # REQ-196, REQ-197, REQ-198, REQ-199
     nodes_params: list = []
     if has_nodes:
         nodes_sql, nodes_columns, nodes_params, nodes_sources = _build_nodes_subquery(
-            field_node, ref, args, ctx, table, variables, use_catalog
+            field_node, ref, args, ctx, table, variables, use_catalog, api_args=api_args
         )
         sources.merge(nodes_sources)
 
@@ -677,4 +707,5 @@ def _compile_aggregate_field(  # REQ-196, REQ-197, REQ-198, REQ-199
         nodes_columns=nodes_columns,
         nodes_params=nodes_params,
         agg_alias=agg_key,
+        api_args=api_args,
     )

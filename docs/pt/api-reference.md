@@ -1194,6 +1194,8 @@ service ProvisaService {
 
 Cada tabela na raiz do esquema da função produz uma RPC de streaming `Query{TypeName}`. São as tabelas que o tipo `Query` do GraphQL da função lista. Uma tabela que a função só alcança através de um relacionamento não tem RPC própria, assim como não tem campo raiz no GraphQL. As RPCs `Insert{TypeName}` existem por simetria de esquema, mas abortam com `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
+**Parâmetros.** Uma tabela com parâmetros (uma tabela registrada sobre uma API, ou uma tabela de consulta) tem uma mensagem `{TypeName}Params`, um campo opcional por parâmetro, nomeado sem o prefixo `_nf_`, e `Query{TypeName}Request` a carrega como `params`. Cada valor definido ali chega à origem como o parâmetro, vinculado na instrução; um nome que não é parâmetro da tabela é recusado com `INVALID_ARGUMENT`, e uma leitura sem um parâmetro obrigatório é recusada nomeando-o. O proxy HTTP do gRPC aceita os mesmos valores no objeto `params` do corpo (HTTP 400, código `data.invalid_parameter`, para um nome desconhecido ou um valor de tipo JSON errado). (REQ-1986, REQ-1991) [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`]
+
 Um método que não faz parte do serviço da função do chamador responde `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
 
 `grpc_reflection.v1alpha` está habilitado para descoberta de serviços sem um proto pré-compilado. (REQ-529) A reflexão descreve a cada chamador o serviço da função com que ele atua: o mesmo `.proto` que essa função baixa de `GET /data/proto/{role_id}`. Ela lista pelo nome o serviço Provisa e o serviço de reflexão, e descreve o arquivo do serviço Provisa. [tool-verified: `provisa/grpc/server.py`]

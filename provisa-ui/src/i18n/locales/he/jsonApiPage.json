@@ -12,6 +12,7 @@
     "includeLabel": "Include",
     "includeNone": "ללא",
     "includeSelected": "{{count}} נבחרו",
+    "parametersSectionTitle": "פרמטרים",
     "filterSectionTitle": "סינון",
     "sortSectionTitle": "מיון",
     "optionalHint": "אופציונלי",

@@ -12,6 +12,7 @@
     "includeLabel": "インクルード",
     "includeNone": "なし",
     "includeSelected": "{{count}} 件選択",
+    "parametersSectionTitle": "パラメーター",
     "filterSectionTitle": "フィルター",
     "sortSectionTitle": "ソート",
     "optionalHint": "任意",

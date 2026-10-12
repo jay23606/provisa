@@ -70,6 +70,14 @@ class FilterError(ValueError):
         self.field = field
 
 
+class ParameterError(ValueError):  # REQ-1986
+    """A ``params`` entry the request may not send; ``field`` is the offending parameter name."""
+
+    def __init__(self, field: str, type_name: str, reason: str) -> None:
+        super().__init__(f"Invalid parameter {field!r} for {type_name}: {reason}")
+        self.field = field
+
+
 def _filter_set_fields(filter_msg: Any | None) -> list[tuple[str, Any]]:
     """``(column, value)`` pairs for a request's filter: a ``{Type}Filter`` message's
     explicitly-set fields (the native servicer), or the entries of the JSON object the HTTP gRPC
@@ -243,6 +251,36 @@ def _filter_where(
     ]
 
 
+def _params_where(
+    ctx: Any, meta: Any, type_name: str, params_msg: Any | None, collector: ParamCollector
+) -> list[str]:  # REQ-1986, REQ-1991
+    """The request's parameters (a ``{Type}Params`` message, or the HTTP gRPC proxy's
+    ``body["params"]`` object) as ``_nf_<name> = $N`` predicates, the form an SQL client gives a
+    parameter in; the values are bound. A name that is not one of the table's parameters, or a
+    JSON value of another type than its field, raises :class:`ParameterError` naming it. A
+    required parameter left out is refused by the read itself, as for every surface."""
+    from provisa.grpc.proto_gen import parameter_name
+
+    if params_msg is None:
+        return []
+    parameters = {
+        parameter_name(column): (column, data_type)
+        for column, data_type in ctx.native_filter_columns.get(meta.table_id, {}).items()
+    }
+    from_body = isinstance(params_msg, Mapping)
+    predicates = []
+    for name, value in _filter_set_fields(params_msg):
+        if name not in parameters:
+            raise ParameterError(name, type_name, "not a parameter of the table")
+        column, data_type = parameters[name]
+        if from_body:
+            expected = _json_value_matches(value, data_type)
+            if expected is not None:
+                raise ParameterError(name, type_name, f"value must be {expected}")
+        predicates.append(f"{_q(column)} = {_bound_filter_value(value, data_type, collector)}")
+    return predicates
+
+
 def resolve_read_mask(ctx: Any, type_name: str, paths: Sequence[str]) -> ReadMask | None:
     """Validate a request's ``read_mask`` paths against the table matching ``type_name``.
 
@@ -314,6 +352,7 @@ def grpc_table_to_semantic_sql(
     limit: int,
     filter_msg: Any | None = None,
     read_mask: ReadMask | None = None,
+    params_msg: Any | None = None,
 ) -> tuple[str, list] | None:
     """Semantic SELECT over the table matching ``type_name`` and its bound values —
     ``(sql, params)`` — or None if none matches. proto collapses the domain separator
@@ -327,6 +366,10 @@ def grpc_table_to_semantic_sql(
 
     ``read_mask`` (REQ-803, see ``resolve_read_mask``) narrows the SELECT list to the masked
     columns, so the source reads only those.
+
+    ``params_msg`` is the request's ``{Type}Params`` (or the proxy's ``body["params"]``): the
+    table's parameters, bound into the WHERE clause after the filter (``_params_where``; raises
+    :class:`ParameterError`).
 
     The statement text is the compiled stage's plan key (pgwire.governed_plan). It is the
     request's SHAPE — table, masked columns, filtered fields, whether it is limited — so two
@@ -343,6 +386,7 @@ def grpc_table_to_semantic_sql(
     sql = f"SELECT {cols} FROM {semantic_ref(meta)}"
     collector = ParamCollector()
     where_parts = _filter_where(ctx, meta, type_name, filter_msg, collector)
+    where_parts += _params_where(ctx, meta, type_name, params_msg, collector)
     if where_parts:
         sql = f"{sql} WHERE {' AND '.join(where_parts)}"
     if limit and limit > 0:

@@ -97,6 +97,14 @@ def _assemble_row(row: dict, graph_vars: dict[str, GraphVarKind]) -> dict:
 def _deserialize_graph_value(col: str, value: Any, kind: GraphVarKind) -> Any:
     if value is None:
         return None
+    if kind == GraphVarKind.MAP:
+        # REQ-1991: a declared object column; an engine hands it back as JSON text or decoded.
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise CypherAssemblyError(f"Malformed JSON in map column {col!r}: {exc}") from exc
+        return value
     try:
         if isinstance(value, str):
             data = json.loads(value)

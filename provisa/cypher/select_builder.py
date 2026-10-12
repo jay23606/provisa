@@ -513,9 +513,9 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
         """Emit SELECT expression for a property access or arbitrary expression."""
         import re as _re
 
+        from provisa.cypher.translator_types import GraphVarKind
+
         parsed = self._parse_expr(expr_text)
-        if alias:
-            return exp.alias_(parsed, alias)
         _prop_m = _re.match(r"^([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)$", expr_text.strip())
         _cypher_alias: str | None = None
         if _prop_m:
@@ -523,6 +523,11 @@ class SelectBuilderMixin:  # REQ-345, REQ-349, REQ-350, REQ-351
             _info = self._var_table.get(_var)
             if _info and _info[1] and _prop in _info[1].properties:
                 _cypher_alias = _prop
+                if _prop in _info[1].map_properties:
+                    # REQ-1991: returned as a map on every engine, whatever form it arrives in.
+                    self._graph_vars[(alias or _prop).lower()] = GraphVarKind.MAP
+        if alias:
+            return exp.alias_(parsed, alias)
         if _cypher_alias:
             return exp.alias_(parsed, _cypher_alias)
         return parsed
