@@ -78316,7 +78316,7 @@
   - REQ-1792
   notes: 'Maintainer 2026-10-12: "rather than creating a feature to automatically research - it should just be routed by the admin to a data team for research, or rejected", then "the request feature could be expanded with new action types, and the comms would probably just be a steward to steward comm - like ''I think this might be in your domain, can you confirm?''". He kept the chat assistant''s GovData, Kaggle and web search. Routing to a domain rather than a person, the thread of notes and refer-on are the lead''s proposal, which he accepted with "yes, record it". Not built: creation_requests today has status pending/executed/rejected and no domain, assignee or notes (provisa/core/schema_org.py:907).'
 - id: REQ-1996
-  status: proposed
+  status: complete
   since: 2026-10
   group: 4. Source Connectors
   category: Source Connectors
@@ -78379,3 +78379,21 @@
     google or amazon log file formats, or tool logs (like web servers) we should add those." The preset list, multi-line
     records and header-declared columns are the lead''s breakdown of that; fixture lines come from vendor documentation,
     not real data; the core formats ship first, the presets in follow-up commits.'
+  code:
+  - provisa/logparse/
+  - provisa/logs/
+  - provisa/api/admin/logs_router.py
+  - provisa-ui/src/pages/sources/LogsFields.tsx
+  - provisa-ui/src/pages/sources/logs.ts
+  tests:
+  - tests/unit/test_logparse.py
+  - tests/unit/test_logparse_amazon.py
+  - tests/unit/test_logparse_databases.py
+  - tests/unit/test_logparse_evtx.py
+  - tests/unit/test_logparse_google.py
+  - tests/unit/test_logparse_linux.py
+  - tests/unit/test_logparse_microsoft.py
+  - tests/unit/test_logparse_security.py
+  - tests/unit/test_logparse_web.py
+  - tests/unit/test_logs_source.py
+  - provisa-ui/src/pages/sources/__tests__/logs.test.tsx
