@@ -166,13 +166,16 @@ def test_every_reader_is_served_from_its_regions_copy_never_its_inputs(
     """The copy holds what an administrator in its region may see; a reader here reads it with
     the view's own rules on it — not the view's SQL over inputs read here."""
     from provisa.compiler.stage2 import GovernanceContext
-    from provisa.mv.view_read import unnarrowed_view_bodies, view_bodies
+    from provisa.mv.view_read import semantic_statement, unnarrowed_view_bodies
 
     state = _state(eu_state_db, _Backend(), monkeypatch)
     view_sql_map = {"eu_sales": "SELECT * FROM sales.orders WHERE home = 'eu'"}
     home = 'SELECT * FROM "eu:views"."org_default_rg_eu_mv_cache"."mv_eu_sales"'
-    bodies = view_bodies("SELECT * FROM eu_sales", view_sql_map, state, GovernanceContext())
-    assert bodies == {"eu_sales": home}
+    # Governance keeps the reference (the view's own rules apply to it); optimization reads the copy.
+    governed, _ = semantic_statement(
+        "SELECT * FROM eu_sales", view_sql_map, state, GovernanceContext()
+    )
+    assert governed == "SELECT * FROM eu_sales"
     assert unnarrowed_view_bodies("SELECT * FROM eu_sales", view_sql_map, state) == {
         "eu_sales": home
     }
