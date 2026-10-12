@@ -12,6 +12,8 @@ import { fireEvent, renderInForm, screen, waitFor } from "../../../test-utils/re
 import { LogsFields } from "../LogsFields";
 import { SOURCE_TYPES } from "../constants";
 import { logsFieldsFromMapping, logsMapping, logsMissing } from "../logs";
+import { seedSource } from "../sourceSeed";
+import type { Source } from "../../../types/admin";
 
 const FORMATS = [
   { name: "rfc3164", label: "BSD syslog (RFC 3164)", group: "core", pattern: false },
@@ -93,6 +95,21 @@ describe("logs helpers", () => {
       logs_format: "regex",
       logs_pattern: "(?P<level>\\w+) (?P<message>.*)",
       logs_record_start: "",
+    });
+  });
+});
+
+describe("a saved Logs source", () => {
+  it("opens its form with the files and format its mapping holds", () => {
+    const mapping = { glob: "/var/log/system.log*", format: "rfc3164" };
+    const source = {
+      id: "syslog",
+      type: "logs",
+      mappingJson: JSON.stringify(mapping),
+    } as unknown as Source;
+    expect(seedSource(source, null).authFields).toMatchObject({
+      logs_glob: "/var/log/system.log*",
+      logs_format: "rfc3164",
     });
   });
 });
