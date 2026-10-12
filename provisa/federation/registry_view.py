@@ -266,7 +266,7 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                 region=rt["region"],  # REQ-1921
                 probe_type=rt["probe_type"],  # REQ-982
                 # REQ-1443: a checker table's rows are the results of running its contract, so
-                # the registered contract rides with the table into make_dq_loader.
+                # the registered contract rides with the table.
                 dq_contract=rt["dq_contract"],
                 # REQ-1865: fetch_tables already SELECTs this column; it was simply never carried
                 # onto the returned object here, so every getattr(t, "row_materialize", False)

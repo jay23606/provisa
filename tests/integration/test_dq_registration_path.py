@@ -24,6 +24,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy import insert, select
+from sqlalchemy import inspect as sa_inspect
 from provisa.core.database import create_engine_from_url
 
 from provisa.api.admin._dq_registration import apply_dq_registration
@@ -79,7 +80,8 @@ def _compiled_estate():
 
     state.contexts = dq_contexts(
         (1, "warehouse", "sales", "sales", "orders"),
-        (2, "dq", "default", "quality", "orders_scans"),
+        # The results table publishes the name it was given over its relation's (REQ-1443).
+        (2, "dq", "default", "quality", "orders_scans_dq_dq", "orders_scans"),
     )
     yield
     state.contexts = {}
@@ -143,6 +145,13 @@ async def test_the_admin_path_derives_the_same_registration_the_loader_does(tmp_
 
     assert tuple(c.name for c in model.columns) == RESULT_FIELDS
     assert all(c.visible_to == ["analyst"] for c in model.columns)
+    # Registered under its result relation, which exists, empty, before the first scan.
+    assert (model.table_name, model.alias) == ("orders_scans_dq_dq", "orders_scans")
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'dq.db'}")
+    try:
+        assert "orders_scans_dq_dq" in sa_inspect(engine).get_table_names()
+    finally:
+        engine.dispose()
     assert model.watermark_column == DQ_WATERMARK_COLUMN
     assert [p["target_column"] for p in model.promotions] == [
         p["target_column"] for p in DQ_PROMOTIONS
@@ -162,7 +171,8 @@ async def test_the_derived_table_and_its_contract_survive_the_round_trip(tmp_pat
 
         rows = await fetch_tables(conn)
 
-    stored = next(r for r in rows if r["table_name"] == "orders_scans")
+    stored = next(r for r in rows if r["table_name"] == "orders_scans_dq_dq")
+    assert stored["alias"] == "orders_scans"
     assert stored["dq_contract"] == CONTRACT
     assert tuple(c["column_name"] for c in stored["columns"]) == RESULT_FIELDS
 

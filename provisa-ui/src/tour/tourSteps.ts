@@ -140,7 +140,7 @@ const DATA_PRODUCTS_EXPANDED_ROW =
 // Rows of the Tables page by their `data-table-row` anchor (source.table). A step that opens one
 // particular table names its row: the generic first row is whatever the filter put first, and while
 // a route is still changing it can be a row of the page being left.
-const QUALITY_ROW = '[data-table-row="dq-checker.pets_scan"]';
+const QUALITY_ROW = '[data-table-row="dq-checker.pets_quality_dq_checker_dq"]';
 const PROFILER_ROW = '[data-table-row="pet-store-sqlite.pets"]';
 // Opens the pets table's edit form from cold on its Quality section, where the profiler is: open
 // the row unless it (or the form) is already open, click Edit unless the form is already there,

@@ -281,11 +281,18 @@ def test_unparseable_params_text_comes_back_as_an_error_too():
 
 
 class _Job:
-    def __init__(self):
-        self.called = False
+    """A scheduled scan job: APScheduler calls ``func(*args)``, so Run now does the same."""
 
-    async def func(self):
-        self.called = True
+    def __init__(self):
+        self.called_with: tuple | None = None
+        self.args = (42, "the-org")
+
+    async def func(self, *args):
+        self.called_with = args
+
+    @property
+    def called(self) -> bool:
+        return self.called_with == self.args
 
 
 class _Scheduler:
@@ -305,6 +312,7 @@ def _contract_conn(dq_contract: str | None = "dataset: provisa/sales/orders\n"):
 
 def _checker_row(source_id: str, dq_contract: str | None = "dataset: provisa/sales/orders\n"):
     return {
+        "id": 42,
         "source_id": source_id,
         "schema_name": "sales",
         "table_name": "orders",
@@ -314,10 +322,10 @@ def _checker_row(source_id: str, dq_contract: str | None = "dataset: provisa/sal
 
 @pytest.mark.asyncio
 async def test_run_now_finds_the_deployment_orgs_job_by_its_org():
-    """REQ-1266: every org's poll job is registered under its org, the deployment's own included
+    """REQ-1266: every org's scan job is registered under its org, the deployment's own included
     (it is bound by id like any other), so the bound org names the job to fire."""
     job = _Job()
-    scheduler = _Scheduler("poll:dq/sales.orders:org_default", job)
+    scheduler = _Scheduler("checker:42:org_default", job)
     result = await run_dq_check_now(
         cast("Connection", _contract_conn()),
         scheduler=scheduler,
@@ -332,7 +340,7 @@ async def test_run_now_finds_the_deployment_orgs_job_by_its_org():
 @pytest.mark.asyncio
 async def test_run_now_namespaces_the_job_id_when_an_org_is_given():
     job = _Job()
-    scheduler = _Scheduler("poll:dq/sales.orders:org_acme", job)
+    scheduler = _Scheduler("checker:42:org_acme", job)
     result = await run_dq_check_now(
         cast("Connection", _contract_conn()),
         scheduler=scheduler,
@@ -348,7 +356,7 @@ async def test_run_now_namespaces_the_job_id_when_an_org_is_given():
 async def test_run_now_never_fires_another_orgs_job():
     """The bound org's job, or a refusal naming the job it looked for -- never another org's job
     under the same table name."""
-    scheduler = _Scheduler("poll:dq/sales.orders:org_acme", _Job())
+    scheduler = _Scheduler("checker:42:org_acme", _Job())
     result = await run_dq_check_now(
         cast("Connection", _contract_conn()),
         scheduler=scheduler,
@@ -357,14 +365,14 @@ async def test_run_now_never_fires_another_orgs_job():
         table_name="orders",
     )
     assert result["success"] is False
-    assert "has no scheduled poll job yet" in result["message"]
+    assert "has no scheduled scan job yet" in result["message"]
 
 
 @pytest.mark.asyncio
 async def test_run_now_refuses_a_name_two_sources_register():
     """A checker table is one source's ``sales.orders``; when two sources both register it, the
-    name alone does not say whose poll job to fire."""
-    scheduler = _Scheduler("poll:dq/sales.orders:org_default", _Job())
+    name alone does not say whose scan job to fire."""
+    scheduler = _Scheduler("checker:42:org_default", _Job())
     both = _Conn(
         _Rows(
             [
@@ -388,16 +396,16 @@ async def test_run_now_refuses_a_name_two_sources_register():
 
 @pytest.mark.asyncio
 async def test_run_now_by_table_id_fires_that_tables_job():
-    """The panel names the table by its registered id: whichever source holds it, its own poll
+    """The panel names the table by its registered id: whichever source holds it, its own scan
     job runs."""
     job = _Job()
     result = await run_dq_check_now(
         cast("Connection", _Conn(_Rows([_checker_row("dq2")]))),
-        scheduler=_Scheduler("poll:dq2/sales.orders:org_default", job),
+        scheduler=_Scheduler("checker:42:org_default", job),
         org_id="default",
         table_id=42,
     )
-    assert result == {"success": True, "message": "ran dq2/sales.orders now"}
+    assert result == {"success": True, "message": "scanned sales.orders now"}
     assert job.called is True
 
 
@@ -413,7 +421,7 @@ async def test_run_now_by_table_id_fires_that_tables_job():
 async def test_run_now_needs_the_id_or_both_names(named):
     result = await run_dq_check_now(
         cast("Connection", _contract_conn()),
-        scheduler=_Scheduler("poll:dq/sales.orders:org_default", _Job()),
+        scheduler=_Scheduler("checker:42:org_default", _Job()),
         org_id="default",
         **named,
     )

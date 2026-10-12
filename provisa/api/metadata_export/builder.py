@@ -503,8 +503,8 @@ def _dq_assertions(
                     continue
             else:
                 asset = observed_table_ref
-            # The results row records its target as schema.table — the same address the loader
-            # passed the scan (provisa.events.source_loader.make_dq_loader), so the two ends of
+            # The results row records its target as schema.table — the same address a scan
+            # is given (provisa.dq.scan.scan_table), so the two ends of
             # this join are written from one definition rather than two.
             outcome_key = (
                 f"{observed.schema_name}.{observed.table_name}",

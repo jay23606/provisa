@@ -168,7 +168,6 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
         make_airport_loader,
         make_cassandra_loader,
         make_clickhouse_loader,
-        make_dq_loader,
         make_druid_loader,
         make_elasticsearch_loader,
         make_firebird_loader,
@@ -205,9 +204,6 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
     grpc_sources = getattr(state, "grpc_remote_sources", None)
     if grpc_sources:
         loaders["grpc_remote"] = make_grpc_remote_loader(grpc_sources)
-    dq_loader = make_dq_loader(state)
-    loaders["soda"] = dq_loader
-    loaders["great_expectations"] = dq_loader
     loaders["sqlite"] = make_sqlite_loader()
     # REQ-1730: no engine but DuckDB reaches firebird/airport at all (no Trino/pg connector for
     # either) — same unconditional shape as sqlite above, not gated by engine_attaches (there is

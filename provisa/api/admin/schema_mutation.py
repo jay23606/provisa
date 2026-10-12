@@ -1009,21 +1009,21 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         schema_name: str | None = None,
         table_name: str | None = None,
     ) -> MutationResult:
-        """Fire a checker table's poll job immediately instead of waiting for its cadence. The
+        """Fire a checker table's scan job immediately instead of waiting for its interval. The
         table is named by its registered id, or by schema and table name (refused when more than
         one source registers that name).
 
-        Reuses the same registered poll job the event loop already runs on cadence (REQ-941) — this
-        does not re-scan into the response like the dry run; it lands the scan's rows the normal way,
-        so results persist and the DQ check detail's history shows the new scan."""
+        Reuses the scan job the org's scheduler runs every cache_ttl seconds — this does not
+        re-scan into the response like the dry run; it appends the scan's rows to the table's
+        history, so the DQ check detail shows the new scan beside the earlier ones."""
         require_capability(info, "table_registration")
         from provisa.api.app import state
         from provisa.api.admin._dq_resolvers import run_dq_check_now as _run_now
         from provisa.core.request_context import require_current_org
 
-        # REQ-1266: the scheduler namespaces a poll job's id by the org bound when it was
-        # registered (register_poll_job/register_runtime read `current_org`), and the boot and
-        # every request bind theirs, so the bound org names the job this request registered.
+        # REQ-1266: the scheduler namespaces a scan job's id by the org bound when it was
+        # registered (register_org_checkers), and the boot and every request bind theirs, so the
+        # bound org names the job this request registered.
         org_id = require_current_org()
         pool = await _get_pool()
         async with pool.acquire() as conn:
@@ -2916,6 +2916,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             from provisa.api.admin.schema_common import activate_view_mv
 
             await activate_view_mv(input.table_name)
+        from provisa.dq.scan import reschedule_org_checkers
+
+        await reschedule_org_checkers()  # REQ-1443: a checker table's job follows its edit
         return MutationResult(
             success=True,
             message=f"Table {input.table_name!r} updated (id={table_id})",
@@ -2968,6 +2971,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             if state.hot_manager is not None:
                 await state.hot_manager.invalidate(id)
             await _rebuild_schemas()
+            from provisa.dq.scan import reschedule_org_checkers
+
+            await reschedule_org_checkers()  # REQ-1443: a deleted checker table stops scanning
             return MutationResult(
                 success=True,
                 message=f"Table {id} deleted",
@@ -3544,6 +3550,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                 )
                 if _ttl_refusal is not None:
                     return _ttl_refusal
+                from types import SimpleNamespace
+
+                from provisa.api.app import state as _ttl_state
+                from provisa.dq.registration import is_checker_source_type, require_scan_interval
+
+                if is_checker_source_type(_ttl_state.source_types.get(_t_row.source_id)):
+                    try:  # REQ-1443: a checker table's cache_ttl is the interval it scans on
+                        require_scan_interval(
+                            SimpleNamespace(table_name=_t_row.table_name, cache_ttl=cache_ttl)
+                        )
+                    except ValueError as _interval_err:
+                        return MutationResult(
+                            success=False,
+                            message=str(_interval_err),
+                            code="dq.scan_interval_required",
+                            params={"table": _t_row.table_name},
+                        )
             result = await conn.execute_core(
                 update(registered_tables)
                 .where(registered_tables.c.id == table_id)
@@ -3556,6 +3579,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     code="schema.table_not_found",
                     params={"table": table_id},
                 )
+        from provisa.dq.scan import reschedule_org_checkers
+
+        await reschedule_org_checkers()  # REQ-1443: a checker table scans on its new interval
         return MutationResult(
             success=True,
             message=f"Cache TTL updated for table {table_id}",

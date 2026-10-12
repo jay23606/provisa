@@ -33,7 +33,7 @@ test("the Data quality topic walks from the checker through to the profiler pane
   await expect(title).toHaveText("A quality checker is just a source", { timeout: 60000 });
   await expect(page).toHaveURL(/\/tables\?source=dq-checker$/);
   // The opened table is the selected row, and its detail is in the panel on the right.
-  await expect(page.locator('[data-table-row="dq-checker.pets_scan"].row-selected')).toBeVisible();
+  await expect(page.locator('[data-table-row="dq-checker.pets_quality_dq_checker_dq"].row-selected')).toBeVisible();
   await expect(page.getByTestId("tables-split-panel")).toBeVisible();
 
   await next.click();

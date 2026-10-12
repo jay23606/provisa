@@ -184,23 +184,21 @@ async def dry_run_contract(conn: "Connection", *, source_id: str, contract_text:
             "success": False,
             "message": f"source {source_id!r} is a {checker} source, not a data-quality checker",
         }
-    mapping = fetched._mapping["mapping"]
+    from provisa.core.secrets_store import bound_to_request_org
+    from provisa.dq.scan import checker_connection
+
     try:
         dataset = contract_dataset(contract_text, checker)
         target = resolve_contract_target(dataset, state.contexts)
     except ContractError as exc:
         return {"success": False, "message": str(exc)}
+    async with bound_to_request_org():
+        connection = checker_connection(fetched._mapping["mapping"])
     try:
         results = await run_contract(
             checker=checker,
             contract_text=contract_text,
-            connection={
-                "host": mapping["host"],
-                "port": mapping["port"],
-                "database": mapping["database"],
-                "user": mapping["user"],
-                "password": mapping["password"],
-            },
+            connection=connection,
             data_source_name=dataset.split("/")[0],
             scan_id=str(uuid.uuid4()),
             scan_time=datetime.now(UTC),
@@ -225,17 +223,16 @@ async def run_dq_check_now(
     schema_name: str | None = None,
     table_name: str | None = None,
 ) -> dict:
-    """Fire a checker table's own poll job immediately instead of waiting for its cadence, landing
-    results the same way the scheduler would (REQ-1443 "run now and retain").
+    """Fire a checker table's own scan job immediately instead of waiting for its interval,
+    appending the scan's rows the same way the scheduler would (REQ-1443 "run now and retain").
 
     The table is named by its registered id, or by ``schema_name`` and ``table_name`` — refused
     when more than one source registers that name, since it does not say whose checker runs.
 
-    Reuses the EXACT job APScheduler already registered for this node (``register_poll_job`` in
-    :mod:`provisa.events.processor`) rather than a second pipeline — the closure it points at is
-    ``TableProcessor.inject(probe_factory())``, the same claim→handle→land→complete cycle the poll
-    cadence drives. A table with no such job (not a registered checker table, or the event loop has
-    not booted it yet) is a real error, not a no-op.
+    Reuses the EXACT job the org's scheduler holds for this table
+    (:func:`provisa.dq.scan.register_org_checkers`) rather than a second pipeline. A table with no
+    such job (not a registered checker table, or the org's scheduler has not registered it yet)
+    is a real error, not a no-op.
     """
     by_id = table_id is not None
     if by_id == (schema_name is not None or table_name is not None) or (
@@ -254,6 +251,7 @@ async def run_dq_check_now(
     rows = (
         await conn.execute_core(
             select(
+                registered_tables.c.id,
                 registered_tables.c.source_id,
                 registered_tables.c.schema_name,
                 registered_tables.c.table_name,
@@ -280,19 +278,17 @@ async def run_dq_check_now(
             "message": f"{schema}.{table} carries no dq_contract; nothing to run",
         }
     if scheduler is None:
-        return {"success": False, "message": "the event-loop scheduler is not running"}
-    from provisa.events.nodes import source_node
+        return {"success": False, "message": "the scheduler is not running"}
+    from provisa.dq.scan import checker_job_id
 
-    node = source_node(fetched._mapping["source_id"], schema, table)
-    suffix = f":org_{org_id}"
-    job = scheduler.get_job(f"poll:{node}{suffix}")
+    job = scheduler.get_job(checker_job_id(fetched._mapping["id"], org_id))
     if job is None:
         return {
             "success": False,
-            "message": f"{node} has no scheduled poll job yet — the event loop has not booted it",
+            "message": f"{schema}.{table} has no scheduled scan job yet",
         }
-    await job.func()
-    return {"success": True, "message": f"ran {node} now"}
+    await job.func(*job.args)
+    return {"success": True, "message": f"scanned {schema}.{table} now"}
 
 
 def _dry_run_check(row: dict) -> dict:

@@ -56,3 +56,7 @@ async def apply_dq_registration(conn: "Connection", model) -> None:
         return
     dataset = derive_checker_table(model, source_type)
     check_contract_target(model, dataset, state.contexts)
+    from provisa.dq.scan import ensure_relation
+
+    # Its scans append here (provisa.dq.scan); it reads as an empty history until the first.
+    await ensure_relation(conn, model.table_name)

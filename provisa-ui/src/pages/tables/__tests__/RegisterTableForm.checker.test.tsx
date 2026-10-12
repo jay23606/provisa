@@ -102,7 +102,7 @@ async function pickScanTarget() {
   fireEvent.change(select, { target: { value: "pet_store.pets" } });
   fireEvent.click(await screen.findByText("pet_store.pets"));
   await waitFor(() =>
-    expect(screen.getByTestId("register-table-dq-results-table")).toHaveValue("pets_scan"),
+    expect(screen.getByTestId("register-table-dq-results-table")).toHaveValue("pets_quality"),
   );
   return user;
 }
@@ -118,7 +118,7 @@ describe("RegisterTableForm on a checker source (REQ-1663)", () => {
     expect(screen.queryByTestId("register-table-table-select")).not.toBeInTheDocument();
     expect(screen.queryByTestId("discover-columns-checkbox")).not.toBeInTheDocument();
     expect(screen.queryByTestId("register-table-watermark-select")).not.toBeInTheDocument();
-    // "Run now" fires a registered poll job; there is none yet.
+    // "Run now" fires a registered scan job; there is none yet.
     expect(screen.queryByTestId("dq-run-now")).not.toBeInTheDocument();
     // The lookups are never made for a checker source.
     for (const call of useAvailableSchemas.mock.calls) expect(call[0]).toBeNull();
@@ -152,10 +152,20 @@ describe("RegisterTableForm on a checker source (REQ-1663)", () => {
     expect(setError).toHaveBeenLastCalledWith(expect.stringContaining("required"));
   });
 
+  it("refuses to register a checker table without a scan interval", async () => {
+    const { registerTable, setError } = renderForm();
+    const user = await pickScanTarget();
+
+    await user.click(screen.getByTestId("register-table-submit"));
+    expect(registerTable).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenLastCalledWith(expect.stringContaining("how often"));
+  });
+
   it("registers the contract with the placeholder column carrying visible_to", async () => {
     const { registerTable } = renderForm();
     const user = await pickScanTarget();
 
+    await user.type(screen.getByTestId("register-table-dq-scan-interval"), "3600");
     await user.click(screen.getByTestId("register-table-submit"));
     await waitFor(() => expect(registerTable).toHaveBeenCalledTimes(1));
     expect(registerTable).toHaveBeenCalledWith(
@@ -163,9 +173,10 @@ describe("RegisterTableForm on a checker source (REQ-1663)", () => {
         sourceId: "dq-checker",
         domainId: "pet-store",
         schemaName: "pet_store",
-        tableName: "pets_scan",
+        tableName: "pets_quality",
         alias: "pets_quality",
         dqContract: GX,
+        cacheTtl: 3600,
         watermarkColumn: null,
         discover: false,
         columns: [

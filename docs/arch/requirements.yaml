@@ -46296,8 +46296,8 @@
   type: behavioral
   description: 'An external data-quality checker (Soda first; the shape generalizes to GX Core and dbt
     tests) registers as a SOURCE TYPE, not as a gate, a subsystem, or a bundled library. Its scan output
-    is DATA — a check result is an observation, not a verdict — so it lands through the ordinary source
-    path (make_source_land''s fetch contract, REQ-982 shape resolution) and every downstream capability
+    is DATA — a check result is an observation, not a verdict — so [SUPERSEDED by REQ-1443, 2026-10-12 -- a checker table''s scans append to its own result relation in the org''s control plane and are read in place, never landed as a replica; see the 2026-10-12 amendment. Kept here for history; do not implement against it.] it lands through the ordinary source
+    path (make_source_land''s fetch contract, REQ-982 shape resolution) [END SUPERSEDED BLOCK] and every downstream capability
     is inherited rather than built: cadence, freshness, events, lineage, governance, RLS, grid, export.
     This is REQ-967''s self-describing estate extended to a third-party checker, and it is deliberately
     NOT the REQ-941/REQ-1165 gate path — because a landed observation carries no REQ-964 determinism obligation,
@@ -46326,11 +46326,11 @@
     for the estate: a single node fed by every governed table has a fan-in edge from everything, so blast
     radius is wrong, vintage is meaningless, and a churning table cannot debounce differently from a nightly
     one. The estate-wide scorecard is an MV unioning the per-contract nodes, which is REQ-967''s shape
-    regardless. Timing introduces NO new fields: change_signal + cache_ttl give the poll cadence, mv_debounce_quiet/mv_debounce_max_delay
+    regardless. [SUPERSEDED by REQ-1443, 2026-10-12 -- a checker table''s scans append to its own result relation in the org''s control plane and are read in place, never landed as a replica; see the 2026-10-12 amendment. Kept here for history; do not implement against it.] Timing introduces NO new fields: change_signal + cache_ttl give the poll cadence, mv_debounce_quiet/mv_debounce_max_delay
     collapse an upstream burst into one scan (REQ-963), a calendar grain makes it periodic (REQ-962),
     and expected_events holds the scan until its inputs are fresh through the window (REQ-961). probe_type
     watermark on the scan timestamp makes the landing an append, so scan history accumulates with no history
-    machinery. Aiming the checker at Provisa''s own pgwire endpoint checks the FEDERATED view rather than
+    machinery. [END SUPERSEDED BLOCK] Aiming the checker at Provisa''s own pgwire endpoint checks the FEDERATED view rather than
     one source at a time — which the checker cannot do for itself — and because policy applies to that
     connection the scan identity is declared explicitly, so a filtered row set can never produce a silently
     passing check. The checker MUST push its work DOWN to the engine, and Soda does: every aggregate metric
@@ -46440,12 +46440,32 @@
     rows are the product''s quality evidence, not its published surface. For each scan the panel offers
     the SQL access pattern and, beside it, a rules control that opens the checker table''s contract in
     a 90% modal as a read-only table of checks (column, check type, args) parsed server-side with the
-    checker type of the scan''s source; the control is disabled until that source is known.'
+    checker type of the scan''s source; the control is disabled until that source is known.
+
+    (Amended 2026-10-12, SCANS ACCUMULATE IN PLACE:) A checker table''s results are never a replica. soda
+    and great_expectations join the kinds that write their own rows (NO_REPLICA_TYPES, beside ingest and
+    the Data Profiler, REQ-1934): each scan APPENDS its per-check rows, every row stamped with the scan''s
+    scan_id and scan_time, to the table''s result relation in the org''s control-plane schema, through the
+    same write path a profiler run takes. The relation is read there in place on every engine (Trino''s
+    Postgres-backed provisa_admin catalog, DuckDB''s control-plane attach); no replica pass builds, drops
+    or reconciles it, so every earlier scan''s rows stay beside the new ones. The relation is named
+    `<name>_<source_id>_dq` (hyphens as underscores), which is the registered table_name, and the name
+    the steward gave becomes its alias, so SQL and GraphQL publish the given name and the relation never
+    collides with a control-plane table. It is created, empty, at registration, so the table reads as an
+    empty history before its first scan. Cadence: the org''s scheduler holds one job per checker table,
+    built as the profiler''s is, scanning every cache_ttl seconds; cache_ttl is therefore required on a
+    checker table (a positive whole number; registration, YAML and admin alike, and updateTableCache
+    refuse one without it), and change_signal and probe_type no longer apply to a checker (it has no
+    upstream to probe). Run now (runDqCheckNow) fires that job at once and appends its scan; the dry run
+    (dryRunDqContract) still appends nothing. Debounce, calendar grain and expected_events no longer
+    time a checker''s scans. A checker table registered before this change is switched over without
+    keeping what it had landed: there are no installs to convert.'
   use_case: An org already running Soda points it at a Provisa-governed table, registers the contract
     as a source, and gets scan history, a quality scorecard, lineage from check back to table, and change-driven
     rather than cron-driven scans — without Provisa shipping a data-quality engine or the operator hand-declaring
     a results schema.
   code:
+  - provisa/dq/scan.py
   - provisa/core/models.py
   - provisa/core/config_loader.py
   - provisa/events/handlers.py
@@ -46495,6 +46515,8 @@
   - tests/unit/test_dq_contract.py
   - tests/unit/test_dq_resolvers.py
   - tests/unit/test_dq_config_validation.py
+  - tests/unit/test_dq_scan.py
+  - tests/integration/test_dq_scan_history_e2e.py
   - tests/integration/test_dq_registration_path.py
   - tests/helpers.py
   - provisa-ui/src/pages/tables/__tests__/DataQualityPanel.test.tsx

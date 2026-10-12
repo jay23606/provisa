@@ -55,6 +55,7 @@ def _results_table(contract: str | None = CONTRACT, visible_to=("analyst",)) -> 
         schema="quality",
         table="orders_scans",
         dq_contract=contract,
+        cache_ttl=3600,
         columns=[Column(name="placeholder", data_type="varchar", visible_to=list(visible_to))],
     )
 
@@ -92,9 +93,8 @@ def test_the_operators_governance_survives_the_replacement():
     assert all(c.visible_to == ["steward", "analyst"] for c in results.columns)
 
 
-def test_scan_time_becomes_the_watermark_so_scans_append():
-    """probe_type=watermark implies APPEND (REQ-982) — that is what makes the table a scan history
-    without any history subsystem."""
+def test_scan_time_becomes_the_watermark():
+    """Every row of one scan carries its scan_time, the history's time column."""
     results = _results_table()
     _validate_dq_contracts(_config(results, _target_table()))
     assert results.watermark_column == DQ_WATERMARK_COLUMN
@@ -203,3 +203,30 @@ def test_a_contract_pointed_at_its_own_results_table_is_rejected():
     contexts = dq_contexts((1, "dq", "default", "quality", "orders_scans"))
     with pytest.raises(ValueError, match="resolves to the results table itself"):
         check_contract_target(results, "provisa/default/orders_scans", contexts)
+
+
+def test_the_table_is_registered_under_its_result_relation_with_the_name_as_alias():
+    """REQ-1443 (amended 2026-10-12): the relation lives in the org's control plane beside its own
+    tables, so it is named <name>_<source>_dq and the name given is what SQL and GraphQL publish."""
+    results = _results_table()
+    _validate_dq_contracts(_config(results, _target_table()))
+    assert results.table_name == "orders_scans_dq_dq"
+    assert results.alias == "orders_scans"
+
+
+def test_a_table_already_under_its_relation_name_keeps_it():
+    """An update carries the registered name; deriving it again must not suffix it twice."""
+    results = _results_table()
+    results.table_name = "orders_scans_dq_dq"
+    results.alias = "orders_scans"
+    _validate_dq_contracts(_config(results, _target_table()))
+    assert (results.table_name, results.alias) == ("orders_scans_dq_dq", "orders_scans")
+
+
+@pytest.mark.parametrize("ttl", [None, 0])
+def test_a_checker_table_without_a_scan_interval_is_refused(ttl):
+    """It scans every cache_ttl seconds, so it must state one."""
+    results = _results_table()
+    results.cache_ttl = ttl
+    with pytest.raises(ValueError, match="scans every cache_ttl seconds"):
+        _validate_dq_contracts(_config(results, _target_table()))

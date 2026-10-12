@@ -52,15 +52,10 @@ _HTTP_API_TYPES = frozenset(
     {"openapi", "graphql_remote", "grpc_remote", "rss", "prometheus", "google_sheets"}
 )
 
-# Data-quality checkers (REQ-1443): a scan is not a fetch of a pre-existing dataset, it PRODUCES the
-# rows on each run, so there is nothing upstream to probe for change. watermark, because scan_time
-# advances every scan and the results table is a scan HISTORY (append, REQ-982); or none, for an
-# operator who only wants the latest scan. hash/count would probe a dataset that does not exist until
-# the scan runs.
-_DQ_CHECKER_TYPES = frozenset({"soda", "great_expectations"})
 # REQ-1934: a profiler's result relations are appended by its own runs, on its own schedule, and
-# read in place: there is no upstream to probe.
-_DIRECT_WRITE_TYPES = frozenset({"data_profiler"})
+# read in place: there is no upstream to probe. REQ-1443 (amended 2026-10-12): so are a data-quality
+# checker's, by its scans every cache_ttl seconds.
+_DIRECT_WRITE_TYPES = frozenset({"data_profiler", "soda", "great_expectations"})
 
 # Mail sources: the provider says whether a mailbox changed (Gmail's history id); there is no
 # cursor to watermark by and no count that sees an edit, so only hash | none. The token comes
@@ -80,14 +75,12 @@ LOADER_PROBE_TYPES: frozenset[str] = _MAIL_TYPES
 def probe_capabilities(source_type: str) -> frozenset[str]:
     """The probe_types a source of ``source_type`` supports (REQ-982). SQL/engine-scannable sources
     (the open-ended default) support all four; HTTP APIs all four (watermark/count conditional on the
-    API surface); files hash|none; data-quality checkers watermark|none; streaming/push sources none
-    (not on the probe axis)."""
+    API surface); files hash|none; streaming/push sources, and sources that write their own rows (a
+    profiler, a data-quality checker), none (not on the probe axis)."""
     if source_type in _STREAMING_TYPES or source_type in _DIRECT_WRITE_TYPES:
         return frozenset()
     if source_type in _FILE_TYPES or source_type in _MAIL_TYPES:
         return frozenset({HASH, NONE})
-    if source_type in _DQ_CHECKER_TYPES:
-        return frozenset({WATERMARK, NONE})
     if source_type in _HTTP_API_TYPES:
         return _ALL
     return _ALL  # RDBMS / DW / OLAP / lake / connector NoSQL / graph — engine-scannable

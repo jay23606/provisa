@@ -69,7 +69,7 @@ for (const c of CHECKERS) {
     await pickOption(page, "dq-dataset-table-select", c.scanned);
     const [, scannedTable] = c.scanned.split(".");
     await expect(page.getByTestId("register-table-dq-results-table")).toHaveValue(
-      `${scannedTable}_scan`,
+      `${scannedTable}_quality`,
     );
     await expect(page.getByPlaceholder("Semantic name override")).toHaveValue(
       `${scannedTable}_quality`,
@@ -88,10 +88,14 @@ for (const c of CHECKERS) {
     await page.getByTestId("dq-add-check").click();
     await expect(page.getByTestId("dq-check-rows")).toContainText(c.check);
 
+    // The table scans on this interval; each scan's rows are kept (REQ-1443).
+    await page.getByTestId("register-table-dq-scan-interval").fill("3600");
     await page.getByTestId("register-table-submit").click();
 
-    // The registered row lands in the list carrying the checker it runs under.
-    const badge = page.getByTestId(`tables-checker-${resultsTable}`);
+    // The registered row lands in the list carrying the checker it runs under, registered under
+    // its result relation's name, <name>_<source>_dq.
+    const relation = `${resultsTable}_${c.sourceId.replaceAll("-", "_")}_dq`;
+    const badge = page.getByTestId(`tables-checker-${relation}`);
     await expect(badge).toBeVisible({ timeout: 20000 });
     await expect(badge).toHaveText(c.checker);
   });

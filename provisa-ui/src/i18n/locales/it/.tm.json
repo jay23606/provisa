@@ -5768,7 +5768,6 @@
   "it/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "it/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
   "it/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
-  "it/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing",
   "it/securityPage.json::securityPage.ruleMissing": "Before saving, choose or fill in: {{fields}}",
   "it/tableSections.json::tableSections.label": "Table sections",
   "it/tableSections.json::tableSections.errors": "{{count}} to fix",
@@ -5797,5 +5796,9 @@
   "it/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
   "it/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
   "it/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
-  "it/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
+  "it/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment",
+  "registerTableForm.json::registerTableForm.dqResultsTableHint": "(derived from the scanned table; one row per check per scan, every scan kept)",
+  "registerTableForm.json::registerTableForm.dqScanIntervalLabel": "Scan every (seconds)",
+  "registerTableForm.json::registerTableForm.dqScanIntervalHint": "Each scan adds its results to the table; earlier scans are kept.",
+  "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds."
 }

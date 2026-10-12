@@ -21,22 +21,28 @@ max_column_timestamp) is heterogeneous by construction and lands in the single `
 column. Surfacing one of its fields as a typed column is the existing REQ-119 promotion mechanism,
 not a new one — ``DQ_PROMOTIONS`` is the shipped default set.
 
-``scan_time`` is the watermark: probe_type=watermark implies APPEND (REQ-982), so scan history
-accumulates with no history subsystem.
+Each scan APPENDS its rows, stamped with its ``scan_id`` and ``scan_time``, to the checker table's
+result relation in the org's control-plane schema (:mod:`provisa.dq.scan`), so the table is the scan
+history; it is read there in place and never replicated (REQ-1443, amended 2026-10-12).
 """
 
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from provisa.core.models import Column
 
-# The watermark column — the scan instant. Declaring it makes the landing an append (REQ-982), which
-# is what turns a results table into a scan HISTORY without any history machinery.
+# The watermark column — the scan instant every row of one scan carries.
 DQ_WATERMARK_COLUMN = "scan_time"
 
 # (name, data_type, description) — the shipped envelope, in display order.
 _ENVELOPE: tuple[tuple[str, str, str], ...] = (
     ("scan_id", "varchar", "Identifier of the scan run that produced this row."),
-    (DQ_WATERMARK_COLUMN, "timestamp", "When the scan ran. The watermark: landing is append-only."),
+    (
+        DQ_WATERMARK_COLUMN,
+        "timestamp",
+        "When the scan ran; every row of one scan carries the same instant.",
+    ),
     ("checker", "varchar", "Which checker produced the row (soda | great_expectations)."),
     ("checker_version", "varchar", "The checker's reported version, as run."),
     ("dataset", "varchar", "The dataset the contract names, verbatim from the contract."),
@@ -104,3 +110,37 @@ def results_columns(visible_to: list[str]) -> list[Column]:
         Column(name=name, data_type=data_type, visible_to=list(visible_to), description=description)
         for name, data_type, description in _ENVELOPE
     ]
+
+
+_SA_TYPES = {
+    "varchar": sa.Text,
+    "timestamp": lambda: sa.DateTime(timezone=True),
+    "double": sa.Float,
+    "bigint": sa.BigInteger,
+    "jsonb": lambda: sa.JSON(none_as_null=True),
+}
+
+_RELATION_SUFFIX = "_dq"
+
+
+def relation_name(steward_name: str, source_id: str) -> str:
+    """The physical name of a checker table's result relation: ``<steward's name>_<source>_dq``.
+
+    It lives in the org's control-plane schema beside the control plane's own tables, so the name
+    the steward chose is never the relation's own; it is the registered table's alias."""
+    return f"{steward_name}_{source_id.replace('-', '_')}{_RELATION_SUFFIX}"
+
+
+def is_relation_name(table_name: str, source_id: str) -> bool:
+    """Whether ``table_name`` is already a relation name of ``source_id`` (a registered table)."""
+    return table_name.endswith(f"_{source_id.replace('-', '_')}{_RELATION_SUFFIX}")
+
+
+def results_sa_table(name: str) -> sa.Table:
+    """The result relation ``name`` as a SQLAlchemy table, schema-less: the writer's connection is
+    scoped to the org's control-plane schema, as a profiler's is."""
+    return sa.Table(
+        name,
+        sa.MetaData(),
+        *[sa.Column(field, _SA_TYPES[data_type]()) for field, data_type, _ in _ENVELOPE],
+    )

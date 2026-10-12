@@ -5768,7 +5768,6 @@
   "zh-HK/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "zh-HK/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
   "zh-HK/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
-  "zh-HK/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing",
   "zh-HK/securityPage.json::securityPage.ruleMissing": "Before saving, choose or fill in: {{fields}}",
   "zh-HK/tableSections.json::tableSections.label": "Table sections",
   "zh-HK/tableSections.json::tableSections.errors": "{{count}} to fix",
@@ -5797,5 +5796,9 @@
   "zh-HK/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
   "zh-HK/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
   "zh-HK/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
-  "zh-HK/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
+  "zh-HK/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment",
+  "registerTableForm.json::registerTableForm.dqResultsTableHint": "(derived from the scanned table; one row per check per scan, every scan kept)",
+  "registerTableForm.json::registerTableForm.dqScanIntervalLabel": "Scan every (seconds)",
+  "registerTableForm.json::registerTableForm.dqScanIntervalHint": "Each scan adds its results to the table; earlier scans are kept.",
+  "registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds."
 }
