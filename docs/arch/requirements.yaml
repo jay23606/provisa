@@ -78325,7 +78325,18 @@
     are written, over the surfaces that serve subscriptions. Where the files may be read is the operator''s: the
     setting logs.allowed_roots lists the directories a glob may resolve into (by default /var/log), and a glob that
     resolves outside them, after following symlinks, is refused by name; on the multi-organisation SaaS plane a
-    server-local log path is refused entirely, by name.'
+    server-local log path is refused entirely, by name. Beyond the core formats, named presets over the shared parsers,
+    grouped by origin in the format choice: Amazon (ALB, NLB and Classic ELB access logs, CloudFront standard logs,
+    S3 server access logs, CloudTrail with one row per Records entry, VPC Flow Logs by version, WAF and Route 53
+    Resolver query logs), Microsoft (IIS, Windows Firewall, Windows DNS debug, DHCP server audit, Exchange message
+    tracking, SQL Server ERRORLOG, Azure Storage analytics, Azure Monitor and Activity Log exports, Windows Event
+    Log .evtx), Google (Cloud Logging LogEntry exports, Android logcat threadtime, Chrome net-export), web servers
+    and proxies (nginx and Apache error, HAProxy HTTP, Squid access, Envoy default access, Caddy, Traefik), databases
+    and runtimes (PostgreSQL stderr, csvlog and jsonlog, MySQL error and slow-query, MongoDB, Redis, log4j and logback
+    default patterns, Python logging default), containers and Linux (Kubernetes CRI with partial lines joined, systemd
+    journal JSON, auditd, dmesg) and security (Zeek, Suricata EVE, Snort fast alert). A record may span lines: a
+    record-start pattern joins a stack trace or a slow-query entry into one row. A format whose file names its columns
+    in a header (W3C, CloudFront, Zeek) reads them from each file''s header.'
   use_case: An operator registers /var/log/install.log* on a Mac as a Logs source with the macOS install-log format,
     and queries which processes logged errors in the last day in SQL, across the live file and its rotated .gz copies,
     without any agent or OpenTelemetry exporter.
@@ -78352,4 +78363,7 @@
     can reuse them. On where files may be read, the maintainer (2026-10-12, through the lead) chose allowed roots,
     off on SaaS: an operator setting logs.allowed_roots, default ["/var/log"], editable to add for example ~/Library/Logs;
     a glob resolving outside it, after symlinks, refused by name; on the multi-org SaaS plane server-local log paths
-    refused entirely, by name.'
+    refused entirely, by name. The maintainer then added (2026-10-12, through the lead): "if there are common, microsoft,
+    google or amazon log file formats, or tool logs (like web servers) we should add those." The preset list, multi-line
+    records and header-declared columns are the lead''s breakdown of that; fixture lines come from vendor documentation,
+    not real data; the core formats ship first, the presets in follow-up commits.'
