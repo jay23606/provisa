@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: f364e17d-e2b4-41bd-b841-56427f31dad5
 #
 # This source code is licensed under the Business Source License 1.1
 """Database and runtime log presets (REQ-1996): PostgreSQL's stderr, csvlog and jsonlog, MySQL's

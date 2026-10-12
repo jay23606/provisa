@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 45f78a3c-499a-4490-b319-f3cd1483ad41
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the database and runtime log presets read the lines each project's documentation
