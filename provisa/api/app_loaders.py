@@ -1616,6 +1616,7 @@ def schema_input_for(
         gql_object_columns=inputs["gql_object_columns"],
         governed_gql_types=inputs["governed_gql_types"],
         gql_governed_object_cols=inputs["gql_governed_object_cols"],
+        columns_outside_relation=inputs["columns_outside_relation"],
         metrics=metrics,  # REQ-1319
         draft_tables=inputs["draft_tables"],  # REQ-1921
     )
@@ -1694,6 +1695,7 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
                 ):
                     _gov_obj_cols.add((_tbl_id, _col["name"]))
 
+    from provisa.graphql_remote.relation_columns import table_columns_outside_relation
     from provisa.grpc.proto_gen import generate_proto
 
     # What any role's surface is built from, kept so a role made later in this generation — a
@@ -1714,6 +1716,9 @@ def _build_and_register_schemas(  # REQ-016, REQ-021, REQ-038, REQ-041, REQ-221,
         "gql_object_columns": gql_object_cols,
         "governed_gql_types": _governed_gql_types,
         "gql_governed_object_cols": _gov_obj_cols,
+        "columns_outside_relation": table_columns_outside_relation(
+            getattr(state, "graphql_remote_sources", {}), _tbl_id_map
+        ),
         "tables": tables,
         "draft_tables": draft_tables,
         "metrics": metrics,

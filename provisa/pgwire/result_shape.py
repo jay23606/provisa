@@ -75,6 +75,8 @@ def table_columns(table_id: int, ctx: Any, column_types: dict) -> dict[str, str]
         physical = col.column_name
         if exposed_names and (table_id, physical) not in exposed_names:
             continue  # not visible to this role
+        if (table_id, physical) in ctx.columns_outside_relation:
+            continue  # registered, but the relation a statement reads does not hold it
         out[exposed_names.get((table_id, physical)) or apply_sql_name(physical)] = col.data_type
     for virtual in ctx.virtual_columns.get(table_id, {}):
         out[virtual] = "varchar"

@@ -521,6 +521,7 @@ def build_context(  # REQ-008, REQ-009, REQ-151, REQ-393
     _register_ops_synthetic_joins(si, ctx, tables, physical_map, meta_rt)
 
     ctx.gql_governed_object_cols = si.gql_governed_object_cols or set()
+    ctx.columns_outside_relation = si.columns_outside_relation
     _register_draft_names(si, ctx, domain_alias_map)
 
     return ctx

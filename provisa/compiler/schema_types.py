@@ -51,6 +51,9 @@ class SchemaInput:
     gql_governed_object_cols: set[tuple[int, str]] = field(
         default_factory=set
     )  # (table_id, col_name) pairs where the GQL OBJECT type is a governed registered table
+    columns_outside_relation: set[tuple[int, str]] = field(
+        default_factory=set
+    )  # (table_id, col_name): registered, but not held by the relation a statement reads
     metrics: list[dict] = field(
         default_factory=list
     )  # REQ-1319: config metric registry [{name, expression, datatype, description, ai_context, visible_to}]

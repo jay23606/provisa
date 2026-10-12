@@ -196,6 +196,8 @@ def _build_catalog_index(
             # Skip columns not visible to this role (absent from physical_to_sql).
             if _p2s and (tm.table_id, phys) not in _p2s:
                 continue
+            if (tm.table_id, phys) in ctx.columns_outside_relation:
+                continue  # registered, but the relation a statement reads does not hold it
             exposed = _p2s.get((tm.table_id, phys)) or apply_sql_name(phys)
             idx.all_cols.append((toid, exposed, col.data_type, col.is_nullable, i))
             idx.col_attnum[(toid, exposed)] = i

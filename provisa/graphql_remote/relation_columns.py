@@ -45,6 +45,22 @@ def reference_columns(table: dict[str, Any], governed: set[str]) -> set[str]:
     }
 
 
+def table_columns_outside_relation(
+    sources: dict[str, Any], table_ids: dict[tuple[str, str], int]
+) -> set[tuple[int, str]]:
+    """(table id, column) for each registered column of a remote GraphQL table that its relation
+    does not hold. ``sources`` is keyed by source id; ``table_ids`` maps (source id, table name) to
+    the registered table's id. A remote table with no registered table has no columns to read."""
+    governed = governed_types(sources)
+    outside: set[tuple[int, str]] = set()
+    for source_id, reg in sources.items():
+        for tbl in reg.get("tables", []):
+            table_id = table_ids.get((source_id, tbl["sql_name"]))
+            if table_id is not None:
+                outside |= {(table_id, name) for name in reference_columns(tbl, governed)}
+    return outside
+
+
 def columns_outside_relation(sources: dict[str, Any], source_id: str, table_name: str) -> set[str]:
     """The registered columns of ``source_id``'s table ``table_name`` (its SQL name) that its
     relation does not hold; none for a table that is not a remote GraphQL table. ``sources`` is

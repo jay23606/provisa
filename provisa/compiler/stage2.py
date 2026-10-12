@@ -199,7 +199,10 @@ def build_governance_context(  # REQ-002, REQ-005, REQ-040, REQ-263, REQ-265, RE
 
         # all_columns
         gov.all_columns[table_id] = [
-            (c["column_name"], c.get("data_type", "varchar")) for c in cols
+            (c["column_name"], c.get("data_type", "varchar"))
+            for c in cols
+            # A column the relation a statement reads does not hold is not expanded from `*`.
+            if (table_id, c["column_name"]) not in ctx.columns_outside_relation
         ]
         gov.writable_columns[table_id] = frozenset(
             c["column_name"] for c in cols if role_id in (c.get("writable_by") or [])
