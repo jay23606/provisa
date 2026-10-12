@@ -78466,19 +78466,27 @@
   category: Source Connectors
   priority: SHOULD
   type: behavioral
-  description: 'A statement whose tables all belong to one Qdrant source routes DIRECT to Qdrant, as any single-source statement routes to its source: the governed statement is lowered to Qdrant''s API. Payload predicates become a Qdrant filter; a key predicate becomes retrieve; a plain scan with a limit becomes scroll; ORDER BY cosine_similarity(<named vector>, <query>) DESC LIMIT k (and the GraphQL similar argument, which compiles to it) becomes query_points against that vector with the filter applied before the top-k. Single-source INSERT, UPDATE and DELETE on a Qdrant collection table become upsert and delete of points. A statement holding anything the lowering cannot express exactly (another source, an aggregate, a predicate with no Qdrant filter form, a row rule that cannot be expressed as a filter) does not route DIRECT and is answered by the engine over the replica, so governance is never bypassed. A vector column written with text is embedded with the column''s declared registry model; a vector given as a vector is used as given, its dimensions checked.'
-  scenario: 'Given a Qdrant collection table kb.docs with a named vector body_vec of a registered model
+  description: 'A statement whose tables all belong to one Qdrant source routes DIRECT to Qdrant, as any single-source statement routes to its source: the governed statement is lowered to Qdrant''s API. Payload predicates become a Qdrant filter; a key predicate becomes retrieve; a plain scan with a limit becomes scroll; ORDER BY cosine_similarity(<named vector>, <query>) DESC LIMIT k (and the GraphQL similar argument, which compiles to it) becomes query_points against that vector with the filter applied before the top-k. Single-source INSERT, UPDATE and DELETE on a Qdrant collection table become upsert and delete of points. A statement holding anything the lowering cannot express exactly (another source, an aggregate, a predicate with no Qdrant filter form, a row rule that cannot be expressed as a filter) does not route DIRECT and is answered by the engine over the replica, so governance is never bypassed. A vector column written with text is embedded with the column''s declared registry model; a vector given as a vector is used as given, its dimensions checked. (Amended 2026-10-12, RULINGS:) The lead''s rulings, quoted: "(a) query_points as is, with grpc-fix''s statement.approximate_index warning (the same rule as replica top-k). (b) A plain INSERT refuses an existing id by name (retrieve first; note the non-atomicity in the REQ). Also accept INSERT … ON CONFLICT (id) DO UPDATE SET … as an upsert. (c) Yes. Register Table and the table editor let a vector column name its model (filtered by dimensions), and the form carries embedding_model for it." A top-k read in Qdrant uses its own index and so is approximate, as a replica''s top-k is: the answer carries the same approximate-index warning. Similarity runs DIRECT only on a collection whose distance is cosine, the one where Qdrant''s score is the cosine similarity; any other distance is answered by the engine. A plain INSERT of an id the collection holds is refused naming the id: the ids are read before the points are written, and a point written by another client between the read and the write is overwritten (the check is not atomic). INSERT … ON CONFLICT (id) DO UPDATE SET each column = EXCLUDED.column is an upsert of every row given; any other conflict clause is refused by name. A write whose condition, with the role''s row rules, has no Qdrant filter form is refused naming it, since the engine does not write to Qdrant. A write returns no rows. A vector column of a collection table names its registered model at registration and in the table editor, from the models whose dimensions are the vector''s size; that declaration is what both similarity search and a written text use.'
+  scenario: 'Given a Qdrant collection table kb.docs whose named vector body_vec is a cosine vector declared with a registered model
 
     When a role runs SELECT id, title FROM kb.docs WHERE lang = ''en'' ORDER BY cosine_similarity(body_vec, ''refund policy'') DESC LIMIT 5
 
-    Then the statement runs in Qdrant as one filtered query_points, the text embedded with body_vec''s model, and five rows return
+    Then the statement runs in Qdrant as one filtered query_points, the text embedded with body_vec''s model, five rows return, and the answer says the top-k is approximate
 
-    When the statement also joins a table of another source
+    When the statement also joins a table of another source, or reads a column the role sees masked
 
-    Then it is answered by the engine over the replica
+    Then it is answered by the engine over the replica, naming why
 
     When a steward inserts a row whose body_vec is given as text
 
-    Then the point is upserted with the text embedded by the column''s model'
+    Then the point is upserted with the text embedded by the column''s model
+
+    When a steward inserts a row whose id the collection holds
+
+    Then the insert is refused naming the id
+
+    When the same row is inserted with ON CONFLICT (id) DO UPDATE SET body_vec = EXCLUDED.body_vec
+
+    Then the point is replaced'
   related_reqs: [REQ-1983, REQ-423, REQ-430]
   notes: 'Maintainer 2026-10-12, through the lead: "writes that are single source are supposed to back to the direct source. could that be a design idea here." This supersedes the read-only ruling for Qdrant (REQ-1983) for single-source writes.'
