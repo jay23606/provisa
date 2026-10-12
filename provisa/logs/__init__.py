@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 94b72c2a-11a6-4579-80d9-910fea1807ef
 #
 # This source code is licensed under the Business Source License 1.1
 """Logs source (REQ-1996): the lines of log files matched by a glob, as the rows of one table.

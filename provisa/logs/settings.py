@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 7b0249b8-36d4-4692-985e-88aea3a004c9
 #
 # This source code is licensed under the Business Source License 1.1
 """A Logs source's settings, as its mapping holds them (REQ-1996): the glob of the files it

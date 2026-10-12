@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: f4573ebe-1215-4c67-bef5-a44bdbccae3e
 #
 # This source code is licensed under the Business Source License 1.1
 """What the Sources form asks about a Logs source (REQ-1996): the formats it may name, and what

@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 868b1e7c-ba97-4c8e-a230-7687584635f2
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: a Logs source -- where its files may be read, how a file is known across its

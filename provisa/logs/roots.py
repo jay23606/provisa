@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 2340865d-b409-407c-885e-0cec0dce646c
 #
 # This source code is licensed under the Business Source License 1.1
 """Where a Logs source may read (REQ-1996). The maintainer's ruling: an operator setting

@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 897937a6-b117-45dc-b19d-4ac72965b7d2
 #
 # This source code is licensed under the Business Source License 1.1
 """The table of a Logs source (REQ-1996), landed as a replica.

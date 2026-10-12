@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 2bf10c16-9152-4d35-9a0c-7dcd222b1d60
 #
 # This source code is licensed under the Business Source License 1.1
 """What a Logs source's files hold before it is saved (REQ-1996): the files its glob matches,
