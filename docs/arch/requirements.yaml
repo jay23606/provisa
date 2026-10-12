@@ -77859,13 +77859,35 @@
   - REQ-1375
   notes: 'Maintainer 2026-10-11: "deprecation is documented as a tag. I don''t see why it needs to be more than that. deprecation is just a signal to a dependent to move to a new design within a timeframe. It doesn''t effect anything else." and "expand deprecate scope". The following go beyond his words and are the lead''s elaboration: the four added object types (metrics, commands, roles, row-level rules), and that the tag is carried into every client schema the object appears in.'
 - id: REQ-1981
-  status: proposed
+  status: in-progress
   since: 2026-10
   group: 4. Source Connectors
   category: Source Connectors
   priority: SHOULD
   type: behavioral
   description: 'Amazon Athena is a source type. (Amended 2026-10-12, WRITES AND REACH) Maintainer ruling: an Athena source is written as well as read. Every table takes INSERT; an Iceberg table also takes UPDATE, DELETE and MERGE, and those are refused on a Hive table, naming the table and the operation, before anything is sent. A statement on Athena''s tables alone runs whole in Athena, its filters, columns and limits with it. A statement that joins an Athena table with another source''s reads it from a replica landed from Athena, each landing a full read that Athena bills; the documentation says so, and no further rule applies to it. The source is reached with its region and database, an optional workgroup, data catalog and query-result location, and either an access key pair or none, for the AWS credential chain, with an optional role to assume. Its catalog is read through Athena''s metadata API, which runs no query, and a table''s columns are read when it is selected.'
+  use_case: 'A data team''s event tables live in S3 behind Athena; they register an Iceberg table and a Hive table from it, read both in SQL and GraphQL beside the warehouse, correct a row of the Iceberg table, and append to the Hive one.'
+  scenario: 'Given an Athena source reached with its region, database and an access key pair, holding an Iceberg table and a Hive table
+
+    When a steward lists the source''s tables
+
+    Then the databases and tables come from Athena''s metadata API, no query runs, and a table''s columns are read only when it is selected
+
+    When a statement reads the Iceberg table alone with a filter and a limit
+
+    Then it runs whole in Athena with the filter and limit
+
+    When a statement updates a row of the Iceberg table
+
+    Then the row is changed in Athena
+
+    When a statement updates or merges into the Hive table
+
+    Then it is refused naming the table and the operation, and nothing is sent to Athena
+
+    When a row is inserted into the Hive table
+
+    Then it is written'
   notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Amazon Athena is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
 - id: REQ-1982
   status: proposed
