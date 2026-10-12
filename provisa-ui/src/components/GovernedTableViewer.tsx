@@ -58,8 +58,8 @@ interface GovernedTableViewerProps {
   table: RegisteredTable;
   /** Title + refresh row (the Reports viewer shows it; the modal has its own title). */
   showTitle?: boolean;
-  /** The role a DRAFT is read as (REQ-1921): its pages come from the admin preview, which is
-   * told the role. A table in service is read as the session's role, as any statement is. */
+  /** The role the rows are read as -- one role, or the "Role: All" set (REQ-1620): a DRAFT's
+   * pages from the admin preview (REQ-1921), a table in service's by its statement. */
   role?: string | null;
 }
 
@@ -113,7 +113,10 @@ export function GovernedTableViewer({
     redirect?: ResultRedirect;
   }> => {
     if (!table.draft) {
-      return runSql(pagedViewerSql(table, params, filters, sorts, groupBy, pageNo, size));
+      return runSql(
+        pagedViewerSql(table, params, filters, sorts, groupBy, pageNo, size),
+        role ?? undefined,
+      );
     }
     if (!role) return Promise.resolve({ columns: [], rows: [], error: "No active role" });
     return previewTable(

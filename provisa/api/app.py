@@ -3493,6 +3493,18 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "code": "query.operator_floor", "params": {}},
         )
 
+    @app.exception_handler(PermissionError)
+    async def _refusal_handler(_req: _Request, exc: PermissionError):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        # A refusal raised to the app -- governance refusing a read (a column the role may not
+        # see, a view reading one), an approval hook's denial -- is the caller's 403 naming it,
+        # never the catch-all's 500. A refusal with its own handler above keeps its own answer.
+        code = getattr(exc, "code", None)
+        content: dict = {"detail": str(exc)}
+        if isinstance(code, str):
+            reason = getattr(exc, "reason", None)
+            content.update(code=code, params={} if reason is None else {"reason": reason})
+        return _JSONResponse(status_code=403, content=content)
+
     @app.exception_handler(Exception)
     async def _global_exception_handler(_req: _Request, exc: Exception):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
         log.exception("Unhandled exception on %s %s", _req.method, _req.url.path)

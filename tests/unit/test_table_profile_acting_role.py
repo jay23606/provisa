@@ -122,3 +122,34 @@ async def test_a_read_whose_copy_is_still_building_is_answered_by_code():
     assert resp.status_code == 504
     assert body["code"] == "data.replica_building"
     assert body["params"] == {"replica": "mail.public.messages", "seconds": 42}
+
+
+async def test_a_governance_refusal_is_answered_403_naming_it_never_500():
+    """A view reading a column the role may not see is refused by governance (one semantic
+    statement). The route catches nothing; the app answers the refusal 403 with its words."""
+    import json
+
+    from provisa.api.app import create_app
+
+    app = create_app()
+    handler = app.exception_handlers[PermissionError]
+    refusal = PermissionError("[V003] Column 'price' is not visible to this role")
+    resp = await handler(types.SimpleNamespace(), refusal)
+    assert resp.status_code == 403
+    assert json.loads(resp.body) == {"detail": "[V003] Column 'price' is not visible to this role"}
+
+
+async def test_an_approval_denial_keeps_its_code_and_reason():
+    import json
+
+    from provisa.api.app import create_app
+    from provisa.pgwire._pipeline import ApprovalDenied
+
+    handler = create_app().exception_handlers[PermissionError]
+    resp = await handler(types.SimpleNamespace(), ApprovalDenied("outside hours"))
+    assert resp.status_code == 403
+    assert json.loads(resp.body) == {
+        "detail": "Approval denied: outside hours",
+        "code": "data.approval_denied",
+        "params": {"reason": "outside hours"},
+    }

@@ -36,7 +36,7 @@ vi.mock("../../context/AuthContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../context/AuthContext")>()),
   useAuth: () => ({
     role: "admin",
-    selectedRoles: ["admin"],
+    selectedRoles: [{ id: "admin" }],
     // REQ-1944: the table editor's right -- without it the page is the governance-only view.
     capabilities: ["admin", "table_registration"],
     domainAccess: ["*"],
