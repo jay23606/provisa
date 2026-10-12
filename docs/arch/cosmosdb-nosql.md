@@ -1,6 +1,6 @@
 # Azure Cosmos DB for NoSQL as a source (REQ-1982)
 
-Status: design for review. No product code has been written.
+Status: approved 2026-10-12 with the five recommendations of section 10 (see its decisions); being built.
 
 The requirement as given: "Azure Cosmos DB for NoSQL is a source type." This note says what that takes and where it reuses the MongoDB work. That work is the document reader, the parameters of REQ-1986, the pipeline tables of REQ-1980 and the query commands of REQ-1988.
 
@@ -120,14 +120,10 @@ Here `query_vector` is an `array(double)` parameter, which a steward makes requi
 
 **Search tests need a spike first.** Whether the vnext emulator serves vector and full-text queries is unverified. If it does not, those tests need a real account. There are no Azure credentials here; the warehouse credentials in `.env` are Snowflake, Databricks, BigQuery and Fabric. See section 10, decision 5.
 
-## 10. Open decisions
+## 10. Decisions (maintainer, 2026-10-12)
 
-1. **How a query parameter reaches the source.**
-   - **(a)** A new kind, `query_arg`.
-   - **(b)** Rename `pipeline_arg` to `query_arg` and use it for both MongoDB and Cosmos.
-
-   Recommended: (b). One kind for "an argument of the table's native query", whatever the source. It is a rename across config and stored rows, done now while there are no installs to convert.
-2. **The partition key as a parameter of a container table.** Recommended: offer it as an optional parameter, so a steward can require it. Not required by default: a small container is fine to read across partitions.
-3. **Deletes on the native change signal.** Recommended: support the "latest version" mode only at first, and say on the Sources form that deletes are seen at the next full refresh. "All versions and deletes" needs continuous backup on the account and can follow.
-4. **Entra ID authentication in the first build.** Recommended: yes, because many organizations disable account keys.
-5. **Search tests.** Recommended: a short spike on the vnext emulator before building section 8's tests. If the emulator lacks vector or full-text search, the maintainer decides whether CI gets a real Cosmos account (an Azure cost) or those tests stay unit-level.
+1. **How a query parameter reaches the source:** `query_arg`, MongoDB's `pipeline_arg` renamed, shared by MongoDB pipelines, Cosmos queries and Node functions later.
+2. **The partition key of a container table:** an optional parameter, which a steward can make required.
+3. **Deletes on the native change signal:** the change feed's latest-version mode first; a deleted document is seen at the next full refresh, and the Sources form says so.
+4. **Entra ID authentication:** a service principal, in the first build.
+5. **Search tests:** a spike on whether the vnext emulator serves vector and full-text search comes before those tests are written.
