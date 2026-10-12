@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: f84d1bd9-8377-486d-8f05-8afd5f3072bb
 #
 # This source code is licensed under the Business Source License 1.1
 """A log's lines grouped into its records (REQ-1996). Without a record-start pattern each line is

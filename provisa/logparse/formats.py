@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 7c2e63fe-06c9-4b78-8277-b08370da99cc
 #
 # This source code is licensed under the Business Source License 1.1
 """The built-in log formats (REQ-1996): BSD syslog (RFC 3164), RFC 5424 syslog, the macOS

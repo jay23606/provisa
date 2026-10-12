@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: cb5ec7ed-2aac-46e6-810d-fa2e0791a646
 #
 # This source code is licensed under the Business Source License 1.1
 """Column types from a preview of values (REQ-1996), for a format whose records name their own

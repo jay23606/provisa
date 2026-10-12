@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: ab9301d9-2815-4b09-89ca-151d4792024d
 #
 # This source code is licensed under the Business Source License 1.1
 """The shared log-parser library (REQ-1996): the built-in formats by name, grouped as the source

@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 0c588a15-512e-4532-9d92-9c67880e22c2
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the shared log-parser library's core formats, record framing and header-declared

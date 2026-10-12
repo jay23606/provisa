@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: dba9704f-81d3-402a-baa7-f7c5e8219b5f
 #
 # This source code is licensed under the Business Source License 1.1
 """What a log format is (REQ-1996): the columns it gives a table, and how one record of a log
