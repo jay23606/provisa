@@ -158,6 +158,18 @@ def server(pgvector, tmp_path_factory):
                 "columns": [_col("id", "integer", both), _embedding("vec", [_ROLE])],
             },
         ],
+        # The join the tests make is a registered relationship: a join outside the registered
+        # ones is refused to a role that may not ignore them (REQ-603).
+        "relationships": [
+            {
+                "id": "doc-note",
+                "source_table_id": "docs",
+                "target_table_id": "notes",
+                "source_column": "id",
+                "target_column": "id",
+                "cardinality": "one-to-one",
+            }
+        ],
     }
     work = tmp_path_factory.mktemp("vector_similarity_e2e")
     path = work / "config.yaml"
@@ -229,9 +241,11 @@ def test_two_embedding_columns_of_one_model_are_compared(server):
 
 
 def test_a_role_not_served_the_column_may_not_search_it(server):  # REQ-426
+    # The column is not served to the role: the statement is refused for naming it, before
+    # its search is governed.
     resp = _sql(server, _TOP2.format(table="notes"), role=_ANALYST)
     assert resp.status_code != 200
-    assert "may not search embedding column" in resp.text
+    assert "Column 'vec' is not visible to this role" in resp.text
 
 
 def test_a_column_that_is_no_embedding_is_refused(server):

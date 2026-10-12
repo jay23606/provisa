@@ -338,6 +338,18 @@ def _config(atlas: _Atlas, engine: str) -> dict:
                 ],
             },
         ],
+        # The join the tests make is a registered relationship: a join outside the registered
+        # ones is refused to a role that may not ignore them (REQ-603).
+        "relationships": [
+            {
+                "id": "similar-movie-reviews",
+                "source_table_id": "similar_movies",
+                "target_table_id": "reviews",
+                "source_column": "movie_id",
+                "target_column": "movie_id",
+                "cardinality": "one-to-many",
+            }
+        ],
     }
 
 
