@@ -19,7 +19,6 @@
     "noRelationships": "此資料表並未參與任何關係",
     "fromSource": "{{value}}（來自數據來源）",
     "fromSourceAsIs": "與數據來源相同",
-    "contractSet": "已設定",
     "notScheduledLikeSource": "並非只按排程讀取，儘管其數據來源是：查詢可能會讀取數據來源。"
   }
 }

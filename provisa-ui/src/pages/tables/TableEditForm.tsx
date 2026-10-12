@@ -244,7 +244,7 @@ export function TableEditForm({
       <TableSectionTabs value={section} onChange={setSection} errors={{ load: loadErrors }} />
       {section === "identity" &&
         (hidingOnly ? (
-          <IdentityRead table={editingTable} />
+          <IdentityRead table={editingTable} source={editSource} />
         ) : (
           <FormLayout className="form-card" data-testid="table-section-identity-panel">
             <FormIdentifiers>

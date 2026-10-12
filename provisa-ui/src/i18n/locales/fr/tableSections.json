@@ -19,7 +19,6 @@
     "noRelationships": "Cette table ne participe à aucune relation",
     "fromSource": "{{value}} (de la source)",
     "fromSourceAsIs": "Comme dans la source",
-    "contractSet": "Défini",
     "notScheduledLikeSource": "Pas lue uniquement selon la planification, alors que sa source l'est : une requête peut lire la source."
   }
 }

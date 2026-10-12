@@ -71,7 +71,7 @@ interface TableReadViewProps {
   profileColumnsTable?: RegisteredTable | null;
   /** Render the action row alone: the edit form shows it, disabled, in the panel's head. */
   actionsOnly?: boolean;
-  /** The table's source: what Load and timeliness and Quality say depends on it. */
+  /** The table's source: what Identity, Load and timeliness and Quality say depends on it. */
   source?: Source;
   /** The relationships the table takes part in are listed on Associations. */
   relationships: Relationship[];
@@ -307,7 +307,7 @@ export function TableReadView({
     <>
       {/* The same six sections as the edit form, each read-only. */}
       <TableSectionTabs value={section} onChange={setSection} />
-      {section === "identity" && <IdentityRead table={table} />}
+      {section === "identity" && <IdentityRead table={table} source={source} />}
       {section === "associations" && (
         <TableAssociations
           table={table}

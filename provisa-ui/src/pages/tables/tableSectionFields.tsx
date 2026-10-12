@@ -36,6 +36,11 @@ export function isCheckerSource(source: Source | undefined): boolean {
   );
 }
 
+/** Whether a source of this type serves files, where one table may span a glob of them (REQ-788). */
+export function isFilesSourceType(sourceType: string): boolean {
+  return ["files", "csv", "parquet"].includes(sourceType);
+}
+
 /** A value that is not set, said in the dimmed text of a default. */
 export function unset(text: string) {
   return (

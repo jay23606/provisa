@@ -5782,7 +5782,6 @@
   "pt/tableSections.json::tableSections.noRelationships": "This table takes part in no relationship",
   "pt/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "pt/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
-  "pt/tableSections.json::tableSections.contractSet": "Set",
   "pt/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
   "pt/registerTableForm.json::registerTableForm.shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
   "pt/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",

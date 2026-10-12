@@ -19,7 +19,6 @@
     "noRelationships": "Esta tabla no participa en ninguna relación",
     "fromSource": "{{value}} (del origen)",
     "fromSourceAsIs": "Como lo tiene el origen",
-    "contractSet": "Definido",
     "notScheduledLikeSource": "No se lee solo según la programación, aunque su origen sí: una consulta puede leer el origen."
   }
 }

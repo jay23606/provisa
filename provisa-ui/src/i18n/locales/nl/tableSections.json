@@ -19,7 +19,6 @@
     "noRelationships": "Deze tabel neemt aan geen relatie deel",
     "fromSource": "{{value}} (van de bron)",
     "fromSourceAsIs": "Zoals bij de bron",
-    "contractSet": "Ingesteld",
     "notScheduledLikeSource": "Niet alleen volgens schema gelezen, hoewel de bron dat wel is: een query kan de bron lezen."
   }
 }

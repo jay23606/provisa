@@ -15,7 +15,13 @@ import { replicateLabel } from "../../components/admin/replicate";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { NAMING_CONVENTIONS } from "./constants";
 import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
-import { changeSignalChoices, isCheckerSource, unset, yesNo } from "./tableSectionFields";
+import {
+  changeSignalChoices,
+  isCheckerSource,
+  isFilesSourceType,
+  unset,
+  yesNo,
+} from "./tableSectionFields";
 import {
   deltaFields,
   liveFields,
@@ -25,6 +31,7 @@ import {
   snapshotFields,
 } from "./loadReadFields";
 import { presetsField, viewMetricsFields } from "./queryReadFields";
+import { uniquesField, useContractFields } from "./qualityReadFields";
 
 // A table's sections read-only: the read view shows them, and so does the edit form to a caller
 // who may change only how columns are hidden. Each lists the fields its edit tab has, in the same
@@ -62,7 +69,7 @@ export function RefreshPolicyAlert({ policy }: { policy: RefreshPolicySummary })
   );
 }
 
-export function IdentityRead({ table }: { table: RegisteredTable }) {
+export function IdentityRead({ table, source }: { table: RegisteredTable; source?: Source }) {
   const { t } = useTranslation();
   const regions = useRegionChoices().regions;
   const naming =
@@ -89,6 +96,18 @@ export function IdentityRead({ table }: { table: RegisteredTable }) {
       : []),
     ...(table.apiEndpoint
       ? [{ label: t("tableEditForm.apiEndpointLabel"), value: <code>{table.apiEndpoint}</code> }]
+      : []),
+    ...(source && isFilesSourceType(source.type.toLowerCase())
+      ? [
+          {
+            label: t("registerTableForm.fileGlobLabel"),
+            value: table.fileGlob ? <code>{table.fileGlob}</code> : null,
+          },
+          {
+            label: t("registerTableForm.sourceFileColumnLabel"),
+            value: table.sourceFileColumn ? <code>{table.sourceFileColumn}</code> : null,
+          },
+        ]
       : []),
   ];
   return <DetailFields fields={fields} testId="table-identity" />;
@@ -244,29 +263,22 @@ export function QueryRead({ table }: { table: RegisteredTable }) {
 export function QualityRead({ table, source }: { table: RegisteredTable; source?: Source }) {
   const { t } = useTranslation();
   const checker = isCheckerSource(source);
+  const contract = useContractFields(
+    t,
+    checker ? (source?.type ?? "").toLowerCase() : null,
+    table.dqContract,
+  );
   const fields: DetailField[] = [
-    ...(checker
-      ? [
+    ...contract,
+    ...(checker || source?.type === "data_profiler"
+      ? []
+      : [
           {
-            label: t("dataQualityPanel.title"),
-            value: table.dqContract ? t("tableSections.contractSet") : null,
+            label: t("profilerPanel.title"),
+            value: table.profilerSourceId ?? null,
           },
-        ]
-      : source?.type === "data_profiler"
-        ? []
-        : [
-            {
-              label: t("profilerPanel.title"),
-              value: table.profilerSourceId ?? null,
-            },
-          ]),
-    {
-      label: t("uniquesPanel.title"),
-      value:
-        (table.uniqueConstraints ?? []).length > 0
-          ? table.uniqueConstraints.map((u) => `${u.name} (${u.columns.join(", ")})`).join("; ")
-          : null,
-    },
+        ]),
+    uniquesField(t, table.uniqueConstraints),
   ];
   return <DetailFields fields={fields} testId="table-quality" />;
 }
