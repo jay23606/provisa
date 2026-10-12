@@ -8,7 +8,8 @@
 Features are the requirements whose status became complete between the refs, each the first
 sentence of its description, grouped by category. Changes are the feat and user-visible fix
 commits of the range, grouped by scope; a commit citing a requirement completed in this release
-is listed under that feature instead. No requirement id appears in any output.
+is listed under that feature instead. A commit reverted before the release is left out, with its
+revert (git's "This reverts commit <sha>"). No requirement id appears in any output.
 
 The first release shown is set in scripts/release_notes.yaml (`start`: a date or a release tag;
 empty shows every release). A release before it is left out of every output, and the pages and
@@ -134,14 +135,25 @@ def cited(message: str) -> set[str]:
     return ids
 
 
+_REVERTS = re.compile(r"This reverts commit ([0-9a-f]{7,40})")
+
+
 def _commits(repo: Path, prev: str, new: str) -> list[tuple[str, str]]:
-    log = _git(repo, "log", "--reverse", "--no-merges", "--format=%s%x1f%b%x1e", f"{prev}..{new}")
-    commits = []
+    """The range's commits, oldest first, less any reverted within it and the reverts themselves."""
+    log = _git(
+        repo, "log", "--reverse", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", f"{prev}..{new}"
+    )
+    records = []
     for record in log.split("\x1e"):
         if record.strip():
-            subject, body = record.strip("\n").split("\x1f", 1)
-            commits.append((subject, body))
-    return commits
+            sha, subject, body = record.strip("\n").split("\x1f", 2)
+            records.append((sha, subject, body))
+    reverted = [m for _, _, body in records for m in _REVERTS.findall(body)]
+    return [
+        (subject, body)
+        for sha, subject, body in records
+        if not _REVERTS.search(body) and not any(sha.startswith(r) for r in reverted)
+    ]
 
 
 def _change(subject: str) -> tuple[str, str] | None:
