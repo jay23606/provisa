@@ -14,7 +14,8 @@
 //   it lands and refreshes by that one clock (REQ-1907);
 // - sentinel_path: a source of the kind can have a sentinel marker (REQ-1148);
 // - tables_land: every table of a source of the kind is served from a replica under the engine
-//   bound here, so one registered under a ttl signal needs a Cache TTL, its own or its source's.
+//   bound here, so one registered under a ttl signal needs a Cache TTL, its own or its source's;
+// - live_only: its tables are read live, never replicated, so no replication setting is offered.
 
 import { useEffect, useState } from "react";
 
@@ -22,6 +23,7 @@ export interface SourceKind {
   cache_ttl_required: boolean;
   sentinel_path: boolean;
   tables_land: boolean;
+  live_only: boolean;
 }
 
 const asked = new Map<string, Promise<SourceKind>>();

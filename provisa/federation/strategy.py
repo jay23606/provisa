@@ -93,7 +93,6 @@ _MATERIALIZE_ONLY = frozenset(
         "grpc_remote",
         "mongodb",
         "cosmosdb",  # REQ-1982: no engine reaches it; read by its SDK and landed
-        "qdrant",  # REQ-1983: no engine reaches it; read by its client and landed
         "cassandra",
         "redis",
         "elasticsearch",

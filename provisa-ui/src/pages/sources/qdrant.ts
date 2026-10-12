@@ -17,8 +17,9 @@ export const QDRANT = "qdrant";
 export const QDRANT_SCHEMA = "default";
 
 /** The source's federation hints for what the fields say. */
-export function qdrantHints(fields: Record<string, string>): Record<string, boolean> {
-  return { prefer_grpc: fields.qdrant_grpc === "true" };
+export function qdrantHints(fields: Record<string, string>): Record<string, string> {
+  // Text, as every hint is: the server resolves each one as a secret reference.
+  return { prefer_grpc: fields.qdrant_grpc === "true" ? "true" : "false" };
 }
 
 /** The fields an existing source's hints fill in. */
@@ -26,7 +27,7 @@ export function qdrantFieldsFromHints(
   hintsJson: string | null | undefined,
 ): Record<string, string> {
   const hints = hintsJson ? (JSON.parse(hintsJson) as Record<string, unknown>) : {};
-  return { qdrant_grpc: hints.prefer_grpc === true ? "true" : "false" };
+  return { qdrant_grpc: String(hints.prefer_grpc) === "true" ? "true" : "false" };
 }
 
 /** The argument a search's query names ("@q" names "q"), or null where the text names none. */

@@ -26,6 +26,8 @@ export interface ColumnForm {
   nativeFilterRequired?: boolean | null;
   /** REQ-1986: a steward made the parameter required for the table. */
   requiredBySteward?: boolean;
+  /** REQ-2000: the registered model a vector column is an embedding of. */
+  embeddingModel?: string | null;
   dataType: string;
   isPrimaryKey: boolean;
   scope: string;

@@ -325,6 +325,8 @@ async def _fetch_table_with_columns(
             ),
             required_by_steward=bool(r.get("required_by_steward") or False),  # REQ-1986
             path=r.get("path"),  # REQ-1739
+            embedding=bool(r.get("embedding") or False),  # REQ-421
+            embedding_model=r.get("embedding_model"),  # REQ-2000
             is_primary_key=bool(r.get("is_primary_key") or False),
             is_foreign_key=bool(r.get("is_foreign_key") or False),
             is_alternate_key=bool(r.get("is_alternate_key") or False),

@@ -1498,7 +1498,23 @@ class Query:  # REQ-021, REQ-042
         from provisa.qdrant import introspect as _qdrant
 
         found = await _qdrant.vectors(state, source_id, collection)
-        return [QdrantVectorType(**v) for v in found or []]
+        from provisa.api.mcp.tools import effective_config
+
+        cfg = await effective_config(state)
+        registered = [
+            vm if isinstance(vm, dict) else vars(vm) for vm in cfg.get("vector_models") or []
+        ]
+        return [
+            QdrantVectorType(
+                **v,
+                models=sorted(
+                    m["id"]
+                    for m in registered
+                    if m.get("enabled", True) and int(m["dimensions"]) == v["size"]
+                ),
+            )
+            for v in found or []
+        ]
 
     @strawberry.field
     async def cosmos_query_preview(

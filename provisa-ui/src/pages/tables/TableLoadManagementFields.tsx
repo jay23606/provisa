@@ -22,6 +22,7 @@ import { ReplicaBuildLine } from "./ReplicaBuildLine";
 import { RoleTtlField } from "./RoleTtlField";
 import type { CacheTtlEdit } from "./TableEditForm";
 import { OffPeakWindowFields } from "../../components/admin/OffPeakWindowFields";
+import { useSourceKind } from "../sources/sourceKind";
 
 export function TableLoadManagementFields({
   editingTable,
@@ -45,6 +46,8 @@ export function TableLoadManagementFields({
   effLoadProtected: boolean;
 }) {
   const { t } = useTranslation();
+  // REQ-2000: a live-only kind's tables are read live, never replicated.
+  const liveOnly = useSourceKind(editSource?.type ?? "")?.live_only === true;
   return (
     <FormField size="full">
       {/* The operator's load and recency controls, on the table's Load and timeliness tab: cache
@@ -87,20 +90,22 @@ export function TableLoadManagementFields({
               }
             />
           </FormField>
-          <FormField size="medium">
-            <ReplicateSelect
-              value={editingTable.replicate}
-              onChange={(replicate) => setEditingTable({ ...editingTable, replicate })}
-              scope="table"
-              // REQ-1141: load protection is the list's last choice. Default inherits both settings
-              // from the source; every other choice is this table's own.
-              loadProtected={editingTable.loadProtected === true}
-              onScheduledChange={(replicate, loadProtected) =>
-                setEditingTable({ ...editingTable, replicate, loadProtected })
-              }
-              testId="table-replicate-select"
-            />
-          </FormField>
+          {!liveOnly && (
+            <FormField size="medium">
+              <ReplicateSelect
+                value={editingTable.replicate}
+                onChange={(replicate) => setEditingTable({ ...editingTable, replicate })}
+                scope="table"
+                // REQ-1141: load protection is the list's last choice. Default inherits both settings
+                // from the source; every other choice is this table's own.
+                loadProtected={editingTable.loadProtected === true}
+                onScheduledChange={(replicate, loadProtected) =>
+                  setEditingTable({ ...editingTable, replicate, loadProtected })
+                }
+                testId="table-replicate-select"
+              />
+            </FormField>
+          )}
           {/* A table stored as not read only on schedule while its source is: no choice of the
               drop-down makes that pair (it comes from config or the API), so the drop-down shows
               Default and this line says what is stored. Choosing Default stores Default. */}
@@ -113,13 +118,15 @@ export function TableLoadManagementFields({
                 </Text>
               </FormField>
             )}
-          <FormField size="full">
-            <ReplicaBuildLine
-              sourceId={editingTable.sourceId}
-              schemaName={editingTable.schemaName}
-              tableName={editingTable.tableName}
-            />
-          </FormField>
+          {!liveOnly && (
+            <FormField size="full">
+              <ReplicaBuildLine
+                sourceId={editingTable.sourceId}
+                schemaName={editingTable.schemaName}
+                tableName={editingTable.tableName}
+              />
+            </FormField>
+          )}
           <FormField size="full">
             <RoleTtlField
               rows={editingTable.roleTtl}

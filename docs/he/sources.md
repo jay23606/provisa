@@ -166,11 +166,30 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 
 ### Qdrant
 
-`qdrant` (REQ-1983) נקרא באמצעות הלקוח של Qdrant עצמה, `qdrant-client`; לאף מנוע פדרציה אין מחבר Qdrant, ולכן הוא נקרא באותו אופן בכל מנוע ונוחת במקום שבו הצהרה מחברת אותו. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+`qdrant` (REQ-1983, REQ-2000) נקרא ונכתב באמצעות הלקוח של Qdrant עצמה, `qdrant-client`. Qdrant הוא **חי בלבד**: תכונה של סוג המקור, לא הגדרה. היא עונה באמצעות אינדקס הווקטורים וה-Query API שלה, ושום עותק אינו יכול לענות כך, ולכן הטבלאות שלה אינן משוכפלות לעולם. אין בחירת Replicate למקור Qdrant או לטבלאות שלו; ערך `replicate` או `row_materialize` עליהם נדחה. [tool-verified: `provisa/core/source_registry.py` `LIVE_ONLY_TYPES`; `provisa/api/admin/_landing_ttl.py` `_live_only_refusal`]
 
 **חיבור.** `host` הוא כתובת ה-URL של המופע עם הפורט (`https://<cluster>.cloud.qdrant.io:6333`, או `http://qdrant:6333` באירוח עצמי); `password` הוא מפתח ה-API שלו, הפניה לסוד (secret) הנפתרת כשהמקור נקרא, ריק עבור מופע ללא מפתח. `federation_hints.prefer_grpc: true` קורא דרך פורט ה-gRPC של Qdrant במקום REST. למקור סכמה אחת, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
 
-**טבלאות קולקציה.** קולקציה היא טבלה, הנוחתת במלואה כעותק (scroll, עמוד אחר עמוד) ומתרעננת לפי ה-TTL שלה; ל-Qdrant אין change feed. Register Table מציע את עמודות הקולקציה: `id` (מזהה הנקודה, המפתח שלה, נתיב `@id`), שדות ה-payload (שדה מאונדקס מטיפוס לפי האינדקס שלו, כל שדה אחר לפי מה שמציעות נקודות הדגימה; שדות מקוננים משוטחים עם הנתיב שלהם), ועמודת `json` אחת לכל וקטור (נתיב `@vector`, או `@vector.<name>` לוקטור בעל שם), המוצעת כשהיא לא נבחרת. קריאה לפי מפתח על `id` היא `retrieve` אחד; על שדה payload — scroll מסונן אחד. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+**טבלאות קולקציה.** קולקציה היא טבלה. Register Table מציע את עמודות הקולקציה: `id` (מזהה הנקודה, המפתח שלה, נתיב `@id`), שדות ה-payload (שדה מאונדקס מטיפוס לפי האינדקס שלו, כל שדה אחר לפי מה שמציעות נקודות הדגימה; שדות מקוננים משוטחים עם הנתיב שלהם), ועמודת `json` אחת לכל וקטור (נתיב `@vector`, או `@vector.<name>` לוקטור בעל שם), המוצעת כשהיא לא נבחרת. עמודת וקטור מציינת את מודל ה-embedding הרשום שהיא מחזיקה embeddings שלו, הנבחר מבין המודלים שהממדים שלהם הם גודל הווקטור (ב-Register Table ובלשונית "סוג ומפתחות" של העורך); בחירת מודל רושמת את הווקטור. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa-ui/src/pages/tables/QdrantVectorColumns.tsx`]
+
+**הצהרות על מקור Qdrant אחד.** הצהרה שקוראת קולקציה אחת בלבד רצה ב-Qdrant כאשר ה-API של Qdrant מבטא אותה במדויק:
+
+- תנאי payload הופכים למסנן של Qdrant (`=`, `<>`, `IN`, טווחים על מספרים ותאריכים, `IS NULL`, `AND`, `OR`, `NOT`); סמנטיקת ה-NULL של SQL נשמרת, כך ש-`lang <> 'en'` מדלג על נקודות ללא `lang`;
+- תנאי על `id` בלבד (`=` או `IN`) הוא `retrieve` אחד; כל קריאה אחרת היא `scroll` מסונן;
+- `ORDER BY cosine_similarity(<vector>, <query>) DESC LIMIT k` הוא `query_points` אחד על וקטור שהמרחק שלו Cosine, כשהמסנן מוחל לפני ה-top-k. טקסט של שאילתה מוטמע על ידי המודל של הווקטור. התשובה נושאת אזהרה שה-top-k משוער, ונבחר דרך האינדקס של Qdrant.
+
+כל השאר (אגרגט, `GROUP BY`, עמודה מחושבת או מוסתרת, סדר שאינו "הדומה ביותר קודם") נענה על ידי המנוע, כמתואר להלן. [tool-verified: `provisa/qdrant/direct.py` `analyse`, `condition`, `QdrantDriver`]
+
+**הצהרות שהמנוע עונה עליהן.** כאשר הצהרה מחברת קולקציה למקור אחר, או מחשבת על עמודותיה, חלק הקולקציה נקרא חי מ-Qdrant עבור אותה הצהרה ומועבר למנוע כשורות. החלק הוא עמודות הקולקציה, תנאי ההצהרה על הקולקציה לבדה (כולל כללי השורה שלה) ו, כשהקולקציה נקראת לבדה ב-`SELECT` שלה, סדר הדמיון וה-`LIMIT` של אותו `SELECT`. חלק ש-Qdrant אינה יכולה לבטא במדויק נדחה, תוך ציון הטבלה והסיבה. חלק ללא תנאי, ללא מפתח וללא top-k היה קורא את כל הקולקציה ונדחה אף הוא. תנאי על פרמטר (`$1`) נשאר למנוע. [tool-verified: `provisa/federation/live_only.py` `cut`, `read`; `provisa/pgwire/_pipeline.py` `_read_live_parts`]
+
+**כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על קולקציה רצים ב-Qdrant:
+
+- `INSERT … VALUES` מציין את העמודה `id` וכותב נקודות חדשות. `id` שהקולקציה כבר מחזיקה נדחה בשמו. הבדיקה קוראת את המזהים קודם, ולכן אינה אטומית עם הכתיבה.
+- `INSERT … ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c, …` הוא upsert. עמודות שההצהרה אינה קובעת שומרות על ערכיהן.
+- `UPDATE` ו-`DELETE` פועלים על הנקודות שה-`WHERE` שלהם בוחר, כמסנן של Qdrant; תנאי ללא צורת מסנן נדחה.
+- טקסט שנכתב לעמודת וקטור מוטמע על ידי המודל של העמודה. וקטור שנכתב אליה חייב להיות בממדי המודל.
+
+[tool-verified: `provisa/qdrant/direct.py` `_insert`, `_upsert_clause`, `_write_points`, `_update`, `_delete`, `_vector_value`]
 
 **טבלאות חיפוש.** חיפוש וקטורי הוא טבלת חיפוש: ה-`query_template` שלה מחזיק בקשת Query API.
 
@@ -188,7 +207,7 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 - `score` הוא המדד של הקולקציה עצמה עבור הוקטור שנחפש: בקולקציית Cosine, דמיון קוסינוס. Register Table מציג את הוקטורים של הקולקציה עם הגודל והמרחק שלהם.
 - `model` נוקב במודל embedding רשום (`vector_models`, admin ← AI Models). טקסט שניתן עבור השאילתה מוטמע אז על ידי אותו מודל, ווקטור שניתן חייב להיות בממדי המודל הזה (REQ-429, REQ-430). ללא `model` השאילתה חייבת להיות וקטור.
 
-חיפוש נקרא לכל הצהרה תחת הארגומנטים שלו, ושורותיו נשמרות תחת אותם ארגומנטים למשך ה-TTL של הטבלה. `cosine_similarity(column, vector)` (REQ-423) אינה מתורגמת עבור Qdrant: חיפוש דמיון הוא טבלת חיפוש. כתיבה ל-Qdrant אינה נתמכת. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
+חיפוש נקרא לכל הצהרה תחת הארגומנטים שלו, ושורותיו נשמרות תחת אותם ארגומנטים למשך ה-TTL של הטבלה. טבלת חיפוש היא לקריאה בלבד. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### סטרימינג
 

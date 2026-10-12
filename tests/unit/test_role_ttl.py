@@ -133,6 +133,7 @@ def test_config_accepts_known_and_system_roles():
 def _landing_cfg(table_kw, source_kw):
     src = dict(
         id="s",
+        type="postgresql",
         change_signal="kafka",
         cache_ttl=None,
         replicate=None,
@@ -241,3 +242,25 @@ def test_config_accepts_the_no_ttl_freshness_signals_on_a_landed_table(
     _validate_landing_ttl(
         _landing_cfg(table_flag, {"change_signal": signal, "freshness_gate": True, **source_flag})
     )
+
+
+@pytest.mark.parametrize(
+    ("table_kw", "source_kw", "named"),
+    [
+        ({}, {"replicate": 0}, "Source 's'"),
+        ({"replicate": 500}, {}, "Table 'orders'"),
+        ({"row_materialize": True}, {}, "Table 'orders'"),
+    ],
+)
+def test_config_refuses_replicating_a_live_only_source(table_kw, source_kw, named):
+    """REQ-2000: a live-only source's tables are read live, never replicated."""
+    from provisa.core.config_loader import _validate_landing_ttl
+
+    with pytest.raises(ValueError, match=rf"{named}: qdrant is live-only"):
+        _validate_landing_ttl(_landing_cfg(table_kw, {"type": "qdrant", **source_kw}))
+
+
+def test_config_judges_no_landing_clock_on_a_live_only_source():
+    from provisa.core.config_loader import _validate_landing_ttl
+
+    _validate_landing_ttl(_landing_cfg({"change_signal": "ttl"}, {"type": "qdrant"}))

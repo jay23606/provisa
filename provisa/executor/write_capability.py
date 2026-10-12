@@ -89,6 +89,10 @@ def table_write_ops(
         return frozenset(WRITE_OPS) if table.get("table_name") in WRITABLE_COLUMNS else frozenset()
     if source_type in _INSERT_ONLY:
         return frozenset({"insert"})
+    if source_type == "qdrant" and table.get("query_template"):
+        # REQ-2000: a Qdrant search is read under its arguments; points are written to a
+        # collection table.
+        return frozenset()
     if source_type == "athena" and table.get("table_format") != ICEBERG:
         # REQ-1981: Athena changes or removes rows only of an Iceberg table; a Hive table takes
         # inserts alone.

@@ -1,0 +1,8 @@
+{
+  "vectorModelCell": {
+    "header": "嵌入模型",
+    "label": "{{column}} 的嵌入模型",
+    "placeholder": "選擇模型",
+    "none": "沒有已登記模型的維度與此向量相同"
+  }
+}

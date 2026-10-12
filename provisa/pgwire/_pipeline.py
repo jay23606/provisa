@@ -437,6 +437,32 @@ async def _optimize_and_route(
             dialect=None,
             reason=f"source {decision.source_id!r} has no direct connection on this node",
         )
+    if (
+        decision.route == Route.DIRECT
+        and not is_mutation
+        and decision.source_id is not None
+        and state.source_types.get(decision.source_id) == "qdrant"
+    ):
+        # REQ-2000: a read on a Qdrant source runs there only where Qdrant's API states it
+        # exactly; anything else is the engine's, over the collection's part read live for the
+        # statement (below), so no rule of the role's is skipped. Writes are always made in Qdrant (the engine does not write it).
+        from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical
+        from provisa.qdrant.direct import route_reason
+        from provisa.transpiler.router import RouteDecision
+
+        _why = await route_reason(
+            state,
+            decision.source_id,
+            rewrite_semantic_to_physical(governed_sql, ctx),
+            table_ids,
+        )
+        if _why is not None:
+            decision = RouteDecision(
+                route=Route.ENGINE,
+                source_id=None,
+                dialect=None,
+                reason=f"source {decision.source_id!r}: {_why}",
+            )
     if decision.route == Route.DIRECT and _similarity_needs_engine(governed_sql, decision, state):
         # REQ-423: a similarity search runs on a source only where the source's own SQL computes
         # it (similarity.DIRECT_DIALECTS); elsewhere the engine computes it.
@@ -448,6 +474,15 @@ async def _optimize_and_route(
             dialect=None,
             reason=f"source {decision.source_id!r} cannot compute cosine_similarity",
         )
+    if decision.route == Route.ENGINE and not is_mutation:
+        # REQ-2000: a live-only table the engine reads is read live for this statement -- its
+        # part of it -- and handed to the engine; it has no replica.
+        _live = await _read_live_parts(exec_sql, governed_sql, ctx, state, table_ids)
+        if _live:
+            exec_sql = rewrite_all_from_cache(exec_sql, _live)
+            _rewrites.update(_live)
+            optimized = True
+            opt_labels.extend(f"read live: {_tn}" for _tn in sorted(_live))
     if _rewrites and decision.route != Route.ENGINE:
         # A cache rewrite points the SQL at a materialized table living in the engine's
         # attached mat_store catalog — no native pool or API caller can see it, so the
@@ -465,12 +500,40 @@ async def _optimize_and_route(
     return exec_sql, decision, default_source, optimized, sources, tuple(opt_labels)
 
 
+async def _read_live_parts(
+    exec_sql: str, governed_sql: str, ctx, state, table_ids: tuple[int, ...]
+) -> dict:
+    """The cache rewrites of the live-only tables an engine-answered statement reads, each read
+    live for it (``federation.live_only``), by the name the statement gives it."""
+    from provisa.api.data.materialization import mat_live_part
+    from provisa.compiler.naming import apply_sql_name
+    from provisa.compiler.nf_extractor import find_api_table_names
+    from provisa.federation.live_only import cut, live_only_tables
+
+    tables = live_only_tables(state, table_ids)
+    if not tables:
+        return {}
+    from provisa.compiler.sql_rewrite import rewrite_semantic_to_physical
+
+    physical = rewrite_semantic_to_physical(governed_sql, ctx)
+    named = {apply_sql_name(tn): tn for tn in find_api_table_names(exec_sql)}
+    rewrites: dict = {}
+    for table in tables:
+        tn = named[apply_sql_name(table["table_name"])]
+        await mat_live_part(tn, cut(physical, table), state, rewrites)
+    return rewrites
+
+
 def _similarity_needs_engine(governed_sql: str, decision: Any, state: Any) -> bool:  # REQ-423
     from provisa.vector.similarity import DIRECT_DIALECTS, mentions
 
     if not mentions(governed_sql):
         return False
-    return (state.source_dialects.get(decision.source_id) or "") not in DIRECT_DIALECTS
+    dialect = state.source_dialects.get(decision.source_id) or ""
+    if dialect == "qdrant":
+        # REQ-2000: Qdrant's own similarity search, decided by its route check above.
+        return False
+    return dialect not in DIRECT_DIALECTS
 
 
 @functools.lru_cache(maxsize=4096)

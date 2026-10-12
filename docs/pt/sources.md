@@ -164,11 +164,30 @@ Esses tipos de fonte são somente federação — sem driver direto, sem dialeto
 
 ### Qdrant
 
-`qdrant` (REQ-1983) é lido pelo cliente próprio do Qdrant, `qdrant-client`; nenhum motor de federação tem um conector Qdrant, então ele é lido da mesma forma em qualquer motor e aterra onde uma instrução o une. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+`qdrant` (REQ-1983, REQ-2000) é lido e escrito pelo cliente próprio do Qdrant, `qdrant-client`. O Qdrant é **somente ao vivo**: uma propriedade do tipo de fonte, não uma configuração. Ele responde com seu índice vetorial e sua Query API, e nenhuma réplica pode responder do mesmo modo, então suas tabelas nunca são replicadas. Não há opção Replicate para uma fonte Qdrant nem para suas tabelas; um valor `replicate` ou `row_materialize` em uma delas é recusado. [tool-verified: `provisa/core/source_registry.py` `LIVE_ONLY_TYPES`; `provisa/api/admin/_landing_ttl.py` `_live_only_refusal`]
 
 **Conexão.** `host` é a URL da instância com sua porta (`https://<cluster>.cloud.qdrant.io:6333`, ou um `http://qdrant:6333` auto-hospedado); `password` é sua chave de API, uma referência a um segredo resolvida quando a fonte é lida, vazia para uma instância sem chave. `federation_hints.prefer_grpc: true` lê pela porta gRPC do Qdrant em vez de REST. A fonte tem um esquema, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
 
-**Tabelas de coleção.** Uma coleção é uma tabela, aterrada inteira como réplica (scroll, uma página por vez) e atualizada conforme seu TTL; o Qdrant não tem change feed. Register Table oferece as colunas da coleção: `id` (o id do ponto, sua chave, caminho `@id`), os campos do payload (um campo indexado tipado por seu índice, qualquer outro como os pontos amostrados sugerem; campos aninhados achatados com seu caminho) e uma coluna `json` por vetor (caminho `@vector`, ou `@vector.<name>` para um vetor nomeado), oferecida sem seleção. Uma leitura por chave em `id` é um `retrieve`; em um campo do payload, um scroll filtrado. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+**Tabelas de coleção.** Uma coleção é uma tabela. Register Table oferece as colunas da coleção: `id` (o id do ponto, sua chave, caminho `@id`), os campos do payload (um campo indexado tipado por seu índice, qualquer outro como os pontos amostrados sugerem; campos aninhados achatados com seu caminho) e uma coluna `json` por vetor (caminho `@vector`, ou `@vector.<name>` para um vetor nomeado), oferecida sem seleção. Uma coluna de vetor nomeia o modelo de embedding registrado cujos embeddings ela contém, escolhido entre os modelos cujas dimensões são o tamanho do vetor (em Register Table e na aba Tipo e chaves do editor); escolher um modelo registra o vetor. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa-ui/src/pages/tables/QdrantVectorColumns.tsx`]
+
+**Instruções sobre uma fonte Qdrant.** Uma instrução que lê apenas uma coleção é executada no Qdrant quando a API do Qdrant a expressa exatamente:
+
+- as condições sobre o payload viram um filtro do Qdrant (`=`, `<>`, `IN`, intervalos sobre números e datas, `IS NULL`, `AND`, `OR`, `NOT`); a semântica de NULL do SQL é mantida, de modo que `lang <> 'en'` ignora pontos sem `lang`;
+- uma condição apenas sobre `id` (`=` ou `IN`) é um `retrieve`; qualquer outra leitura é um `scroll` filtrado;
+- `ORDER BY cosine_similarity(<vector>, <query>) DESC LIMIT k` é um `query_points` sobre um vetor cuja distância é Cosine, com o filtro aplicado antes do top-k. Um texto de consulta é convertido em embedding pelo modelo do vetor. A resposta traz um aviso de que o top-k é aproximado, escolhido pelo índice do Qdrant.
+
+Tudo o mais (um agregado, um `GROUP BY`, uma coluna calculada ou mascarada, uma ordenação diferente da mais semelhante primeiro) é respondido pelo motor, como abaixo. [tool-verified: `provisa/qdrant/direct.py` `analyse`, `condition`, `QdrantDriver`]
+
+**Instruções que o motor responde.** Quando uma instrução une uma coleção a outra fonte, ou calcula sobre suas colunas, a parte da coleção é lida ao vivo do Qdrant para essa instrução e entregue ao motor como linhas. A parte são as colunas da coleção, as condições da instrução sobre a coleção sozinha (incluindo suas regras de linha) e, quando a coleção é lida sozinha em seu `SELECT`, a ordenação por similaridade e o `LIMIT` desse `SELECT`. Uma parte que o Qdrant não consegue expressar exatamente é recusada, nomeando a tabela e o motivo. Uma parte sem condição, sem chave e sem top-k leria a coleção inteira e também é recusada. Uma condição sobre um parâmetro (`$1`) fica a cargo do motor. [tool-verified: `provisa/federation/live_only.py` `cut`, `read`; `provisa/pgwire/_pipeline.py` `_read_live_parts`]
+
+**Gravações.** `INSERT`, `UPDATE` e `DELETE` em uma coleção são executados no Qdrant:
+
+- `INSERT … VALUES` nomeia a coluna `id` e grava pontos novos. Um `id` que a coleção já contém é recusado pelo nome. A verificação lê os ids primeiro, portanto não é atômica com a gravação.
+- `INSERT … ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c, …` é um upsert. As colunas que a instrução não define mantêm seus valores.
+- `UPDATE` e `DELETE` atuam sobre os pontos que seu `WHERE` seleciona, como filtro do Qdrant; uma condição sem forma de filtro é recusada.
+- Um texto gravado em uma coluna de vetor é convertido em embedding pelo modelo da coluna. Um vetor gravado nela deve ter as dimensões do modelo.
+
+[tool-verified: `provisa/qdrant/direct.py` `_insert`, `_upsert_clause`, `_write_points`, `_update`, `_delete`, `_vector_value`]
 
 **Tabelas de busca.** A busca vetorial é uma tabela de busca: seu `query_template` contém uma requisição da Query API.
 
@@ -186,7 +205,7 @@ Esses tipos de fonte são somente federação — sem driver direto, sem dialeto
 - `score` é a métrica própria da coleção para o vetor buscado: para uma coleção Cosine, a similaridade de cosseno. Register Table lista os vetores da coleção com tamanho e distância.
 - `model` nomeia um modelo de embedding registrado (`vector_models`, admin → AI Models). Um texto dado para a consulta é então incorporado por esse modelo, e um vetor dado deve ter as dimensões desse modelo (REQ-429, REQ-430). Sem `model`, a consulta deve ser um vetor.
 
-Uma busca é lida por instrução sob seus argumentos, suas linhas mantidas sob esses argumentos durante o TTL da tabela. `cosine_similarity(column, vector)` (REQ-423) não é traduzida para o Qdrant: uma busca de similaridade é uma tabela de busca. Gravações no Qdrant não são suportadas. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
+Uma busca é lida por instrução sob seus argumentos, suas linhas mantidas sob esses argumentos durante o TTL da tabela. Uma tabela de busca é somente leitura. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming
 

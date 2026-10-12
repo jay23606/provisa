@@ -341,8 +341,10 @@ def transpile(
         result = _strip_schema_qualifiers(result)
     from provisa.vector.similarity import lower as _lower_similarity
 
-    # REQ-423: a governed similarity search, in the target's own form.
-    result = _lower_similarity(result, target_dialect, pgvector=pgvector)
+    # REQ-423: a governed similarity search, in the target's own form. REQ-2000: Qdrant's driver
+    # reads the governed call itself and runs the search through Qdrant's API.
+    if target_dialect != "qdrant":
+        result = _lower_similarity(result, target_dialect, pgvector=pgvector)
     from provisa.observability.stage_trace import trace_stage
 
     trace_stage(f"transpile.{target_dialect}", result)

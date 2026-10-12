@@ -75,9 +75,6 @@ _ADAPTER_FETCH_ONLY: frozenset[str] = frozenset(
         # REQ-1982: Cosmos DB documents are read through its SDK (provisa/cosmosdb/loader.py); no
         # engine reaches it.
         "cosmosdb",
-        # REQ-1983: Qdrant points are read through its client (provisa/qdrant/loader.py); no
-        # engine reaches it.
-        "qdrant",
         # REQ-1730: same gap as neo4j/sparql above — firebird/airport rows are produced by a
         # scratch DuckDB connection ATTACHed via their own community extension
         # (make_firebird_loader/make_airport_loader), not scanned from a relation Trino can reach

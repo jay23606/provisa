@@ -102,9 +102,13 @@ _ROUTE_REFUSED_FORMS: dict[WritePath, frozenset[str]] = {
 # REQ-1981: what a source type's own SQL lacks, beside its route's. Athena has no RETURNING, so a
 # write returns no rows; nor ON CONFLICT, UPDATE ... FROM, DELETE ... USING or TRUNCATE (MERGE it
 # takes, on an Iceberg table: ``write_capability``).
-_TYPE_RETURNS_NO_ROWS: frozenset[str] = frozenset({"athena"})
+# REQ-2000: a Qdrant write returns no rows; it takes ON CONFLICT on the point id as an upsert (its
+# driver refuses any other conflict clause by name), and none of UPDATE ... FROM, DELETE ... USING,
+# MERGE or TRUNCATE.
+_TYPE_RETURNS_NO_ROWS: frozenset[str] = frozenset({"athena", "qdrant"})
 _TYPE_REFUSED_FORMS: dict[str, frozenset[str]] = {
     "athena": frozenset({"on_conflict", "update_from", "delete_using", "truncate"}),
+    "qdrant": frozenset({"update_from", "delete_using", "merge", "truncate"}),
 }
 
 

@@ -106,6 +106,9 @@ export function buildTableUpdateInput(t: RegisteredTable): Record<string, unknow
       nativeFilterRequired: c.nativeFilterRequired ?? undefined,
       requiredBySteward: c.requiredBySteward || undefined, // REQ-1986
       path: c.path || undefined, // REQ-1739: ingest per-column JSON extraction path
+      // REQ-421, REQ-2000: carried by the form, which sets them.
+      embedding: c.embedding || Boolean(c.embeddingModel) || undefined,
+      embeddingModel: c.embeddingModel || undefined,
       isPrimaryKey: c.isPrimaryKey || undefined,
       isForeignKey: c.isForeignKey || undefined,
       isAlternateKey: c.isAlternateKey || undefined,

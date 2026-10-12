@@ -18,16 +18,19 @@ Each fact is a rule the server owns; the form asks rather than keep its own list
   ``events.sentinel_probe.applies_to``);
 - ``tables_land``: every table of a source of the kind is served from a replica under the
   engine bound here, so a table registered under a ttl signal needs a Cache TTL, its own or
-  its source's (REQ-1907, ``_landing_ttl.kind_lands``).
+  its source's (REQ-1907, ``_landing_ttl.kind_lands``);
+- ``live_only``: the kind is live-only -- its tables are read live, never replicated, so no
+  replication setting is offered (REQ-2000, ``core.source_registry.is_live_only``).
 """
 
-# Requirements: REQ-1907, REQ-1148
+# Requirements: REQ-1907, REQ-1148, REQ-2000
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
 from provisa.api.admin._landing_ttl import kind_lands, source_states_the_clock
 from provisa.api.admin.capabilities import require_capability_request
+from provisa.core.source_registry import is_live_only
 from provisa.events import sentinel_probe
 
 router = APIRouter(prefix="/admin/source-kinds", tags=["admin"])
@@ -40,4 +43,5 @@ async def source_kind(request: Request, kind: str) -> dict:
         "cache_ttl_required": source_states_the_clock(kind),
         "sentinel_path": sentinel_probe.applies_to(kind),
         "tables_land": kind_lands(kind),
+        "live_only": is_live_only(kind),
     }

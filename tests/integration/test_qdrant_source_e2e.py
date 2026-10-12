@@ -8,19 +8,20 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""E2E: Qdrant as a source (REQ-1983), on the qdrant/qdrant image.
+"""E2E: Qdrant as a source (REQ-1983, REQ-2000), on the qdrant/qdrant image.
 
 Everything here is the ``test`` instance: a Qdrant this module starts on a leased port and
 removes, an embeddings endpoint it serves itself (OpenAI-compatible, a fixed vector per word),
 and an isolated DuckDB server. Tables:
 
-* ``docs``: a collection table read whole, its point id the key;
+* ``docs``: a collection table, its point id the key, its vector ``text`` an embedding of the
+  ``stub`` model; a statement on it alone runs in Qdrant, and it is written there;
 * ``docs_search``: a search over ``docs``' named vector ``text``, its query a required argument,
   ``lang`` an optional argument in its filter, ``k`` its limit;
 * ``docs_by_text``: the same search with an embedding model, so a text query is embedded first.
 """
 
-# Requirements: REQ-1983
+# Requirements: REQ-1983, REQ-2000
 from __future__ import annotations
 
 import json
@@ -157,6 +158,10 @@ def _col(name: str, data_type: str, **kw) -> dict:
     return {"name": name, "data_type": data_type, "visible_to": [_ROLE], **kw}
 
 
+def _writable(name: str, data_type: str, **kw) -> dict:
+    return _col(name, data_type, writable_by=[_ROLE], **kw)
+
+
 def _arg(name: str, data_type: str, *, required: bool = False) -> dict:
     return {
         "name": f"_nf_{name}",
@@ -208,9 +213,16 @@ def server(qdrant, embeddings, tmp_path_factory):
                 "table": "docs",
                 "cache_ttl": 60,
                 "columns": [
-                    _col("id", "bigint", path="@id", is_primary_key=True),
-                    _col("title", "varchar"),
-                    _col("lang", "varchar"),
+                    _writable("id", "bigint", path="@id", is_primary_key=True),
+                    _writable("title", "varchar"),
+                    _writable("lang", "varchar"),
+                    _writable(
+                        "text_vec",
+                        "json",
+                        path="@vector.text",
+                        embedding=True,
+                        embedding_model="stub",
+                    ),
                 ],
             },
             {
@@ -283,9 +295,33 @@ def _rows(resp: httpx.Response) -> list[dict]:
     return resp.json()["data"]["sql"]
 
 
-def test_a_collection_table_is_read_whole(server):
-    rows = _rows(_sql(server, "SELECT id, title, lang FROM docs ORDER BY id"))
-    assert rows == [{"id": i, "title": t, "lang": lang} for i, t, lang, _ in _DOCS]
+def test_a_collection_is_read_in_qdrant(server):
+    rows = _rows(_sql(server, "SELECT id, title, lang FROM docs"))
+    assert sorted(rows, key=lambda r: r["id"]) == [
+        {"id": i, "title": t, "lang": lang} for i, t, lang, _ in _DOCS
+    ]
+
+
+def test_a_filtered_similarity_search_on_the_collection_runs_in_qdrant(server):
+    rows = _rows(
+        _sql(
+            server,
+            "SELECT id FROM docs WHERE lang = 'en' "
+            "ORDER BY cosine_similarity(text_vec, '[1, 0, 0, 0]') DESC LIMIT 2",
+        )
+    )
+    # Document 2 is the second nearest overall but German: the filter is applied before the top-k.
+    assert [r["id"] for r in rows] == [1, 3]
+
+
+def test_a_text_similarity_query_is_embedded_by_the_vectors_model(server):
+    rows = _rows(
+        _sql(
+            server,
+            "SELECT id FROM docs ORDER BY cosine_similarity(text_vec, 'cats') DESC LIMIT 1",
+        )
+    )
+    assert rows == [{"id": 3}]
 
 
 def test_a_search_returns_the_nearest_points_nearest_first_with_their_scores(server):
@@ -325,12 +361,70 @@ def test_a_text_query_is_embedded_by_the_searchs_model(server):
     assert rows[0]["id"] == 3
 
 
-def test_a_search_joins_its_collection(server):
+def test_a_search_joins_its_collection_read_live_under_its_conditions(server):
     rows = _rows(
         _sql(
             server,
             "SELECT d.title FROM docs_search s JOIN docs d ON d.id = s.id "
-            "WHERE s._nf_q = '[0, 0, 1, 0]' AND s._nf_k = 1",
+            "WHERE s._nf_q = '[0, 0, 1, 0]' AND s._nf_k = 1 AND d.lang = 'en'",
         )
     )
     assert rows == [{"title": "Birds in spring"}]
+
+
+def test_a_join_that_would_read_the_whole_collection_is_refused_naming_it(server):
+    resp = _sql(
+        server,
+        "SELECT d.title FROM docs_search s JOIN docs d ON d.id = s.id "
+        "WHERE s._nf_q = '[0, 0, 1, 0]' AND s._nf_k = 1",
+    )
+    assert resp.status_code != 200
+    assert "'docs' is read live" in resp.text and "whole table" in resp.text
+
+
+# --- writes, in Qdrant (REQ-2000); last, since they change the collection ---
+
+
+def _ok(resp: httpx.Response) -> None:
+    assert resp.status_code == 200, resp.text
+
+
+def test_an_insert_embeds_a_text_written_to_a_vector(server):
+    _ok(
+        _sql(
+            server,
+            "INSERT INTO docs (id, title, lang, text_vec) VALUES (10, 'Dogs again', 'en', 'dogs')",
+        )
+    )
+    rows = _rows(
+        _sql(
+            server,
+            "SELECT id FROM docs ORDER BY cosine_similarity(text_vec, 'dogs') DESC LIMIT 1",
+        )
+    )
+    assert rows == [{"id": 10}]  # its vector is the model's for "dogs", the query's own
+
+
+def test_an_insert_of_an_id_the_collection_holds_is_refused_naming_it(server):
+    resp = _sql(server, "INSERT INTO docs (id, title, lang) VALUES (1, 'Again', 'en')")
+    assert resp.status_code != 200
+    assert "already holds" in resp.text and "1" in resp.text
+
+
+def test_an_upsert_sets_what_it_names_and_keeps_the_rest(server):
+    _ok(
+        _sql(
+            server,
+            "INSERT INTO docs (id, title) VALUES (10, 'Dogs, once more') "
+            "ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title",
+        )
+    )
+    rows = _rows(_sql(server, "SELECT title, lang FROM docs WHERE id = 10"))
+    assert rows == [{"title": "Dogs, once more", "lang": "en"}]
+
+
+def test_an_update_and_a_delete_act_on_the_points_their_filter_selects(server):
+    _ok(_sql(server, "UPDATE docs SET lang = 'fr' WHERE title = 'Hunde im Park'"))
+    assert _rows(_sql(server, "SELECT lang FROM docs WHERE id = 2")) == [{"lang": "fr"}]
+    _ok(_sql(server, "DELETE FROM docs WHERE id = 10"))
+    assert _rows(_sql(server, "SELECT id FROM docs WHERE id = 10")) == []

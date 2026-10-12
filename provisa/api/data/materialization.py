@@ -145,6 +145,43 @@ async def _mat_pipeline_table(
     """Run a pipeline table with the statement's arguments and land its rows for the engine,
     kept under those arguments for the table's TTL (REQ-1980): two argument sets are two
     answers, never one."""
+    if state.source_types[table["source_id"]] == "cosmosdb":
+        from provisa.cosmosdb.table import cache_arguments, read
+    elif state.source_types[table["source_id"]] == "qdrant":
+        from provisa.qdrant.table import cache_arguments, read
+    else:
+        from provisa.mongodb.pipeline_table import cache_arguments, read
+    await _land_per_statement(
+        tn,
+        table,
+        state,
+        cache_rewrites,
+        cache_arguments(table, nf_args),
+        lambda: read(state, table, nf_args),
+    )
+
+
+async def mat_live_part(tn: str, part, state, cache_rewrites: dict) -> None:
+    """REQ-2000: a live-only table's part of an engine-answered statement
+    (``federation.live_only``), read live from its source and landed for the engine under the
+    part's text, as a pipeline table's rows are under its arguments."""
+    from provisa.federation.live_only import read
+
+    await _land_per_statement(
+        tn,
+        part.table,
+        state,
+        cache_rewrites,
+        {"part": part.sql},
+        lambda: read(state, part),
+    )
+
+
+async def _land_per_statement(
+    tn: str, table: dict, state, cache_rewrites: dict, key: dict, answer
+) -> None:
+    """Land the rows ``answer()`` reads for one statement's read of ``table``, kept under ``key``
+    for the table's TTL, and point the statement's ``tn`` at them."""
     from provisa.api_source.engine_cache import (
         analyze_cache_table,
         cache_location,
@@ -157,22 +194,16 @@ async def _mat_pipeline_table(
     )
     from provisa.executor.redirect import RedirectConfig
 
-    if state.source_types[table["source_id"]] == "cosmosdb":
-        from provisa.cosmosdb.table import cache_arguments, read
-    elif state.source_types[table["source_id"]] == "qdrant":
-        from provisa.qdrant.table import cache_arguments, read
-    else:
-        from provisa.mongodb.pipeline_table import cache_arguments, read
     source_id = table["source_id"]
     engine = state.federation_engine
     cache_loc = cache_location(source_id, resolved_cache_catalog(engine), org_cache_schema(state))
-    cache_tbl = cache_table_name(source_id, f"pipeline:{tn}", cache_arguments(table, nf_args))
+    cache_tbl = cache_table_name(source_id, f"pipeline:{tn}", key)
     if table_known_live(cache_loc, cache_tbl):
         cache_rewrites[tn] = (cache_loc, cache_tbl)
         return
     with engine.isolated_sync() as _c:
         ensure_cache_schema(_c, cache_loc)
-    answer = await read(state, table, nf_args)
+    answer = await answer()
     await engine.land_source_table(
         schema=cache_loc.schema, table=cache_tbl, columns=answer.columns, rows=answer.rows
     )

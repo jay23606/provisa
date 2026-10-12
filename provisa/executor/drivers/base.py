@@ -56,6 +56,11 @@ class DirectDriver(ABC):  # REQ-027, REQ-052
         """Open a bounded server-side cursor over ``sql``. Only valid when ``supports_streaming``."""
         raise NotImplementedError(f"{type(self).__name__} does not support streaming DIRECT reads")
 
+    def bind_source(self, source_id: str) -> None:  # REQ-2000
+        """Told which registered source the driver serves, before ``configure``. A driver that
+        reads its source's registered tables to lower a statement (Qdrant) keeps it; the SQL
+        drivers do not need it."""
+
     def configure(self, extra: dict[str, str]) -> None:  # REQ-986/987/988
         """Accept source-specific connection extras from ``Source.federation_hints`` before
         ``connect`` — e.g. Databricks ``http_path``, Snowflake ``account``/``warehouse``, ClickHouse

@@ -1,0 +1,8 @@
+{
+  "vectorModelCell": {
+    "header": "埋め込みモデル",
+    "label": "{{column}} の埋め込みモデル",
+    "placeholder": "モデルを選択",
+    "none": "このベクトルのサイズに合う登録済みモデルはありません"
+  }
+}

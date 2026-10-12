@@ -58,6 +58,8 @@ import type { ColumnDefinitionLine } from "./ColumnGlossaryHover";
 import { TableSectionTabs } from "./TableSectionTabs";
 import { useTableSection, type TableSection } from "./tableSections";
 import { TableAssociations } from "./TableAssociations";
+import { VectorModelCell } from "./VectorModelCell";
+import { useVectorModels } from "./useVectorModels";
 import {
   IdentityRead,
   LoadRead,
@@ -163,6 +165,12 @@ export function TableEditForm({
   // protection resolves off (table override, else source default) they have no effect, so they are
   // hidden — surfaced only once the table is actually load-protected.
   const editSource = sources.find((s) => s.id === editingTable.sourceId);
+  // REQ-2000: a Qdrant collection's vectors, with the registered models each may name.
+  const vectorModels = useVectorModels(
+    editingTable.sourceId,
+    editingTable.tableName,
+    editSource?.type === "qdrant" && !editingTable.queryTemplate,
+  );
   // Leaving the panel with something changed asks first (the panel's one mechanism).
   // Named as it was when the form opened: its alias may be what is being changed.
   const [openedAs] = useState(() => editingTable.alias || editingTable.tableName);
@@ -774,6 +782,9 @@ export function TableEditForm({
                         <Table.Th>{t("tableEditForm.dataTypeHeader")}</Table.Th>
                         <Table.Th>{t("tableEditForm.pkHeader")}</Table.Th>
                         <Table.Th>{t("tableEditForm.scopeHeader")}</Table.Th>
+                        {editSource?.type === "qdrant" && (
+                          <Table.Th>{t("vectorModelCell.header")}</Table.Th>
+                        )}
                       </>
                     )}
                     {/* REQ-1958: a caller who is not shown a column's grant lists and mask edits
@@ -895,6 +906,17 @@ export function TableEditForm({
                                 allowDeselect={false}
                               />
                             </Table.Td>
+                            {editSource?.type === "qdrant" && (
+                              <Table.Td>
+                                <VectorModelCell
+                                  column={c.columnName}
+                                  path={c.path}
+                                  value={c.embeddingModel}
+                                  models={vectorModels}
+                                  onChange={(m) => updateEditCol(i, "embeddingModel", m ?? "")}
+                                />
+                              </Table.Td>
+                            )}
                           </>
                         )}
                         {tab === "access" && (

@@ -9,25 +9,18 @@
 // permission from the copyright holder.
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ColumnsTable } from "./ColumnsTable";
 import { UntypedColumns } from "./UntypedColumns";
 import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
 import { QueryTableFields } from "./QueryTableFields";
 import { argumentName, isPipelineArgument, previewedColumn } from "./queryTables";
 import { QDRANT, QDRANT_SCHEMA, offeredUnselected, searchQueryArgument } from "../sources/qdrant";
 import { QdrantVectorsNote } from "./QdrantVectorsNote";
+import { RegisterColumnsField } from "./RegisterColumnsField";
+import { QdrantVectorColumns } from "./QdrantVectorColumns";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { isFilesSourceType } from "./tableSectionFields";
 import { useTranslation } from "react-i18next";
-import {
-  Checkbox,
-  NumberInput,
-  SegmentedControl,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Checkbox, NumberInput, SegmentedControl, Select, Text, TextInput } from "@mantine/core";
 import { domainToSqlName, toSnakeCase } from "../../naming";
 import { NlTableSearch } from "./NlTableSearch";
 import { useAvailableSchemas, useAvailableTables } from "../../hooks/useAdminQueries";
@@ -527,6 +520,9 @@ export function RegisterTableForm({
         isPrimaryKey: c.isPrimaryKey || undefined,
         scope: c.scope || "domain",
         path: c.path?.trim() || undefined, // REQ-1739: ingest per-column JSON extraction path
+        // REQ-2000: a vector column's registered model.
+        embedding: c.embeddingModel ? true : undefined,
+        embeddingModel: c.embeddingModel || undefined,
       }));
     if (!sourceId || !schemaName || !tableName) {
       setError(t("registerTableForm.errorRequiredFields"));
@@ -1096,24 +1092,22 @@ export function RegisterTableForm({
           onType={(i, v) => updateCol(i, "dataType", v)}
         />
       )}
+      {short && sourceType === QDRANT && (
+        <QdrantVectorColumns
+          {...{ sourceId, columns }}
+          collection={tableName}
+          // A vector is offered unselected; naming its model registers it.
+          onModel={(i, m) =>
+            setColumns((cs) =>
+              cs.map((c, j) => (j === i ? { ...c, embeddingModel: m, selected: m !== "" } : c)),
+            )
+          }
+        />
+      )}
       {!isChecker && !short && (columns.length > 0 || loadingColumns) && (
-        <FormField size="full">
-          <Stack gap="xs">
-            <Text fw={600} fz="sm">
-              {t("registerTableForm.columnsLabel")}{" "}
-              {loadingColumns && t("registerTableForm.columnsLoading")}
-            </Text>
-            {columns.length > 0 && (
-              <ColumnsTable
-                columns={columns}
-                updateCol={updateCol}
-                roles={roles}
-                irTypes={irTypes}
-                sourceType={sourceType}
-              />
-            )}
-          </Stack>
-        </FormField>
+        <RegisterColumnsField
+          {...{ columns, loadingColumns, updateCol, roles, irTypes, sourceType }}
+        />
       )}
       {columns.length > 0 && !short && (
         <FormField size="full">

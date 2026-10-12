@@ -63,8 +63,12 @@ def _source_type(source: Any) -> str:
 
 
 def owns_replica(source: Any) -> bool:
-    """Whether reads of ``source``'s tables can go through a replica at all (``NO_REPLICA_TYPES``)."""
-    return _source_type(source) not in NO_REPLICA_TYPES
+    """Whether reads of ``source``'s tables can go through a replica at all: not for a type that
+    writes its own rows (``NO_REPLICA_TYPES``), nor for a live-only type (REQ-2000)."""
+    from provisa.core.source_registry import is_live_only
+
+    stype = _source_type(source)
+    return stype not in NO_REPLICA_TYPES and not is_live_only(stype)
 
 
 def table_floor(source: Any, table: Any, *, promoted: bool) -> str | None:
@@ -98,7 +102,7 @@ def reads_replica(source: Any, table: Any, engine: Any, *, promoted: bool) -> bo
     from provisa.federation.engine import UnreachableSource
     from provisa.federation.strategy import Strategy, federate
 
-    if _source_type(source) in NO_REPLICA_TYPES:
+    if not owns_replica(source):
         return False
     try:
         strategy = federate(
@@ -311,7 +315,7 @@ def _floored(registry: _Registry) -> dict[int, tuple[str, str]]:
             # REQ-1939: never read live -- its reads are its synthetic copy, through the engine.
             floored[reg["id"]] = (src.id, f"synthetic dataset {synthetic[reg['id']][0]!r}")
             continue
-        if _source_type(src) in NO_REPLICA_TYPES:
+        if not owns_replica(src):
             continue
         setting = table_floor(src, reg, promoted=_replica_key(reg) in serving)
         if setting is not None:

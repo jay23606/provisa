@@ -1320,15 +1320,31 @@ def _validate_landing_ttl(config) -> None:  # REQ-1907
     (REQ-930), and the global response-cache default_ttl is never a landing clock (REQ-1907,
     amended 2026-09-30). A table that lands only because the engine cannot reach its source is
     judged on the read path (role_ttl.require_landing_ttl)."""
+    from provisa.core.source_registry import is_live_only
     from provisa.federation.role_ttl import lands_from_config, missing_landing_ttl
 
     sources_by_id = {s.id: s for s in config.sources}
+    for source in config.sources:
+        stype = str(getattr(source.type, "value", source.type))
+        if is_live_only(stype) and source.replicate is not None:  # REQ-2000
+            raise ValueError(
+                f"Source {source.id!r}: {stype} is live-only: its tables are read live, "
+                "never replicated"
+            )
     for table in config.tables:
         source = sources_by_id.get(table.source_id)
         if source is None:
             # A table whose source is registered outside this file (_upsert_single_table takes
             # src=None): its source's signal and cache_ttl are not known here; the read path
             # (role_ttl.require_landing_ttl) enforces the same rule against the registered source.
+            continue
+        stype = str(getattr(source.type, "value", source.type))
+        if is_live_only(stype):  # REQ-2000: no replica, so no landing clock
+            if table.replicate is not None or table.row_materialize:
+                raise ValueError(
+                    f"Table {table.table_name!r}: {stype} is live-only: its tables are read "
+                    "live, never replicated"
+                )
             continue
         if not lands_from_config(
             materialize=table.materialize,

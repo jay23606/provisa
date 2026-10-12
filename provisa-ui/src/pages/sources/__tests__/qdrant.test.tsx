@@ -34,7 +34,7 @@ describe("the source pick list", () => {
 
 describe("what a Qdrant source saves", () => {
   it("is whether it reads over gRPC, and back", () => {
-    expect(qdrantHints({})).toEqual({ prefer_grpc: false });
+    expect(qdrantHints({})).toEqual({ prefer_grpc: "false" });
     expect(qdrantFieldsFromHints(JSON.stringify(qdrantHints({ qdrant_grpc: "true" })))).toEqual({
       qdrant_grpc: "true",
     });
