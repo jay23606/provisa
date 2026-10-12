@@ -12,6 +12,7 @@
     "includeLabel": "包含",
     "includeNone": "無",
     "includeSelected": "已選 {{count}} 項",
+    "parametersSectionTitle": "參數",
     "filterSectionTitle": "篩選",
     "sortSectionTitle": "排序",
     "optionalHint": "選填",

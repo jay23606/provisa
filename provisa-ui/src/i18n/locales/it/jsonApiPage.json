@@ -12,6 +12,7 @@
     "includeLabel": "Includi",
     "includeNone": "nessuno",
     "includeSelected": "{{count}} selezionati",
+    "parametersSectionTitle": "Parametri",
     "filterSectionTitle": "Filtro",
     "sortSectionTitle": "Ordinamento",
     "optionalHint": "facoltativo",

@@ -12,6 +12,7 @@
     "includeLabel": "Insluiten",
     "includeNone": "geen",
     "includeSelected": "{{count}} geselecteerd",
+    "parametersSectionTitle": "Parameters",
     "filterSectionTitle": "Filter",
     "sortSectionTitle": "Sorteren",
     "optionalHint": "optioneel",

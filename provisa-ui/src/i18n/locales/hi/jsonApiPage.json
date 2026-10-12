@@ -12,6 +12,7 @@
     "includeLabel": "शामिल करें",
     "includeNone": "कोई नहीं",
     "includeSelected": "{{count}} चयनित",
+    "parametersSectionTitle": "पैरामीटर",
     "filterSectionTitle": "फ़िल्टर",
     "sortSectionTitle": "सॉर्ट",
     "optionalHint": "वैकल्पिक",

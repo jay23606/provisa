@@ -20,6 +20,7 @@ import {
   optionalParamColumns,
   requiredParamColumns,
   requiredParamsSatisfied,
+  requestParams,
 } from "../nativeParams";
 import type { RegisteredTable, TableColumn } from "../../types/admin";
 import type { ActiveFilter } from "../../pages/sql/columnFilter";
@@ -83,6 +84,30 @@ describe("nativeParams", () => {
     expect(isRequiredParam(col("status", "query_param"))).toBe(false);
     expect(isRequiredParam({ ...col("x", "query_param"), nativeFilterRequired: null })).toBe(false);
     expect(isRequiredParam({ ...col("name", null), nativeFilterRequired: true })).toBe(false);
+  });
+
+  it("knows a parameter a steward made required to be required (REQ-1986)", () => {
+    expect(
+      isRequiredParam({
+        ...col("status", "query_param"),
+        nativeFilterRequired: false,
+        requiredBySteward: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("names a parameter without its _nf_ prefix and sends only the given values", () => {
+    const table = {
+      columns: [
+        { ...col("_nf_region", "query_param"), nativeFilterRequired: true, dataType: "varchar" },
+        { ...col("_nf_min", "query_param"), nativeFilterRequired: false, dataType: "double" },
+      ],
+    } as unknown as RegisteredTable;
+    expect(requestParams(table, { _nf_region: "EU", _nf_min: " " })).toEqual({ region: "EU" });
+    expect(requestParams(table, { _nf_region: "EU", _nf_min: "2.5" })).toEqual({
+      region: "EU",
+      min: 2.5,
+    });
   });
 
   it("blocks until every required param is non-blank", () => {

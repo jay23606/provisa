@@ -12,6 +12,7 @@
     "includeLabel": "Включить",
     "includeNone": "нет",
     "includeSelected": "выбрано: {{count}}",
+    "parametersSectionTitle": "Параметры",
     "filterSectionTitle": "Фильтр",
     "sortSectionTitle": "Сортировка",
     "optionalHint": "необязательно",

@@ -171,8 +171,11 @@ export function viewerRequest(
 export function isRequiredParam(c: {
   nativeFilterType?: string | null;
   nativeFilterRequired?: boolean | null;
+  requiredBySteward?: boolean;
 }): boolean {
   if (!c.nativeFilterType) return false;
+  // REQ-1986: a steward may require a parameter its source does not.
+  if (c.requiredBySteward) return true;
   if (c.nativeFilterRequired === true || c.nativeFilterRequired === false) {
     return c.nativeFilterRequired;
   }
@@ -210,6 +213,31 @@ export function buildParamWhere(
         `${quoteIdent(c.alias || c.columnName)} = ${bind(paramValue(values[c.columnName], c.dataType))}`,
     );
   return predicates.length > 0 ? ` WHERE ${predicates.join(" AND ")}` : "";
+}
+
+/** A parameter's name as a caller gives it (REST, JSON:API and gRPC `params`): its column
+ * without the `_nf_` prefix. */
+export function parameterName(c: { columnName: string }): string {
+  return c.columnName.startsWith("_nf_") ? c.columnName.slice(4) : c.columnName;
+}
+
+/** The table's parameter columns: required ones first. */
+export function paramColumns(table: RegisteredTable): TableColumn[] {
+  return [...requiredParamColumns(table), ...optionalParamColumns(table)];
+}
+
+/** The `params` object a REST or JSON:API read sends: each non-blank value by parameter name,
+ * a number for a numeric parameter. */
+export function requestParams(
+  table: RegisteredTable,
+  values: Record<string, string>,
+): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const c of paramColumns(table)) {
+    const value = values[c.columnName] ?? "";
+    if (value.trim() !== "") out[parameterName(c)] = paramValue(value, c.dataType);
+  }
+  return out;
 }
 
 /** True once every required param has a non-blank value. */

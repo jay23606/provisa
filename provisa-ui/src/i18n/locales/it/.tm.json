@@ -1629,6 +1629,7 @@
   "it/jsonApiPage.json::jsonApiPage.includeNodes": "Include nodes",
   "it/jsonApiPage.json::jsonApiPage.includeNone": "none",
   "it/jsonApiPage.json::jsonApiPage.includeSelected": "{{count}} selected",
+  "it/jsonApiPage.json::jsonApiPage.parametersSectionTitle": "Parameters",
   "it/jsonApiPage.json::jsonApiPage.includedDivider": "Included",
   "it/jsonApiPage.json::jsonApiPage.lastPage": "Last page",
   "it/jsonApiPage.json::jsonApiPage.loadingOption": "Loading…",

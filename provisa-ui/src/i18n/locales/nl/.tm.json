@@ -1628,6 +1628,7 @@
   "nl/jsonApiPage.json::jsonApiPage.includeNodes": "Include nodes",
   "nl/jsonApiPage.json::jsonApiPage.includeNone": "none",
   "nl/jsonApiPage.json::jsonApiPage.includeSelected": "{{count}} selected",
+  "nl/jsonApiPage.json::jsonApiPage.parametersSectionTitle": "Parameters",
   "nl/jsonApiPage.json::jsonApiPage.includedDivider": "Included",
   "nl/jsonApiPage.json::jsonApiPage.lastPage": "Last page",
   "nl/jsonApiPage.json::jsonApiPage.loadingOption": "Loading…",
