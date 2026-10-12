@@ -101,13 +101,28 @@ def connect() -> duckdb.DuckDBPyConnection:
     return duckdb.connect(config=config)
 
 
+# Settings an extension is loaded with, whatever loads it. SET GLOBAL: a plain SET stays on the one
+# connection that ran it and never reaches the cursors (con.cursor()) queries run on.
+_EXTENSION_SETTINGS: dict[str, tuple[str, ...]] = {
+    # #241 (upstream duckdb/duckdb-postgres#564, open): with filter pushdown on, the Top-N dynamic
+    # filter of `ORDER BY <col> … NULLS FIRST LIMIT n` reaches Postgres as `WHERE <col> IS NULL`,
+    # so a sorted page of a Postgres-attached relation holds only its NULL-key rows (every DESC sort
+    # the UI sends). Off, every row and every order is correct; WHERE predicates are then applied
+    # in DuckDB instead of in Postgres. Re-enable once a postgres_scanner build fixes #564.
+    "postgres": ("SET GLOBAL pg_experimental_filter_pushdown = false",),
+}
+
+
 def install_and_load(
     con: duckdb.DuckDBPyConnection, extension: str, *, from_community: bool = True
 ) -> None:
     """INSTALL then LOAD ``extension`` on ``con`` — the one place that spells the two-step DuckDB
-    extension bring-up, so callers never write a bare ``INSTALL``/``LOAD`` string themselves."""
+    extension bring-up, so callers never write a bare ``INSTALL``/``LOAD`` string themselves —
+    then apply the settings the extension is always loaded with (``_EXTENSION_SETTINGS``)."""
     con.execute(f"INSTALL {extension} FROM community" if from_community else f"INSTALL {extension}")
     con.execute(f"LOAD {extension}")
+    for statement in _EXTENSION_SETTINGS.get(extension, ()):
+        con.execute(statement)
 
 
 def _fetch(con: duckdb.DuckDBPyConnection):

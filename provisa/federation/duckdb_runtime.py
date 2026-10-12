@@ -39,6 +39,7 @@ from typing import Any
 
 import duckdb
 
+from provisa.federation.duckdb_extensions import install_and_load
 from provisa.executor.result import QueryResult, ResultStream
 from provisa.federation import store_writer
 from provisa.federation.engine import build_duckdb_engine
@@ -81,7 +82,7 @@ def build_vss_index_connection(
     index DDL so the MCP module has no direct DuckDB dependency. VSS is genuinely
     duckdb-specific (no cross-engine equivalent), hence its own connection rather than the shared
     federation runtime's."""
-    from provisa.federation.duckdb_extensions import connect, install_and_load
+    from provisa.federation.duckdb_extensions import connect
 
     con = connect()
     install_and_load(con, "vss", from_community=False)
@@ -300,16 +301,15 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             connector = self._engine.connector_for(source.type.value)
             ext = getattr(connector, "extension", None)
             if ext and ext not in self._ext_loaded:
-                if getattr(connector, "install_from_community", False):
-                    self._con.execute(f"INSTALL {ext} FROM community")
-                else:
-                    self._con.execute(f"INSTALL {ext}")
-                self._con.execute(f"LOAD {ext}")
+                install_and_load(
+                    self._con,
+                    ext,
+                    from_community=getattr(connector, "install_from_community", False),
+                )
                 self._ext_loaded.add(ext)
             secret_ddl = details.get("secret_ddl")
             if secret_ddl and not self._httpfs_loaded:
-                self._con.execute("INSTALL httpfs")
-                self._con.execute("LOAD httpfs")
+                install_and_load(self._con, "httpfs", from_community=False)
                 self._httpfs_loaded = True
             if secret_ddl:
                 self._con.execute(secret_ddl)
@@ -352,8 +352,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         )
 
         if not self._httpfs_loaded:
-            self._con.execute("INSTALL httpfs")
-            self._con.execute("LOAD httpfs")
+            install_and_load(self._con, "httpfs", from_community=False)
             self._httpfs_loaded = True
         self._con.execute(details["secret_ddl"])
         base_url = details["clickhouse_http"]
@@ -427,30 +426,34 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 raise
         return cur
 
+    def _ensure_postgres_loaded(self) -> None:
+        """The postgres extension on this connection, once, with the settings every postgres load
+        has (``duckdb_extensions.install_and_load``; #241)."""
+        if not self._pg_ext_loaded:
+            install_and_load(self._con, "postgres", from_community=False)
+            self._pg_ext_loaded = True
+
     def _attach_raw(self, source: Any, details: dict) -> str:
         """ATTACH the source's remote database under its private alias (once), loading the DuckDB
         extension its connector rides on first, and return the alias. The connector declares WHERE
         it exposes tables (postgres keeps its own schema, sqlite lands everything under ``main``,
         mongo maps databases to schemas); the runtime never hardcodes a per-type layout."""
         if source.type.value == "sqlite" and not self._sqlite_loaded:
-            self._con.execute("INSTALL sqlite")
-            self._con.execute("LOAD sqlite")
+            install_and_load(self._con, "sqlite", from_community=False)
             self._sqlite_loaded = True
         elif source.type.value == "postgresql" and not self._pg_ext_loaded:
-            self._con.execute("INSTALL postgres")
-            self._con.execute("LOAD postgres")
-            self._pg_ext_loaded = True
+            self._ensure_postgres_loaded()
         else:
             # REQ-1673: a community-extension connector (mongo, mssql, firebird, …) needs its
             # extension loaded on THIS connection — the startup probe loaded it on another one.
             connector = self._engine.connector_for(source.type.value)
             ext = getattr(connector, "extension", None)
             if ext and ext not in self._ext_loaded:
-                if getattr(connector, "install_from_community", False):
-                    self._con.execute(f"INSTALL {ext} FROM community")
-                else:
-                    self._con.execute(f"INSTALL {ext}")
-                self._con.execute(f"LOAD {ext}")
+                install_and_load(
+                    self._con,
+                    ext,
+                    from_community=getattr(connector, "install_from_community", False),
+                )
                 self._ext_loaded.add(ext)
         raw_alias = details.get("raw_alias", source.id)
         attach = details["attach"]
@@ -600,10 +603,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         if dialect == "postgresql":
             if self._control_plane_attached:
                 return
-            if not self._pg_ext_loaded:
-                self._con.execute("INSTALL postgres")
-                self._con.execute("LOAD postgres")
-                self._pg_ext_loaded = True
+            self._ensure_postgres_loaded()
             if catalog not in self._phys_catalogs:
                 self._con.execute(f"ATTACH '{db_path}' AS \"{catalog}\" (TYPE postgres, READ_ONLY)")
                 self._phys_catalogs.add(catalog)
@@ -622,8 +622,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
     def _rebuild_control_plane(self, catalog: str, schema_name: str, scratch: str) -> None:
         """Swap in a freshly snapshotted control plane. Caller holds _cp_lock and the write gate."""
         if not self._sqlite_loaded:
-            self._con.execute("INSTALL sqlite")
-            self._con.execute("LOAD sqlite")
+            install_and_load(self._con, "sqlite", from_community=False)
             self._sqlite_loaded = True
         raw_alias = "_raw_provisa_admin"
         if catalog not in self._phys_catalogs:
@@ -793,8 +792,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 self._store_broker = get_broker(target)
             else:
                 if store_type not in self._NO_EXTENSION_TYPES:
-                    self._con.execute(f"INSTALL {store_type}")
-                    self._con.execute(f"LOAD {store_type}")
+                    # A Postgres store loads the extension with its settings too (#241).
+                    install_and_load(self._con, store_type, from_community=False)
                 self._con.execute(f"ATTACH '{target}' AS {self._MAT_STORE} (TYPE {store_type})")
             self._store_attached = True
             self._attached_store_dsn = dsn
@@ -830,8 +829,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 "attach"
             )
         if store_type not in self._NO_EXTENSION_TYPES:
-            self._con.execute(f"INSTALL {store_type}")
-            self._con.execute(f"LOAD {store_type}")
+            # A Postgres store loads the extension with its settings too (#241).
+            install_and_load(self._con, store_type, from_community=False)
         self._con.execute(f"ATTACH '{dsn}' AS \"{alias}\" (TYPE {store_type}, READ_ONLY)")
         self._region_stores.add(alias)
         return alias
@@ -1155,8 +1154,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
                 copy_sql, params, deadline_s=request_deadline.remaining()
             )
             if not self._httpfs_loaded:
-                self._con.execute("INSTALL httpfs")
-                self._con.execute("LOAD httpfs")
+                install_and_load(self._con, "httpfs", from_community=False)
                 self._httpfs_loaded = True
             self._con.execute(secret_sql)
             cur = self._open_cursor(live_http=live_http)
