@@ -57,7 +57,7 @@ import "./JsonApiPage.css";
 import { actingRoleHeader } from "../lib/actingRole";
 import { Tip } from "../components/Tip";
 import { ParamsSection } from "./jsonapi/ParamsSection";
-import { useJsonApiParams } from "./jsonapi/useJsonApiParams";
+import { dataColumnsOf, useJsonApiParams } from "./jsonapi/useJsonApiParams";
 
 const JSONAPI_SETTINGS_KEY = "provisa.jsonapi.settings";
 const FILTER_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like"];
@@ -206,18 +206,20 @@ export function JsonApiPage() {
   // setState-in-effect to reset it. tableObj encodes the "found in filtered list" check.
   const effectiveSelectedTable = selectedTable && tableObj ? selectedTable : "";
 
-  const columnNames = useMemo(() => tableObj?.columns.map(toApiName) ?? [], [tableObj]);
+  // A table's data columns; its parameters (REQ-1986) are only in the Parameters section.
+  const dataColumns = useMemo(() => (tableObj ? dataColumnsOf(tableObj) : []), [tableObj]);
+  const columnNames = useMemo(() => dataColumns.map(toApiName), [dataColumns]);
   // REQ-1986, REQ-1991: the table's parameters, sent as one `params` object by parameter name.
   const { tableParams, paramValues, setParamValues, paramsParam, paramsReady } =
     useJsonApiParams(tableObj);
 
   const columnSelectData = useMemo(
     () =>
-      (tableObj?.columns ?? []).map((c) => ({
+      dataColumns.map((c) => ({
         value: toApiName(c),
         label: c.alias ?? c.columnName,
       })),
-    [tableObj],
+    [dataColumns],
   );
 
   // Relationships of the selected table, each with the related table's columns and, one hop
@@ -236,7 +238,7 @@ export function JsonApiPage() {
         .map((r) => ({
           name: r.physicalName as string,
           targetTableId: r.targetTableId,
-          columns: (tables.find((tb) => tb.id === r.targetTableId)?.columns ?? []).map(toApiName),
+          columns: dataColumnsOf(tables.find((tb) => tb.id === r.targetTableId)).map(toApiName),
         }));
     return relOf(tableObj.id).map((rel) => ({
       ...rel,
@@ -663,7 +665,7 @@ export function JsonApiPage() {
                 </button>
                 <Collapse in={fieldsOpen}>
                   <div className="jsonapi-field-list">
-                    {(tableObj?.columns ?? []).map((col) => {
+                    {dataColumns.map((col) => {
                       const apiName = toApiName(col);
                       return (
                         <Tip key={col.columnName} text={col.description ?? undefined}>

@@ -90,3 +90,28 @@ describe("JsonApiPage — parameters", () => {
     expect(screen.getByTestId("jsonapi-run-button")).toHaveProperty("disabled", false);
   });
 });
+
+describe("JsonApiPage — parameters are not data columns", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("[]", { status: 200, headers: { "content-type": "application/json" } }),
+      ),
+    );
+  });
+
+  it("lists only data columns in Fields", async () => {
+    render(<JsonApiPage />, {
+      initialEntries: [
+        { pathname: "/jsonapi", state: { jsonapiUrl: "/data/jsonapi/sales/orders" } },
+      ],
+    });
+    await screen.findByTestId("jsonapi-param-region");
+    fireEvent.click(screen.getByTestId("jsonapi-fields-trigger"));
+    await waitFor(() => expect(screen.getAllByText("id").length).toBeGreaterThan(0));
+    expect(screen.queryByText("_nf_region")).toBeNull();
+    expect(screen.queryByText("_nf_min")).toBeNull();
+  });
+});
