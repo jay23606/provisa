@@ -80,7 +80,10 @@ def rebuilt(model, monkeypatch):
     from provisa.api import app_rebuild
 
     state = appmod.state
-    runtime_engine = SimpleNamespace(materialize_store_target=lambda org: ("store", "views"))
+    runtime_engine = SimpleNamespace(
+        materialize_store_target=lambda org: ("store", "views"),
+        engine=SimpleNamespace(catalog_qualified=True),  # REQ-1730: it names catalogs
+    )
     monkeypatch.setattr(state, "mv_registry", MVRegistry(), raising=False)
     monkeypatch.setattr(state, "view_sql_map", {}, raising=False)
     monkeypatch.setattr(state, "bitemporal_view_reads", {}, raising=False)

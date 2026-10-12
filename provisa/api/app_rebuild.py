@@ -162,7 +162,14 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                 _tgt_cat, _tgt_schema = state.federation_engine.materialize_store_target(
                     state.org_id
                 )
-                _mv_ref = f'"{_tgt_cat}"."{_tgt_schema}"."mv_{_vr["table_name"]}"'
+                from provisa.mv.models import stored_table_ref
+
+                _mv_ref = stored_table_ref(
+                    _tgt_cat,
+                    _tgt_schema,
+                    f"mv_{_vr['table_name']}",
+                    catalog_qualified=state.federation_engine.engine.catalog_qualified,
+                )
                 state.view_sql_map[_vr["table_name"]] = view_read_sql(_mv_ref, _bt_spec)
                 # REQ-1163: remember (target, spec) so a request-level as-of can overlay an as-of
                 # reconstruction over this view's append log at query time.
@@ -198,6 +205,9 @@ async def _register_user_views_in_state(conn: "Connection", raw_config: dict | N
                             source_tables=[],
                             target_catalog=_tgt_cat,
                             target_schema=_tgt_schema,
+                            target_catalog_qualified=(
+                                state.federation_engine.engine.catalog_qualified
+                            ),
                             target_table=f"mv_{_vr['table_name']}",
                             refresh_interval=int(_vr.get("mv_refresh_interval") or _mv_default_ttl),
                             enabled=not _vr[

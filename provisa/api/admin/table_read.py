@@ -198,7 +198,7 @@ def _view_body(state: Any, draft: dict) -> str | None:
         raise ReplicaBuilding(draft["table_name"], 0.0)
     from provisa.mv.bitemporal import view_read_sql
 
-    stored = f'"{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    stored = mv.stored_ref()
     return view_read_sql(stored, mv.bitemporal)
 
 

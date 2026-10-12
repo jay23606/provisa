@@ -443,8 +443,8 @@ async def join_pattern_sql(
 
 
 def _target_ref(mv: MVDefinition) -> str:
-    """Build the fully qualified target table reference."""
-    return f'"{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    """The view's stored table, as the engine names it."""
+    return mv.stored_ref()
 
 
 async def _read_target_rows(

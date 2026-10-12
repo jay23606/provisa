@@ -232,6 +232,30 @@ class TestMaterializeStoreTarget:
         assert rt.mv_store_schema("acme") == mv_schema("acme") == "org_acme_mv_cache"
         assert rt.mv_store_schema("acme") != replica_schema("acme")
 
+    def test_a_view_stored_by_an_engine_with_no_catalog_is_named_without_one(self):
+        # REQ-1730: the Postgres engine stores a view in its own database. Its reference names
+        # the schema and table alone, so the engine route's catalog check and the catalog fold
+        # leave it as it is; an engine that names catalogs keeps the three-part name.
+        from provisa.compiler.sql_rewrite import fold_catalog_into_schema
+        from provisa.mv.refresh import _target_ref
+
+        def _mv(qualified: bool) -> MVDefinition:
+            return MVDefinition(
+                id="view-order_amounts",
+                source_tables=[],
+                target_catalog="provisa",
+                target_schema="org_acme_mv_cache",
+                target_table="mv_order_amounts",
+                target_catalog_qualified=qualified,
+            )
+
+        pg = _mv(False)
+        assert pg.stored_ref() == '"org_acme_mv_cache"."mv_order_amounts"'
+        assert _target_ref(pg) == pg.stored_ref()
+        read = f"SELECT id FROM {pg.stored_ref()}"
+        assert fold_catalog_into_schema(read) == read
+        assert _mv(True).stored_ref() == '"provisa"."org_acme_mv_cache"."mv_order_amounts"'
+
     def test_warehouse_runtime_mv_schema_is_org_scoped(self):
         # Databricks/BigQuery isolate MVs in an org-scoped cache namespace in the warehouse/project.
         from provisa.federation.databricks_runtime import DatabricksFederationRuntime
