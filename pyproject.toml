@@ -75,6 +75,8 @@ dependencies = [
     "lxml",
     "motor",
     "elasticsearch>=8,<9",
+    # REQ-1982: Azure Cosmos DB for NoSQL, read by its own SDK (no engine has a connector). MIT.
+    "azure-cosmos>=4.9,<5",
     "aiokafka",
     # REQ-1951: the Avro codec for Debezium topics written against a schema registry (the
     # registry itself is asked over httpx). MIT; self-contained wheels, no native library.

@@ -14,7 +14,7 @@ parameters (REQ-1986).
 
 Everything here is the ``test`` instance: a ``mongodb/mongodb-atlas-local`` server this module
 starts on a leased port and removes (it runs mongot, so $search, $searchMeta and $vectorSearch
-are served), and an isolated DuckDB server. The source is given by a mongodb:// connection
+are served), and an isolated server on DuckDB and on Trino. The source is given by a mongodb:// connection
 string. Tables:
 
 * ``similar_movies``: ``$vectorSearch`` over ``movies.plot_embedding``, its query vector a
@@ -198,7 +198,7 @@ def atlas():
         a.stop()
 
 
-def _config(atlas: _Atlas) -> dict:
+def _config(atlas: _Atlas, engine: str) -> dict:
     vector = _native(
         [
             {
@@ -247,7 +247,7 @@ def _config(atlas: _Atlas) -> dict:
     )
     both = [_ROLE, _ANALYST]
     return {
-        "federation_engine": "duckdb",
+        "federation_engine": engine,
         "auth": {
             "provider": "none",
             "assignments_source": "provisa",
@@ -326,20 +326,27 @@ def _config(atlas: _Atlas) -> dict:
     }
 
 
-@pytest.fixture(scope="module")
-def server(atlas, tmp_path_factory):
+@pytest.fixture(scope="module", params=["duckdb", "trino"])
+def server(atlas, tmp_path_factory, request):
+    """An isolated server on each engine: a pipeline is run by Provisa's own reader on every
+    engine, and the engine reads its landed rows (REQ-1980)."""
     from tests.integration.isolated_server import IsolatedServer
 
-    work = tmp_path_factory.mktemp("pipeline_tables")
+    engine = request.param
+    work = tmp_path_factory.mktemp(f"pipeline_tables_{engine}")
     path = work / "config.yaml"
-    path.write_text(yaml.safe_dump(_config(atlas)))
-    srv = IsolatedServer(
-        "mongodb_pipeline_tables",
-        engine="duckdb",
-        config=str(path),
-        control_plane="sqlite",
-        materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
-    )
+    path.write_text(yaml.safe_dump(_config(atlas, engine)))
+    if engine == "duckdb":
+        srv = IsolatedServer(
+            "mongodb_pipeline_tables",
+            engine="duckdb",
+            config=str(path),
+            control_plane="sqlite",
+            materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
+        )
+    else:
+        # Trino from the test stack, with its Postgres control plane.
+        srv = IsolatedServer("mongodb_pipeline_tables_trino", engine="trino", config=str(path))
     srv.start(timeout=240)
     try:
         yield srv
