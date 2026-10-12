@@ -1691,6 +1691,7 @@
   "it/lineagePage.json::lineagePage.statement": "Statement Lineage",
   "it/lineagePage.json::lineagePage.title": "Data Lineage",
   "it/list.json::list.groupBy": "Group by {{label}}",
+  "it/list.json::list.moreValues": "+{{count}} more",
   "it/list.json::list.sortAscending": "sorted ascending",
   "it/list.json::list.sortDescending": "sorted descending",
   "it/list.json::list.sortNone": "not sorted",
@@ -4974,6 +4975,7 @@
   "it/tableEditForm.json::tableEditForm.columnTabs.errors": "{{count}} to fix",
   "it/tableEditForm.json::tableEditForm.columnTabs.label": "Column attributes",
   "it/tableEditForm.json::tableEditForm.columnTabs.naming": "Naming",
+  "it/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing",
   "it/tableEditForm.json::tableEditForm.columnTabs.type": "Type and keys",
   "it/tableEditForm.json::tableEditForm.consistencyDistributed": "per-instance — each instance its own copy",
   "it/tableEditForm.json::tableEditForm.consistencyHelp": "Only matters when Provisa runs as several instances behind a load balancer. It decides whether the materialized view is ONE copy shared by all instances, or a separate copy per instance. Shared: a single copy in the shared store, refreshed by one instance at a time (a short lease with fencing), so every instance reads the same consistent snapshot — pick this when instances must agree. Per-instance: each instance builds and refreshes its own copy independently — simpler and faster, but instances can briefly disagree (eventually consistent), so only safe for a deterministic view over a source that's stable within a refresh cycle. Where the copy lives depends on the federation engine's store: per-instance only makes sense when each instance has its OWN store (e.g. an embedded/in-process DuckDB). With a SHARED external store (Postgres, Trino + object store, a warehouse) every instance writes the same physical table, so use shared — per-instance has nowhere private to write and would just clobber.",
@@ -5768,6 +5770,5 @@
   "it/viewDefinitionForm.json::viewDefinitionForm.openSqlEditor": "Open SQL editor",
   "it/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "it/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
-  "it/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
-  "it/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing"
+  "it/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor."
 }

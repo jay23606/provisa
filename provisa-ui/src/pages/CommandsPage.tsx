@@ -1020,15 +1020,7 @@ export function CommandsPage() {
                             </Badge>
                           </Table.Td>
                           <Table.Td>{wh.domainId || t("commandsPage.dash")}</Table.Td>
-                          <Table.Td
-                            style={{
-                              maxWidth: "200px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {wh.url}
-                          </Table.Td>
+                          <Table.Td>{wh.url}</Table.Td>
                           <Table.Td>{wh.method}</Table.Td>
                           <Table.Td>{wh.timeoutMs}ms</Table.Td>
                           <Table.Td>

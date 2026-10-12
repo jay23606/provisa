@@ -8,11 +8,38 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Fragment, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
-import { ActionIcon, Group, Table, Text } from "@mantine/core";
+import {
+  Children,
+  cloneElement,
+  createContext,
+  Fragment,
+  isValidElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { ActionIcon, Code, Group, Table, Text } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, Layers } from "lucide-react";
 import type { ListItem, ListSortGroup } from "./useListSortGroup";
+import { ListCell } from "./ListCell";
+import {
+  LIST_COLUMN_CAP_PX,
+  LIST_CUT_MIN_CHARS,
+  LIST_ROW_MAX_LINES,
+  LIST_WRAP_MIN_CHARS,
+} from "./listCellLimits";
+
+/** The caps the list's columns stated for themselves, by position; told by the head, read by rows. */
+const ColumnCaps = createContext<{
+  caps: ReadonlyArray<number | undefined>;
+  tell: (caps: ReadonlyArray<number | undefined>) => void;
+} | null>(null);
 import { Tip } from "../Tip";
 
 /**
@@ -38,6 +65,8 @@ const listMinWidth = (floor: number | undefined) =>
   floor === undefined ? undefined : `max(100%, ${floor}px)`;
 
 export function ListTable({ children, testId, minWidth, style }: ListTableProps) {
+  const [caps, tell] = useState<ReadonlyArray<number | undefined>>([]);
+  const columnCaps = useMemo(() => ({ caps, tell }), [caps]);
   return (
     <div className="table-scroll">
       <Table
@@ -45,9 +74,17 @@ export function ListTable({ children, testId, minWidth, style }: ListTableProps)
         data-list-table=""
         data-testid={testId}
         miw={listMinWidth(minWidth)}
-        style={style}
+        style={
+          {
+            "--list-col-cap": `${LIST_COLUMN_CAP_PX}px`,
+            "--list-row-lines": LIST_ROW_MAX_LINES,
+            "--list-wrap-min": `${LIST_WRAP_MIN_CHARS}ch`,
+            "--list-cut-min": `${LIST_CUT_MIN_CHARS}ch`,
+            ...style,
+          } as CSSProperties
+        }
       >
-        {children}
+        <ColumnCaps.Provider value={columnCaps}>{children}</ColumnCaps.Provider>
       </Table>
     </div>
   );
@@ -58,12 +95,16 @@ export interface ListSortCol {
   col: string;
   /** Fixed column width, for tables with `table-layout: fixed`. */
   width?: string;
+  /** The most width, in pixels, this column asks for, where the list's own cap does not suit it. */
+  cap?: number;
 }
 
 /** A static header cell that needs a width. */
 export interface ListLabelCol {
   label: ReactNode;
   width?: string;
+  /** The most width, in pixels, this column asks for, where the list's own cap does not suit it. */
+  cap?: number;
 }
 
 function isLabelCol(c: ReactNode | ListSortCol | ListLabelCol): c is ListLabelCol {
@@ -167,6 +208,13 @@ export function ListHead<T = never>({
   columns: Array<ReactNode | ListSortCol | ListLabelCol>;
   sortGroup?: ListSortGroup<T>;
 }) {
+  // The rows learn each column's own cap from here: a cell cannot see its header.
+  const told = useContext(ColumnCaps);
+  const stated = columns.map((c) => (isSortCol(c) || isLabelCol(c) ? (c.cap ?? "") : "")).join(",");
+  useEffect(() => {
+    told?.tell(stated.split(",").map((cap) => (cap === "" ? undefined : Number(cap))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- told once for each set of caps
+  }, [stated]);
   return (
     <Table.Thead>
       <Table.Tr>
@@ -294,11 +342,77 @@ export function ListRow({ children, testId, onClick, selected, ...aria }: ListRo
   const cls = ["list-row", onClick ? "clickable" : "", selected ? "row-selected" : ""]
     .filter(Boolean)
     .join(" ");
+  const caps = useContext(ColumnCaps)?.caps ?? [];
   return (
     <Table.Tr {...aria} data-testid={testId} className={cls} onClick={onClick}>
-      {children}
+      {capCells(children, caps, { at: 0 })}
     </Table.Tr>
   );
+}
+
+/** Elements that only give text a look: text inside one of them is still a cell of text. */
+const TEXT_LOOKS: ReadonlySet<unknown> = new Set([Text, Code, "span", "code", "em", "strong", "b"]);
+
+/**
+ * The text of a cell that holds nothing but text -- bare, or inside one element that only gives
+ * it a look -- and undefined for a cell that holds anything else (a control, a pill, an icon).
+ */
+function cellText(children: ReactNode): string | undefined {
+  const parts = Children.toArray(children);
+  if (parts.length === 0) return undefined;
+  if (parts.length === 1 && isValidElement(parts[0])) {
+    const only = parts[0] as ReactElement<{ children?: ReactNode; onClick?: unknown }>;
+    if (!TEXT_LOOKS.has(only.type) || only.props.onClick !== undefined) return undefined;
+    return cellText(only.props.children);
+  }
+  if (!parts.every((p) => typeof p === "string" || typeof p === "number")) return undefined;
+  const text = parts.join("");
+  return text.trim() === "" ? undefined : text;
+}
+
+/**
+ * A row's cells, with every cell of plain text held to its column's cap and the row's maximum
+ * height (`ListCell`). A cell that holds a control, a pill or any other element is drawn as the
+ * page drew it, at the width it asks for: controls are never cut, and never squeezed.
+ */
+function capCells(
+  children: ReactNode,
+  caps: ReadonlyArray<number | undefined>,
+  column: { at: number },
+): ReactNode {
+  return Children.map(children, (child) => {
+    if (!isValidElement(child)) return child;
+    const cell = child as ReactElement<{
+      children?: ReactNode;
+      className?: string;
+      style?: CSSProperties;
+      colSpan?: number;
+    }>;
+    if (cell.type === Fragment) return <>{capCells(cell.props.children, caps, column)}</>;
+    const cap = caps[column.at];
+    column.at += cell.props.colSpan ?? 1;
+    if (cell.type !== Table.Td) return child;
+    const text = cellText(cell.props.children);
+    if (text === undefined) {
+      // Whatever else the page drew keeps the width it asks for: only wrapped text gives way.
+      return cloneElement(
+        cell,
+        undefined,
+        <div className="list-cell-drawn">{cell.props.children}</div>,
+      );
+    }
+    return cloneElement(
+      cell,
+      {
+        className: [cell.props.className, "list-capped"].filter(Boolean).join(" "),
+        style:
+          cap === undefined
+            ? cell.props.style
+            : ({ ...cell.props.style, "--list-cell-cap": `${cap}px` } as CSSProperties),
+      },
+      <ListCell text={text}>{cell.props.children}</ListCell>,
+    );
+  });
 }
 
 /** Full-width row shown beneath an expanded row. */

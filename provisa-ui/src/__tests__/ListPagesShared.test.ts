@@ -153,3 +153,27 @@ describe("list pages fill the width they have", () => {
     }
   });
 });
+
+// A cell's width, wrapping and truncation belong to the shared list (components/list/ListCell):
+// a column asks for no more than its cap, a single value is cut with an ellipsis, several words
+// wrap up to the row's maximum. A page that sets any of these on a cell of its own takes that
+// cell out of the rule.
+describe("list pages leave a cell's width, wrapping and truncation to the shared list", () => {
+  const OWN_RULE =
+    /<Table\.Td\b[^>]*?(?:whiteSpace|textOverflow|WebkitLineClamp|lineClamp|wordBreak|maxWidth|\bmaw=|\bmiw=|\bw=|\bwidth:|overflow:)[^>]*>/g;
+  /** Cells that still set their own, by page: each is to be moved to the shared rule, then leaves. */
+  const STILL_OWN: Record<string, number> = {
+    "pages/RequestsPage.tsx": 3,
+    "components/admin/ScheduledTasks.tsx": 1,
+    "components/admin/CacheManager.tsx": 1,
+  };
+
+  it.each(LIST_PAGES)("%s", (page) => {
+    const found = src(page).match(OWN_RULE) ?? [];
+    expect(found.length, found.join("\n")).toBe(STILL_OWN[page] ?? 0);
+  });
+
+  it("the list of pages still to move names only list pages", () => {
+    expect(Object.keys(STILL_OWN).filter((page) => !LIST_PAGES.includes(page))).toEqual([]);
+  });
+});
