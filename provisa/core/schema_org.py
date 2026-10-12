@@ -1293,6 +1293,10 @@ query_audit_log = Table(
     # Encrypted query text (REQ-689) — decrypted only on authorised admin reads.
     Column("query_text_enc", LargeBinary),
     Column("table_ids", JSON, nullable=False, default=list, server_default="[]"),
+    # Each of table_ids' tables by its qualified name (source.schema.table) as it was when the
+    # statement ran, in the same order: a table renamed or deleted later still reads as what was
+    # accessed. Written by every writer; no default.
+    Column("table_names", JSON, nullable=False),
     Column("source", Text, nullable=False),
     Column("status_code", Integer, nullable=False),
     Column("duration_ms", Integer, nullable=False),

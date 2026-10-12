@@ -140,6 +140,9 @@ def _audit_record(stamp: int | None, enforced: dict):
         sources=(),
         data_age=None,
         region="default",
+        tables=[
+            {"id": 1, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"}
+        ],
     )
 
 

@@ -293,6 +293,8 @@ def build_audit_record(
         # REQ-1922: the region whose data answered — this node's, unless the statement read only
         # what another region keeps, in place there (``answered_in``, from its residency).
         region=answered_in if answered_in is not None else process_region.region(),
+        # The model's tables as this statement ran under them: the names its row records.
+        tables=state.tables,
     )
 
 

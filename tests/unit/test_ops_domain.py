@@ -425,6 +425,7 @@ async def test_report_views_functional(uri):
                         role_id="analyst",
                         query_hash="h",
                         table_ids=tids,
+                        table_names=[f"src.public.{t}" for t in tids],
                         source="graphql",
                         status_code=status,
                         duration_ms=dur,
@@ -440,9 +441,25 @@ async def test_report_views_functional(uri):
                 await conn.execute(_adapt_view_ddl(ddl, dialect))
             for ddl in _OPS_REPORT_VIEWS.values():
                 await conn.execute(_adapt_view_ddl(ddl, dialect))
+            for ddl in _OPS_LOG_TABLE_VIEWS.values():
+                await conn.execute(_adapt_view_ddl(ddl, dialect))
 
             async def rows(sql):
                 return (await conn.execute_core(text(sql))).fetchall()
+
+            # The audit log's ops view carries each statement's tables by id and by the name
+            # recorded when it ran, in the same order.
+            import json
+
+            logged = await rows(
+                "SELECT table_ids, table_names FROM query_audit_log_ops ORDER BY id"
+            )
+            as_list = lambda v: json.loads(v) if isinstance(v, str) else list(v)  # noqa: E731
+            assert [(as_list(i), as_list(n)) for i, n in logged] == [
+                ([1, 2], ["src.public.1", "src.public.2"]),
+                ([1], ["src.public.1"]),
+                ([2], ["src.public.2"]),
+            ]
 
             usage = {r[0]: r[1] for r in await rows("SELECT id, query_count FROM usage_ranking")}
             assert usage[1] == 2  # orders queried twice
@@ -632,6 +649,7 @@ async def test_the_queries_report_from_the_audit_log_matches_the_report_from_que
                     role_id=role,
                     query_hash="h",
                     table_ids=[tid],
+                    table_names=[f"src.public.t{tid}"],
                     source="graphql",
                     status_code=500 if failed else 200,
                     duration_ms=50,

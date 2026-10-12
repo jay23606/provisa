@@ -52,6 +52,7 @@ async def audit_id(tmp_path, monkeypatch) -> int:
         role_id="analyst",
         query_text="SELECT id FROM orders WHERE region = 'EU'",
         table_ids=[1],
+        table_names=["src.public.t1"],
         source="pgwire",
         status_code=200,
         duration_ms=4,

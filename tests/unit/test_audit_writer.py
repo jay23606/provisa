@@ -76,6 +76,9 @@ def _record(
         sources=(),
         data_age=None,
         region="default",
+        tables=[
+            {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"}
+        ],
     )
 
 
@@ -482,7 +485,14 @@ def test_write_audit_lands_one_row_in_the_tenant_database(tmp_path, monkeypatch,
     bind_org(org)  # the statement's org, bound as its surface binds it (REQ-1266)
     counts = HotCounts(None)
     state = SimpleNamespace(
-        record_db=_tenant_db(path), org_id=org, admin_db=None, hot_counts=counts
+        record_db=_tenant_db(path),
+        org_id=org,
+        admin_db=None,
+        hot_counts=counts,
+        tables=[
+            {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"},
+            {"id": 9, "source_id": "sales-pg", "schema_name": "public", "table_name": "customers"},
+        ],
     )
     monkeypatch.setattr("provisa.encryption.runtime.encryption_service", NullEncryption)
     monkeypatch.setattr("provisa.core.settings_registry.value", lambda key: 60)
@@ -499,6 +509,60 @@ def test_write_audit_lands_one_row_in_the_tenant_database(tmp_path, monkeypatch,
     assert _logged(path) == [(org, "alice", "analyst", "[7, 9]", "graphql", 200)]
     # REQ-826: and each table the statement read is counted once, in this org environment.
     assert counts.counts(f"{org}:prod", [7, 9, 11], 60) == {7: 1.0, 9: 1.0, 11: 0.0}
+
+
+def test_a_logged_query_names_its_tables_as_they_were_when_it_ran(tmp_path, monkeypatch, bind_org):
+    """The row carries each table's id and its qualified name (source.schema.table), in the same
+    order; the names are the model's when the statement ran, so a table renamed before the
+    writer gets to the row still reads as what was accessed."""
+    import json
+    import sqlite3
+    from types import SimpleNamespace
+
+    from provisa.audit.pipeline import PendingAudit, write_audit
+    from provisa.audit.writer import flush_audit
+
+    path = str(tmp_path / "tenant.db")
+    org = f"audit-names-{uuid.uuid4().hex}"
+    bind_org(org)
+    state = SimpleNamespace(
+        record_db=_tenant_db(path),
+        org_id=org,
+        admin_db=None,
+        hot_counts=None,
+        tables=[
+            {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"},
+            {"id": 9, "source_id": "sales-pg", "schema_name": "public", "table_name": "customers"},
+        ],
+    )
+    monkeypatch.setattr("provisa.encryption.runtime.encryption_service", NullEncryption)
+    pending = PendingAudit(
+        "alice", "graphql", "analyst", "{ c { id } o { id } }", [9, 7], 0.0, 1, {}
+    )
+    asyncio.run(write_audit(pending, 200, state, route="engine"))
+    # The model changes (a rebuild publishes new tables) before the row is written.
+    state.tables = [
+        {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders_v2"}
+    ]
+    assert flush_audit(5.0)
+    con = sqlite3.connect(path)
+    try:
+        ((ids, names),) = con.execute(
+            "SELECT table_ids, table_names FROM query_audit_log"
+        ).fetchall()
+    finally:
+        con.close()
+    assert json.loads(ids) == [9, 7]
+    assert json.loads(names) == ["sales-pg.public.customers", "sales-pg.public.orders"]
+
+
+def test_a_table_id_the_model_does_not_hold_is_refused_not_left_unnamed():
+    from provisa.audit.query_log import qualified_table_names
+
+    tables = [{"id": 7, "source_id": "s", "schema_name": "p", "table_name": "orders"}]
+    assert qualified_table_names([7], tables) == ["s.p.orders"]
+    with pytest.raises(ValueError, match="table id"):
+        qualified_table_names([7, 99], tables)
 
 
 def _worker(path: str, worker: int, count: int) -> None:
@@ -527,6 +591,7 @@ def _worker(path: str, worker: int, count: int) -> None:
                 sources=(),
                 data_age=None,
                 region="default",
+                tables=[],
             )
         )
     writer.close(20.0)

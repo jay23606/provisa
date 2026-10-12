@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS query_audit_log (
     query_hash TEXT NOT NULL,
     query_text_enc BYTEA,
     table_ids JSONB NOT NULL DEFAULT '[]',
+    table_names JSONB NOT NULL,
     source TEXT NOT NULL,
     status_code INT NOT NULL,
     duration_ms INT NOT NULL,
@@ -100,6 +101,25 @@ async def init_audit_schema(
             await conn.execute(AUDIT_SCHEMA_SQL)
 
 
+def qualified_table_names(table_ids: Sequence[int | str], tables: Sequence[dict]) -> list[str]:
+    """Each of ``table_ids`` by its qualified name (``source.schema.table``), in the same order,
+    from ``tables`` -- the model's registered tables as they were when the statement ran. An id
+    that is not among them is refused by name: the row would otherwise name a table it cannot."""
+    wanted = {str(t) for t in table_ids}
+    named = {
+        str(t["id"]): f"{t['source_id']}.{t['schema_name']}.{t['table_name']}"
+        for t in tables
+        if str(t["id"]) in wanted
+    }
+    missing = [str(t) for t in table_ids if str(t) not in named]
+    if missing:
+        raise ValueError(
+            f"audit row names table id(s) {', '.join(missing)}, which the model the statement "
+            "ran under does not hold"
+        )
+    return [named[str(t)] for t in table_ids]
+
+
 async def log_query(  # REQ-074, REQ-689
     pool: "Database",
     *,
@@ -110,6 +130,8 @@ async def log_query(  # REQ-074, REQ-689
     # registered_tables ids (ints) from the pipeline; the ops_table_usage view casts each
     # element to INTEGER. Sequence keeps older str-keyed callers (tests, fixtures) type-clean.
     table_ids: Sequence[int | str],
+    # Each of table_ids' tables by its qualified name, in the same order (qualified_table_names).
+    table_names: Sequence[str],
     source: str,
     status_code: int,
     duration_ms: int,
@@ -126,6 +148,11 @@ async def log_query(  # REQ-074, REQ-689
     trace. An explicit trace_id wins; otherwise the ambient UDF correlation id (if any) is used."""
     from provisa.otel_compat import current_udf_correlation_id
 
+    if len(table_names) != len(table_ids):
+        raise ValueError(
+            f"audit row has {len(table_ids)} table id(s) and {len(table_names)} table name(s); "
+            "each id is named, in the same order"
+        )
     query_hash = hashlib.sha256(query_text.encode()).hexdigest()
     query_text_enc = encryption.encrypt(query_text.encode("utf-8"))
     async with pool.acquire() as conn:
@@ -138,6 +165,7 @@ async def log_query(  # REQ-074, REQ-689
                 # Binary column takes bytes directly; JSON table_ids takes the list directly.
                 query_text_enc=query_text_enc,
                 table_ids=list(table_ids),
+                table_names=list(table_names),
                 source=source,
                 status_code=status_code,
                 duration_ms=duration_ms,
