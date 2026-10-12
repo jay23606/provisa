@@ -23,7 +23,13 @@ from __future__ import annotations
 from typing import Any
 
 from provisa.dq.contract import CHECKERS, ContractError, contract_dataset, resolve_contract_target
-from provisa.dq.results import DQ_PROMOTIONS, DQ_WATERMARK_COLUMN, results_columns
+from provisa.dq.results import (
+    DQ_PROMOTIONS,
+    DQ_WATERMARK_COLUMN,
+    is_relation_name,
+    relation_name,
+    results_columns,
+)
 
 
 def is_checker_source_type(source_type: Any) -> bool:
@@ -38,8 +44,10 @@ def derive_checker_table(table: Any, source_type: Any) -> str:
         to a governed table is :func:`check_contract_target`, run once the compiled names exist;
       * the columns become :func:`results_columns` — the envelope is the CHECKER's, not the
         operator's, so a hand-written column list could only ever disagree with what lands;
-      * ``scan_time`` becomes the watermark, which makes the landing an append (REQ-982) and the
-        table a scan history with no history subsystem;
+      * ``scan_time`` becomes the watermark, the instant every row of one scan carries;
+      * the table is registered under its result relation's name, ``<name>_<source>_dq``
+        (:func:`~provisa.dq.results.relation_name`), the name given becoming its alias; a table
+        already registered under that name keeps it and its alias;
       * ``DQ_PROMOTIONS`` seeds the REQ-119 promotions, appended to any the operator added;
       * ``product_id`` must be unset — membership is inherited from the scanned table (clause 10).
 
@@ -78,6 +86,10 @@ def derive_checker_table(table: Any, source_type: Any) -> str:
         dataset = contract_dataset(table.dq_contract, checker)
     except ContractError as exc:
         raise ValueError(f"Table {table.table_name!r}: {exc}") from exc
+    if not is_relation_name(table.table_name, table.source_id):
+        # The name the steward chose is what SQL and GraphQL publish; an alias they set is theirs.
+        table.alias = table.alias or table.table_name
+        table.table_name = relation_name(table.table_name, table.source_id)
     table.columns = results_columns(list(table.columns[0].visible_to))
     table.watermark_column = DQ_WATERMARK_COLUMN
     existing = {p.get("target_column") for p in table.promotions}
@@ -108,3 +120,13 @@ def check_contract_target(table: Any, dataset: str, contexts: dict) -> Any:
             f"table itself; a contract observes a governed table, not its own scan history"
         )
     return target
+
+
+def require_scan_interval(table: Any) -> None:
+    """A checker table scans every ``cache_ttl`` seconds (REQ-1443), so it must state one."""
+    ttl = table.cache_ttl
+    if isinstance(ttl, bool) or not isinstance(ttl, int) or ttl < 1:
+        raise ValueError(
+            f"Table {table.table_name!r}: a checker table scans every cache_ttl seconds, so "
+            f"cache_ttl must be a positive whole number, got {ttl!r}"
+        )

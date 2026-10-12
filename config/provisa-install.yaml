@@ -439,7 +439,7 @@ sources:
 # demo's auth provider (none) pgwire is in trust mode and the startup user IS the role, so the scan
 # identity is org_admin: a filtered row set must never produce a silently passing check.
 - description: "Great Expectations quality scans \u2014 each results table is one\
-    \ suite's per-check outcomes, landed as ordinary source rows"
+    \ suite's per-check outcomes, kept across scans"
   id: dq-checker
   mapping:
     database: provisa
@@ -453,7 +453,7 @@ sources:
 # where the operator has not selected soda, this source's scan reports the pip command that installs
 # it and lands nothing — it never blocks the GX scan or anything else.
 - description: "Soda quality scans \u2014 each results table is one contract's per-check\
-    \ outcomes, landed as ordinary source rows"
+    \ outcomes, kept across scans"
   id: dq-soda
   mapping:
     database: provisa
@@ -1494,10 +1494,10 @@ tables:
   table: playgroup_members
 # REQ-1443: one results table per contract. The suite below is the whole registration: the scanned
 # target is read back out of meta.dataset (REQ-939), the 16 shipped result columns replace what is
-# declared here, and scan_time becomes the watermark so each scan appends and the table IS the scan
-# history. The single declared column exists only to carry visible_to.
-- alias: pets_quality
-  columns:
+# declared here, and each scan (every cache_ttl seconds) appends to the table's relation in the
+# control plane, pets_quality_dq_checker_dq, so the table IS the scan history; pets_quality is its
+# alias. The single declared column exists only to carry visible_to.
+- columns:
   - description: Placeholder carrying visible_to; replaced by the shipped results schema at parse
     name: scan_id
     data_type: varchar
@@ -1505,7 +1505,6 @@ tables:
     - org_admin
     - analyst
   cache_ttl: 3600
-  change_signal: ttl_probe
   description: "Quality scan results for the pet inventory — one row per check\
     \ per scan, with outcome, metric value and threshold"
   domain_id: pet-store
@@ -1527,14 +1526,11 @@ tables:
       - type: expect_column_values_to_not_be_null
         kwargs:
           column: species
-  probe_type: watermark
-  schema: quality
   source_id: dq-checker
-  table: pets_scan
+  table: pets_quality
 # REQ-1443: the Soda counterpart — same results schema, same scan pipeline, the other contract
 # dialect. No product_id: clause 10 derives it from the scanned table (vets → pet_health).
-- alias: vets_quality
-  columns:
+- columns:
   - description: Placeholder carrying visible_to; replaced by the shipped results schema at parse
     name: scan_id
     data_type: varchar
@@ -1542,7 +1538,6 @@ tables:
     - org_admin
     - analyst
   cache_ttl: 3600
-  change_signal: ttl_probe
   description: "Quality scan results for the referral vets — one row per check per scan,\
     \ with outcome, metric value and threshold"
   domain_id: pet-store
@@ -1562,10 +1557,8 @@ tables:
     checks:
       - row_count:
           must_be_greater_than: 0
-  probe_type: watermark
-  schema: quality
   source_id: dq-soda
-  table: vets_scan
+  table: vets_quality
 - alias: schedule_by_employee
   columns:
   - description: Employee id to filter on - sent to the GraphQL query as an argument

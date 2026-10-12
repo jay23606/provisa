@@ -120,7 +120,9 @@ def _demo_model() -> tuple[list[dict], list[dict]]:
             "id": table_id,
             "domain_id": t["domain_id"],
             "source_id": t["source_id"],
-            "schema_name": t["schema"],
+            # A checker table states no schema: it is registered under the org's control plane;
+            # "default" is the Table model's own default for an unstated one.
+            "schema_name": t.get("schema", "default"),
             "table_name": t["table"],
             "columns": [
                 {

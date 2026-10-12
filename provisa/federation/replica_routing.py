@@ -51,7 +51,10 @@ _log = logging.getLogger(__name__)
 #:
 #: ``data_profiler`` (REQ-1934): the same as ingest -- its runs append to its result relations in
 #: the org's control plane, which a replica pass would drop and recreate.
-NO_REPLICA_TYPES = frozenset({"ingest", "data_profiler"})
+#:
+#: ``soda`` / ``great_expectations`` (REQ-1443): a checker's scans append to its result relation
+#: in the org's control plane the same way, so each scan's rows stay beside the earlier ones.
+NO_REPLICA_TYPES = frozenset({"ingest", "data_profiler", "soda", "great_expectations"})
 
 
 def _source_type(source: Any) -> str:

@@ -397,10 +397,14 @@ def test_the_parser_is_the_c_backend_by_name():
     assert _json_parser().__name__ == "ijson.backends.yajl2_c"
 
 
-def test_a_kind_that_cannot_spool_stays_a_plain_single_document():
-    # A checker's rows are one scan's results, produced by a subprocess: there is no answer to
-    # spool. (An API table's own reader is covered in tests/unit/test_api_replica_read.py.)
-    assert not hasattr(sl.make_dq_loader(SimpleNamespace()), "replica_source")
+def test_a_kind_that_writes_its_own_rows_has_no_replica_to_spool():
+    # A checker's rows are its scans' results, appended where they are read (REQ-1443): nothing
+    # fetches them, so there is no answer to spool. (An API table's own reader is covered in
+    # tests/unit/test_api_replica_read.py.)
+    from provisa.federation.replica_routing import NO_REPLICA_TYPES
+
+    assert {"soda", "great_expectations"} <= NO_REPLICA_TYPES
+    assert not hasattr(sl, "make_dq_loader")
 
 
 def test_the_spool_directory_is_under_the_nodes_data_directory_and_swept_at_start():

@@ -653,6 +653,7 @@ async def _upsert_tables(  # REQ-013, REQ-016, REQ-251
     openapi_specs: dict[str, dict],
 ) -> None:
     _expand_view_metrics(config)
+    await _place_in_control_plane(conn, config)
     _settle_table_names(engine, config)
     await _refuse_published_name_clash(conn, config)
 
@@ -664,6 +665,28 @@ async def _upsert_tables(  # REQ-013, REQ-016, REQ-251
         await _upsert_single_table(
             conn, engine, await _keep_unlisted_columns(conn, tbl), src, openapi_specs
         )
+
+
+async def _place_in_control_plane(conn: "Connection", config: ProvisaConfig) -> None:
+    """A table of a kind that writes its own rows into the org's control plane (ingest, a
+    profiler's results, a checker's scans: ``NO_REPLICA_TYPES``) is registered under the org's
+    control-plane schema, the one location the compiler reaches it through (provisa_admin), as the
+    admin path registers it (REQ-1771, REQ-1934, REQ-1443). A checker table's result relation is
+    created there, empty until its first scan."""
+    from provisa.core.environments import active_org_schema  # noqa: PLC0415
+    from provisa.core.request_context import require_current_org  # noqa: PLC0415
+    from provisa.dq.registration import is_checker_source_type  # noqa: PLC0415
+    from provisa.dq.scan import ensure_relation  # noqa: PLC0415
+    from provisa.federation.replica_routing import NO_REPLICA_TYPES  # noqa: PLC0415
+
+    types = {s.id: str(getattr(s.type, "value", s.type)) for s in config.sources}
+    for tbl in config.tables:
+        stype = types.get(tbl.source_id)
+        if stype not in NO_REPLICA_TYPES:
+            continue
+        tbl.schema_name = active_org_schema(require_current_org(), "")
+        if is_checker_source_type(stype):
+            await ensure_relation(conn, tbl.table_name)
 
 
 class PublishedNameClash(ValueError):  # REQ-1919
@@ -1145,7 +1168,11 @@ def _validate_dq_contracts(config) -> None:  # REQ-1443
     which do not exist until the tables are compiled.
     """
     from provisa.dq.contract import CHECKERS  # noqa: PLC0415
-    from provisa.dq.registration import derive_checker_table, is_checker_source_type  # noqa: PLC0415
+    from provisa.dq.registration import (  # noqa: PLC0415
+        derive_checker_table,
+        is_checker_source_type,
+        require_scan_interval,
+    )
 
     sources_by_id = {s.id: s for s in config.sources}
     for table in config.tables:
@@ -1160,6 +1187,7 @@ def _validate_dq_contracts(config) -> None:  # REQ-1443
                 )
             continue
         derive_checker_table(table, stype)
+        require_scan_interval(table)
 
 
 def _validate_probe_type(config) -> None:  # REQ-982

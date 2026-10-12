@@ -527,7 +527,7 @@ server:
     trino_query_timeout: 120
 sources:
 - description: Great Expectations quality scans — each results table is one suite's per-check outcomes,
-    landed as ordinary source rows
+    kept across scans
   id: dq-checker
   mapping:
     database: provisa
@@ -536,8 +536,8 @@ sources:
     port: ${env:PROVISA_PGWIRE_PORT:-5439}
     user: ${env:PROVISA_DQ_USER:-org_admin}
   type: great_expectations
-- description: Soda quality scans — each results table is one contract's per-check outcomes, landed as
-    ordinary source rows
+- description: Soda quality scans — each results table is one contract's per-check outcomes, kept across
+    scans
   id: dq-soda
   mapping:
     database: provisa
@@ -1584,8 +1584,7 @@ tables:
   schema: pet_store
   source_id: pet-store-sqlite
   table: playgroup_members
-- alias: pets_quality
-  columns:
+- columns:
   - description: Placeholder carrying visible_to; replaced by the shipped results schema at parse
     name: scan_id
     data_type: varchar
@@ -1593,7 +1592,6 @@ tables:
     - org_admin
     - analyst
   cache_ttl: 3600
-  change_signal: ttl_probe
   description: Quality scan results for the pet inventory — one row per check per scan, with outcome,
     metric value and threshold
   domain_id: pet-store
@@ -1602,12 +1600,9 @@ tables:
     \    kwargs:\n      column: name\n  - type: expect_column_values_to_be_between\n    kwargs:\n    \
     \  column: price\n      min_value: 0\n  - type: expect_column_values_to_not_be_null\n    kwargs:\n\
     \      column: species\n"
-  probe_type: watermark
-  schema: quality
   source_id: dq-checker
-  table: pets_scan
-- alias: vets_quality
-  columns:
+  table: pets_quality
+- columns:
   - description: Placeholder carrying visible_to; replaced by the shipped results schema at parse
     name: scan_id
     data_type: varchar
@@ -1615,17 +1610,14 @@ tables:
     - org_admin
     - analyst
   cache_ttl: 3600
-  change_signal: ttl_probe
   description: Quality scan results for the referral vets — one row per check per scan, with outcome,
     metric value and threshold
   domain_id: pet-store
   dq_contract: "dataset: provisa/pet_store/vets\ncolumns:\n  - name: name\n    checks:\n      - missing:\n\
     \      - duplicate:\n  - name: clinic\n    checks:\n      - missing:\n  - name: specialty\n    checks:\n\
     \      - missing:\nchecks:\n  - row_count:\n      must_be_greater_than: 0\n"
-  probe_type: watermark
-  schema: quality
   source_id: dq-soda
-  table: vets_scan
+  table: vets_quality
 - alias: schedule_by_employee
   columns:
   - description: Employee id to filter on - sent to the GraphQL query as an argument

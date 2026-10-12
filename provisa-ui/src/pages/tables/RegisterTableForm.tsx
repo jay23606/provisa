@@ -27,7 +27,6 @@ import {
 } from "@mantine/core";
 import { domainToSqlName, toSnakeCase } from "../../naming";
 import { NlTableSearch } from "./NlTableSearch";
-import { MultiSelect } from "../../components/MultiSelect";
 import { useAvailableSchemas, useAvailableTables } from "../../hooks/useAdminQueries";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import { useRegionChoice, useRegionChoices } from "../../hooks/useRegionQueries";
@@ -47,7 +46,7 @@ import type { ColumnForm } from "./types";
 import { CDC_TYPES } from "./constants";
 import { IR_TYPES_FALLBACK } from "../../irTypes";
 import { isWatermarkEligible } from "./helpers";
-import { DataQualityPanel } from "./DataQualityPanel";
+import { CheckerFields } from "./CheckerFields";
 import { useDomainFilter } from "../../context/DomainFilterContext";
 import { PagingField } from "./PagingField";
 import { declaredPaging, pagingInput, pagingProblem } from "./paging";
@@ -63,10 +62,9 @@ import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 import { serverMessage } from "../../i18n/serverMessage";
 import { usePanelDirty } from "../../components/list/panelLeave";
 
-// REQ-1663: a checker table's results land under this schema, the same one the shipped demo uses
-// (config/provisa-install.yaml `schema: quality`). It is the schema of record only when domains are
-// off — with a domain picked, the domain names the schema exactly as for any other registration.
-const DQ_RESULTS_SCHEMA = "quality";
+// REQ-1443: a checker's scans append to a relation in the org's control-plane schema, which the
+// server stamps on registration (as for a profiler's results); the form carries this placeholder.
+const DQ_RESULTS_SCHEMA = "default";
 // REQ-1934: a profiler's result relations live in the org's control-plane schema, which the server
 // stamps on registration (as for ingest); the form carries this placeholder until then.
 const PROFILER_RESULTS_SCHEMA = "default";
@@ -335,7 +333,7 @@ export function RegisterTableForm({
       }
       const [, schema, table] = dataset.split("/");
       setDqScanned({ schema, table });
-      setTableName(`${table}_scan`);
+      setTableName(`${table}_quality`);
       setTableDescription(t("registerTableForm.dqDescription", { table: `${schema}.${table}` }));
     },
     [t],
@@ -644,6 +642,11 @@ export function RegisterTableForm({
       setError(t("registerTableForm.errorDqVisibleTo"));
       return;
     }
+    // REQ-1443: the table scans every this many seconds; the server refuses it without one.
+    if (!(Number(cacheTtl) >= 1)) {
+      setError(t("registerTableForm.errorDqScanInterval"));
+      return;
+    }
     try {
       const result = await registerTable({
         sourceId,
@@ -666,6 +669,7 @@ export function RegisterTableForm({
         ],
         uniqueConstraints: [],
         dqContract,
+        cacheTtl: Number(cacheTtl),
       });
       if (!result.success) {
         setError(serverMessage(result, result.message));
@@ -936,29 +940,18 @@ export function RegisterTableForm({
         </FormField>
       )}
       {isChecker && (
-        <>
-          {/* REQ-1663: the contract panel IS the table picker for a checker source — its dataset
-              select names the governed table to scan, and the rules are authored right here. */}
-          <FormField size="full">
-            <div data-testid="register-table-dq">
-              <DataQualityPanel
-                checker={sourceType}
-                sourceId={sourceId}
-                contractText={dqContract}
-                onChange={setDqContract}
-                onDatasetChange={onDqDatasetChange}
-              />
-            </div>
-          </FormField>
-          <FormField size="long">
-            <MultiSelect
-              options={roles.map((r) => ({ id: r.id, label: r.id }))}
-              value={dqVisibleTo}
-              onChange={setDqVisibleTo}
-              label={t("registerTableForm.dqVisibleToLabel")}
-            />
-          </FormField>
-        </>
+        <CheckerFields
+          checker={sourceType}
+          sourceId={sourceId}
+          contractText={dqContract}
+          onContractChange={setDqContract}
+          onDatasetChange={onDqDatasetChange}
+          scanInterval={cacheTtl}
+          onScanIntervalChange={setCacheTtl}
+          roles={roles}
+          visibleTo={dqVisibleTo}
+          onVisibleToChange={setDqVisibleTo}
+        />
       )}
       {isQueryApi && (
         <QueryTableFields

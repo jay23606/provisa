@@ -142,7 +142,10 @@ test.describe("google_sheets: source to query through the UI (REQ-1742)", () => 
 
     // 3. SQL page — the fixture sheet's header row is id,name plus the _WIDGETS rows
     // (gsheets-e2e-fixture memory): w1/Widget A, w2/Widget B, w3/Widget C.
-    const rows = await runSqlOnPage(page, `SELECT id, name FROM pet_store.${registered} ORDER BY id`);
+    const rows = await runSqlOnPage(
+      page,
+      `SELECT id, name FROM pet_store.${registered} ORDER BY id`,
+    );
     expect(rows).toHaveLength(3);
     expect(rows[0][1]).toBe("Widget A");
   });
@@ -269,7 +272,11 @@ test.describe("grpc_remote: source to query through the UI (REQ-1742)", () => {
 
 for (const c of [
   { type: "soda", checker: "Soda", checkType: "row_count" },
-  { type: "great_expectations", checker: "Great Expectations", checkType: "expect_table_row_count_to_be_between" },
+  {
+    type: "great_expectations",
+    checker: "Great Expectations",
+    checkType: "expect_table_row_count_to_be_between",
+  },
 ] as const) {
   test.describe(`${c.type}: source to query through the UI (REQ-1742)`, () => {
     test(`add the source, attach a rule to an existing table, dry-run it`, async ({ page }) => {
@@ -308,7 +315,7 @@ for (const c of [
 
       await page.getByTestId("dq-dataset-table-select").click();
       await page.getByRole("option", { name: "pet_store.vets", exact: true }).click();
-      await expect(page.getByTestId("register-table-dq-results-table")).toHaveValue("vets_scan");
+      await expect(page.getByTestId("register-table-dq-results-table")).toHaveValue("vets_quality");
       await page.getByTestId("register-table-dq-results-table").fill(resultsTable);
 
       // The alias field defaults to `${table}_quality` (RegisterTableForm.tsx) — "vets_quality"
@@ -348,8 +355,11 @@ for (const c of [
       // Complete the registration too — the results table lands in the tables list carrying the
       // checker it runs under, same assertion tables-register-dq.spec.ts makes for the shipped
       // dq-checker/dq-soda baked sources; here it's a source this test created itself.
+      await page.getByTestId("register-table-dq-scan-interval").fill("3600");
       await page.getByTestId("register-table-submit").click();
-      const badge = page.getByTestId(`tables-checker-${resultsTable}`);
+      // Registered under its result relation's name, <name>_<source>_dq (REQ-1443).
+      const relation = `${resultsTable}_${sourceId.replaceAll("-", "_")}_dq`;
+      const badge = page.getByTestId(`tables-checker-${relation}`);
       await expect(badge).toBeVisible({ timeout: 20000 });
       await expect(badge).toHaveText(c.checker);
     });

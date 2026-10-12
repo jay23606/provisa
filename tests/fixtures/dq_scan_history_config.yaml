@@ -1,0 +1,58 @@
+# REQ-1443 (amended 2026-10-12): a data-quality checker table's scans accumulate in its result
+# relation in the org's control plane, read there in place on every engine. One governed Postgres
+# table in the test stack, a Great Expectations checker source, and one checker table over it.
+auth:
+  provider: none
+  assignments_source: provisa
+  default_assignments:
+    - domain_id: '*'
+      role_id: org_admin
+naming:
+  domain_prefix: false
+  rules: []
+cache:
+  enabled: false
+domains:
+  - id: dqh
+    description: Data-quality scan history
+sources:
+  - id: dqh-pg
+    type: postgresql
+    host: ${env:PG_HOST}
+    port: ${env:PG_PORT}
+    database: ${env:PG_DATABASE}
+    username: ${env:PG_USER}
+    password: ${env:PG_PASSWORD}
+  - id: dq-hist
+    type: great_expectations
+    mapping:
+      database: provisa
+      host: 127.0.0.1
+      password: provisa
+      port: 5439
+      user: org_admin
+tables:
+  - source_id: dqh-pg
+    domain_id: dqh
+    schema: dq_hist_e2e
+    table: orders
+    columns:
+      - name: id
+        data_type: integer
+        visible_to: [org_admin]
+      - name: customer
+        data_type: varchar
+        visible_to: [org_admin]
+  - source_id: dq-hist
+    domain_id: dqh
+    table: orders_quality
+    cache_ttl: 3600
+    columns:
+      - name: scan_id
+        data_type: varchar
+        visible_to: [org_admin]
+    dq_contract: |
+      {"meta": {"dataset": "provisa/dqh/orders"},
+       "expectations": [{"type": "expect_column_values_to_not_be_null",
+                         "kwargs": {"column": "customer"}}]}
+roles: []

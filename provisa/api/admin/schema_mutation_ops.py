@@ -317,7 +317,9 @@ async def register_table(
 
     default_mail_watermark(model, _reg_state.source_types.get(input.source_id))
 
-    if _reg_state.source_types.get(input.source_id) in ("ingest", "data_profiler"):  # REQ-1771/1934
+    from provisa.federation.replica_routing import NO_REPLICA_TYPES
+
+    if _reg_state.source_types.get(input.source_id) in NO_REPLICA_TYPES:  # REQ-1771/1934/1443
         # ingest's Register-Table picker offers only a synthetic "default" schema (REQ-1745, a
         # UI-symmetry placeholder mirroring redis/elasticsearch/prometheus) -- it is never a real
         # physical location. ingest rows land straight into the tenant control-plane DB
@@ -353,6 +355,10 @@ async def register_table(
 
         try:
             await apply_dq_registration(_conn, model)
+            from provisa.dq.registration import is_checker_source_type, require_scan_interval
+
+            if is_checker_source_type(_reg_state.source_types.get(input.source_id)):
+                require_scan_interval(model)  # REQ-1443: the interval it scans on
             # REQ-1934: a profile result table's derivation, and a table's profiler membership.
             from provisa.profiler.registration import apply_registration
 
@@ -652,6 +658,9 @@ async def register_table(
         from provisa.api.admin.schema_common import activate_view_mv
 
         await activate_view_mv(input.table_name)
+    from provisa.dq.scan import reschedule_org_checkers
+
+    await reschedule_org_checkers()  # REQ-1443: a checker table scans from now on
     return await _registered_result(input, table_id)
 
 

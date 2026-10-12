@@ -177,14 +177,12 @@ async def test_reconcile_converges_the_store_table_at_that_address(monkeypatch):
 
     monkeypatch.setattr("provisa.federation.store_writer.reconcile_table", _reconcile_table)
     backend = _backend()
-    cfg = SimpleNamespace(
-        sources=[_src("dq-checker", "great_expectations"), _src("pg", "postgresql")], tables=[]
-    )
+    cfg = SimpleNamespace(sources=[_src("feed", "rss"), _src("pg", "postgresql")], tables=[])
     registered = [
         _rtbl(
-            "dq-checker",
-            "quality",
-            "pets_scan",
+            "feed",
+            "news",
+            "items",
             [_rcol("check_name", "text", pk=True), _rcol("passed", "boolean")],
         ),
         _rtbl("pg", "default", "users", [_rcol("id", "bigint", pk=True)]),  # ATTACH → not landed
@@ -192,11 +190,11 @@ async def test_reconcile_converges_the_store_table_at_that_address(monkeypatch):
 
     reconciled = await backend.reconcile_landed_tables(_state(cfg, registered, monkeypatch))
 
-    assert reconciled == [("dq-checker", "pets_scan")]
+    assert reconciled == [("feed", "items")]
     assert calls == [
         {
             "schema": "org_acme_replicas",
-            "table": "dq-checker__quality__pets_scan",
+            "table": "feed__news__items",
             "columns": [("check_name", "text"), ("passed", "boolean")],
             "pk_columns": ["check_name"],
         }
