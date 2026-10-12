@@ -77963,3 +77963,31 @@
   - REQ-318
   - REQ-1742
   notes: 'Maintainer 2026-10-12, via the lead: "A table declares parameters, each with a name, a type and how it reaches the source (path, query, GraphQL arg, gRPC field, pipeline_arg). Each is optional or required. Required = the source requires it OR a steward made it required. A source-required parameter can''t be made optional; an optional one can be made required by a steward, per table. One enforcement rule for every source kind: a missing required parameter is refused, naming the table and parameter, before anything is sent. The API exposes the steward''s required switch, and the table page shows a Parameters section with it, locked on where the source requires it. MongoDB pipeline arguments use the same parameters, not a special case." He also asked to enforce the required flag at query time for every source kind, filed as a defect. The following go beyond his words and are the lead''s elaboration: registration records optional parameters too (a remote GraphQL table records only its required arguments today, so a steward could not make an optional one required); the steward can turn the switch off again where the source does not require the parameter; GraphQL non-null follows the effective flag.'
+- id: REQ-1988
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'A query command can run a MongoDB aggregation pipeline whose output has no stable shape (implementation kind source_query). The command holds the native query as its binding, in the same {"inputCollection", "pipeline"} form a pipeline table holds (REQ-1980). Its arguments are the command''s typed arguments, each a "{{name}}" placeholder in the pipeline, and a call converts each one to its type and binds it into the pipeline as a BSON value, never into its text. A call returns the documents the pipeline gives, as JSON, so each may have its own shape. A command that declares output columns has its rows checked against them on the way out, as every command''s output contract is. Registration refuses a pipeline command whose native query names an argument the command does not declare, leaves a declared argument unused, or writes ($out, $merge), and one that is not a query. The command is assigned to roles and placed in a domain like any other command.'
+  use_case: 'A developer registers a search_facets command running $searchMeta with a facet over genre and year, its text a typed argument; a GraphQL client calls it with the text and receives the facet buckets as JSON, whose shape depends on the facets the pipeline asks for.'
+  scenario: 'Given a MongoDB source and a query command search_facets whose binding runs $searchMeta over movies with the argument q (text)
+
+
+    When a client calls search_facets with q set to "old"
+
+
+    Then the pipeline runs once with "old" bound as a string, and the call returns the $searchMeta document as JSON
+
+
+    When a client calls it with q set to a value holding operator syntax
+
+
+    Then the value is bound as that string, and nothing else runs'
+  related_reqs:
+  - REQ-1980
+  - REQ-1986
+  - REQ-885
+  - REQ-1159
+  notes: 'Maintainer 2026-10-12, via the lead: Shape B of the MongoDB native-query work, "a command (Function kind=query) with typed args that runs a pipeline whose output has no stable schema", after Shape A (REQ-1980). The following go beyond his words and are the lead''s elaboration: the implementation kind source_query and its binding; the refusals at registration, the same as a pipeline table''s; the GraphQL return being the JSON scalar unless the command declares a return schema.'

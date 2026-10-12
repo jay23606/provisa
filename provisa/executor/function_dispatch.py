@@ -345,7 +345,7 @@ def _check_egress(state, endpoint: str, kind: str) -> None:
 _EXTERNAL_KINDS = frozenset({"http", "grpc"})
 # Kinds whose arguments go to the implementation as given: a source's own procedure, and a
 # source's write operation, which is passed through as is (REQ-1924).
-_PASSED_THROUGH_KINDS = frozenset({"source_procedure", "source_operation"})
+_PASSED_THROUGH_KINDS = frozenset({"source_procedure", "source_operation", "source_query"})
 _RELATION_ARG_KINDS = frozenset({"table_ref", "result_set"})
 
 
@@ -432,6 +432,14 @@ async def _exec_source_operation(fn: dict, args: dict, state, _payload, _session
     )
 
 
+async def _exec_source_query(fn: dict, args: dict, state, _payload, _session) -> list[dict]:
+    """REQ-1988: a query command that runs its source's native query (a MongoDB pipeline) with
+    the call's arguments, each converted to its type and bound as a value."""
+    from provisa.mongodb.pipeline_command import run_command
+
+    return await run_command(state, fn, _bind_arg_names(fn, args))
+
+
 async def _exec_script(
     fn: dict, _args, _state, payload: dict, session: MintedSession
 ) -> list[dict]:
@@ -500,6 +508,7 @@ def _rows_from_response(
 _EXECUTORS = {
     "source_procedure": _exec_source_procedure,
     "source_operation": _exec_source_operation,
+    "source_query": _exec_source_query,  # REQ-1988
     "script": _exec_script,
     "http": _exec_http,
     "grpc": _exec_grpc,

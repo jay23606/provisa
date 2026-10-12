@@ -1652,9 +1652,11 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
     # REQ-885: implementation-kind dimension. Addressing (name/function_name) is decoupled
     # from binding (transport + location, swappable). ``source_procedure`` is the existing
     # REQ-205–208 path; the others are Provisa-hosted / external implementations.
-    #   source_procedure | source_operation | script | http | grpc | python
+    #   source_procedure | source_operation | source_query | script | http | grpc | python
     # source_operation (REQ-1924): a write operation of a remote source (OpenAPI, GraphQL, gRPC),
     # named by source_id and function_name and passed through as is.
+    # source_query (REQ-1988): a query command running its source's native query -- a MongoDB
+    # pipeline, its binding {"inputCollection", "pipeline"} -- with the call's typed arguments.
     impl_kind: str = "source_procedure"
     # Per-kind transport+location. Never a fallback: dispatch fails loud when a hosted kind
     # is registered without the binding keys its transport requires (REQ-885).
@@ -1681,6 +1683,19 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
     writes_table: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="after")
+    def _source_query_is_a_reading_native_query(self) -> "Function":  # REQ-1988
+        """A source_query command is a query, and its binding is a native query that names only
+        its arguments, uses each, and only reads."""
+        if self.impl_kind != "source_query":
+            return self
+        if self.kind != "query":
+            raise ValueError(f"command {self.name!r}: a source_query command is a query")
+        from provisa.mongodb.native_query import check_command
+
+        check_command(self.name, self.binding, [a.model_dump() for a in self.arguments])
+        return self
 
     @model_validator(mode="before")
     @classmethod

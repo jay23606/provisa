@@ -196,3 +196,16 @@ def check_table(table: Any) -> NativeQuery:
     if table.row_materialize:
         raise NativeQueryRefused(name, "a pipeline's rows have no key to be fetched by")
     return check(name, table.query_template, arguments)
+
+
+def native_query_text(binding: dict) -> str:
+    """A pipeline command's binding (REQ-1988) as native-query text."""
+    from bson import json_util
+
+    return json_util.dumps(binding)
+
+
+def check_command(name: str, binding: dict, arguments: list[dict]) -> NativeQuery:
+    """A pipeline command as registered (REQ-1988): its native query parses, names only its
+    arguments and uses each, and only reads."""
+    return check(name, native_query_text(binding), {a["name"] for a in arguments})
