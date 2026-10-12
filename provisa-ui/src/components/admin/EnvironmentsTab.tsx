@@ -11,7 +11,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActionIcon,
-  Accordion,
   Alert,
   Badge,
   Button,
@@ -32,6 +31,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { ArrowDownToLine, ArrowUpFromLine, GitBranch, GitMerge, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { useAuth } from "../../context/AuthContext";
 import { HelpBubble } from "../HelpBubble";
 import {
@@ -439,30 +439,31 @@ export function EnvironmentsTab() {
       {/* REQ-1552: the state of the org's mirror is true of every tab here, not of the environment
           list alone, so it sits above them. Collapsed, because the prose behind it is read once --
           what has to stay visible is the single line saying nothing is mirrored anywhere. */}
-      <Accordion variant="contained" chevronPosition="left" data-testid="env-help">
-        <Accordion.Item value="about">
-          <Accordion.Control>
-            <Group gap="xs" wrap="nowrap">
-              <Text size="sm">{t("environmentsTab.aboutTitle")}</Text>
+      <Collapsibles id="admin.environments.about" testId="env-help">
+        <CollapsibleItem
+          value="about"
+          defaultOpen={false}
+          title={
+            <Group gap="xs" wrap="nowrap" component="span">
+              <span>{t("environmentsTab.aboutTitle")}</span>
               {remoteConfigured === false && (
                 <Badge color="orange" variant="light" size="xs" data-testid="env-no-remote">
                   {t("environmentsTab.noRemoteShort")}
                 </Badge>
               )}
             </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="xs">
-              <Text size="sm">{t("environmentsTab.branchIsEnvironment")}</Text>
-              {remoteConfigured === false && (
-                <Text size="sm" data-testid="env-no-remote-detail">
-                  {t("environmentsTab.noRemote")}
-                </Text>
-              )}
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+          }
+        >
+          <Stack gap="xs">
+            <Text size="sm">{t("environmentsTab.branchIsEnvironment")}</Text>
+            {remoteConfigured === false && (
+              <Text size="sm" data-testid="env-no-remote-detail">
+                {t("environmentsTab.noRemote")}
+              </Text>
+            )}
+          </Stack>
+        </CollapsibleItem>
+      </Collapsibles>
       <Tabs value={tab} onChange={setTab}>
         <Tabs.List>
           <Tabs.Tab value="environments">{t("environmentsTab.tabEnvironments")}</Tabs.Tab>

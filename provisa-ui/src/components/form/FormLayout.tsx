@@ -27,7 +27,8 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { Accordion, Button, Divider, Loader, Text } from "@mantine/core";
+import { Button, Divider, Loader, Text } from "@mantine/core";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
@@ -389,37 +390,33 @@ export function FormSection({ id, children }: { id: string; children: ReactNode 
 }
 
 /**
- * Fields folded away under headings until they are wanted (settings that all have defaults). Read,
- * every fold is open: its heading heads its fields.
+ * Fields folded away under headings until they are wanted (settings that all have defaults), as
+ * the application's one collapsible (`Collapsibles`); ``id`` names the folds where they are, so
+ * each opens as this viewer left it. Read, every fold is open: its heading heads its fields.
  */
-export function FormFolds({
-  defaultOpen,
-  children,
-  ...rest
-}: {
-  defaultOpen?: string[];
-  children: ReactNode;
-  "data-testid"?: string;
-}) {
+export function FormFolds({ id, children }: { id: string; children: ReactNode }) {
   useInsideFormLayout("FormFolds");
   if (useFormRead()) return <>{children}</>;
   return (
-    <Accordion multiple defaultValue={defaultOpen} variant="separated" {...rest}>
+    <Collapsibles id={id} testId={id}>
       {children}
-    </Accordion>
+    </Collapsibles>
   );
 }
 
-/** One fold of a `FormFolds`: its heading, an optional note under it, and its fields. */
+/** One fold of a `FormFolds`: its heading, an optional note under it, and its fields; closed
+ *  until this viewer opens it, unless ``defaultOpen``. */
 export function FormFold({
   value,
   title,
   note,
+  defaultOpen = false,
   children,
 }: {
   value: string;
   title: ReactNode;
   note?: ReactNode;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
   if (useFormRead()) {
@@ -433,19 +430,18 @@ export function FormFold({
     );
   }
   return (
-    <Accordion.Item value={value}>
-      <Accordion.Control>{title}</Accordion.Control>
-      <Accordion.Panel>
-        {note && (
-          <Text size="sm" c="dimmed" mb="sm">
-            {note}
-          </Text>
-        )}
-        <FormLayout>{children}</FormLayout>
-      </Accordion.Panel>
-    </Accordion.Item>
+    <CollapsibleItem value={value} title={title} defaultOpen={defaultOpen}>
+      {note && (
+        <Text size="sm" c="dimmed" mb="sm">
+          {note}
+        </Text>
+      )}
+      <FormLayout>{children}</FormLayout>
+    </CollapsibleItem>
   );
 }
+FormFold.collapsibleItem = true;
+FormFold.defaultOpen = false;
 
 /** The fields that name the object. They sit above the flow, in a section of their own. */
 export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElement>) {

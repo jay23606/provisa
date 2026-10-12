@@ -11,7 +11,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Accordion,
   ActionIcon,
   Alert,
   Autocomplete,
@@ -27,7 +26,6 @@ import {
   Table,
   Text,
   TextInput,
-  Title,
 } from "@mantine/core";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import {
@@ -41,7 +39,7 @@ import {
   type AiModelsState,
   type VectorModel,
 } from "../../api/aiModels";
-import { usePanelState } from "../../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { ListTable, ListRow } from "../list/ListTable";
 import { FieldGroup, FormField, FormFooter, FormLayout } from "../form/FormLayout";
 
@@ -124,18 +122,12 @@ function Panel({
   title: string;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = usePanelState(testId, "section");
   return (
-    <Accordion variant="separated" value={open} onChange={setOpen} data-testid={testId}>
-      <Accordion.Item value="section">
-        <Accordion.Control>
-          <Title order={4}>{title}</Title>
-        </Accordion.Control>
-        <Accordion.Panel>
-          <Stack gap="md">{children}</Stack>
-        </Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <Collapsibles id={`admin.ai-models.${testId}`} testId={testId}>
+      <CollapsibleItem value="section" title={title}>
+        <Stack gap="md">{children}</Stack>
+      </CollapsibleItem>
+    </Collapsibles>
   );
 }
 

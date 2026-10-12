@@ -12,7 +12,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { missingRequired, secretPlaceholder, seedFields } from "./secretFields";
 import {
-  Accordion,
   Alert,
   Badge,
   Button,
@@ -34,7 +33,7 @@ import { useAuth } from "../../context/AuthContext";
 import { PlatformRequired } from "./PlatformRequired";
 import { isForbidden } from "./isForbidden";
 import { useCapability } from "../../hooks/useCapability";
-import { usePanelState } from "../../hooks/usePanelState";
+import { CollapsibleItem, Collapsibles } from "../collapsible/Collapsible";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { OrgEncryptionTab } from "./OrgEncryptionTab";
 import { OrgFilesTab } from "./OrgFilesTab";
@@ -515,53 +514,50 @@ export function SecretsTab() {
   const { capabilities } = useAuth();
   const mayChooseService = useCapability("platform_settings");
   const mayHoldSecrets = capabilities.includes("org_settings");
-  const [servicePanel, setServicePanel] = usePanelState("secretsService");
-  const [keyPanel, setKeyPanel] = usePanelState("orgKey");
 
   // Collapsed by default: choosing the backend happens once for the deployment, reading the names
   // happens every day, so the page opens on the names. The choice is remembered per browser.
   const service = mayChooseService ? (
-    <Accordion
-      value={servicePanel}
-      onChange={setServicePanel}
-      variant="contained"
-      data-testid="secrets-service-panel"
-    >
-      <Accordion.Item value="service">
-        <Accordion.Control data-testid="secrets-service-toggle">
-          {t("secretsTab.serviceTitle")}
-        </Accordion.Control>
-        {/* Mounted only when open, so a collapsed panel does not read the deployment config. */}
-        <Accordion.Panel>{servicePanel === "service" && <SecretsServicePanel />}</Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+    <Collapsibles id="admin.secrets.service" testId="secrets-service-panel">
+      {/* Mounted only when open, so a collapsed panel does not read the deployment config. */}
+      <CollapsibleItem
+        value="service"
+        defaultOpen={false}
+        mountWhenOpen
+        controlTestId="secrets-service-toggle"
+        title={t("secretsTab.serviceTitle")}
+      >
+        <SecretsServicePanel />
+      </CollapsibleItem>
+    </Collapsibles>
   ) : null;
 
   // REQ-1574: the org's key sits above the org's secrets, because it is the thing they are wrapped
   // under -- the same right, org_settings, and the same page. Collapsed by default for the reason
   // the service panel is: setting the key happens once, reading the names happens every day.
   const orgKey = mayHoldSecrets ? (
-    <Accordion
-      value={keyPanel}
-      onChange={setKeyPanel}
-      variant="contained"
-      data-testid="org-key-panel"
-    >
-      <Accordion.Item value="orgKey">
-        <Accordion.Control data-testid="org-key-toggle">
-          {t("orgEncryptionTab.panelTitle")}
-        </Accordion.Control>
-        {/* Mounted only when open, so a collapsed panel does not read the key's state. */}
-        <Accordion.Panel>{keyPanel === "orgKey" && <OrgEncryptionTab />}</Accordion.Panel>
-      </Accordion.Item>
+    <Collapsibles id="admin.secrets.org" testId="org-key-panel">
+      {/* Mounted only when open, so a collapsed panel does not read the key's state. */}
+      <CollapsibleItem
+        value="orgKey"
+        defaultOpen={false}
+        mountWhenOpen
+        controlTestId="org-key-toggle"
+        title={t("orgEncryptionTab.panelTitle")}
+      >
+        <OrgEncryptionTab />
+      </CollapsibleItem>
       {/* REQ-1992: the org's file folder, encrypted under a key the org holds in its vault. */}
-      <Accordion.Item value="orgFiles">
-        <Accordion.Control data-testid="org-files-toggle">
-          {t("orgFilesTab.panelTitle")}
-        </Accordion.Control>
-        <Accordion.Panel>{keyPanel === "orgFiles" && <OrgFilesTab />}</Accordion.Panel>
-      </Accordion.Item>
-    </Accordion>
+      <CollapsibleItem
+        value="orgFiles"
+        defaultOpen={false}
+        mountWhenOpen
+        controlTestId="org-files-toggle"
+        title={t("orgFilesTab.panelTitle")}
+      >
+        <OrgFilesTab />
+      </CollapsibleItem>
+    </Collapsibles>
   ) : null;
 
   const header = (

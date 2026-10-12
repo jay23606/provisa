@@ -66,8 +66,8 @@ export function ProfilerFormSection({
   );
   return (
     <FormField size="full">
-      <FormFolds defaultOpen={["schedule"]} data-testid="profiler-form-groups">
-        <FormFold value="schedule" title={t("profilerFormSection.groupSchedule")}>
+      <FormFolds id="profiler-form-groups">
+        <FormFold value="schedule" title={t("profilerFormSection.groupSchedule")} defaultOpen>
           <FormField hint={t("profilerFormSection.cronDescription")} size="medium">
             <TextInput
               label={t("profilerFormSection.cronLabel")}

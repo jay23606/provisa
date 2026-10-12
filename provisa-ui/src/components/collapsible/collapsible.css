@@ -1,0 +1,38 @@
+/* The one look of a collapsible panel (Collapsibles), open and closed, light and dark: a bordered
+ * item, its heading the control; an open item is filled, a closed one is not. Nothing else styles
+ * a collapsible, so every panel of the application looks the same. */
+.provisa-collapsible {
+  --collapsible-border: var(--mantine-color-gray-3);
+  --collapsible-filled: var(--mantine-color-gray-0);
+  --collapsible-radius: var(--mantine-radius-sm);
+}
+:where([data-mantine-color-scheme="dark"]) .provisa-collapsible {
+  --collapsible-border: var(--mantine-color-dark-4);
+  --collapsible-filled: var(--mantine-color-dark-6);
+}
+.provisa-collapsible > .mantine-Accordion-item {
+  border: 1px solid var(--collapsible-border);
+  border-radius: 0;
+  background-color: transparent;
+}
+.provisa-collapsible > .mantine-Accordion-item[data-active] {
+  background-color: var(--collapsible-filled);
+}
+.provisa-collapsible > .mantine-Accordion-item + .mantine-Accordion-item {
+  border-top: 0;
+}
+.provisa-collapsible > .mantine-Accordion-item:first-of-type,
+.provisa-collapsible > .mantine-Accordion-item:first-of-type > .mantine-Accordion-control {
+  border-start-start-radius: var(--collapsible-radius);
+  border-start-end-radius: var(--collapsible-radius);
+}
+.provisa-collapsible > .mantine-Accordion-item:last-of-type,
+.provisa-collapsible > .mantine-Accordion-item:last-of-type > .mantine-Accordion-control {
+  border-end-start-radius: var(--collapsible-radius);
+  border-end-end-radius: var(--collapsible-radius);
+}
+/* The heading's words: a title is plain text, so this is its one size and weight. */
+.provisa-collapsible .mantine-Accordion-label {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+}

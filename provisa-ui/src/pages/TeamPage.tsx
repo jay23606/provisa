@@ -11,7 +11,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Accordion,
   Alert,
   Button,
   Group,
@@ -44,7 +43,7 @@ import { OrgBrandingSettings } from "../components/OrgBrandingSettings";
 import { FormChecks, FormField, FormFooter, FormLayout } from "../components/form/FormLayout";
 import { OrgJoinSettings } from "../components/OrgJoinSettings";
 import { useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "../components/graph/graph-persistence";
+import { CollapsibleItem, Collapsibles } from "../components/collapsible/Collapsible";
 import { useRoles } from "../hooks/useAdminQueries";
 import { useAuth } from "../context/AuthContext";
 import { inviteUrl } from "../lib/authHost";
@@ -85,24 +84,11 @@ export function TeamPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [exported, setExported] = useState(false);
-  // Which sections are open, kept across visits. Branding is absent from the default because it is
-  // set once and then rarely touched, unlike the member and invite lists.
-  const [openSections, setOpenSections] = useLocalStorage<string[]>("provisa.team.sections", [
-    "members",
-    "invites",
-    "danger",
-  ]);
 
-  // ?section=<value> opens that accordion item — how another page links straight to a section a
+  // ?section=<value> opens that section — how another page links straight to a section a
   // returning visitor has collapsed (the org-address modal links to branding this way).
   const [searchParams] = useSearchParams();
   const requestedSection = searchParams.get("section");
-  useEffect(() => {
-    if (!requestedSection) return;
-    setOpenSections((open) =>
-      open.includes(requestedSection) ? open : [...open, requestedSection],
-    );
-  }, [requestedSection, setOpenSections]);
 
   const reportError = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
 
@@ -328,324 +314,313 @@ export function TeamPage() {
         </Alert>
       )}
 
-      <Accordion
-        multiple
-        variant="separated"
-        value={openSections}
-        onChange={setOpenSections}
-        data-testid="team-sections"
-      >
-        <Accordion.Item value="members">
-          <Accordion.Control data-testid="team-section-members">
-            <Title order={4}>{t("teamPage.membersHeading")}</Title>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <ListTable minWidth={640} testId="team-members">
+      <Collapsibles id="team.sections" reveal={requestedSection} testId="team-sections">
+        <CollapsibleItem
+          value="members"
+          controlTestId="team-section-members"
+          title={t("teamPage.membersHeading")}
+        >
+          <ListTable minWidth={640} testId="team-members">
+            <ListHead
+              sortGroup={memberSortGroup}
+              columns={[
+                { col: "person" },
+                { col: "provider" },
+                { col: "orgAdmin" },
+                t("teamPage.colActions"),
+              ]}
+            />
+            <Table.Tbody>
+              {members.length === 0 && <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>}
+              <ListItems
+                state={memberSortGroup}
+                colSpan={4}
+                rowKey={(m) => m.user_id}
+                render={(m) => {
+                  const lastAdmin = m.is_org_admin && adminCount <= 1;
+                  return (
+                    <ListRow testId={`team-member-${m.user_id}`}>
+                      <Table.Td>
+                        <Text size="sm">{m.display_name ?? m.email ?? m.user_id}</Text>
+                        {m.email && m.display_name && (
+                          <Text size="xs" c="dimmed">
+                            {m.email}
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>{m.provider ?? "—"}</Table.Td>
+                      <Table.Td>{m.is_org_admin ? t("teamPage.yes") : t("teamPage.no")}</Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <Tip text={lastAdmin ? t("teamPage.lastAdminHint") : undefined}>
+                            <Button
+                              size="compact-xs"
+                              variant="default"
+                              disabled={lastAdmin}
+                              onClick={() => handleToggleAdmin(m)}
+                              data-testid={`team-toggle-admin-${m.user_id}`}
+                            >
+                              {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
+                            </Button>
+                          </Tip>
+                          <Tip
+                            text={
+                              m.user_id === userId
+                                ? t("teamPage.selfRemoveHint")
+                                : lastAdmin
+                                  ? t("teamPage.lastAdminHint")
+                                  : undefined
+                            }
+                          >
+                            <Button
+                              size="compact-xs"
+                              color="red"
+                              variant="light"
+                              disabled={lastAdmin || m.user_id === userId}
+                              onClick={() => handleRemoveMember(m)}
+                              data-testid={`team-remove-${m.user_id}`}
+                            >
+                              {t("teamPage.removeButton")}
+                            </Button>
+                          </Tip>
+                        </Group>
+                      </Table.Td>
+                    </ListRow>
+                  );
+                }}
+              />
+            </Table.Tbody>
+          </ListTable>
+        </CollapsibleItem>
+
+        <CollapsibleItem
+          value="invites"
+          controlTestId="team-section-invites"
+          title={t("teamPage.inviteHeading")}
+        >
+          <FormLayout data-testid="team-invite-form" style={{ marginBottom: "1rem" }}>
+            <Text c="dimmed" size="sm">
+              {t("teamPage.inviteHelp")}
+            </Text>
+            <FormField size="long" hint={t("teamPage.emailDesc")}>
+              <TextInput
+                label={t("teamPage.emailLabel")}
+                placeholder="person@acme.com"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.currentTarget.value)}
+                data-testid="team-invite-email"
+              />
+            </FormField>
+            <FormField size="medium" hint={t("teamPage.roleDesc")}>
+              <Select
+                label={t("teamPage.roleLabel")}
+                placeholder={t("teamPage.rolePlaceholder")}
+                data={roleOptions}
+                value={roleId}
+                onChange={setRoleId}
+                data-testid="team-invite-role"
+              />
+            </FormField>
+            {/* REQ-1594/REQ-1595: who the link admits, and what it gives them: both are answered
+                  about the invitation as a whole, not per invitee. */}
+            <FormField size="short" help={t("teamPage.expiresDesc")}>
+              <NumberInput
+                label={t("teamPage.expiresLabel")}
+                min={1}
+                max={36500}
+                allowDecimal={false}
+                value={expiresInDays}
+                onChange={setExpiresInDays}
+                data-testid="team-invite-expires-days"
+              />
+            </FormField>
+            <FormField size="medium" help={t("teamPage.envPolicyDesc")}>
+              <Select
+                label={t("teamPage.envPolicyLabel")}
+                data={[
+                  { value: ENV_POLICY_NONE, label: t("teamPage.envPolicyNone") },
+                  { value: ENV_POLICY_PER_VISITOR, label: t("teamPage.envPolicyPerVisitor") },
+                ]}
+                value={envPolicy}
+                onChange={(v) => setEnvPolicy(v ?? ENV_POLICY_NONE)}
+                allowDeselect={false}
+                data-testid="team-invite-env-policy"
+              />
+            </FormField>
+            {envPolicy === ENV_POLICY_PER_VISITOR && (
+              <FormField size="short">
+                <Select
+                  label={t("teamPage.envTtlLabel")}
+                  data={ttlOptions}
+                  value={envTtl}
+                  onChange={(v) => setEnvTtl(v ?? "3600")}
+                  allowDeselect={false}
+                  data-testid="team-invite-env-ttl"
+                />
+              </FormField>
+            )}
+            <FormChecks>
+              <FormField size="long" help={t("teamPage.openLinkDesc")}>
+                <Switch
+                  label={t("teamPage.openLinkLabel")}
+                  checked={openLink}
+                  onChange={(e) => setOpenLink(e.currentTarget.checked)}
+                  data-testid="team-invite-open-link"
+                />
+              </FormField>
+            </FormChecks>
+            {/* The form's one action: it creates the link (or sends it, with an address). */}
+            <FormFooter
+              action={
+                <Button
+                  onClick={handleCreate}
+                  disabled={!activeOrgId || !roleId || !(Number(expiresInDays) >= 1)}
+                  data-testid="team-invite-create"
+                >
+                  {inviteEmail.trim() === ""
+                    ? t("teamPage.generateInvite")
+                    : t("teamPage.sendInvite")}
+                </Button>
+              }
+            />
+          </FormLayout>
+
+          {/* The table keeps every column; what its card leaves too little room for scrolls. */}
+          <div className="card-table-scroll">
+            <ListTable minWidth={640} testId="team-invites">
               <ListHead
-                sortGroup={memberSortGroup}
+                sortGroup={inviteSortGroup}
                 columns={[
-                  { col: "person" },
-                  { col: "provider" },
-                  { col: "orgAdmin" },
+                  { col: "token" },
+                  { col: "email" },
+                  { col: "role" },
+                  { col: "expires" },
+                  { col: "uses" },
+                  { col: "environment" },
+                  { col: "status" },
                   t("teamPage.colActions"),
                 ]}
               />
               <Table.Tbody>
-                {members.length === 0 && (
-                  <ListEmpty colSpan={4}>{t("teamPage.noMembers")}</ListEmpty>
+                {invites.length === 0 && (
+                  <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
                 )}
                 <ListItems
-                  state={memberSortGroup}
-                  colSpan={4}
-                  rowKey={(m) => m.user_id}
-                  render={(m) => {
-                    const lastAdmin = m.is_org_admin && adminCount <= 1;
-                    return (
-                      <ListRow testId={`team-member-${m.user_id}`}>
-                        <Table.Td>
-                          <Text size="sm">{m.display_name ?? m.email ?? m.user_id}</Text>
-                          {m.email && m.display_name && (
-                            <Text size="xs" c="dimmed">
-                              {m.email}
-                            </Text>
-                          )}
-                        </Table.Td>
-                        <Table.Td>{m.provider ?? "—"}</Table.Td>
-                        <Table.Td>{m.is_org_admin ? t("teamPage.yes") : t("teamPage.no")}</Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <Tip text={lastAdmin ? t("teamPage.lastAdminHint") : undefined}>
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                disabled={lastAdmin}
-                                onClick={() => handleToggleAdmin(m)}
-                                data-testid={`team-toggle-admin-${m.user_id}`}
-                              >
-                                {m.is_org_admin ? t("teamPage.demote") : t("teamPage.promote")}
-                              </Button>
-                            </Tip>
-                            <Tip
-                              text={
-                                m.user_id === userId
-                                  ? t("teamPage.selfRemoveHint")
-                                  : lastAdmin
-                                    ? t("teamPage.lastAdminHint")
-                                    : undefined
-                              }
+                  state={inviteSortGroup}
+                  colSpan={8}
+                  rowKey={(inv) => inv.token}
+                  render={(inv) => (
+                    <ListRow>
+                      <Table.Td>
+                        <Text ff="monospace" span>
+                          {inv.token.slice(0, 8)}…
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>{inv.email ?? "—"}</Table.Td>
+                      <Table.Td>{inv.role_id ?? "—"}</Table.Td>
+                      <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
+                      <Table.Td>
+                        {inv.max_uses === null
+                          ? t("teamPage.usesUnlimited", { used: inv.uses })
+                          : t("teamPage.usesOf", { used: inv.uses, max: inv.max_uses })}
+                      </Table.Td>
+                      <Table.Td>{envSummary(inv)}</Table.Td>
+                      <Table.Td>
+                        {isSpent(inv)
+                          ? t("teamPage.spentStatus")
+                          : inv.used_at
+                            ? t("teamPage.usedStatus", {
+                                date: new Date(inv.used_at).toLocaleDateString(),
+                              })
+                            : t("teamPage.activeStatus")}
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
+                          {!isSpent(inv) && (
+                            <Button
+                              size="compact-xs"
+                              variant="default"
+                              onClick={() => handleCopy(inv.org_id, inv.token)}
                             >
-                              <Button
-                                size="compact-xs"
-                                color="red"
-                                variant="light"
-                                disabled={lastAdmin || m.user_id === userId}
-                                onClick={() => handleRemoveMember(m)}
-                                data-testid={`team-remove-${m.user_id}`}
-                              >
-                                {t("teamPage.removeButton")}
-                              </Button>
-                            </Tip>
-                          </Group>
-                        </Table.Td>
-                      </ListRow>
-                    );
-                  }}
+                              {copiedToken === inv.token
+                                ? t("teamPage.copiedButton")
+                                : t("teamPage.copyButton")}
+                            </Button>
+                          )}
+                          {!isSpent(inv) && (
+                            <Button
+                              size="compact-xs"
+                              color="red"
+                              variant="light"
+                              onClick={() => handleRevoke(inv.token)}
+                            >
+                              {t("teamPage.revokeButton")}
+                            </Button>
+                          )}
+                        </Group>
+                      </Table.Td>
+                    </ListRow>
+                  )}
                 />
               </Table.Tbody>
             </ListTable>
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        <Accordion.Item value="invites">
-          <Accordion.Control data-testid="team-section-invites">
-            <Title order={4}>{t("teamPage.inviteHeading")}</Title>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <FormLayout data-testid="team-invite-form" style={{ marginBottom: "1rem" }}>
-              <Text c="dimmed" size="sm">
-                {t("teamPage.inviteHelp")}
-              </Text>
-              <FormField size="long" hint={t("teamPage.emailDesc")}>
-                <TextInput
-                  label={t("teamPage.emailLabel")}
-                  placeholder="person@acme.com"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.currentTarget.value)}
-                  data-testid="team-invite-email"
-                />
-              </FormField>
-              <FormField size="medium" hint={t("teamPage.roleDesc")}>
-                <Select
-                  label={t("teamPage.roleLabel")}
-                  placeholder={t("teamPage.rolePlaceholder")}
-                  data={roleOptions}
-                  value={roleId}
-                  onChange={setRoleId}
-                  data-testid="team-invite-role"
-                />
-              </FormField>
-              {/* REQ-1594/REQ-1595: who the link admits, and what it gives them: both are answered
-                  about the invitation as a whole, not per invitee. */}
-              <FormField size="short" help={t("teamPage.expiresDesc")}>
-                <NumberInput
-                  label={t("teamPage.expiresLabel")}
-                  min={1}
-                  max={36500}
-                  allowDecimal={false}
-                  value={expiresInDays}
-                  onChange={setExpiresInDays}
-                  data-testid="team-invite-expires-days"
-                />
-              </FormField>
-              <FormField size="medium" help={t("teamPage.envPolicyDesc")}>
-                <Select
-                  label={t("teamPage.envPolicyLabel")}
-                  data={[
-                    { value: ENV_POLICY_NONE, label: t("teamPage.envPolicyNone") },
-                    { value: ENV_POLICY_PER_VISITOR, label: t("teamPage.envPolicyPerVisitor") },
-                  ]}
-                  value={envPolicy}
-                  onChange={(v) => setEnvPolicy(v ?? ENV_POLICY_NONE)}
-                  allowDeselect={false}
-                  data-testid="team-invite-env-policy"
-                />
-              </FormField>
-              {envPolicy === ENV_POLICY_PER_VISITOR && (
-                <FormField size="short">
-                  <Select
-                    label={t("teamPage.envTtlLabel")}
-                    data={ttlOptions}
-                    value={envTtl}
-                    onChange={(v) => setEnvTtl(v ?? "3600")}
-                    allowDeselect={false}
-                    data-testid="team-invite-env-ttl"
-                  />
-                </FormField>
-              )}
-              <FormChecks>
-                <FormField size="long" help={t("teamPage.openLinkDesc")}>
-                  <Switch
-                    label={t("teamPage.openLinkLabel")}
-                    checked={openLink}
-                    onChange={(e) => setOpenLink(e.currentTarget.checked)}
-                    data-testid="team-invite-open-link"
-                  />
-                </FormField>
-              </FormChecks>
-              {/* The form's one action: it creates the link (or sends it, with an address). */}
-              <FormFooter
-                action={
-                  <Button
-                    onClick={handleCreate}
-                    disabled={!activeOrgId || !roleId || !(Number(expiresInDays) >= 1)}
-                    data-testid="team-invite-create"
-                  >
-                    {inviteEmail.trim() === ""
-                      ? t("teamPage.generateInvite")
-                      : t("teamPage.sendInvite")}
-                  </Button>
-                }
-              />
-            </FormLayout>
-
-            {/* The table keeps every column; what its card leaves too little room for scrolls. */}
-            <div className="card-table-scroll">
-              <ListTable minWidth={640} testId="team-invites">
-                <ListHead
-                  sortGroup={inviteSortGroup}
-                  columns={[
-                    { col: "token" },
-                    { col: "email" },
-                    { col: "role" },
-                    { col: "expires" },
-                    { col: "uses" },
-                    { col: "environment" },
-                    { col: "status" },
-                    t("teamPage.colActions"),
-                  ]}
-                />
-                <Table.Tbody>
-                  {invites.length === 0 && (
-                    <ListEmpty colSpan={8}>{t("teamPage.noInvites")}</ListEmpty>
-                  )}
-                  <ListItems
-                    state={inviteSortGroup}
-                    colSpan={8}
-                    rowKey={(inv) => inv.token}
-                    render={(inv) => (
-                      <ListRow>
-                        <Table.Td>
-                          <Text ff="monospace" span>
-                            {inv.token.slice(0, 8)}…
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>{inv.email ?? "—"}</Table.Td>
-                        <Table.Td>{inv.role_id ?? "—"}</Table.Td>
-                        <Table.Td>{new Date(inv.expires_at).toLocaleDateString()}</Table.Td>
-                        <Table.Td>
-                          {inv.max_uses === null
-                            ? t("teamPage.usesUnlimited", { used: inv.uses })
-                            : t("teamPage.usesOf", { used: inv.uses, max: inv.max_uses })}
-                        </Table.Td>
-                        <Table.Td>{envSummary(inv)}</Table.Td>
-                        <Table.Td>
-                          {isSpent(inv)
-                            ? t("teamPage.spentStatus")
-                            : inv.used_at
-                              ? t("teamPage.usedStatus", {
-                                  date: new Date(inv.used_at).toLocaleDateString(),
-                                })
-                              : t("teamPage.activeStatus")}
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            {!isSpent(inv) && (
-                              <Button
-                                size="compact-xs"
-                                variant="default"
-                                onClick={() => handleCopy(inv.org_id, inv.token)}
-                              >
-                                {copiedToken === inv.token
-                                  ? t("teamPage.copiedButton")
-                                  : t("teamPage.copyButton")}
-                              </Button>
-                            )}
-                            {!isSpent(inv) && (
-                              <Button
-                                size="compact-xs"
-                                color="red"
-                                variant="light"
-                                onClick={() => handleRevoke(inv.token)}
-                              >
-                                {t("teamPage.revokeButton")}
-                              </Button>
-                            )}
-                          </Group>
-                        </Table.Td>
-                      </ListRow>
-                    )}
-                  />
-                </Table.Tbody>
-              </ListTable>
-            </div>
-          </Accordion.Panel>
-        </Accordion.Item>
+          </div>
+        </CollapsibleItem>
 
         {/* REQ-1569: the rule that decides who joins without an invitation, read and edited by the
             org_admin who owns it. */}
         {activeOrgId && (
-          <Accordion.Item value="joining">
-            <Accordion.Control data-testid="team-section-joining">
-              <Title order={4}>{t("orgJoin.heading")}</Title>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <OrgJoinSettings orgId={activeOrgId} onError={reportError} />
-            </Accordion.Panel>
-          </Accordion.Item>
+          <CollapsibleItem
+            value="joining"
+            defaultOpen={false}
+            controlTestId="team-section-joining"
+            title={t("orgJoin.heading")}
+          >
+            <OrgJoinSettings orgId={activeOrgId} onError={reportError} />
+          </CollapsibleItem>
         )}
 
         {/* REQ-1486: the org's own presentation, edited by the same org_admin who runs the team. */}
         {activeOrgId && (
-          <Accordion.Item value="branding">
-            <Accordion.Control data-testid="team-section-branding">
-              <Title order={4}>{t("orgBranding.heading")}</Title>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <OrgBrandingSettings orgId={activeOrgId} onError={reportError} />
-            </Accordion.Panel>
-          </Accordion.Item>
+          <CollapsibleItem
+            value="branding"
+            defaultOpen={false}
+            controlTestId="team-section-branding"
+            title={t("orgBranding.heading")}
+          >
+            <OrgBrandingSettings orgId={activeOrgId} onError={reportError} />
+          </CollapsibleItem>
         )}
 
         {multitenancy && (
-          <Accordion.Item value="danger">
-            <Accordion.Control data-testid="team-section-danger">
-              <Title order={4}>{t("teamPage.dangerHeading")}</Title>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="sm" maw={520}>
-                <Text c="dimmed" size="sm">
-                  {t("teamPage.dangerHelp")}
-                </Text>
-                <Button
-                  color="red"
-                  variant="outline"
-                  style={{ alignSelf: "flex-start" }}
-                  disabled={!activeOrgId}
-                  onClick={() => {
-                    setConfirmText("");
-                    setExported(false);
-                    setDeleteOpen(true);
-                  }}
-                  data-testid="team-delete-org"
-                >
-                  {t("teamPage.deleteOrgButton")}
-                </Button>
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
+          <CollapsibleItem
+            value="danger"
+            controlTestId="team-section-danger"
+            title={t("teamPage.dangerHeading")}
+          >
+            <Stack gap="sm" maw={520}>
+              <Text c="dimmed" size="sm">
+                {t("teamPage.dangerHelp")}
+              </Text>
+              <Button
+                color="red"
+                variant="outline"
+                style={{ alignSelf: "flex-start" }}
+                disabled={!activeOrgId}
+                onClick={() => {
+                  setConfirmText("");
+                  setExported(false);
+                  setDeleteOpen(true);
+                }}
+                data-testid="team-delete-org"
+              >
+                {t("teamPage.deleteOrgButton")}
+              </Button>
+            </Stack>
+          </CollapsibleItem>
         )}
-      </Accordion>
+      </Collapsibles>
 
       {multitenancy && (
         <Modal
