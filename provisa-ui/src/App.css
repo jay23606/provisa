@@ -773,9 +773,14 @@ main {
   margin-inline-end: 0.25rem;
   border-inline-end: 1px solid var(--border);
 }
+/* One row: a page and the view in its panel may each put actions here, side by side. */
 .split-pane__actions {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
 }
 /* Every action in the head: one gap, and out of use it is dimmed, never boxed. The look itself
  * (no background, no border, one height) is PanelHeadStyle's. */

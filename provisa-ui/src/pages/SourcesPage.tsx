@@ -29,6 +29,8 @@ import {
 } from "@mantine/core";
 import { FilterInput } from "../components/admin/FilterInput";
 import { HelpBubble } from "../components/HelpBubble";
+import { Tip } from "../components/Tip";
+import { RefreshCw } from "lucide-react";
 import { fetchSettings, fetchFederationEngine } from "../api/admin";
 import type { PlatformSettings, FederationEngineState } from "../api/admin";
 import {
@@ -1573,15 +1575,23 @@ export function SourcesPage() {
           </Button>
         )}
         {(s.type === "graphql" || s.type === "openapi" || s.type === "grpc") && (
-          <Button
-            data-testid={`sources-refresh-schema-${s.id}`}
-            onClick={() => handleRefreshSchema(s.id, s.type)}
-            disabled={refreshingSourceId === s.id}
+          <Tip
+            text={
+              refreshingSourceId === s.id
+                ? t("sourcesPage.refreshing")
+                : t("sourcesPage.refreshSchema")
+            }
+            named
           >
-            {refreshingSourceId === s.id
-              ? t("sourcesPage.refreshing")
-              : t("sourcesPage.refreshSchema")}
-          </Button>
+            <ActionIcon
+              aria-label={t("sourcesPage.refreshSchema")}
+              data-testid={`sources-refresh-schema-${s.id}`}
+              loading={refreshingSourceId === s.id}
+              onClick={() => handleRefreshSchema(s.id, s.type)}
+            >
+              <RefreshCw size={14} />
+            </ActionIcon>
+          </Tip>
         )}
       </Group>
     </PanelActions>
