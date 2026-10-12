@@ -78061,22 +78061,32 @@
   description: The external MCP server reaches the graph surface as the UI does. run_cypher runs Cypher
     under the caller's role through the pipeline every Cypher surface uses and answers its rows and the
     graph they hold as Cytoscape elements (nodes and edges with the graph page's ids and only the properties
-    the role is served). render_graph hands back those elements with the Cytoscape layout the UI draws
-    them with -- the graph page's force (fcose) or hierarchy (breadthfirst) options, or the ERD's ELK layout
-    -- for the client to run; no positions are computed and no Node runs on the server. One layout file
-    is read by the server and held equal to the UI's own options by a test. generate_explore_queries answers
-    all six query surfaces under the caller's role.
-  use_case: An agent connected to Provisa over MCP asks a graph question and gets back a graph its client
-    can draw exactly as the Provisa UI would, without the server rendering images or the client re-deriving
-    the layout.
+    the role is served). render_graph draws those elements as the graph page draws them and answers a PNG
+    as MCP image content -- the page's own Cytoscape stylesheet and its force (fcose) or hierarchy (breadthfirst)
+    layout, or the ERD's ELK layout, on the page's light background by default or its dark one when the
+    caller passes theme=dark. Node draws it on the server, one process per call within the operator setting
+    mcp.render_timeout_s; a host without Node or the built renderer refuses the call by name. generate_explore_queries
+    answers all six query surfaces under the caller's role.
+  use_case: An agent connected to Provisa over MCP asks a graph question and gets back the graph as rows,
+    as elements, and as a picture that matches what the Provisa graph page would show.
+  notes: 'Maintainer rulings, 2026-10-12, through the lead: "add node to the image and render PNG" (replacing
+    the earlier ruling of no SVG and no Node at run time); "just add a node install to these" (the images
+    Compose, Helm and cloud build from); light by default, and the caller can pass theme=dark. Labels are
+    set in the image''s DejaVu Sans, not the browser''s font.'
   code:
   - provisa/api/mcp/tools.py
   - provisa/api/mcp/server.py
-  - provisa/api/mcp/graph_layouts.json
+  - provisa/core/settings_catalog.py
+  - provisa-ui/graph-render/src/draw.ts
+  - provisa-ui/graph-render/src/look.ts
+  - provisa-ui/graph-render/src/main.ts
   - provisa-ui/src/components/erd/erd-layout-options.ts
+  - Dockerfile
   tests:
   - tests/unit/test_mcp_graph_tools.py
-  - provisa-ui/src/components/graph/__tests__/graphLayoutsParity.test.ts
+  - tests/integration/test_render_graph_node_e2e.py
+  - provisa-ui/graph-render/test/render.test.mjs
+  - provisa-ui/src/components/graph/__tests__/graphRenderLook.test.ts
   e2e: false
   scenario: 'Given an agent connected to the MCP server under role "analyst"
 
@@ -78086,7 +78096,12 @@
 
     When it calls render_graph with those elements and layout "elk"
 
-    Then it receives the elements and the ERD''s ELK layout options, with no positions computed
+    Then it receives a PNG drawn with the graph page''s stylesheet and the ERD''s ELK layout on the light
+    background
+
+    When it passes theme "dark"
+
+    Then the PNG is drawn on the graph page''s dark background
 
     '
 - id: REQ-1989
