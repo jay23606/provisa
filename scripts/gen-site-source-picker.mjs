@@ -7,8 +7,9 @@
 //
 // Source of truth: provisa-ui/src/pages/sources/constants.ts (SOURCE_TYPES: order, labels,
 // categories, the hosted Postgres services in `managed`) and provisa-ui/src/components/SourceLogo.tsx
-// (which types have a published simple-icons mark; the rest are lettered tiles in the category's
-// colour). REQUIREMENT_ONLY lists what the requirements add that the picker does not have yet;
+// (which types have a published simple-icons mark, which a bundled logo file under
+// provisa-ui/src/assets/source-logos, copied to site/assets; the rest are lettered tiles in the
+// category's colour). REQUIREMENT_ONLY lists what the requirements add that the picker does not have yet;
 // SUB_ITEMS lists the kinds of source a single tile reaches. Each entry names where it comes from.
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -52,11 +53,23 @@ function loadMarks() {
   const simple = require("simple-icons");
   const logo = fs.readFileSync(path.join(UI, "src/components/SourceLogo.tsx"), "utf8");
   const marks = {};
-  for (const m of logo.matchAll(/^\s+(\w+): (si\w+),$/gm)) marks[m[1]] = simple[m[2]];
+  // A mark's line may end in a comment naming why (google_workspace's does).
+  for (const m of logo.matchAll(/^\s+(\w+): (si\w+),(\s*\/\/.*)?$/gm)) marks[m[1]] = simple[m[2]];
+  // Bundled logo files: the import names the file, LOGO_FILES maps a type to the import.
+  const imports = {};
+  for (const m of logo.matchAll(/^import (\w+) from "\.\.\/assets\/source-logos\/([\w-]+\.svg)";$/gm)) {
+    imports[m[1]] = m[2];
+  }
+  const files = {};
+  const filesBlock = /const LOGO_FILES[^{]*\{([\s\S]*?)\n\};/.exec(logo)[1];
+  for (const m of filesBlock.matchAll(/^\s+(\w+): (\w+),(\s*\/\/.*)?$/gm)) {
+    if (!imports[m[2]]) throw new Error(`LOGO_FILES.${m[1]} names ${m[2]}, which imports no file`);
+    files[m[1]] = imports[m[2]];
+  }
   const tones = {};
   const block = /const CATEGORY_TONES[^{]*\{([\s\S]*?)\n\};/.exec(logo)[1];
   for (const m of block.matchAll(/^\s+"?([\w ]+?)"?: "(#[0-9a-f]{6})",$/gim)) tones[m[1]] = m[2];
-  return { marks, tones };
+  return { marks, tones, files };
 }
 
 function initials(label) {
@@ -80,18 +93,27 @@ function spriteFor(used) {
   return { svg, name: `source-marks.${hash}.svg` };
 }
 
+/** A bundled logo as the site serves it: the file unchanged, its name carrying its content hash. */
+function logoFileFor(file) {
+  const svg = fs.readFileSync(path.join(UI, "src/assets/source-logos", file), "utf8");
+  const hash = crypto.createHash("sha256").update(svg).digest("hex").slice(0, 10);
+  return { svg, name: `source-logo-${file.replace(/\.svg$/, "")}.${hash}.svg` };
+}
+
 export async function renderPicker() {
   const types = [...(await loadSourceTypes())];
   for (const add of REQUIREMENT_ONLY) {
     const at = types.findIndex((t) => t.value === add.after);
     types.splice(at + 1, 0, { value: add.value, label: add.label, category: add.category });
   }
-  const { marks, tones } = loadMarks();
+  const { marks, tones, files } = loadMarks();
   const order = [...new Set(types.map((t) => t.category))];
   const cats = [...CATEGORY_FIRST.filter((c) => order.includes(c)), ...order.filter((c) => !CATEGORY_FIRST.includes(c))];
   const used = new Map();
   for (const t of types) if (marks[t.value]) used.set(marks[t.value].slug, marks[t.value]);
   const sprite = spriteFor(used);
+  const logoFiles = new Map();
+  for (const t of types) if (files[t.value]) logoFiles.set(t.value, logoFileFor(files[t.value]));
   const out = [];
   let total = 0;
   let extra = 0; // kinds of source shown under a tile that are not connectors of their own
@@ -101,7 +123,10 @@ export async function renderPicker() {
       total += 1;
       const name = plainName(s);
       const mark = marks[s.value];
-      const logo = mark
+      const file = logoFiles.get(s.value);
+      const logo = file
+        ? `<img class="picker-mark" src="/assets/${file.name}" width="20" height="20" alt="" aria-hidden="true">`
+        : mark
         ? `<svg class="picker-mark" width="20" height="20" aria-hidden="true"><use href="/assets/${sprite.name}#m-${mark.slug}"/></svg>`
         : `<span class="picker-tile" style="background:${tones[cat] ?? "#6b7280"}" aria-hidden="true">${esc(initials(s.label))}</span>`;
       const subs = s.managed ? s.managed.split(/,\s*/) : (SUB_ITEMS[s.value]?.items ?? []);
@@ -113,7 +138,13 @@ export async function renderPicker() {
   }
   // The larger number is a floor to the nearest five: connectors plus the kinds shown under tiles.
   const kinds = Math.floor((total + extra) / 5) * 5;
-  return { html: `<div class="picker" data-count="${total}" data-kinds="${kinds}">${out.join("")}</div>`, total, kinds, sprite };
+  return {
+    html: `<div class="picker" data-count="${total}" data-kinds="${kinds}">${out.join("")}</div>`,
+    total,
+    kinds,
+    sprite,
+    logoFiles: [...logoFiles.values()],
+  };
 }
 
 const PAGES = ["site/index.html", "site/why/sources.html"];
@@ -130,9 +161,10 @@ export function splice(page, html) {
 
 const ASSETS = path.join(ROOT, "site/assets");
 const spritesOnDisk = () => fs.readdirSync(ASSETS).filter((f) => /^source-marks\.[0-9a-f]{10}\.svg$/.test(f));
+const logoFilesOnDisk = () => fs.readdirSync(ASSETS).filter((f) => /^source-logo-[\w-]+\.[0-9a-f]{10}\.svg$/.test(f));
 
 export async function stalePages() {
-  const { html, sprite } = await renderPicker();
+  const { html, sprite, logoFiles } = await renderPicker();
   const stale = PAGES.filter((p) => {
     const cur = fs.readFileSync(path.join(ROOT, p), "utf8");
     return splice(cur, html) !== cur;
@@ -140,11 +172,18 @@ export async function stalePages() {
   const onDisk = spritesOnDisk();
   const spriteOk =
     onDisk.length === 1 && onDisk[0] === sprite.name && fs.readFileSync(path.join(ASSETS, sprite.name), "utf8") === sprite.svg;
-  return spriteOk ? stale : [...stale, "site/assets/" + sprite.name];
+  if (!spriteOk) stale.push("site/assets/" + sprite.name);
+  const onDiskLogos = logoFilesOnDisk().sort();
+  const wanted = logoFiles.map((f) => f.name).sort();
+  const logosOk =
+    JSON.stringify(onDiskLogos) === JSON.stringify(wanted) &&
+    logoFiles.every((f) => fs.readFileSync(path.join(ASSETS, f.name), "utf8") === f.svg);
+  if (!logosOk) stale.push(...wanted.map((n) => "site/assets/" + n));
+  return stale;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { html, total, kinds, sprite } = await renderPicker();
+  const { html, total, kinds, sprite, logoFiles } = await renderPicker();
   if (process.argv.includes("--check")) {
     const stale = await stalePages();
     if (stale.length) {
@@ -155,6 +194,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   } else {
     for (const f of spritesOnDisk()) fs.unlinkSync(path.join(ASSETS, f));
     fs.writeFileSync(path.join(ASSETS, sprite.name), sprite.svg);
+    for (const f of logoFilesOnDisk()) fs.unlinkSync(path.join(ASSETS, f));
+    for (const f of logoFiles) fs.writeFileSync(path.join(ASSETS, f.name), f.svg);
     for (const p of PAGES) {
       const file = path.join(ROOT, p);
       fs.writeFileSync(file, splice(fs.readFileSync(file, "utf8"), html));
