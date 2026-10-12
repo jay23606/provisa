@@ -337,6 +337,12 @@ async def _optimize_and_route(
     from provisa.fakes.read_sql import reads_fakes
     from provisa.transpiler.router import Route, decide_route
 
+    # REQ-1942: a table a Test (synthetic) environment holds no generated copy of is refused as
+    # that, first -- before the API stage, which would ask its source (a synthetic environment
+    # calls no source API) or refuse it for a parameter no value could make readable (REQ-1986).
+    from provisa.synthetic.datasets import refuse_unavailable
+
+    refuse_unavailable(state.replica_routes, list(table_ids))
     # ``extra_selections``: the fields a GraphQL query reads of a graphql_remote table beyond its
     # columns (``CompiledQuery.gql_remote_extra_selections``), fetched with it.
     _rewrites, _values_ctes, _dropped = await _materialize_api_to_engine_cache(

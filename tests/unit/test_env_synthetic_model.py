@@ -249,3 +249,23 @@ def test_each_reason_a_table_has_no_generated_rows_is_said_as_itself():
     unavailable = replica_routing._unavailable(registry)
     assert "was registered after the model was generated" in unavailable[2]
     assert "only by the required parameter(s) _nf_0" in unavailable[3]
+
+
+async def test_an_unavailable_table_is_refused_as_that_before_the_api_stage(monkeypatch):
+    """A required parameter can make no table readable that has no generated rows: the
+    environment's refusal comes first, and the API stage -- which would ask the source, or refuse
+    the read for its parameter -- is never reached (CI, test_synthetic_dataset_e2e)."""
+    from provisa.api.data import materialization
+    from provisa.federation.replica_address import ReplicaRoutes
+    from provisa.pgwire import _pipeline
+
+    async def _never(*a, **kw):
+        raise AssertionError("the API stage was reached")
+
+    monkeypatch.setattr(materialization, "_materialize_api_to_engine_cache", _never)
+    routes = ReplicaRoutes(unavailable={3: env_model.unavailable_reason("pet_by_id", ["petId"])})
+    state = SimpleNamespace(replica_routes=routes)
+    with pytest.raises(TableNotAvailable, match="'pet_by_id' is not available in a Test"):
+        await _pipeline._optimize_and_route(
+            "SELECT 1", "SELECT 1", None, None, state, table_ids=(3,)
+        )
