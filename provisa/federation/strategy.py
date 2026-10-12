@@ -171,7 +171,12 @@ def federate(
     supplied to arm promotion; absent them, resolution is capability-only as before.
     """
     source_type = source.type.value
-    connector = engine.connectors.get(source_type)
+    # REQ-1867: a source that asks to be read in place gets the engine's opt-in reach for its type
+    # (refused by name when there is none); any other source gets its type's reach.
+    if (getattr(source, "federation_hints", None) or {}).get("reach") == "scan":
+        connector = engine.connector_for_source(source)
+    else:
+        connector = engine.connectors.get(source_type)
 
     if connector is not None and not replicated:
         modes = connector.reach_modes

@@ -8,13 +8,14 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""REQ-1867: PgDuckdbDatabricksIcebergConnector — Unity Catalog Iceberg REST metadata resolution,
-the resulting iceberg_scan attach payload, and the two-stage probe (preload + iceberg_scan
-registered). Adds a live reach ALONGSIDE Databricks' existing DIRECT reach (REQ-987), never
-replacing it.
+"""REQ-1867: PgDuckdbDatabricksIcebergConnector — an opt-in, in-place reach for a Databricks source
+(the source keeps landing through its native driver unless it asks for this one), its attach
+payload, and the two-stage probe (preload + iceberg_scan registered).
 
-Pure logic — the resolver's ``httpx`` call is mocked; the async ``probe(fetch)`` is driven by a fake
-fetch callable. No live Postgres, no live Databricks workspace.
+The table's metadata pointer and storage credentials are resolved per query by the pg runtime, so
+``details()`` makes no network call (tests/unit/test_databricks_iceberg_resolver.py covers the
+resolver). Pure logic — the async ``probe(fetch)`` is driven by a fake fetch callable. No live
+Postgres, no live Databricks workspace.
 """
 
 from __future__ import annotations
@@ -70,9 +71,10 @@ def test_connector_identity_and_reach_modes():
     assert c.source_type == "databricks"
     assert c.key == "pg_duckdb_databricks_iceberg"
     assert c.mechanism is Mechanism.SCAN
-    assert c.reads_in_place is True
-    # ADDS a live reach alongside DIRECT, never replaces it (REQ-987 stays intact).
-    assert c.reach_modes == frozenset({Mechanism.SCAN, Mechanism.DIRECT})
+    assert c.reach_modes == frozenset({Mechanism.SCAN})
+    # Opt-in: the engine keeps it apart from the per-type reach, so a Databricks source still
+    # lands through its native driver (REQ-987) unless it asks for this reach.
+    assert c.opt_in_reach is True
     assert c._reader == "iceberg_scan"
 
 
@@ -85,28 +87,26 @@ def test_runtime_deps_document_static_linked_libs():
 # ---- resolver-backed attach payload (REQ-1867) ------------------------------
 
 
-def test_details_resolves_metadata_location_and_emits_iceberg_scan():
+def test_details_resolve_nothing_and_name_the_per_query_read():
     src = _src("dbx_orders")
     with patch(
-        "provisa.federation.databricks_iceberg_resolver.resolve_databricks_iceberg_metadata_location",
-        return_value="s3://bucket/workspace/sales/orders/metadata/00003-abc.metadata.json",
+        "provisa.federation.databricks_iceberg_resolver.resolve_databricks_iceberg_table"
     ) as mock_resolve:
         details = PgDuckdbDatabricksIcebergConnector().details(src)
 
-    mock_resolve.assert_called_once_with(src)
-    scan = details["scan"]
-    assert scan.startswith(
-        "iceberg_scan('s3://bucket/workspace/sales/orders/metadata/00003-abc.metadata.json'"
-    )
-    assert "allow_moved_paths := true" in scan
+    # The pointer and credentials are read per query by the runtime, never at catalog projection
+    mock_resolve.assert_not_called()
+    assert details["databricks_iceberg"] == ", allow_moved_paths := true"
+    assert "scan" not in details
     assert details["requires_preload"] == "pg_duckdb"
     assert details["reader"] == "iceberg_scan"
 
 
-def test_details_propagates_resolver_errors_loud():
-    src = _src("dbx_orders", federation_hints={})  # missing schema/table
-    with pytest.raises(ValueError, match="schema.*table"):
-        PgDuckdbDatabricksIcebergConnector().details(src)
+def test_details_need_no_reachable_table():
+    # A source whose table could not be resolved still projects a catalog entry: the per-query
+    # read is what fails loud, naming the table (see the resolver tests).
+    src = _src("dbx_orders", federation_hints={"reach": "scan"})
+    assert PgDuckdbDatabricksIcebergConnector().details(src)["databricks_iceberg"]
 
 
 # ---- two-stage probe (REQ-904/1867) -----------------------------------------

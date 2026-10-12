@@ -414,6 +414,9 @@ class EngineRuntime:  # REQ-825, REQ-840
         request (REQ-1863)."""
         from provisa.pgwire.pg_passthrough import open_passthrough
 
+        # REQ-1867: the passthrough runs the statement on a raw connection, past the runtime's own
+        # per-statement preparation, so in-place reads it names are re-pointed here first.
+        self._backend.refresh_live_relations(self._state, sql)
         return self._pg_passthrough_stream(
             open_passthrough(
                 lambda: self._backend.borrow_raw_pg_connection(self._state),

@@ -42,10 +42,10 @@ if TYPE_CHECKING:
 class UnreachableSource(Exception):  # REQ-841
     """Raised when a source has no connector for the selected engine."""
 
-    def __init__(self, engine: str, source_type: str) -> None:
+    def __init__(self, engine: str, source_type: str, detail: str | None = None) -> None:
         self.engine = engine
         self.source_type = source_type
-        super().__init__(f"engine {engine!r} cannot reach source type {source_type!r}")
+        super().__init__(detail or f"engine {engine!r} cannot reach source type {source_type!r}")
 
 
 class MaterializeStoreUnconfigured(Exception):  # REQ-826
@@ -187,8 +187,13 @@ class FederationEngine:  # REQ-840
         # until discover() probes them; connectors is the active set queried by reachable().
         self._candidates: list[Connector] = list(connectors)
         self.connectors: dict[str, Connector] = {}
+        # REQ-1867: opt-in reaches, apart from the per-type reach in ``connectors`` (see
+        # Connector.opt_in_reach); a source reaches one only by asking (connector_for_source).
+        self.scan_connectors: dict[str, Connector] = {}
         for c in self._candidates:
-            self.connectors.setdefault(c.source_type, c)
+            (self.scan_connectors if c.opt_in_reach else self.connectors).setdefault(
+                c.source_type, c
+            )
         self.catalog = EngineCatalog()
         # The source_type of the engine's OWN store, into which it materializes natively
         # (DuckDB → "duckdb", Snowflake → "snowflake"); None for a pure federator (Trino).
@@ -331,6 +336,31 @@ class FederationEngine:  # REQ-840
             )  # survive discover(): land connectors have no dep-probe
         return self
 
+    def connector_for_source(self, source: Any) -> Connector:  # REQ-1867
+        """The connector that reaches ``source``: an opt-in reach when the source asks for one in
+        its ``federation_hints`` (``reach: "scan"``), otherwise its type's reach
+        (:meth:`connector_for`). A source that asks for a reach this engine does not have for its
+        type, or names a reach that does not exist, is refused by name."""
+        source_type = source.type.value
+        hints = getattr(source, "federation_hints", None) or {}
+        reach = hints.get("reach")
+        if reach is None or reach == "replica":
+            return self.connector_for(source_type)
+        if reach != "scan":
+            raise ValueError(
+                f"source {source.id!r}: federation hint reach={reach!r} is not one of "
+                "'replica', 'scan'"
+            )
+        connector = self.scan_connectors.get(source_type)
+        if connector is None:
+            raise UnreachableSource(
+                self.name,
+                source_type,
+                f"source {source.id!r} asks to be read in place (reach: scan), and the "
+                f"{self.name!r} engine cannot read {source_type!r} sources in place",
+            )
+        return connector
+
     def connector_for(self, source_type: str) -> Connector:
         connector = self.connectors.get(source_type)
         if connector is not None:
@@ -442,6 +472,7 @@ class FederationEngine:  # REQ-840
 
         report: dict = {}
         active: dict[str, Connector] = {}
+        opt_in: dict[str, Connector] = {}
         for c in self._candidates:
             key = c.key or c.source_type
             if key in disabled:  # struck from the list -> do not probe
@@ -450,8 +481,10 @@ class FederationEngine:  # REQ-840
             result = await c.probe(fetch)
             report[key] = result
             if result.available:
-                active.setdefault(c.source_type, c)  # first available per type wins (precedence)
+                # first available per type wins (precedence)
+                (opt_in if c.opt_in_reach else active).setdefault(c.source_type, c)
         self.connectors = active
+        self.scan_connectors = opt_in
         return report
 
     def driver_class(self) -> DriverClass:
@@ -473,7 +506,7 @@ class FederationEngine:  # REQ-840
 
     def resolve(self, source: Source) -> CatalogEntry:
         """Expose a source by its connector's mechanism, or reject it as unreachable."""
-        return self.connector_for(source.type.value).catalog_entry(source)
+        return self.connector_for_source(source).catalog_entry(source)
 
     def federate(self, source: Source, *, replicated: bool = False):
         """Resolve this source's federation strategy on this engine (REQ-826)."""
@@ -554,6 +587,7 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
         DuckDBClickHouseConnector,
         DuckDBCloudopsConnector,
         DuckDBCsvConnector,
+        DuckDBDatabricksIcebergConnector,
         DuckDBDeltaConnector,
         DuckDBDuckdbConnector,
         DuckDBFilesConnector,
@@ -591,6 +625,8 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
             DuckDBGsheetsConnector(),
             DuckDBAirportConnector(),
             DuckDBIcebergConnector(),  # core `iceberg` extension — iceberg_scan (REQ-899)
+            # REQ-1867: a Databricks source read in place when its federation hints ask for it
+            DuckDBDatabricksIcebergConnector(),
             DuckDBDeltaConnector(),  # core `delta` extension — delta_scan (REQ-899)
             # core `httpfs` + read_parquet of ClickHouse's HTTP interface, rewritten per query (REQ-899)
             DuckDBClickHouseConnector(),

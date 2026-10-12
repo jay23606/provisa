@@ -95,6 +95,11 @@ def build_vss_index_connection(
     return con
 
 
+def _sql_text(value: str) -> str:
+    """``value`` for a single-quoted SQL literal."""
+    return value.replace("'", "''")
+
+
 class _CatalogGate:
     """Readers-writer gate over the shared DuckDB connection's catalog.
 
@@ -224,6 +229,11 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # attach_source (request/prepare threads) writes it while statements on other threads read
         # it; readers take a snapshot under the lock.
         self._ch_lock = threading.Lock()
+        # REQ-1867: Databricks tables read in place — physical name -> (source, iceberg_scan
+        # arguments). Their view is re-pointed before every statement that names one
+        # (_refresh_databricks_relations), never left on an old snapshot or expired credentials.
+        self._dbx_relations: dict[str, tuple[Any, str]] = {}
+        self._dbx_lock = threading.Lock()
         self._raw_attached: set[str] = set()  # source ids whose remote DB is already ATTACHed
         # REQ-1529: the ATTACH each raw alias was made with, so an environment reaching the same
         # source id through a different connection gets an attach of its own.
@@ -288,6 +298,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         phys = self._phys_name(source)
         if "clickhouse_http" in details:
             self._attach_clickhouse(source, details)
+        elif "databricks_iceberg" in details:
+            self._attach_databricks(source, details["databricks_iceberg"], phys)
         elif "view_ddl" in details:  # csv / parquet scanner, or another view_ddl-based connector
             # REQ-1742 gap: this branch only ever installed httpfs (needed by csv/parquet's own
             # secret_ddl) — a scanner connector with its OWN DuckDB extension (e.g.
@@ -329,6 +341,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         parts = [self._catalog_of(source), source.schema_name, source.table_name]
         with self._ch_lock:
             self._ch_relations.pop((parts[0].lower(), parts[1].lower(), parts[2].lower()), None)
+        with self._dbx_lock:
+            self._dbx_relations.pop(f'"{parts[0]}"."{parts[1]}"."{parts[2]}"', None)
         if parts[0] not in self._phys_catalogs:
             return  # nothing of this source was ever exposed on this connection
         is_view = self._con.execute(
@@ -338,6 +352,66 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         ).fetchone()
         if is_view is not None:
             self._con.execute(f'DROP VIEW "{parts[0]}"."{parts[1]}"."{parts[2]}"')
+
+    def _attach_databricks(self, source: Any, scan_args: str, phys: str) -> None:
+        """REQ-1867: register a Databricks table read in place, and point its view at the table's
+        current snapshot now (so it can be described). The core iceberg and httpfs extensions are
+        loaded once on this connection."""
+        for ext in ("httpfs", "iceberg"):
+            if ext not in self._ext_loaded:
+                self._con.execute(f"INSTALL {ext}")
+                self._con.execute(f"LOAD {ext}")
+                self._ext_loaded.add(ext)
+        self._httpfs_loaded = True
+        with self._dbx_lock:
+            self._dbx_relations[phys] = (source, scan_args)
+            self._point_databricks_view(phys, source, scan_args)
+
+    def _point_databricks_view(self, phys: str, source: Any, scan_args: str) -> None:
+        """Resolve the table's current metadata pointer and vended storage credentials, issue the
+        credentials as DuckDB secrets scoped to their storage prefix, and re-point the view.
+        Called with ``_dbx_lock`` held."""
+        from provisa.federation.databricks_iceberg_resolver import (
+            resolve_databricks_iceberg_table,
+            s3_secret_options,
+        )
+
+        table = resolve_databricks_iceberg_table(source)
+        for i, credential in enumerate(table.credentials):
+            options = ", ".join(
+                f"{k} '{_sql_text(v)}'" for k, v in s3_secret_options(credential).items()
+            )
+            self._con.execute(
+                f'CREATE OR REPLACE SECRET "_dbx_{source.id}_{i}" (TYPE s3, {options})'
+            )
+        self._con.execute(
+            f"CREATE OR REPLACE VIEW {phys} AS SELECT * FROM "
+            f"iceberg_scan('{_sql_text(table.metadata_location)}'{scan_args})"
+        )
+
+    def _refresh_databricks_relations(self, duck_sql: str) -> None:
+        """REQ-1867: before a statement runs, re-point the view of every in-place Databricks table
+        it names at the table's current snapshot, with fresh credentials. Matching is textual on
+        the physical name: a false positive costs one extra Unity Catalog round-trip; a read of the
+        table must name it."""
+        with self._dbx_lock:
+            if not self._dbx_relations:
+                return
+            lowered = duck_sql.lower()
+            for phys, (source, scan_args) in self._dbx_relations.items():
+                if phys.lower() in lowered:
+                    self._point_databricks_view(phys, source, scan_args)
+
+    def refresh_live_relations(self, sql: str) -> None:
+        """REQ-1867: the same re-pointing for a statement this runtime does not run itself."""
+        self._refresh_databricks_relations(sql)
+
+    def _prepare_sql(self, duck_sql: str) -> str:
+        """The per-statement preparation every execution path runs: in-place Databricks views
+        re-pointed (REQ-1867), then the store relations the statement reads rehydrated
+        (REQ-1901)."""
+        self._refresh_databricks_relations(duck_sql)
+        return self._refresh_store_relations(duck_sql)
 
     def _attach_clickhouse(self, source: Any, details: dict) -> None:
         """REQ-899: register a ClickHouse table for the query-time HTTP read. Loads httpfs, creates
@@ -1117,7 +1191,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             # Read gate: a control-plane rebuild swaps the provisa_admin snapshot out from under any
             # query already bound to it, which returns zero rows rather than failing (_CatalogGate).
             with self._catalog_gate.read():
-                sql = self._refresh_store_relations(duck_sql)
+                sql = self._prepare_sql(duck_sql)
                 sql, live_http = self._rewrite_clickhouse_relations(
                     sql, params, deadline_s=deadline_s
                 )
@@ -1150,7 +1224,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         cursor, cancelled at the request's deadline."""
         self._catalog_gate.acquire_read()
         try:
-            copy_sql = self._refresh_store_relations(copy_sql)
+            copy_sql = self._prepare_sql(copy_sql)
             copy_sql, live_http = self._rewrite_clickhouse_relations(
                 copy_sql, params, deadline_s=request_deadline.remaining()
             )
@@ -1183,7 +1257,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # from the cursor lazily, so the scan is still live and a rebuild mid-drain would empty it.
         self._catalog_gate.acquire_read()
         try:
-            duck_sql = self._refresh_store_relations(duck_sql)
+            duck_sql = self._prepare_sql(duck_sql)
             duck_sql, live_http = self._rewrite_clickhouse_relations(
                 duck_sql, params, deadline_s=request_deadline.remaining()
             )
@@ -1215,7 +1289,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         run_sync's cursor description reports, duplicates included (a subquery wrapper would rename
         a duplicate ``a`` to ``a_1``). REQ-589."""
         with self._catalog_gate.read():
-            duck_sql = self._refresh_store_relations(duck_sql)
+            duck_sql = self._prepare_sql(duck_sql)
             duck_sql, live_http = self._rewrite_clickhouse_relations(
                 duck_sql, params, deadline_s=request_deadline.remaining(), describe=True
             )
@@ -1242,7 +1316,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         """Execute dialect-DuckDB SQL and return a ``pyarrow.Table`` — DuckDB produces Arrow natively
         (``fetch_arrow_table``), so no Python rows are materialized for the Flight transport."""
         with self._catalog_gate.read():
-            duck_sql = self._refresh_store_relations(duck_sql)
+            duck_sql = self._prepare_sql(duck_sql)
             duck_sql, live_http = self._rewrite_clickhouse_relations(
                 duck_sql, params, deadline_s=request_deadline.remaining()
             )
@@ -1271,7 +1345,7 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         # Held for the whole stream — same reason as run_sync: the batches are scanned on demand.
         self._catalog_gate.acquire_read()
         try:
-            duck_sql = self._refresh_store_relations(duck_sql)
+            duck_sql = self._prepare_sql(duck_sql)
             duck_sql, live_http = self._rewrite_clickhouse_relations(
                 duck_sql, params, deadline_s=request_deadline.remaining()
             )

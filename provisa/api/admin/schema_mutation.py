@@ -1162,6 +1162,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.freshness_gate,
                 ),
                 source_type=input.type,
+                federation_hints=_federation_hints_from_input(input),  # REQ-1867
             )
         if _ttl_refusal is not None:
             return _ttl_refusal
@@ -1576,6 +1577,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     input.load_protected,
                     input.freshness_gate,
                 ),
+                federation_hints=_federation_hints_from_input(input),  # REQ-1867
             )
             if _ttl_refusal is not None:
                 return _ttl_refusal
