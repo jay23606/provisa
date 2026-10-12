@@ -72,6 +72,13 @@ BUNDLE_CONNECTOR: dict[str, str] = {
 }
 
 
+def bundle_dir_setting(connector: str) -> str:
+    """The environment variable that names a connector's bundle directory explicitly
+    (``PROVISA_PGWIRE_BUNDLE_SERVICENOW``): a bundle built from the connector's source, used in
+    place of the pinned release (REQ-1954: its live test runs before a release has it)."""
+    return f"PROVISA_PGWIRE_BUNDLE_{connector.upper()}"
+
+
 class BundleUnavailable(Exception):  # REQ-956
     """A pgwire bundle could not be resolved — unknown source type, download failure, or a download
     that did not produce the launcher. Raised on fail-loud resolution; never a fallback."""
@@ -232,7 +239,11 @@ class BundleResolver:  # REQ-956
         self._download = downloader if downloader is not None else download_release_asset
 
     def cached_path(self, spec: BundleSpec) -> Path:
-        """The version-namespaced bundle directory for ``spec`` (whether or not it exists yet)."""
+        """The version-namespaced bundle directory for ``spec`` (whether or not it exists yet), or
+        the directory its connector's setting names (:func:`bundle_dir_setting`)."""
+        named = os.environ.get(bundle_dir_setting(spec.connector))
+        if named:
+            return Path(named)
         return self._cache_root / spec.version / spec.artifact_name
 
     def launcher_path(self, spec: BundleSpec) -> Path:
@@ -245,12 +256,20 @@ class BundleResolver:  # REQ-956
 
     def resolve(self, spec: BundleSpec) -> Path:
         """Return the local bundle directory for ``spec``, downloading + caching on a miss (REQ-956).
+        A bundle its connector's setting names (:func:`bundle_dir_setting`) is returned as it is,
+        or refused when it has no launcher; the pinned release is then never fetched.
 
         A cache hit returns without any download. A miss downloads via the injected downloader; if the
         launcher is still absent afterwards the bundle is unusable and this fails loud."""
         dest = self.cached_path(spec)
         if self.is_cached(spec):
             return dest
+        setting = bundle_dir_setting(spec.connector)
+        if os.environ.get(setting):
+            # A bundle named explicitly is used as it is: nothing is downloaded in its place.
+            raise BundleUnavailable(
+                f"{setting} names {dest}, which has no launcher {self.launcher_path(spec)}"
+            )
         self._download(spec, dest)
         if not self.is_cached(spec):
             raise BundleUnavailable(

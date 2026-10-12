@@ -391,6 +391,29 @@ def test_the_servicenow_lane_runs_only_when_a_dispatch_asks_for_it_with_its_secr
     assert "pytest.mark.requires_servicenow" in source
 
 
+def test_the_servicenow_lane_builds_its_server_from_the_calcite_ref_it_is_given():
+    """REQ-1954: the e2e reads through a pgwire-servicenow built from the calcite ref the dispatch
+    names, and the app is told where that build is; the pinned release is never fetched."""
+    steps = {s.get("name"): s for s in _job_steps("servicenow")}
+    names = list(steps)
+    checkout = next(
+        s for s in _job_steps("servicenow") if s.get("with", {}).get("path") == "calcite"
+    )
+    assert checkout["with"]["repository"] == "kenstott/calcite"
+    assert checkout["with"]["ref"] == "${{ inputs.servicenow_calcite_ref }}"
+    build = steps["Build pgwire-servicenow"]
+    assert "build-bundle.sh servicenow linux-x86_64" in build["run"]
+    assert "PROVISA_PGWIRE_BUNDLE_SERVICENOW=" in build["run"]
+    assert names.index("Build pgwire-servicenow") < names.index("Run lane")
+    assert "SERVICENOW_CALCITE_REF" in _credentials_step("servicenow")["run"]
+    import yaml
+
+    caller = yaml.safe_load((REPO / ".github" / "workflows" / "integration-suite.yml").read_text())
+    assert caller["jobs"]["lanes"]["with"]["servicenow_calcite_ref"] == (
+        "${{ inputs.servicenow_calcite_ref || '' }}"
+    )
+
+
 def test_the_salesforce_lane_keeps_its_describe_caches_between_runs_by_org():
     steps = {s.get("name"): s for s in _job_steps("salesforce")}
     names = list(steps)

@@ -405,3 +405,30 @@ async def test_an_import_set_on_a_table_of_another_source_type_is_refused(bound_
     kind["type"] = "postgresql"
     refused = await check(None, _table("imp_user"))
     assert refused is not None and refused.code == "schema.import_set_not_servicenow"
+
+
+# -- a bundle named explicitly ------------------------------------------------------------------
+
+
+def test_a_bundle_named_by_its_setting_is_used_and_nothing_is_downloaded(tmp_path, monkeypatch):
+    bundle = tmp_path / "pgwire-servicenow"
+    (bundle / "bin").mkdir(parents=True)
+    (bundle / "bin" / "pgwire-servicenow").write_text("#!/bin/sh\n")
+    monkeypatch.setenv("PROVISA_PGWIRE_BUNDLE_SERVICENOW", str(bundle))
+
+    def download(spec, dest):
+        raise AssertionError("the pinned release was fetched")
+
+    resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=download)
+    assert resolver.resolve(rd.bundle_spec_for("servicenow")) == bundle
+
+
+def test_a_named_bundle_without_its_launcher_is_refused_not_replaced(tmp_path, monkeypatch):
+    monkeypatch.setenv("PROVISA_PGWIRE_BUNDLE_SERVICENOW", str(tmp_path / "missing"))
+
+    def download(spec, dest):
+        raise AssertionError("the pinned release was fetched")
+
+    resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=download)
+    with pytest.raises(rd.BundleUnavailable, match="PROVISA_PGWIRE_BUNDLE_SERVICENOW names"):
+        resolver.resolve(rd.bundle_spec_for("servicenow"))
