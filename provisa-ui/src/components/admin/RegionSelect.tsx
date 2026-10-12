@@ -15,6 +15,8 @@
 import { useTranslation } from "react-i18next";
 import { Select } from "@mantine/core";
 import { FieldLabel } from "../../pages/tables/FieldLabel";
+import { ReadRow } from "../form/FormLayout";
+import { useFormRead } from "../form/formRead";
 import { useHelpNaming } from "../form/useHelpNaming";
 
 /** The option value standing for "no region" (a region id is a short lowercase name). */
@@ -40,7 +42,11 @@ export function RegionSelect({
   const helpKey = { table: "helpTable", view: "helpView", source: "helpSource" }[scope];
   // Named by the label's text alone; the help is its description.
   const { textId, naming } = useHelpNaming(t(`regionSelect.${helpKey}`));
+  const read = useFormRead();
   if (regions.length === 0) return null;
+  if (read) {
+    return <ReadRow label={t("regionSelect.label")} value={value ?? t("regionSelect.none")} />;
+  }
   return (
     <Select
       {...naming}

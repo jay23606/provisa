@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Description",
-      "type": "Type",
-      "host": "Hôte",
-      "port": "Port",
-      "database": "Base de données",
-      "endpoint": "Point de terminaison",
-      "path": "Chemin",
-      "username": "Nom d'utilisateur",
-      "naming": "Nommage",
-      "cache": "Cache",
-      "cacheTtl": "TTL du cache",
-      "effectiveTtl": "TTL effectif",
-      "allowedDomains": "Domaines autorisés",
-      "schedule": "Planification",
-      "sample": "Échantillon",
-      "lowCardinality": "Seuil de faible cardinalité"
+      "effectiveTtl": "TTL effectif"
     },
-    "namingInherit": "hérité (global)",
-    "cacheEnabled": "activé",
-    "cacheDisabled": "désactivé",
-    "ttlInherit": "hérité",
-    "domainsUnrestricted": "sans restriction",
     "editTitle": "Modifier",
     "navigateTitle": "Voir les tables enregistrées",
     "deleteTitle": "Supprimer la source « {{id}} » ?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "Retélécharger {{owner}}/{{ref}} depuis Kaggle, en écrasant sur place le ou les fichiers intermédiaires. Votre jeton Kaggle n'est pas stocké : saisissez-le à nouveau pour cette actualisation.",
     "kaggleTokenLabel": "Jeton d'API Kaggle",
     "refreshKaggleSubmit": "Actualiser",
-    "sampleWhole": "Table entière",
-    "sampleAbove": "Échantillon au-delà de {{cells}} cellules",
     "runProfilerTitle": "Exécuter maintenant pour chaque table membre",
     "profilerNoMembers": "Aucune table n'a rejoint ce profileur.",
     "profilerRan": "{{table}} : profilée",

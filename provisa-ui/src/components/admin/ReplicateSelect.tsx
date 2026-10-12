@@ -16,6 +16,8 @@ import { useTranslation } from "react-i18next";
 import { Select } from "@mantine/core";
 import { FieldLabel } from "../../pages/tables/FieldLabel";
 import { useHelpNaming } from "../form/useHelpNaming";
+import { ReadRow } from "../form/FormLayout";
+import { useFormRead } from "../form/formRead";
 import {
   REPLICATE_ALWAYS,
   parseReplicateOption,
@@ -57,6 +59,7 @@ export function ReplicateSelect({
   testId: string;
 }) {
   const { t } = useTranslation();
+  const read = useFormRead();
   const label = (replicate: number | null) => replicateLabel(t, replicate);
   // One sentence for the setting and its Default, which differ by scope, then each other option
   // once.
@@ -67,6 +70,14 @@ export function ReplicateSelect({
   ].join(" ");
   // Named by the label's text alone; the help is its description.
   const { textId, naming } = useHelpNaming(help);
+  if (read) {
+    return (
+      <ReadRow
+        label={t("replicateSelect.label")}
+        value={onScheduledChange && loadProtected ? t("replicateSelect.scheduled") : label(value)}
+      />
+    );
+  }
   return (
     <Select
       {...naming}

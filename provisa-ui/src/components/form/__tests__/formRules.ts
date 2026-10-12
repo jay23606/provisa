@@ -80,6 +80,7 @@ const FIELD_PARENTS = new Set([
   "FormIdentifiers",
   "FormChecks",
   "CollapsibleSection",
+  "FormFold",
 ]);
 /** Options of one choice: the group is the field, its boxes are not ticks of the form. */
 const CHOICE_GROUPS = new Set(["Checkbox.Group", "Radio.Group", "Switch.Group"]);

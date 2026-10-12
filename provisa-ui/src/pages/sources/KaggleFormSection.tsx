@@ -15,6 +15,7 @@ import {
   Button,
   Combobox,
   Group,
+  PasswordInput,
   ScrollArea,
   Text,
   TextInput,
@@ -153,7 +154,7 @@ export function KaggleFormSection({ sourceIdHint, onSourcesRegistered }: KaggleF
   return (
     <>
       <FormField hint={t("kaggleFormSection.tokenDescription")} size="long">
-        <TextInput
+        <PasswordInput
           required
           label={t("kaggleFormSection.tokenLabel")}
           value={token}

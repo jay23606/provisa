@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Description",
-      "type": "Type",
-      "host": "Host",
-      "port": "Port",
-      "database": "Database",
-      "endpoint": "Endpoint",
-      "path": "Path",
-      "username": "Username",
-      "naming": "Naming",
-      "cache": "Cache",
-      "cacheTtl": "Cache TTL",
-      "effectiveTtl": "Effective TTL",
-      "allowedDomains": "Allowed Domains",
-      "schedule": "Schedule",
-      "sample": "Sample",
-      "lowCardinality": "Low-cardinality threshold"
+      "effectiveTtl": "Effective TTL"
     },
-    "namingInherit": "inherit (global)",
-    "cacheEnabled": "enabled",
-    "cacheDisabled": "disabled",
-    "ttlInherit": "inherit",
-    "domainsUnrestricted": "unrestricted",
     "editTitle": "Edit",
     "navigateTitle": "View registered tables",
     "deleteTitle": "Delete source \"{{id}}\"?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "Re-download {{owner}}/{{ref}} from Kaggle, overwriting the staged file(s) in place. Your Kaggle token is not stored — enter it again for this refresh.",
     "kaggleTokenLabel": "Kaggle API token",
     "refreshKaggleSubmit": "Refresh",
-    "sampleWhole": "Whole table",
-    "sampleAbove": "Sample above {{cells}} cells",
     "runProfilerTitle": "Run now for every member table",
     "profilerNoMembers": "No table has joined this profiler.",
     "profilerRan": "{{table}}: profiled",

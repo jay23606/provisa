@@ -2682,6 +2682,17 @@ main {
 .detail-fields > dd {
   overflow-wrap: anywhere;
 }
+/* A form read (FormRead): only its fields' label and value rows and its folds' headings are drawn;
+ * its notes, buttons and other furniture are not. */
+.form-read > :not(dt, dd, .form-read__heading) {
+  display: none;
+}
+.form-read__heading {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  font-weight: 600;
+  font-size: var(--mantine-font-size-sm);
+}
 /* A table as a value breaks between words only, so its columns size to what they hold. */
 .detail-fields > dd .detail-table {
   overflow-wrap: normal;

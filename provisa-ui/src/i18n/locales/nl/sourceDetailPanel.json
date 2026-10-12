@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Beschrijving",
-      "type": "Type",
-      "host": "Host",
-      "port": "Poort",
-      "database": "Database",
-      "endpoint": "Eindpunt",
-      "path": "Pad",
-      "username": "Gebruikersnaam",
-      "naming": "Naamgeving",
-      "cache": "Cache",
-      "cacheTtl": "Cache-TTL",
-      "effectiveTtl": "Effectieve TTL",
-      "allowedDomains": "Toegestane domeinen",
-      "schedule": "Schema",
-      "sample": "Steekproef",
-      "lowCardinality": "Drempel voor lage kardinaliteit"
+      "effectiveTtl": "Effectieve TTL"
     },
-    "namingInherit": "overnemen (globaal)",
-    "cacheEnabled": "ingeschakeld",
-    "cacheDisabled": "uitgeschakeld",
-    "ttlInherit": "overnemen",
-    "domainsUnrestricted": "onbeperkt",
     "editTitle": "Bewerken",
     "navigateTitle": "Geregistreerde tabellen bekijken",
     "deleteTitle": "Bron \"{{id}}\" verwijderen?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "{{owner}}/{{ref}} opnieuw downloaden van Kaggle en de gestagede bestanden ter plekke overschrijven. Je Kaggle-token wordt niet opgeslagen — voer het voor deze vernieuwing opnieuw in.",
     "kaggleTokenLabel": "Kaggle API-token",
     "refreshKaggleSubmit": "Vernieuwen",
-    "sampleWhole": "Hele tabel",
-    "sampleAbove": "Steekproef boven {{cells}} cellen",
     "runProfilerTitle": "Nu uitvoeren voor elke lidtabel",
     "profilerNoMembers": "Geen tabel hoort bij deze profiler.",
     "profilerRan": "{{table}}: geprofileerd",

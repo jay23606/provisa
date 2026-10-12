@@ -2,6 +2,7 @@
   "detailFields": {
     "empty": "—",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "set": "已設定"
   }
 }

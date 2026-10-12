@@ -26,7 +26,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
-import { Button, Loader } from "@mantine/core";
+import { Accordion, Button, Divider, Loader, Text } from "@mantine/core";
 import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
@@ -34,8 +34,87 @@ import { PanelActionsContext, PanelNoticeContext } from "../list/panelActions";
 import { PanelHeadStyle } from "../list/PanelHeadStyle";
 import { useHelpNaming } from "./useHelpNaming";
 import { Tip } from "../Tip";
+import { readValue } from "./readValue";
+import type { DetailField } from "../detail/DetailFields";
+import { FormReadContext, useFormRead } from "./formRead";
 
 const FormLayoutContext = createContext(false);
+
+/**
+ * A form drawn read-only: the same form, so the read view lists exactly the fields the form has
+ * for what it shows, under the same labels. Each field is its label and its value on the shared
+ * detail grid ("—" when empty, "Set" for a secret that holds something); the layout around the
+ * fields, the notes and the buttons are not drawn, and the form's Save and Cancel are not offered.
+ */
+export function FormRead({
+  children,
+  derived = [],
+  testId,
+}: {
+  children: ReactNode;
+  /** Values the form does not set but the object has, read after its fields. */
+  derived?: DetailField[];
+  testId?: string;
+}) {
+  return (
+    <FormReadContext.Provider value={true}>
+      <FormLayoutContext.Provider value={true}>
+        <dl className="detail-fields form-read" data-testid={testId}>
+          {children}
+          {derived.map((f) => (
+            <ReadRow key={f.label} label={f.label} value={f.value} testId={f.testId} />
+          ))}
+        </dl>
+      </FormLayoutContext.Provider>
+    </FormReadContext.Provider>
+  );
+}
+
+/**
+ * One field of a form read: its label beside its value ("—" when empty). A control that labels
+ * itself draws this when `useFormRead()` says the form is read.
+ */
+export function ReadRow({
+  label,
+  value,
+  testId,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  testId?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Text component="dt" c="dimmed" fw={500} size="sm">
+        {label}
+      </Text>
+      <Text component="dd" m={0} size="sm" data-testid={testId}>
+        {value === null || value === undefined || value === "" ? t("detailFields.empty") : value}
+      </Text>
+    </>
+  );
+}
+
+/** A field read: its control's label beside the value the control holds. */
+function ReadField({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
+  const only = Children.toArray(children);
+  const control = only.length === 1 ? only[0] : null;
+  const props = isValidElement<Explainable>(control) ? control.props : null;
+  const label = props ? (props.label ?? props["aria-label"]) : undefined;
+  // A rule that names the fields after it heads them.
+  if (isValidElement(control) && control.type === Divider && label !== undefined) {
+    return (
+      <div role="heading" aria-level={4} className="form-read__heading">
+        {label}
+      </div>
+    );
+  }
+  // A field whose child is no labelled control (a section of further fields) reads as those.
+  if (!isValidElement(control) || label === undefined) return <>{children}</>;
+  return <ReadRow label={label} value={readValue(control, t)} />;
+}
 
 function useInsideFormLayout(component: string): void {
   if (!useContext(FormLayoutContext)) {
@@ -57,6 +136,7 @@ export function FormLayout({
   children,
   ...rest
 }: LayoutElementProps & { component?: "div" | "form" | "fieldset" }) {
+  if (useFormRead()) return <>{children}</>;
   return (
     <FormLayoutContext.Provider value={true}>
       {createElement(
@@ -145,6 +225,7 @@ export function FormField({
 }) {
   useInsideFormLayout("FormField");
   const { textId, naming } = useHelpNaming(help);
+  if (useFormRead()) return <ReadField>{children}</ReadField>;
   let content = children;
   if (hint !== undefined || help !== undefined) {
     const only = Children.toArray(children);
@@ -200,6 +281,7 @@ export function FormChecks({
   ...rest
 }: HTMLAttributes<HTMLDivElement> & { column?: boolean }) {
   useInsideFormLayout("FormChecks");
+  if (useFormRead()) return <>{children}</>;
   return (
     <div
       {...rest}
@@ -220,6 +302,7 @@ export function FieldGroup({
   ...rest
 }: HTMLAttributes<HTMLDivElement> & { row?: boolean }) {
   useInsideFormLayout("FieldGroup");
+  if (useFormRead()) return <>{children}</>;
   return (
     <div
       {...rest}
@@ -241,10 +324,70 @@ export function FieldGroup({
  */
 export function FormEntry({ children, className, ...rest }: LayoutElementProps) {
   useInsideFormLayout("FormEntry");
+  if (useFormRead()) return <>{children}</>;
   return (
     <FormLayout {...rest} className={classes("form-entry", className)}>
       {children}
     </FormLayout>
+  );
+}
+
+/**
+ * Fields folded away under headings until they are wanted (settings that all have defaults). Read,
+ * every fold is open: its heading heads its fields.
+ */
+export function FormFolds({
+  defaultOpen,
+  children,
+  ...rest
+}: {
+  defaultOpen?: string[];
+  children: ReactNode;
+  "data-testid"?: string;
+}) {
+  useInsideFormLayout("FormFolds");
+  if (useFormRead()) return <>{children}</>;
+  return (
+    <Accordion multiple defaultValue={defaultOpen} variant="separated" {...rest}>
+      {children}
+    </Accordion>
+  );
+}
+
+/** One fold of a `FormFolds`: its heading, an optional note under it, and its fields. */
+export function FormFold({
+  value,
+  title,
+  note,
+  children,
+}: {
+  value: string;
+  title: ReactNode;
+  note?: ReactNode;
+  children: ReactNode;
+}) {
+  if (useFormRead()) {
+    return (
+      <>
+        <div role="heading" aria-level={4} className="form-read__heading">
+          {title}
+        </div>
+        {children}
+      </>
+    );
+  }
+  return (
+    <Accordion.Item value={value}>
+      <Accordion.Control>{title}</Accordion.Control>
+      <Accordion.Panel>
+        {note && (
+          <Text size="sm" c="dimmed" mb="sm">
+            {note}
+          </Text>
+        )}
+        <FormLayout>{children}</FormLayout>
+      </Accordion.Panel>
+    </Accordion.Item>
   );
 }
 
@@ -253,6 +396,8 @@ export function FormIdentifiers({ children, ...rest }: HTMLAttributes<HTMLElemen
   useInsideFormLayout("FormIdentifiers");
   const { t } = useTranslation();
   const headingId = useId();
+  const read = useFormRead();
+  if (read) return <>{children}</>;
   return (
     <section
       {...rest}
@@ -321,6 +466,8 @@ export function FormFooter({
   const [pending, setPending] = useState(false);
   const head = useContext(PanelActionsContext);
   const notice = useContext(PanelNoticeContext);
+  // A form read is not saved: it offers no Save or Cancel.
+  if (useFormRead()) return null;
   const inHead = panel && head !== undefined;
   const busy = saving || pending;
   const save = () => {

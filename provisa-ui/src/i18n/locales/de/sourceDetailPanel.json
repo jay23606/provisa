@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Beschreibung",
-      "type": "Typ",
-      "host": "Host",
-      "port": "Port",
-      "database": "Datenbank",
-      "endpoint": "Endpunkt",
-      "path": "Pfad",
-      "username": "Benutzername",
-      "naming": "Benennung",
-      "cache": "Cache",
-      "cacheTtl": "Cache-TTL",
-      "effectiveTtl": "Effektive TTL",
-      "allowedDomains": "Zulässige Domänen",
-      "schedule": "Zeitplan",
-      "sample": "Stichprobe",
-      "lowCardinality": "Schwellenwert für geringe Kardinalität"
+      "effectiveTtl": "Effektive TTL"
     },
-    "namingInherit": "geerbt (global)",
-    "cacheEnabled": "aktiviert",
-    "cacheDisabled": "deaktiviert",
-    "ttlInherit": "geerbt",
-    "domainsUnrestricted": "uneingeschränkt",
     "editTitle": "Bearbeiten",
     "navigateTitle": "Registrierte Tabellen anzeigen",
     "deleteTitle": "Quelle \"{{id}}\" löschen?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "{{owner}}/{{ref}} erneut von Kaggle herunterladen und die bereitgestellte(n) Datei(en) an Ort und Stelle überschreiben. Ihr Kaggle-Token wird nicht gespeichert – geben Sie es für diese Aktualisierung erneut ein.",
     "kaggleTokenLabel": "Kaggle-API-Token",
     "refreshKaggleSubmit": "Aktualisieren",
-    "sampleWhole": "Ganze Tabelle",
-    "sampleAbove": "Stichprobe ab {{cells}} Zellen",
     "runProfilerTitle": "Jetzt für jede Mitgliedstabelle ausführen",
     "profilerNoMembers": "Keine Tabelle gehört zu diesem Profiler.",
     "profilerRan": "{{table}}: profiliert",
