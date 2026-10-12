@@ -35,6 +35,7 @@
 
 import { test, expect } from "./coverage";
 import {
+  discoveredColumnCount,
   openRegisterForm,
   openSourcesForm,
   runSqlOnPage,
@@ -136,9 +137,7 @@ test.describe("Kaggle source through the real UI, live Kaggle API (REQ-1780/1781
       timeout: 60000,
     });
     await tableSelect.selectOption("iris__iris");
-    await expect(
-      page.locator('[data-testid^="register-table-col-selected-"]').first(),
-    ).toBeVisible({ timeout: 30000 });
+    expect(await discoveredColumnCount(page)).toBeGreaterThan(0);
     const sqlTableName = await submitRegisterAndExpectListed(page, sourceId);
 
     // Run a real query against the landed data and verify real Kaggle row data comes back —
@@ -226,9 +225,7 @@ test.describe("Kaggle source through the real UI, live Kaggle API (REQ-1780/1781
 
     // Register only the one table this test actually queries.
     await tableSelect.selectOption(covidTable);
-    await expect(
-      page.locator('[data-testid^="register-table-col-selected-"]').first(),
-    ).toBeVisible({ timeout: 30000 });
+    expect(await discoveredColumnCount(page)).toBeGreaterThan(0);
     const sqlTableName = await submitRegisterAndExpectListed(page, sourceId);
 
     // Column names are the raw CSV header text (DuckDB's live introspection reads it straight off

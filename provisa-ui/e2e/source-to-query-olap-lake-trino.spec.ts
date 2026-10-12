@@ -54,6 +54,7 @@ import type { Page } from "playwright/test";
 
 import { test, expect, UI_URL, TRINO_BACKEND_URL } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -261,9 +262,7 @@ test.describe("source to query through the UI: pinot (REQ-1740)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", "airlinestats");
-    await expect(page.getByTestId("register-table-col-selected-origin")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["origin"], 60000);
     await page.getByTestId("register-table-submit").click();
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });
@@ -416,9 +415,7 @@ test.describe("source to query through the UI: hive_s3 (REQ-229)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "wh", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     await page.getByTestId("register-table-submit").click();
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });
@@ -534,9 +531,7 @@ test.describe("source to query through the UI: hive (REQ-1763)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "wh", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     await page.getByTestId("register-table-submit").click();
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });
@@ -614,9 +609,7 @@ test.describe("source to query through the UI: druid (REQ-1763)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "druid", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     await page.getByTestId("register-table-submit").click();
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });

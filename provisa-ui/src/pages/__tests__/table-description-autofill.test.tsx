@@ -205,10 +205,19 @@ async function clearOption(select: HTMLElement) {
 function formSelects(): HTMLElement[] {
   const arr: HTMLElement[] = [];
   arr[0] = screen.getByTestId("register-table-source-select");
-  arr[1] = screen.getByTestId("register-table-domain-select");
+  // One domain is offered here, so it is the domain and is not asked: there is no select.
+  expect(screen.queryByTestId("register-table-domain-select")).toBeNull();
   arr[2] = screen.getByTestId("register-table-schema-select");
   arr[3] = screen.getByTestId("register-table-table-select");
   return arr;
+}
+
+// The description the source's comment gave is not asked in the short step: it is sent with the
+// registration, and edited afterwards on the table's Identity tab.
+async function registeredDescription(): Promise<unknown> {
+  await userEvent.click(screen.getByTestId("register-table-submit"));
+  await waitFor(() => expect(registerTable).toHaveBeenCalled());
+  return registerTable.mock.calls.at(-1)![0].description;
 }
 
 function renderPage() {
@@ -265,11 +274,9 @@ describe("Table description auto-fill from physical database", () => {
     await selectOption(selects[0], "sales-pg");
     await selectOption(selects[2], "public");
     await selectOption(selects[3], "customers");
+    await screen.findByTestId("register-table-columns-summary");
 
-    await waitFor(() => {
-      const descInput = screen.getByPlaceholderText(/appears in sdl docs/i);
-      expect(descInput).toHaveValue("Registered customer accounts");
-    });
+    expect(await registeredDescription()).toBe("Registered customer accounts");
   });
 
   it("leaves description empty when table has no comment", async () => {
@@ -285,11 +292,9 @@ describe("Table description auto-fill from physical database", () => {
     await selectOption(selects[0], "sales-pg");
     await selectOption(selects[2], "public");
     await selectOption(selects[3], "products");
+    await screen.findByTestId("register-table-columns-summary");
 
-    await waitFor(() => {
-      const descInput = screen.getByPlaceholderText(/appears in sdl docs/i);
-      expect(descInput).toHaveValue("");
-    });
+    expect(await registeredDescription()).toBeUndefined();
   });
 
   it("clears description when schema changes", async () => {
@@ -305,19 +310,16 @@ describe("Table description auto-fill from physical database", () => {
     await selectOption(selects[0], "sales-pg");
     await selectOption(selects[2], "public");
     await selectOption(selects[3], "customers");
+    await screen.findByTestId("register-table-columns-summary");
 
-    await waitFor(() => {
-      const descInput = screen.getByPlaceholderText(/appears in sdl docs/i);
-      expect(descInput).toHaveValue("Registered customer accounts");
-    });
-
-    // Clearing the schema clears table and description with it.
+    // Clearing the schema clears table and description with it: a table picked again without a
+    // comment is registered with none, not the one before.
     await clearOption(selects[2]);
+    await selectOption(selects[2], "public");
+    await selectOption(selects[3], "products");
+    await screen.findByTestId("register-table-columns-summary");
 
-    await waitFor(() => {
-      const descInput = screen.getByPlaceholderText(/appears in sdl docs/i);
-      expect(descInput).toHaveValue("");
-    });
+    expect(await registeredDescription()).toBeUndefined();
   });
 });
 

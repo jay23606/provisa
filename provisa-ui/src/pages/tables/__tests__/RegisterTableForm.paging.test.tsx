@@ -58,29 +58,23 @@ async function pickTable(name: string) {
   const user = userEvent.setup();
   await user.selectOptions(screen.getByTestId("register-table-source-select"), "petstore");
   await user.selectOptions(await screen.findByTestId("register-table-table-select"), name);
-  await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
+  // Discovery is done when the short step counts the columns it registers.
+  await screen.findByTestId("register-table-columns-summary");
   return user;
 }
 
 describe("RegisterTableForm paging (REQ-318)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("shows the paging the source suggests and registers the table with it", async () => {
+  // Paging is not asked in the short step: a table registers with none declared, and its paging
+  // is set on the Load and timeliness tab of the editor that opens next.
+  it("registers a table whose source suggests paging with none declared, not asking it", async () => {
     const { registerTable } = renderForm();
     const user = await pickTable("listPets");
-    expect(await screen.findByRole("textbox", { name: "Paging type" })).toHaveValue(
-      "Offset and limit",
-    );
-    expect(screen.getByRole("textbox", { name: "Page parameter" })).toHaveValue("offset");
-    await user.type(screen.getByRole("textbox", { name: "Max pages" }), "5");
+    expect(screen.queryByRole("textbox", { name: "Paging type" })).toBeNull();
     await user.click(screen.getByTestId("register-table-submit"));
     await waitFor(() => expect(registerTable).toHaveBeenCalled());
-    expect(registerTable.mock.calls[0][0].pagination).toEqual({
-      type: "offset",
-      pageParam: "offset",
-      pageSizeParam: "limit",
-      maxPages: 5,
-    });
+    expect(registerTable.mock.calls[0][0].pagination).toBeUndefined();
   });
 
   it("registers a table whose source suggests none with no paging", async () => {

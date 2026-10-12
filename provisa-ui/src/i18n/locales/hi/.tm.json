@@ -5797,5 +5797,7 @@
   "hi/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "hi/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "hi/tableSections.json::tableSections.contractSet": "Set",
-  "hi/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source."
+  "hi/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
+  "hi/registerTableForm.json::registerTableForm.shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
+  "hi/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:"
 }

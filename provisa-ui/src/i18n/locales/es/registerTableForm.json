@@ -111,6 +111,8 @@
     "profilerRowRulesLabel": "Reglas de filas por rol",
     "profilerRowRulesNone": "Cada lector ve todas las columnas descritas.",
     "profilerRowRuleFailed": "La tabla se registró, pero la regla de filas de {{role}} no se guardó: {{message}}",
-    "scopeHelp": "domain: se sirve a los roles que alcanzan el dominio de esta tabla. public: también a los roles fuera de él. restricted: solo a los roles indicados en Visible para."
+    "scopeHelp": "domain: se sirve a los roles que alcanzan el dominio de esta tabla. public: también a los roles fuera de él. restricted: solo a los roles indicados en Visible para.",
+    "shortColumns": "Registradas con los tipos descubiertos ({{count}}): {{names}}. La ocultación, las claves y los datos de prueba se configuran en el editor que se abre a continuación.",
+    "shortUntyped": "No se encontró un tipo para estas columnas. Elija uno para cada una:"
   }
 }

@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ColumnsTable } from "./ColumnsTable";
+import { UntypedColumns } from "./UntypedColumns";
+import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
 import { QueryPreviewRows } from "./QueryPreviewRows";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { useTranslation } from "react-i18next";
@@ -98,7 +100,8 @@ interface RegisterTableFormProps {
   >;
   suggestTableAlias: (tableName: string, domainId: string, sourceId: string) => Promise<string>;
   registerTable: (input: Record<string, unknown>) => Promise<{ success: boolean; message: string }>;
-  onSuccess: () => void;
+  /** The table just registered, by its address: the page opens it in edit. */
+  onSuccess: (registered: { sourceId: string; schemaName: string; tableName: string }) => void;
   /** Closes the form without registering anything. */
   onCancel: () => void;
   setError: (e: string | null) => void;
@@ -124,7 +127,7 @@ export function RegisterTableForm({
 }: RegisterTableFormProps) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState("");
-  const [domainId, setDomainId] = useState("");
+  const [chosenDomain, setDomainId] = useState("");
   const { ensureDomainChecked } = useDomainFilter();
   const [schemaName, setSchemaName] = useState("");
   const [tableName, setTableName] = useState("");
@@ -145,6 +148,8 @@ export function RegisterTableForm({
   const [sourceFileColumn, setSourceFileColumn] = useState(""); // REQ-788
   const [discover, setDiscover] = useState(false); // REQ-252: infer columns from the live source
   const [loadingColumns, setLoadingColumns] = useState(false);
+  // The columns discovery gave no type: the short step asks a type for each.
+  const [untypedAtDiscovery, setUntypedAtDiscovery] = useState<string[]>([]);
   // REQ-1663: a data-quality checker source has no remote schema to pick from — its table's rows
   // are one contract's scan results. The form asks for the governed table to scan (through the
   // contract panel) and derives the rest: results table name, alias, description, columns.
@@ -187,6 +192,19 @@ export function RegisterTableForm({
   const isFilesSource = ["files", "csv", "parquet"].includes(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType);
+  // The short step: what names the table, and only what the server will not do without. The rest
+  // is the edit form's, which opens on the registered draft. A query API's table (its query and
+  // preview), a checker's (its contract) and a profiler's results take the longer path: the same
+  // form, more of it shown.
+  const short = !isChecker && !isQueryApi && !isProfiler;
+  // The domains the caller may register in. With one, it is the domain and is not asked.
+  const offeredDomains = domainHints
+    .filter((d) => d !== "" && d !== "meta" && d !== "ops")
+    .filter((d) => domainAccess.includes("*") || domainAccess.includes(d));
+  const domainAsked = domainsEnabled && (!short || offeredDomains.length !== 1);
+  const domainId =
+    chosenDomain ||
+    (domainsEnabled && short && offeredDomains.length === 1 ? offeredDomains[0] : "");
 
   // REQ-846/REQ-1426: the canonical IR type vocabulary a steward picks from. Registration is the
   // last point at which a type can be assigned — nothing infers one afterwards — so the list comes
@@ -383,6 +401,7 @@ export function RegisterTableForm({
           };
         });
         setColumns(formed);
+        setUntypedAtDiscovery(formed.filter((c) => !c.dataType).map((c) => c.name));
         const sourceType = sources.find((s) => s.id === sourceId)?.type ?? "";
         if (!CDC_TYPES.has(sourceType)) {
           const autoWm = formed.find(
@@ -514,7 +533,13 @@ export function RegisterTableForm({
       setError(t("registerTableForm.errorUntypedColumns", { columns: untyped.join(", ") }));
       return;
     }
-    if (pagingKind !== null && pagingProblem(pagingKind, pagination, pagingCeilingRows) !== null) {
+    // The short step declares no paging: it is not shown there, so nothing of it is sent; it is
+    // set on the editor's Load and timeliness tab.
+    if (
+      !short &&
+      pagingKind !== null &&
+      pagingProblem(pagingKind, pagination, pagingCeilingRows) !== null
+    ) {
       setError(t("tableEditForm.pagingFixErrors"));
       return;
     }
@@ -545,7 +570,7 @@ export function RegisterTableForm({
           isFilesSource && sourceFileColumn.trim() ? sourceFileColumn.trim() : undefined, // REQ-788
         // REQ-318: only what is declared; nothing declared registers the table with no paging.
         pagination:
-          pagingKind !== null && declaredPaging(pagination) !== null
+          !short && pagingKind !== null && declaredPaging(pagination) !== null
             ? pagingInput(pagination as Paging)
             : undefined,
         columns: selectedCols,
@@ -580,7 +605,7 @@ export function RegisterTableForm({
         }
       }
       resetForm();
-      onSuccess();
+      onSuccess({ sourceId, schemaName, tableName });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -650,7 +675,11 @@ export function RegisterTableForm({
       // would otherwise stay hidden from the tables list until a reload.
       ensureDomainChecked(domainId);
       resetForm();
-      onSuccess();
+      onSuccess({
+        sourceId,
+        schemaName: domainId ? domainToSqlName(domainId) : schemaName,
+        tableName,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -697,7 +726,7 @@ export function RegisterTableForm({
             </select>
           </label>
         </FormField>
-        {domainsEnabled && (
+        {domainAsked && (
           <FormField size="medium">
             <label>
               {t("registerTableForm.domainLabel")}
@@ -708,14 +737,11 @@ export function RegisterTableForm({
                 data-testid="register-table-domain-select"
               >
                 <option value="">{t("registerTableForm.domainPlaceholder")}</option>
-                {domainHints
-                  .filter((d) => d !== "" && d !== "meta" && d !== "ops")
-                  .filter((d) => domainAccess.includes("*") || domainAccess.includes(d))
-                  .map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
+                {offeredDomains.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
             </label>
           </FormField>
@@ -877,7 +903,7 @@ export function RegisterTableForm({
           />
         </FormField>
       )}
-      {sourceId && (
+      {sourceId && !short && (
         <FormField size="medium">
           <RegionSelect
             value={region}
@@ -966,40 +992,19 @@ export function RegisterTableForm({
         </>
       )}
       {isProfiler && tableName && (
-        <FormField size="full">
-          <fieldset data-testid="register-table-profiler-row-rules">
-            <legend>{t("registerTableForm.profilerRowRulesLabel")}</legend>
-            {profilerRowRules.length === 0 && (
-              <span>{t("registerTableForm.profilerRowRulesNone")}</span>
-            )}
-            {profilerRowRules.map((rule, i) => (
-              <label key={rule.roleId}>
-                {rule.roleId}
-                <input
-                  value={rule.filter}
-                  onChange={(e) =>
-                    setProfilerRowRules(
-                      profilerRowRules.map((r, j) =>
-                        j === i ? { ...r, filter: e.target.value } : r,
-                      ),
-                    )
-                  }
-                  data-testid={`register-table-profiler-row-rule-${rule.roleId}`}
-                />
-              </label>
-            ))}
-          </fieldset>
+        <ProfilerRowRulesField rules={profilerRowRules} onChange={setProfilerRowRules} />
+      )}
+      {!short && (
+        <FormField size="long">
+          <TextInput
+            label={t("registerTableForm.descriptionLabel")}
+            value={tableDescription}
+            onChange={(e) => setTableDescription(e.currentTarget.value)}
+            placeholder={t("registerTableForm.descriptionPlaceholder")}
+          />
         </FormField>
       )}
-      <FormField size="long">
-        <TextInput
-          label={t("registerTableForm.descriptionLabel")}
-          value={tableDescription}
-          onChange={(e) => setTableDescription(e.currentTarget.value)}
-          placeholder={t("registerTableForm.descriptionPlaceholder")}
-        />
-      </FormField>
-      {pagingKind !== null && (
+      {pagingKind !== null && !short && (
         <PagingField
           kind={pagingKind}
           paging={pagination}
@@ -1008,7 +1013,7 @@ export function RegisterTableForm({
           rowsFieldEditable
         />
       )}
-      {sourceId && !isChecker && !isQueryApi && (
+      {sourceId && !isChecker && !isQueryApi && !short && (
         <FormField
           size="medium"
           hint={
@@ -1045,19 +1050,32 @@ export function RegisterTableForm({
       )}
       {/* The ticks sit together beneath the fields. */}
       <FormChecks>
-        {!isChecker && !isQueryApi && (
-          <FormField size="short" help={t("registerTableForm.discoverHint")}>
-            <Checkbox
-              checked={discover}
-              onChange={(e) => setDiscover(e.currentTarget.checked)}
-              data-testid="discover-columns-checkbox"
-              label={t("registerTableForm.discoverLabel")}
-            />
-          </FormField>
-        )}
+        {!isChecker &&
+          !isQueryApi &&
+          (!short || (tableName !== "" && !loadingColumns && columns.length === 0)) && (
+            <FormField size="short" help={t("registerTableForm.discoverHint")}>
+              <Checkbox
+                checked={discover}
+                onChange={(e) => setDiscover(e.currentTarget.checked)}
+                data-testid="discover-columns-checkbox"
+                label={t("registerTableForm.discoverLabel")}
+              />
+            </FormField>
+          )}
       </FormChecks>
       {/* The heading shows once there is something under it: columns, or their loading. */}
-      {!isChecker && (columns.length > 0 || loadingColumns) && (
+      {short && (
+        // Every discovered column is registered with its discovered type; a column discovery could
+        // not type is the one thing about the columns asked here (the server refuses it untyped).
+        <UntypedColumns
+          columns={columns}
+          untypedAtDiscovery={untypedAtDiscovery}
+          irTypes={irTypes}
+          loading={loadingColumns}
+          onType={(i, v) => updateCol(i, "dataType", v)}
+        />
+      )}
+      {!isChecker && !short && (columns.length > 0 || loadingColumns) && (
         <FormField size="full">
           <Stack gap="xs">
             <Text fw={600} fz="sm">
@@ -1076,7 +1094,7 @@ export function RegisterTableForm({
           </Stack>
         </FormField>
       )}
-      {columns.length > 0 && (
+      {columns.length > 0 && !short && (
         <FormField size="full">
           <UniquesPanel
             uniques={uniqueConstraints}

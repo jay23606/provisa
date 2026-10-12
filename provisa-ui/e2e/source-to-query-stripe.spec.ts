@@ -22,6 +22,7 @@ import type { Page } from "@playwright/test";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   createDomain,
   openRegisterForm,
   openSourcesForm,
@@ -101,7 +102,7 @@ test.describe("Stripe through the UI (REQ-1923)", () => {
     await createDomain(page, domain);
     await openRegisterForm(page, sourceId, domain);
     await pickSchemaAndTable(page, "openapi", "GetCustomers");
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible();
+    await expectDiscoveredColumns(page, ["id"]);
     await setPageSize(page, 2);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 

@@ -26,6 +26,7 @@
 
 import { test, expect } from "./coverage";
 import {
+  discoveredColumnCount,
   openRegisterForm,
   openSourcesForm,
   submitSourceAndExpectListed,
@@ -94,9 +95,7 @@ test.describe("AskAmerica: the Register Table pickers", () => {
 
     // 4. Picking a table shows its columns, from the source.
     await tableSelect.selectOption("nws_stations");
-    const columns = page.locator('[data-testid^="register-table-col-selected-"]');
-    await expect(columns.first()).toBeVisible({ timeout: 30_000 });
-    expect(await columns.count()).toBeGreaterThan(1);
+    expect(await discoveredColumnCount(page)).toBeGreaterThan(1);
 
     // 5. A linker schema lists its own tables: the picker follows the schema, not the first answer.
     await schemaSelect.selectOption("geo");

@@ -29,6 +29,7 @@ import {
   E2E_SPLUNK_PORT,
 } from "./demo-source-containers";
 import {
+  expectDiscoveredColumns,
   existingSourcePath,
   openRegisterForm,
   openSourcesForm,
@@ -143,9 +144,7 @@ export async function registerMongodb(
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "provisa", tableName);
-  await expect(page.getByTestId("register-table-col-selected-reviewer")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["reviewer"], 60000);
   const registered = await submitRegisterAndExpectListed(
     page,
     sourceId,
@@ -265,11 +264,7 @@ export function registerRdbWidgets(cfg: RdbWidgetsConfig): (page: Page) => Promi
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, cfg.schema, cfg.table ?? "widgets");
-    await expect(
-      page.getByTestId(`register-table-col-selected-${cfg.nameColumn ?? "name"}`),
-    ).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, [cfg.nameColumn ?? "name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
     return {
@@ -302,9 +297,7 @@ export function registerFileLake(sourceType: "delta_lake" | "iceberg", tablePath
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
     return {
@@ -616,8 +609,8 @@ export async function registerSnowflake(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "PUBLIC", "WIDGETS");
-  await expect(page.getByTestId("register-table-col-selected-ID")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-NAME")).toBeVisible();
+  await expectDiscoveredColumns(page, ["ID"], 120000);
+  await expectDiscoveredColumns(page, ["NAME"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -664,8 +657,8 @@ export async function registerFabric(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+  await expectDiscoveredColumns(page, ["id"], 120000);
+  await expectDiscoveredColumns(page, ["name"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -708,8 +701,8 @@ export async function registerDatabricks(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+  await expectDiscoveredColumns(page, ["id"], 120000);
+  await expectDiscoveredColumns(page, ["name"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -745,8 +738,8 @@ export async function registerBigquery(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+  await expectDiscoveredColumns(page, ["id"], 120000);
+  await expectDiscoveredColumns(page, ["name"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -788,8 +781,8 @@ export function registerRedshift(conn: RedshiftConnection): (page: Page) => Prom
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "public", "provisa_widgets_e2e");
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+    await expectDiscoveredColumns(page, ["id"], 120000);
+    await expectDiscoveredColumns(page, ["name"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
     return {
@@ -825,9 +818,7 @@ export async function registerElasticsearch(
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", tableName);
-  await expect(page.getByTestId("register-table-col-selected-ticket_id")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["ticket_id"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -861,9 +852,7 @@ export async function registerRedis(
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", tableName);
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -897,9 +886,7 @@ export async function registerCassandra(
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "shelter_ops", tableName);
-  await expect(page.getByTestId("register-table-col-selected-event_id")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["event_id"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -968,9 +955,7 @@ export async function registerPrometheus(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", tableName);
-  await expect(page.getByTestId("register-table-col-selected-job")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["job"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1019,10 +1004,8 @@ export async function registerSplunk(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, sourceId, tableName);
-  await expect(page.getByTestId("register-table-col-selected-alert_id")).toBeVisible({
-    timeout: 120000,
-  });
-  await expect(page.getByTestId("register-table-col-selected-animal_name")).toBeVisible();
+  await expectDiscoveredColumns(page, ["alert_id"], 120000);
+  await expectDiscoveredColumns(page, ["animal_name"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1072,8 +1055,8 @@ export async function registerSharepoint(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, sourceId, tableName);
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-title")).toBeVisible();
+  await expectDiscoveredColumns(page, ["id"], 120000);
+  await expectDiscoveredColumns(page, ["title"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1103,9 +1086,7 @@ export async function registerSqlite(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "main", "users");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1233,12 +1214,15 @@ export async function registerIngest(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", sourceId);
-  await expect(page.getByTestId("register-table-col-selected-ext_id")).toBeVisible({
-    timeout: 30000,
-  });
-  await page.getByTestId("register-table-col-path-ext_id").fill("id");
-  await page.getByTestId("register-table-col-path-value").fill("value");
-  const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
+  await expectDiscoveredColumns(page, ["ext_id"], 30000);
+  // The JSON paths are set in the editor the short register step opens on the draft.
+  const registered = await submitRegisterAndExpectListed(
+    page,
+    sourceId,
+    SWAP_REGISTER_TIMEOUT_MS,
+    "",
+    { paths: { ext_id: "id", value: "value" } },
+  );
 
   const res = await page.request.post(`/data/ingest/${sourceId}/${sourceId}`, {
     data: { id: "abc-1", value: "hello-ingest" },
@@ -1345,9 +1329,7 @@ export async function registerRss(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", sourceId);
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-    timeout: 30000,
-  });
+  await expectDiscoveredColumns(page, ["id"], 30000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   // Tables page: give the poll job an actual cadence (RegisterTableForm has no Cache TTL field,
@@ -1400,7 +1382,7 @@ export async function registerRss(page: Page): Promise<Registration> {
 // disconnects) only marks a node visited on an ACTUAL successful listener start, not eagerly on
 // every attempt (no wire_new_poll_jobs-style permanent-exclusion risk) — but pollTimeoutMs is
 // still used since opening a live connection and landing its first events is asynchronous either
-// way. CDC landing hard-requires a declared primary key (register-table-col-pk-id), unlike rss.
+// way. CDC landing hard-requires a declared primary key (set on the draft's Columns), unlike rss.
 export async function registerWebsocket(page: Page): Promise<Registration> {
   const stamp = Date.now();
   const sourceId = `e2e_swap_ws_id${stamp}`;
@@ -1414,13 +1396,15 @@ export async function registerWebsocket(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", sourceId);
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-    timeout: 30000,
-  });
-  // A column's data type and primary key are on the Type and keys tab of the column editor.
-  await page.getByTestId("column-tab-type").click();
-  await page.getByTestId("register-table-col-pk-id").check();
-  const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
+  await expectDiscoveredColumns(page, ["id"], 30000);
+  // The primary key is declared in the editor the short register step opens on the draft.
+  const registered = await submitRegisterAndExpectListed(
+    page,
+    sourceId,
+    SWAP_REGISTER_TIMEOUT_MS,
+    "",
+    { primaryKey: ["id"] },
+  );
 
   return {
     label: "websocket",
@@ -1458,9 +1442,7 @@ export async function registerFirebird(page: Page): Promise<Registration> {
   // upper case, and the generic registerTable mutation has no apply_sql_name normalization step
   // (unlike graphql_remote_router's registration), so an unquoted schema would persist verbatim.
   await pickSchemaAndTable(page, "main", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1492,9 +1474,7 @@ export async function registerAirport(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "test", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1530,9 +1510,7 @@ export async function registerDuckdbSource(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "main", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1568,9 +1546,7 @@ export async function registerTrinoSource(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "tiny", "nation");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1605,9 +1581,7 @@ export async function registerSinglestore(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, database, "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1656,9 +1630,7 @@ export async function registerExasol(page: Page, fingerprint: () => string): Pro
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "PROVISA", "WIDGETS");
-  await expect(page.getByTestId("register-table-col-selected-NAME")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["NAME"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -1793,9 +1765,7 @@ export async function registerKafka(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "default", sourceId);
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-    timeout: 30000,
-  });
+  await expectDiscoveredColumns(page, ["id"], 30000);
   // CDC landing (push_wiring.py's wire_push_listeners) hard-requires a declared primary key to
   // upsert/delete by — same as websocket's own registrar — without it the listener silently
   // skips wiring ("no primary key column declared... skipping"), so DuckDB (which has no live
@@ -1803,10 +1773,14 @@ export async function registerKafka(page: Page): Promise<Registration> {
   // regardless of how long a query waits. Missing here before; reproduced live via REQ-1730's own
   // reboot-harness e2e (a genuine restart with no mutation replay — the first harness that ever
   // exercised DuckDB's own kafka leg instead of relying solely on Trino's live connector).
-  // A column's data type and primary key are on the Type and keys tab of the column editor.
-  await page.getByTestId("column-tab-type").click();
-  await page.getByTestId("register-table-col-pk-id").check();
-  const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
+  // The primary key is declared in the editor the short register step opens on the draft.
+  const registered = await submitRegisterAndExpectListed(
+    page,
+    sourceId,
+    SWAP_REGISTER_TIMEOUT_MS,
+    "",
+    { primaryKey: ["id"] },
+  );
 
   // push_wiring.py's _build_provider reads live.kafka.topic off the REGISTERED TABLE row — no
   // fallback to the table/source name, so it must be set explicitly or the listener never starts
@@ -1977,9 +1951,7 @@ export async function registerPinot(page: Page): Promise<Registration> {
   await pickSchemaAndTable(page, "default", "airlineStats");
   // "Origin" (mixed case, matching Pinot's own column name verbatim) — the checkbox testid is
   // built from col.name directly (RegisterTableForm.tsx), not a lowercased/sql-normalized form.
-  await expect(page.getByTestId("register-table-col-selected-Origin")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["Origin"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -2068,9 +2040,7 @@ export async function registerHiveS3(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "wh", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -2142,9 +2112,7 @@ export async function registerHive(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "wh", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -2203,9 +2171,7 @@ export async function registerDruid(page: Page): Promise<Registration> {
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "druid", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-    timeout: 60000,
-  });
+  await expectDiscoveredColumns(page, ["name"], 60000);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {
@@ -2281,8 +2247,8 @@ export async function registerSynapse(
 
   await openRegisterForm(page, sourceId);
   await pickSchemaAndTable(page, "dbo", "widgets");
-  await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({ timeout: 120000 });
-  await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+  await expectDiscoveredColumns(page, ["id"], 120000);
+  await expectDiscoveredColumns(page, ["name"]);
   const registered = await submitRegisterAndExpectListed(page, sourceId, SWAP_REGISTER_TIMEOUT_MS);
 
   return {

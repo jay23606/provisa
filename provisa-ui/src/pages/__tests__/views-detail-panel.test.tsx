@@ -217,6 +217,21 @@ vi.mock("../tables/ViewDefinitionForm", () => ({
   ),
 }));
 
+// The short register step, as the page sees it: it reports the table it registered.
+vi.mock("../tables/RegisterTableForm", () => ({
+  RegisterTableForm: (props: {
+    onSuccess: (registered: { sourceId: string; schemaName: string; tableName: string }) => void;
+  }) => (
+    <button
+      onClick={() =>
+        props.onSuccess({ sourceId: "sales-pg", schemaName: "sales", tableName: "returns" })
+      }
+    >
+      registered
+    </button>
+  ),
+}));
+
 import { TablesPage } from "../TablesPage";
 
 const view = (id: number, name: string, over: Partial<RegisteredTable> = {}) =>
@@ -281,5 +296,24 @@ describe("the Views page", () => {
     await userEvent.click(screen.getByText("saved"));
     await waitFor(() => expect(screen.queryByTestId("view-form-stub")).toBeNull());
     expect(screen.getByTestId("tables-split-title")).toHaveTextContent("sales_by_day");
+  });
+});
+
+describe("the Tables page's short register step", () => {
+  it("selects the draft it registered and opens it in edit on Identity", async () => {
+    render(<TablesPage />);
+    await userEvent.click(await screen.findByTestId("tables-add-toggle"));
+    // The list as the server has it once the table exists: a draft, as every new table is.
+    refetchTables.mockImplementation(async () => {
+      TABLES = [...TABLES, table(10, "returns", [], { draft: true })];
+      return { data: { tables: TABLES } };
+    });
+    await userEvent.click(screen.getByText("registered"));
+    await waitFor(() =>
+      expect(screen.getByTestId("tables-split-title")).toHaveTextContent("returns"),
+    );
+    expect(await within(panel()!).findByText("Save")).toBeInTheDocument();
+    expect(screen.getByTestId("table-section-identity")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("table-edit-table")).toHaveValue("returns");
   });
 });

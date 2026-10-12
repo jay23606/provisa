@@ -194,10 +194,55 @@ export async function pickSchemaAndTable(page: Page, schema: string, table: stri
   // additionally needs a live HTTP round-trip (dynamic column inference off the response shape)
   // that can lose the race with the caller's next action under load, leaving submit clicked
   // before any column has populated and "At least one column must be selected" silently blocking
-  // it forever. Wait for at least one column row before returning control to the caller.
-  await expect(page.locator('[data-testid^="register-table-col-selected-"]').first()).toBeVisible({
-    timeout: 30000,
-  });
+  // it forever. Wait for the discovered columns before returning control to the caller.
+  await expect(discoveredColumns(page).first()).toBeVisible({ timeout: 30000 });
+}
+
+/**
+ * Where the register form shows the columns discovery found: the short step names them in one
+ * summary line; the longer path (a query API's preview) lists each in its column table.
+ */
+function discoveredColumns(page: Page) {
+  return page
+    .getByTestId("register-table-columns-summary")
+    .or(page.locator('[data-testid^="register-table-col-selected-"]'));
+}
+
+/** Waits until discovery has found each named column, on either form of the register step. */
+export async function expectDiscoveredColumns(page: Page, names: string[], timeout = 60000) {
+  const summary = page.getByTestId("register-table-columns-summary");
+  for (const name of names) {
+    // In the summary a name stands between "): " or ", " and ", " or ". ".
+    const named = new RegExp(`(: |, )${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(,|\\.)`);
+    await expect(
+      summary
+        .filter({ hasText: named })
+        .or(page.getByTestId(`register-table-col-selected-${name}`)),
+    ).toBeVisible({ timeout });
+  }
+}
+
+/** How many columns discovery found, on either form of the register step. */
+export async function discoveredColumnCount(page: Page): Promise<number> {
+  await expect(discoveredColumns(page).first()).toBeVisible({ timeout: 30000 });
+  const summary = page.getByTestId("register-table-columns-summary");
+  if (await summary.isVisible()) {
+    const counted = /\((\d+)\)/.exec((await summary.textContent()) ?? "");
+    expect(counted, "the register step's column summary gives no count").not.toBeNull();
+    return Number(counted![1]);
+  }
+  return page.locator('[data-testid^="register-table-col-selected-"]').count();
+}
+
+/**
+ * What a test sets on a table's columns once it is registered. The short register step asks none
+ * of it: it is set in the editor the step opens on the registered draft.
+ */
+export interface RegisteredColumnEdits {
+  /** Columns declared the primary key (Columns > Type and keys). */
+  primaryKey?: string[];
+  /** An ingest source's per-column JSON paths (Columns > Naming). */
+  paths?: Record<string, string>;
 }
 
 /**
@@ -260,11 +305,38 @@ export async function submitRegisterAndExpectListed(
   // string (default) preserves the original relative-URL/Vite-proxied behavior for every other
   // caller unchanged.
   baseUrl = "",
+  columns: RegisteredColumnEdits = {},
 ): Promise<string> {
   await page.getByTestId("register-table-submit").click();
   // Registration rebuilds the schemas; the row lands in the tables list when it is done.
   const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
   await expect(row).toBeVisible({ timeout: timeoutMs });
+  // The registered draft opens in its editor. What the test sets on its columns is set there and
+  // saved, before the draft is released (a save writes the form's Draft tick); else the editor is
+  // left untouched.
+  const save = page.getByTestId("table-edit-save");
+  await expect(save).toBeVisible({ timeout: 30000 });
+  const paths = Object.entries(columns.paths ?? {});
+  const primaryKey = columns.primaryKey ?? [];
+  if (paths.length > 0 || primaryKey.length > 0) {
+    await page.getByTestId("table-section-columns").click();
+    for (const [column, path] of paths) {
+      await page.getByTestId(`table-edit-col-path-${column}`).fill(path);
+    }
+    if (primaryKey.length > 0) {
+      await page.getByTestId("column-tab-type").click();
+      for (const column of primaryKey) {
+        await page
+          .getByTestId(`column-row-${column}`)
+          .getByRole("checkbox", { name: "Primary Key" })
+          .check();
+      }
+    }
+    await save.click();
+  } else {
+    await page.getByTestId("table-edit-cancel").click();
+  }
+  await expect(save).toBeHidden({ timeout: 15000 });
   await releaseDraftTables(page, { sourceId }, baseUrl);
   const res = await page.request.post(`${baseUrl}/admin/graphql`, {
     data: { query: "{ tables { sourceId dqDataset } }" },

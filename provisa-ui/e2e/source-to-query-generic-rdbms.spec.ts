@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -170,9 +171,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "provisa_demo", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -206,9 +205,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "public", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -241,9 +238,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "test", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -273,9 +268,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "public", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -306,9 +299,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "public", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -339,9 +330,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -378,9 +367,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "dbo", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -411,9 +398,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "SYSTEM", "WIDGETS");
-    await expect(page.getByTestId("register-table-col-selected-NAME")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["NAME"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -457,9 +442,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "public", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -509,9 +492,7 @@ test.describe("source to query through the UI: generic RDBMS types (REQ-1671)", 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "SYSTEM", "WIDGETS");
-    await expect(page.getByTestId("register-table-col-selected-NAME")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["NAME"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
