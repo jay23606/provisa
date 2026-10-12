@@ -15,7 +15,7 @@
     "warn2": "Speichern Sie ihn jetzt im Secrets-Tresor Ihrer Organisation; er wird nicht noch einmal angezeigt.",
     "warn3": "Bewahren Sie eine zweite Kopie an einem separaten sicheren Ort unter Ihrer eigenen Kontrolle auf.",
     "warn4": "Beschränken Sie, wer ihn lesen darf, und senden Sie ihn nie per E-Mail, Chat oder Ticket.",
-    "warn5": "Geht er verloren, werden die verschlüsselten Dateien zurückgesetzt und neu aufgebaut.",
+    "warn5": "Geht er verloren, lassen sich die Dateien erst wieder öffnen, wenn Sie einen neuen Schlüssel festlegen; das setzt die verschlüsselten Dateien zurück.",
     "warn6": "Zum Rotieren erzeugen Sie einen neuen Schlüssel, speichern ihn in Ihrem Tresor und aktualisieren die Referenz.",
     "saved": "Gespeichert. Jeder Server wendet es an, wenn er das nächste Mal Arbeit für diese Organisation startet."
   }

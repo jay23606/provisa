@@ -5876,7 +5876,7 @@
   "zh-HK/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
   "zh-HK/orgFilesTab.json::orgFilesTab.warnTitle": "Keep this key safe",
   "zh-HK/orgFilesTab.json::orgFilesTab.loading": "Loading…",
-  "zh-HK/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "zh-HK/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "zh-HK/orgFilesTab.json::orgFilesTab.encrypt": "Encrypt the organization's file folder",
   "zh-HK/orgFilesTab.json::orgFilesTab.referenceLabel": "Key reference",
   "zh-HK/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
@@ -6013,5 +6013,9 @@
   "zh-HK/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "zh-HK/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "zh-HK/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "zh-HK/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "zh-HK/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "zh-HK/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "zh-HK/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "zh-HK/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "zh-HK/settings.json::settings.org_files.node_id.label": "Node name"
 }

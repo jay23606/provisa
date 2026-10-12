@@ -12,8 +12,9 @@
 Linux FUSE mount: what a node does.
 
 Turning encryption on encrypts what the folder holds and nothing is lost; only ciphertext reaches
-the storage; a rotated key re-encrypts the folder; turning it off decrypts it; a key that no longer
-opens the folder resets it, and nothing else does. Needs gocryptfs and /dev/fuse (the suite lanes
+the storage; a rotated key re-encrypts the folder; turning it off decrypts it; a key that does not
+open the folder refuses it, keeping its files; a reset happens only when an org admin sets a new key
+and the folder's own key can no longer be read. Needs gocryptfs and /dev/fuse (the suite lanes
 install them, scripts/ci/lanes/suite-prepare.sh); without them the test fails by name.
 """
 
@@ -89,18 +90,39 @@ def test_a_folder_is_encrypted_rotated_and_decrypted_keeping_its_files(orgs):
     assert not (orgs / ".acme.crypt").exists()
 
 
-def test_a_key_that_no_longer_opens_the_folder_resets_it(orgs, caplog):
+def test_a_key_that_does_not_open_the_folder_refuses_it_and_keeps_its_files(orgs):
     folder = orgs / "acme"
     crypt.apply("acme", folder, FolderSettings(True, "${secret:k1}"), _key_of)
-    (folder / "f").write_text("kept until the key is lost")
+    (folder / "f").write_text("kept")
     subprocess.run(["fusermount3", "-u", str(folder)], check=True)
 
-    # The vault now holds another value under the same name: the old files cannot be read.
+    # The vault now holds another value under the same name: refused, nothing reset.
     replaced = {"${secret:k1}": "a-different-value"}
-    crypt.apply("acme", folder, FolderSettings(True, "${secret:k1}"), replaced.__getitem__)
+    with pytest.raises(crypt.FolderKeyUnavailable, match="'acme'.*not the one the folder"):
+        crypt.apply("acme", folder, FolderSettings(True, "${secret:k1}"), replaced.__getitem__)
+    assert not os.path.ismount(folder)
+    crypt.apply("acme", folder, FolderSettings(True, "${secret:k1}"), _key_of)
+    assert (folder / "f").read_text() == "kept"
+
+
+def test_a_new_key_set_while_the_old_one_is_gone_resets_the_folder(orgs, caplog):
+    """The one reset there is: an org admin deliberately sets a new key."""
+    folder = orgs / "acme"
+    crypt.apply("acme", folder, FolderSettings(True, "${secret:k1}"), _key_of)
+    (folder / "f").write_text("kept until the admin sets a new key")
+    subprocess.run(["fusermount3", "-u", str(folder)], check=True)
+
+    only_new = {"${secret:k2}": KEYS["${secret:k2}"]}
+
+    def key_of(reference: str) -> str:
+        if reference not in only_new:
+            raise crypt.FolderKeyUnavailable("acme", "AccessDenied")
+        return only_new[reference]
+
+    crypt.apply("acme", folder, FolderSettings(True, "${secret:k2}"), key_of)
     assert os.path.ismount(folder)
     assert not (folder / "f").exists()
-    assert "org acme: its file folder's key no longer opens it" in caplog.text
+    assert "org acme: a new key was set for its file folder" in caplog.text
 
 
 def test_a_revoked_key_refuses_the_folder_and_keeps_its_files(orgs):

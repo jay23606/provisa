@@ -8,18 +8,22 @@
 # machine learning models is strictly prohibited without explicit written
 # permission from the copyright holder.
 
-"""Each org's folder on this node: the one place the files Provisa generates for it go (REQ-1992).
+"""Each org's folder: the one place the files Provisa keeps for it go (REQ-1992).
 
 A source's conversion caches and downloads, its connector server's working files, replicas,
 spools, large results and every temporary file are written under ``<data dir>/orgs/<org id>``
-and nowhere else. The files are ephemeral: each node keeps its own, and anything there may be
-deleted and is rebuilt when next needed.
+and nowhere else. The folder is durable.
 
-The folder is made ready when the org's runtime is built on this node (:func:`prepare`) and
-released when that runtime goes (:func:`release`). An org that has turned on encryption has its
-folder mounted encrypted instead (``provisa.core.org_folder_crypt``). Asked for while it is not
-ready, the folder is refused by name (:class:`OrgFolderUnavailable`): nothing is written anywhere
-else in its place.
+A deployment of several nodes shares one mount of the data folder (``org_files.shared_mount``):
+every node reads and writes the same org folders. What belongs to one process -- a connector
+server's run directory, a replica spool, temporary files -- is kept in the node's own subtree,
+``orgs/<org>/nodes/<node id>`` (``org_files.node_id``, the pod or host name), so nodes never write
+each other's.
+
+The folder is made ready when the org's runtime is built on a node (:func:`prepare`). An org that
+has turned on encryption has its folder mounted encrypted instead
+(``provisa.core.org_folder_crypt``). Asked for while it is not ready, the folder is refused by name
+(:class:`OrgFolderUnavailable`): nothing is written anywhere else in its place.
 """
 
 # Requirements: REQ-1992
@@ -52,6 +56,30 @@ def data_dir() -> Path:
 
     stated = settings_registry.value("bootstrap.data_dir")
     return Path(stated) if stated else Path.home() / ".provisa"
+
+
+def shared_mount() -> bool:
+    """Whether the data folder is one mount shared by every node of the deployment
+    (``org_files.shared_mount``)."""
+    from provisa.core import settings_registry
+
+    return bool(settings_registry.value("org_files.shared_mount"))
+
+
+def node_id() -> str:
+    """This node's name among the nodes sharing the mount (``org_files.node_id``, the pod or host
+    name): one path segment."""
+    import re
+
+    from provisa.core import settings_registry
+
+    name = str(settings_registry.value("org_files.node_id"))
+    # A pod or host name: one path segment, never a path.
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+        raise ValueError(
+            f"org_files.node_id must be one path segment, a pod or host name, got: {name!r}"
+        )
+    return name
 
 
 def orgs_dir() -> Path:
@@ -105,10 +133,16 @@ def org_path(*parts: str, org_id: str | None = None) -> Path:
     return path
 
 
+def node_path(*parts: str, org_id: str | None = None) -> Path:
+    """A directory under this node's own subtree of the org's folder, made if it is not there:
+    what one process keeps, never written by another node sharing the mount."""
+    return org_path("nodes", node_id(), *parts, org_id=org_id)
+
+
 def org_tmp(org_id: str | None = None) -> Path:
-    """The org's temporary directory: temporary files and directories are made in it, never in
-    the node's own temporary directory."""
-    return org_path("tmp", org_id=org_id)
+    """The org's temporary directory on this node: temporary files and directories are made in
+    it, never in the node's own temporary directory."""
+    return node_path("tmp", org_id=org_id)
 
 
 def mkdtemp(prefix: str, org_id: str | None = None) -> str:

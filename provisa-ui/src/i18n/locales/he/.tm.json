@@ -5868,7 +5868,7 @@
   "he/orgFilesTab.json::orgFilesTab.warn3": "Keep a second copy in a separate secure location under your own control.",
   "he/orgFilesTab.json::orgFilesTab.loading": "Loading…",
   "he/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
-  "he/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "he/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "he/orgFilesTab.json::orgFilesTab.generatedLabel": "New key",
   "he/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
   "he/orgFilesTab.json::orgFilesTab.warnTitle": "Keep this key safe",
@@ -6039,5 +6039,9 @@
   "he/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "he/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "he/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "he/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "he/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "he/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "he/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "he/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "he/settings.json::settings.org_files.node_id.label": "Node name"
 }

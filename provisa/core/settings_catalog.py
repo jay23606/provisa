@@ -20,6 +20,8 @@ environment itself would show an editable field that changes nothing.
 
 from __future__ import annotations
 
+import socket
+
 from provisa.core.connection_loop import DEFAULT_BACKGROUND_WORKERS
 from provisa.core.limits import REQUEST_TRANSPORTS
 from provisa.core.models import ControlPlaneConfig
@@ -968,6 +970,32 @@ DECLARED: list[Setting] = [
         req="REQ-1913",
         env="PROVISA_DEMO",
         default=False,
+        editable=False,
+        readonly_reason="set_by_launcher",
+    ),
+    # REQ-1992: the data folder is one mount shared by every node of the deployment, and this
+    # node's name among them. Set per node by the launcher (Helm, compose), never stored: a stored
+    # value would be the same on every node.
+    Setting(
+        key="org_files.shared_mount",
+        card="bootstrap",
+        type="bool",
+        effect="restart",
+        req="REQ-1992",
+        env="PROVISA_ORG_FILES_SHARED_MOUNT",
+        default=False,
+        editable=False,
+        readonly_reason="set_by_launcher",
+    ),
+    Setting(
+        key="org_files.node_id",
+        card="bootstrap",
+        type="str",
+        effect="restart",
+        req="REQ-1992",
+        env="PROVISA_ORG_FILES_NODE_ID",
+        # The pod's or host's own name, which is the node's.
+        default_fn=socket.gethostname,
         editable=False,
         readonly_reason="set_by_launcher",
     ),

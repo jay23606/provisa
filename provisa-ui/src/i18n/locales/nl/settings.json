@@ -727,6 +727,16 @@
         "label": "Langste logrecord",
         "help": "Een langer record behoudt de eerste bytes als ruwe tekst, en de leesfout zegt dat het te lang was."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Gegevensmap gedeeld door alle nodes",
+        "help": "Aan: elke node van de deployment gebruikt één gedeelde mount van de gegevensmap, en elke node houdt wat bij zijn eigen processen hoort in zijn eigen deel van de map van elke organisatie. De launcher die de deployment startte, stelt dit in."
+      },
+      "node_id": {
+        "label": "Nodenaam",
+        "help": "De naam van deze node onder de nodes die de gegevensmap delen: de pod- of hostnaam, tenzij de launcher een andere instelt."
+      }
     }
   }
 }

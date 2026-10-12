@@ -5872,7 +5872,7 @@
   "ja/orgFilesTab.json::orgFilesTab.referenceHelp": "The key's name in your organization's secrets vault, written ${secret:NAME}. Provisa stores only this reference, never the key.",
   "ja/orgFilesTab.json::orgFilesTab.generatedLabel": "New key",
   "ja/orgFilesTab.json::orgFilesTab.warn4": "Limit who can read it, and never send it by email, chat or ticket.",
-  "ja/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "ja/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "ja/orgFilesTab.json::orgFilesTab.warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
   "ja/orgFilesTab.json::orgFilesTab.panelTitle": "File folder encryption",
   "ja/orgFilesTab.json::orgFilesTab.referenceWrong": "Write the key's name as ${secret:NAME}, not the key itself.",
@@ -6012,5 +6012,9 @@
   "ja/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "ja/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "ja/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "ja/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "ja/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "ja/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "ja/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "ja/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "ja/settings.json::settings.org_files.node_id.label": "Node name"
 }

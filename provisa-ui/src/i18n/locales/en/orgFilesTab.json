@@ -15,7 +15,7 @@
     "warn2": "Store it in your organization's secrets vault now; it will not be shown again.",
     "warn3": "Keep a second copy in a separate secure location under your own control.",
     "warn4": "Limit who can read it, and never send it by email, chat or ticket.",
-    "warn5": "Losing it means the encrypted files are reset and rebuilt.",
+    "warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
     "warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
     "saved": "Saved. Each server applies it when it next starts work for this organization."
   }

@@ -727,6 +727,16 @@
         "label": "Record di log più lungo",
         "help": "Un record più lungo conserva i primi byte come testo grezzo, e il suo errore di lettura dice che era troppo lungo."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Cartella dati condivisa da tutti i nodi",
+        "help": "Attivo: ogni nodo del deployment usa un unico mount condiviso della cartella dati, e ognuno tiene ciò che appartiene ai propri processi nella propria parte della cartella di ogni organizzazione. Lo imposta il launcher che ha avviato il deployment."
+      },
+      "node_id": {
+        "label": "Nome del nodo",
+        "help": "Il nome di questo nodo tra i nodi che condividono la cartella dati: il suo nome di pod o di host, a meno che il launcher non ne imposti un altro."
+      }
     }
   }
 }

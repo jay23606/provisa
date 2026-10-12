@@ -1,0 +1,17 @@
+# REQ-1992: several API replicas on one host keep the organizations' file folders on one shared
+# volume (<data dir>/orgs), as a multi-node deployment does on a ReadWriteMany volume. Add it after
+# docker-compose.app.yml and scale the API:
+#   docker compose -f docker-compose.app.yml -f docker-compose.org-files-shared.yml up -d --scale provisa=2
+# Each replica keeps its own processes' files under its own name, its container's host name
+# (org_files.node_id). The materialization store must be a server store: the embedded DuckDB
+# store is refused at startup on a shared volume.
+services:
+  provisa:
+    volumes:
+      - provisa_org_files:/var/lib/provisa/orgs
+    environment:
+      PROVISA_ORG_FILES_SHARED_MOUNT: "true"
+
+volumes:
+  # The organizations' file folders, durable: `docker compose down -v` removes them.
+  provisa_org_files:

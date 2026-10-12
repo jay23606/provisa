@@ -5863,7 +5863,7 @@
   "ru/sourceFormFields.json::sourceFormFields.readInPlaceHelp": "Each query reads the table's current snapshot through Unity Catalog. A table that is not native Iceberg or UniForm fails, and Unity Catalog must vend storage credentials for it.",
   "ru/sourceFormFields.json::sourceFormFields.readInPlace": "In place, from Unity Catalog (Iceberg and UniForm tables only)",
   "ru/orgFilesTab.json::orgFilesTab.warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
-  "ru/orgFilesTab.json::orgFilesTab.warn5": "Losing it means the encrypted files are reset and rebuilt.",
+  "ru/orgFilesTab.json::orgFilesTab.warn5": "If it is lost, the files cannot be opened until you set a new key, and setting one resets the encrypted files.",
   "ru/orgFilesTab.json::orgFilesTab.intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
   "ru/orgFilesTab.json::orgFilesTab.panelTitle": "File folder encryption",
   "ru/orgFilesTab.json::orgFilesTab.generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
@@ -6012,5 +6012,9 @@
   "ru/logsFields.json::logsFields.formats.zeek_tsv": "Zeek log (tab-separated)",
   "ru/logsFields.json::logsFields.formats.zeek_json": "Zeek log (JSON)",
   "ru/logsFields.json::logsFields.formats.suricata_eve": "Suricata EVE JSON",
-  "ru/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)"
+  "ru/logsFields.json::logsFields.formats.snort_fast": "Snort alert (fast)",
+  "ru/settings.json::settings.org_files.shared_mount.help": "On: every node of the deployment uses one shared mount of the data folder, and each keeps what belongs to its own processes in its own part of each organization's folder. The launcher that started the deployment sets it.",
+  "ru/settings.json::settings.org_files.shared_mount.label": "Data folder shared by every node",
+  "ru/settings.json::settings.org_files.node_id.help": "This node's name among the nodes sharing the data folder: its pod or host name, unless the launcher sets another.",
+  "ru/settings.json::settings.org_files.node_id.label": "Node name"
 }

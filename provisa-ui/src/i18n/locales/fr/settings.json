@@ -727,6 +727,16 @@
         "label": "Entrée de journal la plus longue",
         "help": "Une entrée plus longue garde ses premiers octets comme texte brut, et son erreur de lecture indique qu'elle était trop longue."
       }
+    },
+    "org_files": {
+      "shared_mount": {
+        "label": "Dossier de données partagé par tous les nœuds",
+        "help": "Activé : chaque nœud du déploiement utilise un même montage partagé du dossier de données, et chacun garde ce qui appartient à ses propres processus dans sa propre partie du dossier de chaque organisation. Le lanceur qui a démarré le déploiement le définit."
+      },
+      "node_id": {
+        "label": "Nom du nœud",
+        "help": "Le nom de ce nœud parmi les nœuds qui partagent le dossier de données : son nom de pod ou d'hôte, sauf si le lanceur en définit un autre."
+      }
     }
   }
 }

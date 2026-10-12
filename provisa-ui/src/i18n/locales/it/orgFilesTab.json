@@ -15,7 +15,7 @@
     "warn2": "Conservala ora nel vault dei segreti della tua organizzazione; non verrà più mostrata.",
     "warn3": "Conserva una seconda copia in un altro luogo sicuro sotto il tuo controllo.",
     "warn4": "Limita chi può leggerla e non inviarla mai via e-mail, chat o ticket.",
-    "warn5": "Perderla significa che i file cifrati vengono reimpostati e ricostruiti.",
+    "warn5": "Se la perdi, i file non si possono aprire finché non imposti una nuova chiave, e impostarla reimposta i file cifrati.",
     "warn6": "Per ruotarla, genera una nuova chiave, conservala nel vault e aggiorna il riferimento.",
     "saved": "Salvato. Ogni server lo applica la prossima volta che avvia il lavoro per questa organizzazione."
   }

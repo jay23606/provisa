@@ -1037,8 +1037,8 @@ def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
     (_a, ports_a), (_b, ports_b) = _server_of("org_a", "/data/a"), _server_of("org_b", "/data/b")
     cwd_a, cwd_b = started
     assert cwd_a != cwd_b
-    # REQ-1992: each in its own org's folder on the node.
-    assert (cwd_a.parents[2].name, cwd_b.parents[2].name) == ("org_a", "org_b")
+    # REQ-1992: each in this node's own part of its org's folder (orgs/<org>/nodes/<node>/pgwire).
+    assert (cwd_a.parents[4].name, cwd_b.parents[4].name) == ("org_a", "org_b")
     assert ports_a != ports_b
     model_a = json.loads((cwd_a / "model" / "model.json").read_text())
     model_b = json.loads((cwd_b / "model" / "model.json").read_text())

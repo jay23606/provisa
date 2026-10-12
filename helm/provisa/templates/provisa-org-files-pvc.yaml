@@ -1,0 +1,24 @@
+{{- $vol := .Values.provisa.orgFiles.sharedVolume -}}
+{{- if and $vol.enabled (not $vol.existingClaim) }}
+# REQ-1992: the organizations' file folders (<data dir>/orgs), one volume every replica mounts.
+# See provisa.orgFiles in values.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-provisa-org-files
+  labels:
+    app: provisa
+  annotations:
+    # The folders are durable: they outlive a `helm uninstall`.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ $vol.accessMode }}
+  {{- $class := $vol.storageClass | default .Values.global.storageClass }}
+  {{- if $class }}
+  storageClassName: {{ $class }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $vol.size }}
+{{- end }}

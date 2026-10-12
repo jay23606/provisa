@@ -144,6 +144,19 @@ spec:
             # The product's on-disk state (a minted master key among it) on a persistent volume.
             - name: PROVISA_DATA_DIR
               value: {{ .Values.encryption.dataVolume.mountPath | quote }}
+            {{- else if .Values.provisa.orgFiles.sharedVolume.enabled }}
+            - name: PROVISA_DATA_DIR
+              value: {{ .Values.provisa.orgFiles.sharedVolume.dataDir | quote }}
+            {{- end }}
+            {{- if .Values.provisa.orgFiles.sharedVolume.enabled }}
+            # REQ-1992: the organizations' folders are one volume shared by every replica; each pod
+            # keeps its own processes' files under its own name.
+            - name: PROVISA_ORG_FILES_SHARED_MOUNT
+              value: "true"
+            - name: PROVISA_ORG_FILES_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             {{- end }}
             # Behind PgBouncer the URLs also name the PostgreSQL server itself (direct=): the control
             # plane takes its session-scoped advisory locks there, since a transaction-pooling
@@ -284,6 +297,10 @@ spec:
             - name: data
               mountPath: {{ .Values.encryption.dataVolume.mountPath }}
             {{- end }}
+            {{- if .Values.provisa.orgFiles.sharedVolume.enabled }}
+            - name: org-files
+              mountPath: {{ printf "%s/orgs" (ternary .Values.encryption.dataVolume.mountPath .Values.provisa.orgFiles.sharedVolume.dataDir .Values.encryption.dataVolume.enabled) }}
+            {{- end }}
             {{- if .Values.tls.enabled }}
             - name: tls-certs
               mountPath: /app/certs
@@ -330,6 +347,11 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Values.encryption.dataVolume.existingClaim | default (printf "%s-provisa-data" .Release.Name) }}
+        {{- end }}
+        {{- if .Values.provisa.orgFiles.sharedVolume.enabled }}
+        - name: org-files
+          persistentVolumeClaim:
+            claimName: {{ .Values.provisa.orgFiles.sharedVolume.existingClaim | default (printf "%s-provisa-org-files" .Release.Name) }}
         {{- end }}
         {{- if .Values.tls.enabled }}
         - name: tls-certs

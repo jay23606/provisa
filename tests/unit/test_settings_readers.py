@@ -695,6 +695,9 @@ _BOOTSTRAP = {
     "bootstrap.data_dir": "read_before_control_plane",
     "bootstrap.home": "read_before_control_plane",
     "bootstrap.demo": "set_by_launcher",
+    # REQ-1992: set per node by Helm or compose.
+    "org_files.shared_mount": "set_by_launcher",
+    "org_files.node_id": "set_by_launcher",
     "cache.redis_embedded": "set_by_desktop_launcher",
 }
 

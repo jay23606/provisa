@@ -15,7 +15,7 @@
     "warn2": "Stockez-la maintenant dans le coffre de secrets de votre organisation ; elle ne sera plus affichée.",
     "warn3": "Conservez une seconde copie dans un autre lieu sûr sous votre propre contrôle.",
     "warn4": "Limitez qui peut la lire et ne l'envoyez jamais par e-mail, messagerie ou ticket.",
-    "warn5": "Sa perte entraîne la réinitialisation et la reconstruction des fichiers chiffrés.",
+    "warn5": "Si elle est perdue, les fichiers ne peuvent plus être ouverts tant que vous ne définissez pas une nouvelle clé, ce qui réinitialise les fichiers chiffrés.",
     "warn6": "Pour la renouveler, générez une nouvelle clé, stockez-la dans votre coffre et mettez à jour la référence.",
     "saved": "Enregistré. Chaque serveur l'applique au prochain démarrage du travail pour cette organisation."
   }
