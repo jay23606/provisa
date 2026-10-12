@@ -55,3 +55,8 @@ class Format:
 
     def parse(self, record: str, ctx: FileContext) -> dict[str, Any]:
         raise NotImplementedError
+
+    def parse_many(self, record: str, ctx: FileContext) -> list[dict[str, Any]]:
+        """The rows one record holds: one, unless the record is a batch of entries (a
+        CloudTrail file's ``Records``, an Activity Log export's ``records``), each a row."""
+        return [self.parse(record, ctx)]

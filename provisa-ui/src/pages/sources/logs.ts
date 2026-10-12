@@ -34,6 +34,7 @@ export const LOGS_OWN_COLUMNS = new Set([
   "_file_id",
   "_file_name",
   "_line_offset",
+  "_entry",
   "_raw",
   "_parse_error",
   "_landed_at",

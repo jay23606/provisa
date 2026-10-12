@@ -22,12 +22,13 @@ import pytest
 import provisa.core.settings_catalog  # noqa: F401 -- declares the settings read here
 from provisa.core import secrets_providers
 from provisa.federation.mail_units import Part, ReplicaUnitJob
-from provisa.logs import FILE_ID, LANDED_AT, LINE_OFFSET, PARSE_ERROR, RAW
+from provisa.logs import ENTRY, FILE_ID, LANDED_AT, LINE_OFFSET, PARSE_ERROR, RAW
 from provisa.logs.files import FileState, Table, identify, matched, read_file
 from provisa.logs.loader import make_logs_loader
 from provisa.logs.roots import LogPathRefused, checked_file, checked_glob
 from provisa.logs.settings import InvalidLogsSource, parse
-from provisa.logparse import format_for
+from provisa.logparse import ParseError, format_for
+from provisa.logparse.formats import JsonLines
 
 LINES = [
     "Oct 12 00:09:29 host-a syslogd[603]: ASL Sender Statistics",
@@ -38,6 +39,7 @@ SYSLOG_COLUMNS = {
     FILE_ID: "text",
     "_file_name": "text",
     LINE_OFFSET: "bigint",
+    ENTRY: "bigint",
     RAW: "text",
     PARSE_ERROR: "text",
     "timestamp": "timestamp",
@@ -286,6 +288,45 @@ def test_a_line_the_format_cannot_read_or_a_value_its_column_cannot_hold_is_kept
     assert rows[0][RAW] == "not syslog at all" and "BSD syslog" in rows[0][PARSE_ERROR]
     assert rows[1]["host"] is None and rows[1][PARSE_ERROR].startswith("host:")
     assert rows[1]["timestamp"].tzinfo is None  # landed as UTC
+
+
+class _Batched(JsonLines):
+    """A record that is a batch of entries, as a CloudTrail file is: a row per entry."""
+
+    def parse_many(self, record, ctx):
+        value = self.fields(record)
+        if "Records" not in value:
+            raise ParseError("no Records")
+        return list(value["Records"])
+
+
+def test_a_record_of_several_entries_is_a_row_per_entry_each_with_its_own_key(root):
+    _write(
+        root / "trail.json",
+        [
+            json.dumps({"Records": [{"eventName": "GetObject"}, {"eventName": "PutObject"}]}),
+            json.dumps({"Records": []}),
+            json.dumps({"nothing": 1}),
+        ],
+    )
+    table = _table(
+        {
+            FILE_ID: "text",
+            "_file_name": "text",
+            LINE_OFFSET: "bigint",
+            ENTRY: "bigint",
+            RAW: "text",
+            PARSE_ERROR: "text",
+            "eventName": "text",
+        }
+    )
+    rows, _kept, _gone = _read_all(f"{root}/trail.json", {}, _Batched(), table)
+    assert [(r[LINE_OFFSET], r[ENTRY], r.get("eventName"), r[PARSE_ERROR]) for r in rows] == [
+        (0, 0, "GetObject", None),
+        (0, 1, "PutObject", None),
+        (rows[2][LINE_OFFSET], 0, None, "no Records"),  # an empty batch has no rows
+    ]
+    assert rows[0][RAW] == rows[1][RAW]
 
 
 def test_a_record_longer_than_the_limit_keeps_its_first_bytes(root):

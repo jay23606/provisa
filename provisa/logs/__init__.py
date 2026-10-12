@@ -20,18 +20,23 @@ SCHEMA = "default"
 FILE_ID = "_file_id"
 FILE_NAME = "_file_name"
 LINE_OFFSET = "_line_offset"
+#: Which of the record's entries the row is: 0 for a record of one row; a record that is a
+#: batch of entries (CloudTrail's Records) gives a row per entry.
+ENTRY = "_entry"
 RAW = "_raw"
 PARSE_ERROR = "_parse_error"
 LANDED_AT = "_landed_at"
 
-#: The columns that identify a row: the file it is in and where in it the record starts.
-KEY: tuple[str, ...] = (FILE_ID, LINE_OFFSET)
+#: The columns that identify a row: the file it is in, where in it the record starts, and
+#: which of the record's entries it is.
+KEY: tuple[str, ...] = (FILE_ID, LINE_OFFSET, ENTRY)
 
 #: The columns every Logs table has, before its format's, as (name, IR type).
 META_COLUMNS: list[tuple[str, str]] = [
     (FILE_ID, "text"),
     (FILE_NAME, "text"),
     (LINE_OFFSET, "bigint"),
+    (ENTRY, "bigint"),
     (RAW, "text"),
     (PARSE_ERROR, "text"),
 ]

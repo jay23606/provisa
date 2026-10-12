@@ -40,7 +40,7 @@ from typing import Any, BinaryIO
 
 from provisa.logparse import FileContext, Format, ParseError, records
 from provisa.logparse.coltypes import coerce
-from provisa.logs import FILE_ID, FILE_NAME, LINE_OFFSET, PARSE_ERROR, RAW
+from provisa.logs import ENTRY, FILE_ID, FILE_NAME, LINE_OFFSET, PARSE_ERROR, RAW
 from provisa.logs.roots import checked_file
 
 #: How many of a file's first bytes identify it.
@@ -250,32 +250,43 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def row_of(
+def rows_of(
     text: str, offset: int, found: Found, fmt: Format, ctx: FileContext, table: Table
-) -> dict[str, Any]:
-    """One record as a row of ``table``: what its format reads of it, typed as the table's
-    columns are; a field the table has no column for is kept in its ``extra`` column, where it
-    has one. A record its format cannot read, or a value its column cannot hold, says why in
-    the parse-error column; its raw text is always there."""
-    row: dict[str, Any] = {
-        FILE_ID: found.state.id,
-        FILE_NAME: found.path,
-        LINE_OFFSET: offset,
-        RAW: text,
-        PARSE_ERROR: None,
-    }
+) -> list[dict[str, Any]]:
+    """One record as rows of ``table``, one for each entry its format reads in it (most
+    records are one): each typed as the table's columns are; a field the table has no column
+    for is kept in its ``extra`` column, where it has one. A record its format cannot read is
+    one row saying why in the parse-error column, as is a value its column cannot hold; the
+    record's raw text is on every row."""
+
+    def row(entry: int) -> dict[str, Any]:
+        return {
+            FILE_ID: found.state.id,
+            FILE_NAME: found.path,
+            LINE_OFFSET: offset,
+            ENTRY: entry,
+            RAW: text,
+            PARSE_ERROR: None,
+        }
+
     size = len(text.encode("utf-8"))
     if size > table.max_line_bytes:
-        row[RAW] = text.encode("utf-8")[: table.max_line_bytes].decode("utf-8", "ignore")
-        row[PARSE_ERROR] = (
+        refused = row(0)
+        refused[RAW] = text.encode("utf-8")[: table.max_line_bytes].decode("utf-8", "ignore")
+        refused[PARSE_ERROR] = (
             f"{size} bytes, longer than the {table.max_line_bytes} a record may be; its first are kept"
         )
-        return row
+        return [refused]
     try:
-        parsed = fmt.parse(text, ctx)
+        entries = fmt.parse_many(text, ctx)
     except ParseError as exc:
-        row[PARSE_ERROR] = str(exc)
-        return row
+        refused = row(0)
+        refused[PARSE_ERROR] = str(exc)
+        return [refused]
+    return [_typed(row(n), parsed, table) for n, parsed in enumerate(entries)]
+
+
+def _typed(row: dict[str, Any], parsed: dict[str, Any], table: Table) -> dict[str, Any]:
     errors: list[str] = []
     extra: dict[str, Any] = {}
     for name, value in parsed.items():
@@ -324,7 +335,7 @@ def read_file(
         if fmt.header_prefix is not None and text.startswith(fmt.header_prefix):
             fmt.on_header(text, ctx)
         else:
-            rows.append(row_of(text, offset, found, fmt, ctx, table))
+            rows.extend(rows_of(text, offset, found, fmt, ctx, table))
         state.offset = end
         state.fields, state.directives = ctx.fields, dict(ctx.directives)
 
