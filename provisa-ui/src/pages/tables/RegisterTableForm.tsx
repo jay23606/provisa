@@ -13,7 +13,9 @@ import { ColumnsTable } from "./ColumnsTable";
 import { UntypedColumns } from "./UntypedColumns";
 import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
 import { QueryTableFields } from "./QueryTableFields";
-import { isPipelineArgument, previewedColumn } from "./queryTables";
+import { argumentName, isPipelineArgument, previewedColumn } from "./queryTables";
+import { QDRANT, QDRANT_SCHEMA, offeredUnselected, searchQueryArgument } from "../sources/qdrant";
+import { QdrantVectorsNote } from "./QdrantVectorsNote";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { isFilesSourceType } from "./tableSectionFields";
 import { useTranslation } from "react-i18next";
@@ -199,7 +201,9 @@ export function RegisterTableForm({
   const isFilesSource = isFilesSourceType(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
   // REQ-1980/REQ-1982: a document source's table is a collection or container, or a native query.
-  const isNativeQuerySource = sourceType === "mongodb" || sourceType === "cosmosdb";
+  // REQ-1983: a Qdrant table is a collection, or a search.
+  const isNativeQuerySource =
+    sourceType === "mongodb" || sourceType === "cosmosdb" || sourceType === QDRANT;
   const isPipeline = isNativeQuerySource && mongoMode === "pipeline";
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
   const pipelineArgs = columns.filter(isPipelineArgument);
@@ -266,7 +270,15 @@ export function RegisterTableForm({
     if (isProfiler) setSchemaName(PROFILER_RESULTS_SCHEMA);
     // REQ-1670: a neo4j table registers under the source's one schema, "neo4j"; a pipeline table
     // (REQ-1980) under its source's database.
-    if (isQueryApi) setSchemaName(isPipeline ? (chosenSource?.database ?? "") : sourceType);
+    // A Qdrant search under its source's one schema (REQ-1983).
+    if (isQueryApi)
+      setSchemaName(
+        isPipeline
+          ? sourceType === QDRANT
+            ? QDRANT_SCHEMA
+            : (chosenSource?.database ?? "")
+          : sourceType,
+      );
   }, [isChecker, isQueryApi, isPipeline, isProfiler, sourceType, sourceId, chosenSource?.database]);
 
   useEffect(() => {
@@ -401,7 +413,8 @@ export function RegisterTableForm({
             maskPrecision: "",
             alias: snake !== c.name ? snake : "",
             description: c.comment || "",
-            selected: true,
+            // REQ-1983: a Qdrant collection's vectors are offered, left unselected.
+            selected: !offeredUnselected(sourceType, c.path),
             nativeFilterType: c.nativeFilterType ?? null,
             nativeFilterRequired: c.nativeFilterRequired ?? null,
             dataType: c.dataType,
@@ -416,8 +429,8 @@ export function RegisterTableForm({
         });
         setColumns(formed);
         setUntypedAtDiscovery(formed.filter((c) => !c.dataType).map((c) => c.name));
-        const sourceType = sources.find((s) => s.id === sourceId)?.type ?? "";
-        if (!CDC_TYPES.has(sourceType)) {
+        const pickedType = sources.find((s) => s.id === sourceId)?.type ?? "";
+        if (!CDC_TYPES.has(pickedType)) {
           const autoWm = formed.find(
             (c) =>
               (c.name === "updated_at" || c.name === "updated") && isWatermarkEligible(c.dataType),
@@ -442,7 +455,7 @@ export function RegisterTableForm({
     try {
       const res = await previewQuery({
         sourceType: isPipeline
-          ? (sourceType as "mongodb" | "cosmosdb")
+          ? (sourceType as "mongodb" | "cosmosdb" | "qdrant")
           : isSparql
             ? "sparql"
             : "neo4j",
@@ -487,6 +500,9 @@ export function RegisterTableForm({
       await submitChecker();
       return;
     }
+    // REQ-1983: a Qdrant search's query is the one argument Qdrant requires.
+    const searchQuery =
+      isPipeline && sourceType === QDRANT ? searchQueryArgument(cypher.trim()) : null;
     const selectedCols = columns
       .filter((c) => c.selected)
       .map((c) => ({
@@ -503,7 +519,10 @@ export function RegisterTableForm({
         alias: c.alias || undefined,
         description: c.description || undefined,
         nativeFilterType: c.nativeFilterType || undefined,
-        nativeFilterRequired: c.nativeFilterRequired ?? undefined,
+        nativeFilterRequired:
+          searchQuery !== null && isPipelineArgument(c) && argumentName(c) === searchQuery
+            ? true
+            : (c.nativeFilterRequired ?? undefined),
         requiredBySteward: c.requiredBySteward || undefined, // REQ-1986
         isPrimaryKey: c.isPrimaryKey || undefined,
         scope: c.scope || "domain",
@@ -781,15 +800,20 @@ export function RegisterTableForm({
               value={mongoMode}
               onChange={(v) => setMongoMode(v as "collection" | "pipeline")}
               data={
-                sourceType === "cosmosdb"
+                sourceType === QDRANT
                   ? [
-                      { value: "collection", label: t("registerTableForm.cosmosModeContainer") },
-                      { value: "pipeline", label: t("registerTableForm.cosmosModeQuery") },
+                      { value: "collection", label: t("registerTableForm.qdrantModeCollection") },
+                      { value: "pipeline", label: t("registerTableForm.qdrantModeSearch") },
                     ]
-                  : [
-                      { value: "collection", label: t("registerTableForm.mongoModeCollection") },
-                      { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
-                    ]
+                  : sourceType === "cosmosdb"
+                    ? [
+                        { value: "collection", label: t("registerTableForm.cosmosModeContainer") },
+                        { value: "pipeline", label: t("registerTableForm.cosmosModeQuery") },
+                      ]
+                    : [
+                        { value: "collection", label: t("registerTableForm.mongoModeCollection") },
+                        { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
+                      ]
               }
               data-testid={`register-table-${sourceType}-mode`}
             />
@@ -978,6 +1002,9 @@ export function RegisterTableForm({
           previewRows={previewRows}
           columns={columns.filter((c) => !isPipelineArgument(c))}
         />
+      )}
+      {isPipeline && sourceType === QDRANT && (
+        <QdrantVectorsNote sourceId={sourceId} template={cypher} />
       )}
       {isProfiler && tableName && (
         <ProfilerRowRulesField rules={profilerRowRules} onChange={setProfilerRowRules} />

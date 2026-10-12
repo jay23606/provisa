@@ -1284,6 +1284,13 @@ class QueryPreviewType:  # REQ-1670/REQ-1683: a query preview for Register Table
 
 
 @strawberry.type
+class QdrantVectorType:  # REQ-1983: one vector of a Qdrant collection
+    name: str  # "" for the collection's unnamed vector
+    size: int
+    distance: str  # Cosine, Dot, Euclid or Manhattan: what a search's score is
+
+
+@strawberry.type
 class DqContractType:  # REQ-1443: the parsed contract behind the builder panel
     """``error`` is non-null when the raw text does not parse or names no dataset; the panel keeps
     the operator's text and shows the message rather than replacing it with an empty builder."""

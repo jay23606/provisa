@@ -135,6 +135,36 @@ async def preview_pipeline(
     )
 
 
+async def preview_qdrant_search(
+    conn: "Connection", source_id: str, native_query: str, arguments: list[dict]
+) -> "QueryPreviewType":
+    """REQ-1983: run a Qdrant search template with sample ``arguments`` (each ``{name, dataType,
+    value}``, placed into the request as JSON values) and return up to five points and the columns
+    they suggest. Failures come back as ``error``."""
+    import json
+
+    from provisa.api.admin.types import QueryPreviewColumnType, QueryPreviewType
+    from provisa.federation.registry_view import registered_sources
+    from provisa.qdrant.table import preview_search
+
+    from provisa.api.app import state
+
+    row = await source_row(conn, source_id)
+    if row is None or row["type"] != "qdrant":
+        return QueryPreviewType(error=f"{source_id!r} is not a registered qdrant source")
+    try:
+        source = next(s for s in await registered_sources(state, conn) if s.id == source_id)
+        docs, columns = await preview_search(state, source, native_query, arguments, PREVIEW_ROWS)
+    except Exception as exc:  # allow-blind-except: a preview reports every failure as its error
+        return QueryPreviewType(error=f"{type(exc).__name__}: {exc}")
+    return QueryPreviewType(
+        rows=[json.loads(json.dumps(d, default=str)) for d in docs],
+        columns=[
+            QueryPreviewColumnType(name=c.name, data_type=c.data_type, path=c.path) for c in columns
+        ],
+    )
+
+
 async def preview_cosmos_query(
     conn: "Connection", source_id: str, native_query: str, arguments: list[dict]
 ) -> "QueryPreviewType":
@@ -194,15 +224,20 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
     from provisa.cosmosdb.table import CosmosTableRefused
     from provisa.cosmosdb.table import check_table as check_cosmos_table
     from provisa.mongodb.native_query import NativeQueryRefused, check_table
+    from provisa.qdrant.table import QdrantTableRefused
+    from provisa.qdrant.table import check_table as check_qdrant_table
 
     row = await source_row(conn, model.source_id)
     try:
         if row is not None and row["type"] == "cosmosdb":
             # REQ-1982: a container or a query table; its parameters are checked either way.
             check_cosmos_table(model)
+        elif row is not None and row["type"] == "qdrant":
+            # REQ-1983: a collection table or a search; its arguments are checked either way.
+            check_qdrant_table(model)
         elif model.query_template and row is not None and row["type"] == "mongodb":
             check_table(model)
-    except (NativeQueryRefused, CosmosTableRefused) as refused:
+    except (NativeQueryRefused, CosmosTableRefused, QdrantTableRefused) as refused:
         return MutationResult(
             success=False, message=str(refused), code=refused.code, params=refused.params
         )

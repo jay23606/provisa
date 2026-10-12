@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "L'adresse de l'instance avec son port, telle que Qdrant Cloud l'affiche ou que votre propre déploiement la sert.",
+    "apiKey": "Clé d'API",
+    "apiKeyHint": "Laissez vide pour une instance sans clé. Une référence à un secret, comme ${secret:NAME}, est résolue à la lecture de la source.",
+    "grpc": "Lire via gRPC",
+    "grpcHint": "Lit via le port gRPC de Qdrant au lieu de son port REST."
+  }
+}

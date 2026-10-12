@@ -56,6 +56,7 @@ const KEYS = {
   sparql: ["sparqlQueryLabel", "sparqlQueryHint", "sparqlQueryPlaceholder"],
   mongodb: ["pipelineQueryLabel", "pipelineQueryHint", "pipelineQueryPlaceholder"],
   cosmosdb: ["cosmosQueryLabel", "cosmosQueryHint", "cosmosQueryPlaceholder"],
+  qdrant: ["qdrantSearchLabel", "qdrantSearchHint", "qdrantSearchPlaceholder"],
   neo4j: ["neo4jCypherLabel", "neo4jCypherHint", "neo4jCypherPlaceholder"],
 } as const;
 
@@ -169,8 +170,8 @@ export function QueryTableFields(props: Props) {
   const [label, hint, placeholder] =
     KEYS[
       pipeline
-        ? sourceType === "cosmosdb"
-          ? "cosmosdb"
+        ? sourceType === "cosmosdb" || sourceType === "qdrant"
+          ? sourceType
           : "mongodb"
         : sourceType === "sparql"
           ? "sparql"

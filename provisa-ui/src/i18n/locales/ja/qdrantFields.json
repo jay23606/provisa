@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "インスタンスのアドレスとポート。Qdrant Cloud に表示されるもの、または独自のデプロイが提供するもの。",
+    "apiKey": "API キー",
+    "apiKeyHint": "キーのないインスタンスでは空のままにします。${secret:NAME} などのシークレット参照は、ソースの読み取り時に解決されます。",
+    "grpc": "gRPC で読み取る",
+    "grpcHint": "Qdrant の REST ポートではなく gRPC ポートで読み取ります。"
+  }
+}

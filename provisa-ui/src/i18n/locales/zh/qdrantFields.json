@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "实例的地址及端口，即 Qdrant Cloud 显示的地址或您自己的部署提供的地址。",
+    "apiKey": "API 密钥",
+    "apiKeyHint": "实例没有密钥时留空。密钥引用（例如 ${secret:NAME}）会在读取数据源时解析。",
+    "grpc": "通过 gRPC 读取",
+    "grpcHint": "通过 Qdrant 的 gRPC 端口而非 REST 端口读取。"
+  }
+}

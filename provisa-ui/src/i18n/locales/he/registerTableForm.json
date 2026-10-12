@@ -137,6 +137,14 @@
     "cosmosModeQuery": "שאילתה",
     "cosmosQueryLabel": "שאילתה",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- כל @name הוא ארגומנט שנשלח לצד השאילתה",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "אוסף",
+    "qdrantModeSearch": "חיפוש",
+    "qdrantSearchLabel": "חיפוש",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- כל \"@name\" הוא ארגומנט, שמוכנס לחיפוש כערך. ציינו מודל הטמעה רשום (\"model\") כדי לחפש לפי טקסט.",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "וקטורים של {{collection}}",
+    "qdrantVector": "{{name}}: {{size}} ממדים, מדורג לפי {{distance}}",
+    "qdrantUnnamedVector": "(ללא שם)"
   }
 }

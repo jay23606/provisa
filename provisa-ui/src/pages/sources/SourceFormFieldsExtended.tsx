@@ -43,6 +43,8 @@ import { GoogleWorkspaceFields } from "./GoogleWorkspaceFields";
 import { Microsoft365Fields } from "./Microsoft365Fields";
 import { CosmosDbFields } from "./CosmosDbFields";
 import { COSMOSDB } from "./cosmosdb";
+import { QdrantFields } from "./QdrantFields";
+import { QDRANT } from "./qdrant";
 import { WikipediaFields } from "./WikipediaFields";
 import { SparqlFormSection } from "./SparqlFormSection";
 import { SharepointFields } from "./SharepointFields";
@@ -672,6 +674,9 @@ export function SourceFormFieldsExtended({
           fields={authFields}
           setFields={setAuthFields}
         />
+      )}
+      {form.type === QDRANT && ( // REQ-1983
+        <QdrantFields form={form} setForm={setForm} fields={authFields} setFields={setAuthFields} />
       )}
       {form.type === "wikipedia" && (
         <WikipediaFields fields={authFields} setFields={setAuthFields} /> // REQ-1960

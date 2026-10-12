@@ -14,6 +14,7 @@ import {
   CosmosQueryPreview as COSMOS_QUERY_PREVIEW_QUERY,
   MongoPipelinePreview as MONGO_PIPELINE_PREVIEW_QUERY,
   Neo4jPreview as NEO4J_PREVIEW_QUERY,
+  QdrantSearchPreview as QDRANT_SEARCH_PREVIEW_QUERY,
   SparqlPreview as SPARQL_PREVIEW_QUERY,
 } from "./admin.graphql";
 import type { QueryPreview, QueryPreviewVars } from "../types/admin";
@@ -38,6 +39,10 @@ export function useQueryPreview() {
     { cosmosQueryPreview: QueryPreview },
     { sourceId: string; nativeQuery: string; arguments: QueryPreviewVars["arguments"] }
   >(COSMOS_QUERY_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
+  const [runQdrant] = useLazyQuery<
+    { qdrantSearchPreview: QueryPreview },
+    { sourceId: string; nativeQuery: string; arguments: QueryPreviewVars["arguments"] }
+  >(QDRANT_SEARCH_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
   return {
     preview: useCallback(
       async ({
@@ -46,6 +51,16 @@ export function useQueryPreview() {
         query,
         arguments: args,
       }: QueryPreviewVars): Promise<QueryPreview> => {
+        if (sourceType === "qdrant") {
+          // REQ-1983: a search run with its sample arguments.
+          const res = await runQdrant({
+            variables: { sourceId, nativeQuery: query, arguments: args ?? [] },
+          });
+          if (res.error) return { rows: [], columns: [], error: res.error.message };
+          return (
+            res.data?.qdrantSearchPreview ?? { rows: [], columns: [], error: "no preview returned" }
+          );
+        }
         if (sourceType === "cosmosdb") {
           const res = await runCosmos({
             variables: { sourceId, nativeQuery: query, arguments: args ?? [] },
@@ -77,7 +92,7 @@ export function useQueryPreview() {
         if (res.error) return { rows: [], columns: [], error: res.error.message };
         return res.data?.neo4jPreview ?? { rows: [], columns: [], error: "no preview returned" };
       },
-      [runNeo4j, runSparql, runPipeline, runCosmos],
+      [runNeo4j, runSparql, runPipeline, runCosmos, runQdrant],
     ),
   };
 }

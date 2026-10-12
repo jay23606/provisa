@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "L'indirizzo dell'istanza con la sua porta, come lo mostra Qdrant Cloud o lo serve il tuo deployment.",
+    "apiKey": "Chiave API",
+    "apiKeyHint": "Lascia vuoto per un'istanza senza chiave. Un riferimento a un segreto, come ${secret:NAME}, viene risolto quando la sorgente viene letta.",
+    "grpc": "Leggi tramite gRPC",
+    "grpcHint": "Legge dalla porta gRPC di Qdrant invece che dalla porta REST."
+  }
+}

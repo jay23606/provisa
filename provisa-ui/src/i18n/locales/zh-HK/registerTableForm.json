@@ -137,6 +137,14 @@
     "cosmosModeQuery": "查詢",
     "cosmosQueryLabel": "查詢",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- 每個 @name 都是參數，與查詢分開傳送",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "集合",
+    "qdrantModeSearch": "搜尋",
+    "qdrantSearchLabel": "搜尋",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- 每個 \"@name\" 都是一個引數，作為值放入搜尋中。指定一個已登記的嵌入模型（\"model\"）即可按文字搜尋。",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "{{collection}} 的向量",
+    "qdrantVector": "{{name}}：{{size}} 維，按 {{distance}} 評分",
+    "qdrantUnnamedVector": "（未命名）"
   }
 }

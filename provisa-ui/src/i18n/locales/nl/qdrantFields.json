@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "Het adres van de instantie met de poort, zoals Qdrant Cloud het toont of uw eigen deployment het aanbiedt.",
+    "apiKey": "API-sleutel",
+    "apiKeyHint": "Laat leeg voor een instantie zonder sleutel. Een geheimverwijzing, zoals ${secret:NAME}, wordt opgelost wanneer de bron wordt gelezen.",
+    "grpc": "Lezen via gRPC",
+    "grpcHint": "Leest via de gRPC-poort van Qdrant in plaats van de REST-poort."
+  }
+}

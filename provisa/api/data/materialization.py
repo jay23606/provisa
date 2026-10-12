@@ -114,12 +114,13 @@ def _sql_name(name: str) -> str:
 
 def _is_native_read(table: dict, types: dict[str, str]) -> bool:
     """Whether Provisa reads ``table`` itself, per statement, under the statement's arguments: a
-    MongoDB pipeline table (REQ-1980), or a Cosmos DB table with a query or parameters
-    (REQ-1982). No engine runs either."""
+    MongoDB pipeline table (REQ-1980), a Cosmos DB table with a query or parameters
+    (REQ-1982), or a Qdrant search (REQ-1983). No engine runs any of them."""
     from provisa.cosmosdb.table import has_parameters
     from provisa.mongodb.pipeline_table import is_pipeline_table
+    from provisa.qdrant.table import is_search
 
-    if is_pipeline_table(table, types):
+    if is_pipeline_table(table, types) or is_search(table, types):
         return True
     return types.get(table["source_id"]) == "cosmosdb" and (
         bool(table.get("query_template")) or has_parameters(table)
@@ -158,6 +159,8 @@ async def _mat_pipeline_table(
 
     if state.source_types[table["source_id"]] == "cosmosdb":
         from provisa.cosmosdb.table import cache_arguments, read
+    elif state.source_types[table["source_id"]] == "qdrant":
+        from provisa.qdrant.table import cache_arguments, read
     else:
         from provisa.mongodb.pipeline_table import cache_arguments, read
     source_id = table["source_id"]

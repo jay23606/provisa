@@ -499,7 +499,7 @@ export interface DqCheckDefinitionVars {
 // REQ-1670/REQ-1683: Register Table on a query-API source (neo4j, sparql) previews the query
 // before registering it.
 export interface QueryPreviewVars {
-  sourceType: "neo4j" | "sparql" | "mongodb" | "cosmosdb";
+  sourceType: "neo4j" | "sparql" | "mongodb" | "cosmosdb" | "qdrant";
   sourceId: string;
   query: string;
   /** REQ-1980: a MongoDB native query's sample arguments. */

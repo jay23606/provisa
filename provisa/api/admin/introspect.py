@@ -249,6 +249,12 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
 
         return await _cosmos.schemas(_state, source_id)
 
+    if t == "qdrant":  # REQ-1983: one schema; a collection is the table
+        from provisa.api.app import state as _state
+        from provisa.qdrant import introspect as _qdrant
+
+        return await _qdrant.schemas(_state, source_id)
+
     if t == "redis":
         return ["default"]  # REQ-1675: one schema; a key prefix is the table
 
@@ -1747,6 +1753,13 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
         from provisa.cosmosdb import introspect as _cosmos
 
         names = await _cosmos.containers(state, source_id)
+        return None if names is None else [AvailableTableType(name=n, comment=None) for n in names]
+
+    if t == "qdrant":  # REQ-1983
+        from provisa.api.admin.types import AvailableTableType
+        from provisa.qdrant import introspect as _qdrant
+
+        names = await _qdrant.collections(state, source_id)
         return None if names is None else [AvailableTableType(name=n, comment=None) for n in names]
 
     if t == "redis":

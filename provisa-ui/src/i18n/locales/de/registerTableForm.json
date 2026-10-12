@@ -137,6 +137,14 @@
     "cosmosModeQuery": "Abfrage",
     "cosmosQueryLabel": "Abfrage",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- jedes @name ist ein Argument, das neben der Abfrage gesendet wird",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "Collection",
+    "qdrantModeSearch": "Suche",
+    "qdrantSearchLabel": "Suche",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- jedes \"@name\" ist ein Argument, das als Wert in die Suche eingesetzt wird. Nennen Sie ein registriertes Embedding-Modell (\"model\"), um per Text zu suchen.",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "Vektoren von {{collection}}",
+    "qdrantVector": "{{name}}: {{size}} Dimensionen, bewertet nach {{distance}}",
+    "qdrantUnnamedVector": "(ohne Namen)"
   }
 }

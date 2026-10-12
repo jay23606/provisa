@@ -114,6 +114,8 @@ export const SOURCE_TYPES = [
   { value: "mongodb", label: "MongoDB", category: "NoSQL", defaultPort: 27017 },
   // REQ-1982: reached at its account endpoint, so no port.
   { value: "cosmosdb", label: "Azure Cosmos DB", category: "NoSQL", defaultPort: 0 },
+  // REQ-1983: reached at its URL, which carries its port.
+  { value: "qdrant", label: "Qdrant", category: "NoSQL", defaultPort: 0 },
   { value: "cassandra", label: "Cassandra", category: "NoSQL", defaultPort: 9042 },
   { value: "redis", label: "Redis", category: "NoSQL", defaultPort: 6379 },
   // Graph

@@ -10,7 +10,7 @@ Every query ultimately executes through the federation engine, which provides fe
 | **Federation only** | No | Yes | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **Direct-read (replica)** | Yes | Yes | Snowflake, Databricks, ClickHouse — driver reads data and lands a replica; queries run against the replica in the active engine |
 | **Direct (no cross-source connector)** | Yes | No | Athena — single-source statements run whole in Athena; cross-source joins land a full replica |
-| **Materialize → Federation** | No | No | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, ServiceNow, Cloud inventory, Splunk |
+| **Materialize → Federation** | No | No | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, ServiceNow, Cloud inventory, Splunk, Qdrant |
 
 **Direct-capable** sources execute single-source queries via their native driver (sub-100ms), bypassing the federation engine (REQ-027, REQ-229). They retain full connector support and participate in federation when joined with other sources (REQ-028).
 
@@ -26,27 +26,27 @@ Every query ultimately executes through the federation engine, which provides fe
 
 ## All Sources
 
-Provisa registers **61** source types, the ones the Sources form offers. The tables below cover all 61; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub and GitLab are counted as distinct sources even though they register through the `files` and `graphql_remote` connectors internally]
+Provisa registers **64** source types, the ones the Sources form offers. The tables below cover all 64; the index is the count. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub and GitLab are counted as distinct sources even though they register through the `files` and `graphql_remote` connectors internally]
 
 | # | Group | Source types |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–22 | [Cloud data warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 23–27 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 28–31 | [Data lake / open table formats](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 32–34 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
-| 35–37 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
-| 38 | [Push receiver](#push-receiver) | `ingest` |
-| 39–40 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
-| 41–44 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 45–46 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
-| 47–50 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
-| 51–55 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
-| 56 | [GovData](#govdata) | `govdata` |
-| 57–58 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 59 | [Data profiler](#data-profiler) | `data_profiler` |
-| 60 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
-| 61 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
+| 16–23 | [Cloud data warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 24–28 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 29–32 | [Data lake / open table formats](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 33–36 | [NoSQL](#nosql) | `mongodb`, `qdrant`, `cassandra`, `redis` |
+| 37–39 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
+| 40 | [Push receiver](#push-receiver) | `ingest` |
+| 41–42 | [Graph & semantic](#graph-semantic) | `neo4j`, `sparql` |
+| 43–46 | [File-based](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
+| 47–48 | [Observability & other](#observability-other) | `google_sheets`, `prometheus` |
+| 49–53 | [Enterprise SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
+| 54–58 | [API sources](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
+| 59 | [GovData](#govdata) | `govdata` |
+| 60–61 | [Data quality checkers](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 62 | [Data profiler](#data-profiler) | `data_profiler` |
+| 63 | [Kaggle datasets](#kaggle-datasets) | Kaggle (staged via Sources form; registers as a `files` source — see [Kaggle datasets](#kaggle-datasets)) |
+| 64 | [Wikipedia](#wikipedia) | Wikipedia (registers as a `files` source that crawls the named pages — see [Wikipedia](#wikipedia)) |
 
 Reference for every source type Provisa supports. "Direct driver" means single-source queries execute against the source natively (sub-100ms) (REQ-027). "Connector Name" is the federated connector used when the source participates in multi-source JOINs (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -177,6 +177,32 @@ These source types are federation-only — no direct driver, no dialect. [tool-v
 | `mongodb` | mongodb | No |
 | `cassandra` | cassandra (Trino); CQL read over cassandra-driver on every other engine | No | Keyspaces are schemas; Register Table lists a keyspace's tables and types columns from the cluster's schema metadata (partition keys as primary keys); the `cassandra` extra installs the driver [tool-verified: `provisa/cassandra/fetch.py`] (REQ-1676) |
 | `redis` | redis (Trino); HTTP-free redis-py read on every other engine | No | A key prefix `<table>:*` is a table and a hash is a row; Register Table lists the prefixes present and types a prefix's columns from its hashes (a `mapping.tables` entry overrides pattern, key column, value type and columns) [tool-verified: `provisa/redis/fetch.py`] (REQ-1675) |
+
+### Qdrant
+
+`qdrant` (REQ-1983) is read by Qdrant's own client, `qdrant-client`; no federation engine has a Qdrant connector, so it is read the same way on every engine and lands where a statement joins it. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+
+**Connection.** `host` is the instance's URL with its port (`https://<cluster>.cloud.qdrant.io:6333`, or a self-hosted `http://qdrant:6333`); `password` is its API key, a secret reference resolved when the source is read, empty for an instance without one. `federation_hints.prefer_grpc: true` reads over Qdrant's gRPC port instead of REST. The source has one schema, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
+
+**Collection tables.** A collection is a table, landed whole as a replica (scroll, a page at a time) and refreshed on its TTL; Qdrant has no change feed. Register Table offers the collection's columns: `id` (the point id, its key, path `@id`), the payload's fields (an indexed field typed by its index, any other as the sampled points suggest; nested fields flattened with their path), and one `json` column per vector (path `@vector`, or `@vector.<name>` for a named vector), offered unselected. A keyed read on `id` is one `retrieve`; on a payload field, one filtered scroll. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+
+**Search tables.** Vector search is a search table: its `query_template` holds a Query API request.
+
+```json
+{"collection": "docs", "query": "@query_vector", "using": "text",
+ "filter": {"must": [{"key": "lang", "match": {"value": "@lang"}}]},
+ "limit": "@k", "score_threshold": 0.5, "model": "text-embedding-3-small"}
+```
+
+- `query` is always an argument; `using`, `filter`, `limit`, `score_threshold` and `model` are optional. Any value in `using`, `filter`, `limit` or `score_threshold` that is exactly `"@name"` is an argument too.
+- Each argument is a parameter of the table (`query_arg`, REQ-1986), converted strictly to its declared type and placed into the request as a JSON value, never into its text. The query's argument is `array(double)` and required.
+- A caller passes arguments the way it passes any parameter: `SELECT id, score, title FROM docs_search WHERE _nf_query_vector = '[0.1, 0.2, …]' AND _nf_lang = 'en'` in SQL, field arguments in GraphQL.
+- An optional argument not given filters nothing: its condition is left out of the filter. With no `limit` a search returns Qdrant's default, 10 points.
+- The filter is applied by Qdrant before its nearest points are chosen, so it is exact. Any other condition in the statement narrows the points the search returned afterwards; it does not fetch more.
+- `score` is the collection's own metric for the vector searched: for a Cosine collection, the cosine similarity. Register Table lists the collection's vectors with their size and distance.
+- `model` names a registered embedding model (`vector_models`, admin → AI Models). A text given for the query is then embedded by that model, and a vector given for it must have that model's dimensions (REQ-429, REQ-430). With no `model`, the query must be a vector.
+
+A search is read per statement under its arguments, its rows kept under those arguments for the table's TTL. `cosine_similarity(column, vector)` (REQ-423) is not translated for Qdrant: a similarity search is a search table. Writes to Qdrant are not supported. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming
 

@@ -77920,14 +77920,32 @@
   - REQ-1988
   - REQ-1861
 - id: REQ-1983
-  status: proposed
+  status: in-progress
   since: 2026-10
   group: 4. Source Connectors
   category: Source Connectors
   priority: SHOULD
   type: behavioral
-  description: 'Qdrant is a source type.'
-  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Qdrant is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+  description: 'Qdrant is a source type. (Amended 2026-10-12, DESIGN AS RULED) Rulings, through the lead: "(a) a native connector over qdrant-client, Cosmos-style (my call); (b) search tables (the maintainer''s choice), with cosine_similarity not wired to Qdrant; (c) reads only (the maintainer''s choice); writes later as their own item." A Qdrant source is reached at its URL with its API key (a secret reference, resolved at use; none for an instance without one), over REST or, by choice, gRPC, through Qdrant''s own client on every engine; no federation engine reaches it. It has one schema. A collection is a table: its point id (its key), its payload''s fields (an indexed field typed by its index, any other as its points suggest, nested fields flattened with their path), and its vectors, offered unselected; it is landed whole as a replica and refreshed on its TTL, and a keyed read by point id is one retrieve. Vector search is a search table, holding a Query API request: its collection, its query, and optionally the named vector it searches, a Qdrant filter, a limit, a score threshold and a registered embedding model. The query and any value written "@name" are arguments, parameters of the table (REQ-1986) converted strictly to their declared types and placed into the request as values, never into its text; the query''s argument is a vector and required. A search is read per statement under its arguments: the filter is applied by Qdrant before its nearest points are chosen, an optional argument not given filters nothing, and a statement''s other conditions narrow the points returned. Each row carries its score, the collection''s own metric for the vector searched, which Register Table shows. With an embedding model named, a text query is embedded by that model (REQ-430) and a vector query must have its dimensions (REQ-429). cosine_similarity (REQ-423) is not translated for Qdrant. Writes to Qdrant are not supported.'
+  use_case: 'A support team keeps article embeddings in Qdrant; a steward registers the articles collection as a table and a search over it filtered by language, and an analyst joins the five articles nearest a customer''s question, asked as text, to the tickets that cite them, in SQL beside the warehouse.'
+  scenario: 'Given a Qdrant source with a collection docs, its vector text and an indexed payload field lang, and a search table over docs whose query is a required vector argument, lang an optional filter argument, and an embedding model
+
+    When a steward registers the collection
+
+    Then its columns are the point id as its key, its payload fields typed by their index or their points, and its vectors left unselected
+
+    When a statement reads the search with a query vector and lang = en and a limit of 2
+
+    Then the two nearest English points come back, nearest first, each with its score
+
+    When a statement reads the search with a text query
+
+    Then the text is embedded by the named model and the nearest points come back
+
+    When a statement reads the search without its query
+
+    Then it is refused naming the table and the argument, and nothing is sent to Qdrant'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Qdrant is a source type". The group, category, priority and type are ci-fix''s choices, not his. Built 2026-10-12 as designed and approved (see the amendment).'
 - id: REQ-1984
   status: proposed
   since: 2026-10

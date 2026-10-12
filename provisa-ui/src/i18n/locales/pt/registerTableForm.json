@@ -137,6 +137,14 @@
     "cosmosModeQuery": "Consulta",
     "cosmosQueryLabel": "Consulta",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- cada @name é um argumento, enviado junto com a consulta",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "Coleção",
+    "qdrantModeSearch": "Pesquisa",
+    "qdrantSearchLabel": "Pesquisa",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- cada \"@name\" é um argumento, colocado na pesquisa como valor. Indique um modelo de embeddings registrado (\"model\") para pesquisar por texto.",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "Vetores de {{collection}}",
+    "qdrantVector": "{{name}}: {{size}} dimensões, pontuado por {{distance}}",
+    "qdrantUnnamedVector": "(sem nome)"
   }
 }

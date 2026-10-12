@@ -24,6 +24,7 @@ import { cloudopsFieldsFromMapping } from "./cloudops";
 import { GOOGLE_WORKSPACE, gwFieldsFromMapping } from "./googleWorkspace";
 import { MICROSOFT_365, m365FieldsFromMapping } from "./microsoft365";
 import { COSMOSDB, cosmosFieldsFromHints } from "./cosmosdb";
+import { QDRANT, qdrantFieldsFromHints } from "./qdrant";
 import { WIKIPEDIA, wikipediaFieldsFromHints } from "./wikipedia";
 import { subjectsOfSchemas, type GovdataSubjectCatalog } from "./govdataSubjects";
 
@@ -187,6 +188,9 @@ export function seedSource(s: Source, govdataCatalog: GovdataSubjectCatalog | nu
   }
   if (s.type === COSMOSDB) {
     authFields = cosmosFieldsFromHints(hintsJson); // REQ-1982
+  }
+  if (s.type === QDRANT) {
+    authFields = qdrantFieldsFromHints(hintsJson); // REQ-1983
   }
   if (sourceBrand(hintsJson) === WIKIPEDIA && hintsJson) {
     // REQ-1960: the directory is the source's own path, shown as where its files land.

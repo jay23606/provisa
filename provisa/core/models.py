@@ -114,6 +114,8 @@ class SourceType(str, Enum):
     mongodb = "mongodb"
     # REQ-1982: Azure Cosmos DB for NoSQL, read by its own SDK on every engine.
     cosmosdb = "cosmosdb"
+    # REQ-1983: Qdrant, read by its own client on every engine.
+    qdrant = "qdrant"
     cassandra = "cassandra"
     redis = "redis"
     # Streaming

@@ -80,6 +80,7 @@ from provisa.api.admin.types import (
     DqCheckType,
     DqContractTextType,
     DqContractType,
+    QdrantVectorType,
     QueryPreviewType,
     HotTableStatType,
     ClusterNodeType,
@@ -1464,6 +1465,42 @@ class Query:  # REQ-021, REQ-042
             )
 
     @strawberry.field
+    async def qdrant_search_preview(
+        self,
+        info: StrawberryInfo,
+        source_id: str,
+        native_query: str,
+        arguments: JsonScalar,
+    ) -> QueryPreviewType:
+        """REQ-1983: preview a Qdrant search with sample arguments (a list of ``{name, dataType,
+        value}``): up to five points and the columns they suggest. Failures come back as
+        ``error``."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._query_api_registration import preview_qdrant_search
+
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            return await preview_qdrant_search(
+                cast("Connection", conn),
+                source_id,
+                native_query,
+                cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
+            )
+
+    @strawberry.field
+    async def qdrant_vectors(
+        self, info: StrawberryInfo, source_id: str, collection: str
+    ) -> list[QdrantVectorType]:
+        """REQ-1983: a collection's vectors -- name (the unnamed one is ""), size and distance --
+        for a search's form: what ``using`` names, how long a query is, what its score means."""
+        require_capability(info, "table_registration")
+        from provisa.api.app import state
+        from provisa.qdrant import introspect as _qdrant
+
+        found = await _qdrant.vectors(state, source_id, collection)
+        return [QdrantVectorType(**v) for v in found or []]
+
+    @strawberry.field
     async def cosmos_query_preview(
         self,
         info: StrawberryInfo,
@@ -2167,6 +2204,25 @@ async def _redis_columns(source_id: str, table_name: str) -> list[AvailableColum
     return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in cols]
 
 
+async def _qdrant_columns(source_id: str, collection: str) -> list[AvailableColumnType]:
+    """REQ-1983: a collection's columns -- its point id (the key), its payload's fields, its
+    vectors."""
+    from provisa.api.app import state
+    from provisa.qdrant import introspect as _qdrant
+
+    suggested = await _qdrant.columns(state, source_id, collection)
+    return [
+        AvailableColumnType(
+            name=c["name"],
+            data_type=c["data_type"],
+            comment=None,
+            path=c["path"],
+            is_primary_key=c["is_primary_key"],
+        )
+        for c in suggested or []
+    ]
+
+
 async def _cosmosdb_columns(source_id: str, container: str) -> list[AvailableColumnType]:
     """REQ-1982: a container's columns as its documents suggest them, its partition key as an
     optional parameter."""
@@ -2340,6 +2396,8 @@ async def resolve_available_columns_metadata(
             return await _elasticsearch_columns(source_id, table_name)
         if source_type == "cosmosdb":
             return await _cosmosdb_columns(source_id, table_name)
+        if source_type == "qdrant":
+            return await _qdrant_columns(source_id, table_name)
         if source_type == "redis":
             return await _redis_columns(source_id, table_name)
         if source_type == "cassandra":

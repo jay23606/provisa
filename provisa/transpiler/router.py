@@ -54,6 +54,7 @@ VIRTUAL_SOURCES: set[str] = {
     # NoSQL
     "mongodb",
     "cosmosdb",  # REQ-1982: read by its SDK and landed; no driver
+    "qdrant",  # REQ-1983: read by its client and landed; no driver
     "cassandra",
     "redis",
     # Query-API graph sources: a Neo4jDriver factory is registered (has_driver("neo4j") is True,

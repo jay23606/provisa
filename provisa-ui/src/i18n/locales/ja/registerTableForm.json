@@ -137,6 +137,14 @@
     "cosmosModeQuery": "クエリ",
     "cosmosQueryLabel": "クエリ",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- 各 @name は引数で、クエリとは別に送信されます",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "コレクション",
+    "qdrantModeSearch": "検索",
+    "qdrantSearchLabel": "検索",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- 各 \"@name\" は引数で、値として検索に入れられます。テキストで検索するには、登録済みの埋め込みモデル (\"model\") を指定します。",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "{{collection}} のベクトル",
+    "qdrantVector": "{{name}}: {{size}} 次元、{{distance}} でスコア付け",
+    "qdrantUnnamedVector": "(名前なし)"
   }
 }

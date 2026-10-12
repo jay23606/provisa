@@ -1,0 +1,10 @@
+{
+  "qdrantFields": {
+    "url": "URL",
+    "urlHint": "執行個體的地址及連接埠，即 Qdrant Cloud 顯示的地址或您自己的部署提供的地址。",
+    "apiKey": "API 金鑰",
+    "apiKeyHint": "執行個體沒有金鑰時留空。秘密引用（例如 ${secret:NAME}）會在讀取資料來源時解析。",
+    "grpc": "透過 gRPC 讀取",
+    "grpcHint": "透過 Qdrant 的 gRPC 連接埠而非 REST 連接埠讀取。"
+  }
+}

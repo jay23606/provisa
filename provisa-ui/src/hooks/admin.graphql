@@ -391,6 +391,28 @@ query CosmosQueryPreview($sourceId: String!, $nativeQuery: String!, $arguments: 
   }
 }
 
+# REQ-1983: a Qdrant search run with sample arguments.
+query QdrantSearchPreview($sourceId: String!, $nativeQuery: String!, $arguments: JSON!) {
+  qdrantSearchPreview(sourceId: $sourceId, nativeQuery: $nativeQuery, arguments: $arguments) {
+    rows
+    columns {
+      name
+      dataType
+      path
+    }
+    error
+  }
+}
+
+# REQ-1983: a Qdrant collection's vectors: what a search's using names, its size, its score.
+query QdrantVectors($sourceId: String!, $collection: String!) {
+  qdrantVectors(sourceId: $sourceId, collection: $collection) {
+    name
+    size
+    distance
+  }
+}
+
 query SparqlPreview($sourceId: String!, $query: String!) {
   sparqlPreview(sourceId: $sourceId, query: $query) {
     rows

@@ -5900,5 +5900,19 @@
   "nl/sourceSections.json::sourceSections.draft": "Draft",
   "nl/sourceSections.json::sourceSections.commands": "Commands",
   "nl/sourceSections.json::sourceSections.commandName": "Command",
-  "nl/sourceSections.json::sourceSections.commandKind": "Kind"
+  "nl/sourceSections.json::sourceSections.commandKind": "Kind",
+  "nl/qdrantFields.json::qdrantFields.url": "URL",
+  "nl/qdrantFields.json::qdrantFields.urlHint": "The instance's address with its port, as Qdrant Cloud shows it or your own deployment serves it.",
+  "nl/qdrantFields.json::qdrantFields.apiKey": "API key",
+  "nl/qdrantFields.json::qdrantFields.apiKeyHint": "Leave empty for an instance without one. A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "nl/qdrantFields.json::qdrantFields.grpc": "Read over gRPC",
+  "nl/qdrantFields.json::qdrantFields.grpcHint": "Reads through Qdrant's gRPC port instead of its REST port.",
+  "nl/registerTableForm.json::registerTableForm.qdrantModeCollection": "Collection",
+  "nl/registerTableForm.json::registerTableForm.qdrantModeSearch": "Search",
+  "nl/registerTableForm.json::registerTableForm.qdrantSearchLabel": "Search",
+  "nl/registerTableForm.json::registerTableForm.qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- each \"@name\" is an argument, placed into the search as a value. Name a registered embedding model (\"model\") to search by text.",
+  "nl/registerTableForm.json::registerTableForm.qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+  "nl/registerTableForm.json::registerTableForm.qdrantVectors": "Vectors of {{collection}}",
+  "nl/registerTableForm.json::registerTableForm.qdrantVector": "{{name}}: {{size}} dimensions, scored by {{distance}}",
+  "nl/registerTableForm.json::registerTableForm.qdrantUnnamedVector": "(unnamed)"
 }

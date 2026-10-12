@@ -125,6 +125,8 @@ declare module "*.graphql" {
   export const SetServicenowApi: DocumentNode;
   export const SetServicenowImportSet: DocumentNode;
   export const SampleOpenapiColumns: DocumentNode;
+  export const QdrantSearchPreview: DocumentNode;
+  export const QdrantVectors: DocumentNode;
   export default doc;
 }
 

@@ -137,6 +137,14 @@
     "cosmosModeQuery": "查询",
     "cosmosQueryLabel": "查询",
     "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- 每个 @name 都是参数，与查询分开发送",
-    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}",
+    "qdrantModeCollection": "集合",
+    "qdrantModeSearch": "搜索",
+    "qdrantSearchLabel": "搜索",
+    "qdrantSearchHint": "{\"collection\": …, \"query\": \"@query_vector\", \"filter\": {…}, \"limit\": …} -- 每个 \"@name\" 都是一个参数，作为值放入搜索中。指定一个已注册的嵌入模型（\"model\"）即可按文本搜索。",
+    "qdrantSearchPlaceholder": "{\"collection\": \"docs\", \"query\": \"@query_vector\", \"using\": \"text\", \"filter\": {\"must\": [{\"key\": \"lang\", \"match\": {\"value\": \"@lang\"}}]}, \"limit\": \"@k\", \"model\": \"text-embedding-3-small\"}",
+    "qdrantVectors": "{{collection}} 的向量",
+    "qdrantVector": "{{name}}：{{size}} 维，按 {{distance}} 评分",
+    "qdrantUnnamedVector": "（未命名）"
   }
 }

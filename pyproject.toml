@@ -77,6 +77,8 @@ dependencies = [
     "elasticsearch>=8,<9",
     # REQ-1982: Azure Cosmos DB for NoSQL, read by its own SDK (no engine has a connector). MIT.
     "azure-cosmos>=4.9,<5",
+    # REQ-1983: Qdrant, read by its own client (no engine has a connector). Apache-2.0.
+    "qdrant-client>=1.12,<2",
     "aiokafka",
     # REQ-1951: the Avro codec for Debezium topics written against a schema registry (the
     # registry itself is asked over httpx). MIT; self-contained wheels, no native library.
