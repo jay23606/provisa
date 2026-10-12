@@ -585,11 +585,11 @@ def _build_native_filter_args(
         bare_name = col_name[4:] if col_name.startswith("_nf_") else col_name
         arg_name = f"_{bare_name}" if bare_name in response_field_names else bare_name
         meta = t.column_metadata.get(col_name.lower())
+        # An array parameter (a query vector) takes a list, as its column holds one.
         nfc_gql_type = column_type_to_graphql(meta.data_type) if meta else GraphQLString
-        scalar = nfc_gql_type.of_type if isinstance(nfc_gql_type, GraphQLList) else nfc_gql_type
         # REQ-1986: non-null where the source or a steward requires the parameter.
         args[arg_name] = GraphQLArgument(
-            GraphQLNonNull(scalar) if is_required(nfc) else scalar,
+            GraphQLNonNull(nfc_gql_type) if is_required(nfc) else nfc_gql_type,
             description=f"Native API filter ({nfc['native_filter_type']})",
             extensions={PARAMETER_EXTENSION: bare_name},
         )

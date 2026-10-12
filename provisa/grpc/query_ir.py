@@ -269,16 +269,52 @@ def _params_where(
     }
     from_body = isinstance(params_msg, Mapping)
     predicates = []
-    for name, value in _filter_set_fields(params_msg):
+    for name, value in _params_set_fields(params_msg):
         if name not in parameters:
             raise ParameterError(name, type_name, "not a parameter of the table")
         column, data_type = parameters[name]
         if from_body:
-            expected = _json_value_matches(value, data_type)
+            expected = _json_param_matches(value, data_type)
             if expected is not None:
                 raise ParameterError(name, type_name, f"value must be {expected}")
         predicates.append(f"{_q(column)} = {_bound_filter_value(value, data_type, collector)}")
     return predicates
+
+
+def _params_set_fields(params_msg: Any) -> list[tuple[str, Any]]:  # REQ-1986
+    """A ``{Type}Params`` message's given fields: a repeated one (an array parameter) is given
+    when it holds a value, the others when set (``optional``). A JSON body's entries as they are."""
+    if isinstance(params_msg, Mapping):
+        return list(params_msg.items())
+    given = []
+    for f in params_msg.DESCRIPTOR.fields:
+        if getattr(f, "label", None) == _REPEATED:
+            values = list(getattr(params_msg, f.name))
+            if values:
+                given.append((f.name, values))
+        elif params_msg.HasField(f.name):
+            given.append((f.name, getattr(params_msg, f.name)))
+    return given
+
+
+#: protobuf's FieldDescriptor.LABEL_REPEATED.
+_REPEATED = 3
+
+
+def _json_param_matches(value: Any, data_type: str) -> str | None:  # REQ-1986
+    """As :func:`_json_value_matches`, an array parameter's value being a list of its items."""
+    from provisa.grpc.proto_gen import _is_array_type
+
+    if not _is_array_type(data_type):
+        return _json_value_matches(value, data_type)
+    item_type = data_type.strip()[len("array(") : -1]
+    if not isinstance(value, list):
+        return "a list"
+    for item in value:
+        expected = _json_value_matches(item, item_type)
+        if expected is not None:
+            return f"a list of which each item is {expected}"
+    return None
 
 
 def resolve_read_mask(ctx: Any, type_name: str, paths: Sequence[str]) -> ReadMask | None:

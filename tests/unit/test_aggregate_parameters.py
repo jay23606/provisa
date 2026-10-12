@@ -122,3 +122,55 @@ def test_a_renamed_argument_fills_its_parameter():
     assert "\"_nf_status\" = 'open'" in compiled.sql
     assert "_nf__status" not in compiled.sql
     assert compiled.api_args == {"region": "EU", "status": "open"}
+
+
+def _array_schema(required: bool):
+    si = SchemaInput(
+        tables=[
+            {
+                "id": 1,
+                "source_id": "atlas",
+                "domain_id": "sales",
+                "schema_name": "films",
+                "table_name": "similar_movies",
+                "columns": [
+                    {"column_name": "id", "visible_to": ["admin"]},
+                    {
+                        "column_name": "_nf_query_vector",
+                        "visible_to": [],
+                        "native_filter_type": "query_arg",
+                        "native_filter_required": required,
+                    },
+                ],
+                "write_ops": [],
+                "write_returns_rows": False,
+                "write_refused_forms": [],
+            }
+        ],
+        relationships=[],
+        column_types={
+            1: [
+                ColumnMetadata(column_name="id", data_type="integer", is_nullable=False),
+                ColumnMetadata(
+                    column_name="_nf_query_vector", data_type="array(double)", is_nullable=True
+                ),
+            ]
+        },
+        naming_rules=[],
+        role={"id": "admin", "capabilities": ["query_development"], "domain_access": ["*"]},
+        domains=[{"id": "sales", "description": "Sales"}],
+    )
+    return generate_schema(si), build_context(si)
+
+
+@pytest.mark.parametrize("required, type_", [(True, "[Float!]!"), (False, "[Float!]")])
+def test_an_array_parameter_takes_a_list(required, type_):
+    """A query vector is a list: a required one built a NonNull of NonNull and the schema
+    failed to build (CI, test_mongodb_pipeline_tables_e2e)."""
+    schema, ctx = _array_schema(required)
+    assert schema.query_type is not None
+    field = schema.query_type.fields["similarMovies"]
+    assert str(field.args["query_vector"].type) == type_
+    query = "{ similarMovies(query_vector: [0.1, 0.2]) { id } }"
+    (compiled,) = compile_query(parse_query(schema, query, ctx=ctx), ctx)
+    assert compiled.api_args == {"query_vector": [0.1, 0.2]}

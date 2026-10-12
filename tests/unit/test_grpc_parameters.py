@@ -189,3 +189,82 @@ async def test_the_servicer_hands_the_pipeline_the_parameters(monkeypatch):
     govern.assert_awaited_once()
     assert '"_nf_region" = $1' in govern.await_args.args[0]
     assert govern.await_args.kwargs["exec_params"] == ["EU"]
+
+
+def _array_si() -> SchemaInput:
+    return SchemaInput(
+        tables=[
+            {
+                "id": 1,
+                "source_id": "atlas",
+                "domain_id": "sales",
+                "schema_name": "public",
+                "table_name": "similar",
+                "columns": [
+                    {"column_name": "id", "visible_to": ["admin"]},
+                    {
+                        "column_name": "_nf_query_vector",
+                        "visible_to": [],
+                        "native_filter_type": "query_arg",
+                        "native_filter_required": True,
+                    },
+                ],
+                "write_ops": [],
+                "write_returns_rows": False,
+                "write_refused_forms": [],
+            }
+        ],
+        relationships=[],
+        column_types={
+            1: [
+                ColumnMetadata(column_name="id", data_type="integer", is_nullable=False),
+                ColumnMetadata(
+                    column_name="_nf_query_vector", data_type="array(double)", is_nullable=True
+                ),
+            ]
+        },
+        naming_rules=[],
+        role={"id": "admin", "domain_access": ["*"], "capabilities": []},
+        domains=[{"id": "sales", "description": "Sales"}],
+    )
+
+
+def test_an_array_parameter_is_a_repeated_field():
+    proto = generate_proto(_array_si())
+    assert "repeated double query_vector = 1;" in _message_block(proto, "SimilarParams")
+    assert compile_descriptor_set(proto)
+
+
+def _vector_ctx():
+    ctx = _ctx()
+    ctx.native_filter_columns = {1: {"_nf_query_vector": "array(double)"}}
+    return ctx
+
+
+def test_a_repeated_parameter_is_given_when_it_holds_values():
+    given = SimpleNamespace(
+        DESCRIPTOR=SimpleNamespace(fields=[SimpleNamespace(name="query_vector", label=3)]),
+        query_vector=[0.1, 0.2],
+    )
+    sql, bound = grpc_table_to_semantic_sql(  # type: ignore[misc]
+        _vector_ctx(), "Orders", 0, None, None, given
+    )
+    assert '"_nf_query_vector" = $1' in sql and bound == [[0.1, 0.2]]
+    empty = SimpleNamespace(DESCRIPTOR=given.DESCRIPTOR, query_vector=[])
+    sql, bound = grpc_table_to_semantic_sql(  # type: ignore[misc]
+        _vector_ctx(), "Orders", 0, None, None, empty
+    )
+    assert "_nf_query_vector" not in sql and bound == []
+
+
+def test_a_proxy_array_parameter_is_a_list_of_its_items():
+    sql, bound = grpc_table_to_semantic_sql(  # type: ignore[misc]
+        _vector_ctx(), "Orders", 0, None, None, {"query_vector": [0.1, 2]}
+    )
+    assert bound == [[0.1, 2]]
+    with pytest.raises(ParameterError, match="must be a list"):
+        grpc_table_to_semantic_sql(_vector_ctx(), "Orders", 0, None, None, {"query_vector": 0.1})
+    with pytest.raises(ParameterError, match="each item is a number"):
+        grpc_table_to_semantic_sql(
+            _vector_ctx(), "Orders", 0, None, None, {"query_vector": [0.1, "x"]}
+        )
