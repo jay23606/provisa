@@ -28,7 +28,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import delete, insert, select
@@ -50,6 +50,9 @@ from provisa.synthetic.plan import (
     plan_tables,
     to_measure,
 )
+
+if TYPE_CHECKING:
+    from provisa.profiler.statement import ColumnSpec
 
 log = logging.getLogger(__name__)
 
@@ -698,6 +701,30 @@ def sample_name(reg: dict) -> str:
     return replica_table_name("__closeness", reg["schema_name"], reg["table_name"])
 
 
+def sample_read_sql(table: str, specs: list[ColumnSpec]) -> str:
+    """The real rows a table's closeness is measured over (``specs``: its distance columns as
+    :class:`provisa.profiler.statement.ColumnSpec`, named as the org admin reads them), each as
+    the distance reads it -- a number as a double, a time as seconds since the epoch, anything
+    else as text -- in an order drawn from their values, up to ``closeness.SAMPLE_ROWS``."""
+    from provisa.profiler.statement import qualified, read_column
+
+    values = []
+    for spec in specs:
+        x = read_column("x", spec)
+        if spec.family == "temporal":
+            values.append(f"CAST(EXTRACT(EPOCH FROM {x}) AS DOUBLE PRECISION)")
+        elif spec.family == "numeric":
+            values.append(f"CAST({x} AS DOUBLE PRECISION)")
+        else:
+            values.append(f"CAST({x} AS TEXT)")
+    text = " || '|' || ".join(f"COALESCE(CAST({v} AS TEXT), '')" for v in values)
+    named = ", ".join(f"{v} AS d{i}" for i, v in enumerate(values))
+    return (
+        f"SELECT {named} FROM {qualified(table)} x ORDER BY MD5({text}) "
+        f"LIMIT {closeness.SAMPLE_ROWS}"
+    )
+
+
 async def _land_sample(
     state: Any, schema: str, p: PlannedTable, reg: dict, cols: list
 ) -> tuple[str, list]:
@@ -716,26 +743,13 @@ async def _land_sample(
     from provisa.federation.replica_source import BATCH_ROWS
     from provisa.federation.residency import resolve_landing_args
     from provisa.profiler.run import _governed
-    from provisa.profiler.statement import _ident, qualified
+    from provisa.profiler.statement import ColumnSpec
     from provisa.synthetic.generate import SAMPLE_ID, DistanceColumn
 
     exposed = _exposer(state)
     numbers = [c.family in ("numeric", "temporal") for c in cols]
-    values = []
-    for c, number in zip(cols, numbers):
-        x = f"x.{_ident(exposed(p.table, c.name))}"
-        if c.family == "temporal":
-            values.append(f"CAST(EXTRACT(EPOCH FROM {x}) AS DOUBLE PRECISION)")
-        elif number:
-            values.append(f"CAST({x} AS DOUBLE PRECISION)")
-        else:
-            values.append(f"CAST({x} AS TEXT)")
-    text = " || '|' || ".join(f"COALESCE(CAST({v} AS TEXT), '')" for v in values)
-    named = ", ".join(f"{v} AS d{i}" for i, v in enumerate(values))
-    _names, rows = await _governed(
-        f"SELECT {named} FROM {qualified(p.table.pgwire_name)} x ORDER BY MD5({text}) "
-        f"LIMIT {closeness.SAMPLE_ROWS}"
-    )
+    specs = [ColumnSpec(exposed(p.table, c.name), c.sql_type, c.family, c.name) for c in cols]
+    _names, rows = await _governed(sample_read_sql(p.table.pgwire_name, specs))
     if len(rows) < 2:
         raise DatasetRefused(
             f"{p.table.name}: the closeness check compares with at least two real rows; the "
