@@ -78303,3 +78303,53 @@
   - REQ-063
   - REQ-1792
   notes: 'Maintainer 2026-10-12: "rather than creating a feature to automatically research - it should just be routed by the admin to a data team for research, or rejected", then "the request feature could be expanded with new action types, and the comms would probably just be a steward to steward comm - like ''I think this might be in your domain, can you confirm?''". He kept the chat assistant''s GovData, Kaggle and web search. Routing to a domain rather than a person, the thread of notes and refer-on are the lead''s proposal, which he accepted with "yes, record it". Not built: creation_requests today has status pending/executed/rejected and no domain, assignee or notes (provisa/core/schema_org.py:907).'
+- id: REQ-1996
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'Logs is a source type that turns log files into tables. A source names a file glob (for example
+    /var/log/system.log*) and a format; each matching file''s lines become rows of one table. Built-in formats:
+    BSD syslog (RFC 3164), RFC 5424 syslog with structured data, the macOS install-log form (ISO date with offset,
+    host, process[pid]: message), Apache/nginx Common and Combined Log Format, JSON lines, logfmt, W3C extended,
+    CEF and GELF; any other format is a regular expression whose named groups are the columns. Columns and their
+    types come from the format (a JSON-lines or logfmt source types its columns from a preview, which a steward
+    can override); a line the format cannot parse is kept with its raw text and a parse-error column, never dropped.
+    Rotation: the glob takes in rotated files, and gzip and bzip2 files are read transparently; each file is identified
+    by its inode plus a checksum of its first bytes, not by its name, so a renamed or compressed file is not read
+    twice; a per-file offset lets a growing file be read from where it left off; a file found shorter than its offset
+    was truncated and is read from the start; each row carries its file identity and line offset, which dedupe it.
+    A logs table can be a replica refreshed on the source''s schedule or a live table delivering new lines as they
+    are written, over the surfaces that serve subscriptions. Where the files may be read is the operator''s: the
+    setting logs.allowed_roots lists the directories a glob may resolve into (by default /var/log), and a glob that
+    resolves outside them, after following symlinks, is refused by name; on the multi-organisation SaaS plane a
+    server-local log path is refused entirely, by name.'
+  use_case: An operator registers /var/log/install.log* on a Mac as a Logs source with the macOS install-log format,
+    and queries which processes logged errors in the last day in SQL, across the live file and its rotated .gz copies,
+    without any agent or OpenTelemetry exporter.
+  scenario: 'Given a Logs source over /var/log/system.log* in BSD syslog format, with system.log and system.log.0.gz
+    present
+
+    When the source refreshes
+
+    Then the table holds the lines of both files with timestamp, host, process, pid and message columns
+
+    When system.log is rotated to system.log.0 and compressed, and a new system.log is started
+
+    Then the next refresh adds only the new file''s lines, and no line is counted twice
+
+    When a line does not match the format
+
+    Then it is a row with its raw text and a parse error, not dropped'
+  related_reqs:
+  - REQ-861
+  notes: 'Maintainer 2026-10-12, through the lead: "is there an opportunity to create a generic log ingestor (you
+    might have to deal with log rotation as an issue) to turn a log into a table"; then "yes create the Logs datasource
+    as discussed". The format list, the inode-plus-checksum identity, the parse-error row and the replica/live modes
+    are the lead''s proposal that he accepted. The parsers are a shared library, so a later command-output source
+    can reuse them. On where files may be read, the maintainer (2026-10-12, through the lead) chose allowed roots,
+    off on SaaS: an operator setting logs.allowed_roots, default ["/var/log"], editable to add for example ~/Library/Logs;
+    a glob resolving outside it, after symlinks, refused by name; on the multi-org SaaS plane server-local log paths
+    refused entirely, by name.'
