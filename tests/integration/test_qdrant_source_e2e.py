@@ -239,6 +239,18 @@ def server(qdrant, embeddings, tmp_path_factory):
                 "columns": [*_RESULT, _arg("q", "array(double)", required=True)],
             },
         ],
+        # The join the tests make is a registered relationship: a join outside the registered
+        # ones is refused to a role that may not ignore them (REQ-603).
+        "relationships": [
+            {
+                "id": "search-doc",
+                "source_table_id": "docs_search",
+                "target_table_id": "docs",
+                "source_column": "id",
+                "target_column": "id",
+                "cardinality": "many-to-one",
+            }
+        ],
     }
     work = tmp_path_factory.mktemp("qdrant_e2e")
     path = work / "config.yaml"
