@@ -8,7 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActionIcon,
   Accordion,
@@ -118,6 +118,8 @@ export function EnvironmentsTab() {
   // a Create button that answers 403 with nothing on screen to explain it.
   const inherits = inheritConnections || !canAdminister;
   const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<string | null>("environments");
+  const newName = useRef<HTMLInputElement>(null);
   const [synthetic, setSynthetic] = useState<SyntheticSeed | null>(null); // REQ-1939
 
   // REQ-1549: the environment whose Merge button was pressed is the SOURCE of the merge, and the
@@ -461,7 +463,7 @@ export function EnvironmentsTab() {
           </Accordion.Panel>
         </Accordion.Item>
       </Accordion>
-      <Tabs defaultValue="environments">
+      <Tabs value={tab} onChange={setTab}>
         <Tabs.List>
           <Tabs.Tab value="environments">{t("environmentsTab.tabEnvironments")}</Tabs.Tab>
           <Tabs.Tab value="requests">{t("environmentsTab.tabRequests")}</Tabs.Tab>
@@ -481,6 +483,7 @@ export function EnvironmentsTab() {
                   label={t("environmentsTab.newName")}
                   value={name}
                   onChange={(e) => setName(e.currentTarget.value)}
+                  ref={newName}
                   data-testid="env-new-name"
                 />
               </FormField>
@@ -723,7 +726,14 @@ export function EnvironmentsTab() {
         </Tabs.Panel>
 
         <Tabs.Panel value="synthetic" pt="md">
-          <SyntheticDatasetsPanel envs={names} />
+          <SyntheticDatasetsPanel
+            envs={names}
+            onCreateEnvironment={() => {
+              setTab("environments");
+              // The form is always open on its tab; the reader lands in its first field.
+              requestAnimationFrame(() => newName.current?.focus());
+            }}
+          />
         </Tabs.Panel>
         <Tabs.Panel value="requests" pt="md">
           <MergeRequestsPanel orgId={orgId} canDecide={canAdminister} />

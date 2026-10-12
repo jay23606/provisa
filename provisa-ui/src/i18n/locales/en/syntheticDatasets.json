@@ -5,6 +5,7 @@
     "intro": "A synthetic dataset fills a non-production environment with generated data shaped like the profiled tables it names, at a chosen scale. In that environment its tables read the generated data in place of their sources.",
     "environment": "Environment",
     "noEnvironment": "Create a non-production environment to hold a synthetic dataset; production cannot hold one.",
+    "createEnvironment": "Create environment",
     "colName": "Name",
     "colStatus": "Status",
     "colScale": "Scale",

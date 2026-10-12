@@ -105,7 +105,7 @@ beforeEach(() => {
 
 describe("SyntheticDatasetsPanel", () => {
   it("offers only non-production environments and acts in the one chosen", async () => {
-    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     expect(await screen.findByTestId("synthetic-row-load_test")).toBeInTheDocument();
     expect(api.fetchDatasets).toHaveBeenCalledWith("dev");
     expect(api.fetchProfileRuns).toHaveBeenCalledWith("dev", "prod");
@@ -122,7 +122,7 @@ describe("SyntheticDatasetsPanel", () => {
   });
 
   it("defines a dataset of the picked tables and their profile runs", async () => {
-    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     fireEvent.click(await screen.findByTestId("synthetic-table-customers"));
     fireEvent.change(screen.getByTestId("synthetic-name"), { target: { value: "big" } });
     fireEvent.click(screen.getByTestId("synthetic-define"));
@@ -141,7 +141,7 @@ describe("SyntheticDatasetsPanel", () => {
   });
 
   it("checks closeness to real rows with a threshold and a number of draws", async () => {
-    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     fireEvent.click(await screen.findByTestId("synthetic-table-customers"));
     fireEvent.click(screen.getByTestId("synthetic-closeness"));
     fireEvent.change(screen.getByTestId("synthetic-closeness-draws"), { target: { value: "5" } });
@@ -157,7 +157,7 @@ describe("SyntheticDatasetsPanel", () => {
   });
 
   it("declares a dataset private with its privacy budget", async () => {
-    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     fireEvent.click(await screen.findByTestId("synthetic-table-customers"));
     fireEvent.click(screen.getByTestId("synthetic-private"));
     fireEvent.change(screen.getByTestId("synthetic-epsilon"), { target: { value: "0.5" } });
@@ -173,7 +173,7 @@ describe("SyntheticDatasetsPanel", () => {
   });
 
   it("offers conditional fan-out over the relationships whose tables are picked, and assertions", async () => {
-    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     fireEvent.click(await screen.findByTestId("synthetic-table-customers"));
     expect(screen.getByTestId("synthetic-add-condition")).toBeDisabled();
     fireEvent.click(screen.getByTestId("synthetic-table-orders"));
@@ -194,9 +194,22 @@ describe("SyntheticDatasetsPanel", () => {
   });
 
   it("says production cannot hold one when no other environment exists", () => {
-    render(<SyntheticDatasetsPanel envs={["prod"]} />);
+    render(<SyntheticDatasetsPanel envs={["prod"]} onCreateEnvironment={vi.fn()} />);
     expect(screen.getByTestId("synthetic-no-env")).toBeInTheDocument();
     expect(api.fetchDatasets).not.toHaveBeenCalled();
+  });
+
+  it("offers to create an environment only while there is none to hold a dataset", async () => {
+    const create = vi.fn();
+    const { rerender } = render(
+      <SyntheticDatasetsPanel envs={["prod"]} onCreateEnvironment={create} />,
+    );
+    fireEvent.click(screen.getByTestId("synthetic-create-env"));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("synthetic-create-env")).toHaveTextContent("Create environment");
+    rerender(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={create} />);
+    expect(await screen.findByTestId("synthetic-env")).toHaveValue("dev");
+    expect(screen.queryByTestId("synthetic-create-env")).toBeNull();
   });
 });
 
@@ -204,9 +217,9 @@ describe("SyntheticDatasetsPanel before the environments have loaded", () => {
   it("offers the environment that arrives after it mounted", async () => {
     // The Environments page mounts this tab with its other tabs, before its list of environments
     // has loaded: the list is empty at first and filled a moment later.
-    const { rerender } = render(<SyntheticDatasetsPanel envs={[]} />);
+    const { rerender } = render(<SyntheticDatasetsPanel envs={[]} onCreateEnvironment={vi.fn()} />);
     expect(screen.getByTestId("synthetic-no-env")).toBeInTheDocument();
-    rerender(<SyntheticDatasetsPanel envs={["prod", "dev"]} />);
+    rerender(<SyntheticDatasetsPanel envs={["prod", "dev"]} onCreateEnvironment={vi.fn()} />);
     expect(await screen.findByTestId("synthetic-env")).toHaveValue("dev");
     expect(screen.queryByTestId("synthetic-no-env")).toBeNull();
     await waitFor(() => expect(api.fetchDatasets).toHaveBeenCalledWith("dev"));

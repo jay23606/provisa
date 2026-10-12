@@ -5,6 +5,7 @@
     "intro": "Un conjunto de datos sintético llena un entorno que no es de producción con datos generados con la forma de las tablas perfiladas que nombra, a la escala elegida. En ese entorno sus tablas leen los datos generados en lugar de sus fuentes.",
     "environment": "Entorno",
     "noEnvironment": "Cree un entorno que no sea de producción para alojar un conjunto de datos sintético; producción no puede alojar ninguno.",
+    "createEnvironment": "Crear entorno",
     "colName": "Nombre",
     "colStatus": "Estado",
     "colScale": "Escala",

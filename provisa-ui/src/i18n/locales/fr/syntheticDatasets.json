@@ -5,6 +5,7 @@
     "intro": "Un jeu de données synthétique remplit un environnement hors production de données générées à l'image des tables profilées qu'il nomme, à l'échelle choisie. Dans cet environnement, ses tables lisent les données générées à la place de leurs sources.",
     "environment": "Environnement",
     "noEnvironment": "Créez un environnement hors production pour accueillir un jeu de données synthétique ; la production ne peut pas en contenir.",
+    "createEnvironment": "Créer un environnement",
     "colName": "Nom",
     "colStatus": "Statut",
     "colScale": "Échelle",

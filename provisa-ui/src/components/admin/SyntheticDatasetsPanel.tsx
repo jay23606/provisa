@@ -79,7 +79,14 @@ const OWN_MEASURES = new Set([
 
 // REQ-1939: an environment's synthetic datasets -- defined, generated, regenerated and dropped
 // beside the environment's other settings. Production holds none, so it is not offered.
-export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
+export function SyntheticDatasetsPanel({
+  envs,
+  onCreateEnvironment,
+}: {
+  envs: string[];
+  /** Takes the reader to the page's own form that creates an environment. */
+  onCreateEnvironment: () => void;
+}) {
   const { t } = useTranslation();
   const choices = envs.filter((e) => e !== PROD);
   // The environment shown is the one picked, else the first offered. It is read from the list on
@@ -141,9 +148,14 @@ export function SyntheticDatasetsPanel({ envs }: { envs: string[] }) {
 
   if (!env) {
     return (
-      <Text size="sm" c="dimmed" data-testid="synthetic-no-env">
-        {t("syntheticDatasets.noEnvironment")}
-      </Text>
+      <Group gap="sm" wrap="wrap">
+        <Text size="sm" c="dimmed" data-testid="synthetic-no-env">
+          {t("syntheticDatasets.noEnvironment")}
+        </Text>
+        <Button size="xs" onClick={onCreateEnvironment} data-testid="synthetic-create-env">
+          {t("syntheticDatasets.createEnvironment")}
+        </Button>
+      </Group>
     );
   }
 

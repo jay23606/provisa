@@ -610,3 +610,20 @@ describe("EnvironmentsTab", () => {
     );
   });
 });
+
+describe("EnvironmentsTab -- Synthetic data with no environment to hold a dataset", () => {
+  it("takes the reader to the create form, on the Environments tab", async () => {
+    mockList.mockResolvedValue([env("prod", { protected: true })]);
+    mockSync.mockResolvedValue({ remote_configured: true, branches: { prod: syncOf() } });
+    render(<EnvironmentsTab />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Synthetic data" }));
+    fireEvent.click(await screen.findByTestId("synthetic-create-env"));
+    expect(screen.getByRole("tab", { name: "Environments" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await waitFor(() => expect(screen.getByTestId("env-new-name")).toHaveFocus());
+    // The page's one create flow: no second form was opened for it.
+    expect(screen.getAllByTestId("env-create")).toHaveLength(1);
+  });
+});

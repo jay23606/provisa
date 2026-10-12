@@ -5795,5 +5795,6 @@
   "de/registerTableForm.json::registerTableForm.shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
   "de/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
   "de/relationshipRow.json::relationshipRow.sqlName": "SQL Name",
-  "de/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked"
+  "de/relationshipRow.json::relationshipRow.autoTracked": "Auto-tracked",
+  "de/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
 }
