@@ -12,7 +12,8 @@
 // so form state and testability are unaffected — the header only toggles visibility.
 
 import { useState, type ReactNode } from "react";
-import { ActionIcon, Badge, Collapse, Group, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Badge, Collapse, Group, Text } from "@mantine/core";
+import { Tip } from "../../components/Tip";
 import { CircleHelp } from "lucide-react";
 import { FormLayout } from "../../components/form/FormLayout";
 
@@ -69,12 +70,7 @@ export function CollapsibleSection({
           </Badge>
         )}
         {info && (
-          <Tooltip
-            label={info.text}
-            multiline
-            w={360}
-            events={{ hover: true, focus: true, touch: true }}
-          >
+          <Tip text={info.text}>
             <ActionIcon
               component="span"
               variant="subtle"
@@ -90,7 +86,7 @@ export function CollapsibleSection({
             >
               <CircleHelp size={14} aria-hidden />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         )}
       </Group>
       <Collapse in={open}>

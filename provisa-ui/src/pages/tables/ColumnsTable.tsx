@@ -12,6 +12,7 @@
 // within its line budget (REQ-788 wiring needed the room). Pure presentation over the form's
 // column state; updateCol mutates one column's one field.
 
+import { Tip } from "../../components/Tip";
 import { Fragment } from "react";
 import { Checkbox, Select, Stack, Table, Text, TextInput } from "@mantine/core";
 import { MultiSelect } from "../../components/MultiSelect";
@@ -177,15 +178,16 @@ export function ColumnsTable({
                         />
                       </Table.Td>
                       <Table.Td ta="center">
-                        <Checkbox
-                          checked={col.isPrimaryKey}
-                          onChange={(e) => updateCol(i, "isPrimaryKey", e.currentTarget.checked)}
-                          title={t("registerTableForm.primaryKeyTitle")}
-                          aria-label={t("registerTableForm.primaryKeyAriaLabel", {
-                            name: col.name,
-                          })}
-                          data-testid={`register-table-col-pk-${col.name}`}
-                        />
+                        <Tip text={t("registerTableForm.primaryKeyTitle")}>
+                          <Checkbox
+                            checked={col.isPrimaryKey}
+                            onChange={(e) => updateCol(i, "isPrimaryKey", e.currentTarget.checked)}
+                            aria-label={t("registerTableForm.primaryKeyAriaLabel", {
+                              name: col.name,
+                            })}
+                            data-testid={`register-table-col-pk-${col.name}`}
+                          />
+                        </Tip>
                       </Table.Td>
                       <Table.Td>
                         <Select
