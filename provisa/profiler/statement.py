@@ -180,12 +180,25 @@ def qualified(table: str) -> str:
     return f"{_ident(schema)}.{_ident(name)}"
 
 
-def count_sql(table: str, watermark: str | None) -> str:
+def read_column(alias: str, spec: ColumnSpec) -> str:
+    """``spec`` read from the rows ``alias``, as its recorded type. A source may hold a date or a
+    timestamp as text (a SQLite date), which the engine then reads as text, so a temporal column
+    is cast to its recorded type (REQ-1934)."""
+    ref = f"{alias}.{_ident(spec.name)}"
+    if spec.family != "temporal":
+        return ref
+    base = (spec.data_type or "").lower().split("(")[0].strip()
+    if base not in _TEMPORAL:
+        raise ValueError(f"column {spec.name!r} is temporal but recorded as {spec.data_type!r}")
+    return f"CAST({ref} AS {base.upper()})"
+
+
+def count_sql(table: str, watermark: ColumnSpec | None) -> str:
     """The table's row count, which sizes the sample, and -- where the table declares a temporal
     watermark column (``watermark``, as published) -- its latest watermark in epoch seconds, over
     the whole table, for the run's freshness (REQ-1934 FRESHNESS)."""
     latest = (
-        f", MAX(EXTRACT(EPOCH FROM t.{_ident(watermark)})) AS watermark_max"
+        f", MAX(EXTRACT(EPOCH FROM {read_column('t', watermark)})) AS watermark_max"
         if watermark is not None
         else ""
     )
@@ -369,9 +382,7 @@ def profile_sql(
     if not columns:
         raise ValueError(f"table {table!r} has no column the org admin can read to profile")
     groups = _groups(columns, keys)
-    col_refs = [_ident(c.name) for c in columns]
-
-    base_cols = [f"t.{ref} AS {_ident(f'c{i}')}" for i, ref in enumerate(col_refs)]
+    base_cols = [f"{read_column('t', c)} AS {_ident(f'c{i}')}" for i, c in enumerate(columns)]
     base = _base_sql(table, base_cols, sample)
     joins = ""
     fan_cols: list[str] = []

@@ -39,7 +39,14 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
-from provisa.profiler.statement import ColumnSpec, Sample, _base_sql, _ident, qualified
+from provisa.profiler.statement import (
+    ColumnSpec,
+    Sample,
+    _base_sql,
+    _ident,
+    qualified,
+    read_column,
+)
 
 # REQ-1934: a number enters a joint count as the decile of its rank.
 JOINT_BUCKETS = 10
@@ -146,7 +153,7 @@ def _dep_column(name: str, expr: str, spec: ColumnSpec, own: bool) -> DepColumn:
 
 def _joined(table: str, own: list[ColumnSpec], parents: list[ParentSpec], sample: Sample) -> str:
     """The profiled rows -- the run's sample -- with each parent's columns joined on."""
-    base_cols = [f"t.{_ident(c.name)} AS {_ident(f'c{i}')}" for i, c in enumerate(own)]
+    base_cols = [f"{read_column('t', c)} AS {_ident(f'c{i}')}" for i, c in enumerate(own)]
     base = _base_sql(table, base_cols, sample)
     names = [c.name for c in own]
     joins = ""
@@ -155,7 +162,7 @@ def _joined(table: str, own: list[ColumnSpec], parents: list[ParentSpec], sample
         child = _ident(f"c{names.index(p.child_key)}")
         joins += f" LEFT JOIN {qualified(p.table)} p{r} ON p{r}.{_ident(p.parent_key)} = b.{child}"
         picked += [
-            f"p{r}.{_ident(c.name)} AS {_ident(f'p{r}_{i}')}" for i, c in enumerate(p.columns)
+            f"{read_column(f'p{r}', c)} AS {_ident(f'p{r}_{i}')}" for i, c in enumerate(p.columns)
         ]
     return f"SELECT {', '.join(picked)} FROM ({base}) b{joins}"
 

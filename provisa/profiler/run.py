@@ -501,12 +501,12 @@ async def declared_watermark(conn: Any, table_id: int) -> str | None:
     return None if row is None else row[0]
 
 
-def temporal_watermark(target: Target, declared: str | None) -> str | None:
+def temporal_watermark(target: Target, declared: str | None) -> ColumnSpec | None:
     """The declared watermark as the org admin reads it, when it is a temporal column: a freshness
     is a time, so a table with no declared watermark, or one whose watermark is not a time (a
     sequence number), or one the org admin cannot read, records no freshness (REQ-1934)."""
     spec = next((c for c in target.columns if c.physical == declared), None)
-    return spec.name if spec is not None and spec.family == "temporal" else None
+    return spec if spec is not None and spec.family == "temporal" else None
 
 
 @dataclass(frozen=True)
