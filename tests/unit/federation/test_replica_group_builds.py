@@ -238,6 +238,8 @@ def test_the_source_types_that_read_in_groups_are_the_ones_whose_loader_says_so(
 class _UnitRead:
     """Gives two parts of one mailbox and says the source names two."""
 
+    unit = "mailboxes"
+
     def __init__(self, tables, seen):
         self._tables, self._seen = tables, seen
         self.total = 0
@@ -274,13 +276,16 @@ def in_place(group, monkeypatch):
     seen["applied"], seen["partial"], seen["parts"] = [], [], []
     loader = None
 
-    def make(source, tables):
+    def make(source, tables, columns):
         return _UnitRead(tables, seen)
 
+    from provisa.core import canonical_mail as cm
     from provisa.events import app_wiring
 
     loader = app_wiring.build_adapter_loaders(None, None)["openapi"]
     loader.replica_unit_source = make
+    loader.replica_key_columns = cm.key_columns
+    loader.replica_stamp_column = cm.LANDED_AT
 
     async def record_partial(conn, key, **kw):
         seen["partial"].append((key, kw["store"], kw["built_columns"]))

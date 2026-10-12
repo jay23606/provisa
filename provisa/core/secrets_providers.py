@@ -58,6 +58,17 @@ def set_many_organisations_resolver(resolver: "Callable[[], bool]") -> None:
     _many_organisations = resolver
 
 
+def many_organisations() -> bool:
+    """Whether this deployment holds many organisations, as its running state says: what a
+    reader outside this module asks (REQ-1996: no log file of the server's own is read then)."""
+    if _many_organisations is None:
+        raise RuntimeError(
+            "Nothing has said whether this deployment holds many organizations. The API layer "
+            "says it at import (provisa.api.app)."
+        )
+    return _many_organisations()
+
+
 def _scoped() -> bool:
     """Whether a read is made inside the bound organisation's namespace: where the deployment
     holds many organisations. A deployment of one reads a reference as written, since the

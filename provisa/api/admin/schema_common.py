@@ -325,6 +325,37 @@ def google_workspace_refusal(input: SourceInput) -> Optional[MutationResult]:  #
     return None
 
 
+def logs_refusal(input: SourceInput) -> Optional[MutationResult]:  # REQ-1996
+    """Why a Logs source's settings cannot be a source, or None: for another source type, and
+    for settings that can. Its glob must resolve inside the directories log files may be read
+    from, and no server of many organizations reads a log file of its own: refused by name."""
+    import json as _json
+
+    from provisa.logs import SOURCE_TYPE
+    from provisa.logs.roots import LogPathRefused, checked_glob
+    from provisa.logs.settings import InvalidLogsSource, parse
+
+    if input.type != SOURCE_TYPE:
+        return None
+    try:
+        checked_glob(parse(_json.loads(input.mapping_json or "{}")).glob)
+    except InvalidLogsSource as exc:
+        return MutationResult(
+            success=False,
+            message=f"Logs source {input.id!r}: {exc}",
+            code="schema.logs_invalid",
+            params={"source": input.id, "error": str(exc)},
+        )
+    except LogPathRefused as exc:
+        return MutationResult(
+            success=False,
+            message=f"Logs source {input.id!r}: {exc}",
+            code="schema.logs_path_refused",
+            params={"source": input.id, "reason": str(exc)},
+        )
+    return None
+
+
 def microsoft_365_refusal(input: SourceInput) -> Optional[MutationResult]:  # REQ-1923
     """Why a Microsoft 365 source's settings cannot be a source, in the setup's own terms, or
     None: for another source type, and for settings that can. The settings are the source's

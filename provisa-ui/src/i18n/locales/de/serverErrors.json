@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Quelle '{{source}}': {{field}} muss ein absoluter Pfad sein, erhalten: '{{path}}'",
       "column_scope_invalid": "Spalte '{{column}}' hat den Geltungsbereich '{{scope}}'; zulässig ist einer von {{scopes}}",
       "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}",
-      "parameter_set_by_source": "Ein Parameter von '{{table}}' behält, was seine Quelle über ihn sagt: wie er die Quelle erreicht und ob die Quelle ihn verlangt, lässt sich nicht ändern. Ein Steward macht einen Parameter mit seinem Schalter „Erforderlich“ verpflichtend."
+      "parameter_set_by_source": "Ein Parameter von '{{table}}' behält, was seine Quelle über ihn sagt: wie er die Quelle erreicht und ob die Quelle ihn verlangt, lässt sich nicht ändern. Ein Steward macht einen Parameter mit seinem Schalter „Erforderlich“ verpflichtend.",
+      "logs_invalid": "Logs-Quelle {{source}}: {{error}}",
+      "logs_path_refused": "Logs-Quelle {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} ist kein Benutzer der Google Workspace-Domain der Organisation, daher kann das Verzeichnis nicht in seinem Namen aufgelistet werden. Ein Administrator korrigiert die Administratoradresse unter Admin › E-Mail.",
       "directory_refused": "Das Google-Verzeichnis ließ sich nicht lesen: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google hat das Dienstkonto der Organisation abgelehnt: {{reason}}"
+    },
+    "logs": {
+      "invalid": "Das ist keine Logs-Quelle: {{error}}",
+      "path_refused": "Diese Dateien dürfen nicht gelesen werden: {{reason}}"
     }
   }
 }

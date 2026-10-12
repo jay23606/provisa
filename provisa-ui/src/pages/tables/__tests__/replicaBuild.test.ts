@@ -152,6 +152,25 @@ describe("replicaBuildLine", () => {
     );
   });
 
+  it("counts a Logs source's files where a mail source counts its mailboxes", () => {
+    const line = replicaBuildLine(
+      build({
+        state: "building",
+        method: "apply_units",
+        loadKind: "row_copy",
+        progress: { done: 2, total: 8, unit: "files", first: false },
+        partial: false,
+      }),
+      t,
+      num,
+      when,
+      msg,
+    );
+    expect(line).toBe(
+      'replicaBuild.buildingPartsFiles {"done":"#2","total":"#8","how":"replicaBuild.method.apply_units, replicaBuild.loadKind.row_copy"}',
+    );
+  });
+
   it("shows a build that has not reported progress yet without a rate", () => {
     const line = replicaBuildLine(
       build({ state: "building", method: "engine_statement", loadKind: "bulk_stream" }),

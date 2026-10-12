@@ -46,6 +46,8 @@ import { COSMOSDB } from "./cosmosdb";
 import { QdrantFields } from "./QdrantFields";
 import { QDRANT } from "./qdrant";
 import { WikipediaFields } from "./WikipediaFields";
+import { LogsFields } from "./LogsFields";
+import { LOGS } from "./logs";
 import { SparqlFormSection } from "./SparqlFormSection";
 import { SharepointFields } from "./SharepointFields";
 import { SplunkFields } from "./SplunkFields";
@@ -681,6 +683,7 @@ export function SourceFormFieldsExtended({
       {form.type === "wikipedia" && (
         <WikipediaFields fields={authFields} setFields={setAuthFields} /> // REQ-1960
       )}
+      {form.type === LOGS && <LogsFields fields={authFields} setFields={setAuthFields} />}
       {form.type === "cloudops" && <CloudopsFields fields={authFields} setFields={setAuthFields} />}
       {form.type === "salesforce" && (
         <SalesforceFields

@@ -61,6 +61,9 @@ _DIRECT_WRITE_TYPES = frozenset({"data_profiler", "soda", "great_expectations"})
 # cursor to watermark by and no count that sees an edit, so only hash | none. The token comes
 # from the source's own adapter (``loader_probe``).
 _MAIL_TYPES = frozenset({"google_workspace", "microsoft_365"})
+# REQ-1996: a Logs source's files say whether they changed (their sizes and last writes); its
+# loader gives the token, as a mail source's does.
+_LOADER_PROBED = _MAIL_TYPES | {"logs"}
 
 _ALL = frozenset({WATERMARK, HASH, COUNT, NONE})
 
@@ -68,8 +71,9 @@ _ALL = frozenset({WATERMARK, HASH, COUNT, NONE})
 #: The source kinds whose loader is asked, as a whole, whether the source changed (its
 #: ``freshness_probe``, which :func:`build_probe` uses under the hash probe type), so that a
 #: ``probe`` / ``ttl_probe`` signal set on the SOURCE means something for tables that have no
-#: probe query of their own. The mail kinds: Gmail's history id, Microsoft Graph's delta links.
-LOADER_PROBE_TYPES: frozenset[str] = _MAIL_TYPES
+#: probe query of their own. The mail kinds: Gmail's history id, Microsoft Graph's delta links;
+#: and a Logs source's files.
+LOADER_PROBE_TYPES: frozenset[str] = _LOADER_PROBED
 
 
 def probe_capabilities(source_type: str) -> frozenset[str]:
@@ -79,7 +83,7 @@ def probe_capabilities(source_type: str) -> frozenset[str]:
     profiler, a data-quality checker), none (not on the probe axis)."""
     if source_type in _STREAMING_TYPES or source_type in _DIRECT_WRITE_TYPES:
         return frozenset()
-    if source_type in _FILE_TYPES or source_type in _MAIL_TYPES:
+    if source_type in _FILE_TYPES or source_type in _LOADER_PROBED:
         return frozenset({HASH, NONE})
     if source_type in _HTTP_API_TYPES:
         return _ALL
@@ -136,7 +140,11 @@ def resolve_probe_type(
         return explicit
 
     # default per capability class
-    if source_type in _FILE_TYPES or source_type in _HTTP_API_TYPES or source_type in _MAIL_TYPES:
+    if (
+        source_type in _FILE_TYPES
+        or source_type in _HTTP_API_TYPES
+        or source_type in _LOADER_PROBED
+    ):
         return HASH
     return WATERMARK if has_watermark else COUNT
 

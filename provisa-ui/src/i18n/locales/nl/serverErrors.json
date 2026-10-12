@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Bron '{{source}}': {{field}} moet een absoluut pad zijn, ontvangen '{{path}}'",
       "column_scope_invalid": "Kolom '{{column}}' heeft bereik '{{scope}}'; het bereik van een kolom is een van {{scopes}}",
       "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}",
-      "parameter_set_by_source": "Een parameter van '{{table}}' houdt wat de bron erover zegt: hoe hij de bron bereikt en of de bron hem vereist, kan niet worden gewijzigd. Een steward maakt een parameter verplicht met de schakelaar Verplicht."
+      "parameter_set_by_source": "Een parameter van '{{table}}' houdt wat de bron erover zegt: hoe hij de bron bereikt en of de bron hem vereist, kan niet worden gewijzigd. Een steward maakt een parameter verplicht met de schakelaar Verplicht.",
+      "logs_invalid": "Logs-bron {{source}}: {{error}}",
+      "logs_path_refused": "Logs-bron {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} is geen gebruiker van het Google Workspace-domein van de organisatie, dus de directory kan niet namens dit adres worden opgevraagd. Een beheerder corrigeert het adres van de beheerder onder Beheer › E-mail.",
       "directory_refused": "De directory van Google kon niet worden gelezen: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google heeft het serviceaccount van de organisatie geweigerd: {{reason}}"
+    },
+    "logs": {
+      "invalid": "Dat is geen Logs-bron: {{error}}",
+      "path_refused": "Die bestanden mogen niet gelezen worden: {{reason}}"
     }
   }
 }

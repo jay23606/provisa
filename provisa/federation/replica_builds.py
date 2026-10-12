@@ -437,9 +437,11 @@ async def run_build(state: Any, key: ReplicaKey, progress: Progress) -> BuildOut
     return outcome
 
 
-#: The source types whose adapter gives several tables from one read. Asked first, so a build
-#: of any other source's table looks no adapter up.
-GROUP_READ_TYPES: frozenset[str] = frozenset({"microsoft_365"})
+#: The source types whose adapter reads its tables as a group (``replica_group``): a mail
+#: source's several tables from one read, a Logs source's one table (REQ-1996), each of which
+#: may be kept in place a part at a time. Asked first, so a build of any other source's table
+#: looks no adapter up.
+GROUP_READ_TYPES: frozenset[str] = frozenset({"microsoft_365", "logs"})
 
 
 def _group_loader(state: Any, source: Any) -> Any:
@@ -644,16 +646,15 @@ async def _kept_in_place(
 ) -> bool:
     """Whether the tables of this read are kept in place a part at a time
     (``federation.mail_units``) instead of copied whole and swapped in: the source's reader
-    gives its changes in units, every table has a key to keep rows by, and no table's replica
-    was built from another definition (changed columns are a whole rebuild)."""
-    from provisa.core.canonical_mail import key_columns
-
+    gives its changes in units, every table has a key to keep rows by (the loader's
+    ``replica_key_columns``), and no table's replica was built from another definition
+    (changed columns are a whole rebuild)."""
     if getattr(loader, "replica_unit_source", None) is None:
         return False
     store = store_identity(state)
     async with state.tenant_db.acquire() as conn:
         for key, (src, table, args, address) in prepared.items():
-            if not key_columns(table.table_name):
+            if not loader.replica_key_columns(table.table_name):
                 return False
             record = await replica_state.read(conn, key)
             if (
@@ -687,7 +688,6 @@ async def _land_units(
     from provisa.events import queue
     from provisa.events.nodes import source_node
     from provisa.federation.change_group import TableChanges
-    from provisa.core.canonical_mail import key_columns
     from provisa.federation.mail_units import METHOD, Part, ReplicaUnitJob
     from provisa.federation.replica_hot import _row_count
 
@@ -695,7 +695,13 @@ async def _land_units(
     store = store_identity(state)
     source = next(iter(prepared.values()))[0]
     parts = {
-        table.table_name: Part(address.schema, address.table, list(args.columns))
+        table.table_name: Part(
+            address.schema,
+            address.table,
+            list(args.columns),
+            tuple(loader.replica_key_columns(table.table_name)),
+            loader.replica_stamp_column,
+        )
         for _src, table, args, address in prepared.values()
     }
     hashes = {
@@ -714,11 +720,13 @@ async def _land_units(
     # with no attachment) is then an empty replica, not a missing one.
     await engine.apply_change_group(
         [
-            TableChanges(part.schema, part.table, part.columns, list(key_columns(name)))
-            for name, part in sorted(parts.items())
+            TableChanges(part.schema, part.table, part.columns, list(part.keys))
+            for _name, part in sorted(parts.items())
         ]
     )
-    reader = loader.replica_unit_source(source, tuple(by_table))
+    reader = loader.replica_unit_source(
+        source, tuple(by_table), {name: part.columns for name, part in parts.items()}
+    )
     rippled = dict.fromkeys(by_table, 0.0)
 
     async def first_write() -> None:
@@ -739,7 +747,7 @@ async def _land_units(
         async with state.tenant_db.acquire() as conn:
             for key in prepared:
                 await replica_state.record_parts(
-                    conn, key, done=done, total=reader.total, unit="mailboxes", first=first[key]
+                    conn, key, done=done, total=reader.total, unit=reader.unit, first=first[key]
                 )
 
     table_ids = {table.table_name: table.id for _src, table, _a, _d in prepared.values()}

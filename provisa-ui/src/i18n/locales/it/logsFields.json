@@ -1,0 +1,35 @@
+{
+  "logsFields": {
+    "glob": "File",
+    "globHint": "Un percorso completo, o un glob come /var/log/system.log*; vengono letti anche i file ruotati e compressi.",
+    "format": "Formato",
+    "formatHelp": "Come è scritto ogni record dei file. Una riga che il formato non sa leggere viene conservata con il suo testo grezzo e il motivo.",
+    "loadingFormats": "Caricamento dei formati…",
+    "pattern": "Schema",
+    "patternHint": "Un'espressione regolare; ogni gruppo con nome, come (?P<level>…), è una colonna.",
+    "recordStart": "Inizio record",
+    "recordStartHint": "Come inizia la prima riga di un record che occupa più righe; lasciare vuoto per un record per riga.",
+    "preview": "Anteprima",
+    "filesFound": "File trovati: {{count}}",
+    "columns": "Colonne",
+    "firstRows": "Prime righe: {{count}}",
+    "parseError": "Errore di lettura",
+    "group": {
+      "core": "Formati comuni",
+      "custom": "Personalizzato"
+    },
+    "formats": {
+      "rfc3164": "BSD syslog (RFC 3164)",
+      "rfc5424": "Syslog (RFC 5424)",
+      "macos_install": "Log di installazione di macOS",
+      "clf": "Common Log Format",
+      "combined": "Combined Log Format",
+      "jsonl": "Righe JSON",
+      "logfmt": "logfmt",
+      "w3c": "W3C esteso (IIS)",
+      "cef": "ArcSight CEF",
+      "gelf": "Graylog GELF",
+      "regex": "Espressione regolare"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "logsFields": {
+    "glob": "文件",
+    "globHint": "完整路径，或 /var/log/system.log* 这样的 glob；轮转和压缩的文件也会读取。",
+    "format": "格式",
+    "formatHelp": "文件中每条记录的写法。格式无法读取的行会连同原始文本和原因一起保留。",
+    "loadingFormats": "正在加载格式…",
+    "pattern": "模式",
+    "patternHint": "一个正则表达式；每个命名组（例如 (?P<level>…)）都是一列。",
+    "recordStart": "记录开头",
+    "recordStartHint": "当一条记录跨越多行时，其第一行以什么开头；每行一条记录则留空。",
+    "preview": "预览",
+    "filesFound": "匹配的文件：{{count}}",
+    "columns": "列",
+    "firstRows": "前几行：{{count}}",
+    "parseError": "解析错误",
+    "group": {
+      "core": "常见格式",
+      "custom": "自定义"
+    },
+    "formats": {
+      "rfc3164": "BSD syslog (RFC 3164)",
+      "rfc5424": "Syslog (RFC 5424)",
+      "macos_install": "macOS 安装日志",
+      "clf": "Common Log Format",
+      "combined": "Combined Log Format",
+      "jsonl": "JSON 行",
+      "logfmt": "logfmt",
+      "w3c": "W3C 扩展 (IIS)",
+      "cef": "ArcSight CEF",
+      "gelf": "Graylog GELF",
+      "regex": "正则表达式"
+    }
+  }
+}

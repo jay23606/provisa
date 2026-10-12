@@ -137,6 +137,9 @@ class SourceType(str, Enum):
     # REQ-1923: the mail of a Microsoft 365 account, read through Microsoft Graph by its loader
     # (provisa/microsoft365) and landed; calendar and tasks are named and not yet read.
     microsoft_365 = "microsoft_365"
+    # REQ-1996: the lines of log files matched by a glob, read by its loader (provisa/logs) and
+    # landed.
+    logs = "logs"
     prometheus = "prometheus"
     graphql_remote = "graphql_remote"
     openapi = "openapi"

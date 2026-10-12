@@ -505,9 +505,11 @@ def make_microsoft365_loader(connect: Connect) -> Any:
     _load.freshness_probe = _freshness_probe  # type: ignore[attr-defined]
     _load.replica_group = _replica_group  # type: ignore[attr-defined]
     _load.replica_group_source = _replica_group_source  # type: ignore[attr-defined]
-    _load.replica_unit_source = lambda source, tables: _UnitsRead(  # type: ignore[attr-defined]
+    _load.replica_unit_source = lambda source, tables, _columns: _UnitsRead(  # type: ignore[attr-defined]
         connect, source, tuple(tables)
     )
+    _load.replica_key_columns = cm.key_columns  # type: ignore[attr-defined]
+    _load.replica_stamp_column = cm.LANDED_AT  # type: ignore[attr-defined]
     return _load
 
 
@@ -606,6 +608,9 @@ class _UnitsRead:
     place (``federation.mail_units.ReplicaUnitJob``): each mailbox from where its last read
     reached, or from its start. ``total`` is how many mailboxes the pass reads, known once it
     has begun."""
+
+    #: What a pass counts as it reads them to their end (``replica_state.record_parts``).
+    unit = "mailboxes"
 
     def __init__(self, connect: Connect, source: Any, tables: tuple[str, ...]) -> None:
         self._connect = connect

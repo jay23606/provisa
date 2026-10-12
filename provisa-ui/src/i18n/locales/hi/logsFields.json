@@ -1,0 +1,35 @@
+{
+  "logsFields": {
+    "glob": "फ़ाइलें",
+    "globHint": "पूरा पथ, या /var/log/system.log* जैसा glob; रोटेट और संपीड़ित फ़ाइलें भी पढ़ी जाती हैं।",
+    "format": "फ़ॉर्मैट",
+    "formatHelp": "फ़ाइलों का हर रिकॉर्ड कैसे लिखा गया है। जो पंक्ति फ़ॉर्मैट नहीं पढ़ पाता, वह अपने मूल पाठ और कारण के साथ रखी जाती है।",
+    "loadingFormats": "फ़ॉर्मैट लोड हो रहे हैं…",
+    "pattern": "पैटर्न",
+    "patternHint": "एक रेगुलर एक्सप्रेशन; हर नामित समूह, जैसे (?P<level>…), एक कॉलम है।",
+    "recordStart": "रिकॉर्ड की शुरुआत",
+    "recordStartHint": "जब कोई रिकॉर्ड कई पंक्तियों में फैला हो, तो उसकी पहली पंक्ति किससे शुरू होती है; हर पंक्ति एक रिकॉर्ड हो तो खाली छोड़ें।",
+    "preview": "पूर्वावलोकन",
+    "filesFound": "मिली फ़ाइलें: {{count}}",
+    "columns": "कॉलम",
+    "firstRows": "पहली पंक्तियाँ: {{count}}",
+    "parseError": "पढ़ने में त्रुटि",
+    "group": {
+      "core": "सामान्य फ़ॉर्मैट",
+      "custom": "आपका अपना"
+    },
+    "formats": {
+      "rfc3164": "BSD syslog (RFC 3164)",
+      "rfc5424": "Syslog (RFC 5424)",
+      "macos_install": "macOS इंस्टॉल लॉग",
+      "clf": "Common Log Format",
+      "combined": "Combined Log Format",
+      "jsonl": "JSON पंक्तियाँ",
+      "logfmt": "logfmt",
+      "w3c": "W3C विस्तारित (IIS)",
+      "cef": "ArcSight CEF",
+      "gelf": "Graylog GELF",
+      "regex": "रेगुलर एक्सप्रेशन"
+    }
+  }
+}

@@ -325,7 +325,7 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
     # kafka deliberately excluded: it already has its own dispatch above this function's `t ==
     # "kafka"` branch (REQ-147, backed by the kafka_topics/kafka_sources catalog tables) — a
     # SEPARATE, Trino-connector-backed mechanism that always intercepts kafka regardless of engine.
-    if t in ("rss", "websocket", "ingest"):
+    if t in ("rss", "websocket", "ingest", "logs"):  # REQ-1996: a Logs source has one table
         return ["default"]
 
     # REQ-1923: a mailbox has no schema of its own; its canonical tables are listed under one.
@@ -1807,7 +1807,7 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
     # "type a new table name" input, mirroring the neo4j/sparql custom-projection mode, is the real
     # fix for that and is left as a follow-up — this unblocks the ONE-table case, which is exactly
     # what was completely unreachable before). Named after the source id, as csv/parquet above.
-    if t in ("rss", "websocket", "ingest"):
+    if t in ("rss", "websocket", "ingest", "logs"):  # REQ-1996: a Logs source has one table
         from provisa.api.admin.types import AvailableTableType
 
         if schema_name != "default":

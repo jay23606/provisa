@@ -713,6 +713,20 @@
           "help": "Una carpeta con un paquete del servidor de Splunk compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Directorios desde los que se pueden leer archivos de registro",
+        "help": "Los directorios en los que pueden estar los archivos de un origen Logs, una vez seguidos sus enlaces; por defecto /var/log. Añada uno, como ~/Library/Logs, para leer en tablas los archivos propios del servidor que haya bajo él. Un servidor de muchas organizaciones no lee ningún archivo de registro propio, diga lo que diga esto."
+      },
+      "preview_lines": {
+        "label": "Líneas leídas para hallar las columnas de un registro",
+        "help": "Las columnas de un origen de líneas JSON o logfmt son los campos que nombran las primeras líneas de sus archivos. Más líneas encuentran campos poco frecuentes y tardan más en leerse."
+      },
+      "max_line_bytes": {
+        "label": "Registro más largo",
+        "help": "Un registro más largo conserva sus primeros bytes como texto sin procesar, y su error de lectura dice que era demasiado largo."
+      }
     }
   }
 }

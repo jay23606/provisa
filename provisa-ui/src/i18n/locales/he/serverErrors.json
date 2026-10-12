@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "מקור '{{source}}': {{field}} חייב להיות נתיב מוחלט, התקבל '{{path}}'",
       "column_scope_invalid": "לעמודה '{{column}}' יש היקף '{{scope}}'; היקף של עמודה הוא אחד מ-{{scopes}}",
       "microsoft_365_invalid": "מקור Microsoft 365 {{source}}: {{error}}",
-      "parameter_set_by_source": "פרמטר של '{{table}}' שומר על מה שהמקור שלו אומר עליו: לא ניתן לשנות איך הוא מגיע למקור ואם המקור דורש אותו. אחראי נתונים הופך פרמטר לנדרש באמצעות מתג הנדרש שלו."
+      "parameter_set_by_source": "פרמטר של '{{table}}' שומר על מה שהמקור שלו אומר עליו: לא ניתן לשנות איך הוא מגיע למקור ואם המקור דורש אותו. אחראי נתונים הופך פרמטר לנדרש באמצעות מתג הנדרש שלו.",
+      "logs_invalid": "מקור Logs {{source}}: {{error}}",
+      "logs_path_refused": "מקור Logs {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} אינו משתמש בדומיין Google Workspace של הארגון, ולכן לא ניתן לקרוא את הספרייה בשמו. מנהל מערכת מתקן את כתובת מנהל המערכת תחת ניהול › דוא\"ל.",
       "directory_refused": "לא ניתן היה לקרוא את הספרייה של Google: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google דחתה את חשבון השירות של הארגון: {{reason}}"
+    },
+    "logs": {
+      "invalid": "זה אינו מקור Logs: {{error}}",
+      "path_refused": "אסור לקרוא את הקבצים האלה: {{reason}}"
     }
   }
 }

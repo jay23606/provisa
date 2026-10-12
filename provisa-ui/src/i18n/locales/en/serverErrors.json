@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Source '{{source}}': {{field}} must be an absolute path, got '{{path}}'",
       "column_scope_invalid": "Column '{{column}}' has scope '{{scope}}'; a column's scope is one of {{scopes}}",
       "microsoft_365_invalid": "Microsoft 365 source {{source}}: {{error}}",
-      "parameter_set_by_source": "A parameter of '{{table}}' keeps what its source says of it: how it reaches the source and whether the source requires it cannot be changed. A steward makes a parameter required with its required switch."
+      "parameter_set_by_source": "A parameter of '{{table}}' keeps what its source says of it: how it reaches the source and whether the source requires it cannot be changed. A steward makes a parameter required with its required switch.",
+      "logs_invalid": "Logs source {{source}}: {{error}}",
+      "logs_path_refused": "Logs source {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} is not a user of the organization's Google Workspace domain, so the directory cannot be listed as it. An administrator corrects the administrator address under Admin › Email.",
       "directory_refused": "Google's directory would not be read: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google refused the organization's service account: {{reason}}"
+    },
+    "logs": {
+      "invalid": "That is not a Logs source: {{error}}",
+      "path_refused": "Those files may not be read: {{reason}}"
     }
   }
 }

@@ -131,6 +131,8 @@ export const SOURCE_TYPES = [
     category: "File",
     defaultPort: 0,
   },
+  // REQ-1996: the lines of log files a path or glob matches, in a format of the server's.
+  { value: "logs", label: "Log files", category: "File", defaultPort: 0 },
   // Other
   { value: "google_sheets", label: "Google Sheets", category: "Other", defaultPort: 0 },
   { value: "prometheus", label: "Prometheus", category: "Other", defaultPort: 9090 },

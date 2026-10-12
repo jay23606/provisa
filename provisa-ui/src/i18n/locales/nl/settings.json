@@ -713,6 +713,20 @@
           "help": "Een map met een voor deze host gebouwde Splunk-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Mappen waaruit logbestanden gelezen mogen worden",
+        "help": "De mappen waarin de bestanden van een Logs-bron mogen staan, nadat hun koppelingen gevolgd zijn; standaard /var/log. Voeg er een toe, zoals ~/Library/Logs, om de eigen bestanden van de server daaronder in tabellen te lezen. Een server met veel organisaties leest geen eigen logbestand, wat hier ook staat."
+      },
+      "preview_lines": {
+        "label": "Regels gelezen om de kolommen van een log te vinden",
+        "help": "De kolommen van een JSON-regels- of logfmt-bron zijn de velden die de eerste regels van de bestanden noemen. Meer regels vinden zeldzame velden en kosten meer leestijd."
+      },
+      "max_line_bytes": {
+        "label": "Langste logrecord",
+        "help": "Een langer record behoudt de eerste bytes als ruwe tekst, en de leesfout zegt dat het te lang was."
+      }
     }
   }
 }

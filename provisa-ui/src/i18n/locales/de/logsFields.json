@@ -1,0 +1,35 @@
+{
+  "logsFields": {
+    "glob": "Dateien",
+    "globHint": "Ein vollständiger Pfad oder ein Glob wie /var/log/system.log*; rotierte und komprimierte Dateien werden mitgelesen.",
+    "format": "Format",
+    "formatHelp": "Wie jeder Eintrag der Dateien geschrieben ist. Eine Zeile, die das Format nicht lesen kann, bleibt mit ihrem Rohtext und dem Grund erhalten.",
+    "loadingFormats": "Formate werden geladen…",
+    "pattern": "Muster",
+    "patternHint": "Ein regulärer Ausdruck; jede benannte Gruppe wie (?P<level>…) ist eine Spalte.",
+    "recordStart": "Eintragsbeginn",
+    "recordStartHint": "Womit die erste Zeile eines Eintrags beginnt, wenn ein Eintrag mehrere Zeilen umfasst; leer lassen für einen Eintrag je Zeile.",
+    "preview": "Vorschau",
+    "filesFound": "Gefundene Dateien: {{count}}",
+    "columns": "Spalten",
+    "firstRows": "Erste Zeilen: {{count}}",
+    "parseError": "Lesefehler",
+    "group": {
+      "core": "Gängige Formate",
+      "custom": "Eigenes"
+    },
+    "formats": {
+      "rfc3164": "BSD syslog (RFC 3164)",
+      "rfc5424": "Syslog (RFC 5424)",
+      "macos_install": "macOS-Installationsprotokoll",
+      "clf": "Common Log Format",
+      "combined": "Combined Log Format",
+      "jsonl": "JSON-Zeilen",
+      "logfmt": "logfmt",
+      "w3c": "W3C erweitert (IIS)",
+      "cef": "ArcSight CEF",
+      "gelf": "Graylog GELF",
+      "regex": "Regulärer Ausdruck"
+    }
+  }
+}

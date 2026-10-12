@@ -23,6 +23,7 @@ import { salesforceFieldsFromMapping } from "./salesforce";
 import { cloudopsFieldsFromMapping } from "./cloudops";
 import { GOOGLE_WORKSPACE, gwFieldsFromMapping } from "./googleWorkspace";
 import { MICROSOFT_365, m365FieldsFromMapping } from "./microsoft365";
+import { LOGS, logsFieldsFromMapping } from "./logs";
 import { COSMOSDB, cosmosFieldsFromHints } from "./cosmosdb";
 import { QDRANT, qdrantFieldsFromHints } from "./qdrant";
 import { WIKIPEDIA, wikipediaFieldsFromHints } from "./wikipedia";
@@ -182,6 +183,9 @@ export function seedSource(s: Source, govdataCatalog: GovdataSubjectCatalog | nu
   }
   if (s.type === GOOGLE_WORKSPACE && s.mappingJson) {
     authFields = gwFieldsFromMapping(s.mappingJson); // REQ-1923
+  }
+  if (s.type === LOGS && s.mappingJson) {
+    authFields = logsFieldsFromMapping(s.mappingJson); // REQ-1996
   }
   if (s.type === MICROSOFT_365 && s.mappingJson) {
     authFields = m365FieldsFromMapping(s.mappingJson); // REQ-1923

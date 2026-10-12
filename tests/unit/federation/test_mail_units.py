@@ -35,8 +35,16 @@ RECIPIENTS = [
 ]
 STAMP = (cm.LANDED_AT, "timestamp")
 PARTS = {
-    "messages": Part("mail", "messages", [*MESSAGES, STAMP]),
-    "message_recipients": Part("mail", "message_recipients", [*RECIPIENTS, STAMP]),
+    "messages": Part(
+        "mail", "messages", [*MESSAGES, STAMP], cm.key_columns("messages"), cm.LANDED_AT
+    ),
+    "message_recipients": Part(
+        "mail",
+        "message_recipients",
+        [*RECIPIENTS, STAMP],
+        cm.key_columns("message_recipients"),
+        cm.LANDED_AT,
+    ),
 }
 
 
@@ -248,7 +256,10 @@ def test_the_order_never_shows_a_message_without_its_dependants():
 
 def test_a_table_that_is_not_replicated_is_left_out_and_an_unstamped_one_gets_no_stamp():
     unit = _page(A, 1)
-    only = {"messages": Part("mail", "messages", MESSAGES)}  # registered before the stamp
+    # registered before the stamp
+    only = {
+        "messages": Part("mail", "messages", MESSAGES, cm.key_columns("messages"), cm.LANDED_AT)
+    }
     (changes,) = changes_of(unit, only, at="now")
     assert changes.table == "messages" and cm.LANDED_AT not in changes.events[0].row
 

@@ -53,6 +53,9 @@
       "place_not_kept": "このコピーは完了していますが、読み取りの到達位置を保存できなかったため、次回の変更確認で再度読み取りが要求されます: {{reason}}",
       "andMore": "{{ids}} ほか {{more}} 件",
       "other": "前回のビルドの注記: {{code}}"
-    }
+    },
+    "progressFiles": "{{total}} 件中 {{done}} 件のファイルを読み取り済み",
+    "buildingPartialFiles": "レプリカは構築中で、すでに読み取れます。一部のみ: {{total}} 件中 {{done}} 件のファイルを読み取り済み（{{how}}）。",
+    "buildingPartsFiles": "レプリカを最新の状態に更新中: {{total}} 件中 {{done}} 件のファイルを確認済み（{{how}}）。"
   }
 }

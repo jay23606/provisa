@@ -54,6 +54,8 @@ _ADAPTER_FETCH_ONLY: frozenset[str] = frozenset(
         # REQ-1923: likewise a Microsoft 365 mailbox, through Microsoft Graph
         # (provisa/microsoft365/loader.py).
         "microsoft_365",
+        # REQ-1996: log files are read by their own loader (provisa/logs/loader.py) and landed.
+        "logs",
         # REQ-1443: a data-quality checker source has no table to scan — its rows ARE the result of
         # running the contract, appended by each scan (provisa/dq/scan.py) and read in place.
         "soda",

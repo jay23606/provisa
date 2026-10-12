@@ -713,6 +713,20 @@
           "help": "Ein Ordner mit einem für diesen Host gebauten Splunk-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Verzeichnisse, aus denen Logdateien gelesen werden dürfen",
+        "help": "Die Verzeichnisse, in denen die Dateien einer Logs-Quelle liegen dürfen, nachdem ihre Links aufgelöst sind; standardmäßig /var/log. Fügen Sie eines wie ~/Library/Logs hinzu, um die eigenen Dateien des Servers darunter in Tabellen zu lesen. Ein Server mit vielen Organisationen liest keine eigene Logdatei, was auch immer hier steht."
+      },
+      "preview_lines": {
+        "label": "Gelesene Zeilen zur Ermittlung der Spalten eines Logs",
+        "help": "Die Spalten einer JSON-Zeilen- oder logfmt-Quelle sind die Felder, die die ersten Zeilen ihrer Dateien nennen. Mehr Zeilen finden selten vorkommende Felder und brauchen länger zum Lesen."
+      },
+      "max_line_bytes": {
+        "label": "Längster Logeintrag",
+        "help": "Ein längerer Eintrag behält seine ersten Bytes als Rohtext, und sein Lesefehler sagt, dass er zu lang war."
+      }
     }
   }
 }
