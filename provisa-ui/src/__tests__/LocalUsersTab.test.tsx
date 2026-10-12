@@ -166,8 +166,11 @@ describe("LocalUsersTab", () => {
   });
 
   describe("a user's name on its expand button", () => {
-    const LONG = "svc-ingest-warehouse-eu-west-1-nightly-replication-account-0042@corp.example.internal";
+    const LONG =
+      "svc-ingest-warehouse-eu-west-1-nightly-replication-account-0042@corp.example.internal";
+    const pendingReports = new Set<{ disconnect(): void }>();
     afterEach(() => {
+      for (const observer of pendingReports) observer.disconnect();
       vi.restoreAllMocks();
       vi.unstubAllGlobals();
     });
@@ -180,20 +183,34 @@ describe("LocalUsersTab", () => {
       ) {
         return this.isConnected && this.textContent === LONG && this.tagName === "SPAN" ? 900 : 0;
       });
-      // As in a browser, an observer reports once on observe, and never after it is disconnected.
-      // The hint wraps the button anew when the name is cut; the measure must follow the new
-      // element, not report the one that left the page.
+      // As in a browser, an observer reports once on observe, with an entry for its element, and
+      // never after it is disconnected or the test has ended. The hint wraps the button anew when
+      // the name is cut; the measure must follow the new element, not report the one that left.
       vi.stubGlobal(
         "ResizeObserver",
         class {
-          live = true;
-          constructor(private readonly report: () => void) {}
-          observe() {
-            setTimeout(() => this.live && this.report(), 0);
+          report: ResizeObserverCallback;
+          timers = new Set<ReturnType<typeof setTimeout>>();
+          constructor(report: ResizeObserverCallback) {
+            this.report = report;
+          }
+          observe(target: Element) {
+            const timer = setTimeout(() => {
+              this.timers.delete(timer);
+              const contentRect = target.getBoundingClientRect();
+              this.report(
+                [{ target, contentRect } as ResizeObserverEntry],
+                this as unknown as ResizeObserver,
+              );
+            }, 0);
+            this.timers.add(timer);
+            pendingReports.add(this);
           }
           unobserve() {}
           disconnect() {
-            this.live = false;
+            for (const timer of this.timers) clearTimeout(timer);
+            this.timers.clear();
+            pendingReports.delete(this);
           }
         },
       );
@@ -203,7 +220,10 @@ describe("LocalUsersTab", () => {
       // Mantine writes a size in rem (16px each).
       expect(button.style.maxWidth).toContain(`${LIST_COLUMN_CAP_PX / 16}rem`);
       expect(button).toHaveAttribute("data-cut", "true");
-      expect(screen.getByText(LONG)).toHaveStyle({ textOverflow: "ellipsis", whiteSpace: "nowrap" });
+      expect(screen.getByText(LONG)).toHaveStyle({
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      });
       await new Promise((r) => setTimeout(r, 50));
       const shown = screen.getByTestId(`expand-user-${LONG}`);
       expect(shown).toHaveAttribute("data-cut", "true");
