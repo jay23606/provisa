@@ -324,6 +324,7 @@ async def _upsert_tables_to_semantic_layer(  # REQ-308, REQ-599, REQ-602
     remote schema keeps its id and what refers to it. One the remote no longer has is deleted
     through the model store; when something depends on it, it is kept, and returned here with
     what still refers to it (REQ-1918)."""
+    from provisa.api.admin._graphql_table_registration import arguments
     from provisa.core.models import Column, Table
     from provisa.core.repositories import table as table_repo
 
@@ -338,6 +339,7 @@ async def _upsert_tables_to_semantic_layer(  # REQ-308, REQ-599, REQ-602
                 registered_tables.c.table_name,
                 table_columns.c.column_name,
                 table_columns.c.visible_to,
+                table_columns.c.required_by_steward,
             )
             .select_from(
                 registered_tables.join(
@@ -351,9 +353,13 @@ async def _upsert_tables_to_semantic_layer(  # REQ-308, REQ-599, REQ-602
                 )
             )
         )
+        _existing = _existing_rows.fetchall()
         _existing_grants: dict[tuple[str, str], list] = {
-            (r.table_name, r.column_name): list(r.visible_to or [])
-            for r in _existing_rows.fetchall()
+            (r.table_name, r.column_name): list(r.visible_to or []) for r in _existing
+        }
+        # REQ-1986: nor on which parameters a steward made required.
+        _steward_required = {
+            (r.table_name, r.column_name) for r in _existing if r.required_by_steward
         }
         # REQ-1591: a term's domains are derived by joining its refs to registered_tables, so the
         # snapshot has to be taken while the rows the wipe below removes are still there.
@@ -389,16 +395,18 @@ async def _upsert_tables_to_semantic_layer(  # REQ-308, REQ-599, REQ-602
                     Column(
                         name=f"_nf_{apply_sql_name(a['name'])}",
                         visible_to=[],
-                        native_filter_type="query_param",
-                        # A required argument: non-null in the schema, with no default.
-                        native_filter_required=True,
+                        native_filter_type="graphql_arg",
+                        # REQ-1986: required where the schema requires it (non-null, no default).
+                        native_filter_required=required,
+                        required_by_steward=(_sql_name, f"_nf_{apply_sql_name(a['name'])}")
+                        in _steward_required,
                         # REQ-1426: a native-filter column is a column — it carries the argument's
                         # resolved type like any other. Omitting it wrote NULL data_type rows the
                         # catalog then rendered as "unknown". _gql_to_provisa_type always yields a
                         # key of this map, so an unmapped type is a defect and must raise.
                         data_type=_PROVISA_TO_PHYSICAL_TYPE[a["provisa_type"]],
                     )
-                    for a in t.get("required_args", [])
+                    for a, required in arguments(t)
                 ],
             )
             from provisa.api.admin.region_defaults import admin_registration_draft

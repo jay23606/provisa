@@ -27,6 +27,7 @@ fragment ColumnFields on TableColumnType {
   dataType
   nativeFilterType
   nativeFilterRequired
+  requiredBySteward
   path
   isPrimaryKey
   isForeignKey
@@ -352,6 +353,19 @@ query Neo4jPreview($sourceId: String!, $cypher: String!) {
     columns {
       name
       dataType
+    }
+    error
+  }
+}
+
+# REQ-1980: a MongoDB native query run with sample arguments.
+query MongoPipelinePreview($sourceId: String!, $nativeQuery: String!, $arguments: JSON!) {
+  mongoPipelinePreview(sourceId: $sourceId, nativeQuery: $nativeQuery, arguments: $arguments) {
+    rows
+    columns {
+      name
+      dataType
+      path
     }
     error
   }

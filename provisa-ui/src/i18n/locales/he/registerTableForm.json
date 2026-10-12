@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "הטבלה נרשמה, אך כלל השורות עבור {{role}} לא נשמר: {{message}}",
     "scopeHelp": "domain: מוגש לתפקידים שמגיעים לתחום של טבלה זו. public: גם לתפקידים מחוצה לו. restricted: רק לתפקידים שצוינו ב״גלוי ל״.",
     "shortColumns": "נרשמות עם הסוגים שזוהו ({{count}}): {{names}}. הסתרה, מפתחות ונתוני בדיקה מוגדרים בעורך שנפתח לאחר מכן.",
-    "shortUntyped": "לא נמצא סוג עבור עמודות אלה. בחרו סוג לכל אחת:"
+    "shortUntyped": "לא נמצא סוג עבור עמודות אלה. בחרו סוג לכל אחת:",
+    "pipelineQueryLabel": "שאילתה מקורית",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- ארגומנט הוא ערך שלם \"{{name}}\"",
+    "pipelineArguments": "ארגומנטים",
+    "pipelineArgumentsHelp": "כל ארגומנט הוא פרמטר של הטבלה שניתן בכל קריאה: תנאי WHERE על העמודה שלו ב-SQL, ארגומנט ב-GraphQL. הערך שלו נקשר לצינור כערך מהסוג שלו. ערך לדוגמה משמש לתצוגה מקדימה בלבד.",
+    "pipelineArgumentSample": "ערך לדוגמה",
+    "pipelineArgumentAdd": "ארגומנט",
+    "pipelineArgumentRemove": "הסרת {{name}}",
+    "mongoModeLabel": "מה הטבלה קוראת",
+    "mongoModeCollection": "אוסף",
+    "mongoModePipeline": "צינור",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

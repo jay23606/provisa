@@ -621,7 +621,8 @@ tables:
   - description: Breed name to fetch - sent to the GraphQL query as an argument
     name: _nf_name
     data_type: varchar
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Typical lifespan of the breed in years
     name: avg_lifespan_years
@@ -758,7 +759,8 @@ tables:
   - description: Breed name to filter on - sent to the GraphQL query as an argument
     name: _nf_breed_name
     data_type: varchar
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Breed the employee is assigned to care for
     name: breed_name
@@ -807,7 +809,8 @@ tables:
   - description: Employee id to filter on - sent to the GraphQL query as an argument
     name: _nf_employee_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Breed the employee is assigned to care for
     name: breed_name
@@ -900,7 +903,8 @@ tables:
   - description: Employee id to fetch - sent to the GraphQL query as an argument
     name: _nf_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - data_type: jsonb
     description: Employee's contact details
@@ -1045,6 +1049,7 @@ tables:
     name: _nf_status
     data_type: varchar
     native_filter_type: query_param
+    native_filter_required: false
     visible_to: []
   - description: Store category the pet is listed under
     name: category
@@ -1093,6 +1098,7 @@ tables:
     name: _nf_tags
     data_type: json
     native_filter_type: query_param
+    native_filter_required: false
     visible_to: []
   - description: Store category the pet is listed under
     name: category
@@ -1172,6 +1178,7 @@ tables:
     name: orderId
     data_type: integer
     native_filter_type: path_param
+    native_filter_required: true
     visible_to: []
   - description: Pet the order was placed for
     name: petId
@@ -1208,6 +1215,7 @@ tables:
     name: _nf_petId
     data_type: integer
     native_filter_type: path_param
+    native_filter_required: true
     visible_to: []
   - description: Store category the pet is listed under
     name: category
@@ -1288,6 +1296,7 @@ tables:
     name: username
     data_type: varchar
     native_filter_type: path_param
+    native_filter_required: true
     visible_to:
     - org_admin
     - analyst
@@ -1622,7 +1631,8 @@ tables:
   - description: Employee id to filter on - sent to the GraphQL query as an argument
     name: _nf_employee_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Day of the week the shift falls on
     name: day_of_week

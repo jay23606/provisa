@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "La table a été enregistrée, mais la règle de lignes de {{role}} n'a pas été enregistrée : {{message}}",
     "scopeHelp": "domain : servi aux rôles qui atteignent le domaine de cette table. public : aussi aux rôles en dehors. restricted : uniquement aux rôles nommés dans Visible par.",
     "shortColumns": "Enregistrées avec les types découverts ({{count}}) : {{names}}. Le masquage, les clés et les données de test se règlent dans l'éditeur qui s'ouvre ensuite.",
-    "shortUntyped": "Aucun type n'a été trouvé pour ces colonnes. Choisissez-en un pour chacune :"
+    "shortUntyped": "Aucun type n'a été trouvé pour ces colonnes. Choisissez-en un pour chacune :",
+    "pipelineQueryLabel": "Requête native",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- un argument est une valeur entière \"{{name}}\"",
+    "pipelineArguments": "Arguments",
+    "pipelineArgumentsHelp": "Chaque argument est un paramètre de la table, donné à chaque lecture : une condition WHERE sur sa colonne en SQL, un argument en GraphQL. Sa valeur est liée au pipeline comme une valeur de son type. Une valeur d'exemple sert uniquement à l'aperçu.",
+    "pipelineArgumentSample": "Valeur d'exemple",
+    "pipelineArgumentAdd": "Argument",
+    "pipelineArgumentRemove": "Retirer {{name}}",
+    "mongoModeLabel": "Ce que lit la table",
+    "mongoModeCollection": "Collection",
+    "mongoModePipeline": "Pipeline",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

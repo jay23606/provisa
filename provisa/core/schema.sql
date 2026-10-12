@@ -252,6 +252,7 @@ DO $$ BEGIN
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS mask_precision TEXT;
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS native_filter_type TEXT;
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS native_filter_required BOOLEAN;
+    ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS required_by_steward BOOLEAN NOT NULL DEFAULT FALSE;  -- REQ-1986
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS data_type TEXT;
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS is_primary_key BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE table_columns ADD COLUMN IF NOT EXISTS is_foreign_key BOOLEAN NOT NULL DEFAULT FALSE;

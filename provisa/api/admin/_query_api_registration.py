@@ -70,6 +70,92 @@ async def preview_sparql(conn: "Connection", source_id: str, query: str) -> "Que
     )
 
 
+# Documents a pipeline preview returns.
+PREVIEW_ROWS = 5
+
+
+async def preview_pipeline(
+    conn: "Connection", source_id: str, native_query: str, arguments: list[dict]
+) -> "QueryPreviewType":
+    """REQ-1980: run a native query on a MongoDB source with sample ``arguments`` (each
+    ``{name, dataType, value}``) and return up to five documents and the columns they suggest.
+    Failures come back as ``error``: a half-written pipeline is the normal state of the editor."""
+    import asyncio
+    import json
+
+    from bson import json_util
+
+    from provisa.api.admin.types import QueryPreviewColumnType, QueryPreviewType
+    from provisa.core.parameter_values import convert
+    from provisa.federation.registry_view import registered_sources
+    from provisa.mongodb.fetch import MongoConnection, aggregate_row_batches
+    from provisa.mongodb.native_query import bind, check
+    from provisa.mongodb.pipeline_rows import infer_columns
+
+    from provisa.api.app import state
+
+    row = await source_row(conn, source_id)
+    if row is None or row["type"] != "mongodb":
+        return QueryPreviewType(error=f"{source_id!r} is not a registered mongodb source")
+    try:
+        values = {
+            a["name"]: (
+                convert(a.get("value"), a["dataType"], table="preview", parameter=a["name"]),
+                a["dataType"],
+            )
+            for a in arguments
+        }
+        query = check("preview", native_query, set(values))
+        pipeline = [*bind(query, values), {"$limit": PREVIEW_ROWS}]
+        source = next(s for s in await registered_sources(state, conn) if s.id == source_id)
+        mongo = MongoConnection.from_source(source)
+        database = source.database
+
+        def _run() -> list[dict]:
+            return [
+                doc
+                for batch in aggregate_row_batches(
+                    mongo, database, query.input_collection, pipeline, PREVIEW_ROWS
+                )
+                for doc in batch
+            ]
+
+        docs = await asyncio.to_thread(_run)
+    except Exception as exc:  # allow-blind-except: a preview reports every failure as its error
+        return QueryPreviewType(error=f"{type(exc).__name__}: {exc}")
+    return QueryPreviewType(
+        rows=[
+            json.loads(json_util.dumps(d, json_options=json_util.RELAXED_JSON_OPTIONS))
+            for d in docs
+        ],
+        columns=[
+            QueryPreviewColumnType(name=c.name, data_type=c.data_type, path=c.path)
+            for c in infer_columns(docs)
+        ],
+    )
+
+
+async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "MutationResult | None":
+    """REQ-1980: a MongoDB table registered with a native query is a pipeline table, checked
+    before its row lands: the query parses, names only its declared arguments and uses each, and
+    only reads. None for every other table."""
+    from provisa.api.admin.types import MutationResult
+    from provisa.mongodb.native_query import NativeQueryRefused, check_table
+
+    if not model.query_template:
+        return None
+    row = await source_row(conn, model.source_id)
+    if row is None or row["type"] != "mongodb":
+        return None
+    try:
+        check_table(model)
+    except NativeQueryRefused as refused:
+        return MutationResult(
+            success=False, message=str(refused), code=refused.code, params=refused.params
+        )
+    return None
+
+
 async def persist_query_api_registration(
     conn: "Connection", model: "Table"
 ) -> "MutationResult | None":

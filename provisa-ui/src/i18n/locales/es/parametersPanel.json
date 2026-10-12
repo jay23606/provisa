@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "Parámetros",
+    "summary": "{{required}} de {{count}} obligatorios",
+    "name": "Parámetro",
+    "type": "Tipo",
+    "reaches": "Llega al origen como",
+    "required": "Obligatorio",
+    "requiredBySource": "Lo exige el origen",
+    "requiredAria": "{{name}} es obligatorio",
+    "kind": {
+      "path_param": "Parámetro de ruta",
+      "query_param": "Parámetro de consulta",
+      "graphql_arg": "Argumento de GraphQL",
+      "grpc_input": "Campo de la solicitud gRPC",
+      "pipeline_arg": "Argumento de la canalización"
+    }
+  }
+}

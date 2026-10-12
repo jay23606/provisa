@@ -11,6 +11,7 @@
 import { useCallback } from "react";
 import { useLazyQuery } from "@apollo/client/react";
 import {
+  MongoPipelinePreview as MONGO_PIPELINE_PREVIEW_QUERY,
   Neo4jPreview as NEO4J_PREVIEW_QUERY,
   SparqlPreview as SPARQL_PREVIEW_QUERY,
 } from "./admin.graphql";
@@ -28,9 +29,31 @@ export function useQueryPreview() {
     { sparqlPreview: QueryPreview },
     { sourceId: string; query: string }
   >(SPARQL_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
+  const [runPipeline] = useLazyQuery<
+    { mongoPipelinePreview: QueryPreview },
+    { sourceId: string; nativeQuery: string; arguments: QueryPreviewVars["arguments"] }
+  >(MONGO_PIPELINE_PREVIEW_QUERY, { fetchPolicy: "no-cache" });
   return {
     preview: useCallback(
-      async ({ sourceType, sourceId, query }: QueryPreviewVars): Promise<QueryPreview> => {
+      async ({
+        sourceType,
+        sourceId,
+        query,
+        arguments: args,
+      }: QueryPreviewVars): Promise<QueryPreview> => {
+        if (sourceType === "mongodb") {
+          const res = await runPipeline({
+            variables: { sourceId, nativeQuery: query, arguments: args ?? [] },
+          });
+          if (res.error) return { rows: [], columns: [], error: res.error.message };
+          return (
+            res.data?.mongoPipelinePreview ?? {
+              rows: [],
+              columns: [],
+              error: "no preview returned",
+            }
+          );
+        }
         if (sourceType === "sparql") {
           const res = await runSparql({ variables: { sourceId, query } });
           if (res.error) return { rows: [], columns: [], error: res.error.message };
@@ -40,7 +63,7 @@ export function useQueryPreview() {
         if (res.error) return { rows: [], columns: [], error: res.error.message };
         return res.data?.neo4jPreview ?? { rows: [], columns: [], error: "no preview returned" };
       },
-      [runNeo4j, runSparql],
+      [runNeo4j, runSparql, runPipeline],
     ),
   };
 }

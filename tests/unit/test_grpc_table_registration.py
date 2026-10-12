@@ -55,8 +55,10 @@ class _Conn:
         return result
 
 
-def _row(table: str, domain: str, column: str) -> SimpleNamespace:
-    return SimpleNamespace(table_name=table, domain_id=domain, column_name=column)
+def _row(table: str, domain: str, column: str, steward: bool = False) -> SimpleNamespace:
+    return SimpleNamespace(
+        table_name=table, domain_id=domain, column_name=column, required_by_steward=steward
+    )
 
 
 @pytest.fixture
@@ -84,7 +86,9 @@ async def test_a_source_with_nothing_registered_writes_no_table(written):
 
 
 async def test_only_registered_tables_are_brought_up_to_date(written):
-    registered = {"ns__OrderService__ListOrders": ("sales", {"id", "_nf_customer_id"})}
+    registered = {
+        "ns__OrderService__ListOrders": ("sales", {"id", "_nf_customer_id"}, {"_nf_customer_id"})
+    }
     n_tables = await router._register_schema(
         "g", [_query("ListOrders"), _query("GetOrder")], _Conn(), "ns", "d", registered
     )
@@ -98,6 +102,8 @@ async def test_only_registered_tables_are_brought_up_to_date(written):
         "id": "integer",
         "_nf_customer_id": "bigint",
     }
+    # REQ-1986: a parameter a steward made required stays required when the proto is re-read.
+    assert [c.name for c in table.columns if c.required_by_steward] == ["_nf_customer_id"]
 
 
 async def test_the_registered_set_is_read_from_the_registry():
@@ -105,12 +111,17 @@ async def test_the_registered_set_is_read_from_the_registry():
         [
             _row("ns__OrderService__ListOrders", "sales", "id"),
             _row("ns__OrderService__ListOrders", "sales", "total"),
+            _row("ns__OrderService__ListOrders", "sales", "_nf_customer_id", steward=True),
             _row("ns__OrderService__GetOrder", "", "id"),
         ]
     )
     assert await router.registered_query_tables(conn, "g") == {
-        "ns__OrderService__ListOrders": ("sales", {"id", "total"}),
-        "ns__OrderService__GetOrder": ("", {"id"}),
+        "ns__OrderService__ListOrders": (
+            "sales",
+            {"id", "total", "_nf_customer_id"},
+            {"_nf_customer_id"},
+        ),
+        "ns__OrderService__GetOrder": ("", {"id"}, set()),
     }
 
 

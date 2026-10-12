@@ -24,6 +24,8 @@ export interface ColumnForm {
   nativeFilterType: string | null;
   /** Whether the source requires a value for this parameter; null where it is not recorded. */
   nativeFilterRequired?: boolean | null;
+  /** REQ-1986: a steward made the parameter required for the table. */
+  requiredBySteward?: boolean;
   dataType: string;
   isPrimaryKey: boolean;
   scope: string;

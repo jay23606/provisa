@@ -49,16 +49,36 @@ def _rebuild_and(conditions: list[exp.Expr]) -> exp.Expr | None:  # pyright: ign
     return result
 
 
+_NOT_LITERAL = object()
+
+
+def _literal(val_expr: exp.Expr) -> Any:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
+    """A literal's value -- a string, a number, a negated number -- or ``_NOT_LITERAL``."""
+    if isinstance(val_expr, exp.Neg) and isinstance(val_expr.this, exp.Literal):
+        inner = _literal(val_expr.this)
+        return -inner if isinstance(inner, (int, float)) else _NOT_LITERAL
+    if isinstance(val_expr, exp.Literal):
+        if val_expr.is_string:
+            return val_expr.this
+        raw = val_expr.this
+        return float(raw) if "." in raw or "e" in raw.lower() else int(raw)
+    return _NOT_LITERAL
+
+
 def _resolve_value(val_expr: exp.Expr, params: list[Any]) -> tuple[Any, int | None]:  # pyright: ignore[reportPrivateImportUsage]  # lib omits __all__
     """Return (value, param_index_1based) from a value expression.
 
     param_index is set when the value came from a $N placeholder; None for literals.
     """
-    if isinstance(val_expr, exp.Literal):
-        if val_expr.is_string:
-            return val_expr.this, None
-        raw = val_expr.this
-        return (float(raw) if "." in raw else int(raw)), None
+    literal = _literal(val_expr)
+    if literal is not _NOT_LITERAL:
+        return literal, None
+    if isinstance(val_expr, exp.Array):
+        # REQ-1980: an array literal (a query vector, ARRAY[0.1, -0.2]) is a list of its items.
+        items = [_literal(item) for item in val_expr.expressions]
+        if all(item is not _NOT_LITERAL for item in items):
+            return items, None
+        return None, None
     if isinstance(val_expr, exp.Parameter):
         try:
             idx = int(str(val_expr.this))

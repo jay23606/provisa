@@ -22877,3 +22877,17 @@ Every source's structured types are real, shared, named types on every surface: 
 **Code:** —
 
 **Tests:** —
+
+## 4. Source Connectors
+
+### REQ-1988 · Source Connectors {#REQ-1988}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A query command can run a MongoDB aggregation pipeline whose output has no stable shape (implementation kind source_query). The command holds the native query as its binding, in the same {"inputCollection", "pipeline"} form a pipeline table holds ([REQ-1980](#REQ-1980)). Its arguments are the command's typed arguments, each a "{{name}}" placeholder in the pipeline, and a call converts each one to its type and binds it into the pipeline as a BSON value, never into its text. A call returns the documents the pipeline gives, as JSON, so each may have its own shape. A command that declares output columns has its rows checked against them on the way out, as every command's output contract is. Registration refuses a pipeline command whose native query names an argument the command does not declare, leaves a declared argument unused, or writes ($out, $merge), and one that is not a query. The command is assigned to roles and placed in a domain like any other command.
+
+**Use case:** A developer registers a search_facets command running $searchMeta with a facet over genre and year, its text a typed argument; a GraphQL client calls it with the text and receives the facet buckets as JSON, whose shape depends on the facets the pipeline asks for.
+
+**Code:** —
+
+**Tests:** —

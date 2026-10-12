@@ -338,6 +338,8 @@ table_columns = Table(
     Column("native_filter_type", Text),
     # Whether the parameter is required by its source; NULL where it is not recorded.
     Column("native_filter_required", Boolean),
+    # REQ-1986: a steward made the parameter required for the table.
+    Column("required_by_steward", Boolean, nullable=False, server_default=false()),
     Column("is_foreign_key", Boolean, nullable=False, server_default=false()),
     Column("is_alternate_key", Boolean, nullable=False, server_default=false()),
     Column("object_fields", JSON, nullable=False, default=list, server_default="[]"),

@@ -17,6 +17,9 @@ Profile ask for the required values first, so a table is never read without them
 
 from __future__ import annotations
 
+import pydantic
+import pytest
+
 from provisa.api.admin import _graphql_table_registration as registration
 from provisa.core.models import Column
 from provisa.openapi.mapper import _extract_params
@@ -49,16 +52,41 @@ def test_a_remote_graphql_tables_required_argument_is_recorded_required():
         }
     )
     by_name = {c.name: c for c in columns}
-    assert by_name["_nf_owner"].native_filter_type == "query_param"
+    assert by_name["_nf_owner"].native_filter_type == "graphql_arg"
     assert by_name["_nf_owner"].native_filter_required is True
     assert by_name["id"].native_filter_required is None  # not a parameter
 
 
-def test_a_column_says_nothing_until_a_registration_records_it():
-    assert (
-        Column(name="_nf_id", visible_to=[], native_filter_type="path_param").native_filter_required
-        is None
+def test_a_remote_graphql_tables_optional_argument_is_recorded_optional():
+    # REQ-1986: an optional argument is a parameter too, so a steward can make it required.
+    columns = registration._column_models(
+        {
+            "columns": [{"name": "id", "type": "integer"}],
+            "required_args": [],
+            "optional_args": [{"name": "status", "provisa_type": "text"}],
+        }
     )
+    status = {c.name: c for c in columns}["_nf_status"]
+    assert (status.native_filter_type, status.native_filter_required) == ("graphql_arg", False)
+
+
+def test_a_parameter_column_must_say_whether_its_source_requires_it():
+    # REQ-1986: whether the source requires a parameter is recorded with it, never left unknown.
+    with pytest.raises(pydantic.ValidationError, match="native_filter_required must say"):
+        Column(name="_nf_id", visible_to=[], native_filter_type="path_param")
+    assert Column(name="id", visible_to=[]).native_filter_required is None  # not a parameter
+
+
+def test_a_parameter_reaches_its_source_in_one_of_the_known_ways():
+    with pytest.raises(pydantic.ValidationError, match="is not one of"):
+        Column(
+            name="_nf_id", visible_to=[], native_filter_type="header", native_filter_required=True
+        )
+
+
+def test_only_a_parameter_is_required():
+    with pytest.raises(pydantic.ValidationError, match="only a parameter column is required"):
+        Column(name="id", visible_to=[], required_by_steward=True)
 
 
 def test_an_old_row_is_resolved_only_where_required_is_certain():

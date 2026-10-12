@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "פרמטרים",
+    "summary": "{{required}} מתוך {{count}} נדרשים",
+    "name": "פרמטר",
+    "type": "סוג",
+    "reaches": "מגיע למקור בתור",
+    "required": "נדרש",
+    "requiredBySource": "נדרש על ידי המקור",
+    "requiredAria": "{{name}} נדרש",
+    "kind": {
+      "path_param": "פרמטר נתיב",
+      "query_param": "פרמטר שאילתה",
+      "graphql_arg": "ארגומנט GraphQL",
+      "grpc_input": "שדה בבקשת gRPC",
+      "pipeline_arg": "ארגומנט של צינור"
+    }
+  }
+}

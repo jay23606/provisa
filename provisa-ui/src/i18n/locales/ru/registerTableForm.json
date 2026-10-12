@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "Таблица зарегистрирована, но правило строк для {{role}} не сохранено: {{message}}",
     "scopeHelp": "domain: выдаётся ролям, которым доступен домен этой таблицы. public: также ролям вне его. restricted: только ролям, указанным в «Видно для».",
     "shortColumns": "Регистрируются с найденными типами ({{count}}): {{names}}. Скрытие, ключи и тестовые данные настраиваются в редакторе, который откроется следом.",
-    "shortUntyped": "Для этих столбцов тип не найден. Выберите тип для каждого:"
+    "shortUntyped": "Для этих столбцов тип не найден. Выберите тип для каждого:",
+    "pipelineQueryLabel": "Нативный запрос",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- аргумент -- это целое значение \"{{name}}\"",
+    "pipelineArguments": "Аргументы",
+    "pipelineArgumentsHelp": "Каждый аргумент -- параметр таблицы, передаваемый при каждом чтении: условие WHERE на его столбец в SQL, аргумент в GraphQL. Значение привязывается к конвейеру как значение своего типа. Пример значения используется только для предпросмотра.",
+    "pipelineArgumentSample": "Пример значения",
+    "pipelineArgumentAdd": "Аргумент",
+    "pipelineArgumentRemove": "Удалить {{name}}",
+    "mongoModeLabel": "Что читает таблица",
+    "mongoModeCollection": "Коллекция",
+    "mongoModePipeline": "Конвейер",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

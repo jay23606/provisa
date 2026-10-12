@@ -497,6 +497,8 @@ class TableColumnType:  # REQ-040, REQ-041, REQ-393, REQ-399
     native_filter_type: str | None = None
     # Whether the source requires a value for this parameter; None where it is not recorded.
     native_filter_required: bool | None = None
+    # REQ-1986: a steward made the parameter required for the table.
+    required_by_steward: bool = False
     # REQ-1739: dot-notation JSON extraction path for an `ingest` push source's column mapping
     # (provisa/ingest/router.py's `_extract_row`) — already a DB column and a core Column model
     # field, just never surfaced through this GraphQL type, so the table editor couldn't read it.
@@ -853,6 +855,8 @@ class ColumnInput:  # REQ-040, REQ-041, REQ-393, REQ-399
     native_filter_type: str | None = None
     # Whether the source requires a value for this parameter; None where it is not recorded.
     native_filter_required: bool | None = None
+    # REQ-1986: a steward made the parameter required for the table.
+    required_by_steward: bool = False
     is_primary_key: bool = False
     is_foreign_key: bool = False
     is_alternate_key: bool = False
@@ -1171,6 +1175,8 @@ class DqCheckDefinitionType:  # REQ-1443 clause 7
 class QueryPreviewColumnType:  # REQ-1670, REQ-1683
     name: str
     data_type: str
+    # REQ-1980: where a pipeline's nested field is read from (dot notation); None for a top field.
+    path: str | None = None
 
 
 @strawberry.type

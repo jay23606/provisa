@@ -50,6 +50,7 @@ import {
 } from "../../components/form/FormLayout";
 import { TableLoadManagementFields } from "./TableLoadManagementFields";
 import { ColumnTabs } from "./ColumnTabs";
+import { ParametersPanel } from "./ParametersPanel";
 import { COLUMN_TABS, useColumnTab, type ColumnTab } from "./columnTopics";
 import { usePanelDirty } from "../../components/list/panelLeave";
 import type { ColumnDefinitionLine } from "./ColumnGlossaryHover";
@@ -652,7 +653,10 @@ export function TableEditForm({
         ))}
       {section === "query" &&
         (hidingOnly ? (
-          <QueryRead table={editingTable} />
+          <>
+            <QueryRead table={editingTable} />
+            <ParametersPanel columns={editingTable.columns} />
+          </>
         ) : (
           <>
             <FormLayout className="form-card" data-testid="table-section-query-panel">
@@ -703,6 +707,11 @@ export function TableEditForm({
                 </div>
               ) : null;
             })()}
+            {/* REQ-1986: the table's parameters, and the steward's required switch. */}
+            <ParametersPanel
+              columns={editingTable.columns}
+              onRequiredChange={(i, required) => updateEditCol(i, "requiredBySteward", required)}
+            />
           </>
         ))}
       {section === "quality" &&

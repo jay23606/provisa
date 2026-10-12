@@ -202,8 +202,11 @@ def _build_action_fields(  # REQ-205, REQ-206, REQ-207, REQ-208, REQ-209, REQ-21
             gql_return = GraphQLList(GraphQLNonNull(ret_type)) if ret_type else GraphQLString
         else:
             return_schema = func.get("return_schema")
-            if func.get("impl_kind") == "source_operation":
-                # REQ-1924: the remote's answer, passed back as it gave it.
+            if func.get("impl_kind") == "source_operation" or (
+                func.get("impl_kind") == "source_query" and not return_schema
+            ):
+                # REQ-1924: the remote's answer, passed back as it gave it; REQ-1988: a native
+                # query's documents, whose shape may differ from one to the next.
                 gql_return = JSONScalar
             elif return_schema:
                 type_name = "".join(p.capitalize() for p in func["name"].split("_")) + "ReturnType"

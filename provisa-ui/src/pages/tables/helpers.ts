@@ -104,6 +104,7 @@ export function buildTableUpdateInput(t: RegisteredTable): Record<string, unknow
       nativeFilterType: c.nativeFilterType || undefined,
       // A recorded false is a fact (the parameter is optional): only null is left out.
       nativeFilterRequired: c.nativeFilterRequired ?? undefined,
+      requiredBySteward: c.requiredBySteward || undefined, // REQ-1986
       path: c.path || undefined, // REQ-1739: ingest per-column JSON extraction path
       isPrimaryKey: c.isPrimaryKey || undefined,
       isForeignKey: c.isForeignKey || undefined,

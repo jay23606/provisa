@@ -322,6 +322,7 @@ def test_candidates_are_read_from_rows_as_the_registry_view_builds_them():
             "load_protected": None,
             "row_materialize": False,
             "dq_contract": None,
+            "query_template": None,
             "alias": None,
             "change_signal": None,
             "region": None,  # REQ-1921: it names no region

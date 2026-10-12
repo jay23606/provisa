@@ -564,6 +564,8 @@ def _build_native_filter_args(
     args: dict[str, GraphQLArgument],
 ) -> None:
     """Append native filter args to args in-place."""
+    from provisa.core.parameters import is_required
+
     visible_col_names = [
         c["column_name"] for c in t.visible_columns if c["column_name"].lower() in t.column_metadata
     ]
@@ -581,10 +583,10 @@ def _build_native_filter_args(
         meta = t.column_metadata.get(col_name.lower())
         nfc_gql_type = column_type_to_graphql(meta.data_type) if meta else GraphQLString
         scalar = nfc_gql_type.of_type if isinstance(nfc_gql_type, GraphQLList) else nfc_gql_type
-        required = nfc.get("native_filter_type") == "path_param"
+        # REQ-1986: non-null where the source or a steward requires the parameter.
         args[arg_name] = GraphQLArgument(
-            GraphQLNonNull(scalar) if required else scalar,
-            description=f"Native API filter ({nfc.get('native_filter_type', 'query_param')})",
+            GraphQLNonNull(scalar) if is_required(nfc) else scalar,
+            description=f"Native API filter ({nfc['native_filter_type']})",
         )
 
 

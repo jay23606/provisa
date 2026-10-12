@@ -1,6 +1,6 @@
 # MongoDB native queries (REQ-1980)
 
-Status: design for review. No product code has been written.
+Status: approved 2026-10-12 with the three open points of section 9 decided; built as REQ-1985 (Atlas connections), REQ-1986 (table parameters) and REQ-1980 (pipeline tables).
 
 Target: Hasura DDN's MongoDB native queries of the collection representation. Those are pipelines over an input collection, including Atlas `$search`, `$searchMeta` and `$vectorSearch`. They act as sources in relational queries, with typed, validated arguments that are bound into the pipeline.
 
@@ -125,7 +125,7 @@ No new table and no new column on `registered_tables`.
 
 **A pipeline with no arguments.** Its cache key is constant, so it behaves as a view with a TTL. It is replicable: replica routing's `_data_columns` keeps every column. The replica source for a MongoDB table (`make_mongodb_loader()._replica_source`) branches on `query_template` and reads through `aggregate_row_batches`, never `find`. A pipeline table with arguments is a function of its arguments and is not replicated (`replica_routing.py:211`, unchanged).
 
-**Atlas connections.** `MongoConnection` connects by host and port with `directConnection=True`. That reaches `mongodb-atlas-local` (single node) and self-hosted servers. A real Atlas cluster needs a `mongodb+srv://` URI with TLS, which the source does not accept today. **Open decision 3.**
+**Atlas connections.** `MongoConnection` connects by host and port with `directConnection=True`. That reaches `mongodb-atlas-local` (single node) and self-hosted servers. A real Atlas cluster needs a `mongodb+srv://` URI with TLS: under REQ-1985 the source's host may hold a `mongodb://` or `mongodb+srv://` connection string, which every reach uses.
 
 ## 5. Output columns: discovery and validation
 
@@ -160,7 +160,7 @@ The table is a registered table, so governance needs no new code.
 
 **Profiler.** It refuses a table that has a required argument. `profiler/source.py:180` extends its `path_param` check to required `pipeline_arg`s. A table with optional arguments only is profiled with every argument null.
 
-**Writes.** A pipeline table is read-only. **Open decision 2:** whether registration refuses pipelines that contain `$out` or `$merge` (stages that write).
+**Writes.** A pipeline table is read-only: registration refuses a pipeline containing `$out` or `$merge` anywhere, nested pipelines included.
 
 ## 7. Shape B (after A, outline only)
 
@@ -196,10 +196,10 @@ With no `output_columns`, it returns a list of JSON documents, so its GraphQL re
 - Surfaces: one call each over REST, JSON:API, gRPC, Flight SQL and Cypher.
 - UI: the Register Table form on a MongoDB source with a pipeline, and a preview with sample arguments.
 
-## 9. Open decisions
+## 9. Decisions (maintainer, 2026-10-12)
 
-1. **Where the input collection is stored.** Recommended: inside `query_template` (`inputCollection`), as DDN's file does, with no new field. The alternative is a `Table` field, which would mean a new `registered_tables` column.
-2. **`$out` and `$merge`.** Recommended: refuse at registration, because a read table that writes breaks the read-only contract of every surface. This is not in the approved scope, so it is the maintainer's call.
-3. **Atlas SRV and TLS connections.** The `mongodb-atlas-local` tests do not need them; a real Atlas cluster does. Recommended: a separate requirement that adds a connection-string field to MongoDB sources.
-4. **Arguments fed by a join** (per-key fills, like OpenAPI's `read_by_parent_keys`). Recommended: left out of Shape A.
-5. **`native_filter_required` unenforced for other source kinds** (section 1). Recommended: file it as a defect, separate from this work.
+1. **Where the input collection is stored:** inside `query_template` (`inputCollection`).
+2. **`$out` and `$merge`:** refused at registration.
+3. **Atlas SRV and TLS connections:** built first, as REQ-1985. The source's host holds the connection string; there is no new field.
+4. **Arguments fed by a join:** left out of Shape A.
+5. **`native_filter_required` for every source kind:** enforced by one shared check, under the wider parameter model of REQ-1986 (filed as #239). A table's parameters are required by the source or by a steward; pipeline arguments are parameters like any other, so the argument model of section 2 is REQ-1986's: `pipeline_arg` columns, optional unless a steward requires them.

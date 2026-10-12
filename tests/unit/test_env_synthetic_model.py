@@ -26,7 +26,7 @@ from provisa.synthetic import env_model
 from provisa.synthetic.datasets import TableNotAvailable, refuse_unavailable
 
 
-def _table(table_id: int, name: str, source: str, *filters: str | None) -> dict:
+def _table(table_id: int, name: str, source: str, *filters: tuple[str, bool, bool]) -> dict:
     return {
         "id": table_id,
         "table_name": name,
@@ -34,25 +34,34 @@ def _table(table_id: int, name: str, source: str, *filters: str | None) -> dict:
         "schema_name": "public",
         "columns": [{"column_name": "id", "native_filter_type": None}]
         + [
-            {"column_name": f"_nf_{i}", "native_filter_type": kind}
-            for i, kind in enumerate(filters)
+            {
+                "column_name": f"_nf_{i}",
+                "native_filter_type": kind,
+                "native_filter_required": by_source,
+                "required_by_steward": by_steward,
+            }
+            for i, (kind, by_source, by_steward) in enumerate(filters)
         ],
     }
 
 
 @pytest.mark.parametrize(
-    ("source_type", "kind", "required"),
+    ("kind", "by_source", "by_steward", "required"),
     [
-        ("openapi", "path_param", True),
-        ("openapi", "query_param", False),  # an OpenAPI query parameter is optional
-        ("graphql_remote", "query_param", True),
-        ("grpc_remote", "grpc_input", True),
-        ("postgresql", "path_param", False),
+        ("path_param", True, False, True),
+        ("query_param", False, False, False),  # an optional OpenAPI query parameter
+        ("query_param", False, True, True),  # made required by a steward
+        ("graphql_arg", True, False, True),
+        ("grpc_input", False, False, False),  # proto3 requires no field
+        ("grpc_input", False, True, True),
+        ("pipeline_arg", False, True, True),
     ],
 )
-def test_a_required_parameter_is_told_by_its_sources_type(source_type, kind, required):
-    found = env_model.required_parameters(_table(1, "pet_by_id", "petstore", kind), source_type)
-    assert found == (["_nf_0"] if required else [])
+def test_a_required_parameter_is_one_the_source_or_a_steward_requires(
+    kind, by_source, by_steward, required
+):
+    table = _table(1, "pet_by_id", "petstore", (kind, by_source, by_steward))
+    assert env_model.required_parameters(table) == (["_nf_0"] if required else [])
 
 
 def _plan() -> dict:
@@ -118,7 +127,7 @@ def _registry(synthetic: dict, bound: frozenset[str]) -> replica_routing._Regist
     return replica_routing._Registry(
         [
             _table(1, "breeds", "petstore"),
-            _table(2, "pet_by_id", "petstore", "path_param"),
+            _table(2, "pet_by_id", "petstore", ("path_param", True, False)),
             _table(3, "orders", "pg"),
         ],
         {
@@ -229,7 +238,7 @@ def test_each_reason_a_table_has_no_generated_rows_is_said_as_itself():
         [
             _table(1, "orders", "pg"),
             _table(2, "returns", "pg"),
-            _table(3, "pet_by_id", "pg", "path_param"),
+            _table(3, "pet_by_id", "pg", ("path_param", True, False)),
         ],
         {"pg": SimpleNamespace(id="pg", type="duckdb")},
         serving=frozenset(),

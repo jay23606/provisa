@@ -467,6 +467,11 @@ async def register_table(
             _qa_precheck = await persist_query_api_registration(_conn, model)
             if _qa_precheck is not None:
                 return _qa_precheck
+        from provisa.api.admin._query_api_registration import pipeline_table_refusal
+
+        _pipeline_refusal = await pipeline_table_refusal(_conn, model)  # REQ-1980
+        if _pipeline_refusal is not None:
+            return _pipeline_refusal
         if input.pagination is not None:
             # REQ-318: the paging the steward registers the table with (accepted or edited from
             # what the source suggested), refused by name when the table cannot take it.

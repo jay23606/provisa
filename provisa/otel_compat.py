@@ -608,6 +608,7 @@ def record_query(
 TRANSPORT_BY_KIND: dict[str, str] = {
     "source_procedure": "sql",
     "source_operation": "source",  # REQ-1924: a source's write operation, over its own protocol
+    "source_query": "source",  # REQ-1988: a source's native query (a MongoDB pipeline)
     "script": "script",
     "http": "http",
     "grpc": "grpc",

@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "The table was registered, but the row rule for {{role}} was not saved: {{message}}",
     "scopeHelp": "domain: served to roles that reach this table's domain. public: also to roles outside it. restricted: only to the roles named in Visible to.",
     "shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
-    "shortUntyped": "No type was found for these columns. Choose one for each:"
+    "shortUntyped": "No type was found for these columns. Choose one for each:",
+    "pipelineQueryLabel": "Native query",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- an argument is a whole value \"{{name}}\"",
+    "pipelineArguments": "Arguments",
+    "pipelineArgumentsHelp": "Each argument is a parameter of the table, given on every read: a WHERE condition on its column in SQL, an argument in GraphQL. Its value is bound into the pipeline as a value of its type. A sample value is used for the preview only.",
+    "pipelineArgumentSample": "Sample value",
+    "pipelineArgumentAdd": "Argument",
+    "pipelineArgumentRemove": "Remove {{name}}",
+    "mongoModeLabel": "What the table reads",
+    "mongoModeCollection": "Collection",
+    "mongoModePipeline": "Pipeline",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

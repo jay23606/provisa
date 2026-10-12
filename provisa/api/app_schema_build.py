@@ -134,7 +134,8 @@ def _inject_gql_required_args(tables: list[dict], gql_remote_srcs: dict) -> None
                         "name": _arg["name"],
                         "column_name": _arg["name"],
                         "visible_to": [],
-                        "native_filter_type": "query_param",
+                        "native_filter_type": "graphql_arg",
+                        "native_filter_required": True,
                         "description": None,
                     }
                 )

@@ -2919,3 +2919,7 @@ main {
 .uniques-panel__heading {
   margin-block: 1rem 0.5rem;
 }
+/* REQ-1986: the Parameters list's heading, in the table page's Query section. */
+.parameters-panel__heading {
+  margin-block: 1rem 0.5rem;
+}

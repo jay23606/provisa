@@ -11,7 +11,7 @@
 """Unit tests for graphql_remote mapper (REQ-308, REQ-312)."""
 
 from provisa.graphql_remote.mapper import (
-    _detect_pagination_args,
+    detect_pagination_args,
     _gql_to_provisa_type,
     _unwrap_type,
     map_schema,
@@ -373,7 +373,7 @@ def test_no_mutation_type_no_functions():
     assert functions == []
 
 
-# --- _detect_pagination_args tests ---
+# --- detect_pagination_args tests ---
 
 
 def _arg(name):
@@ -381,34 +381,34 @@ def _arg(name):
 
 
 def test_detect_first_arg():
-    assert _detect_pagination_args([_arg("first"), _arg("offset")])["limit_arg"] == "first"
+    assert detect_pagination_args([_arg("first"), _arg("offset")])["limit_arg"] == "first"
 
 
 def test_detect_limit_arg_when_no_first():
-    assert _detect_pagination_args([_arg("limit"), _arg("offset")])["limit_arg"] == "limit"
+    assert detect_pagination_args([_arg("limit"), _arg("offset")])["limit_arg"] == "limit"
 
 
 def test_first_takes_priority_over_limit():
-    assert _detect_pagination_args([_arg("first"), _arg("limit")])["limit_arg"] == "first"
+    assert detect_pagination_args([_arg("first"), _arg("limit")])["limit_arg"] == "first"
 
 
 def test_detect_offset_arg():
-    assert _detect_pagination_args([_arg("first"), _arg("offset")])["offset_arg"] == "offset"
+    assert detect_pagination_args([_arg("first"), _arg("offset")])["offset_arg"] == "offset"
 
 
 def test_detect_cursor_arg():
-    assert _detect_pagination_args([_arg("first"), _arg("after")])["cursor_arg"] == "after"
+    assert detect_pagination_args([_arg("first"), _arg("after")])["cursor_arg"] == "after"
 
 
 def test_no_pagination_args():
-    result = _detect_pagination_args([_arg("filter")])
+    result = detect_pagination_args([_arg("filter")])
     assert result["limit_arg"] is None
     assert result["offset_arg"] is None
     assert result["cursor_arg"] is None
 
 
 def test_empty_args_list():
-    result = _detect_pagination_args([])
+    result = detect_pagination_args([])
     assert result == {"limit_arg": None, "offset_arg": None, "cursor_arg": None}
 
 
@@ -448,3 +448,30 @@ def test_pagination_none_when_no_args():
     pg = tables[0]["pagination"]
     assert pg["limit_arg"] is None
     assert pg["offset_arg"] is None
+
+
+def test_a_table_records_its_optional_arguments_as_well_as_its_required_ones():
+    # REQ-1986: every argument is a parameter of the table, so a steward can make an optional one
+    # required; the page arguments Provisa sends itself are not the caller's.
+    user_type = {
+        "kind": "OBJECT",
+        "name": "User",
+        "fields": [{"name": "id", "type": _scalar_type("ID")}],
+    }
+    org = {
+        "name": "org",
+        "type": {"kind": "NON_NULL", "name": None, "ofType": _scalar_type("String")},
+    }
+    schema = _make_schema(
+        query_fields=[
+            {
+                "name": "users",
+                "type": _list_of_object("User"),
+                "args": [org, _arg("status"), _arg("first"), _arg("after")],
+            }
+        ],
+        extra_types=[user_type],
+    )
+    tables, _, _ = map_schema(schema, "ns", "src")
+    assert [a["name"] for a in tables[0]["required_args"]] == ["org"]
+    assert [a["name"] for a in tables[0]["optional_args"]] == ["status"]

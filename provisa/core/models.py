@@ -853,12 +853,19 @@ class Column(
     )
     description: str | None = None  # GraphQL field description
     path: str | None = None  # JSON extraction path (e.g. "payload.order_id")
-    native_filter_type: str | None = None  # "path_param" | "query_param" for OpenAPI sources
+    # REQ-1986: set, the column is a parameter of the table (``_nf_<name>``) -- a value a caller
+    # passes to the source -- and this says how it reaches the source: "path_param" or
+    # "query_param" (an OpenAPI operation), "graphql_arg" (a remote GraphQL field's argument),
+    # "grpc_input" (a gRPC request's field), "pipeline_arg" (a MongoDB pipeline's argument).
+    native_filter_type: str | None = None
     # Whether the source cannot be read without a value for this parameter, as the source's own
     # description says (an OpenAPI path parameter or one marked required, a GraphQL argument
-    # that is non-null with no default). None for a column that is no parameter, and for one
-    # registered before this was recorded: then only a path parameter is known to be required.
+    # that is non-null with no default). Recorded at registration and never changed by a
+    # steward; stated on every parameter column, None on a column that is no parameter.
     native_filter_required: bool | None = None
+    # REQ-1986: a steward made this parameter required for the table, though the source does not
+    # require it. The parameter is required when either says so.
+    required_by_steward: bool = False
     is_primary_key: bool = False  # user-designated PK (informational, not enforced)
     is_foreign_key: bool = False  # derived from relationships (source_column side)
     is_alternate_key: bool = (
@@ -866,6 +873,26 @@ class Column(
     )
     object_fields: list[ObjectField] = []  # sub-fields for object/jsonb columns
     scope: str = "domain"  # "domain" | "public" | "restricted" (core/column_scope.py, REQ-1959)
+
+    @model_validator(mode="after")
+    def _parameter_is_stated(self) -> "Column":  # REQ-1986
+        from provisa.core.parameters import PARAMETER_KINDS
+
+        if self.native_filter_type is None:
+            if self.native_filter_required is not None or self.required_by_steward:
+                raise ValueError(f"column {self.name!r}: only a parameter column is required")
+            return self
+        if self.native_filter_type not in PARAMETER_KINDS:
+            raise ValueError(
+                f"column {self.name!r}: native_filter_type {self.native_filter_type!r} is not one "
+                f"of {sorted(PARAMETER_KINDS)}"
+            )
+        if self.native_filter_required is None:
+            raise ValueError(
+                f"parameter column {self.name!r}: native_filter_required must say whether the "
+                "source requires it"
+            )
+        return self
 
     @model_validator(mode="after")
     def _scope_is_a_column_scope(self) -> "Column":
@@ -1625,9 +1652,11 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
     # REQ-885: implementation-kind dimension. Addressing (name/function_name) is decoupled
     # from binding (transport + location, swappable). ``source_procedure`` is the existing
     # REQ-205–208 path; the others are Provisa-hosted / external implementations.
-    #   source_procedure | source_operation | script | http | grpc | python
+    #   source_procedure | source_operation | source_query | script | http | grpc | python
     # source_operation (REQ-1924): a write operation of a remote source (OpenAPI, GraphQL, gRPC),
     # named by source_id and function_name and passed through as is.
+    # source_query (REQ-1988): a query command running its source's native query -- a MongoDB
+    # pipeline, its binding {"inputCollection", "pipeline"} -- with the call's typed arguments.
     impl_kind: str = "source_procedure"
     # Per-kind transport+location. Never a fallback: dispatch fails loud when a hosted kind
     # is registered without the binding keys its transport requires (REQ-885).
@@ -1654,6 +1683,19 @@ class Function(BaseModel):  # REQ-205, REQ-206, REQ-207, REQ-208
     writes_table: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="after")
+    def _source_query_is_a_reading_native_query(self) -> "Function":  # REQ-1988
+        """A source_query command is a query, and its binding is a native query that names only
+        its arguments, uses each, and only reads."""
+        if self.impl_kind != "source_query":
+            return self
+        if self.kind != "query":
+            raise ValueError(f"command {self.name!r}: a source_query command is a query")
+        from provisa.mongodb.native_query import check_command
+
+        check_command(self.name, self.binding, [a.model_dump() for a in self.arguments])
+        return self
 
     @model_validator(mode="before")
     @classmethod

@@ -39,6 +39,7 @@ import { toIrType } from "../../irTypes";
 import { TableSectionTabs } from "./TableSectionTabs";
 import { useTableSection, type TableSection } from "./tableSections";
 import { TableAssociations } from "./TableAssociations";
+import { ParametersPanel } from "./ParametersPanel";
 import { IdentityRead, LoadRead, QualityRead, QueryRead } from "./TableSectionsRead";
 import { dataProductField } from "./tableSectionFields";
 
@@ -312,7 +313,13 @@ export function TableReadView({
         />
       )}
       {section === "load" && <LoadRead table={table} source={source} />}
-      {section === "query" && <QueryRead table={table} />}
+      {section === "query" && (
+        <>
+          <QueryRead table={table} />
+          {/* REQ-1986: the table's parameters and which are required. */}
+          <ParametersPanel columns={table.columns} />
+        </>
+      )}
       {section === "quality" && (
         <>
           <QualityRead table={table} source={source} />

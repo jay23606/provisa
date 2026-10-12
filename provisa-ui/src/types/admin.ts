@@ -198,6 +198,8 @@ export interface TableColumn {
   nativeFilterType: string | null;
   /** Whether the source requires a value for this parameter; null where it is not recorded. */
   nativeFilterRequired?: boolean | null;
+  /** REQ-1986: a steward made the parameter required for the table. */
+  requiredBySteward?: boolean;
   // REQ-1739: dot-notation JSON extraction path for an `ingest` push source's column mapping.
   path?: string | null;
   isPrimaryKey: boolean;
@@ -484,14 +486,16 @@ export interface DqCheckDefinitionVars {
 // REQ-1670/REQ-1683: Register Table on a query-API source (neo4j, sparql) previews the query
 // before registering it.
 export interface QueryPreviewVars {
-  sourceType: "neo4j" | "sparql";
+  sourceType: "neo4j" | "sparql" | "mongodb";
   sourceId: string;
   query: string;
+  /** REQ-1980: a MongoDB native query's sample arguments. */
+  arguments?: { name: string; dataType: string; value: string | null }[];
 }
 
 export interface QueryPreview {
   rows: Record<string, unknown>[];
-  columns: { name: string; dataType: string }[];
+  columns: { name: string; dataType: string; path?: string | null }[];
   error: string | null;
 }
 

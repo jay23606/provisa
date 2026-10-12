@@ -113,6 +113,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
             "schema_name": "public",
             "table_name": "orders",
             "dq_contract": None,
+            "query_template": None,
             "role_ttl": {},  # REQ-1907
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
@@ -129,6 +130,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "data_type": "integer",
                     "is_primary_key": True,
                     "native_filter_type": None,
+                    "path": None,
                 }
             ],
         },
@@ -138,6 +140,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
             "schema_name": "pet_store",
             "table_name": "product_reviews",
             "dq_contract": None,
+            "query_template": None,
             "role_ttl": {},  # REQ-1907
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
@@ -154,6 +157,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "data_type": "bigint",
                     "is_primary_key": False,
                     "native_filter_type": None,
+                    "path": None,
                 }
             ],
         },

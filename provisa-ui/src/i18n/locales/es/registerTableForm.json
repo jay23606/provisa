@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "La tabla se registró, pero la regla de filas de {{role}} no se guardó: {{message}}",
     "scopeHelp": "domain: se sirve a los roles que alcanzan el dominio de esta tabla. public: también a los roles fuera de él. restricted: solo a los roles indicados en Visible para.",
     "shortColumns": "Registradas con los tipos descubiertos ({{count}}): {{names}}. La ocultación, las claves y los datos de prueba se configuran en el editor que se abre a continuación.",
-    "shortUntyped": "No se encontró un tipo para estas columnas. Elija uno para cada una:"
+    "shortUntyped": "No se encontró un tipo para estas columnas. Elija uno para cada una:",
+    "pipelineQueryLabel": "Consulta nativa",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- un argumento es un valor completo \"{{name}}\"",
+    "pipelineArguments": "Argumentos",
+    "pipelineArgumentsHelp": "Cada argumento es un parámetro de la tabla que se indica en cada lectura: una condición WHERE sobre su columna en SQL, un argumento en GraphQL. Su valor se vincula a la canalización como un valor de su tipo. Un valor de ejemplo solo se usa para la vista previa.",
+    "pipelineArgumentSample": "Valor de ejemplo",
+    "pipelineArgumentAdd": "Argumento",
+    "pipelineArgumentRemove": "Quitar {{name}}",
+    "mongoModeLabel": "Lo que lee la tabla",
+    "mongoModeCollection": "Colección",
+    "mongoModePipeline": "Canalización",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

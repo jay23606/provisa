@@ -173,7 +173,7 @@ async def test_registering_leaves_out_what_the_token_may_not_read_and_says_so():
     assert "read:x" in omitted[0]["reason"]
     by_name = {c.name: c for c in columns}
     assert "body_text" not in by_name and "title" in by_name
-    assert by_name["_nf_owner"].native_filter_type == "query_param"
+    assert by_name["_nf_owner"].native_filter_type == "graphql_arg"
     assert (by_name["author"].gql_selection or "").startswith("author {")
     assert all(c.data_type for c in columns)
 
@@ -190,8 +190,10 @@ async def test_only_the_chosen_columns_register_and_keep_their_governance():
     )
     assert omitted == []
     by_name = {c.name: c for c in columns}
-    # The two picked, plus the filters the table cannot be read without.
-    assert set(by_name) == {"title", "number", "_nf_owner", "_nf_name"}
+    # The two picked, plus every parameter: those the table cannot be read without, and the
+    # optional one a steward may make required (REQ-1986).
+    assert set(by_name) == {"title", "number", "_nf_owner", "_nf_name", "_nf_follow_renames"}
+    assert by_name["_nf_follow_renames"].native_filter_required is False
     assert by_name["title"].visible_to == ["analyst"] and by_name["title"].data_type == "varchar"
     assert by_name["number"].alias == "issueNumber" and by_name["number"].data_type == "integer"
 

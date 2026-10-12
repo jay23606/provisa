@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "टेबल पंजीकृत हो गई, लेकिन {{role}} का पंक्ति नियम सहेजा नहीं गया: {{message}}",
     "scopeHelp": "domain: उन भूमिकाओं को दिया जाता है जो इस तालिका के डोमेन तक पहुँचती हैं। public: उसके बाहर की भूमिकाओं को भी। restricted: केवल «दृश्य» में नामित भूमिकाओं को।",
     "shortColumns": "खोजे गए प्रकारों के साथ पंजीकृत ({{count}}): {{names}}। छिपाना, कुंजियाँ और परीक्षण डेटा आगे खुलने वाले संपादक में सेट किए जाते हैं।",
-    "shortUntyped": "इन कॉलमों के लिए कोई प्रकार नहीं मिला। हर एक के लिए एक चुनें:"
+    "shortUntyped": "इन कॉलमों के लिए कोई प्रकार नहीं मिला। हर एक के लिए एक चुनें:",
+    "pipelineQueryLabel": "नेटिव क्वेरी",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- आर्ग्युमेंट एक पूरा मान \"{{name}}\" होता है",
+    "pipelineArguments": "आर्ग्युमेंट",
+    "pipelineArgumentsHelp": "हर आर्ग्युमेंट तालिका का एक पैरामीटर है, जो हर रीड पर दिया जाता है: SQL में उसके कॉलम पर WHERE शर्त, GraphQL में आर्ग्युमेंट। उसका मान पाइपलाइन में उसके प्रकार के मान के रूप में बाँधा जाता है। नमूना मान केवल पूर्वावलोकन के लिए है।",
+    "pipelineArgumentSample": "नमूना मान",
+    "pipelineArgumentAdd": "आर्ग्युमेंट",
+    "pipelineArgumentRemove": "{{name}} हटाएँ",
+    "mongoModeLabel": "तालिका क्या पढ़ती है",
+    "mongoModeCollection": "कलेक्शन",
+    "mongoModePipeline": "पाइपलाइन",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

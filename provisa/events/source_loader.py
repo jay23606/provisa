@@ -1176,6 +1176,13 @@ def make_mongodb_loader() -> AdapterLoader:
     async def _load(source: Any, table: Any) -> list[dict]:
         conn = MongoConnection.from_source(source)
         database = getattr(source, "database", None) or table.schema_name
+        if getattr(table, "query_template", None):
+            # REQ-1980: a pipeline table is read by running its pipeline.
+            from provisa.mongodb.pipeline_table import whole_batches
+
+            return await asyncio.to_thread(
+                lambda: [r for b in whole_batches(conn, database, table, 1000) for r in b]
+            )
         names = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
         if not names:
             return []
@@ -1187,6 +1194,13 @@ def make_mongodb_loader() -> AdapterLoader:
 
         conn = MongoConnection.from_source(source)
         database = getattr(source, "database", None) or table.schema_name
+        if getattr(table, "query_template", None):
+            # REQ-1980: a pipeline table's replica is its pipeline's rows.
+            from provisa.mongodb.pipeline_table import whole_batches
+
+            return BlockingCursorSource(
+                lambda batch_rows: whole_batches(conn, database, table, batch_rows), columns
+            )
         names = [name for name, _ in columns]
         return BlockingCursorSource(
             lambda batch_rows: iter_row_batches(

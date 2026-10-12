@@ -380,7 +380,8 @@
       "registry_field_required": "数据源“{{source}}”：模式注册表认证“{{method}}”需要 {{field}}",
       "registry_path_not_absolute": "数据源“{{source}}”：{{field}} 必须是绝对路径，实际为“{{path}}”",
       "column_scope_invalid": "列 '{{column}}' 的范围为 '{{scope}}'；列的范围必须是 {{scopes}} 之一",
-      "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}"
+      "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}",
+      "parameter_set_by_source": "'{{table}}' 的参数保留其源对它的描述：传给源的方式以及源是否要求它都不能更改。数据管理员通过参数的必填开关将其设为必填。"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",

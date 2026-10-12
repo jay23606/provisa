@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "De tabel is geregistreerd, maar de rijregel voor {{role}} is niet opgeslagen: {{message}}",
     "scopeHelp": "domain: geleverd aan rollen die het domein van deze tabel bereiken. public: ook aan rollen daarbuiten. restricted: alleen aan de rollen genoemd bij Zichtbaar voor.",
     "shortColumns": "Geregistreerd met de gevonden typen ({{count}}): {{names}}. Verbergen, sleutels en testdata stelt u in de editor in die daarna opent.",
-    "shortUntyped": "Voor deze kolommen is geen type gevonden. Kies er voor elk een:"
+    "shortUntyped": "Voor deze kolommen is geen type gevonden. Kies er voor elk een:",
+    "pipelineQueryLabel": "Native query",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- een argument is een hele waarde \"{{name}}\"",
+    "pipelineArguments": "Argumenten",
+    "pipelineArgumentsHelp": "Elk argument is een parameter van de tabel, bij elke leesactie opgegeven: een WHERE-voorwaarde op de kolom in SQL, een argument in GraphQL. De waarde wordt als waarde van het type aan de pijplijn gebonden. Een voorbeeldwaarde dient alleen voor de preview.",
+    "pipelineArgumentSample": "Voorbeeldwaarde",
+    "pipelineArgumentAdd": "Argument",
+    "pipelineArgumentRemove": "{{name}} verwijderen",
+    "mongoModeLabel": "Wat de tabel leest",
+    "mongoModeCollection": "Collectie",
+    "mongoModePipeline": "Pijplijn",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

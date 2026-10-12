@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "Parameter",
+    "summary": "{{required}} von {{count}} erforderlich",
+    "name": "Parameter",
+    "type": "Typ",
+    "reaches": "Erreicht die Quelle als",
+    "required": "Erforderlich",
+    "requiredBySource": "Von der Quelle verlangt",
+    "requiredAria": "{{name}} ist erforderlich",
+    "kind": {
+      "path_param": "Pfadparameter",
+      "query_param": "Abfrageparameter",
+      "graphql_arg": "GraphQL-Argument",
+      "grpc_input": "Feld der gRPC-Anfrage",
+      "pipeline_arg": "Pipeline-Argument"
+    }
+  }
+}
