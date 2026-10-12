@@ -380,7 +380,8 @@
       "registry_field_required": "Quelle '{{source}}': Die Schema-Registry-Authentifizierung '{{method}}' erfordert {{field}}",
       "registry_path_not_absolute": "Quelle '{{source}}': {{field}} muss ein absoluter Pfad sein, erhalten: '{{path}}'",
       "column_scope_invalid": "Spalte '{{column}}' hat den Geltungsbereich '{{scope}}'; zulässig ist einer von {{scopes}}",
-      "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}"
+      "microsoft_365_invalid": "Microsoft-365-Quelle {{source}}: {{error}}",
+      "parameter_set_by_source": "Ein Parameter von '{{table}}' behält, was seine Quelle über ihn sagt: wie er die Quelle erreicht und ob die Quelle ihn verlangt, lässt sich nicht ändern. Ein Steward macht einen Parameter mit seinem Schalter „Erforderlich“ verpflichtend."
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",

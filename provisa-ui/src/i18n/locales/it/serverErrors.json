@@ -380,7 +380,8 @@
       "registry_field_required": "Origine '{{source}}': l'autenticazione del registro degli schemi '{{method}}' richiede {{field}}",
       "registry_path_not_absolute": "Origine '{{source}}': {{field}} deve essere un percorso assoluto, ricevuto '{{path}}'",
       "column_scope_invalid": "La colonna '{{column}}' ha ambito '{{scope}}'; l'ambito di una colonna è uno tra {{scopes}}",
-      "microsoft_365_invalid": "Origine Microsoft 365 {{source}}: {{error}}"
+      "microsoft_365_invalid": "Origine Microsoft 365 {{source}}: {{error}}",
+      "parameter_set_by_source": "Un parametro di '{{table}}' mantiene ciò che la sua origine dice di lui: non si possono cambiare il modo in cui raggiunge l'origine né il fatto che l'origine lo richieda. Uno steward rende obbligatorio un parametro con il suo interruttore Obbligatorio."
     },
     "secrets": {
       "name_refused": "{{name}} non è un nome all'interno dei segreti di questa organizzazione in {{service}}: un nome è relativo all'organizzazione e non può uscirne",

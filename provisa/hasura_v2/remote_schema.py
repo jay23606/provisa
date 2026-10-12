@@ -35,6 +35,7 @@ from graphql import (
 )
 from graphql.error import GraphQLSyntaxError
 
+from provisa.graphql_remote.mapper import detect_pagination_args
 from provisa.core.models import Column, Table
 from provisa.hasura_v2.models import HasuraRemoteSchema
 from provisa.import_shared.warnings import WarningCollector
@@ -97,8 +98,9 @@ def land_remote_schema(
     """One table per Query root field across the remote schema's role SDLs.
 
     A column's ``visible_to`` is every role whose SDL exposes the field on the returned type. A
-    non-null root-field argument becomes a ``_nf_<arg>`` native-filter column (query_param) so the
-    argument is supplied at query time (the same shape the demo's graphql_remote tables declare).
+    root-field argument becomes a ``_nf_<arg>`` parameter column (graphql_arg) so the argument is
+    supplied at query time, required where it is non-null (REQ-1986); the page arguments Provisa
+    sends itself are no parameters.
     """
     if not rs.permissions:
         collector.warn(
@@ -108,7 +110,8 @@ def land_remote_schema(
         )
         return []
 
-    # table name → {"columns": {name: (type, roles)}, "args": {name: type}, "skipped": set}
+    # table name → {"columns": {name: (type, roles)}, "args": {name: (type, required)},
+    # "skipped": set}
     tables: dict[str, dict[str, Any]] = {}
     for perm in rs.permissions:
         role = perm.get("role", "")
@@ -142,20 +145,31 @@ def land_remote_schema(
                     continue
                 cur = entry["columns"].setdefault(f.name.value, (ctype, set()))
                 cur[1].add(role)
+            paging = {
+                n
+                for n in detect_pagination_args(
+                    [{"name": a.name.value} for a in root.arguments]
+                ).values()
+                if n
+            }
             for arg in root.arguments:
-                if isinstance(arg.type, NonNullTypeNode):
-                    entry["args"][arg.name.value] = _column_type(arg, enums) or "varchar"  # pyright: ignore[reportArgumentType]
+                if arg.name.value in paging:
+                    continue
+                entry["args"][arg.name.value] = (
+                    _column_type(arg, enums) or "varchar",  # pyright: ignore[reportArgumentType]
+                    isinstance(arg.type, NonNullTypeNode) and arg.default_value is None,
+                )
 
     out: list[Table] = []
     for fname, entry in sorted(tables.items()):
         columns: list[Column] = []
-        for arg_name, arg_type in sorted(entry["args"].items()):
+        for arg_name, (arg_type, required) in sorted(entry["args"].items()):
             columns.append(
                 Column(
                     name=f"_nf_{arg_name}",
                     data_type=arg_type,
-                    native_filter_type="query_param",
-                    native_filter_required=True,  # only non-null arguments are registered
+                    native_filter_type="graphql_arg",
+                    native_filter_required=required,
                     visible_to=[],
                     description=f"{arg_name} argument of {rs.name}.{fname}, passed through at query time",
                 )

@@ -63,6 +63,7 @@ SPEC_FIELDS = (
     "field_name",
     "gql_type_name",
     "required_args",
+    "optional_args",
     "pagination",
     "rows_path",
 )
@@ -161,14 +162,21 @@ def _column_models(table: dict) -> "list[Column]":
         Column(
             name=f"_nf_{apply_sql_name(a['name'])}",
             visible_to=[],
-            native_filter_type="query_param",
-            # Every argument registered is one the schema requires: non-null, with no default.
-            native_filter_required=True,
+            native_filter_type="graphql_arg",
+            # REQ-1986: required where the schema requires it (non-null, with no default).
+            native_filter_required=required,
             data_type=_PHYSICAL_TYPE[a["provisa_type"]],
         )
-        for a in table.get("required_args") or []
+        for a, required in arguments(table)
     ]
     return columns
+
+
+def arguments(table: dict) -> list[tuple[dict, bool]]:
+    """A mapped table's arguments, each with whether the remote schema requires it (REQ-1986)."""
+    return [(a, True) for a in table.get("required_args") or []] + [
+        (a, False) for a in table.get("optional_args") or []
+    ]
 
 
 def offered_columns(
@@ -183,7 +191,7 @@ def offered_columns(
         for c in table["columns"]
     ] + [
         (f"_nf_{apply_sql_name(a['name'])}", _PHYSICAL_TYPE[a["provisa_type"]], None)
-        for a in table.get("required_args") or []
+        for a, _ in arguments(table)
     ]
 
 

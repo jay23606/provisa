@@ -100,6 +100,60 @@ def _statement_endpoints(state, table_ids: Iterable[int]) -> dict:
     return statement_endpoints(state, table_ids)
 
 
+def remote_arguments(gql_tbl: dict) -> list[dict]:
+    """A remote GraphQL table's arguments, required and optional (REQ-1986): the fetch sends those
+    the read gives a value for."""
+    return [*(gql_tbl.get("required_args") or []), *(gql_tbl.get("optional_args") or [])]
+
+
+def _parameter_tables(state, table_ids: Iterable[int]) -> dict[str, list]:
+    """The parameter columns of each registered table the statement reads, by its sql name."""
+    from provisa.compiler.naming import apply_sql_name
+    from provisa.core.parameters import is_parameter
+
+    ids = set(table_ids)
+    return {
+        apply_sql_name(t["table_name"]): [c for c in t["columns"] if is_parameter(c)]
+        for t in (getattr(state, "tables", None) or [])
+        if t.get("id") in ids
+    }
+
+
+def _missing_parameters(
+    params_of: dict[str, list], tn: str, endpoint, nf_args: dict | None, ctx
+) -> list[str]:
+    """The required parameters of ``tn`` the statement gives no value (REQ-1986). An OpenAPI
+    parameter a model join feeds from its parent's keys is given by the join."""
+    from provisa.api_source.fill_cache import joined_from
+    from provisa.compiler.naming import apply_sql_name
+    from provisa.core.parameters import missing_parameters
+
+    columns = params_of.get(apply_sql_name(tn))
+    if not columns:
+        return []
+    return missing_parameters(
+        columns,
+        nf_args,
+        lambda column: endpoint is not None and joined_from(endpoint, column, ctx) is not None,
+    )
+
+
+def _refuse_or_drop(exec_sql: str, tn: str, missing: list[str], dropped_tables: dict) -> None:
+    """A read of ``tn`` lacking ``missing``: refused, naming the table and the parameters --
+    unless ``tn`` is only a branch of a UNION (a multi-label sweep), whose branch is dropped."""
+    from provisa.compiler.nf_extractor import (
+        drop_union_branches_for_table,
+        find_api_table_names,
+    )
+    from provisa.core.parameters import missing_reason
+
+    reason = missing_reason(missing)
+    if tn in find_api_table_names(drop_union_branches_for_table(exec_sql, tn)):
+        raise ValueError(f"Table {tn!r} {reason}")
+    log.warning("[MAT] %s lacks required parameter(s) %s — dropping its union branch", tn, missing)
+    dropped_tables[tn] = reason
+
+
 def _lookup_gql_remote_table(state, table_name: str):
     """Find a graphql_remote table registration by SQL table name (snake_case or camelCase)."""
     from provisa.compiler.naming import apply_sql_name as _asn
@@ -180,7 +234,7 @@ async def _fetch_gql_remote_rows(
         field_name=gql_tbl.get("field_name") or gql_tbl["name"],
         columns=col_selections,
         variables=variables or None,
-        required_args=gql_tbl.get("required_args") or None,
+        required_args=remote_arguments(gql_tbl) or None,
         limit=max_items,
         pagination=gql_tbl.get("pagination"),
         rows_path=gql_tbl.get("rows_path"),
@@ -904,7 +958,14 @@ async def _materialize_api_to_engine_cache(
         if t.get("row_materialize")
     }
 
+    params_of = _parameter_tables(state, table_ids)
     for tn in table_names:
+        # REQ-1986: a table read without a value for a required parameter is refused before
+        # anything is sent to its source -- every source kind, one rule.
+        missing = _missing_parameters(params_of, tn, endpoints.get(tn), nf_args, ctx)
+        if missing:
+            _refuse_or_drop(exec_sql, tn, missing, dropped_tables)
+            continue
         if tn in _row_materialize_table_names:
             continue
         # Hot cache: inline rows as VALUES CTE — avoids cross-catalog JOIN entirely
@@ -921,55 +982,39 @@ async def _materialize_api_to_engine_cache(
                 assert gql_tbl is not None
                 assert isinstance(gql_tbl, dict)
             if gql_reg is not None and gql_tbl is not None:
-                req_args = gql_tbl.get("required_args") or []
-                # required_args carry the REMOTE arg name (e.g. ``name``, ``breedName``); the
+                # The arguments carry the REMOTE name (e.g. ``name``, ``breedName``); the
                 # extracted nf_args are keyed by the GraphQL schema arg, which Provisa prefixes
                 # with ``_`` when it collides with a scalar field and stores in sql convention
                 # (``breedName`` → ``_breed_name``). Match through the naming authority: both
                 # sides reduce to the same sql name once the disambiguation ``_`` is dropped.
+                # A required one left without a value was refused above (REQ-1986).
                 from provisa.compiler.naming import apply_sql_name as _apply_sql_name
 
                 _nf_canon = {_apply_sql_name(k.lstrip("_")): v for k, v in (nf_args or {}).items()}
                 # Every nf_arg the query pushed down for this table must distinguish the
-                # materialized cache entry — a required arg resolves to its REMOTE name (so it
-                # is also forwarded to the remote fetch); any other filter still keyed here
-                # under its canonical name so two queries that differ only by that filter never
-                # collide on the same cache_table_name (REQ-848/REQ-941 scoped this for
-                # required args only, leaving non-required filters unkeyed).
+                # materialized cache entry — an argument resolves to its REMOTE name (so it is
+                # also forwarded to the remote fetch); any other filter still keyed here under
+                # its canonical name so two queries that differ only by that filter never
+                # collide on the same cache_table_name (REQ-848/REQ-941).
                 resolved = dict(_nf_canon)
-                missing = []
-                for a in req_args:
+                for a in remote_arguments(gql_tbl):
                     canon = _apply_sql_name(a["name"].lstrip("_"))
                     if canon in _nf_canon:
                         resolved[a["name"]] = resolved.pop(canon)
-                    else:
-                        missing.append(a["name"])
-                if missing:
-                    # Required filter(s) absent — exclude the object (drop its union branch) so a
-                    # broad sweep (graph counts, multi-label union) skips it instead of erroring.
-                    # A table with no union to drop from (a lone FROM target) survives the branch
-                    # drop and is surfaced as this exact reason by nf_extractor.apply_dropped_tables
-                    # instead of reaching the engine as an unqualified, confusing catalog error.
-                    log.warning("[MAT] %s requires filter(s) %s — dropping branch", tn, missing)
-                    dropped_tables[tn] = (
-                        f"requires filter(s) {missing} — add a WHERE clause with the "
-                        "required parameter(s)"
-                    )
-                else:
-                    # REQ-1661 (amended 2026-09-30): an unreachable remote fails the whole
-                    # query -- its UNION branch is never dropped to return the rest as complete.
-                    await _mat_gql_remote_table(
-                        tn,
-                        gql_reg,
-                        gql_tbl,
-                        state,
-                        hot,
-                        _hot_threshold,
-                        cache_rewrites,
-                        values_cte_entries,
-                        extra_selections=(gql_remote_extra_selections or {}).get(tn),
-                        variables=resolved or None,
-                    )
+                # REQ-1661 (amended 2026-09-30): an unreachable remote fails the whole query --
+                # its UNION branch is never dropped to return the rest as complete.
+                await _mat_gql_remote_table(
+                    tn,
+                    gql_reg,
+                    gql_tbl,
+                    state,
+                    hot,
+                    _hot_threshold,
+                    cache_rewrites,
+                    values_cte_entries,
+                    extra_selections=(gql_remote_extra_selections or {}).get(tn),
+                    variables=resolved or None,
+                )
                 continue
 
             grpc_source_id, grpc_reg, grpc_query = _lookup_grpc_remote_table(state, tn)

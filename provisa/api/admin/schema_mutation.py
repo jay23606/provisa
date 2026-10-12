@@ -2704,6 +2704,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             from provisa.api.admin.domain_guard import require_current_domain
 
             await require_current_domain(info, _conn, model)  # REQ-1531
+            from provisa.api.admin._parameter_guard import source_parameter_refusal
+
+            _param_refusal = await source_parameter_refusal(_conn, model)  # REQ-1986
+            if _param_refusal is not None:
+                return MutationResult(
+                    success=False,
+                    message=_param_refusal,
+                    code="schema.parameter_set_by_source",
+                    params={"table": model.table_name},
+                )
             # REQ-1443: same contract-driven derivation the register path and the YAML loader run.
             from provisa.api.admin._dq_registration import apply_dq_registration
 

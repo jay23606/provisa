@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "पैरामीटर",
+    "summary": "{{count}} में से {{required}} आवश्यक",
+    "name": "पैरामीटर",
+    "type": "प्रकार",
+    "reaches": "स्रोत तक इस रूप में पहुँचता है",
+    "required": "आवश्यक",
+    "requiredBySource": "स्रोत द्वारा आवश्यक",
+    "requiredAria": "{{name}} आवश्यक है",
+    "kind": {
+      "path_param": "पाथ पैरामीटर",
+      "query_param": "क्वेरी पैरामीटर",
+      "graphql_arg": "GraphQL आर्ग्युमेंट",
+      "grpc_input": "gRPC अनुरोध फ़ील्ड",
+      "pipeline_arg": "पाइपलाइन आर्ग्युमेंट"
+    }
+  }
+}

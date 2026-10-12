@@ -95,8 +95,18 @@ def test_required_root_argument_becomes_native_filter_column():
     cfg = convert_metadata(md)
     continent = next(t for t in cfg.tables if t.table_name == "continent")
     nf = continent.columns[0]
-    assert nf.name == "_nf_code" and nf.native_filter_type == "query_param"
+    assert nf.name == "_nf_code" and nf.native_filter_type == "graphql_arg"
     assert nf.native_filter_required is True
+
+
+def test_an_optional_root_argument_becomes_an_optional_parameter():
+    # REQ-1986: a steward may make it required.
+    md = HasuraMetadata()
+    md.remote_schemas.append(_countries([{"role": "user", "definition": {"schema": _SDL}}]))
+    cfg = convert_metadata(md)
+    countries = next(t for t in cfg.tables if t.table_name == "countries")
+    nf = {c.name: c for c in countries.columns}["_nf_filter"]
+    assert (nf.native_filter_type, nf.native_filter_required) == ("graphql_arg", False)
     assert nf.visible_to == [] and nf.data_type == "varchar"
 
 

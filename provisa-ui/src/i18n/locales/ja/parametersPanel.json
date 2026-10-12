@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "パラメーター",
+    "summary": "{{count}} 件中 {{required}} 件が必須",
+    "name": "パラメーター",
+    "type": "型",
+    "reaches": "ソースへの渡し方",
+    "required": "必須",
+    "requiredBySource": "ソースが必須としています",
+    "requiredAria": "{{name}} は必須です",
+    "kind": {
+      "path_param": "パスパラメーター",
+      "query_param": "クエリパラメーター",
+      "graphql_arg": "GraphQL 引数",
+      "grpc_input": "gRPC リクエストのフィールド",
+      "pipeline_arg": "パイプライン引数"
+    }
+  }
+}

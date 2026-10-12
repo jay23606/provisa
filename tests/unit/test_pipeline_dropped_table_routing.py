@@ -28,6 +28,8 @@ the "_inlined" set used to reduce the routing source set.
 from __future__ import annotations
 
 from types import SimpleNamespace
+
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from provisa.federation.replica_address import ReplicaRoutes
@@ -92,29 +94,42 @@ def _state() -> SimpleNamespace:
     )
 
 
-async def test_non_union_unmaterializable_api_table_routes_instead_of_raising():
-    """A single-source (non-UNION) query against a table that fails materialization
-    must fall through to normal routing, not raise RuntimeError."""
+async def test_a_lone_read_lacking_a_required_parameter_is_refused_naming_it():
+    """REQ-1986: a single-source (non-UNION) read of a table that leaves a required parameter
+    without a value is refused, naming the table and the parameter -- it is never routed on to
+    the source without it."""
     ctx = _ctx()
     rls = RLSContext.empty()
     gov_ctx = build_governance_context(
         "analyst", rls, {}, ctx, tables=[], role=unscoped_role("analyst")
     )
     state = _state()
+    state.tables = [
+        {
+            "id": TABLE_ID,
+            "source_id": SOURCE_ID,
+            "table_name": "pets",
+            "columns": [
+                {
+                    "column_name": "_nf_name",
+                    "native_filter_type": "graphql_arg",
+                    "native_filter_required": True,
+                    "required_by_steward": False,
+                }
+            ],
+        }
+    ]
 
-    exec_sql, decision, default_source, optimized, sources, _opts = await _optimize_and_route(
-        "SELECT * FROM pets",
-        "SELECT * FROM pets",
-        gov_ctx,
-        ctx,
-        state,
-        table_ids=(),
-        nf_args={},
-    )
-
-    assert "pets" in exec_sql
-    assert sources == {SOURCE_ID}
-    assert decision.route == Route.API
+    with pytest.raises(ValueError, match=r"Table 'pets' requires the parameter\(s\) \['name'\]"):
+        await _optimize_and_route(
+            "SELECT * FROM pets",
+            "SELECT * FROM pets",
+            gov_ctx,
+            ctx,
+            state,
+            table_ids=(TABLE_ID,),
+            nf_args={},
+        )
 
 
 API_SOURCE_ID = "petstore-api"
@@ -172,7 +187,21 @@ def _openapi_state() -> SimpleNamespace:
         hot_manager=None,
         api_endpoints={(ep.source_id, "get_pet_by_id"): ep},
         # The registered table the statement reads (its endpoint is keyed by source and name).
-        tables=[{"id": TABLE_ID, "source_id": API_SOURCE_ID, "table_name": "get_pet_by_id"}],
+        tables=[
+            {
+                "id": TABLE_ID,
+                "source_id": API_SOURCE_ID,
+                "table_name": "get_pet_by_id",
+                "columns": [
+                    {
+                        "column_name": "_nf_petId",
+                        "native_filter_type": "path_param",
+                        "native_filter_required": True,
+                        "required_by_steward": False,
+                    }
+                ],
+            }
+        ],
         graphql_remote_sources={},
         api_sources={},
         org_id="default",

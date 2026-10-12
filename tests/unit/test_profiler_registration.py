@@ -190,7 +190,9 @@ def test_a_table_with_a_required_filter_cannot_join_a_profiler():
         table_name="pet_by_id",
         profiler_source_id="nightly",
         columns=[
-            SimpleNamespace(name="id", native_filter_type="path_param"),
+            SimpleNamespace(
+                name="id", native_filter_type="path_param", native_filter_required=True
+            ),
             SimpleNamespace(name="name", native_filter_type=None),
         ],
     )

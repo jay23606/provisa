@@ -853,12 +853,19 @@ class Column(
     )
     description: str | None = None  # GraphQL field description
     path: str | None = None  # JSON extraction path (e.g. "payload.order_id")
-    native_filter_type: str | None = None  # "path_param" | "query_param" for OpenAPI sources
+    # REQ-1986: set, the column is a parameter of the table (``_nf_<name>``) -- a value a caller
+    # passes to the source -- and this says how it reaches the source: "path_param" or
+    # "query_param" (an OpenAPI operation), "graphql_arg" (a remote GraphQL field's argument),
+    # "grpc_input" (a gRPC request's field), "pipeline_arg" (a MongoDB pipeline's argument).
+    native_filter_type: str | None = None
     # Whether the source cannot be read without a value for this parameter, as the source's own
     # description says (an OpenAPI path parameter or one marked required, a GraphQL argument
-    # that is non-null with no default). None for a column that is no parameter, and for one
-    # registered before this was recorded: then only a path parameter is known to be required.
+    # that is non-null with no default). Recorded at registration and never changed by a
+    # steward; stated on every parameter column, None on a column that is no parameter.
     native_filter_required: bool | None = None
+    # REQ-1986: a steward made this parameter required for the table, though the source does not
+    # require it. The parameter is required when either says so.
+    required_by_steward: bool = False
     is_primary_key: bool = False  # user-designated PK (informational, not enforced)
     is_foreign_key: bool = False  # derived from relationships (source_column side)
     is_alternate_key: bool = (
@@ -866,6 +873,26 @@ class Column(
     )
     object_fields: list[ObjectField] = []  # sub-fields for object/jsonb columns
     scope: str = "domain"  # "domain" | "public" | "restricted" (core/column_scope.py, REQ-1959)
+
+    @model_validator(mode="after")
+    def _parameter_is_stated(self) -> "Column":  # REQ-1986
+        from provisa.core.parameters import PARAMETER_KINDS
+
+        if self.native_filter_type is None:
+            if self.native_filter_required is not None or self.required_by_steward:
+                raise ValueError(f"column {self.name!r}: only a parameter column is required")
+            return self
+        if self.native_filter_type not in PARAMETER_KINDS:
+            raise ValueError(
+                f"column {self.name!r}: native_filter_type {self.native_filter_type!r} is not one "
+                f"of {sorted(PARAMETER_KINDS)}"
+            )
+        if self.native_filter_required is None:
+            raise ValueError(
+                f"parameter column {self.name!r}: native_filter_required must say whether the "
+                "source requires it"
+            )
+        return self
 
     @model_validator(mode="after")
     def _scope_is_a_column_scope(self) -> "Column":

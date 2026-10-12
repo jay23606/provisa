@@ -1110,7 +1110,7 @@ class TestMaterializeApiToEngineCache:
             hot_manager=hot_mgr,
             api_endpoints={},
             graphql_remote_sources={},
-            tables=[{"id": PETS, "source_id": "src", "table_name": "pets"}],
+            tables=[{"id": PETS, "source_id": "src", "table_name": "pets", "columns": []}],
         )
         rewrites, ctes, dropped = await _materialize_api_to_engine_cache(
             "SELECT * FROM pets", state, table_ids=[PETS]
@@ -1127,7 +1127,7 @@ class TestMaterializeApiToEngineCache:
             hot_manager=None,
             api_endpoints={("src", "pets"): ep},
             # The registered table the statement reads: its endpoint is keyed by source and name.
-            tables=[{"id": PETS, "source_id": "src", "table_name": "pets"}],
+            tables=[{"id": PETS, "source_id": "src", "table_name": "pets", "columns": []}],
             graphql_remote_sources={},
             model_db=None,
             tenant_db=None,
@@ -1146,6 +1146,8 @@ class TestMaterializeApiToEngineCache:
         assert (rewrites, ctes, dropped) == ({"pets": (loc, "r_x")}, {}, {})
 
     async def test_gql_remote_missing_required_arg_drops_branch(self):
+        # REQ-1986: in a sweep (a UNION) a table lacking a required parameter is left out; its
+        # parameter is the registered table's column, required by the remote schema.
         reg = {
             "source_id": "ghsrc",
             "url": "https://example.test/graphql",
@@ -1159,17 +1161,30 @@ class TestMaterializeApiToEngineCache:
                 }
             ],
         }
+        name = {
+            "column_name": "_nf_name",
+            "native_filter_type": "graphql_arg",
+            "native_filter_required": True,
+            "required_by_steward": False,
+        }
         state = SimpleNamespace(
             hot_manager=None,
             api_endpoints={},
             graphql_remote_sources={"gh": reg},
+            tables=[
+                {"id": PETS, "source_id": "ghsrc", "table_name": "pets", "columns": [name]},
+                {"id": 8, "source_id": "pg", "table_name": "owners", "columns": []},
+            ],
         )
         rewrites, ctes, dropped = await _materialize_api_to_engine_cache(
-            "SELECT * FROM pets", state, nf_args={}, table_ids=[PETS]
+            "SELECT id FROM pets UNION ALL SELECT id FROM owners",
+            state,
+            nf_args={},
+            table_ids=[PETS, 8],
         )
         assert dropped == {
-            "pets": "requires filter(s) ['name'] — add a WHERE clause with the "
-            "required parameter(s)"
+            "pets": "requires the parameter(s) ['name']: give each a value (a WHERE condition on "
+            "its column in SQL, an argument in GraphQL)"
         }
         assert rewrites == {}
         assert ctes == {}
@@ -1311,7 +1326,7 @@ class TestMaterializeApiToEngineCache:
             hot_manager=None,
             api_endpoints={("src", "pets"): ep},
             # The registered table the statement reads: its endpoint is keyed by source and name.
-            tables=[{"id": PETS, "source_id": "src", "table_name": "pets"}],
+            tables=[{"id": PETS, "source_id": "src", "table_name": "pets", "columns": []}],
             graphql_remote_sources={},
             org_id="default",
             federation_engine=MagicMock(),

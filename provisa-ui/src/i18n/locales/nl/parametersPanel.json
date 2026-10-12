@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "Parameters",
+    "summary": "{{required}} van {{count}} verplicht",
+    "name": "Parameter",
+    "type": "Type",
+    "reaches": "Bereikt de bron als",
+    "required": "Verplicht",
+    "requiredBySource": "Vereist door de bron",
+    "requiredAria": "{{name}} is verplicht",
+    "kind": {
+      "path_param": "Padparameter",
+      "query_param": "Queryparameter",
+      "graphql_arg": "GraphQL-argument",
+      "grpc_input": "Veld van het gRPC-verzoek",
+      "pipeline_arg": "Pijplijnargument"
+    }
+  }
+}

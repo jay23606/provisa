@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "參數",
+    "summary": "{{count}} 個中有 {{required}} 個必填",
+    "name": "參數",
+    "type": "類型",
+    "reaches": "傳給來源的方式",
+    "required": "必填",
+    "requiredBySource": "來源要求必填",
+    "requiredAria": "{{name}} 為必填",
+    "kind": {
+      "path_param": "路徑參數",
+      "query_param": "查詢參數",
+      "graphql_arg": "GraphQL 參數",
+      "grpc_input": "gRPC 請求欄位",
+      "pipeline_arg": "管道參數"
+    }
+  }
+}

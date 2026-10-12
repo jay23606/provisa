@@ -1007,16 +1007,17 @@ def _graphql_remote_field_name(table_name: str) -> str:
 
 def _build_graphql_remote_table(tr: dict, col_rows: list[dict], source_id: str) -> dict:
     """One landed table's registration entry for ``state.graphql_remote_sources`` (REQ-1685), from
-    its ``registered_tables`` row and its ``table_columns`` rows. A ``query_param`` column is a
-    required call argument, not a selected field, so it is split into ``required_args`` instead of
-    ``columns``. Malformed ``object_fields`` JSON is dropped rather than raised — the column still
+    its ``registered_tables`` row and its ``table_columns`` rows. A ``graphql_arg`` column is a
+    call argument, not a selected field, so it is split into ``required_args`` (the remote schema
+    requires it) or ``optional_args`` instead of ``columns`` (REQ-1986). Malformed ``object_fields`` JSON is dropped rather than raised — the column still
     registers without its object-field shape rather than losing the whole table over one bad row.
     """
     columns: list[dict] = []
     required_args: list[dict] = []
+    optional_args: list[dict] = []
     for cr in col_rows:
-        if cr["native_filter_type"] == "query_param":
-            required_args.append(
+        if cr["native_filter_type"] == "graphql_arg":
+            (required_args if cr["native_filter_required"] else optional_args).append(
                 {"name": cr["column_name"], "gql_type": "String", "provisa_type": "text"}
             )
             continue
@@ -1044,6 +1045,7 @@ def _build_graphql_remote_table(tr: dict, col_rows: list[dict], source_id: str) 
         "domain_id": tr["domain_id"] or "",
         "description": tr["description"],
         "required_args": required_args,
+        "optional_args": optional_args,
     }
 
 
@@ -1081,7 +1083,15 @@ def _apply_brand_table_spec(table: dict, brand, namespace: str) -> bool:
     spec = table_spec(brand, namespace, table["sql_name"])
     if spec is None:
         return False
-    for key in ("name", "field_name", "gql_type_name", "required_args", "pagination", "rows_path"):
+    for key in (
+        "name",
+        "field_name",
+        "gql_type_name",
+        "required_args",
+        "optional_args",
+        "pagination",
+        "rows_path",
+    ):
         if key in spec:
             table[key] = spec[key]
     return True
@@ -1160,6 +1170,7 @@ async def _load_graphql_remote_sources_from_db() -> None:
                                     _table_columns_t.c.data_type,
                                     _table_columns_t.c.object_fields,
                                     _table_columns_t.c.native_filter_type,
+                                    _table_columns_t.c.native_filter_required,
                                     _table_columns_t.c.gql_selection,
                                 ).where(_table_columns_t.c.table_id == tr["id"])
                             )

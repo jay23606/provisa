@@ -269,7 +269,7 @@ _OFFSET_ARGS = {"offset"}
 _CURSOR_ARGS = {"after"}
 
 
-def _detect_pagination_args(args: list[dict]) -> dict:
+def detect_pagination_args(args: list[dict]) -> dict:
     """Return pagination arg names by sniffing field args for common server patterns.
 
     Priority for limit: "first" (PostGraphile/Relay/pg_graphql) > "limit" (Hasura).
@@ -300,6 +300,24 @@ def _build_required_args(field: dict) -> list[dict]:
                 }
             )
     return result
+
+
+def _build_optional_args(field: dict) -> list[dict]:  # REQ-1986
+    """The arguments a caller may leave out (nullable, or with a default), as parameters of the
+    table: a steward may make one required. The page arguments Provisa itself sends
+    (:func:`detect_pagination_args`) are not the caller's."""
+    args = field.get("args") or []
+    paging = {name for name in detect_pagination_args(args).values() if name}
+    required = {a["name"] for a in _build_required_args(field)}
+    return [
+        {
+            "name": arg["name"],
+            "gql_type": _gql_type_string(arg["type"]),
+            "provisa_type": _gql_to_provisa_type(arg["type"]),
+        }
+        for arg in args
+        if arg["name"] not in required and arg["name"] not in paging
+    ]
 
 
 def _build_return_schema(fields: list[dict]) -> list[dict]:
@@ -506,7 +524,8 @@ def _map_query_field_as_table(  # REQ-308
         "domain_id": domain_id,
         "description": field.get("description") or (return_type or {}).get("description") or None,
         "required_args": _build_required_args(field),
-        "pagination": _detect_pagination_args(field.get("args") or []),
+        "optional_args": _build_optional_args(field),  # REQ-1986
+        "pagination": detect_pagination_args(field.get("args") or []),
     }
 
 
@@ -559,7 +578,8 @@ def _map_connection_table(  # REQ-308
         "domain_id": domain_id,
         "description": holder.get("description") or node_type.get("description") or None,
         "required_args": _build_required_args(root_field),
-        "pagination": _detect_pagination_args(holder.get("args") or []),
+        "optional_args": _build_optional_args(root_field),  # REQ-1986
+        "pagination": detect_pagination_args(holder.get("args") or []),
         "rows_path": ([conn_field["name"]] if conn_field else []) + rows_path,
     }
 

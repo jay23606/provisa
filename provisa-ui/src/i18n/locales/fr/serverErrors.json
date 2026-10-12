@@ -380,7 +380,8 @@
       "registry_field_required": "Source '{{source}}' : l'authentification du registre de schémas '{{method}}' exige {{field}}",
       "registry_path_not_absolute": "Source '{{source}}' : {{field}} doit être un chemin absolu, reçu '{{path}}'",
       "column_scope_invalid": "La colonne '{{column}}' a la portée '{{scope}}' ; la portée d'une colonne est l'une de {{scopes}}",
-      "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}"
+      "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}",
+      "parameter_set_by_source": "Un paramètre de '{{table}}' garde ce que sa source dit de lui : la façon dont il atteint la source et le fait que la source l'exige ne peuvent pas être modifiés. Un responsable rend un paramètre obligatoire avec son interrupteur « Obligatoire »."
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

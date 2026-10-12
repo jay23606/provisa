@@ -27,6 +27,7 @@ fragment ColumnFields on TableColumnType {
   dataType
   nativeFilterType
   nativeFilterRequired
+  requiredBySteward
   path
   isPrimaryKey
   isForeignKey

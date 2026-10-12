@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "Paramètres",
+    "summary": "{{required}} sur {{count}} obligatoires",
+    "name": "Paramètre",
+    "type": "Type",
+    "reaches": "Atteint la source en tant que",
+    "required": "Obligatoire",
+    "requiredBySource": "Exigé par la source",
+    "requiredAria": "{{name}} est obligatoire",
+    "kind": {
+      "path_param": "Paramètre de chemin",
+      "query_param": "Paramètre de requête",
+      "graphql_arg": "Argument GraphQL",
+      "grpc_input": "Champ de la requête gRPC",
+      "pipeline_arg": "Argument du pipeline"
+    }
+  }
+}

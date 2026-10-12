@@ -67,15 +67,6 @@ LIMITATIONS: tuple[dict[str, str], ...] = (
     },
 )
 
-#: What a required parameter is, by the type of the API source it is a parameter of: the
-#: native-filter kind of the column carrying it. An OpenAPI path parameter; a remote GraphQL
-#: field's required argument; a remote gRPC method's input field.
-_REQUIRED_PARAMETER: dict[str, str] = {
-    "openapi": "path_param",
-    "graphql_remote": "query_param",
-    "grpc_remote": "grpc_input",
-}
-
 
 def api_source_types() -> frozenset[str]:
     """The source types whose tables are backed by an API."""
@@ -85,13 +76,12 @@ def api_source_types() -> frozenset[str]:
     return frozenset(e.value for e in ApiSourceType) | REMOTE_API_SOURCE_TYPES
 
 
-def required_parameters(table: dict, source_type: str) -> list[str]:
-    """The columns of ``table`` (a fetch_tables row) carrying a parameter its API cannot be read
-    without: with any, the table has no full set of rows to measure or to generate from."""
-    kind = _REQUIRED_PARAMETER.get(source_type)
-    if kind is None:
-        return []
-    return [c["column_name"] for c in table["columns"] if c["native_filter_type"] == kind]
+def required_parameters(table: dict) -> list[str]:
+    """The columns of ``table`` (a fetch_tables row) carrying a parameter a read of it must give
+    (REQ-1986): with any, the table has no full set of rows to measure or to generate from."""
+    from provisa.core.parameters import is_parameter, is_required
+
+    return [c["column_name"] for c in table["columns"] if is_parameter(c) and is_required(c)]
 
 
 async def parameter_columns(conn: Any) -> dict[int, dict[str, str]]:
@@ -101,10 +91,9 @@ async def parameter_columns(conn: Any) -> dict[int, dict[str, str]]:
     table was registered (REQ-1426: no column is registered without a type)."""
     from provisa.api.admin.db_queries import fetch_tables
 
-    types = await _source_types(conn)
     out: dict[int, dict[str, str]] = {}
     for t in await fetch_tables(conn):
-        required = set(required_parameters(t, types[t["source_id"]]))
+        required = set(required_parameters(t))
         if required:
             out[t["id"]] = {
                 c["column_name"]: c["data_type"]
@@ -239,7 +228,7 @@ async def model_plan(state: Any, conn: Any, parent: str, env: str) -> dict[str, 
     entries, unavailable = [], []
     for t in tables:
         source_type = types[t["source_id"]]
-        required = required_parameters(t, source_type)
+        required = required_parameters(t)
         held = sorted(runs.get(t["id"], []), key=lambda x: x["runTime"], reverse=True)
         if required:
             held = [x for x in held if x["origin"] == "declared"]  # nothing could measure it

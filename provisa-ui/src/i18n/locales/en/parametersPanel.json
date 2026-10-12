@@ -1,0 +1,19 @@
+{
+  "parametersPanel": {
+    "title": "Parameters",
+    "summary": "{{required}} of {{count}} required",
+    "name": "Parameter",
+    "type": "Type",
+    "reaches": "Reaches the source as",
+    "required": "Required",
+    "requiredBySource": "Required by the source",
+    "requiredAria": "{{name}} is required",
+    "kind": {
+      "path_param": "Path parameter",
+      "query_param": "Query parameter",
+      "graphql_arg": "GraphQL argument",
+      "grpc_input": "gRPC request field",
+      "pipeline_arg": "Pipeline argument"
+    }
+  }
+}

@@ -42,6 +42,7 @@ def _col(**overrides: object) -> dict:
         "data_type": "text",
         "object_fields": None,
         "native_filter_type": None,
+        "native_filter_required": None,
         "gql_selection": None,
     }
     base.update(overrides)
@@ -63,13 +64,24 @@ class TestBuildGraphqlRemoteTable:
         tr = {"table_name": "orders", "domain_id": None, "description": None}
         assert _build_graphql_remote_table(tr, [], "src-1")["domain_id"] == ""
 
-    def test_query_param_columns_become_required_args_not_columns(self) -> None:
+    def test_argument_columns_become_arguments_not_columns(self) -> None:
+        # REQ-1986: split by whether the remote schema requires the argument.
         tr = {"table_name": "orders", "domain_id": "sales", "description": None}
-        col_rows = [_col(column_name="region", native_filter_type="query_param")]
+        col_rows = [
+            _col(
+                column_name="region", native_filter_type="graphql_arg", native_filter_required=True
+            ),
+            _col(
+                column_name="status", native_filter_type="graphql_arg", native_filter_required=False
+            ),
+        ]
         table = _build_graphql_remote_table(tr, col_rows, "src-1")
         assert table["columns"] == []
         assert table["required_args"] == [
             {"name": "region", "gql_type": "String", "provisa_type": "text"}
+        ]
+        assert table["optional_args"] == [
+            {"name": "status", "gql_type": "String", "provisa_type": "text"}
         ]
 
     def test_ordinary_column_carries_type_and_defaults_to_text(self) -> None:
@@ -107,7 +119,9 @@ class TestBuildGraphqlRemoteTable:
         tr = {"table_name": "orders", "domain_id": "sales", "description": None}
         col_rows = [
             _col(column_name="id"),
-            _col(column_name="region", native_filter_type="query_param"),
+            _col(
+                column_name="region", native_filter_type="graphql_arg", native_filter_required=True
+            ),
             _col(column_name="amount", data_type="numeric"),
         ]
         table = _build_graphql_remote_table(tr, col_rows, "src-1")

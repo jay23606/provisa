@@ -299,8 +299,11 @@ async def record_query_registration(
     )
 
 
-async def registered_query_tables(conn, source_id: str) -> dict[str, tuple[str, set[str]]]:
-    """The source's registered tables: each one's domain and the columns it is registered with."""
+async def registered_query_tables(
+    conn, source_id: str
+) -> dict[str, tuple[str, set[str], set[str]]]:
+    """The source's registered tables: each one's domain, the columns it is registered with, and
+    the parameters a steward made required (REQ-1986)."""
     from sqlalchemy import select
 
     from provisa.core.schema_org import registered_tables, table_columns
@@ -311,6 +314,7 @@ async def registered_query_tables(conn, source_id: str) -> dict[str, tuple[str, 
                 registered_tables.c.table_name,
                 registered_tables.c.domain_id,
                 table_columns.c.column_name,
+                table_columns.c.required_by_steward,
             )
             .select_from(
                 registered_tables.join(
@@ -323,9 +327,12 @@ async def registered_query_tables(conn, source_id: str) -> dict[str, tuple[str, 
             )
         )
     ).fetchall()
-    registered: dict[str, tuple[str, set[str]]] = {}
+    registered: dict[str, tuple[str, set[str], set[str]]] = {}
     for row in rows:
-        registered.setdefault(row.table_name, (row.domain_id or "", set()))[1].add(row.column_name)
+        entry = registered.setdefault(row.table_name, (row.domain_id or "", set(), set()))
+        entry[1].add(row.column_name)
+        if row.required_by_steward:
+            entry[2].add(row.column_name)
     return registered
 
 
@@ -335,7 +342,7 @@ async def _register_schema(  # REQ-322, REQ-325, REQ-599
     conn,
     namespace: str,
     domain_id: str,
-    registered: dict[str, tuple[str, set[str]]] | None = None,
+    registered: dict[str, tuple[str, set[str], set[str]]] | None = None,
 ) -> int:
     """Bring the source's registered tables up to date with its proto; return how many.
 
@@ -351,15 +358,17 @@ async def _register_schema(  # REQ-322, REQ-325, REQ-599
     written = 0
     for q in queries:
         table_name = query_table_name(namespace, q)
-        table_domain, kept = domain_id, None
+        table_domain, kept, steward = domain_id, None, set()
         if registered is not None:
             if table_name not in registered:
                 continue
-            table_domain, kept = registered[table_name]
+            table_domain, kept, steward = registered[table_name]
         await record_query_registration(conn, source_id, q, namespace, table_domain)
         output_cols, nf_cols = query_columns(q)
         if kept is not None:
             output_cols = [c for c in output_cols if c.name in kept]
+        # REQ-1986: the proto is not the authority on which parameters a steward made required.
+        nf_cols = [c.model_copy(update={"required_by_steward": c.name in steward}) for c in nf_cols]
         tbl = Table(
             source_id=source_id,
             domain_id=table_domain or "",

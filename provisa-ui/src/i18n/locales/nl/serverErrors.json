@@ -380,7 +380,8 @@
       "registry_field_required": "Bron '{{source}}': schema-registryauthenticatie '{{method}}' vereist {{field}}",
       "registry_path_not_absolute": "Bron '{{source}}': {{field}} moet een absoluut pad zijn, ontvangen '{{path}}'",
       "column_scope_invalid": "Kolom '{{column}}' heeft bereik '{{scope}}'; het bereik van een kolom is een van {{scopes}}",
-      "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}"
+      "microsoft_365_invalid": "Microsoft 365-bron {{source}}: {{error}}",
+      "parameter_set_by_source": "Een parameter van '{{table}}' houdt wat de bron erover zegt: hoe hij de bron bereikt en of de bron hem vereist, kan niet worden gewijzigd. Een steward maakt een parameter verplicht met de schakelaar Verplicht."
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

@@ -54,6 +54,7 @@ def _build_column_models(columns: list) -> list:
             path=getattr(c, "path", None),
             native_filter_type=c.native_filter_type,
             native_filter_required=c.native_filter_required,
+            required_by_steward=c.required_by_steward,  # REQ-1986
             is_primary_key=c.is_primary_key,
             is_foreign_key=c.is_foreign_key,
             is_alternate_key=c.is_alternate_key,

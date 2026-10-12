@@ -565,6 +565,7 @@ tables:
     name: _nf_status
     data_type: varchar
     native_filter_type: query_param
+    native_filter_required: false
     visible_to: []
   - description: Pet identifier assigned by the Petstore API
     name: id
@@ -614,6 +615,7 @@ tables:
     name: _nf_tags
     data_type: json
     native_filter_type: query_param
+    native_filter_required: false
     visible_to: []
   - description: Pet identifier assigned by the Petstore API
     name: id
@@ -662,6 +664,7 @@ tables:
     name: _nf_petId
     data_type: integer
     native_filter_type: path_param
+    native_filter_required: true
     visible_to: []
   - description: Pet identifier assigned by the Petstore API
     name: id
@@ -729,6 +732,7 @@ tables:
     name: orderId
     data_type: integer
     native_filter_type: path_param
+    native_filter_required: true
     visible_to: []
   - description: Order identifier assigned by the Petstore API
     name: id
@@ -782,6 +786,7 @@ tables:
     name: username
     data_type: varchar
     native_filter_type: path_param
+    native_filter_required: true
     visible_to:
     - analyst
     - org_admin
@@ -949,7 +954,8 @@ tables:
   - description: Breed name to fetch - sent to the GraphQL query as an argument
     name: _nf_name
     data_type: varchar
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Breed name, unique across the shelter's catalogue
     name: name
@@ -1057,7 +1063,8 @@ tables:
   - description: Employee id to fetch - sent to the GraphQL query as an argument
     name: _nf_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Identifier of the shelter employee
     name: id
@@ -1164,7 +1171,8 @@ tables:
   - description: Employee id to filter on - sent to the GraphQL query as an argument
     name: _nf_employee_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Identifier of the assignment
     name: id
@@ -1213,7 +1221,8 @@ tables:
   - description: Breed name to filter on - sent to the GraphQL query as an argument
     name: _nf_breed_name
     data_type: varchar
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Identifier of the assignment
     name: id
@@ -1306,7 +1315,8 @@ tables:
   - description: Employee id to filter on - sent to the GraphQL query as an argument
     name: _nf_employee_id
     data_type: integer
-    native_filter_type: query_param
+    native_filter_type: graphql_arg
+    native_filter_required: true
     visible_to: []
   - description: Identifier of the schedule entry
     name: id

@@ -176,11 +176,11 @@ async def check_membership(conn: Any, table: Any) -> None:
     sid = getattr(table, "profiler_source_id", None)
     if sid is None:
         return
-    # A table whose rows are reachable only with a value for a required filter (an OpenAPI path
-    # parameter, its _nf_* column) has no whole table to profile.
-    required = [
-        c.name for c in table.columns if getattr(c, "native_filter_type", None) == "path_param"
-    ]
+    # A table whose rows are reachable only with a value for a required parameter (REQ-1986: the
+    # source or a steward requires it) has no whole table to profile.
+    from provisa.core.parameters import is_parameter, is_required
+
+    required = [c.name for c in table.columns if is_parameter(c) and is_required(c)]
     if required:
         raise ValueError(
             f"table {table.table_name!r} cannot join a Data Profiler: its rows need a value for "

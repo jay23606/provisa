@@ -380,7 +380,8 @@
       "registry_field_required": "स्रोत '{{source}}': स्कीमा रजिस्ट्री प्रमाणीकरण '{{method}}' के लिए {{field}} आवश्यक है",
       "registry_path_not_absolute": "स्रोत '{{source}}': {{field}} निरपेक्ष पथ होना चाहिए, मिला '{{path}}'",
       "column_scope_invalid": "कॉलम '{{column}}' का स्कोप '{{scope}}' है; कॉलम का स्कोप इनमें से एक होता है: {{scopes}}",
-      "microsoft_365_invalid": "Microsoft 365 स्रोत {{source}}: {{error}}"
+      "microsoft_365_invalid": "Microsoft 365 स्रोत {{source}}: {{error}}",
+      "parameter_set_by_source": "'{{table}}' का पैरामीटर वही रखता है जो उसका स्रोत उसके बारे में कहता है: वह स्रोत तक कैसे पहुँचता है और क्या स्रोत को उसकी आवश्यकता है, यह बदला नहीं जा सकता। स्टीवर्ड उसके आवश्यक स्विच से पैरामीटर को आवश्यक बनाता है।"
     },
     "secrets": {
       "name_refused": "{{name}} {{service}} में इस संगठन के सीक्रेट्स के भीतर का नाम नहीं है: नाम संगठन के सापेक्ष होता है और उससे बाहर नहीं जा सकता",

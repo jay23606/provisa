@@ -81,6 +81,7 @@ async def test_generic_columns_qualify_with_the_table_and_machinery_derives_noth
                         data_type="text",
                         visible_to=[],
                         native_filter_type="query_param",
+                        native_filter_required=False,
                     ),
                 ],
                 view_sql="SELECT 1",
