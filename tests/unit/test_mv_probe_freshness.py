@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from provisa.lineage import InputVersion
@@ -92,6 +94,9 @@ _WM_MARK = "registered_tables"
 
 
 class _FakeEngine(RegisteredNames):
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     def __init__(self, snapshot):
         self.snapshot = snapshot
         self.queries: list[str] = []

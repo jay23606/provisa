@@ -308,7 +308,7 @@ def _rewrite_to_mv(
     )
 
     # Replace FROM clause with MV target table
-    mv_ref = f'"{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    mv_ref = mv.stored_ref()
     sql = re.sub(
         r'FROM\s+"[^"]+"\."[^"]+"\s*(?:"t0")?',
         f"FROM {mv_ref}",
@@ -382,7 +382,7 @@ def _partial_rewrite_to_mv(
         sql = re.sub(r"\s+" + escaped, "", sql, count=1)
 
     # Replace FROM clause with MV target table, keeping "t0" alias
-    mv_ref = f'"{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    mv_ref = mv.stored_ref()
     sql = re.sub(
         r'FROM\s+"[^"]+"\."[^"]+"\s*"t0"',
         f'FROM {mv_ref} "t0"',

@@ -17,6 +17,8 @@ rows — the live create->materialize->query path, minus only the HTTP/control-p
 from __future__ import annotations
 
 import duckdb
+from types import SimpleNamespace
+
 import pytest
 
 from tests.helpers import hold_registered_tables
@@ -41,11 +43,17 @@ TS = ["2026-01-01 00:00:00.000000", "2026-02-01 00:00:00.000000", "2026-03-01 00
 
 
 class DuckEngine:
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     dialect = "duckdb"
     native_store = "duckdb"
 
     def __init__(self, con):
         self.con = con
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them

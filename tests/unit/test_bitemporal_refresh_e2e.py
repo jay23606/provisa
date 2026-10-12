@@ -14,6 +14,8 @@ appends, drift rebuild) works when a real engine executes the SQL, not a mock th
 from __future__ import annotations
 
 import duckdb
+from types import SimpleNamespace
+
 import pytest
 
 from tests.helpers import hold_registered_tables
@@ -28,11 +30,17 @@ from provisa.mv.registry import MVRegistry
 class DuckEngine:
     """A minimal FederationEngine stand-in that actually EXECUTES SQL on DuckDB."""
 
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     dialect = "duckdb"
     native_store = "duckdb"
 
     def __init__(self, con: duckdb.DuckDBPyConnection):
         self.con = con
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them

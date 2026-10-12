@@ -61,6 +61,9 @@ class _Engine:
     # The engine seam names its SQL dialect; refresh resolves a view's settings in it.
     dialect = "duckdb"
 
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
+
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
 

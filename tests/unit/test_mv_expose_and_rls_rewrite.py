@@ -24,6 +24,9 @@ from provisa.mv.rewriter import rewrite_if_mv_match
 
 
 class _Engine:
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = types.SimpleNamespace(catalog_qualified=True)
+
     def materialize_store_target(self, org_id):
         return "mat_store", "mv_cache"
 

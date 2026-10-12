@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import re
+from types import SimpleNamespace
 
 from provisa.federation import store_writer
 from provisa.security.rights import PLATFORM_RIGHTS, Capability
@@ -74,6 +75,12 @@ class RegisteredNames:
 
     #: The dialect statements bound for this engine are written in (``EngineRuntime.dialect``).
     dialect = "trino"
+
+    #: The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
+    def engine_physical(self, sql: str) -> str:
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql: str) -> str:
         return sql

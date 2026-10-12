@@ -776,6 +776,7 @@ async def _sync_view_mv(
         source_tables=[],
         target_catalog=target_catalog,
         target_schema=target_schema,
+        target_catalog_qualified=state.federation_engine.engine.catalog_qualified,
         target_table=f"mv_{table_name}",
         refresh_interval=refresh_interval,
         enabled=True,

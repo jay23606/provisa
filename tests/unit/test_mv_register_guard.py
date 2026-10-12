@@ -38,6 +38,7 @@ def fake_state(monkeypatch):
     )
     fed = types.SimpleNamespace(
         materialize_store_target=lambda _: ("postgresql", "mv_cache"),
+        engine=types.SimpleNamespace(catalog_qualified=True),  # REQ-1730: it names catalogs
     )
     state = RoleState(
         mv_registry=registry,

@@ -28,6 +28,9 @@ B_SQL = (
 class _Engine:
     dialect = "duckdb"
 
+    def engine_physical(self, sql: str) -> str:
+        return self.address_replicas(sql)
+
     def address_replicas(self, sql: str) -> str:
         return sql
 

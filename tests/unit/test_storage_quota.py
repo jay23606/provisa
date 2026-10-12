@@ -207,6 +207,9 @@ class TestRequireStorageHeadroom:
 class _FakeEngine(RegisteredNames):
     """Answers the probes ``refresh_mv`` runs, recording every statement it was asked to execute."""
 
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     def __init__(self, count: int = 10) -> None:
         self.count = count
         self.sqls: list[str] = []

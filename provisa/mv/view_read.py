@@ -80,7 +80,7 @@ def _stored_rows(view: str, state: Any) -> str | None:
     mv = state.mv_registry.get(f"view-{view}")
     if mv is None or not mv.enabled or mv.status != MVStatus.FRESH or not mv.target_table:
         return None
-    return f'SELECT * FROM "{mv.target_catalog}"."{mv.target_schema}"."{mv.target_table}"'
+    return f"SELECT * FROM {mv.stored_ref()}"
 
 
 def _home_copy(view: str, state: Any) -> str | None:

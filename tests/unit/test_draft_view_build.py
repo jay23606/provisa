@@ -20,6 +20,7 @@ keeps what it has built. Its steward's preview starts the build and does not wai
 from __future__ import annotations
 
 import asyncio
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -79,7 +80,10 @@ def rebuilt(model, monkeypatch):
     from provisa.api import app_rebuild
 
     state = appmod.state
-    runtime_engine = SimpleNamespace(materialize_store_target=lambda org: ("store", "views"))
+    runtime_engine = SimpleNamespace(
+        materialize_store_target=lambda org: ("store", "views"),
+        engine=SimpleNamespace(catalog_qualified=True),  # REQ-1730: it names catalogs
+    )
     monkeypatch.setattr(state, "mv_registry", MVRegistry(), raising=False)
     monkeypatch.setattr(state, "view_sql_map", {}, raising=False)
     monkeypatch.setattr(state, "bitemporal_view_reads", {}, raising=False)
@@ -161,7 +165,19 @@ def builds(monkeypatch) -> list:
     async def _refresh(engine, mv, registry, *, store, ledger):
         started.append(mv.id)
 
+    def _detached(coro, *, name):
+        # A worker of its own, as spawn_background's: the build runs to its end off this loop.
+        worker = threading.Thread(target=asyncio.run, args=(coro,))
+        worker.start()
+        worker.join()
+
     monkeypatch.setattr("provisa.mv.refresh.refresh_mv", _refresh)
+    monkeypatch.setattr("provisa.core.connection_loop.spawn_background", _detached)
+    # The body is compiled to the engine's catalogs as a published view's is.
+    monkeypatch.setattr(
+        "provisa.api.app_rebuild.compile_view_sql_to_physical",
+        lambda sql, ctx: f"/*physical*/ {sql}",
+    )
     return started
 
 
@@ -170,20 +186,26 @@ def _state(mv: MVDefinition | None) -> SimpleNamespace:
     if mv is not None:
         registry.register(mv)
     return SimpleNamespace(
-        mv_registry=registry, federation_engine=object(), model_db=object(), tenant_db=object()
+        mv_registry=registry,
+        federation_engine=object(),
+        model_db=object(),
+        tenant_db=object(),
+        view_context=object(),
     )
 
 
 async def test_a_table_and_a_plain_view_start_no_build(builds):
     assert table_read._view_body(_state(None), {"id": 9, "table_name": "refunds"}) is None
-    assert table_read._view_body(_state(None), _draft_view()) == "SELECT id FROM orders"
+    assert (
+        table_read._view_body(_state(None), _draft_view()) == "/*physical*/ SELECT id FROM orders"
+    )
     await asyncio.sleep(0)
     assert builds == []
 
 
 async def test_a_materialized_draft_views_preview_starts_its_build_and_reads_live(builds):
     body = table_read._view_body(_state(_registered()), _draft_view())
-    assert body == "SELECT id FROM orders"  # answered now, from its inputs
+    assert body == "/*physical*/ SELECT id FROM orders"  # answered now, from its inputs
     await asyncio.sleep(0)
     assert builds == ["view-big_orders"]
 
@@ -192,7 +214,7 @@ async def test_a_materialized_draft_views_preview_starts_its_build_and_reads_liv
 async def test_a_build_that_is_fresh_or_running_is_not_started_again(builds, status):
     mv = _registered()
     mv.status = status
-    assert table_read._view_body(_state(mv), _draft_view()) == "SELECT id FROM orders"
+    assert table_read._view_body(_state(mv), _draft_view()) == "/*physical*/ SELECT id FROM orders"
     await asyncio.sleep(0)
     assert builds == []
 

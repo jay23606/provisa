@@ -90,9 +90,10 @@ def _lowered(state: Any, physical: str, engine: Any) -> str:
     sql = _expanded(state, physical)
     if engine is None:
         return sql
-    # REQ-1912: a table the view reads that is served from its replica is addressed there — the
-    # same rewrite every statement bound for the engine gets.
-    sql = engine.address_replicas(sql)
+    # As the engine executes it (REQ-1730): a table the view reads that is served from its
+    # replica is addressed there (REQ-1912), an engine with no cross-catalog names reads a
+    # source's table with its catalog folded into the schema, and the engine's dialect.
+    sql = engine.engine_physical(sql)
     # A view's ``current_setting('provisa.<var>')`` is resolved as every statement bound for the
     # engine is (the engine has no such function); any name the build is not given is NULL.
     from provisa.core.request_context import session_vars_for

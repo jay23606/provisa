@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import time
 
+from types import SimpleNamespace
+
 import pytest
 
 from provisa.mv.models import TableIdentity, JoinPattern, MVDefinition, MVStatus
@@ -78,6 +80,9 @@ class _FakeEngine(RegisteredNames):
     """Records SQL through the engine terminal; COUNT(*)/SHOW TABLES and the zero-row shape read
     of a join-pattern table return configured rows. ``fail_exists`` raises on the SELECT-1
     existence probe (table absent)."""
+
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
 
     def __init__(self, count=0, show_tables=None, show_columns=None, fail_exists=False):
         self.count = count

@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from types import SimpleNamespace
+
 import pytest
 
 from tests.helpers import hold_registered_tables
@@ -231,6 +233,9 @@ async def test_renew_lease_extends_only_for_owner(store):
 class _FakeEngine:
     """Records SQL; answers the count/introspection probes refresh_mv issues."""
 
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     def __init__(self, count=5):
         self.count = count
         self.sqls: list[str] = []
@@ -238,8 +243,8 @@ class _FakeEngine:
     # The engine seam names its SQL dialect; refresh resolves a view's settings in it.
     dialect = "duckdb"
 
-    def address_replicas(self, sql):
-        return sql  # this stand-in's tables are all read where the statement names them
+    def engine_physical(self, sql):
+        return sql  # this stand-in reads every table where the statement names it
 
     async def execute_engine(self, sql, *a, **k):
         self.sqls.append(sql)

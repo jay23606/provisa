@@ -93,6 +93,15 @@ class TableIdentity:  # REQ-939
         return f"{self.source_id}/{self.schema_name}.{self.table_name}"
 
 
+def stored_table_ref(catalog: str, schema: str, table: str, *, catalog_qualified: bool) -> str:
+    """A view's stored table as an engine names it: ``"catalog"."schema"."table"``, or, on an
+    engine with no catalog in its SQL (REQ-1730), ``"schema"."table"`` in its own database --
+    which the engine route's catalog check and the catalog fold then leave as it is."""
+    if not catalog_qualified:
+        return f'"{schema}"."{table}"'
+    return f'"{catalog}"."{schema}"."{table}"'
+
+
 @dataclass
 class MVDefinition:  # REQ-133, REQ-135, REQ-158, REQ-160, REQ-199, REQ-234, REQ-235
     """A materialized view definition."""
@@ -102,6 +111,10 @@ class MVDefinition:  # REQ-133, REQ-135, REQ-158, REQ-160, REQ-199, REQ-234, REQ
     target_catalog: str
     target_schema: str
     target_table: str | None = None  # auto-generated if not specified
+    # REQ-1730: whether the engine the view is stored in names a catalog in its SQL. One that
+    # does not (PostgreSQL) stores it in its own database, and its reference carries no catalog
+    # (:meth:`stored_ref`); ``target_catalog`` still names that store.
+    target_catalog_qualified: bool = True
     # REQ-939: a join-pattern view's inputs (it has no SQL), bound to registered tables when the
     # view is declared — so another source registering the same name later does not change what
     # it reads. One per ``source_tables`` entry; empty for a view with SQL.
@@ -230,6 +243,16 @@ class MVDefinition:  # REQ-133, REQ-135, REQ-158, REQ-160, REQ-199, REQ-234, REQ
             self.target_table = f"mv_{self.id.replace('-', '_')}"
         if self.tenant_id is not None:
             self.target_schema = f"{self.tenant_id}_mv"
+
+    def stored_ref(self) -> str:
+        """The table the view is stored in, as the engine names it."""
+        assert self.target_table is not None  # set by __post_init__
+        return stored_table_ref(
+            self.target_catalog,
+            self.target_schema,
+            self.target_table,
+            catalog_qualified=self.target_catalog_qualified,
+        )
 
     @property
     def is_fresh(self) -> bool:  # REQ-483

@@ -43,7 +43,7 @@ import os
 import socket
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, insert, or_, update
 from sqlalchemy.exc import IntegrityError
@@ -83,12 +83,21 @@ async def ensure_mv_row(model: "Database", state: "Database", mv: "MVDefinition"
         custom_sql=mv.sql,
     )
     build = insert(_mvt).values(mv_id=mv.id, region=process_region.region(), status="stale")
-    for store, stmt in ((model, definition), (state, build)):
-        try:
-            async with store.acquire() as conn:
-                await conn.execute_core(stmt)
-        except IntegrityError:
-            pass  # row already present (or seeded concurrently) — the desired end state
+    from provisa.core import model_change
+
+    # The definition is the model's: its seeding is a model change, whoever runs the first build
+    # (a mutation's scope is joined; a draft view's preview or the scheduler opens its own).
+    async with model_change.scope(f"seed view {mv.id}"):
+        await _insert_if_absent(model, definition)
+    await _insert_if_absent(state, build)
+
+
+async def _insert_if_absent(store: "Database", stmt: Any) -> None:
+    try:
+        async with store.acquire() as conn:
+            await conn.execute_core(stmt)
+    except IntegrityError:
+        pass  # row already present (or seeded concurrently) — the desired end state
 
 
 # One stable id per process: this instance's fencing/ownership token.

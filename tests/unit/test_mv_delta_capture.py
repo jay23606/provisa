@@ -14,6 +14,8 @@ yielding the identical as-of-N set; an unknown version fails loud; an opt-out MV
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from tests.helpers import hold_registered_tables
@@ -203,6 +205,9 @@ class _FakeEngine:
     """Drives refresh_mv without a real engine: COUNT probes, a target that starts absent then holds
     ``curr`` rows, and SELECT * returning the staged snapshot for the delta diff."""
 
+    # The engine it stands for names a catalog in its SQL (REQ-1730).
+    engine = SimpleNamespace(catalog_qualified=True)
+
     def __init__(self, curr):
         self._curr = curr
         self._exists = False
@@ -210,6 +215,9 @@ class _FakeEngine:
 
     # The engine seam names its SQL dialect; refresh resolves a view's settings in it.
     dialect = "duckdb"
+
+    def engine_physical(self, sql):
+        return self.address_replicas(sql)
 
     def address_replicas(self, sql):
         return sql  # this stand-in's tables are all read where the statement names them
