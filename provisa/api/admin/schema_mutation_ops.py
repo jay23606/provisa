@@ -258,6 +258,10 @@ async def register_table(
     from provisa.core.repositories import table as table_repo
 
     pool = await _get_pool()
+    from provisa.api.admin.domain_guard import require_current_domain
+
+    async with pool.acquire() as _conn:
+        await require_current_domain(info, cast("Connection", _conn), input)
     columns, _col_err = await _build_columns_for_input(pool, input)
     if _col_err is not None:
         return _col_err

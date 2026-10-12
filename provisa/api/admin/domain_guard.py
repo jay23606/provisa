@@ -28,7 +28,7 @@ can parse has no safe affirmative answer.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 import sqlglot
 from sqlglot import exp
@@ -165,3 +165,19 @@ async def require_view_within_domains(
     that would otherwise be missing, because free-hand SQL names its tables directly.
     """
     require_domains(info, await view_read_domains(conn, view_sql, dialect))
+
+
+async def require_current_domain(info: "StrawberryInfo", conn: "Connection", model: Any) -> None:
+    """Gate a save to an address that already holds an object in another domain (REQ-1531).
+
+    Saving there moves the object out of its domain, which is an act in that domain as much as in
+    the one it is saved into: the caller's ``table_registration`` right is checked in the stored
+    domain too. A new address, or one whose object is already in the domain sent, has nothing
+    more to check here.
+    """
+    from provisa.api.admin._hiding_guard import stored_table
+    from provisa.api.admin.capabilities import require_capability
+
+    stored = await stored_table(conn, model)
+    if stored is not None and stored["domain_id"] != model.domain_id:
+        require_capability(info, "table_registration", domain_id=stored["domain_id"])

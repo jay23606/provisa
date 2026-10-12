@@ -2701,6 +2701,9 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         model = _table_model_from_input(input, columns, presets, input.alias)
         async with pool.acquire() as conn:
             _conn = cast("Connection", conn)
+            from provisa.api.admin.domain_guard import require_current_domain
+
+            await require_current_domain(info, _conn, model)  # REQ-1531
             # REQ-1443: same contract-driven derivation the register path and the YAML loader run.
             from provisa.api.admin._dq_registration import apply_dq_registration
 
