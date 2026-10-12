@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: a3eb0b29-431b-4501-a244-89004ab52760
 #
 # This source code is licensed under the Business Source License 1.1
 """The named presets over the shared parsers (REQ-1996), one module per family (amazon,
