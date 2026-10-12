@@ -96,6 +96,7 @@ interface RegisterTableFormProps {
       nativeFilterType?: string | null;
       nativeFilterRequired?: boolean | null;
       isPrimaryKey?: boolean | null;
+      path?: string | null;
     }[]
   >;
   suggestTableAlias: (tableName: string, domainId: string, sourceId: string) => Promise<string>;
