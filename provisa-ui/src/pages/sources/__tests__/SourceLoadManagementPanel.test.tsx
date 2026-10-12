@@ -12,11 +12,13 @@
 // settings inside it, and an (i) icon whose explanation appears on hover or keyboard focus.
 
 import { useState } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { renderInForm, screen, fireEvent, within } from "../../../test-utils/render";
 import userEvent from "@testing-library/user-event";
 import { SourceLoadManagementPanel } from "../SourceLoadManagementPanel";
 import type { SourceFormState } from "../SourceFormFields";
+
+afterEach(() => vi.restoreAllMocks());
 
 const FORM: SourceFormState = {
   id: "sales-pg",
@@ -165,7 +167,14 @@ describe("SourceLoadManagementPanel", () => {
     renderInForm(<Harness />);
     const icon = screen.getByRole("button", { name: "About load management and timeliness" });
     expect(icon).toHaveAttribute("tabindex", "0");
-    fireEvent.focus(icon);
+    // The hint opens at once for a focus the keyboard made (a click focuses too, and shows none).
+    // jsdom does not know which focus that was, so it is told: the focus Tab gives is visible.
+    const matches = Element.prototype.matches;
+    vi.spyOn(Element.prototype, "matches").mockImplementation(function (this: Element, sel) {
+      return sel === ":focus-visible" ? this === document.activeElement : matches.call(this, sel);
+    });
+    for (let hop = 0; hop < 50 && document.activeElement !== icon; hop++) await userEvent.tab();
+    expect(icon).toHaveFocus();
     expect(
       await screen.findByText(new RegExp(INFO.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))),
     ).toBeInTheDocument();
