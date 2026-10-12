@@ -33,11 +33,19 @@ runs:
           *-alpha*|*-beta*|*-rc*) pre=--prerelease ;;
           *) pre= ;;
         esac
+        # The body is the release's notes page, written and committed by the
+        # Release: cut workflow before it made the tag. A tag with no page was not
+        # cut by it, and has no release made for it.
+        notes="docs/releases/$TAG.md"
+        if [ ! -f "$notes" ]; then
+          echo "::error::$notes is not in the tagged tree; a release is cut by the Release: cut workflow"
+          exit 1
+        fi
         # Created as --draft: never published on creation. publish-release in
         # build-dmg.yml undrafts it once every installer build has succeeded.
         # Concurrent creators: exactly one POST wins; the losers get 422
         # "already_exists". That is tolerated ONLY when the release genuinely
         # exists afterward (the `gh release view` below). Any other failure —
         # bad token, network, invalid tag — leaves no release and fails loudly.
-        gh release create "$TAG" --title "$TAG" --generate-notes --draft --latest=false $pre \
+        gh release create "$TAG" --title "$TAG" --notes-file "$notes" --draft --latest=false $pre \
           || gh release view "$TAG" >/dev/null 2>&1
