@@ -48,9 +48,29 @@ _DOCS = [
 ]
 
 
+_VECTOR_POLICY = {
+    "vectorEmbeddings": [
+        {"path": "/embedding", "dataType": "float32", "distanceFunction": "cosine", "dimensions": 3}
+    ]
+}
+_FULL_TEXT_POLICY = {
+    "defaultLanguage": "en-US",
+    "fullTextPaths": [{"path": "/text", "language": "en-US"}],
+}
+
+
+def _indexing(**indexes) -> dict:
+    return {
+        "indexingMode": "consistent",
+        "includedPaths": [{"path": "/*"}],
+        "excludedPaths": [{"path": '/"_etag"/?'}, {"path": "/embedding/*"}],
+        **indexes,
+    }
+
+
 @pytest.fixture(scope="module")
-def container():
-    from azure.cosmos import CosmosClient, PartitionKey
+def database():
+    from azure.cosmos import CosmosClient
 
     from tests.port_lease import lease_ports
 
@@ -75,36 +95,63 @@ def container():
                 if time.monotonic() > deadline:
                     raise
                 time.sleep(3)
-        made = db.create_container(
-            id="docs",
-            partition_key=PartitionKey(path="/pk"),
-            vector_embedding_policy={
-                "vectorEmbeddings": [
-                    {
-                        "path": "/embedding",
-                        "dataType": "float32",
-                        "distanceFunction": "cosine",
-                        "dimensions": 3,
-                    }
-                ]
-            },
-            full_text_policy={
-                "defaultLanguage": "en-US",
-                "fullTextPaths": [{"path": "/text", "language": "en-US"}],
-            },
-            indexing_policy={
-                "indexingMode": "consistent",
-                "includedPaths": [{"path": "/*"}],
-                "excludedPaths": [{"path": '/"_etag"/?'}, {"path": "/embedding/*"}],
-                "vectorIndexes": [{"path": "/embedding", "type": "flat"}],
-                "fullTextIndexes": [{"path": "/text"}],
-            },
-        )
-        for doc in _DOCS:
-            made.upsert_item(doc)
-        yield made
+        yield db
     finally:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True)
+
+
+def _container(database, container_id: str, **policies):
+    """A container of the documents with ``policies`` -- one per feature, so a policy the
+    emulator refuses fails only the tests of that feature."""
+    from azure.cosmos import PartitionKey
+
+    made = database.create_container(
+        id=container_id, partition_key=PartitionKey(path="/pk"), **policies
+    )
+    for doc in _DOCS:
+        made.upsert_item(doc)
+    return made
+
+
+@pytest.fixture(scope="module")
+def plain(database):
+    return _container(database, "plain")
+
+
+@pytest.fixture(scope="module")
+def vectors(database):
+    # The emulator takes only a diskANN vector index (CI 2026-10-12: "vectorIndexes[0]: only
+    # 'diskANN' type is currently supported").
+    return _container(
+        database,
+        "vectors",
+        vector_embedding_policy=_VECTOR_POLICY,
+        indexing_policy=_indexing(vectorIndexes=[{"path": "/embedding", "type": "diskANN"}]),
+    )
+
+
+@pytest.fixture(scope="module")
+def full_text(database):
+    return _container(
+        database,
+        "full_text",
+        full_text_policy=_FULL_TEXT_POLICY,
+        indexing_policy=_indexing(fullTextIndexes=[{"path": "/text"}]),
+    )
+
+
+@pytest.fixture(scope="module")
+def hybrid(database):
+    return _container(
+        database,
+        "hybrid",
+        vector_embedding_policy=_VECTOR_POLICY,
+        full_text_policy=_FULL_TEXT_POLICY,
+        indexing_policy=_indexing(
+            vectorIndexes=[{"path": "/embedding", "type": "diskANN"}],
+            fullTextIndexes=[{"path": "/text"}],
+        ),
+    )
 
 
 def _query(container, sql: str, parameters: list[dict] | None = None) -> list[dict]:
@@ -113,14 +160,14 @@ def _query(container, sql: str, parameters: list[dict] | None = None) -> list[di
     )
 
 
-def test_the_emulator_serves_a_parameterized_query(container):
-    rows = _query(container, "SELECT c.id FROM c WHERE c.pk = @pk", [{"name": "@pk", "value": "a"}])
+def test_the_emulator_serves_a_parameterized_query(plain):
+    rows = _query(plain, "SELECT c.id FROM c WHERE c.pk = @pk", [{"name": "@pk", "value": "a"}])
     assert sorted(r["id"] for r in rows) == ["1", "2"]
 
 
-def test_the_emulator_serves_vector_search(container):
+def test_the_emulator_serves_vector_search(vectors):
     rows = _query(
-        container,
+        vectors,
         "SELECT TOP 2 c.id, VectorDistance(c.embedding, @v) AS score FROM c "
         "ORDER BY VectorDistance(c.embedding, @v)",
         [{"name": "@v", "value": [1.0, 0.0, 0.0]}],
@@ -128,23 +175,36 @@ def test_the_emulator_serves_vector_search(container):
     assert [r["id"] for r in rows] == ["1", "2"]
 
 
-def test_the_emulator_serves_full_text_contains(container):
-    rows = _query(container, "SELECT c.id FROM c WHERE FullTextContains(c.text, 'car')")
+def test_the_emulator_serves_full_text_contains(full_text):
+    rows = _query(full_text, "SELECT c.id FROM c WHERE FullTextContains(c.text, 'car')")
     assert [r["id"] for r in rows] == ["2"]
 
 
-def test_the_emulator_serves_full_text_ranking(container):
+def test_the_emulator_serves_full_text_ranking(full_text):
     rows = _query(
-        container, "SELECT TOP 2 c.id FROM c ORDER BY RANK FullTextScore(c.text, ['old', 'man'])"
+        full_text, "SELECT TOP 2 c.id FROM c ORDER BY RANK FullTextScore(c.text, ['old', 'man'])"
     )
     assert rows[0]["id"] == "1"
 
 
-def test_the_emulator_serves_hybrid_ranking(container):
+def test_the_emulator_serves_hybrid_ranking(hybrid):
     rows = _query(
-        container,
+        hybrid,
         "SELECT TOP 2 c.id FROM c ORDER BY RANK RRF(FullTextScore(c.text, ['car']), "
         "VectorDistance(c.embedding, @v))",
         [{"name": "@v", "value": [0.9, 0.1, 0.0]}],
     )
     assert rows[0]["id"] == "2"
+
+
+def test_the_emulator_takes_only_a_diskann_vector_index(database):
+    """The spike's first answer (CI 2026-10-12): a flat vector index is refused by name."""
+    from azure.cosmos.exceptions import CosmosHttpResponseError
+
+    with pytest.raises(CosmosHttpResponseError, match="only 'diskANN' type is currently supported"):
+        _container(
+            database,
+            "flat_index",
+            vector_embedding_policy=_VECTOR_POLICY,
+            indexing_policy=_indexing(vectorIndexes=[{"path": "/embedding", "type": "flat"}]),
+        )
