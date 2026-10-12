@@ -78089,3 +78089,12 @@
     Then it receives the elements and the ERD''s ELK layout options, with no positions computed
 
     '
+- id: REQ-1989
+  status: proposed
+  since: 2026-10
+  group: 11. Platform, Infrastructure & Delivery
+  category: Release Integrity
+  priority: SHOULD
+  type: infrastructure
+  description: 'A release is made only by the Release: cut workflow, run by hand on main with the version. It generates the release''s notes from the previous release''s tag (the UI''s bundled notes, docs/releases/<version>.md, the docs navigation and CHANGELOG.md) and commits them to main before it makes the release''s tag on that commit; a generation failure leaves no commit and no tag. A hand-written release page is never overwritten. The release''s body is its notes page, and a tag pushed by hand gets no release.'
+  notes: 'Maintainer 2026-10-12, through the lead: release notes generated between two tags and committed with the release, the release body set from them, and a generation failure blocks the tag; he chose a hand-run cut workflow that commits the notes before it tags (option A of ci-fix''s two), and that releases are made only through it. "A hand-written release page is never overwritten" is the lead''s instruction. The rest -- the workflow starting every workflow a v* tag starts, since a tag it pushes starts none -- is ci-fix''s implementation. Group, category, priority and type are ci-fix''s choices.'

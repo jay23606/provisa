@@ -27,6 +27,7 @@ Usage:
   python scripts/gen_release_notes.py --from v0.1.0-alpha.478 --to v0.1.0-alpha.479 [--version NAME]
 """
 
+# Requirements: REQ-1989
 from __future__ import annotations
 
 import argparse
