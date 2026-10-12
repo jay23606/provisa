@@ -122,6 +122,7 @@ dependencies = [
     "psycopg[binary]",
     "psycopg-pool",
     "sqlalchemy-redshift",  # REQ-1730: redshift+psycopg2 dialect — generic-RDB land driver
+    "pyathena",  # REQ-1981: Amazon Athena source, through its own API (over boto3)
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-grpc",
     "opentelemetry-exporter-otlp-proto-http",

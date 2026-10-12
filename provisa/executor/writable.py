@@ -89,6 +89,15 @@ _ROUTE_REFUSED_FORMS: dict[WritePath, frozenset[str]] = {
 }
 
 
+# REQ-1981: what a source type's own SQL lacks, beside its route's. Athena has no RETURNING, so a
+# write returns no rows; nor ON CONFLICT, UPDATE ... FROM, DELETE ... USING or TRUNCATE (MERGE it
+# takes, on an Iceberg table: ``write_capability``).
+_TYPE_RETURNS_NO_ROWS: frozenset[str] = frozenset({"athena"})
+_TYPE_REFUSED_FORMS: dict[str, frozenset[str]] = {
+    "athena": frozenset({"on_conflict", "update_from", "delete_using", "truncate"}),
+}
+
+
 def is_written_through_pgwire_server(source_type: str) -> bool:
     """Whether ``source_type``'s write route is its own pgwire server — the ONE predicate that
     decides it (REQ-1946). The server speaks the PostgreSQL wire, so the route needs that driver."""
@@ -179,14 +188,19 @@ def is_writable_on(source_type: str, engine: FederationEngine | None = None) -> 
 
 def write_returns_rows(source_type: str, engine: FederationEngine | None = None) -> bool:
     """Whether a write to ``source_type`` can return the rows it wrote — the flag of its write
-    route (``_ROUTE_RETURNS_WRITTEN_ROWS``). A source with no write route returns none."""
+    route (``_ROUTE_RETURNS_WRITTEN_ROWS``), unless the type's own SQL cannot
+    (``_TYPE_RETURNS_NO_ROWS``). A source with no write route returns none."""
     route = resolve_write_path(source_type, engine)
-    return route is not None and _ROUTE_RETURNS_WRITTEN_ROWS[route]
+    if route is None or source_type in _TYPE_RETURNS_NO_ROWS:
+        return False
+    return _ROUTE_RETURNS_WRITTEN_ROWS[route]
 
 
 def write_refused_forms(source_type: str, engine: FederationEngine | None = None) -> frozenset[str]:
     """The statement forms (``WRITE_FORMS``) a write to ``source_type`` does not carry — its
-    write route's own (``_ROUTE_REFUSED_FORMS``). A source with no write route refuses none here:
-    it takes no write at all."""
+    write route's own (``_ROUTE_REFUSED_FORMS``) and its type's (``_TYPE_REFUSED_FORMS``). A source
+    with no write route refuses none here: it takes no write at all."""
     route = resolve_write_path(source_type, engine)
-    return frozenset() if route is None else _ROUTE_REFUSED_FORMS[route]
+    if route is None:
+        return frozenset()
+    return _ROUTE_REFUSED_FORMS[route] | _TYPE_REFUSED_FORMS.get(source_type, frozenset())

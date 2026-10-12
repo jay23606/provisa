@@ -44,6 +44,7 @@ SOURCE_TO_DIALECT: dict[str, str] = {
     "bigquery": "bigquery",
     "clickhouse": "clickhouse",
     "redshift": "redshift",
+    "athena": "athena",  # REQ-1981
     "databricks": "databricks",
     "fabric": "tsql",  # Microsoft Fabric Warehouse — T-SQL over TDS (REQ-986)
     "synapse": "tsql",  # Azure Synapse — T-SQL over TDS

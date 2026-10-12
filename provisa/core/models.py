@@ -87,6 +87,7 @@ class SourceType(str, Enum):
     fabric = "fabric"  # Microsoft Fabric Warehouse (T-SQL over TDS, Azure AD auth)
     synapse = "synapse"  # Azure Synapse SQL (T-SQL over TDS, Azure AD auth)
     redshift = "redshift"
+    athena = "athena"  # REQ-1981: Amazon Athena, through its own API (PyAthena over boto3)
     # REQ-994: a remote Trino/Presto coordinator read as a SOURCE via the SQLAlchemy trino
     # dialect and landed as a replica — distinct from Trino as the federation ENGINE, which is
     # an _ENGINE_BUILDERS key, not a SourceType. The driver already exists
@@ -1203,6 +1204,10 @@ class Table(
     # REQ-788: when set, the name of a column carrying each row's matched file path. Opt-in — a
     # files-glob table has no such column unless it is declared.
     source_file_column: str | None = None
+    # REQ-1981: the table's format where its source reports one (an Athena table: "iceberg" or
+    # "hive"), read from the source when the table is registered, never set by a steward. It
+    # decides the writes the table takes (``executor/write_capability``).
+    table_format: str | None = None
     # REQ-874: incremental (delta) reload of this table's replica. None = whole rebuild only.
     delta: "DeltaConfig | None" = None
     mv_refresh_interval: int = 300  # seconds between MV refreshes (only used when materialize=True)

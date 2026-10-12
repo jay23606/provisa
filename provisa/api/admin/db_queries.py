@@ -154,7 +154,7 @@ async def fetch_tables(  # REQ-155, REQ-393, REQ-399
         "enable_aggregates, enable_group_by, view_sql, dq_contract, profiler_source_id, "  # REQ-1443/1934
         "live, push_debounce_quiet, push_debounce_max_delay, cache_ttl, "  # REQ-1733, REQ-1730
         "row_materialize, role_ttl, replicate, load_protected, region, draft, "  # REQ-1865/1907/826/1141/1921
-        "file_glob, source_file_column, delta, "  # REQ-788/874
+        "file_glob, source_file_column, delta, table_format, "  # REQ-788/874/1981
         "change_signal, watermark_column, probe_type, "  # REQ-929/924/982: the table's own
         "pagination "  # REQ-318
         "FROM registered_tables WHERE draft = $1 ORDER BY id",

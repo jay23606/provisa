@@ -289,6 +289,7 @@ DO $$ BEGIN
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS row_materialize BOOLEAN NOT NULL DEFAULT FALSE;  -- REQ-1865
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS file_glob TEXT;  -- REQ-788
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS source_file_column TEXT;  -- REQ-788
+    ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS table_format TEXT;  -- REQ-1981
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS delta JSONB;  -- REQ-874
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS mv_refresh_interval INTEGER NOT NULL DEFAULT 300;
     ALTER TABLE registered_tables ADD COLUMN IF NOT EXISTS mv_debounce_quiet DOUBLE PRECISION NOT NULL DEFAULT 0;
