@@ -1,0 +1,822 @@
+{
+ "result": {
+  "now": {
+   "Import Set API": {
+    "description": "Allows you to interact with Import Sets",
+    "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Import-Set-API",
+    "scripted": false,
+    "sysId": "Import Set API",
+    "route": "now/import",
+    "apiName": "now/import",
+    "versions": {
+     "latest": {
+      "version": "latest",
+      "description": "Allows you to interact with Import Sets",
+      "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Import-Set-API",
+      "resources": [
+       {
+        "description": "Create a record in an Import Set staging table",
+        "httpMethod": "POST",
+        "route": "/now/import/{stagingTableName}"
+       },
+       {
+        "description": "Insert Multiple Records from same request",
+        "httpMethod": "POST",
+        "route": "/now/import/{stagingTableName}/insertMultiple"
+       },
+       {
+        "description": "Retrieve an Import Set record",
+        "httpMethod": "GET",
+        "route": "/now/import/{stagingTableName}/{sys_id}"
+       }
+      ]
+     },
+     "v1": {
+      "version": "v1",
+      "description": "Allows you to interact with Import Sets",
+      "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Import-Set-API",
+      "resources": [
+       {
+        "description": "Create a record in an Import Set staging table",
+        "httpMethod": "POST",
+        "route": "/now/v1/import/{stagingTableName}"
+       },
+       {
+        "description": "Insert Multiple Records from same request",
+        "httpMethod": "POST",
+        "route": "/now/v1/import/{stagingTableName}/insertMultiple"
+       },
+       {
+        "description": "Retrieve an Import Set record",
+        "httpMethod": "GET",
+        "route": "/now/v1/import/{stagingTableName}/{sys_id}"
+       }
+      ]
+     }
+    },
+    "svcName": "Import Set API"
+   },
+   "Table API": {
+    "description": "Allows you to perform create, read, update and delete (CRUD) operations on existing tables",
+    "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Table-API",
+    "scripted": false,
+    "sysId": "Table API",
+    "route": "now/table",
+    "apiName": "now/table",
+    "versions": {
+     "latest": {
+      "version": "latest",
+      "description": "Allows you to perform create, read, update and delete (CRUD) operations on existing tables",
+      "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Table-API",
+      "resources": [
+       {
+        "description": "Retrieve records from a table",
+        "httpMethod": "GET",
+        "route": "/now/table/{tableName}"
+       },
+       {
+        "description": "Create a record",
+        "httpMethod": "POST",
+        "route": "/now/table/{tableName}"
+       },
+       {
+        "description": "Retrieve a record",
+        "httpMethod": "GET",
+        "route": "/now/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Modify a record",
+        "httpMethod": "PUT",
+        "route": "/now/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Delete a record",
+        "httpMethod": "DELETE",
+        "route": "/now/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Update a record",
+        "httpMethod": "PATCH",
+        "route": "/now/table/{tableName}/{sys_id}"
+       }
+      ]
+     },
+     "v1": {
+      "version": "v1",
+      "description": "Allows you to perform create, read, update and delete (CRUD) operations on existing tables",
+      "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Table-API",
+      "resources": [
+       {
+        "description": "Retrieve records from a table",
+        "httpMethod": "GET",
+        "route": "/now/v1/table/{tableName}"
+       },
+       {
+        "description": "Create a record",
+        "httpMethod": "POST",
+        "route": "/now/v1/table/{tableName}"
+       },
+       {
+        "description": "Retrieve a record",
+        "httpMethod": "GET",
+        "route": "/now/v1/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Modify a record",
+        "httpMethod": "PUT",
+        "route": "/now/v1/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Delete a record",
+        "httpMethod": "DELETE",
+        "route": "/now/v1/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Update a record",
+        "httpMethod": "PATCH",
+        "route": "/now/v1/table/{tableName}/{sys_id}"
+       }
+      ]
+     },
+     "v2": {
+      "version": "v2",
+      "description": "Allows you to perform create, read, update and delete (CRUD) operations on existing tables",
+      "docLink": "https://docs.servicenow.com/?context=CSHelp:REST-Table-API",
+      "resources": [
+       {
+        "description": "Retrieve records from a table",
+        "httpMethod": "GET",
+        "route": "/now/v2/table/{tableName}"
+       },
+       {
+        "description": "Create a record",
+        "httpMethod": "POST",
+        "route": "/now/v2/table/{tableName}"
+       },
+       {
+        "description": "Retrieve a record",
+        "httpMethod": "GET",
+        "route": "/now/v2/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Modify a record",
+        "httpMethod": "PUT",
+        "route": "/now/v2/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Delete a record",
+        "httpMethod": "DELETE",
+        "route": "/now/v2/table/{tableName}/{sys_id}"
+       },
+       {
+        "description": "Update a record",
+        "httpMethod": "PATCH",
+        "route": "/now/v2/table/{tableName}/{sys_id}"
+       }
+      ]
+     }
+    },
+    "svcName": "Table API"
+   }
+  },
+  "sn_sc": {
+   "Service Catalog API": {
+    "description": "Allows you to use Service Catalog via REST",
+    "docLink": "",
+    "scripted": true,
+    "sysId": "b4558e83c3a302006f333b0ac3d3ae8e",
+    "route": "sn_sc/servicecatalog",
+    "apiName": "sn_sc/servicecatalog",
+    "versions": {
+     "latest": {
+      "version": "latest",
+      "description": "Allows you to use Service Catalog via REST",
+      "docLink": "",
+      "resources": [
+       {
+        "description": "Default Cart Contents",
+        "sysId": "f1447390db10120064301150f0b8f5bf",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/cart"
+       },
+       {
+        "description": "Checkout Cart",
+        "sysId": "d2c95260db20120064301150f0b8f563",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/cart/checkout"
+       },
+       {
+        "description": "Get Shipping Address",
+        "sysId": "10a27370db20120064301150f0b8f582",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/cart/delivery_address/{user_id}"
+       },
+       {
+        "description": "Submit Order",
+        "sysId": "1c5a7330db20120064301150f0b8f54e",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/cart/submit_order"
+       },
+       {
+        "description": "Update Cart Item",
+        "sysId": "385ddb14db90120064301150f0b8f564",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/servicecatalog/cart/{cart_item_id}"
+       },
+       {
+        "description": "Delete Items from Cart",
+        "sysId": "ff62ff50db10120064301150f0b8f561",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/servicecatalog/cart/{cart_item_id}"
+       },
+       {
+        "description": "Empty Cart",
+        "sysId": "0a38a152db10120064301150f0b8f535",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/servicecatalog/cart/{sys_id}/empty"
+       },
+       {
+        "description": "Validate Categories in Catalogs",
+        "sysId": "362bca4987202010c84e4561d5cb0bd6",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/catalog_builder/validate_catalog_categories"
+       },
+       {
+        "description": "Get catalog script onChange choices",
+        "sysId": "413bc0f1ff302210e048ffffffffff5c",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/catalog_client_script/on_change_choices/{entity_id}"
+       },
+       {
+        "description": "List of Catalogs",
+        "sysId": "30a5ce83c3a302006f333b0ac3d3ae2c",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/catalogs"
+       },
+       {
+        "description": "Specific Catalog",
+        "sysId": "344590a147330200e0ef563dbb9a7123",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/catalogs/{sys_id}"
+       },
+       {
+        "description": "List of Categories for a Catalog",
+        "sysId": "4fdfdc419f330200d54dd4b4232e7056",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/catalogs/{sys_id}/categories"
+       },
+       {
+        "description": "Specific Category",
+        "sysId": "8a6690a147330200e0ef563dbb9a7191",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/categories/{sys_id}"
+       },
+       {
+        "description": "Delete catalog item in wizard",
+        "sysId": "cec99adbc753101092acdc8703c260b3",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/servicecatalog/item/{record_id}"
+       },
+       {
+        "description": "List of Catalog Items",
+        "sysId": "87a8c391c33302006f333b0ac3d3ae6b",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/items"
+       },
+       {
+        "description": "Specific Catalog Item",
+        "sysId": "8f017f03c3330200d68d3b0ac3d3ae18",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}"
+       },
+       {
+        "description": "Add Item To Cart",
+        "sysId": "b38fd0cadb33020064301150f0b8f581",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/add_to_cart"
+       },
+       {
+        "description": "Add item to wishlist",
+        "sysId": "ef5724d1c3202200d68d3b0ac3d3aeda",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/add_to_wishlist"
+       },
+       {
+        "description": "Checkout Order guide",
+        "sysId": "b7fe7ff5c3101200d68d3b0ac3d3aecc",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/checkout_guide"
+       },
+       {
+        "description": "Check requested for delegation on item",
+        "sysId": "fdf66e440f8200108af26b198b767e2e",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/items/{item_sys_id}/delegation/{user_sys_id}"
+       },
+       {
+        "description": "Validate Also Request For on Item",
+        "sysId": "eef46fb573001010728c2ee2c4f6a74c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{item_sys_id}/get_invalid_delegated_users"
+       },
+       {
+        "description": "Buy Item",
+        "sysId": "4f9131449f901200d54dd4b4232e708d",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/order_now"
+       },
+       {
+        "description": "Catalog Item Price",
+        "sysId": "e871479377320010510d5bb89810617c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/price"
+       },
+       {
+        "description": "Save Catalog Item",
+        "sysId": "3ca3d997c3003110547aab8f8740dd1a",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/save_catalog_item"
+       },
+       {
+        "description": "Save a Record Producer",
+        "sysId": "20c04525536210101553ddeeff7b12df",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/save_producer"
+       },
+       {
+        "description": "Describe needs of an order guide",
+        "sysId": "b7da2141c3101200d68d3b0ac3d3ae0d",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/submit_guide"
+       },
+       {
+        "description": "Submit a Record Producer",
+        "sysId": "4b9f0a8967101200d22b794717415a30",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/submit_producer"
+       },
+       {
+        "description": "Variables of an item",
+        "sysId": "0f110a53c3330200d68d3b0ac3d3ae09",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/variables"
+       },
+       {
+        "description": "Cancel Review of a catalog item",
+        "sysId": "a630d15287432010c84e4561d5cb0b4b",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/versioning/cancel_review"
+       },
+       {
+        "description": "Checkout a catalog Item",
+        "sysId": "97e4def00f131010e54d6b198b767ee7",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/items/{sys_id}/versioning/checkout"
+       },
+       {
+        "description": "Generate Variable Value Map",
+        "sysId": "d388b227c7122010ca6da1e603c260eb",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/producer/{producer_id}/record/{record_id}"
+       },
+       {
+        "description": "Create resource for question designer",
+        "sysId": "64da34ab0f402010e54d6b198b767e19",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/question_designer/create_resource/{action}"
+       },
+       {
+        "description": "Delete resource for question designer",
+        "sysId": "88da94500f102010e54d6b198b767ec1",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/question_designer/delete_resource/{action}"
+       },
+       {
+        "description": "Update resource for question designer",
+        "sysId": "eb82db800f102010e54d6b198b767e7d",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/question_designer/update_resource/{action}/{sys_id}"
+       },
+       {
+        "description": "Check user can access record via wizard",
+        "sysId": "633b44050fa02010e54d6b198b767ea8",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/record_id/{record_id}/wizard/{wizard_id}"
+       },
+       {
+        "description": "Generate Stage Pool IDs",
+        "sysId": "82978f63c7122010ca6da1e603c26000",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/service_fulfillment/generateStagePoolIds/{quantity}"
+       },
+       {
+        "description": "Create a Service Fulfillment Step",
+        "sysId": "89769a2b531220105408ddeeff7b1295",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/service_fulfillment/step"
+       },
+       {
+        "description": "Update a Service Fulfillment Step",
+        "sysId": "afc65e2b531220105408ddeeff7b12e2",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/servicecatalog/service_fulfillment/step/{sys_id}"
+       },
+       {
+        "description": "Delete a Service Fulfillment Step",
+        "sysId": "56dcc767c7122010ca6da1e603c260c4",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/servicecatalog/service_fulfillment/step/{sys_id}"
+       },
+       {
+        "description": "Get Fulfillment Step Configurations",
+        "sysId": "e7731be187222010c84e4561d5cb0b62",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/service_fulfillment/step_configs"
+       },
+       {
+        "description": "Duplicate template",
+        "sysId": "c5916ff1c7231010159ca1e603c26019",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/template/{sys_id}/duplicate"
+       },
+       {
+        "description": "Variable Set Layout",
+        "sysId": "0e44d390b7231010f03e9b7ade11a9bb",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/variableSetLayout"
+       },
+       {
+        "description": "Variables display value ",
+        "sysId": "1bc4a80eff08621050f2ffffffffff9c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/variables/display_value"
+       },
+       {
+        "description": "Variable display value ",
+        "sysId": "352dd93773101300f49d0690fdf6a702",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/variables/{sys_id}/display_value"
+       },
+       {
+        "description": "Get Dynamic Value",
+        "sysId": "f90b7b9febe011106fb3951ff1522873",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/variables/{sys_id}/dynamic_value"
+       },
+       {
+        "description": "Validate Variable Regex",
+        "sysId": "02aaa86487122300e0ef0cf888cb0bba",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/variables/{sys_id}/validate_regex"
+       },
+       {
+        "description": "Update Variables",
+        "sysId": "cd374a3653220010bcd5ddeeff7b1257",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/servicecatalog/variables/{table_name}/{sys_id}"
+       },
+       {
+        "description": "Wishlist cart contents",
+        "sysId": "a2789091c3202200d68d3b0ac3d3aedb",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/wishlist"
+       },
+       {
+        "description": "Item in wishlist",
+        "sysId": "0b795491c3202200d68d3b0ac3d3aeb7",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/wishlist/{cart_item_id}"
+       },
+       {
+        "description": "Wizard Data",
+        "sysId": "eb2c1a3273021010688e0d573cf6a772",
+        "httpMethod": "GET",
+        "route": "/sn_sc/servicecatalog/wizard/{sys_id}"
+       },
+       {
+        "description": "Submit Wizard",
+        "sysId": "0646e19373121010c84e2bb43cf6a7f1",
+        "httpMethod": "POST",
+        "route": "/sn_sc/servicecatalog/wizard/{sys_id}/record_id/{record_id}"
+       }
+      ]
+     },
+     "v1": {
+      "version": "v1",
+      "description": "Allows you to use Service Catalog via REST",
+      "docLink": "",
+      "resources": [
+       {
+        "description": "Default Cart Contents",
+        "sysId": "f1447390db10120064301150f0b8f5bf",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/cart"
+       },
+       {
+        "description": "Checkout Cart",
+        "sysId": "d2c95260db20120064301150f0b8f563",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/cart/checkout"
+       },
+       {
+        "description": "Get Shipping Address",
+        "sysId": "10a27370db20120064301150f0b8f582",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/cart/delivery_address/{user_id}"
+       },
+       {
+        "description": "Submit Order",
+        "sysId": "1c5a7330db20120064301150f0b8f54e",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/cart/submit_order"
+       },
+       {
+        "description": "Update Cart Item",
+        "sysId": "385ddb14db90120064301150f0b8f564",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/v1/servicecatalog/cart/{cart_item_id}"
+       },
+       {
+        "description": "Delete Items from Cart",
+        "sysId": "ff62ff50db10120064301150f0b8f561",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/v1/servicecatalog/cart/{cart_item_id}"
+       },
+       {
+        "description": "Empty Cart",
+        "sysId": "0a38a152db10120064301150f0b8f535",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/v1/servicecatalog/cart/{sys_id}/empty"
+       },
+       {
+        "description": "Validate Categories in Catalogs",
+        "sysId": "362bca4987202010c84e4561d5cb0bd6",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/catalog_builder/validate_catalog_categories"
+       },
+       {
+        "description": "Get catalog script onChange choices",
+        "sysId": "413bc0f1ff302210e048ffffffffff5c",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/catalog_client_script/on_change_choices/{entity_id}"
+       },
+       {
+        "description": "List of Catalogs",
+        "sysId": "30a5ce83c3a302006f333b0ac3d3ae2c",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/catalogs"
+       },
+       {
+        "description": "Specific Catalog",
+        "sysId": "344590a147330200e0ef563dbb9a7123",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/catalogs/{sys_id}"
+       },
+       {
+        "description": "List of Categories for a Catalog",
+        "sysId": "4fdfdc419f330200d54dd4b4232e7056",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/catalogs/{sys_id}/categories"
+       },
+       {
+        "description": "Specific Category",
+        "sysId": "8a6690a147330200e0ef563dbb9a7191",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/categories/{sys_id}"
+       },
+       {
+        "description": "Delete catalog item in wizard",
+        "sysId": "cec99adbc753101092acdc8703c260b3",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/v1/servicecatalog/item/{record_id}"
+       },
+       {
+        "description": "List of Catalog Items",
+        "sysId": "87a8c391c33302006f333b0ac3d3ae6b",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/items"
+       },
+       {
+        "description": "Specific Catalog Item",
+        "sysId": "8f017f03c3330200d68d3b0ac3d3ae18",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}"
+       },
+       {
+        "description": "Add Item To Cart",
+        "sysId": "b38fd0cadb33020064301150f0b8f581",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/add_to_cart"
+       },
+       {
+        "description": "Add item to wishlist",
+        "sysId": "ef5724d1c3202200d68d3b0ac3d3aeda",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/add_to_wishlist"
+       },
+       {
+        "description": "Checkout Order guide",
+        "sysId": "b7fe7ff5c3101200d68d3b0ac3d3aecc",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/checkout_guide"
+       },
+       {
+        "description": "Check requested for delegation on item",
+        "sysId": "fdf66e440f8200108af26b198b767e2e",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/items/{item_sys_id}/delegation/{user_sys_id}"
+       },
+       {
+        "description": "Validate Also Request For on Item",
+        "sysId": "eef46fb573001010728c2ee2c4f6a74c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{item_sys_id}/get_invalid_delegated_users"
+       },
+       {
+        "description": "Buy Item",
+        "sysId": "4f9131449f901200d54dd4b4232e708d",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/order_now"
+       },
+       {
+        "description": "Catalog Item Price",
+        "sysId": "e871479377320010510d5bb89810617c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/price"
+       },
+       {
+        "description": "Save Catalog Item",
+        "sysId": "3ca3d997c3003110547aab8f8740dd1a",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/save_catalog_item"
+       },
+       {
+        "description": "Save a Record Producer",
+        "sysId": "20c04525536210101553ddeeff7b12df",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/save_producer"
+       },
+       {
+        "description": "Describe needs of an order guide",
+        "sysId": "b7da2141c3101200d68d3b0ac3d3ae0d",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/submit_guide"
+       },
+       {
+        "description": "Submit a Record Producer",
+        "sysId": "4b9f0a8967101200d22b794717415a30",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/submit_producer"
+       },
+       {
+        "description": "Variables of an item",
+        "sysId": "0f110a53c3330200d68d3b0ac3d3ae09",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/variables"
+       },
+       {
+        "description": "Cancel Review of a catalog item",
+        "sysId": "a630d15287432010c84e4561d5cb0b4b",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/versioning/cancel_review"
+       },
+       {
+        "description": "Checkout a catalog Item",
+        "sysId": "97e4def00f131010e54d6b198b767ee7",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/items/{sys_id}/versioning/checkout"
+       },
+       {
+        "description": "Generate Variable Value Map",
+        "sysId": "d388b227c7122010ca6da1e603c260eb",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/producer/{producer_id}/record/{record_id}"
+       },
+       {
+        "description": "Create resource for question designer",
+        "sysId": "64da34ab0f402010e54d6b198b767e19",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/question_designer/create_resource/{action}"
+       },
+       {
+        "description": "Delete resource for question designer",
+        "sysId": "88da94500f102010e54d6b198b767ec1",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/question_designer/delete_resource/{action}"
+       },
+       {
+        "description": "Update resource for question designer",
+        "sysId": "eb82db800f102010e54d6b198b767e7d",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/question_designer/update_resource/{action}/{sys_id}"
+       },
+       {
+        "description": "Check user can access record via wizard",
+        "sysId": "633b44050fa02010e54d6b198b767ea8",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/record_id/{record_id}/wizard/{wizard_id}"
+       },
+       {
+        "description": "Generate Stage Pool IDs",
+        "sysId": "82978f63c7122010ca6da1e603c26000",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/service_fulfillment/generateStagePoolIds/{quantity}"
+       },
+       {
+        "description": "Create a Service Fulfillment Step",
+        "sysId": "89769a2b531220105408ddeeff7b1295",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/service_fulfillment/step"
+       },
+       {
+        "description": "Update a Service Fulfillment Step",
+        "sysId": "afc65e2b531220105408ddeeff7b12e2",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/v1/servicecatalog/service_fulfillment/step/{sys_id}"
+       },
+       {
+        "description": "Delete a Service Fulfillment Step",
+        "sysId": "56dcc767c7122010ca6da1e603c260c4",
+        "httpMethod": "DELETE",
+        "route": "/sn_sc/v1/servicecatalog/service_fulfillment/step/{sys_id}"
+       },
+       {
+        "description": "Get Fulfillment Step Configurations",
+        "sysId": "e7731be187222010c84e4561d5cb0b62",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/service_fulfillment/step_configs"
+       },
+       {
+        "description": "Duplicate template",
+        "sysId": "c5916ff1c7231010159ca1e603c26019",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/template/{sys_id}/duplicate"
+       },
+       {
+        "description": "Variable Set Layout",
+        "sysId": "0e44d390b7231010f03e9b7ade11a9bb",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/variableSetLayout"
+       },
+       {
+        "description": "Variables display value ",
+        "sysId": "1bc4a80eff08621050f2ffffffffff9c",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/variables/display_value"
+       },
+       {
+        "description": "Variable display value ",
+        "sysId": "352dd93773101300f49d0690fdf6a702",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/variables/{sys_id}/display_value"
+       },
+       {
+        "description": "Get Dynamic Value",
+        "sysId": "f90b7b9febe011106fb3951ff1522873",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/variables/{sys_id}/dynamic_value"
+       },
+       {
+        "description": "Validate Variable Regex",
+        "sysId": "02aaa86487122300e0ef0cf888cb0bba",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/variables/{sys_id}/validate_regex"
+       },
+       {
+        "description": "Update Variables",
+        "sysId": "cd374a3653220010bcd5ddeeff7b1257",
+        "httpMethod": "PUT",
+        "route": "/sn_sc/v1/servicecatalog/variables/{table_name}/{sys_id}"
+       },
+       {
+        "description": "Wishlist cart contents",
+        "sysId": "a2789091c3202200d68d3b0ac3d3aedb",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/wishlist"
+       },
+       {
+        "description": "Item in wishlist",
+        "sysId": "0b795491c3202200d68d3b0ac3d3aeb7",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/wishlist/{cart_item_id}"
+       },
+       {
+        "description": "Wizard Data",
+        "sysId": "eb2c1a3273021010688e0d573cf6a772",
+        "httpMethod": "GET",
+        "route": "/sn_sc/v1/servicecatalog/wizard/{sys_id}"
+       },
+       {
+        "description": "Submit Wizard",
+        "sysId": "0646e19373121010c84e2bb43cf6a7f1",
+        "httpMethod": "POST",
+        "route": "/sn_sc/v1/servicecatalog/wizard/{sys_id}/record_id/{record_id}"
+       }
+      ]
+     }
+    },
+    "svcName": "Service Catalog API"
+   }
+  }
+ }
+}
