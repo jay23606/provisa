@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from provisa.logparse import BUILT_IN, FileContext, ParseError, catalog, records
+from provisa.logs.files import text_encoding
 
 _FIXTURES = Path(__file__).parent / "fixtures" / "logparse" / "microsoft"
 _UTC = timezone.utc
@@ -29,7 +30,10 @@ def rows(name: str, fixture: str | None = None, *, keep_refused: bool = False) -
     into records, each record's rows -- or, with ``keep_refused``, the refusal's text in its place."""
     fmt = BUILT_IN[name]
     ctx = _ctx()
-    lines = (_FIXTURES / (fixture or f"{name}.log")).read_text().splitlines()
+    # Read in the encoding its byte-order mark names, as the Logs source reads it.
+    raw = (_FIXTURES / (fixture or f"{name}.log")).read_bytes()
+    encoding, skip = text_encoding(raw)
+    lines = raw[skip:].decode(encoding).splitlines()
     body: list[tuple[int, str]] = []
     for i, line in enumerate(lines):
         if fmt.header_prefix and line.startswith(fmt.header_prefix):
@@ -133,6 +137,8 @@ def test_exchange_message_tracking_log():
 
 
 def test_sql_server_errorlog_joins_continuation_lines():
+    # SQL Server writes its ERRORLOG in UTF-16 LE with a byte-order mark; the fixture is so too.
+    assert (_FIXTURES / "ms_sqlserver_errorlog.log").read_bytes()[:2] == b"\xff\xfe"
     startup, master, error, login = rows("ms_sqlserver_errorlog")
     assert startup["timestamp"] == datetime(2023, 3, 15, 10, 1, 22, 340000, tzinfo=_LOCAL)
     assert startup["source"] == "Server"
