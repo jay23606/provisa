@@ -239,3 +239,136 @@ async def test_a_bound_tables_insert_goes_through_its_import_set(client, registe
         client, f'SELECT "sys_id" FROM "{_DOMAIN}"."sys_user" WHERE "user_name" = \'{name}\''
     )
     assert rows == []
+
+
+# -- the instance's own APIs, as commands ---------------------------------------------------------
+#
+# The source's companion OpenAPI source (<id>-api) offers the APIs added on its page: here the
+# Service Catalog API, and the import set of sys_user's first transform map as a typed insert.
+
+_COMPANION = f"{_SOURCE_ID}-api"
+
+
+@pytest_asyncio.fixture(loop_scope="session", scope="module")
+async def offered(client, registered):
+    """The companion's offered operations (name -> "[METHOD] path"), once the Service Catalog API
+    and sys_user's import set are added."""
+    import_set = registered
+    for mutation, field in (
+        (
+            f'mutation {{ setServicenowApi(sourceId: "{_SOURCE_ID}", namespace: "sn_sc", '
+            'name: "Service Catalog API", added: true) { success message } }',
+            "setServicenowApi",
+        ),
+        (
+            f'mutation {{ setServicenowImportSet(sourceId: "{_SOURCE_ID}", tableName: "sys_user", '
+            f'importSet: "{import_set}", added: true) {{ success message }} }}',
+            "setServicenowImportSet",
+        ),
+    ):
+        await _gql(client, mutation, field)
+    listed = await _admin(
+        client,
+        f'{{ availableFunctions(sourceId: "{_COMPANION}", schemaName: "openapi") '
+        "{ name comment } }",
+    )
+    return {f["name"]: f["comment"] for f in listed["availableFunctions"]}
+
+
+def _operation(offered: dict[str, str], method: str, path: str) -> str:
+    (name,) = [n for n, said in offered.items() if said.startswith(f"[{method}] {path}")]
+    return name
+
+
+async def _register_command(client: AsyncClient, name: str, operation: str) -> str:
+    """Register ``operation`` as a command of the companion; the data GraphQL field it runs as."""
+    resp = await client.post(
+        "/admin/actions/functions",
+        json={
+            "name": name,
+            "sourceId": _COMPANION,
+            "schemaName": "openapi",
+            "functionName": operation,
+            "visibleTo": [_ROLE],
+            "domainId": _DOMAIN,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    await rebuild_schemas(client)
+    data = await _data(client, "{ __schema { mutationType { fields { name } } } }")
+    (field,) = [
+        f["name"]
+        for f in data["__schema"]["mutationType"]["fields"]
+        if f["name"].split("__")[-1] == name
+    ]
+    return field
+
+
+async def test_an_import_set_row_goes_through_its_transform_map(client, registered, offered):
+    """The typed insert's fields are the staging table's columns; the answer is each row's
+    transform result, and the record the transform wrote is deleted by its sys_id."""
+    import_set = registered
+    staging_columns = [
+        c["name"]
+        for c in (
+            await _admin(
+                client,
+                f'{{ availableColumnsMetadata(sourceId: "{_SOURCE_ID}", schemaName: "{_SCHEMA}", '
+                f'tableName: "{import_set}") {{ name }} }}',
+            )
+        )["availableColumnsMetadata"]
+        if not c["name"].startswith("sys_")
+    ]
+    user_field = next(c for c in staging_columns if "user_name" in c or "user_id" in c)
+    field = await _register_command(
+        client, "snowImportUser", _operation(offered, "POST", f"/api/now/import/{import_set}")
+    )
+    name = _own_name()
+    delete = await _mutation(client, "delete", "sys_user")
+    answer = await _data(client, f'mutation {{ {field}(body: {{ {user_field}: "{name}" }}) }}')
+    rows = answer[field]
+    try:
+        assert rows and rows[0]["status"] in ("inserted", "updated"), rows
+        assert rows[0]["table"] == "sys_user"
+    finally:
+        for row in rows or []:
+            if row.get("sys_id"):
+                await _data(
+                    client,
+                    f'mutation {{ {delete}(where: {{sys_id: {{eq: "{row["sys_id"]}"}}}}) '
+                    "{ affected_rows } }",
+                )
+
+
+async def test_a_service_catalog_item_is_ordered_and_its_request_removed(
+    client, registered, offered
+):
+    """A Service Catalog order through the instance's own API: the first orderable item, once;
+    the request it creates is removed through the Table API as a registered table."""
+    del registered
+    items = await _register_command(
+        client, "snowCatalogItems", _operation(offered, "GET", "/api/sn_sc/servicecatalog/items")
+    )
+    order = await _register_command(
+        client,
+        "snowOrderNow",
+        _operation(offered, "POST", "/api/sn_sc/servicecatalog/items/{sys_id}/order_now"),
+    )
+    listed = await _data(client, f"query {{ {items} }}")
+    item = next(i for i in listed[items] if i.get("sys_id"))
+    ordered = await _data(
+        client,
+        f'mutation {{ {order}(sys_id: "{item["sys_id"]}", body: {{ sysparm_quantity: 1 }}) }}',
+    )
+    request = ordered[order][0]
+    await _register(client, "sc_request", ["sys_id", "number"])
+    await rebuild_schemas(client)
+    delete = await _mutation(client, "delete", "sc_request")
+    try:
+        assert request["number"].startswith("REQ")
+    finally:
+        await _data(
+            client,
+            f'mutation {{ {delete}(where: {{sys_id: {{eq: "{request["sys_id"]}"}}}}) '
+            "{ affected_rows } }",
+        )
