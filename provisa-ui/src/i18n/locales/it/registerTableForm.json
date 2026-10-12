@@ -111,6 +111,8 @@
     "profilerRowRulesLabel": "Regole di riga per ruolo",
     "profilerRowRulesNone": "Ogni lettore vede tutte le colonne descritte.",
     "profilerRowRuleFailed": "La tabella è stata registrata, ma la regola di riga per {{role}} non è stata salvata: {{message}}",
-    "scopeHelp": "domain: servita ai ruoli che raggiungono il dominio di questa tabella. public: anche ai ruoli al di fuori. restricted: solo ai ruoli indicati in Visibile a."
+    "scopeHelp": "domain: servita ai ruoli che raggiungono il dominio di questa tabella. public: anche ai ruoli al di fuori. restricted: solo ai ruoli indicati in Visibile a.",
+    "shortColumns": "Registrate con i tipi rilevati ({{count}}): {{names}}. Occultamento, chiavi e dati di test si impostano nell'editor che si apre subito dopo.",
+    "shortUntyped": "Non è stato trovato alcun tipo per queste colonne. Sceglietene uno per ciascuna:"
   }
 }

@@ -57,12 +57,10 @@ describe("RegisterTableForm reveals the domain it registered into", () => {
     );
     const user = userEvent.setup();
     await user.selectOptions(screen.getByTestId("register-table-source-select"), "petstore");
-    await user.selectOptions(
-      screen.getByTestId("register-table-domain-select"),
-      "inventory-copies",
-    );
+    // The one domain the caller may register in is the domain: it is not asked.
+    expect(screen.queryByTestId("register-table-domain-select")).toBeNull();
     await user.selectOptions(await screen.findByTestId("register-table-table-select"), "getStore");
-    await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
+    await screen.findByTestId("register-table-columns-summary");
     await user.click(screen.getByTestId("register-table-submit"));
     await waitFor(() => expect(registerTable).toHaveBeenCalled());
     await waitFor(() => expect(ensureDomainChecked).toHaveBeenCalledWith("inventory-copies"));

@@ -35,6 +35,7 @@ import {
   E2E_SPLUNK_PORT,
 } from "./demo-source-containers";
 import {
+  expectDiscoveredColumns,
   createDomain,
   existingSourcePath,
   openRegisterForm,
@@ -150,10 +151,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     await pickSchemaAndTable(page, "provisa", tableName);
     // Columns and their types come from the engine's view of the collection (db/mongo-init.js
     // seeds the _schema collection the connector types them from).
-    await expect(page.getByTestId("register-table-col-selected-reviewer")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-rating")).toBeVisible();
+    await expectDiscoveredColumns(page, ["reviewer"], 60000);
+    await expectDiscoveredColumns(page, ["rating"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the ten reviews db/mongo-init.js seeds
@@ -187,10 +186,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — the live indices list under "default"; columns come from the mapping
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", tableName);
-    await expect(page.getByTestId("register-table-col-selected-ticket_id")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-status")).toBeVisible();
+    await expectDiscoveredColumns(page, ["ticket_id"], 60000);
+    await expectDiscoveredColumns(page, ["status"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the six tickets demo/sources/elasticsearch/prime.py loads
@@ -225,10 +222,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — the key prefixes list under "default"; columns are the hash fields
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", tableName);
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-team")).toBeVisible();
+    await expectDiscoveredColumns(page, ["name"], 60000);
+    await expectDiscoveredColumns(page, ["team"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the five agents demo/sources/redis/prime.py writes
@@ -263,10 +258,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — keyspaces are the schemas; columns come from the cluster metadata
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "shelter_ops", tableName);
-    await expect(page.getByTestId("register-table-col-selected-event_id")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-animal_name")).toBeVisible();
+    await expectDiscoveredColumns(page, ["event_id"], 60000);
+    await expectDiscoveredColumns(page, ["animal_name"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the seven events demo/sources/cassandra/prime.py writes
@@ -348,10 +341,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — the metrics list under "default"; columns come from the labels
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", tableName);
-    await expect(page.getByTestId("register-table-col-selected-job")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-value")).toBeVisible();
+    await expectDiscoveredColumns(page, ["job"], 60000);
+    await expectDiscoveredColumns(page, ["value"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the server scrapes itself, so `up` has one series, job="prometheus", value 1.
@@ -396,10 +387,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // source id and the tables are Splunk's Data Models.
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, sourceId, tableName);
-    await expect(page.getByTestId("register-table-col-selected-alert_id")).toBeVisible({
-      timeout: 120000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-animal_name")).toBeVisible();
+    await expectDiscoveredColumns(page, ["alert_id"], 120000);
+    await expectDiscoveredColumns(page, ["animal_name"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the seven alert events demo/sources/splunk/prime.py sends over HEC, read live
@@ -440,10 +429,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — DuckDB's native files connector lists each <table>.csv as a table
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, schemaName, tableName);
-    await expect(page.getByTestId("register-table-col-selected-widget_name")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-price")).toBeVisible();
+    await expectDiscoveredColumns(page, ["widget_name"], 60000);
+    await expectDiscoveredColumns(page, ["price"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: the fixture CSV's rows (provisa-ui/e2e/fixtures/files/widgets.csv)
@@ -506,10 +493,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // named for the sql-normalized source id (pgwire_replica.schema_name).
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, sourceId, tableName);
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-      timeout: 120000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-title")).toBeVisible();
+    await expectDiscoveredColumns(page, ["id"], 120000);
+    await expectDiscoveredColumns(page, ["title"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page — a live read of the document library. The library's contents are the tenant's
@@ -544,10 +529,8 @@ test.describe("source to query through the UI (REQ-1671)", () => {
     // 2. Register Table form — sqlite's one physical schema is "main"
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", "users");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
-    await expect(page.getByTestId("register-table-col-selected-email")).toBeVisible();
+    await expectDiscoveredColumns(page, ["name"], 60000);
+    await expectDiscoveredColumns(page, ["email"]);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page — the 10 users demo/files/inquiries.sqlite seeds
@@ -580,9 +563,7 @@ test.describe("source to query through the UI (REQ-1671)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-email")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["email"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -608,9 +589,7 @@ test.describe("source to query through the UI (REQ-1671)", () => {
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-sku")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["sku"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -753,9 +732,7 @@ test.describe("source to query through the UI, extra RDBMS coverage (REQ-1732)",
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "provisa_demo", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -795,9 +772,7 @@ test.describe("source to query through the UI, extra RDBMS coverage (REQ-1732)",
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "tiny", "nation");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(

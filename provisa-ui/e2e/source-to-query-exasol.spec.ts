@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -121,9 +122,7 @@ test.describe("source to query through the UI: exasol (REQ-1731, REQ-1763)", () 
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "PROVISA", "WIDGETS");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     await page.getByTestId("register-table-submit").click();
     const row = page.locator(".data-table tbody tr").filter({ hasText: sourceId }).first();
     await expect(row).toBeVisible({ timeout: 120000 });

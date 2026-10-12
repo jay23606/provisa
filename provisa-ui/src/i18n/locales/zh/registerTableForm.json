@@ -111,6 +111,8 @@
     "profilerRowRulesLabel": "按角色的行规则",
     "profilerRowRulesNone": "每个读者都能看到所有被描述的列。",
     "profilerRowRuleFailed": "表已注册，但 {{role}} 的行规则未保存：{{message}}",
-    "scopeHelp": "domain：提供给可访问此表所在域的角色。public：也提供给该域之外的角色。restricted：仅提供给“可见对象”中指定的角色。"
+    "scopeHelp": "domain：提供给可访问此表所在域的角色。public：也提供给该域之外的角色。restricted：仅提供给“可见对象”中指定的角色。",
+    "shortColumns": "以发现的类型注册（{{count}}）：{{names}}。隐藏、键和测试数据在随后打开的编辑器中设置。",
+    "shortUntyped": "未找到这些列的类型。请为每一列选择一个："
   }
 }

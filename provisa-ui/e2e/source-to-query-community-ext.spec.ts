@@ -60,6 +60,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -167,9 +168,7 @@ test.describe("source to query through the UI, community-extension sources (REQ-
     // demo/sources/firebird/prime.py quotes lower-case identifiers so DuckDB's ATTACH surfaces
     // them exactly as written — Firebird folds unquoted identifiers to upper case.
     await pickSchemaAndTable(page, "main", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -210,9 +209,7 @@ test.describe("source to query through the UI, community-extension sources (REQ-
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "test", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -252,9 +249,7 @@ test.describe("source to query through the UI, community-extension sources (REQ-
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, database, "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(
@@ -288,9 +283,7 @@ test.describe("source to query through the UI, community-extension sources (REQ-
     // CREATE TABLE lands in its default "main" schema (same convention sqlite's ATTACH uses).
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", "widgets");
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(

@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  discoveredColumnCount,
   DOMAIN,
   openRegisterForm,
   openSourcesForm,
@@ -127,21 +128,14 @@ test.describe("file connector: every recognized format is discoverable, columned
     // ── 3. Columns populated: every discovered table resolves at least one typed column ───────
     for (const name of discovered) {
       await tableSelect.selectOption(name);
-      const firstCol = page.locator('[data-testid^="register-table-col-selected-"]').first();
-      await expect(firstCol, `no columns resolved for table ${name}`).toBeVisible({
-        timeout: 30000,
-      });
-      const colCount = await page.locator('[data-testid^="register-table-col-selected-"]').count();
+      const colCount = await discoveredColumnCount(page);
       expect(colCount, `table ${name} resolved zero columns`).toBeGreaterThan(0);
-      // Mantine's Select renders an <input>, not text content — the resolved type lives in its
-      // value, not in any visible text node.
-      // A column's data type and primary key are on the Type and keys tab of the column editor.
-      await page.getByTestId("column-tab-type").click();
-      const dataType = await page
-        .locator('[data-testid^="register-table-col-datatype-"]')
-        .first()
-        .inputValue();
-      expect(dataType.trim(), `table ${name}'s first column has no resolved data type`).toBeTruthy();
+      // The short register step asks a type only for a column discovery could not type: none
+      // asked means every column resolved one.
+      await expect(
+        page.locator('[data-testid^="register-table-type-"]'),
+        `table ${name} has columns with no resolved data type`,
+      ).toHaveCount(0);
     }
 
     // ── 4. Query one of them for real, through the SQL page ──────────────────────────────────

@@ -54,6 +54,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openSourcesForm,
   submitSourceAndExpectListed,
   openRegisterForm,
@@ -115,10 +116,8 @@ test.describe("cloud warehouse sources through the UI (REQ-1747)", () => {
       // the seed created ("public"/"widgets") are introspected back as "PUBLIC"/"WIDGETS".
       await openRegisterForm(page, sourceId);
       await pickSchemaAndTable(page, "PUBLIC", "WIDGETS");
-      await expect(page.getByTestId("register-table-col-selected-ID")).toBeVisible({
-        timeout: 120000,
-      });
-      await expect(page.getByTestId("register-table-col-selected-NAME")).toBeVisible();
+      await expectDiscoveredColumns(page, ["ID"], 120000);
+      await expectDiscoveredColumns(page, ["NAME"]);
       const registered = await submitRegisterAndExpectListed(page, sourceId);
 
       // 3. SQL page
@@ -173,10 +172,8 @@ test.describe("cloud warehouse sources through the UI (REQ-1747)", () => {
       // 2. Register Table form
       await openRegisterForm(page, sourceId);
       await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-      await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-        timeout: 120000,
-      });
-      await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+      await expectDiscoveredColumns(page, ["id"], 120000);
+      await expectDiscoveredColumns(page, ["name"]);
       const registered = await submitRegisterAndExpectListed(page, sourceId);
 
       // 3. SQL page
@@ -222,10 +219,8 @@ test.describe("cloud warehouse sources through the UI (REQ-1747)", () => {
       // 2. Register Table form
       await openRegisterForm(page, sourceId);
       await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-      await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-        timeout: 120000,
-      });
-      await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+      await expectDiscoveredColumns(page, ["id"], 120000);
+      await expectDiscoveredColumns(page, ["name"]);
       const registered = await submitRegisterAndExpectListed(page, sourceId);
 
       // 3. SQL page
@@ -289,10 +284,8 @@ test.describe("cloud warehouse sources through the UI (REQ-1747)", () => {
       // 2. Register Table form
       await openRegisterForm(page, sourceId);
       await pickSchemaAndTable(page, "provisa_ui_e2e", "widgets");
-      await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-        timeout: 120000,
-      });
-      await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible();
+      await expectDiscoveredColumns(page, ["id"], 120000);
+      await expectDiscoveredColumns(page, ["name"]);
       const registered = await submitRegisterAndExpectListed(page, sourceId);
 
       // 3. SQL page

@@ -111,6 +111,8 @@
     "profilerRowRulesLabel": "Zeilenregeln je Rolle",
     "profilerRowRulesNone": "Jeder Leser sieht jede beschriebene Spalte.",
     "profilerRowRuleFailed": "Die Tabelle wurde registriert, aber die Zeilenregel für {{role}} wurde nicht gespeichert: {{message}}",
-    "scopeHelp": "domain: für Rollen, die die Domäne dieser Tabelle erreichen. public: auch für Rollen außerhalb davon. restricted: nur für die unter „Sichtbar für“ genannten Rollen."
+    "scopeHelp": "domain: für Rollen, die die Domäne dieser Tabelle erreichen. public: auch für Rollen außerhalb davon. restricted: nur für die unter „Sichtbar für“ genannten Rollen.",
+    "shortColumns": "Mit den ermittelten Typen registriert ({{count}}): {{names}}. Ausblenden, Schlüssel und Testdaten werden im anschließend geöffneten Editor festgelegt.",
+    "shortUntyped": "Für diese Spalten wurde kein Typ gefunden. Wählen Sie für jede einen aus:"
   }
 }

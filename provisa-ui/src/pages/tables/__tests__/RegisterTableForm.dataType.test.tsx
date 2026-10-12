@@ -64,20 +64,22 @@ async function pickTable() {
   const user = userEvent.setup();
   await user.selectOptions(screen.getByTestId("register-table-source-select"), "src");
   await user.selectOptions(await screen.findByTestId("register-table-table-select"), "events");
-  await waitFor(() => expect(screen.getByTestId("register-table-col-selected-id")).toBeTruthy());
-  // A column's data type is edited on the Type and keys tab.
-  await user.click(screen.getByTestId("column-tab-type"));
+  // Discovery is done when the short step counts the columns it registers.
+  await screen.findByTestId("register-table-columns-summary");
   return user;
 }
 
 describe("RegisterTableForm data types (REQ-1426)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("offers a type picker for every column and shows the discovered type", async () => {
+  it("asks a type only for the column discovery could not type", async () => {
     renderForm();
     await pickTable();
-    expect(screen.getByTestId("register-table-col-datatype-id")).toHaveValue("integer");
-    expect(screen.getByTestId("register-table-col-datatype-payload")).toHaveValue("");
+    expect(screen.getByTestId("register-table-columns-summary")).toHaveTextContent(
+      "Registered with the types discovered (2): id, payload.",
+    );
+    expect(screen.queryByTestId("register-table-type-id")).toBeNull();
+    expect(screen.getByTestId("register-table-type-payload")).toHaveValue("");
   });
 
   it("refuses to register while a selected column has no type", async () => {
@@ -92,11 +94,11 @@ describe("RegisterTableForm data types (REQ-1426)", () => {
   it("registers once the steward assigns the missing type, and sends it", async () => {
     const { registerTable, setError } = renderForm();
     const user = await pickTable();
-    await user.click(screen.getByTestId("register-table-col-datatype-payload"));
+    await user.click(screen.getByTestId("register-table-type-payload"));
     await user.keyboard("timestamp");
     await user.keyboard("{ArrowDown}{Enter}");
     await waitFor(() =>
-      expect(screen.getByTestId("register-table-col-datatype-payload")).toHaveValue("timestamp"),
+      expect(screen.getByTestId("register-table-type-payload")).toHaveValue("timestamp"),
     );
     await user.keyboard("{Escape}");
     await user.click(screen.getByTestId("register-table-submit"));

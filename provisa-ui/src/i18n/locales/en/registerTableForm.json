@@ -111,6 +111,8 @@
     "profilerRowRulesLabel": "Row rules, per role",
     "profilerRowRulesNone": "Every reader sees every described column.",
     "profilerRowRuleFailed": "The table was registered, but the row rule for {{role}} was not saved: {{message}}",
-    "scopeHelp": "domain: served to roles that reach this table's domain. public: also to roles outside it. restricted: only to the roles named in Visible to."
+    "scopeHelp": "domain: served to roles that reach this table's domain. public: also to roles outside it. restricted: only to the roles named in Visible to.",
+    "shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
+    "shortUntyped": "No type was found for these columns. Choose one for each:"
   }
 }

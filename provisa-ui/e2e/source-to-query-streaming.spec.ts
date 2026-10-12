@@ -33,6 +33,7 @@ import { WebSocketServer } from "ws";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -268,12 +269,11 @@ test.describe("source to query through the UI — streaming/push types (REQ-1739
     // `id SERIAL PRIMARY KEY`) with per-column JSON extraction paths (REQ-1739).
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-ext_id")).toBeVisible({
-      timeout: 30000,
+    await expectDiscoveredColumns(page, ["ext_id"], 30000);
+    // The JSON paths are set in the editor the short register step opens on the draft.
+    const registered = await submitRegisterAndExpectListed(page, sourceId, undefined, "", {
+      paths: { ext_id: "id", value: "value" },
     });
-    await page.getByTestId("register-table-col-path-ext_id").fill("id");
-    await page.getByTestId("register-table-col-path-value").fill("value");
-    const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. POST a row straight to the ingest receiver (provisa/ingest/router.py) — Playwright's own
     // request context, no extra fixture server needed (this is the one type simple enough for
@@ -335,9 +335,7 @@ test.describe("source to query through the UI — streaming/push types (REQ-1739
     // RSSNotificationProvider item shape (id/title/link/description/published).
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-      timeout: 30000,
-    });
+    await expectDiscoveredColumns(page, ["id"], 30000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. Tables page — set this table's Cache TTL so its poll job actually gets a cadence
@@ -420,13 +418,11 @@ test.describe("source to query through the UI — streaming/push types (REQ-1739
     // "id" must be checked here — unlike ingest, nothing auto-marks one.
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-      timeout: 30000,
+    await expectDiscoveredColumns(page, ["id"], 30000);
+    // The primary key is declared in the editor the short register step opens on the draft.
+    const registered = await submitRegisterAndExpectListed(page, sourceId, undefined, "", {
+      primaryKey: ["id"],
     });
-    // A column's data type and primary key are on the Type and keys tab of the column editor.
-    await page.getByTestId("column-tab-type").click();
-    await page.getByTestId("register-table-col-pk-id").check();
-    const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page: websocket lands through the same REQ-1733 CDC-listener mechanism as kafka —
     // asynchronous, retry rather than assert immediately.
@@ -492,13 +488,11 @@ test.describe("source to query through the UI: kafka (REQ-1739/REQ-1745/REQ-1766
     // id/value columns as websocket above. CDC landing hard-requires a declared primary key.
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "default", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-id")).toBeVisible({
-      timeout: 30000,
+    await expectDiscoveredColumns(page, ["id"], 30000);
+    // The primary key is declared in the editor the short register step opens on the draft.
+    const registered = await submitRegisterAndExpectListed(page, sourceId, undefined, "", {
+      primaryKey: ["id"],
     });
-    // A column's data type and primary key are on the Type and keys tab of the column editor.
-    await page.getByTestId("column-tab-type").click();
-    await page.getByTestId("register-table-col-pk-id").check();
-    const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. Tables page — set this table's Change Signal to "kafka" and its consume topic
     // (push_wiring.py's _build_provider reads live.kafka.topic; RegisterTableForm has no field

@@ -41,6 +41,7 @@ import { fileURLToPath } from "node:url";
 
 import { test, expect } from "./coverage";
 import {
+  expectDiscoveredColumns,
   openRegisterForm,
   openSourcesForm,
   pickSchemaAndTable,
@@ -89,9 +90,7 @@ test.describe("source to query through the UI, file-based lakehouse types (REQ-1
     // csv/parquet), fixed "main" placeholder schema.
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     // 3. SQL page — the 4 seed rows make-file-lake-fixtures.py wrote into the Delta table
@@ -119,9 +118,7 @@ test.describe("source to query through the UI, file-based lakehouse types (REQ-1
 
     await openRegisterForm(page, sourceId);
     await pickSchemaAndTable(page, "main", sourceId);
-    await expect(page.getByTestId("register-table-col-selected-name")).toBeVisible({
-      timeout: 60000,
-    });
+    await expectDiscoveredColumns(page, ["name"], 60000);
     const registered = await submitRegisterAndExpectListed(page, sourceId);
 
     const rows = await runSqlOnPage(

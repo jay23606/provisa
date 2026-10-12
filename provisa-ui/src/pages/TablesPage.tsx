@@ -770,9 +770,22 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
       getAvailableColumnsMetadata={getAvailableColumnsMetadata}
       suggestTableAlias={suggestTableAlias}
       registerTable={registerTable}
-      onSuccess={() => {
+      onSuccess={async (registered) => {
         setShowForm(false);
-        reload();
+        const [fresh] = await reload();
+        // The draft just registered is selected and its detail opens in edit on Identity, with
+        // everything the short step did not ask for at its default.
+        const made = fresh?.data?.tables.find(
+          (tb) =>
+            tb.sourceId === registered.sourceId &&
+            tb.schemaName === registered.schemaName &&
+            tb.tableName === registered.tableName,
+        );
+        if (made) {
+          setExpanded(made.id);
+          setSection("identity");
+          startEditing(made);
+        }
       }}
       onCancel={() => setShowForm(false)}
       setError={setError}
