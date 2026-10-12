@@ -1,4 +1,4 @@
-# Release: cut
+# Release: cut (REQ-1989)
 #
 # How a release is made. Run by hand on main (Actions -> Release: cut -> Run workflow) with the
 # version to cut (v0.1.0-alpha.480). In order, and stopping at the first failure:

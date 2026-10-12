@@ -22877,3 +22877,15 @@ Every source's structured types are real, shared, named types on every surface: 
 **Code:** —
 
 **Tests:** —
+
+## 11. Platform, Infrastructure & Delivery
+
+### REQ-1989 · Release Integrity {#REQ-1989}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** infrastructure
+
+A release is made only by the Release: cut workflow, run by hand on main with the version. It generates the release's notes from the previous release's tag (the UI's bundled notes, docs/releases/<version>.md, the docs navigation and CHANGELOG.md) and commits them to main before it makes the release's tag on that commit; a generation failure leaves no commit and no tag. A hand-written release page is never overwritten. The release's body is its notes page, and a tag pushed by hand gets no release.
+
+**Code:** —
+
+**Tests:** —

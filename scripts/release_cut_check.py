@@ -26,6 +26,7 @@ docs/releases that the generator changed or removed.
 On success it prints ``previous=<tag>`` for the workflow's step outputs.
 """
 
+# Requirements: REQ-1989
 from __future__ import annotations
 
 import argparse
