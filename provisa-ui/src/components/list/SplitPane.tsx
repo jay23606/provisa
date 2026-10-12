@@ -32,6 +32,7 @@ import { useResizableWidth } from "../../hooks/useResizableWidth";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { PanelActionsContext, PanelNoticeContext } from "./panelActions";
+import { PanelHeadStyle } from "./PanelHeadStyle";
 import { PanelLeaveContext, usePanelLeave, type PanelLeave } from "./panelLeave";
 
 /** The narrowest the panel is dragged, and the least room the list keeps beside it. */
@@ -56,9 +57,11 @@ export interface SplitPaneLabels {
  */
 export function PanelActions({ children }: { children: ReactNode }) {
   const slot = useContext(PanelActionsContext);
-  if (slot === undefined) return <>{children}</>;
+  // The head's one style goes with the actions wherever they are rendered.
+  const styled = <PanelHeadStyle>{children}</PanelHeadStyle>;
+  if (slot === undefined) return styled;
   // The head is not mounted on the first pass; the actions appear with it on the next.
-  return slot === null ? null : createPortal(children, slot);
+  return slot === null ? null : createPortal(styled, slot);
 }
 
 export function SplitPane({
@@ -200,40 +203,41 @@ export function SplitPane({
             data-testid={`${testId}-panel`}
           >
             <div className="split-pane__head">
-              {narrow && (
-                <Button
-                  variant="subtle"
-                  size="compact-sm"
-                  leftSection={<ArrowLeft size={14} />}
-                  onClick={close}
-                  data-testid={`${testId}-back`}
-                >
-                  {labels.backToList}
-                </Button>
-              )}
-              <Title order={4} className="split-pane__title" data-testid={`${testId}-title`}>
-                {title}
-              </Title>
-              <div className="split-pane__actions" ref={setActionsSlot} />
-              {!narrow && (
+              <PanelHeadStyle>
+                {narrow && (
+                  <Button
+                    leftSection={<ArrowLeft size={14} />}
+                    onClick={close}
+                    data-testid={`${testId}-back`}
+                  >
+                    {labels.backToList}
+                  </Button>
+                )}
+                {/* The name, then a thin line, then the actions. The line is the name's own
+                  trailing edge (App.css), so it never starts a row when the actions wrap, adds
+                  nothing to the reading order, and is not drawn when the head has no actions. */}
+                <Title order={4} className="split-pane__title" data-testid={`${testId}-title`}>
+                  {title}
+                </Title>
+                <div className="split-pane__actions" ref={setActionsSlot} />
+                {!narrow && (
+                  <ActionIcon
+                    aria-label={expanded ? labels.restore : labels.expand}
+                    aria-pressed={expanded}
+                    onClick={() => setExpanded((v) => !v)}
+                    data-testid={`${testId}-expand`}
+                  >
+                    {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </ActionIcon>
+                )}
                 <ActionIcon
-                  variant="subtle"
-                  aria-label={expanded ? labels.restore : labels.expand}
-                  aria-pressed={expanded}
-                  onClick={() => setExpanded((v) => !v)}
-                  data-testid={`${testId}-expand`}
+                  aria-label={labels.close}
+                  onClick={close}
+                  data-testid={`${testId}-close`}
                 >
-                  {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  <X size={16} />
                 </ActionIcon>
-              )}
-              <ActionIcon
-                variant="subtle"
-                aria-label={labels.close}
-                onClick={close}
-                data-testid={`${testId}-close`}
-              >
-                <X size={16} />
-              </ActionIcon>
+              </PanelHeadStyle>
             </div>
             {/* What a form in the panel has to say of itself (a refused save): pinned too. */}
             <div className="split-pane__notice" ref={setNoticeSlot} />

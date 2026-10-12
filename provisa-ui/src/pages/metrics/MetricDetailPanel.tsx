@@ -41,7 +41,6 @@ function MetricActions({
         <Group gap="xs">
           <Tip text={t("metricsPage.editMetric", { name: m.name })} named>
             <ActionIcon
-              variant="subtle"
               aria-label={t("metricsPage.editMetric", { name: m.name })}
               data-testid={`metric-detail-edit-${m.name}`}
               onClick={(e) => {
@@ -54,7 +53,6 @@ function MetricActions({
           </Tip>
           <Tip text={t("metricsPage.deleteMetric", { name: m.name })} named>
             <ActionIcon
-              variant="subtle"
               color="red"
               aria-label={t("metricsPage.deleteMetric", { name: m.name })}
               data-testid={`metric-detail-delete-${m.name}`}

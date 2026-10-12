@@ -1550,8 +1550,6 @@ export function SourcesPage() {
       <Group gap="xs" wrap="nowrap">
         {DISCOVERABLE_TYPES.has(s.type) && (
           <Button
-            size="compact-xs"
-            variant="default"
             data-testid={`sources-discover-${s.id}`}
             onClick={() => {
               setDiscoverSourceId(s.id);
@@ -1564,8 +1562,6 @@ export function SourcesPage() {
         )}
         {MAPPING_TYPES.has(s.type) && (
           <Button
-            size="compact-xs"
-            variant="default"
             data-testid={`sources-map-table-${s.id}`}
             onClick={() => {
               setMappingSourceId(s.id);
@@ -1578,8 +1574,6 @@ export function SourcesPage() {
         )}
         {(s.type === "graphql" || s.type === "openapi" || s.type === "grpc") && (
           <Button
-            size="compact-xs"
-            variant="default"
             data-testid={`sources-refresh-schema-${s.id}`}
             onClick={() => handleRefreshSchema(s.id, s.type)}
             disabled={refreshingSourceId === s.id}

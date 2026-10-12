@@ -308,7 +308,6 @@ export function SecurityRolesPage() {
             <fieldset className="panel-action-set">
               <Group gap="xs">
                 <ActionIcon
-                  variant="subtle"
                   aria-label={t("securityPage.edit")}
                   data-testid={`edit-role-${r.id}`}
                   onClick={(e) => {
@@ -325,7 +324,6 @@ export function SecurityRolesPage() {
                 >
                   {(open) => (
                     <ActionIcon
-                      variant="subtle"
                       color="red"
                       aria-label={t("securityPage.delete")}
                       data-testid={`delete-role-${r.id}`}

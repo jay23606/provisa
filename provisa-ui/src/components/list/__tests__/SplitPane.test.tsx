@@ -15,13 +15,14 @@
 
 import { useState } from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Table } from "@mantine/core";
+import { ActionIcon, Button, Table } from "@mantine/core";
 import userEvent from "@testing-library/user-event";
 import { act, fireEvent, render, screen, waitFor, within } from "../../../test-utils/render";
 import { FormFooter } from "../../form/FormLayout";
 import { ListRow } from "../ListTable";
 import { usePanelDirty, usePanelLeave } from "../panelLeave";
 import { PanelActions, SplitPane } from "../SplitPane";
+import { HEAD_ACTION_PX } from "../PanelHeadStyle";
 
 const KEY = "provisa.test.splitWidth";
 const LABELS = {
@@ -393,5 +394,74 @@ describe("SplitPane — leaving a form that has unsaved changes", () => {
     );
     await userEvent.click(screen.getByTestId("lone"));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Every action in the head has one style, defined once; a thin line parts them from the name.
+describe("SplitPane — the head's actions", () => {
+  function Head({ actions = true }: { actions?: boolean }) {
+    return (
+      <SplitPane
+        testId="split"
+        storageKey={KEY}
+        labels={LABELS}
+        title="orders"
+        onClose={() => undefined}
+        list={<div>list</div>}
+      >
+        <>
+          {actions && (
+            <PanelActions>
+              <Button data-testid="preview">Preview</Button>
+              <ActionIcon data-testid="edit" aria-label="Edit">
+                <span>e</span>
+              </ActionIcon>
+              <ActionIcon data-testid="delete" aria-label="Delete" color="red">
+                <span>d</span>
+              </ActionIcon>
+            </PanelActions>
+          )}
+          <p>body</p>
+        </>
+      </SplitPane>
+    );
+  }
+
+  it("gives a text action and an icon action the same borderless look and height", async () => {
+    render(<Head />);
+    const preview = await screen.findByTestId("preview");
+    for (const id of ["preview", "edit", "delete", "split-close", "split-expand"]) {
+      expect(screen.getByTestId(id)).toHaveAttribute("data-variant", "subtle");
+    }
+    expect(preview).toHaveAttribute("data-size", "compact-sm");
+    // An icon action is as tall as a text one.
+    const px = `calc(${HEAD_ACTION_PX / 16}rem * var(--mantine-scale))`;
+    expect(screen.getByTestId("edit").style.getPropertyValue("--ai-size")).toBe(px);
+    expect(screen.getByTestId("split-close").style.getPropertyValue("--ai-size")).toBe(px);
+  });
+
+  it("keeps a destructive action's colour, as text or icon only", async () => {
+    render(<Head />);
+    const remove = await screen.findByTestId("delete");
+    expect(remove).toHaveAttribute("data-variant", "subtle");
+    // The readable red, not the pale tint a subtle action has by default.
+    expect(remove.style.getPropertyValue("--ai-color")).toBe("var(--mantine-color-red-text)");
+    expect(remove.style.getPropertyValue("--ai-bg")).toBe("transparent");
+  });
+
+  it("keeps the name a direct child of the head, before the actions", async () => {
+    render(<Head />);
+    const title = screen.getByTestId("split-title");
+    const head = title.parentElement as HTMLElement;
+    expect(head).toHaveClass("split-pane__head");
+    expect(head).toContainElement(await screen.findByTestId("preview"));
+    expect(title.nextElementSibling).toHaveClass("split-pane__actions");
+  });
+
+  it("has an empty actions slot when the view gives none: nothing for a line to part", () => {
+    render(<Head actions={false} />);
+    const slot = screen.getByTestId("split-title").nextElementSibling as HTMLElement;
+    expect(slot).toHaveClass("split-pane__actions");
+    expect(slot).toBeEmptyDOMElement();
   });
 });

@@ -31,6 +31,7 @@ import { Check, CircleHelp, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { PanelActionsContext, PanelNoticeContext } from "../list/panelActions";
+import { PanelHeadStyle } from "../list/PanelHeadStyle";
 import { useHelpNaming } from "./useHelpNaming";
 import { Tip } from "../Tip";
 
@@ -319,8 +320,9 @@ export function FormFooter({
       );
     }
   };
-  // In a panel's head the two are borderless and compact; the words and icons are the same.
-  const inHeadLook = inHead ? ({ variant: "subtle", size: "compact-sm" } as const) : {};
+  // In a panel's head the two take the head's one style (PanelHeadStyle): borderless and
+  // compact; the words and icons are the same. Cancel leaves its bordered look at the foot.
+  const inHeadLook = inHead ? ({ variant: undefined } as const) : {};
   const said = problem ? (
     <div className="form-problem" role="alert" data-testid="form-problem">
       {problem}
@@ -372,7 +374,7 @@ export function FormFooter({
               style={undefined}
               className={classes("form-footer", "form-footer--head", rest.className)}
             >
-              {buttons}
+              <PanelHeadStyle>{buttons}</PanelHeadStyle>
             </div>,
             head,
           )}

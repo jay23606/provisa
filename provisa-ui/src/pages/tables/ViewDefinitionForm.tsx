@@ -185,7 +185,6 @@ export function ViewDefinitionForm({
             cancelProps={{ "data-testid": "view-definition-cancel" }}
             action={
               <Button
-                variant="default"
                 data-testid="view-definition-open-sql"
                 onClick={() =>
                   editing
