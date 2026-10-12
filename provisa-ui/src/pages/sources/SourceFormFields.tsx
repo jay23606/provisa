@@ -184,12 +184,12 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
       {isSimpleRdbms && (
         <>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField
+              size="medium"
+              help={form.type === "mongodb" ? t("sourceFormFields.mongoHostHint") : undefined}
+            >
               <TextInput
                 label={t("sourceFormFields.host")}
-                description={
-                  form.type === "mongodb" ? t("sourceFormFields.mongoHostHint") : undefined
-                }
                 required
                 value={form.host}
                 onChange={(e) => {

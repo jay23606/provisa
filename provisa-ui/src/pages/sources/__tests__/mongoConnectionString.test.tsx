@@ -88,7 +88,9 @@ describe("a MongoDB source's host", () => {
     });
     expect(screen.queryByLabelText(/^Port/)).not.toBeInTheDocument();
     expect(onSave.mock.lastCall?.[0].port).toBe(0);
-    expect(screen.getByText(/mongodb\+srv:\/\/ connection string/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /mongodb\+srv:\/\/ connection string/ }),
+    ).toBeInTheDocument();
   });
 
   it("given as a host name keeps the port", () => {
