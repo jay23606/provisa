@@ -2668,14 +2668,15 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
 
         # The data writes each table's source can take, decided once here and carried on its
         # record (executor/write_capability.py): the write admission, the GraphQL and gRPC write
-        # surfaces and the admin table page all read it.
+        # surfaces and the admin table page all read it. A draft's too: its steward's preview
+        # builds the role's context with the draft among the tables (REQ-1921).
         from provisa.executor.write_capability import (
             table_write_ops,
             table_write_refused_forms,
             table_write_returns_rows,
         )
 
-        for _t in tables:
+        for _t in [*tables, *draft_tables]:
             # A view has no source of its own to write to; every other table's source is typed.
             _stype = None if _t.get("view_sql") else state.source_types[_t["source_id"]]
             _t["write_ops"] = sorted(table_write_ops(_t, _stype, state.federation_engine.engine))
