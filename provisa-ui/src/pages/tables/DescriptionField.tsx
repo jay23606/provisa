@@ -10,7 +10,8 @@
 
 import { useCallback, useState } from "react";
 import { Sparkles, X } from "lucide-react";
-import { ActionIcon, Group, Stack, Textarea, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Stack, Textarea } from "@mantine/core";
+import { Tip } from "../../components/Tip";
 import { useTranslation } from "react-i18next";
 import { CopyButton } from "../../components/CopyButton";
 
@@ -96,7 +97,7 @@ export function DescriptionField({
       <Group gap={4} justify="flex-end" className="desc-field-toolbar">
         <CopyButton text={value} size={11} />
         {onGenerate && (
-          <Tooltip label={t("descriptionField.generateWithAi")}>
+          <Tip text={t("descriptionField.generateWithAi")} named>
             <ActionIcon
               type="button"
               variant="transparent"
@@ -107,9 +108,9 @@ export function DescriptionField({
             >
               <Sparkles size={11} />
             </ActionIcon>
-          </Tooltip>
+          </Tip>
         )}
-        <Tooltip label={t("descriptionField.clear")}>
+        <Tip text={t("descriptionField.clear")} named>
           <ActionIcon
             type="button"
             variant="transparent"
@@ -119,7 +120,7 @@ export function DescriptionField({
           >
             <X size={11} />
           </ActionIcon>
-        </Tooltip>
+        </Tip>
       </Group>
     </Stack>
   );

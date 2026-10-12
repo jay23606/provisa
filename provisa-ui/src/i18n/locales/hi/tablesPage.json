@@ -27,7 +27,6 @@
     "groupBy": "{{label}} के अनुसार समूहित करें",
     "ungroupLevel": "समूह हटाएँ (स्तर {{level}})",
     "invalidateCache": "कैश अमान्य करें",
-    "purging": "साफ़ किया जा रहा है...",
     "runNow": "अभी चलाएँ",
     "runNowTitle": "इस तालिका का डेटा अभी दोबारा बनाएँ, चाहे कुछ बदला हो या नहीं",
     "runNowModalTitle": "{{table}} को अभी चलाएँ",

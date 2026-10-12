@@ -12,17 +12,7 @@ import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { DatabaseZap, Trash2, Pencil } from "lucide-react";
 import { Tip } from "../../components/Tip";
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Button,
-  Checkbox,
-  Group,
-  Table,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Badge, Box, Button, Checkbox, Group, Table, Text } from "@mantine/core";
 import type { NavigateFunction } from "react-router-dom";
 import type { RegisteredTable, DataProduct, Relationship, Source } from "../../types/admin";
 import type { ReplicaBuild } from "../../api/admin";
@@ -142,96 +132,102 @@ export function TableReadView({
         <Group justify="flex-start" wrap="wrap">
           <ReplicatingMark build={build} size="detail" />
           {table.viewSql && (
-            <Button
-              data-testid="table-read-view-edit-sql"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
-              }}
-              title={t("tableReadView.editSqlTitle")}
-            >
-              {viewsOnly
-                ? t("tableReadView.editSqlButton")
-                : t("tableReadView.openInExplorerButton")}
-            </Button>
+            <Tip text={t("tableReadView.editSqlTitle")}>
+              <Button
+                data-testid="table-read-view-edit-sql"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/sql", { state: { sql: table.viewSql, viewTable: table } });
+                }}
+              >
+                {viewsOnly
+                  ? t("tableReadView.editSqlButton")
+                  : t("tableReadView.openInExplorerButton")}
+              </Button>
+            </Tip>
           )}
           {table.viewSql && onEditDefinition && !hidingOnly && (
-            <Button
-              data-testid="table-read-view-edit-definition"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditDefinition(table);
-              }}
-              title={t("tableReadView.editDefinitionTitle")}
-            >
-              {t("tableReadView.editDefinitionButton")}
-            </Button>
+            <Tip text={t("tableReadView.editDefinitionTitle")}>
+              <Button
+                data-testid="table-read-view-edit-definition"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditDefinition(table);
+                }}
+              >
+                {t("tableReadView.editDefinitionButton")}
+              </Button>
+            </Tip>
           )}
           {table.canDeployToDb && !hidingOnly && (
-            <Button
-              data-testid="table-read-view-deploy"
-              onClick={async (e) => {
-                e.stopPropagation();
-                setDeploying((prev) => ({ ...prev, [table.id]: true }));
-                setDeployMsg((prev) => {
-                  const next = { ...prev };
-                  delete next[table.id];
-                  return next;
-                });
-                const result = await deployViewToDb(table.id);
-                setDeploying((prev) => ({ ...prev, [table.id]: false }));
-                setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
-                if (result.success) reload();
-              }}
-              title={t("tableReadView.deployToDbTitle")}
-              disabled={deploying[table.id]}
-            >
-              {deploying[table.id]
-                ? t("tableReadView.deployingButton")
-                : t("tableReadView.deployToDbButton")}
-            </Button>
+            <Tip text={t("tableReadView.deployToDbTitle")}>
+              <Button
+                data-testid="table-read-view-deploy"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  setDeploying((prev) => ({ ...prev, [table.id]: true }));
+                  setDeployMsg((prev) => {
+                    const next = { ...prev };
+                    delete next[table.id];
+                    return next;
+                  });
+                  const result = await deployViewToDb(table.id);
+                  setDeploying((prev) => ({ ...prev, [table.id]: false }));
+                  setDeployMsg((prev) => ({ ...prev, [table.id]: result }));
+                  if (result.success) reload();
+                }}
+                disabled={deploying[table.id]}
+              >
+                {deploying[table.id]
+                  ? t("tableReadView.deployingButton")
+                  : t("tableReadView.deployToDbButton")}
+              </Button>
+            </Tip>
           )}
           {/* A table that needs a value for a required parameter is asked for it first: Preview
               in its own viewer, Profile in the dialog its handler opens. */}
-          <Button
-            data-testid="table-read-view-preview"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPreview(table);
-            }}
-            title={t("tableReadView.previewTitle")}
-          >
-            {t("tableReadView.previewButton")}
-          </Button>
-          {!hidingOnly && (
+          <Tip text={t("tableReadView.previewTitle")}>
             <Button
-              data-testid="table-read-view-profile"
+              data-testid="table-read-view-preview"
               onClick={(e) => {
                 e.stopPropagation();
-                handleProfile(table.id);
-                // The profile is read on Quality, where it lands.
-                setSection("quality");
+                onPreview(table);
               }}
-              title={t("tableReadView.profileTitle")}
-              disabled={tableProfiles[table.id] === "loading"}
             >
-              {tableProfiles[table.id] === "loading"
-                ? t("tableReadView.profilingButton")
-                : t("tableReadView.profileButton")}
+              {t("tableReadView.previewButton")}
             </Button>
+          </Tip>
+          {!hidingOnly && (
+            <Tip text={t("tableReadView.profileTitle")}>
+              <Button
+                data-testid="table-read-view-profile"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleProfile(table.id);
+                  // The profile is read on Quality, where it lands.
+                  setSection("quality");
+                }}
+                disabled={tableProfiles[table.id] === "loading"}
+              >
+                {tableProfiles[table.id] === "loading"
+                  ? t("tableReadView.profilingButton")
+                  : t("tableReadView.profileButton")}
+              </Button>
+            </Tip>
           )}
-          <Button
-            data-testid="table-read-view-policies"
-            title={t("tableReadView.policiesTitle")}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/security/rls", {
-                state: { tableFilter: table.tableName },
-              });
-            }}
-          >
-            {t("tableReadView.policiesButton")}
-          </Button>
+          <Tip text={t("tableReadView.policiesTitle")}>
+            <Button
+              data-testid="table-read-view-policies"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/security/rls", {
+                  state: { tableFilter: table.tableName },
+                });
+              }}
+            >
+              {t("tableReadView.policiesButton")}
+            </Button>
+          </Tip>
           {onInvalidateCache && (
             <Tip text={t("tablesPage.invalidateCache")} named>
               <ActionIcon
@@ -276,13 +272,12 @@ export function TableReadView({
           {/* REQ-1921: draft is set and cleared here, beside the table's other actions. It needs
               the right to register tables in the table's domain; without it the box only shows
               the state. */}
-          <Tooltip
-            label={
+          <Tip
+            text={
               hidingOnly || !onSetDraft
                 ? t("tableReadView.draftNoRightTooltip")
                 : t("tableReadView.draftTooltip")
             }
-            withArrow
           >
             <Checkbox
               size="xs"
@@ -293,7 +288,7 @@ export function TableReadView({
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => onSetDraft?.(table, e.currentTarget.checked)}
             />
-          </Tooltip>
+          </Tip>
         </Group>
       </fieldset>
     </PanelActions>

@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { resultRedirectText } from "../components/resultRedirectText";
+import { Tip } from "../components/Tip";
 import { useSetTableDraft, useSetTableRegion, useRegionChoices } from "../hooks/useRegionQueries";
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
@@ -991,45 +992,48 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
             </Button>
           )}
           {!hidingOnly && !(viewsOnly && showViewForm) && (
-            <Button
-              variant="default"
-              data-testid="views-add-toggle"
-              // REQ-1318: on the Views page, Add View opens the definition-mode form
-              // (SQL | Metrics toggle); elsewhere it keeps routing to the SQL editor.
-              onClick={() =>
-                leave.guard(() => (viewsOnly ? setShowViewForm(true) : navigate("/sql")))
-              }
-              title={translate("tablesPage.addViewTitle")}
-            >
-              {translate("tablesPage.addView")}
-            </Button>
+            <Tip text={translate("tablesPage.addViewTitle")}>
+              <Button
+                variant="default"
+                data-testid="views-add-toggle"
+                // REQ-1318: on the Views page, Add View opens the definition-mode form
+                // (SQL | Metrics toggle); elsewhere it keeps routing to the SQL editor.
+                onClick={() =>
+                  leave.guard(() => (viewsOnly ? setShowViewForm(true) : navigate("/sql")))
+                }
+              >
+                {translate("tablesPage.addView")}
+              </Button>
+            </Tip>
           )}
           {!viewsOnly && !hidingOnly && (
-            <Button
-              variant="default"
-              data-testid="tables-model-toggle"
-              onClick={() => leave.guard(() => setShowModeling(true))}
-              title={translate("tablesPage.modelTitle")}
-            >
-              {translate("tablesPage.model")}
-            </Button>
+            <Tip text={translate("tablesPage.modelTitle")}>
+              <Button
+                variant="default"
+                data-testid="tables-model-toggle"
+                onClick={() => leave.guard(() => setShowModeling(true))}
+              >
+                {translate("tablesPage.model")}
+              </Button>
+            </Tip>
           )}
           {!viewsOnly && (
             // An ancillary action, reached rarely: a borderless icon keeps it out of the
             // decision the bordered buttons beside it present.
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              data-testid="tables-report-xlsx"
-              loading={reportBusy}
-              // REQ-1592: the whole model as one reviewable workbook, narrowed by the same domain
-              // filter the table below is narrowed by. Download only — never an edit path back in.
-              onClick={downloadReport}
-              aria-label={translate("tablesPage.reportXlsx")}
-              title={translate("tablesPage.reportXlsxTitle")}
-            >
-              <FileSpreadsheet size={18} />
-            </ActionIcon>
+            <Tip text={translate("tablesPage.reportXlsxTitle")}>
+              <ActionIcon
+                variant="subtle"
+                size="lg"
+                data-testid="tables-report-xlsx"
+                loading={reportBusy}
+                // REQ-1592: the whole model as one reviewable workbook, narrowed by the same domain
+                // filter the table below is narrowed by. Download only — never an edit path back in.
+                onClick={downloadReport}
+                aria-label={translate("tablesPage.reportXlsx")}
+              >
+                <FileSpreadsheet size={18} />
+              </ActionIcon>
+            </Tip>
           )}
           <HelpBubble
             title={translate("tablesPage.purposeTitle")}
@@ -1310,18 +1314,19 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                                   return (
                                     <>
                                       {isLanded && (
-                                        <Button
-                                          size="compact-xs"
-                                          variant="default"
-                                          title={translate("tablesPage.runNowTitle")}
-                                          onClick={() => {
-                                            setRegenReason("");
-                                            setRegenTable(t);
-                                          }}
-                                          data-testid={`tables-run-now-${t.tableName}`}
-                                        >
-                                          {translate("tablesPage.runNow")}
-                                        </Button>
+                                        <Tip text={translate("tablesPage.runNowTitle")}>
+                                          <Button
+                                            size="compact-xs"
+                                            variant="default"
+                                            onClick={() => {
+                                              setRegenReason("");
+                                              setRegenTable(t);
+                                            }}
+                                            data-testid={`tables-run-now-${t.tableName}`}
+                                          >
+                                            {translate("tablesPage.runNow")}
+                                          </Button>
+                                        </Tip>
                                       )}
                                     </>
                                   );

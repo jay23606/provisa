@@ -27,7 +27,6 @@
     "groupBy": "Agrupar por {{label}}",
     "ungroupLevel": "Desagrupar (nível {{level}})",
     "invalidateCache": "Invalidar cache",
-    "purging": "Limpando...",
     "runNow": "Executar agora",
     "runNowTitle": "Reconstruir os dados desta tabela agora, tenha algo mudado ou não",
     "runNowModalTitle": "Executar {{table}} agora",

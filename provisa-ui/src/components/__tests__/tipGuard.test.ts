@@ -33,22 +33,13 @@ const THE_TIP = "components/Tip.tsx";
  * in the commit that moves it to Tip; a listed file that no longer imports one fails the guard.
  * Nothing is added here.
  */
-const STILL_LIBRARY_TOOLTIP: readonly string[] = [
-  "pages/tables/CollapsibleSection.tsx",
-  "pages/tables/DescriptionField.tsx",
-  "pages/tables/TableReadView.tsx",
-];
+const STILL_LIBRARY_TOOLTIP: readonly string[] = [];
 
 /**
  * Shrinking: files that still put a native `title` on a control. Same rule: a file leaves in the
  * commit that converts it, and nothing is added.
  */
-const STILL_TITLE_ON_CONTROL: readonly string[] = [
-  "pages/TablesPage.tsx",
-  "pages/tables/ColumnsTable.tsx",
-  "pages/tables/TableEditForm.tsx",
-  "pages/tables/TableReadView.tsx",
-];
+const STILL_TITLE_ON_CONTROL: readonly string[] = [];
 
 function componentFiles(dir: string): string[] {
   const out: string[] = [];

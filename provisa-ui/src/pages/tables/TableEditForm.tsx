@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { Tip } from "../../components/Tip";
 import { TableDraftTick, TableRegionField } from "./TablePlacementFields";
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -864,15 +865,16 @@ export function TableEditForm({
                               />
                             </Table.Td>
                             <Table.Td style={{ textAlign: "center" }}>
-                              <Checkbox
-                                aria-label={t("tableEditForm.primaryKeyAria")}
-                                title={t("tableEditForm.primaryKeyAria")}
-                                checked={c.isPrimaryKey || false}
-                                disabled={hidingOnly}
-                                onChange={(e) =>
-                                  updateEditCol(i, "isPrimaryKey", e.currentTarget.checked)
-                                }
-                              />
+                              <Tip text={t("tableEditForm.primaryKeyAria")}>
+                                <Checkbox
+                                  aria-label={t("tableEditForm.primaryKeyAria")}
+                                  checked={c.isPrimaryKey || false}
+                                  disabled={hidingOnly}
+                                  onChange={(e) =>
+                                    updateEditCol(i, "isPrimaryKey", e.currentTarget.checked)
+                                  }
+                                />
+                              </Tip>
                             </Table.Td>
                             <Table.Td>
                               <Select

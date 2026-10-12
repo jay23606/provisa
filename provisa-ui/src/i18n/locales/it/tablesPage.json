@@ -27,7 +27,6 @@
     "groupBy": "Raggruppa per {{label}}",
     "ungroupLevel": "Separa (livello {{level}})",
     "invalidateCache": "Invalida cache",
-    "purging": "Svuotamento in corso...",
     "runNow": "Esegui ora",
     "runNowTitle": "Ricostruisci ora i dati di questa tabella, che sia cambiato qualcosa o no",
     "runNowModalTitle": "Esegui {{table}} ora",
