@@ -60,8 +60,9 @@ def _type_name(value: Any) -> str:
     return type(value).__name__
 
 
-def _cell(value: Any, data_type: str) -> Any:
-    """``value`` as its column's type, or ValueError."""
+def _cell(value: Any, data_type: str, dates_as_text: bool = False) -> Any:
+    """``value`` as its column's type, or ValueError. With ``dates_as_text`` a date or timestamp
+    column reads an ISO 8601 string, as a source with no date type holds one (Cosmos DB)."""
     from bson import Binary, Decimal128, ObjectId, json_util
 
     base = data_type.strip().lower().split("(")[0].strip()
@@ -83,6 +84,11 @@ def _cell(value: Any, data_type: str) -> Any:
         if isinstance(value, bool):
             return value
         raise ValueError
+    if dates_as_text and isinstance(value, str) and base in ("timestamp", "timestamptz", "date"):
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if base == "date":
+            return moment.date()
+        return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
     if base in ("timestamp", "timestamptz", "datetime"):
         if isinstance(value, datetime):
             return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
@@ -109,7 +115,9 @@ def _cell(value: Any, data_type: str) -> Any:
     raise ValueError
 
 
-def project(table: str, doc: dict, columns: list[OutputColumn]) -> dict:
+def project(
+    table: str, doc: dict, columns: list[OutputColumn], *, dates_as_text: bool = False
+) -> dict:
     """One returned document as the table's row."""
     row: dict[str, Any] = {}
     for col in columns:
@@ -118,7 +126,7 @@ def project(table: str, doc: dict, columns: list[OutputColumn]) -> dict:
             row[col.name] = None
             continue
         try:
-            row[col.name] = _cell(value, col.data_type)
+            row[col.name] = _cell(value, col.data_type, dates_as_text)
         except ValueError:
             raise PipelineOutputMismatch(
                 table, col.name, col.data_type, _type_name(value)

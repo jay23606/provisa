@@ -124,6 +124,11 @@
     "mongoModeLabel": "מה הטבלה קוראת",
     "mongoModeCollection": "אוסף",
     "mongoModePipeline": "צינור",
-    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+    "cosmosModeContainer": "מאגר",
+    "cosmosModeQuery": "שאילתה",
+    "cosmosQueryLabel": "שאילתה",
+    "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- כל @name הוא ארגומנט שנשלח לצד השאילתה",
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
   }
 }

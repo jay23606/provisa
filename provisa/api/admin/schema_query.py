@@ -1395,6 +1395,29 @@ class Query:  # REQ-021, REQ-042
                 cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
             )
 
+    @strawberry.field
+    async def cosmos_query_preview(
+        self,
+        info: StrawberryInfo,
+        source_id: str,
+        native_query: str,
+        arguments: JsonScalar,
+    ) -> QueryPreviewType:
+        """REQ-1982: preview a Cosmos DB query table's query with sample arguments (a list of
+        ``{name, dataType, value}``): up to five documents and the columns they suggest. Failures
+        come back as ``error``."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._query_api_registration import preview_cosmos_query
+
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            return await preview_cosmos_query(
+                cast("Connection", conn),
+                source_id,
+                native_query,
+                cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
+            )
+
     # ── Admin: Data-quality contracts (REQ-1443) ──
 
     @strawberry.field
@@ -2076,6 +2099,26 @@ async def _redis_columns(source_id: str, table_name: str) -> list[AvailableColum
     return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in cols]
 
 
+async def _cosmosdb_columns(source_id: str, container: str) -> list[AvailableColumnType]:
+    """REQ-1982: a container's columns as its documents suggest them, its partition key as an
+    optional parameter."""
+    from provisa.api.app import state
+    from provisa.cosmosdb import introspect as _cosmos
+
+    suggested = await _cosmos.columns(state, source_id, container)
+    return [
+        AvailableColumnType(
+            name=c["name"],
+            data_type=c["data_type"],
+            comment=None,
+            path=c["path"],
+            native_filter_type=c["native_filter_type"],
+            native_filter_required=c["native_filter_required"],
+        )
+        for c in suggested or []
+    ]
+
+
 async def _elasticsearch_columns(source_id: str, table_name: str) -> list[AvailableColumnType]:
     """REQ-1672: a mapping-DSL table's declared columns, else the live index mapping flattened
     (``discover_schema``), typed in the IR vocabulary — engine-independent."""
@@ -2227,6 +2270,8 @@ async def resolve_available_columns_metadata(
     ):
         if source_type == "elasticsearch":
             return await _elasticsearch_columns(source_id, table_name)
+        if source_type == "cosmosdb":
+            return await _cosmosdb_columns(source_id, table_name)
         if source_type == "redis":
             return await _redis_columns(source_id, table_name)
         if source_type == "cassandra":

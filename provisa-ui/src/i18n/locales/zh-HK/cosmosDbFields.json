@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "帳戶端點",
+    "endpointHint": "帳戶的 URI，即 Azure 入口網站「金鑰」下顯示的位址。",
+    "database": "資料庫",
+    "auth": "登入方式",
+    "authKey": "帳戶金鑰",
+    "authEntra": "Microsoft Entra 服務主體",
+    "accountKey": "帳戶金鑰",
+    "clientSecret": "用戶端密碼",
+    "secretHint": "${env:NAME} 等機密參照會在讀取來源時解析。",
+    "tenantId": "租用戶 ID",
+    "clientId": "用戶端 ID"
+  }
+}

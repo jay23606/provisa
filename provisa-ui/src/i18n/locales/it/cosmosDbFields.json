@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "Endpoint dell'account",
+    "endpointHint": "L'URI dell'account, come lo mostra il portale di Azure in Chiavi.",
+    "database": "Database",
+    "auth": "Accedi con",
+    "authKey": "Chiave dell'account",
+    "authEntra": "Entità servizio di Microsoft Entra",
+    "accountKey": "Chiave dell'account",
+    "clientSecret": "Segreto client",
+    "secretHint": "Un riferimento a un segreto, come ${env:NAME}, viene risolto quando l'origine viene letta.",
+    "tenantId": "ID tenant",
+    "clientId": "ID client"
+  }
+}

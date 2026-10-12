@@ -113,6 +113,7 @@ declare module "*.graphql" {
   export const SparqlPreview: DocumentNode;
   // REQ-1980: a MongoDB native query run with sample arguments.
   export const MongoPipelinePreview: DocumentNode;
+  export const CosmosQueryPreview: DocumentNode;
   export const DqContractBuild: DocumentNode;
   export const DryRunDqContract: DocumentNode;
   // REQ-1443: run a checker table's poll job now instead of waiting for its cadence.
@@ -223,6 +224,7 @@ declare module "*.gql" {
   export const SparqlPreview: DocumentNode;
   // REQ-1980: a MongoDB native query run with sample arguments.
   export const MongoPipelinePreview: DocumentNode;
+  export const CosmosQueryPreview: DocumentNode;
   export const DqContractBuild: DocumentNode;
   export const DryRunDqContract: DocumentNode;
   export default doc;

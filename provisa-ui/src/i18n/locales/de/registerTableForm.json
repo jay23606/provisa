@@ -124,6 +124,11 @@
     "mongoModeLabel": "Was die Tabelle liest",
     "mongoModeCollection": "Collection",
     "mongoModePipeline": "Pipeline",
-    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+    "cosmosModeContainer": "Container",
+    "cosmosModeQuery": "Abfrage",
+    "cosmosQueryLabel": "Abfrage",
+    "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- jedes @name ist ein Argument, das neben der Abfrage gesendet wird",
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
   }
 }

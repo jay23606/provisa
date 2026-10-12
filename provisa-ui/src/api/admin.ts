@@ -524,6 +524,8 @@ export interface ColumnMetadata {
   /** Whether the source requires a value for this parameter; null where it is not recorded. */
   nativeFilterRequired?: boolean | null;
   isPrimaryKey: boolean;
+  /** REQ-1982: where a document source's nested field is read from; null for a top field. */
+  path?: string | null;
 }
 
 export async function fetchSdl(roleId: string): Promise<string> {

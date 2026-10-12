@@ -124,6 +124,11 @@
     "mongoModeLabel": "Wat de tabel leest",
     "mongoModeCollection": "Collectie",
     "mongoModePipeline": "Pijplijn",
-    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}",
+    "cosmosModeContainer": "Container",
+    "cosmosModeQuery": "Query",
+    "cosmosQueryLabel": "Query",
+    "cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- elke @name is een argument, naast de query verzonden",
+    "cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
   }
 }

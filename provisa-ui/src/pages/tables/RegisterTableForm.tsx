@@ -96,6 +96,7 @@ interface RegisterTableFormProps {
       nativeFilterType?: string | null;
       nativeFilterRequired?: boolean | null;
       isPrimaryKey?: boolean | null;
+      path?: string | null;
     }[]
   >;
   suggestTableAlias: (tableName: string, domainId: string, sourceId: string) => Promise<string>;
@@ -194,7 +195,9 @@ export function RegisterTableForm({
   const isSparql = sourceType === "sparql";
   const isFilesSource = ["files", "csv", "parquet"].includes(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
-  const isPipeline = sourceType === "mongodb" && mongoMode === "pipeline";
+  // REQ-1980/REQ-1982: a document source's table is a collection or container, or a native query.
+  const isNativeQuerySource = sourceType === "mongodb" || sourceType === "cosmosdb";
+  const isPipeline = isNativeQuerySource && mongoMode === "pipeline";
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
   const pipelineArgs = columns.filter(isPipelineArgument);
   // The short step: what names the table, and only what the server will not do without. The rest
@@ -403,7 +406,9 @@ export function RegisterTableForm({
             // REQ-1959: nothing is public by default. A parameter column is an argument, not
             // data, and its scope publishes nothing whatever it says.
             scope: "domain",
-            path: null, // REQ-1739: set below only for ingest sources
+            // REQ-1982: a document source says where a nested field is read from; REQ-1739: an
+            // ingest source's path is set below.
+            path: c.path ?? null,
           };
         });
         setColumns(formed);
@@ -433,7 +438,11 @@ export function RegisterTableForm({
     setPreviewing(true);
     try {
       const res = await previewQuery({
-        sourceType: isPipeline ? "mongodb" : isSparql ? "sparql" : "neo4j",
+        sourceType: isPipeline
+          ? (sourceType as "mongodb" | "cosmosdb")
+          : isSparql
+            ? "sparql"
+            : "neo4j",
         sourceId,
         query: cypher.trim(),
         ...(isPipeline && {
@@ -755,17 +764,24 @@ export function RegisterTableForm({
             />
           </FormField>
         )}
-        {sourceType === "mongodb" && (
+        {isNativeQuerySource && (
           <FormField size="medium">
             <SegmentedControl
               aria-label={t("registerTableForm.mongoModeLabel")}
               value={mongoMode}
               onChange={(v) => setMongoMode(v as "collection" | "pipeline")}
-              data={[
-                { value: "collection", label: t("registerTableForm.mongoModeCollection") },
-                { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
-              ]}
-              data-testid="register-table-mongodb-mode"
+              data={
+                sourceType === "cosmosdb"
+                  ? [
+                      { value: "collection", label: t("registerTableForm.cosmosModeContainer") },
+                      { value: "pipeline", label: t("registerTableForm.cosmosModeQuery") },
+                    ]
+                  : [
+                      { value: "collection", label: t("registerTableForm.mongoModeCollection") },
+                      { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
+                    ]
+              }
+              data-testid={`register-table-${sourceType}-mode`}
             />
           </FormField>
         )}

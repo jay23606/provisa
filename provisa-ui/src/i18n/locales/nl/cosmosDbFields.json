@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "Accounteindpunt",
+    "endpointHint": "De URI van het account, zoals de Azure-portal die onder Sleutels toont.",
+    "database": "Database",
+    "auth": "Aanmelden met",
+    "authKey": "Accountsleutel",
+    "authEntra": "Microsoft Entra-service-principal",
+    "accountKey": "Accountsleutel",
+    "clientSecret": "Clientgeheim",
+    "secretHint": "Een geheimverwijzing, zoals ${env:NAME}, wordt omgezet wanneer de bron wordt gelezen.",
+    "tenantId": "Tenant-ID",
+    "clientId": "Client-ID"
+  }
+}

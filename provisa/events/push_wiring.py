@@ -50,7 +50,8 @@ log = logging.getLogger(__name__)
 _LISTENER_SOURCE_TYPES = PUSH_SOURCE_TYPES - frozenset({"ingest"})
 # REQ-1861: sources whose own change feed says THAT a table changed. The listener carries no
 # rows: each burst of changes asks for a build of the table's replica (one builder, one path).
-_CHANGE_STREAM_SOURCE_TYPES = frozenset({"mongodb"})
+# REQ-1861 MongoDB change streams; REQ-1982 the Cosmos DB change feed.
+_CHANGE_STREAM_SOURCE_TYPES = frozenset({"mongodb", "cosmosdb"})
 # The change signal that opts a table into its source's change feed (REQ-929).
 _CHANGE_FEED_SIGNAL = "native"
 # Seconds a change-stream listener waits before it watches again after its stream fails.
@@ -462,6 +463,10 @@ async def _stop_unwired(state: Any, wired: set[str], *, log: Any, timeout: float
         )
 
 
+def _source_type_of(src: Any) -> str:
+    return src.type.value if hasattr(src.type, "value") else str(src.type)
+
+
 def _change_feed_opted_in(src: Any, tbl: dict) -> bool:
     """Whether a change-feed source's table opts into its change stream (REQ-1861)."""
     signal = tbl["change_signal"] if tbl["change_signal"] is not None else src.change_signal
@@ -565,9 +570,11 @@ async def _run_change_stream(
     is unknown. A stream that fails -- the server is down, or is a standalone mongod, which serves
     no change streams -- is logged with the server's own reason and watched again after
     ``_CHANGE_STREAM_RETRY_SECONDS``. Never lets an exception escape (it runs detached)."""
-    from provisa.core.secrets import resolve_secrets
     from provisa.federation import replica_builds, replica_state
     from provisa.federation.source_vault import org_vault
+    from provisa.cosmosdb.change_feed import open_change_feed
+    from provisa.cosmosdb.fetch import CosmosConnection
+    from provisa.mongodb.fetch import MongoConnection
     from provisa.subscriptions.mongo_provider import open_change_stream
 
     async def _ask() -> None:
@@ -595,17 +602,20 @@ async def _run_change_stream(
     while not disconnect.is_set():
         try:
             async with org_vault(state, [source]):
-                host = resolve_secrets(source.host or "localhost")
-                password = resolve_secrets(source.password or "") or None
-            async with open_change_stream(
-                host=host,
-                port=int(source.port or 27017),
-                username=source.username or None,
-                password=password,
-                database=database,
-                collection=collection,
-                wait_ms=wait_ms,
-            ) as stream:
+                if _source_type_of(source) == "cosmosdb":
+                    opened = open_change_feed(
+                        connection=CosmosConnection.from_source(source),
+                        container=collection,
+                        wait_ms=wait_ms,
+                    )
+                else:
+                    opened = open_change_stream(
+                        connection=MongoConnection.from_source(source),
+                        database=database,
+                        collection=collection,
+                        wait_ms=wait_ms,
+                    )
+            async with opened as stream:
                 await _feed(None)
                 await _ask()  # watching from here on: what changed before is in this build
                 await follow_changes(

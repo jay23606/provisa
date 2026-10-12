@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "נקודת קצה של החשבון",
+    "endpointHint": "ה-URI של החשבון, כפי שפורטל Azure מציג אותו תחת מפתחות.",
+    "database": "מסד נתונים",
+    "auth": "התחברות באמצעות",
+    "authKey": "מפתח חשבון",
+    "authEntra": "ישות שירות של Microsoft Entra",
+    "accountKey": "מפתח חשבון",
+    "clientSecret": "סוד לקוח",
+    "secretHint": "הפניה לסוד, כגון ${env:NAME}, נפתרת בעת קריאת המקור.",
+    "tenantId": "מזהה דייר",
+    "clientId": "מזהה לקוח"
+  }
+}

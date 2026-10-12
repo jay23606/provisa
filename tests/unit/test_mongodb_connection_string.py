@@ -118,3 +118,40 @@ def test_a_secret_reference_resolving_to_a_connection_string_with_a_port_is_refu
     monkeypatch.setenv("ATLAS_URI", _SRV)
     with pytest.raises(ConnectionStringWithPort, match="'atlas'"):
         MongoConnection.from_source(_source("${env:ATLAS_URI}", port=27017))
+
+
+async def test_the_change_stream_connects_by_the_connection_string():
+    # REQ-1985, REQ-1861: the change-feed listener reaches the source as every other reach does.
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock
+
+    from provisa.subscriptions.mongo_provider import open_change_stream
+
+    made: dict = {}
+
+    @asynccontextmanager
+    async def watch(**_kw):
+        yield "stream"
+
+    class _Motor:
+        def __init__(self, *args, **kwargs) -> None:
+            made.update(args=args, kwargs=kwargs)
+            collection = MagicMock()
+            collection.watch = watch
+            self._db = {"orders": collection}
+
+        def __getitem__(self, _name):
+            return self._db
+
+        def close(self) -> None:
+            made["closed"] = True
+
+    conn = MongoConnection.from_source(_source(_SRV, username="app", password="pw"))
+    with patch("motor.motor_asyncio.AsyncIOMotorClient", _Motor):
+        async with open_change_stream(
+            connection=conn, database="shop", collection="orders", wait_ms=500
+        ) as stream:
+            assert stream == "stream"
+    assert made["args"] == (_SRV,)
+    assert "directConnection" not in made["kwargs"] and made["kwargs"]["username"] == "app"
+    assert made["closed"]

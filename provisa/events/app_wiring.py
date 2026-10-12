@@ -241,6 +241,10 @@ def build_adapter_loaders(state: Any, engine: Any) -> dict[str, Any]:
         loaders["cassandra"] = make_cassandra_loader()
     if not engine_attaches(bare_engine, "mongodb"):  # REQ-1730
         loaders["mongodb"] = make_mongodb_loader()
+    # REQ-1982: no engine reaches Cosmos DB; its SDK is its reader on every engine.
+    from provisa.cosmosdb.loader import make_cosmosdb_loader
+
+    loaders["cosmosdb"] = make_cosmosdb_loader()
     if not engine_attaches(bare_engine, "clickhouse"):  # REQ-1730
         loaders["clickhouse"] = make_clickhouse_loader()
     if not engine_attaches(bare_engine, "kafka"):  # REQ-1730
@@ -339,6 +343,9 @@ def build_keyed_adapter_loaders(state: Any, engine: Any = None) -> dict[str, Any
         keyed_loaders["cassandra"] = make_cassandra_keyed_loader()
     if not engine_attaches(bare_engine, "mongodb"):
         keyed_loaders["mongodb"] = make_mongodb_keyed_loader()
+    from provisa.cosmosdb.loader import make_cosmosdb_keyed_loader
+
+    keyed_loaders["cosmosdb"] = make_cosmosdb_keyed_loader()  # REQ-1982
     if not engine_attaches(bare_engine, "clickhouse"):
         keyed_loaders["clickhouse"] = make_clickhouse_keyed_loader()
     if not engine_attaches(bare_engine, "kafka"):

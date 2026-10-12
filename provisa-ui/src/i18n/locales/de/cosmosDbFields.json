@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "Konto-Endpunkt",
+    "endpointHint": "Der URI des Kontos, wie ihn das Azure-Portal unter „Schlüssel“ zeigt.",
+    "database": "Datenbank",
+    "auth": "Anmelden mit",
+    "authKey": "Kontoschlüssel",
+    "authEntra": "Microsoft Entra-Dienstprinzipal",
+    "accountKey": "Kontoschlüssel",
+    "clientSecret": "Geheimer Clientschlüssel",
+    "secretHint": "Ein Geheimnisverweis wie ${env:NAME} wird beim Lesen der Quelle aufgelöst.",
+    "tenantId": "Mandanten-ID",
+    "clientId": "Client-ID"
+  }
+}

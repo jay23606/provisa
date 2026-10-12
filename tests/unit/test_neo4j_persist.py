@@ -75,7 +75,9 @@ class TestValidateNeo4jSources:
                 tables=[_table(schema="main")],
             )
         )
-        with pytest.raises(ValueError, match="only valid under a neo4j, sparql or mongodb source"):
+        with pytest.raises(
+            ValueError, match="only valid under a neo4j, sparql, mongodb or cosmosdb source"
+        ):
             _validate_neo4j_sources(cfg)
 
     @pytest.mark.parametrize("missing", ["host", "port", "database"])

@@ -112,6 +112,8 @@ class SourceType(str, Enum):
     hiveserver2 = "hiveserver2"
     # NoSQL
     mongodb = "mongodb"
+    # REQ-1982: Azure Cosmos DB for NoSQL, read by its own SDK on every engine.
+    cosmosdb = "cosmosdb"
     cassandra = "cassandra"
     redis = "redis"
     # Streaming
@@ -857,7 +859,9 @@ class Column(
     # REQ-1986: set, the column is a parameter of the table (``_nf_<name>``) -- a value a caller
     # passes to the source -- and this says how it reaches the source: "path_param" or
     # "query_param" (an OpenAPI operation), "graphql_arg" (a remote GraphQL field's argument),
-    # "grpc_input" (a gRPC request's field), "query_arg" (a MongoDB pipeline's argument).
+    # "grpc_input" (a gRPC request's field), "query_arg" (an argument of the table's native
+    # query: a MongoDB pipeline, a Cosmos DB query), "partition_key" (a Cosmos DB container's
+    # partition key, REQ-1982).
     native_filter_type: str | None = None
     # Whether the source cannot be read without a value for this parameter, as the source's own
     # description says (an OpenAPI path parameter or one marked required, a GraphQL argument

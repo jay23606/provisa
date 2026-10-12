@@ -1,0 +1,15 @@
+{
+  "cosmosDbFields": {
+    "endpoint": "Account endpoint",
+    "endpointHint": "The account's URI, as the Azure portal shows it under Keys.",
+    "database": "Database",
+    "auth": "Sign in with",
+    "authKey": "Account key",
+    "authEntra": "Microsoft Entra service principal",
+    "accountKey": "Account key",
+    "clientSecret": "Client secret",
+    "secretHint": "A secret reference, such as ${env:NAME}, is resolved when the source is read.",
+    "tenantId": "Tenant ID",
+    "clientId": "Client ID"
+  }
+}

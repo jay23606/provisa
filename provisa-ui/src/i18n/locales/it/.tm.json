@@ -5839,5 +5839,21 @@
   "it/whatsNew.json::whatsNew.changes": "Changes",
   "it/whatsNew.json::whatsNew.general": "General",
   "it/whatsNew.json::whatsNew.empty": "No user-visible changes.",
-  "it/parametersPanel.json::parametersPanel.kind.query_arg": "Native query argument"
+  "it/parametersPanel.json::parametersPanel.kind.query_arg": "Native query argument",
+  "it/cosmosDbFields.json::cosmosDbFields.endpoint": "Account endpoint",
+  "it/cosmosDbFields.json::cosmosDbFields.endpointHint": "The account's URI, as the Azure portal shows it under Keys.",
+  "it/cosmosDbFields.json::cosmosDbFields.database": "Database",
+  "it/cosmosDbFields.json::cosmosDbFields.auth": "Sign in with",
+  "it/cosmosDbFields.json::cosmosDbFields.authKey": "Account key",
+  "it/cosmosDbFields.json::cosmosDbFields.authEntra": "Microsoft Entra service principal",
+  "it/cosmosDbFields.json::cosmosDbFields.accountKey": "Account key",
+  "it/cosmosDbFields.json::cosmosDbFields.clientSecret": "Client secret",
+  "it/cosmosDbFields.json::cosmosDbFields.secretHint": "A secret reference, such as ${env:NAME}, is resolved when the source is read.",
+  "it/cosmosDbFields.json::cosmosDbFields.tenantId": "Tenant ID",
+  "it/cosmosDbFields.json::cosmosDbFields.clientId": "Client ID",
+  "it/registerTableForm.json::registerTableForm.cosmosModeContainer": "Container",
+  "it/registerTableForm.json::registerTableForm.cosmosModeQuery": "Query",
+  "it/registerTableForm.json::registerTableForm.cosmosQueryLabel": "Query",
+  "it/registerTableForm.json::registerTableForm.cosmosQueryHint": "{\"container\": …, \"query\": \"SELECT … @name\"} -- each @name is an argument, sent beside the query",
+  "it/registerTableForm.json::registerTableForm.cosmosQueryPlaceholder": "{\"container\": \"products\", \"query\": \"SELECT TOP 10 c.id, c.name, VectorDistance(c.embedding, @query_vector) AS score FROM c ORDER BY VectorDistance(c.embedding, @query_vector)\"}"
 }
