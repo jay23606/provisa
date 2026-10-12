@@ -22817,3 +22817,13 @@ Qdrant is a source type.
 **Code:** —
 
 **Tests:** —
+
+### REQ-1984 · Source Connectors {#REQ-1984}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+TypeScript is a source type. A source holds a TypeScript bundle; each exported function tagged with the JSDoc tag @table is offered as a table and each tagged @command as a command; untagged exports are ignored. A table's rows are its function's return value; the function's parameters are the table's parameters (a non-optional parameter is required by the source, an optional one can be made required by a steward); its columns come from the function's TypeScript return type, or a preview when the type cannot be mapped. The JSDoc text is the description. No Provisa package is imported by the bundle. An unknown tag, or a tagged function whose types cannot be mapped, is reported by name when the bundle is loaded.
+
+**Code:** —
+
+**Tests:** —

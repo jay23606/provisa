@@ -77848,3 +77848,12 @@
   type: behavioral
   description: 'Qdrant is a source type.'
   notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement, stated as "Qdrant is a source type". Not built. The group, category, priority and type are ci-fix''s choices, not his.'
+- id: REQ-1984
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Connectors
+  priority: SHOULD
+  type: behavioral
+  description: 'TypeScript is a source type. A source holds a TypeScript bundle; each exported function tagged with the JSDoc tag @table is offered as a table and each tagged @command as a command; untagged exports are ignored. A table''s rows are its function''s return value; the function''s parameters are the table''s parameters (a non-optional parameter is required by the source, an optional one can be made required by a steward); its columns come from the function''s TypeScript return type, or a preview when the type cannot be mapped. The JSDoc text is the description. No Provisa package is imported by the bundle. An unknown tag, or a tagged function whose types cannot be mapped, is reported by name when the bundle is loaded.'
+  notes: 'Maintainer 2026-10-12, through the lead: a backlog requirement; the description is his decisions, verbatim. Not built. The group, category, priority and type are ci-fix''s choices, not his. To be related to the MongoDB pipeline tables requirement and to the parameterized-tables requirement once both are in this file.'
