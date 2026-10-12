@@ -157,18 +157,22 @@ export function SplitPane({
       <div className="split-pane__list" hidden={alone}>
         {provided(list)}
       </div>
-      <ConfirmDialog
-        opened={leaving.asking !== null}
-        title={t("common.discardTitle")}
-        consequence={t("common.discardBody", { what: leaving.asking ?? "" })}
-        confirmLabel={t("common.discard")}
-        onCancel={() => leaving.answer(false)}
-        onConfirm={() => {
-          onDiscard?.();
-          leaving.answer(true);
-        }}
-        testId="discard-changes"
-      />
+      {/* In the page only while it is asking: a pane that asks nothing holds no dialog. It
+          goes with the answer, at once -- there is no closing dialog left behind it. */}
+      {leaving.asking !== null && (
+        <ConfirmDialog
+          opened
+          title={t("common.discardTitle")}
+          consequence={t("common.discardBody", { what: leaving.asking })}
+          confirmLabel={t("common.discard")}
+          onCancel={() => leaving.answer(false)}
+          onConfirm={() => {
+            onDiscard?.();
+            leaving.answer(true);
+          }}
+          testId="discard-changes"
+        />
+      )}
       {open && (
         <>
           {!alone && (
