@@ -1,0 +1,2 @@
+version vpc-id subnet-id instance-id interface-id account-id type srcaddr dstaddr srcport dstport pkt-srcaddr pkt-dstaddr protocol bytes packets start end action tcp-flags log-status
+3 vpc-12345678 subnet-012345678 i-07890123456789012 eni-23456789012345678 123456789012 IPv4 10.0.0.62 10.0.1.32 34210 22 10.0.0.62 10.0.1.32 6 5160 28 1566848875 1566848933 ACCEPT 2 OK

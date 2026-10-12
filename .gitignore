@@ -49,6 +49,8 @@ htmlcov/
 ._*
 __MACOSX/
 *.log
+# REQ-1996: the log-parser fixtures are vendor-doc lines, kept in the tree.
+!tests/unit/fixtures/logparse/**/*.log
 .logs/
 
 # Jupyter
