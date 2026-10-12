@@ -15,7 +15,12 @@
 
 import { describe, it, expect } from "vitest";
 // @ts-expect-error the generator is plain ESM outside the UI's tsconfig
-import { renderPicker, stalePages, REQUIREMENT_ONLY } from "../../../scripts/gen-site-source-picker.mjs";
+import {
+  renderPicker,
+  staleCounts,
+  stalePages,
+  REQUIREMENT_ONLY,
+} from "../../../scripts/gen-site-source-picker.mjs";
 import { SOURCE_TYPES } from "../pages/sources/constants";
 
 describe("site source picker", () => {
@@ -26,5 +31,9 @@ describe("site source picker", () => {
 
   it("is in step with constants.ts in site/index.html and site/why/sources.html", async () => {
     expect(await stalePages()).toEqual([]);
+  });
+
+  it("is the count every page and document states", async () => {
+    expect(await staleCounts()).toEqual([]);
   });
 });
