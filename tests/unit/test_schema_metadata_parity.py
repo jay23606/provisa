@@ -89,6 +89,9 @@ REGISTRY_ONLY_TABLES = {
     # REQ-1984: the package registries every Node install of an organisation goes through.
     # Beside ``orgs`` and the vault its credentials may name. Portable metadata only.
     "org_package_registries",
+    # REQ-1984: the archives uploaded as Node sources' code, by content hash. Portable metadata
+    # only.
+    "org_node_bundles",
     # REQ-1574: the org's key ring, held beside ``orgs`` on the platform plane so a blob is
     # decryptable before any org schema is open. Portable metadata only.
     "org_encryption_keys",

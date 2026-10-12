@@ -854,6 +854,22 @@ org_package_registries = Table(
 )
 
 
+# REQ-1984: the archives uploaded to Provisa as Node sources' code, kept per organisation by the
+# content hash of the bundle they unpack to (provisa/node/bundle.content_hash) -- the hash a
+# source records. Outside every environment: one store per organisation.
+org_node_bundles = Table(
+    "org_node_bundles",
+    metadata,
+    Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
+    Column("content_hash", Text, primary_key=True),
+    # The name it was uploaded with, which says how it is unpacked (.zip, .tgz, .tar.gz).
+    Column("filename", Text, nullable=False),
+    Column("archive", LargeBinary, nullable=False),
+    Column("uploaded_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("uploaded_by", Text, nullable=True),
+)
+
+
 REGISTRY_TABLES = [
     orgs,
     org_encryption_keys,
@@ -871,6 +887,7 @@ REGISTRY_TABLES = [
     source_sign_ins,
     org_mail_platforms,
     org_package_registries,
+    org_node_bundles,
     deployment_encryption_key,
     personal_access_tokens,
     scram_credentials,
