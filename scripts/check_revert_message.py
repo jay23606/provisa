@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026 Kenneth Stott
+# Canary: cfcb19dd-1a07-4258-8bc2-9764c91e14ac
 #
 # This source code is licensed under the Business Source License 1.1
 """commit-msg check: a commit that reverts names the commit it undoes, in git's own words.
