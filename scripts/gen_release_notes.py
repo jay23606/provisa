@@ -9,7 +9,8 @@ Features are the requirements whose status became complete between the refs, eac
 sentence of its description, grouped by category. Changes are the feat and user-visible fix
 commits of the range, grouped by scope; a commit citing a requirement completed in this release
 is listed under that feature instead. A commit reverted before the release is left out, with its
-revert (git's "This reverts commit <sha>"). No requirement id appears in any output.
+revert (git's "This reverts commit <sha>"), and so is a commit scripts/release_notes.yaml lists
+under `exclude`, each with its reason. No requirement id appears in any output.
 
 The first release shown is set in scripts/release_notes.yaml (`start`: a date or a release tag;
 empty shows every release). A release before it is left out of every output, and the pages and
@@ -71,6 +72,19 @@ def _git(repo: Path, *args: str) -> str:
     if done.returncode != 0:
         raise ReleaseNotesError(f"git {' '.join(args)}: {done.stderr.strip()}")
     return done.stdout
+
+
+def excluded_of(repo: Path) -> list[str]:
+    """The commits the settings leave out of every release's notes, as full shas."""
+    entries = (yaml.safe_load((repo / SETTINGS).read_text()) or {}).get("exclude") or []
+    shas = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("sha") or not entry.get("reason"):
+            raise ReleaseNotesError(
+                f"{SETTINGS}: each exclude entry needs a sha and a reason: {entry!r}"
+            )
+        shas.append(_git(repo, "rev-parse", "--verify", f"{entry['sha']}^{{commit}}").strip())
+    return shas
 
 
 def start_of(repo: Path) -> datetime.date | str | None:
@@ -139,7 +153,8 @@ _REVERTS = re.compile(r"This reverts commit ([0-9a-f]{7,40})")
 
 
 def _commits(repo: Path, prev: str, new: str) -> list[tuple[str, str]]:
-    """The range's commits, oldest first, less any reverted within it and the reverts themselves."""
+    """The range's commits, oldest first, less any reverted within it, the reverts themselves,
+    and those the settings exclude."""
     log = _git(
         repo, "log", "--reverse", "--no-merges", "--format=%H%x1f%s%x1f%b%x1e", f"{prev}..{new}"
     )
@@ -149,6 +164,7 @@ def _commits(repo: Path, prev: str, new: str) -> list[tuple[str, str]]:
             sha, subject, body = record.strip("\n").split("\x1f", 2)
             records.append((sha, subject, body))
     reverted = [m for _, _, body in records for m in _REVERTS.findall(body)]
+    reverted += excluded_of(repo)
     return [
         (subject, body)
         for sha, subject, body in records

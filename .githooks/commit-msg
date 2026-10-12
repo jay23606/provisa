@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# core.hooksPath points here (see pre-commit): hand git's message file to the commit-msg hooks
+# declared in .pre-commit-config.yaml.
+set -e
+
+if ! command -v pre-commit >/dev/null 2>&1; then
+    echo "pre-commit not on PATH; install it with 'uv sync --extra dev'" >&2
+    exit 1
+fi
+
+exec pre-commit run --hook-stage commit-msg --commit-msg-filename "$1"
