@@ -10,7 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from collections.abc import Iterator
+from typing import Any, BinaryIO, Literal
 
 ColumnType = Literal["string", "integer", "float", "boolean", "timestamp", "json"]
 COLUMN_TYPES: tuple[str, ...] = ("string", "integer", "float", "boolean", "timestamp", "json")
@@ -46,6 +47,9 @@ class Format:
     group: str
     record_start: re.Pattern[str] | None = None
     header_prefix: str | None = None
+    #: The format reads its records from the file's bytes itself (:meth:`frame`), not by line:
+    #: a binary format such as Windows .evtx.
+    frames_bytes: bool = False
 
     def columns(self, preview: list[str]) -> list[Column]:
         raise NotImplementedError
@@ -55,6 +59,16 @@ class Format:
 
     def parse(self, record: str, ctx: FileContext) -> dict[str, Any]:
         raise NotImplementedError
+
+    def frame(
+        self, path: str, stream: BinaryIO, start: int, whole: bool
+    ) -> Iterator[tuple[int, str, int]]:
+        """``(offset, record, end)`` for each record of the file at ``path`` (``stream`` is it
+        opened, decompressed) from byte ``start``: the record as text for :meth:`parse`, where it
+        starts, and the offset after it, at which a later read goes on. A record a file still
+        being written may not have finished is left for that read unless ``whole``. Only for a
+        format with ``frames_bytes``."""
+        raise NotImplementedError(f"{self.name} reads its records by line")
 
     def parse_many(self, record: str, ctx: FileContext) -> list[dict[str, Any]]:
         """The rows one record holds: one, unless the record is a batch of entries (a

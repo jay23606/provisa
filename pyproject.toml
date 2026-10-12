@@ -142,6 +142,9 @@ dependencies = [
     # Its own runtime deps are folded in here instead (sqlglot already present):
     "python-dateutil",
     "duckdb==1.5.5",
+    # REQ-1996: a Logs source reads Windows Event Log (.evtx) files, a binary chunked format;
+    # pure Python, so nothing is built per platform.
+    "python-evtx==0.8.1",
     "networkx>=3.0",
     "scipy",
     "defusedxml",

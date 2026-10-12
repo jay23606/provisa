@@ -436,3 +436,76 @@ async def test_the_files_token_changes_when_a_file_is_written(root):
     with open(root / "a.log", "a") as f:
         f.write(LINES[1] + "\n")
     assert files_token(source) != before
+
+
+# --- encodings and binary formats ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("encoding", ["utf-16-le", "utf-16-be", "utf-8-sig"])
+def test_a_file_in_another_encoding_is_read_by_its_byte_order_mark_and_read_on_exactly(
+    root, encoding
+):
+    # SQL Server writes its ERRORLOG in UTF-16 LE with a byte-order mark.
+    live = root / "ERRORLOG"
+    mark = {"utf-16-le": b"\xff\xfe", "utf-16-be": b"\xfe\xff", "utf-8-sig": b"\xef\xbb\xbf"}
+    codec = "utf-8" if encoding == "utf-8-sig" else encoding
+    live.write_bytes(mark[encoding] + ("\r\n".join(LINES[:2]) + "\r\n").encode(codec))
+    _written(live)
+    rows, kept, _gone = _read_all(f"{root}/ERRORLOG", {})
+    assert [r["message"] for r in rows] == ["ASL Sender Statistics"] * 2
+    assert rows[0][LINE_OFFSET] == len(mark[encoding])
+    assert rows[1][LINE_OFFSET] == len(mark[encoding]) + len((LINES[0] + "\r\n").encode(codec))
+    with open(live, "ab") as f:
+        f.write((LINES[2] + "\r\n").encode(codec))
+    _written(live)
+    rows, kept, _gone = _read_all(f"{root}/ERRORLOG", kept)
+    assert [r["message"] for r in rows] == ["AppleALC: found codec"]
+    (state,) = kept.values()
+    assert state.offset == live.stat().st_size
+
+
+class _Frames(JsonLines):
+    """A format that reads its records from the file's bytes itself: here, length-prefixed
+    JSON records, as a binary format such as .evtx is read by its own reader."""
+
+    frames_bytes = True
+
+    def frame(self, path, stream, start, whole):
+        stream.seek(start)
+        offset = start
+        while True:
+            size = stream.read(2)
+            if len(size) < 2:
+                return
+            body = stream.read(int.from_bytes(size, "big"))
+            end = offset + 2 + len(body)
+            yield offset, body.decode(), end
+            offset = end
+
+
+def test_a_format_that_frames_its_own_records_is_read_on_from_where_it_reached(root):
+    def record(value):
+        body = json.dumps(value).encode()
+        return len(body).to_bytes(2, "big") + body
+
+    log = root / "events.bin"
+    log.write_bytes(record({"id": 1}) + record({"id": 2}))
+    _written(log)
+    table = _table(
+        {
+            FILE_ID: "text",
+            "_file_name": "text",
+            LINE_OFFSET: "bigint",
+            ENTRY: "bigint",
+            RAW: "text",
+            PARSE_ERROR: "text",
+            "id": "bigint",
+        }
+    )
+    rows, kept, _gone = _read_all(f"{root}/events.bin", {}, _Frames(), table)
+    assert [(r[LINE_OFFSET], r["id"]) for r in rows] == [(0, 1), (len(record({"id": 1})), 2)]
+    with open(log, "ab") as f:
+        f.write(record({"id": 3}))
+    _written(log)
+    rows, kept, _gone = _read_all(f"{root}/events.bin", kept, _Frames(), table)
+    assert [r["id"] for r in rows] == [3]

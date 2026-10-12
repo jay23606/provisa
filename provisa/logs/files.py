@@ -201,9 +201,27 @@ def identify(paths: list[str], kept: dict[str, FileState]) -> tuple[list[Found],
     return list(found.values()), gone
 
 
-def _lines(f: BinaryIO, start: int, whole: bool) -> Iterator[tuple[int, str, int]]:
+#: Byte-order marks and the encodings they say: a file without one is read as UTF-8.
+_BOMS = ((b"\xef\xbb\xbf", "utf-8"), (b"\xff\xfe", "utf-16-le"), (b"\xfe\xff", "utf-16-be"))
+
+
+def text_encoding(head: bytes) -> tuple[str, int]:
+    """The encoding a file's first bytes say it is in, by its byte-order mark (SQL Server writes
+    its ERRORLOG in UTF-16 LE), and the mark's length; UTF-8 without one."""
+    for mark, encoding in _BOMS:
+        if head.startswith(mark):
+            return encoding, len(mark)
+    return "utf-8", 0
+
+
+def _lines(
+    f: BinaryIO, start: int, whole: bool, encoding: str = "utf-8"
+) -> Iterator[tuple[int, str, int]]:
     """``(offset, line, end)`` from ``start``: the line without its ending, and the offset after
-    it. A last line with no ending is given only when ``whole``."""
+    it, in bytes of the file. A last line with no ending is given only when ``whole``."""
+    if encoding != "utf-8":
+        yield from _encoded_lines(f, start, whole, encoding)
+        return
     offset = start
     for raw in f:
         end = offset + len(raw)
@@ -213,6 +231,25 @@ def _lines(f: BinaryIO, start: int, whole: bool) -> Iterator[tuple[int, str, int
             return
         yield offset, raw.rstrip(b"\r\n").decode("utf-8", "replace"), end
         offset = end
+
+
+def _encoded_lines(
+    f: BinaryIO, start: int, whole: bool, encoding: str
+) -> Iterator[tuple[int, str, int]]:
+    """:func:`_lines` for a file in another encoding (UTF-16): decoded as it is read, each
+    line's byte length the length it encodes back to -- exactly, since an unpaired surrogate is
+    passed through both ways rather than replaced."""
+    text = io.TextIOWrapper(f, encoding=encoding, errors="surrogatepass", newline="")
+    offset = start
+    for line in text:
+        end = offset + len(line.encode(encoding, "surrogatepass"))
+        if not line.endswith("\n"):
+            if whole:
+                yield offset, line, end
+            return
+        yield offset, line.rstrip("\r\n"), end
+        offset = end
+    text.detach()
 
 
 def _seek(f: BinaryIO, kind: str | None, offset: int) -> None:
@@ -317,9 +354,12 @@ def read_file(
     held_end: dict[int, int] = {}  # a line's offset -> the offset after it
 
     def lines() -> Iterator[tuple[int, str]]:
+        with opened(found.path, found.kind) as probe:
+            encoding, mark = text_encoding(probe.read(4))
+        start = max(state.offset, mark)  # a byte-order mark is no line's
         with opened(found.path, found.kind) as f:
-            _seek(f, found.kind, state.offset)
-            for offset, line, end in _lines(f, state.offset, whole):
+            _seek(f, found.kind, start)
+            for offset, line, end in _lines(f, start, whole, encoding):
                 held_end[offset] = end
                 yield offset, line
 
@@ -338,6 +378,20 @@ def read_file(
             rows.extend(rows_of(text, offset, found, fmt, ctx, table))
         state.offset = end
         state.fields, state.directives = ctx.fields, dict(ctx.directives)
+
+    if fmt.frames_bytes:
+        # A format that reads its records from the file's bytes itself (Windows .evtx): each
+        # record's offset and the offset after it are its own.
+        with opened(found.path, found.kind) as f:
+            for offset, text, end in fmt.frame(found.path, f, state.offset, whole):
+                rows.extend(rows_of(text, offset, found, fmt, ctx, table))
+                state.offset = end
+                if len(rows) >= batch:
+                    yield rows
+                    rows = []
+        if rows:
+            yield rows
+        return
 
     # A format whose records span lines holds each record until the next one starts: only
     # then is it known to be whole.
@@ -365,7 +419,10 @@ def preview(glob: str, lines: int) -> list[str]:
     paths = sorted(matched(glob), key=lambda p: os.stat(p).st_mtime, reverse=True)
     for path in paths:
         with opened(path, compression(path)) as f:
-            text = io.TextIOWrapper(f, encoding="utf-8", errors="replace")
+            encoding, mark = text_encoding(f.read(4))
+        with opened(path, compression(path)) as f:
+            f.read(mark)
+            text = io.TextIOWrapper(f, encoding=encoding, errors="replace")
             for line in text:
                 out.append(line.rstrip("\r\n"))
                 if len(out) >= lines:
