@@ -209,6 +209,12 @@ export const NAV_GROUPS: NavGroup[] = [
         capability: "platform_settings",
       },
       { to: "/admin/ai-models", labelKey: "navBar.itemAiModels", capability: "org_settings" },
+      // REQ-1984: the registries every Node install of the organisation goes through.
+      {
+        to: "/admin/package-registries",
+        labelKey: "navBar.itemPackageRegistries",
+        capability: "org_settings",
+      },
       // REQ-1074: the catalog this org publishes to is the org's setting, not the deployment's.
       {
         to: "/admin/metadata-export",

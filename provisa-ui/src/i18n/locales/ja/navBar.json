@@ -44,6 +44,7 @@
     "itemMySecrets": "自分のシークレット",
     "itemAuthentication": "認証",
     "itemAiModels": "AIモデル",
+    "itemPackageRegistries": "パッケージレジストリ",
     "itemMetadataExport": "エクスポート",
     "itemImport": "インポート",
     "itemTags": "タグ",

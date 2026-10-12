@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "De registers waaruit elke Node-bron van deze organisatie haar eigen code en afhankelijkheden installeert. Elk veld kan een waarde of een geheimverwijzing zoals ${secret:npm_token} bevatten. Het openbare npm-register heeft geen vermelding nodig.",
+    "npmTitle": "npm-registers",
+    "npmHelp": "Een register met een scope levert de pakketten van die scope. De mirror levert alle andere pakketten.",
+    "npmNone": "Geen npm-registers. Pakketten komen uit het openbare npm-register.",
+    "add_npm": "npm-register toevoegen",
+    "gitTitle": "Git-hosts",
+    "gitHelp": "De hosts waarvan Node-bronnen Git-code en Git-afhankelijkheden ophalen.",
+    "gitNone": "Geen Git-hosts.",
+    "add_git": "Git-host toevoegen",
+    "npmAddress": "Register-URL",
+    "gitHost": "Host",
+    "scope": "Scope",
+    "scopeHelp": "Bijvoorbeeld @acme. Laat leeg voor een register zonder scope.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "Het toegangstoken van het register.",
+    "gitCredential": "HTTPS-token",
+    "gitCredentialHelp": "Een token met leestoegang tot de repositories.",
+    "mirror": "Mirror voor elke installatie",
+    "mirrorHelp": "Elk pakket zonder eigen scope wordt via dit register geïnstalleerd. Een organisatie heeft één mirror.",
+    "saved": "Opgeslagen",
+    "removed": "Verwijderd",
+    "remove": "Verwijderen"
+  }
+}

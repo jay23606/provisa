@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "本機構的每個 Node 來源從這些登錄庫安裝其自身程式碼和依賴項。每個欄位可以填寫一個值，或 ${secret:npm_token} 這樣的密鑰參照。公共 npm 登錄庫無需填寫。",
+    "npmTitle": "npm 登錄庫",
+    "npmHelp": "帶範圍的登錄庫提供該範圍的套件。鏡像提供其他所有套件。",
+    "npmNone": "沒有 npm 登錄庫。套件來自公共 npm 登錄庫。",
+    "add_npm": "新增 npm 登錄庫",
+    "gitTitle": "Git 主機",
+    "gitHelp": "Node 來源從這些主機取得 Git 程式碼和 Git 依賴項。",
+    "gitNone": "沒有 Git 主機。",
+    "add_git": "新增 Git 主機",
+    "npmAddress": "登錄庫 URL",
+    "gitHost": "主機",
+    "scope": "範圍",
+    "scopeHelp": "例如 @acme。沒有範圍的登錄庫請留空。",
+    "npmCredential": "權杖",
+    "npmCredentialHelp": "登錄庫的存取權杖。",
+    "gitCredential": "HTTPS 權杖",
+    "gitCredentialHelp": "對儲存庫有讀取權限的權杖。",
+    "mirror": "所有安裝的鏡像",
+    "mirrorHelp": "所有沒有自身範圍的套件都經此登錄庫安裝。一個機構只有一個鏡像。",
+    "saved": "已儲存",
+    "removed": "已刪除",
+    "remove": "刪除"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "Os registros dos quais cada fonte Node desta organização instala seu próprio código e suas dependências. Cada campo pode conter um valor ou uma referência a um segredo como ${secret:npm_token}. O registro público do npm não precisa de entrada.",
+    "npmTitle": "Registros npm",
+    "npmHelp": "Um registro com escopo fornece os pacotes desse escopo. O espelho fornece todos os outros pacotes.",
+    "npmNone": "Nenhum registro npm. Os pacotes vêm do registro público do npm.",
+    "add_npm": "Adicionar registro npm",
+    "gitTitle": "Hosts Git",
+    "gitHelp": "Os hosts dos quais as fontes Node buscam código Git e dependências Git.",
+    "gitNone": "Nenhum host Git.",
+    "add_git": "Adicionar host Git",
+    "npmAddress": "URL do registro",
+    "gitHost": "Host",
+    "scope": "Escopo",
+    "scopeHelp": "Por exemplo @acme. Deixe vazio para um registro sem escopo.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "O token de acesso do registro.",
+    "gitCredential": "Token HTTPS",
+    "gitCredentialHelp": "Um token com acesso de leitura aos repositórios.",
+    "mirror": "Espelho de toda instalação",
+    "mirrorHelp": "Todo pacote sem escopo próprio é instalado por este registro. Uma organização tem um espelho.",
+    "saved": "Salvo",
+    "removed": "Removido",
+    "remove": "Remover"
+  }
+}

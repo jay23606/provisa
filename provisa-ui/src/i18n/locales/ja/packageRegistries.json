@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "この組織の各 Node ソースが自身のコードと依存関係をインストールするレジストリです。各フィールドには値、または ${secret:npm_token} のようなシークレット参照を入れられます。公開 npm レジストリには登録は不要です。",
+    "npmTitle": "npm レジストリ",
+    "npmHelp": "スコープを持つレジストリはそのスコープのパッケージを提供します。ミラーはそれ以外のすべてのパッケージを提供します。",
+    "npmNone": "npm レジストリはありません。パッケージは公開 npm レジストリから取得されます。",
+    "add_npm": "npm レジストリを追加",
+    "gitTitle": "Git ホスト",
+    "gitHelp": "Node ソースが Git のコードと Git の依存関係を取得するホストです。",
+    "gitNone": "Git ホストはありません。",
+    "add_git": "Git ホストを追加",
+    "npmAddress": "レジストリ URL",
+    "gitHost": "ホスト",
+    "scope": "スコープ",
+    "scopeHelp": "例: @acme。スコープのないレジストリは空のままにします。",
+    "npmCredential": "トークン",
+    "npmCredentialHelp": "レジストリのアクセストークンです。",
+    "gitCredential": "HTTPS トークン",
+    "gitCredentialHelp": "リポジトリの読み取り権限を持つトークンです。",
+    "mirror": "すべてのインストールのミラー",
+    "mirrorHelp": "独自のスコープを持たないパッケージはすべてこのレジストリ経由でインストールされます。組織のミラーは 1 つです。",
+    "saved": "保存しました",
+    "removed": "削除しました",
+    "remove": "削除"
+  }
+}

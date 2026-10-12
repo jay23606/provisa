@@ -44,6 +44,7 @@
     "itemMySecrets": "Ваши секреты",
     "itemAuthentication": "Аутентификация",
     "itemAiModels": "Модели ИИ",
+    "itemPackageRegistries": "Реестры пакетов",
     "itemMetadataExport": "Экспорт",
     "itemImport": "Импорт",
     "itemTags": "Теги",

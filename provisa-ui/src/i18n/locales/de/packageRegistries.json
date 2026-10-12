@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "Die Registries, aus denen jede Node-Quelle dieser Organisation installiert, für ihren eigenen Code und ihre Abhängigkeiten. Jedes Feld kann einen Wert oder einen Geheimnisverweis wie ${secret:npm_token} enthalten. Die öffentliche npm-Registry braucht keinen Eintrag.",
+    "npmTitle": "npm-Registries",
+    "npmHelp": "Eine Registry mit einem Scope liefert die Pakete dieses Scopes. Der Mirror liefert alle anderen Pakete.",
+    "npmNone": "Keine npm-Registries. Pakete kommen aus der öffentlichen npm-Registry.",
+    "add_npm": "npm-Registry hinzufügen",
+    "gitTitle": "Git-Hosts",
+    "gitHelp": "Die Hosts, von denen Node-Quellen Git-Code und Git-Abhängigkeiten abrufen.",
+    "gitNone": "Keine Git-Hosts.",
+    "add_git": "Git-Host hinzufügen",
+    "npmAddress": "Registry-URL",
+    "gitHost": "Host",
+    "scope": "Scope",
+    "scopeHelp": "Zum Beispiel @acme. Leer lassen für eine Registry ohne Scope.",
+    "npmCredential": "Token",
+    "npmCredentialHelp": "Das Zugriffstoken der Registry.",
+    "gitCredential": "HTTPS-Token",
+    "gitCredentialHelp": "Ein Token mit Lesezugriff auf die Repositories.",
+    "mirror": "Jede Installation spiegeln",
+    "mirrorHelp": "Jedes Paket ohne eigenen Scope wird über diese Registry installiert. Eine Organisation hat einen Mirror.",
+    "saved": "Gespeichert",
+    "removed": "Entfernt",
+    "remove": "Entfernen"
+  }
+}

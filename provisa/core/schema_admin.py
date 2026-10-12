@@ -828,6 +828,32 @@ org_mail_platforms = Table(
 )
 
 
+# REQ-1984: the package registries every Node install of an organisation goes through -- npm
+# registries (an address, an optional scope, a credential; one may be the mirror every install
+# goes through) and Git hosts (a host and a credential). One set per organisation, outside every
+# environment. Every field is text holding what was entered, the value or a reference the
+# administrator typed, resolved at use (core/package_registries.resolved); as text, the vault's
+# reference search (core/secret_references.py) finds a reference here.
+org_package_registries = Table(
+    "org_package_registries",
+    metadata,
+    Column("org_id", Text, ForeignKey("orgs.id", ondelete="CASCADE"), primary_key=True),
+    Column("id", Text, primary_key=True),
+    # "npm" or "git".
+    Column("kind", Text, nullable=False),
+    # An npm registry's URL, or a Git host.
+    Column("address", Text, nullable=False),
+    # An npm registry's scope ("@acme"); NULL for a registry with none, and for a Git host.
+    Column("scope", Text, nullable=True),
+    Column("credential", Text, nullable=False),
+    # Whether this npm registry is the mirror every install goes through: at most one per
+    # organisation (core/package_registries.put).
+    Column("mirror", Boolean, nullable=False, server_default=false()),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("updated_by", Text, nullable=True),
+)
+
+
 REGISTRY_TABLES = [
     orgs,
     org_encryption_keys,
@@ -844,6 +870,7 @@ REGISTRY_TABLES = [
     secrets_store,
     source_sign_ins,
     org_mail_platforms,
+    org_package_registries,
     deployment_encryption_key,
     personal_access_tokens,
     scram_credentials,

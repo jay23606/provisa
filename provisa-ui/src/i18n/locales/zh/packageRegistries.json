@@ -1,0 +1,26 @@
+{
+  "packageRegistries": {
+    "help": "本组织的每个 Node 源从这些注册表安装其自身代码和依赖项。每个字段可以填写一个值，或 ${secret:npm_token} 这样的密钥引用。公共 npm 注册表无需填写。",
+    "npmTitle": "npm 注册表",
+    "npmHelp": "带作用域的注册表提供该作用域的软件包。镜像提供其他所有软件包。",
+    "npmNone": "没有 npm 注册表。软件包来自公共 npm 注册表。",
+    "add_npm": "添加 npm 注册表",
+    "gitTitle": "Git 主机",
+    "gitHelp": "Node 源从这些主机获取 Git 代码和 Git 依赖项。",
+    "gitNone": "没有 Git 主机。",
+    "add_git": "添加 Git 主机",
+    "npmAddress": "注册表 URL",
+    "gitHost": "主机",
+    "scope": "作用域",
+    "scopeHelp": "例如 @acme。没有作用域的注册表请留空。",
+    "npmCredential": "令牌",
+    "npmCredentialHelp": "注册表的访问令牌。",
+    "gitCredential": "HTTPS 令牌",
+    "gitCredentialHelp": "对仓库有读取权限的令牌。",
+    "mirror": "所有安装的镜像",
+    "mirrorHelp": "所有没有自身作用域的软件包都通过此注册表安装。一个组织只有一个镜像。",
+    "saved": "已保存",
+    "removed": "已删除",
+    "remove": "删除"
+  }
+}
