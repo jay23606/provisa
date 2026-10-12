@@ -72,6 +72,132 @@ const PANELS: Readonly<Record<string, Panel>> = {
     read: ["pages/security/RlsRuleRead.tsx"],
     form: ["pages/security/SecurityRlsPage.tsx"],
   },
+  "Tables and Views": {
+    read: [
+      "pages/tables/TableReadView.tsx",
+      "pages/tables/TableSectionsRead.tsx",
+      "pages/tables/tableSectionFields.tsx",
+      "pages/tables/TableAssociations.tsx",
+      "pages/tables/loadReadFields.tsx",
+      "pages/tables/queryReadFields.tsx",
+      "pages/tables/qualityReadFields.tsx",
+    ],
+    form: [
+      "pages/tables/TableEditForm.tsx",
+      "pages/tables/TableLoadManagementFields.tsx",
+      "pages/tables/TablePlacementFields.tsx",
+      "pages/tables/LiveDeliveryFieldset.tsx",
+      "pages/tables/DeltaFieldset.tsx",
+      "pages/tables/MaterializedViewPanels.tsx",
+      "pages/tables/SnapshotSchedulePanel.tsx",
+      "pages/tables/PagingField.tsx",
+      "pages/tables/RecurrenceBuilder.tsx",
+      "pages/tables/ViewDefinitionForm.tsx",
+      "pages/tables/RegisterTableForm.tsx",
+      "pages/tables/FilesGlobFieldset.tsx",
+      "pages/tables/ModelingForm.tsx",
+      "pages/tables/ProfilerPanel.tsx",
+      "pages/tables/DataQualityPanel.tsx",
+      "components/admin/UniquesPanel.tsx",
+      "components/admin/ColumnPresetsEditor.tsx",
+      "components/admin/OffPeakWindowFields.tsx",
+      "components/admin/ReplicateSelect.tsx",
+      "components/admin/RegionSelect.tsx",
+      "pages/tables/ColumnsTable.tsx",
+      "pages/tables/testdata/TestDataColumns.tsx",
+      "pages/tables/CalendarCreateModal.tsx",
+      "pages/tables/ProfileConstraintsModal.tsx",
+      "pages/tables/NlTableSearch.tsx",
+      "pages/tables/DescriptionField.tsx",
+    ],
+    notAField: {
+      "tableEditForm.unmaskedToAria":
+        "a column's Unmasked to: shown in Columns as its unmasked-to note",
+      "tableEditForm.loadManagementHelp": "a hint beside the load fields, not a value",
+      "recurrence.dayOfMonth":
+        "a step of the builder that writes the recurrence: shown as Recurrence",
+      "recurrence.frequency":
+        "a step of the builder that writes the recurrence: shown as Recurrence",
+      "recurrence.interval":
+        "a step of the builder that writes the recurrence: shown as Recurrence",
+      "recurrence.month": "a step of the builder that writes the recurrence: shown as Recurrence",
+      "recurrence.ordinal": "a step of the builder that writes the recurrence: shown as Recurrence",
+      "recurrence.weekday": "a step of the builder that writes the recurrence: shown as Recurrence",
+      "viewDefinitionForm.fieldName":
+        "the view's name and domain: shown in Identity as Table and Domain",
+      "viewDefinitionForm.fieldDomain":
+        "the view's name and domain: shown in Identity as Table and Domain",
+      "registerTableForm.aliasLabel": "registration's SQL alias: shown in Identity as SQL Alias",
+      "registerTableForm.descriptionLabel":
+        "registration's description: shown in Identity as Description",
+      "registerTableForm.cacheTtlLabel":
+        "registration's cache TTL: shown in Load and timeliness as Cache TTL",
+      "registerTableForm.neo4jTableNameLabel": "a neo4j table's name: shown in Identity as Table",
+      "registerTableForm.discoverLabel":
+        "a registration act that reads the source's columns, not a value",
+      "registerTableForm.dqVisibleToLabel": "written to the columns' Visible to: shown in Columns",
+      "modelingForm.attributesLabel":
+        "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.domainLabel":
+        "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.grainLabel": "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.historyLabel":
+        "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.keyLabel": "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.kindLabel": "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.measuresLabel":
+        "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.nameLabel": "a create step: the model is lowered to a view, read as that view",
+      "modelingForm.sourceLabel":
+        "a create step: the model is lowered to a view, read as that view",
+      "profilerPanel.addLabel":
+        "an act that adds the table to a profiler: the profiler is shown as Data Profiler",
+      "dataQualityPanel.checkLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.columnLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.comparatorLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.levelLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.metricLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.thresholdLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "dataQualityPanel.unitLabel":
+        "a step of the builder that composes a check: shown in the contract's checks",
+      "columnPresetsEditor.headerNamePlaceholder":
+        "a header preset's name: shown under Header / Value",
+      "tableEditForm.calBaseSystemLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calFiscalAnchorDayLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calFiscalAnchorMonthLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calHolidayPresetFrom":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calHolidayPresetLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calHolidayPresetTo":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calHolidaysLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calNameLabel": "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calRetailAnchorLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calTzLabel": "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calVersionLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calWeekStartLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "tableEditForm.calWeekendLabel":
+        "creates a calendar, which the table names: shown as Calendar",
+      "profileConstraintsModal.checkerLabel":
+        "picks the checker a profile's constraints go to; stores nothing of the table",
+      "registerTableForm.nlSearchLabel":
+        "a search for a table to register; stores nothing of the table",
+    },
+  },
 };
 
 /** The catalog keys a file gives as a field's label: `label={t("key")}`. */
