@@ -66,10 +66,10 @@
     "routinesOffered_one": "इस स्कीमा में {{count}} रूटीन उपलब्ध है",
     "routinesOffered_other": "इस स्कीमा में {{count}} रूटीन उपलब्ध हैं",
     "inputColumnsTitle": "इनपुट डेटासेट के कॉलम",
-    "addInputColumn": "इनपुट कॉलम जोड़ें",
+    "addInputColumn": "+ इनपुट कॉलम जोड़ें",
     "removeInputColumn": "इनपुट कॉलम {{name}} हटाएँ",
     "outputColumnsTitle": "आउटपुट डेटासेट के कॉलम",
-    "addOutputColumn": "आउटपुट कॉलम जोड़ें",
+    "addOutputColumn": "+ आउटपुट कॉलम जोड़ें",
     "removeOutputColumn": "आउटपुट कॉलम {{name}} हटाएँ",
     "datasetColumnPlaceholder": "कॉलम"
   }

@@ -65,11 +65,11 @@
     "writesTableHint": "La tabella registrata che questo comando modifica. Dopo ogni chiamata, i risultati in cache e le viste materializzate su di essa vengono aggiornati.",
     "routinesOffered_one": "{{count}} routine di questo schema è disponibile",
     "routinesOffered_other": "{{count}} routine di questo schema sono disponibili",
-    "inputColumnsTitle": "colonne del dataset di input",
-    "addInputColumn": "aggiungi colonna di input",
+    "inputColumnsTitle": "Colonne del dataset di input",
+    "addInputColumn": "+ Aggiungi colonna di input",
     "removeInputColumn": "rimuovi la colonna di input {{name}}",
-    "outputColumnsTitle": "colonne del dataset di output",
-    "addOutputColumn": "aggiungi colonna di output",
+    "outputColumnsTitle": "Colonne del dataset di output",
+    "addOutputColumn": "+ Aggiungi colonna di output",
     "removeOutputColumn": "rimuovi la colonna di output {{name}}",
     "datasetColumnPlaceholder": "colonna"
   }

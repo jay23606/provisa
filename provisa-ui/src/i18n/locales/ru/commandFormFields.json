@@ -65,11 +65,11 @@
     "writesTableHint": "Зарегистрированная таблица, которую изменяет эта команда. После каждого вызова кэшированные результаты и материализованные представления над ней обновляются.",
     "routinesOffered_one": "В этой схеме доступна процедур: {{count}}",
     "routinesOffered_other": "В этой схеме доступно процедур: {{count}}",
-    "inputColumnsTitle": "столбцы входного набора данных",
-    "addInputColumn": "добавить входной столбец",
+    "inputColumnsTitle": "Столбцы входного набора данных",
+    "addInputColumn": "+ Добавить входной столбец",
     "removeInputColumn": "удалить входной столбец {{name}}",
-    "outputColumnsTitle": "столбцы выходного набора данных",
-    "addOutputColumn": "добавить выходной столбец",
+    "outputColumnsTitle": "Столбцы выходного набора данных",
+    "addOutputColumn": "+ Добавить выходной столбец",
     "removeOutputColumn": "удалить выходной столбец {{name}}",
     "datasetColumnPlaceholder": "столбец"
   }

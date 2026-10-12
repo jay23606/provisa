@@ -65,11 +65,11 @@
     "writesTableHint": "La tabla registrada que modifica este comando. Tras cada llamada se actualizan los resultados en caché y las vistas materializadas sobre ella.",
     "routinesOffered_one": "{{count}} rutina de este esquema está disponible",
     "routinesOffered_other": "{{count}} rutinas de este esquema están disponibles",
-    "inputColumnsTitle": "columnas del conjunto de datos de entrada",
-    "addInputColumn": "añadir columna de entrada",
+    "inputColumnsTitle": "Columnas del conjunto de datos de entrada",
+    "addInputColumn": "+ Agregar columna de entrada",
     "removeInputColumn": "quitar la columna de entrada {{name}}",
-    "outputColumnsTitle": "columnas del conjunto de datos de salida",
-    "addOutputColumn": "añadir columna de salida",
+    "outputColumnsTitle": "Columnas del conjunto de datos de salida",
+    "addOutputColumn": "+ Agregar columna de salida",
     "removeOutputColumn": "quitar la columna de salida {{name}}",
     "datasetColumnPlaceholder": "columna"
   }

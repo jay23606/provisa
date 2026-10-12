@@ -66,10 +66,10 @@
     "routinesOffered_one": "此綱要中有 {{count}} 個常式可供選擇",
     "routinesOffered_other": "此綱要中有 {{count}} 個常式可供選擇",
     "inputColumnsTitle": "輸入數據集的欄",
-    "addInputColumn": "加入輸入欄",
+    "addInputColumn": "+ 新增輸入欄",
     "removeInputColumn": "移除輸入欄 {{name}}",
     "outputColumnsTitle": "輸出數據集的欄",
-    "addOutputColumn": "加入輸出欄",
+    "addOutputColumn": "+ 新增輸出欄",
     "removeOutputColumn": "移除輸出欄 {{name}}",
     "datasetColumnPlaceholder": "欄"
   }
