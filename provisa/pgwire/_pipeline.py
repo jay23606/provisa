@@ -1340,7 +1340,7 @@ async def govern_statement(
         from provisa.mv.view_read import semantic_statement
 
         normalized_sql, _validated_sql = semantic_statement(
-            normalized_sql, _view_map, state, gov_ctx, as_of=as_of
+            normalized_sql, _view_map, state, gov_ctx
         )
         _parsed_input = await _off_loop(lambda: sqlglot.parse_one(normalized_sql, read="postgres"))
     await _guard_complexity(sql, role_id, _parsed_input, gov_ctx, ctx, state)
@@ -3958,7 +3958,7 @@ async def _govern_compiled(
         from provisa.mv.view_read import semantic_statement, views_read
 
         _views = views_read(sql, _view_map)
-        sql, _validated_sql = semantic_statement(sql, _view_map, state, gov_ctx, as_of=as_of)
+        sql, _validated_sql = semantic_statement(sql, _view_map, state, gov_ctx)
         _compiled_tree = await _off_loop(lambda: _sg.parse_one(sql, read="postgres"))
     await _guard_complexity(sql, role_id, _compiled_tree, gov_ctx, ctx, state)
     # The V-rules every statement meets (a masked column in a filter, a hidden column, tables
