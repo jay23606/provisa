@@ -266,6 +266,37 @@ def test_a_second_run_and_a_later_release_keep_one_section_each_newest_first(rep
     assert notes is not None and notes["version"] == "v3"
 
 
+def _all_changes(repo: Fixture) -> list[str]:
+    notes = repo.notes()
+    assert notes is not None
+    return [text for g in notes["changes"] for text in g["entries"]]
+
+
+def test_a_commit_reverted_before_the_release_is_left_out_with_its_revert(repo: Fixture):
+    (repo.root / "page.txt").write_text("a page\n")  # a revert needs a change to undo
+    repo.commit("feat(ui): a page that did not last", date="2026-10-03T12:00:00")
+    repo.git("revert", "--no-edit", "HEAD", date="2026-10-04T12:00:00")
+    repo.commit("feat(ui): a page that stayed", date="2026-10-05T12:00:00")
+    repo.tag("v3", date="2026-10-05T12:00:00")
+    assert repo.run("v2", "v3") == 0
+    changes = _all_changes(repo)
+    assert changes == ["A page that stayed"]
+    assert "did not last" not in repo.page("v3").read_text()
+
+
+def test_a_revert_of_an_earlier_release_s_commit_is_left_out(repo: Fixture):
+    # The commit it reverts shipped in v2; the revert in v3 is not a change of its own.
+    (repo.root / "page.txt").write_text("a page\n")  # a revert needs a change to undo
+    repo.commit("feat(ui): a page", date="2026-10-02T12:00:00")
+    repo.tag("v2.1", date="2026-10-02T12:00:00")
+    earlier = repo.git("rev-parse", "HEAD").strip()
+    repo.git("revert", "--no-edit", earlier, date="2026-10-04T12:00:00")
+    repo.commit("feat(ui): a later page", date="2026-10-05T12:00:00")
+    repo.tag("v3", date="2026-10-05T12:00:00")
+    assert repo.run("v2.1", "v3") == 0
+    assert _all_changes(repo) == ["A later page"]
+
+
 def test_an_unknown_ref_fails_the_run(repo: Fixture):
     assert repo.run("v1", "no-such-tag") == 2
 
