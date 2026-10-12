@@ -32,12 +32,10 @@ import {
   Stack,
   Text,
   TextInput,
-  Card,
 } from "@mantine/core";
 import { fetchSettingsCatalog, updateSettingsCatalog } from "../../api/admin";
 import type { CatalogSetting, SettingsCatalog } from "../../api/admin";
 import { SaveRow } from "./settingsCards";
-import { CollapsibleSection } from "../../pages/tables/CollapsibleSection";
 import { CARD_GROUPS } from "./settingGroups";
 import { FormChecks, FormField, FormFooter, FormLayout, LabelWithHelp } from "../form/FormLayout";
 import { useHelpNaming } from "../form/useHelpNaming";
@@ -544,36 +542,45 @@ export function CatalogCard({
   }
 
   return (
-    <Card withBorder padding="md" data-testid="settings-card">
-      {/* Every card opens open; its header folds it away. */}
-      <CollapsibleSection title={title} testId={`settings-card-${cardId}`} defaultOpen>
-        {groupBy ? (
-          <Accordion
-            multiple
-            variant="contained"
-            value={groups
-              .filter((g) => openGroups.includes(g.id) || g.settings.some(hasError))
-              .map((g) => g.id)}
-            onChange={setOpenGroups}
-          >
-            {groups.map((g) => (
-              <Accordion.Item key={g.id} value={g.id}>
-                <Accordion.Control data-testid={`settings-group-${g.id}-toggle`}>
-                  <Text fw={500} fz="sm" component="span">
-                    {t(`adminPage.setting.group.${g.id}`)}
-                  </Text>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  {fieldGrid(g.settings, `settings-group-${g.id}-flow`)}
-                </Accordion.Panel>
-              </Accordion.Item>
-            ))}
-          </Accordion>
-        ) : (
-          fieldGrid(settings, "settings-card-grid")
-        )}
-        <SaveRow save={save} saving={saving} msg={msg} />
-      </CollapsibleSection>
+    <>
+      {/* The card folds as its groups do: a contained accordion item, open to begin with. */}
+      <Accordion multiple variant="contained" defaultValue={[cardId]} data-testid="settings-card">
+        <Accordion.Item value={cardId}>
+          <Accordion.Control data-testid={`settings-card-${cardId}-toggle`}>
+            <Text fw={500} fz="sm" component="span">
+              {title}
+            </Text>
+          </Accordion.Control>
+          <Accordion.Panel>
+            {groupBy ? (
+              <Accordion
+                multiple
+                variant="contained"
+                value={groups
+                  .filter((g) => openGroups.includes(g.id) || g.settings.some(hasError))
+                  .map((g) => g.id)}
+                onChange={setOpenGroups}
+              >
+                {groups.map((g) => (
+                  <Accordion.Item key={g.id} value={g.id}>
+                    <Accordion.Control data-testid={`settings-group-${g.id}-toggle`}>
+                      <Text fw={500} fz="sm" component="span">
+                        {t(`adminPage.setting.group.${g.id}`)}
+                      </Text>
+                    </Accordion.Control>
+                    <Accordion.Panel>
+                      {fieldGrid(g.settings, `settings-group-${g.id}-flow`)}
+                    </Accordion.Panel>
+                  </Accordion.Item>
+                ))}
+              </Accordion>
+            ) : (
+              fieldGrid(settings, "settings-card-grid")
+            )}
+            <SaveRow save={save} saving={saving} msg={msg} />
+          </Accordion.Panel>
+        </Accordion.Item>
+      </Accordion>
       <Modal
         opened={pending !== null}
         onClose={() => setPending(null)}
@@ -594,7 +601,7 @@ export function CatalogCard({
           }
         />
       </Modal>
-    </Card>
+    </>
   );
 }
 
