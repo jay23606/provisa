@@ -53,7 +53,21 @@ def _info(name="GIT_TOKEN", owner_id=ORG_OWNER):
 
 
 @pytest.fixture
-def store(monkeypatch):
+def platform(tmp_path):
+    """The platform control plane, holding the one organisation ``ORG``."""
+    from provisa.core.database import Database, create_engine_from_url
+    from provisa.core.schema_admin import metadata, orgs
+
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
+    with engine.begin() as conn:
+        metadata.create_all(conn, tables=[orgs])
+        conn.execute(orgs.insert().values(id=ORG, name="Acme"))
+    yield Database(engine, "test")
+    engine.dispose()
+
+
+@pytest.fixture
+def store(monkeypatch, platform):
     """The store as a record of calls, and the built-in (writable) provider selected.
 
     Held is keyed by (owner_id, name) -- the same shape the table's primary key has, which is what
@@ -108,7 +122,7 @@ def store(monkeypatch):
     monkeypatch.setattr(sr, "_org_guard", _org_guard)
     monkeypatch.setattr(sr, "_personal_owner", _personal_owner)
     monkeypatch.setattr(sr, "_audit", _audit)
-    monkeypatch.setattr(sr, "_admin_pool", lambda: "admin-db")
+    monkeypatch.setattr(sr, "_admin_pool", lambda: platform)
     monkeypatch.setattr(sr, "_environment_planes", _environment_planes)
     monkeypatch.setattr(sr.secrets_store, "listing", _listing)
     monkeypatch.setattr(sr.secrets_store, "describe", _describe)
@@ -167,6 +181,24 @@ class TestWhoMayAct:
         await sr.put_secret(_Request(), ORG, "GIT_TOKEN", sr.SecretBody(value=VALUE))
         await sr.delete_secret(_Request(), ORG, "GIT_TOKEN")
         assert store["guard"] == [ORG, ORG]
+
+
+class TestAnUnknownOrganisation:
+    """A secret of an organisation the platform does not hold is refused by name, before anything
+    is written: not stored and then failed on the way out."""
+
+    async def test_a_write_to_an_unknown_organisation_is_not_found(self, store):
+        with pytest.raises(ApiError) as refused:
+            await sr.put_secret(_Request(), "nowhere", "NEW", sr.SecretBody(value=VALUE))
+        assert refused.value.status_code == 404
+        assert "'nowhere'" in str(refused.value.detail)
+        assert store["put"] == [] and store["audit"] == []
+
+    async def test_a_delete_in_an_unknown_organisation_is_not_found(self, store):
+        with pytest.raises(ApiError) as refused:
+            await sr.delete_secret(_Request(), "nowhere", "GIT_TOKEN")
+        assert refused.value.status_code == 404
+        assert store["remove"] == [] and store["audit"] == []
 
 
 class TestThePersonalVault:
