@@ -44,7 +44,7 @@ class TestRedis:
         assert props["redis.table-names"] == "default.users"
 
     def test_table_definition_files_written(self, tmp_path):
-        written = tcf.write_table_definitions(_redis_source(), "", tmp_path)
+        written = tcf.write_table_definitions(_redis_source(), "", "redis1", tmp_path)
         assert [p.name for p in written] == ["users.json"]
         doc = json.loads(written[0].read_text())
         assert doc["tableName"] == "users"
@@ -79,7 +79,7 @@ class TestElasticsearch:
         assert "connector.name" not in props
         assert props["elasticsearch.host"] == "es-host"
         assert props["elasticsearch.tls.enabled"] == "true"
-        written = tcf.write_table_definitions(src, "", tmp_path)
+        written = tcf.write_table_definitions(src, "", "es1", tmp_path)
         doc = json.loads(written[0].read_text())
         assert doc["index"] == "nginx-*"
         assert doc["columns"][0]["sourcePath"] == "request.method"
@@ -96,6 +96,10 @@ class TestPrometheus:
         assert props == {"prometheus.uri": "http://prom:9090"}
 
 
+#: A source's org-qualified catalog: every Kafka file is named by it (REQ-1992).
+CATALOG = "org_acme__events"
+
+
 class TestKafka:
     def test_catalog_file_no_auth(self, tmp_path):
         written = tcf.write_kafka_catalog_files(
@@ -104,9 +108,10 @@ class TestKafka:
                 "bootstrap_servers": "kafka:9092",
                 "schema_registry_url": "http://sr:8081",
             },
+            CATALOG,
             tmp_path,
         )
-        assert [p.name for p in written] == ["events_bus.properties"]
+        assert [p.name for p in written] == [f"{CATALOG}.properties"]
         content = written[0].read_text()
         assert "connector.name=kafka" in content
         assert "kafka.nodes=kafka:9092" in content
@@ -134,12 +139,13 @@ class TestKafka:
                     }
                 ],
             },
+            CATALOG,
             tmp_path,
         )
         names = {p.name for p in written}
-        assert "events.properties" in names
+        assert f"{CATALOG}.properties" in names
         assert "orders_v1.json" in names
-        props = next(p for p in written if p.name == "events.properties").read_text()
+        props = next(p for p in written if p.name == f"{CATALOG}.properties").read_text()
         assert "kafka.table-description-supplier=FILE" in props
         assert "CONFLUENT" not in props
         assert "kafka.table-names=orders_v1" in props
@@ -157,9 +163,10 @@ class TestKafka:
                 "schema_registry_url": "http://sr:8081",
                 "topics": [{"topic": "t"}],
             },
+            CATALOG,
             tmp_path,
         )
-        props = next(p for p in written if p.name == "reg.properties").read_text()
+        props = next(p for p in written if p.name == f"{CATALOG}.properties").read_text()
         assert "kafka.table-description-supplier=CONFLUENT" in props
         assert not any(p.suffix == ".json" for p in written)
 
@@ -170,12 +177,14 @@ class TestKafka:
                 "bootstrap_servers": "kafka:9092",
                 "auth": {"type": "sasl_plain", "username": "u", "password": "p"},
             },
+            CATALOG,
             tmp_path,
         )
         names = {p.name for p in written}
-        assert "secure.properties" in names
-        assert "kafka-client.properties" in names
-        client = next(p for p in written if p.name == "kafka-client.properties").read_text()
+        assert f"{CATALOG}.properties" in names
+        client_path = next(p for p in written if p.parent.name == "kafka-client")
+        assert client_path.name == f"{CATALOG}.properties"
+        client = client_path.read_text()
         assert "SASL_PLAINTEXT" in client
         assert "sasl.mechanism=PLAIN" in client
 
@@ -205,3 +214,37 @@ def test_prometheus_catalog_uri_shares_the_native_readers_endpoint_url():
     assert _uri(host="ignored", mapping={"url": "http://m:1"}) == "http://m:1"
     with pytest.raises(ValueError, match="names no URL"):
         _uri(mapping={})
+
+
+class TestTwoOrgs:
+    """REQ-1992: two orgs' sources of one id write their catalog files apart: a table
+    description of one name, and a client properties file holding a password, are each the
+    org's own, and each catalog reads only its own."""
+
+    def test_redis_table_descriptions_are_each_catalogs_own(self, tmp_path):
+        a = tcf.write_table_definitions(_redis_source(), "", "org_a__cache", tmp_path)
+        b = tcf.write_table_definitions(_redis_source(), "", "org_b__cache", tmp_path)
+        assert a[0] != b[0] and a[0].name == b[0].name == "users.json"
+        props = tcf.with_catalog_dirs(_redis_source(), {}, "org_a__cache")
+        assert props["redis.table-description-dir"] == "/etc/trino/redis/org_a__cache"
+        assert a[0].parent.name == "org_a__cache"
+
+    def test_kafka_files_are_each_catalogs_own(self, tmp_path):
+        source = {
+            "id": "bus",
+            "bootstrap_servers": "kafka:9092",
+            "auth": {"type": "sasl_plain", "username": "u", "password": "p"},
+            "topics": [
+                {
+                    "topic": "t",
+                    "schema_source": "manual",
+                    "columns": [{"name": "id", "data_type": "BIGINT"}],
+                }
+            ],
+        }
+        a = tcf.write_kafka_catalog_files(source, "org_a__bus", tmp_path)
+        b = tcf.write_kafka_catalog_files(source, "org_b__bus", tmp_path)
+        assert not set(a) & set(b)
+        props_a = next(p for p in a if p.parent.name == "catalog-install").read_text()
+        assert "kafka.table-description-dir=/etc/trino/kafka/org_a__bus" in props_a
+        assert "kafka.config.resources=/etc/trino/kafka-client/org_a__bus.properties" in props_a

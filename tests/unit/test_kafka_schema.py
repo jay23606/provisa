@@ -147,7 +147,7 @@ class TestTrinoKafkaProperties:
             id="events",
             bootstrap_servers="kafka:9092",
         )
-        props = generate_trino_kafka_properties(source)
+        props = generate_trino_kafka_properties(source, "org_acme__kafka")
         assert "connector.name=kafka" in props
         assert "kafka.nodes=kafka:9092" in props
 
@@ -157,7 +157,7 @@ class TestTrinoKafkaProperties:
             bootstrap_servers="kafka:9092",
             schema_registry_url="http://schema-registry:8081",
         )
-        props = generate_trino_kafka_properties(source)
+        props = generate_trino_kafka_properties(source, "org_acme__kafka")
         assert "schema-registry-url=http://schema-registry:8081" in props
 
 

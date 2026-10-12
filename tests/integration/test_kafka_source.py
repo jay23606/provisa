@@ -57,7 +57,7 @@ def kafka_bootstrap():
 @pytest.fixture(scope="module", autouse=True)
 def _kafka_support_catalog(trino_conn):
     """Register the ``kafka_support`` catalog dynamically before this module's tests run."""
-    write_kafka_catalog_files(_KAFKA_SUPPORT_SOURCE, trino_conn=trino_conn)
+    write_kafka_catalog_files(_KAFKA_SUPPORT_SOURCE, "kafka_support", trino_conn=trino_conn)
     yield
     cur = trino_conn.cursor()
     cur.execute("DROP CATALOG IF EXISTS kafka_support")

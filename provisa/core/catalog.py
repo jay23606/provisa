@@ -165,10 +165,15 @@ def create_catalog(
 
     # REQ-250/251: write table-description files the connector reads before the
     # catalog is created (redis/elasticsearch/prometheus).
-    from provisa.core.trino_catalog_files import is_mapping_dsl_source, write_table_definitions
+    from provisa.core.trino_catalog_files import (
+        is_mapping_dsl_source,
+        with_catalog_dirs,
+        write_table_definitions,
+    )
 
     if is_mapping_dsl_source(source):
-        write_table_definitions(source, resolved_password)
+        write_table_definitions(source, resolved_password, catalog_name)
+        props = with_catalog_dirs(source, props, catalog_name)
 
     props_sql = ", ".join(f"\"{k}\" = '{_escape_sql_string(v)}'" for k, v in props.items())
 
@@ -189,7 +194,9 @@ def create_catalog(
     trino_connector.post_create(conn, source, catalog_name)
 
 
-def create_kafka_catalog(conn: TrinoConnection, kafka_source: dict) -> None:  # REQ-147
+def create_kafka_catalog(
+    conn: TrinoConnection, kafka_source: dict, catalog: str
+) -> None:  # REQ-147, REQ-1992
     """Register a ``kafka_sources[]`` entry as a Trino dynamic catalog.
 
     Kafka is the one source type whose connector props are not built from a
@@ -201,11 +208,12 @@ def create_kafka_catalog(conn: TrinoConnection, kafka_source: dict) -> None:  # 
     """
     from provisa.core.trino_catalog_files import kafka_catalog_props
 
-    catalog_name = _to_catalog_name(kafka_source["id"])
+    # REQ-1992: the org-qualified catalog its tables are read under, never the bare source id.
+    catalog_name = _validate_identifier(catalog)
     wait_until_ready(conn)  # a coordinator that just restarted races app boot
     if catalog_exists(conn, catalog_name):
         return
-    props = kafka_catalog_props(kafka_source)
+    props = kafka_catalog_props(kafka_source, catalog_name)
     if not props.get("kafka.nodes"):
         return
     props_sql = ", ".join(f"\"{k}\" = '{_escape_sql_string(v)}'" for k, v in props.items())

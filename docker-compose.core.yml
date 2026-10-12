@@ -110,6 +110,8 @@ services:
       - ./trino/etc/resource-groups.properties:/etc/trino/resource-groups.properties:ro
       - ${PROVISA_TRINO_ETC_HOST:-./trino}/catalog:/etc/trino/catalog
       - ${PROVISA_TRINO_ETC_HOST:-./trino}/kafka:/etc/trino/kafka:ro
+      # REQ-1992: each Kafka catalog's client properties, named by its org-qualified catalog.
+      - ${PROVISA_TRINO_ETC_HOST:-./trino}/kafka-client:/etc/trino/kafka-client:ro
       # Redis table-description files (REQ-251): write_table_definitions writes them here on the
       # host; the connector reads them at redis.table-description-dir (provisa/redis/source.py
       # TABLE_DESCRIPTION_DIR). Without the mount the catalog loads and every table has no columns.
@@ -161,6 +163,8 @@ services:
       - ./trino/etc/worker/entrypoint.sh:/etc/trino/worker/entrypoint.sh:ro
       - ${PROVISA_TRINO_ETC_HOST:-./trino}/catalog:/etc/trino/catalog
       - ${PROVISA_TRINO_ETC_HOST:-./trino}/kafka:/etc/trino/kafka:ro
+      # REQ-1992: each Kafka catalog's client properties, named by its org-qualified catalog.
+      - ${PROVISA_TRINO_ETC_HOST:-./trino}/kafka-client:/etc/trino/kafka-client:ro
       # Redis table-description files (REQ-251): write_table_definitions writes them here on the
       # host; the connector reads them at redis.table-description-dir (provisa/redis/source.py
       # TABLE_DESCRIPTION_DIR). Without the mount the catalog loads and every table has no columns.

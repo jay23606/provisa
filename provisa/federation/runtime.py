@@ -748,9 +748,10 @@ class EngineRuntime:  # REQ-825, REQ-840
         """Lifecycle: tear down the engine terminal (no-op for native)."""
         self._backend.close(self._state)
 
-    def register_kafka_catalog(self, kafka_source: dict) -> None:
-        """Register a Kafka source as an engine catalog (no-op for native engines)."""
-        self._backend.register_kafka_catalog(self._state, kafka_source)
+    def register_kafka_catalog(self, kafka_source: dict, catalog: str) -> None:
+        """Register a Kafka source as an engine catalog under its org-qualified ``catalog``
+        (no-op for native engines)."""
+        self._backend.register_kafka_catalog(self._state, kafka_source, catalog)
 
     def reseed_ops(self, ops_views: list) -> None:
         """Idempotently re-seed the OTel ops store (self-heal after reconcile); no-op for native."""

@@ -219,7 +219,9 @@ def _process_kafka_sources(
         # REQ-250/147: register the Kafka source as an engine catalog (the engine writes catalog files
         # + CREATE CATALOG so it loads regardless of start order; native engines no-op).
         if register_catalogs:
-            state.federation_engine.register_kafka_catalog(ks)
+            state.federation_engine.register_kafka_catalog(
+                ks, catalog_name_for_source(state, "kafka", source_id)
+            )
         for topic in ks.get("topics", []):
             topic_id = topic.get("id", "")
             physical_table = topic.get("topic", "").replace(".", "_").replace("-", "_")
