@@ -45,6 +45,10 @@ class OpenAPIQuery:  # REQ-316
     # The address the operation is called at where it declares one of its own (``servers`` on
     # the operation or its path); None for the source's.
     server: str | None = None
+    # REQ-1924: a GET whose response declares no row schema, offered as a table whose columns
+    # the steward declares when registering it (``response_schema`` is None); it is offered as a
+    # command that reads too.
+    columns_declared: bool = False
 
 
 @dataclass
@@ -562,6 +566,23 @@ def _map_operations(
                         binary=binary,
                     )
                 )
+                if reads and response_schema is None and not binary:
+                    # REQ-1924: nothing says what its rows hold, so the steward declares its
+                    # columns when registering it as a table.
+                    queries.append(
+                        OpenAPIQuery(
+                            operation_id=op_id,
+                            path=path,
+                            method=method.upper(),
+                            summary=summary,
+                            path_params=path_params,
+                            query_params=query_params,
+                            response_schema=None,
+                            is_list=True,
+                            server=_own_server(path_item, operation),
+                            columns_declared=True,
+                        )
+                    )
 
     return queries, mutations
 

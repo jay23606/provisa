@@ -72704,8 +72704,8 @@
     until the new one swaps in. A table replicated row by row, or one with a parameter column,
     has no whole replica to rebuild. The same follows any write to a table made through Provisa.
     (Amended 2026-10-07, A GET THAT ANSWERS NO ROWS) An OpenAPI source also offers as a command each
-    GET whose response declares no schema -- a diff, a log, an untyped document. Such an operation
-    is not offered as a table, since a table's columns are read from the response schema (REQ-316).
+    GET whose response declares no schema -- a diff, a log, an untyped document. [SUPERSEDED by REQ-1924, 2026-10-12 -- such a GET is now also offered as a table whose columns the steward declares; see DECLARED COLUMNS. Kept here for history; do not implement against it.] Such an operation
+    is not offered as a table, since a table's columns are read from the response schema (REQ-316). [END SUPERSEDED BLOCK]
     It reads, so it is registered as a query and none of what holds for a write holds for it -- it
     needs no write right and may be composed in a statement or a view. Its answer is passed back as
     the remote gave it. An operation whose declared answer is a file (application/octet-stream) is
@@ -72714,7 +72714,7 @@
     command.
     (Amended 2026-10-07, ANY ANSWER THAT IS NOT TEXT IS A FILE) A declared answer is a file when
     none of the media types declared for it is text -- JSON, XML, text/* -- or unspecified (*/*).
-    A PDF, an archive or an image is a file as application/octet-stream is.
+    A PDF, an archive or an image is a file as application/octet-stream is. (Amended 2026-10-12, DECLARED COLUMNS) Maintainer ruling -- a GET whose response declares no schema is also offered as a table, for every OpenAPI source; it stays offered as a command that reads. Nothing says what its rows hold, so the steward declares its columns when registering it, each with a name and a type; those columns are what the table holds and its rows are read as them. Registering it with no column is refused, naming the table. Its parameters are the operation's, as for any OpenAPI table (REQ-1986). To help, the steward may call the operation once with parameter values of their choosing and be shown the fields of the first row it answers with, each with the type its JSON value suggests (a string stays text); they accept or edit each suggestion. The sample stores nothing, and nothing is typed without the steward.
   use_case: GitHub offers 267 mutations and a team wants three of them. Registering all of them as commands
     when the source is added would put 264 unwanted commands in the model, each needing a domain and a
     grant; registering them one at a time keeps the model to what the team chose.

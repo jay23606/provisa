@@ -554,9 +554,10 @@ def _openapi_is_table(query) -> bool:
 
     All GET operations with non-null responses qualify: the execution layer
     auto-wraps single-object responses as [item] so every GET can be queried
-    as a table.
+    as a table. One that declares no response schema qualifies too, its columns declared by the
+    steward who registers it (REQ-1924).
     """
-    return query.response_schema is not None
+    return query.response_schema is not None or query.columns_declared
 
 
 def _unwrap_gql_type(type_node: dict) -> dict:
@@ -596,6 +597,7 @@ async def _native_tables_openapi(  # REQ-314, REQ-316
             comment=q.summary,
             paging_kind=ENDPOINT,  # REQ-318: with the paging the operation suggests
             pagination=paging_type(paging_row(q.pagination)),
+            columns_declared=q.columns_declared,  # REQ-1924
         )
         for q in queries
         if _openapi_is_table(q)

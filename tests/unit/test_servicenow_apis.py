@@ -99,11 +99,12 @@ def test_the_merged_document_offers_each_apis_operations_at_the_instance(instanc
     # The instance's bodies declare no schema: each is one untyped body.
     create = next(m for m in mutations if m.path == "/api/now/import/{stagingTableName}")
     assert create.input_schema == UNTYPED_BODY
-    # Its GET operations declare no response schema: each is a command that reads (REQ-1924),
-    # not a table, since nothing says what its rows hold.
-    assert queries == []
+    # Its GET operations declare no response schema: each is a command that reads, and a table
+    # whose columns the steward declares (REQ-1924).
     reads = {m.path for m in mutations if m.reads}
     assert "/api/sn_sc/servicecatalog/cart" in reads
+    assert {q.path for q in queries} == reads
+    assert all(q.columns_declared for q in queries)
 
 
 def test_two_apis_declaring_one_path_are_refused(instance):

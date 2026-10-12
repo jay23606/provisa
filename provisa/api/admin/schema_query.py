@@ -1232,6 +1232,19 @@ class Query:  # REQ-021, REQ-042
         return columns
 
     @strawberry.field
+    async def sample_openapi_columns(
+        self, info: StrawberryInfo, source_id: str, table_name: str, params: JsonScalar
+    ) -> list[AvailableColumnType]:
+        """Columns suggested from one sample answer of an OpenAPI table whose operation declares
+        no response schema (REQ-1924): suggestions only, nothing stored."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._openapi_sample import sample_columns
+        from provisa.api.app import state
+
+        suggested = await sample_columns(state, source_id, table_name, dict(params or {}))
+        return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in suggested]
+
+    @strawberry.field
     async def servicenow_apis(self, info: StrawberryInfo, source_id: str) -> list[InstanceApiType]:
         """The APIs a ServiceNow source's instance publishes, each marked when its companion
         OpenAPI source offers it (REQ-1954)."""

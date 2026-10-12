@@ -566,6 +566,9 @@ class AvailableTableType:  # REQ-533
     # REQ-1954: the heading the Register Table list shows the table under, where its source
     # groups its tables (a ServiceNow table's theme); None lists it ungrouped.
     group: str | None = None
+    # REQ-1924: its source says nothing of what its rows hold, so the steward declares its
+    # columns when registering it.
+    columns_declared: bool = False
     # REQ-318: what would read the table page by page once registered ("endpoint" |
     # "connection"), and the paging its source suggests, for the steward to accept or edit.
     paging_kind: str | None = None
