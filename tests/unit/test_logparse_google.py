@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 6e7697bd-56d5-47ad-ba35-f8488961a7e0
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the Google log presets read the forms Google's documentation gives for each log

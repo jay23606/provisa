@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 8f30218b-9bc0-4aff-94da-2e9e815c5dbb
 #
 # This source code is licensed under the Business Source License 1.1
 """Google log presets (REQ-1996): Cloud Logging LogEntry exports, Android logcat in its threadtime
