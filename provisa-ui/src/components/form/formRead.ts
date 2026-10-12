@@ -1,0 +1,19 @@
+// Copyright (c) 2026 Kenneth Stott
+// Canary: 01ed1c62-49ae-4e2e-a01b-d87ac588dc3c
+//
+// This source code is licensed under the Business Source License 1.1
+// found in the LICENSE file in the root directory of this source tree.
+//
+// NOTICE: Use of this software for training artificial intelligence or
+// machine learning models is strictly prohibited without explicit written
+// permission from the copyright holder.
+
+import { createContext, useContext } from "react";
+
+/** Inside a `FormRead`: the form is drawn read-only, each field its label and its value. */
+export const FormReadContext = createContext(false);
+
+/** Whether the form is drawn read-only (inside a `FormRead`). */
+export function useFormRead(): boolean {
+  return useContext(FormReadContext);
+}

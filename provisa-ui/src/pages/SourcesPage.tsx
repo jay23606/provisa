@@ -12,7 +12,13 @@ import { useSetSourceRegion, useRegionChoices } from "../hooks/useRegionQueries"
 import { useRegionSelection } from "../hooks/useRegionSelection";
 import { filterByRegion } from "../hooks/regionFilter";
 import { RegionSelector } from "../components/RegionSelector";
-import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../components/form/FormLayout";
+import {
+  FormField,
+  FormFooter,
+  FormIdentifiers,
+  FormLayout,
+  FormRead,
+} from "../components/form/FormLayout";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -47,7 +53,7 @@ import {
   useDomains,
 } from "../hooks/useAdminQueries";
 import { useGovdataSubjects } from "../hooks/useGovdataSubjects";
-import { schemasForSubjects, subjectsOfSchemas } from "./sources/govdataSubjects";
+import { schemasForSubjects } from "./sources/govdataSubjects";
 import { useAuth } from "../context/AuthContext";
 import { SchemaDiscovery } from "../components/SchemaDiscovery";
 import { TagControl } from "../components/TagControl";
@@ -69,35 +75,35 @@ import {
 import {
   backendType,
   getDefaultPort,
-  parseFilesPath,
   pickerTypeLabel,
   reachInfoFor,
   reachSuffix,
   carrierOf,
-  sourceBrand,
   sourceTypeLabel,
-  uiType,
 } from "./sources/sourceHelpers";
 import { schemaRegistryAuthPayload } from "./sources/schemaRegistryAuth";
 import type { CdcState, SourceFormFieldsProps, SourceFormState } from "./sources/SourceFormFields";
-import { profilerFieldsFromMapping, profilerMappingJson } from "./sources/profilerMapping";
-import { salesforceFieldsFromMapping, salesforceMappingJson } from "./sources/salesforce";
-import { cloudopsFieldsFromMapping, cloudopsMappingJson } from "./sources/cloudops";
-import { GOOGLE_WORKSPACE, gwFieldsFromMapping, gwMapping } from "./sources/googleWorkspace";
-import { MICROSOFT_365, m365FieldsFromMapping, m365Mapping } from "./sources/microsoft365";
-import { COSMOSDB, cosmosFieldsFromHints, cosmosHints } from "./sources/cosmosdb";
-import { WIKIPEDIA, wikipediaFieldsFromHints, wikipediaHints } from "./sources/wikipedia";
+import { profilerMappingJson } from "./sources/profilerMapping";
+import { salesforceMappingJson } from "./sources/salesforce";
+import { cloudopsMappingJson } from "./sources/cloudops";
+import { GOOGLE_WORKSPACE, gwMapping } from "./sources/googleWorkspace";
+import { MICROSOFT_365, m365Mapping } from "./sources/microsoft365";
+import { COSMOSDB, cosmosHints } from "./sources/cosmosdb";
+import { WIKIPEDIA, wikipediaHints } from "./sources/wikipedia";
 import { sourceFormCacheTtl, sourceLoadFieldsValid } from "./sources/loadManagement";
 import { useCacheTtlRequired } from "./sources/sourceKind";
 import { SourceFormFields } from "./sources/SourceFormFields";
 import { icebergCatalogHints } from "./sources/icebergCatalog";
-import {
-  CLOUD_FILE_TYPES,
-  objectStoreFields,
-  objectStoreHints,
-  objectStoreOf,
-} from "./sources/objectStoreHints";
+import { CLOUD_FILE_TYPES, objectStoreHints, objectStoreOf } from "./sources/objectStoreHints";
 import { SourceDetailPanel } from "./sources/SourceDetailPanel";
+import {
+  EMPTY_CDC,
+  fetchRemoteSeed,
+  hasRemoteSeed,
+  remoteAuth,
+  seedSource,
+  type RemoteSeed,
+} from "./sources/sourceSeed";
 import { PanelWorking } from "./sources/PanelWorking";
 import { PanelActions, SplitPane } from "../components/list/SplitPane";
 import { PageLoading } from "../components/PageLoading";
@@ -136,6 +142,8 @@ export function SourcesPage() {
   const { updateSourceAllowedDomains } = useUpdateSourceAllowedDomains();
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  // The registered source whose settings the form's state holds for its read view.
+  const [readSeeded, setReadSeeded] = useState<string | null>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [typePickerOpen, setTypePickerOpen] = useState(false);
   // Only the type-specific branches below (snowflake/databricks/.../sparql) rebuild
@@ -239,20 +247,7 @@ export function SourcesPage() {
   // Whether the server says a source of this kind states its Cache TTL itself (REQ-1907).
   const cacheTtlRequired = useCacheTtlRequired(form.type);
   // REQ-824: source-level CDC transport (Debezium), entered once per source
-  const emptyCdc: CdcState = {
-    bootstrapServers: "",
-    topicPrefix: "",
-    schemaRegistryUrl: "",
-    schemaRegistryAuth: "none",
-    schemaRegistryUsername: "",
-    schemaRegistryPassword: "",
-    schemaRegistryToken: "",
-    schemaRegistryClientCert: "",
-    schemaRegistryClientKey: "",
-    schemaRegistryCa: "",
-    consumerGroupId: "",
-  };
-  const [cdc, setCdc] = useState<CdcState>({ ...emptyCdc });
+  const [cdc, setCdc] = useState<CdcState>({ ...EMPTY_CDC });
   const [authType, setAuthType] = useState("none");
   const [authFields, setAuthFields] = useState<Record<string, string>>({});
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
@@ -312,8 +307,10 @@ export function SourcesPage() {
     );
   };
 
+  // A new source's description is filled from what it is until one is typed; a registered source
+  // (read or edited) shows the description it has.
   useEffect(() => {
-    if (editingSourceId) return;
+    if (!showForm || editingSourceId) return;
     /* eslint-disable-next-line react-hooks/set-state-in-effect --
        autofills a default description from the chosen type/host/database
        when the user hasn't typed one; cannot be pure-derived because the
@@ -326,10 +323,10 @@ export function SourcesPage() {
       if (prev.database) parts.push(`/ ${prev.database}`);
       return { ...prev, description: parts.join(" ") };
     });
-  }, [form.type, form.host, form.database, editingSourceId]);
+  }, [form.type, form.host, form.database, editingSourceId, showForm]);
 
   useEffect(() => {
-    if (editingSourceId) return;
+    if (!showForm || editingSourceId) return;
     if (!DB_DESCRIPTION_TYPES.has(form.type)) return;
     if (!form.host || !form.database || !form.username || !form.password) return;
     fetch("/admin/source-meta/db-description", {
@@ -357,6 +354,7 @@ export function SourcesPage() {
     form.username,
     form.password,
     editingSourceId,
+    showForm,
   ]);
 
   const load = () => {
@@ -434,376 +432,69 @@ export function SourcesPage() {
     resetSpFields();
   };
 
+  // A source's stored settings into the form's state: the state its edit form opens with and its
+  // read view shows. False when that state cannot be read whole (the error says why).
+  const seedFrom = (s: Source): boolean => {
+    const seed = seedSource(s, govdataCatalog);
+    setForm(seed.form);
+    setFilesTransport(seed.filesTransport);
+    setCdc(seed.cdc);
+    setAuthType(seed.authType);
+    setAuthFields(seed.authFields);
+    setSpAuthType(seed.sharepoint.authType);
+    setSpCertPath(seed.sharepoint.certPath);
+    setSpCertPassword(seed.sharepoint.certPassword);
+    setSpUsername(seed.sharepoint.username);
+    setSpPassword(seed.sharepoint.password);
+    setSplunkDisableSsl(seed.splunk.disableSsl);
+    setSplunkAuthMode(seed.splunk.authMode);
+    setWsUseSsl(seed.websocket.useSsl);
+    setWsSubscribePayload(seed.websocket.subscribePayload);
+    setWsEventPath(seed.websocket.eventPath);
+    setWsReconnectInterval(seed.websocket.reconnectInterval);
+    setRssFeedUrl(seed.rss.feedUrl);
+    setRssPollInterval(seed.rss.pollInterval);
+    setRssUseSsl(seed.rss.useSsl);
+    if (hasRemoteSeed(s.type)) {
+      fetchRemoteSeed(s).then(applyRemoteSeed, (e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      );
+    }
+    if (seed.govdataSubjects === null) {
+      setError(t("sourceFormFieldsExtended.govdataSubjectsUnavailable"));
+      return false;
+    }
+    setGovdataSubjects(seed.govdataSubjects);
+    return true;
+  };
+
+  const applyRemoteSeed = (r: RemoteSeed) => {
+    if (r.kind === "graphql") {
+      setGqlNamespace(r.namespace);
+      setGqlCacheTtl(r.cacheTtl);
+    } else if (r.kind === "openapi") {
+      setOpenapiSpecMode(r.specMode);
+      setOpenapiSpecPath(r.specPath);
+      setOpenapiSpecInline("");
+      setOpenapiBaseUrl(r.baseUrl);
+      setOpenapiCacheTtl(r.cacheTtl);
+    } else {
+      setGrpcProtoPath(r.protoPath);
+      setGrpcServerAddress(r.serverAddress);
+      setGrpcNamespace(r.namespace);
+      setGrpcTls(r.tls);
+      setGrpcImportPaths(r.importPaths);
+      setGrpcCacheTtl(r.cacheTtl);
+    }
+    const auth = remoteAuth(r.auth);
+    if (auth) {
+      setAuthType(auth.authType);
+      setAuthFields(auth.authFields);
+    }
+  };
+
   const handleEdit = (s: Source) => {
-    if (s.type === "graphql_remote") {
-      fetch("/admin/sources/graphql-remote")
-        .then((r) => (r.ok ? r.json() : []))
-        .then(
-          (
-            regs: {
-              source_id: string;
-              namespace: string;
-              cache_ttl: number;
-              auth: Record<string, string> | null;
-            }[],
-          ) => {
-            const reg = regs.find((r) => r.source_id === s.id);
-            setGqlNamespace(reg?.namespace ?? "");
-            setGqlCacheTtl(reg?.cache_ttl != null ? String(reg.cache_ttl) : "300");
-            if (reg?.auth?.type) {
-              setAuthType(reg.auth.type);
-              const { type: _t, ...rest } = reg.auth;
-              void _t;
-              setAuthFields(rest);
-            }
-          },
-        )
-        .catch(() => {
-          setGqlNamespace("");
-          setGqlCacheTtl("300");
-        });
-    }
-    if (s.type === "openapi") {
-      fetch("/admin/openapi/list")
-        .then((r) => (r.ok ? r.json() : []))
-        .then(
-          (
-            regs: {
-              source_id: string;
-              spec_path: string;
-              has_inline_spec: boolean;
-              base_url: string;
-              cache_ttl: number;
-              auth_config: Record<string, string> | null;
-            }[],
-          ) => {
-            const reg = regs.find((r) => r.source_id === s.id);
-            setOpenapiSpecMode(reg?.has_inline_spec ? "inline" : "path");
-            setOpenapiSpecPath(reg?.has_inline_spec ? "" : (reg?.spec_path ?? ""));
-            setOpenapiSpecInline("");
-            setOpenapiBaseUrl(reg?.base_url ?? "");
-            setOpenapiCacheTtl(reg?.cache_ttl != null ? String(reg.cache_ttl) : "300");
-            if (reg?.auth_config?.type) {
-              setAuthType(reg.auth_config.type);
-              const { type: _t, ...rest } = reg.auth_config;
-              void _t;
-              setAuthFields(rest);
-            }
-          },
-        )
-        .catch(() => {
-          setOpenapiSpecMode("path");
-          setOpenapiSpecPath("");
-          setOpenapiBaseUrl("");
-          setOpenapiCacheTtl("300");
-        });
-    }
-    if (s.type === "grpc_remote") {
-      fetch("/admin/grpc-remote/list")
-        .then((r) => (r.ok ? r.json() : []))
-        .then(
-          (
-            regs: {
-              source_id: string;
-              server_address: string;
-              proto_path: string;
-              namespace: string;
-              tls: boolean;
-              import_paths: string[];
-              cache_ttl: number;
-              auth_config: Record<string, string> | null;
-            }[],
-          ) => {
-            const reg = regs.find((r) => r.source_id === s.id);
-            setGrpcProtoPath(reg?.proto_path ?? "");
-            setGrpcServerAddress(reg?.server_address ?? "");
-            setGrpcNamespace(reg?.namespace ?? "");
-            setGrpcTls(reg?.tls ?? false);
-            setGrpcImportPaths((reg?.import_paths ?? []).join(", "));
-            setGrpcCacheTtl(reg?.cache_ttl != null ? String(reg.cache_ttl) : "300");
-            if (reg?.auth_config?.type) {
-              setAuthType(reg.auth_config.type);
-              const { type: _t, ...rest } = reg.auth_config;
-              void _t;
-              setAuthFields(rest);
-            }
-          },
-        )
-        .catch(() => {
-          setGrpcProtoPath("");
-          setGrpcServerAddress("");
-          setGrpcNamespace("");
-          setGrpcTls(false);
-          setGrpcImportPaths("");
-          setGrpcCacheTtl("300");
-        });
-    }
-    setForm({
-      id: s.id,
-      type: sourceBrand(s.federationHintsJson) ?? uiType(s.type),
-      host: s.type === "graphql_remote" ? (s.path ?? "") : (s.host ?? ""),
-      port: s.port ?? getDefaultPort(uiType(s.type)),
-      database: s.database ?? "",
-      username: s.username ?? "",
-      // The field shows again what it holds: the value typed, or the reference typed.
-      password: s.passwordRef ?? "",
-      gqlNamingConvention: s.gqlNamingConvention ?? "",
-      cacheTtl: s.cacheTtl != null ? String(s.cacheTtl) : "",
-      cacheEnabled: s.cacheEnabled,
-      replicate: s.replicate,
-      region: s.region,
-      loadProtected: s.loadProtected ?? false,
-      offPeakWindow: s.offPeakWindow ?? "",
-      offPeakTz: s.offPeakTz ?? "UTC",
-      changeSignal: s.changeSignal || sourceChangeSignals(uiType(s.type))[0],
-      sentinelPath: s.sentinelPath ?? "",
-      freshnessGate: s.freshnessGate,
-      maxLiveConcurrency: s.maxLiveConcurrency != null ? String(s.maxLiveConcurrency) : "",
-      path: s.type === "files" ? parseFilesPath(s.path ?? "").path : (s.path ?? ""),
-      allowedDomains: (s.allowedDomains ?? []).join(", "),
-      description: s.description ?? "",
-    });
-    setFilesTransport(s.type === "files" ? parseFilesPath(s.path ?? "").transport : "file://");
-    setCdc(
-      s.cdc
-        ? {
-            bootstrapServers: s.cdc.bootstrapServers ?? "",
-            topicPrefix: s.cdc.topicPrefix ?? "",
-            schemaRegistryUrl: s.cdc.schemaRegistryUrl ?? "",
-            schemaRegistryAuth: s.cdc.schemaRegistryAuth ?? "none",
-            schemaRegistryUsername: s.cdc.schemaRegistryUsername ?? "",
-            schemaRegistryPassword: s.cdc.schemaRegistryPassword ?? "",
-            schemaRegistryToken: s.cdc.schemaRegistryToken ?? "",
-            schemaRegistryClientCert: s.cdc.schemaRegistryClientCert ?? "",
-            schemaRegistryClientKey: s.cdc.schemaRegistryClientKey ?? "",
-            schemaRegistryCa: s.cdc.schemaRegistryCa ?? "",
-            consumerGroupId: s.cdc.consumerGroupId ?? "",
-          }
-        : { ...emptyCdc },
-    );
-    setAuthType("none");
-    setAuthFields({});
-    if ((s.type === "hive" || s.type === "hive_s3") && s.mappingJson) {
-      try {
-        const { storage, ...creds } = JSON.parse(s.mappingJson) as Record<string, string>;
-        setAuthType(
-          storage === "s3"
-            ? "aws"
-            : storage === "adls"
-              ? "azure"
-              : storage === "gcs"
-                ? "gcs"
-                : "none",
-        );
-        setAuthFields(creds);
-      } catch {
-        setAuthType("none");
-        setAuthFields({});
-      }
-    }
-    // delta_lake/iceberg S3 creds and snowflake/databricks/bigquery warehouse extras all live in
-    // federation_hints (never mapping — see the submit-side comment above `federationHints`).
-    // A credential field comes back as it was entered (the value, or a reference someone typed)
-    // beside the other extras (warehouse/schema/role/http_path/credentials_path/access_key_id/
-    // endpoint), so the form shows again what each field holds.
-    // REQ-990: a CSV/Parquet file's object-store credentials come back into the form's fields for
-    // the store its path names.
-    if (CLOUD_FILE_TYPES.has(s.type) && objectStoreOf(s.path) && s.federationHintsJson) {
-      try {
-        const hints = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        setAuthFields(objectStoreFields(objectStoreOf(s.path)!, hints));
-      } catch {
-        setAuthFields({});
-      }
-    }
-    if (
-      (s.type === "delta_lake" ||
-        s.type === "iceberg" ||
-        s.type === "snowflake" ||
-        s.type === "databricks" ||
-        s.type === "bigquery" ||
-        s.type === "athena" ||
-        s.type === "exasol" ||
-        s.type === "sqlserver" ||
-        s.type === "fabric" ||
-        s.type === "synapse") &&
-      s.federationHintsJson
-    ) {
-      try {
-        const hints = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        if (s.type === "delta_lake" || s.type === "iceberg") {
-          setAuthType(hints.access_key_id ? "aws" : "none");
-        } else if (s.type === "bigquery") {
-          setAuthType(hints.credentials_path ? "service_account" : "application_default");
-        } else if (s.type === "athena") {
-          setAuthType("none"); // REQ-1981: its settings are its hints, shown again as saved
-        } else if (s.type === "databricks") {
-          setAuthType("token");
-        } else if (s.type === "exasol") {
-          setAuthType(hints.tls_fingerprint ? "tls_fingerprint" : "none");
-        } else if (s.type === "sqlserver") {
-          setAuthType(hints.trust_server_certificate ? "trust_server_certificate" : "none");
-        } else if (s.type === "fabric" || s.type === "synapse") {
-          setAuthType(hints.tenant_id ? "service_principal" : "none");
-        } else {
-          setAuthType("password");
-        }
-        // The credential these two kinds keep in the source's password field is shown again as
-        // that field holds it, like any other.
-        const held: Record<string, string> = !s.passwordRef
-          ? {}
-          : s.type === "snowflake"
-            ? { password: s.passwordRef }
-            : s.type === "databricks"
-              ? { access_token: s.passwordRef }
-              : {};
-        setAuthFields(
-          hints.credentials_path
-            ? { credentials_json: hints.credentials_path }
-            : { ...hints, ...held },
-        );
-      } catch {
-        setAuthType("none");
-        setAuthFields({});
-      }
-    }
-    // REQ-1731: auth_mechanism round-trips through federation_hints, same channel as the other
-    // types above — reopening a non-default (GSSAPI/LDAP) hiveserver2 source for editing must not
-    // silently reset it to PLAIN.
-    if (s.type === "hiveserver2" && s.federationHintsJson) {
-      try {
-        const hints = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        setAuthFields(hints.auth_mechanism ? { auth_mechanism: hints.auth_mechanism } : {});
-      } catch {
-        setAuthFields({});
-      }
-    }
-    if (s.type === "data_profiler" && s.mappingJson) {
-      // REQ-1934: the profiler's schedule and run default live in its mapping.
-      setAuthFields(profilerFieldsFromMapping(s.mappingJson));
-    }
-    if (s.type === "cloudops" && s.mappingJson) {
-      setAuthFields(cloudopsFieldsFromMapping(s.mappingJson)); // REQ-1947
-    }
-    if (s.type === GOOGLE_WORKSPACE && s.mappingJson) {
-      setAuthFields(gwFieldsFromMapping(s.mappingJson)); // REQ-1923
-    }
-    if (s.type === MICROSOFT_365 && s.mappingJson) {
-      setAuthFields(m365FieldsFromMapping(s.mappingJson)); // REQ-1923
-    }
-    if (s.type === COSMOSDB) {
-      setAuthFields(cosmosFieldsFromHints(s.federationHintsJson)); // REQ-1982
-    }
-    if (sourceBrand(s.federationHintsJson) === WIKIPEDIA && s.federationHintsJson) {
-      // REQ-1960: the directory is the source's own path, shown as where its files land.
-      setAuthFields({
-        ...wikipediaFieldsFromHints(s.federationHintsJson),
-        ...(s.path ? { wp_directory: s.path } : {}),
-      });
-    }
-    if (s.type === "salesforce" && s.mappingJson) {
-      setAuthFields(salesforceFieldsFromMapping(s.mappingJson)); // REQ-1946
-    }
-    if (s.type === "google_sheets" && s.mappingJson) {
-      const m = JSON.parse(s.mappingJson) as Record<string, string>;
-      setAuthFields({ credentials_json: m.credentials_json });
-    }
-    if (s.type === "sharepoint" && s.mappingJson) {
-      try {
-        const m = JSON.parse(s.mappingJson) as Record<string, string>;
-        setSpAuthType(m.auth_type ?? "CLIENT_CREDENTIALS");
-        setSpCertPath(m.certificate_path ?? "");
-        setSpCertPassword(m.certificate_password ?? "");
-        setSpUsername(m.sp_username ?? "");
-        setSpPassword(m.sp_password ?? "");
-      } catch {
-        setSpAuthType("CLIENT_CREDENTIALS");
-        setSpCertPath("");
-        setSpCertPassword("");
-        setSpUsername("");
-        setSpPassword("");
-      }
-    } else {
-      setSpAuthType("CLIENT_CREDENTIALS");
-      setSpCertPath("");
-      setSpCertPassword("");
-      setSpUsername("");
-      setSpPassword("");
-    }
-    if (s.type === "splunk" && s.mappingJson) {
-      try {
-        const m = JSON.parse(s.mappingJson) as Record<string, unknown>;
-        setSplunkDisableSsl(!!m.disable_ssl_validation);
-        setSplunkAuthMode(m.use_token === false ? "userpass" : "token");
-      } catch {
-        setSplunkDisableSsl(false);
-        setSplunkAuthMode("token");
-      }
-    } else {
-      setSplunkDisableSsl(false);
-      setSplunkAuthMode("token");
-    }
-    if (s.type === "websocket" && s.federationHintsJson) {
-      try {
-        const h = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        setWsUseSsl((h.use_ssl ?? "false").toLowerCase() === "true");
-        setWsSubscribePayload(h.subscribe_payload ?? "");
-        setWsEventPath(h.event_path ?? "");
-        setWsReconnectInterval(h.reconnect_interval ?? "");
-      } catch {
-        setWsUseSsl(false);
-        setWsSubscribePayload("");
-        setWsEventPath("");
-        setWsReconnectInterval("");
-      }
-    } else {
-      setWsUseSsl(false);
-      setWsSubscribePayload("");
-      setWsEventPath("");
-      setWsReconnectInterval("");
-    }
-    if (s.type === "rss" && s.federationHintsJson) {
-      try {
-        const h = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        setRssFeedUrl(h.feed_url ?? "");
-        setRssPollInterval(h.poll_interval ?? "");
-        setRssUseSsl((h.use_ssl ?? "true").toLowerCase() === "true");
-      } catch {
-        setRssFeedUrl("");
-        setRssPollInterval("");
-        setRssUseSsl(true);
-      }
-    } else {
-      setRssFeedUrl("");
-      setRssPollInterval("");
-      setRssUseSsl(true);
-    }
-    // REQ-1740: default_graph_uri round-trips through federation_hints like hiveserver2's
-    // auth_mechanism above — merged into authFields without disturbing authType, since it's
-    // orthogonal to which auth mode (none/bearer/basic) is selected.
-    if (s.type === "sparql" && s.federationHintsJson) {
-      try {
-        const h = JSON.parse(s.federationHintsJson) as Record<string, string>;
-        if (h.default_graph_uri) {
-          setAuthFields((prev) => ({ ...prev, default_graph_uri: h.default_graph_uri }));
-        }
-      } catch {
-        // ignore — default_graph_uri stays unset, same as a source with none saved
-      }
-    }
-    if (s.type === "govdata" && s.database) {
-      const storedSchemas = s.database
-        .split(",")
-        .map((x: string) => x.trim())
-        .filter(Boolean);
-      if (!govdataCatalog) {
-        setError(t("sourceFormFieldsExtended.govdataSubjectsUnavailable"));
-        return;
-      }
-      setGovdataSubjects(subjectsOfSchemas(govdataCatalog, storedSchemas));
-    } else {
-      setGovdataSubjects([]);
-    }
+    if (!seedFrom(s)) return;
     setEditingSourceId(s.id);
     setEditingSourceHintsJson(s.federationHintsJson ?? null);
     updateExpanded(s.id);
@@ -850,7 +541,7 @@ export function SourcesPage() {
     setFilesAuthMode("userpass");
     setFilesCertPath("");
     setFilesCertPassword("");
-    setCdc({ ...emptyCdc });
+    setCdc({ ...EMPTY_CDC });
     setAuthType("none");
     setAuthFields({});
     resetSpFields();
@@ -1472,7 +1163,8 @@ export function SourcesPage() {
     setAuthType,
     authFields,
     setAuthFields,
-    editingSourceId,
+    // A source read is a registered source, as one being edited is.
+    editingSourceId: editingSourceId ?? (showForm ? null : readSeeded),
     cdc,
     setCdc,
     domainsEnabled,
@@ -1557,6 +1249,14 @@ export function SourcesPage() {
     },
   };
 
+  const selectedSource = expanded ? (sources.find((x) => x.id === expanded) ?? null) : null;
+  // The selected source's settings, in the form's state: its read view is its edit form, read.
+  useEffect(() => {
+    if (!selectedSource || editingSourceId !== null || showForm) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the form's state is read from the selected source whenever it changes, as Edit reads it
+    if (seedFrom(selectedSource)) setReadSeeded(selectedSource.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seedFrom is a fresh closure each render; the source, edit and create states decide a reseed
+  }, [selectedSource, editingSourceId, showForm]);
   if (loading) return <PageLoading message={t("sourcesPage.loading")} />;
 
   // What a source's row offered beside it: now in the head of its panel, with its name.
@@ -1613,7 +1313,55 @@ export function SourcesPage() {
   // What the right-hand panel shows: a working surface opened from a source (it has a way back
   // to the source), the short step that creates one, or the selected source -- being edited, or
   // read.
-  const selectedSource = expanded ? (sources.find((x) => x.id === expanded) ?? null) : null;
+  // One form for a source: edited in the panel, or read there.
+  const sourceForm = (
+    <FormLayout
+      component="form"
+      id="sources-edit-form"
+      className="form-card"
+      onSubmit={
+        carrierOf(form.type) === "openapi"
+          ? handleOpenapiRegister
+          : form.type === "grpc"
+            ? handleGrpcRegister
+            : carrierOf(form.type) === "graphql"
+              ? handleGraphqlRegister
+              : handleCreate
+      }
+      style={{ margin: 0 }}
+    >
+      <FormIdentifiers>
+        <FormField size="medium">
+          <TextInput
+            label={t("sourcesPage.idLabel")}
+            required
+            value={form.id}
+            onChange={(e) => setForm({ ...form, id: e.target.value })}
+          />
+        </FormField>
+        <FormField size="long">
+          <Select
+            label={t("sourcesPage.typeLabel")}
+            value={form.type}
+            onChange={(v) => v && handleTypeChange(v)}
+            data={typeSelectData()}
+            allowDeselect={false}
+            searchable
+          />
+        </FormField>
+      </FormIdentifiers>
+      <SourceFormFields {...sourceFormFieldsProps} />
+      <FormFooter
+        panel
+        submit
+        form="sources-edit-form"
+        saving={submitting}
+        onCancel={handleCancelForm}
+        saveProps={{ "data-testid": "sources-edit-submit" }}
+        cancelProps={{ "data-testid": "sources-edit-cancel" }}
+      />
+    </FormLayout>
+  );
   const working =
     discoverSourceId && discoverSourceType ? (
       <PanelWorking
@@ -1759,57 +1507,25 @@ export function SourcesPage() {
           {/* While the form is open the panel's head is the form's: its Save and Cancel. */}
           {editingSourceId !== s.id && sourceActions(s)}
           {editingSourceId === s.id ? (
-            <FormLayout
-              component="form"
-              id="sources-edit-form"
-              className="form-card"
-              onSubmit={
-                carrierOf(form.type) === "openapi"
-                  ? handleOpenapiRegister
-                  : form.type === "grpc"
-                    ? handleGrpcRegister
-                    : carrierOf(form.type) === "graphql"
-                      ? handleGraphqlRegister
-                      : handleCreate
-              }
-              style={{ margin: 0 }}
-            >
-              <FormIdentifiers>
-                <FormField size="medium">
-                  <TextInput
-                    label={t("sourcesPage.idLabel")}
-                    required
-                    value={form.id}
-                    onChange={(e) => setForm({ ...form, id: e.target.value })}
-                  />
-                </FormField>
-                <FormField size="long">
-                  <Select
-                    label={t("sourcesPage.typeLabel")}
-                    value={form.type}
-                    onChange={(v) => v && handleTypeChange(v)}
-                    data={typeSelectData()}
-                    allowDeselect={false}
-                    searchable
-                  />
-                </FormField>
-              </FormIdentifiers>
-              <SourceFormFields {...sourceFormFieldsProps} />
-              <FormFooter
-                panel
-                submit
-                form="sources-edit-form"
-                saving={submitting}
-                onCancel={handleCancelForm}
-                saveProps={{ "data-testid": "sources-edit-submit" }}
-                cancelProps={{ "data-testid": "sources-edit-cancel" }}
-              />
-            </FormLayout>
+            sourceForm
           ) : (
             <SourceDetailPanel
               s={s}
-              domainsEnabled={domainsEnabled}
-              getEffectiveTtl={getEffectiveTtl}
+              fields={
+                readSeeded === s.id ? (
+                  <FormRead
+                    testId="source-read"
+                    derived={[
+                      {
+                        label: t("sourceDetailPanel.field.effectiveTtl"),
+                        value: getEffectiveTtl(s),
+                      },
+                    ]}
+                  >
+                    {sourceForm}
+                  </FormRead>
+                ) : null
+              }
               onEdit={() => handleEdit(s)}
               onNavigate={() => navigate(`/tables?source=${encodeURIComponent(s.id)}`)}
               onDelete={async () => {

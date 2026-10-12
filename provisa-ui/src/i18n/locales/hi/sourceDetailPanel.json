@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "विवरण",
-      "type": "प्रकार",
-      "host": "होस्ट",
-      "port": "पोर्ट",
-      "database": "डेटाबेस",
-      "endpoint": "एंडपॉइंट",
-      "path": "पथ",
-      "username": "उपयोगकर्ता नाम",
-      "naming": "नामकरण",
-      "cache": "कैश",
-      "cacheTtl": "कैश TTL",
-      "effectiveTtl": "प्रभावी TTL",
-      "allowedDomains": "अनुमत डोमेन",
-      "schedule": "शेड्यूल",
-      "sample": "नमूना",
-      "lowCardinality": "कम कार्डिनैलिटी सीमा"
+      "effectiveTtl": "प्रभावी TTL"
     },
-    "namingInherit": "इनहेरिट (ग्लोबल)",
-    "cacheEnabled": "सक्षम",
-    "cacheDisabled": "अक्षम",
-    "ttlInherit": "इनहेरिट",
-    "domainsUnrestricted": "अप्रतिबंधित",
     "editTitle": "संपादित करें",
     "navigateTitle": "पंजीकृत टेबलें देखें",
     "deleteTitle": "स्रोत \"{{id}}\" हटाएँ?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "{{owner}}/{{ref}} को Kaggle से दोबारा डाउनलोड करें, स्टेज की गई फ़ाइलों को उसी जगह ओवरराइट करते हुए। आपका Kaggle टोकन सहेजा नहीं जाता — इस रीफ़्रेश के लिए उसे फिर दर्ज करें।",
     "kaggleTokenLabel": "Kaggle API टोकन",
     "refreshKaggleSubmit": "रीफ़्रेश करें",
-    "sampleWhole": "पूरी टेबल",
-    "sampleAbove": "{{cells}} सेल से अधिक पर नमूना",
     "runProfilerTitle": "हर सदस्य टेबल के लिए अभी चलाएँ",
     "profilerNoMembers": "इस प्रोफ़ाइलर में कोई टेबल शामिल नहीं है।",
     "profilerRan": "{{table}}: प्रोफ़ाइल की गई",

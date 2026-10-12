@@ -16,6 +16,7 @@ import { ActionIcon, Badge, Collapse, Group, Text } from "@mantine/core";
 import { Tip } from "../../components/Tip";
 import { CircleHelp } from "lucide-react";
 import { FormLayout } from "../../components/form/FormLayout";
+import { useFormRead } from "../../components/form/formRead";
 
 export function CollapsibleSection({
   title,
@@ -41,6 +42,17 @@ export function CollapsibleSection({
 }) {
   const [toggled, setOpen] = useState(defaultOpen);
   const open = flat || toggled;
+  // In a form read the section is open, its title heading its fields.
+  if (useFormRead()) {
+    return (
+      <>
+        <div role="heading" aria-level={4} className="form-read__heading" data-testid={testId}>
+          {title}
+        </div>
+        {children}
+      </>
+    );
+  }
   return (
     <div className="form-section" data-tour={tourId} data-testid={testId}>
       <Group

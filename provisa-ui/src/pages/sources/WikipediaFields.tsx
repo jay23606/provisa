@@ -11,10 +11,10 @@
 // REQ-1960: a Wikipedia source -- the pages to start from, how far to follow the links in their
 // text, and every crawl setting, each with the brand's default shown until it is replaced.
 
-import { Accordion, Checkbox, NumberInput, TextInput, Textarea } from "@mantine/core";
+import { Checkbox, NumberInput, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { WIKIPEDIA_CRAWL_FIELDS, WIKIPEDIA_KNOWN_SEE_ALSO, wikipediaMissing } from "./wikipedia";
-import { FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
+import { FormChecks, FormField, FormFold, FormFolds } from "../../components/form/FormLayout";
 
 interface Props {
   fields: Record<string, string>;
@@ -118,42 +118,37 @@ export function WikipediaFields({ fields, setFields }: Props) {
       </FormField>
       {/* The crawl's own settings all have defaults: folded away until they are wanted. */}
       <FormField size="full">
-        <Accordion variant="separated" data-testid="wikipedia-crawl-settings">
-          <Accordion.Item value="crawl">
-            <Accordion.Control>{t("sourceFormFieldsExtended.wpCrawlSettings")}</Accordion.Control>
-            <Accordion.Panel>
-              <FormLayout>
-                {WIKIPEDIA_CRAWL_FIELDS.map((f) => {
-                  const key = `wpc_${f.key}`;
-                  const label = t(`sourceFormFieldsExtended.wpCrawl.${f.key}`);
-                  const description = t(`sourceFormFieldsExtended.wpCrawlHelp.${f.key}`);
-                  if (f.kind === "list") {
-                    return (
-                      <FormField help={description} size="full" key={key}>
-                        <Textarea
-                          label={label}
-                          placeholder={f.placeholder}
-                          autosize
-                          minRows={2}
-                          {...text(key)}
-                        />
-                      </FormField>
-                    );
-                  }
-                  return f.kind === "number" ? (
-                    <FormField help={description} size="short" key={key}>
-                      <NumberInput label={label} placeholder={f.placeholder} {...number(key)} />
-                    </FormField>
-                  ) : (
-                    <FormField help={description} size="medium" key={key}>
-                      <TextInput label={label} placeholder={f.placeholder} {...text(key)} />
-                    </FormField>
-                  );
-                })}
-              </FormLayout>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
+        <FormFolds data-testid="wikipedia-crawl-settings">
+          <FormFold value="crawl" title={t("sourceFormFieldsExtended.wpCrawlSettings")}>
+            {WIKIPEDIA_CRAWL_FIELDS.map((f) => {
+              const key = `wpc_${f.key}`;
+              const label = t(`sourceFormFieldsExtended.wpCrawl.${f.key}`);
+              const description = t(`sourceFormFieldsExtended.wpCrawlHelp.${f.key}`);
+              if (f.kind === "list") {
+                return (
+                  <FormField help={description} size="full" key={key}>
+                    <Textarea
+                      label={label}
+                      placeholder={f.placeholder}
+                      autosize
+                      minRows={2}
+                      {...text(key)}
+                    />
+                  </FormField>
+                );
+              }
+              return f.kind === "number" ? (
+                <FormField help={description} size="short" key={key}>
+                  <NumberInput label={label} placeholder={f.placeholder} {...number(key)} />
+                </FormField>
+              ) : (
+                <FormField help={description} size="medium" key={key}>
+                  <TextInput label={label} placeholder={f.placeholder} {...text(key)} />
+                </FormField>
+              );
+            })}
+          </FormFold>
+        </FormFolds>
       </FormField>
     </>
   );

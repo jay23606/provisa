@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Описание",
-      "type": "Тип",
-      "host": "Хост",
-      "port": "Порт",
-      "database": "База данных",
-      "endpoint": "Конечная точка",
-      "path": "Путь",
-      "username": "Имя пользователя",
-      "naming": "Именование",
-      "cache": "Кеш",
-      "cacheTtl": "TTL кеша",
-      "effectiveTtl": "Действующий TTL",
-      "allowedDomains": "Разрешённые домены",
-      "schedule": "Расписание",
-      "sample": "Выборка",
-      "lowCardinality": "Порог низкой кардинальности"
+      "effectiveTtl": "Действующий TTL"
     },
-    "namingInherit": "наследовать (глобально)",
-    "cacheEnabled": "включён",
-    "cacheDisabled": "отключён",
-    "ttlInherit": "наследовать",
-    "domainsUnrestricted": "без ограничений",
     "editTitle": "Изменить",
     "navigateTitle": "Просмотреть зарегистрированные таблицы",
     "deleteTitle": "Удалить источник «{{id}}»?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "Повторно загрузить {{owner}}/{{ref}} из Kaggle, перезаписав подготовленные файлы на месте. Ваш токен Kaggle не сохраняется — введите его снова для этого обновления.",
     "kaggleTokenLabel": "Токен API Kaggle",
     "refreshKaggleSubmit": "Обновить",
-    "sampleWhole": "Вся таблица",
-    "sampleAbove": "Выборка свыше {{cells}} ячеек",
     "runProfilerTitle": "Запустить сейчас для всех таблиц-участников",
     "profilerNoMembers": "Ни одна таблица не входит в этот профилировщик.",
     "profilerRan": "{{table}}: профилирована",

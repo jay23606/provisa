@@ -448,7 +448,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {authType === "oauth" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 label={t("sourceFormFields.token")}
                 required
                 value={authFields.token ?? ""}
@@ -555,7 +555,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           </FormField>
           {authType === "token" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 label={t("sourceFormFields.accessToken")}
                 required
                 value={authFields.access_token ?? ""}
@@ -851,7 +851,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {authType === "api_key" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 label={t("sourceFormFields.apiKeyBase64")}
                 required
                 value={authFields.api_key ?? ""}
@@ -862,7 +862,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
           )}
           {authType === "bearer" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 label={t("sourceFormFields.token")}
                 required
                 value={authFields.token ?? ""}
@@ -1033,7 +1033,7 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
                 />
               </FormField>
               <FormField size="long">
-                <TextInput
+                <PasswordInput
                   label={t("sourceFormFields.sasToken")}
                   value={authFields.sas_token ?? ""}
                   onChange={(e) =>

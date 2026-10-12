@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "תיאור",
-      "type": "סוג",
-      "host": "מארח",
-      "port": "פורט",
-      "database": "מסד נתונים",
-      "endpoint": "נקודת קצה",
-      "path": "נתיב",
-      "username": "שם משתמש",
-      "naming": "מתן שמות",
-      "cache": "מטמון",
-      "cacheTtl": "TTL מטמון",
-      "effectiveTtl": "TTL בפועל",
-      "allowedDomains": "תחומים מורשים",
-      "schedule": "תזמון",
-      "sample": "מדגם",
-      "lowCardinality": "סף קרדינליות נמוכה"
+      "effectiveTtl": "TTL בפועל"
     },
-    "namingInherit": "ירושה (גלובלי)",
-    "cacheEnabled": "מופעל",
-    "cacheDisabled": "מושבת",
-    "ttlInherit": "ירושה",
-    "domainsUnrestricted": "ללא הגבלה",
     "editTitle": "עריכה",
     "navigateTitle": "הצגת טבלאות רשומות",
     "deleteTitle": "למחוק את המקור \"{{id}}\"?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "הורדה מחדש של {{owner}}/{{ref}} מ-Kaggle, תוך דריסת הקבצים שהוכנו במקומם. אסימון Kaggle שלכם אינו נשמר — הזינו אותו שוב עבור רענון זה.",
     "kaggleTokenLabel": "אסימון API של Kaggle",
     "refreshKaggleSubmit": "רענון",
-    "sampleWhole": "הטבלה כולה",
-    "sampleAbove": "מדגם מעל {{cells}} תאים",
     "runProfilerTitle": "הרצה עכשיו לכל טבלה חברה",
     "profilerNoMembers": "אף טבלה לא הצטרפה לפרופיילר זה.",
     "profilerRan": "{{table}}: נוצר פרופיל",

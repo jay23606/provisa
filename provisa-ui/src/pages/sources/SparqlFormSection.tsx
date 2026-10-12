@@ -12,7 +12,7 @@
 // Extracted out of SourceFormFieldsExtended.tsx to keep that file under the eslint max-lines gate
 // (same pattern as PushFeedFormSection.tsx).
 
-import { Select, TextInput } from "@mantine/core";
+import { PasswordInput, Select, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { AuthUserPass } from "./AuthUserPass";
 import type { SourceFormState } from "./SourceFormFields";
@@ -76,7 +76,7 @@ export function SparqlFormSection({
       </FormField>
       {authType === "bearer" && (
         <FormField size="long">
-          <TextInput
+          <PasswordInput
             required
             label={t("sourceFormFieldsExtended.token")}
             value={authFields.token ?? ""}

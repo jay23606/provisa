@@ -11,14 +11,12 @@
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { useTranslation } from "react-i18next";
 import {
-  Accordion,
   Button,
   Checkbox,
   Group,
   NumberInput,
   PasswordInput,
   Select,
-  Stack,
   Text,
   TextInput,
 } from "@mantine/core";
@@ -52,7 +50,13 @@ import { SourceLoadManagementPanel } from "./SourceLoadManagementPanel";
 import { RegionSelect } from "../../components/admin/RegionSelect";
 import type { SourceFormFieldsProps } from "./SourceFormFields";
 import { useCacheTtlRequired } from "./sourceKind";
-import { FieldGroup, FormChecks, FormField, FormLayout } from "../../components/form/FormLayout";
+import {
+  FieldGroup,
+  FormChecks,
+  FormField,
+  FormFold,
+  FormFolds,
+} from "../../components/form/FormLayout";
 
 export function SourceFormFieldsExtended({
   form,
@@ -184,7 +188,7 @@ export function SourceFormFieldsExtended({
           )}
           {authType === "bearer" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
                 value={authFields.token ?? ""}
@@ -320,7 +324,7 @@ export function SourceFormFieldsExtended({
           </FormField>
           {authType === "bearer" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
                 value={authFields.token ?? ""}
@@ -418,7 +422,7 @@ export function SourceFormFieldsExtended({
           </FormField>
           {authType === "bearer" && (
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 required
                 label={t("sourceFormFieldsExtended.token")}
                 value={authFields.token ?? ""}
@@ -444,7 +448,7 @@ export function SourceFormFieldsExtended({
                 />
               </FormField>
               <FormField size="long">
-                <TextInput
+                <PasswordInput
                   required
                   label={t("sourceFormFieldsExtended.apiKey")}
                   value={authFields.api_key ?? ""}
@@ -558,7 +562,7 @@ export function SourceFormFieldsExtended({
           </FormField>
           <FieldGroup>
             <FormField size="long">
-              <TextInput
+              <PasswordInput
                 label={t("sourceFormFieldsExtended.askAmericaApiKey")}
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -897,63 +901,51 @@ export function SourceFormFieldsExtended({
           )}
           {cdcTransportApplicable(form.type) && (
             <FormField size="full">
-              <Accordion variant="separated" data-testid="cdc-transport-accordion">
-                <Accordion.Item value="cdc">
-                  <Accordion.Control>
-                    {t("sourceFormFieldsExtended.cdcTransportHeading")}
-                  </Accordion.Control>
-                  <Accordion.Panel>
-                    <Stack gap="sm">
-                      <Text size="sm" c="dimmed">
-                        {t("sourceFormFieldsExtended.cdcTransportDescription")}
-                      </Text>
-                      <FormLayout>
-                        <FormField size="long">
-                          <TextInput
-                            label={t("sourceFormFieldsExtended.bootstrapServers")}
-                            value={cdc.bootstrapServers}
-                            onChange={(e) => setCdc({ ...cdc, bootstrapServers: e.target.value })}
-                            placeholder="broker1:9092,broker2:9092"
-                            data-testid="cdc-bootstrap-servers-input"
-                          />
-                        </FormField>
-                        <FormField size="medium">
-                          <TextInput
-                            label={t("sourceFormFieldsExtended.topicPrefix")}
-                            value={cdc.topicPrefix}
-                            onChange={(e) => setCdc({ ...cdc, topicPrefix: e.target.value })}
-                            placeholder={t("sourceFormFieldsExtended.topicPrefixPlaceholder")}
-                            data-testid="cdc-topic-prefix-input"
-                          />
-                        </FormField>
-                        <FormField size="long">
-                          <TextInput
-                            label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
-                            value={cdc.schemaRegistryUrl}
-                            onChange={(e) => setCdc({ ...cdc, schemaRegistryUrl: e.target.value })}
-                            placeholder={t(
-                              "sourceFormFieldsExtended.schemaRegistryUrlCdcPlaceholder",
-                            )}
-                            data-testid="cdc-schema-registry-input"
-                          />
-                        </FormField>
-                        {cdc.schemaRegistryUrl && (
-                          <SchemaRegistryAuthFields cdc={cdc} setCdc={setCdc} />
-                        )}
-                        <FormField size="medium">
-                          <TextInput
-                            label={t("sourceFormFieldsExtended.consumerGroupId")}
-                            value={cdc.consumerGroupId}
-                            onChange={(e) => setCdc({ ...cdc, consumerGroupId: e.target.value })}
-                            placeholder={t("sourceFormFieldsExtended.consumerGroupIdPlaceholder")}
-                            data-testid="cdc-consumer-group-input"
-                          />
-                        </FormField>
-                      </FormLayout>
-                    </Stack>
-                  </Accordion.Panel>
-                </Accordion.Item>
-              </Accordion>
+              <FormFolds data-testid="cdc-transport-accordion">
+                <FormFold
+                  value="cdc"
+                  title={t("sourceFormFieldsExtended.cdcTransportHeading")}
+                  note={t("sourceFormFieldsExtended.cdcTransportDescription")}
+                >
+                  <FormField size="long">
+                    <TextInput
+                      label={t("sourceFormFieldsExtended.bootstrapServers")}
+                      value={cdc.bootstrapServers}
+                      onChange={(e) => setCdc({ ...cdc, bootstrapServers: e.target.value })}
+                      placeholder="broker1:9092,broker2:9092"
+                      data-testid="cdc-bootstrap-servers-input"
+                    />
+                  </FormField>
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("sourceFormFieldsExtended.topicPrefix")}
+                      value={cdc.topicPrefix}
+                      onChange={(e) => setCdc({ ...cdc, topicPrefix: e.target.value })}
+                      placeholder={t("sourceFormFieldsExtended.topicPrefixPlaceholder")}
+                      data-testid="cdc-topic-prefix-input"
+                    />
+                  </FormField>
+                  <FormField size="long">
+                    <TextInput
+                      label={t("sourceFormFieldsExtended.schemaRegistryUrl")}
+                      value={cdc.schemaRegistryUrl}
+                      onChange={(e) => setCdc({ ...cdc, schemaRegistryUrl: e.target.value })}
+                      placeholder={t("sourceFormFieldsExtended.schemaRegistryUrlCdcPlaceholder")}
+                      data-testid="cdc-schema-registry-input"
+                    />
+                  </FormField>
+                  {cdc.schemaRegistryUrl && <SchemaRegistryAuthFields cdc={cdc} setCdc={setCdc} />}
+                  <FormField size="medium">
+                    <TextInput
+                      label={t("sourceFormFieldsExtended.consumerGroupId")}
+                      value={cdc.consumerGroupId}
+                      onChange={(e) => setCdc({ ...cdc, consumerGroupId: e.target.value })}
+                      placeholder={t("sourceFormFieldsExtended.consumerGroupIdPlaceholder")}
+                      data-testid="cdc-consumer-group-input"
+                    />
+                  </FormField>
+                </FormFold>
+              </FormFolds>
             </FormField>
           )}
         </>

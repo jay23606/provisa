@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "説明",
-      "type": "種類",
-      "host": "ホスト",
-      "port": "ポート",
-      "database": "データベース",
-      "endpoint": "エンドポイント",
-      "path": "パス",
-      "username": "ユーザー名",
-      "naming": "命名",
-      "cache": "キャッシュ",
-      "cacheTtl": "キャッシュ TTL",
-      "effectiveTtl": "有効 TTL",
-      "allowedDomains": "許可ドメイン",
-      "schedule": "スケジュール",
-      "sample": "サンプル",
-      "lowCardinality": "低カーディナリティのしきい値"
+      "effectiveTtl": "有効 TTL"
     },
-    "namingInherit": "継承(グローバル)",
-    "cacheEnabled": "有効",
-    "cacheDisabled": "無効",
-    "ttlInherit": "継承",
-    "domainsUnrestricted": "制限なし",
     "editTitle": "編集",
     "navigateTitle": "登録済みテーブルを表示",
     "deleteTitle": "ソース「{{id}}」を削除しますか?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "{{owner}}/{{ref}} を Kaggle から再ダウンロードし、ステージング済みのファイルをその場で上書きします。Kaggle トークンは保存されないため、この更新のために再度入力してください。",
     "kaggleTokenLabel": "Kaggle API トークン",
     "refreshKaggleSubmit": "更新",
-    "sampleWhole": "テーブル全体",
-    "sampleAbove": "{{cells}} セルを超えるとサンプル",
     "runProfilerTitle": "すべてのメンバーテーブルで今すぐ実行",
     "profilerNoMembers": "このプロファイラーに参加しているテーブルはありません。",
     "profilerRan": "{{table}}: プロファイル済み",

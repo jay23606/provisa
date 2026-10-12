@@ -26,8 +26,7 @@ function panel(type: string) {
   return render(
     <SourceDetailPanel
       s={s}
-      domainsEnabled={false}
-      getEffectiveTtl={() => ""}
+      fields={null}
       onEdit={vi.fn()}
       onNavigate={vi.fn()}
       onDelete={vi.fn()}

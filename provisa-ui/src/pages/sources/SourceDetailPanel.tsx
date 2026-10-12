@@ -9,27 +9,21 @@
 // permission from the copyright holder.
 
 import { PanelActions } from "../../components/list/SplitPane";
-import React, { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Alert, Button, Group, Modal, PasswordInput, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2, ArrowRight, RefreshCw, Play } from "lucide-react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import type { Source } from "../../types/admin";
-import { SOURCE_TYPES } from "./constants";
-import { uiType } from "./sourceHelpers";
 import { useRefreshKaggleSource } from "../../hooks/useAdminQueries";
 import { runProfiler, type SourceRunOutcome } from "../../api/profiler";
-import { profilerFieldsFromMapping } from "./profilerMapping";
 import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 import { Tip } from "../../components/Tip";
 
-const API_TYPES = new Set(["graphql_remote", "grpc_remote", "openapi"]);
-const PATH_TYPES = new Set(["sqlite", "csv", "parquet", "files"]);
-
 interface SourceDetailPanelProps {
   s: Source;
-  domainsEnabled: boolean;
-  getEffectiveTtl: (source: Source) => string;
+  /** The source's settings read: its edit form drawn read-only; null until they are read. */
+  fields: ReactNode;
   onEdit: () => void;
   onNavigate: () => void;
   onDelete: () => void;
@@ -37,8 +31,7 @@ interface SourceDetailPanelProps {
 
 export function SourceDetailPanel({
   s,
-  domainsEnabled,
-  getEffectiveTtl,
+  fields,
   onEdit,
   onNavigate,
   onDelete,
@@ -66,11 +59,6 @@ export function SourceDetailPanel({
       setProfiling(false);
     }
   };
-  const profilerFields =
-    isProfiler && s.mappingJson ? profilerFieldsFromMapping(s.mappingJson) : null;
-
-  const isApiType = API_TYPES.has(s.type);
-  const isPathType = PATH_TYPES.has(s.type);
   // REQ-1780/1781/1782/1783: kaggle_owner/kaggle_ref are stashed in federation_hints at creation
   // (KaggleFormSection.tsx) -- no other Source field records a Kaggle origin, so this is the only
   // way to know a "Refresh from Kaggle" action applies to this row.
@@ -97,69 +85,9 @@ export function SourceDetailPanel({
     }
   };
 
-  const rows: [string, string | number][] = [
-    ["description", s.description || "—"],
-    ["type", SOURCE_TYPES.find((ty) => ty.value === uiType(s.type))?.label ?? s.type],
-    ...(profilerFields
-      ? ([
-          ["schedule", profilerFields.cron],
-          [
-            "sample",
-            profilerFields.sample_above_cells === ""
-              ? t("sourceDetailPanel.sampleWhole")
-              : t("sourceDetailPanel.sampleAbove", { cells: profilerFields.sample_above_cells }),
-          ],
-          ["lowCardinality", profilerFields.low_cardinality_max],
-        ] as [string, string | number][])
-      : isApiType
-        ? ([["endpoint", s.path || "—"]] as [string, string | number][])
-        : isPathType
-          ? ([["path", s.path || "—"]] as [string, string | number][])
-          : ([
-              ["host", s.host || "—"],
-              ["port", s.port || "—"],
-              ["database", s.database || "—"],
-              ["username", s.username || "—"],
-            ] as [string, string | number][])),
-    ["naming", s.gqlNamingConvention || t("sourceDetailPanel.namingInherit")],
-    [
-      "cache",
-      s.cacheEnabled ? t("sourceDetailPanel.cacheEnabled") : t("sourceDetailPanel.cacheDisabled"),
-    ],
-    ["cacheTtl", s.cacheTtl != null ? `${s.cacheTtl}s` : t("sourceDetailPanel.ttlInherit")],
-    ["effectiveTtl", getEffectiveTtl(s)],
-    [
-      "allowedDomains",
-      (s.allowedDomains ?? []).length
-        ? (s.allowedDomains ?? []).join(", ")
-        : t("sourceDetailPanel.domainsUnrestricted"),
-    ],
-  ];
-
   return (
     <Stack gap="sm">
-      <dl
-        style={{
-          display: "grid",
-          gridTemplateColumns: "max-content 1fr",
-          gap: "0.25rem 1rem",
-          margin: 0,
-          color: "var(--text)",
-        }}
-      >
-        {rows
-          .filter(([k]) => domainsEnabled || k !== "allowedDomains")
-          .map(([k, v]) => (
-            <React.Fragment key={k}>
-              <Text component="dt" c="dimmed" fw={500} size="sm">
-                {t(`sourceDetailPanel.field.${k}`)}
-              </Text>
-              <Text component="dd" m={0} size="sm">
-                {v}
-              </Text>
-            </React.Fragment>
-          ))}
-      </dl>
+      {fields}
       {/* In a panel these sit in its pinned head, beside the source's name. */}
       <PanelActions>
         <Group gap="xs" wrap="nowrap">

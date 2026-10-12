@@ -385,6 +385,12 @@ describe("the form rules hold where an explanation sits and where ticks sit", ()
     expect(rules(`<><FormField size="medium"><TextInput label="Host" /></FormField></>`)).toEqual(
       [],
     );
+    // A fold lays its fields out with the shared layout.
+    expect(
+      rules(
+        `<FormLayout><FormField size="full"><FormFolds><FormFold value="a" title="A"><FormField size="short"><NumberInput label="N" /></FormField></FormFold></FormFolds></FormField></FormLayout>`,
+      ),
+    ).toEqual([]);
   });
 
   it("a native select in a form that does not take the shared look", () => {

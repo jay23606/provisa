@@ -8,11 +8,11 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { Accordion, NumberInput, Select, TextInput } from "@mantine/core";
+import { NumberInput, Select, TextInput } from "@mantine/core";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { DRIFT_SEASONS, PROFILER_DEFAULTS } from "./profilerMapping";
-import { FormField, FormLayout } from "../../components/form/FormLayout";
+import { FormField, FormFold, FormFolds } from "../../components/form/FormLayout";
 
 // A run default edited as a number: its mapping key, its i18n stem, whether it is whole, its minimum.
 type NumberField = { key: string; stem: string; whole: boolean; min: number };
@@ -66,77 +66,59 @@ export function ProfilerFormSection({
   );
   return (
     <FormField size="full">
-      <Accordion
-        multiple
-        defaultValue={["schedule"]}
-        variant="separated"
-        data-testid="profiler-form-groups"
-      >
-        <Accordion.Item value="schedule">
-          <Accordion.Control>{t("profilerFormSection.groupSchedule")}</Accordion.Control>
-          <Accordion.Panel>
-            <FormLayout>
-              <FormField hint={t("profilerFormSection.cronDescription")} size="medium">
-                <TextInput
-                  label={t("profilerFormSection.cronLabel")}
-                  placeholder="0 3 * * *"
-                  required
-                  value={authFields.cron ?? ""}
-                  onChange={(e) => setAuthFields({ ...authFields, cron: e.currentTarget.value })}
-                  data-testid="profiler-cron-input"
-                />
-              </FormField>
-              <FormField help={t("profilerFormSection.sampleDescription")} size="medium">
-                <NumberInput
-                  label={t("profilerFormSection.sampleLabel")}
-                  placeholder={t("profilerFormSection.samplePlaceholder")}
-                  min={1}
-                  allowDecimal={false}
-                  value={authFields.sample_above_cells ?? ""}
-                  onChange={(v) =>
-                    setAuthFields({ ...authFields, sample_above_cells: v === "" ? "" : String(v) })
-                  }
-                  data-testid="profiler-sample-input"
-                />
-              </FormField>
-              {numberInput({
-                key: "low_cardinality_max",
-                stem: "lowCardinality",
-                whole: true,
-                min: 1,
-              })}
-            </FormLayout>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="drift">
-          <Accordion.Control>{t("profilerFormSection.groupDrift")}</Accordion.Control>
-          <Accordion.Panel>
-            <FormLayout>
-              <FormField help={t("profilerFormSection.driftSeasonDescription")} size="medium">
-                <Select
-                  label={t("profilerFormSection.driftSeasonLabel")}
-                  required
-                  allowDeselect={false}
-                  data={DRIFT_SEASONS.map((s) => ({
-                    value: s,
-                    label: t(`profilerFormSection.driftSeason_${s}`),
-                  }))}
-                  value={authFields.drift_season ?? null}
-                  onChange={(v) => v != null && setAuthFields({ ...authFields, drift_season: v })}
-                  data-testid="profiler-drift_season-input"
-                />
-              </FormField>
-              {DRIFT_FIELDS.map(numberInput)}
-            </FormLayout>
-          </Accordion.Panel>
-        </Accordion.Item>
-        <Accordion.Item value="dependence">
-          <Accordion.Control>{t("profilerFormSection.groupDependence")}</Accordion.Control>
-          <Accordion.Panel>
-            <FormLayout>{DEPENDENCE_FIELDS.map(numberInput)}</FormLayout>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+      <FormFolds defaultOpen={["schedule"]} data-testid="profiler-form-groups">
+        <FormFold value="schedule" title={t("profilerFormSection.groupSchedule")}>
+          <FormField hint={t("profilerFormSection.cronDescription")} size="medium">
+            <TextInput
+              label={t("profilerFormSection.cronLabel")}
+              placeholder="0 3 * * *"
+              required
+              value={authFields.cron ?? ""}
+              onChange={(e) => setAuthFields({ ...authFields, cron: e.currentTarget.value })}
+              data-testid="profiler-cron-input"
+            />
+          </FormField>
+          <FormField help={t("profilerFormSection.sampleDescription")} size="medium">
+            <NumberInput
+              label={t("profilerFormSection.sampleLabel")}
+              placeholder={t("profilerFormSection.samplePlaceholder")}
+              min={1}
+              allowDecimal={false}
+              value={authFields.sample_above_cells ?? ""}
+              onChange={(v) =>
+                setAuthFields({ ...authFields, sample_above_cells: v === "" ? "" : String(v) })
+              }
+              data-testid="profiler-sample-input"
+            />
+          </FormField>
+          {numberInput({
+            key: "low_cardinality_max",
+            stem: "lowCardinality",
+            whole: true,
+            min: 1,
+          })}
+        </FormFold>
+        <FormFold value="drift" title={t("profilerFormSection.groupDrift")}>
+          <FormField help={t("profilerFormSection.driftSeasonDescription")} size="medium">
+            <Select
+              label={t("profilerFormSection.driftSeasonLabel")}
+              required
+              allowDeselect={false}
+              data={DRIFT_SEASONS.map((s) => ({
+                value: s,
+                label: t(`profilerFormSection.driftSeason_${s}`),
+              }))}
+              value={authFields.drift_season ?? null}
+              onChange={(v) => v != null && setAuthFields({ ...authFields, drift_season: v })}
+              data-testid="profiler-drift_season-input"
+            />
+          </FormField>
+          {DRIFT_FIELDS.map(numberInput)}
+        </FormFold>
+        <FormFold value="dependence" title={t("profilerFormSection.groupDependence")}>
+          {DEPENDENCE_FIELDS.map(numberInput)}
+        </FormFold>
+      </FormFolds>
     </FormField>
   );
 }

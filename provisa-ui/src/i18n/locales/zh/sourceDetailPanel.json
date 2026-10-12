@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "描述",
-      "type": "类型",
-      "host": "主机",
-      "port": "端口",
-      "database": "数据库",
-      "endpoint": "终结点",
-      "path": "路径",
-      "username": "用户名",
-      "naming": "命名",
-      "cache": "缓存",
-      "cacheTtl": "缓存 TTL",
-      "effectiveTtl": "生效 TTL",
-      "allowedDomains": "允许的域",
-      "schedule": "计划",
-      "sample": "抽样",
-      "lowCardinality": "低基数阈值"
+      "effectiveTtl": "生效 TTL"
     },
-    "namingInherit": "继承（全局）",
-    "cacheEnabled": "已启用",
-    "cacheDisabled": "已禁用",
-    "ttlInherit": "继承",
-    "domainsUnrestricted": "无限制",
     "editTitle": "编辑",
     "navigateTitle": "查看已注册的表",
     "deleteTitle": "删除数据源“{{id}}”？",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "从 Kaggle 重新下载 {{owner}}/{{ref}}，就地覆盖已暂存的文件。您的 Kaggle 令牌不会被存储——本次刷新请重新输入。",
     "kaggleTokenLabel": "Kaggle API 令牌",
     "refreshKaggleSubmit": "刷新",
-    "sampleWhole": "整张表",
-    "sampleAbove": "超过 {{cells}} 个单元格时抽样",
     "runProfilerTitle": "立即为每个成员表运行",
     "profilerNoMembers": "没有表加入此画像器。",
     "profilerRan": "{{table}}：已画像",

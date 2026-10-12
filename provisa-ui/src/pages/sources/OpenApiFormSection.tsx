@@ -14,6 +14,7 @@ import {
   Button,
   Group,
   NumberInput,
+  PasswordInput,
   Radio,
   Select,
   Text,
@@ -162,7 +163,7 @@ export function OpenApiFormSection({
       </FormField>
       {authType === "bearer" && (
         <FormField size="long">
-          <TextInput
+          <PasswordInput
             required
             label={t("openApiFormSection.tokenLabel")}
             value={authFields.token ?? ""}
@@ -188,7 +189,7 @@ export function OpenApiFormSection({
             />
           </FormField>
           <FormField size="long">
-            <TextInput
+            <PasswordInput
               required
               label={t("openApiFormSection.apiKeyLabel")}
               value={authFields.api_key ?? ""}

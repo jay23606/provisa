@@ -1,28 +1,8 @@
 {
   "sourceDetailPanel": {
     "field": {
-      "description": "Descrizione",
-      "type": "Tipo",
-      "host": "Host",
-      "port": "Porta",
-      "database": "Database",
-      "endpoint": "Endpoint",
-      "path": "Percorso",
-      "username": "Nome utente",
-      "naming": "Denominazione",
-      "cache": "Cache",
-      "cacheTtl": "TTL cache",
-      "effectiveTtl": "TTL effettivo",
-      "allowedDomains": "Domini consentiti",
-      "schedule": "Pianificazione",
-      "sample": "Campione",
-      "lowCardinality": "Soglia di bassa cardinalità"
+      "effectiveTtl": "TTL effettivo"
     },
-    "namingInherit": "eredita (globale)",
-    "cacheEnabled": "abilitata",
-    "cacheDisabled": "disabilitata",
-    "ttlInherit": "eredita",
-    "domainsUnrestricted": "senza restrizioni",
     "editTitle": "Modifica",
     "navigateTitle": "Visualizza tabelle registrate",
     "deleteTitle": "Eliminare l'origine \"{{id}}\"?",
@@ -32,8 +12,6 @@
     "refreshKaggleHint": "Scarica di nuovo {{owner}}/{{ref}} da Kaggle, sovrascrivendo sul posto i file in staging. Il token Kaggle non viene memorizzato: inseriscilo di nuovo per questo aggiornamento.",
     "kaggleTokenLabel": "Token API Kaggle",
     "refreshKaggleSubmit": "Aggiorna",
-    "sampleWhole": "Intera tabella",
-    "sampleAbove": "Campione oltre {{cells}} celle",
     "runProfilerTitle": "Esegui ora per ogni tabella membro",
     "profilerNoMembers": "Nessuna tabella fa parte di questo profiler.",
     "profilerRan": "{{table}}: profilata",
