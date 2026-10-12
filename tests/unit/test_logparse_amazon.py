@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 1c7ca615-abec-44b7-9af4-becb9d7ac2be
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the Amazon log presets read the lines AWS's own documentation gives for each log

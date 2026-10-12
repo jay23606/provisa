@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: d7efb50e-5fb1-4b23-9ee3-1a8e03c5ad29
 #
 # This source code is licensed under the Business Source License 1.1
 """Amazon Web Services log presets (REQ-1996): Application, Network and Classic Load Balancer

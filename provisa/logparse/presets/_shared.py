@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: ee79e4c9-a3c5-41d2-a1fd-e17c083b82bd
 #
 # This source code is licensed under the Business Source License 1.1
 """Readers the preset families share (REQ-1996): a log of space-separated fields, some quoted or
