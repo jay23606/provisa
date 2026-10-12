@@ -84,7 +84,13 @@ def _fake_db(registered, sources=()):
 
 
 def _rcol(name, dt="bigint", pk=False):
-    return {"column_name": name, "data_type": dt, "is_primary_key": pk, "native_filter_type": None}
+    return {
+        "column_name": name,
+        "data_type": dt,
+        "is_primary_key": pk,
+        "native_filter_type": None,
+        "path": None,
+    }
 
 
 async def _noop_reconcile(**_kw):
@@ -139,6 +145,7 @@ def _state(*, ready=True):
             "table_name": "events",
             "columns": [_rcol("id", "bigint", pk=True)],
             "dq_contract": None,
+            "query_template": None,
             "role_ttl": {},  # REQ-1907
             "pagination": None,  # REQ-318: the table sets no paging
             "replicate": None,
@@ -304,6 +311,7 @@ async def test_registered_checker_table_carries_its_contract_to_the_loop(monkeyp
                 "table_name": "pets_scan",
                 "columns": [_rcol("scan_id", "varchar", pk=True)],
                 "dq_contract": contract,
+                "query_template": None,
                 "role_ttl": {},  # REQ-1907
                 "pagination": None,  # REQ-318: the table sets no paging
                 "replicate": None,
