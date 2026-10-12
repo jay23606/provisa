@@ -355,6 +355,8 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "role_id": "Role the statement executed under",
         "query_hash": "Hash of the statement text; the text itself is encrypted",
         "table_ids": "Registered tables the statement read",
+        "table_names": "Those tables by qualified name (source.schema.table) as they were when "
+        "the statement ran, in the same order",
         "source": "Protocol surface the statement arrived on (http, grpc, pgwire, bolt, …)",
         "status_code": "How the statement ended — 200 success, 403 denied by governance",
         "duration_ms": "Wall-clock milliseconds the statement took",

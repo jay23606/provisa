@@ -815,6 +815,7 @@ def when_the_query_is_executed(shared_data, audit_pool):
             role_id=shared_data["role_id"],
             query_text=shared_data["query_text"],
             table_ids=shared_data["table_ids"],
+            table_names=[f"src.public.{t}" for t in shared_data["table_ids"]],
             source=shared_data["source"],
             status_code=shared_data["status_code"],
             duration_ms=shared_data["duration_ms"],

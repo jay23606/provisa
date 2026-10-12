@@ -667,6 +667,8 @@ def test_account_deletion_leaves_orgs_and_tombstones_references(planes):  # REQ-
                 user_id="bob",
                 role_id="analyst",
                 query_hash="h",
+                table_ids=[],
+                table_names=[],
                 source="test",
                 status_code=200,
                 duration_ms=1,

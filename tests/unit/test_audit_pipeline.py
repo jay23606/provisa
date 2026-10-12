@@ -74,6 +74,12 @@ class _CapturingState:
         # REQ-826: no Hot-count store — these tests are about the audit row; counting has its
         # own (test_replica_hot.py, test_audit_writer.py).
         self.hot_counts = None
+        # The model's tables, which the row names its table ids by.
+        self.tables = [
+            {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"},
+            {"id": 9, "source_id": "sales-pg", "schema_name": "public", "table_name": "customers"},
+            {"id": 12, "source_id": "hr-pg", "schema_name": "hr", "table_name": "salaries"},
+        ]
 
 
 @pytest.fixture
@@ -263,6 +269,7 @@ def test_write_denial_records_a_403_with_the_refused_tables(captured):
     assert len(captured) == 1
     assert captured[0]["status_code"] == 403
     assert captured[0]["table_ids"] == [12]
+    assert captured[0]["table_names"] == ["hr-pg.hr.salaries"]
     assert captured[0]["user_id"] == "mallory"
 
 

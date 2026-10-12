@@ -57,6 +57,7 @@ async def _capture_insert(enc) -> dict:
         role_id="analyst",
         query_text=_QUERY,
         table_ids=["1"],
+        table_names=["src.public.1"],
         source="graphql",
         status_code=200,
         duration_ms=5,

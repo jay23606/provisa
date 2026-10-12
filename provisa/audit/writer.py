@@ -50,7 +50,7 @@ import logging
 import queue
 import threading
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -118,6 +118,10 @@ class AuditRecord:
     data_age: dict[str, Any] | None = field(kw_only=True)
     # REQ-1922: the region whose data answered the statement (query_audit_log.region).
     region: str = field(kw_only=True)
+    # The model's registered tables as they were when the statement ran: what ``table_ids`` are
+    # named by (query_audit_log.table_names), so a table renamed or deleted later still reads as
+    # what was accessed.
+    tables: "Sequence[dict]" = field(kw_only=True)
     # REQ-1454: the control-plane pool and org the statement is metered against; no pool = a
     # deployment without a control plane, which has nothing to meter.
     meter_pool: Any = None  # Any: the control-plane Database handle
@@ -134,7 +138,10 @@ class AuditRecord:
         ``model_commit``: the environment repository's commit the model at ``model_stamp`` equals,
         when that is proven (None otherwise). With a commit, the columns each role could see are
         recoverable from it; without one the row keeps the visible columns it was given."""
+        from provisa.audit.query_log import qualified_table_names
+
         enforced = self.enforced() if callable(self.enforced) else self.enforced
+        table_ids = list(self.table_ids() if callable(self.table_ids) else self.table_ids)
         if model_commit is not None and enforced is not None:
             enforced = {k: v for k, v in enforced.items() if k != "visible_columns"}
         return {
@@ -143,7 +150,8 @@ class AuditRecord:
             "role_id": self.role_id,
             "query_hash": hashlib.sha256(self.query_text.encode()).hexdigest(),
             "query_text_enc": self.encryption.encrypt(self.query_text.encode("utf-8")),
-            "table_ids": list(self.table_ids() if callable(self.table_ids) else self.table_ids),
+            "table_ids": table_ids,
+            "table_names": qualified_table_names(table_ids, self.tables),
             "source": self.source,
             "status_code": self.status_code,
             "duration_ms": self.duration_ms,

@@ -64,6 +64,9 @@ def _state():
         hot_counts=None,  # REQ-826: no Hot-count store; counting has its own tests
         federation_engine=SimpleNamespace(dialect="duckdb"),
         model_stamp=1,
+        tables=[
+            {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"}
+        ],
     )
 
 

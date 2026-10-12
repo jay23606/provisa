@@ -91,6 +91,11 @@ def audited(monkeypatch):
     harness.state.hot_counts = None  # REQ-826: no Hot-count store; counting has its own tests
     harness.state.org_id = "acme"
     harness.state.contexts = {"analyst": _CTX}
+    # The model's tables, which each row names its table ids by.
+    harness.state.tables = [
+        {"id": 7, "source_id": "sales-pg", "schema_name": "public", "table_name": "orders"},
+        {"id": 9, "source_id": "sales-pg", "schema_name": "public", "table_name": "customers"},
+    ]
 
     def call(*args, **kwargs):
         from provisa.core.request_context import reset_current_org, set_current_org
