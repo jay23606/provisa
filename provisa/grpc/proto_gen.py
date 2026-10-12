@@ -145,6 +145,23 @@ def _numbers_for(
     return numbers
 
 
+def parameter_name(column_name: str) -> str:  # REQ-1986
+    """A parameter column's name as its ``{Type}Params`` field: the column without ``_nf_``."""
+    return column_name[4:] if column_name.startswith("_nf_") else column_name
+
+
+def _parameter_proto_types(t) -> dict[str, str]:  # REQ-1986
+    """``{Type}Params`` field name → proto type, for each of the table's parameters, sorted."""
+    types: dict[str, str] = {}
+    for nfc in sorted(t.native_filter_columns, key=lambda c: c["column_name"]):
+        meta = t.column_metadata.get(nfc["column_name"].lower())
+        # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded.
+        proto_type = _physical_to_proto(meta.data_type) if meta is not None else "string"
+        filter_proto = "string" if proto_type == "google.protobuf.Timestamp" else proto_type
+        types[parameter_name(nfc["column_name"])] = filter_proto
+    return types
+
+
 def _emit_aggregate_messages(
     lines: list[str],
     t,
@@ -417,6 +434,19 @@ def generate_proto(
         lines.append("}")
         lines.append("")
 
+        # REQ-1986, REQ-1991: the table's parameters, a message of their own beside the filter: a
+        # filter field is an equality on a data column, a parameter is a value the source takes.
+        param_types = _parameter_proto_types(t)
+        if param_types:
+            param_numbers = _numbers_for(
+                field_numbers, t.table_id, "params", list(param_types), authoritative
+            )
+            lines.append(f"message {t.type_name}Params {{")
+            for name, proto_type in param_types.items():
+                lines.append(f"  optional {proto_type} {name} = {param_numbers[name]};")
+            lines.append("}")
+            lines.append("")
+
         lines.append(f"message {t.type_name}Request {{")
         lines.append(f"  {t.type_name}Filter filter = 1;")
         lines.append("  int32 limit = 2;")
@@ -430,6 +460,8 @@ def generate_proto(
         # about and how wide its rows are, so it opts into a larger batch only when it knows
         # that's safe (e.g. a narrow table it already knows the row size for).
         lines.append("  int32 batch_rows = 5;")
+        if param_types:
+            lines.append(f"  {t.type_name}Params params = 6;")
         lines.append("}")
         lines.append("")
 

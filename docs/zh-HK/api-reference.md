@@ -1192,6 +1192,8 @@ service ProvisaService {
 
 角色結構描述根部的每張資料表會產生一個 `Query{TypeName}` 串流 RPC。這些就是該角色的 GraphQL `Query` 類型所列出的資料表。角色只能透過關聯到達的資料表沒有自己的 RPC，正如它在 GraphQL 中沒有根欄位。`Insert{TypeName}` RPC 是為結構描述對稱性而存在，會以 `UNIMPLEMENTED` 中止。 [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
+**參數。** 帶參數的資料表（基於 API 登記的資料表或查詢表）有一個 `{TypeName}Params` 訊息，每個參數一個可選欄位，名稱去掉 `_nf_` 前綴，`Query{TypeName}Request` 以 `params` 攜帶它。其中設定的每個值作為參數到達來源，綁定在語句中；不是該資料表參數的名稱以 `INVALID_ARGUMENT` 拒絕，缺少必填參數的讀取被拒絕並指出其名稱。HTTP gRPC 代理以請求主體的 `params` 物件接收相同的值（未知名稱或 JSON 類型錯誤的值返回 HTTP 400，代碼 `data.invalid_parameter`）。(REQ-1986, REQ-1991) [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`]
+
 不屬於呼叫方角色的服務的方法會回應 `UNIMPLEMENTED`。 [tool-verified: `provisa/grpc/server.py`]
 
 已啟用 `grpc_reflection.v1alpha`，無需預先編譯的 proto 即可進行服務探索。(REQ-529) 反射向每個呼叫方描述其所擔任角色的服務：與該角色從 `GET /data/proto/{role_id}` 下載的 `.proto` 相同。它按名稱列出 Provisa 服務和反射服務，並描述 Provisa 服務的檔案。 [tool-verified: `provisa/grpc/server.py`]

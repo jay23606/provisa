@@ -71,6 +71,8 @@ def _request(limit: int, order_id: int | None = None):
         read_mask=SimpleNamespace(paths=[]),
         filter=filter_msg,
         HasField=lambda name: name == "filter" and bool(set_fields),
+        # A table without parameters: its request has no params field.
+        DESCRIPTOR=SimpleNamespace(fields_by_name={}),
     )
 
 

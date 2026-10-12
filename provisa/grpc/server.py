@@ -901,6 +901,7 @@ class ProvisaServicer:  # REQ-045, REQ-143
         from provisa.grpc.query_ir import (
             FilterError,
             MaskTree,
+            ParameterError,
             ReadMaskError,
             grpc_table_to_semantic_sql,
             resolve_read_mask,
@@ -929,6 +930,9 @@ class ProvisaServicer:  # REQ-045, REQ-143
         # IR: lower the request straight to a semantic SELECT (shared with the HTTP gRPC proxy), then
         # govern → route → physical exactly as the SQL/Cypher transports do.
         filter_msg = request.filter if request.HasField("filter") else None
+        # REQ-1986: a table with parameters has a params field; one without has none.
+        has_params = "params" in request.DESCRIPTOR.fields_by_name
+        params_msg = request.params if has_params and request.HasField("params") else None
         # REQ-803: the request's read_mask is part of the QUERY — only the masked columns are
         # selected, so the governed pipeline and the source see exactly what the client asked for
         # (and the statement, hence the kept-plan key, differs per mask). Fields outside the mask
@@ -938,9 +942,9 @@ class ProvisaServicer:  # REQ-045, REQ-143
         try:
             read_mask = resolve_read_mask(ctx, type_name, list(request.read_mask.paths))
             semantic = grpc_table_to_semantic_sql(
-                ctx, type_name, request.limit, filter_msg, read_mask
+                ctx, type_name, request.limit, filter_msg, read_mask, params_msg
             )
-        except (ReadMaskError, FilterError) as exc:
+        except (ReadMaskError, FilterError, ParameterError) as exc:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(exc))
             return
         if semantic is None:

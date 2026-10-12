@@ -154,6 +154,7 @@ class TestServicerRejectsBeforeAnyStatement:
             filter=_filter(amount=10.5),
             read_mask=SimpleNamespace(paths=[]),
             HasField=lambda name: name == "filter",
+            DESCRIPTOR=SimpleNamespace(fields_by_name={}),
         )
         with patch(
             "provisa.pgwire._pipeline._govern_and_route_compiled", new_callable=AsyncMock

@@ -1230,6 +1230,8 @@ service ProvisaService {
 
 Each table at the root of the role's schema produces a `Query{TypeName}` streaming RPC. These are the tables the role's GraphQL `Query` type lists. A table the role reaches only through a relationship has no RPC of its own, as it has no root field in GraphQL. `Insert{TypeName}` RPCs exist for schema symmetry but abort with `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/server.py`]
 
+**Parameters.** A table with parameters (a table registered over an API, or a query table) has a `{TypeName}Params` message, one optional field per parameter named without its `_nf_` prefix, and `Query{TypeName}Request` carries it as `params`. Each value set there reaches the source as the parameter, bound into the statement; a name that is not one of the table's parameters is refused with `INVALID_ARGUMENT`, and a read that leaves out a required parameter is refused naming it. The HTTP gRPC proxy takes the same values as the body's `params` object (HTTP 400, code `data.invalid_parameter`, for an unknown name or a value of the wrong JSON type). (REQ-1986, REQ-1991) [tool-verified: `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`]
+
 A method that is not part of the caller's role's service answers `UNIMPLEMENTED`. [tool-verified: `provisa/grpc/server.py`]
 
 `grpc_reflection.v1alpha` is enabled for service discovery without a pre-compiled proto. (REQ-529) Reflection describes each caller the service of the role it is acting as: the same `.proto` that role downloads from `GET /data/proto/{role_id}`. It lists the Provisa service and the reflection service by name, and describes the Provisa service's file. [tool-verified: `provisa/grpc/server.py`]
