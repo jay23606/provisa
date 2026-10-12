@@ -18,11 +18,6 @@
       "handAuthored": "हस्त-लिखित",
       "noDependents": "कोई नहीं",
       "field": {
-        "expression": "एक्सप्रेशन",
-        "datatype": "डेटाटाइप",
-        "description": "विवरण",
-        "aiContext": "AI संदर्भ",
-        "sourceFact": "स्रोत फ़ैक्ट",
         "visibleTo": "किन्हें दिखेगा",
         "dependentViews": "आश्रित मेट्रिक व्यू"
       }

@@ -33,11 +33,6 @@
     "chooseDomains": "选择域",
     "domainsRequired": "角色必须至少列出一个域，或选择“所有域”。请选择其域后再保存。",
     "detailsHidden": "详细信息需要用户管理权限。",
-    "labelId": "ID：",
-    "labelDomain": "域：",
-    "labelTable": "表：",
-    "labelRole": "角色：",
-    "labelFilter": "筛选条件：",
     "domainPrefix": "domain:",
     "applyTo": "应用于",
     "applyToTable": "特定表",
@@ -63,7 +58,6 @@
     "actionPrefix": "操作：",
     "loadActionsFailed": "无法加载操作：{{message}}",
     "ruleMissing": "保存前请选择或填写：{{fields}}",
-    "labelAction": "操作：",
     "deleteRoleTitle": "删除角色“{{id}}”？",
     "deleteRoleConsequence": "该角色将被移除。仍在使用中的角色无法删除。",
     "deleteRuleTitle": "删除此 RLS 规则？",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "最大查询复杂度",
     "maxQueryComplexityHint": "一条语句的关系、连接、列和嵌套查询，适用于所有接口。组织的限制仍然适用。",
     "maxQueryTimeMs": "最大查询时间 (ms)",
-    "unlimited": "无限制"
+    "unlimited": "无限制",
+    "ruleId": "规则 ID"
   }
 }

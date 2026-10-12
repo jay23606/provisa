@@ -93,23 +93,11 @@
     "openApiQueryAria": "{{table}} の REST リクエスト例を実行",
     "detail": {
       "field": {
-        "domain": "ドメイン",
-        "name": "名前",
-        "owner": "オーナー",
-        "team": "チーム",
-        "purpose": "目的",
-        "limitations": "制限事項",
-        "usage": "使用方法",
-        "version": "バージョン",
-        "status": "ステータス",
-        "sla": "SLA",
-        "support": "サポート",
         "customProperties": "カスタムプロパティ",
         "relatedTables": "関連テーブル",
         "relationships": "リレーションシップ",
         "lineage": "リネージ",
         "inputPorts": "入力ポート",
-        "outputPorts": "出力ポート",
         "dataQuality": "データ品質"
       },
       "dataQualityEmpty": "品質スキャンはありません",

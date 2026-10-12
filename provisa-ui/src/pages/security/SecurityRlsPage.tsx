@@ -11,6 +11,8 @@
 // The RLS page of the Security area: the list of row-level rules, and a rule's detail or form in
 // the right-hand panel.
 
+import { Tip } from "../../components/Tip";
+import { RlsRuleRead } from "./RlsRuleRead";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavPayload } from "../../hooks/useNavPayload";
 import { useTranslation } from "react-i18next";
@@ -405,16 +407,18 @@ export function SecurityRlsPage() {
           <PanelActions>
             <fieldset className="panel-action-set">
               <Group gap="xs">
-                <ActionIcon
-                  aria-label={t("securityPage.edit")}
-                  data-testid={`edit-rule-${r.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEditingRule(r);
-                  }}
-                >
-                  <Pencil size={14} />
-                </ActionIcon>
+                <Tip text={t("securityPage.edit")} named>
+                  <ActionIcon
+                    aria-label={t("securityPage.edit")}
+                    data-testid={`edit-rule-${r.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditingRule(r);
+                    }}
+                  >
+                    <Pencil size={14} />
+                  </ActionIcon>
+                </Tip>
                 <ConfirmDialog
                   title={t("securityPage.deleteRuleTitle")}
                   consequence={t("securityPage.deleteRuleConsequence", {
@@ -423,17 +427,19 @@ export function SecurityRlsPage() {
                   onConfirm={() => handleDeleteRule(r)}
                 >
                   {(open) => (
-                    <ActionIcon
-                      color="red"
-                      aria-label={t("securityPage.delete")}
-                      data-testid={`delete-rule-${r.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        open();
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </ActionIcon>
+                    <Tip text={t("securityPage.delete")} named>
+                      <ActionIcon
+                        color="red"
+                        aria-label={t("securityPage.delete")}
+                        data-testid={`delete-rule-${r.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          open();
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </ActionIcon>
+                    </Tip>
                   )}
                 </ConfirmDialog>
               </Group>
@@ -441,34 +447,17 @@ export function SecurityRlsPage() {
           </PanelActions>
         )}
         {editingRuleInRow !== r.id ? (
-          <Stack gap="xs">
-            <Text>
-              <strong>{t("securityPage.labelId")}</strong> {r.id}
-            </Text>
-            {r.actionName ? (
-              <Text>
-                <strong>{t("securityPage.labelAction")}</strong> {r.actionName}
-              </Text>
-            ) : r.domainId ? (
-              <Text>
-                <strong>{t("securityPage.labelDomain")}</strong> {r.domainId}
-              </Text>
-            ) : (
-              <Text>
-                <strong>{t("securityPage.labelTable")}</strong>{" "}
-                {tableLabelById[r.tableId!] ?? String(r.tableId)}
-              </Text>
-            )}
-            <Text>
-              <strong>{t("securityPage.labelRole")}</strong> {r.roleId}
-            </Text>
-            <Text>
-              <strong>{t("securityPage.labelFilter")}</strong>{" "}
-              <Text component="code" span>
-                {r.filterExpr}
-              </Text>
-            </Text>
-          </Stack>
+          <RlsRuleRead
+            rule={r}
+            domain={
+              r.actionName
+                ? (actions.find((a) => a.name === r.actionName)?.domainId ?? null)
+                : r.domainId
+                  ? r.domainId
+                  : (tables.find((tb) => tb.id === r.tableId)?.domainId ?? null)
+            }
+            tableLabel={r.tableId != null ? (tableLabelById[r.tableId] ?? String(r.tableId)) : null}
+          />
         ) : (
           <Stack gap="sm">
             {ruleFormFields}

@@ -8,6 +8,7 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -174,11 +175,7 @@ export function DataProductDetailPanel({
   // REQ-1667: lane 0 is the product's published surface; the others are named by distance.
   const laneTitle = useCallback(
     (lane: number) =>
-      lane === 0
-        ? t("dataProductsTab.detail.field.outputPorts")
-        : lane > 0
-          ? `+${lane}`
-          : `${lane}`,
+      lane === 0 ? t("dataProductsTab.tablesLabel") : lane > 0 ? `+${lane}` : `${lane}`,
     [t],
   );
   const toggleRelation = (relation: string) =>
@@ -220,30 +217,36 @@ export function DataProductDetailPanel({
   };
   const widePanelStyle: React.CSSProperties = panelStyle;
 
-  const rows: [string, React.ReactNode][] = [
-    ["domain", p.domainId],
-    ["name", p.name],
-    [
-      "team",
-      <Stack key="team" gap={0}>
-        <Text size="sm">{p.teamRole || "—"}</Text>
-        {p.teamRole && <OwnerResolutionInline refs={[p.teamRole]} />}
-      </Stack>,
-    ],
-    [
-      "owner",
-      <Stack key="owner" gap={0}>
-        <Text size="sm">{p.ownerRole || "—"}</Text>
-        {p.ownerRole && <OwnerResolutionInline refs={[p.ownerRole]} />}
-      </Stack>,
-    ],
-    ["purpose", p.purpose || "—"],
-    ["limitations", p.limitations || "—"],
-    ["usage", p.usage || "—"],
-    ["version", p.version || "—"],
-    ["status", p.status || "—"],
-    ["sla", p.sla || "—"],
-    ["support", p.support || "—"],
+  // Every value of the product, under the labels its form gives them.
+  const fields: DetailField[] = [
+    { label: t("dataProductsTab.idLabel"), value: p.id },
+    { label: t("dataProductsTab.nameLabel"), value: p.name },
+    { label: t("dataProductsTab.domainLabel"), value: p.domainId },
+    { label: t("dataProductsTab.versionLabel"), value: p.version },
+    { label: t("dataProductsTab.statusLabel"), value: p.status },
+    {
+      label: t("dataProductsTab.ownerLabel"),
+      value: p.ownerRole ? (
+        <Stack gap={0}>
+          <Text size="sm">{p.ownerRole}</Text>
+          <OwnerResolutionInline refs={[p.ownerRole]} />
+        </Stack>
+      ) : null,
+    },
+    {
+      label: t("dataProductsTab.teamLabel"),
+      value: p.teamRole ? (
+        <Stack gap={0}>
+          <Text size="sm">{p.teamRole}</Text>
+          <OwnerResolutionInline refs={[p.teamRole]} />
+        </Stack>
+      ) : null,
+    },
+    { label: t("dataProductsTab.supportLabel"), value: p.support },
+    { label: t("dataProductsTab.slaLabel"), value: p.sla },
+    { label: t("dataProductsTab.purposeLabel"), value: p.purpose },
+    { label: t("dataProductsTab.limitationsLabel"), value: p.limitations },
+    { label: t("dataProductsTab.usageLabel"), value: p.usage },
   ];
 
   return (
@@ -254,27 +257,9 @@ export function DataProductDetailPanel({
           columnGap: "var(--mantine-spacing-sm)",
         }}
       >
-        <dl
-          style={{
-            ...panelStyle,
-            display: "grid",
-            gridTemplateColumns: "max-content 1fr",
-            gap: "0.25rem 1rem",
-            margin: 0,
-            color: "var(--text)",
-          }}
-        >
-          {rows.map(([k, v]) => (
-            <React.Fragment key={k}>
-              <Text component="dt" c="dimmed" fw={500} size="sm">
-                {t(`dataProductsTab.detail.field.${k}`)}
-              </Text>
-              <Text component="dd" m={0} size="sm">
-                {v}
-              </Text>
-            </React.Fragment>
-          ))}
-        </dl>
+        <div style={panelStyle}>
+          <DetailFields testId={`data-product-read-${p.id}`} fields={fields} />
+        </div>
         <div style={panelStyle}>
           <Text c="dimmed" fw={500} size="sm">
             {t("dataProductsTab.detail.field.customProperties")}
@@ -300,7 +285,7 @@ export function DataProductDetailPanel({
         <div style={panelStyle}>
           <Group gap={4} align="baseline">
             <Text c="dimmed" fw={500} size="sm">
-              {t("dataProductsTab.detail.field.outputPorts")}
+              {t("dataProductsTab.tablesLabel")}
             </Text>
             <Tip text={t("dataProductsTab.detail.outputPortsHint")}>
               <Text size="xs" c="var(--text-muted)" style={{ cursor: "help" }}>

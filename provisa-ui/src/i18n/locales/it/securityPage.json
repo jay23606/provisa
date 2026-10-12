@@ -33,11 +33,6 @@
     "chooseDomains": "Scegli i domini",
     "domainsRequired": "Un ruolo deve elencare almeno un dominio, oppure Tutti i domini. Scegli i suoi domini per salvare.",
     "detailsHidden": "I dettagli richiedono la gestione degli utenti.",
-    "labelId": "ID:",
-    "labelDomain": "Dominio:",
-    "labelTable": "Tabella:",
-    "labelRole": "Ruolo:",
-    "labelFilter": "Filtro:",
     "domainPrefix": "dominio:",
     "applyTo": "Applica a",
     "applyToTable": "Tabella specifica",
@@ -63,7 +58,6 @@
     "actionPrefix": "azione:",
     "loadActionsFailed": "Impossibile caricare le azioni: {{message}}",
     "ruleMissing": "Prima di salvare, scegli o compila: {{fields}}",
-    "labelAction": "Azione:",
     "deleteRoleTitle": "Eliminare il ruolo \"{{id}}\"?",
     "deleteRoleConsequence": "Il ruolo viene rimosso. Un ruolo ancora in uso non può essere eliminato.",
     "deleteRuleTitle": "Eliminare questa regola RLS?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Complessità massima della query",
     "maxQueryComplexityHint": "Relazioni, join, colonne e query annidate di un'istruzione, su ogni interfaccia. Il limite dell'organizzazione resta valido.",
     "maxQueryTimeMs": "Tempo massimo della query (ms)",
-    "unlimited": "illimitato"
+    "unlimited": "illimitato",
+    "ruleId": "ID regola"
   }
 }

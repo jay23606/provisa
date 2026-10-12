@@ -18,11 +18,6 @@
       "handAuthored": "manuell erstellt",
       "noDependents": "keine",
       "field": {
-        "expression": "Ausdruck",
-        "datatype": "Datentyp",
-        "description": "Beschreibung",
-        "aiContext": "KI-Kontext",
-        "sourceFact": "Quellfakt",
         "visibleTo": "Sichtbar für",
         "dependentViews": "Abhängige Metriksichten"
       }

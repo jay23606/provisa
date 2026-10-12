@@ -1,5 +1,7 @@
 {
   "detailFields": {
-    "empty": "—"
+    "empty": "—",
+    "yes": "是",
+    "no": "否"
   }
 }

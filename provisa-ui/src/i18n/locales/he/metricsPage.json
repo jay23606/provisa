@@ -18,11 +18,6 @@
       "handAuthored": "נכתב ידנית",
       "noDependents": "ללא",
       "field": {
-        "expression": "ביטוי",
-        "datatype": "סוג נתונים",
-        "description": "תיאור",
-        "aiContext": "הקשר AI",
-        "sourceFact": "טבלת עובדות מקור",
         "visibleTo": "גלוי עבור",
         "dependentViews": "Views תלויים של מדדים"
       }

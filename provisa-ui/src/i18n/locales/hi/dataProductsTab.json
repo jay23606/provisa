@@ -93,23 +93,11 @@
     "openApiQueryAria": "{{table}} के लिए उदाहरण REST अनुरोध चलाएँ",
     "detail": {
       "field": {
-        "domain": "डोमेन",
-        "name": "नाम",
-        "owner": "स्वामी",
-        "team": "टीम",
-        "purpose": "उद्देश्य",
-        "limitations": "सीमाएँ",
-        "usage": "उपयोग",
-        "version": "वर्शन",
-        "status": "स्थिति",
-        "sla": "SLA",
-        "support": "सहायता",
         "customProperties": "कस्टम प्रॉपर्टी",
         "relatedTables": "संबंधित टेबल",
         "relationships": "संबंध",
         "lineage": "लिनिएज",
         "inputPorts": "इनपुट पोर्ट",
-        "outputPorts": "आउटपुट पोर्ट",
         "dataQuality": "डेटा क्वालिटी"
       },
       "dataQualityEmpty": "कोई क्वालिटी स्कैन नहीं",

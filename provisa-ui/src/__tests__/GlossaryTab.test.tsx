@@ -305,6 +305,34 @@ describe("GlossaryTab", () => {
     await waitFor(() => expect(mockList).toHaveBeenCalledWith("rev", false, null));
   });
 
+  it("shows the term's domains and its states, which the edit fields do not", async () => {
+    mockFetchTerm.mockImplementation(async (id) => {
+      if (id === 3) return { ...MARGIN_DETAIL, domains: ["finance", "sales"] };
+      if (id === 1) return REVENUE_DETAIL;
+      throw new Error(`no detail fixture for term ${id}`);
+    });
+    render(<GlossaryTab />);
+    fireEvent.click(await screen.findByTestId("glossary-item-3"));
+    const read = await screen.findByTestId("glossary-read-fields");
+    const fields = within(read)
+      .getAllByRole("term")
+      .map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(fields).toEqual([
+      ["Domains", "finance, sales"],
+      ["Abstract", "No"],
+      ["Proposed", "No"],
+      ["Deprecated", "Yes"],
+      ["Retired", "No"],
+    ]);
+    // An unscoped term is the enterprise's, as the create form names it.
+    fireEvent.click(screen.getByTestId("glossary-item-1"));
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("glossary-read-fields")).getAllByRole("definition")[0],
+      ).toHaveTextContent("All domains (enterprise)"),
+    );
+  });
+
   it("renames the selected term through the PATCH endpoint and refetches", async () => {
     mockUpdate.mockResolvedValue(undefined);
     render(<GlossaryTab />);

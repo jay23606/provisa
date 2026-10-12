@@ -33,11 +33,6 @@
     "chooseDomains": "Domänen auswählen",
     "domainsRequired": "Eine Rolle muss mindestens eine Domäne oder „Alle Domänen“ auflisten. Wählen Sie ihre Domänen aus, um zu speichern.",
     "detailsHidden": "Details erfordern Benutzerverwaltung.",
-    "labelId": "ID:",
-    "labelDomain": "Domäne:",
-    "labelTable": "Tabelle:",
-    "labelRole": "Rolle:",
-    "labelFilter": "Filter:",
     "domainPrefix": "domain:",
     "applyTo": "Anwenden auf",
     "applyToTable": "Bestimmte Tabelle",
@@ -63,7 +58,6 @@
     "actionPrefix": "Aktion:",
     "loadActionsFailed": "Aktionen konnten nicht geladen werden: {{message}}",
     "ruleMissing": "Vor dem Speichern auswählen oder ausfüllen: {{fields}}",
-    "labelAction": "Aktion:",
     "deleteRoleTitle": "Rolle „{{id}}“ löschen?",
     "deleteRoleConsequence": "Die Rolle wird entfernt. Eine Rolle, die noch verwendet wird, kann nicht gelöscht werden.",
     "deleteRuleTitle": "Diese RLS-Regel löschen?",
@@ -79,6 +73,7 @@
     "maxQueryComplexity": "Max. Abfragekomplexität",
     "maxQueryComplexityHint": "Relationen, Joins, Spalten und verschachtelte Abfragen einer Anweisung, auf jeder Schnittstelle. Das Limit der Organisation gilt weiterhin.",
     "maxQueryTimeMs": "Max. Abfragezeit (ms)",
-    "unlimited": "unbegrenzt"
+    "unlimited": "unbegrenzt",
+    "ruleId": "Regel-ID"
   }
 }

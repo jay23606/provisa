@@ -43,6 +43,35 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "residencyGrant.right": "the data_residency capability's tick: shown in Capabilities",
     },
   },
+  "Commands (functions and webhooks)": {
+    read: ["pages/commands/CommandRead.tsx"],
+    form: [
+      "pages/CommandsPage.tsx",
+      "pages/commands/CommandFormFields.tsx",
+      "pages/commands/ColumnGovernanceFields.tsx",
+    ],
+  },
+  "Data Products": {
+    read: ["pages/data-products/DataProductDetailPanel.tsx"],
+    form: ["pages/data-products/DataProductFormCard.tsx"],
+  },
+  // Edited in place: the panel is the form, and the fields it does not edit are listed above it.
+  Glossary: {
+    read: ["components/admin/GlossaryTab.tsx", "components/admin/GlossaryRelationships.tsx"],
+    form: ["components/admin/GlossaryTab.tsx", "components/admin/GlossaryRelationships.tsx"],
+  },
+  Metrics: {
+    read: ["pages/metrics/MetricDetailPanel.tsx"],
+    form: ["pages/MetricsPage.tsx"],
+    notAField: {
+      "metricsPage.builderMeasure": "a step of the builder that writes the expression: shown in it",
+      "metricsPage.builderAgg": "a step of the builder that writes the expression: shown in it",
+    },
+  },
+  "Security › RLS Rules": {
+    read: ["pages/security/RlsRuleRead.tsx"],
+    form: ["pages/security/SecurityRlsPage.tsx"],
+  },
 };
 
 /** The catalog keys a file gives as a field's label: `label={t("key")}`. */

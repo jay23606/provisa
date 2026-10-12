@@ -93,23 +93,11 @@
     "openApiQueryAria": "运行 {{table}} 的 REST 示例请求",
     "detail": {
       "field": {
-        "domain": "域",
-        "name": "名称",
-        "owner": "所有者",
-        "team": "团队",
-        "purpose": "用途",
-        "limitations": "限制",
-        "usage": "使用方式",
-        "version": "版本",
-        "status": "状态",
-        "sla": "SLA",
-        "support": "支持",
         "customProperties": "自定义属性",
         "relatedTables": "相关表",
         "relationships": "关系",
         "lineage": "血缘",
         "inputPorts": "输入端口",
-        "outputPorts": "输出端口",
         "dataQuality": "数据质量"
       },
       "dataQualityEmpty": "没有质量扫描",
