@@ -111,18 +111,31 @@ class MongoConnection:  # REQ-1730, REQ-1985
             return self.uri
         return f"{scheme}://{user}{rest}"
 
+    def client_arguments(self, timeout_ms: int) -> tuple[tuple, dict]:
+        """The arguments a driver client (pymongo's, motor's) is made with for this connection."""
+        if self.uri is not None:
+            # The connection string carries its own topology options (directConnection,
+            # replicaSet, tls); an SRV string forbids directConnection.
+            return (self.uri,), {
+                "username": self.username,
+                "password": self.password,
+                "serverSelectionTimeoutMS": timeout_ms,
+            }
+        return (), {
+            "host": self.host,
+            "port": self.port,
+            "username": self.username,
+            "password": self.password,
+            "serverSelectionTimeoutMS": timeout_ms,
+            "directConnection": True,
+        }
+
     def _client(self, timeout_ms: int) -> Any:
         from pymongo import MongoClient
 
         if self.uri is not None:
-            # The connection string carries its own topology options (directConnection,
-            # replicaSet, tls); an SRV string forbids directConnection.
-            return MongoClient(
-                self.uri,
-                username=self.username,
-                password=self.password,
-                serverSelectionTimeoutMS=timeout_ms,
-            )
+            args, kwargs = self.client_arguments(timeout_ms)
+            return MongoClient(*args, **kwargs)
         # directConnection=True: without it, pymongo's replica-set discovery (SDAM) trusts the
         # server's own hello/isMaster response for where to actually connect -- a single-node
         # replica set started for transaction/change-stream support (mongo:7 --replSet, the
@@ -134,14 +147,8 @@ class MongoConnection:  # REQ-1730, REQ-1985
         # it until serverSelectionTimeoutMS elapsed, and the caller's own outer
         # concurrent.futures.TimeoutError (str() == "") surfaced first. directConnection=True
         # makes the driver honor host/port as given and skip topology discovery entirely.
-        return MongoClient(
-            host=self.host,
-            port=self.port,
-            username=self.username,
-            password=self.password,
-            serverSelectionTimeoutMS=timeout_ms,
-            directConnection=True,
-        )
+        args, kwargs = self.client_arguments(timeout_ms)
+        return MongoClient(*args, **kwargs)
 
     @contextmanager
     def client(self) -> Iterator[Any]:

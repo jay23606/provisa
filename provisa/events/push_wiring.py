@@ -565,9 +565,9 @@ async def _run_change_stream(
     is unknown. A stream that fails -- the server is down, or is a standalone mongod, which serves
     no change streams -- is logged with the server's own reason and watched again after
     ``_CHANGE_STREAM_RETRY_SECONDS``. Never lets an exception escape (it runs detached)."""
-    from provisa.core.secrets import resolve_secrets
     from provisa.federation import replica_builds, replica_state
     from provisa.federation.source_vault import org_vault
+    from provisa.mongodb.fetch import MongoConnection
     from provisa.subscriptions.mongo_provider import open_change_stream
 
     async def _ask() -> None:
@@ -595,13 +595,9 @@ async def _run_change_stream(
     while not disconnect.is_set():
         try:
             async with org_vault(state, [source]):
-                host = resolve_secrets(source.host or "localhost")
-                password = resolve_secrets(source.password or "") or None
+                connection = MongoConnection.from_source(source)
             async with open_change_stream(
-                host=host,
-                port=int(source.port or 27017),
-                username=source.username or None,
-                password=password,
+                connection=connection,
                 database=database,
                 collection=collection,
                 wait_ms=wait_ms,

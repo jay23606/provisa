@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, AsyncIterator
 from provisa.subscriptions.base import ChangeEvent, NotificationProvider
 
 if TYPE_CHECKING:
+    from provisa.mongodb.fetch import MongoConnection
     from motor.motor_asyncio import AsyncIOMotorChangeStream, AsyncIOMotorDatabase
 
 log = logging.getLogger(__name__)
@@ -88,10 +89,7 @@ class MongoNotificationProvider(NotificationProvider):  # REQ-258
 @asynccontextmanager
 async def open_change_stream(
     *,
-    host: str,
-    port: int,
-    username: str | None,
-    password: str | None,
+    connection: MongoConnection,
     database: str,
     collection: str,
     wait_ms: int,
@@ -101,18 +99,13 @@ async def open_change_stream(
     entered is not missed. ``wait_ms`` bounds each ``try_next``. The server must be a replica
     set member: a standalone mongod serves no change streams and fails here with its own reason.
 
-    ``directConnection``: a single-node replica set reports a hostname only its own network
-    resolves (see ``provisa/mongodb/fetch.py``), so the address given is the one connected to."""
+    The client is made as every reach of the source makes it (``MongoConnection``, REQ-1985): a
+    connection string as given, or a host and port connected to directly -- a single-node replica
+    set reports a hostname only its own network resolves (see ``provisa/mongodb/fetch.py``)."""
     from motor.motor_asyncio import AsyncIOMotorClient
 
-    client: AsyncIOMotorClient = AsyncIOMotorClient(
-        host=host,
-        port=port,
-        username=username,
-        password=password,
-        serverSelectionTimeoutMS=30000,
-        directConnection=True,
-    )
+    args, kwargs = connection.client_arguments(30000)
+    client: AsyncIOMotorClient = AsyncIOMotorClient(*args, **kwargs)
     try:
         async with client[database][collection].watch(max_await_time_ms=wait_ms) as stream:
             yield stream
