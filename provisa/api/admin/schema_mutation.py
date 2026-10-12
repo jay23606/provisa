@@ -3133,6 +3133,23 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
 
         require_capability(info, "masking_config")
         pool = await _get_pool()
+        # A rule binds to a registered role: one naming no role, or a role that does not exist,
+        # is refused with the reason here rather than by the role_id foreign key at insert.
+        if not input.role_id:
+            return MutationResult(
+                success=False, message="RLS rule names no role", code="schema.rls_rule_no_role"
+            )
+        from provisa.core.repositories import role as role_repo
+
+        async with pool.acquire() as _rconn:
+            known_role = await role_repo.get(cast("Connection", _rconn), input.role_id)
+        if known_role is None:
+            return MutationResult(
+                success=False,
+                message=f"Role {input.role_id!r} not found",
+                code="schema.role_not_found",
+                params={"role": input.role_id},
+            )
         if input.action_name:  # REQ-1679: the target is a tracked function or webhook
             return await _upsert_action_rls_rule(info, input)
         if input.domain_id:

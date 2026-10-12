@@ -65,6 +65,7 @@
     "action": "Aktion",
     "actionPrefix": "Aktion:",
     "loadActionsFailed": "Aktionen konnten nicht geladen werden: {{message}}",
+    "ruleMissing": "Vor dem Speichern auswählen oder ausfüllen: {{fields}}",
     "labelAction": "Aktion:",
     "deleteRoleTitle": "Rolle „{{id}}“ löschen?",
     "deleteRoleConsequence": "Die Rolle wird entfernt. Eine Rolle, die noch verwendet wird, kann nicht gelöscht werden.",

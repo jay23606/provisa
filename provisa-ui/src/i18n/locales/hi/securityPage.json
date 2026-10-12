@@ -65,6 +65,7 @@
     "action": "एक्शन",
     "actionPrefix": "एक्शन:",
     "loadActionsFailed": "एक्शन लोड नहीं हो सके: {{message}}",
+    "ruleMissing": "सहेजने से पहले चुनें या भरें: {{fields}}",
     "labelAction": "एक्शन:",
     "deleteRoleTitle": "भूमिका \"{{id}}\" हटाएँ?",
     "deleteRoleConsequence": "भूमिका हटा दी जाएगी। जो भूमिका अभी उपयोग में है उसे हटाया नहीं जा सकता।",

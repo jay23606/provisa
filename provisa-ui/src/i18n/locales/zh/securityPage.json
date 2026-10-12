@@ -65,6 +65,7 @@
     "action": "操作",
     "actionPrefix": "操作：",
     "loadActionsFailed": "无法加载操作：{{message}}",
+    "ruleMissing": "保存前请选择或填写：{{fields}}",
     "labelAction": "操作：",
     "deleteRoleTitle": "删除角色“{{id}}”？",
     "deleteRoleConsequence": "该角色将被移除。仍在使用中的角色无法删除。",

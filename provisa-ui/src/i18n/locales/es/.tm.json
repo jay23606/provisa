@@ -5771,5 +5771,6 @@
   "es/viewDefinitionForm.json::viewDefinitionForm.saveFailed": "Save failed",
   "es/viewDefinitionForm.json::viewDefinitionForm.sqlCreateHint": "Free-hand views are authored in the SQL editor: write the SELECT, run it, then save it as a view.",
   "es/viewDefinitionForm.json::viewDefinitionForm.sqlEditHint": "This view's SQL is edited in the SQL editor.",
-  "es/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing"
+  "es/tableEditForm.json::tableEditForm.columnTabs.testing": "Testing",
+  "es/securityPage.json::securityPage.ruleMissing": "Before saving, choose or fill in: {{fields}}"
 }

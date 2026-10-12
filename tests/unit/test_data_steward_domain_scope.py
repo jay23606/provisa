@@ -265,6 +265,40 @@ async def test_a_row_rule_outside_the_stewards_domain_is_refused_by_name(plane):
         await M().upsert_rls_rule(_info(plane.steward, "finance_reader"), _rls("invoices"))
 
 
+@pytest.mark.parametrize(
+    ("role_id", "code"), [("", "schema.rls_rule_no_role"), ("ghost", "schema.role_not_found")]
+)
+async def test_a_row_rule_with_no_role_or_an_unknown_role_is_refused_with_a_message(
+    plane, role_id, code
+):
+    from provisa.api.admin.types import RLSRuleInput
+
+    result = await M().upsert_rls_rule(
+        _info(plane.steward),
+        RLSRuleInput(table_id="orders", role_id=role_id, filter_expr="1 = 1"),
+    )
+    assert (result.success, result.code) == (False, code), result.message
+    assert result.message
+
+
+async def test_an_action_row_rule_with_an_unknown_role_is_refused_with_a_message(
+    plane, monkeypatch
+):
+    from provisa.api.admin.types import RLSRuleInput
+
+    action = {"name": "of_sales", "domain_id": "sales", "output_columns": [{"name": "id"}]}
+    monkeypatch.setattr(appmod.state, "tracked_functions", {"of_sales": action}, raising=False)
+    result = await M().upsert_rls_rule(
+        _info(plane.steward),
+        RLSRuleInput(action_name="of_sales", role_id="ghost", filter_expr="1 = 1"),
+    )
+    assert (result.success, result.code, result.params) == (
+        False,
+        "schema.role_not_found",
+        {"role": "ghost"},
+    ), result.message
+
+
 async def test_deleting_a_row_rule_outside_the_stewards_domain_is_refused(plane):
     with pytest.raises(PermissionError, match="'finance'"):
         await M().delete_rls_rule(

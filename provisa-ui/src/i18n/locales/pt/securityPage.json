@@ -65,6 +65,7 @@
     "action": "Ação",
     "actionPrefix": "ação:",
     "loadActionsFailed": "Não foi possível carregar as ações: {{message}}",
+    "ruleMissing": "Antes de salvar, escolha ou preencha: {{fields}}",
     "labelAction": "Ação:",
     "deleteRoleTitle": "Excluir a função \"{{id}}\"?",
     "deleteRoleConsequence": "A função é removida. Uma função que ainda está em uso não pode ser excluída.",

@@ -65,6 +65,7 @@
     "action": "Acción",
     "actionPrefix": "acción:",
     "loadActionsFailed": "No se pudieron cargar las acciones: {{message}}",
+    "ruleMissing": "Antes de guardar, elija o rellene: {{fields}}",
     "labelAction": "Acción:",
     "deleteRoleTitle": "¿Eliminar el rol \"{{id}}\"?",
     "deleteRoleConsequence": "El rol se elimina. No se puede eliminar un rol que sigue en uso.",

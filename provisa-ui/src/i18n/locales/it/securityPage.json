@@ -65,6 +65,7 @@
     "action": "Azione",
     "actionPrefix": "azione:",
     "loadActionsFailed": "Impossibile caricare le azioni: {{message}}",
+    "ruleMissing": "Prima di salvare, scegli o compila: {{fields}}",
     "labelAction": "Azione:",
     "deleteRoleTitle": "Eliminare il ruolo \"{{id}}\"?",
     "deleteRoleConsequence": "Il ruolo viene rimosso. Un ruolo ancora in uso non può essere eliminato.",
