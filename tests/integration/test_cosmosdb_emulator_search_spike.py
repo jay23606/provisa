@@ -175,26 +175,46 @@ def test_the_emulator_serves_vector_search(vectors):
     assert [r["id"] for r in rows] == ["1", "2"]
 
 
-def test_the_emulator_serves_full_text_contains(full_text):
-    rows = _query(full_text, "SELECT c.id FROM c WHERE FullTextContains(c.text, 'car')")
-    assert [r["id"] for r in rows] == ["2"]
+# The spike's second answer (CI 2026-10-12): the emulator takes a full-text policy and index but
+# knows no full-text function, so full-text and hybrid search need a real Cosmos account.
 
 
-def test_the_emulator_serves_full_text_ranking(full_text):
-    rows = _query(
-        full_text, "SELECT TOP 2 c.id FROM c ORDER BY RANK FullTextScore(c.text, ['old', 'man'])"
-    )
-    assert rows[0]["id"] == "1"
+def test_the_emulator_knows_no_full_text_contains(full_text):
+    from azure.cosmos.exceptions import CosmosHttpResponseError
+
+    with pytest.raises(
+        CosmosHttpResponseError,
+        match="'FullTextContains' is not a recognized built-in function name",
+    ):
+        _query(full_text, "SELECT c.id FROM c WHERE FullTextContains(c.text, 'car')")
 
 
-def test_the_emulator_serves_hybrid_ranking(hybrid):
-    rows = _query(
-        hybrid,
-        "SELECT TOP 2 c.id FROM c ORDER BY RANK RRF(FullTextScore(c.text, ['car']), "
-        "VectorDistance(c.embedding, @v))",
-        [{"name": "@v", "value": [0.9, 0.1, 0.0]}],
-    )
-    assert rows[0]["id"] == "2"
+def test_the_emulator_knows_no_full_text_ranking(full_text):
+    from azure.cosmos.exceptions import CosmosHttpResponseError
+
+    with pytest.raises(
+        CosmosHttpResponseError,
+        match="'FullTextScore' is not a recognized built-in function name",
+    ):
+        _query(
+            full_text,
+            "SELECT TOP 2 c.id FROM c ORDER BY RANK FullTextScore(c.text, ['old', 'man'])",
+        )
+
+
+def test_the_emulator_knows_no_hybrid_ranking(hybrid):
+    from azure.cosmos.exceptions import CosmosHttpResponseError
+
+    with pytest.raises(
+        CosmosHttpResponseError,
+        match="'FullTextScore' is not a recognized built-in function name",
+    ):
+        _query(
+            hybrid,
+            "SELECT TOP 2 c.id FROM c ORDER BY RANK RRF(FullTextScore(c.text, ['car']), "
+            "VectorDistance(c.embedding, @v))",
+            [{"name": "@v", "value": [0.9, 0.1, 0.0]}],
+        )
 
 
 def test_the_emulator_takes_only_a_diskann_vector_index(database):
