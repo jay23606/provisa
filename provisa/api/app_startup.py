@@ -153,9 +153,10 @@ async def _start_background_tasks(_log: logging.Logger) -> None:
 
     # REQ-1915: spool files a build left when its process died are removed at node start. A
     # file another worker's running build holds is locked and left alone.
-    from provisa.federation.replica_spool import spool_directory, sweep as _sweep_spool
+    from provisa.federation.replica_spool import node_spool_directories, sweep as _sweep_spool
 
-    _sweep_spool(spool_directory())
+    for _spool in node_spool_directories():  # REQ-1992: each org's, in its folder
+        _sweep_spool(_spool)
 
     if state.federation_engine.is_connected():
         from provisa.mv.refresh import reclamation_loop

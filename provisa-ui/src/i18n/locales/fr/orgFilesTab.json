@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Chiffrement du dossier de fichiers",
+    "loading": "Chargement…",
+    "intro": "Les fichiers que Provisa conserve pour votre organisation sur chaque serveur — caches, conversions, réplicas et résultats volumineux — sont conservés dans le dossier propre à votre organisation. Activez le chiffrement pour les conserver chiffrés sous une clé que votre organisation détient.",
+    "encrypt": "Chiffrer le dossier de fichiers de l'organisation",
+    "referenceLabel": "Référence de la clé",
+    "referenceHelp": "Le nom de la clé dans le coffre de secrets de votre organisation, écrit ${secret:NAME}. Provisa ne stocke que cette référence, jamais la clé.",
+    "referenceWrong": "Indiquez le nom de la clé sous la forme ${secret:NAME}, pas la clé elle-même.",
+    "generate": "Générer une clé",
+    "generatedLabel": "Nouvelle clé",
+    "generatedHelp": "Affichée une seule fois. Copiez-la maintenant dans le coffre de secrets de votre organisation, puis définissez la référence de la clé.",
+    "warnTitle": "Conservez cette clé en lieu sûr",
+    "warn1": "Provisa ne peut pas récupérer cette clé, et personne chez Provisa ne peut la voir ni la réinitialiser.",
+    "warn2": "Stockez-la maintenant dans le coffre de secrets de votre organisation ; elle ne sera plus affichée.",
+    "warn3": "Conservez une seconde copie dans un autre lieu sûr sous votre propre contrôle.",
+    "warn4": "Limitez qui peut la lire et ne l'envoyez jamais par e-mail, messagerie ou ticket.",
+    "warn5": "Sa perte entraîne la réinitialisation et la reconstruction des fichiers chiffrés.",
+    "warn6": "Pour la renouveler, générez une nouvelle clé, stockez-la dans votre coffre et mettez à jour la référence.",
+    "saved": "Enregistré. Chaque serveur l'applique au prochain démarrage du travail pour cette organisation."
+  }
+}

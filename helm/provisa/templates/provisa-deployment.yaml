@@ -83,9 +83,18 @@ spec:
           image: "{{ .Values.provisa.image.repository }}:{{ .Values.provisa.image.tag }}"
           imagePullPolicy: {{ .Values.provisa.image.pullPolicy }}
           securityContext:
+            {{- if .Values.provisa.folderEncryption.enabled }}
+            # REQ-1992: an org's encrypted file folder is a gocryptfs (FUSE) mount, which needs
+            # SYS_ADMIN and fusermount's privilege. Off by default: folders are then plain.
+            allowPrivilegeEscalation: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["SYS_ADMIN"]
+            {{- else }}
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+            {{- end }}
           {{- if .Values.tls.enabled }}
           # REQ-1257: the image CMD serves plaintext uvicorn; override it to bind
           # the mounted TLS cert so the API listens HTTPS on {{ .Values.provisa.port }}.
@@ -267,6 +276,10 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+            {{- if .Values.provisa.folderEncryption.enabled }}
+            - name: fuse
+              mountPath: /dev/fuse
+            {{- end }}
             {{- if .Values.encryption.dataVolume.enabled }}
             - name: data
               mountPath: {{ .Values.encryption.dataVolume.mountPath }}
@@ -307,6 +320,12 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-config
+        {{- if .Values.provisa.folderEncryption.enabled }}
+        - name: fuse
+          hostPath:
+            path: /dev/fuse
+            type: CharDevice
+        {{- end }}
         {{- if .Values.encryption.dataVolume.enabled }}
         - name: data
           persistentVolumeClaim:

@@ -24,6 +24,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.core import env_approvals as ea
 from provisa.core.env_files import dump
 from provisa.core.env_project import project
@@ -46,8 +48,11 @@ async def planes(docker_postgres, tmp_path, monkeypatch):
     from provisa.core.env_repo import commit_files, ensure_repo
     from provisa.core.schema_admin import init_registry_schema
 
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv(
+        "PROVISA_DATA_DIR", str(tmp_path / "data")
+    )  # REQ-1992: repos are in each org's folder
     org_id = f"envldap{uuid.uuid4().hex[:8]}"
+    ready_org_folder(org_id)
     url = (
         f"postgresql+psycopg://provisa:{os.environ.get('PG_PASSWORD', 'provisa')}@"
         f"{docker_postgres['host']}:{docker_postgres['port']}/provisa"

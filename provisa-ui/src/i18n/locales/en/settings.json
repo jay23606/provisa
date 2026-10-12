@@ -363,10 +363,6 @@
         "label": "Encrypt redirected results",
         "help": "Whether redirected results are encrypted before they are uploaded."
       },
-      "local_dir": {
-        "label": "Redirect local folder",
-        "help": "The folder redirected results are written to when no object store can be reached."
-      },
       "access_key": {
         "label": "Redirect access key",
         "help": "The object store's access key. Secret; guarded."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Home folder",
         "help": "The deployment's home folder for certificates and local stores. Not editable: it is read before stored settings can be."
-      },
-      "repo_dir": {
-        "label": "Configuration history folder",
-        "help": "The folder that holds each organization's configuration history. Not editable: it is read before stored settings can be."
       },
       "demo": {
         "label": "Demo mode",

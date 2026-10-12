@@ -154,6 +154,11 @@ auth:
 
 provisa:
   replicaCount: 2
+  # REQ-1992: let an organization keep its file folder encrypted (gocryptfs over FUSE). Grants
+  # the container SYS_ADMIN and the node's /dev/fuse. Off: folders are plain, and an org's
+  # setting to encrypt its folder is refused by name.
+  folderEncryption:
+    enabled: false
   image:
     repository: provisa
     tag: latest

@@ -1,0 +1,12 @@
+# REQ-1992: lets an organization keep its file folder encrypted (gocryptfs over FUSE). Add it
+# to the compose files you run, after docker-compose.app.yml:
+#   docker compose -f docker-compose.app.yml -f docker-compose.folder-encryption.yml up -d
+# Without it, folders are plain and an org's setting to encrypt its folder is refused by name.
+services:
+  provisa:
+    devices:
+      - /dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined

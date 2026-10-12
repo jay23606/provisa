@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.core import env_repo
 from provisa.core.env_repo import (
     RepositoryError,
@@ -39,7 +41,11 @@ ORG = "acme"
 
 @pytest.fixture(autouse=True)
 def repo_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    # REQ-1992: the org's repository is in its folder on the node, made ready as its runtime
+    # makes it.
+    monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder(ORG)
+    ready_org_folder("other")
     return tmp_path
 
 

@@ -407,14 +407,38 @@ def test_a_kind_that_writes_its_own_rows_has_no_replica_to_spool():
     assert not hasattr(sl, "make_dq_loader")
 
 
-def test_the_spool_directory_is_under_the_nodes_data_directory_and_swept_at_start():
+def test_the_spool_directory_is_in_the_orgs_folder_and_every_org_is_swept_at_start():
+    """REQ-1992: each org spools in its own folder on the node; a node start sweeps them all."""
     import inspect
 
     from provisa.api import app_startup
-    from provisa.federation.replica_spool import spool_directory, spool_limit
-
-    assert spool_directory() == Path(os.environ["PROVISA_DATA_DIR"]) / "replica-spool"
-    assert spool_limit() == 2 * 1024**3
-    assert "_sweep_spool(spool_directory())" in inspect.getsource(
-        app_startup._start_background_tasks
+    from provisa.core.request_context import require_current_org
+    from provisa.federation.replica_spool import (
+        node_spool_directories,
+        spool_directory,
+        spool_limit,
     )
+
+    org_folder = Path(os.environ["PROVISA_DATA_DIR"]) / "orgs" / require_current_org()
+    assert spool_directory() == org_folder / "replica-spool"
+    assert spool_limit() == 2 * 1024**3
+    spool_directory().mkdir(parents=True, exist_ok=True)
+    assert spool_directory() in node_spool_directories()
+    assert "_sweep_spool(_spool)" in inspect.getsource(app_startup._start_background_tasks)
+
+
+def test_the_nodes_one_bound_counts_every_orgs_spool(tmp_path, monkeypatch):
+    """The node's ``replication.spool_max_bytes`` is one bound, over every org's spool files."""
+    from provisa.federation import replica_spool
+
+    monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+    a = tmp_path / "orgs" / "org_a" / "replica-spool"
+    b = tmp_path / "orgs" / "org_b" / "replica-spool"
+    for directory, size in ((a, 300), (b, 500)):
+        directory.mkdir(parents=True)
+        (directory / f"x{replica_spool.SPOOL_SUFFIX}").write_bytes(b"x" * size)
+    assert replica_spool.node_used_bytes(a) == 800
+    # Opening org a's spool sweeps org a's unheld files; org b's are counted as they stand.
+    with pytest.raises(replica_spool.ReplicaSpoolFull):
+        with replica_spool.SpoolFile(a, table="t", limit=600) as spool:
+            spool.reserve(200)

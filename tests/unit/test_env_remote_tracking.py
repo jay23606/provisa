@@ -21,6 +21,8 @@ dulwich was called and none of that.
 from __future__ import annotations
 
 import pytest
+
+from tests.helpers import ready_org_folder
 from dulwich.repo import Repo
 
 from provisa.core import env_ci
@@ -42,7 +44,10 @@ ORG = "acme"
 
 @pytest.fixture(autouse=True)
 def repo_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    # REQ-1992: the org's repository is in its folder on the node, made ready as its runtime
+    # makes it.
+    monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder(ORG)
     return tmp_path
 
 

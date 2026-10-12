@@ -25,6 +25,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.core.models import Source, SourceType
 from provisa.federation import pgwire_replica as pr
 from provisa.runtime_deps import pgwire_bundles as rd
@@ -409,7 +411,7 @@ def test_bundle_resolve_download_without_launcher_is_loud(tmp_path):
 def _spawn_returning(proc):
     """A fake ``spawn`` callable matching ``_spawn_process``'s ``(command, cwd)`` signature."""
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         assert isinstance(cmd, list) and isinstance(cwd, Path)
         return proc
 
@@ -451,7 +453,7 @@ def _server(tmp_path, *, health: bool = True):
     spawned: list[list[str]] = []
     spawn_cwds: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         spawned.append(cmd)
         spawn_cwds.append(cwd)
         return proc
@@ -799,7 +801,7 @@ def test_a_server_that_exited_is_reported_with_its_log_not_as_still_starting(tmp
     real_replica_cls = pr.ConnectorReplica
     spawned_in: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         spawned_in.append(cwd)
         (cwd / pr.SERVER_LOG_NAME).write_text("starting\nsplunk login failed: 401 Unauthorized\n")
         return _FakeProc(exit_code=1)
@@ -976,7 +978,7 @@ def test_owner_pid_flag_is_gated_on_the_bundle_release(tmp_path):
     assert pr.bundle_supports_owner_pid("engine-v1.0.0") is True
     spawned: list[list[str]] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         assert isinstance(cwd, Path)
         spawned.append(cmd)
         return _FakeProc()
@@ -1013,7 +1015,7 @@ def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
     resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=_dl)
     started: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         started.append(cwd)
         return _FakeProc()
 
@@ -1021,6 +1023,7 @@ def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
 
     def _server_of(org: str, path: str):
         bind_org(org)
+        ready_org_folder(org)
         replica = pr.ConnectorReplica(
             _files_source(id="files", path=path),
             resolver=resolver,
@@ -1034,7 +1037,8 @@ def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
     (_a, ports_a), (_b, ports_b) = _server_of("org_a", "/data/a"), _server_of("org_b", "/data/b")
     cwd_a, cwd_b = started
     assert cwd_a != cwd_b
-    assert (cwd_a.parent.name, cwd_b.parent.name) == ("org_a", "org_b")
+    # REQ-1992: each in its own org's folder on the node.
+    assert (cwd_a.parents[2].name, cwd_b.parents[2].name) == ("org_a", "org_b")
     assert ports_a != ports_b
     model_a = json.loads((cwd_a / "model" / "model.json").read_text())
     model_b = json.loads((cwd_b / "model" / "model.json").read_text())
@@ -1056,10 +1060,12 @@ def test_two_orgs_stage_and_crawl_into_their_own_directories(bind_org):
     from provisa.file_source.crawl import crawl_landing_directory
 
     bind_org("org_a")
+    ready_org_folder("org_a")
     a = crawl_landing_directory("wiki")
     bind_org("org_b")
+    ready_org_folder("org_b")
     b = crawl_landing_directory("wiki")
-    assert a != b and (a.parent.name, b.parent.name) == ("org_a", "org_b")
+    assert a != b and (a.parents[1].name, b.parents[1].name) == ("org_a", "org_b")
 
 
 def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
@@ -1075,7 +1081,7 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=_dl)
     started: list[tuple[list[str], Path]] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         started.append((cmd, cwd))
         return _FakeProc()
 
@@ -1097,7 +1103,7 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     # Each runs in its own directory, under the instance's data directory, never the bundle.
     assert cwd_a != cwd_b
     data_dir = Path(os.environ["PROVISA_DATA_DIR"])
-    assert {cwd_a.parent.parent.name, cwd_b.parent.parent.name} == {first.spec.version}
+    assert {cwd_a.parent.name, cwd_b.parent.name} == {first.spec.version}
     assert cwd_a.is_relative_to(data_dir) and cwd_b.is_relative_to(data_dir)
     # Each reads its own model: the launcher resolves its home from its linked bin directory.
     assert cmd_a[0] == str(cwd_a / "bin" / first.spec.artifact_name)

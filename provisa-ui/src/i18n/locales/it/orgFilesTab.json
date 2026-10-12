@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Cifratura della cartella dei file",
+    "loading": "Caricamento…",
+    "intro": "I file che Provisa conserva per la tua organizzazione su ogni server — cache, conversioni, repliche e risultati di grandi dimensioni — sono conservati nella cartella della tua organizzazione. Attiva la cifratura per conservarli cifrati con una chiave custodita dalla tua organizzazione.",
+    "encrypt": "Cifra la cartella dei file dell'organizzazione",
+    "referenceLabel": "Riferimento della chiave",
+    "referenceHelp": "Il nome della chiave nel vault dei segreti della tua organizzazione, scritto ${secret:NAME}. Provisa conserva solo questo riferimento, mai la chiave.",
+    "referenceWrong": "Scrivi il nome della chiave come ${secret:NAME}, non la chiave stessa.",
+    "generate": "Genera chiave",
+    "generatedLabel": "Nuova chiave",
+    "generatedHelp": "Mostrata una sola volta. Copiala ora nel vault dei segreti della tua organizzazione, poi imposta il riferimento della chiave.",
+    "warnTitle": "Conserva questa chiave al sicuro",
+    "warn1": "Provisa non può recuperare questa chiave e nessuno in Provisa può vederla o reimpostarla.",
+    "warn2": "Conservala ora nel vault dei segreti della tua organizzazione; non verrà più mostrata.",
+    "warn3": "Conserva una seconda copia in un altro luogo sicuro sotto il tuo controllo.",
+    "warn4": "Limita chi può leggerla e non inviarla mai via e-mail, chat o ticket.",
+    "warn5": "Perderla significa che i file cifrati vengono reimpostati e ricostruiti.",
+    "warn6": "Per ruotarla, genera una nuova chiave, conservala nel vault e aggiorna il riferimento.",
+    "saved": "Salvato. Ogni server lo applica la prossima volta che avvia il lavoro per questa organizzazione."
+  }
+}

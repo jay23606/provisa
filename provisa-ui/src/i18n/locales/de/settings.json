@@ -363,10 +363,6 @@
         "label": "Umgeleitete Ergebnisse verschlüsseln",
         "help": "Ob umgeleitete Ergebnisse vor dem Hochladen verschlüsselt werden."
       },
-      "local_dir": {
-        "label": "Lokaler Ordner der Weiterleitung",
-        "help": "Der Ordner, in den umgeleitete Ergebnisse geschrieben werden, wenn kein Objektspeicher erreichbar ist."
-      },
       "access_key": {
         "label": "Zugriffsschlüssel der Weiterleitung",
         "help": "Der Zugriffsschlüssel des Objektspeichers. Secret; bestätigungspflichtig."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Home-Ordner",
         "help": "Der Home-Ordner des Deployments für Zertifikate und lokale Speicher. Nicht bearbeitbar: Er wird gelesen, bevor gespeicherte Einstellungen gelesen werden können."
-      },
-      "repo_dir": {
-        "label": "Ordner für den Konfigurationsverlauf",
-        "help": "Der Ordner, der den Konfigurationsverlauf jeder Organisation enthält. Nicht bearbeitbar: Er wird gelesen, bevor gespeicherte Einstellungen gelesen werden können."
       },
       "demo": {
         "label": "Demomodus",

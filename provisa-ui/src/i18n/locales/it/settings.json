@@ -363,10 +363,6 @@
         "label": "Crittografa i risultati reindirizzati",
         "help": "Indica se i risultati reindirizzati vengono crittografati prima del caricamento."
       },
-      "local_dir": {
-        "label": "Cartella locale di reindirizzamento",
-        "help": "La cartella in cui vengono scritti i risultati reindirizzati quando nessun archivio di oggetti è raggiungibile."
-      },
       "access_key": {
         "label": "Chiave di accesso del reindirizzamento",
         "help": "La chiave di accesso dell'archivio di oggetti. Segreta; protetta da conferma."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Cartella home",
         "help": "La cartella home della distribuzione per certificati e archivi locali. Non modificabile: viene letta prima che le impostazioni archiviate possano esserlo."
-      },
-      "repo_dir": {
-        "label": "Cartella della cronologia di configurazione",
-        "help": "La cartella che contiene la cronologia di configurazione di ogni organizzazione. Non modificabile: viene letta prima che le impostazioni archiviate possano esserlo."
       },
       "demo": {
         "label": "Modalità demo",

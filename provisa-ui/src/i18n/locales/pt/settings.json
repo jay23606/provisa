@@ -363,10 +363,6 @@
         "label": "Criptografar resultados redirecionados",
         "help": "Define se os resultados redirecionados são criptografados antes de serem enviados."
       },
-      "local_dir": {
-        "label": "Pasta local do redirecionamento",
-        "help": "A pasta em que os resultados redirecionados são gravados quando nenhum armazenamento de objetos pode ser alcançado."
-      },
       "access_key": {
         "label": "Chave de acesso do redirecionamento",
         "help": "A chave de acesso do armazenamento de objetos. Segredo; pede confirmação antes de salvar."
@@ -520,10 +516,6 @@
       "home": {
         "label": "Pasta inicial",
         "help": "A pasta inicial da implantação para certificados e armazenamentos locais. Não editável: é lida antes que as configurações armazenadas possam ser lidas."
-      },
-      "repo_dir": {
-        "label": "Pasta do histórico de configuração",
-        "help": "A pasta que contém o histórico de configuração de cada organização. Não editável: é lida antes que as configurações armazenadas possam ser lidas."
       },
       "demo": {
         "label": "Modo de demonstração",

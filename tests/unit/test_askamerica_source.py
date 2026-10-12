@@ -41,6 +41,7 @@ from provisa.federation.engine import (
 )
 from provisa.federation.strategy import Strategy, engine_attaches, federate
 from provisa.runtime_deps import pgwire_bundles as rd
+from tests.helpers import ready_org_folder
 
 _ANSWER = {
     "access_key_id": "AK",
@@ -262,6 +263,7 @@ def test_the_server_is_the_installed_bundle_started_by_its_own_launcher(tmp_path
     one thing added is its own seed, laid down beside its model."""
     bundle = _install_bundle(tmp_path / "bundle")
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     before = sorted(p.relative_to(bundle) for p in bundle.rglob("*"))
     spawned: list = []
     _replica_on(bundle, spawned, monkeypatch).endpoint()
@@ -275,7 +277,9 @@ def test_the_server_is_the_installed_bundle_started_by_its_own_launcher(tmp_path
     assert cwd == bundle
     assert env["ASKAMERICA_API_KEY"] == "aa-key" and env["AWS_ACCESS_KEY_ID"] == "AK"
     assert sorted(p.relative_to(bundle) for p in bundle.rglob("*")) == before
-    assert not (tmp_path / "data").exists()  # no per-source copy of the tree
+    # No per-source copy of the tree (REQ-1992: only the JVM's temporary directory is made, in
+    # the org's folder).
+    assert not list((tmp_path / "data").rglob("pgwire"))
 
 
 def test_the_server_runs_on_the_bundles_model_byte_for_byte_with_its_prebuilt_catalog(
@@ -461,12 +465,13 @@ def test_a_sibling_still_runs_from_a_state_directory_of_its_own_with_its_model_w
     bundle = tmp_path / "bundle"
     (bundle / "bin").mkdir(parents=True)
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     spawned: list = []
     replica = pr.ConnectorReplica(
         Source(id="docs", type=SourceType.files, path="/data"),
         resolver=SimpleNamespace(resolve=lambda spec: bundle),  # type: ignore[arg-type]
         allocator=pr.PortAllocator(is_free=lambda port: True),
-        spawn=lambda command, cwd: spawned.append((command, cwd)) or SimpleNamespace(),
+        spawn=lambda command, cwd, env=None: spawned.append((command, cwd)) or SimpleNamespace(),
         health_check=lambda host, port: True,
     )
     replica.endpoint()
@@ -1190,6 +1195,7 @@ def test_starting_the_server_logs_no_secret(tmp_path, caplog, monkeypatch):
 
     _install_bundle(tmp_path / "bundle")
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path / "data"))
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     monkeypatch.setattr(aa, "_fetch", lambda key: (200, _ANSWER))
     replica = pr.ConnectorReplica(
         _source(),

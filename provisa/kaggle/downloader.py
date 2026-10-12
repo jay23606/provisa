@@ -24,7 +24,6 @@ staged — a clear, actionable error beats a silently incomplete import.
 from __future__ import annotations
 
 import io
-import os
 import zipfile
 from pathlib import Path
 
@@ -53,12 +52,6 @@ class UnsupportedKaggleDataset(Exception):
     """The dataset bundle contains a file type this v1 connector cannot ingest."""
 
 
-def _data_dir() -> Path:
-    # REQ-1780: same $PROVISA_DATA_DIR-else-~/.provisa convention as
-    # provisa/core/env_source_files.py:77 and provisa/federation/engine.py:571.
-    return Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-
-
 def _file_names(meta: dict) -> list[str]:
     files = meta.get("datasetFiles") or meta.get("files") or []
     names = [f.get("name") or f.get("fileName") for f in files if isinstance(f, dict)]
@@ -78,7 +71,7 @@ def staged_mtime(root: Path) -> float | None:  # REQ-1787
 
 async def stage_dataset(token: str, owner: str, ref: str) -> Path:  # REQ-1780, REQ-1781, REQ-1782
     """Download *owner/ref* and unzip its CSV/Parquet members onto local disk, one file per its
-    own subdirectory under ``<data_dir>/kaggle/<org>/<owner>/<ref>/<file-stem>/<file-name>``.
+    own subdirectory under ``<org folder>/kaggle/<owner>/<ref>/<file-stem>/<file-name>``.
 
     Raises :class:`UnsupportedKaggleDataset` if the bundle's file listing names a SQLite/.db
     file — v1 does not stage or partially stage such a bundle. Idempotent: re-running this is
@@ -104,10 +97,10 @@ async def stage_dataset(token: str, owner: str, ref: str) -> Path:  # REQ-1780, 
         )
 
     bundle = await download_dataset(token, owner, ref)
-    # REQ-1992: under the org that stages it: no org's staged files are another's.
-    from provisa.core.org_scope import current_org_segment
+    # REQ-1992: in the folder of the org that stages it: no org's staged files are another's.
+    from provisa.core.org_files import org_root
 
-    root = _data_dir() / "kaggle" / current_org_segment() / owner / ref
+    root = org_root() / "kaggle" / owner / ref
     root.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(io.BytesIO(bundle)) as zf:

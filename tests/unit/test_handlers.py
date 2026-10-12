@@ -12,6 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.events.handlers import make_mv_generate, make_source_land
 from provisa.federation import store_writer
 from tests.helpers import DsnEngine as _DsnEngine
@@ -97,6 +99,7 @@ async def _duckdb_engine_runtime(tmp_path, monkeypatch):
     from provisa.federation.runtime import EngineRuntime
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+    ready_org_folder()  # REQ-1992: the embedded store is in the org's folder
     monkeypatch.delenv("PROVISA_MATERIALIZE_URL", raising=False)
     engine = build_duckdb_engine()
     return EngineRuntime(engine, SimpleNamespace(config=None, engine_conn_kwargs={}))

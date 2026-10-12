@@ -336,7 +336,6 @@ def test_the_redirect_store_follows_the_stored_values(control_plane, monkeypatch
     )
     # Unset is the empty string in RedirectConfig, as it always was.
     assert (cfg.endpoint_url, cfg.access_key, cfg.secret_key) == ("", "", "")
-    assert cfg.local_dir.endswith("provisa-redirect-results")
 
     monkeypatch.setenv("PROVISA_REDIRECT_BUCKET", "from-env")
     monkeypatch.setenv("PROVISA_REDIRECT_SECRET_KEY", "env-secret")
@@ -351,7 +350,6 @@ def test_the_redirect_store_follows_the_stored_values(control_plane, monkeypatch
         redirect__region="eu-west-1",
         redirect__default_format="orc",
         redirect__encrypt=True,
-        redirect__local_dir="/var/tmp/redirect",
         redirect__access_key="stored-access",
         redirect__secret_key="stored-secret",
     )
@@ -366,7 +364,6 @@ def test_the_redirect_store_follows_the_stored_values(control_plane, monkeypatch
         region="eu-west-1",
         default_format="orc",
         encrypt=True,
-        local_dir="/var/tmp/redirect",
     )
 
 
@@ -697,7 +694,6 @@ _BOOTSTRAP = {
     "bootstrap.config_path": "read_before_control_plane",
     "bootstrap.data_dir": "read_before_control_plane",
     "bootstrap.home": "read_before_control_plane",
-    "bootstrap.repo_dir": "read_before_control_plane",
     "bootstrap.demo": "set_by_launcher",
     "cache.redis_embedded": "set_by_desktop_launcher",
 }

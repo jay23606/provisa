@@ -17,6 +17,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.helpers import ready_org_folder
+
 from provisa.core.models import Source, SourceType
 from provisa.federation import pgwire_replica as pr
 from provisa.file_source import wikipedia
@@ -77,10 +79,14 @@ def test_a_crawls_files_land_in_the_sources_own_directory_under_the_data_directo
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     from provisa.core.request_context import require_current_org
 
     # REQ-1992: under its org, a source id being unique only within one.
-    assert crawl_landing_directory("wiki") == tmp_path / "crawl" / require_current_org() / "wiki"
+    assert (
+        crawl_landing_directory("wiki")
+        == tmp_path / "orgs" / require_current_org() / "crawl" / "wiki"
+    )
 
 
 # -- Wikipedia --------------------------------------------------------------------------------------
@@ -162,6 +168,8 @@ def test_creating_a_wikipedia_source_writes_the_whole_crawl_into_the_files_sourc
     from provisa.api.admin.schema_common import _expand_wikipedia_if_needed
 
     monkeypatch.setenv("PROVISA_DATA_DIR", str(tmp_path))
+
+    ready_org_folder()  # REQ-1992: the org's folder, as its runtime makes it ready
     hints = {"brand": "wikipedia", "wikipedia": {"pages": ["Dubai"], "max_depth": 0}}
     given = SimpleNamespace(
         id="wiki",
@@ -175,7 +183,9 @@ def test_creating_a_wikipedia_source_writes_the_whole_crawl_into_the_files_sourc
     assert mapping["crawl"]["start_urls"] == ["https://en.wikipedia.org/wiki/Dubai"]
     from provisa.core.request_context import require_current_org
 
-    landed = tmp_path / "crawl" / require_current_org() / "wiki"  # REQ-1992: under its org
+    landed = (
+        tmp_path / "orgs" / require_current_org() / "crawl" / "wiki"
+    )  # REQ-1992: its org's folder
     assert given.path == str(landed) and landed.is_dir()
     # What it wrote is a crawl the files source's connectors accept as written.
     assert crawl_operand("wiki", mapping)["maxDepth"] == 0

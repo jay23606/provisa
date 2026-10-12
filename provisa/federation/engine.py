@@ -628,15 +628,19 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
 
 def _embedded_duckdb_materialize_default() -> str | None:  # REQ-989
     """The DECLARED default materialization store for the zero-config embedded stack: an embedded
-    DuckDB file under the data dir (``$PROVISA_DATA_DIR`` else ``~/.provisa``). Fully in-process, no
-    external database — the DuckDB engine attaches it and lands into it through its own connection
-    (DuckDB is single-writer). Explicit ``materialize_store_url`` still overrides it."""
-    import os
-    from pathlib import Path
+    DuckDB file in the bound org's folder on this node (REQ-1992: one file per org). Fully
+    in-process, no external database — the DuckDB engine attaches it and lands into it through its
+    own connection (DuckDB is single-writer). Explicit ``materialize_store_url`` still overrides
+    it."""
+    return embedded_store_dsn(None)
 
-    data_dir = Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return f"duckdb:///{data_dir / 'materialize.duckdb'}"
+
+def embedded_store_dsn(org_id: str | None) -> str:
+    """The embedded DuckDB store of ``org_id`` (the bound org when None): ``materialize.duckdb``
+    in its folder (REQ-1992)."""
+    from provisa.core.org_files import org_root
+
+    return f"duckdb:///{org_root(org_id) / 'materialize.duckdb'}"
 
 
 def _own_warehouse_materialize_default() -> str | None:  # REQ-1637, REQ-1653

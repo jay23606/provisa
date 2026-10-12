@@ -83,22 +83,14 @@ class RepositoryError(Exception):
     """The repository cannot answer the question asked of it."""
 
 
-def repo_root() -> Path:
-    """Where the deployment keeps its bare repositories.
-
-    The embedded default is the only one that can always work: REQ-294 makes the distribution
-    airgap-capable, so an external forge cannot be a dependency of editing a model. It follows the
-    same data-dir convention as the rest of the embedded stack.
-    """
-    root = os.environ.get("PROVISA_REPO_DIR")
-    if root:
-        return Path(root)
-    return Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa")) / "repos"
-
-
 def repo_path(org_id: str) -> Path:
-    """The org's bare repository. ``.git`` because a bare repository is conventionally named so."""
-    return repo_root() / f"{org_id}.git"
+    """The org's bare repository, in its folder on the node (REQ-1992), refused by name while
+    that folder is not ready. Embedded, because REQ-294 makes the distribution airgap-capable: an
+    external forge cannot be a dependency of editing a model. ``.git`` because a bare repository
+    is conventionally named so."""
+    from provisa.core.org_files import org_root
+
+    return org_root(org_id) / "repo.git"
 
 
 def ensure_repo(org_id: str) -> Repo:

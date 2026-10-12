@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "File folder encryption",
+    "loading": "Loading…",
+    "intro": "Files Provisa keeps for your organization on each server — caches, conversions, replicas and large results — are kept in your organization's own folder. Turn on encryption to keep them encrypted under a key your organization holds.",
+    "encrypt": "Encrypt the organization's file folder",
+    "referenceLabel": "Key reference",
+    "referenceHelp": "The key's name in your organization's secrets vault, written ${secret:NAME}. Provisa stores only this reference, never the key.",
+    "referenceWrong": "Write the key's name as ${secret:NAME}, not the key itself.",
+    "generate": "Generate key",
+    "generatedLabel": "New key",
+    "generatedHelp": "Shown once. Copy it into your organization's secrets vault now, then set the key reference.",
+    "warnTitle": "Keep this key safe",
+    "warn1": "Provisa cannot recover this key, and nobody at Provisa can see or reset it.",
+    "warn2": "Store it in your organization's secrets vault now; it will not be shown again.",
+    "warn3": "Keep a second copy in a separate secure location under your own control.",
+    "warn4": "Limit who can read it, and never send it by email, chat or ticket.",
+    "warn5": "Losing it means the encrypted files are reset and rebuilt.",
+    "warn6": "To rotate it, generate a new key, store it in your vault, and update the reference.",
+    "saved": "Saved. Each server applies it when it next starts work for this organization."
+  }
+}

@@ -97,7 +97,9 @@ def execute_ctas_redirect(  # REQ-029, REQ-044, REQ-138
     """
     result_id = uuid.uuid4().hex[:16]
     table_name = f"r_{result_id}"
-    s3_prefix = f"s3a://{RESULTS_BUCKET}/results/{result_id}"
+    from provisa.federation.result_sink import results_prefix
+
+    s3_prefix = f"s3a://{RESULTS_BUCKET}/{results_prefix()}/{result_id}"
     iceberg_fmt = _iceberg_format(output_format)
 
     ctas_sql = (

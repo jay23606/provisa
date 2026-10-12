@@ -1094,6 +1094,11 @@ async def _load_and_build(
     pg_host, pg_port, pg_database, pg_user = await _init_control_planes(
         config_path, initialise=apply
     )
+    # REQ-1992: the deployment org's folder on this node, ready before anything writes for it
+    # (its setting is on the admin plane, open from here).
+    from provisa.core import org_files
+
+    await org_files.prepare(state.org_id, state.admin_db, _stop_org_servers)
 
     _mark("pg-pool")
     _mark("schema-init")
@@ -1895,6 +1900,27 @@ async def build_org_runtime(
         )
 
 
+def _stop_org_servers(org_id: str) -> None:
+    """REQ-1992: stop the org's connector servers on this node, before its folder's files move."""
+    from provisa.federation.pgwire_replica import stop_org_servers
+
+    stop_org_servers(org_id)
+
+
+def _shares_an_embedded_store(org_id: str, storage_url: str | None) -> bool:
+    """Whether ``org_id`` would otherwise land in the deployment engine's embedded DuckDB store:
+    an org other than the deployment's, on the deployment's DuckDB engine, with no store of its
+    own and none configured (REQ-1992: that store is one file per org)."""
+    from provisa.federation.engine import configured_materialize_url
+
+    if org_id == state.org_id or storage_url is not None:
+        return False
+    shared = state._default_runtime().federation_engine
+    if shared is None or shared.engine.name != "duckdb":
+        return False
+    return configured_materialize_url() is None
+
+
 async def _build_org_runtime(
     org_id: str,
     *,
@@ -2011,6 +2037,10 @@ async def _build_org_runtime(
     token = set_current_org(org_id)
     env_token = set_current_env(env)
     try:
+        # REQ-1992: the org's folder on this node, ready before anything writes for it.
+        from provisa.core import org_files
+
+        await org_files.prepare(org_id, state.admin_db, _stop_org_servers)
         if external_engine is not None or engine_url is not None:
             # REQ-1412: the org runs its OWN coordinator. Same dedicated-EngineRuntime shape as an
             # isolated org — what changes is where the terminal points, which terminal_conn_kwargs
@@ -2034,6 +2064,18 @@ async def _build_org_runtime(
             if storage_url is not None:
                 # REQ-1922: the lane's engine lands in the lane's store, whoever its first user is.
                 rt.federation_engine.engine.pin_materialize_store(storage_url)
+            rt.federation_engine.bind_terminal()
+        elif not isolated_engine and _shares_an_embedded_store(org_id, storage_url):
+            # REQ-1992: an embedded DuckDB store is one file per org, in the org's folder. The
+            # deployment's engine holds the deployment org's file attached for its lifetime, so
+            # every other org on an embedded deployment runs its own in-process DuckDB pinned to
+            # its own file.
+            from provisa.federation.engine import build_engine, embedded_store_dsn
+            from provisa.federation.runtime import EngineRuntime
+
+            rt.isolated_engine = True
+            rt.federation_engine = EngineRuntime(build_engine(), state)
+            rt.federation_engine.engine.pin_materialize_store(embedded_store_dsn(org_id))
             rt.federation_engine.bind_terminal()
         elif isolated_engine:
             # REQ-1043/REQ-1067/REQ-1244: this org runs on its OWN federation engine. Bind a
@@ -3805,6 +3847,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(org_encryption_router)
+    from provisa.api.admin.org_files_router import router as org_files_router  # REQ-1992
+
+    app.include_router(org_files_router)
     from provisa.api.admin.import_router import router as hasura_import_router  # REQ-1483
 
     app.include_router(hasura_import_router)

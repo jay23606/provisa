@@ -1,0 +1,116 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: 3c9e5a71-8b2d-4f04-a6e3-1d7b9c5e2f86
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
+"""Each org's folder on this node: the one place the files Provisa generates for it go (REQ-1992).
+
+A source's conversion caches and downloads, its connector server's working files, replicas,
+spools, large results and every temporary file are written under ``<data dir>/orgs/<org id>``
+and nowhere else. The files are ephemeral: each node keeps its own, and anything there may be
+deleted and is rebuilt when next needed.
+
+The folder is made ready when the org's runtime is built on this node (:func:`prepare`) and
+released when that runtime goes (:func:`release`). An org that has turned on encryption has its
+folder mounted encrypted instead (``provisa.core.org_folder_crypt``). Asked for while it is not
+ready, the folder is refused by name (:class:`OrgFolderUnavailable`): nothing is written anywhere
+else in its place.
+"""
+
+# Requirements: REQ-1992
+from __future__ import annotations
+
+import asyncio
+import tempfile
+from pathlib import Path
+from collections.abc import Callable
+from typing import Any
+
+from provisa.core.org_scope import current_org_segment
+
+
+class OrgFolderUnavailable(RuntimeError):
+    """An org's folder is not ready on this node."""
+
+    def __init__(self, org_id: str) -> None:
+        super().__init__(
+            f"org {org_id!r}'s file folder is not available on this node; its runtime has not "
+            "made it ready, so nothing is written for it"
+        )
+        self.org_id = org_id
+
+
+def data_dir() -> Path:
+    """This node's data directory (``bootstrap.data_dir``, ``$PROVISA_DATA_DIR``), else its
+    documented default ``~/.provisa`` (REQ-1913)."""
+    from provisa.core import settings_registry
+
+    stated = settings_registry.value("bootstrap.data_dir")
+    return Path(stated) if stated else Path.home() / ".provisa"
+
+
+def orgs_dir() -> Path:
+    return data_dir() / "orgs"
+
+
+def folder(org_id: str) -> Path:
+    """Where ``org_id``'s folder is on this node, ready or not."""
+    from provisa.core.db import _validate_org_id
+
+    _validate_org_id(org_id)
+    return orgs_dir() / org_id
+
+
+async def prepare(
+    org_id: str, admin_db: Any = None, before_change: Callable[[str], None] | None = None
+) -> Path:
+    """Make ``org_id``'s folder ready on this node: plain, or mounted encrypted under the org's
+    key when the org has turned that on (``org_folder_crypt``), its files encrypted or decrypted
+    when the setting changed. Asked at every build of the org's runtime. ``admin_db`` holds the
+    org's setting; a node with no admin plane (a desktop, a test) has plain folders."""
+    path = folder(org_id)
+    if admin_db is None:
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return path
+    from provisa.core import org_folder_crypt as crypt
+
+    settings = await crypt.read_settings(admin_db, org_id)
+    if before_change is not None and crypt.changes(path, settings):
+        # What holds the folder's files open (the org's connector servers) is stopped before its
+        # files are encrypted or decrypted.
+        before_change(org_id)
+    key_of = crypt.vault_key_reader(admin_db, org_id, asyncio.get_running_loop())
+    await asyncio.to_thread(crypt.apply, org_id, path, settings, key_of)
+    return path
+
+
+def org_root(org_id: str | None = None) -> Path:
+    """The folder of ``org_id`` (the bound org when None), or :class:`OrgFolderUnavailable`."""
+    org = org_id if org_id is not None else current_org_segment()
+    path = folder(org)
+    if not path.is_dir():
+        raise OrgFolderUnavailable(org)
+    return path
+
+
+def org_path(*parts: str, org_id: str | None = None) -> Path:
+    """A directory under the org's folder, made if it is not there."""
+    path = org_root(org_id).joinpath(*parts)
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return path
+
+
+def org_tmp(org_id: str | None = None) -> Path:
+    """The org's temporary directory: temporary files and directories are made in it, never in
+    the node's own temporary directory."""
+    return org_path("tmp", org_id=org_id)
+
+
+def mkdtemp(prefix: str, org_id: str | None = None) -> str:
+    """A new temporary directory in the org's temporary directory."""
+    return tempfile.mkdtemp(prefix=prefix, dir=org_tmp(org_id))

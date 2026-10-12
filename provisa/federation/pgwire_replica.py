@@ -480,6 +480,10 @@ def build_model_json(source: Any, *, state_dir: Path | None = None) -> dict:
                 "for its describe cache"
             )
         operand["describeCacheDirectory"] = str(Path(state_dir) / DESCRIBE_CACHE_DIR_NAME)
+    if stype == "files" and state_dir is not None:
+        # REQ-1992: the file adapter's conversions, caches and catalog are written in the
+        # server's state directory, in its org's folder -- never its working directory's default.
+        operand["baseDirectory"] = str(Path(state_dir) / FILE_ADAPTER_DIR_NAME)
     return {
         "version": "1.0",
         "defaultSchema": schema,
@@ -604,6 +608,20 @@ class _ProcessGroup:
 SERVER_LOG_NAME = "pgwire-server.log"
 
 
+#: Where the file adapter keeps its working files in a server's state directory (REQ-1992).
+FILE_ADAPTER_DIR_NAME = ".aperio"
+
+
+def org_jvm_environment(org_id: str) -> dict[str, str]:
+    """The server's JVM writes its temporary files in its org's folder on this node (REQ-1992),
+    added to any ``JAVA_TOOL_OPTIONS`` this process has."""
+    from provisa.core.org_files import org_tmp
+
+    stated = os.environ.get("JAVA_TOOL_OPTIONS", "").strip()
+    option = f"-Djava.io.tmpdir={org_tmp(org_id)}"
+    return {"JAVA_TOOL_OPTIONS": f"{stated} {option}".strip()}
+
+
 def server_environment(source: Any, bundle_dir: Path) -> dict[str, str] | None:
     """What the source's server needs in its environment beyond this process's own, or None
     when its model carries everything (every type but AskAmerica, whose bundled model reads its
@@ -677,10 +695,11 @@ def server_state_dir(
     model and one adapter state keyed by schema name, so one served the other's files. Linking
     ``bin`` makes ``$HERE`` this directory. Kept under the instance's data directory
     (``$PROVISA_DATA_DIR``, else ``~/.provisa``, as the instance's other per-instance state is),
-    by bundle version, org and source id (the key a server's ports are allocated by): a source
-    id is unique only within its org."""
-    data_dir = Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-    state = data_dir / "pgwire" / version / org_id / source_id
+    by bundle version and source id (the key a server's ports are allocated by, with its org) in
+    its org's folder on this node (REQ-1992): a source id is unique only within its org."""
+    from provisa.core.org_files import org_path
+
+    state = org_path("pgwire", version, source_id, org_id=org_id)
     state.mkdir(parents=True, exist_ok=True)
     for entry in Path(bundle_dir).iterdir():
         name = entry.name
@@ -1076,7 +1095,10 @@ class ConnectorReplica:  # REQ-954/955/956
             spawn=self._spawn,
             health_check=self._health,
             port_is_free=self._port_is_free,
-            environment=server_environment(self._source, Path(bundle_dir)),
+            environment={
+                **(server_environment(self._source, Path(bundle_dir)) or {}),
+                **org_jvm_environment(self._key[0]),
+            },
         )
         server.start()  # REQ-955 (lifecycle)
         self._server = server
@@ -1401,6 +1423,16 @@ def stop_all_servers() -> None:
     for replica in _ENDPOINTS.values():
         replica.close()
     _ENDPOINTS.clear()
+
+
+def stop_org_servers(org_id: str) -> None:
+    """Stop and forget every server this process started for ``org_id``'s sources (REQ-1992:
+    before the org's folder's files are encrypted or decrypted)."""
+    with _ENDPOINTS_LOCK:
+        mine = [key for key in _ENDPOINTS if key[0] == org_id]
+        replicas = [_ENDPOINTS.pop(key) for key in mine]
+    for replica in replicas:
+        replica.close()
 
 
 def stop_endpoint(source_id: str) -> None:

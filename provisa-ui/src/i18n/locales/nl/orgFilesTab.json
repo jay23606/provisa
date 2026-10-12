@@ -1,0 +1,22 @@
+{
+  "orgFilesTab": {
+    "panelTitle": "Versleuteling van de bestandsmap",
+    "loading": "Laden…",
+    "intro": "Bestanden die Provisa op elke server voor uw organisatie bewaart — caches, conversies, replica's en grote resultaten — staan in de eigen map van uw organisatie. Zet versleuteling aan om ze versleuteld te bewaren onder een sleutel die uw organisatie beheert.",
+    "encrypt": "De bestandsmap van de organisatie versleutelen",
+    "referenceLabel": "Sleutelverwijzing",
+    "referenceHelp": "De naam van de sleutel in de geheimenkluis van uw organisatie, geschreven als ${secret:NAME}. Provisa bewaart alleen deze verwijzing, nooit de sleutel.",
+    "referenceWrong": "Schrijf de naam van de sleutel als ${secret:NAME}, niet de sleutel zelf.",
+    "generate": "Sleutel genereren",
+    "generatedLabel": "Nieuwe sleutel",
+    "generatedHelp": "Wordt één keer getoond. Kopieer hem nu naar de geheimenkluis van uw organisatie en stel daarna de sleutelverwijzing in.",
+    "warnTitle": "Bewaar deze sleutel veilig",
+    "warn1": "Provisa kan deze sleutel niet herstellen, en niemand bij Provisa kan hem zien of opnieuw instellen.",
+    "warn2": "Sla hem nu op in de geheimenkluis van uw organisatie; hij wordt niet opnieuw getoond.",
+    "warn3": "Bewaar een tweede kopie op een aparte veilige plek onder uw eigen beheer.",
+    "warn4": "Beperk wie hem kan lezen en stuur hem nooit per e-mail, chat of ticket.",
+    "warn5": "Raakt u hem kwijt, dan worden de versleutelde bestanden gewist en opnieuw opgebouwd.",
+    "warn6": "Om hem te vervangen genereert u een nieuwe sleutel, bewaart u die in uw kluis en werkt u de verwijzing bij.",
+    "saved": "Opgeslagen. Elke server past het toe wanneer hij de volgende keer werk voor deze organisatie start."
+  }
+}

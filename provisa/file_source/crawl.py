@@ -23,7 +23,6 @@ connector passes the same operand (REQ-1730).
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -94,9 +93,8 @@ def crawl_operand(source_id: str, mapping: dict | None) -> dict | None:
 
 def crawl_landing_directory(source_id: str) -> Path:
     """Where a crawling source's files land when the source names no directory of its own: a
-    directory of the source's under the data directory, as a staged dataset has one -- under its
-    org, as a source id is unique only within its org (REQ-1992)."""
-    from provisa.core.org_scope import current_org_segment
+    directory of the source's in its org's folder on this node (REQ-1992), as a staged dataset
+    has one."""
+    from provisa.core.org_files import org_root
 
-    root = Path(os.environ.get("PROVISA_DATA_DIR") or (Path.home() / ".provisa"))
-    return root / "crawl" / current_org_segment() / source_id
+    return org_root() / "crawl" / source_id

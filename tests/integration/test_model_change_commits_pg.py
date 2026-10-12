@@ -28,6 +28,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+
+from tests.helpers import ready_org_folder
 from sqlalchemy import MetaData, select
 
 from provisa.api.admin import environments_router as er
@@ -51,8 +53,11 @@ async def planes(docker_postgres, tmp_path, monkeypatch):
     from provisa.core.db import init_schema
     from provisa.core.schema_admin import init_registry_schema
 
-    monkeypatch.setenv("PROVISA_REPO_DIR", str(tmp_path / "repos"))
+    monkeypatch.setenv(
+        "PROVISA_DATA_DIR", str(tmp_path / "data")
+    )  # REQ-1992: repos are in each org's folder
     org_id = f"mc{uuid.uuid4().hex[:8]}"
+    ready_org_folder(org_id)
     url = (
         f"postgresql+psycopg://provisa:{os.environ.get('PG_PASSWORD', 'provisa')}@"
         f"{docker_postgres['host']}:{docker_postgres['port']}/provisa"
