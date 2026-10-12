@@ -12,7 +12,7 @@
 // nth-weekday), allowed-lateness, and business-day gate — staged through the shared save path.
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "../../../test-utils/render";
+import { render, screen, fireEvent, within } from "../../../test-utils/render";
 
 // vmThreads shares the module registry across test files, so a neighbor's partial
 // vi.mock("../../../api/admin") (e.g. table-description-autofill's) can leak in and drop
@@ -122,12 +122,9 @@ function renderForm(table: RegisteredTable, setEditingTable = vi.fn()) {
 }
 
 describe("TableEditForm — Snapshot Schedule panel (REQ-962/1168)", () => {
-  it("is collapsed by default and expands on toggle", () => {
+  it("is open with no toggle, with no schedule set", () => {
     renderForm(makeTable());
-    const toggle = screen.getByTestId("mv-snapshot-panel-toggle");
-    expect(toggle).toHaveAttribute("aria-expanded", "false"); // collapsed when no schedule set
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByTestId("mv-snapshot-panel-toggle")).not.toBeInTheDocument();
     expect(screen.getByTestId("mv-calendar")).toBeInTheDocument();
   });
 
@@ -171,7 +168,7 @@ describe("TableEditForm — Snapshot Schedule panel (REQ-962/1168)", () => {
 
   it("is hidden entirely for a non-materialized table", () => {
     renderForm(makeTable({ materialize: false }));
-    expect(screen.queryByTestId("mv-snapshot-panel-toggle")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mv-snapshot-panel")).not.toBeInTheDocument();
   });
 
   it("time-travel toggle switches Store As into history (delta) mode", () => {
@@ -199,13 +196,16 @@ describe("TableEditForm — Snapshot Schedule panel (REQ-962/1168)", () => {
     expect(screen.getByTestId("calendar-base-system")).toBeInTheDocument();
   });
 
-  it("renders the MV config as collapsible panels", () => {
+  it("renders the MV config open on the Load tab, with no toggles", () => {
     renderForm(makeTable());
-    expect(screen.getByTestId("mv-refresh-panel-toggle")).toBeInTheDocument();
-    expect(screen.getByTestId("mv-snapshot-panel-toggle")).toBeInTheDocument();
-    const refresh = screen.getByTestId("mv-refresh-panel-toggle");
-    expect(refresh).toHaveAttribute("aria-expanded", "true"); // defaults open
-    fireEvent.click(refresh);
-    expect(refresh).toHaveAttribute("aria-expanded", "false"); // collapses
+    expect(screen.getByTestId("mv-refresh-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("mv-snapshot-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("mv-refresh-panel-toggle")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mv-snapshot-panel-toggle")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("mv-refresh-panel")).getByRole("textbox", {
+        name: /Refresh Interval/,
+      }),
+    ).toBeVisible();
   });
 });

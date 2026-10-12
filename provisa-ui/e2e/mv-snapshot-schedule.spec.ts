@@ -37,8 +37,9 @@ test("create a calendar and configure an MV snapshot schedule", async ({ page })
     await editBtn.waitFor({ timeout: 15000 });
     await editBtn.click();
     // After editBtn.click(), Apollo resetStore may briefly clear the table list;
-    // wait 30s for the edit form (and its checkbox) to render after the reset.
-    await page.waitForSelector("input[type='checkbox']", { timeout: 30000 });
+    // wait 30s for the edit form to render after the reset. A view's materialization and its
+    // snapshot schedule are on the Load and timeliness tab, shown open.
+    await page.getByTestId("table-section-load").click({ timeout: 30000 });
   };
 
   await openEdit();
@@ -50,15 +51,9 @@ test("create a calendar and configure an MV snapshot schedule", async ({ page })
   await expect(matCheckbox).toBeVisible({ timeout: 5000 });
   if (!(await matCheckbox.isChecked())) await matCheckbox.check();
 
-  // Expand the Snapshot Schedule panel only if it is not already open. The panel auto-opens
-  // when mvCalendar is non-null (e.g. on a retry where the first attempt already persisted the
-  // calendar). Clicking the toggle when already open would close it instead.
-  const calendarInput = page.getByTestId("mv-calendar");
-  if (!(await calendarInput.isVisible())) {
-    await page.getByTestId("mv-snapshot-panel-toggle").click();
-    // Wait for the Mantine Collapse animation to complete (overflow:hidden during animation).
-    await calendarInput.waitFor({ state: "visible", timeout: 5000 });
-  }
+  // The Snapshot Schedule panel is open on the tab, with no toggle.
+  await expect(page.getByTestId("mv-snapshot-panel-toggle")).toHaveCount(0);
+  await expect(page.getByTestId("mv-calendar")).toBeVisible();
 
   // Create a new snapshot calendar through the modal.
   await page.getByTestId("mv-calendar-new").click();
@@ -86,14 +81,8 @@ test("create a calendar and configure an MV snapshot schedule", async ({ page })
   await page.waitForSelector(".page-header", { timeout: 30000 });
   await page.waitForFunction(() => document.querySelectorAll("tr").length > 2, { timeout: 30000 });
 
-  // Re-open and assert the snapshot schedule round-tripped. The panel auto-opens when
-  // mvCalendar is persisted — only click the toggle if the panel is still closed.
+  // Re-open and assert the snapshot schedule round-tripped.
   await openEdit();
-  const calendarInputRt = page.getByTestId("mv-calendar");
-  if (!(await calendarInputRt.isVisible())) {
-    await page.getByTestId("mv-snapshot-panel-toggle").click();
-    await calendarInputRt.waitFor({ state: "visible", timeout: 5000 });
-  }
   await expect(page.getByTestId("mv-calendar")).toHaveValue(/e2e-fiscal/);
   await expect(page.getByTestId("mv-grain")).toHaveValue(/Monthly/i);
   await expect(page.getByTestId("mv-allowed-lateness")).toHaveValue("3600");

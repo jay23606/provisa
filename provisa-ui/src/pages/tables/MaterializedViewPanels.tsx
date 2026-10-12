@@ -41,7 +41,8 @@ export function MaterializedViewPanels({
         <CollapsibleSection
           title={t("tableEditForm.refreshPanel")}
           testId="mv-refresh-panel"
-          defaultOpen
+          // On a view's Load and timeliness tab, open: the tab is its section.
+          flat
         >
           <FormField help={t("tableEditForm.refreshIntervalHelp")} size="short">
             <NumberInput
