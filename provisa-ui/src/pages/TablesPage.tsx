@@ -363,6 +363,13 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
     }
   };
 
+  // A table whose source caches its results (a remote API's) has a cache to drop; the panel's
+  // head offers that for it alone.
+  const hasCacheable = (table: RegisteredTable) => {
+    const srcType = sources.find((s) => s.id === table.sourceId)?.type;
+    return srcType === "graphql_remote" || srcType === "openapi" || srcType === "grpc_remote";
+  };
+
   const handlePurgeTableCache = async (tableId: number) => {
     setPurging((prev) => ({ ...prev, [tableId]: true }));
     setError(null);
@@ -848,6 +855,8 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
           onSetDraft={handleSetDraft}
           source={sources.find((s) => s.id === t.sourceId)}
           relationships={relationships}
+          onInvalidateCache={!hidingOnly && hasCacheable(t) ? handlePurgeTableCache : undefined}
+          invalidating={purging[t.id] === true}
           section={section}
           onSectionChange={setSection}
           profileColumnsTable={
@@ -1289,11 +1298,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                             <Group gap="xs" wrap="nowrap">
                               {!hidingOnly &&
                                 (() => {
-                                  const srcType = sources.find((s) => s.id === t.sourceId)?.type;
-                                  const hasCacheable =
-                                    srcType === "graphql_remote" ||
-                                    srcType === "openapi" ||
-                                    srcType === "grpc_remote";
                                   // REQ-968: only a table whose rows are LANDED can be rebuilt on demand.
                                   // The server derives that from the same policy resolution (REQ-1143) this
                                   // reads, so the button appears exactly where the mutation would accept it.
@@ -1313,18 +1317,6 @@ export function TablesPage({ viewsOnly = false }: { viewsOnly?: boolean } = {}) 
                                           data-testid={`tables-run-now-${t.tableName}`}
                                         >
                                           {translate("tablesPage.runNow")}
-                                        </Button>
-                                      )}
-                                      {hasCacheable && (
-                                        <Button
-                                          size="compact-xs"
-                                          variant="default"
-                                          onClick={() => handlePurgeTableCache(t.id)}
-                                          disabled={purging[t.id]}
-                                        >
-                                          {purging[t.id]
-                                            ? translate("tablesPage.purging")
-                                            : translate("tablesPage.invalidateCache")}
                                         </Button>
                                       )}
                                     </>

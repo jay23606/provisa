@@ -325,3 +325,24 @@ describe("TableReadView — the table's six sections", () => {
     expect(screen.getByTestId("table-quality")).toBeInTheDocument();
   });
 });
+
+describe("TableReadView — Invalidate Cache in the head", () => {
+  it("is offered as an icon action, named by the label, when the page gives it", async () => {
+    const onInvalidateCache = vi.fn();
+    renderView(false, makeTable({ id: 7 }), { onInvalidateCache });
+    const action = screen.getByRole("button", { name: "Invalidate Cache" });
+    expect(action).toBe(screen.getByTestId("table-read-view-invalidate-cache"));
+    fireEvent.click(action);
+    expect(onInvalidateCache).toHaveBeenCalledWith(7);
+  });
+
+  it("is dimmed while the cache is being dropped", () => {
+    renderView(false, makeTable({ id: 7 }), { onInvalidateCache: vi.fn(), invalidating: true });
+    expect(screen.getByTestId("table-read-view-invalidate-cache")).toBeDisabled();
+  });
+
+  it("is not there for a table with no cache to drop", () => {
+    renderView(false, makeTable({ id: 7 }));
+    expect(screen.queryByTestId("table-read-view-invalidate-cache")).toBeNull();
+  });
+});
