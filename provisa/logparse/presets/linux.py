@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 43de0f6f-b4d9-44d4-9c4f-08f269a90b1c
 #
 # This source code is licensed under the Business Source License 1.1
 """Container and Linux log presets (REQ-1996): Kubernetes container logs in the CRI format (a long

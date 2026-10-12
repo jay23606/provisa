@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: a14a999c-9f9d-458b-8020-5d85fdb04bab
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the container and Linux log presets read the lines each project's documentation
