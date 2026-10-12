@@ -179,15 +179,22 @@ def require_inputs_reached(view_sql: str, gov: "GovernanceContext") -> None:
             raise PermissionError(f"[V000] Table {named!r} not accessible for role {gov.role_id!r}")
 
 
+def _bitemporal_reads(state: Any) -> dict:
+    """The bitemporal views (REQ-1163): each answered from its own append log, whose entry in the
+    view map is the reconstruction over that log, not the view's definition."""
+    return getattr(state, "bitemporal_view_reads", None) or {}
+
+
 def _answered_after_governance(
-    view: str, view_sql_map: dict[str, str], state: Any, gov: "GovernanceContext", as_of: str | None
+    view: str, view_sql_map: dict[str, str], state: Any, gov: "GovernanceContext"
 ) -> bool:
     """Whether ``view`` keeps its reference through governance, its body put in at optimization:
-    its region's copy, an as-of read of a bitemporal view, or a materialized view the reader sees
+    its region's copy; a bitemporal view, current or as of a time -- its rows are what its own
+    append log reconstructs, never a reading of its inputs; or a materialized view the reader sees
     whole (for that reader, governing its SQL changes nothing)."""
     if _home_copy(view, state) is not None:
         return True
-    if as_of and view in (getattr(state, "bitemporal_view_reads", None) or {}):
+    if view in _bitemporal_reads(state):
         return True
     mv = state.mv_registry.get(f"view-{view}")
     return mv is not None and mv.enabled and sees_everything(view, view_sql_map, gov)
@@ -211,25 +218,41 @@ def semantic_statement(
     view_sql_map: dict[str, str],
     state: Any,
     gov: "GovernanceContext",
-    *,
-    as_of: str | None = None,
 ) -> tuple[str, str]:
     """``sql`` as ONE semantic statement for governance: ``(governed, validated)``.
 
     ``governed`` has every view it reads, directly or through another view, replaced by its SQL
     with the view table's own rules on top -- except a view answered after governance, which stays
     the registered table it is. ``validated`` has those expanded too: the V-rules judge every
-    table and every join any view reads, for this reader."""
+    table and every join any view reads, for this reader. A bitemporal view is judged by its
+    definition there, the tables and joins it reads: its entry in the view map is a reading of its
+    own log, which is no relation a reader could name."""
     from provisa.compiler.view_expand import expand_view_refs  # noqa: PLC0415
 
+    definitions = _definitions(view_sql_map, state)
     bodies: dict[str, str] = {}
-    for view, view_sql in views_read(sql, view_sql_map).items():
+    for view, view_sql in views_read(sql, definitions).items():
         require_inputs_in_service(view_sql, state)
-        if not _answered_after_governance(view, view_sql_map, state, gov, as_of):
+        if not _answered_after_governance(view, view_sql_map, state, gov):
             require_inputs_reached(view_sql, gov)
             bodies[view] = _with_own_rules(view, view_sql, gov)
     governed = expand_view_refs(sql, bodies)
-    return governed, expand_view_refs(governed, view_sql_map)
+    return governed, expand_view_refs(governed, definitions)
+
+
+def _definitions(view_sql_map: dict[str, str], state: Any) -> dict[str, str]:
+    """Each view's definition: its entry in the view map, but a bitemporal view's own SQL (its
+    materialized view's ``semantic_sql``) in place of the reading of its log."""
+    bitemporal = _bitemporal_reads(state)
+    if not bitemporal:
+        return view_sql_map
+    definitions = dict(view_sql_map)
+    for view in bitemporal:
+        mv = state.mv_registry.get(f"view-{view}")
+        if mv is None or mv.semantic_sql is None:
+            raise RuntimeError(f"bitemporal view {view!r} has no definition registered")
+        definitions[view] = mv.semantic_sql.rstrip().rstrip(";")
+    return definitions
 
 
 def unnarrowed_view_bodies(
@@ -242,7 +265,9 @@ def unnarrowed_view_bodies(
     refresh builds a view whole) every view."""
     from provisa.mv.bitemporal import as_of_view_map  # noqa: PLC0415
 
-    bitemporal = (getattr(state, "bitemporal_view_reads", None) or {}) if as_of else {}
+    # A bitemporal view is read from its log: as of the request's time, else its current state
+    # (its entry in the view map). Never its stored rows, which are the log itself.
+    bitemporal = _bitemporal_reads(state)
     as_of_reads = as_of_view_map(view_sql_map, bitemporal, as_of) if as_of else view_sql_map
     bodies: dict[str, str] = {}
     pending = [sql]
