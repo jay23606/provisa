@@ -283,7 +283,8 @@ def _lowered_distance(call: exp.Anonymous, dialect: str, pgvector: bool) -> exp.
             expressions=[exp.Cast(this=n.copy(), to=vector_type.copy()) for n in (col, query)],
         )
     if dialect == "postgres" and pgvector:
-        vector = exp.DataType.build("vector", udt=True)
+        # The cast a replica's index is built on (replica_target._pg_index_vectors).
+        vector = exp.DataType.build(f"vector({int(dims.this)})", udt=True)
         return exp.Paren(
             this=exp.Operator(
                 this=exp.Cast(this=col.copy(), to=vector.copy()),

@@ -130,6 +130,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "data_type": "integer",
                     "is_primary_key": True,
                     "native_filter_type": None,
+                    "embedding": False,
                     "path": None,
                 }
             ],
@@ -157,6 +158,7 @@ async def test_registered_tables_carry_the_settings_their_rows_hold(monkeypatch)
                     "data_type": "bigint",
                     "is_primary_key": False,
                     "native_filter_type": None,
+                    "embedding": False,
                     "path": None,
                 }
             ],

@@ -47,9 +47,10 @@ from sqlalchemy.types import UserDefinedType
 
 
 class Embedding(UserDefinedType):  # REQ-424
-    """An embedding vector in a replica, stored where the engine that reads the replica can index
-    it: pgvector's ``vector`` in a PostgreSQL store, ``FLOAT[]`` in a DuckDB store. Any other
-    store holds it as text, the vector's JSON form."""
+    """An embedding vector in a replica, stored as a list of floats where the engine that reads
+    the replica can index it: ``REAL[]`` in a PostgreSQL store (indexed through its pgvector
+    cast), ``FLOAT[]`` in a DuckDB store. Any other store holds it as text, the vector's JSON
+    form."""
 
     cache_ok = True
 
@@ -61,7 +62,7 @@ class Embedding(UserDefinedType):  # REQ-424
 @compiles(Embedding, "postgresql")
 def _embedding_postgresql(type_: Embedding, compiler: Any, **kw: Any) -> str:
     del type_, compiler, kw
-    return "vector"
+    return "REAL[]"
 
 
 @compiles(Embedding, "duckdb")

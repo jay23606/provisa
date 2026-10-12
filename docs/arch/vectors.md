@@ -132,7 +132,7 @@ A table served from its replica (REQ-1912) is the fallback for a vector search. 
 | Engine | Replica's embedding column | Index |
 | --- | --- | --- |
 | DuckDB, embedded store | `FLOAT[]` in the store; the engine's copy of the replica fixes it at `FLOAT[d]` | HNSW on the engine's copy, built each time the store changes |
-| PostgreSQL | pgvector `vector(d)` in the engine's own database | HNSW (`vector_cosine_ops`), built with each replica build |
+| PostgreSQL | `REAL[]` in the engine's own database | HNSW (`vector_cosine_ops`) on its pgvector cast `vector(d)`, built with each replica build |
 | Trino, or an engine reading a replica from a store of another kind | the vector's JSON text | none |
 
 A top-k search reads the index: a statement with a `LIMIT`, ordered first by `cosine_similarity(...)` most similar first, whose embedding column belongs to a replica-served table. It is written nearest-first by distance (DuckDB `array_cosine_distance`, pgvector `<=>`), the order the index serves, and its answer carries the `statement.approximate_index` warning: the index may miss a row slightly more similar than the last one returned. Every other search over a replica, and every search on an engine with no index, is computed exactly and says nothing.

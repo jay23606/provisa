@@ -18,9 +18,10 @@ Each enabled surface (a) advertises itself in ``pg_extension`` so clients see it
 function OR rejects them loudly.
 
 Convert-or-reject-loudly: a surface never claims a capability it does not
-implement. pgvector presents the distance operators and exact ORDER BY similarity
-scan but MUST NOT advertise ivfflat/hnsw index acceleration — a CREATE INDEX that
-asks for one is rejected with a clear error rather than silently ignored.
+implement. pgvector presents the distance operators — ``<=>`` as the governed
+``cosine_similarity`` search (REQ-423) — but a client cannot create an ivfflat/hnsw
+index: a CREATE INDEX that asks for one is rejected with a clear error rather than
+silently ignored. The only vector index is the one Provisa keeps on a replica (REQ-424).
 """
 
 from __future__ import annotations
@@ -165,9 +166,8 @@ def surface_typeinfo() -> dict[int, tuple]:
 
 # --- Convert-or-reject-loudly: unimplemented capabilities --------------------
 
-# pgvector ANN index access methods Provisa does NOT implement. Similarity search
-# is an exact sequential scan; a client asking for an ANN index is rejected, never
-# silently accepted (which would falsely claim index acceleration).
+# pgvector ANN index access methods a client cannot create. A client asking for an ANN
+# index is rejected, never silently accepted (which would falsely claim one was built).
 _ANN_INDEX_RE = re.compile(r"\bUSING\s+(ivfflat|hnsw)\b", re.IGNORECASE)
 
 
@@ -177,8 +177,8 @@ def reject_unimplemented(sql: str, keys: frozenset[str]) -> None:
         m = _ANN_INDEX_RE.search(sql)
         if m:
             raise ValueError(
-                f"pgvector surface does not implement {m.group(1).lower()} index "
-                "acceleration; similarity search runs as an exact sequential scan. "
+                f"pgvector surface does not create a {m.group(1).lower()} index; "
+                "Provisa keeps the vector index on a table's replica. "
                 "Remove the USING clause (a plain index or none)."
             )
 
@@ -225,12 +225,29 @@ def _map_json(node: exp.Expression) -> exp.Expression:
     return exp.Anonymous(this=fn, expressions=[node.this, exp.Literal.string(path)])
 
 
+def _cosine_similarity(node: exp.NullSafeEQ) -> exp.Anonymous:
+    return exp.Anonymous(this="cosine_similarity", expressions=[node.this, node.expression])
+
+
 def _map_vector(node: exp.Expression) -> exp.Expression:
-    """Map parsed pgvector distance operators to engine array-distance functions."""
+    """Map parsed pgvector distance operators to engine array-distance functions.
+
+    ``a <=> b`` (cosine distance) is the statement's own similarity search (REQ-423): it is
+    written as ``cosine_similarity``, which governance completes with the column's model and
+    which reads a replica's index when it orders a top-k search (REQ-424). Ordered by, it is
+    the similarity in the other direction; anywhere else, one minus it."""
+    if isinstance(node, exp.Ordered) and isinstance(node.this, exp.NullSafeEQ):
+        return exp.Ordered(
+            this=_cosine_similarity(node.this),
+            desc=not node.args.get("desc"),
+            nulls_first=node.args.get("nulls_first"),
+        )
     if isinstance(node, exp.Distance):  # a <-> b  (L2)
         return exp.Anonymous(this="array_distance", expressions=[node.this, node.expression])
     if isinstance(node, exp.NullSafeEQ):  # a <=> b  (cosine); sqlglot mis-tags <=>
-        return exp.Anonymous(this="array_cosine_distance", expressions=[node.this, node.expression])
+        return exp.Paren(
+            this=exp.Sub(this=exp.Literal.number(1), expression=_cosine_similarity(node))
+        )
     return node
 
 

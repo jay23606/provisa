@@ -190,6 +190,8 @@ _TYPE_MAP: dict[str, GraphQLScalarType] = cast(
         # JSON
         "json": JSONScalar,
         "jsonb": JSONScalar,
+        # REQ-424: an embedding (pgvector's vector, and the IR type of a replica's embedding)
+        "vector": GraphQLList(GraphQLNonNull(GraphQLFloat)),
     },
 )
 

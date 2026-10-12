@@ -98,7 +98,7 @@ def _src(sid: str):
 
 def _tbl(sid: str):
     col = SimpleNamespace(
-        name="id", data_type="bigint", is_primary_key=True, native_filter_type=None
+        name="id", data_type="bigint", is_primary_key=True, native_filter_type=None, embedding=False
     )
     return SimpleNamespace(
         source_id=sid,

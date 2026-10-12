@@ -31,7 +31,7 @@ NOW = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)
 
 def _column(name: str, data_type: str = "bigint", pk: bool = False) -> SimpleNamespace:
     return SimpleNamespace(
-        name=name, data_type=data_type, is_primary_key=pk, native_filter_type=None
+        name=name, data_type=data_type, is_primary_key=pk, native_filter_type=None, embedding=False
     )
 
 

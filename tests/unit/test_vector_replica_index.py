@@ -12,7 +12,7 @@
 
 Where the engine reads a replica through its store's own SQL, the replica holds an embedding
 column as a vector with an HNSW index: the DuckDB engine indexes its copy of a replica in its
-embedded store, the PostgreSQL engine holds a pgvector ``vector(d)`` indexed in its own database.
+embedded store, the PostgreSQL engine holds a ``REAL[]`` indexed through its pgvector cast.
 A top-k search over a replica reads the index and says its answer is approximate; every other
 search is exact. On Trino the replica holds the embedding as its JSON text, and nothing is
 indexed or said.
@@ -90,7 +90,7 @@ def test_a_vector_is_pgvector_in_postgresql_a_float_list_in_duckdb_and_text_else
 
     from provisa.core.ir_types import Embedding
 
-    assert to_physical("vector", "postgresql") == "vector"
+    assert to_physical("vector", "postgresql") == "REAL[]"
     assert Embedding().compile(dialect=duckdb_engine.Dialect()) == "FLOAT[]"
     assert to_physical("vector", "sqlite") == "TEXT"
 
@@ -109,7 +109,7 @@ class _Cursor:
         self._last = sql
 
     def fetchone(self):
-        if self._last.startswith("SELECT vector_dims"):
+        if self._last.startswith("SELECT array_length"):
             return None if self._dims is None else (self._dims,)
         if self._last.startswith("SELECT count(*)"):
             return (2, 1, 1)
@@ -132,33 +132,41 @@ def _target(native: bool) -> PostgresStoreTarget:
 
 
 def test_a_postgresql_store_the_engine_reads_holds_a_vector_and_one_it_does_not_holds_text():
-    assert '"vec" vector' in _target(True)._create_ddl()
+    assert '"vec" REAL[]' in _target(True)._create_ddl()
     assert '"vec" TEXT' in _target(False)._create_ddl()
 
 
-@pytest.mark.parametrize("native", [True, False])
-async def test_an_embedding_is_written_as_its_json_text(native):
-    target = _target(native)
+async def test_an_indexed_embedding_is_written_as_its_floats_and_one_held_as_text_as_json():
+    for native, written_vec in ((True, [1.0, 0.5, 0.0]), (False, "[1.0, 0.5, 0.0]")):
+        target = _target(native)
+        target._create_ddl()
+        written: list[list] = []
+        target._copy = SimpleNamespace(write_row=written.append)
+        await target.write(
+            pa.record_batch([]),
+            [{"id": 1, "vec": [1, 0.5, 0]}, {"id": 2, "vec": None}],
+        )
+        assert written == [[1, written_vec], [2, None]]
+    target = _target(True)
     target._create_ddl()
-    written: list[list] = []
+    written = []
     target._copy = SimpleNamespace(write_row=written.append)
-    await target.write(pa.record_batch([]), [{"id": 1, "vec": [1, 0.5, 0]}, {"id": 2, "vec": None}])
-    assert written == [[1, "[1.0, 0.5, 0.0]"], [2, None]]
+    await target.write(pa.record_batch([]), [{"id": 3, "vec": "[0, 1, 2]"}])
+    assert written == [[3, [0.0, 1.0, 2.0]]]
 
 
-def test_the_swap_fixes_each_vector_at_its_length_and_indexes_it_for_cosine_distance():
+def test_the_swap_indexes_each_vector_through_its_cast_at_its_length_for_cosine_distance():
     cur = _Cursor(dims=3)
     _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["id"], ["vec"])
     replica = f'"{_REPLICAS}"."src__public__docs"'
-    assert f'ALTER TABLE {replica} ALTER COLUMN "vec" TYPE vector(3)' in cur.statements
     (index,) = [s for s in cur.statements if s.startswith("CREATE INDEX")]
-    assert index.endswith(f'ON {replica} USING hnsw ("vec" vector_cosine_ops)')
+    assert index.endswith(f'ON {replica} USING hnsw ((CAST("vec" AS vector(3))) vector_cosine_ops)')
 
 
 def test_a_replica_with_no_vector_has_nothing_to_index():
     cur = _Cursor(dims=None)
     _pg_swap(cur, _REPLICAS, "src__public__docs", "build__x", ["id"], ["vec"])
-    assert not [s for s in cur.statements if "CREATE INDEX" in s or "TYPE vector" in s]
+    assert not [s for s in cur.statements if "CREATE INDEX" in s]
 
 
 def test_the_engine_statement_copy_brings_up_pgvector_and_indexes_the_replica(monkeypatch):
@@ -295,7 +303,8 @@ def test_the_distance_is_written_in_each_engine_s_indexed_form():
     assert 'ARRAY_COSINE_DISTANCE(CAST("vec" AS REAL[3]), CAST($1 AS REAL[3]))' in lower(
         sqlglot.transpile(sql, read="postgres", write="duckdb")[0], "duckdb"
     )
-    assert 'CAST("vec" AS VECTOR) OPERATOR(<=>) CAST($1 AS VECTOR)' in lower(
+    # The cast a replica's index is built on.
+    assert 'CAST("vec" AS VECTOR(3)) OPERATOR(<=>) CAST($1 AS VECTOR(3))' in lower(
         sql, "postgres", pgvector=True
     )
     trino = lower(sqlglot.transpile(sql, read="postgres", write="trino")[0], "trino")

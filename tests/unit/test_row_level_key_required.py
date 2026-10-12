@@ -60,6 +60,7 @@ def _table(name: str, key: str = "id", table_id: int = 1, alias=None) -> dict:
                 "data_type": "integer",
                 "is_primary_key": True,
                 "native_filter_type": None,
+                "embedding": False,
                 "visible_to": ["analyst"],
             },
             {
@@ -67,6 +68,7 @@ def _table(name: str, key: str = "id", table_id: int = 1, alias=None) -> dict:
                 "data_type": "integer",
                 "is_primary_key": False,
                 "native_filter_type": None,
+                "embedding": False,
                 "visible_to": ["analyst"],
             },
         ],

@@ -90,6 +90,7 @@ def _rcol(name, dt="bigint", pk=False):
         "is_primary_key": pk,
         "native_filter_type": None,
         "path": None,
+        "embedding": False,
     }
 
 

@@ -692,13 +692,23 @@ class SqlAlchemyStoreTarget:
 
 
 def _vector_text(value: Any) -> Any:
-    """An embedding as the store writes it: a vector's JSON text (pgvector's own input form). A
-    value that is already text is the source's own JSON text of it."""
+    """An embedding held as text: its JSON text. A value that is already text is the source's
+    own JSON text of it."""
     import json
 
     if value is None or isinstance(value, str):
         return value
     return json.dumps([float(v) for v in value])
+
+
+def _vector_list(value: Any) -> Any:
+    """An embedding held as a ``REAL[]``: its floats. A source that holds it as text gives its
+    JSON text."""
+    import json
+
+    if value is None:
+        return None
+    return [float(v) for v in (json.loads(value) if isinstance(value, str) else value)]
 
 
 def _driver_value(value: Any) -> Any:
@@ -741,21 +751,23 @@ def _hnsw_index_name(table: str, column: str) -> str:
 
 
 def _pg_index_vectors(cur: Any, schema: str, table: str, vectors: list[str]) -> None:
-    """Fix each vector column at its vectors' dimensions and index it with HNSW for cosine
-    distance (REQ-424). A replica with no vector in a column has nothing to index; vectors of
-    two lengths in one column fail the build, naming the column."""
+    """Index each vector column with HNSW for cosine distance, through its pgvector cast at its
+    vectors' length (REQ-424): the column stays a ``REAL[]``, read as a list as any array is,
+    and a search names the same cast (``similarity._lowered_distance``). A replica with no
+    vector in a column has nothing to index; vectors of two lengths in one column fail the
+    build."""
     replica = f"{_q(schema)}.{_q(table)}"
     for column in vectors:
         cur.execute(
-            f"SELECT vector_dims({_q(column)}) FROM {replica} WHERE {_q(column)} IS NOT NULL LIMIT 1"
+            f"SELECT array_length({_q(column)}, 1) FROM {replica} "
+            f"WHERE {_q(column)} IS NOT NULL LIMIT 1"
         )
         found = cur.fetchone()
         if found is None:
             continue
-        cur.execute(f"ALTER TABLE {replica} ALTER COLUMN {_q(column)} TYPE vector({int(found[0])})")
         cur.execute(
             f"CREATE INDEX {_q(_hnsw_index_name(table, column))} ON {replica} "
-            f"USING hnsw ({_q(column)} vector_cosine_ops)"
+            f"USING hnsw ((CAST({_q(column)} AS vector({int(found[0])}))) vector_cosine_ops)"
         )
 
 
@@ -849,8 +861,8 @@ class PostgresStoreTarget:
     name.
 
     ``native_vectors`` says the engine reads this store through the store's own SQL, so an
-    embedding column is a pgvector ``vector`` with an HNSW index (REQ-424); otherwise it is the
-    vector's JSON text."""
+    embedding column is a ``REAL[]`` with an HNSW index (REQ-424); otherwise it is the vector's
+    JSON text."""
 
     caps = TargetCaps(
         frozenset({TargetWrite.COPY_STREAM}), atomic_swap=True, load=TargetLoad.BULK_STREAM
@@ -869,10 +881,10 @@ class PostgresStoreTarget:
         self._dsn = _libpq_dsn(store_dsn)
         self._schema = schema
         self._table = table
-        # An embedding is written as its JSON text, which pgvector reads as a vector.
-        self._vector_values = frozenset(vector_columns(columns))
         self._columns = columns if native_vectors else text_vectors(columns)
         self._vectors = vector_columns(self._columns)
+        # An embedding held as text is written as its JSON text.
+        self._text_vectors = frozenset(vector_columns(columns)) - frozenset(self._vectors)
         self._pk = list(pk_columns)
         self._build = build_table_name(table)
         self._conn: Any = None
@@ -930,12 +942,14 @@ class PostgresStoreTarget:
         del batch  # this face writes rows
         names = [name for name, _ in self._columns]
         json_columns = self._json
-        vector_values = self._vector_values
+        vectors, text_vectors_ = frozenset(self._vectors), self._text_vectors
         for row in rows:
             self._copy.write_row(
                 [
-                    _vector_text(row.get(n))
-                    if n in vector_values
+                    _vector_list(row.get(n))
+                    if n in vectors
+                    else _vector_text(row.get(n))
+                    if n in text_vectors_
                     else Json(row.get(n))
                     if n in json_columns and isinstance(row.get(n), (dict, list))
                     else row.get(n)

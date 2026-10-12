@@ -48,6 +48,7 @@ _IR_TO_ARROW: dict[str, str] = {
     "uuid": "string",
     "bytea": "binary",
     "json": "string",
+    "vector": "vector",  # REQ-424: an embedding, a list of float32
 }
 
 
@@ -61,6 +62,8 @@ def arrow_type(ir_type: str, *, decimal: pa.DataType | None = None) -> pa.DataTy
         return decimal if decimal is not None else pa.string()
     if spelling == "timestamp":
         return pa.timestamp("us")
+    if spelling == "vector":
+        return pa.list_(pa.float32())
     return getattr(pa, spelling)()
 
 
@@ -95,6 +98,9 @@ def arrow_value(value: Any, ir_type: str, *, decimal: pa.DataType | None = None)
         return parsed
     if canonical == "date" and isinstance(value, str):
         return date.fromisoformat(value)
+    # REQ-424: a source that holds an embedding as its JSON text gives the text.
+    if canonical == "vector" and isinstance(value, str):
+        return json.loads(value)
     return value
 
 

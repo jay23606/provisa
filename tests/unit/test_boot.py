@@ -69,7 +69,9 @@ def _src(sid, stype):
 
 
 def _col(name, data_type: str | None = "bigint", pk=False, nf=None):
-    return SimpleNamespace(name=name, data_type=data_type, is_primary_key=pk, native_filter_type=nf)
+    return SimpleNamespace(
+        name=name, data_type=data_type, is_primary_key=pk, native_filter_type=nf, embedding=False
+    )
 
 
 def _tbl(sid, tname, cols, *, cache_ttl=300):
