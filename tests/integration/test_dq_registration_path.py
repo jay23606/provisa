@@ -99,6 +99,22 @@ async def _conn(tmp_path):
         engine.dispose()
 
 
+@pytest.fixture
+def org_vault(tmp_path, monkeypatch):
+    """The dry run reads the checker's connection inside the request org's vault, so a ``${secret:}``
+    in the mapping resolves. The deployment's org is bound (conftest); its vault -- empty here, the
+    mapping holds plain values -- lives in the same control plane as the estate."""
+    from provisa.api.app import state
+    from provisa.core.schema_admin import secrets_store
+
+    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'dq.db'}")
+    with engine.begin() as c:
+        secrets_store.metadata.create_all(c, tables=[secrets_store])
+    monkeypatch.setattr(state, "admin_db", Database(engine, name="admin"))
+    yield
+    engine.dispose()
+
+
 _MAPPING = {
     "host": "127.0.0.1",
     "port": 5439,
@@ -253,7 +269,7 @@ async def test_a_plain_table_registers_untouched(tmp_path):
 # ── The dry run (REQ-1443 clause 7) ──
 
 
-async def test_a_dry_run_reports_the_outcomes_and_lands_nothing(tmp_path, monkeypatch):
+async def test_a_dry_run_reports_the_outcomes_and_lands_nothing(tmp_path, monkeypatch, org_vault):
     """The scan is real; the landing is not. What the panel needs back is the per-check outcomes AND
     the table the dataset actually resolved to, since a contract aimed at the wrong table still scans
     cleanly and still lands nothing but passing rows."""
@@ -349,7 +365,9 @@ async def test_a_dry_run_against_an_unknown_source_is_refused(tmp_path):
     assert "no source 'nope'" in result["message"]
 
 
-async def test_a_dry_run_reports_a_checker_failure_rather_than_raising(tmp_path, monkeypatch):
+async def test_a_dry_run_reports_a_checker_failure_rather_than_raising(
+    tmp_path, monkeypatch, org_vault
+):
     """A wedged or missing checker is an answer the panel shows, not a GraphQL error it swallows."""
     from provisa.api.admin._dq_resolvers import dry_run_contract
     from provisa.dq.runner import CheckerError

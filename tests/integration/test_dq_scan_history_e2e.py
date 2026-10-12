@@ -14,7 +14,7 @@ A real server registers a Great Expectations checker table from its configuratio
 engine (SQLite control plane, read through its control-plane attach) and once on the test stack's
 Trino (Postgres control plane, read through the provisa_admin catalog). The table's result relation
 is created in the org's control plane at registration, under ``<name>_<source>_dq``, and the table
-publishes the name it was given.
+publishes the name it was given: SQL reads it as ``dqh.orders_quality``.
 
 Two scans' rows are appended to the relation the way a scan appends them (``results_sa_table``, the
 writer's own table), one after the other with a read between. A replica would be built once and
@@ -149,7 +149,7 @@ async def _scan_ids(server) -> list[str]:
         resp = await client.post(
             "/data/sql",
             json={
-                "sql": "SELECT scan_id FROM orders_quality ORDER BY scan_time",
+                "sql": "SELECT scan_id FROM dqh.orders_quality ORDER BY scan_time",
                 "role": "org_admin",
             },
         )
