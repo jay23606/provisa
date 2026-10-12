@@ -53,6 +53,9 @@
       "place_not_kept": "This copy is complete, but where its read reached could not be kept, so the next check for changes will ask for the read again: {{reason}}",
       "andMore": "{{ids}} and {{more}} more",
       "other": "The last build noted: {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} of {{total}} files read",
+    "buildingPartialFiles": "Replica building and already readable. Partial: {{done}} of {{total}} files read ({{how}}).",
+    "buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}})."
   }
 }

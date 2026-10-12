@@ -297,12 +297,22 @@ describe("how far a running build has got", () => {
     });
   });
 
+  it("measures a Logs source's build by the files it reads", () => {
+    const progress = { done: 2, total: 8, unit: "files", first: false };
+    expect(of({ progress })).toEqual({
+      percent: 25,
+      exact: true,
+      said: { key: "progressFiles", numbers: { done: 2, total: 8 } },
+    });
+  });
+
   it("has wording for everything it says", () => {
     const keys = [
       "progressAbout",
       "progressPast",
       "progressRows",
       "progressMailboxes",
+      "progressFiles",
       "progressWaiting",
       "replicating",
     ] as const;

@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Origen '{{source}}': {{field}} debe ser una ruta absoluta, se recibió '{{path}}'",
       "column_scope_invalid": "La columna '{{column}}' tiene el ámbito '{{scope}}'; el ámbito de una columna es uno de {{scopes}}",
       "microsoft_365_invalid": "Origen de Microsoft 365 {{source}}: {{error}}",
-      "parameter_set_by_source": "Un parámetro de '{{table}}' conserva lo que su origen dice de él: no se puede cambiar cómo llega al origen ni si el origen lo exige. Un administrador de datos hace obligatorio un parámetro con su interruptor de obligatorio."
+      "parameter_set_by_source": "Un parámetro de '{{table}}' conserva lo que su origen dice de él: no se puede cambiar cómo llega al origen ni si el origen lo exige. Un administrador de datos hace obligatorio un parámetro con su interruptor de obligatorio.",
+      "logs_invalid": "Origen Logs {{source}}: {{error}}",
+      "logs_path_refused": "Origen Logs {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} no es un nombre dentro de los secretos de esta organización en {{service}}: un nombre es relativo a la organización y no puede salir de ella",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} no es un usuario del dominio de Google Workspace de la organización, por lo que el directorio no puede listarse en su nombre. Un administrador corrige la dirección del administrador en Administración › Correo electrónico.",
       "directory_refused": "No se pudo leer el directorio de Google: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google rechazó la cuenta de servicio de la organización: {{reason}}"
+    },
+    "logs": {
+      "invalid": "Eso no es un origen Logs: {{error}}",
+      "path_refused": "Esos archivos no se pueden leer: {{reason}}"
     }
   }
 }

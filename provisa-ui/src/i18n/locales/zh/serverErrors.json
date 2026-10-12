@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "数据源“{{source}}”：{{field}} 必须是绝对路径，实际为“{{path}}”",
       "column_scope_invalid": "列 '{{column}}' 的范围为 '{{scope}}'；列的范围必须是 {{scopes}} 之一",
       "microsoft_365_invalid": "Microsoft 365 数据源 {{source}}：{{error}}",
-      "parameter_set_by_source": "'{{table}}' 的参数保留其源对它的描述：传给源的方式以及源是否要求它都不能更改。数据管理员通过参数的必填开关将其设为必填。"
+      "parameter_set_by_source": "'{{table}}' 的参数保留其源对它的描述：传给源的方式以及源是否要求它都不能更改。数据管理员通过参数的必填开关将其设为必填。",
+      "logs_invalid": "Logs 源 {{source}}：{{error}}",
+      "logs_path_refused": "Logs 源 {{source}}：{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} 不是组织的 Google Workspace 网域中的用户,因此无法以其身份列出目录。管理员在“管理 › 电子邮件”下更正管理员地址。",
       "directory_refused": "无法读取 Google 的目录:{{reason}}(HTTP {{status}})。",
       "credential_refused": "Google 拒绝了组织的服务账号:{{reason}}"
+    },
+    "logs": {
+      "invalid": "这不是 Logs 源：{{error}}",
+      "path_refused": "不能读取这些文件：{{reason}}"
     }
   }
 }

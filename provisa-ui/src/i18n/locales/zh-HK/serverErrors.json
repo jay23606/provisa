@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "資料來源「{{source}}」：{{field}} 必須是絕對路徑，實際為「{{path}}」",
       "column_scope_invalid": "欄位「{{column}}」的範圍為「{{scope}}」；欄位的範圍須為 {{scopes}} 其中之一",
       "microsoft_365_invalid": "Microsoft 365 數據來源 {{source}}：{{error}}",
-      "parameter_set_by_source": "'{{table}}' 的參數保留其來源對它的描述：傳給來源的方式以及來源是否要求它都不能更改。資料管理員透過參數的必填開關將其設為必填。"
+      "parameter_set_by_source": "'{{table}}' 的參數保留其來源對它的描述：傳給來源的方式以及來源是否要求它都不能更改。資料管理員透過參數的必填開關將其設為必填。",
+      "logs_invalid": "Logs 來源 {{source}}：{{error}}",
+      "logs_path_refused": "Logs 來源 {{source}}：{{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} 並非 {{service}} 中本組織密鑰範圍內的名稱：名稱相對於組織，不能超出組織範圍",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} 並非組織的 Google Workspace 網域中的使用者,因此無法以其身分列出目錄。管理員在「管理 › 電郵」之下更正管理員地址。",
       "directory_refused": "無法讀取 Google 的目錄:{{reason}}(HTTP {{status}})。",
       "credential_refused": "Google 拒絕了組織的服務帳戶:{{reason}}"
+    },
+    "logs": {
+      "invalid": "這不是 Logs 來源：{{error}}",
+      "path_refused": "不可讀取這些檔案：{{reason}}"
     }
   }
 }

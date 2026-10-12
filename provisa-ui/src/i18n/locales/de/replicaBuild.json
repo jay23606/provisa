@@ -53,6 +53,9 @@
       "place_not_kept": "Diese Kopie ist vollständig, aber es konnte nicht festgehalten werden, wie weit ihr Lesevorgang kam; die nächste Änderungsprüfung fordert den Lesevorgang daher erneut an: {{reason}}",
       "andMore": "{{ids}} und {{more}} weitere",
       "other": "Der letzte Build hat vermerkt: {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} von {{total}} Dateien gelesen",
+    "buildingPartialFiles": "Replikat wird erstellt und ist bereits lesbar. Unvollständig: {{done}} von {{total}} Dateien gelesen ({{how}}).",
+    "buildingPartsFiles": "Replikat wird aktualisiert: {{done}} von {{total}} Dateien geprüft ({{how}})."
   }
 }

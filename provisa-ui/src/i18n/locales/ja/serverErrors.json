@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "ソース '{{source}}': {{field}} は絶対パスである必要があります（指定値: '{{path}}'）",
       "column_scope_invalid": "列「{{column}}」のスコープは「{{scope}}」です。列のスコープは {{scopes}} のいずれかです",
       "microsoft_365_invalid": "Microsoft 365 ソース {{source}}: {{error}}",
-      "parameter_set_by_source": "'{{table}}' のパラメーターは、ソースが示すとおりに保たれます。ソースへの渡し方と、ソースが必須としているかどうかは変更できません。スチュワードは「必須」スイッチでパラメーターを必須にします。"
+      "parameter_set_by_source": "'{{table}}' のパラメーターは、ソースが示すとおりに保たれます。ソースへの渡し方と、ソースが必須としているかどうかは変更できません。スチュワードは「必須」スイッチでパラメーターを必須にします。",
+      "logs_invalid": "Logs ソース {{source}}: {{error}}",
+      "logs_path_refused": "Logs ソース {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} は組織の Google Workspace ドメインのユーザーではないため、このアドレスとしてディレクトリを一覧表示できません。管理者が「管理 › メール」で管理者のアドレスを修正します。",
       "directory_refused": "Google のディレクトリを読み取れませんでした: {{reason}} (HTTP {{status}})。",
       "credential_refused": "Google が組織のサービス アカウントを拒否しました: {{reason}}"
+    },
+    "logs": {
+      "invalid": "Logs ソースではありません: {{error}}",
+      "path_refused": "これらのファイルは読み取れません: {{reason}}"
     }
   }
 }

@@ -713,6 +713,20 @@
           "help": "Un dossier contenant un paquet serveur Splunk construit pour cet hôte, avec son lanceur sous bin/. Vide, la version épinglée est utilisée. Un dossier sans lanceur empêche le serveur de démarrer et nomme ce paramètre."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Répertoires où les fichiers journaux peuvent être lus",
+        "help": "Les répertoires où peuvent se trouver les fichiers d'une source Logs, une fois leurs liens suivis ; par défaut /var/log. Ajoutez-en un, comme ~/Library/Logs, pour lire dans des tables les fichiers propres au serveur qui s'y trouvent. Un serveur de plusieurs organisations ne lit aucun fichier journal qui lui soit propre, quoi qu'indique ce réglage."
+      },
+      "preview_lines": {
+        "label": "Lignes lues pour trouver les colonnes d'un journal",
+        "help": "Les colonnes d'une source en lignes JSON ou logfmt sont les champs que nomment les premières lignes de ses fichiers. Plus de lignes trouvent des champs rares et prennent plus de temps à lire."
+      },
+      "max_line_bytes": {
+        "label": "Entrée de journal la plus longue",
+        "help": "Une entrée plus longue garde ses premiers octets comme texte brut, et son erreur de lecture indique qu'elle était trop longue."
+      }
     }
   }
 }

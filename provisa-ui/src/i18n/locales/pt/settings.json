@@ -713,6 +713,20 @@
           "help": "Uma pasta com um pacote do servidor Splunk compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Diretórios dos quais arquivos de log podem ser lidos",
+        "help": "Os diretórios em que os arquivos de uma fonte Logs podem estar, depois de seguidos seus links; por padrão /var/log. Adicione um, como ~/Library/Logs, para ler em tabelas os arquivos do próprio servidor que estejam nele. Um servidor de muitas organizações não lê nenhum arquivo de log próprio, seja o que for que esta configuração diga."
+      },
+      "preview_lines": {
+        "label": "Linhas lidas para achar as colunas de um log",
+        "help": "As colunas de uma fonte de linhas JSON ou logfmt são os campos que as primeiras linhas de seus arquivos nomeiam. Mais linhas encontram campos raros e levam mais tempo para ler."
+      },
+      "max_line_bytes": {
+        "label": "Registro de log mais longo",
+        "help": "Um registro mais longo mantém seus primeiros bytes como texto bruto, e seu erro de leitura diz que era longo demais."
+      }
     }
   }
 }

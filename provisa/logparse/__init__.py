@@ -52,13 +52,25 @@ BUILT_IN: dict[str, Format] = {
 }
 
 
+def _with_presets() -> None:
+    from provisa.logparse.presets import presets
+
+    for preset in presets():
+        if preset.name in BUILT_IN or preset.name == "regex":
+            raise ValueError(f"two log formats are named {preset.name!r}")
+        BUILT_IN[preset.name] = preset
+
+
+_with_presets()
+
+
 def catalog() -> list[dict[str, str | bool]]:
     """The formats a source may name, in their groups' order, the regular expression last."""
     out: list[dict[str, str | bool]] = [
         {"name": f.name, "label": f.label, "group": f.group, "pattern": False}
         for f in BUILT_IN.values()
     ]
-    out.append({"name": "regex", "label": "Regular expression", "group": "Custom", "pattern": True})
+    out.append({"name": "regex", "label": "Regular expression", "group": "custom", "pattern": True})
     return out
 
 

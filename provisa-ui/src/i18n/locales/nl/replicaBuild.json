@@ -53,6 +53,9 @@
       "place_not_kept": "Deze kopie is volledig, maar er kon niet worden vastgehouden tot waar de leesactie kwam, dus de volgende controle op wijzigingen vraagt de leesactie opnieuw aan: {{reason}}",
       "andMore": "{{ids}} en nog {{more}}",
       "other": "De laatste build meldde: {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} van {{total}} bestanden gelezen",
+    "buildingPartialFiles": "Replica wordt opgebouwd en is al leesbaar. Gedeeltelijk: {{done}} van {{total}} bestanden gelezen ({{how}}).",
+    "buildingPartsFiles": "Replica wordt bijgewerkt: {{done}} van {{total}} bestanden gecontroleerd ({{how}})."
   }
 }

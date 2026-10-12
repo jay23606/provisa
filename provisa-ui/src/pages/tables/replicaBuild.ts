@@ -67,11 +67,32 @@ export function replicaProgress(build: ReplicaBuild): ReplicaProgress {
   return measured;
 }
 
+/** What a build that lands a part at a time counts as it reads them to their end: a mail
+ * source's mailboxes, a Logs source's files (REQ-1996). */
+const PARTS_SAID: Record<string, { progress: string; partial: string; parts: string }> = {
+  mailboxes: {
+    progress: "progressMailboxes",
+    partial: "buildingPartial",
+    parts: "buildingParts",
+  },
+  files: {
+    progress: "progressFiles",
+    partial: "buildingPartialFiles",
+    parts: "buildingPartsFiles",
+  },
+};
+
+function partsSaid(unit: string) {
+  const said = PARTS_SAID[unit];
+  if (!said) throw new Error(`a build reports parts of an unknown kind: ${unit}`);
+  return said;
+}
+
 function measuredProgress(build: ReplicaBuild): ReplicaProgress {
-  // A build that lands a mailbox at a time knows its total: the mailboxes it reads. That is a
-  // count, not an estimate -- and still never shown as complete while the build runs.
+  // A build that lands a mailbox (or a file) at a time knows its total: the parts it reads.
+  // That is a count, not an estimate -- and still never shown as complete while the build runs.
   const parts = build.progress;
-  if (parts && parts.unit === "mailboxes" && parts.total > 0) {
+  if (parts && parts.total > 0) {
     return {
       // Until its first mailbox is read to its end the ring turns: a still, empty ring would
       // look stuck for the whole first read of a one-mailbox source. It says the count.
@@ -80,7 +101,10 @@ function measuredProgress(build: ReplicaBuild): ReplicaProgress {
           ? Math.min(MOST_SHOWN_PERCENT, Math.floor((parts.done / parts.total) * 100))
           : null,
       exact: true,
-      said: { key: "progressMailboxes", numbers: { done: parts.done, total: parts.total } },
+      said: {
+        key: partsSaid(parts.unit).progress,
+        numbers: { done: parts.done, total: parts.total },
+      },
     };
   }
   const rows = build.rowsCopied ?? 0;
@@ -158,10 +182,12 @@ export function replicaBuildLine(
           how: how(build, t),
         });
       }
-      // A mail source's replica is written a part at a time and read meanwhile: it says how
-      // many of the source's mailboxes have been read to their end, not a rate of rows.
+      // A replica written a part at a time is read meanwhile: it says how many of its source's
+      // parts (a mail source's mailboxes, a Logs source's files) have been read to their end,
+      // not a rate of rows.
       if (build.progress) {
-        return t(build.partial ? "replicaBuild.buildingPartial" : "replicaBuild.buildingParts", {
+        const said = partsSaid(build.progress.unit);
+        return t(`replicaBuild.${build.partial ? said.partial : said.parts}`, {
           done: formatNumber(build.progress.done),
           total: formatNumber(build.progress.total),
           how: how(build, t),

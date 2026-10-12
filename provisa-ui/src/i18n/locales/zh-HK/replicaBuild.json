@@ -53,6 +53,9 @@
       "place_not_kept": "此複本已完成，但未能儲存其讀取到達的位置，因此下一次變更檢查將再次要求讀取：{{reason}}",
       "andMore": "{{ids}} 以及另外 {{more}} 封",
       "other": "上次建置的備註:{{code}}"
-    }
+    },
+    "progressFiles": "已讀取 {{total}} 個檔案中的 {{done}} 個",
+    "buildingPartialFiles": "副本正在建立，並且已經可以讀取。不完整：已讀取 {{total}} 個檔案中的 {{done}} 個（{{how}}）。",
+    "buildingPartsFiles": "副本正在更新：已檢查 {{total}} 個檔案中的 {{done}} 個（{{how}}）。"
   }
 }

@@ -713,6 +713,20 @@
           "help": "A folder holding a Splunk server bundle built for this host, with its launcher under bin/. Empty uses the pinned release. A folder without the launcher stops the server from starting, naming this setting."
         }
       }
+    },
+    "logs": {
+      "allowed_roots": {
+        "label": "Directories log files may be read from",
+        "help": "The directories a Logs source's files may be in, once their links are followed; by default /var/log. Add one, such as ~/Library/Logs, to read the server's own files under it into tables. A server of many organizations reads no log file of its own whatever this says."
+      },
+      "preview_lines": {
+        "label": "Lines read to find a log's columns",
+        "help": "A JSON-lines or logfmt source's columns are the fields its files' first lines name. More lines find fields that appear rarely, and take longer to read."
+      },
+      "max_line_bytes": {
+        "label": "Longest log record",
+        "help": "A longer record keeps its first bytes as its raw text, and its parse error says it was too long."
+      }
     }
   }
 }

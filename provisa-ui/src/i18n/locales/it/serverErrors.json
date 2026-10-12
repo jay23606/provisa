@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Origine '{{source}}': {{field}} deve essere un percorso assoluto, ricevuto '{{path}}'",
       "column_scope_invalid": "La colonna '{{column}}' ha ambito '{{scope}}'; l'ambito di una colonna è uno tra {{scopes}}",
       "microsoft_365_invalid": "Origine Microsoft 365 {{source}}: {{error}}",
-      "parameter_set_by_source": "Un parametro di '{{table}}' mantiene ciò che la sua origine dice di lui: non si possono cambiare il modo in cui raggiunge l'origine né il fatto che l'origine lo richieda. Uno steward rende obbligatorio un parametro con il suo interruttore Obbligatorio."
+      "parameter_set_by_source": "Un parametro di '{{table}}' mantiene ciò che la sua origine dice di lui: non si possono cambiare il modo in cui raggiunge l'origine né il fatto che l'origine lo richieda. Uno steward rende obbligatorio un parametro con il suo interruttore Obbligatorio.",
+      "logs_invalid": "Sorgente Logs {{source}}: {{error}}",
+      "logs_path_refused": "Sorgente Logs {{source}}: {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} non è un nome all'interno dei segreti di questa organizzazione in {{service}}: un nome è relativo all'organizzazione e non può uscirne",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} non è un utente del dominio Google Workspace dell’organizzazione, quindi la directory non può essere elencata a suo nome. Un amministratore corregge l’indirizzo dell’amministratore in Amministrazione › Email.",
       "directory_refused": "Non è stato possibile leggere la directory di Google: {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google ha rifiutato l’account di servizio dell’organizzazione: {{reason}}"
+    },
+    "logs": {
+      "invalid": "Questa non è una sorgente Logs: {{error}}",
+      "path_refused": "Questi file non possono essere letti: {{reason}}"
     }
   }
 }

@@ -53,6 +53,9 @@
       "place_not_kept": "Questa copia è completa, ma non è stato possibile conservare il punto raggiunto dalla lettura, quindi il prossimo controllo delle modifiche richiederà di nuovo la lettura: {{reason}}",
       "andMore": "{{ids}} e altri {{more}}",
       "other": "L’ultima build ha annotato: {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} di {{total}} file letti",
+    "buildingPartialFiles": "Replica in costruzione e già leggibile. Parziale: {{done}} file letti su {{total}} ({{how}}).",
+    "buildingPartsFiles": "Replica in aggiornamento: {{done}} file controllati su {{total}} ({{how}})."
   }
 }

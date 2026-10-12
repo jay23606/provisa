@@ -53,6 +53,9 @@
       "place_not_kept": "Cette copie est complète, mais l’endroit où sa lecture s’est arrêtée n’a pas pu être conservé ; la prochaine vérification des changements redemandera donc la lecture : {{reason}}",
       "andMore": "{{ids}} et {{more}} autres",
       "other": "Le dernier build a noté : {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} fichiers lus sur {{total}}",
+    "buildingPartialFiles": "Réplica en cours de création et déjà lisible. Partiel : {{done}} fichiers lus sur {{total}} ({{how}}).",
+    "buildingPartsFiles": "Réplica en cours de mise à jour : {{done}} fichiers vérifiés sur {{total}} ({{how}})."
   }
 }

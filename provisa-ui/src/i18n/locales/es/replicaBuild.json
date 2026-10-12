@@ -53,6 +53,9 @@
       "place_not_kept": "Esta copia está completa, pero no se pudo guardar hasta dónde llegó su lectura, por lo que la próxima comprobación de cambios volverá a pedir la lectura: {{reason}}",
       "andMore": "{{ids}} y {{more}} más",
       "other": "La última compilación anotó: {{code}}"
-    }
+    },
+    "progressFiles": "{{done}} de {{total}} archivos leídos",
+    "buildingPartialFiles": "La réplica se está creando y ya se puede leer. Parcial: {{done}} de {{total}} archivos leídos ({{how}}).",
+    "buildingPartsFiles": "La réplica se está actualizando: {{done}} de {{total}} archivos comprobados ({{how}})."
   }
 }

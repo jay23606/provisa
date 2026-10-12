@@ -383,7 +383,9 @@
       "registry_path_not_absolute": "Source '{{source}}' : {{field}} doit être un chemin absolu, reçu '{{path}}'",
       "column_scope_invalid": "La colonne '{{column}}' a la portée '{{scope}}' ; la portée d'une colonne est l'une de {{scopes}}",
       "microsoft_365_invalid": "Source Microsoft 365 {{source}} : {{error}}",
-      "parameter_set_by_source": "Un paramètre de '{{table}}' garde ce que sa source dit de lui : la façon dont il atteint la source et le fait que la source l'exige ne peuvent pas être modifiés. Un responsable rend un paramètre obligatoire avec son interrupteur « Obligatoire »."
+      "parameter_set_by_source": "Un paramètre de '{{table}}' garde ce que sa source dit de lui : la façon dont il atteint la source et le fait que la source l'exige ne peuvent pas être modifiés. Un responsable rend un paramètre obligatoire avec son interrupteur « Obligatoire ».",
+      "logs_invalid": "Source Logs {{source}} : {{error}}",
+      "logs_path_refused": "Source Logs {{source}} : {{reason}}"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",
@@ -516,6 +518,10 @@
       "admin_not_a_user": "{{address}} n’est pas un utilisateur du domaine Google Workspace de l’organisation ; l’annuaire ne peut donc pas être listé en son nom. Un administrateur corrige l’adresse de l’administrateur sous Admin › E-mail.",
       "directory_refused": "L’annuaire Google n’a pas pu être lu : {{reason}} (HTTP {{status}}).",
       "credential_refused": "Google a refusé le compte de service de l’organisation : {{reason}}"
+    },
+    "logs": {
+      "invalid": "Ce n'est pas une source Logs : {{error}}",
+      "path_refused": "Ces fichiers ne peuvent pas être lus : {{reason}}"
     }
   }
 }

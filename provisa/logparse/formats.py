@@ -16,7 +16,8 @@ from typing import Any, Callable
 from provisa.logparse.base import Column, FileContext, Format, ParseError
 from provisa.logparse.coltypes import infer_type
 
-CORE = "Common formats"
+#: The group a format is listed under, by key: the form names each group in its own language.
+CORE = "core"
 
 _MONTHS = {m: i for i, m in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), 1)}
 

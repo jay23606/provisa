@@ -1,0 +1,35 @@
+{
+  "logsFields": {
+    "glob": "Файлы",
+    "globHint": "Полный путь или glob вида /var/log/system.log*; ротированные и сжатые файлы тоже читаются.",
+    "format": "Формат",
+    "formatHelp": "Как записана каждая запись файлов. Строка, которую формат не может прочитать, сохраняется с исходным текстом и причиной.",
+    "loadingFormats": "Загрузка форматов…",
+    "pattern": "Шаблон",
+    "patternHint": "Регулярное выражение; каждая именованная группа, например (?P<level>…), — это столбец.",
+    "recordStart": "Начало записи",
+    "recordStartHint": "С чего начинается первая строка записи, если запись занимает несколько строк; оставьте пустым, если каждая строка — отдельная запись.",
+    "preview": "Предпросмотр",
+    "filesFound": "Найдено файлов: {{count}}",
+    "columns": "Столбцы",
+    "firstRows": "Первые строки: {{count}}",
+    "parseError": "Ошибка разбора",
+    "group": {
+      "core": "Распространённые форматы",
+      "custom": "Свой"
+    },
+    "formats": {
+      "rfc3164": "BSD syslog (RFC 3164)",
+      "rfc5424": "Syslog (RFC 5424)",
+      "macos_install": "Журнал установки macOS",
+      "clf": "Common Log Format",
+      "combined": "Combined Log Format",
+      "jsonl": "Строки JSON",
+      "logfmt": "logfmt",
+      "w3c": "W3C расширенный (IIS)",
+      "cef": "ArcSight CEF",
+      "gelf": "Graylog GELF",
+      "regex": "Регулярное выражение"
+    }
+  }
+}
