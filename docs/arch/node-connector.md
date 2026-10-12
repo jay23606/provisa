@@ -1,6 +1,6 @@
 # Node connector (REQ-1984)
 
-Status: design for review. No product code has been written.
+Status: reviewed. The maintainer ruled on every open decision on 2026-10-12 (section 12); REQ-1984 and REQ-1987 carry the rulings. Parts 1 to 4 are being built.
 
 REQ-1984 is the spec. A Node source holds a bundle: JavaScript plus TypeScript declarations. Its exported functions are read by their JSDoc tags:
 
@@ -10,7 +10,7 @@ REQ-1984 is the spec. A Node source holds a bundle: JavaScript plus TypeScript d
 
 The source names its runtime (Node, Bun or Deno) and its code (an npm package, a Git commit or tag, or an uploaded archive). Package registries are an organization setting.
 
-The work has seven parts. Parts 1 to 4 do not depend on grpc-fix's work and come first. Parts 5 to 7 reuse REQ-1986 (parameters) and REQ-1980 (pipeline-table landing) and come after them.
+The work has eight parts. Parts 1 to 4 do not depend on grpc-fix's work and come first. Parts 5 to 7 reuse REQ-1986 (parameters) and REQ-1980 (pipeline-table landing) and come after them. Part 8 is REQ-1987, named types for every source, a part of its own.
 
 | Part | What | Depends on |
 |---|---|---|
@@ -21,8 +21,9 @@ The work has seven parts. Parts 1 to 4 do not depend on grpc-fix's work and come
 | 5 | `@table` tables | 3, 4, REQ-1986, REQ-1980's landing branch |
 | 6 | `@command` commands | 3, 4 |
 | 7 | `@stream` live tables | 5 |
+| 8 | Named types for every source (REQ-1987) | nothing; Node types use it once it lands |
 
-Section 12 lists the open decisions, which the maintainer has not made. Every statement below that goes beyond REQ-1984 is marked *(proposed)*.
+Section 12 records the maintainer's rulings. Statements still marked *(proposed)* are implementation choices within them.
 
 ## 1. What exists today
 
@@ -124,7 +125,7 @@ The bundle is refused when it is loaded if `problems` is not empty. The refusal 
 | TypeScript | Maps to |
 |---|---|
 | `string` | `text` |
-| `number` | `double` *(proposed; see open decision 6)* |
+| `number` | `double` |
 | `bigint` | `bigint` |
 | `boolean` | `boolean` |
 | `Date` | `timestamp` |
@@ -132,20 +133,15 @@ The bundle is refused when it is loaded if `problems` is not empty. The refusal 
 | `T[]`, `Array<T>`, `ReadonlyArray<T>` | a list of `T` |
 | interface, object type alias, class instance type | a named object type with its fields |
 | a union of string literals | an enum |
-| `Record<string, T>`, `{[k: string]: T}` | `json` *(proposed)* |
-| `any`, `unknown` | `json` *(proposed; see open decision 6)* |
+| `Record<string, T>`, `{[k: string]: T}` | `json` |
+| `any`, `unknown` | `json` |
 | other unions, functions, symbols, tuples, recursive types | cannot be mapped |
 
-"Become types on every surface" is more than today's surfaces can show. Today a nested value is a `json` column with per-column `object_fields`. That gives one object type per column, no list of objects, no enum, no shared type names, and a JSON string on gRPC. Open decision 1 asks how far this connector takes it.
+"Become types on every surface" is more than today's surfaces can show. Today a nested value is a `json` column with per-column `object_fields`. That gives one object type per column, no list of objects, no enum, no shared type names, and a JSON string on gRPC. The maintainer ruled for full named types for every source: REQ-1987, part 8. The reader emits the named types in `types` from the start; until part 8 lands, a Node table's nested values use today's `object_fields`.
 
 ### 3.5 Columns versus types
 
-REQ-1984 says columns come "from the function's TypeScript return type, or a preview when the type cannot be mapped". It also says "a type that cannot be mapped is refused by name when the bundle is loaded". Read together, these overlap: the preview is only reachable for a return type the reader cannot map, and that same type is refused when the bundle loads. Open decision 2 asks which one wins for a `@table` element type.
-
-Until that is decided, this design reads it this way:
-- The element type's own fields become the columns when the element type can be mapped.
-- A function whose element type is `any`, `unknown` or `Record<…>` is typed by a preview.
-- Any other type that cannot be mapped is refused.
+The maintainer ruled (REQ-1984 now says so): the columns come from the return type, or, when the element type is loose (`any`, `unknown` or a `Record`), from a preview. Every other type that cannot be mapped is refused by name when the bundle is loaded.
 
 ## 4. Install pipeline (part 2)
 
@@ -173,7 +169,7 @@ The bundle must carry a lockfile the runtime reads (`package-lock.json`, `npm-sh
 
 A lockfile out of step with `package.json` fails the install, and the failure names the source.
 
-Install scripts (`preinstall`, `postinstall`) are not decided; see open decision 4.
+Install scripts are disabled for every install (`--ignore-scripts` for npm and Bun; Deno runs none without `--allow-scripts`). A dependency that needs its script to build is refused, and the failure names it.
 
 ### 4.4 When, and where it is kept
 
@@ -183,7 +179,7 @@ Install scripts (`preinstall`, `postinstall`) are not decided; see open decision
 
 ### 4.5 Uploads
 
-There is no kept, hashed upload store today. *(proposed: an `org_node_bundles` table in the platform plane, keyed by `(org_id, content_hash)` and holding the archive's bytes. Deleting a source does not delete its archive while another source names it. Open decision 5.)*
+There is no kept, hashed upload store today. An uploaded archive is kept in the platform plane by its content hash: an `org_node_bundles` table keyed by `(org_id, content_hash)` holding the archive's bytes. Deleting a source does not delete its archive while another source names it.
 
 ## 5. `@table` tables (part 5, after REQ-1986)
 
@@ -205,7 +201,7 @@ The REQ-1986 rules then apply unchanged:
 ### 5.2 Columns
 
 - **From the type.** Each top-level field of the element type is a column, with nested types as in section 3.4.
-- **From a preview.** When open decision 2 allows it, the function is called once in the worker with sample arguments. Up to five rows are returned, and columns are inferred as `neo4j/source.py:infer_columns` does. The form refuses to submit until the columns are typed. The sample arguments are not stored.
+- **From a preview.** For a loose element type (`any`, `unknown`, `Record`), the function is called once in the worker with sample arguments. Up to five rows are returned, and columns are inferred as `neo4j/source.py:infer_columns` does. The form refuses to submit until the columns are typed. The sample arguments are not stored.
 
 ### 5.3 Reading
 
@@ -234,7 +230,7 @@ A Node table is a registered table: visibility, masks, row rules and domains app
 | `kind` | `npm` | `git` |
 | `url` / `host` | the registry URL | the host |
 | `scope` | optional, e.g. `@acme` | — |
-| `credential` | the token | the token *(proposed: HTTPS only; open decision 3)* |
+| `credential` | the token | an HTTPS token |
 | `mirror` | at most one npm row is the mirror | — |
 
 Every field holds what was entered, so a value can be a secret reference (`${secret:npm_token}`). Nothing is written to a vault and no secret name is made up. Delete protection for a referenced secret already covers platform tables with nothing to register.
@@ -261,7 +257,7 @@ Every install resolves the rows with the standard resolution, with the org vault
 
 ## 7. Worker (part 4)
 
-- **One per bundle per Provisa process.** A long-running process runs per `(source, content_hash)` in each Provisa process, in the source's runtime, started from the installed cache directory. *(proposed: per process, not per host; open decision 7.)*
+- **One per bundle per Provisa process.** A long-running process runs per `(source, content_hash)` in each Provisa process, in the source's runtime, started from the installed cache directory.
 - **Host script.** Provisa ships a small host script, the same one for every runtime (*proposed: `provisa/node/host.mjs`*). It imports the bundle's entry and serves calls. The bundle imports nothing of Provisa's.
 - **Lifecycle.** The lifecycle copies `pgwire_replica`:
   - The worker starts lazily on first use.
@@ -283,11 +279,14 @@ Every install resolves the rows with the standard resolution, with the org vault
 - **Iteration.** The host iterates arrays and sync or async iterables in batches.
 - **Deadlines.** A call registers with the request deadline (`request_deadline.cancel_on_deadline`), so a cancelled request sends `cancel`. The host then calls `return()` on the iterator.
 - **Failures.** A worker crash fails every call in flight with an error naming the source and the export.
-- **Runtime command lines.** `node host.mjs`, `bun host.mjs` and `deno run host.mjs`. Deno's permission flags are not decided (REQ-1984 leaves them open).
+- **Sandbox.** The worker reads no files beyond its bundle (its installed cache directory) and reaches only the hosts on the egress allow-list.
+  - Deno: `deno run --allow-read=<bundle dir> --allow-net=<allow-list hosts>` and no other permission; the socket directory is added to `--allow-read` and `--allow-write` for the protocol socket only.
+  - Node and Bun: an OS-level sandbox around the process. *(proposed: on Linux, a mount namespace with the bundle directory read-only and nothing else of the host's filesystem, and a network namespace whose only route out is a local proxy that admits the allow-list hosts; on macOS, `sandbox-exec` with a profile allowing reads under the bundle directory and outbound connections to the allow-list hosts only. A host where neither is available refuses to start a Node or Bun worker, naming the source and the missing sandbox.)*
+  - The egress allow-list is the one commands already use (`function_dispatch.py:317`).
 
 ## 8. Shipping the runtimes
 
-Provisa ships no JavaScript runtime today, and the PyPI tier forbids one. *(proposed: Node, Bun and Deno are fetched on demand at pinned versions with recorded hashes, through a `runtime_deps` resolver beside `pgwire_bundles.py`. The Docker image, AppImage, macOS, Windows and NixOS packages would then need no runtime of their own. The PyPI policy line changes from "no Node" to "no Node in the wheel".)* Open decision 8.
+Runtimes are fetched on demand, pinned and hashed, and cached as the pgwire bundles are: a `runtime_deps` resolver beside `pgwire_bundles.py` names each runtime's version and per-platform archive hash, downloads on first use, verifies the hash, and caches under the `runtime_deps` cache root. A hash mismatch refuses the runtime. No package (Docker, AppImage, macOS, Windows, NixOS, PyPI) carries a runtime; the PyPI policy line changes from "no Node" to "no Node in the wheel".
 
 ## 9. `@command` and `@stream`
 
@@ -297,30 +296,33 @@ Provisa ships no JavaScript runtime today, and the PyPI tier forbids one. *(prop
 - **Arguments** are converted as in section 5.3.
 - **Output.** A collection return gives rows; a single object gives one row; `void` gives none. Each is checked against `output_columns`.
 - **Everything else is the existing command path:** `invoke_command`, `admit_command`, approval, audit, and every command surface.
-- **Query or mutation.** A command's `kind` must be one or the other, and REQ-1984 does not say which. Open decision 9.
+- **Query or mutation.** A command is a `mutation` unless a steward sets it as a `query` when registering it.
 
 ### 9.2 `@stream` live tables (part 7)
 
-- **Where rows arrive.** The surfaces that serve subscriptions are per-row SSE (`/data/subscribe/{table}`), GraphQL subscriptions over SSE, and the Kafka sink. REQ-1984 says "each row it yields is delivered as it arrives". That matches the per-row SSE path. GraphQL subscriptions send a snapshot per change, not single rows.
-- **How governance applies today.** Pushed rows are landed by key, and each subscriber's rows are read back by primary key through governance (`live/governed.py`), so row rules and masks apply. That path assumes one shared stream per table and a primary key.
-- **Why a stream is different.** A Node stream has parameters, so there is one generator per subscriber's argument set, and its rows need not have a key.
-- **Open decision 10** asks how stream rows are governed and delivered. *(proposed: one generator per distinct argument set, shared by every subscriber with those arguments. Each row is appended to a landed table keyed by the argument set, and delivered to each subscriber through the governed read of the rows just appended. A stream with no parameters is one shared generator.)*
+The maintainer ruled: each subscription starts its own generator with that subscriber's arguments, its rows go only to that subscriber, governed by the subscriber's role, and no key is required.
+
+- **Surfaces.** The per-row SSE subscription (`/data/subscribe/{table}`) and the Kafka sink deliver each row as it is yielded. A GraphQL subscription over SSE sends each row as an event rather than a re-run snapshot for a stream table.
+- **Governance without a key.** Today's push path reads each row back by primary key through governance (`live/governed.py`). A stream row is governed in flight instead: the subscriber's role context (column visibility, masks, row rules) is applied to each row before it is sent *(proposed: by evaluating the governed statement the subscription compiles over a one-batch relation of the yielded rows, so the same compiled rules apply as for a read; to be designed in part 7)*.
+- **Lifetime.** The generator starts when the subscription opens and is closed (`return()` through the protocol's `cancel`) when it ends. A worker crash ends every subscription on that worker with an error naming the source and the export.
+- **Parameters.** The same REQ-1986 rules: a required parameter missing from the subscription is refused before the generator starts.
 
 ## 10. Sequence
 
 1. **Part 1** (registries setting) and the upload store.
-2. **Part 2** (installer) and the runtime resolver.
-3. **Part 3** (reader) and **part 4** (worker), in parallel.
+2. **Part 2** (installer, with scripts disabled) and the runtime resolver.
+3. **Part 3** (reader) and **part 4** (worker, with its sandbox), in parallel.
 4. **Part 5** (`@table`), after REQ-1986 has landed and REQ-1980's landing branch and converter exist. If REQ-1980 lands later, the Node branch waits for its converter rather than building one.
 5. **Part 6** (`@command`).
-6. **Part 7** (`@stream`), after open decision 10.
+6. **Part 7** (`@stream`).
+7. **Part 8** (named types, REQ-1987), as its own part; the Node type reader's `types` feed it when it lands.
 
 Each part ships when it passes its own gate. The docs and the source-type counts (`docs/sources.md`, the tour's count, the source picker) are updated with part 5, when the first Node table can be registered.
 
 ## 11. Tests
 
 **Unit** (`tests/unit`, no container, no network):
-- Reader: fixture declaration files for every row of the mapping table, every refusal (unknown tag, single-object `@table`, unmappable type, missing declarations), and JSDoc descriptions. These need the pinned reader and one runtime on the unit lane; open decision 8 decides how the lane gets it.
+- Reader: fixture declaration files for every row of the mapping table, every refusal (unknown tag, single-object `@table`, unmappable type, missing declarations), and JSDoc descriptions. These need the pinned reader and one runtime on the unit lane, fetched by the runtime resolver (section 8).
 - Content hash: stable across file order, and changed by any byte.
 - Registries: as-entered storage, resolution at use, one mirror at most, the guard, and the configuration files written and removed (including on a failed install).
 - Worker protocol: framing, multiplexing, cancel on deadline, and a crash failing the calls in flight. These use a stub worker that speaks the protocol.
@@ -341,18 +343,16 @@ Each part ships when it passes its own gate. The docs and the source-type counts
 
 UI: the Package registries tab, and the Register Table form on a Node source.
 
-## 12. Open decisions
+## 12. Decisions (maintainer, 2026-10-12)
 
-1. **How far "types on every surface" goes.** Today's `object_fields` gives per-column object types on GraphQL and SQL paths, and a JSON string on gRPC. Named shared types, lists of objects, enums, and proto messages are new work on every surface.
-   - Recommended: build them as a named-type registry per source that GraphQL, gRPC and the SQL catalog read, and start with GraphQL and gRPC.
-   - The maintainer's call, because it is the largest part of this work.
-2. **Preview versus refusal for an element type that cannot be mapped** (section 3.5). Recommended: preview only for `any`, `unknown` and `Record`; refuse every other unmappable type.
-3. **Git credentials.** Recommended: HTTPS tokens only. SSH deploy keys need key files on disk and a known-hosts policy.
-4. **Install scripts.** Recommended: `--ignore-scripts` for every install. A dependency's `postinstall` would otherwise run arbitrary code at install time, with the install's credentials present.
-5. **Upload store.** Recommended: a platform-plane table keyed by content hash. The alternative is the object store, which a native deployment does not have.
-6. **`number`, `any` and `unknown`.** Recommended: `number` maps to `double`, and `any` and `unknown` map to `json`. Mapping `number` to an integer would need a tag REQ-1984 does not define.
-7. **Worker scope.** Recommended: one worker per Provisa process. One per host would need a lock and shared sockets across worker processes.
-8. **Shipping the runtimes** (section 8). Recommended: fetch on demand, pinned and hashed.
-9. **A command's kind.** Recommended: `mutation`, with the steward able to set `query` when registering it.
-10. **Stream delivery and governance** (section 9.2). Recommended: one shared generator per argument set, landed and read back through governance.
-11. **Isolation of user code.** A bundle runs with the Provisa process's network and filesystem reach, and the egress allow-list (`function_dispatch.py:317`) does not cover it. Deno's permissions are undecided in REQ-1984. Recommended: decided with open decision 4 before part 4 ships. This is a security decision.
+1. **Types on every surface.** Full, shared, named types for every source (nested objects, lists of objects, enums) as GraphQL types and gRPC messages, not only for Node. Its own requirement (REQ-1987) and its own part (part 8).
+2. **Preview versus refusal.** A preview only for loose element types (`any`, `unknown`, `Record`); every other unmappable type is refused by name. REQ-1984 amended.
+3. **Git credentials.** HTTPS tokens (recommendation accepted).
+4. **Install scripts.** Disabled for every install.
+5. **Upload store.** The platform plane, keyed by content hash (recommendation accepted).
+6. **`number`, `any`, `unknown`.** `double`; `json` (recommendation accepted).
+7. **Worker scope.** One per bundle per Provisa process (recommendation accepted).
+8. **Runtimes.** Fetched on demand, pinned and hashed, cached as the pgwire bundles are.
+9. **A command's kind.** `mutation` unless a steward sets `query` (recommendation accepted).
+10. **Streams.** One generator per subscription, with that subscriber's arguments; rows to that subscriber only, governed per role; no key required.
+11. **Isolation.** The worker is sandboxed: no file access beyond its bundle; network only to the egress allow-list (Deno's permissions; an OS-level sandbox for Node and Bun).
