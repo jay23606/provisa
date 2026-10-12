@@ -151,7 +151,7 @@ def _make_app_state_with_orders():
     )
     state.source_pools = _pool
     state.engine_conn = None
-    from tests.helpers import stub_materialization_noop
+    from tests.helpers import serve_surfaces, stub_materialization_noop
 
     stub_materialization_noop(state)
     state.schema_build_cache = {"column_types": {1: []}, "tables": []}
@@ -179,6 +179,7 @@ def _make_app_state_with_orders():
     from provisa.federation.runtime import EngineRuntime
 
     state.federation_engine = EngineRuntime(build_trino_engine(), state)  # REQ-825
+    serve_surfaces(state)
     return state
 
 

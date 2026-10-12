@@ -133,6 +133,36 @@ class DsnEngine:
         )
 
 
+#: A role surface's part -> the AppState map that is a view of it (provisa/api/role_surface.py).
+_SURFACE_VIEWS = {
+    "schema": "schemas",
+    "context": "contexts",
+    "rls": "rls_contexts",
+    "table_path_map": "table_path_maps",
+    "proto": "proto_files",
+}
+
+
+def serve_surfaces(state) -> None:
+    """Serve a MagicMock AppState's roles through ``surfaces``, as the runtime does.
+
+    A request takes its role's whole surface from ``state.surfaces`` (``role_surface``); the
+    per-part maps (``schemas``, ``contexts``, ...) are views of it. A MagicMock set up part by
+    part has a mock ``surfaces``, whose ``get(role).context.refusal`` is truthy and refuses every
+    query. This builds ``surfaces`` from the maps the state was given and makes each map a view
+    of it. Call it once the maps are set."""
+    from provisa.api.role_surface import SurfacePart, set_part
+
+    surfaces: dict = {}
+    for part, view in _SURFACE_VIEWS.items():
+        given = getattr(state, view)
+        if isinstance(given, dict):
+            set_part(surfaces, part, given)
+    state.surfaces = surfaces
+    for part, view in _SURFACE_VIEWS.items():
+        setattr(state, view, SurfacePart(surfaces, part))
+
+
 def stub_materialization_noop(state) -> None:
     """Pin the post-governance materialization inputs on a MagicMock AppState.
 

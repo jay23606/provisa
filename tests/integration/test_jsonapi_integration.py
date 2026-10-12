@@ -22,6 +22,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock
 from tests.integration.conftest import no_replica_routes
+from tests.helpers import serve_surfaces
 
 pytestmark = [pytest.mark.integration]
 
@@ -160,6 +161,7 @@ def _make_app_state(schema=None):
             }
         }
     }
+    serve_surfaces(state)
     return state
 
 

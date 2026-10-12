@@ -313,6 +313,24 @@ def test_bolt_connection_runs_on_its_own_thread_in_parallel():
 # -- gRPC --------------------------------------------------------------------------------------
 
 
+class _OrdersService:
+    """The compiled service an RPC's request is decoded with (grpc/server.py ``_received``): it
+    has QueryOrders, whose request is the bytes the client sent."""
+
+    def method(self, name: str) -> str | None:
+        return name if name == "QueryOrders" else None
+
+    def request_class(self, described: str) -> type:
+        del described
+        return _RawRequest
+
+
+class _RawRequest:
+    @staticmethod
+    def FromString(raw: bytes) -> bytes:  # noqa: N802 -- protobuf's name
+        return raw
+
+
 class _Msg:
     """A response message: what _handle_query meters (ByteSize) and the wire carries (bytes)."""
 
@@ -321,6 +339,9 @@ class _Msg:
 
     def ByteSize(self) -> int:  # noqa: N802  # protobuf's method name
         return len(self.payload)
+
+    def SerializeToString(self) -> bytes:  # noqa: N802  # protobuf's method name
+        return self.payload
 
 
 def test_grpc_governance_runs_on_the_rpc_thread_in_parallel():
@@ -340,8 +361,9 @@ def test_grpc_governance_runs_on_the_rpc_thread_in_parallel():
         multitenancy=False,
         org_id="default",  # the one org a single-org deployment binds (REQ-1266)
         security_high=False,
+        proto_files={},  # analyst has no proto of its own: every method is offered to it
     )
-    servicer = ProvisaServicer(state, SimpleNamespace())
+    servicer = ProvisaServicer(state, _OrdersService())
     behavior_idents: set[int] = set()
     govern_idents: list[int] = []
     both_governing = threading.Barrier(2)
@@ -360,9 +382,8 @@ def test_grpc_governance_runs_on_the_rpc_thread_in_parallel():
         behavior_idents.add(threading.get_ident())
         yield from query_orders(request, context)
 
-    handler = grpc.unary_stream_rpc_method_handler(
-        _recording_behavior, response_serializer=lambda m: m.payload
-    )
+    # The servicer takes and gives bytes: it serializes each message it streams.
+    handler = grpc.unary_stream_rpc_method_handler(_recording_behavior)
     server = grpc.server(ThreadPoolExecutor(max_workers=4), interceptors=[AuthInterceptor(state)])
     server.add_generic_rpc_handlers(
         (grpc.method_handlers_generic_handler("provisa.Provisa", {"QueryOrders": handler}),)
