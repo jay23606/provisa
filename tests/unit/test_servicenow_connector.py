@@ -309,15 +309,19 @@ def test_a_servicenow_table_takes_all_three_writes_through_its_own_server_and_re
     table = {"source_id": "snow-ops", "table_name": "incident"}
     for engine in (build_duckdb_engine(), build_pg_engine(), None):
         assert resolve_write_path("servicenow", engine) is WritePath.PGWIRE
-        assert table_write_ops(table, "servicenow", engine) == {"insert", "update", "delete"}
-        assert table_write_returns_rows(table, "servicenow", engine) is True
+        assert table_write_ops(table, "servicenow", engine, source_path=None) == {
+            "insert",
+            "update",
+            "delete",
+        }
+        assert table_write_returns_rows(table, "servicenow", engine, source_path=None) is True
 
 
 def test_the_other_pgwire_written_sources_still_return_no_rows():
     from provisa.executor.write_capability import table_write_returns_rows
 
     table = {"source_id": "sf", "table_name": "Account"}
-    assert table_write_returns_rows(table, "salesforce", None) is False
+    assert table_write_returns_rows(table, "salesforce", None, source_path=None) is False
 
 
 # -- a table bound to an import set ---------------------------------------------------------------

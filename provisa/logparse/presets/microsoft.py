@@ -426,7 +426,9 @@ class WindowsEvtx(Format):
                 offset = record.offset()
                 if offset < start:
                     continue
-                yield offset, record.xml(), offset + record.size()
+                # python-evtx declares a record's fields at run time (Block.declare_field), so its
+                # size() is there but invisible to a type checker.
+                yield offset, record.xml(), offset + record.size()  # pyright: ignore[reportAttributeAccessIssue]
 
     def parse(self, record: str, ctx: FileContext) -> dict[str, Any]:
         from defusedxml.ElementTree import ParseError as XmlError
