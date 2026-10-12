@@ -301,10 +301,25 @@ describe("SettingField", () => {
 });
 
 describe("CatalogCard", () => {
+  it("starts open and folds by its header, by pointer or by keyboard", async () => {
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={vi.fn()} />);
+    const header = screen.getByTestId("settings-card-limits-toggle");
+    expect(header).toHaveAttribute("role", "button");
+    expect(header).toHaveAttribute("tabindex", "0");
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId(id(num.key))).toBeVisible();
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    fireEvent.keyDown(header, { key: "Enter" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(header, { key: " " });
+    expect(header).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("flows an ungrouped card in the shared form layout; a number is a short field, a list a long one", () => {
     // jsdom does no layout: this proves the structure, not the row a field lands on at a width.
     const list = mk({ key: "limits.allowed_hosts", type: "list", value: ["a"], stored: ["a"] });
-    wrap(<CatalogCard title="Limits" settings={[num, list]} onSave={vi.fn()} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num, list]} onSave={vi.fn()} />);
     const grid = screen.getByTestId("settings-card-grid");
     expect(grid).toHaveClass("form-layout");
     expect(grid).toContainElement(screen.getByTestId(id(num.key)));
@@ -314,7 +329,7 @@ describe("CatalogCard", () => {
 
   it("refuses bad numbers before calling save", async () => {
     const onSave = vi.fn();
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     const input = screen.getByTestId(id(num.key));
     for (const bad of ["abc", "0", "5000", "1.5"]) {
       fireEvent.change(input, { target: { value: bad } });
@@ -327,7 +342,7 @@ describe("CatalogCard", () => {
   it("saves only changed settings, typed, with no confirmations", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const other = mk({ key: "limits.retry_budget_secs", type: "float", value: 30, stored: 30 });
-    wrap(<CatalogCard title="Limits" settings={[num, other]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num, other]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -336,7 +351,7 @@ describe("CatalogCard", () => {
 
   it("sends null for a reset setting", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.click(screen.getByTestId(`${id(num.key)}-reset`));
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() =>
@@ -362,7 +377,7 @@ describe("CatalogCard", () => {
       min: undefined,
       max: undefined,
     });
-    wrap(<CatalogCard title="C" settings={[list, map]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="c" title="C" settings={[list, map]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id("udf.allowlist")), { target: { value: "a, b ,, c" } });
     fireEvent.change(screen.getByTestId(id("x.map")), { target: { value: '{"k":1}' } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -383,7 +398,7 @@ describe("CatalogCard", () => {
       min: undefined,
       max: undefined,
     });
-    wrap(<CatalogCard title="C" settings={[map]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="c" title="C" settings={[map]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id("x.map")), { target: { value: "{nope" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByTestId(`${id("x.map")}-error`)).toBeInTheDocument();
@@ -402,7 +417,7 @@ describe("CatalogCard", () => {
       min: undefined,
       max: undefined,
     });
-    wrap(<CatalogCard title="C" settings={[secret]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="c" title="C" settings={[secret]} onSave={onSave} />);
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({}, []));
     fireEvent.change(screen.getByTestId(id("redis.password")), { target: { value: "s3cret" } });
@@ -422,7 +437,7 @@ describe("CatalogCard", () => {
       min: 1,
       max: 65535,
     });
-    wrap(<CatalogCard title="Network" settings={[guarded]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="c" title="Network" settings={[guarded]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id("network.port")), { target: { value: "9000" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     const dialog = await screen.findByRole("dialog");
@@ -440,7 +455,7 @@ describe("CatalogCard", () => {
         params: { field: "limits.engine_query_timeout", reason: "above_max", max: 3600 },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByTestId(`${id(num.key)}-error`)).toHaveTextContent("3600");
@@ -453,7 +468,7 @@ describe("CatalogCard", () => {
         params: { field: "limits.engine_query_timeout", reason: "would_lock_out" },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByTestId(`${id(num.key)}-error`)).toHaveTextContent(/lock/i);
@@ -474,7 +489,7 @@ describe("map settings with map_keys", () => {
   const row = (k: string) => `setting-limits.request_timeouts.${k}`;
 
   it("renders one row per map key with the effective value and its source", () => {
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
     expect(screen.getByTestId(row("graphql"))).toHaveValue("");
     expect(screen.getByTestId(row("graphql"))).toHaveAttribute("placeholder", "60");
     expect(screen.getByTestId(row("flight"))).toHaveValue("3600");
@@ -488,7 +503,7 @@ describe("map settings with map_keys", () => {
       ...timeouts,
       stored: { flight: 3600, pgwire: 300 },
     };
-    wrap(<CatalogCard title="Limits" settings={[withTwo]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[withTwo]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(row("graphql")), { target: { value: "120" } });
     fireEvent.change(screen.getByTestId(row("flight")), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -501,7 +516,7 @@ describe("map settings with map_keys", () => {
 
   it("clearing an unset row sends nothing for it", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(row("graphql")), { target: { value: "7" } });
     fireEvent.change(screen.getByTestId(row("graphql")), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -510,7 +525,7 @@ describe("map settings with map_keys", () => {
 
   it("validates each entry against min", async () => {
     const onSave = vi.fn();
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(row("pgwire")), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByTestId(`${row("pgwire")}-error`)).toBeInTheDocument();
@@ -523,7 +538,7 @@ describe("map settings with map_keys", () => {
         params: { field: "limits.request_timeouts.pgwire", reason: "below_min", min: 1 },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(row("pgwire")), { target: { value: "5" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     expect(await screen.findByTestId(`${row("pgwire")}-error`)).toHaveTextContent("1");
@@ -532,7 +547,7 @@ describe("map settings with map_keys", () => {
   const toggle = () => screen.getByTestId("setting-limits.request_timeouts-toggle");
 
   it("keeps the rows in an expandable panel that starts collapsed", () => {
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle());
     expect(toggle()).toHaveAttribute("aria-expanded", "true");
@@ -541,7 +556,7 @@ describe("map settings with map_keys", () => {
   });
 
   it("lays the rows out in the shared form layout inside the panel", () => {
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
     const grid = screen.getByTestId("setting-limits.request_timeouts-grid");
     for (const k of ["graphql", "flight", "pgwire"]) {
       expect(grid).toContainElement(screen.getByTestId(row(k)));
@@ -550,7 +565,7 @@ describe("map settings with map_keys", () => {
   });
 
   it("opens the panel when one of its rows has an error", async () => {
-    wrap(<CatalogCard title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[timeouts]} onSave={vi.fn()} />);
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
     fireEvent.change(screen.getByTestId(row("pgwire")), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -575,7 +590,7 @@ describe("new server reasons", () => {
         params: { field: "limits.engine_query_timeout", reason },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     const err = await screen.findByTestId(`${id(num.key)}-error`);
@@ -588,6 +603,7 @@ describe("unusable current value", () => {
   it("shows the setting's own error on the field", () => {
     wrap(
       <CatalogCard
+        cardId="limits"
         title="Limits"
         settings={[
           mk({
@@ -610,7 +626,7 @@ describe("unusable current value", () => {
         params: { field: "limits.engine_query_timeout", reason: "not_encrypted" },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     const err = await screen.findByTestId(`${id(num.key)}-error`);
@@ -633,7 +649,7 @@ describe("new PUT reasons", () => {
         params: { field: "limits.engine_query_timeout", reason, other: "server.grpc_port" },
       }),
     );
-    wrap(<CatalogCard title="Limits" settings={[num]} onSave={onSave} />);
+    wrap(<CatalogCard cardId="limits" title="Limits" settings={[num]} onSave={onSave} />);
     fireEvent.change(screen.getByTestId(id(num.key)), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
     const err = await screen.findByTestId(`${id(num.key)}-error`);
@@ -679,7 +695,13 @@ describe("network settings grouped by transport", () => {
   const flow = (g: string) => screen.getByTestId(`settings-group-${g}-flow`);
   const card = (onSave = vi.fn()) =>
     wrap(
-      <CatalogCard title="Network" settings={network} onSave={onSave} groupBy={networkTransport} />,
+      <CatalogCard
+        cardId="c"
+        title="Network"
+        settings={network}
+        onSave={onSave}
+        groupBy={networkTransport}
+      />,
     );
 
   it("names the transport a network setting belongs to", () => {
