@@ -2682,6 +2682,10 @@ main {
 .detail-fields > dd {
   overflow-wrap: anywhere;
 }
+/* A table as a value breaks between words only, so its columns size to what they hold. */
+.detail-fields > dd .detail-table {
+  overflow-wrap: normal;
+}
 /* A read view in groups, each under its heading: one label column across all of them, so the
  * values line up from the first group to the last. */
 .detail-groups {
