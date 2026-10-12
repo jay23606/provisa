@@ -212,6 +212,7 @@ if [[ "$_run_warehouse" == "1" ]]; then
       tests/integration/test_databricks_external_link_e2e.py \
       tests/integration/test_bigquery_federation_engine_e2e.py \
       tests/integration/test_fabric_federation_engine_e2e.py \
+      tests/integration/test_tds_inplace_duckdb_e2e.py \
       tests/integration/test_synapse_federation_engine_e2e.py \
       tests/integration/test_redshift_source_e2e.py \
       tests/integration/test_sharepoint_source_e2e.py \
