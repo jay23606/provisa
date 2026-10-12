@@ -58,6 +58,7 @@ import ctypes
 import functools
 import heapq
 import logging
+import os
 import signal
 import threading
 import time
@@ -469,20 +470,36 @@ def expire_on_stop_signals() -> Generator[None]:
     shutdown waits for in-flight requests, and a request thread inside a long run of statements
     has no way to learn the process is stopping — so without this a worker ignores the signal
     until the request ends on its own. Signal handlers can be installed only from the main
-    thread; entered anywhere else (an in-process test client's lifespan) this installs nothing."""
+    thread; entered anywhere else (an in-process test client's lifespan) this installs nothing.
+
+    The expiry is not run in the handler (#237). A handler runs on the main thread between two of
+    its statements, so a second signal (SIGINT then SIGTERM) can arrive while the first handler
+    is inside the expiry, holding a lock -- the live-deadline lock, a deadline's own, the
+    watchdog's -- that the second then waits on, on the thread that holds it. The handler only
+    writes the signal's number to a pipe, which takes no lock; a thread of its own reads it and
+    expires the deadlines."""
     if threading.current_thread() is not threading.main_thread():
         yield
         return
     previous: dict[int, object] = {}
+    told, tell = os.pipe()
+
+    def _expire_when_told() -> None:
+        # A zero byte is the block's end; any other is a signal's number.
+        while (signum := os.read(told, 1)[0]) != 0:
+            ended = expire_all(_SHUTTING_DOWN)
+            if ended:
+                log.warning("stop signal %s: ended %d in-flight request(s)", signum, ended)
+
+    expirer = threading.Thread(target=_expire_when_told, name="stop-signal-expiry", daemon=True)
+    expirer.start()
 
     def _chain(sig: int) -> Callable[[int, FrameType | None], None]:
         before = signal.getsignal(sig)
         previous[sig] = before
 
         def _handler(signum: int, frame: FrameType | None) -> None:
-            ended = expire_all(_SHUTTING_DOWN)
-            if ended:
-                log.warning("stop signal %s: ended %d in-flight request(s)", signum, ended)
+            os.write(tell, bytes([signum]))
             if callable(before):
                 before(signum, frame)
 
@@ -495,6 +512,10 @@ def expire_on_stop_signals() -> Generator[None]:
     finally:
         for sig, before in previous.items():
             signal.signal(sig, before)  # type: ignore[arg-type]
+        os.write(tell, b"\0")
+        expirer.join()
+        os.close(tell)
+        os.close(told)
 
 
 _current: contextvars.ContextVar[Deadline | None] = contextvars.ContextVar(

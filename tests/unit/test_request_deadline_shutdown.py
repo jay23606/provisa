@@ -21,7 +21,10 @@ driver and the next one is refused, so the request fails with a clear error and 
 from __future__ import annotations
 
 import signal
+import subprocess
+import sys
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -63,24 +66,33 @@ def test_a_finished_request_is_not_touched():
     assert request_deadline.expire_all("the server is shutting down") == 0
 
 
-def test_the_stop_signal_expires_live_deadlines_then_runs_the_servers_own_handler(monkeypatch):
-    """The handler is chained in front of the one already installed (uvicorn's), which still runs."""
+def test_the_stop_signal_expires_live_deadlines_and_runs_the_servers_own_handler(monkeypatch):
+    """The handler is chained in front of the one already installed (uvicorn's), which still
+    runs. The deadlines are expired off the signal's path, on a thread of their own (#237)."""
     calls: list[object] = []
+    expired: list[tuple[str, threading.Thread]] = []
+    expiry = threading.Event()
     installed: dict[int, object] = {}
     previous = {
         signal.SIGTERM: lambda s, f: calls.append(("server", s)),
         signal.SIGINT: signal.SIG_DFL,
     }
+
+    def _expire_all(reason: str) -> int:
+        expired.append((reason, threading.current_thread()))
+        expiry.set()
+        return 0
+
     monkeypatch.setattr(signal, "getsignal", lambda sig: previous[sig])
     monkeypatch.setattr(signal, "signal", lambda sig, handler: installed.__setitem__(sig, handler))
-    monkeypatch.setattr(
-        request_deadline, "expire_all", lambda reason: calls.append(("expired", reason)) or 0
-    )
+    monkeypatch.setattr(request_deadline, "expire_all", _expire_all)
     with request_deadline.expire_on_stop_signals():
         assert set(installed) == {signal.SIGTERM, signal.SIGINT}
         installed[signal.SIGTERM](signal.SIGTERM, None)
-        assert calls[0][0] == "expired" and "shutting down" in calls[0][1]
-        assert calls[1] == ("server", signal.SIGTERM)
+        assert calls == [("server", signal.SIGTERM)]
+        assert expiry.wait(10)
+        ((reason, thread),) = expired
+        assert "shutting down" in reason and thread is not threading.main_thread()
     # restored on the way out
     assert installed[signal.SIGTERM] is previous[signal.SIGTERM]
     assert installed[signal.SIGINT] is signal.SIG_DFL
@@ -103,6 +115,44 @@ def test_signal_chaining_is_skipped_off_the_main_thread():
     thread.start()
     thread.join(5)
     assert outcome == [before]
+
+
+#: A stop signal that arrives while the main thread is inside the first one's expiry: the main
+#: thread holds the live-deadline lock, as the first handler does mid-``expire_all``, and the
+#: signal's handler runs on that same thread (#237).
+_SIGNAL_MID_EXPIRY = """
+import os, signal, time
+from provisa.core import request_deadline
+
+served = []
+signal.signal(signal.SIGTERM, lambda s, f: served.append(s))
+with request_deadline.expire_on_stop_signals():
+    live = request_deadline.Deadline(300.0)
+    with request_deadline._live_lock:
+        os.kill(os.getpid(), signal.SIGTERM)
+        time.sleep(0.2)  # the handler has run, on this thread, with the lock held
+    while not live.ended_early:
+        time.sleep(0.01)
+print(served == [signal.SIGTERM], live.ended_early)
+"""
+
+
+def test_a_stop_signal_that_arrives_during_an_expiry_does_not_hang_the_main_thread():
+    """The start script sends SIGINT and then SIGTERM. The second arrived while the first's
+    handler held a lock its own thread then waited on, and the server never exited. The
+    process is a fresh one so the signal reaches its main thread; a hang is its failure."""
+    try:
+        done = subprocess.run(
+            [sys.executable, "-c", _SIGNAL_MID_EXPIRY],
+            cwd=Path(__file__).resolve().parents[2],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("the main thread hung on a stop signal that arrived during an expiry")
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.split() == ["True", "True"], done.stdout + done.stderr
 
 
 if __name__ == "__main__":
