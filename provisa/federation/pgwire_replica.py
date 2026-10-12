@@ -623,6 +623,20 @@ def server_environment(source: Any, bundle_dir: Path) -> dict[str, str] | None:
     return None
 
 
+#: Where a server's launcher keeps its own state (its catalog cache), named in its environment.
+CALCITE_STATE_ENV = "PGWIRE_CALCITE_STATE_DIR"
+
+
+def calcite_state_environment(run_dir: Path) -> dict[str, str]:
+    """The server's own state directory, inside its run directory: one per server. Unset, the
+    launcher keeps its state under the user's ``$XDG_STATE_HOME`` (``~/.local/state``), shared
+    by every server of the connector and unwritable on a host where another user owns it; the
+    server then exits at start (REQ-1954)."""
+    state = run_dir / "calcite-state"
+    state.mkdir(parents=True, exist_ok=True)
+    return {CALCITE_STATE_ENV: str(state)}
+
+
 def _spawn_process(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Any:
     """Launch the pgwire bundle launcher as a child process (the real spawn) in its own session,
     so stopping it stops the server child that actually listens.
@@ -1118,6 +1132,9 @@ class ConnectorReplica:  # REQ-954/955/956
             # shared bundle is never written to (one model and one adapter state per server).
             run_dir = server_state_dir(bundle_dir, self._spec.version, *self._key)
             model = build_model_json(self._source, state_dir=run_dir)  # REQ-955 (config)
+        environment = server_environment(self._source, Path(bundle_dir))
+        if _source_type(self._source) not in BUNDLE_MODEL_TYPES:
+            environment = {**(environment or {}), **calcite_state_environment(run_dir)}
         server = PgwireServer(
             bundle_dir=run_dir,
             spec=self._spec,
@@ -1126,7 +1143,7 @@ class ConnectorReplica:  # REQ-954/955/956
             spawn=self._spawn,
             health_check=self._health,
             port_is_free=self._port_is_free,
-            environment=server_environment(self._source, Path(bundle_dir)),
+            environment=environment,
         )
         server.start()  # REQ-955 (lifecycle)
         self._server = server

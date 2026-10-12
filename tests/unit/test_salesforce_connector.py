@@ -213,7 +213,7 @@ def test_the_running_server_is_given_its_own_state_directory(tmp_path, monkeypat
         def exit_code(self):
             return None
 
-    def _spawn(command, cwd):
+    def _spawn(command, cwd, env=None):
         spawned.append(cwd)
         return _Proc()
 

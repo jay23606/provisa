@@ -409,7 +409,7 @@ def test_bundle_resolve_download_without_launcher_is_loud(tmp_path):
 def _spawn_returning(proc):
     """A fake ``spawn`` callable matching ``_spawn_process``'s ``(command, cwd)`` signature."""
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         assert isinstance(cmd, list) and isinstance(cwd, Path)
         return proc
 
@@ -451,7 +451,7 @@ def _server(tmp_path, *, health: bool = True):
     spawned: list[list[str]] = []
     spawn_cwds: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         spawned.append(cmd)
         spawn_cwds.append(cwd)
         return proc
@@ -799,7 +799,7 @@ def test_a_server_that_exited_is_reported_with_its_log_not_as_still_starting(tmp
     real_replica_cls = pr.ConnectorReplica
     spawned_in: list[Path] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         spawned_in.append(cwd)
         (cwd / pr.SERVER_LOG_NAME).write_text("starting\nsplunk login failed: 401 Unauthorized\n")
         return _FakeProc(exit_code=1)
@@ -976,7 +976,7 @@ def test_owner_pid_flag_is_gated_on_the_bundle_release(tmp_path):
     assert pr.bundle_supports_owner_pid("engine-v1.0.0") is True
     spawned: list[list[str]] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         assert isinstance(cwd, Path)
         spawned.append(cmd)
         return _FakeProc()
@@ -1075,7 +1075,7 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=_dl)
     started: list[tuple[list[str], Path]] = []
 
-    def _spawn(cmd, cwd):
+    def _spawn(cmd, cwd, env=None):
         started.append((cmd, cwd))
         return _FakeProc()
 
@@ -1109,3 +1109,13 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     assert not (bundle / "model" / "model.json").exists()
     first.close()
     second.close()
+
+
+def test_each_server_is_given_its_own_calcite_state_directory(tmp_path):
+    """REQ-1954: unset, the launcher keeps its state under the user's ~/.local/state, which on a
+    host where another user owns it stops the server at start, its error swallowed."""
+    from provisa.federation import pgwire_replica as pr
+
+    env = pr.calcite_state_environment(tmp_path / "run")
+    assert env == {"PGWIRE_CALCITE_STATE_DIR": str(tmp_path / "run" / "calcite-state")}
+    assert (tmp_path / "run" / "calcite-state").is_dir()

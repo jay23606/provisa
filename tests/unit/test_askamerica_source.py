@@ -466,7 +466,7 @@ def test_a_sibling_still_runs_from_a_state_directory_of_its_own_with_its_model_w
         Source(id="docs", type=SourceType.files, path="/data"),
         resolver=SimpleNamespace(resolve=lambda spec: bundle),  # type: ignore[arg-type]
         allocator=pr.PortAllocator(is_free=lambda port: True),
-        spawn=lambda command, cwd: spawned.append((command, cwd)) or SimpleNamespace(),
+        spawn=lambda command, cwd, env=None: spawned.append((command, cwd)) or SimpleNamespace(),
         health_check=lambda host, port: True,
     )
     replica.endpoint()
