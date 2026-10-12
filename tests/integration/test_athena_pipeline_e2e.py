@@ -153,3 +153,28 @@ async def test_a_hive_tables_update_is_refused_by_name_before_anything_is_sent(c
     assert "pets" in said and "UPDATE" in said, said
     rows = await query_semantic(client, f'SELECT "name" FROM "{_DOMAIN}"."pets" WHERE "id" = 1')
     assert [r["name"] for r in rows] == ["rex"]
+
+
+async def test_a_hive_tables_merge_is_refused_by_name_before_anything_is_sent(client, registered):
+    del registered
+    status, body = await _sql(
+        client,
+        f'MERGE INTO "{_DOMAIN}"."pets" AS t USING (SELECT 1 AS "id") AS s ON t."id" = s."id" '
+        "WHEN MATCHED THEN UPDATE SET \"name\" = 'x'",
+    )
+    assert status != 200
+    said = json.dumps(body)
+    assert "pets" in said and "MERGE" in said.upper(), said
+    rows = await query_semantic(client, f'SELECT "name" FROM "{_DOMAIN}"."pets" WHERE "id" = 1')
+    assert [r["name"] for r in rows] == ["rex"]
+
+
+async def test_a_row_is_inserted_into_a_hive_table(client, registered):
+    del registered
+    status, body = await _sql(
+        client,
+        f'INSERT INTO "{_DOMAIN}"."pets" ("id", "name", "kind") VALUES (90, \'kit\', \'cat\')',
+    )
+    assert status == 200, body
+    rows = await query_semantic(client, f'SELECT "name" FROM "{_DOMAIN}"."pets" WHERE "id" = 90')
+    assert [r["name"] for r in rows] == ["kit"]
