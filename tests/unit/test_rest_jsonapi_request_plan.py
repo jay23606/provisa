@@ -546,8 +546,9 @@ async def test_a_value_the_schema_rejects_is_rejected_after_a_plan_is_kept(surfa
     assert len(surface.pipeline.sql) == 1
 
 
-async def test_a_value_with_a_quote_never_binds_into_a_kept_plan(surface):
-    """Synthesized text a value breaks out of is not the shape a plan was kept for."""
+async def test_a_value_with_a_quote_is_bound_into_the_kept_plan_as_given(surface):
+    """A filter value travels as a variable (REQ-1986), never written into the synthesized text:
+    a value with a quote cannot break out of it, and binds into the plan kept for its shape."""
     ok = await surface.client.get(
         "/data/rest/sales/orders",
         params={"fields": "id", **_rest_filter("region", "eq", "US")},
@@ -555,14 +556,17 @@ async def test_a_value_with_a_quote_never_binds_into_a_kept_plan(surface):
     )
     assert ok.status_code == 200, ok.text
     parsed = len(surface.compiles.parsed)
+    escape = 'US"}, id: {eq: 3'
     resp = await surface.client.get(
         "/data/rest/sales/orders",
-        params={"fields": "id", **_rest_filter("region", "eq", 'US"}, id: {eq: 3')},
+        params={"fields": "id", **_rest_filter("region", "eq", escape)},
         headers=_REST,
     )
-    # Whatever the schema makes of that text, it was parsed for itself.
-    assert len(surface.compiles.parsed) > parsed
-    assert resp.status_code in (200, 400)
+    assert resp.status_code == 200, resp.text
+    assert len(surface.compiles.parsed) == parsed
+    (first_sql, _), (sql, params) = surface.pipeline.statements
+    assert sql == first_sql
+    assert escape in params
 
 
 @pytest.mark.parametrize(

@@ -18,6 +18,11 @@ values taken out. A request of a kept shape binds its own values into the kept s
 parameter list and skips the parse, the validation and the compile. Values are never written into
 the statement, and no value is part of a key.
 
+A request's filter and parameters travel as GraphQL variables beside the text (REQ-1986). Their
+values are taken out the same way: the shape is the text's shape together with the variables'
+skeleton — every value leaf replaced by its kind — and the values are the text's followed by the
+variables', in the skeleton's (sorted) order.
+
 The plan is kept through ``pgwire.governed_plan`` — the store, key discipline (generation,
 role) and invalidation every surface keeps a governed plan with — under its own stage, anchored
 to the schema object the text was validated against. Governance of the compiled SQL stays the
@@ -43,6 +48,7 @@ What makes a value safe to take out of the shape:
 from __future__ import annotations
 
 import dataclasses
+import json
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -108,6 +114,53 @@ def request_shape(gql_query: str) -> tuple[tuple[str, ...], list[Value]]:
         last = match.end()
     parts.append(pending + gql_query[last:])
     return tuple(parts), values
+
+
+def _leaf_value(leaf: Any) -> Value | None:
+    """The value a variable leaf carries, or None when it stays in the skeleton — as a literal's
+    (``_value_of``), but a string's quotes no longer matter: it is never written into text."""
+    if isinstance(leaf, bool) or not isinstance(leaf, (int, float, str)):
+        return None
+    if isinstance(leaf, str):
+        return None if _ISO_DATE_RE.match(leaf) else leaf
+    if isinstance(leaf, int):
+        return leaf if _INT32_MIN <= leaf <= _INT32_MAX else None
+    return leaf
+
+
+def variables_shape(variables: Any) -> tuple[Any, list[Value]]:
+    """The variables' skeleton — each value leaf replaced by its kind's mark — and the values, in
+    the skeleton's order (an object's keys sorted)."""
+    values: list[Value] = []
+
+    def _walk(node: Any) -> Any:
+        if isinstance(node, dict):
+            return {key: _walk(node[key]) for key in sorted(node)}
+        if isinstance(node, list):
+            return [_walk(item) for item in node]
+        value = _leaf_value(node)
+        if value is None:
+            return node
+        values.append(value)
+        return _MARK + _kind(value)
+
+    return _walk(variables), values
+
+
+def _variables_with(skeleton: Any, values: list[Value]) -> Any:
+    """The skeleton with ``values`` written back where values stood."""
+    remaining = iter(values)
+
+    def _walk(node: Any) -> Any:
+        if isinstance(node, dict):
+            return {key: _walk(item) for key, item in node.items()}
+        if isinstance(node, list):
+            return [_walk(item) for item in node]
+        if isinstance(node, str) and node.startswith(_MARK):
+            return next(remaining)
+        return node
+
+    return _walk(skeleton)
 
 
 def _text_with(shape: tuple[str, ...], values: list[Value]) -> str:
@@ -217,6 +270,7 @@ class _PerText:
 def _shape_plan(
     compiled: tuple[CompiledQuery, ...],
     shape: tuple[str, ...],
+    skeleton: Any,
     values: list[Value],
     schema: GraphQLSchema,
     ctx: CompilationContext,
@@ -227,8 +281,11 @@ def _shape_plan(
         return _ShapePlan(compiled, no_slots, no_slots)
     taken = [p for cq in compiled for p in (*cq.params, *cq.nodes_params)]
     others = _other_values(values, taken)
+    in_text = len(shape) - 1
+    text = _text_with(shape, others[:in_text])
+    variables = _variables_with(skeleton, others[in_text:])
     try:
-        twin = tuple(compile_query(parse_query(schema, _text_with(shape, others), ctx=ctx), ctx))
+        twin = tuple(compile_query(parse_query(schema, text, ctx=ctx), ctx, variables))
     except (GraphQLValidationError, GraphQLError, ValueError):
         # The schema or the compiler reads this shape differently for another value.
         return None
@@ -260,41 +317,51 @@ def _copies(compiled: tuple[CompiledQuery, ...]) -> list[CompiledQuery]:
     ]
 
 
-def compile_generated_graphql(  # REQ-1877
-    state: Any, role_id: str, schema: GraphQLSchema, ctx: CompilationContext, gql_query: str
+def compile_generated_graphql(  # REQ-1877, REQ-1986
+    state: Any,
+    role_id: str,
+    schema: GraphQLSchema,
+    ctx: CompilationContext,
+    gql_query: str,
+    variables: dict[str, Any] | None = None,
 ) -> list[CompiledQuery]:
-    """Parse, validate and compile synthesized GraphQL text — or bind the request's values into
-    the plan kept for its shape (see the module docstring).
+    """Parse, validate and compile synthesized GraphQL text with its ``variables`` — or bind the
+    request's values into the plan kept for its shape (see the module docstring).
 
     Raises what ``parse_query`` raises for text the schema rejects (``GraphQLValidationError``, or
     graphql-core's ``GraphQLError`` for a syntax error) — the only failures a caller may answer
     with a 400. A rejected or empty compilation is not kept. Each caller gets its own
     bound-value lists.
     """
-    shape, values = request_shape(gql_query)
-    shape_slot = PlanSlot(state, _STAGE, role_id, "shape", shape, extra_anchors=(schema,))
+    variables = variables or {}
+    shape, text_values = request_shape(gql_query)
+    skeleton, variable_values = variables_shape(variables)
+    values = [*text_values, *variable_values]
+    shape_key = (shape, json.dumps(skeleton, sort_keys=True))
+    text_key = (gql_query, json.dumps(variables, sort_keys=True))
+    shape_slot = PlanSlot(state, _STAGE, role_id, "shape", shape_key, extra_anchors=(schema,))
     kept = shape_slot.cached()
     if isinstance(kept, _ShapePlan):
         return kept.bound(values)
 
     text_slot = None
     if isinstance(kept, _PerText):
-        text_slot = PlanSlot(state, _STAGE, role_id, "text", gql_query, extra_anchors=(schema,))
+        text_slot = PlanSlot(state, _STAGE, role_id, "text", text_key, extra_anchors=(schema,))
         kept_text = text_slot.cached()
         if kept_text is not None:
             return _copies(kept_text)
 
-    compiled = tuple(compile_query(parse_query(schema, gql_query, ctx=ctx), ctx))
+    compiled = tuple(compile_query(parse_query(schema, gql_query, ctx=ctx), ctx, variables))
     if not compiled:
         return []
     if text_slot is not None:
         text_slot.keep(compiled)
         return _copies(compiled)
 
-    plan = _shape_plan(compiled, shape, values, schema, ctx)
+    plan = _shape_plan(compiled, shape, skeleton, values, schema, ctx)
     if plan is not None:
         shape_slot.keep(plan)
     else:
         shape_slot.keep(_PerText())
-        PlanSlot(state, _STAGE, role_id, "text", gql_query, extra_anchors=(schema,)).keep(compiled)
+        PlanSlot(state, _STAGE, role_id, "text", text_key, extra_anchors=(schema,)).keep(compiled)
     return _copies(compiled)

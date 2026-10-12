@@ -35,8 +35,12 @@ from graphql import GraphQLError, GraphQLObjectType, GraphQLSchema
 from provisa.core.read_refusal import ReadRefused
 from provisa.api.json_response import OrjsonResponse
 from provisa.api._query_helpers import (
+    RequestRefused,
+    RequestVariables,
     build_graphql_query as _build_graphql_query_shared,
     get_scalar_fields as _get_scalar_fields_shared,
+    parse_params,
+    request_variables,
 )
 from provisa.api.generated_plan import compile_generated_graphql
 from provisa.compiler.naming import apply_gql_name
@@ -108,13 +112,13 @@ def _parse_order_by_params(params: dict[str, str]) -> list[dict[str, str]]:
 def _build_graphql_query(
     table: str,
     fields: list[str],
-    where: dict[str, dict[str, Any]],
+    variables: RequestVariables,
     order_by: list[dict[str, str]],
     limit: int | None,
     offset: int | None,
 ) -> str:
     """Build a GraphQL query string from parsed REST params."""
-    return _build_graphql_query_shared(table, fields, where, order_by, limit, offset)
+    return _build_graphql_query_shared(table, fields, variables, order_by, limit, offset)
 
 
 def _get_scalar_fields(schema: GraphQLSchema, table: str) -> list[str]:
@@ -274,45 +278,25 @@ def _build_aggregate_selection(
     return " ".join(parts) or "count"
 
 
-def _format_where_arg(where: dict[str, dict[str, Any]]) -> str | None:
-    """Format a parsed where dict into a `where: {...}` GraphQL argument fragment."""
-    if not where:
-        return None
-    where_parts = []
-    for col, ops in where.items():
-        for op, val in ops.items():
-            if isinstance(val, list):
-                formatted = "[" + ", ".join(f'"{v}"' for v in val) + "]"
-                where_parts.append(f"{col}: {{{op}: {formatted}}}")
-            elif isinstance(val, str):
-                try:
-                    numeric: int | float = int(val)
-                except ValueError:
-                    try:
-                        numeric = float(val)
-                    except ValueError:
-                        where_parts.append(f'{col}: {{{op}: "{val}"}}')
-                        continue
-                where_parts.append(f"{col}: {{{op}: {numeric}}}")
-            else:
-                where_parts.append(f"{col}: {{{op}: {val}}}")
-    return "where: {" + ", ".join(where_parts) + "}"
+def _aggregate_field_name(schema: GraphQLSchema, table: str, *, group_by: bool) -> str:
+    """The root field a table's ``?aggregate=`` (or ``?groupBy=``) request queries."""
+    suffix = "_group_by" if group_by else "_aggregate"
+    return _resolve_agg_field_name(schema, table, group_by=group_by) or f"{table}{suffix}"
 
 
 def _build_aggregate_graphql_query(
     schema: GraphQLSchema,
     table: str,
     funcs: list[str],
-    where: dict[str, dict[str, Any]],
+    variables: RequestVariables,
     fields: list[str] | None,
 ) -> str:
-    """Build `{ {table}_aggregate(where: ...) { aggregate { <selection> } } }` GraphQL text."""
+    """Build `{ {table}_aggregate(where: $where) { aggregate { <selection> } } }` GraphQL text."""
     agg_map = _agg_fields_map(schema, table, group_by=False)
     selection = _build_aggregate_selection(agg_map, funcs, fields)
-    where_arg = _format_where_arg(where)
-    args_str = f"({where_arg})" if where_arg else ""
-    field_name = _resolve_agg_field_name(schema, table, group_by=False) or f"{table}_aggregate"
-    return f"{{ {field_name}{args_str} {{ aggregate {{ {selection} }} }} }}"
+    args_str = f"({', '.join(variables.arguments)})" if variables.arguments else ""
+    field_name = _aggregate_field_name(schema, table, group_by=False)
+    return variables.operation(f"{{ {field_name}{args_str} {{ aggregate {{ {selection} }} }} }}")
 
 
 def _node_item_type(schema: GraphQLSchema, table: str) -> GraphQLObjectType | None:
@@ -416,7 +400,7 @@ def _build_group_by_graphql_query(
     table: str,
     by_cols: list[str],
     funcs: list[str],
-    where: dict[str, dict[str, Any]],
+    variables: RequestVariables,
     order_by: list[dict[str, str]],
     limit: int | None,
     offset: int | None,
@@ -438,9 +422,7 @@ def _build_group_by_graphql_query(
     agg_map = _agg_fields_map(schema, table, group_by=True)
     selection = _build_aggregate_selection(agg_map, funcs, fields)
     args_parts = [f"by: [{', '.join(apply_gql_name(c) for c in by_cols)}]"]
-    where_arg = _format_where_arg(where)
-    if where_arg:
-        args_parts.append(where_arg)
+    args_parts.extend(variables.arguments)
     if order_by:
         ob_parts = [f"{o['field']}: {o['dir']}" for o in order_by]
         args_parts.append("order_by: {" + ", ".join(ob_parts) + "}")
@@ -449,7 +431,7 @@ def _build_group_by_graphql_query(
     if offset:
         args_parts.append(f"offset: {offset}")
     args_str = f"({', '.join(args_parts)})"
-    field_name = _resolve_agg_field_name(schema, table, group_by=True) or f"{table}_group_by"
+    field_name = _aggregate_field_name(schema, table, group_by=True)
     nodes_part = ""
     if include_nodes is True:
         node_fields = _node_field_names(schema, table)
@@ -459,7 +441,23 @@ def _build_group_by_graphql_query(
         nodes_selection = _build_nodes_selection(schema, table, include_nodes)
         if nodes_selection:
             nodes_part = f" nodes {{ {nodes_selection} }}"
-    return f"{{ {field_name}{args_str} {{ groupKey aggregate {{ {selection} }}{nodes_part} }} }}"
+    return variables.operation(
+        f"{{ {field_name}{args_str} {{ groupKey aggregate {{ {selection} }}{nodes_part} }} }}"
+    )
+
+
+def _variables_or_400(
+    schema: GraphQLSchema,
+    field_name: str,
+    where: dict[str, dict[str, Any]],
+    params: dict[str, Any],
+) -> RequestVariables:
+    """The request's filter and parameters as variables of ``field_name`` (REQ-1986); a filter or
+    parameter the field does not take is answered with a 400."""
+    try:
+        return request_variables(schema, field_name, where, params)
+    except RequestRefused as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, REQ-267
@@ -546,6 +544,11 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
 
         where = _parse_where_params(raw_params)
         order_by = _parse_order_by_params(raw_params)
+        try:
+            # REQ-1986: ?params= gives the table's parameters, by argument name.
+            params = parse_params(raw_params.get("params"))
+        except RequestRefused as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         # REQ-1359: aggregate/groupBy target {table}_aggregate / {table}_group_by instead of
         # the base table field. Schema exposure is already flag-gated (schema_gen.py); a
@@ -573,12 +576,15 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
             # row-level detail, mirroring GraphQL's {table}_group_by nodes field. REST has
             # no ?include= relationship sideloading, so this is scalar fields only.
             include_nodes = _parse_include_nodes(raw_params)
+            variables = _variables_or_400(
+                schema, _aggregate_field_name(schema, table, group_by=True), where, params
+            )
             gql_query = _build_group_by_graphql_query(
                 schema,
                 table,
                 group_by_cols,
                 agg_funcs or [],
-                where,
+                variables,
                 order_by,
                 limit,
                 offset,
@@ -586,8 +592,11 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                 include_nodes,
             )
         elif is_aggregate:
+            variables = _variables_or_400(
+                schema, _aggregate_field_name(schema, table, group_by=False), where, params
+            )
             gql_query = _build_aggregate_graphql_query(
-                schema, table, agg_funcs or [], where, requested_fields
+                schema, table, agg_funcs or [], variables, requested_fields
             )
         else:
             # Determine fields
@@ -602,10 +611,11 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
                     detail=f"No selectable fields for table {table!r}",
                 )
 
+            variables = _variables_or_400(schema, table, where, params)
             gql_query = _build_graphql_query(
                 table,
                 selected_fields,
-                where,
+                variables,
                 order_by,
                 limit,
                 offset,
@@ -614,7 +624,9 @@ def create_rest_router(state: Any) -> APIRouter:  # REQ-222, REQ-256, REQ-266, R
 
         # REQ-1877: one compiled plan is kept per request shape; values are bound into it.
         try:
-            compiled_queries = compile_generated_graphql(state, role_id, schema, ctx, gql_query)
+            compiled_queries = compile_generated_graphql(
+                state, role_id, schema, ctx, gql_query, variables.values
+            )
         except (GraphQLValidationError, GraphQLError) as e:
             raise HTTPException(status_code=400, detail=str(e))
 

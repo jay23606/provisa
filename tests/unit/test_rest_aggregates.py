@@ -17,6 +17,7 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
+from provisa.api._query_helpers import NO_VARIABLES, request_variables
 from provisa.api.rest.generator import (
     _build_aggregate_graphql_query,
     _build_group_by_graphql_query,
@@ -249,7 +250,7 @@ class TestParseGroupByParam:
 class TestBuildAggregateGraphqlQuery:
     def test_default_selection_all_funcs(self):
         schema, ctx = _build_schema_and_ctx()
-        q = _build_aggregate_graphql_query(schema, "orders", [], {}, None)
+        q = _build_aggregate_graphql_query(schema, "orders", [], NO_VARIABLES, None)
         assert q.startswith("{ orders_aggregate")
         assert "count" in q
         assert "sum {" in q
@@ -259,26 +260,27 @@ class TestBuildAggregateGraphqlQuery:
 
     def test_explicit_funcs_only(self):
         schema, ctx = _build_schema_and_ctx()
-        q = _build_aggregate_graphql_query(schema, "orders", ["count", "sum"], {}, None)
+        q = _build_aggregate_graphql_query(schema, "orders", ["count", "sum"], NO_VARIABLES, None)
         assert "count" in q
         assert "sum {" in q
         assert "avg {" not in q
 
     def test_with_where(self):
         schema, ctx = _build_schema_and_ctx()
-        q = _build_aggregate_graphql_query(
-            schema, "orders", ["count"], {"region": {"eq": "US"}}, None
-        )
-        assert 'where: {region: {eq: "US"}}' in q
+        variables = request_variables(schema, "orders_aggregate", {"region": {"eq": "US"}})
+        q = _build_aggregate_graphql_query(schema, "orders", ["count"], variables, None)
+        assert q.startswith("query($where: ")
+        assert "orders_aggregate(where: $where)" in q
+        assert parse_query(schema, q, ctx=ctx) is not None
 
     def test_field_filter_restricts_columns(self):
         schema, ctx = _build_schema_and_ctx()
-        q = _build_aggregate_graphql_query(schema, "orders", ["sum"], {}, ["amount"])
+        q = _build_aggregate_graphql_query(schema, "orders", ["sum"], NO_VARIABLES, ["amount"])
         assert "sum { amount }" in q
 
     def test_query_parses_against_schema(self):
         schema, ctx = _build_schema_and_ctx()
-        q = _build_aggregate_graphql_query(schema, "orders", [], {}, None)
+        q = _build_aggregate_graphql_query(schema, "orders", [], NO_VARIABLES, None)
         document = parse_query(schema, q, ctx=ctx)
         assert document is not None
 
@@ -287,7 +289,7 @@ class TestBuildGroupByGraphqlQuery:
     def test_basic_group_by(self):
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], [], {}, [], None, None, None
+            schema, "orders", ["region"], [], NO_VARIABLES, [], None, None, None
         )
         assert q.startswith("{ orders_group_by(by: [region])")
         assert "groupKey" in q
@@ -300,7 +302,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [{"field": "region", "dir": "asc"}],
             5,
             10,
@@ -313,7 +315,7 @@ class TestBuildGroupByGraphqlQuery:
     def test_query_parses_against_schema(self):
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], [], {}, [], None, None, None
+            schema, "orders", ["region"], [], NO_VARIABLES, [], None, None, None
         )
         document = parse_query(schema, q, ctx=ctx)
         assert document is not None
@@ -325,7 +327,7 @@ class TestBuildGroupByGraphqlQuery:
         _naming.configure(gql="apollo_graphql")
         try:
             q = _build_group_by_graphql_query(
-                schema, "orders", ["user_id"], [], {}, [], None, None, None
+                schema, "orders", ["user_id"], [], NO_VARIABLES, [], None, None, None
             )
         finally:
             _naming.configure(gql="snake")
@@ -335,7 +337,7 @@ class TestBuildGroupByGraphqlQuery:
     def test_include_nodes_adds_nodes_selection(self):
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], ["count"], {}, [], None, None, None, True
+            schema, "orders", ["region"], ["count"], NO_VARIABLES, [], None, None, None, True
         )
         assert "nodes {" in q
         document = parse_query(schema, q, ctx=ctx)
@@ -344,7 +346,7 @@ class TestBuildGroupByGraphqlQuery:
     def test_without_include_nodes_omits_nodes_selection(self):
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], ["count"], {}, [], None, None, None, False
+            schema, "orders", ["region"], ["count"], NO_VARIABLES, [], None, None, None, False
         )
         assert "nodes {" not in q
 
@@ -352,7 +354,7 @@ class TestBuildGroupByGraphqlQuery:
         """REQ-1402: a bare (no-dot) includeNodes path selects just that scalar field."""
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], ["count"], {}, [], None, None, None, ["amount"]
+            schema, "orders", ["region"], ["count"], NO_VARIABLES, [], None, None, None, ["amount"]
         )
         assert "nodes { amount }" in q
         assert "status" not in q
@@ -364,7 +366,16 @@ class TestBuildGroupByGraphqlQuery:
         apply_gql_name) and left for parse_query's own validation to reject, same as by_cols."""
         schema, ctx = _build_schema_and_ctx()
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], ["count"], {}, [], None, None, None, ["not_a_field"]
+            schema,
+            "orders",
+            ["region"],
+            ["count"],
+            NO_VARIABLES,
+            [],
+            None,
+            None,
+            None,
+            ["not_a_field"],
         )
         assert "nodes { not_a_field }" in q
         with pytest.raises(GraphQLValidationError):
@@ -378,7 +389,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [],
             None,
             None,
@@ -396,7 +407,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [],
             None,
             None,
@@ -414,7 +425,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [],
             None,
             None,
@@ -434,7 +445,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [],
             None,
             None,
@@ -452,7 +463,7 @@ class TestBuildGroupByGraphqlQuery:
             "orders",
             ["region"],
             ["count"],
-            {},
+            NO_VARIABLES,
             [],
             None,
             None,
@@ -518,7 +529,7 @@ class TestAggregateEndpointResponseShape:
     def test_aggregate_response_is_flat(self, monkeypatch):
         state = _make_state()
         schema, ctx = state.schemas["admin"], state.contexts["admin"]
-        q = _build_aggregate_graphql_query(schema, "orders", ["count"], {}, None)
+        q = _build_aggregate_graphql_query(schema, "orders", ["count"], NO_VARIABLES, None)
         document = parse_query(schema, q, ctx=ctx)
         from provisa.compiler.sql_gen import compile_query
 
@@ -537,7 +548,7 @@ class TestAggregateEndpointResponseShape:
         state = _make_state()
         schema, ctx = state.schemas["admin"], state.contexts["admin"]
         q = _build_group_by_graphql_query(
-            schema, "orders", ["region"], ["count"], {}, [], None, None, None
+            schema, "orders", ["region"], ["count"], NO_VARIABLES, [], None, None, None
         )
         document = parse_query(schema, q, ctx=ctx)
         from provisa.compiler.sql_gen import compile_query

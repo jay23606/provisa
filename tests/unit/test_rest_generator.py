@@ -10,6 +10,9 @@
 
 """Unit tests for REST auto-generation (Phase AB5, REQ-222)."""
 
+import pytest
+
+from provisa.api._query_helpers import NO_VARIABLES, RequestRefused, parse_params, request_variables
 from provisa.api.rest.generator import (
     _build_graphql_query,
     _get_scalar_fields,
@@ -167,42 +170,50 @@ class TestParseOrderBy:
 
 class TestBuildGraphQLQuery:
     def test_simple_query(self):
-        q = _build_graphql_query("orders", ["id", "amount"], {}, [], None, None)
+        q = _build_graphql_query("orders", ["id", "amount"], NO_VARIABLES, [], None, None)
         assert q == "{ orders { id amount } }"
 
     def test_with_limit_offset(self):
-        q = _build_graphql_query("orders", ["id"], {}, [], 10, 20)
+        q = _build_graphql_query("orders", ["id"], NO_VARIABLES, [], 10, 20)
         assert "limit: 10" in q
         assert "offset: 20" in q
 
-    def test_with_where(self):
-        q = _build_graphql_query(
-            "orders",
-            ["id"],
-            {"region": {"eq": "US"}},
-            [],
-            None,
-            None,
-        )
-        assert "where:" in q
-        assert 'region: {eq: "US"}' in q
+    def test_a_filter_is_a_variable_typed_by_the_where_argument(self):
+        schema, _ = _build_test_schema()
+        variables = request_variables(schema, "orders", {"region": {"eq": "US"}})
+        q = _build_graphql_query("orders", ["id"], variables, [], None, None)
+        assert q == "query($where: OrdersWhere) { orders(where: $where) { id } }"
+        assert variables.values == {"where": {"region": {"eq": "US"}}}
 
-    def test_with_numeric_where(self):
-        q = _build_graphql_query(
-            "orders",
-            ["id"],
-            {"amount": {"gt": "100"}},
-            [],
-            None,
-            None,
+    def test_a_numeric_filter_reads_as_its_column_type(self):
+        schema, _ = _build_test_schema()
+        variables = request_variables(
+            schema, "orders", {"amount": {"gt": "100"}, "id": {"in": ["1", "2"]}}
         )
-        assert "amount: {gt: 100}" in q
+        assert variables.values == {"where": {"amount": {"gt": 100.0}, "id": {"in": [1, 2]}}}
+
+    def test_a_filter_value_with_a_quote_is_never_written_into_the_text(self):
+        schema, _ = _build_test_schema()
+        variables = request_variables(schema, "orders", {"region": {"eq": 'say "hi"'}})
+        q = _build_graphql_query("orders", ["id"], variables, [], None, None)
+        assert '"' not in q
+        assert variables.values == {"where": {"region": {"eq": 'say "hi"'}}}
+
+    def test_a_filter_value_its_type_refuses_is_refused(self):
+        schema, _ = _build_test_schema()
+        with pytest.raises(RequestRefused, match="filter"):
+            request_variables(schema, "orders", {"id": {"eq": "abc"}})
+
+    def test_a_parameter_the_table_does_not_take_is_refused_naming_it(self):
+        schema, _ = _build_test_schema()
+        with pytest.raises(RequestRefused, match="'region'"):
+            request_variables(schema, "orders", {}, {"region": "US"})
 
     def test_with_order_by(self):
         q = _build_graphql_query(
             "orders",
             ["id"],
-            {},
+            NO_VARIABLES,
             [{"field": "created_at", "dir": "desc"}],
             None,
             None,
@@ -211,18 +222,35 @@ class TestBuildGraphQLQuery:
         assert "created_at: desc" in q
 
     def test_combined(self):
+        schema, _ = _build_test_schema()
         q = _build_graphql_query(
             "orders",
             ["id", "amount"],
-            {"region": {"eq": "US"}},
+            request_variables(schema, "orders", {"region": {"eq": "US"}}),
             [{"field": "amount", "dir": "desc"}],
             5,
             10,
         )
         assert "limit: 5" in q
         assert "offset: 10" in q
-        assert "where:" in q
+        assert "where: $where" in q
         assert "order_by:" in q
+
+
+class TestParseParams:
+    def test_absent_is_no_parameters(self):
+        assert parse_params(None) == {}
+
+    def test_a_json_object(self):
+        assert parse_params('{"region": "EU", "n": 3}') == {"region": "EU", "n": 3}
+
+    def test_not_json_is_refused(self):
+        with pytest.raises(RequestRefused, match="not JSON"):
+            parse_params("region=EU")
+
+    def test_not_an_object_is_refused(self):
+        with pytest.raises(RequestRefused, match="JSON object"):
+            parse_params('["EU"]')
 
 
 class TestGetScalarFields:

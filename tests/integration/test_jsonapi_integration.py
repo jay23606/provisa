@@ -502,18 +502,15 @@ class TestJSONAPIFiltering:
         # REQ-257: filter translates into GraphQL where argument
         from provisa.api.jsonapi.generator import _build_graphql_query
 
-        gql = _build_graphql_query(
-            "orders",
-            ["id", "region"],
-            {"region": {"eq": "US"}},
-            [],
-            None,
-            None,
-        )
+        from provisa.api._query_helpers import request_variables
+        from tests.unit.test_jsonapi import _build_test_schema
 
-        assert "where" in gql
-        assert "region" in gql
-        assert "US" in gql
+        schema, _ = _build_test_schema()
+        variables = request_variables(schema, "orders", {"region": {"eq": "US"}})
+        gql = _build_graphql_query("orders", ["id", "region"], variables, [], None, None)
+
+        assert "where: $where" in gql
+        assert variables.values == {"where": {"region": {"eq": "US"}}}
 
 
 # ---------------------------------------------------------------------------
@@ -561,12 +558,13 @@ class TestJSONAPISorting:
 
     def test_build_graphql_query_includes_order_by(self):
         # REQ-257: sort translates into GraphQL order_by argument
+        from provisa.api._query_helpers import NO_VARIABLES
         from provisa.api.jsonapi.generator import _build_graphql_query
 
         gql = _build_graphql_query(
             "orders",
             ["id", "created_at"],
-            {},
+            NO_VARIABLES,
             [{"field": "created_at", "dir": "desc"}],
             None,
             None,

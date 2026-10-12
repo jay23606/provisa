@@ -53,8 +53,12 @@ from provisa.api.jsonapi.naming import (
 )
 from provisa.api.jsonapi.serializer import rows_to_jsonapi
 from provisa.api._query_helpers import (
+    RequestRefused,
+    RequestVariables,
     build_graphql_query as _build_graphql_query_shared,
     get_scalar_fields as _get_scalar_fields_shared,
+    parse_params,
+    request_variables,
 )
 from provisa.api.generated_plan import compile_generated_graphql
 from provisa.compiler.naming import apply_gql_name
@@ -405,24 +409,13 @@ def _build_group_by_node_selection(
 def _build_graphql_query(
     table: str,
     fields: list[str],
-    filters: dict[str, dict[str, Any]] | None = None,
+    variables: RequestVariables,
     sort: list[dict[str, str]] | None = None,
     limit: int | None = None,
     offset: int | None = None,
-    *,
-    where: dict[str, dict[str, Any]] | None = None,
-    order_by: list[dict[str, str]] | None = None,
 ) -> str:
-    """Build GraphQL query from JSON:API params.
-
-    ``where`` is accepted as an alias for ``filters``;
-    ``order_by`` is accepted as an alias for ``sort``.
-    """
-    effective_filters = where if filters is None else filters
-    effective_sort = order_by if sort is None else sort
-    return _build_graphql_query_shared(
-        table, fields, effective_filters or {}, effective_sort or [], limit, offset
-    )
+    """Build GraphQL query from JSON:API params; the filter and parameters are ``variables``."""
+    return _build_graphql_query_shared(table, fields, variables, sort or [], limit, offset)
 
 
 def _unwrap_type(t: Any) -> Any:
@@ -479,7 +472,7 @@ def _build_group_by_graphql_query(  # REQ-1359
     field_name: str,
     by_columns: list[str],
     agg_selection: str,
-    filters: dict[str, dict[str, Any]],
+    variables: RequestVariables,
     sort: list[dict[str, str]],
     limit: int | None,
     offset: int | None,
@@ -504,35 +497,29 @@ def _build_group_by_graphql_query(  # REQ-1359
         args_parts.append(f"limit: {limit}")
     if offset:
         args_parts.append(f"offset: {offset}")
-    if filters:
-        where_parts = []
-        for col, ops in filters.items():
-            for op, val in ops.items():
-                if isinstance(val, list):
-                    formatted = "[" + ", ".join(f'"{v}"' for v in val) + "]"
-                    where_parts.append(f"{col}: {{{op}: {formatted}}}")
-                elif isinstance(val, str):
-                    try:
-                        numeric: float | int = int(val)
-                    except ValueError:
-                        try:
-                            numeric = float(val)
-                        except ValueError:
-                            where_parts.append(f'{col}: {{{op}: "{val}"}}')
-                            continue
-                    where_parts.append(f"{col}: {{{op}: {numeric}}}")
-                else:
-                    where_parts.append(f"{col}: {{{op}: {val}}}")
-        if where_parts:
-            args_parts.append("where: {" + ", ".join(where_parts) + "}")
+    args_parts.extend(variables.arguments)
     if sort:
         ob_parts = [f"{o['field']}: {o['dir']}" for o in sort]
         args_parts.append("order_by: {" + ", ".join(ob_parts) + "}")
     args_str = f"({', '.join(args_parts)})"
     nodes_part = f" nodes {{ {node_selection} }}" if node_selection else ""
-    return (
+    return variables.operation(
         f"{{ {field_name}{args_str} {{ groupKey aggregate {{ {agg_selection} }}{nodes_part} }} }}"
     )
+
+
+def _variables(
+    schema: GraphQLSchema,
+    field_name: str,
+    filters: dict[str, dict[str, Any]],
+    params: dict[str, Any],
+) -> RequestVariables | OrjsonResponse:
+    """The request's filter and parameters as variables of ``field_name`` (REQ-1986), or the 400
+    for a filter or parameter the field does not take."""
+    try:
+        return request_variables(schema, field_name, filters, params)
+    except RequestRefused as e:
+        return _jsonapi_error_response(400, "Invalid Parameter", str(e), source_parameter="params")
 
 
 def _next_page_probe_rows(page_size: int, role_id: str) -> int:  # REQ-257, REQ-1224
@@ -703,6 +690,14 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                 400, "Invalid Page", str(e), source_parameter=PAGE_TOTAL_PARAM
             )
 
+        try:
+            # REQ-1986: ?params= gives the table's parameters, by argument name.
+            params = parse_params(raw_params.get("params"))
+        except RequestRefused as e:
+            return _jsonapi_error_response(
+                400, "Invalid Parameter", str(e), source_parameter="params"
+            )
+
         # Validate + translate filter columns
         for col in physical_filters:
             if col not in physical_to_gql:
@@ -784,6 +779,9 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                             source_parameter="aggregate",
                         )
             agg_selection = _build_agg_selection(agg_fields_type, funcs_filter)
+            agg_variables = _variables(schema, target_field, filters, params)
+            if not isinstance(agg_variables, RequestVariables):
+                return agg_variables
 
             if is_group_by:
                 # REQ-1401: ?includeNodes=true adds a nodes { ... } sub-selection — per-group
@@ -809,7 +807,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                     target_field,
                     group_cols,
                     agg_selection,
-                    filters,
+                    agg_variables,
                     sort,
                     limit,
                     pg_offset,
@@ -817,13 +815,18 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                 )
             else:
                 gql_query = _build_graphql_query_shared(
-                    target_field, [f"aggregate {{ {agg_selection} }}"], filters, [], None, None
+                    target_field,
+                    [f"aggregate {{ {agg_selection} }}"],
+                    agg_variables,
+                    [],
+                    None,
+                    None,
                 )
             log.debug("JSON:API aggregate -> GraphQL: %s", gql_query)
 
             try:
                 agg_compiled_queries = compile_generated_graphql(
-                    state, role_id, schema, ctx, gql_query
+                    state, role_id, schema, ctx, gql_query, agg_variables.values
                 )
             except (GraphQLValidationError, GraphQLError) as e:
                 return _jsonapi_error_response(400, "Bad Request", str(e))
@@ -959,10 +962,13 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
         # Without a total, whether another page follows is read from the page itself: one row past
         # it is fetched and dropped below.
         probe_rows = 0 if want_total else _next_page_probe_rows(page_size, role_id)
+        variables = _variables(schema, gql_table, filters, params)
+        if not isinstance(variables, RequestVariables):
+            return variables
         gql_query = _build_graphql_query(
             gql_table,
             query_fields,
-            filters,
+            variables,
             sort,
             limit + probe_rows,
             pg_offset,
@@ -971,7 +977,9 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
 
         # REQ-1877: one compiled plan is kept per request shape; values are bound into it.
         try:
-            compiled_queries = compile_generated_graphql(state, role_id, schema, ctx, gql_query)
+            compiled_queries = compile_generated_graphql(
+                state, role_id, schema, ctx, gql_query, variables.values
+            )
         except (GraphQLValidationError, GraphQLError) as e:
             return _jsonapi_error_response(400, "Bad Request", str(e))
 
@@ -1038,9 +1046,11 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
         total_count: int | None = None
         if want_total:
             count_field = "id" if "id" in all_scalars else all_scalars[0]
-            count_gql = _build_graphql_query(gql_table, [count_field], filters, [], None, None)
+            count_gql = _build_graphql_query(gql_table, [count_field], variables, [], None, None)
             try:
-                count_compiled = compile_generated_graphql(state, role_id, schema, ctx, count_gql)
+                count_compiled = compile_generated_graphql(
+                    state, role_id, schema, ctx, count_gql, variables.values
+                )
             except (GraphQLValidationError, GraphQLError) as e:
                 return _jsonapi_error_response(400, "Bad Request", str(e))
             if not count_compiled:
@@ -1118,10 +1128,10 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
         if not doc["meta"]:
             del doc["meta"]
 
-        # Pagination links — preserve role, sort, sparse fieldset, filters, and include
+        # Pagination links — preserve role, sort, sparse fieldset, filters, include and parameters
         base_path = f"/data/jsonapi/{domain_id}/{table_name}"
         extra = {}
-        for k in ("role", "sort", "include"):
+        for k in ("role", "sort", "include", "params"):
             if raw_params.get(k):
                 extra[k] = raw_params[k]
         if sparse:

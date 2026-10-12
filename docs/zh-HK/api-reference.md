@@ -272,8 +272,11 @@ UI 會輪詢此端點，以在引擎冷啟動期間顯示啟動橫幅。它從�
 - `limit` — 最大資料列數（≥ 1）
 - `offset` — 略過的資料列數（≥ 0）
 - `fields` — 以逗號分隔的欄位名稱（預設為所有純量欄位）
-- `filter` — `{"field", "comparator", "value"}` 篩選物件的 JSON 陣列
+- `filter` — `{"field", "comparator", "value"}` 篩選物件的 JSON 陣列。值按其欄的類型讀取，因此數值欄上的 `"100"` 按 100 比較；欄類型無法容納的值返回 `400`。
 - `orderBy` — `{"field", "direction"}` 排序物件的 JSON 陣列
+- `params` — 表的參數，作為一個按參數名索引的 JSON 物件，例如 `?params={"region":"EU"}`。基於 API 登記的表或查詢表，其來源接受的每個輸入都有一個參數。缺少必填參數的讀取返回 `400` 並指出其名稱，表中沒有的參數名同樣如此。每個值都按其參數的類型檢查。(REQ-1986) [tool-verified: `provisa/api/_query_helpers.py`]
+
+篩選值和參數值作為變數隨端點構建的 GraphQL 文本一起傳遞，因此含引號的值按原樣比較。[tool-verified: `provisa/api/_query_helpers.py`]
 
 需要已驗證的角色；未驗證的請求傳回 `401`。這些路由的 OpenAPI 規格由 `GET /data/rest/openapi.json` 提供，Swagger UI 位於 `GET /data/rest/docs`。
 
@@ -296,7 +299,8 @@ OpenAPI 探索工具頁面（`/app/openapi`）在沙箱化的 iframe 中內嵌 S
 **查詢參數：**
 
 - `fields[<type>]` — 稀疏欄位集，例如 `?fields[orders]=amount`
-- `filter[<col>]` / `filter[<col>][<op>]` — 例如 `?filter[region]=US`、`?filter[amount][gt]=100`
+- `filter[<col>]` / `filter[<col>][<op>]` — 例如 `?filter[region]=US`、`?filter[amount][gt]=100`。值按其欄的類型讀取；類型無法容納的值返回 `400`。
+- `params` — 表的參數，作為一個按參數名索引的 JSON 物件，例如 `?params={"region":"EU"}`，與 REST 端點相同。缺少必填參數返回 `400` 並指出其名稱；未知名稱或類型錯誤的值返回 `400`，`source.parameter` 為 `params`。分頁連結保留該參數。(REQ-1986) [tool-verified: `provisa/api/jsonapi/generator.py`]
 - `sort` — 以逗號分隔，前綴 `-` 表示遞減，例如 `?sort=-created_at,amount`
 - `page[number]` / `page[size]` — 分頁
 - `aggregate` — 以逗號分隔的彙總函式，取代資料列擷取執行：`count`、`sum`、`avg`、`stddev`、`variance`、`min`、`max`。使用 `?aggregate=count,sum` 可要求其中一部分。彙總回應傳回 `data: null`，結果放在 `meta.aggregate` 中。(REQ-1359) [tool-verified: `provisa-ui/src/pages/JsonApiPage.tsx:238`]
