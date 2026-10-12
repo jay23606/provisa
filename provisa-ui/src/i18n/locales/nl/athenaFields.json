@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "Regio",
+    "database": "Database",
+    "workgroup": "Werkgroep",
+    "workgroupHint": "Leeg: primary",
+    "catalog": "Gegevenscatalogus",
+    "catalogHint": "Leeg: AwsDataCatalog",
+    "resultLocation": "Locatie van queryresultaten",
+    "resultLocationHint": "Waar Athena resultaten schrijft; leeg wanneer de werkgroep er een instelt",
+    "resultLocationInvalid": "Voer een s3://-locatie in, zoals s3://my-bucket/athena-results/",
+    "accessKeyId": "Toegangssleutel-ID",
+    "accessKeyHint": "Leeg: de AWS-referentieketen (instantierol, omgeving, profiel)",
+    "secretAccessKey": "Geheime toegangssleutel",
+    "roleArn": "Aan te nemen rol",
+    "roleArnHint": "Optioneel; bij elke aanroep aangenomen"
+  }
+}

@@ -252,6 +252,9 @@ registered_tables = Table(
         "file_glob", Text
     ),  # REQ-788: one logical table over a glob of files; NULL = single file
     Column("source_file_column", Text),  # REQ-788: opt-in column carrying each row's file path
+    # REQ-1981: the table's format where its source reports one (an Athena table: "iceberg" or
+    # "hive"), recorded when it is registered; it decides the writes the table takes.
+    Column("table_format", Text),
     Column(
         "delta", JSON(none_as_null=True)
     ),  # REQ-874: incremental-reload (delta) declaration; NULL = whole rebuild only

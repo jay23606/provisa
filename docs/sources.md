@@ -9,6 +9,7 @@ Every query ultimately executes through the federation engine, which provides fe
 | **Direct-capable** | Yes | Yes | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Federation only** | No | Yes | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **Direct-read (replica)** | Yes | Yes | Snowflake, Databricks, ClickHouse — driver reads data and lands a replica; queries run against the replica in the active engine |
+| **Direct (no cross-source connector)** | Yes | No | Athena — single-source statements run whole in Athena; cross-source joins land a full replica |
 | **Materialize → Federation** | No | No | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, Cloud inventory, Splunk |
 
 **Direct-capable** sources execute single-source queries via their native driver (sub-100ms), bypassing the federation engine (REQ-027, REQ-229). They retain full connector support and participate in federation when joined with other sources (REQ-028).
@@ -16,6 +17,8 @@ Every query ultimately executes through the federation engine, which provides fe
 **Federation only** sources are always queried through the federation layer. No direct driver exists (REQ-229).
 
 **Direct-read (replica)** sources have a DirectDriver that reads from the warehouse natively (Arrow-native where available), lands a replica into the active engine's materialization store, and then queries run against that replica. See [Warehouses as Named Sources](#warehouses-as-named-sources).
+
+**Direct (no cross-source connector)** sources have a DirectDriver that runs single-source statements whole in the source — every filter, column and limit is pushed down. When a statement joins the source with any other, the driver reads the data and lands a replica; the join runs against that replica in the active engine. No Trino connector exists for these sources.
 
 **Materialize** sources have no federated connector. Provisa fetches their data (on startup or at query time) and caches it as Parquet in S3 or in PostgreSQL, making it reachable by the federation engine for cross-source queries (REQ-309).
 
@@ -28,7 +31,7 @@ Provisa registers **61** source types, the ones the Sources form offers. The tab
 | # | Group | Source types |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–22 | [Cloud data warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `fabric`, `synapse`, `trino` |
+| 16–22 | [Cloud data warehouses](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 23–27 | [Analytics / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 28–31 | [Data lake / open table formats](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
 | 32–34 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
@@ -89,9 +92,57 @@ A HiveServer2 endpoint read directly over Thrift, for a Hive deployment where th
 | `bigquery` | — | bigquery | bigquery | Federated | No DirectDriver; reaches via federation engine or BigQuery engine ATTACH |
 | `databricks` | DatabricksDriver | delta_lake | databricks | Federated | Reads via databricks-sql-connector (Cloud Fetch, Arrow); lands replica; `http_path` required in `federation_hints` (REQ-987) |
 | `redshift` | — | redshift | redshift | Federated | — |
+| `athena` | AthenaDriver | — | athena | Partial (INSERT always; UPDATE/DELETE/MERGE on Iceberg only) | Serverless S3 query; single-source runs whole in Athena; cross-source lands a replica; `region` required in `federation_hints` (REQ-1981) |
 | `fabric` | MssqlWarehouseDriver | — | tsql | Federated | Microsoft Fabric Warehouse; T-SQL over TDS, Azure AD auth; lands replica (REQ-995) |
 | `synapse` | MssqlWarehouseDriver | — | tsql | Federated | Azure Synapse SQL; T-SQL over TDS, Azure AD auth; lands replica (REQ-995) |
 | `trino` | SQLAlchemyDriver | — | — | Federated | Remote Trino/Presto coordinator read via the SQLAlchemy trino dialect; lands replica on any engine (REQ-994) |
+
+#### `athena`
+
+Amazon Athena is a serverless query service over data in S3, billed per byte scanned. A statement on Athena's tables alone routes directly to Athena: filters, column lists and `LIMIT` are pushed down, so only the bytes Athena needs to answer that statement are scanned and billed. A statement that joins an Athena table with any other source lands a full replica from Athena first — the whole table is read, and Athena bills it — then the join runs against that replica. The source's Replicate and load-protection settings govern how often a landing runs; the docs note is the only rule. (REQ-1981)
+
+**Discovery.** Register Table calls Athena's metadata API — `ListDatabases`, `ListTableMetadata`, `GetTableMetadata`. These calls run no query, so listing databases and tables and reading a table's columns costs nothing per byte. A table's columns are fetched only when that table is selected. Partition keys follow the regular columns. Types map through the `athena` entry of `provisa/core/ir_types.py`: `array<…>`, `map<…>` and `struct<…>` become `text`; an unknown type is refused, naming it. [tool-verified: `provisa/federation/athena.py` `databases`, `tables`, `columns`; `provisa/core/ir_types.py` `"athena"` entry]
+
+**Source fields.**
+
+| Field | Where | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `database` | source | Yes | — | The Glue database queried by default |
+| `username` | source | No | — | AWS access key ID; may be `${secret:…}` or `${env:…}` |
+| `password` | source | No | — | AWS secret access key; may be `${secret:…}` or `${env:…}` |
+| `region` | `federation_hints` | Yes | — | AWS region, e.g. `us-east-1` |
+| `workgroup` | `federation_hints` | No | `primary` | Athena workgroup |
+| `s3_staging_dir` | `federation_hints` | No | workgroup default | Where Athena writes query results; required when the workgroup does not set one |
+| `catalog` | `federation_hints` | No | `AwsDataCatalog` | Athena data catalog |
+| `role_arn` | `federation_hints` | No | — | IAM role ARN assumed for every call |
+
+Both `username` and `password` empty means boto3's own credential chain: instance role, environment variables (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`), or a named profile. One without the other is refused. [tool-verified: `provisa/executor/drivers/athena.py` `AthenaDriver.connect`; `provisa/federation/athena.py` `athena_client`]
+
+**Writes.** Every registered table accepts `INSERT`. `UPDATE`, `DELETE` and `MERGE` are available only on an Iceberg table; the format is recorded at registration (`registered_tables.table_format`). A write against a Hive table that requests `UPDATE`, `DELETE` or `MERGE` is refused, naming the table and the operation. Athena returns no written rows — a `RETURNING` clause is refused, and GraphQL offers no mutation fields for these tables; `INSERT`, `UPDATE`, `DELETE` and `COPY` are the write paths. `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING` and `TRUNCATE` are refused, naming the form. [tool-verified: `provisa/executor/write_capability.py` `table_write_ops`; `provisa/executor/writable.py` `_TYPE_RETURNS_NO_ROWS`, `_TYPE_REFUSED_FORMS`]
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  username: ${env:ATHENA_ACCESS_KEY_ID}
+  password: ${env:ATHENA_SECRET_ACCESS_KEY}
+  federation_hints:
+    region: us-east-1
+    workgroup: primary
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
+With a role assumed per call (credential chain for the base session):
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  federation_hints:
+    region: us-east-1
+    role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
 
 ### Analytics / OLAP
 

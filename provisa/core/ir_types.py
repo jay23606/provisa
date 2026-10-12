@@ -116,6 +116,16 @@ _PLATFORM_ALIASES: dict[str, dict[str, str]] = {
         "array": "text",
         "map": "text",
     },
+    # REQ-1981: Amazon Athena's catalog spells a column's type as Hive DDL does; a composite
+    # (array<...>, map<...>, struct<...>) is text, as Trino's composites are.
+    "athena": {
+        "tinyint": "smallint",
+        "char": "text",
+        "binary": "bytea",
+        "array": "text",
+        "map": "text",
+        "struct": "text",
+    },
     "sqlserver": {
         "bit": "boolean",
         "tinyint": "smallint",

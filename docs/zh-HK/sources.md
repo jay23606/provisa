@@ -25,7 +25,7 @@ Provisa 註冊了 **53** 種數據來源類型。下方表格涵蓋全部 53 種
 | # | 群組 | 數據來源類型 |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `fabric`, `synapse`, `trino` |
+| 14–20 | [雲端數據倉庫](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 21–25 | [分析／OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 26–30 | [數據湖／開放表格式](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
 | 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
@@ -72,9 +72,58 @@ wire 相容的資料庫重用基礎 wire 的 JDBC 驅動程式、原生非同步
 | `bigquery` | — | bigquery | bigquery | 聯邦 | 無 DirectDriver；經聯邦引擎或 BigQuery 引擎 ATTACH 觸及 |
 | `databricks` | DatabricksDriver | delta_lake | databricks | 聯邦 | 經 databricks-sql-connector 讀取（Cloud Fetch、Arrow）；落地副本；`federation_hints` 中必填 `http_path`（REQ-987） |
 | `redshift` | — | redshift | redshift | 聯邦 | — |
+| `athena` | AthenaDriver | — | athena | 部分（INSERT 始終可用；UPDATE/DELETE/MERGE 僅限 Iceberg 表） | 無伺服器 S3 查詢；單資料來源語句完整在 Athena 中執行；跨源聯結落地副本；`federation_hints` 中必填 `region`（REQ-1981） |
 | `fabric` | MssqlWarehouseDriver | — | tsql | 聯邦 | Microsoft Fabric Warehouse；T-SQL over TDS、Azure AD 驗證；落地副本（REQ-995） |
 | `synapse` | MssqlWarehouseDriver | — | tsql | 聯邦 | Azure Synapse SQL；T-SQL over TDS、Azure AD 驗證；落地副本（REQ-995） |
 | `trino` | SQLAlchemyDriver | — | — | 聯邦 | 經 SQLAlchemy trino 方言讀取遠端 Trino/Presto 協調器；在任何引擎上落地副本（REQ-994） |
+
+#### `athena`
+
+Amazon Athena 是一項針對 S3 資料的無伺服器查詢服務，按掃描位元組計費。僅涉及 Athena 資料表的語句直接路由到 Athena 執行：篩選條件、欄位清單和 `LIMIT` 全部下推，因此只有 Athena 滿足該語句所需的位元組才會被掃描和計費。將 Athena 資料表與其他來源聯結的語句會先從 Athena 落地完整副本——讀取整張表並計費——然後聯結針對該副本執行。來源的 Replicate 和負載保護設定控制落地頻率；文件中的說明是唯一的規則。（REQ-1981）
+
+**探索。** Register Table 呼叫 Athena 的中繼資料 API——`ListDatabases`、`ListTableMetadata`、`GetTableMetadata`。這些呼叫不執行任何查詢，因此列出資料庫和資料表以及讀取資料表的欄位不產生任何位元組費用。僅在選取某張資料表時才讀取其欄位。分區鍵跟在一般欄位之後。類型透過 `provisa/core/ir_types.py` 中的 `athena` 條目映射：`array<…>`、`map<…>` 和 `struct<…>` 映射為 `text`；未知類型被拒絕，並指明其名稱。[tool-verified: `provisa/federation/athena.py` `databases`、`tables`、`columns`；`provisa/core/ir_types.py` `"athena"` 條目]
+
+**來源欄位。**
+
+| 欄位 | 位置 | 必填 | 預設值 | 說明 |
+| --- | --- | --- | --- | --- |
+| `database` | 來源 | 是 | — | 預設查詢的 Glue 資料庫 |
+| `username` | 來源 | 否 | — | AWS 存取金鑰 ID；可為 `${secret:…}` 或 `${env:…}` |
+| `password` | 來源 | 否 | — | AWS 存取金鑰 Secret；可為 `${secret:…}` 或 `${env:…}` |
+| `region` | `federation_hints` | 是 | — | AWS 區域，例如 `us-east-1` |
+| `workgroup` | `federation_hints` | 否 | `primary` | Athena 工作群組 |
+| `s3_staging_dir` | `federation_hints` | 否 | 工作群組預設值 | Athena 寫入查詢結果的位置；工作群組未設定時必填 |
+| `catalog` | `federation_hints` | 否 | `AwsDataCatalog` | Athena 資料目錄 |
+| `role_arn` | `federation_hints` | 否 | — | 每次呼叫時承擔的 IAM 角色 ARN |
+
+`username` 和 `password` 均為空時，使用 boto3 的憑證鏈：執行個體角色、環境變數（`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`）或命名 profile。只填其中一個將被拒絕。[tool-verified: `provisa/executor/drivers/athena.py` `AthenaDriver.connect`；`provisa/federation/athena.py` `athena_client`]
+
+**寫入。** 每張已登錄資料表均接受 `INSERT`。`UPDATE`、`DELETE` 和 `MERGE` 僅在 Iceberg 資料表上可用；格式在登錄時記錄（`registered_tables.table_format`）。對 Hive 資料表請求 `UPDATE`、`DELETE` 或 `MERGE` 的寫入將被拒絕，並指明資料表名稱和操作。Athena 不傳回已寫入的列——`RETURNING` 子句被拒絕，GraphQL 不為這些資料表提供 mutation 欄位；`INSERT`、`UPDATE`、`DELETE` 和 `COPY` 是寫入路徑。`INSERT … ON CONFLICT`、`UPDATE … FROM`、`DELETE … USING` 和 `TRUNCATE` 被拒絕，並指明形式。[tool-verified: `provisa/executor/write_capability.py` `table_write_ops`；`provisa/executor/writable.py` `_TYPE_RETURNS_NO_ROWS`、`_TYPE_REFUSED_FORMS`]
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  username: ${env:ATHENA_ACCESS_KEY_ID}
+  password: ${env:ATHENA_SECRET_ACCESS_KEY}
+  federation_hints:
+    region: us-east-1
+    workgroup: primary
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
+每次呼叫時承擔角色（基礎工作階段使用憑證鏈）：
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  federation_hints:
+    region: us-east-1
+    role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
 
 ### 分析／OLAP {#analytics-olap}
 [tool-verified: `executor/drivers/clickhouse.py`]

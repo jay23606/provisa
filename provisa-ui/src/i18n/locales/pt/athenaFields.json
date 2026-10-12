@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "Região",
+    "database": "Banco de dados",
+    "workgroup": "Grupo de trabalho",
+    "workgroupHint": "Vazio: primary",
+    "catalog": "Catálogo de dados",
+    "catalogHint": "Vazio: AwsDataCatalog",
+    "resultLocation": "Local dos resultados de consulta",
+    "resultLocationHint": "Onde o Athena grava os resultados; vazio quando o grupo de trabalho define um",
+    "resultLocationInvalid": "Informe um local s3://, como s3://my-bucket/athena-results/",
+    "accessKeyId": "ID da chave de acesso",
+    "accessKeyHint": "Vazio: a cadeia de credenciais da AWS (função da instância, ambiente, perfil)",
+    "secretAccessKey": "Chave de acesso secreta",
+    "roleArn": "Função a assumir",
+    "roleArnHint": "Opcional; assumida em cada chamada"
+  }
+}

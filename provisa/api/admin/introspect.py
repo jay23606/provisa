@@ -208,6 +208,8 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
 ) -> list[str] | None:
     """Return schema list via native introspection or None to fall back to the engine."""
     t = source_type.lower()
+    if t == "athena":
+        return await _native_schemas_athena(source_id)
 
     if t in ("graphql", "graphql_remote"):
         return ["graphql"]
@@ -1198,6 +1200,55 @@ async def _native_columns_govdata(
     return columns.get(table_name, [])
 
 
+async def _native_schemas_athena(source_id: str) -> list[str]:
+    """REQ-1981: an Athena source's databases, from Athena's metadata API."""
+    import asyncio
+
+    from provisa.federation.athena import databases
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        return await asyncio.to_thread(databases, source)
+
+
+async def _native_tables_athena(source_id: str, schema_name: str) -> "list[AvailableTableType]":
+    """REQ-1981: one database's tables with their comments, from Athena's metadata API."""
+    import asyncio
+
+    from provisa.api.admin.types import AvailableTableType
+    from provisa.federation.athena import tables
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        found = await asyncio.to_thread(tables, source, schema_name)
+    return [AvailableTableType(name=t.name, comment=t.comment) for t in found]
+
+
+async def athena_table_format(source_id: str, schema_name: str, table_name: str) -> str:
+    """REQ-1981: an Athena table's format ("iceberg" or "hive"), from Athena's metadata API."""
+    import asyncio
+
+    from provisa.federation.athena import table_format, table_metadata
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        meta = await asyncio.to_thread(table_metadata, source, schema_name, table_name)
+    return table_format(meta.get("Parameters") or {})
+
+
+async def _native_columns_athena(
+    source_id: str, schema_name: str, table_name: str
+) -> list[tuple[str, str]]:
+    """REQ-1981: one table's columns, read when it is selected, from Athena's metadata API."""
+    import asyncio
+
+    from provisa.federation.athena import columns
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        return await asyncio.to_thread(columns, source, schema_name, table_name)
+
+
 async def native_columns(  # REQ-1732
     source_id: str,
     source_type: str,
@@ -1224,6 +1275,8 @@ async def native_columns(  # REQ-1732
     them, so this is the only path there too. ``config_conn`` is required for databricks/bigquery,
     which need the source's stored catalog/project to qualify information_schema."""
     t = source_type.lower()
+    if t == "athena":
+        return await _native_columns_athena(source_id, schema_name, table_name)
     if t == "govdata":
         return await _native_columns_govdata(source_id, schema_name, table_name)
     if not pool.has(source_id):
@@ -1608,6 +1661,9 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
 ) -> "list[AvailableTableType] | None":
     """Return table list via native introspection or None to fall back to the engine."""
     t = source_type.lower()
+    if t == "athena":
+        # REQ-1981: through Athena's metadata API, which runs no billed query; no column is read.
+        return await _native_tables_athena(source_id, schema_name)
 
     if t == "govdata":
         # The adapter serves every schema it has; the source offers the ones it was given

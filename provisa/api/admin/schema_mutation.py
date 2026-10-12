@@ -2801,6 +2801,15 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             _glob_refusal = await table_file_glob_refusal(_conn, model)  # REQ-788
             if _glob_refusal is not None:
                 return _glob_refusal
+            from provisa.api.app import state as _app_state
+
+            if _app_state.source_types.get(model.source_id) == "athena":
+                # REQ-1981: its format, from the source, decides the writes it takes.
+                from provisa.api.admin.introspect import athena_table_format
+
+                model.table_format = await athena_table_format(
+                    model.source_id, model.schema_name, model.table_name
+                )
             from provisa.api.admin._fake_guard import table_fake_refusal
 
             _fake_refusal = await table_fake_refusal(_conn, model)  # REQ-1494

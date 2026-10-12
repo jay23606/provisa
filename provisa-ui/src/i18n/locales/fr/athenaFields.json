@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "Région",
+    "database": "Base de données",
+    "workgroup": "Groupe de travail",
+    "workgroupHint": "Vide : primary",
+    "catalog": "Catalogue de données",
+    "catalogHint": "Vide : AwsDataCatalog",
+    "resultLocation": "Emplacement des résultats de requête",
+    "resultLocationHint": "Où Athena écrit les résultats ; vide lorsque le groupe de travail en définit un",
+    "resultLocationInvalid": "Saisissez un emplacement s3://, par exemple s3://my-bucket/athena-results/",
+    "accessKeyId": "ID de clé d'accès",
+    "accessKeyHint": "Vide : la chaîne d'informations d'identification AWS (rôle d'instance, environnement, profil)",
+    "secretAccessKey": "Clé d'accès secrète",
+    "roleArn": "Rôle à assumer",
+    "roleArnHint": "Facultatif ; assumé à chaque appel"
+  }
+}

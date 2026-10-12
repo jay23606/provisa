@@ -88,6 +88,7 @@ export const SOURCE_TYPES = [
   // Cloud DW
   { value: "snowflake", label: "Snowflake", category: "Cloud DW", defaultPort: 443 },
   { value: "bigquery", label: "BigQuery", category: "Cloud DW", defaultPort: 443 },
+  { value: "athena", label: "Amazon Athena", category: "Cloud DW", defaultPort: 443 }, // REQ-1981
   { value: "databricks", label: "Databricks", category: "Cloud DW", defaultPort: 443 },
   { value: "redshift", label: "Redshift", category: "Cloud DW", defaultPort: 5439 },
   // Fabric/Synapse: T-SQL over TDS/ODBC (provisa/executor/drivers/mssql_warehouse.py); same wire

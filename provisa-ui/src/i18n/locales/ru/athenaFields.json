@@ -1,0 +1,18 @@
+{
+  "athenaFields": {
+    "region": "Регион",
+    "database": "База данных",
+    "workgroup": "Рабочая группа",
+    "workgroupHint": "Пусто: primary",
+    "catalog": "Каталог данных",
+    "catalogHint": "Пусто: AwsDataCatalog",
+    "resultLocation": "Расположение результатов запросов",
+    "resultLocationHint": "Куда Athena записывает результаты; пусто, если его задаёт рабочая группа",
+    "resultLocationInvalid": "Введите расположение s3://, например s3://my-bucket/athena-results/",
+    "accessKeyId": "Идентификатор ключа доступа",
+    "accessKeyHint": "Пусто: цепочка учётных данных AWS (роль экземпляра, окружение, профиль)",
+    "secretAccessKey": "Секретный ключ доступа",
+    "roleArn": "Принимаемая роль",
+    "roleArnHint": "Необязательно; принимается при каждом вызове"
+  }
+}

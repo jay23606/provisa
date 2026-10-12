@@ -26,6 +26,8 @@ only for the operations the table offers; the admin table page shows them.
 * A SharePoint or Salesforce source takes all three through its own pgwire server, whatever
   engine serves its reads (REQ-1946).
 * A source with no write route (``executor/writable.resolve_write_path``) takes none.
+* An Athena table takes all three when it is an Iceberg table, and inserts only otherwise (a Hive
+  table), its format recorded when it is registered (REQ-1981).
 * An append-only store takes inserts only: ClickHouse (its UPDATE and DELETE are asynchronous
   mutations), Iceberg and Delta Lake, a Kafka topic (a produce) and an ingest stream.
 * Every other writable source takes all three.
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
     from provisa.federation.engine import FederationEngine
 
 WRITE_OPS: tuple[str, ...] = ("insert", "update", "delete")
+#: REQ-1981: an Athena table's format (``registered_tables.table_format``) that takes every write.
+ICEBERG = "iceberg"
 _INSERT_ONLY = frozenset({"clickhouse", "iceberg", "delta_lake", "kafka", "ingest"})
 _REMOTE_API = frozenset({"graphql_remote", "openapi", "grpc_remote"})
 # The control plane's own sources: the model catalog and the operations log are read from them.
@@ -62,6 +66,10 @@ def table_write_ops(
     if resolve_write_path(source_type, engine) is None:
         return frozenset()
     if source_type in _INSERT_ONLY:
+        return frozenset({"insert"})
+    if source_type == "athena" and table.get("table_format") != ICEBERG:
+        # REQ-1981: Athena changes or removes rows only of an Iceberg table; a Hive table takes
+        # inserts alone.
         return frozenset({"insert"})
     return frozenset(WRITE_OPS)
 
@@ -91,4 +99,7 @@ def table_write_refused_forms(
     if not table_write_ops(table, source_type, engine):
         return frozenset()
     assert source_type is not None  # a table that takes a write has a source
-    return write_refused_forms(source_type, engine)
+    refused = write_refused_forms(source_type, engine)
+    if source_type == "athena" and table.get("table_format") != ICEBERG:
+        refused |= {"merge"}  # REQ-1981: MERGE changes rows, which only an Iceberg table takes
+    return refused

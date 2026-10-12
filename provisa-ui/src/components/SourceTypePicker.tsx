@@ -40,6 +40,7 @@ const ALIASES: Record<string, string> = {
   postgresql: "postgres pg",
   sqlserver: "mssql microsoft azure sql",
   bigquery: "google gcp",
+  athena: "aws amazon s3 glue presto trino",
   redshift: "amazon aws",
   synapse: "microsoft azure",
   fabric: "microsoft onelake",

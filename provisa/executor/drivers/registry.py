@@ -88,6 +88,12 @@ def _make_mssql_warehouse() -> DirectDriver:  # Fabric / Synapse (T-SQL over TDS
     return MssqlWarehouseDriver()
 
 
+def _make_athena() -> DirectDriver:  # REQ-1981: Amazon Athena through its own API (PyAthena)
+    from provisa.executor.drivers.athena import AthenaDriver
+
+    return AthenaDriver()
+
+
 def _make_trino() -> DirectDriver:  # remote Trino/Presto coordinator as a SOURCE (read-then-land)
     from provisa.executor.drivers.sqlalchemy_driver import SQLAlchemyDriver
 
@@ -134,6 +140,7 @@ _DRIVER_FACTORIES: dict[str, Callable[[], DirectDriver]] = {  # REQ-229, REQ-550
     "bigquery": _make_bigquery,
     "fabric": _make_mssql_warehouse,  # T-SQL over TDS, Azure AD (per-source SP)
     "synapse": _make_mssql_warehouse,
+    "athena": _make_athena,  # REQ-1981
     # Trino/Presto as a SOURCE (not just an engine): a remote coordinator Provisa reads via the
     # SQLAlchemy trino dialect, then lands — reachable as a REPLICA on ANY engine, like GraphQL/REST.
     "trino": _make_trino,

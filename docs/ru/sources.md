@@ -28,7 +28,7 @@ Provisa регистрирует **54** типа источников. Прив�
 | # | Группа | Типы источников |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `fabric`, `synapse`, `trino` |
+| 14–20 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 21–25 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 26–30 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
 | 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
@@ -77,9 +77,58 @@ Provisa регистрирует **54** типа источников. Прив�
 | `bigquery` | — | bigquery | bigquery | Федеративные | Нет DirectDriver; достигается через движок федерации или через ATTACH движка BigQuery |
 | `databricks` | DatabricksDriver | delta_lake | databricks | Федеративные | Чтение через databricks-sql-connector (Cloud Fetch, Arrow); создаёт реплику; `http_path` обязателен в `federation_hints` (REQ-987) |
 | `redshift` | — | redshift | redshift | Федеративные | — |
+| `athena` | AthenaDriver | — | athena | Частичные (INSERT всегда; UPDATE/DELETE/MERGE только для Iceberg) | Безсерверные запросы к S3; инструкции для одного источника выполняются целиком в Athena; перекрёстные объединения выгружают реплику; `region` обязателен в `federation_hints` (REQ-1981) |
 | `fabric` | MssqlWarehouseDriver | — | tsql | Федеративные | Microsoft Fabric Warehouse; T-SQL поверх TDS, аутентификация Azure AD; создаёт реплику (REQ-995) |
 | `synapse` | MssqlWarehouseDriver | — | tsql | Федеративные | Azure Synapse SQL; T-SQL поверх TDS, аутентификация Azure AD; создаёт реплику (REQ-995) |
 | `trino` | SQLAlchemyDriver | — | — | Федеративные | Удалённый координатор Trino/Presto, чтение через диалект trino SQLAlchemy; создаёт реплику на любом движке (REQ-994) |
+
+#### `athena`
+
+Amazon Athena — безсерверный сервис запросов к данным в S3, тарифицируемый за каждый отсканированный байт. Инструкция, работающая только с таблицами Athena, направляется напрямую в Athena: фильтры, списки столбцов и `LIMIT` передаются полностью, поэтому сканируются и тарифицируются только те байты, которые нужны Athena для выполнения запроса. Инструкция, объединяющая таблицу Athena с другим источником, сначала выгружает полную реплику из Athena — вся таблица читается и тарифицируется, — а затем объединение выполняется по этой реплике. Настройки репликации и защиты от нагрузки источника определяют частоту выгрузок; примечание в документации — единственное правило. (REQ-1981)
+
+**Обнаружение.** Register Table обращается к API метаданных Athena — `ListDatabases`, `ListTableMetadata`, `GetTableMetadata`. Эти вызовы не выполняют запросов, поэтому перечисление баз данных и таблиц и чтение столбцов таблицы не требует затрат на байты. Столбцы таблицы читаются только при её выборе. Ключи партиций следуют за обычными столбцами. Типы сопоставляются через запись `athena` в `provisa/core/ir_types.py`: `array<…>`, `map<…>` и `struct<…>` преобразуются в `text`; неизвестный тип отклоняется с указанием его имени. [tool-verified: `provisa/federation/athena.py` `databases`, `tables`, `columns`; `provisa/core/ir_types.py` запись `"athena"`]
+
+**Поля источника.**
+
+| Поле | Где | Обязательно | По умолчанию | Примечания |
+| --- | --- | --- | --- | --- |
+| `database` | источник | Да | — | База данных Glue, используемая по умолчанию |
+| `username` | источник | Нет | — | ID ключа доступа AWS; может быть `${secret:…}` или `${env:…}` |
+| `password` | источник | Нет | — | Секретный ключ доступа AWS; может быть `${secret:…}` или `${env:…}` |
+| `region` | `federation_hints` | Да | — | Регион AWS, например `us-east-1` |
+| `workgroup` | `federation_hints` | Нет | `primary` | Рабочая группа Athena |
+| `s3_staging_dir` | `federation_hints` | Нет | по умолчанию группы | Куда Athena записывает результаты; обязателен, если рабочая группа не задаёт расположение |
+| `catalog` | `federation_hints` | Нет | `AwsDataCatalog` | Каталог данных Athena |
+| `role_arn` | `federation_hints` | Нет | — | ARN роли IAM, принимаемой для каждого вызова |
+
+Если и `username`, и `password` пусты, используется цепочка учётных данных boto3: роль экземпляра, переменные среды (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) или именованный профиль. Одно без другого отклоняется. [tool-verified: `provisa/executor/drivers/athena.py` `AthenaDriver.connect`; `provisa/federation/athena.py` `athena_client`]
+
+**Запись.** Каждая зарегистрированная таблица принимает `INSERT`. `UPDATE`, `DELETE` и `MERGE` доступны только для таблицы Iceberg; формат записывается при регистрации (`registered_tables.table_format`). Запись в таблицу Hive с запросом `UPDATE`, `DELETE` или `MERGE` отклоняется с указанием таблицы и операции. Athena не возвращает записанные строки — предложение `RETURNING` отклоняется, а GraphQL не предлагает поля мутаций для этих таблиц; `INSERT`, `UPDATE`, `DELETE` и `COPY` — пути записи. `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING` и `TRUNCATE` отклоняются с указанием формы. [tool-verified: `provisa/executor/write_capability.py` `table_write_ops`; `provisa/executor/writable.py` `_TYPE_RETURNS_NO_ROWS`, `_TYPE_REFUSED_FORMS`]
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  username: ${env:ATHENA_ACCESS_KEY_ID}
+  password: ${env:ATHENA_SECRET_ACCESS_KEY}
+  federation_hints:
+    region: us-east-1
+    workgroup: primary
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
+С ролью, принимаемой для каждого вызова (цепочка учётных данных для базовой сессии):
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  federation_hints:
+    region: us-east-1
+    role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
 
 ### Аналитика / OLAP {: #analytics-olap }
 

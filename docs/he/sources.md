@@ -28,7 +28,7 @@ Provisa רושמת **54** סוגי מקור. הטבלאות שלהלן מכסו�
 | # | קבוצה | סוגי מקור |
 | --- | --- | --- |
 | 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–20 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `fabric`, `synapse`, `trino` |
+| 14–20 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
 | 21–25 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
 | 26–30 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
 | 31–33 | [NoSQL](#nosql) | `mongodb`, `cassandra`, `redis` |
@@ -77,9 +77,58 @@ Provisa רושמת **54** סוגי מקור. הטבלאות שלהלן מכסו�
 | `bigquery` | — | bigquery | bigquery | מפודרר | אין DirectDriver; מושג דרך מנוע הפדרציה או ATTACH של מנוע BigQuery |
 | `databricks` | DatabricksDriver | delta_lake | databricks | מפודרר | קורא באמצעות databricks-sql-connector (Cloud Fetch, Arrow); מנחית עותק משוכפל; `http_path` נדרש ב-`federation_hints` (REQ-987) |
 | `redshift` | — | redshift | redshift | מפודרר | — |
+| `athena` | AthenaDriver | — | athena | חלקי (INSERT תמיד; UPDATE/DELETE/MERGE רק ב-Iceberg) | שאילתה ללא שרת על S3; הצהרות על מקור בודד מופעלות ב-Athena במלואן; הצטרפויות בין מקורות מנחיתות עותק; `region` נדרש ב-`federation_hints` (REQ-1981) |
 | `fabric` | MssqlWarehouseDriver | — | tsql | מפודרר | Microsoft Fabric Warehouse; T-SQL מעל TDS, אימות Azure AD; מנחית עותק משוכפל (REQ-995) |
 | `synapse` | MssqlWarehouseDriver | — | tsql | מפודרר | Azure Synapse SQL; T-SQL מעל TDS, אימות Azure AD; מנחית עותק משוכפל (REQ-995) |
 | `trino` | SQLAlchemyDriver | — | — | מפודרר | קריאה של קואורדינטור Trino/Presto מרוחק דרך דיאלקט ה-trino של SQLAlchemy; מנחית עותק משוכפל על כל מנוע (REQ-994) |
+
+#### `athena`
+
+Amazon Athena הוא שירות שאילתות ללא שרת על נתונים ב-S3, המחויב לפי בייט שנסרק. הצהרה על טבלאות Athena בלבד מנותבת ישירות ל-Athena: מסננים, רשימות עמודות ו-`LIMIT` מועברים במלואם, כך שרק הבייטים שנדרשים ל-Athena לענות להצהרה נסרקים ומחויבים. הצהרה המחברת טבלת Athena עם מקור אחר מנחיתה תחילה עותק מלא מ-Athena — כל הטבלה נקראת ו-Athena מחייבת אותה — ואז ההצטרפות מבוצעת כנגד העותק. הגדרות Replicate והגנת עומס של המקור קובעות את תדירות ההנחתות; ההערה בתיעוד היא הכלל היחיד. (REQ-1981)
+
+**גילוי.** Register Table קורא ל-API המטה-נתונים של Athena — `ListDatabases`, `ListTableMetadata`, `GetTableMetadata`. קריאות אלו אינן מריצות שאילתה, כך שרישום מסדי נתונים וטבלאות וקריאת עמודות של טבלה אינם עולים כלום לפי בייט. עמודות הטבלה נקראות רק כאשר הטבלה נבחרת. מפתחות מחיצה עוקבים אחרי העמודות הרגילות. טיפוסים ממופים דרך הרשומה `athena` ב-`provisa/core/ir_types.py`: `array<…>`, `map<…>` ו-`struct<…>` הופכים ל-`text`; טיפוס לא ידוע נדחה תוך ציון שמו. [tool-verified: `provisa/federation/athena.py` `databases`, `tables`, `columns`; `provisa/core/ir_types.py` רשומה `"athena"`]
+
+**שדות המקור.**
+
+| שדה | היכן | נדרש | ברירת מחדל | הערות |
+| --- | --- | --- | --- | --- |
+| `database` | מקור | כן | — | מסד הנתונים של Glue המשמש כברירת מחדל |
+| `username` | מקור | לא | — | מזהה מפתח גישה AWS; יכול להיות `${secret:…}` או `${env:…}` |
+| `password` | מקור | לא | — | מפתח גישה סודי AWS; יכול להיות `${secret:…}` או `${env:…}` |
+| `region` | `federation_hints` | כן | — | אזור AWS, למשל `us-east-1` |
+| `workgroup` | `federation_hints` | לא | `primary` | קבוצת עבודה של Athena |
+| `s3_staging_dir` | `federation_hints` | לא | ברירת מחדל של קבוצת העבודה | היכן Athena כותב תוצאות; נדרש כאשר קבוצת העבודה אינה מגדירה מיקום |
+| `catalog` | `federation_hints` | לא | `AwsDataCatalog` | קטלוג נתונים של Athena |
+| `role_arn` | `federation_hints` | לא | — | ARN של תפקיד IAM המונח לכל קריאה |
+
+כאשר גם `username` וגם `password` ריקים, נעשה שימוש בשרשרת אישורי boto3: תפקיד מכונה, משתני סביבה (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) או פרופיל בעל שם. אחד ללא השני נדחה. [tool-verified: `provisa/executor/drivers/athena.py` `AthenaDriver.connect`; `provisa/federation/athena.py` `athena_client`]
+
+**כתיבות.** כל טבלה רשומה מקבלת `INSERT`. `UPDATE`, `DELETE` ו-`MERGE` זמינים רק בטבלת Iceberg; הפורמט נרשם בעת הרישום (`registered_tables.table_format`). כתיבה על טבלת Hive המבקשת `UPDATE`, `DELETE` או `MERGE` נדחית תוך ציון הטבלה והפעולה. Athena אינו מחזיר שורות שנכתבו — סעיף `RETURNING` נדחה ו-GraphQL אינו מציע שדות מוטציה לטבלאות אלו; `INSERT`, `UPDATE`, `DELETE` ו-`COPY` הם נתיבי הכתיבה. `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING` ו-`TRUNCATE` נדחים תוך ציון הצורה. [tool-verified: `provisa/executor/write_capability.py` `table_write_ops`; `provisa/executor/writable.py` `_TYPE_RETURNS_NO_ROWS`, `_TYPE_REFUSED_FORMS`]
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  username: ${env:ATHENA_ACCESS_KEY_ID}
+  password: ${env:ATHENA_SECRET_ACCESS_KEY}
+  federation_hints:
+    region: us-east-1
+    workgroup: primary
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
+עם תפקיד המונח לכל קריאה (שרשרת אישורים לסשן הבסיסי):
+
+```yaml
+- id: analytics-athena
+  type: athena
+  database: my_glue_database
+  federation_hints:
+    region: us-east-1
+    role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
+    s3_staging_dir: s3://my-bucket/athena-results/
+```
+
 
 ### אנליטיקה / OLAP
 

@@ -41,6 +41,10 @@ on:
         type: boolean
         required: false
         default: false
+      include_athena:
+        type: boolean
+        required: false
+        default: false
     # Every secret a job of this workflow reads, by name: the caller passes each one, and
     # nothing is inherited. The matrix lanes read only the first three; the rest are the
     # warehouse and salesforce jobs' live credentials.
@@ -52,6 +56,14 @@ on:
       SPLUNKBASE_PASSWORD:
         required: false
       ASKAMERICA_API_KEY:
+        required: false
+      ATHENA_AWS_ACCESS_KEY_ID:
+        required: false
+      ATHENA_AWS_SECRET_ACCESS_KEY:
+        required: false
+      ATHENA_REGION:
+        required: false
+      ATHENA_S3_BUCKET:
         required: false
       AWS_ACCESS_KEY_ID:
         required: false
@@ -578,9 +590,71 @@ jobs:
           path: results/
           if-no-files-found: error
 
+  # The live Amazon Athena account (REQ-1981): a dispatch asks for it (include_athena). Each run
+  # makes its own Glue database and S3 prefix and removes them.
+  athena:
+    name: athena (live account)
+    if: github.event_name == 'workflow_dispatch' && inputs.include_athena
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ATHENA_AWS_ACCESS_KEY_ID: ${{ secrets.ATHENA_AWS_ACCESS_KEY_ID }}
+      ATHENA_AWS_SECRET_ACCESS_KEY: ${{ secrets.ATHENA_AWS_SECRET_ACCESS_KEY }}
+      ATHENA_REGION: ${{ secrets.ATHENA_REGION }}
+      ATHENA_S3_BUCKET: ${{ secrets.ATHENA_S3_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Set up Python
+        uses: ./.github/actions/setup-python
+        with:
+          cache: "true"
+          client: "true"
+
+      - name: Restore Trino plugins
+        id: trino-plugins
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: restore
+
+      # A missing credential fails the lane by name rather than surfacing as a skipped test.
+      - name: Credentials present
+        run: |
+          missing=""
+          for v in ATHENA_AWS_ACCESS_KEY_ID ATHENA_AWS_SECRET_ACCESS_KEY ATHENA_REGION \
+                   ATHENA_S3_BUCKET; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::athena lane cannot run; repo secrets not set:$missing"
+            exit 1
+          fi
+
+      - name: Stack slots on this runner
+        run: bash scripts/ci/lanes/suite-prepare.sh
+
+      - name: Run lane
+        run: uv run python scripts/ci/run_lane.py athena --junitxml results/athena/junit.xml
+
+      - name: Cache Trino plugins
+        if: always()
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: save
+          cache-hit: ${{ steps.trino-plugins.outputs.cache-hit }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lane-athena
+          path: results/
+          if-no-files-found: error
+
   report:
     name: results by lane
-    needs: [plan, suite, cluster, warehouse, salesforce]
+    needs: [plan, suite, cluster, warehouse, salesforce, athena]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -152,7 +152,7 @@ _LEAF_CHECK = "ci-leaf-check.yml"
 # live credentials or cluster tooling, and the lane workflow declares only the few secrets its
 # callers pass by name instead of inheriting every one.
 _OWN_STEPS = {
-    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce"},
+    "integration-suite-lanes.yml": {"cluster", "warehouse", "salesforce", "athena"},
 }
 
 
