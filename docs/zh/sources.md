@@ -10,7 +10,7 @@
 | **仅联邦型** | 否 | 是 | Redshift、Druid、Exasol、Hive、Iceberg、Delta Lake、Hive（S3 支持） |
 | **直读型（副本）** | 是 | 是 | Snowflake、Databricks、ClickHouse — 驱动读取数据并落地一份副本；查询在活动引擎中针对该副本执行 |
 | **直连（无跨源连接器）** | 是 | 否 | Athena — 单数据源语句在 Athena 中整体执行；跨源联接会落地完整副本 |
-| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Salesforce、ServiceNow、云资源清单、Splunk、Qdrant、Azure Cosmos DB |
+| **物化 → 联邦** | 否 | 否 | REST/OpenAPI、远程 GraphQL、gRPC、Neo4j Cypher、SPARQL、WebSocket、RSS、CSV、SQLite、Parquet、Ingest（推送接收器）、GovData、SharePoint、Salesforce、ServiceNow、云资源清单、Splunk、Qdrant、Azure Cosmos DB、Logs、Google Workspace、Microsoft 365 |
 
 **直连型**数据源通过其原生驱动执行单数据源查询（亚 100 毫秒），绕过联邦引擎（REQ-027、REQ-229）。它们保留完整的连接器支持，并在与其他数据源联接时参与联邦（REQ-028）。
 
@@ -26,7 +26,7 @@
 
 ## 所有数据源
 
-Provisa 注册了 **65** 种数据源类型，即 Sources 表单所提供的类型。下表覆盖全部 65 种；索引即为计数。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`；Kaggle、Wikipedia、GitHub 和 GitLab 虽然内部通过 `files` 和 `graphql_remote` 连接器注册，但仍作为独立数据源计数]
+Provisa 注册了 **69** 种数据源类型，即 Sources 表单所提供的类型。下表覆盖全部 69 种；索引即为计数。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`，其中 `graphql` 和 `grpc` 即 `graphql_remote` 和 `grpc_remote`；Kaggle、Wikipedia、GitHub、GitLab 和 Stripe 虽然内部通过 `files`、`graphql_remote` 和 `openapi` 连接器注册，但仍作为独立数据源计数]
 
 | # | 分组 | 数据源类型 |
 | --- | --- | --- |
@@ -38,15 +38,15 @@ Provisa 注册了 **65** 种数据源类型，即 Sources 表单所提供的类�
 | 38–40 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
 | 41 | [推送接收器](#push-receiver) | `ingest` |
 | 42–43 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
-| 44–47 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files` |
-| 48–49 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 50–54 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`salesforce`、`servicenow`、`cloudops`、`splunk` |
-| 55–59 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote`、GitHub、GitLab |
-| 60 | [GovData](#govdata) | `govdata` |
-| 61–62 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
-| 63 | [数据剖析器](#data-profiler) | `data_profiler` |
-| 64 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
-| 65 | [Wikipedia](#wikipedia) | Wikipedia（注册为抓取所指定页面的 `files` 数据源 — 参见 [Wikipedia](#wikipedia)） |
+| 44–48 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files`、`logs` |
+| 49–50 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
+| 51–57 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`salesforce`、`servicenow`、`cloudops`、`splunk`、`google_workspace`, `microsoft_365` |
+| 58–63 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote`、GitHub、GitLab、Stripe |
+| 64 | [GovData](#govdata) | `govdata` |
+| 65–66 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
+| 67 | [数据剖析器](#data-profiler) | `data_profiler` |
+| 68 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 69 | [Wikipedia](#wikipedia) | Wikipedia（注册为抓取所指定页面的 `files` 数据源 — 参见 [Wikipedia](#wikipedia)） |
 
 Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动）表示单数据源查询直接针对该数据源原生执行（亚 100 毫秒）（REQ-027）。"Connector Name"（连接器名称）是当该数据源参与多数据源 JOIN 时所使用的联邦连接器（REQ-028）。[tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`；`provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -227,7 +227,7 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 
 ### File-Based {: #file-based }
 
-有两种机制覆盖文件类数据源。两者都使用 `path` 字段而非 `host`/`port`。[tool-verified: `provisa/core/models.py`] (REQ-553)
+有三种机制覆盖文件类数据源。单文件数据源和文件爬取器使用 `path` 字段而非 `host`/`port`。[tool-verified: `provisa/core/models.py`] (REQ-553) 第三种 [Logs](#logs) 在其 `mapping` 中用通配符（glob）指定文件，并且只读取 Provisa 服务器上的文件。[tool-verified: `provisa/logs/settings.py`]
 
 **单文件数据源** — `sqlite`、`csv`、`parquet` 将 `path` 指向单个文件。
 
@@ -254,6 +254,106 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 任何 `files` 数据源也可以在其 mapping 中声明 `crawl`，设置与 [Wikipedia](#wikipedia) 下列出的相同：此时数据源会先读取网页，并将每个 HTML 数据表和每个链接的数据文件作为表落地到其目录中。[tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
 
 在 DuckDB 引擎上，`files` 以原生方式读取 — 在解析出的目录下，为每个 `<table>.csv` 提供一个 `read_csv_auto` 扫描视图（REQ-229）[tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]。在没有自带 `files` 连接器的引擎上，数据行通过 sharepoint/splunk 所使用的同一个连接器自带 Calcite pgwire 服务器（`pgwire-file`）落地（REQ-954）— 参见下方的[企业级 SaaS 连接器](#enterprise-saas-connectors)。端到端 UI 覆盖（Sources 表单 → Register Table → SQL 查询）以及 pgwire 落地路径已在 REQ-1694 中得到验证。
+
+#### Logs (REQ-1996) {: #logs }
+
+`logs` 数据源将 Provisa 服务器上的日志文件变成一张表。你用完整路径或通配符（glob）指定文件，并选择其记录所用的格式。每条记录成为一行。格式无法读取的记录会连同原始文本和原因一并保留，绝不丢弃。[tool-verified: `provisa/logs/__init__.py`; `provisa/logs/files.py` `rows_of`]
+
+```yaml
+sources:
+  - id: mac-install-log
+    type: logs
+    mapping:
+      glob: /var/log/install.log*   # the live file and its rotated, compressed copies
+      format: macos_install
+```
+
+mapping 接受四个键，其他任何键都会按名称被拒绝：`glob` 和 `format`（均为必填），以及仅 `regex` 格式接受的 `pattern` 和 `record_start`。[tool-verified: `provisa/logs/settings.py` `parse`; `provisa/logparse/__init__.py` `format_for`]
+
+```yaml
+    mapping:
+      glob: /var/log/myapp/*.log
+      format: regex
+      pattern: '(?P<ts>\S+ \S+) (?P<level>[A-Z]+) (?P<message>.*)'
+      record_start: '\d{4}-\d{2}-\d{2} '   # a stack trace joins the line it follows
+```
+
+在 Sources 表单中，Logs 数据源在 File 下显示为“Log files”。**Preview** 按钮会在保存之前显示通配符匹配的文件、格式给出的列，以及最新文件的前 20 行。[tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
+
+**通配符。** 它必须是完整路径；`~` 会被展开，相对路径会被拒绝（“name the files by their full path”）。匹配使用 Python 的 `glob` 非递归模式，因此 `**` 的行为与 `*` 相同，只在一级目录内匹配。只取常规文件，按名称排序。空文件在有内容之前会被跳过。[tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+
+**每一行自带的列。** 这些列排在格式给出的列之前：
+
+| 列 | 类型 | 含义 |
+| --- | --- | --- |
+| `_file_id` | text | 文件的标识：其前 4096 个字节（解压后）的校验和 |
+| `_file_name` | text | 读取该记录时所用的路径 |
+| `_line_offset` | bigint | 记录首行在解压后文本中的字节偏移 |
+| `_entry` | bigint | 该行是记录中的第几个条目：除批量记录（例如 CloudTrail 文件的 `Records`）外均为 0 |
+| `_raw` | text | 记录的原始内容 |
+| `_parse_error` | text | 记录或其中某个值无法读取的原因；读取成功时为 NULL |
+| `_landed_at` | timestamp | 该行落地的时间 |
+
+`_file_id`、`_line_offset` 和 `_entry` 构成该行的键，因此读取两次的记录仍是同一行。[tool-verified: `provisa/logs/__init__.py` `META_COLUMNS`, `KEY`; `provisa/logs/preview.py` `columns`]
+
+**格式与预设。** 格式下拉框按系列对格式分组；最后一项 `regex` 是你自己的模式。[tool-verified: `provisa/logparse/__init__.py` `BUILT_IN`, `catalog`; `provisa/logparse/presets/__init__.py` `presets`; family labels from `provisa-ui/src/i18n/locales/en/logsFields.json`]
+
+| 系列（表单标签） | 格式名称 |
+| --- | --- |
+| Common formats | `rfc3164`, `rfc5424`, `macos_install`, `clf`, `combined`, `jsonl`, `logfmt`, `w3c`, `cef`, `gelf` |
+| Amazon Web Services | `aws_alb`, `aws_nlb`, `aws_elb`, `aws_cloudfront`, `aws_s3_access`, `aws_cloudtrail`, `aws_vpc_flow`, `aws_waf`, `aws_route53_resolver` |
+| Databases and runtimes | `postgresql_stderr`, `postgresql_csvlog`, `postgresql_jsonlog`, `mysql_error`, `mysql_slow`, `mongodb`, `redis`, `log4j2_default`, `logback_default`, `python_logging` |
+| Google | `gcp_cloud_logging`, `android_logcat`, `chrome_net_export` |
+| Containers and Linux | `kubernetes_cri`, `journald_json`, `linux_auditd`, `linux_dmesg` |
+| Microsoft | `ms_iis`, `ms_windows_firewall`, `ms_dns_debug`, `ms_dhcp_audit`, `ms_exchange_tracking`, `ms_sqlserver_errorlog`, `azure_storage_analytics`, `azure_monitor`, `windows_evtx` |
+| Network security monitoring | `zeek_tsv`, `zeek_json`, `suricata_eve`, `snort_fast` |
+| Web servers and proxies | `nginx_error`, `apache_error`, `haproxy_http`, `squid_access`, `envoy_access`, `caddy_access`, `traefik_access` |
+| Your own | `regex` |
+
+共有 56 种内置格式，外加 `regex`。[tool-verified: `BUILT_IN` enumerated with the project interpreter]
+
+**格式如何产生列。** 格式通过四种方式之一获得列。[tool-verified: `provisa/logparse/formats.py`; `provisa/logparse/presets/_shared.py`; `provisa/logparse/coltypes.py`]
+
+- **固定列。** 大多数格式自行声明列及类型。例如 `rfc3164` 给出 `timestamp`、`facility`、`severity`、`host`、`process`、`pid` 和 `message`；`facility` 和 `severity` 由 `<PRI>` 值计算得出。BSD syslog 行不带年份，因此年份取文件最后写入的年份；若该行的月份晚于最后写入的月份，则取前一年。
+- **由记录命名的字段。** `jsonl` 和 `logfmt` 的列取自文件开头若干行中出现的字段（设置项 `logs.preview_lines`，默认 1000）。每列取所见全部值都适用的最窄类型：先 boolean，然后依次为 integer、float、timestamp 和 json，否则为 text。后续记录携带但没有对应列的字段会进入一个 `extra` json 列。
+- **由表头命名的字段。** `w3c` 及基于它的预设读取每个文件的 `#Fields:` 行；`date` 和 `time` 合并为一个 `timestamp` 列。`aws_cloudfront`、`ms_iis`、`ms_windows_firewall`、`ms_exchange_tracking` 和 `zeek_tsv` 以同样方式读取 `#` 开头的表头行，`aws_vpc_flow` 则读取以 `version` 开头的表头行。读到表头行的位置会随文件保存，因此之后继续读取的文件保留其字段。
+- **`regex`。** 每个命名组（例如 `(?P<level>…)`）是一个 text 类型的列。
+
+Register Table 界面会列出这些列及其类型，并标出键。[tool-verified: `provisa/api/admin/schema_query.py` `_logs_columns`] 读取行时，每个值都会转换为其列在已注册表中的类型，因此在那里更改的类型就是实际应用的类型。列无法容纳的值变为 NULL，原因写入 `_parse_error`。[tool-verified: `provisa/logs/loader.py` `_load`; `provisa/logs/files.py` `_typed`] [inferred: that the screen lets a steward change a suggested type, as REQ-1996 states]
+
+长度超过 `logs.max_line_bytes`（默认 65536）的记录，其开头字节保留在 `_raw` 中，且不会被解析；`_parse_error` 给出其长度。以 UTF-8 或 UTF-16 字节顺序标记开头的文件按该编码读取，其他文件按 UTF-8 读取。[tool-verified: `provisa/core/settings_catalog.py`; `provisa/logs/files.py` `rows_of`, `text_encoding`]
+
+**跨行记录。** 带有记录起始模式的格式，用匹配该模式的一行加上其后所有不匹配的行组成一条记录。堆栈跟踪会与其异常保持在一起，慢查询条目也保持完整。第一个匹配之前的行自成一条记录；格式通常会拒绝它，但该行会被保留。带记录起始的内置格式有 `rfc3164`、`macos_install`、`aws_cloudtrail`、`postgresql_stderr`、`postgresql_csvlog`、`mysql_error`、`mysql_slow`、`log4j2_default`、`logback_default`、`python_logging`、`chrome_net_export`、`ms_sqlserver_errorlog` 和 `azure_monitor`。使用 `regex` 时，请自行设置 `record_start`。[tool-verified: `provisa/logparse/framing.py` `records`; `record_start` of each format enumerated with the project interpreter]
+
+有两种格式自行读取记录，而不是按行读取。`kubernetes_cri` 会把运行时拆分的部分（`P`）行合并为一条记录，`windows_evtx` 读取二进制 `.evtx` 文件。[tool-verified: `provisa/logparse/presets/linux.py` `KubernetesCri`; `frames_bytes` enumerated with the project interpreter]
+
+仍在写入的文件只读到其最后一个完整的行。对于多行格式，则读到其最后一条记录的起点，因为下一行可能延续该记录。文件 2 秒没有写入后，最后一条记录即视为完整。[tool-verified: `provisa/logs/files.py` `QUIET_SECONDS`, `read_file`]
+
+**轮转。** 文件由其前 4096 个字节（解压后）的校验和识别，而不是由名称识别。当 `system.log` 轮转为 `system.log.0`，再压缩为 `system.log.0.gz` 时，所有副本是同一个文件。读取从上次读到的字节继续，因此没有任何一行会被读两次。[tool-verified: `provisa/logs/files.py` module docstring, `identify`; `tests/unit/test_logs_source.py` `test_a_rotated_and_compressed_file_is_read_on_and_no_line_twice`]
+
+- 压缩根据文件的前几个字节识别，绝不看名称：gzip 和 bzip2。压缩文件视为已完整。
+- 轮转副本及其压缩孪生文件若都被匹配，则只读一次，取自压缩的那个。
+- 发现文件比已读偏移更短，说明它被截断了：它是新文件，从头读取。旧文件的行保留。
+- 短于 4096 字节且开头相同的文件通过 inode 区分，因此仍是两个文件。
+- 通配符不再匹配的文件会被遗忘；其行作为历史保留。
+
+[tool-verified: `provisa/logs/files.py` `compression`, `Found.complete`, `identify`; `provisa/logs/loader.py` module docstring; `tests/unit/test_logs_source.py`]
+
+**刷新与实时投递。** Logs 表是一份副本。没有任何东西监视这些文件。当数据源的变更信号为 `probe` 或 `ttl_probe` 时，其探测会对每个匹配文件的路径、inode、大小和最后写入时间做摘要；摘要不同时，就会请求刷新。Logs 数据源接受的探测类型是 `hash` 和 `none`。[tool-verified: `provisa/logs/loader.py` `files_token`, `_freshness_probe`; `provisa/events/probes.py` `_LOADER_PROBED`, `probe_capabilities`]
+
+刷新只读取新增内容。每个文件从上一轮读到的位置继续读取，行按键写入，每批 5000 行，然后才保存新位置。在这两步之间中断的一轮，会重新读取那些记录，得到的仍是同样的行。每一轮都在 `_landed_at` 中为其行打上时间戳，实时投递以该列作为水位线。表定义变更会触发整体重建，从每个文件的开头重新读取。[tool-verified: `provisa/logs/loader.py` `_UnitsRead`, `_WholeRead`, `BATCH_ROWS`, `replica_stamp_column`; `provisa/federation/replica_builds.py` `_kept_in_place`] [inferred: that subscriptions deliver a Logs table's new rows by `_landed_at`, as REQ-1996 states; the subscription side was not traced]
+
+**允许的根目录。** 操作员设置 `logs.allowed_roots` 列出通配符可以解析到的目录。默认值为 `["/var/log"]`；它是 Admin → Settings 的 Security 卡片上的一个列表，也可通过 `PROVISA_LOGS_ALLOWED_ROOTS` 设置，更改时会要求确认。每个根目录都在 `~` 展开并解析符号链接之后确定。[tool-verified: `provisa/core/settings_catalog.py` `logs.allowed_roots`; `provisa/logs/roots.py` `allowed_roots`]
+
+适用两项检查。通配符的固定部分（到第一个通配符为止）必须解析到某个根目录之内；这在保存数据源时检查，之后每次预览或读取时也检查。每个匹配的文件在跟随其符号链接后也必须解析到某个根目录之内，因此指向 `/var/log` 之外的符号链接会被拒绝。拒绝信息会给出路径、其解析结果以及允许的根目录：
+
+```text
+/home/me/app.log resolves to /home/me/app.log, outside the directories log files may be read from: /var/log
+```
+
+保存时的错误码是 `schema.logs_path_refused`；预览时是带有 `logs.path_refused` 的 403。[tool-verified: `provisa/logs/roots.py` `checked_glob`, `checked_file`; `provisa/api/admin/schema_common.py` `logs_refusal`; `provisa/api/admin/logs_router.py`; `tests/unit/test_logs_source.py` `test_a_symlink_escaping_the_root_is_refused_by_name`]
+
+**托管（SaaS）拒绝。** 承载多个组织的部署不读取自己的任何日志文件。在保存、预览和读取时，所有路径检查都会首先拒绝，并给出“`<path>`: a server that holds many organizations reads no log file of its own”。这些文件属于服务器，而不属于任何一个组织，因此任何租户都不得读取。部署根据其多租户状态判断自己是否承载多个组织。[tool-verified: `provisa/logs/roots.py` `_refuse_on_saas`; `provisa/core/secrets_providers.py` `many_organisations`; `provisa/api/app.py` `set_many_organisations_resolver(lambda: state.multitenancy)`; `tests/unit/test_logs_source.py` `test_a_server_of_many_organizations_reads_no_log_file_of_its_own`]
 
 #### Kaggle 数据集（REQ-1780, REQ-1781, REQ-1782, REQ-1783） {: #kaggle-datasets }
 
@@ -347,7 +447,7 @@ Provisa 知道这些语言版本的"See also"标题：`en`、`de`、`es`、`it`�
 
 ### Enterprise SaaS Connectors {: #enterprise-saas-connectors }
 
-SharePoint、Salesforce、ServiceNow、云资源清单和 Splunk 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。它们都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-salesforce`、`pgwire-servicenow`、`pgwire-cloudops`、`pgwire-splunk`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] 操作员也可以为每个连接器单独命名一个为该主机构建的程序包文件夹，路径位于 Admin → 设置 → 连接器服务器（`connectors.<connector>.bundle_dir`）；请参阅 [Admin](admin.md)。。五个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+Google Workspace 和 Microsoft 365 由各自的加载器读取；参见 [Google Workspace 和 Microsoft 365](#google-workspace-and-microsoft-365)。SharePoint、Salesforce、ServiceNow、云资源清单和 Splunk 通过 Apache Calcite 连接器（kenstott/calcite fork）注册。它们都没有直连驱动 — Provisa 启动连接器自带的 Calcite pgwire 服务器（`pgwire-sharepoint`、`pgwire-salesforce`、`pgwire-servicenow`、`pgwire-cloudops`、`pgwire-splunk`），并将其作为通用 PostgreSQL 端点访问。在 DuckDB 引擎上，该端点通过 postgres 扩展实时挂载：Register Table 从已挂载的目录中列出连接器的表，查询就地读取该连接器，过滤和投影会下推到 Calcite（REQ-1690）[tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]。在其他所有引擎上，数据行都会落地到物化存储中以用于联邦（REQ-954）。这些程序包按操作系统/架构从固定版本的 `kenstott/calcite` release 中获取（`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`；macOS arm64、Linux x86_64、Windows x86_64）[tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] 操作员也可以为每个连接器单独命名一个为该主机构建的程序包文件夹，路径位于 Admin → 设置 → 连接器服务器（`connectors.<connector>.bundle_dir`）；请参阅 [Admin](admin.md)。。五个连接器都始终启用大小写不敏感的名称匹配，以匹配各自产品自身的大小写不敏感语义（REQ-725, REQ-730）。[tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -541,6 +641,84 @@ Splunk 的搜索结果可作为表查询（例如 `internal_server`）（REQ-721
     disable_ssl_validation: true
 ```
 
+#### Google Workspace and Microsoft 365 (REQ-1923, REQ-1994) {: #google-workspace-and-microsoft-365 }
+
+`google_workspace` 和 `microsoft_365` 读取数据源所指定账户的邮件、日历和任务，并将它们落地为副本。它们不是 Calcite 连接器：各自有自己的加载器，调用提供商的 API——一边是 Gmail、Google Calendar 和 Google Tasks，另一边是 Microsoft Graph。表单在 Enterprise 下将它们列为“Google Workspace (Gmail)”和“Microsoft 365 (Outlook, Exchange)”。[tool-verified: `provisa/core/models.py` `SourceType`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`; `provisa-ui/src/pages/sources/constants.ts`]
+
+**表。** 两种类型产生相同的规范表：名称、列类型和顺序都一致。对二者做并集无需转换或重命名；某个提供商没有值的列为 NULL。这些表列在 `default` 模式下，每一行都以读取它的账户开头。数据源提供其所读资源对应的表：[tool-verified: `provisa/core/canonical_mail.py` module docstring, `RESOURCE_TABLES`, `tables_for`; `provisa/google_workspace/loader.py` `SCHEMA`]
+
+| 资源 | 表 | 可由语句写入 |
+| --- | --- | --- |
+| `mail` | `messages`, `message_recipients`, `folders`, `message_folders`, `threads`, `attachments` | 否 |
+| `calendar` | `calendars`, `events`, `event_attendees` | `events`, `event_attendees` |
+| `tasks` | `task_lists`, `tasks` | `tasks` |
+
+各列列于[规范邮件 schema](arch/canonical-mail-schema.md)。`events` 保存单次事件、以 RFC 5545 行表示重复规则的系列主事件，以及例外；它从不保存系列展开后的各次出现。[tool-verified: `provisa/google_workspace/calendar_read.py` module docstring] (REQ-1994)
+
+**注册。** 组织的管理员首先在 Admin → Email 下输入该组织在该平台上的客户端：客户端 ID 和密钥，Microsoft 365 还需要目录（租户）ID 或域名。添加数据源的人看不到也不用输入这些内容。数据源随后采用两种形态之一：[tool-verified: `provisa/core/mail_platforms.py` module docstring; `provisa/microsoft365/__init__.py`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json`]
+
+- **单个邮箱。** 数据源在 `accounts` 中指定一个地址。其所有者在表单上点击 **Connect** 并批准组织的客户端。由此得到的授权保存在组织的状态存储中，而不在数据源的设置里。在 Google Workspace 上，这种形态还需声明 `sign_in: google_account`。
+- **组织的各个邮箱。** 数据源将 `mailboxes` 声明为 `everyone: true`、`group: <address or id>` 或 `list: [addresses]` 中恰好一项。它不持有凭据，也没有人去连接它。组织使用自己的访问权限读取，并且只有在管理员打开“Read the organization's mailboxes”之后才可以。在 Google 上，该访问权限是带域范围委派的服务账号密钥，外加用于目录调用的管理员地址。在 Microsoft 上，它是应用注册的客户端凭据授权。
+
+[tool-verified: `provisa/google_workspace/settings.py` `parse`, `_mailboxes`; `provisa/microsoft365/settings.py` `parse`; `provisa/core/mail_platforms.py` `organisation_mailboxes`]
+
+采用第二种形态时，一张表保存所有邮箱的行。除非针对 `account` 列的行规则加以限制，否则可以读取该表的角色能读取每个邮箱。[tool-verified: `provisa-ui/src/i18n/locales/en/googleWorkspaceFields.json` `everyMailbox`]
+
+```yaml
+sources:
+  - id: team-mail
+    type: microsoft_365
+    mapping:
+      resources: [mail, calendar, tasks]
+      mailboxes:
+        group: support@acme.com
+      mail_since: "2026-01-01"
+      calendar_check_days: 30        # required when calendar is read
+      calendar_send_updates: false
+```
+
+**设置。** 每个模块都会按名称拒绝它不读取的键。[tool-verified: `provisa/google_workspace/settings.py` `_KEYS`; `provisa/microsoft365/settings.py` `_KEYS`]
+
+| `mapping` 键 | 类型 | 含义 |
+| --- | --- | --- |
+| `resources` | 两者 | 数据源读取 `mail`、`calendar`、`tasks` 中的哪些；至少一个 |
+| `accounts` | 两者 | 单个邮箱的地址（单邮箱形态） |
+| `mailboxes` | 两者 | `everyone`、`group` 或 `list`（组织形态） |
+| `sign_in` | `google_workspace` | `google_account`（单邮箱形态） |
+| `mail_since` | 两者 | `YYYY-MM-DD`；更早收到的邮件不保存 |
+| `mail_content` | `google_workspace` | `full`，或仅含邮件头和标签的 `headers`（Gmail 的 `gmail.metadata` 范围）。读取邮件时必填 |
+| `mail_search` | `google_workspace` | 如在 Gmail 搜索框中键入的搜索 |
+| `mail_labels` | `google_workspace` | 标签名称；只读取带有全部这些标签的邮件 |
+| `mail_include_spam_trash` | `google_workspace` | 默认为 `false` |
+| `calendar_send_updates` | 两者 | 写入时是否通知事件的参与者；默认关闭 |
+| `calendar_check_days` | `microsoft_365` | 变更检查查看今天前后各多少天；不小于 1 的整数，读取日历时必填 |
+
+Google 在 `gmail.metadata` 下拒绝搜索，因此将 `mail_content: headers` 与 `mail_search` 或 `mail_since` 一起使用会被拒绝。[tool-verified: `provisa/google_workspace/settings.py` `_mail`]
+
+**范围（scope）。** 登录时只请求已勾选资源所对应的范围：[tool-verified: `provisa/google_workspace/settings.py` `MAIL_SCOPES`, `RESOURCE_SCOPES`; `provisa/google_workspace/sign_in.py` `EMAIL_SCOPE`; `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`, `BASE_SCOPES`; `provisa/microsoft365/directory.py`]
+
+| 资源 | Google Workspace | Microsoft 365（委派） |
+| --- | --- | --- |
+| `mail` | `gmail.readonly`，仅邮件头时为 `gmail.metadata` | `Mail.Read` |
+| `calendar` | `calendar.calendarlist.readonly`, `calendar.events` | `Calendars.ReadWrite` |
+| `tasks` | `tasks` | `Tasks.ReadWrite` |
+| 每个数据源 | `userinfo.email` | `offline_access`, `User.Read` |
+
+对于组织形态，Microsoft 需要应用程序权限 `Mail.Read` 和 `User.Read.All`，日历和任务还需要 `Calendars.ReadWrite` 和 `Tasks.ReadWrite.All`。Google 的服务账号被授权使用 `DELEGATED_SCOPES` 中的范围，其中还包括目录用户和群组成员的读取。[tool-verified: `provisa/microsoft365/directory.py`; `provisa/google_workspace/__init__.py` `DELEGATED_SCOPES`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json` `organisationGrant`]
+
+**刷新与新鲜度。** 这些数据源接受的探测类型是 `hash` 和 `none`，变更令牌由其加载器提供：[tool-verified: `provisa/events/probes.py` `_MAIL_TYPES`, `probe_capabilities`]
+
+- **Gmail：** 每个邮箱当前 history id 的摘要，每个邮箱一次 `users.getProfile` 调用。[tool-verified: `provisa/google_workspace/loader.py` `mailbox_token`]
+- **Microsoft 邮件：** 沿着保存的每个 delta 链接取一项。[tool-verified: `provisa/microsoft365/loader.py` `unchanged`]
+- **Google 日历和任务：** 每个日历的标签和最后变更时间；每个任务列表的标签，以及每个任务的 id 和更新时间。[tool-verified: `provisa/google_workspace/calendar_read.py` `change_token`]
+- **Microsoft 日历和任务：** 每个邮箱的变更行，范围是今天前后各 `calendar_check_days` 天。[tool-verified: `provisa/microsoft365/loader.py` `_calendar_token`] [inferred: that a line is an event's id and change key, or a task's update time, from REQ-1994]
+
+无法完成的检查会请求读取；它绝不会报告“unchanged”。日历表和任务表在每次刷新时整体读取。Microsoft 365 或 Google Workspace 数据源的邮件副本就地保存：邮箱的每个部分在到达时写入，可立即查询。[tool-verified: `provisa/core/canonical_mail.py` `RESOURCE_TABLES` comment; `provisa/federation/replica_builds.py` `GROUP_READ_TYPES`; `provisa/federation/mail_units.py`] 通过 `mail_search` 缩小范围的 Google Workspace 数据源在每次刷新时都要重新整体读取，因为只有 Google 才能说明一次搜索匹配了什么。[tool-verified: `provisa/google_workspace/units.py` module docstring]
+
+**写入。** 对 `events`、`event_attendees` 和 `tasks` 的 `INSERT`、`UPDATE` 和 `DELETE` 通过两种类型共用的同一条写入路径发送给提供商。`UPDATE` 或 `DELETE` 通过 `provider`、`account` 和 `id` 指定其行；参与者通过 `event_id` 和 `address` 指定。系列中的某一次出现通过 `series_id` 和 `original_start_at` 指定。设置了表的可写集合之外的列的写入会按名称被拒绝。`calendar_send_updates` 开启时，Google 以 `sendUpdates=all` 写入；关闭时以 `sendUpdates=none` 写入。Microsoft Graph 无法静默地做出这样的变更，因此对会议参与者的变更会被拒绝，并指明该设置。[tool-verified: `provisa/executor/writable.py` `API_WRITTEN`; `provisa/core/canonical_mail.py` `WRITE_KEYS`, `WRITABLE_COLUMNS`; `provisa-ui/src/i18n/locales/en/mailResources.json` `sendUpdatesHelp`] [tool-verified: `provisa/google_workspace/calendar_write.py`]
+
+**排除项。** 邮件只读；没有任何语句会更改邮箱。`calendars`、`task_lists` 和所有邮件表都不接受写入。除非开启 `mail_include_spam_trash`，否则 Gmail 的 Spam 和 Trash 会被排除。Google 的 Tasks API 只保存任务的到期日期，没有提醒。[tool-verified: `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`; `provisa/core/canonical_mail.py` `WRITABLE_COLUMNS`; `provisa/google_workspace/settings.py` `_mail`] [inferred: the Tasks API limit, from REQ-1994]
+
 ### API Sources {: #api-sources }
 
 将任意 HTTP 端点注册为可查询的表。[tool-verified: `provisa/core/models.py` `SourceType` enum] (REQ-314, REQ-307, REQ-322)
@@ -558,6 +736,22 @@ API 响应会被获取、缓存在 PostgreSQL 中（TTL 可配置），并暴露
 #### GitHub and GitLab {: #github-and-gitlab }
 
 GitHub 和 GitLab 是由 `graphql_remote` 承载的品牌数据源：每个都以自己的名称出现在 Sources 表单中，并注册为记录其品牌的远程 GraphQL 数据源。表单只需要一个个人访问令牌，别无其他。端点（`https://api.github.com/graphql`、`https://gitlab.com/api/graphql`）和 schema 随 Provisa 一同提供，因此注册时不会对 schema 进行内省。令牌在添加数据源时检查。添加数据源不会注册任何表：schema 提供的每张表都在该数据源的命名空间（`gh`、`gl`）下可用，由数据管理员注册所需的表。令牌无权读取的字段在注册表时会被排除。[tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
+
+#### Stripe (REQ-1923) {: #stripe }
+
+Stripe 是由 `openapi` 承载的品牌数据源，其构建方式与基于 `graphql_remote` 的 GitHub 和 GitLab 相同。它在 Sources 表单中以 Stripe 之名出现，位于 Enterprise 下。它注册为一个 OpenAPI 数据源，其行在 `federation_hints` 中记录品牌，规范路径为 `brand:stripe`。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_CARRIER`; `provisa/openapi/brands.py` `BRANDS`, `SPEC_SCHEME`; `provisa/api/admin/openapi_router.py` `_branded`]
+
+**覆盖范围。** Stripe REST API，通过 Stripe 发布的 OpenAPI 规范（`stripe/openapi`，`spec3.json`）。该规范随 Provisa 一同提供，已固定版本并经 gzip 压缩，注册时不会获取。随附的版本是 API 版本 `2026-09-30.endive`，含 425 个路径。每次调用都带有设为该版本的 `Stripe-Version`，因此无论账户默认使用哪个版本，每个响应都具有规范所描述的形状。Stripe 返回但规范中缺失的字段，从 `stripe.additions.json` 补入。[tool-verified: `provisa/openapi/brands.py` `brand_spec`, `Brand.headers`; `provisa/openapi/_known_specs/`; version and path count read with the project interpreter]
+
+与任何 OpenAPI 数据源一样，每个 `GET` 操作是一张可提供的表，其他每个操作是一条可提供的命令。添加数据源不会注册其中任何一个：由数据管理员注册所需的部分。[tool-verified: `provisa/api/admin/openapi_router.py` `register_openapi_source`; `provisa/openapi/brands.py` module docstring]
+
+**认证。** 表单只要求一样东西：访问令牌（`BRAND_AUTH`：`token`）。请使用 Stripe 的密钥或受限 API 密钥。令牌作为 bearer 令牌发送，并在添加数据源之前通过 `GET /v1/balance` 检查一次。令牌被拒绝时，注册失败并返回 `openapi.credential_rejected`；缺少令牌时返回 `openapi.credential_required`。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_AUTH`; `provisa/openapi/brands.py` `Brand.auth`, `verify_path`; `provisa/api/admin/openapi_router.py` `_branded`] [inferred: that a restricted key works, provided it may read `/v1/balance`]
+
+**刷新与新鲜度。** Stripe 表和所有 OpenAPI 表一样是副本。其缓存的响应保持时间为数据源的 `cache_ttl`；除非注册请求另行指定，否则该值设为 300 秒。适用 OpenAPI 的探测类型。[tool-verified: `provisa/api/admin/openapi_router.py` `OpenAPIRegisterRequest.cache_ttl`; `provisa/events/probes.py` `_HTTP_API_TYPES`] REQ-1923 规定预设可以指定刷新时用来只获取变更内容的参数。Stripe 品牌没有指定这样的参数，因此每次刷新都整体读取其表。[tool-verified: `provisa/openapi/brands.py` `Brand` has no such field]
+
+**排除项。** Stripe 已弃用的令牌与 Sources 支付集成未包含在随附的规范中。其列表见[规范构建数据源上的排除项](#exclusions-on-a-specification-built-source)。操作员自己的 `exclusions` 会追加到品牌的排除项之后。[tool-verified: `provisa/openapi/_known_specs/stripe.exclusions.json`; `provisa/openapi/brands.py` `brand_spec`] (REQ-1957)
+
+`stripe` 也出现在 `SourceType` 中，位于被存根化的 Supabase `wrappers` 类型之列。通过表单添加的 Stripe 数据源是 `openapi` 数据源，而不是那个存根。[tool-verified: `provisa/core/models.py` `SourceType`]
 
 #### 规范构建数据源上的排除项 {: #exclusions-on-a-specification-built-source }
 

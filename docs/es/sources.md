@@ -8,7 +8,7 @@ Toda consulta se ejecuta en última instancia a través del motor de federación
 | **Solo federación** | No | Sí | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (respaldado por S3) |
 | **Lectura directa (réplica)** | Sí | Sí | Snowflake, Databricks, ClickHouse — el controlador lee los datos y crea una réplica; las consultas se ejecutan contra la réplica en el motor activo |
 | **Directo (sin conector entre orígenes)** | Sí | No | Athena — las instrucciones de un solo origen se ejecutan íntegras en Athena; las uniones entre orígenes crean una réplica completa |
-| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Salesforce, ServiceNow, inventario de nube, Splunk, Qdrant, Azure Cosmos DB |
+| **Materializar → Federación** | No | No | REST/OpenAPI, GraphQL remoto, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (receptor push), GovData, SharePoint, Salesforce, ServiceNow, inventario de nube, Splunk, Qdrant, Azure Cosmos DB, Logs, Google Workspace, Microsoft 365 |
 
 Los orígenes **con capacidad directa** ejecutan consultas de un solo origen mediante su controlador nativo (menos de 100 ms), evitando el motor de federación (REQ-027, REQ-229). Conservan el soporte completo del conector y participan en la federación cuando se combinan con otros orígenes (REQ-028).
 
@@ -23,7 +23,7 @@ Los orígenes de **materialización** no tienen conector federado. Provisa obtie
 ---
 
 ## Todos los orígenes
-Provisa registra **65** tipos de origen, los que ofrece el formulario de Orígenes. Las tablas siguientes cubren los 65; el índice es el recuento. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`; Kaggle, Wikipedia, GitHub y GitLab se cuentan como orígenes distintos aunque internamente se registran mediante los conectores `files` y `graphql_remote`]
+Provisa registra **69** tipos de origen, los que ofrece el formulario de Orígenes. Las tablas siguientes cubren los 69; el índice es el recuento. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, donde `graphql` y `grpc` son `graphql_remote` y `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab y Stripe se cuentan como orígenes distintos aunque internamente se registran mediante los conectores `files`, `graphql_remote` y `openapi`]
 
 | # | Grupo | Tipos de origen |
 | --- | --- | --- |
@@ -35,15 +35,15 @@ Provisa registra **65** tipos de origen, los que ofrece el formulario de Orígen
 | 38–40 | [Streaming](#streaming) | `kafka`, `websocket`, `rss` |
 | 41 | [Receptor push](#push-receiver) | `ingest` |
 | 42–43 | [Grafo y semántica](#graph-semantic) | `neo4j`, `sparql` |
-| 44–47 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 48–49 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
-| 50–54 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk` |
-| 55–59 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab |
-| 60 | [GovData](#govdata) | `govdata` |
-| 61–62 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 63 | [Perfilador de datos](#data-profiler) | `data_profiler` |
-| 64 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
-| 65 | [Wikipedia](#wikipedia) | Wikipedia (se registra como un origen `files` que rastrea las páginas indicadas — véase [Wikipedia](#wikipedia)) |
+| 44–48 | [Basados en archivos](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 49–50 | [Observabilidad y otros](#observability-other) | `google_sheets`, `prometheus` |
+| 51–57 | [SaaS empresarial](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 58–63 | [Orígenes de API](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 64 | [GovData](#govdata) | `govdata` |
+| 65–66 | [Verificadores de calidad de datos](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 67 | [Perfilador de datos](#data-profiler) | `data_profiler` |
+| 68 | [Conjuntos de datos de Kaggle](#kaggle-datasets) | Kaggle (preparado mediante el formulario de Orígenes; se registra como un origen `files` — véase [Conjuntos de datos de Kaggle](#kaggle-datasets)) |
+| 69 | [Wikipedia](#wikipedia) | Wikipedia (se registra como un origen `files` que rastrea las páginas indicadas — véase [Wikipedia](#wikipedia)) |
 
 Referencia de todos los tipos de origen que soporta Provisa. "Controlador directo" significa que las consultas de un solo origen se ejecutan de forma nativa contra el origen (menos de 100 ms) (REQ-027). "Nombre del conector" es el conector federado que se usa cuando el origen participa en JOIN entre varios orígenes (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -219,7 +219,7 @@ Una búsqueda se lee por instrucción con sus argumentos, y sus filas se conserv
 | `sparql` | SPARQL 1.1 POST, resultados almacenados en caché en PostgreSQL (REQ-297) | No |
 
 ### Basados en archivos {#file-based}
-Dos mecanismos cubren los archivos. Ambos usan el campo `path` en lugar de `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553)
+Tres mecanismos cubren los archivos. Los orígenes de un solo archivo y el rastreador de archivos usan el campo `path` en lugar de `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) El tercero, [Logs](#logs), nombra sus archivos mediante un glob en su `mapping` y lee solo archivos del servidor de Provisa. [tool-verified: `provisa/logs/settings.py`]
 
 **Orígenes de archivo único** — `sqlite`, `csv`, `parquet` apuntan `path` a un solo archivo.
 
@@ -246,6 +246,106 @@ Los buckets privados necesitan credenciales (región y claves de AWS desde el en
 Cualquier origen `files` también puede declarar un `crawl` en su mapping, con los mismos ajustes que se listan en [Wikipedia](#wikipedia): el origen lee entonces primero páginas web y deja cada tabla de datos HTML y cada archivo de datos enlazado en su directorio como una tabla. [tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
 
 En el motor DuckDB, `files` se lee de forma nativa — una vista de escaneo `read_csv_auto` por cada `<table>.csv` bajo el directorio resuelto (REQ-229) [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]. En un motor sin conector `files` propio, las filas aterrizan a través del mismo servidor pgwire de Calcite incluido en el conector (`pgwire-file`) que usan sharepoint/splunk (REQ-954) — véase [Conectores SaaS empresariales](#enterprise-saas-connectors) más abajo. La cobertura de extremo a extremo de la UI (formulario de Orígenes → Register Table → consulta SQL) y la ruta de aterrizaje por pgwire están probadas en REQ-1694.
+
+#### Logs (REQ-1996) {#logs}
+
+Un origen `logs` convierte los archivos de registro del servidor de Provisa en una tabla. Usted indica los archivos con una ruta completa o un glob, y elige el formato en que están escritos los registros. Cada registro se convierte en una fila. Un registro que el formato no puede leer se conserva, con su texto sin procesar y el motivo, y nunca se descarta. [tool-verified: `provisa/logs/__init__.py`; `provisa/logs/files.py` `rows_of`]
+
+```yaml
+sources:
+  - id: mac-install-log
+    type: logs
+    mapping:
+      glob: /var/log/install.log*   # the live file and its rotated, compressed copies
+      format: macos_install
+```
+
+El mapping admite cuatro claves y rechaza cualquier otra por su nombre: `glob` y `format` (ambas obligatorias), y `pattern` y `record_start`, que solo admite el formato `regex`. [tool-verified: `provisa/logs/settings.py` `parse`; `provisa/logparse/__init__.py` `format_for`]
+
+```yaml
+    mapping:
+      glob: /var/log/myapp/*.log
+      format: regex
+      pattern: '(?P<ts>\S+ \S+) (?P<level>[A-Z]+) (?P<message>.*)'
+      record_start: '\d{4}-\d{2}-\d{2} '   # a stack trace joins the line it follows
+```
+
+En el formulario de Orígenes, un origen Logs aparece como "Log files" bajo File. El botón **Preview** muestra, antes de guardar nada, los archivos con los que coincide el glob, las columnas que da el formato y las primeras 20 filas del archivo más reciente. [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
+
+**El glob.** Debe ser una ruta completa; `~` se expande, y una ruta relativa se rechaza ("name the files by their full path"). Se evalúa con `glob` de Python en modo no recursivo, así que `**` se comporta como `*` y coincide dentro de un solo nivel de directorio. Solo se toman archivos regulares, en orden de nombre. Un archivo vacío se omite hasta que tiene bytes. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+
+**Las columnas propias de cada fila.** Van antes de las columnas del formato:
+
+| Columna | Tipo | Contiene |
+| --- | --- | --- |
+| `_file_id` | text | La identidad del archivo: una suma de verificación de sus primeros 4096 bytes, descomprimidos |
+| `_file_name` | text | La ruta bajo la que se leyó el registro |
+| `_line_offset` | bigint | Desplazamiento en bytes de la primera línea del registro en el texto descomprimido |
+| `_entry` | bigint | Qué entrada del registro es la fila: 0, salvo en un registro por lotes como el `Records` de un archivo de CloudTrail |
+| `_raw` | text | El registro tal como se escribió |
+| `_parse_error` | text | Por qué no se pudo leer el registro o uno de sus valores; NULL cuando se leyó |
+| `_landed_at` | timestamp | Cuándo aterrizó la fila |
+
+`_file_id`, `_line_offset` y `_entry` son la clave de la fila, de modo que un registro leído dos veces es una sola fila. [tool-verified: `provisa/logs/__init__.py` `META_COLUMNS`, `KEY`; `provisa/logs/preview.py` `columns`]
+
+**Formatos y presets.** El selector de formato agrupa los formatos por familia; la última opción, `regex`, es su propio patrón. [tool-verified: `provisa/logparse/__init__.py` `BUILT_IN`, `catalog`; `provisa/logparse/presets/__init__.py` `presets`; family labels from `provisa-ui/src/i18n/locales/en/logsFields.json`]
+
+| Familia (etiqueta del formulario) | Nombres de formato |
+| --- | --- |
+| Common formats | `rfc3164`, `rfc5424`, `macos_install`, `clf`, `combined`, `jsonl`, `logfmt`, `w3c`, `cef`, `gelf` |
+| Amazon Web Services | `aws_alb`, `aws_nlb`, `aws_elb`, `aws_cloudfront`, `aws_s3_access`, `aws_cloudtrail`, `aws_vpc_flow`, `aws_waf`, `aws_route53_resolver` |
+| Databases and runtimes | `postgresql_stderr`, `postgresql_csvlog`, `postgresql_jsonlog`, `mysql_error`, `mysql_slow`, `mongodb`, `redis`, `log4j2_default`, `logback_default`, `python_logging` |
+| Google | `gcp_cloud_logging`, `android_logcat`, `chrome_net_export` |
+| Containers and Linux | `kubernetes_cri`, `journald_json`, `linux_auditd`, `linux_dmesg` |
+| Microsoft | `ms_iis`, `ms_windows_firewall`, `ms_dns_debug`, `ms_dhcp_audit`, `ms_exchange_tracking`, `ms_sqlserver_errorlog`, `azure_storage_analytics`, `azure_monitor`, `windows_evtx` |
+| Network security monitoring | `zeek_tsv`, `zeek_json`, `suricata_eve`, `snort_fast` |
+| Web servers and proxies | `nginx_error`, `apache_error`, `haproxy_http`, `squid_access`, `envoy_access`, `caddy_access`, `traefik_access` |
+| Your own | `regex` |
+
+Son 56 formatos integrados y `regex`. [tool-verified: `BUILT_IN` enumerated with the project interpreter]
+
+**Cómo obtiene columnas un formato.** Los formatos obtienen sus columnas de cuatro maneras. [tool-verified: `provisa/logparse/formats.py`; `provisa/logparse/presets/_shared.py`; `provisa/logparse/coltypes.py`]
+
+- **Columnas fijas.** La mayoría de los formatos declaran sus columnas y tipos. `rfc3164`, por ejemplo, da `timestamp`, `facility`, `severity`, `host`, `process`, `pid` y `message`; `facility` y `severity` se calculan a partir del valor `<PRI>`. Una línea de syslog BSD no lleva año, así que el año es el de la última escritura del archivo, o el anterior cuando el mes de la línea es posterior al de esa escritura.
+- **Campos nombrados por el registro.** `jsonl` y `logfmt` toman sus columnas de los campos vistos en las primeras líneas de los archivos (ajuste `logs.preview_lines`, por defecto 1000). Cada columna recibe el tipo más estrecho en el que caben todos los valores vistos: boolean, luego integer, float, timestamp y json, y si no text. Un campo que lleva un registro posterior y que ninguna columna tiene va a una columna json `extra`.
+- **Campos nombrados por una cabecera.** `w3c` y los presets construidos sobre él leen la línea `#Fields:` de cada archivo; `date` y `time` se unen en una sola columna `timestamp`. `aws_cloudfront`, `ms_iis`, `ms_windows_firewall`, `ms_exchange_tracking` y `zeek_tsv` leen las líneas de cabecera `#` del mismo modo, y `aws_vpc_flow` lee una línea de cabecera que empieza por `version`. El lugar donde se leyó una línea de cabecera se queda con el archivo, de modo que un archivo que se sigue leyendo después conserva sus campos.
+- **`regex`.** Cada grupo con nombre, como `(?P<level>…)`, es una columna de tipo text.
+
+La pantalla Register Table lista estas columnas con sus tipos y marca la clave. [tool-verified: `provisa/api/admin/schema_query.py` `_logs_columns`] Al leer las filas, cada valor se convierte al tipo que su columna tiene en la tabla registrada, de modo que un tipo cambiado allí es el que se aplica. Un valor que su columna no puede contener pasa a NULL y su motivo va a `_parse_error`. [tool-verified: `provisa/logs/loader.py` `_load`; `provisa/logs/files.py` `_typed`] [inferred: that the screen lets a steward change a suggested type, as REQ-1996 states]
+
+Un registro más largo que `logs.max_line_bytes` (por defecto 65536) conserva sus primeros bytes en `_raw` y no se analiza; `_parse_error` da su longitud. Un archivo que empieza con una marca de orden de bytes UTF-8 o UTF-16 se lee con esa codificación, y cualquier otro como UTF-8. [tool-verified: `provisa/core/settings_catalog.py`; `provisa/logs/files.py` `rows_of`, `text_encoding`]
+
+**Registros que ocupan varias líneas.** Un formato con patrón de inicio de registro forma un registro con una línea que coincide más todas las líneas siguientes que no coinciden. Un stack trace se queda con su excepción, y una entrada de consulta lenta se queda entera. Las líneas anteriores a la primera coincidencia son un registro propio; el formato suele rechazarlo, y la fila se conserva. Los formatos integrados con inicio de registro son `rfc3164`, `macos_install`, `aws_cloudtrail`, `postgresql_stderr`, `postgresql_csvlog`, `mysql_error`, `mysql_slow`, `log4j2_default`, `logback_default`, `python_logging`, `chrome_net_export`, `ms_sqlserver_errorlog` y `azure_monitor`. Con `regex`, defina usted `record_start`. [tool-verified: `provisa/logparse/framing.py` `records`; `record_start` of each format enumerated with the project interpreter]
+
+Dos formatos leen sus registros por sí mismos en lugar de por líneas. `kubernetes_cri` une en un registro las líneas parciales (`P`) que el runtime dividió, y `windows_evtx` lee el archivo binario `.evtx`. [tool-verified: `provisa/logparse/presets/linux.py` `KubernetesCri`; `frames_bytes` enumerated with the project interpreter]
+
+Un archivo en el que aún se está escribiendo se lee hasta su última línea completa. En un formato multilínea se lee hasta el inicio de su último registro, que la línea siguiente podría continuar. Cuando el archivo pasa 2 segundos sin escrituras, ese último registro se toma como completo. [tool-verified: `provisa/logs/files.py` `QUIET_SECONDS`, `read_file`]
+
+**Rotación.** Un archivo se identifica por una suma de verificación de sus primeros 4096 bytes, descomprimidos, no por su nombre. Cuando `system.log` rota a `system.log.0` y luego se comprime a `system.log.0.gz`, cada copia es el mismo archivo. La lectura continúa desde el byte al que llegó la última, así que ninguna línea se lee dos veces. [tool-verified: `provisa/logs/files.py` module docstring, `identify`; `tests/unit/test_logs_source.py` `test_a_rotated_and_compressed_file_is_read_on_and_no_line_twice`]
+
+- La compresión se reconoce por los primeros bytes del archivo, nunca por su nombre: gzip y bzip2. Un archivo comprimido se trata como completo.
+- Una copia rotada y su gemela comprimida, ambas coincidentes, se leen una vez, desde la comprimida.
+- Un archivo que resulta más corto que el desplazamiento ya leído fue truncado: es un archivo nuevo y se lee desde su inicio. Las filas del antiguo permanecen.
+- Los archivos de menos de 4096 bytes que empiezan igual se distinguen por el inodo, así que siguen siendo dos archivos.
+- Un archivo con el que el glob ya no coincide se olvida; sus filas permanecen como historial.
+
+[tool-verified: `provisa/logs/files.py` `compression`, `Found.complete`, `identify`; `provisa/logs/loader.py` module docstring; `tests/unit/test_logs_source.py`]
+
+**Actualización y entrega en vivo.** Una tabla Logs es una réplica. Nada vigila los archivos. En cambio, cuando la señal de cambio del origen es `probe` o `ttl_probe`, su probe calcula un digest de la ruta, el inodo, el tamaño y la última escritura de cada archivo coincidente; cuando el digest difiere, se pide una actualización. Los tipos de probe que admite un origen Logs son `hash` y `none`. [tool-verified: `provisa/logs/loader.py` `files_token`, `_freshness_probe`; `provisa/events/probes.py` `_LOADER_PROBED`, `probe_capabilities`]
+
+Una actualización lee solo lo nuevo. Cada archivo se lee desde donde llegó la última pasada, y las filas se escriben por su clave, de 5000 en 5000, antes de guardar la nueva posición. Una pasada que se detiene entre ambos pasos vuelve a leer esos registros, lo que deja las mismas filas. Cada pasada sella sus filas en `_landed_at`, la columna que la entrega en vivo usa como marca de agua. Una definición de tabla cambiada es una reconstrucción completa que lee cada archivo desde su inicio. [tool-verified: `provisa/logs/loader.py` `_UnitsRead`, `_WholeRead`, `BATCH_ROWS`, `replica_stamp_column`; `provisa/federation/replica_builds.py` `_kept_in_place`] [inferred: that subscriptions deliver a Logs table's new rows by `_landed_at`, as REQ-1996 states; the subscription side was not traced]
+
+**Raíces permitidas.** El ajuste de operador `logs.allowed_roots` lista los directorios en los que puede resolverse un glob. Su valor por defecto es `["/var/log"]`; es una lista en la tarjeta Security de Admin → Configuración, que también se fija con `PROVISA_LOGS_ALLOWED_ROOTS`, y un cambio pide confirmación. Cada raíz se resuelve tras expandir `~` y seguir los enlaces simbólicos. [tool-verified: `provisa/core/settings_catalog.py` `logs.allowed_roots`; `provisa/logs/roots.py` `allowed_roots`]
+
+Se aplican dos comprobaciones. La parte fija del glob, hasta su primer comodín, debe resolverse dentro de una raíz; esto se comprueba al guardar el origen y cada vez que se previsualiza o se lee. Cada archivo coincidente debe además resolverse dentro de una raíz una vez seguidos sus enlaces simbólicos, de modo que un enlace simbólico que salga de `/var/log` se rechaza. El rechazo nombra la ruta, a qué se resolvió y las raíces permitidas:
+
+```text
+/home/me/app.log resolves to /home/me/app.log, outside the directories log files may be read from: /var/log
+```
+
+Al guardar, el código es `schema.logs_path_refused`; en la vista previa es un 403 con `logs.path_refused`. [tool-verified: `provisa/logs/roots.py` `checked_glob`, `checked_file`; `provisa/api/admin/schema_common.py` `logs_refusal`; `provisa/api/admin/logs_router.py`; `tests/unit/test_logs_source.py` `test_a_symlink_escaping_the_root_is_refused_by_name`]
+
+**Rechazo en entorno alojado (SaaS).** Un despliegue que aloja a muchas organizaciones no lee ningún archivo de registro propio. Toda comprobación de ruta rechaza primero, al guardar, al previsualizar y al leer, con "`<path>`: a server that holds many organizations reads no log file of its own". Los archivos son del servidor, no de una organización concreta, así que ningún inquilino puede leerlos. El despliegue sabe si aloja a muchas organizaciones por su estado de multitenencia. [tool-verified: `provisa/logs/roots.py` `_refuse_on_saas`; `provisa/core/secrets_providers.py` `many_organisations`; `provisa/api/app.py` `set_many_organisations_resolver(lambda: state.multitenancy)`; `tests/unit/test_logs_source.py` `test_a_server_of_many_organizations_reads_no_log_file_of_its_own`]
 
 #### Conjuntos de datos de Kaggle (REQ-1780, REQ-1781, REQ-1782, REQ-1783) {#kaggle-datasets}
 
@@ -336,7 +436,7 @@ Solo las tablas que los editores marcan como tablas de datos (`table.wikitable`)
 | `prometheus` | prometheus | No | Una métrica es una tabla y una muestra es una fila (`timestamp`, `value`, una columna por etiqueta); en cualquier motor sin conector en vivo Provisa lee la API HTTP — nombres de métricas y etiquetas para Register Table, `query_range` sobre el rango de la tabla para el aterrizaje [tool-verified: `provisa/prometheus/fetch.py`] (REQ-1689) |
 
 ### Conectores SaaS empresariales {#enterprise-saas-connectors}
-SharePoint, Salesforce, ServiceNow, el inventario de nube y Splunk se registran mediante conectores de Apache Calcite (kenstott/calcite fork). Ninguno tiene controlador directo — Provisa lanza el servidor pgwire de Calcite incluido en el conector (`pgwire-sharepoint`, `pgwire-salesforce`, `pgwire-servicenow`, `pgwire-cloudops`, `pgwire-splunk`) y lo alcanza como un endpoint genérico de PostgreSQL. En el motor DuckDB ese endpoint se conecta en vivo mediante la extensión postgres: Register Table lista las tablas del conector desde el catálogo conectado, las consultas leen el conector en su sitio, y los filtros y proyecciones se empujan hacia abajo hasta Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Cualquier otro motor lleva las filas al almacén de materialización para la federación (REQ-954). Los paquetes se obtienen por SO/arquitectura desde la versión fijada de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Un operador puede en cambio nombrar una carpeta de paquete construida para este host, por conector, en Admin → Configuración → Servidores de conectores (`connectors.<connector>.bundle_dir`); consulte [Admin](admin.md).. Los cinco conectores siempre habilitan la coincidencia de nombres sin distinción de mayúsculas y minúsculas, coincidiendo con la semántica propia de cada producto en ese aspecto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+Google Workspace y Microsoft 365 los leen cargadores propios; véase [Google Workspace y Microsoft 365](#google-workspace-and-microsoft-365). SharePoint, Salesforce, ServiceNow, el inventario de nube y Splunk se registran mediante conectores de Apache Calcite (kenstott/calcite fork). Ninguno tiene controlador directo — Provisa lanza el servidor pgwire de Calcite incluido en el conector (`pgwire-sharepoint`, `pgwire-salesforce`, `pgwire-servicenow`, `pgwire-cloudops`, `pgwire-splunk`) y lo alcanza como un endpoint genérico de PostgreSQL. En el motor DuckDB ese endpoint se conecta en vivo mediante la extensión postgres: Register Table lista las tablas del conector desde el catálogo conectado, las consultas leen el conector en su sitio, y los filtros y proyecciones se empujan hacia abajo hasta Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Cualquier otro motor lleva las filas al almacén de materialización para la federación (REQ-954). Los paquetes se obtienen por SO/arquitectura desde la versión fijada de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Un operador puede en cambio nombrar una carpeta de paquete construida para este host, por conector, en Admin → Configuración → Servidores de conectores (`connectors.<connector>.bundle_dir`); consulte [Admin](admin.md).. Los cinco conectores siempre habilitan la coincidencia de nombres sin distinción de mayúsculas y minúsculas, coincidiendo con la semántica propia de cada producto en ese aspecto (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -530,6 +630,84 @@ En la ruta pgwire-replica (cualquier motor salvo Trino) los mismos cuatro ajuste
     disable_ssl_validation: true
 ```
 
+#### Google Workspace y Microsoft 365 (REQ-1923, REQ-1994) {#google-workspace-and-microsoft-365}
+
+`google_workspace` y `microsoft_365` leen el correo, los calendarios y las tareas de las cuentas que nombra un origen, y los llevan como réplicas. No son conectores de Calcite: cada uno tiene un cargador propio que llama a la API del proveedor, Gmail, Google Calendar y Google Tasks por un lado y Microsoft Graph por el otro. El formulario los lista en Enterprise como "Google Workspace (Gmail)" y "Microsoft 365 (Outlook, Exchange)". [tool-verified: `provisa/core/models.py` `SourceType`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`; `provisa-ui/src/pages/sources/constants.ts`]
+
+**Tablas.** Ambos tipos producen las mismas tablas canónicas: los mismos nombres, tipos de columna y orden. Una unión de los dos no necesita conversión ni cambio de nombre; una columna para la que un proveedor no tiene valor es NULL. Las tablas se listan bajo el esquema `default`, y cada fila empieza con la cuenta de la que se leyó. Un origen ofrece las tablas de los recursos que lee: [tool-verified: `provisa/core/canonical_mail.py` module docstring, `RESOURCE_TABLES`, `tables_for`; `provisa/google_workspace/loader.py` `SCHEMA`]
+
+| Recurso | Tablas | Escritas por sentencias |
+| --- | --- | --- |
+| `mail` | `messages`, `message_recipients`, `folders`, `message_folders`, `threads`, `attachments` | No |
+| `calendar` | `calendars`, `events`, `event_attendees` | `events`, `event_attendees` |
+| `tasks` | `task_lists`, `tasks` | `tasks` |
+
+Las columnas se listan en [el esquema canónico de correo](arch/canonical-mail-schema.md). `events` contiene eventos únicos, maestros de serie con su recurrencia como líneas RFC 5545, y excepciones; nunca contiene las ocurrencias expandidas de una serie. [tool-verified: `provisa/google_workspace/calendar_read.py` module docstring] (REQ-1994)
+
+**Registro.** El administrador de una organización introduce primero el cliente de la organización para la plataforma en Admin → Email: un ID de cliente y un secreto, más el ID de directorio (tenant) o el dominio en Microsoft 365. Quien agrega un origen nunca lo ve ni lo escribe. Un origen toma entonces una de dos formas: [tool-verified: `provisa/core/mail_platforms.py` module docstring; `provisa/microsoft365/__init__.py`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json`]
+
+- **Un buzón.** El origen nombra una dirección en `accounts`. Su propietario hace clic en **Connect** en el formulario y aprueba el cliente de la organización. La aprobación resultante se guarda en el almacén de estado de la organización, no en los ajustes del origen. En Google Workspace esta forma declara además `sign_in: google_account`.
+- **Los buzones de la organización.** El origen declara `mailboxes` como exactamente uno de `everyone: true`, `group: <address or id>` o `list: [addresses]`. No guarda ninguna credencial y nadie lo conecta. La organización lee con su propio acceso, y solo una vez que el administrador ha activado "Read the organization's mailboxes". En Google ese acceso es una clave de cuenta de servicio con delegación en todo el dominio, más una dirección de administrador para las llamadas al directorio. En Microsoft es la concesión de credenciales de cliente del registro de la aplicación.
+
+[tool-verified: `provisa/google_workspace/settings.py` `parse`, `_mailboxes`; `provisa/microsoft365/settings.py` `parse`; `provisa/core/mail_platforms.py` `organisation_mailboxes`]
+
+Con la segunda forma, una tabla contiene las filas de todos los buzones. Un rol que puede leer la tabla lee todos los buzones, salvo que una regla de fila sobre la columna `account` lo limite. [tool-verified: `provisa-ui/src/i18n/locales/en/googleWorkspaceFields.json` `everyMailbox`]
+
+```yaml
+sources:
+  - id: team-mail
+    type: microsoft_365
+    mapping:
+      resources: [mail, calendar, tasks]
+      mailboxes:
+        group: support@acme.com
+      mail_since: "2026-01-01"
+      calendar_check_days: 30        # required when calendar is read
+      calendar_send_updates: false
+```
+
+**Ajustes.** Cada módulo rechaza por su nombre una clave que no lee. [tool-verified: `provisa/google_workspace/settings.py` `_KEYS`; `provisa/microsoft365/settings.py` `_KEYS`]
+
+| Clave de `mapping` | Tipo | Significado |
+| --- | --- | --- |
+| `resources` | ambos | Cuáles de `mail`, `calendar`, `tasks` lee el origen; al menos uno |
+| `accounts` | ambos | La dirección del buzón único (forma de un buzón) |
+| `mailboxes` | ambos | `everyone`, `group` o `list` (forma de organización) |
+| `sign_in` | `google_workspace` | `google_account` (forma de un buzón) |
+| `mail_since` | ambos | `YYYY-MM-DD`; no se conserva nada recibido antes |
+| `mail_content` | `google_workspace` | `full`, o `headers` solo para cabeceras y etiquetas (el alcance `gmail.metadata` de Gmail). Obligatorio cuando se lee correo |
+| `mail_search` | `google_workspace` | Una búsqueda tal como se escribe en el cuadro de búsqueda de Gmail |
+| `mail_labels` | `google_workspace` | Nombres de etiqueta; solo se lee el correo que lleva todas |
+| `mail_include_spam_trash` | `google_workspace` | `false` por defecto |
+| `calendar_send_updates` | ambos | Si una escritura avisa a los asistentes de un evento; desactivado por defecto |
+| `calendar_check_days` | `microsoft_365` | Días a cada lado de hoy que mira la comprobación de cambios; un entero, 1 o más, obligatorio cuando se lee el calendario |
+
+Google rechaza una búsqueda bajo `gmail.metadata`, así que `mail_content: headers` con `mail_search` o `mail_since` se rechaza. [tool-verified: `provisa/google_workspace/settings.py` `_mail`]
+
+**Alcances.** Un inicio de sesión pide solo los alcances de los recursos marcados: [tool-verified: `provisa/google_workspace/settings.py` `MAIL_SCOPES`, `RESOURCE_SCOPES`; `provisa/google_workspace/sign_in.py` `EMAIL_SCOPE`; `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`, `BASE_SCOPES`; `provisa/microsoft365/directory.py`]
+
+| Recurso | Google Workspace | Microsoft 365 (delegado) |
+| --- | --- | --- |
+| `mail` | `gmail.readonly`, o `gmail.metadata` solo para cabeceras | `Mail.Read` |
+| `calendar` | `calendar.calendarlist.readonly`, `calendar.events` | `Calendars.ReadWrite` |
+| `tasks` | `tasks` | `Tasks.ReadWrite` |
+| todo origen | `userinfo.email` | `offline_access`, `User.Read` |
+
+Para la forma de organización, Microsoft necesita los permisos de aplicación `Mail.Read` y `User.Read.All`, más `Calendars.ReadWrite` y `Tasks.ReadWrite.All` para calendarios y tareas. La cuenta de servicio de Google está autorizada para los alcances de `DELEGATED_SCOPES`, que incluyen también la lectura de usuarios y miembros de grupo del directorio. [tool-verified: `provisa/microsoft365/directory.py`; `provisa/google_workspace/__init__.py` `DELEGATED_SCOPES`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json` `organisationGrant`]
+
+**Actualización y frescura.** Los tipos de probe que admiten estos orígenes son `hash` y `none`, y su cargador aporta el token de cambio: [tool-verified: `provisa/events/probes.py` `_MAIL_TYPES`, `probe_capabilities`]
+
+- **Gmail:** un digest del history id actual de cada buzón, una llamada a `users.getProfile` por buzón. [tool-verified: `provisa/google_workspace/loader.py` `mailbox_token`]
+- **Correo de Microsoft:** cada enlace delta conservado, seguido para un elemento. [tool-verified: `provisa/microsoft365/loader.py` `unchanged`]
+- **Calendarios y tareas de Google:** la etiqueta y la hora del último cambio de cada calendario; la etiqueta de cada lista de tareas, y el id y la hora de actualización de cada tarea. [tool-verified: `provisa/google_workspace/calendar_read.py` `change_token`]
+- **Calendarios y tareas de Microsoft:** las líneas de cambio de cada buzón, durante `calendar_check_days` a cada lado de hoy. [tool-verified: `provisa/microsoft365/loader.py` `_calendar_token`] [inferred: that a line is an event's id and change key, or a task's update time, from REQ-1994]
+
+Una comprobación que no puede hacerse pide una lectura; nunca informa "sin cambios". Las tablas de calendario y tareas se leen enteras en cada actualización. Las réplicas de correo de un origen Microsoft 365 o Google Workspace se mantienen en su sitio: cada parte de un buzón se escribe a medida que llega y puede consultarse de inmediato. [tool-verified: `provisa/core/canonical_mail.py` `RESOURCE_TABLES` comment; `provisa/federation/replica_builds.py` `GROUP_READ_TYPES`; `provisa/federation/mail_units.py`] Un origen Google Workspace que acota con `mail_search` se vuelve a leer entero en cada actualización, porque solo Google puede decir qué coincide con una búsqueda. [tool-verified: `provisa/google_workspace/units.py` module docstring]
+
+**Escrituras.** `INSERT`, `UPDATE` y `DELETE` sobre `events`, `event_attendees` y `tasks` van al proveedor por una sola vía de escritura para ambos tipos. Un `UPDATE` o `DELETE` nombra sus filas por `provider`, `account` e `id`; un asistente se nombra por `event_id` y `address`. Una ocurrencia de una serie se nombra por `series_id` y `original_start_at`. Una escritura que fija una columna fuera del conjunto escribible de la tabla se rechaza por su nombre. Google escribe con `sendUpdates=all` cuando `calendar_send_updates` está activado y con `sendUpdates=none` cuando está desactivado. Microsoft Graph no puede hacer ese cambio en silencio, así que se rechaza un cambio en los asistentes de una reunión, nombrando el ajuste. [tool-verified: `provisa/executor/writable.py` `API_WRITTEN`; `provisa/core/canonical_mail.py` `WRITE_KEYS`, `WRITABLE_COLUMNS`; `provisa-ui/src/i18n/locales/en/mailResources.json` `sendUpdatesHelp`] [tool-verified: `provisa/google_workspace/calendar_write.py`]
+
+**Exclusiones.** El correo es de solo lectura; ninguna sentencia cambia un buzón. `calendars`, `task_lists` y todas las tablas de correo no admiten escrituras. Spam y Papelera de Gmail se dejan fuera salvo que `mail_include_spam_trash` esté activado. La API Tasks de Google guarda solo el día en que vence una tarea y no tiene recordatorio. [tool-verified: `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`; `provisa/core/canonical_mail.py` `WRITABLE_COLUMNS`; `provisa/google_workspace/settings.py` `_mail`] [inferred: the Tasks API limit, from REQ-1994]
+
 ### Orígenes de API {#api-sources}
 Registre cualquier endpoint HTTP como una tabla consultable. [tool-verified: `provisa/core/models.py` `SourceType` enum] (REQ-314, REQ-307, REQ-322)
 
@@ -547,7 +725,23 @@ Las respuestas de la API se obtienen, se almacenan en caché en PostgreSQL (TTL 
 
 GitHub y GitLab son orígenes de marca que transporta `graphql_remote`: cada uno aparece en el formulario de Orígenes con su propio nombre y se registra como un origen GraphQL remoto que anota su marca. El formulario pide un token de acceso personal y nada más. El endpoint (`https://api.github.com/graphql`, `https://gitlab.com/api/graphql`) y el esquema se distribuyen con Provisa, por lo que el esquema no se introspecciona al registrarlo. El token se comprueba al agregar el origen. Agregar el origen no registra ninguna tabla: cada tabla que ofrece el esquema está disponible bajo el espacio de nombres del origen (`gh`, `gl`), y el steward registra las deseadas. Un campo que el token no puede leer se deja fuera de una tabla cuando esta se registra. [tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
 
-#### Exclusiones en un origen construido desde una especificación
+#### Stripe (REQ-1923) {#stripe}
+
+Stripe es un origen de marca que transporta `openapi`, construido como GitHub y GitLab sobre `graphql_remote`. Aparece en el formulario de Orígenes como Stripe, bajo Enterprise. Se registra como un origen OpenAPI cuya fila anota la marca en `federation_hints` y cuya ruta de especificación es `brand:stripe`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_CARRIER`; `provisa/openapi/brands.py` `BRANDS`, `SPEC_SCHEME`; `provisa/api/admin/openapi_router.py` `_branded`]
+
+**A qué llega.** A la API REST de Stripe, mediante la especificación OpenAPI publicada por Stripe (`stripe/openapi`, `spec3.json`). La especificación se incluye con Provisa, fijada y comprimida con gzip, y no se obtiene al registrar. La incluida es la versión de API `2026-09-30.endive` con 425 rutas. Cada llamada lleva `Stripe-Version` con esa versión, de modo que cada respuesta tiene la forma que describe la especificación, sea cual sea la versión por defecto de la cuenta. Los campos que Stripe devuelve y la especificación omite se añaden desde `stripe.additions.json`. [tool-verified: `provisa/openapi/brands.py` `brand_spec`, `Brand.headers`; `provisa/openapi/_known_specs/`; version and path count read with the project interpreter]
+
+Como en cualquier origen OpenAPI, cada operación `GET` es una tabla ofrecida y cada otra operación es un comando ofrecido. Agregar el origen no registra ninguna: el steward registra las que quiere. [tool-verified: `provisa/api/admin/openapi_router.py` `register_openapi_source`; `provisa/openapi/brands.py` module docstring]
+
+**Autenticación.** El formulario pide una sola cosa, un token de acceso (`BRAND_AUTH`: `token`). Use una clave de API secreta o restringida de Stripe. El token se envía como token bearer y se comprueba una vez con `GET /v1/balance` antes de agregar el origen. Un token rechazado hace fallar el registro con `openapi.credential_rejected`; uno ausente, con `openapi.credential_required`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_AUTH`; `provisa/openapi/brands.py` `Brand.auth`, `verify_path`; `provisa/api/admin/openapi_router.py` `_branded`] [inferred: that a restricted key works, provided it may read `/v1/balance`]
+
+**Actualización y frescura.** Una tabla de Stripe es una réplica, como toda tabla OpenAPI. Sus respuestas en caché duran el `cache_ttl` del origen, que una solicitud de registro fija en 300 segundos salvo que diga otra cosa. Se aplican los tipos de probe de OpenAPI. [tool-verified: `provisa/api/admin/openapi_router.py` `OpenAPIRegisterRequest.cache_ttl`; `provisa/events/probes.py` `_HTTP_API_TYPES`] REQ-1923 prevé que un preset nombre el parámetro que una actualización usa para obtener solo lo que cambió. La marca Stripe no nombra ninguno, así que cada actualización lee sus tablas enteras. [tool-verified: `provisa/openapi/brands.py` `Brand` has no such field]
+
+**Exclusiones.** La integración de pagos obsoleta de tokens y Sources de Stripe queda fuera de la especificación incluida. La lista está en [Exclusiones en un origen construido desde una especificación](#exclusions-on-a-specification-built-source). Las `exclusions` propias de un operador se suman a las de la marca. [tool-verified: `provisa/openapi/_known_specs/stripe.exclusions.json`; `provisa/openapi/brands.py` `brand_spec`] (REQ-1957)
+
+`stripe` aparece también en `SourceType` entre los tipos `wrappers` de Supabase con stub. Un origen Stripe agregado por el formulario es un origen `openapi`, no ese stub. [tool-verified: `provisa/core/models.py` `SourceType`]
+
+#### Exclusiones en un origen construido desde una especificación {#exclusions-on-a-specification-built-source}
 
 Una especificación OpenAPI publicada describe todo lo que acepta la API remota, incluido lo que su proveedor ha marcado como obsoleto y lo que un despliegue nunca debe enviar. Un origen OpenAPI puede llevar exclusiones: cosas de la especificación que el origen no ofrece. (REQ-1957)
 
