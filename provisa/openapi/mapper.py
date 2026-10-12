@@ -285,6 +285,8 @@ _MULTIPART = "multipart/form-data"
 
 #: How a request body is sent.
 JSON_BODY, FORM_BODY, MULTIPART_BODY = "json", "form", "multipart"
+#: The request schema of a JSON body declared without one: any JSON object.
+UNTYPED_BODY: dict = {"type": "object"}
 
 
 def _extract_request(operation: SchemaPath) -> tuple[dict | None, str]:
@@ -304,6 +306,10 @@ def _extract_request(operation: SchemaPath) -> tuple[dict | None, str]:
     for param in _at(operation, "parameters") or ():
         if param.read_value().get("in") == "body" and "schema" in param:
             return _row_schema(param / "schema")[0], JSON_BODY
+    if any(_is_json(_media(name)) for name in content.str_keys()):
+        # A JSON body the operation declares without its schema (as ServiceNow publishes every
+        # API's, REQ-1954): it is still taken, as one untyped JSON object sent as given.
+        return UNTYPED_BODY, JSON_BODY
     return None, JSON_BODY
 
 
