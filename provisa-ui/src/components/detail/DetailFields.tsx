@@ -11,7 +11,7 @@
 import { Fragment, type ReactNode } from "react";
 import { Text } from "@mantine/core";
 
-/** One read-only field of a table's detail: its label and its value as text. */
+/** One read-only field of an object's detail: its label and its value. */
 export interface DetailField {
   label: string;
   value: ReactNode;
@@ -19,7 +19,7 @@ export interface DetailField {
 }
 
 /**
- * A section's fields read-only, label beside value, in the order the edit form has them. A field
+ * A detail panel's fields read-only, label beside value, in the order the edit form has them. A field
  * with no value says so in the value; it is not left out, so the read view and the form list the
  * same fields.
  */

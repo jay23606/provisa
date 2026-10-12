@@ -14,7 +14,7 @@ import type { RefreshPolicySummary, RegisteredTable, Source } from "../../types/
 import { replicateLabel } from "../../components/admin/replicate";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { NAMING_CONVENTIONS } from "./constants";
-import { DetailFields, type DetailField } from "./DetailFields";
+import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
 import { changeSignalChoices, isCheckerSource, unset, yesNo } from "./tableSectionFields";
 
 // A table's sections read-only: the read view shows them, and so does the edit form to a caller

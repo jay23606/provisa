@@ -12,7 +12,7 @@ import { Text } from "@mantine/core";
 import type { TFunction } from "i18next";
 import type { DataProduct, RegisteredTable, Source } from "../../types/admin";
 import { DQ_CHECKERS } from "../../types/admin";
-import type { DetailField } from "./DetailFields";
+import type { DetailField } from "../../components/detail/DetailFields";
 
 // What a table's sections say of a field, shared by the read view and the edit form.
 
