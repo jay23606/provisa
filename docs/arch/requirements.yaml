@@ -6124,8 +6124,7 @@
 
     '
   integration_test: deferred
-  integration_test_reason: 'cosine_similarity UDF translation requires real vector operations on native
-    and fallback paths. [deferred: requires external infrastructure not in CI stack]'
+  integration_test_reason: 'tests/integration/test_vector_similarity_e2e.py (core lane) runs it on a pgvector PostgreSQL source (DIRECT, with and without the extension) and on the DuckDB engine. The Trino engine is covered by unit tests of its lowering only: the test stack''s Trino cannot reach a container the test starts on the runner''s 127.0.0.1 (maintainer 2026-10-12, through the lead: unit-only is acceptable for now).'
   bdd: true
   bdd_reason: Behavior expressed as stakeholder-readable Gherkin acceptance criteria.
   stakeholders:
@@ -6387,12 +6386,7 @@
     rationale: Query-time vectorization (text string → embedding → similarity search inline) as a first-class
       operation in a federation platform is unique; Snowflake Cortex supports it only within Snowflake;
       no cross-source federation platform offers this capability.
-  notes: 'Audit 2026-10-03: was marked complete; partly built. Missing: The text-or-vector resolver exists
-    but no similarity-search query path calls it: resolve_query_vector (provisa/vector/query.py:82) and
-    cosine_similarity_sql (provisa/vector/query.py:36) have no caller outside provisa/vector/ and tests.
-    The only production use of vectorize_text is MCP catalog search (provisa/api/mcp/search.py:179), which
-    is not a similarity search over a declared embedding column. Maintainer 2026-10-03: finish it; accepted
-    for build.'
+  notes: 'Audit 2026-10-03: was marked complete; partly built. Missing: The text-or-vector resolver exists but no similarity-search query path calls it: resolve_query_vector (provisa/vector/query.py:82) and cosine_similarity_sql (provisa/vector/query.py:36) have no caller outside provisa/vector/ and tests. The only production use of vectorize_text is MCP catalog search (provisa/api/mcp/search.py:179), which is not a similarity search over a declared embedding column. Maintainer 2026-10-03: finish it; accepted for build. Maintainer 2026-10-12, through the lead: the GraphQL form is "one object argument, similar: {column: <embedding column>, text: ''…''} or {column, vector: [...]}, on every table with an embedding column, with limit as usual and a _similarity Float score field". Built on the cosine_similarity pipeline (REQ-423).'
 - id: REQ-431
   status: complete
   group: 4. Source Connectors

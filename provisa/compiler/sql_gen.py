@@ -103,10 +103,29 @@ def _compile_root_field(  # REQ-009, REQ-011, REQ-032, REQ-033, REQ-034, REQ-035
     select_parts: list[str] = []
     columns: list[ColumnRef] = []
     join_clauses: list[str] = []
+    # REQ-430: a ``similar`` search ranks the rows by this score, and _similarity reads it.
+    similar_sql = _similarity_expr(field_node, variables, ctx, table, root_alias, collector)
 
     assert field_node.selection_set is not None
     for sel in field_node.selection_set.selections:
         if not isinstance(sel, FieldNode):
+            continue
+        if sel.name.value == "_similarity":
+            if similar_sql is None:
+                raise ValueError(
+                    f"_similarity is the score of a similar search; give {root_name} a similar "
+                    "argument"
+                )
+            response_key = sel.alias.value if sel.alias else sel.name.value
+            select_parts.append(f"{similar_sql} AS {_q(response_key)}")
+            columns.append(
+                ColumnRef(
+                    alias=None,
+                    column=response_key,
+                    field_name=response_key,
+                    nested_in=None,
+                )
+            )
             continue
 
         sel_name = sel.name.value
@@ -465,15 +484,17 @@ def _compile_root_field(  # REQ-009, REQ-011, REQ-032, REQ-033, REQ-034, REQ-035
         )
         sql += f" WHERE {where_sql}"
 
-    # ORDER BY
+    # ORDER BY -- a similar search first: the rows most like the query lead (REQ-430).
+    order_parts = [f"{similar_sql} DESC"] if similar_sql is not None else []
     if "order_by" in args:
         order_by_val = args["order_by"]
         if isinstance(order_by_val, dict):
             order_by_val = [order_by_val]
-        order_sql = _compile_order_by(
-            order_by_val, root_alias, table.table_id, ctx.exposed_to_physical
+        order_parts.append(
+            _compile_order_by(order_by_val, root_alias, table.table_id, ctx.exposed_to_physical)
         )
-        sql += f" ORDER BY {order_sql}"
+    if order_parts:
+        sql += f" ORDER BY {', '.join(order_parts)}"
 
     # LIMIT / OFFSET
     # When ops LATERAL joins are present, SQL LIMIT would cut the expanded join rows,
@@ -700,8 +721,35 @@ class UnknownRootField(ValueError):
 
 #: A root field's arguments that are not a table's parameters (REQ-1986).
 _STANDARD_ARGS = frozenset(
-    {"where", "order_by", "limit", "offset", "distinct_on", "as_of", "sample"}
+    {"where", "order_by", "limit", "offset", "distinct_on", "as_of", "sample", "similar"}
 )
+
+
+def _similarity_expr(
+    field_node: FieldNode,
+    variables: dict | None,
+    ctx: CompilationContext,
+    table: TableMeta,
+    root_alias: str | None,
+    collector: ParamCollector,
+) -> str | None:  # REQ-430
+    """The field's ``similar: {column, text | vector}`` as ``cosine_similarity(<column>, $N)``,
+    the query a bound value; None when the field has no such argument. Governance completes the
+    call and the pipeline makes the value a vector of the column's model."""
+    arg = next((a for a in field_node.arguments or [] if a.name.value == "similar"), None)
+    if arg is None:
+        return None
+    spec = _extract_value(arg.value, variables)
+    assert isinstance(spec, dict)
+    text, vector = spec.get("text"), spec.get("vector")
+    if (text is None) == (vector is None):
+        raise ValueError("similar takes a text or a vector -- exactly one of them")
+    column = str(spec["column"])
+    physical = ctx.exposed_to_physical.get((table.table_id, column), column)
+    sql_name = ctx.physical_to_sql.get((table.table_id, physical), physical)
+    ref = f"{_q(root_alias)}.{_q(sql_name)}" if root_alias else _q(sql_name)
+    query = collector.add(text if text is not None else list(vector))  # pyright: ignore[reportArgumentType]
+    return f"cosine_similarity({ref}, {query})"
 
 
 def compile_query(  # REQ-007, REQ-009, REQ-010, REQ-011, REQ-262, REQ-263, REQ-266, REQ-300

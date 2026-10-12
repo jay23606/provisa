@@ -81,26 +81,37 @@ ORDER BY score DESC
 LIMIT 10
 ```
 
-Provisa translates per source capability at query time: (REQ-423)
+The query is a vector (a bound value or a `'[...]'` literal), a text (embedded with the column's model, REQ-430), or another embedding column of the same model. The call is governed with the whole statement: its column must be an embedding column the role is served (visibility and scope; a `restricted` scope is the sensitivity tier), and any other column is refused by name (REQ-426). Row filters and domain rules apply to the statement as to any other.
 
-| Source capability | Generated SQL |
+The call is written in the SQL of the terminal that runs it: (REQ-423)
+
+| Where the statement runs | Generated SQL |
 | --- | --- |
-| pgvector | `description_vec <=> :query_vector` |
-| Snowflake Cortex | `VECTOR_COSINE_SIMILARITY(description_vec, :query_vector)` |
-| MongoDB Atlas | `$vectorSearch` operator |
-| None | Route to pgvector fallback cache (Phase 2) |
+| PostgreSQL source with pgvector | `1 - cosine_distance(col::vector, $1::vector)` |
+| PostgreSQL source without pgvector | a plain array computation (`unnest` dot product) |
+| Snowflake source | `VECTOR_COSINE_SIMILARITY(col::VECTOR(FLOAT, d), $1::VECTOR(FLOAT, d))` |
+| DuckDB engine | `array_cosine_similarity(col::FLOAT[d], $1::FLOAT[d])` |
+| Trino engine | `cosine_similarity(col::array(double), json_parse($1)::array(double))` |
+
+A statement over any other source routes to the federation engine, which computes the call exactly. MongoDB Atlas, Qdrant and Azure Cosmos DB search natively through a query form rather than a SQL scalar: their own nearest-neighbour search is a pipeline or search table, and `cosine_similarity` over one of their collection tables is computed by the engine over the landed rows.
 
 ### Query-Time Vectorization
 
-Both text input and raw vector input are supported: (REQ-430)
+Both text input and raw vector input are supported. In GraphQL every table with an embedding column the role is served takes one `similar` argument, naming the column and giving a text or a vector (exactly one), and a `_similarity` score field: (REQ-430)
 
 ```graphql
-# Text input — Provisa calls embedding model, generates query vector
-products(similar_to: "red running shoes", limit: 10)
+# Text input — Provisa embeds it with the column's model
+products(similar: {column: description_vec, text: "red running shoes"}, limit: 10) {
+  id name _similarity
+}
 
-# Raw vector input — caller provides vector directly
-products(near_vector: [0.123, -0.456, ...], limit: 10)
+# Raw vector input — the caller gives the vector
+products(similar: {column: description_vec, vector: [0.123, -0.456, ...]}, limit: 10) {
+  id _similarity
+}
 ```
+
+The rows most like the query come first, ahead of any `order_by`; `_similarity` without a `similar` argument is refused.
 
 ### Model Locking
 

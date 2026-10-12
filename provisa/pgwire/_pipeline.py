@@ -4064,6 +4064,12 @@ async def _govern_compiled(
 
     _table_ids = tuple(resolve_table_ids(_compiled_tree, gov_ctx))  # REQ-1897
 
+    # REQ-430: a similar search's registered models' dimensions, as on the raw path above.
+    from provisa.vector import similarity as _similarity
+
+    if _similarity.mentions(sql):
+        _registry = await vector_registry(state)
+        gov_ctx.embedding_dims = {m.id: m.dimensions for m in _registry.list_enabled()}
     # REQ-863 pipeline order: governance → post-governance optimization → routing.
     # REQ-1882: off-loaded, same rationale as the raw-SQL path's own apply_governance call above.
     governed_sql = await _off_loop(apply_governance, sql, gov_ctx, session_vars, exec_params)
@@ -4171,7 +4177,13 @@ async def _route_compiled(
             _exec_sql, unnarrowed_view_bodies(_exec_sql, _view_map, state, as_of=as_of)
         )
     from provisa.compiler.nf_extractor import extract_nf_args
+    from provisa.vector import similarity as _similarity
 
+    if exec_params and _similarity.mentions(governed_sql):
+        # REQ-429/430: a similar search's query value made a vector of the column's model.
+        exec_params = await _similarity.bind_query_vectors(
+            governed_sql, exec_params, await vector_registry(state)
+        )
     _exec_sql, _nf_clean_params, _extracted_nf = extract_nf_args(_exec_sql, exec_params or [])
     exec_params = _nf_clean_params if _nf_clean_params != (exec_params or []) else exec_params
     _nf_args = {**(api_args or {}), **(_extracted_nf or {})} or None
@@ -4385,7 +4397,15 @@ async def _route_compiled(
                 from provisa.compiler.stage2 import apply_row_cap
 
                 physical_sql = apply_row_cap(physical_sql, _cap)
-            _direct = (transpile(physical_sql, dialect), physical_sql)
+            _direct = (
+                transpile(
+                    physical_sql,
+                    dialect,
+                    pgvector=_similarity.mentions(physical_sql)
+                    and state.source_pools.vector_capability(_direct_sid) == "pgvector",
+                ),
+                physical_sql,
+            )
             if not _optimized:
                 memo[_direct_key] = _direct
         sql_to_run, physical_sql = _direct

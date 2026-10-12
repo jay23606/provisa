@@ -23,6 +23,7 @@ from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
     GraphQLEnumValue,
+    GraphQLFloat,
     GraphQLField,
     GraphQLInputField,
     GraphQLInputObjectType,
@@ -396,6 +397,44 @@ def _build_domain_alias_map(domains: list[dict]) -> dict[str, str]:
     }
 
 
+def _embedding_columns(t: _TableInfo) -> dict[str, str]:  # REQ-421, REQ-430
+    """The table's embedding columns the role is served: GraphQL name -> physical name."""
+    from provisa.compiler.schema_inputs import _gql_col_name
+
+    return {_gql_col_name(c, t): c["column_name"] for c in t.visible_columns if c.get("embedding")}
+
+
+def _build_similar_arg(t: _TableInfo, args: dict[str, GraphQLArgument]) -> None:  # REQ-430
+    """``similar: {column, text | vector}`` on a table with an embedding column: its rows ranked
+    by cosine similarity to the text (embedded by the column's model) or the vector."""
+    columns = _embedding_columns(t)
+    if not columns:
+        return
+    column_enum = cast(
+        GraphQLEnumType,
+        GraphQLEnumType(
+            f"{t.type_name}EmbeddingColumn",
+            {name: GraphQLEnumValue(name) for name in columns},
+        ),
+    )
+    float_type = cast(GraphQLScalarType, GraphQLFloat)
+    similar_input = cast(
+        GraphQLInputObjectType,
+        GraphQLInputObjectType(
+            f"{t.type_name}Similar",
+            {
+                "column": GraphQLInputField(GraphQLNonNull(column_enum)),
+                "text": GraphQLInputField(cast(GraphQLScalarType, GraphQLString)),
+                "vector": GraphQLInputField(GraphQLList(GraphQLNonNull(float_type))),
+            },
+            description="Rank rows by cosine similarity: a text or a vector, exactly one",
+        ),
+    )
+    args["similar"] = GraphQLArgument(
+        similar_input, description="Rank the rows by cosine similarity to a text or a vector"
+    )
+
+
 def _add_virtual_system_fields(fields: dict[str, GraphQLField]) -> None:
     fields["_name_"] = GraphQLField(GraphQLNonNull(GraphQLString), description="Logical table name")
     fields["_domain_"] = GraphQLField(
@@ -536,6 +575,12 @@ def _make_object_type_fields(
     fields: dict[str, GraphQLField] = dict(info.gql_fields)
 
     _add_virtual_system_fields(fields)
+    if _embedding_columns(info):
+        # REQ-430: the score of a ``similar`` search.
+        fields["_similarity"] = GraphQLField(
+            cast(GraphQLScalarType, GraphQLFloat),
+            description="Cosine similarity to the field's similar argument",
+        )
 
     if meta_rt is not None:
         _add_meta_field(fields, info, meta_rt, gql_types)
@@ -914,6 +959,7 @@ def generate_schema(
             distinct_enums.get(t.table_id),
         )
         _build_native_filter_args(t, args)
+        _build_similar_arg(t, args)
         query_fields[t.field_name] = GraphQLField(
             GraphQLList(GraphQLNonNull(gql_type)),
             args=args,
