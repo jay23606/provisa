@@ -1930,7 +1930,6 @@
   "zh/metricsPage.json::metricsPage.detail.field.dependentViews": "Dependent metric views",
   "zh/metricsPage.json::metricsPage.detail.field.visibleTo": "Visible to",
   "zh/metricsPage.json::metricsPage.detail.handAuthored": "hand-authored",
-  "zh/metricsPage.json::metricsPage.detail.noDependents": "none",
   "zh/metricsPage.json::metricsPage.detailPanel": "Metric details",
   "zh/metricsPage.json::metricsPage.editMetric": "Edit metric {{name}}",
   "zh/metricsPage.json::metricsPage.editTitle": "Edit Metric",

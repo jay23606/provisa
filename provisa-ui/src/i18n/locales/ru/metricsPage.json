@@ -16,7 +16,6 @@
     "builderNoFacts": "Таблицы фактов ещё не зарегистрированы",
     "detail": {
       "handAuthored": "создано вручную",
-      "noDependents": "нет",
       "field": {
         "visibleTo": "Видимость",
         "dependentViews": "Зависимые представления метрик"

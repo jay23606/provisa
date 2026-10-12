@@ -16,7 +16,6 @@
     "builderNoFacts": "尚未註冊任何事實表",
     "detail": {
       "handAuthored": "手動編寫",
-      "noDependents": "無",
       "field": {
         "visibleTo": "可見對象",
         "dependentViews": "相依的指標檢視"

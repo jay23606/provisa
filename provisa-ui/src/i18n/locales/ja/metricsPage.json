@@ -16,7 +16,6 @@
     "builderNoFacts": "登録されたファクトテーブルはまだありません",
     "detail": {
       "handAuthored": "手動作成",
-      "noDependents": "なし",
       "field": {
         "visibleTo": "参照可能ロール",
         "dependentViews": "依存するメトリクスビュー"

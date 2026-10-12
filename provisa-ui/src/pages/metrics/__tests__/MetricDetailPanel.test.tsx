@@ -66,6 +66,6 @@ describe("a metric's read view", () => {
     expect(shown["AI Context"]).toBe("—");
     expect(shown["Source fact"]).toBe("hand-authored");
     expect(shown["Visible to"]).toBe("not shown");
-    expect(shown["Dependent metric views"]).toBe("none");
+    expect(shown["Dependent metric views"]).toBe("—");
   });
 });

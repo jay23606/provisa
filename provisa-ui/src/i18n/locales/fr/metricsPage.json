@@ -16,7 +16,6 @@
     "builderNoFacts": "Aucune table de faits enregistrée pour l'instant",
     "detail": {
       "handAuthored": "rédigée à la main",
-      "noDependents": "aucune",
       "field": {
         "visibleTo": "Visible par",
         "dependentViews": "Vues de métriques dépendantes"

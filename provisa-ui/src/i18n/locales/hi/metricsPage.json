@@ -16,7 +16,6 @@
     "builderNoFacts": "अभी तक कोई फ़ैक्ट तालिका पंजीकृत नहीं है",
     "detail": {
       "handAuthored": "हस्त-लिखित",
-      "noDependents": "कोई नहीं",
       "field": {
         "visibleTo": "किन्हें दिखेगा",
         "dependentViews": "आश्रित मेट्रिक व्यू"
