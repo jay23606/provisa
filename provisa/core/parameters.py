@@ -24,7 +24,11 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 # How a parameter reaches the source (core/models.py Column.native_filter_type).
-PARAMETER_KINDS = frozenset({"path_param", "query_param", "graphql_arg", "grpc_input", "query_arg"})
+# partition_key (REQ-1982): a Cosmos DB container's partition key, which narrows a read to one
+# partition.
+PARAMETER_KINDS = frozenset(
+    {"path_param", "query_param", "graphql_arg", "grpc_input", "query_arg", "partition_key"}
+)
 
 NF_PREFIX = "_nf_"
 

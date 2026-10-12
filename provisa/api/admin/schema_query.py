@@ -2076,6 +2076,26 @@ async def _redis_columns(source_id: str, table_name: str) -> list[AvailableColum
     return [AvailableColumnType(name=n, data_type=t, comment=None) for n, t in cols]
 
 
+async def _cosmosdb_columns(source_id: str, container: str) -> list[AvailableColumnType]:
+    """REQ-1982: a container's columns as its documents suggest them, its partition key as an
+    optional parameter."""
+    from provisa.api.app import state
+    from provisa.cosmosdb import introspect as _cosmos
+
+    suggested = await _cosmos.columns(state, source_id, container)
+    return [
+        AvailableColumnType(
+            name=c["name"],
+            data_type=c["data_type"],
+            comment=None,
+            path=c["path"],
+            native_filter_type=c["native_filter_type"],
+            native_filter_required=c["native_filter_required"],
+        )
+        for c in suggested or []
+    ]
+
+
 async def _elasticsearch_columns(source_id: str, table_name: str) -> list[AvailableColumnType]:
     """REQ-1672: a mapping-DSL table's declared columns, else the live index mapping flattened
     (``discover_schema``), typed in the IR vocabulary — engine-independent."""
@@ -2227,6 +2247,8 @@ async def resolve_available_columns_metadata(
     ):
         if source_type == "elasticsearch":
             return await _elasticsearch_columns(source_id, table_name)
+        if source_type == "cosmosdb":
+            return await _cosmosdb_columns(source_id, table_name)
         if source_type == "redis":
             return await _redis_columns(source_id, table_name)
         if source_type == "cassandra":

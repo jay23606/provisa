@@ -140,16 +140,18 @@ async def pipeline_table_refusal(conn: "Connection", model: "Table") -> "Mutatio
     before its row lands: the query parses, names only its declared arguments and uses each, and
     only reads. None for every other table."""
     from provisa.api.admin.types import MutationResult
+    from provisa.cosmosdb.table import CosmosTableRefused
+    from provisa.cosmosdb.table import check_table as check_cosmos_table
     from provisa.mongodb.native_query import NativeQueryRefused, check_table
 
-    if not model.query_template:
-        return None
     row = await source_row(conn, model.source_id)
-    if row is None or row["type"] != "mongodb":
-        return None
     try:
-        check_table(model)
-    except NativeQueryRefused as refused:
+        if row is not None and row["type"] == "cosmosdb":
+            # REQ-1982: a container or a query table; its parameters are checked either way.
+            check_cosmos_table(model)
+        elif model.query_template and row is not None and row["type"] == "mongodb":
+            check_table(model)
+    except (NativeQueryRefused, CosmosTableRefused) as refused:
         return MutationResult(
             success=False, message=str(refused), code=refused.code, params=refused.params
         )

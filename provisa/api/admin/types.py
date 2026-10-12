@@ -600,6 +600,9 @@ class AvailableColumnType:  # REQ-533
     # Whether the source requires a value for this parameter; None where it is not recorded.
     native_filter_required: bool | None = None
     is_primary_key: bool = False
+    # REQ-1982: where a document source's nested field is read from (dot notation); None for a
+    # top-level field.
+    path: str | None = None
 
 
 @strawberry.type

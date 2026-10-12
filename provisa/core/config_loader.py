@@ -478,6 +478,12 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
                 f"table {tbl.table_name!r}: a table under {stype} source {tbl.source_id!r} requires "
                 "query_template (the query that produces its rows)"
             )
+        if stype == "cosmosdb":
+            # REQ-1982: a container table, or a query table; its parameters checked either way.
+            from provisa.cosmosdb.table import check_table as check_cosmos_table
+
+            check_cosmos_table(tbl)
+            continue
         if tbl.query_template and stype == "mongodb":
             # REQ-1980: a MongoDB table with a native query is a pipeline table.
             from provisa.mongodb.native_query import check_table
@@ -486,8 +492,8 @@ def _validate_neo4j_sources(config: ProvisaConfig) -> None:  # REQ-1668, REQ-168
             continue
         if tbl.query_template and not is_query_api:
             raise ValueError(
-                f"table {tbl.table_name!r}: query_template is only valid under a neo4j, sparql or "
-                "mongodb source"
+                f"table {tbl.table_name!r}: query_template is only valid under a neo4j, sparql, "
+                "mongodb or cosmosdb source"
             )
 
 

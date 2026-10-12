@@ -241,6 +241,12 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
     if t == "elasticsearch":
         return ["default"]  # REQ-1672: one schema; the index is the table
 
+    if t == "cosmosdb":  # REQ-1982: the source's database; a container is the table
+        from provisa.api.app import state as _state
+        from provisa.cosmosdb import introspect as _cosmos
+
+        return await _cosmos.schemas(_state, source_id)
+
     if t == "redis":
         return ["default"]  # REQ-1675: one schema; a key prefix is the table
 
@@ -1649,6 +1655,13 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
 
     if t == "elasticsearch":
         return await _native_tables_elasticsearch(source_id, schema_name, config_conn, state)
+
+    if t == "cosmosdb":  # REQ-1982
+        from provisa.api.admin.types import AvailableTableType
+        from provisa.cosmosdb import introspect as _cosmos
+
+        names = await _cosmos.containers(state, source_id)
+        return None if names is None else [AvailableTableType(name=n, comment=None) for n in names]
 
     if t == "redis":
         return await _native_tables_redis(source_id, schema_name, config_conn, state)

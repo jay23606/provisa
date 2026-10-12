@@ -403,7 +403,9 @@ export function RegisterTableForm({
             // REQ-1959: nothing is public by default. A parameter column is an argument, not
             // data, and its scope publishes nothing whatever it says.
             scope: "domain",
-            path: null, // REQ-1739: set below only for ingest sources
+            // REQ-1982: a document source says where a nested field is read from; REQ-1739: an
+            // ingest source's path is set below.
+            path: c.path ?? null,
           };
         });
         setColumns(formed);

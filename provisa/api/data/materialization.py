@@ -112,16 +112,29 @@ def _sql_name(name: str) -> str:
     return apply_sql_name(name)
 
 
-def _pipeline_tables(state, table_ids: Iterable[int]) -> dict[str, dict]:
-    """The MongoDB pipeline tables the statement reads (REQ-1980), by their sql names."""
+def _is_native_read(table: dict, types: dict[str, str]) -> bool:
+    """Whether Provisa reads ``table`` itself, per statement, under the statement's arguments: a
+    MongoDB pipeline table (REQ-1980), or a Cosmos DB table with a query or parameters
+    (REQ-1982). No engine runs either."""
+    from provisa.cosmosdb.table import has_parameters
     from provisa.mongodb.pipeline_table import is_pipeline_table
 
+    if is_pipeline_table(table, types):
+        return True
+    return types.get(table["source_id"]) == "cosmosdb" and (
+        bool(table.get("query_template")) or has_parameters(table)
+    )
+
+
+def _pipeline_tables(state, table_ids: Iterable[int]) -> dict[str, dict]:
+    """The tables the statement reads that Provisa reads itself (``_is_native_read``), by their
+    sql names."""
     ids = set(table_ids)
     types = getattr(state, "source_types", None) or {}
     return {
         _sql_name(t["table_name"]): t
         for t in (getattr(state, "tables", None) or [])
-        if t.get("id") in ids and is_pipeline_table(t, types)
+        if t.get("id") in ids and _is_native_read(t, types)
     }
 
 
@@ -142,8 +155,11 @@ async def _mat_pipeline_table(
         table_known_live,
     )
     from provisa.executor.redirect import RedirectConfig
-    from provisa.mongodb.pipeline_table import cache_arguments, read
 
+    if state.source_types[table["source_id"]] == "cosmosdb":
+        from provisa.cosmosdb.table import cache_arguments, read
+    else:
+        from provisa.mongodb.pipeline_table import cache_arguments, read
     source_id = table["source_id"]
     engine = state.federation_engine
     cache_loc = cache_location(source_id, resolved_cache_catalog(engine), org_cache_schema(state))

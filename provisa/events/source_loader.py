@@ -70,6 +70,9 @@ _ADAPTER_FETCH_ONLY: frozenset[str] = frozenset(
         # connector for either type (trino_connectors.py has no entry).
         "neo4j",
         "sparql",
+        # REQ-1982: Cosmos DB documents are read through its SDK (provisa/cosmosdb/loader.py); no
+        # engine reaches it.
+        "cosmosdb",
         # REQ-1730: same gap as neo4j/sparql above — firebird/airport rows are produced by a
         # scratch DuckDB connection ATTACHed via their own community extension
         # (make_firebird_loader/make_airport_loader), not scanned from a relation Trino can reach
