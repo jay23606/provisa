@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 263c2cda-1e30-4e72-abb9-5e61d6f8b34c
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: the Microsoft log presets read the lines Microsoft's own documentation gives for each

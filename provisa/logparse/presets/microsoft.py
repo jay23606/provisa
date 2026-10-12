@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 4ae3ecee-0e50-4037-8716-24ccd8d14543
 #
 # This source code is licensed under the Business Source License 1.1
 """Microsoft log presets (REQ-1996): IIS, Windows Firewall, Windows DNS debug, DHCP server audit,
