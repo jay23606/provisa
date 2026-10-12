@@ -1127,7 +1127,7 @@ async def _govern_and_route_planned(
         plan.temp = _temp
         return plan
     governed = await govern_statement(
-        sql, role_id, session_vars=session_vars, product_statement=product_statement
+        sql, role_id, session_vars=session_vars, product_statement=product_statement, as_of=as_of
     )
     return await _route_bounded(
         governed,
@@ -1216,6 +1216,7 @@ async def govern_statement(
     *,
     session_vars: dict[str, str] | None = None,
     product_statement: bool = False,
+    as_of: str | None = None,
 ) -> _Governed:
     """Stage one of the one pipeline: parse, validate and apply governance. Value-independent.
 
@@ -1282,6 +1283,8 @@ async def govern_statement(
             *temp_tables.slot_key(),
             # A statement governed as the product's is never the one kept for a role's same words.
             *([("provisa.product_statement", "1")] if product_statement else []),
+            # A request-level as-of decides which bitemporal views keep their reference.
+            *([("provisa.as_of", as_of)] if as_of else []),
         ],
     )
     _kept = _slot.cached()
@@ -1329,6 +1332,17 @@ async def govern_statement(
         source_types=state.source_types,
         engine=getattr(state, "federation_engine", None),
     )
+    # ONE semantic statement: every view the statement reads is replaced by its SQL before
+    # governance, so governance judges it whole for this reader (provisa.mv.view_read).
+    _validated_sql = normalized_sql
+    _view_map = getattr(state, "view_sql_map", None)
+    if _view_map:
+        from provisa.mv.view_read import semantic_statement
+
+        normalized_sql, _validated_sql = semantic_statement(
+            normalized_sql, _view_map, state, gov_ctx, as_of=as_of
+        )
+        _parsed_input = await _off_loop(lambda: sqlglot.parse_one(normalized_sql, read="postgres"))
     await _guard_complexity(sql, role_id, _parsed_input, gov_ctx, ctx, state)
 
     _bypass_guard = product_statement or relationship_guard_bypassed(
@@ -1357,7 +1371,7 @@ async def govern_statement(
     )
     if state.compiled_query_cache.get(_cq_key) is None:
         violations = validate_sql(
-            normalized_sql,
+            _validated_sql,
             ctx,
             gov_ctx,
             role,
@@ -1371,7 +1385,7 @@ async def govern_statement(
             try:
                 # REQ-1882: off-loaded, same rationale as prepare_front_end's parse.
                 parsed_tree = await _off_loop(
-                    lambda: sqlglot.parse_one(normalized_sql, read="postgres")
+                    lambda: sqlglot.parse_one(_validated_sql, read="postgres")
                 )
                 for tbl in parsed_tree.find_all(exp.Table):
                     tbl_name = tbl.name
@@ -1853,27 +1867,17 @@ async def route_governed(
 
     _refuse_while_source_server_starts(decision, _sources, state)
     if decision.route == Route.ENGINE:
-        # REQ-135/REQ-1163: inline-expand any __derived__ view ref BEFORE the unknown-catalog check and
-        # transpile — a request-level as-of overlays each bitemporal view's entry with an as-of
-        # reconstruction over its append log (else views read current state). Same lowering the GQL/
-        # Cypher path uses (_govern_and_route_compiled). _qualified is catalog-physical; a view ref is
-        # source-less so it survives the rewrites unchanged and still matches a view_sql_map leaf key.
+        # REQ-135/REQ-1163: optimization — a view governance kept as its reference (its region's
+        # copy, an as-of read of a bitemporal view, a materialized view the reader sees whole) is
+        # answered here, BEFORE the unknown-catalog check and transpile (mv/view_read.py). Same
+        # stage the compiled path runs (_route_compiled). _qualified is catalog-physical; a view
+        # ref is source-less so it survives the rewrites unchanged and still matches its key.
         if _view_map:
             from provisa.compiler.view_expand import expand_view_refs
-
-            _vmap = _view_map
-            if as_of and getattr(state, "bitemporal_view_reads", None):
-                from provisa.mv.bitemporal import as_of_view_map
-
-                _vmap = as_of_view_map(_view_map, state.bitemporal_view_reads, as_of)
-            # What each view reference becomes for THIS reader (mv/view_read.py): the view's SQL
-            # with the reader's rules on every table it reads, or — for a materialized view and a
-            # reader with no narrower rule on any of its inputs — its stored rows.
-            from provisa.mv.view_read import view_bodies
+            from provisa.mv.view_read import unnarrowed_view_bodies
 
             _qualified = expand_view_refs(
-                _qualified,
-                view_bodies(_qualified, _vmap, state, gov_ctx),
+                _qualified, unnarrowed_view_bodies(_qualified, _view_map, state, as_of=as_of)
             )
             # View bodies are stored in semantic form; after expansion, lower any
             # newly-introduced semantic refs to catalog-physical (same pass the outer SQL
@@ -3654,11 +3658,14 @@ async def _govern_and_route_compiled_planned(  # REQ-262, REQ-263, REQ-265, REQ-
     # endpoint's (pgwire.governed_plan) and a repeat is not parsed or governed again.
     _session_vars = session_vars_for(state.roles.get(role_id))
     # The validation a plan was kept with depends on whether its joins were the SDL's.
-    _slot = PlanSlot(state, "compiled", role_id, sql, sorted(_session_vars.items()), sdl_joins)
+    # A request-level as-of decides which bitemporal views keep their reference.
+    _slot = PlanSlot(
+        state, "compiled", role_id, sql, sorted(_session_vars.items()), sdl_joins, as_of or ""
+    )
     _governed = _slot.cached()
     if _governed is None:
         _governed = await _govern_compiled(
-            sql, role_id, state, _session_vars, exec_params, sdl_joins=sdl_joins
+            sql, role_id, state, _session_vars, exec_params, sdl_joins=sdl_joins, as_of=as_of
         )
         # A write is not kept: its admission checks (view writes, unbound branch writes) run per call.
         if not isinstance(
@@ -3873,6 +3880,7 @@ async def _govern_compiled(
     exec_params: list | None = None,
     *,
     sdl_joins: bool,
+    as_of: str | None = None,
 ) -> _GovernedCompiled:
     """The value-independent half of the compiled stage: parse, metric expansion, write admission,
     validation, governance. ``sdl_joins``: see :func:`_govern_and_route_compiled`."""
@@ -3941,6 +3949,17 @@ async def _govern_compiled(
         source_types=state.source_types,
         engine=getattr(state, "federation_engine", None),
     )
+    # ONE semantic statement, as on the raw-SQL stage: every view is replaced by its SQL before
+    # governance (provisa.mv.view_read).
+    _validated_sql = sql
+    _views: dict[str, str] = {}
+    _view_map = getattr(state, "view_sql_map", None)
+    if _view_map:
+        from provisa.mv.view_read import semantic_statement, views_read
+
+        _views = views_read(sql, _view_map)
+        sql, _validated_sql = semantic_statement(sql, _view_map, state, gov_ctx, as_of=as_of)
+        _compiled_tree = await _off_loop(lambda: _sg.parse_one(sql, read="postgres"))
     await _guard_complexity(sql, role_id, _compiled_tree, gov_ctx, ctx, state)
     # The V-rules every statement meets (a masked column in a filter, a hidden column, tables
     # related outside the approved relationships, …), on the compiled path too. The relationship
@@ -3950,16 +3969,32 @@ async def _govern_compiled(
     from provisa.compiler.sql_validator import validate_sql
 
     _role = require_role(state.roles, role_id)
+    _reader_bypass = relationship_guard_bypassed(_role, state, statement_opts_out=False)
     violations = validate_sql(
-        sql,
+        _validated_sql,
         ctx,
         gov_ctx,
         _role,
         getattr(state, "tables", []),
-        bypass_relationship_guard=sdl_joins
-        or relationship_guard_bypassed(_role, state, statement_opts_out=False),
+        bypass_relationship_guard=sdl_joins or _reader_bypass,
         bypass_uncovered_relationships=True,
     )
+    if sdl_joins and not _reader_bypass:
+        # The SDL defined the statement's own joins; a view's joins are its author's, and the
+        # guard holds them for this reader.
+        for _view_sql in _views.values():
+            violations += [
+                v
+                for v in validate_sql(
+                    _view_sql,
+                    ctx,
+                    gov_ctx,
+                    _role,
+                    getattr(state, "tables", []),
+                    bypass_uncovered_relationships=True,
+                )
+                if v.code == "V002"
+            ]
     if violations:
         from provisa.audit.pipeline import write_denial
 
@@ -4067,16 +4102,13 @@ async def _route_compiled(
     _view_map = getattr(state, "view_sql_map", None)
     if _view_map:
         from provisa.compiler.view_expand import expand_view_refs
-        from provisa.mv.view_read import view_bodies
+        from provisa.mv.view_read import unnarrowed_view_bodies
 
-        _vmap = _view_map
-        if as_of and getattr(state, "bitemporal_view_reads", None):
-            from provisa.mv.bitemporal import as_of_view_map
-
-            # REQ-1163: a request-level as-of reads each bitemporal view as of that time.
-            _vmap = as_of_view_map(_view_map, state.bitemporal_view_reads, as_of)
-        # As on the raw-SQL stage: each view reference becomes what THIS reader may read of it.
-        _exec_sql = expand_view_refs(_exec_sql, view_bodies(_exec_sql, _vmap, state, gov_ctx))
+        # Optimization, as on the raw-SQL stage: a view governance kept as its reference is
+        # answered here (REQ-1163: a request-level as-of reads a bitemporal view as of that time).
+        _exec_sql = expand_view_refs(
+            _exec_sql, unnarrowed_view_bodies(_exec_sql, _view_map, state, as_of=as_of)
+        )
     from provisa.compiler.nf_extractor import extract_nf_args
 
     _exec_sql, _nf_clean_params, _extracted_nf = extract_nf_args(_exec_sql, exec_params or [])

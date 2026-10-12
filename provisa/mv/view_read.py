@@ -10,20 +10,23 @@
 
 """What a view reference becomes when a role reads it.
 
-One rule, on every surface: through any view, materialized or not, a reader sees only what it
-could see in the view's inputs.
+The query compiler's order, on every surface: query -> ONE semantic SQL statement -> governance
+-> optimization -> plan -> route -> native.
 
-* The view's SQL is expanded in place of the reference, with the reader's rules — row filters,
-  masks, column visibility — applied to every table it reads (``stage2.govern_fragment``).
-* A materialized view is built whole. Its stored rows are read only by a role whose rules on
-  none of the view's inputs are narrower than "everything"; any other role reads the governed
-  expansion, never the stored rows.
-* The view table's own declared rules apply on top, in both cases.
+* Semantic stage (:func:`semantic_statement`): every view the statement reads is replaced by its
+  SQL, so governance judges one statement over registered tables, as if the reader had written
+  it -- every V-rule (the relationship guard included), row filters, masks, column visibility.
+  The view table's own declared rules apply on top.
+* Optimization (:func:`unnarrowed_view_bodies`): a view the reader sees whole -- none of its
+  inputs carries a rule narrower than "everything" -- is answered from its stored rows when it
+  is materialized and fresh. Governance of its SQL changes nothing for that reader, so it stays
+  the registered table it is through governance (its own rules applied), and its stored rows are
+  put in after.
 * A view that names another region (REQ-1921) is read from the copy that region keeps, by every
-  reader, with the view's own rules on top: its inputs are not read here.
+  reader, with the view's own rules on top: its inputs are not read here. A request-level as-of
+  reads a bitemporal view from its append log (REQ-1163).
 
-This is the only place a view's body is chosen for a reader; the pipeline's expansion sites and
-the GraphQL endpoint's call it."""
+The pipeline's raw-SQL and compiled stages both call these two, nothing else."""
 
 from __future__ import annotations
 
@@ -176,18 +179,71 @@ def require_inputs_reached(view_sql: str, gov: "GovernanceContext") -> None:
             raise PermissionError(f"[V000] Table {named!r} not accessible for role {gov.role_id!r}")
 
 
-def view_bodies(
+def _answered_after_governance(
+    view: str, view_sql_map: dict[str, str], state: Any, gov: "GovernanceContext", as_of: str | None
+) -> bool:
+    """Whether ``view`` keeps its reference through governance, its body put in at optimization:
+    its region's copy, an as-of read of a bitemporal view, or a materialized view the reader sees
+    whole (for that reader, governing its SQL changes nothing)."""
+    if _home_copy(view, state) is not None:
+        return True
+    if as_of and view in (getattr(state, "bitemporal_view_reads", None) or {}):
+        return True
+    mv = state.mv_registry.get(f"view-{view}")
+    return mv is not None and mv.enabled and sees_everything(view, view_sql_map, gov)
+
+
+def views_read(sql: str, view_sql_map: dict[str, str]) -> dict[str, str]:
+    """Every view ``sql`` reads, directly or through another view, with its SQL."""
+    read: dict[str, str] = {}
+    pending = [sql]
+    while pending:
+        text = pending.pop()
+        for view, view_sql in view_sql_map.items():
+            if view not in read and view in text:
+                read[view] = view_sql
+                pending.append(view_sql)
+    return read
+
+
+def semantic_statement(
     sql: str,
     view_sql_map: dict[str, str],
     state: Any,
     gov: "GovernanceContext",
-) -> dict[str, str]:
-    """For each view ``sql`` — a statement ALREADY governed — references (directly or through
-    another view), what replaces the reference for the role ``gov`` was built for: its stored
-    rows, or its SQL with the role's rules on every table it reads; the view table's own rules
-    on top."""
-    from provisa.compiler.stage2 import govern_fragment  # noqa: PLC0415
+    *,
+    as_of: str | None = None,
+) -> tuple[str, str]:
+    """``sql`` as ONE semantic statement for governance: ``(governed, validated)``.
 
+    ``governed`` has every view it reads, directly or through another view, replaced by its SQL
+    with the view table's own rules on top -- except a view answered after governance, which stays
+    the registered table it is. ``validated`` has those expanded too: the V-rules judge every
+    table and every join any view reads, for this reader."""
+    from provisa.compiler.view_expand import expand_view_refs  # noqa: PLC0415
+
+    bodies: dict[str, str] = {}
+    for view, view_sql in views_read(sql, view_sql_map).items():
+        require_inputs_in_service(view_sql, state)
+        if not _answered_after_governance(view, view_sql_map, state, gov, as_of):
+            require_inputs_reached(view_sql, gov)
+            bodies[view] = _with_own_rules(view, view_sql, gov)
+    governed = expand_view_refs(sql, bodies)
+    return governed, expand_view_refs(governed, view_sql_map)
+
+
+def unnarrowed_view_bodies(
+    sql: str, view_sql_map: dict[str, str], state: Any, *, as_of: str | None = None
+) -> dict[str, str]:
+    """Optimization: what replaces each view ``sql`` still references, directly or through another
+    view -- its region's copy, an as-of read of a bitemporal view's append log, its stored rows
+    when it is materialized and its build is fresh, else its own SQL. For a governed statement
+    these are the views :func:`semantic_statement` kept; for a read that acts for no role (an MV
+    refresh builds a view whole) every view."""
+    from provisa.mv.bitemporal import as_of_view_map  # noqa: PLC0415
+
+    bitemporal = (getattr(state, "bitemporal_view_reads", None) or {}) if as_of else {}
+    as_of_reads = as_of_view_map(view_sql_map, bitemporal, as_of) if as_of else view_sql_map
     bodies: dict[str, str] = {}
     pending = [sql]
     while pending:
@@ -195,32 +251,8 @@ def view_bodies(
         for view, view_sql in view_sql_map.items():
             if view in bodies or view not in text:
                 continue
-            require_inputs_in_service(view_sql, state)
-            stored = _stored_rows(view, state)
-            home = _home_copy(view, state)
-            if home is not None:
-                body = home  # its region's copy, with the view's own rules on it below
-            elif stored is not None and sees_everything(view, view_sql_map, gov):
-                body = stored
-            else:
-                require_inputs_reached(view_sql, gov)
-                body = govern_fragment(view_sql, gov)
-                pending.append(view_sql)
-            bodies[view] = _with_own_rules(view, body, gov)
-    return bodies
-
-
-def unnarrowed_view_bodies(sql: str, view_sql_map: dict[str, str], state: Any) -> dict[str, str]:
-    """For a read that acts for no role (an MV refresh builds a view whole), what replaces each
-    view ``sql`` references, directly or through another view: by the same rule as
-    :func:`view_bodies` with nothing narrowed — its stored rows when it is materialized and its
-    build is fresh, else its own SQL."""
-    bodies: dict[str, str] = {}
-    pending = [sql]
-    while pending:
-        text = pending.pop()
-        for view, view_sql in view_sql_map.items():
-            if view in bodies or view not in text:
+            if view in bitemporal:
+                bodies[view] = as_of_reads[view]
                 continue
             stored = _home_copy(view, state) or _stored_rows(view, state)
             if stored is None:
@@ -229,34 +261,3 @@ def unnarrowed_view_bodies(sql: str, view_sql_map: dict[str, str], state: Any) -
             else:
                 bodies[view] = stored
     return bodies
-
-
-def split_for_whole_statement_governance(
-    sql: str, view_sql_map: dict[str, str], state: Any, gov: "GovernanceContext"
-) -> tuple[dict[str, str], dict[str, str]]:
-    """For a caller that validates and governs the whole statement AFTER expanding views (the
-    GraphQL endpoint): ``(before, after)``.
-
-    ``before``: the views to expand first, as their own SQL — the statement's validation and
-    governance then reach the tables inside, with the view table's own rules already on top.
-    ``after``: the views read from their stored rows, to expand once the statement has been
-    validated and governed — until then each is the registered table it is, so the statement's
-    governance applies the view table's own rules to it, and its store address (which is no
-    registered table) never meets the validator."""
-    before: dict[str, str] = {}
-    after: dict[str, str] = {}
-    pending = [sql]
-    while pending:
-        text = pending.pop()
-        for view, view_sql in view_sql_map.items():
-            if view in before or view in after or view not in text:
-                continue
-            require_inputs_in_service(view_sql, state)
-            stored = _stored_rows(view, state)
-            if stored is not None and sees_everything(view, view_sql_map, gov):
-                after[view] = stored
-            else:
-                require_inputs_reached(view_sql, gov)
-                before[view] = _with_own_rules(view, view_sql, gov)
-                pending.append(view_sql)
-    return before, after

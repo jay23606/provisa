@@ -102,7 +102,8 @@ def _build(monkeypatch, *, view: dict, drafts: list[dict], role: dict | None = N
 
 
 async def _read_the_view(state) -> str:
-    """The statement a reader's read of the view hands to routing."""
+    """The statement a reader's read of the view hands to routing: one statement, the view's SQL
+    in place of its reference, governed and lowered whole."""
     from provisa.compiler.directives import NO_CACHE_HINT
     from provisa.pgwire import _pipeline
 
@@ -130,7 +131,7 @@ async def test_a_view_over_a_table_out_of_service_is_refused_naming_the_table(mo
 
 async def test_the_view_is_answered_again_once_its_input_is_released(monkeypatch):
     state = _build(monkeypatch, view=_view(_OVER_A_SERVED_TABLE), drafts=[_refunds()])
-    assert '"sales"."orders"' in await _read_the_view(state)
+    assert '"pg"."public"."orders"' in await _read_the_view(state)
 
 
 @pytest.mark.parametrize(
@@ -203,7 +204,7 @@ async def test_a_view_over_tables_its_reader_reaches_is_answered_under_its_rules
     state = _build(monkeypatch, view=_view(_OVER_A_SERVED_TABLE), drafts=[])
     state.rls_contexts["r"] = RLSContext(rules={1: "id > 100"}, domain_rules={}, action_rules={})
     routed = (await _read_the_view(state)).replace('"', "")
-    assert "FROM sales.orders" in routed and "orders.id > 100" in routed
+    assert "FROM pg.public.orders" in routed and "orders.id > 100" in routed
 
 
 async def test_a_reader_who_reaches_the_other_domain_reads_the_same_view(monkeypatch):
@@ -213,7 +214,7 @@ async def test_a_reader_who_reaches_the_other_domain_reads_the_same_view(monkeyp
         drafts=[],
         role={"id": "r", "capabilities": ["usage"], "domain_access": ["sales", "finance"]},
     )
-    assert '"finance"."ledger"' in await _read_the_view(state)
+    assert '"pg"."public"."ledger"' in await _read_the_view(state)
 
 
 def test_a_table_the_reader_sees_part_of_is_governed_not_refused():

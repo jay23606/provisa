@@ -26,9 +26,10 @@ The rule is stated over table INSTANCES -- each time a statement reads a registe
 self-join needs a registered self-relationship like any other pair -- and every column reference
 is traced to the instance it comes from, through CTE, derived-table and subquery boundaries. A
 column that is an expression over a base column is not that column: an equality on it is not a
-column equality. A registered view is the registered table it is; the statement is checked as
-written, before any view is expanded, so a view's internals -- governed when it was registered
--- are not examined again, and a relationship to a view is registered on the view.
+column equality. The statement checked is the ONE semantic statement: every view it reads is
+replaced by its SQL first (provisa.mv.view_read), so every join any view makes is held to the
+reader's relationships. A materialized view the reader sees whole keeps its reference through
+governance and is answered from its stored rows at optimization; its SQL is checked all the same.
 """
 
 # Requirements: REQ-603
