@@ -5,6 +5,7 @@
     "intro": "合成数据集以所选规模，用与其指定的已画像表形态一致的生成数据填充非生产环境。在该环境中，这些表读取生成的数据而不是其数据源。",
     "environment": "环境",
     "noEnvironment": "请创建一个非生产环境来存放合成数据集；生产环境不能存放。",
+    "createEnvironment": "创建环境",
     "colName": "名称",
     "colStatus": "状态",
     "colScale": "规模",

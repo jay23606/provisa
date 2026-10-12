@@ -5798,5 +5798,6 @@
   "zh-HK/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "zh-HK/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "zh-HK/tableSections.json::tableSections.contractSet": "Set",
-  "zh-HK/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source."
+  "zh-HK/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
+  "zh-HK/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
 }

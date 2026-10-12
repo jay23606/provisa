@@ -5,6 +5,7 @@
     "intro": "Ein synthetischer Datensatz füllt eine Nicht-Produktionsumgebung mit generierten Daten, die den profilierten Tabellen nachgebildet sind, in einem gewählten Maßstab. In dieser Umgebung lesen seine Tabellen die generierten Daten anstelle ihrer Quellen.",
     "environment": "Umgebung",
     "noEnvironment": "Legen Sie eine Nicht-Produktionsumgebung an, um einen synthetischen Datensatz aufzunehmen; die Produktion kann keinen enthalten.",
+    "createEnvironment": "Umgebung erstellen",
     "colName": "Name",
     "colStatus": "Status",
     "colScale": "Maßstab",

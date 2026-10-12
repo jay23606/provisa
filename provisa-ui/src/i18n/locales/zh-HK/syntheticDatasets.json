@@ -5,6 +5,7 @@
     "intro": "合成數據集以所選規模，用與其指定的已剖析資料表形態一致的生成數據填充非生產環境。在該環境中，這些資料表讀取生成的數據而非其資料來源。",
     "environment": "環境",
     "noEnvironment": "請建立一個非生產環境來存放合成數據集；生產環境不能存放。",
+    "createEnvironment": "建立環境",
     "colName": "名稱",
     "colStatus": "狀態",
     "colScale": "規模",

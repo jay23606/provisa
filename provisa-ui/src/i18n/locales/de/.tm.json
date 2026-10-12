@@ -5797,5 +5797,6 @@
   "de/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "de/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "de/tableSections.json::tableSections.contractSet": "Set",
-  "de/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source."
+  "de/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
+  "de/syntheticDatasets.json::syntheticDatasets.createEnvironment": "Create environment"
 }

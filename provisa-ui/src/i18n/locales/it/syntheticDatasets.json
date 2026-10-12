@@ -5,6 +5,7 @@
     "intro": "Un set di dati sintetico riempie un ambiente non di produzione con dati generati sul modello delle tabelle profilate che nomina, alla scala scelta. In quell'ambiente le sue tabelle leggono i dati generati al posto delle loro origini.",
     "environment": "Ambiente",
     "noEnvironment": "Crea un ambiente non di produzione per ospitare un set di dati sintetico; la produzione non può ospitarne.",
+    "createEnvironment": "Crea ambiente",
     "colName": "Nome",
     "colStatus": "Stato",
     "colScale": "Scala",
