@@ -30,7 +30,6 @@ platform) and recorded but non-fatal. Usage: python mirror_duckdb_extensions.py 
 from __future__ import annotations
 
 import hashlib
-import inspect
 import json
 import shutil
 import sys
@@ -41,21 +40,24 @@ import duckdb
 # Core scanners the base DuckDB connectors (postgres/sqlite ATTACH) need but don't declare as an
 # extension (DuckDB auto-loads them); mirrored so offline attach works. name -> required.
 _CORE_SCANNERS = {"postgres": True, "sqlite": True}
+# REQ-1997: what a file source's location needs (connector_duckdb.file_location_details): httpfs
+# for https, s3 and gcs, azure for Azure -- loaded by the runtime, declared by no connector.
+_LOCATION_EXTENSIONS = ("httpfs", "azure")
 _REQUIRED_CORE = {"postgres", "sqlite", "iceberg"}
 
 
 def _extension_list() -> dict[str, bool]:
-    """name -> from_community, derived from the DuckDB connector defs + the core scanners."""
-    from provisa.federation import connector as c
+    """name -> from_community: every extension the DuckDB engine's own connectors declare (the
+    engine is built as the runtime builds it, so a connector moved between modules is still
+    found), the core scanners, and the file-location extensions."""
+    from provisa.federation.engine import build_duckdb_engine
 
     exts: dict[str, bool] = {}
-    for name in dir(c):
-        obj = getattr(c, name)
-        if inspect.isclass(obj) and getattr(obj, "engine", None) == "duckdb":
-            ext = getattr(obj, "extension", None)
-            if ext:
-                exts[ext] = bool(getattr(obj, "install_from_community", False))
-    for ext in _CORE_SCANNERS:
+    for connector in build_duckdb_engine().connectors.values():
+        ext = getattr(connector, "extension", None)
+        if ext:
+            exts[ext] = bool(getattr(connector, "install_from_community", False))
+    for ext in (*_CORE_SCANNERS, *_LOCATION_EXTENSIONS):
         exts.setdefault(ext, False)
     return exts
 
