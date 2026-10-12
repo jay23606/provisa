@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 A interface de configurações cobre redirecionamento de resultados grandes, amostragem e limite de linhas padrão, TTL do cache de resposta, convenção de nomenclatura, rastreamento automático de FK de relacionamento, DSN do armazenamento de materialização, memória do motor de federação (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`) e toda a interface de ajuste do pipeline de rastreamento OpenTelemetry (REQ-1082). Limites de travessia de GraphQL remoto e configurações de camada morna/cache de leitura também são expostos (REQ-1081, REQ-1083).
 
+O cartão **Servidores de conectores** nomeia, para cada conector com um servidor incluído (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica), uma pasta contendo um pacote de servidor construído para este host (`connectors.<connector>.bundle_dir`, variável de ambiente `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). Vazio, o servidor do conector é obtido da versão fixada de `kenstott/calcite`. Definido, a pasta é usada como está: seu launcher deve estar em `bin/pgwire-<connector>`, e uma pasta sem ele impede o servidor do conector de iniciar com um erro nomeando a configuração; a versão nunca é obtida em seu lugar. A configuração é lida a cada vez que o servidor de um conector inicia (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 Postura de segurança — `security.mode` (`standard` | `high`) — aplicada na reinicialização (REQ-1079):
 
 ```http

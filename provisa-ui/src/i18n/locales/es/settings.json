@@ -677,6 +677,50 @@
       "read_before_control_plane": "Este ajuste se lee antes de que el plano de control esté disponible, por lo que se define fuera de la interfaz.",
       "set_by_launcher": "El lanzador que inició esta implementación define este valor.",
       "set_by_desktop_launcher": "El lanzador de escritorio define este valor para esta instalación."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de Cloud Inventory",
+          "help": "Una carpeta con un paquete del servidor de Cloud Inventory compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de File Crawler",
+          "help": "Una carpeta con un paquete del servidor de File Crawler compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de AskAmerica",
+          "help": "Una carpeta con un paquete del servidor de AskAmerica compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de Salesforce",
+          "help": "Una carpeta con un paquete del servidor de Salesforce compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de ServiceNow",
+          "help": "Una carpeta con un paquete del servidor de ServiceNow compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de SharePoint",
+          "help": "Una carpeta con un paquete del servidor de SharePoint compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Carpeta del paquete del servidor de Splunk",
+          "help": "Una carpeta con un paquete del servidor de Splunk compilado para este host, con su lanzador en bin/. Vacía, se usa la versión fijada. Una carpeta sin el lanzador impide que el servidor arranque e indica este ajuste."
+        }
+      }
     }
   }
 }

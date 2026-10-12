@@ -44,6 +44,8 @@
     "maxListDepthHint": "Profondeur d'imbrication à partir de laquelle les champs de liste ne sont plus suivis.",
     "maxListItems": "Éléments de liste max",
     "maxListItemsHint": "L'argument first: que Provisa envoie sur un champ de liste distant.",
+    "maxRows": "Lignes max par lecture",
+    "maxRowsHint": "Le nombre maximal de lignes que prend une lecture d'une table distante paginée, en suivant son curseur page par page.",
     "serverLimits": "Délais d'expiration des requêtes",
     "serverLimitsHint": "Les transports véhiculent des charges de travail différentes ; définissez la durée pendant laquelle une requête peut s'exécuter sur chacun. Une requête peut raccourcir son propre délai, mais pas dépasser cette valeur.",
     "rowLimit": "Limite de lignes par défaut",
@@ -87,6 +89,7 @@
         "limits": "Limites du serveur",
         "concurrency": "Concurrence",
         "engine": "Moteur",
+        "connectors": "Serveurs des connecteurs",
         "security": "Sécurité",
         "network": "Réseau et TLS",
         "cache": "Cache",
@@ -189,8 +192,6 @@
     "policyApplied": "Politique de domaines appliquée.",
     "policyApplyFailed": "Échec de l'application de la politique de domaine",
     "settingsPanel": "Paramètres",
-    "maxRows": "Lignes max par lecture",
-    "maxRowsHint": "Le nombre maximal de lignes que prend une lecture d'une table distante paginée, en suivant son curseur page par page.",
     "deleteDomainTitle": "Supprimer le domaine « {{id}} » ?",
     "deleteDomainConsequence": "Le domaine est supprimé. Un domaine encore utilisé ne peut pas être supprimé."
   }

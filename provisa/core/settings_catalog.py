@@ -1034,5 +1034,6 @@ from provisa.core.settings_catalog_telemetry import DECLARED as _TELEMETRY  # no
 from provisa.core.settings_catalog_engine import DECLARED as _ENGINE  # noqa: E402
 from provisa.core.settings_catalog_redirect import DECLARED as _REDIRECT  # noqa: E402
 from provisa.core.settings_catalog_tiers import DECLARED as _TIERS  # noqa: E402
+from provisa.core.settings_catalog_connectors import DECLARED as _CONNECTORS  # noqa: E402
 
-DECLARED += _TIERS + _REDIRECT + _TELEMETRY + _ENGINE
+DECLARED += _TIERS + _REDIRECT + _TELEMETRY + _ENGINE + _CONNECTORS

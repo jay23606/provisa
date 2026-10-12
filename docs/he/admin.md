@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 משטח ההגדרות מכסה הפניית תוצאות גדולות, דגימה ומגבלת שורות כברירת מחדל, ‏TTL של מטמון תגובות, מוסכמת שמות, מעקב אוטומטי אחר FK בקשרים, ‏DSN של מאגר המטריאליזציה, זיכרון מנוע הפדרציה (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`), ואת מלוא משטח הכוונון של צינור המעקב של OpenTelemetry ‏(REQ-1082). גם מגבלות מעבר של GraphQL מרוחק והגדרות שכבה חמה / מטמון קריאה חשופות (REQ-1081, REQ-1083).
 
+כרטיס **שרתי מחברים** מציין, עבור כל מחבר בעל שרת מצורף (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica), תיקייה המכילה חבילת שרת שנבנתה עבור מארח זה (`connectors.<connector>.bundle_dir`, משתנה סביבה `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). ריקה — שרת המחבר נשלף מה-release הקבוע של `kenstott/calcite`. מוגדרת — התיקייה משמשת כפי שהיא: ה-launcher שלה חייב להיות ב-`bin/pgwire-<connector>`, ותיקייה ללא מפעיל זה מונעת הפעלת שרת המחבר עם שגיאה המזכירה את ההגדרה — ה-release אינו נשלף במקומו. ההגדרה נקראת בכל פעם שמופעל שרת של מחבר (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 תנוחת אבטחה — `security.mode` (`standard` | `high`) — מיושמת באתחול מחדש (REQ-1079):
 
 ```http

@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 Поверхность настроек охватывает перенаправление больших результатов, выборку и лимит строк по умолчанию, TTL кеша ответов, соглашение об именовании, автоотслеживание FK для связей, DSN хранилища материализации, память федеративного движка (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`) и всю поверхность тонкой настройки конвейера трассировки OpenTelemetry (REQ-1082). Также доступны лимиты обхода удалённого GraphQL и настройки тёплого уровня и кеша чтения (REQ-1081, REQ-1083).
 
+Карточка **Серверы коннекторов** задаёт для каждого коннектора, имеющего встроенный сервер (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica), папку с серверным пакетом, собранным для этого хоста (`connectors.<connector>.bundle_dir`, переменная окружения `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). Пустая — сервер коннектора загружается из закреплённого релиза `kenstott/calcite`. Заданная — папка используется как есть: лаунчер должен находиться по пути `bin/pgwire-<connector>`; папка без него останавливает запуск сервера коннектора с ошибкой, в которой указана настройка, — релиз в этом случае не загружается. Настройка читается при каждом запуске сервера коннектора (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 Профиль безопасности — `security.mode` (`standard` | `high`) — применяется при перезапуске (REQ-1079):
 
 ```http

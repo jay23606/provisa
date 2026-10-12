@@ -430,5 +430,7 @@ def test_a_named_bundle_without_its_launcher_is_refused_not_replaced(tmp_path, m
         raise AssertionError("the pinned release was fetched")
 
     resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=download)
-    with pytest.raises(rd.BundleUnavailable, match="PROVISA_PGWIRE_BUNDLE_SERVICENOW names"):
+    with pytest.raises(
+        rd.BundleUnavailable, match="setting connectors.servicenow.bundle_dir names"
+    ):
         resolver.resolve(rd.bundle_spec_for("servicenow"))

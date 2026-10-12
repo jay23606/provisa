@@ -677,6 +677,50 @@
       "read_before_control_plane": "此设置在控制平面可用之前就已被读取，因此需在 UI 之外设置。",
       "set_by_launcher": "此值由启动此部署的启动器设置。",
       "set_by_desktop_launcher": "此值由桌面启动器为此安装设置。"
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Cloud Inventory 服务器包文件夹",
+          "help": "存放为本主机构建的 Cloud Inventory 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "File Crawler 服务器包文件夹",
+          "help": "存放为本主机构建的 File Crawler 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "AskAmerica 服务器包文件夹",
+          "help": "存放为本主机构建的 AskAmerica 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Salesforce 服务器包文件夹",
+          "help": "存放为本主机构建的 Salesforce 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "ServiceNow 服务器包文件夹",
+          "help": "存放为本主机构建的 ServiceNow 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "SharePoint 服务器包文件夹",
+          "help": "存放为本主机构建的 SharePoint 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Splunk 服务器包文件夹",
+          "help": "存放为本主机构建的 Splunk 服务器包的文件夹，其启动程序位于 bin/ 下。留空则使用固定的发行版。文件夹中没有启动程序时，服务器无法启动，并会指出此设置。"
+        }
+      }
     }
   }
 }

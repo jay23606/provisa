@@ -677,6 +677,50 @@
       "read_before_control_plane": "Questa impostazione viene letta prima che il piano di controllo sia disponibile, quindi si imposta al di fuori dell'interfaccia.",
       "set_by_launcher": "Questo valore è impostato dal launcher che ha avviato la distribuzione.",
       "set_by_desktop_launcher": "Questo valore è impostato dal launcher desktop per questa installazione."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di Cloud Inventory",
+          "help": "Una cartella con un pacchetto server di Cloud Inventory compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di File Crawler",
+          "help": "Una cartella con un pacchetto server di File Crawler compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di AskAmerica",
+          "help": "Una cartella con un pacchetto server di AskAmerica compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di Salesforce",
+          "help": "Una cartella con un pacchetto server di Salesforce compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di ServiceNow",
+          "help": "Una cartella con un pacchetto server di ServiceNow compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di SharePoint",
+          "help": "Una cartella con un pacchetto server di SharePoint compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Cartella del pacchetto server di Splunk",
+          "help": "Una cartella con un pacchetto server di Splunk compilato per questo host, con il suo avviatore in bin/. Vuota, si usa la release fissata. Una cartella senza avviatore impedisce l'avvio del server e indica questa impostazione."
+        }
+      }
     }
   }
 }

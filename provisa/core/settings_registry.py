@@ -53,6 +53,7 @@ CARDS = (
     "limits",
     "concurrency",
     "engine",
+    "connectors",
     "security",
     "network",
     "cache",

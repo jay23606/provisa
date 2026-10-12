@@ -44,6 +44,8 @@
     "maxListDepthHint": "达到该嵌套深度后不再继续跟随列表字段。",
     "maxListItems": "最大列表项数",
     "maxListItemsHint": "Provisa 在远程列表字段上发送的 first: 参数。",
+    "maxRows": "每次读取的最大行数",
+    "maxRowsHint": "对分页的远程表进行一次读取时，逐页跟随其游标所获取的最大行数。",
     "serverLimits": "请求超时",
     "serverLimitsHint": "不同传输承载不同的工作负载；请设置每种传输上请求可运行的时长。请求可以缩短自身的截止时间，但不能超过此值。",
     "rowLimit": "默认行数上限",
@@ -87,6 +89,7 @@
         "limits": "服务器限制",
         "concurrency": "并发",
         "engine": "引擎",
+        "connectors": "连接器服务器",
         "security": "安全",
         "network": "网络和 TLS",
         "cache": "缓存",
@@ -189,8 +192,6 @@
     "policyApplied": "域策略已应用。",
     "policyApplyFailed": "应用域策略失败",
     "settingsPanel": "设置",
-    "maxRows": "每次读取的最大行数",
-    "maxRowsHint": "对分页的远程表进行一次读取时，逐页跟随其游标所获取的最大行数。",
     "deleteDomainTitle": "删除域“{{id}}”？",
     "deleteDomainConsequence": "该域将被移除。仍在使用中的域无法删除。"
   }

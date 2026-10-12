@@ -677,6 +677,50 @@
       "read_before_control_plane": "Esta configuração é lida antes de o plano de controle estar disponível, portanto é definida fora da interface.",
       "set_by_launcher": "O launcher que iniciou esta implantação define este valor.",
       "set_by_desktop_launcher": "O launcher desktop define este valor para esta instalação."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor Cloud Inventory",
+          "help": "Uma pasta com um pacote do servidor Cloud Inventory compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor File Crawler",
+          "help": "Uma pasta com um pacote do servidor File Crawler compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor AskAmerica",
+          "help": "Uma pasta com um pacote do servidor AskAmerica compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor Salesforce",
+          "help": "Uma pasta com um pacote do servidor Salesforce compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor ServiceNow",
+          "help": "Uma pasta com um pacote do servidor ServiceNow compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor SharePoint",
+          "help": "Uma pasta com um pacote do servidor SharePoint compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Pasta do pacote do servidor Splunk",
+          "help": "Uma pasta com um pacote do servidor Splunk compilado para este host, com o inicializador em bin/. Vazia, usa a versão fixada. Uma pasta sem o inicializador impede o servidor de iniciar e cita esta configuração."
+        }
+      }
     }
   }
 }
