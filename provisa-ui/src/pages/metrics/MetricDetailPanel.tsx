@@ -8,13 +8,13 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import React from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Group, Stack, Text } from "@mantine/core";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Metric } from "../../types/admin";
 import { PanelActions } from "../../components/list/SplitPane";
 import { Tip } from "../../components/Tip";
+import { DetailFields } from "../../components/detail/DetailFields";
 
 interface MetricDetailPanelProps {
   m: Metric;
@@ -75,55 +75,47 @@ function MetricActions({
 export function MetricDetailPanel({ m, dependentViews, onEdit, onDelete }: MetricDetailPanelProps) {
   const { t } = useTranslation();
 
-  const rows: [string, React.ReactNode][] = [
-    [
-      "expression",
-      <Text key="expr" component="span" size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
-        {m.expression}
-      </Text>,
-    ],
-    ["datatype", m.datatype || "—"],
-    ["description", m.description || "—"],
-    ["aiContext", m.aiContext || "—"],
-    ["sourceFact", m.fromFact ?? t("metricsPage.detail.handAuthored")],
-    // REQ-1958: null is "not shown to you" (no view_governance), not "granted to everyone".
-    [
-      "visibleTo",
-      m.visibleTo === null
-        ? t("tableReadView.notShown")
-        : m.visibleTo.length
-          ? m.visibleTo.join(", ")
-          : "*",
-    ],
-    [
-      "dependentViews",
-      dependentViews.length ? dependentViews.join(", ") : t("metricsPage.detail.noDependents"),
-    ],
-  ];
-
   return (
     <Stack gap="sm" data-testid={`metric-detail-${m.name}`}>
       <MetricActions m={m} onEdit={onEdit} onDelete={onDelete} />
-      <dl
-        style={{
-          display: "grid",
-          gridTemplateColumns: "max-content 1fr",
-          gap: "0.25rem 1rem",
-          margin: 0,
-          color: "var(--text)",
-        }}
-      >
-        {rows.map(([k, v]) => (
-          <React.Fragment key={k}>
-            <Text component="dt" c="dimmed" fw={500} size="sm">
-              {t(`metricsPage.detail.field.${k}`)}
-            </Text>
-            <Text component="dd" m={0} size="sm">
-              {v}
-            </Text>
-          </React.Fragment>
-        ))}
-      </dl>
+      {/* Every value of the metric, under its form's labels. */}
+      <DetailFields
+        testId={`metric-read-${m.name}`}
+        fields={[
+          { label: t("metricsPage.fieldName"), value: m.name },
+          {
+            label: t("metricsPage.fieldExpression"),
+            value: (
+              <Text component="span" size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
+                {m.expression}
+              </Text>
+            ),
+          },
+          { label: t("metricsPage.fieldDatatype"), value: m.datatype },
+          { label: t("metricsPage.fieldDescription"), value: m.description },
+          { label: t("metricsPage.fieldAiContext"), value: m.aiContext },
+          {
+            label: t("metricsPage.builderFact"),
+            value: m.fromFact ?? t("metricsPage.detail.handAuthored"),
+          },
+          // REQ-1958: null is "not shown to you" (no view_governance), not "granted to everyone".
+          {
+            label: t("metricsPage.detail.field.visibleTo"),
+            value:
+              m.visibleTo === null
+                ? t("tableReadView.notShown")
+                : m.visibleTo.length
+                  ? m.visibleTo.join(", ")
+                  : "*",
+          },
+          {
+            label: t("metricsPage.detail.field.dependentViews"),
+            value: dependentViews.length
+              ? dependentViews.join(", ")
+              : t("metricsPage.detail.noDependents"),
+          },
+        ]}
+      />
     </Stack>
   );
 }

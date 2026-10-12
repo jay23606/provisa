@@ -18,11 +18,6 @@
       "handAuthored": "handmatig opgesteld",
       "noDependents": "geen",
       "field": {
-        "expression": "Expressie",
-        "datatype": "Datatype",
-        "description": "Beschrijving",
-        "aiContext": "AI-context",
-        "sourceFact": "Bronfeit",
         "visibleTo": "Zichtbaar voor",
         "dependentViews": "Afhankelijke metric-views"
       }

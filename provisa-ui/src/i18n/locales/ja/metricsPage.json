@@ -18,11 +18,6 @@
       "handAuthored": "手動作成",
       "noDependents": "なし",
       "field": {
-        "expression": "式",
-        "datatype": "データ型",
-        "description": "説明",
-        "aiContext": "AIコンテキスト",
-        "sourceFact": "ソースファクト",
         "visibleTo": "参照可能ロール",
         "dependentViews": "依存するメトリクスビュー"
       }

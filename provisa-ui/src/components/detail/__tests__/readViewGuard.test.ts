@@ -43,6 +43,14 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "residencyGrant.right": "the data_residency capability's tick: shown in Capabilities",
     },
   },
+  Metrics: {
+    read: ["pages/metrics/MetricDetailPanel.tsx"],
+    form: ["pages/MetricsPage.tsx"],
+    notAField: {
+      "metricsPage.builderMeasure": "a step of the builder that writes the expression: shown in it",
+      "metricsPage.builderAgg": "a step of the builder that writes the expression: shown in it",
+    },
+  },
   "Security › RLS Rules": {
     read: ["pages/security/RlsRuleRead.tsx"],
     form: ["pages/security/SecurityRlsPage.tsx"],

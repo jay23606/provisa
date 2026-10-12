@@ -18,11 +18,6 @@
       "handAuthored": "creada manualmente",
       "noDependents": "ninguna",
       "field": {
-        "expression": "Expresión",
-        "datatype": "Tipo de datos",
-        "description": "Descripción",
-        "aiContext": "Contexto de IA",
-        "sourceFact": "Hecho de origen",
         "visibleTo": "Visible para",
         "dependentViews": "Vistas de métricas dependientes"
       }

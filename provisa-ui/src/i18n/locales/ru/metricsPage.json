@@ -18,11 +18,6 @@
       "handAuthored": "создано вручную",
       "noDependents": "нет",
       "field": {
-        "expression": "Выражение",
-        "datatype": "Тип данных",
-        "description": "Описание",
-        "aiContext": "Контекст ИИ",
-        "sourceFact": "Исходный факт",
         "visibleTo": "Видимость",
         "dependentViews": "Зависимые представления метрик"
       }

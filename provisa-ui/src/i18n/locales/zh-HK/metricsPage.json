@@ -18,11 +18,6 @@
       "handAuthored": "手動編寫",
       "noDependents": "無",
       "field": {
-        "expression": "運算式",
-        "datatype": "數據類型",
-        "description": "描述",
-        "aiContext": "AI 內容",
-        "sourceFact": "來源事實表",
         "visibleTo": "可見對象",
         "dependentViews": "相依的指標檢視"
       }
