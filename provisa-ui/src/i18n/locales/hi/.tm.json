@@ -5738,8 +5738,6 @@
   "hi/tableSections.json::tableSections.noTerms": "No glossary term names a column of this table",
   "hi/tableSections.json::tableSections.relationships": "Relationships",
   "hi/tableSections.json::tableSections.noRelationships": "This table takes part in no relationship",
-  "hi/tableSections.json::tableSections.yes": "Yes",
-  "hi/tableSections.json::tableSections.no": "No",
   "hi/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "hi/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "hi/tableSections.json::tableSections.contractSet": "Set",

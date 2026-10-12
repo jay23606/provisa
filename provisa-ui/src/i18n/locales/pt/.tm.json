@@ -5738,8 +5738,6 @@
   "pt/tableSections.json::tableSections.noTerms": "No glossary term names a column of this table",
   "pt/tableSections.json::tableSections.relationships": "Relationships",
   "pt/tableSections.json::tableSections.noRelationships": "This table takes part in no relationship",
-  "pt/tableSections.json::tableSections.yes": "Yes",
-  "pt/tableSections.json::tableSections.no": "No",
   "pt/tableSections.json::tableSections.fromSource": "{{value}} (from the source)",
   "pt/tableSections.json::tableSections.fromSourceAsIs": "As the source has it",
   "pt/tableSections.json::tableSections.contractSet": "Set",

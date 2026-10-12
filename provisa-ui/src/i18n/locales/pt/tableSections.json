@@ -17,8 +17,6 @@
     "noTerms": "Nenhum termo do glossário nomeia uma coluna desta tabela",
     "relationships": "Relacionamentos",
     "noRelationships": "Esta tabela não participa de nenhum relacionamento",
-    "yes": "Sim",
-    "no": "Não",
     "fromSource": "{{value}} (da fonte)",
     "fromSourceAsIs": "Como na fonte",
     "contractSet": "Definido",

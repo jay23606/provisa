@@ -16,6 +16,14 @@ import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { NAMING_CONVENTIONS } from "./constants";
 import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
 import { changeSignalChoices, isCheckerSource, unset, yesNo } from "./tableSectionFields";
+import {
+  deltaFields,
+  liveFields,
+  mvStoreFields,
+  offPeakFields,
+  pagingFields,
+  snapshotFields,
+} from "./loadReadFields";
 
 // A table's sections read-only: the read view shows them, and so does the edit form to a caller
 // who may change only how columns are hidden. Each lists the fields its edit tab has, in the same
@@ -66,12 +74,12 @@ export function IdentityRead({ table }: { table: RegisteredTable }) {
     { label: t("tableSections.domain"), value: table.domainId },
     {
       label: t("tableEditForm.sqlAliasLabel"),
-      value: table.alias ?? unset(t("tableReadView.none")),
+      value: table.alias ?? null,
     },
     { label: t("tableEditForm.namingConventionLabel"), value: naming },
     {
       label: t("tableEditForm.descriptionLabel"),
-      value: table.description || unset(t("tableReadView.none")),
+      value: table.description || null,
       testId: "table-identity-description",
     },
     { label: t("tableEditForm.draftLabel"), value: yesNo(t, table.draft) },
@@ -104,11 +112,7 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
           },
           {
             label: t("tableEditForm.freshnessProbeLabel"),
-            value: table.probeQuery ? (
-              <code>{table.probeQuery}</code>
-            ) : (
-              unset(t("tableReadView.none"))
-            ),
+            value: table.probeQuery ? <code>{table.probeQuery}</code> : null,
           },
         ]
       : []),
@@ -121,8 +125,14 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
                   label: t("tableEditForm.refreshIntervalLabel"),
                   value: String(table.mvRefreshInterval),
                 },
+                {
+                  label: t("tableEditForm.nrtDebounceLabel"),
+                  value: `${table.mvDebounceQuiet} / ${table.mvDebounceMaxDelay}`,
+                },
               ]
             : []),
+          ...mvStoreFields(t, table),
+          ...snapshotFields(t, table),
         ]
       : [
           {
@@ -148,23 +158,37 @@ export function LoadRead({ table, source }: { table: RegisteredTable; source?: S
             value:
               table.roleTtl.length > 0
                 ? table.roleTtl.map((r) => `${r.role}: ${r.ttl}`).join(", ")
-                : unset(t("tableReadView.none")),
+                : null,
           },
+          ...pagingFields(t, table),
+          // A window the table does not set is its source's: said as that, not as none.
           ...(loadProtected
-            ? [
-                {
-                  label: t("tableEditForm.offPeakWindowLabel"),
-                  value: table.offPeakWindow ?? unset(t("tableSections.fromSourceAsIs")),
-                },
-                {
-                  label: t("tableEditForm.offPeakTzLabel"),
-                  value: table.offPeakTz ?? unset(t("tableSections.fromSourceAsIs")),
-                },
-              ]
+            ? table.offPeakWindow
+              ? offPeakFields(t, table)
+              : [
+                  {
+                    label: t("tableEditForm.offPeakWindowLabel"),
+                    value: unset(t("tableSections.fromSourceAsIs")),
+                  },
+                  {
+                    label: t("tableEditForm.offPeakTzLabel"),
+                    value: table.offPeakTz ?? unset(t("tableSections.fromSourceAsIs")),
+                  },
+                ]
             : []),
         ]),
     { label: t("tableEditForm.delta.enable"), value: yesNo(t, table.delta != null) },
+    ...deltaFields(t, table),
     { label: t("liveDeliveryFieldset.enableLabel"), value: yesNo(t, table.live != null) },
+    ...(table.live
+      ? [
+          {
+            label: t("liveDeliveryFieldset.pushDebounceLabel"),
+            value: `${table.pushDebounceQuiet} / ${table.pushDebounceMaxDelay}`,
+          },
+        ]
+      : []),
+    ...liveFields(t, table),
   ];
   return (
     <>
@@ -186,15 +210,13 @@ export function QueryRead({ table }: { table: RegisteredTable }) {
           ? table.columnPresets
               .map((p) => `${p.column} = ${p.source === "literal" ? p.value : p.source}`)
               .join(", ")
-          : unset(t("tableReadView.none")),
+          : null,
     },
     {
       label: t("tableReadView.writable"),
       testId: "table-read-view-writable",
       value:
-        table.writeOps.length > 0
-          ? table.writeOps.map((op) => op.toUpperCase()).join(", ")
-          : unset(t("tableReadView.none")),
+        table.writeOps.length > 0 ? table.writeOps.map((op) => op.toUpperCase()).join(", ") : null,
     },
     ...(table.watermarkColumn
       ? [{ label: t("tableReadView.watermarkColumn"), value: <code>{table.watermarkColumn}</code> }]
@@ -228,9 +250,7 @@ export function QualityRead({ table, source }: { table: RegisteredTable; source?
       ? [
           {
             label: t("dataQualityPanel.title"),
-            value: table.dqContract
-              ? t("tableSections.contractSet")
-              : unset(t("tableReadView.none")),
+            value: table.dqContract ? t("tableSections.contractSet") : null,
           },
         ]
       : source?.type === "data_profiler"
@@ -238,7 +258,7 @@ export function QualityRead({ table, source }: { table: RegisteredTable; source?
         : [
             {
               label: t("profilerPanel.title"),
-              value: table.profilerSourceId ?? unset(t("tableReadView.none")),
+              value: table.profilerSourceId ?? null,
             },
           ]),
     {
@@ -246,7 +266,7 @@ export function QualityRead({ table, source }: { table: RegisteredTable; source?
       value:
         (table.uniqueConstraints ?? []).length > 0
           ? table.uniqueConstraints.map((u) => `${u.name} (${u.columns.join(", ")})`).join("; ")
-          : unset(t("tableReadView.none")),
+          : null,
     },
   ];
   return <DetailFields fields={fields} testId="table-quality" />;

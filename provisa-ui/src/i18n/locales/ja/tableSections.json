@@ -17,8 +17,6 @@
     "noTerms": "このテーブルの列を名付ける用語集の用語はありません",
     "relationships": "リレーションシップ",
     "noRelationships": "このテーブルはどのリレーションシップにも含まれていません",
-    "yes": "はい",
-    "no": "いいえ",
     "fromSource": "{{value}}（ソースから）",
     "fromSourceAsIs": "ソースの設定どおり",
     "contractSet": "設定済み",

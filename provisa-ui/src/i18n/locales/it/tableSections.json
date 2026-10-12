@@ -17,8 +17,6 @@
     "noTerms": "Nessun termine del glossario dà il nome a una colonna di questa tabella",
     "relationships": "Relazioni",
     "noRelationships": "Questa tabella non partecipa ad alcuna relazione",
-    "yes": "Sì",
-    "no": "No",
     "fromSource": "{{value}} (dall'origine)",
     "fromSourceAsIs": "Come nell'origine",
     "contractSet": "Impostato",

@@ -13,7 +13,7 @@
 // connection table sets max rows only, which may lower the operator's graphql_remote.max_rows but
 // never raise it. The server refuses the same cases by name; these checks keep Save honest.
 
-import type { Paging, PagingKind } from "../../types/admin";
+import type { Paging, PagingKind, PagingType } from "../../types/admin";
 
 export const NO_PAGING: Paging = {
   type: null,
@@ -81,3 +81,37 @@ export function pagingProblem(
   }
   return null;
 }
+
+// Which declared fields each paging type reads (provisa/api_source/caller.py), with the name the
+// caller sends when a parameter field is left empty. A field one type reads differently is named
+// for that type (label).
+export const PAGING_READS: Record<
+  PagingType,
+  { field: keyof Paging; fallback?: string; label?: string }[]
+> = {
+  offset: [
+    { field: "pageParam", fallback: "offset" },
+    { field: "pageSizeParam", fallback: "limit" },
+    { field: "pageSize" },
+  ],
+  page_number: [
+    { field: "pageParam", fallback: "page" },
+    { field: "pageSizeParam", fallback: "per_page" },
+    { field: "pageSize" },
+  ],
+  cursor: [
+    { field: "cursorParam", fallback: "cursor" },
+    { field: "cursorField", fallback: "next_cursor" },
+    // No fallback: with no size parameter named, none is sent and the remote's own page applies.
+    { field: "pageSizeParam" },
+    { field: "pageSize" },
+  ],
+  // The next page starts after the last row of this one, named by a field of that row.
+  last_row: [
+    { field: "cursorParam", fallback: "starting_after", label: "afterParam" },
+    { field: "cursorField", fallback: "id", label: "lastRowField" },
+    { field: "pageSizeParam", fallback: "limit" },
+    { field: "pageSize" },
+  ],
+  link_header: [],
+};

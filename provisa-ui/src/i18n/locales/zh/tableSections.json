@@ -17,8 +17,6 @@
     "noTerms": "没有术语命名此表的列",
     "relationships": "关系",
     "noRelationships": "此表未参与任何关系",
-    "yes": "是",
-    "no": "否",
     "fromSource": "{{value}}（来自数据源）",
     "fromSourceAsIs": "与数据源相同",
     "contractSet": "已设置",

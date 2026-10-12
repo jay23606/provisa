@@ -346,3 +346,66 @@ describe("TableReadView — Invalidate Cache in the head", () => {
     expect(screen.queryByTestId("table-read-view-invalidate-cache")).toBeNull();
   });
 });
+
+describe("TableReadView — Load and timeliness shows every stored setting", () => {
+  it("lists paging, the off-peak window, incremental reload and live delivery, read-only", () => {
+    renderView(
+      false,
+      makeTable({
+        id: 7,
+        pagingKind: "endpoint",
+        pagination: {
+          type: "offset",
+          cursorField: null,
+          cursorParam: null,
+          pageParam: "offset",
+          pageSizeParam: "limit",
+          pageSize: 100,
+          maxPages: 50,
+          maxRows: null,
+          rowsField: null,
+        },
+        loadProtected: true,
+        offPeakWindow: "22:00-06:00",
+        offPeakTz: "Europe/London",
+        delta: {
+          apply: "upsert",
+          deletes: "none",
+          tombstoneColumn: null,
+          rebuildEvery: 86400,
+          query: null,
+        },
+        live: {
+          queryId: null,
+          watermarkColumn: "updated_at",
+          pollInterval: 30,
+          strategy: "poll",
+          kafka: null,
+          outputs: [
+            {
+              type: "kafka",
+              topic: "orders.changes",
+              keyColumn: "id",
+              bootstrapServers: "kafka:9092",
+            },
+          ],
+        },
+      } as Partial<RegisteredTable>),
+    );
+    fireEvent.click(screen.getByTestId("table-section-load"));
+    const load = screen.getByTestId("table-load");
+    for (const text of [
+      "Offset and limit",
+      "22:00",
+      "06:00",
+      "Europe/London",
+      "86400",
+      "updated_at",
+      "orders.changes",
+      "kafka:9092",
+    ])
+      expect(load).toHaveTextContent(text);
+    // Nothing stored reads as the one empty mark, not as a missing row.
+    expect(within(load).getByText("Rows are under").nextElementSibling).toHaveTextContent("—");
+  });
+});
