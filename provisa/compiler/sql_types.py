@@ -165,6 +165,9 @@ class CompilationContext:
     # (table_id, col_name) pairs where the GQL OBJECT type is itself a governed (registered) table —
     # these columns are excluded from HOT materialization and must not appear in domain UNION branches
     gql_governed_object_cols: set[tuple[int, str]] = field(default_factory=set)
+    # (table_id, col_name) pairs registered for a table but not held by the relation a statement
+    # reads (graphql_remote.relation_columns): the SQL plane neither lists nor expands them
+    columns_outside_relation: set[tuple[int, str]] = field(default_factory=set)
     # table_name → {gql_field_name: gql_selection_string} for undeclared graphql_remote OBJECT fields
     gql_remote_extra_selections: dict[str, dict[str, str]] = field(default_factory=dict)
     # REQ-1319: (table_id, metric_name) → inlined physical SQL aggregate expression, so the

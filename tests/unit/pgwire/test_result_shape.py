@@ -39,7 +39,7 @@ _COLUMNS = {
     ],
 }
 _TABLES = {"sales.orders": 1, "orders": 1, "sales.customers": 2, "customers": 2}
-_CTX = SimpleNamespace(physical_to_sql={}, virtual_columns={})
+_CTX = SimpleNamespace(physical_to_sql={}, virtual_columns={}, columns_outside_relation=set())
 
 
 def _shape(sql: str, ctx=_CTX):
@@ -146,6 +146,7 @@ def test_only_columns_the_role_can_see_are_described_under_their_exposed_names()
     ctx = SimpleNamespace(
         physical_to_sql={(1, "order_id"): "orderId", (1, "region"): "region"},
         virtual_columns={1: {"_source": "orders"}},
+        columns_outside_relation=set(),
     )
     assert table_columns(1, ctx, _COLUMNS) == {
         "orderId": "integer",
