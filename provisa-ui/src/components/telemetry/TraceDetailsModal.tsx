@@ -8,6 +8,8 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import type { ResultRedirect } from "../../api/admin";
+import { resultRedirectText } from "../resultRedirectText";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Divider, Group, Loader, Modal, Stack, Table, Text } from "@mantine/core";
@@ -22,7 +24,7 @@ interface TraceDetailsModalProps {
 
 /** Every column of every matching span, attribute maps included. */
 export function TraceDetailsModal({ kind, id, onClose }: TraceDetailsModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // The result carries the id it was fetched for, so a switch to another id
   // retires the previous rows by comparison at render time instead of by an
   // extra render pass that clears state at the top of the effect.
@@ -30,22 +32,35 @@ export function TraceDetailsModal({ kind, id, onClose }: TraceDetailsModalProps)
     key: string;
     rows: Record<string, unknown>[];
     error: string | null;
+    redirect: ResultRedirect | null;
   } | null>(null);
   const key = `${kind}:${id}`;
   useEffect(() => {
     let cancelled = false;
     runSql(traceDetailSql(kind, id))
       .then((r) => {
-        if (!cancelled) setLoaded({ key: `${kind}:${id}`, rows: r.rows, error: r.error ?? null });
+        if (cancelled) return;
+        setLoaded({
+          key: `${kind}:${id}`,
+          rows: r.rows,
+          error: r.error ?? null,
+          redirect: r.redirect ?? null,
+        });
       })
       .catch((err: Error) => {
-        if (!cancelled) setLoaded({ key: `${kind}:${id}`, rows: [], error: err.message });
+        if (!cancelled)
+          setLoaded({ key: `${kind}:${id}`, rows: [], error: err.message, redirect: null });
       });
     return () => {
       cancelled = true;
     };
   }, [kind, id]);
-  const current = loaded?.key === key ? loaded : null;
+  // A detail landed in the results store is there, not here: said as such, not shown as empty.
+  const loadedNow = loaded?.key === key ? loaded : null;
+  const current =
+    loadedNow?.redirect != null
+      ? { ...loadedNow, error: resultRedirectText(t, i18n.language, loadedNow.redirect) }
+      : loadedNow;
 
   return (
     <Modal

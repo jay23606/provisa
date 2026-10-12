@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "The result ({{rows}} rows) was written to the results store.",
+    "landedAt": "The result ({{rows}} rows) was written to the results store: {{url}}",
+    "download": "Download it"
+  }
+}

@@ -8,6 +8,8 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
+import type { ResultRedirect } from "../../api/admin";
+import { ResultRedirectNotice } from "../ResultRedirectNotice";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionIcon, Alert, Group, Table, Text, TextInput } from "@mantine/core";
@@ -15,6 +17,8 @@ import { PAGE_SIZE, COL_MAX, COL_MIN, CHAR_PX } from "./types";
 
 interface ResultsPanelProps {
   resultError: string;
+  /** The result was landed in the results store and is there, not here. */
+  resultRedirect?: ResultRedirect | null;
   resultRows: Record<string, unknown>[];
   resultColumns: string[];
   displayRows: Record<string, unknown>[];
@@ -32,6 +36,7 @@ interface ResultsPanelProps {
 
 export function ResultsPanel({
   resultError,
+  resultRedirect = null,
   resultRows,
   resultColumns,
   displayRows,
@@ -67,6 +72,8 @@ export function ResultsPanel({
 
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const pagedRows = displayRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  if (resultRedirect) return <ResultRedirectNotice redirect={resultRedirect} />;
 
   if (resultError) {
     return (

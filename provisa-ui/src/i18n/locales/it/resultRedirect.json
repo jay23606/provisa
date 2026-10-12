@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "Il risultato ({{rows}} righe) è stato scritto nell'archivio dei risultati.",
+    "landedAt": "Il risultato ({{rows}} righe) è stato scritto nell'archivio dei risultati: {{url}}",
+    "download": "Scaricalo"
+  }
+}

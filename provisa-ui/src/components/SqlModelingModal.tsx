@@ -32,7 +32,7 @@ import {
   TextInput,
   useComputedColorScheme,
 } from "@mantine/core";
-import { runSql, nlToSql } from "../api/admin";
+import { runSql, nlToSql, type ResultRedirect } from "../api/admin";
 import { useRoles, useDomains } from "../hooks/useAdminQueries";
 import type { Domain } from "../types/admin";
 import type {
@@ -80,6 +80,7 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
   const [resultColumns, setResultColumns] = useState<string[]>([]);
   const [resultRows, setResultRows] = useState<Record<string, unknown>[]>([]);
   const [resultError, setResultError] = useState("");
+  const [resultRedirect, setResultRedirect] = useState<ResultRedirect | null>(null);
   const [execMs, setExecMs] = useState<number | null>(null);
   const [candidates, setCandidates] = useState<ModelingCandidate[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -320,6 +321,7 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
     const result = await runSql(sampledSql, role);
     const durationMs = Math.round(performance.now() - t0);
     setExecMs(durationMs);
+    setResultRedirect(result.redirect ?? null);
     if (result.error) {
       setResultError(result.error);
       setResultColumns([]);
@@ -873,6 +875,7 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     {resultTab === "results" && (
                       <ResultsPanel
                         resultError={resultError}
+                        resultRedirect={resultRedirect}
                         resultRows={resultRows}
                         resultColumns={resultColumns}
                         displayRows={displayRows}

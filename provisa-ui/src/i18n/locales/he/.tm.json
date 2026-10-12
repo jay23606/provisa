@@ -5799,5 +5799,8 @@
   "he/tableSections.json::tableSections.contractSet": "Set",
   "he/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
   "he/registerTableForm.json::registerTableForm.shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
-  "he/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:"
+  "he/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
+  "he/resultRedirect.json::resultRedirect.landed": "The result ({{rows}} rows) was written to the results store.",
+  "he/resultRedirect.json::resultRedirect.landedAt": "The result ({{rows}} rows) was written to the results store: {{url}}",
+  "he/resultRedirect.json::resultRedirect.download": "Download it"
 }

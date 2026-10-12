@@ -1,0 +1,7 @@
+{
+  "resultRedirect": {
+    "landed": "Het resultaat ({{rows}} rijen) is naar de resultatenopslag geschreven.",
+    "landedAt": "Het resultaat ({{rows}} rijen) is naar de resultatenopslag geschreven: {{url}}",
+    "download": "Downloaden"
+  }
+}

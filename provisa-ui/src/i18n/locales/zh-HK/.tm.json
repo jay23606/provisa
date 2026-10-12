@@ -5800,5 +5800,8 @@
   "zh-HK/tableSections.json::tableSections.contractSet": "Set",
   "zh-HK/tableSections.json::tableSections.notScheduledLikeSource": "Not read only on schedule, although its source is: a query may read the source.",
   "zh-HK/registerTableForm.json::registerTableForm.shortColumns": "Registered with the types discovered ({{count}}): {{names}}. Hiding, keys and test data are set in the editor that opens next.",
-  "zh-HK/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:"
+  "zh-HK/registerTableForm.json::registerTableForm.shortUntyped": "No type was found for these columns. Choose one for each:",
+  "zh-HK/resultRedirect.json::resultRedirect.landed": "The result ({{rows}} rows) was written to the results store.",
+  "zh-HK/resultRedirect.json::resultRedirect.landedAt": "The result ({{rows}} rows) was written to the results store: {{url}}",
+  "zh-HK/resultRedirect.json::resultRedirect.download": "Download it"
 }
