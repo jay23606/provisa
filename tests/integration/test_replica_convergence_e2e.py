@@ -154,11 +154,36 @@ def _replica_rows(pg: _SourceAndEngine) -> int | None:
             return None
 
 
-def _wait(condition, *, seconds: float, what: str) -> None:
+def _wait(condition, *, seconds: float, what: str, watching: tuple) -> None:
+    """Wait for ``condition``; a timeout says what each server in ``watching`` was doing."""
     deadline = time.monotonic() + seconds
     while not condition():
-        assert time.monotonic() < deadline, f"timed out waiting for {what}"
+        assert time.monotonic() < deadline, "\n".join(
+            [f"timed out waiting for {what}", *(_what_it_was_doing(srv) for srv in watching)]
+        )
         time.sleep(0.25)
+
+
+#: The tail of a server's stderr a timeout shows.
+_STDERR_TAIL_LINES = 200
+
+
+def _what_it_was_doing(srv) -> str:
+    """A server's build records (or why they could not be read) and the tail of its stderr: what
+    a timeout needs to name its cause."""
+    try:
+        records = repr(_builds(srv))
+    except Exception as unread:  # noqa: BLE001 -- the server may be the reason; say what the read said
+        records = f"unreadable: {type(unread).__name__}: {unread}"
+    stderr = srv.dump_stderr_debug().splitlines()[-_STDERR_TAIL_LINES:]
+    return "\n".join(
+        [
+            f"--- {srv.org_id} on {srv.base_url}",
+            f"replica builds: {records}",
+            f"stderr (last {len(stderr)} lines):",
+            *stderr,
+        ]
+    )
 
 
 def _builds(srv) -> dict:
@@ -196,11 +221,17 @@ def test_a_declared_replica_is_built_retired_and_dropped_with_no_read(databases)
 
             # Declared replicated. No statement reads the table, nothing asks for a build.
             _mutate(srv, 'updateSourceReplicate(sourceId: "src", replicate: 0)')
-            _wait(lambda: _replica_rows(pg) == len(_ROWS), seconds=60, what="the replica")
+            _wait(
+                lambda: _replica_rows(pg) == len(_ROWS),
+                seconds=60,
+                what="the replica",
+                watching=(srv,),
+            )
             _wait(
                 lambda: _builds(srv)["builds"] and _builds(srv)["builds"][0]["state"] == "idle",
                 seconds=30,
                 what="the build's completion on the record",
+                watching=(srv,),
             )
             shown = _builds(srv)
             (build,) = shown["builds"]
@@ -220,18 +251,34 @@ def test_a_declared_replica_is_built_retired_and_dropped_with_no_read(databases)
                 lambda: _builds(srv)["builds"] and _builds(srv)["builds"][0]["state"] == "retired",
                 seconds=30,
                 what="the replica being retired",
+                watching=(srv,),
             )
             if time.monotonic() - changed < _GRACE_S:
                 assert _replica_rows(pg) == len(
                     _ROWS
                 )  # it stands while nodes may still route to it
-            _wait(lambda: _replica_rows(pg) is None, seconds=60, what="the replica's drop")
+            _wait(
+                lambda: _replica_rows(pg) is None,
+                seconds=60,
+                what="the replica's drop",
+                watching=(srv,),
+            )
             assert time.monotonic() - changed >= _GRACE_S
-            _wait(lambda: _builds(srv)["builds"] == [], seconds=30, what="the record's removal")
+            _wait(
+                lambda: _builds(srv)["builds"] == [],
+                seconds=30,
+                what="the record's removal",
+                watching=(srv,),
+            )
 
             # Declared again: built again.
             _mutate(srv, 'updateSourceReplicate(sourceId: "src", replicate: 0)')
-            _wait(lambda: _replica_rows(pg) == len(_ROWS), seconds=60, what="the rebuilt replica")
+            _wait(
+                lambda: _replica_rows(pg) == len(_ROWS),
+                seconds=60,
+                what="the rebuilt replica",
+                watching=(srv,),
+            )
 
             # The table is deleted: its replica goes the same way.
             (table,) = [
@@ -240,8 +287,18 @@ def test_a_declared_replica_is_built_retired_and_dropped_with_no_read(databases)
                 if t["tableName"] == "orders"
             ]
             _mutate(srv, f"deleteTable(id: {table['id']})")
-            _wait(lambda: _replica_rows(pg) is None, seconds=60, what="the deleted table's drop")
-            _wait(lambda: _builds(srv)["builds"] == [], seconds=30, what="the record's removal")
+            _wait(
+                lambda: _replica_rows(pg) is None,
+                seconds=60,
+                what="the deleted table's drop",
+                watching=(srv,),
+            )
+            _wait(
+                lambda: _builds(srv)["builds"] == [],
+                seconds=30,
+                what="the record's removal",
+                watching=(srv,),
+            )
         finally:
             srv.stop_process()
 
@@ -255,7 +312,12 @@ def test_two_servers_that_see_the_declaration_build_the_replica_once(databases):
             second.start()
             _register(first, pg)
             _mutate(first, 'updateSourceReplicate(sourceId: "src", replicate: 0)')
-            _wait(lambda: _replica_rows(pg) == len(_ROWS), seconds=60, what="the replica")
+            _wait(
+                lambda: _replica_rows(pg) == len(_ROWS),
+                seconds=60,
+                what="the replica",
+                watching=(first, second),
+            )
             time.sleep(2 * _RELOAD_S + 2)  # the other server has reloaded and converged too
             (build,) = _builds(second)["builds"]  # it sees the same record
             assert build["state"] == "idle"
