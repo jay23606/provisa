@@ -134,12 +134,16 @@ def test_a_request_that_finishes_in_time_is_never_raised_in(_timeouts, deadline_
 
 def test_the_tighter_budget_inside_a_request_is_what_ends_it(_timeouts):
     _timeouts["s"] = 30.0
-    started = time.monotonic()
-    with pytest.raises(TimeoutError, match="0.1s budget"):
+    with pytest.raises(TimeoutError) as raised:
         with request_deadline.request("graphql"):
             with request_deadline.within(0.1):
-                _spin(10.0)
-    assert time.monotonic() - started < 1.0
+                _spin(10.0)  # ends well inside the request's 30 s, however loaded the machine
+    # The inner budget's own error, not the request's: the request's would be a RequestTimedOut
+    # naming the transport and its 30 s setting.
+    assert type(raised.value) is TimeoutError, repr(raised.value)
+    assert str(raised.value) == "request exceeded its 0.1s budget"
+    assert isinstance(raised.value.__cause__, DeadlinePassed)
+    assert request_deadline.current() is None
     _quiet()
 
 
