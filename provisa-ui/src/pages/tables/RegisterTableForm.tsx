@@ -12,18 +12,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ColumnsTable } from "./ColumnsTable";
 import { UntypedColumns } from "./UntypedColumns";
 import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
-import { QueryPreviewRows } from "./QueryPreviewRows";
+import { QueryTableFields } from "./QueryTableFields";
+import { isPipelineArgument, previewedColumn } from "./queryTables";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
 import { useTranslation } from "react-i18next";
 import {
-  Button,
   Checkbox,
   NumberInput,
+  SegmentedControl,
   Select,
   Stack,
   Text,
   TextInput,
-  Textarea,
 } from "@mantine/core";
 import { domainToSqlName, toSnakeCase } from "../../naming";
 import { NlTableSearch } from "./NlTableSearch";
@@ -162,6 +162,9 @@ export function RegisterTableForm({
   const [previewRows, setPreviewRows] = useState<Record<string, unknown>[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const { preview: previewQuery } = useQueryPreview();
+  // REQ-1980: a MongoDB table is a collection, or a pipeline with arguments run on each read.
+  const [mongoMode, setMongoMode] = useState<"collection" | "pipeline">("collection");
+  const [samples, setSamples] = useState<Record<string, string>>({});
 
   // REQ-1921: a new table starts in its source's region, else the region the operator is
   // connected to; the operator may change it or choose No region. No regions: no field, and the
@@ -191,7 +194,9 @@ export function RegisterTableForm({
   const isSparql = sourceType === "sparql";
   const isFilesSource = ["files", "csv", "parquet"].includes(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
-  const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType);
+  const isPipeline = sourceType === "mongodb" && mongoMode === "pipeline";
+  const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
+  const pipelineArgs = columns.filter(isPipelineArgument);
   // The short step: what names the table, and only what the server will not do without. The rest
   // is the edit form's, which opens on the registered draft. A query API's table (its query and
   // preview), a checker's (its contract) and a profiler's results take the longer path: the same
@@ -253,9 +258,10 @@ export function RegisterTableForm({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the results schema is a constant of the checker registration, set once the source is known to be a checker
     if (isChecker) setSchemaName(DQ_RESULTS_SCHEMA);
     if (isProfiler) setSchemaName(PROFILER_RESULTS_SCHEMA);
-    // REQ-1670: a neo4j table registers under the source's one schema, "neo4j".
-    if (isQueryApi) setSchemaName(sourceType);
-  }, [isChecker, isQueryApi, isProfiler, sourceType, sourceId]);
+    // REQ-1670: a neo4j table registers under the source's one schema, "neo4j"; a pipeline table
+    // (REQ-1980) under its source's database.
+    if (isQueryApi) setSchemaName(isPipeline ? (chosenSource?.database ?? "") : sourceType);
+  }, [isChecker, isQueryApi, isPipeline, isProfiler, sourceType, sourceId, chosenSource?.database]);
 
   useEffect(() => {
     if (!isProfiler || !sourceId) return;
@@ -427,47 +433,31 @@ export function RegisterTableForm({
     setPreviewing(true);
     try {
       const res = await previewQuery({
-        sourceType: isSparql ? "sparql" : "neo4j",
+        sourceType: isPipeline ? "mongodb" : isSparql ? "sparql" : "neo4j",
         sourceId,
         query: cypher.trim(),
+        ...(isPipeline && {
+          arguments: pipelineArgs.map((a) => {
+            const name = a.name.replace(/^_nf_/, "");
+            return { name, dataType: a.dataType, value: samples[name] || null };
+          }),
+        }),
       });
       if (res.error) {
         setError(res.error);
         setPreviewRows([]);
-        setColumns([]);
+        setColumns(pipelineArgs); // a pipeline's arguments are kept
         return;
       }
       if (res.columns.length === 0) {
         setError(t("registerTableForm.neo4jPreviewNoRows"));
         setPreviewRows([]);
-        setColumns([]);
+        setColumns(pipelineArgs); // a pipeline's arguments are kept
         return;
       }
       setPreviewRows(res.rows);
-      setColumns(
-        res.columns.map((c) => {
-          const snake = toSnakeCase(c.name);
-          return {
-            name: c.name,
-            visibleTo: roles.map((r) => r.id),
-            writableBy: [],
-            unmaskedTo: "",
-            maskType: "",
-            maskPattern: "",
-            maskReplace: "",
-            maskValue: "",
-            maskPrecision: "",
-            alias: snake !== c.name ? snake : "",
-            description: "",
-            selected: true,
-            nativeFilterType: null,
-            dataType: c.dataType,
-            isPrimaryKey: false,
-            scope: "domain",
-            path: null,
-          };
-        }),
-      );
+      const roleIds = roles.map((r) => r.id);
+      setColumns([...pipelineArgs, ...res.columns.map((c) => previewedColumn(c, roleIds))]);
     } finally {
       setPreviewing(false);
     }
@@ -502,6 +492,7 @@ export function RegisterTableForm({
         description: c.description || undefined,
         nativeFilterType: c.nativeFilterType || undefined,
         nativeFilterRequired: c.nativeFilterRequired ?? undefined,
+        requiredBySteward: c.requiredBySteward || undefined, // REQ-1986
         isPrimaryKey: c.isPrimaryKey || undefined,
         scope: c.scope || "domain",
         path: c.path?.trim() || undefined, // REQ-1739: ingest per-column JSON extraction path
@@ -515,7 +506,7 @@ export function RegisterTableForm({
         setError(t("registerTableForm.errorNeo4jCypher"));
         return;
       }
-      if (columns.length === 0) {
+      if (columns.filter((c) => !isPipelineArgument(c)).length === 0) {
         setError(t("registerTableForm.errorNeo4jPreviewFirst"));
         return;
       }
@@ -764,6 +755,20 @@ export function RegisterTableForm({
             />
           </FormField>
         )}
+        {sourceType === "mongodb" && (
+          <FormField size="medium">
+            <SegmentedControl
+              aria-label={t("registerTableForm.mongoModeLabel")}
+              value={mongoMode}
+              onChange={(v) => setMongoMode(v as "collection" | "pipeline")}
+              data={[
+                { value: "collection", label: t("registerTableForm.mongoModeCollection") },
+                { value: "pipeline", label: t("registerTableForm.mongoModePipeline") },
+              ]}
+              data-testid="register-table-mongodb-mode"
+            />
+          </FormField>
+        )}
         {isQueryApi && (
           <FormField size="medium">
             <TextInput
@@ -940,56 +945,23 @@ export function RegisterTableForm({
         </>
       )}
       {isQueryApi && (
-        <>
-          <FormField size="full">
-            <Textarea
-              required
-              autosize
-              minRows={3}
-              label={
-                <>
-                  {t(
-                    isSparql
-                      ? "registerTableForm.sparqlQueryLabel"
-                      : "registerTableForm.neo4jCypherLabel",
-                  )}{" "}
-                  <Text span fw="normal" c="dimmed" fz="xs">
-                    {t(
-                      isSparql
-                        ? "registerTableForm.sparqlQueryHint"
-                        : "registerTableForm.neo4jCypherHint",
-                    )}
-                  </Text>
-                </>
-              }
-              value={cypher}
-              onChange={(e) => setCypher(e.currentTarget.value)}
-              placeholder={t(
-                isSparql
-                  ? "registerTableForm.sparqlQueryPlaceholder"
-                  : "registerTableForm.neo4jCypherPlaceholder",
-              )}
-              data-testid={isSparql ? "register-table-sparql-query" : "register-table-neo4j-cypher"}
-            />
-          </FormField>
-          <FormField size="full">
-            <Button
-              variant="default"
-              onClick={handleNeo4jPreview}
-              disabled={!sourceId || !cypher.trim() || previewing}
-              data-testid={`register-table-${sourceType}-preview`}
-            >
-              {previewing
-                ? t("registerTableForm.neo4jPreviewing")
-                : t("registerTableForm.neo4jPreviewButton")}
-            </Button>
-          </FormField>
-          {previewRows.length > 0 && (
-            <FormField size="full">
-              <QueryPreviewRows rows={previewRows} columns={columns} sourceType={sourceType} />
-            </FormField>
-          )}
-        </>
+        <QueryTableFields
+          sourceType={sourceType}
+          pipeline={isPipeline}
+          query={cypher}
+          setQuery={setCypher}
+          args={pipelineArgs}
+          setArgs={(next) =>
+            setColumns([...next, ...columns.filter((c) => !isPipelineArgument(c))])
+          }
+          samples={samples}
+          setSamples={setSamples}
+          previewing={previewing}
+          canPreview={Boolean(sourceId && cypher.trim())}
+          onPreview={handleNeo4jPreview}
+          previewRows={previewRows}
+          columns={columns.filter((c) => !isPipelineArgument(c))}
+        />
       )}
       {isProfiler && tableName && (
         <ProfilerRowRulesField rules={profilerRowRules} onChange={setProfilerRowRules} />

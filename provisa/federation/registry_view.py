@@ -242,9 +242,12 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                         data_type=c["data_type"],
                         is_primary_key=c["is_primary_key"],
                         native_filter_type=c["native_filter_type"],
+                        path=c["path"],
                     )
                     for c in rt["columns"]
                 ],
+                # REQ-1980: a MongoDB pipeline table's native query, which its loader runs.
+                query_template=rt["query_template"],
                 live=None if not rt["live"] else LiveDeliveryConfig.model_validate(rt["live"]),
                 # REQ-929: the table's own change signal is on its row — saved there by the config
                 # load and by the admin alike — so a table registered at runtime (no config entry)

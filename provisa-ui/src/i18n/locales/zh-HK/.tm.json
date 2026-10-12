@@ -5814,5 +5814,16 @@
   "zh-HK/parametersPanel.json::parametersPanel.kind.graphql_arg": "GraphQL argument",
   "zh-HK/parametersPanel.json::parametersPanel.kind.grpc_input": "gRPC request field",
   "zh-HK/parametersPanel.json::parametersPanel.kind.pipeline_arg": "Pipeline argument",
-  "zh-HK/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields."
+  "zh-HK/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields.",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineQueryLabel": "Native query",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- an argument is a whole value \"{{name}}\"",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineArguments": "Arguments",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineArgumentsHelp": "Each argument is a parameter of the table, given on every read: a WHERE condition on its column in SQL, an argument in GraphQL. Its value is bound into the pipeline as a value of its type. A sample value is used for the preview only.",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineArgumentSample": "Sample value",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineArgumentAdd": "Argument",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineArgumentRemove": "Remove {{name}}",
+  "zh-HK/registerTableForm.json::registerTableForm.mongoModeLabel": "What the table reads",
+  "zh-HK/registerTableForm.json::registerTableForm.mongoModeCollection": "Collection",
+  "zh-HK/registerTableForm.json::registerTableForm.mongoModePipeline": "Pipeline",
+  "zh-HK/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
 }

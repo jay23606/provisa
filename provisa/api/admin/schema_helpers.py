@@ -432,7 +432,13 @@ async def _fetch_table_with_columns(
         view_sql=view_sql,
         dq_contract=row.get("dq_contract"),  # REQ-1443
         profiler_source_id=row.get("profiler_source_id"),  # REQ-1934
-        query_template=_query_template_for(row["source_id"], row["table_name"]),  # REQ-1670
+        # REQ-1670: a neo4j/sparql table's query, as its endpoint serves it; REQ-1980: a MongoDB
+        # pipeline table's native query, which has no endpoint and is read from its row.
+        query_template=(
+            row["query_template"]
+            if _source_type == "mongodb"
+            else _query_template_for(row["source_id"], row["table_name"])
+        ),
         file_glob=row.get("file_glob"),  # REQ-788
         source_file_column=row.get("source_file_column"),  # REQ-788
         view_metrics=_view_metrics_type_from_row(row.get("view_metrics")),  # REQ-1318

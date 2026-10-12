@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "表已注册，但 {{role}} 的行规则未保存：{{message}}",
     "scopeHelp": "domain：提供给可访问此表所在域的角色。public：也提供给该域之外的角色。restricted：仅提供给“可见对象”中指定的角色。",
     "shortColumns": "以发现的类型注册（{{count}}）：{{names}}。隐藏、键和测试数据在随后打开的编辑器中设置。",
-    "shortUntyped": "未找到这些列的类型。请为每一列选择一个："
+    "shortUntyped": "未找到这些列的类型。请为每一列选择一个：",
+    "pipelineQueryLabel": "原生查询",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- 参数是完整的值 \"{{name}}\"",
+    "pipelineArguments": "参数",
+    "pipelineArgumentsHelp": "每个参数都是表的参数，每次读取时提供：在 SQL 中是对其列的 WHERE 条件，在 GraphQL 中是参数。其值按其类型绑定到管道中。示例值仅用于预览。",
+    "pipelineArgumentSample": "示例值",
+    "pipelineArgumentAdd": "参数",
+    "pipelineArgumentRemove": "移除 {{name}}",
+    "mongoModeLabel": "表读取的内容",
+    "mongoModeCollection": "集合",
+    "mongoModePipeline": "管道",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

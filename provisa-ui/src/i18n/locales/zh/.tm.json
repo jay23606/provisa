@@ -5813,5 +5813,16 @@
   "zh/parametersPanel.json::parametersPanel.kind.graphql_arg": "GraphQL argument",
   "zh/parametersPanel.json::parametersPanel.kind.grpc_input": "gRPC request field",
   "zh/parametersPanel.json::parametersPanel.kind.pipeline_arg": "Pipeline argument",
-  "zh/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields."
+  "zh/sourceFormFields.json::sourceFormFields.mongoHostHint": "A host name, or a mongodb:// or mongodb+srv:// connection string (for Atlas). Keep the username and password in their own fields.",
+  "zh/registerTableForm.json::registerTableForm.pipelineQueryLabel": "Native query",
+  "zh/registerTableForm.json::registerTableForm.pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- an argument is a whole value \"{{name}}\"",
+  "zh/registerTableForm.json::registerTableForm.pipelineArguments": "Arguments",
+  "zh/registerTableForm.json::registerTableForm.pipelineArgumentsHelp": "Each argument is a parameter of the table, given on every read: a WHERE condition on its column in SQL, an argument in GraphQL. Its value is bound into the pipeline as a value of its type. A sample value is used for the preview only.",
+  "zh/registerTableForm.json::registerTableForm.pipelineArgumentSample": "Sample value",
+  "zh/registerTableForm.json::registerTableForm.pipelineArgumentAdd": "Argument",
+  "zh/registerTableForm.json::registerTableForm.pipelineArgumentRemove": "Remove {{name}}",
+  "zh/registerTableForm.json::registerTableForm.mongoModeLabel": "What the table reads",
+  "zh/registerTableForm.json::registerTableForm.mongoModeCollection": "Collection",
+  "zh/registerTableForm.json::registerTableForm.mongoModePipeline": "Pipeline",
+  "zh/registerTableForm.json::registerTableForm.pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
 }

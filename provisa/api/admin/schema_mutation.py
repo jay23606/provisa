@@ -2714,6 +2714,11 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
                     code="schema.parameter_set_by_source",
                     params={"table": model.table_name},
                 )
+            from provisa.api.admin._query_api_registration import pipeline_table_refusal
+
+            _pipeline_refusal = await pipeline_table_refusal(_conn, model)  # REQ-1980
+            if _pipeline_refusal is not None:
+                return _pipeline_refusal
             # REQ-1443: same contract-driven derivation the register path and the YAML loader run.
             from provisa.api.admin._dq_registration import apply_dq_registration
 

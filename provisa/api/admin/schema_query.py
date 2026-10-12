@@ -51,6 +51,7 @@ from provisa.api.admin.capabilities import (
     role_definitions_visible,
 )
 from provisa.api.admin.types import (
+    JsonScalar,
     AvailableColumnType,
     AvailableTableType,
     CacheStatsType,
@@ -1370,6 +1371,29 @@ class Query:  # REQ-021, REQ-042
         pool = await _get_pool()
         async with pool.acquire() as conn:
             return await preview_sparql(cast("Connection", conn), source_id, query)
+
+    @strawberry.field
+    async def mongo_pipeline_preview(
+        self,
+        info: StrawberryInfo,
+        source_id: str,
+        native_query: str,
+        arguments: JsonScalar,
+    ) -> QueryPreviewType:
+        """REQ-1980: preview a native query on a MongoDB source with sample arguments (a list of
+        ``{name, dataType, value}``): up to five documents and the columns they suggest. Failures
+        come back as ``error``."""
+        require_capability(info, "table_registration")
+        from provisa.api.admin._query_api_registration import preview_pipeline
+
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            return await preview_pipeline(
+                cast("Connection", conn),
+                source_id,
+                native_query,
+                cast("list[dict]", arguments or []),  # the JSON list of {name, dataType, value}
+            )
 
     # ── Admin: Data-quality contracts (REQ-1443) ──
 

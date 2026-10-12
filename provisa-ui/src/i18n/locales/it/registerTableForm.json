@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "La tabella è stata registrata, ma la regola di riga per {{role}} non è stata salvata: {{message}}",
     "scopeHelp": "domain: servita ai ruoli che raggiungono il dominio di questa tabella. public: anche ai ruoli al di fuori. restricted: solo ai ruoli indicati in Visibile a.",
     "shortColumns": "Registrate con i tipi rilevati ({{count}}): {{names}}. Occultamento, chiavi e dati di test si impostano nell'editor che si apre subito dopo.",
-    "shortUntyped": "Non è stato trovato alcun tipo per queste colonne. Sceglietene uno per ciascuna:"
+    "shortUntyped": "Non è stato trovato alcun tipo per queste colonne. Sceglietene uno per ciascuna:",
+    "pipelineQueryLabel": "Query nativa",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- un argomento è un valore intero \"{{name}}\"",
+    "pipelineArguments": "Argomenti",
+    "pipelineArgumentsHelp": "Ogni argomento è un parametro della tabella, fornito a ogni lettura: una condizione WHERE sulla sua colonna in SQL, un argomento in GraphQL. Il suo valore viene associato alla pipeline come valore del suo tipo. Un valore di esempio serve solo per l'anteprima.",
+    "pipelineArgumentSample": "Valore di esempio",
+    "pipelineArgumentAdd": "Argomento",
+    "pipelineArgumentRemove": "Rimuovi {{name}}",
+    "mongoModeLabel": "Cosa legge la tabella",
+    "mongoModeCollection": "Collezione",
+    "mongoModePipeline": "Pipeline",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

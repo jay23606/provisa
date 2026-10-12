@@ -1175,6 +1175,8 @@ class DqCheckDefinitionType:  # REQ-1443 clause 7
 class QueryPreviewColumnType:  # REQ-1670, REQ-1683
     name: str
     data_type: str
+    # REQ-1980: where a pipeline's nested field is read from (dot notation); None for a top field.
+    path: str | None = None
 
 
 @strawberry.type

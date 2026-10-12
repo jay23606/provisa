@@ -198,6 +198,24 @@ def iter_row_batches(
             yield batch
 
 
+def aggregate_row_batches(
+    conn: MongoConnection, database: str, collection: str, pipeline: list[dict], batch_rows: int
+) -> Iterator[list[dict]]:  # REQ-1980
+    """The documents ``pipeline`` returns over ``database.collection``, in batches of at most
+    ``batch_rows``, off one aggregate cursor: only one batch is held. The documents are as the
+    driver decodes them; the caller checks them against the table's columns."""
+    with conn.client() as client:
+        cursor = client[database][collection].aggregate(pipeline, batchSize=batch_rows)
+        batch: list[dict] = []
+        for doc in cursor:
+            batch.append(doc)
+            if len(batch) >= batch_rows:
+                yield batch
+                batch = []
+        if batch:
+            yield batch
+
+
 def fetch_rows_by_keys(
     conn: MongoConnection,
     database: str,

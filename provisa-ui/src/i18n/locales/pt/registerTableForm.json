@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "A tabela foi registrada, mas a regra de linha de {{role}} não foi salva: {{message}}",
     "scopeHelp": "domain: servida às funções que alcançam o domínio desta tabela. public: também às funções fora dele. restricted: apenas às funções indicadas em Visível para.",
     "shortColumns": "Registadas com os tipos descobertos ({{count}}): {{names}}. A ocultação, as chaves e os dados de teste definem-se no editor que abre a seguir.",
-    "shortUntyped": "Não foi encontrado um tipo para estas colunas. Escolha um para cada:"
+    "shortUntyped": "Não foi encontrado um tipo para estas colunas. Escolha um para cada:",
+    "pipelineQueryLabel": "Consulta nativa",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- um argumento é um valor inteiro \"{{name}}\"",
+    "pipelineArguments": "Argumentos",
+    "pipelineArgumentsHelp": "Cada argumento é um parâmetro da tabela, informado em cada leitura: uma condição WHERE na sua coluna em SQL, um argumento em GraphQL. O valor é vinculado ao pipeline como um valor do seu tipo. Um valor de exemplo serve apenas para a pré-visualização.",
+    "pipelineArgumentSample": "Valor de exemplo",
+    "pipelineArgumentAdd": "Argumento",
+    "pipelineArgumentRemove": "Remover {{name}}",
+    "mongoModeLabel": "O que a tabela lê",
+    "mongoModeCollection": "Coleção",
+    "mongoModePipeline": "Pipeline",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

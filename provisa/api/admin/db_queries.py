@@ -156,7 +156,8 @@ async def fetch_tables(  # REQ-155, REQ-393, REQ-399
         "row_materialize, role_ttl, replicate, load_protected, region, draft, "  # REQ-1865/1907/826/1141/1921
         "file_glob, source_file_column, delta, "  # REQ-788/874
         "change_signal, watermark_column, probe_type, "  # REQ-929/924/982: the table's own
-        "pagination "  # REQ-318
+        "pagination, "  # REQ-318
+        "query_template "  # REQ-1668/1683/1980: the query a query-API or pipeline table runs
         "FROM registered_tables WHERE draft = $1 ORDER BY id",
         draft,
     )

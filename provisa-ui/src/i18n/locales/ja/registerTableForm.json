@@ -113,6 +113,17 @@
     "profilerRowRuleFailed": "テーブルは登録されましたが、{{role}} の行ルールは保存されませんでした: {{message}}",
     "scopeHelp": "domain: このテーブルのドメインに到達できるロールに提供。public: ドメイン外のロールにも提供。restricted: 「表示対象」で指定したロールのみに提供。",
     "shortColumns": "検出された型で登録 ({{count}}): {{names}}。非表示、キー、テストデータは、次に開く編集画面で設定します。",
-    "shortUntyped": "次の列は型が見つかりませんでした。それぞれ型を選んでください:"
+    "shortUntyped": "次の列は型が見つかりませんでした。それぞれ型を選んでください:",
+    "pipelineQueryLabel": "ネイティブクエリ",
+    "pipelineQueryHint": "{\"inputCollection\": …, \"pipeline\": […]} -- 引数は値全体 \"{{name}}\" です",
+    "pipelineArguments": "引数",
+    "pipelineArgumentsHelp": "各引数はテーブルのパラメーターで、読み取りのたびに渡します。SQL では列に対する WHERE 条件、GraphQL では引数です。値はその型の値としてパイプラインにバインドされます。サンプル値はプレビューにのみ使われます。",
+    "pipelineArgumentSample": "サンプル値",
+    "pipelineArgumentAdd": "引数",
+    "pipelineArgumentRemove": "{{name}} を削除",
+    "mongoModeLabel": "テーブルが読む対象",
+    "mongoModeCollection": "コレクション",
+    "mongoModePipeline": "パイプライン",
+    "pipelineQueryPlaceholder": "{\"inputCollection\": \"movies\", \"pipeline\": [{\"$vectorSearch\": {\"index\": \"plot_vec\", \"path\": \"plot_embedding\", \"queryVector\": \"{{query_vector}}\", \"numCandidates\": 200, \"limit\": 10}}]}"
   }
 }

@@ -106,6 +106,68 @@ def remote_arguments(gql_tbl: dict) -> list[dict]:
     return [*(gql_tbl.get("required_args") or []), *(gql_tbl.get("optional_args") or [])]
 
 
+def _sql_name(name: str) -> str:
+    from provisa.compiler.naming import apply_sql_name
+
+    return apply_sql_name(name)
+
+
+def _pipeline_tables(state, table_ids: Iterable[int]) -> dict[str, dict]:
+    """The MongoDB pipeline tables the statement reads (REQ-1980), by their sql names."""
+    from provisa.mongodb.pipeline_table import is_pipeline_table
+
+    ids = set(table_ids)
+    types = getattr(state, "source_types", None) or {}
+    return {
+        _sql_name(t["table_name"]): t
+        for t in (getattr(state, "tables", None) or [])
+        if t.get("id") in ids and is_pipeline_table(t, types)
+    }
+
+
+async def _mat_pipeline_table(
+    tn: str, table: dict, state, cache_rewrites: dict, nf_args: dict | None
+) -> None:
+    """Run a pipeline table with the statement's arguments and land its rows for the engine,
+    kept under those arguments for the table's TTL (REQ-1980): two argument sets are two
+    answers, never one."""
+    from provisa.api_source.engine_cache import (
+        analyze_cache_table,
+        cache_location,
+        cache_table_name,
+        ensure_cache_schema,
+        org_cache_schema,
+        resolved_cache_catalog,
+        schedule_drop,
+        table_known_live,
+    )
+    from provisa.executor.redirect import RedirectConfig
+    from provisa.mongodb.pipeline_table import cache_arguments, read
+
+    source_id = table["source_id"]
+    engine = state.federation_engine
+    cache_loc = cache_location(source_id, resolved_cache_catalog(engine), org_cache_schema(state))
+    cache_tbl = cache_table_name(source_id, f"pipeline:{tn}", cache_arguments(table, nf_args))
+    if table_known_live(cache_loc, cache_tbl):
+        cache_rewrites[tn] = (cache_loc, cache_tbl)
+        return
+    with engine.isolated_sync() as _c:
+        ensure_cache_schema(_c, cache_loc)
+    answer = await read(state, table, nf_args)
+    await engine.land_source_table(
+        schema=cache_loc.schema, table=cache_tbl, columns=answer.columns, rows=answer.rows
+    )
+    await analyze_cache_table(engine, cache_loc, cache_tbl)
+    ttl = (
+        table.get("cache_ttl")
+        or getattr(state, "source_cache", {}).get(source_id, {}).get("cache_ttl")
+        or state.response_cache_default_ttl
+    )
+    schedule_drop(engine, cache_loc, cache_tbl, ttl, RedirectConfig.from_env())
+    cache_rewrites[tn] = (cache_loc, cache_tbl)
+    log.warning("[MAT] pipeline %s: %d rows → %s", tn, len(answer.rows), cache_tbl)
+
+
 def _parameter_tables(state, table_ids: Iterable[int]) -> dict[str, list]:
     """The parameter columns of each registered table the statement reads, by its sql name."""
     from provisa.compiler.naming import apply_sql_name
@@ -885,9 +947,12 @@ def would_materialize_optimize(exec_sql: str, state, *, table_ids: Iterable[int]
         for t in (getattr(state, "tables", None) or [])
         if t.get("row_materialize")
     }
+    pipelines = _pipeline_tables(state, table_ids)
     for tn in table_names:
         if tn in row_materialize_table_names:
             continue
+        if _sql_name(tn) in pipelines:  # REQ-1980: run on every read, kept for its TTL
+            return True
         if tn in hot.entries:
             return True
         if tn in endpoints:
@@ -959,6 +1024,7 @@ async def _materialize_api_to_engine_cache(
     }
 
     params_of = _parameter_tables(state, table_ids)
+    pipelines = _pipeline_tables(state, table_ids)
     for tn in table_names:
         # REQ-1986: a table read without a value for a required parameter is refused before
         # anything is sent to its source -- every source kind, one rule.
@@ -967,6 +1033,12 @@ async def _materialize_api_to_engine_cache(
             _refuse_or_drop(exec_sql, tn, missing, dropped_tables)
             continue
         if tn in _row_materialize_table_names:
+            continue
+        # REQ-1980: a MongoDB pipeline table is run by the native reader on every engine; no
+        # engine connector runs a pipeline.
+        pipeline_table = pipelines.get(_sql_name(tn))
+        if pipeline_table is not None:
+            await _mat_pipeline_table(tn, pipeline_table, state, cache_rewrites, nf_args)
             continue
         # Hot cache: inline rows as VALUES CTE — avoids cross-catalog JOIN entirely
         entry = hot.entries.get(tn)
