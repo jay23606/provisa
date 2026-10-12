@@ -174,6 +174,8 @@ async def test_a_deployment_of_one_organization_serves_that_organization_only(pl
     """Without multi-tenancy the deployment has one organization and records no memberships:
     its people keep personal secrets under it, and no other organization id answers."""
     monkeypatch.setattr(sr, "_deployment", lambda: (False, "default"))
+    async with plane.acquire() as conn:  # the deployment's own organization, as its start seeds it
+        await conn.execute_core(insert(orgs).values(id="default", name="Enterprise"))
     request = _request("uid-with-no-membership")
     await sr.put_my_secret(request, "default", "GIT_TOKEN", sr.SecretBody(value="v"))
     assert await _stored(plane) == [("default", "uid-with-no-membership", "GIT_TOKEN")]

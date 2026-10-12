@@ -194,6 +194,17 @@ async def _list_vault(org_id: str, owner_id: str) -> dict:
     }
 
 
+async def _must_exist(org_id: str) -> None:
+    """The organisation is one the platform holds: a secret of any other is refused by name
+    before anything is written."""
+    from provisa.core.schema_admin import orgs
+
+    async with _admin_pool().acquire() as conn:
+        found = await conn.execute_core(select(orgs.c.id).where(orgs.c.id == org_id))
+        if found.fetchone() is None:
+            raise ApiError(404, "orgs.not_found", f"Organization {org_id!r} not found.", org=org_id)
+
+
 def _must_be_writable(org_id: str) -> None:
     if not _provider_block(org_id).writable:
         raise ApiError(
@@ -210,6 +221,7 @@ async def _store(
 ) -> dict:
     """Create or replace one secret in one vault. The same call for both: the name is the identity."""
     _must_be_writable(org_id)
+    await _must_exist(org_id)
     existed = (
         await secrets_store.describe(_admin_pool(), org_id, name, owner_id=owner_id) is not None
     )
@@ -260,6 +272,7 @@ async def _drop(org_id: str, owner_id: str, name: str, actor: str | None) -> dic
     lists each one with the environment it is in, and nothing is removed.
     """
     _must_be_writable(org_id)
+    await _must_exist(org_id)
     environments = await _environment_planes(org_id) if owner_id == ORG_OWNER else None
     try:
         removed = await secrets_store.remove(
