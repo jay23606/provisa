@@ -1,3 +1,13 @@
+# Copyright (c) 2026 Kenneth Stott
+# Canary: f42b25cf-3a3e-4828-ac6e-e6fa13e503d3
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+
 """A Python source's code, as an organisation would write it: no import of Provisa's, tags in
 docstrings, types in hints (REQ-1993). The same API as the Node fixture's."""
 
