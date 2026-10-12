@@ -93,23 +93,11 @@
     "openApiQueryAria": "Выполнить пример запроса REST для {{table}}",
     "detail": {
       "field": {
-        "domain": "Домен",
-        "name": "Имя",
-        "owner": "Владелец",
-        "team": "Команда",
-        "purpose": "Назначение",
-        "limitations": "Ограничения",
-        "usage": "Использование",
-        "version": "Версия",
-        "status": "Статус",
-        "sla": "SLA",
-        "support": "Поддержка",
         "customProperties": "Пользовательские свойства",
         "relatedTables": "Связанные таблицы",
         "relationships": "Связи",
         "lineage": "Происхождение",
         "inputPorts": "Входные порты",
-        "outputPorts": "Выходные порты",
         "dataQuality": "Качество данных"
       },
       "dataQualityEmpty": "Нет сканирований качества",

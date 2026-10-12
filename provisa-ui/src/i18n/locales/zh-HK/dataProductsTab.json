@@ -93,23 +93,11 @@
     "openApiQueryAria": "執行 {{table}} 的 REST 要求範例",
     "detail": {
       "field": {
-        "domain": "網域",
-        "name": "名稱",
-        "owner": "擁有者",
-        "team": "團隊",
-        "purpose": "用途",
-        "limitations": "限制",
-        "usage": "使用方式",
-        "version": "版本",
-        "status": "狀態",
-        "sla": "SLA",
-        "support": "支援",
         "customProperties": "自訂屬性",
         "relatedTables": "相關數據表",
         "relationships": "關係",
         "lineage": "血緣",
         "inputPorts": "輸入埠",
-        "outputPorts": "輸出埠",
         "dataQuality": "數據質素"
       },
       "dataQualityEmpty": "沒有質素掃描",

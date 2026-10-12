@@ -93,23 +93,11 @@
     "openApiQueryAria": "Voorbeeld-REST-verzoek voor {{table}} uitvoeren",
     "detail": {
       "field": {
-        "domain": "Domein",
-        "name": "Naam",
-        "owner": "Eigenaar",
-        "team": "Team",
-        "purpose": "Doel",
-        "limitations": "Beperkingen",
-        "usage": "Gebruik",
-        "version": "Versie",
-        "status": "Status",
-        "sla": "SLA",
-        "support": "Ondersteuning",
         "customProperties": "Aangepaste eigenschappen",
         "relatedTables": "Gerelateerde tabellen",
         "relationships": "Relaties",
         "lineage": "Lineage",
         "inputPorts": "Invoerpoorten",
-        "outputPorts": "Uitvoerpoorten",
         "dataQuality": "Datakwaliteit"
       },
       "dataQualityEmpty": "Geen kwaliteitsscans",

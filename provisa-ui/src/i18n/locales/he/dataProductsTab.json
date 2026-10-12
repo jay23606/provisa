@@ -93,23 +93,11 @@
     "openApiQueryAria": "הרצת בקשת REST לדוגמה עבור {{table}}",
     "detail": {
       "field": {
-        "domain": "תחום",
-        "name": "שם",
-        "owner": "בעלים",
-        "team": "צוות",
-        "purpose": "מטרה",
-        "limitations": "מגבלות",
-        "usage": "שימוש",
-        "version": "גרסה",
-        "status": "סטטוס",
-        "sla": "SLA",
-        "support": "תמיכה",
         "customProperties": "מאפיינים מותאמים אישית",
         "relatedTables": "טבלאות קשורות",
         "relationships": "קשרים",
         "lineage": "Data Lineage",
         "inputPorts": "Input Ports",
-        "outputPorts": "Output Ports",
         "dataQuality": "איכות נתונים"
       },
       "dataQualityEmpty": "אין סריקות איכות",

@@ -93,23 +93,11 @@
     "openApiQueryAria": "Run example REST request for {{table}}",
     "detail": {
       "field": {
-        "domain": "Domain",
-        "name": "Name",
-        "owner": "Owner",
-        "team": "Team",
-        "purpose": "Purpose",
-        "limitations": "Limitations",
-        "usage": "Usage",
-        "version": "Version",
-        "status": "Status",
-        "sla": "SLA",
-        "support": "Support",
         "customProperties": "Custom Properties",
         "relatedTables": "Related Tables",
         "relationships": "Relationships",
         "lineage": "Lineage",
         "inputPorts": "Input Ports",
-        "outputPorts": "Output Ports",
         "dataQuality": "Data Quality"
       },
       "dataQualityEmpty": "No quality scans",

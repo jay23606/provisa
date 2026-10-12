@@ -93,23 +93,11 @@
     "openApiQueryAria": "Executar requisição REST de exemplo para {{table}}",
     "detail": {
       "field": {
-        "domain": "Domínio",
-        "name": "Nome",
-        "owner": "Proprietário",
-        "team": "Equipe",
-        "purpose": "Finalidade",
-        "limitations": "Limitações",
-        "usage": "Uso",
-        "version": "Versão",
-        "status": "Status",
-        "sla": "SLA",
-        "support": "Suporte",
         "customProperties": "Propriedades personalizadas",
         "relatedTables": "Tabelas relacionadas",
         "relationships": "Relacionamentos",
         "lineage": "Linhagem",
         "inputPorts": "Portas de entrada",
-        "outputPorts": "Portas de saída",
         "dataQuality": "Qualidade de dados"
       },
       "dataQualityEmpty": "Nenhuma verificação de qualidade",

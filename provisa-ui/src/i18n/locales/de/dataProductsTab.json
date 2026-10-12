@@ -93,23 +93,11 @@
     "openApiQueryAria": "Beispiel-REST-Anfrage für {{table}} ausführen",
     "detail": {
       "field": {
-        "domain": "Domäne",
-        "name": "Name",
-        "owner": "Eigentümer",
-        "team": "Team",
-        "purpose": "Zweck",
-        "limitations": "Einschränkungen",
-        "usage": "Nutzung",
-        "version": "Version",
-        "status": "Status",
-        "sla": "SLA",
-        "support": "Support",
         "customProperties": "Benutzerdefinierte Eigenschaften",
         "relatedTables": "Verwandte Tabellen",
         "relationships": "Beziehungen",
         "lineage": "Lineage",
         "inputPorts": "Input Ports",
-        "outputPorts": "Output Ports",
         "dataQuality": "Datenqualität"
       },
       "dataQualityEmpty": "Keine Qualitätsprüfungen",
