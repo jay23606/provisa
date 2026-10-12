@@ -3427,6 +3427,7 @@ dependencies = [
     { name = "psycopg-pool" },
     { name = "psycopg2-binary" },
     { name = "pyarrow" },
+    { name = "pyathena" },
     { name = "pydantic" },
     { name = "pyexasol" },
     { name = "pyiceberg" },
@@ -3662,6 +3663,7 @@ requires-dist = [
     { name = "psycopg-pool" },
     { name = "psycopg2-binary" },
     { name = "pyarrow" },
+    { name = "pyathena" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyexasol" },
     { name = "pyiceberg" },
@@ -3860,6 +3862,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a", size = 181259, upload-time = "2025-03-28T02:41:19.028Z" },
+]
+
+[[package]]
+name = "pyathena"
+version = "3.39.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "boto3" },
+    { name = "botocore" },
+    { name = "fsspec" },
+    { name = "python-dateutil" },
+    { name = "tenacity" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/05/ab/c7ea65835277e28926b202b7072b85b6206dd83ff8b46ef8c6c33a08e6b5/pyathena-3.39.0.tar.gz", hash = "sha256:e49d365004a2176e09fbd519741654b1c555abea2044019a3961abfa83c17ba7", size = 172996, upload-time = "2026-10-10T15:26:03.432Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/e2/3032c0bebbf45865302326b0344b92a56d9a55eed1e4f1e1228fba7a659b/pyathena-3.39.0-py3-none-any.whl", hash = "sha256:56b864f84a92bde8a4df9ea4e47617f5742bd26a1c0e0e893195d95981b95dc7", size = 235121, upload-time = "2026-10-10T15:26:01.395Z" },
 ]
 
 [[package]]
