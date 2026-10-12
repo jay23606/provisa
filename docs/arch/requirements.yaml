@@ -78016,3 +78016,28 @@
   - REQ-885
   - REQ-1159
   notes: 'Maintainer 2026-10-12, via the lead: Shape B of the MongoDB native-query work, "a command (Function kind=query) with typed args that runs a pipeline whose output has no stable schema", after Shape A (REQ-1980). The following go beyond his words and are the lead''s elaboration: the implementation kind source_query and its binding; the refusals at registration, the same as a pipeline table''s; the GraphQL return being the JSON scalar unless the command declares a return schema.'
+- id: REQ-1990
+  status: proposed
+  since: 2026-10
+  group: 0. Architecture & Design Principles
+  category: Surface Parity
+  priority: SHOULD
+  type: constraint
+  description: 'Every query surface strives to match the capabilities of the other surfaces. A capability one surface offers over the model (reading a parameterized table, a mask, an aggregate, an embedded object) is offered by every other surface in that surface''s own idiom, unless the surface''s protocol cannot express it. In Cypher, a remote table''s field holding an embedded object of a type that is not a registered table is a map property of the node, as GraphQL returns it as a nested object; a field pointing at a registered type, one object or a list, stays a relationship (an edge), not a property.'
+  use_case: 'A remote GraphQL table of orders has an embedded address object (its type is not registered) and a list of line items (a registered table). GraphQL returns address as a nested object and lineItems through the relationship; a Cypher client reads the same order node with address as a map property and reaches the line items over the edge.'
+  scenario: 'Given a remote GraphQL table orders whose address field is an object of the unregistered type Address, and whose lineItems field is a list of the registered type LineItem
+
+
+    When a Cypher client runs MATCH (o:Orders) RETURN o.address
+
+
+    Then o.address is a map with the address''s fields
+
+
+    When the client runs MATCH (o:Orders)-[r]->(l:LineItems) RETURN l
+
+
+    Then the line items are reached over the edge, and lineItems is not a property of o'
+  related_reqs:
+  - REQ-1986
+  notes: 'Maintainer 2026-10-12, via the lead: "every query surface should strive to match the capabilities of other surfaces"; ruled that Cypher exposes an embedded object of an unregistered type as a map property while lists of registered types stay edges. The wording of the general principle beyond his sentence, and the scenario, are the teammate''s.'

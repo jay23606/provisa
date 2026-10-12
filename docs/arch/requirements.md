@@ -22881,3 +22881,17 @@ A query command can run a MongoDB aggregation pipeline whose output has no stabl
 **Code:** —
 
 **Tests:** —
+
+## 0. Architecture & Design Principles
+
+### REQ-1990 · Surface Parity {#REQ-1990}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** constraint
+
+Every query surface strives to match the capabilities of the other surfaces. A capability one surface offers over the model (reading a parameterized table, a mask, an aggregate, an embedded object) is offered by every other surface in that surface's own idiom, unless the surface's protocol cannot express it. In Cypher, a remote table's field holding an embedded object of a type that is not a registered table is a map property of the node, as GraphQL returns it as a nested object; a field pointing at a registered type, one object or a list, stays a relationship (an edge), not a property.
+
+**Use case:** A remote GraphQL table of orders has an embedded address object (its type is not registered) and a list of line items (a registered table). GraphQL returns address as a nested object and lineItems through the relationship; a Cypher client reads the same order node with address as a map property and reaches the line items over the edge.
+
+**Code:** —
+
+**Tests:** —
