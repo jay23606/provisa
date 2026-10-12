@@ -78409,3 +78409,34 @@
   - tests/unit/test_logparse_web.py
   - tests/unit/test_logs_source.py
   - provisa-ui/src/pages/sources/__tests__/logs.test.tsx
+- id: REQ-1997
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Source Registration
+  priority: SHOULD
+  type: behavioral
+  description: 'A file-based source (DuckDB, SQLite, CSV and Parquet: the sources whose path names a file) can be given its file by uploading it. On the source form, an upload streams the file to disk, never held in memory, into the organization''s own file folder (REQ-1992) under its files area, and sets the source''s path to it; replacing the file is another upload, which takes the place of the earlier one, and the next read sees the new file; removing the source removes its uploaded file. The uploaded file is stored like every other org file: under that org''s folder only, encrypted when the org has turned folder encryption on, and durable (org files are kept until what they belong to goes; nothing removes them on its own). On a deployment of several nodes the org folder is one shared mount, so an upload is seen by every node. Uploads are limited by an operator setting for the largest file accepted (sources.max_upload_bytes, by default 1 GiB), with its settings UI; a larger file is refused naming the limit. Only the org''s source registrars may upload, and the path of an uploaded file is not editable as free text while the file is the upload''s. Every file-based source takes every kind of location its engine can read: a local path, https, and object stores (s3, gs, az) with their credentials; a SQLite or DuckDB file in a remote location is attached read-only and a write to it is refused by name before it runs; on an engine that does not attach SQLite, a remote SQLite file is downloaded into the org folder and landed from there. The form says which kinds of location each file type accepts.'
+  use_case: 'An analyst with a SQLite file of survey results on their laptop adds a SQLite source, uploads the file from the form, and queries it alongside the warehouse, without a shared drive or a server path.'
+  scenario: 'Given an org admin adding a SQLite source
+
+    When they upload survey.sqlite on the source form
+
+    Then the file is stored under the org''s folder, the source''s path points to it, and its tables can be registered
+
+    When they upload a new survey.sqlite to the same source
+
+    Then the new file replaces the old one and the next read sees it
+
+    When a file larger than the operator''s limit is uploaded
+
+    Then the upload is refused naming the limit
+
+    Given a DuckDB file in a private S3 bucket
+
+    When a DuckDB source names its s3:// path with the bucket''s credentials
+
+    Then its tables are read, and a write to it is refused by name'
+  related_reqs:
+  - REQ-1992
+  notes: 'Maintainer 2026-10-12, through the lead: "the filebased datasource - like duckdb and sqlite, csv, parquet still don''t have a method of uploading the file (effectively putting the file into the org''s file location and updating the path to point to it)"; then "does it support ALL types of URIs?". On several nodes the maintainer settled one shared file mount (the coordinator''s folder, through terraform or helm), so an upload written on one node is seen by every node. The maintainer has ruled that all org files are durable: nothing is deleted on its own. The size-limit setting (1 GiB by default), the replace and remove behaviour, the registrar right, read-only remote attaches with writes refused by name, and downloading a remote SQLite file for an engine that does not attach it are the lead''s. Delta and Iceberg on Azure and GCS stay out (a DuckDB limit). Found while designing: on main only the Parquet connector gave DuckDB an object-store secret, for s3 only; CSV had none, and none gave GCS or Azure.'
