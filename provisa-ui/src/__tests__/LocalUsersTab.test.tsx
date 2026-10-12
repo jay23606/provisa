@@ -8,11 +8,13 @@
 // machine learning models is strictly prohibited without explicit written
 // permission from the copyright holder.
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { render, screen, fireEvent, waitFor } from "../test-utils/render";
 import i18n from "../i18n";
 import { LocalUsersTab } from "../components/admin/LocalUsersTab";
 import type { LocalUser } from "../api/admin";
+import { LIST_COLUMN_CAP_PX } from "../components/list/listCellLimits";
 
 const t = i18n.getFixedT("en");
 
@@ -161,5 +163,62 @@ describe("LocalUsersTab", () => {
     );
     // Created: the form closes and the opener is back.
     expect(await screen.findByTestId("local-user-add")).toBeInTheDocument();
+  });
+
+  describe("a user's name on its expand button", () => {
+    const LONG = "svc-ingest-warehouse-eu-west-1-nightly-replication-account-0042@corp.example.internal";
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it("asks for no more than a list column's cap, and a cut name is whole in the hint", async () => {
+      // jsdom lays nothing out: the name's line reports it holds more than it shows while it is
+      // on the page, and nothing once it has left it, as a browser measures.
+      vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.isConnected && this.textContent === LONG && this.tagName === "SPAN" ? 900 : 0;
+      });
+      // As in a browser, an observer reports once on observe, and never after it is disconnected.
+      // The hint wraps the button anew when the name is cut; the measure must follow the new
+      // element, not report the one that left the page.
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          live = true;
+          constructor(private readonly report: () => void) {}
+          observe() {
+            setTimeout(() => this.live && this.report(), 0);
+          }
+          unobserve() {}
+          disconnect() {
+            this.live = false;
+          }
+        },
+      );
+      mockUsers = [makeUser({ id: "u9", username: LONG })];
+      render(<LocalUsersTab allRoles={["admin"]} allDomains={["sales"]} />);
+      const button = await screen.findByTestId(`expand-user-${LONG}`);
+      // Mantine writes a size in rem (16px each).
+      expect(button.style.maxWidth).toContain(`${LIST_COLUMN_CAP_PX / 16}rem`);
+      expect(button).toHaveAttribute("data-cut", "true");
+      expect(screen.getByText(LONG)).toHaveStyle({ textOverflow: "ellipsis", whiteSpace: "nowrap" });
+      await new Promise((r) => setTimeout(r, 50));
+      const shown = screen.getByTestId(`expand-user-${LONG}`);
+      expect(shown).toHaveAttribute("data-cut", "true");
+      await userEvent.hover(shown);
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(LONG);
+    });
+
+    it("a name that fits has no hint", async () => {
+      mockUsers = [makeUser()];
+      render(<LocalUsersTab allRoles={["admin"]} allDomains={["sales"]} />);
+      const button = await screen.findByTestId("expand-user-alice");
+      expect(button).not.toHaveAttribute("data-cut");
+      await userEvent.hover(button);
+      await new Promise((r) => setTimeout(r, 300));
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
   });
 });
