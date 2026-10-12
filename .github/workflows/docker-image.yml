@@ -1,0 +1,32 @@
+name: Docker Image
+
+# The app image (Dockerfile) built on every push to main, without pushing it anywhere: the release
+# workflows build it only at release time, so a break in the Dockerfile reached main unseen. The
+# built image then draws render_graph's PNGs through its own node, renderer and fonts (REQ-1990).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the run before it.
+concurrency:
+  group: docker-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: build + render_graph smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the app image (linux/amd64, not pushed)
+        run: docker build --platform linux/amd64 -t provisa/provisa:ci .
+
+      - name: render_graph draws inside the image
+        run: docker run --rm -i provisa/provisa:ci python - < scripts/ci/render_graph_smoke.py
