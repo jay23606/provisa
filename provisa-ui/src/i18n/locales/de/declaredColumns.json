@@ -1,0 +1,12 @@
+{
+  "declaredColumns": {
+    "title": "Spalten dieser Tabelle",
+    "lead": "Diese Operation sagt nichts darüber, was ihre Zeilen enthalten. Benennen Sie jede Spalte und ihren Typ; die Tabelle enthält diese Spalten.",
+    "name": "Name",
+    "type": "Typ",
+    "remove": "Diese Spalte entfernen",
+    "add": "Spalte hinzufügen",
+    "sampleTitle": "Spalten aus einer Stichprobe vorschlagen",
+    "sample": "Einmal aufrufen und vorschlagen"
+  }
+}

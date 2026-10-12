@@ -63,6 +63,7 @@ import { ttlSignalMissingCacheTtl } from "../sources/loadManagement";
 import { serverMessage } from "../../i18n/serverMessage";
 import { usePanelDirty } from "../../components/list/panelLeave";
 import { TableOptions } from "./TableOptions";
+import { DeclaredColumns } from "./DeclaredColumns";
 import { ImportSetField } from "./ImportSetField";
 
 // REQ-1443: a checker's scans append to a relation in the org's control-plane schema, which the
@@ -1050,6 +1051,12 @@ export function RegisterTableForm({
             </FormField>
           )}
       </FormChecks>
+      {availableTables.find((tb) => tb.name === tableName)?.columnsDeclared && (
+        <DeclaredColumns
+          {...{ sourceId, tableName, columns, setColumns, irTypes }}
+          visibleTo={roles.map((r) => r.id)}
+        />
+      )}
       {/* The heading shows once there is something under it: columns, or their loading. */}
       {short && (
         // Every discovered column is registered with its discovered type; a column discovery could

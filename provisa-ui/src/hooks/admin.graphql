@@ -585,6 +585,7 @@ query AvailableTables($sourceId: String!, $schemaName: String!) {
     name
     comment
     group
+    columnsDeclared
     pagingKind
     pagination {
       type
@@ -1273,5 +1274,14 @@ mutation SetServicenowImportSet(
     added: $added
   ) {
     ...MutationResult
+  }
+}
+
+# REQ-1924: columns suggested from one sample answer of an OpenAPI table whose operation declares
+# no response schema. Suggestions only: nothing is stored.
+query SampleOpenapiColumns($sourceId: String!, $tableName: String!, $params: JSON!) {
+  sampleOpenapiColumns(sourceId: $sourceId, tableName: $tableName, params: $params) {
+    name
+    dataType
   }
 }

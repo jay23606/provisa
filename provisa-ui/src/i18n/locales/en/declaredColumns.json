@@ -1,0 +1,12 @@
+{
+  "declaredColumns": {
+    "title": "Columns this table holds",
+    "lead": "This operation says nothing of what its rows hold. Name each column and its type; the table holds these columns.",
+    "name": "Name",
+    "type": "Type",
+    "remove": "Remove this column",
+    "add": "Add column",
+    "sampleTitle": "Suggest columns from a sample",
+    "sample": "Call once and suggest"
+  }
+}
