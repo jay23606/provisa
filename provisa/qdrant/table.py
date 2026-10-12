@@ -214,7 +214,7 @@ async def _vector(
     """The query vector ``value`` stands for: a vector as given, or a text embedded by the
     search's registered model; checked against that model's dimensions."""
     from provisa.core.parameter_values import convert
-    from provisa.vector.query import resolve_query_vector, validate_vector_dimensions
+    from provisa.vector.query import validate_vector_dimensions, vectorize_text
 
     name = parameter_name(column)
     if _is_text(value):
@@ -223,7 +223,10 @@ async def _vector(
                 table["table_name"],
                 f"{name!r} was given a text; a text query needs the search's embedding model",
             )
-        return await resolve_query_vector(value, await registered_model(state, model_id))
+        model = await registered_model(state, model_id)
+        embedded = await vectorize_text(value, model)
+        validate_vector_dimensions(embedded, model)
+        return embedded
     vector = convert(value, column["data_type"], table=table["table_name"], parameter=name)
     if model_id:
         validate_vector_dimensions(vector, await registered_model(state, model_id))
