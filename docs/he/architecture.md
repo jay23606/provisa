@@ -388,7 +388,7 @@ STALE → (refresh loop picks up) → REFRESHING → FRESH
 | `compiler/` | פרסרים ל-GraphQL/SQL, מחולל SQL סמנטי, RLS, מיסוך, דגימה, ממשל דו-שלבי (`stage2.py`) |
 | `cypher/` | מתרגם Cypher ← SQL, פרסר, מפת תוויות (REQ-351), מתרגם כתיבה עבור מוטציות Cypher |
 | `pgwire/` | שרת פרוטוקול חוט PostgreSQL; `catalog.py` מיירט את pg_catalog/information_schema עבור נראות אובייקטים לפי תפקיד (REQ-527, REQ-883, REQ-891) |
-| `vector/` | חיפוש וקטורי — רישום מודלים, ספקי הטמעה (openai/ollama/huggingface), תרגום `cosine_similarity()`, מטמון גיבוי pgvector, יצירת הטמעות דקלרטיבית (REQ-419–431) |
+| `vector/` | חיפוש וקטורי — רישום מודלים, ספקי הטמעה (openai/ollama/huggingface), תרגום `cosine_similarity()`, אינדקס HNSW על עמודת ההטמעה של רפליקה, יצירת הטמעות דקלרטיבית (REQ-419–431) |
 | `compiler/federation.py` | תמיכת subgraph ב-Apollo Federation v2 |
 | `transpiler/` | תרגום דיאלקט, לוגיקת ניתוב |
 | `executor/` | ביצוע פדרטיבי/ישיר, סדרות, פורמטי פלט |

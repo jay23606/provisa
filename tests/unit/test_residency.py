@@ -17,7 +17,7 @@ from provisa.federation.residency import resolve_landing_args
 
 
 def _col(name, data_type: str | None = "text", pk=False):
-    return SimpleNamespace(name=name, data_type=data_type, is_primary_key=pk)
+    return SimpleNamespace(name=name, data_type=data_type, is_primary_key=pk, embedding=False)
 
 
 def _table(
@@ -149,7 +149,11 @@ class TestResolveLandingArgs:
         """REQ-1908: epoch-stored temporals are translated on live reads only; landing would put
         raw numbers into a temporal replica column, so the land is refused, naming the column."""
         ts = SimpleNamespace(
-            name="ts", data_type="timestamptz", is_primary_key=False, epoch_unit="ms"
+            name="ts",
+            data_type="timestamptz",
+            is_primary_key=False,
+            epoch_unit="ms",
+            embedding=False,
         )
         t = _table(columns=[_col("id", "bigint", pk=True), ts])
         with pytest.raises(ValueError, match=r"\['ts'\] are epoch-stored"):

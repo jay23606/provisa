@@ -109,9 +109,25 @@ def test_pgvector_l2_distance_maps_to_engine_fn(monkeypatch) -> None:
     assert "<->" not in out
 
 
-def test_pgvector_cosine_and_inner_product_map(monkeypatch) -> None:
+def test_pgvector_cosine_distance_is_the_governed_similarity_search(monkeypatch) -> None:
+    # REQ-423: <=> is written as cosine_similarity, which governance completes with the model.
     _enable(monkeypatch, "pgvector")
-    assert "ARRAY_COSINE_DISTANCE" in rewrite_surface_operators("SELECT a <=> b FROM t").upper()
+    out = rewrite_surface_operators("SELECT a <=> b FROM t").upper()
+    assert "(1 - COSINE_SIMILARITY(A, B))" in out
+    assert "<=>" not in out
+
+
+def test_ordering_by_cosine_distance_orders_by_similarity_the_other_way(monkeypatch) -> None:
+    # REQ-424: a top-k search written with <=> is the one a replica's index answers.
+    _enable(monkeypatch, "pgvector")
+    nearest = rewrite_surface_operators("SELECT id FROM t ORDER BY emb <=> $1 LIMIT 5").upper()
+    assert "ORDER BY COSINE_SIMILARITY(EMB, $1) DESC NULLS LAST LIMIT 5" in nearest
+    farthest = rewrite_surface_operators("SELECT id FROM t ORDER BY emb <=> $1 DESC").upper()
+    assert "ORDER BY COSINE_SIMILARITY(EMB, $1) ASC NULLS FIRST" in farthest
+
+
+def test_pgvector_inner_product_maps(monkeypatch) -> None:
+    _enable(monkeypatch, "pgvector")
     ip = rewrite_surface_operators("SELECT a <#> b FROM t").upper()
     assert "ARRAY_NEGATIVE_INNER_PRODUCT" in ip
 
@@ -122,13 +138,13 @@ def test_order_by_similarity_search_maps(monkeypatch) -> None:
     assert "ORDER BY ARRAY_DISTANCE(EMB, $1)" in out
 
 
-# --- convert-or-reject-loudly: NO index acceleration -------------------------
+# --- convert-or-reject-loudly: a client creates no vector index ---------------
 
 
 @pytest.mark.parametrize("am", ["hnsw", "ivfflat"])
 def test_ann_index_rejected_loudly(monkeypatch, am: str) -> None:
     _enable(monkeypatch, "pgvector")
-    with pytest.raises(ValueError, match="does not implement"):
+    with pytest.raises(ValueError, match=f"does not create a {am} index"):
         rewrite_surface_operators(f"CREATE INDEX ON t USING {am} (emb vector_l2_ops)")
 
 

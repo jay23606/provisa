@@ -34,7 +34,7 @@ pytestmark = pytest.mark.unit
 
 def _col(name, data_type="text", pk=False):
     return SimpleNamespace(
-        name=name, data_type=data_type, is_primary_key=pk, native_filter_type=None
+        name=name, data_type=data_type, is_primary_key=pk, native_filter_type=None, embedding=False
     )
 
 

@@ -388,7 +388,7 @@ O laço de atualização roda a cada 30 segundos, verifica `get_due_for_refresh(
 | `compiler/` | Parsers GraphQL/SQL, gerador de SQL semântico, RLS, mascaramento, amostragem, governança em dois estágios (`stage2.py`) |
 | `cypher/` | Tradutor Cypher → SQL, parser, mapa de rótulos (REQ-351), tradutor de escrita para mutações Cypher |
 | `pgwire/` | Servidor de protocolo de fio PostgreSQL; `catalog.py` intercepta pg_catalog/information_schema para visibilidade de objeto por função (REQ-527, REQ-883, REQ-891) |
-| `vector/` | Busca vetorial — registro de modelos, provedores de embedding (openai/ollama/huggingface), tradução de `cosine_similarity()`, cache de fallback pgvector, geração declarativa de embeddings (REQ-419–431) |
+| `vector/` | Busca vetorial — registro de modelos, provedores de embedding (openai/ollama/huggingface), tradução de `cosine_similarity()`, índice HNSW na coluna de embedding de uma réplica, geração declarativa de embeddings (REQ-419–431) |
 | `compiler/federation.py` | Suporte a subgraph Apollo Federation v2 |
 | `transpiler/` | Transpilação de dialeto, lógica de roteamento |
 | `executor/` | Execução federada/direta, serialização, formatos de saída |

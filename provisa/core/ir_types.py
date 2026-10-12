@@ -42,6 +42,34 @@ from sqlalchemy import (
     Time,
     Uuid,
 )
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.types import UserDefinedType
+
+
+class Embedding(UserDefinedType):  # REQ-424
+    """An embedding vector in a replica, stored as a list of floats where the engine that reads
+    the replica can index it: ``REAL[]`` in a PostgreSQL store (indexed through its pgvector
+    cast), ``FLOAT[]`` in a DuckDB store. Any other store holds it as text, the vector's JSON
+    form."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        del kw
+        return "TEXT"
+
+
+@compiles(Embedding, "postgresql")
+def _embedding_postgresql(type_: Embedding, compiler: Any, **kw: Any) -> str:
+    del type_, compiler, kw
+    return "REAL[]"
+
+
+@compiles(Embedding, "duckdb")
+def _embedding_duckdb(type_: Embedding, compiler: Any, **kw: Any) -> str:
+    del type_, compiler, kw
+    return "FLOAT[]"
+
 
 # Canonical IR name → SQLAlchemy generic type. The KEYS are the IR vocabulary. Generic types render
 # per-dialect at DDL time, so a landed table is portable across every relational store backend.
@@ -66,6 +94,8 @@ _IR_TO_SA: dict[str, Any] = {
     # Postgres/MySQL/DuckDB and TEXT-affinity on SQLite — portable via the dialect compiler, no
     # hand-maintained per-store fallback. Composite/array types stay collapsed to `text` (below).
     "json": JSON,
+    # REQ-424: an embedding column of a replica the engine indexes (see Embedding).
+    "vector": Embedding,
 }
 
 # Native / dialect spelling → canonical IR name. Everything a source or reflection reports maps

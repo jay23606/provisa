@@ -2224,6 +2224,7 @@ def _row_materialize_tables_in_memory(state: Any) -> dict[str, Any]:
                     data_type=c["data_type"],
                     is_primary_key=c["is_primary_key"],
                     native_filter_type=c["native_filter_type"],
+                    embedding=c["embedding"],  # REQ-424: lands as an indexed vector
                 )
                 for c in t["columns"]
             ],

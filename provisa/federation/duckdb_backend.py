@@ -55,6 +55,12 @@ class DuckDBBackend(NativeEngineBackend):
             runtime._store_broker, schema=address.schema, table=address.table, columns=args.columns
         )
 
+    def indexes_replica_vectors(self, state: Any) -> bool:
+        """REQ-424: a replica in the embedded DuckDB store is read through this engine's own
+        copy of it, which indexes its vectors (``_index_replica_vectors``); a replica in any
+        other store is read through that store's connector."""
+        return self._runtime_for(state)._store_is_duckdb()
+
     result_formats = frozenset({"parquet"})
 
     def ctas_redirect(

@@ -388,7 +388,7 @@ Die Refresh-Schleife läuft alle 30 Sekunden, prüft `get_due_for_refresh()` und
 | `compiler/` | GraphQL-/SQL-Parser, Semantic-SQL-Generator, RLS, Maskierung, Sampling, zweistufige Governance (`stage2.py`) |
 | `cypher/` | Cypher-→-SQL-Übersetzer, Parser, Label-Map (REQ-351), Write-Übersetzer für Cypher-Mutations |
 | `pgwire/` | PostgreSQL-Wire-Protokoll-Server; `catalog.py` fängt pg_catalog/information_schema für die Objektsichtbarkeit pro Rolle ab (REQ-527, REQ-883, REQ-891) |
-| `vector/` | Vektorsuche — Modellregistry, Embedding-Provider (openai/ollama/huggingface), `cosine_similarity()`-Übersetzung, pgvector-Fallback-Cache, deklarative Embedding-Generierung (REQ-419–431) |
+| `vector/` | Vektorsuche — Modellregistry, Embedding-Provider (openai/ollama/huggingface), `cosine_similarity()`-Übersetzung, HNSW-Index auf der Embedding-Spalte eines Replikats, deklarative Embedding-Generierung (REQ-419–431) |
 | `compiler/federation.py` | Unterstützung für Apollo-Federation-v2-Subgraph |
 | `transpiler/` | Dialekt-Transpilation, Routing-Logik |
 | `executor/` | Föderierte/direkte Ausführung, Serialisierung, Ausgabeformate |

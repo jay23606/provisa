@@ -139,10 +139,13 @@ def store_target(
     columns: list[tuple[str, str]],
     pk_columns: list[str],
     engine_writes_store: bool,
+    native_vectors: bool,
 ) -> Any:
     """The write face of a replica at ``address`` in the store ``store_backend``
     (``FederationEngine.replica_store_backend``). ``engine_writes_store`` says the engine can
-    write this store with a statement of its own, which is what a statement-level copy needs."""
+    write this store with a statement of its own, which is what a statement-level copy needs.
+    ``native_vectors`` says the engine reads the store through the store's own SQL, so it can
+    search an embedding column's index (REQ-424)."""
     if store_backend == "postgresql":
         target = PostgresStoreTarget(
             store_dsn,
@@ -150,6 +153,7 @@ def store_target(
             table=address.table,
             columns=columns,
             pk_columns=pk_columns,
+            native_vectors=native_vectors,
         )
         if engine_writes_store:
             target.caps = TargetCaps(

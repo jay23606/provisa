@@ -5,7 +5,7 @@
 Vector search in Provisa is organized as three independent phases, each delivering standalone value: (REQ-431)
 
 1. **Native vector search** — model registry, embedding column declaration, `cosine_similarity()` UDF
-2. **Non-native fallback** — transparent pgvector cache materialization for sources without native capability
+2. **Non-native fallback** — the replica of a table, with an HNSW index on its embedding column
 3. **Declarative embedding generation** — generate and maintain embedding columns from source text
 
 ---
@@ -125,48 +125,21 @@ Re-embed the column or declare a separate embedding column.
 
 ---
 
-## Phase 2: Non-Native Fallback
+## Phase 2: The Replica's Index
 
-For sources with no native vector capability, Provisa transparently materializes the embedding column to an internal pgvector-enabled PostgreSQL cache. (REQ-424)
+A table served from its replica (REQ-1912) is the fallback for a vector search. Where the engine reads the replica through its store's own SQL, the replica holds each embedding column as a vector with an HNSW index for cosine distance. (REQ-424)
 
-### Fallback Flow
+| Engine | Replica's embedding column | Index |
+| --- | --- | --- |
+| DuckDB, embedded store | `FLOAT[]` in the store; the engine's copy of the replica fixes it at `FLOAT[d]` | HNSW on the engine's copy, built each time the store changes |
+| PostgreSQL | `REAL[]` in the engine's own database | HNSW (`vector_cosine_ops`) on its pgvector cast `vector(d)`, built with each replica build |
+| Trino, or an engine reading a replica from a store of another kind | the vector's JSON text | none |
 
-```text
-cosine_similarity() against non-vector source
-        ↓
-Detect: source has no native vector capability
-        ↓
-Check pgvector cache: provisa_vector_cache.{source}_{table}_{column}_{hash}
-        ↓
-    ┌───────────┬──────────────┐
-    ▼           ▼              ▼
-  HIT         STALE          MISS
-    ↓           ↓              ↓
-Query cache  Rebuild      Materialize:
-directly     cache        - Pull embedding col + PKs from source
-                          - Write to pgvector table
-                          - Build HNSW index
-                          - Record cache metadata
-        ↓
-Query pgvector cache
-        ↓
-JOIN PKs back to source for remaining columns
-        ↓
-Return governed result — caller unaware of fallback
-```
+A top-k search reads the index: a statement with a `LIMIT`, ordered first by `cosine_similarity(...)` most similar first, whose embedding column belongs to a replica-served table. It is written nearest-first by distance (DuckDB `array_cosine_distance`, pgvector `<=>`), the order the index serves, and its answer carries the `statement.approximate_index` warning: the index may miss a row slightly more similar than the last one returned. Every other search over a replica, and every search on an engine with no index, is computed exactly and says nothing.
 
-### Cache Invalidation
+### Freshness
 
-| Trigger | Behavior |
-| --- | --- |
-| TTL expiry | Configurable per table; stale cache not served beyond TTL |
-| Mutation on source | Invalidate affected rows |
-| Manual refresh | Admin API endpoint |
-| Row count drift | If source row count diverges beyond threshold, full rebuild |
-| Model change | Full rebuild required |
-| Schema change | Full rebuild required |
-
-(REQ-425)
+The index is as fresh as its replica. It is built with each replica build and swapped in with it (REQ-1915), and the DuckDB engine re-indexes its copy whenever the store changes. The table's replica settings (REQ-030, REQ-826) decide how fresh that is; there is no vector cache to invalidate apart from the replica. (REQ-425)
 
 ---
 
@@ -221,7 +194,7 @@ END
 
 ### Storage
 
-Generated embeddings are stored in the internal pgvector PostgreSQL instance (same infrastructure as Phase 2 fallback cache). No source write access required. (REQ-427)
+Generated embeddings are stored in the internal pgvector PostgreSQL instance. No source write access required. (REQ-427)
 
 ### Incremental Refresh
 

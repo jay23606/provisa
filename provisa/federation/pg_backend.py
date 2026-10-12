@@ -72,7 +72,13 @@ class PgBackend(NativeEngineBackend):
             columns=args.columns,
             pk_columns=list(args.pk_columns or ()),
             engine_writes_store=EngineRun.STATEMENT in engine.caps.runs,
+            native_vectors=True,  # REQ-424: the engine reads its replicas in its own database
         )
+
+    def indexes_replica_vectors(self, state: Any) -> bool:
+        """REQ-424: the engine reads its replicas in its own database, through their indexes."""
+        del state
+        return True
 
     @property
     def computes_fakes(self) -> bool:  # type: ignore[override]

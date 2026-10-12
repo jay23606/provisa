@@ -3817,6 +3817,7 @@
   "ja/serverErrors.json::serverErrors.sparql.columns_not_inferred": "Could not infer columns: probe returned no rows and no SELECT variables found.",
   "ja/serverErrors.json::serverErrors.sparql.probe_failed": "SPARQL endpoint probe failed: {{error}}",
   "ja/serverErrors.json::serverErrors.sparql.source_not_found": "SPARQL source '{{source_id}}' not found",
+  "ja/serverErrors.json::serverErrors.statement.approximate_index": "The most similar rows were found through an approximate vector index: a row slightly more similar than the last one returned may be missing.",
   "ja/serverErrors.json::serverErrors.statement.rows_cut": "The answer was cut at {{limit}} rows, the row limit that applies to this read ({{kind}}): more rows match than were returned.",
   "ja/serverErrors.json::serverErrors.statement.rows_cut_unchecked": "The answer has {{limit}} rows, the row limit that applies to this read ({{kind}}). Whether more rows match could not be checked: {{reason}}",
   "ja/serverErrors.json::serverErrors.subscribe.avro_topic_without_registry": "Topic '{{topic}}' carries Avro messages, and its source names no schema registry to read them with: set the source's schema registry URL",

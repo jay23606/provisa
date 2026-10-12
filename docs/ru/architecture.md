@@ -388,7 +388,7 @@ STALE → (refresh loop picks up) → REFRESHING → FRESH
 | `compiler/` | Парсеры GraphQL/SQL, генератор семантического SQL, RLS, маскирование, сэмплирование, двухэтапный governance (`stage2.py`) |
 | `cypher/` | Транслятор Cypher → SQL, парсер, карта меток (REQ-351), транслятор записи для мутаций Cypher |
 | `pgwire/` | Сервер проводного протокола PostgreSQL; `catalog.py` перехватывает pg_catalog/information_schema для видимости объектов для каждой роли (REQ-527, REQ-883, REQ-891) |
-| `vector/` | Векторный поиск — реестр моделей, провайдеры эмбеддингов (openai/ollama/huggingface), трансляция `cosine_similarity()`, резервный кеш pgvector, декларативная генерация эмбеддингов (REQ-419–431) |
+| `vector/` | Векторный поиск — реестр моделей, провайдеры эмбеддингов (openai/ollama/huggingface), трансляция `cosine_similarity()`, индекс HNSW по столбцу эмбеддингов реплики, декларативная генерация эмбеддингов (REQ-419–431) |
 | `compiler/federation.py` | Поддержка субграфа Apollo Federation v2 |
 | `transpiler/` | Транспиляция диалектов, логика маршрутизации |
 | `executor/` | Федеративное/прямое выполнение, сериализация, форматы вывода |

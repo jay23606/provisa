@@ -331,6 +331,7 @@ def sqlalchemy_store_target(
             table=table,
             columns=columns,
             pk_columns=pk_columns,
+            native_vectors=False,
         )
     return SqlAlchemyStoreTarget(
         sa_engine, schema=schema, table=table, columns=columns, pk_columns=pk_columns
@@ -690,6 +691,26 @@ class SqlAlchemyStoreTarget:
         await asyncio.to_thread(self._abort)
 
 
+def _vector_text(value: Any) -> Any:
+    """An embedding held as text: its JSON text. A value that is already text is the source's
+    own JSON text of it."""
+    import json
+
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps([float(v) for v in value])
+
+
+def _vector_list(value: Any) -> Any:
+    """An embedding held as a ``REAL[]``: its floats. A source that holds it as text gives its
+    JSON text."""
+    import json
+
+    if value is None:
+        return None
+    return [float(v) for v in (json.loads(value) if isinstance(value, str) else value)]
+
+
 def _driver_value(value: Any) -> Any:
     """A row value as a driver's bulk call binds it: a JSON document as its text (the store
     column is the dialect's JSON or text type); everything else as it is."""
@@ -714,7 +735,50 @@ def _pg_build_ddl(schema: str, build: str, columns: list[tuple[str, str]]) -> tu
     return str(CreateTable(table).compile(dialect=postgresql.dialect())), table
 
 
-def _pg_swap(cur: Any, schema: str, table: str, build: str, pk_columns: list[str]) -> None:
+def vector_columns(columns: list[tuple[str, str]]) -> list[str]:
+    """The replica's embedding columns held as vectors (REQ-424)."""
+    return [name for name, ir_type in columns if ir_type == "vector"]
+
+
+def text_vectors(columns: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """``columns`` with each vector held as text: a store whose replica the engine does not read
+    through the store's own SQL holds an embedding as its JSON text, exactly scored (REQ-424)."""
+    return [(name, "text" if ir_type == "vector" else ir_type) for name, ir_type in columns]
+
+
+def _hnsw_index_name(table: str, column: str) -> str:
+    return "hnsw__" + hashlib.sha256(f"{table}.{column}".encode()).hexdigest()[:24]
+
+
+def _pg_index_vectors(cur: Any, schema: str, table: str, vectors: list[str]) -> None:
+    """Index each vector column with HNSW for cosine distance, through its pgvector cast at its
+    vectors' length (REQ-424): the column stays a ``REAL[]``, read as a list as any array is,
+    and a search names the same cast (``similarity._lowered_distance``). A replica with no
+    vector in a column has nothing to index; vectors of two lengths in one column fail the
+    build."""
+    replica = f"{_q(schema)}.{_q(table)}"
+    for column in vectors:
+        cur.execute(
+            f"SELECT array_length({_q(column)}, 1) FROM {replica} "
+            f"WHERE {_q(column)} IS NOT NULL LIMIT 1"
+        )
+        found = cur.fetchone()
+        if found is None:
+            continue
+        cur.execute(
+            f"CREATE INDEX {_q(_hnsw_index_name(table, column))} ON {replica} "
+            f"USING hnsw ((CAST({_q(column)} AS vector({int(found[0])}))) vector_cosine_ops)"
+        )
+
+
+def _pg_swap(
+    cur: Any,
+    schema: str,
+    table: str,
+    build: str,
+    pk_columns: list[str],
+    vectors: list[str],
+) -> None:
     """Replace the replica with the build table, inside the caller's transaction."""
     replica = f"{_q(schema)}.{_q(table)}"
     cur.execute(f"DROP TABLE IF EXISTS {replica}")
@@ -722,6 +786,7 @@ def _pg_swap(cur: Any, schema: str, table: str, build: str, pk_columns: list[str
     if pk_columns:
         key = ", ".join(_q(c) for c in pk_columns)
         cur.execute(f"ALTER TABLE {replica} ADD PRIMARY KEY ({key})")
+    _pg_index_vectors(cur, schema, table, vectors)
 
 
 def pg_statement_copy(
@@ -754,9 +819,12 @@ def pg_statement_copy(
     ddl, _ = _pg_build_ddl(schema, build, columns)
     names = ", ".join(_q(name) for name, _ in columns)
     target = f"{_q(schema)}.{_q(build)}"
+    vectors = vector_columns(columns)
     cur.execute("BEGIN")
     try:
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {_q(schema)}")
+        if vectors:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")  # REQ-424
         require_pg_replica_table(cur, schema, table, action="build the replica at")
         cur.execute(f"DROP TABLE IF EXISTS {target}")
         cur.execute(ddl)
@@ -773,7 +841,7 @@ def pg_statement_copy(
         if content_hash == prior_hash:
             cur.execute("ROLLBACK")
             return copied, content_hash, False
-        _pg_swap(cur, schema, table, build, pk_columns)
+        _pg_swap(cur, schema, table, build, pk_columns, vectors)
         cur.execute("COMMIT")
     except BaseException:
         cur.execute("ROLLBACK")
@@ -790,7 +858,11 @@ class PostgresStoreTarget:
     build table onto its name before the commit. PostgreSQL applies that atomically: a reader
     sees the previous replica until the commit, and if this process dies the server discards the
     transaction, build table included. The key is added after the load, on the replica's own
-    name."""
+    name.
+
+    ``native_vectors`` says the engine reads this store through the store's own SQL, so an
+    embedding column is a ``REAL[]`` with an HNSW index (REQ-424); otherwise it is the vector's
+    JSON text."""
 
     caps = TargetCaps(
         frozenset({TargetWrite.COPY_STREAM}), atomic_swap=True, load=TargetLoad.BULK_STREAM
@@ -804,11 +876,15 @@ class PostgresStoreTarget:
         table: str,
         columns: list[tuple[str, str]],
         pk_columns: list[str],
+        native_vectors: bool,
     ) -> None:
         self._dsn = _libpq_dsn(store_dsn)
         self._schema = schema
         self._table = table
-        self._columns = columns
+        self._columns = columns if native_vectors else text_vectors(columns)
+        self._vectors = vector_columns(self._columns)
+        # An embedding held as text is written as its JSON text.
+        self._text_vectors = frozenset(vector_columns(columns)) - frozenset(self._vectors)
         self._pk = list(pk_columns)
         self._build = build_table_name(table)
         self._conn: Any = None
@@ -849,6 +925,8 @@ class PostgresStoreTarget:
             self._conn = psycopg.connect(self._dsn)  # not autocommit: one transaction to the swap
         cur = self._cur = self._conn.cursor()
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {_q(self._schema)}")
+        if self._vectors:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")  # REQ-424
         # Whatever stands at the replica's name must be nothing or an ordinary table: the swap
         # replaces it, and a view or a foreign table there would be a way into a source.
         require_pg_replica_table(cur, self._schema, self._table, action="build the replica at")
@@ -864,10 +942,15 @@ class PostgresStoreTarget:
         del batch  # this face writes rows
         names = [name for name, _ in self._columns]
         json_columns = self._json
+        vectors, text_vectors_ = frozenset(self._vectors), self._text_vectors
         for row in rows:
             self._copy.write_row(
                 [
-                    Json(row.get(n))
+                    _vector_list(row.get(n))
+                    if n in vectors
+                    else _vector_text(row.get(n))
+                    if n in text_vectors_
+                    else Json(row.get(n))
                     if n in json_columns and isinstance(row.get(n), (dict, list))
                     else row.get(n)
                     for n in names
@@ -879,7 +962,7 @@ class PostgresStoreTarget:
         try:
             self._copy_cm.__exit__(None, None, None)  # ends the COPY; the server has every row
             self._copy = self._copy_cm = None
-            _pg_swap(self._cur, self._schema, self._table, self._build, self._pk)
+            _pg_swap(self._cur, self._schema, self._table, self._build, self._pk, self._vectors)
             self._conn.commit()
         finally:
             with shield.lock:

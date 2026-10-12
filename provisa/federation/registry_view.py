@@ -243,6 +243,7 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                         is_primary_key=c["is_primary_key"],
                         native_filter_type=c["native_filter_type"],
                         path=c["path"],
+                        embedding=c["embedding"],  # REQ-424: lands as an indexed vector
                     )
                     for c in rt["columns"]
                 ],

@@ -23,14 +23,6 @@ class VectorQueryError(ValueError):
     """A vector query is malformed, or has no native translation."""
 
 
-def _fmt(x: float) -> str:
-    return repr(float(x))
-
-
-def _vector_literal(query_vector: list[float]) -> str:
-    return "[" + ",".join(_fmt(x) for x in query_vector) + "]"
-
-
 def validate_vector_dimensions(vector: list[float], model: VectorModel) -> None:  # REQ-429
     """Reject a query vector whose dimension does not match the model (REQ-429)."""
     if len(vector) != model.dimensions:

@@ -126,7 +126,34 @@ class EngineRuntime:  # REQ-825, REQ-840
 
         # REQ-615: a session's temporary table is read at its address in the engine's store.
         pg_sql = address_temp_tables(pg_sql, self._state)
-        return self._backend.transpile_physical(self.address_replicas(pg_sql))
+        return self._backend.transpile_physical(self._search_replica_indexes(pg_sql))
+
+    def _search_replica_indexes(self, pg_sql: str) -> str:
+        """``pg_sql`` at its replicas' addresses, each top-k similarity search over a replica
+        written to read the replica's vector index where this engine reads its store through
+        the store's own SQL; the answer then says it is approximate (REQ-424)."""
+        routes = self._replica_routes()
+        if routes is None:
+            return pg_sql
+        from provisa.federation.replica_address import address_replicas
+
+        from provisa.vector.similarity import approximate_index_warning, index_top_k, mentions
+
+        addressed = address_replicas(pg_sql, routes)
+        if (
+            addressed == pg_sql
+            or not mentions(addressed)
+            or not self._backend.indexes_replica_vectors(self._state)
+        ):
+            return addressed
+        from provisa.core.statement_warnings import warn
+
+        searched_sql, searched = index_top_k(
+            addressed, frozenset(route.target for route in routes.routes.values())
+        )
+        if searched:
+            warn(approximate_index_warning())
+        return searched_sql
 
     def _replica_routes(self) -> Any:
         """The routes published with the registry (``replica_routing.replica_routes``) for the
