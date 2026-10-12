@@ -1703,6 +1703,8 @@ async def route_governed(
             dialect=None,
             reason="query reads a temporary table of its session",
         )
+    # A view kept through governance still names its view, which no source's driver knows: it
+    # goes to the engine, where its rows are put in (see _govern_and_route_compiled).
     _view_map = getattr(state, "view_sql_map", None)
     if _view_map and decision.route != Route.ENGINE:
         if _kept_refs_view(governed.memo, governed_semantic, _view_map):
@@ -4146,13 +4148,12 @@ async def _route_compiled(
     await extend_trace_scope_to_sources(state, role_id, frozenset(sources))
     memo["sources"] = frozenset(sources)  # what a later cache hit reports it read
 
-    # REQ-135/REQ-1163: a query referencing a __derived__ view MUST route through the engine, where
-    # the view was already inline-expanded above. A view's virtual source has no native driver/
-    # catalog — if routing picks DIRECT (legitimate once expansion collapses the query onto a single
-    # real source), the DIRECT branch's non-optimized fallback rebuilds physical SQL from the
-    # UN-expanded ``governed_sql`` and hands the raw view ref to a native pool. Force ENGINE so the
-    # ENGINE branch's already-expanded ``_exec_sql`` is what actually executes. Same guard
-    # ``_govern_and_route`` (the raw-SQL/pgwire path) already applies.
+    # REQ-135/REQ-1163: a view is replaced by its SQL before governance (view_read.
+    # semantic_statement), so the governed statement names only the tables it reads, and the
+    # DIRECT lowering below is built from it. A view KEPT through governance -- materialized and
+    # seen whole by the reader, another region's copy, a bitemporal view -- still names its view
+    # here; no source's driver knows it, and its rows are put in at optimization. It goes to the
+    # engine, as on _govern_and_route (the raw-SQL/pgwire path).
     if _view_map and decision.route != Route.ENGINE:
         if _kept_refs_view(memo, governed_sql, _view_map):
             from provisa.transpiler.router import RouteDecision

@@ -22,7 +22,6 @@ under an org_admin identity — the same path the browser uses.
 
 from __future__ import annotations
 
-import re
 
 import os
 from types import SimpleNamespace
@@ -168,17 +167,17 @@ async def test_org_admin_sees_the_built_in_domains(demo_org):
     assert "sales-analytics" in ids, ids
 
 
-async def test_compiled_pipeline_forces_engine_route_for_view_backed_query(demo_org):
-    """REQ-135/REQ-1163: order_totals' view_sql collapses onto ONE real source (sales-pg) once
-    expanded, so the router's normal cost decision would otherwise legitimately pick Route.DIRECT.
-    The DIRECT branch's fallback rebuilds physical SQL from the UN-expanded governed SQL, handing
-    a literal ``order_totals`` reference to a native driver that has no such table — the same class
-    of bug that broke ``fact_pet_inquiries`` (500: no such table views.fact_pet_inquiries) in the
-    demo config. _govern_and_route_compiled must force Route.ENGINE for any view-referencing query,
-    mirroring the guard _govern_and_route (the raw-SQL path) already has."""
+async def test_a_view_backed_query_reads_the_views_sql_never_a_bare_view(demo_org):
+    """REQ-135/REQ-1163: order_totals is replaced by its SQL before governance, so the plan --
+    whatever route it takes -- reads the view's SQL over "public"."orders" and never a bare
+    order_totals, which no source's driver and no engine catalog holds. (Once expanded it reads
+    one source, sales-pg, so the router may send it to that source's driver; the direct lowering
+    is built from the expanded statement.)"""
+    import sqlglot
+    from sqlglot import exp
+
     from provisa.compiler.directives import NO_CACHE_HINT
     from provisa.pgwire import _pipeline
-    from provisa.transpiler.router import Route
 
     state, _rt = demo_org
     plan = await _pipeline._govern_and_route_compiled(
@@ -188,16 +187,10 @@ async def test_compiled_pipeline_forces_engine_route_for_view_backed_query(demo_
         cache_hint=NO_CACHE_HINT,
         sdl_joins=True,
     )
-    assert plan.route == Route.ENGINE, plan.route
     assert plan.exec_sql is not None
-    # the view was inline-expanded onto its base table BEFORE routing — the FROM clause must be
-    # the view's defining subquery over "public"."orders", not a bare, un-routable "order_totals"
-    # table reference (what the DIRECT-branch fallback would hand a native driver).
-    exec_sql = plan.exec_sql.lower()
-    # normalize_table_refs may add a self-alias ("orders" AS orders) after the physical table ref,
-    # and the engine route names the base table under the org's engine catalog (REQ-1266:
-    # "org_<org>__<source>"."public"."orders"); match the open of the subquery over that base
-    # table — a bare "order_totals" table ref would not contain it.
-    assert re.search(
-        r'from \(select "id", "amount" from (?:"[^"]+"\.)?"public"\."orders"', exec_sql
-    ), exec_sql
+    read = [
+        (t.db, t.name)
+        for t in sqlglot.parse_one(plan.exec_sql, read="postgres").find_all(exp.Table)
+    ]
+    assert ("public", "orders") in read, (plan.route, plan.exec_sql)
+    assert all(name != "order_totals" for _db, name in read), (plan.route, plan.exec_sql)
