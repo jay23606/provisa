@@ -28,6 +28,8 @@ from tests.unit.federation.test_replica_builds import (  # noqa: F401  (wiring i
 pytestmark = pytest.mark.unit
 
 NAMES = ("messages", "threads", "attachments")
+#: The types the module declares, before a fixture narrows them to this file's fake adapter.
+REAL_GROUP_READ_TYPES = replica_builds.GROUP_READ_TYPES
 KEYS = [("s1", "public", name) for name in NAMES]
 
 
@@ -223,13 +225,22 @@ async def test_a_source_type_that_declares_no_group_looks_no_adapter_up(wiring, 
     assert await replica_builds.group_of(_group_state(_Targets()), KEYS[0]) is None
 
 
-def test_the_source_types_that_read_in_groups_are_the_ones_whose_loader_says_so():
-    from provisa.microsoft365 import SOURCE_TYPE
-    from provisa.microsoft365.loader import make_microsoft365_loader
+def _mail_loader(source_type):
+    if source_type == "microsoft_365":
+        from provisa.microsoft365.loader import make_microsoft365_loader
 
-    loader = make_microsoft365_loader(None)  # type: ignore[arg-type]
-    assert SOURCE_TYPE in replica_builds.GROUP_READ_TYPES
+        return make_microsoft365_loader(None)  # type: ignore[arg-type]
+    from provisa.google_workspace.loader import make_google_workspace_loader
+
+    return make_google_workspace_loader(None)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("source_type", ["microsoft_365", "google_workspace"])
+def test_the_source_types_that_read_in_groups_are_the_ones_whose_loader_says_so(source_type):
+    loader = _mail_loader(source_type)
+    assert source_type in replica_builds.GROUP_READ_TYPES
     assert callable(loader.replica_group) and callable(loader.replica_group_source)
+    assert callable(loader.replica_unit_source)
 
 
 # --- a source whose reader gives units is kept in place, a part at a time ---
@@ -374,3 +385,20 @@ async def test_answers_cached_from_a_table_are_dropped_when_parts_land_in_it(in_
     await replica_builds.build_group(state, KEYS, _noop)
     dropped = {table_id for call in in_place["dropped"] for table_id in call}
     assert dropped == {ids["messages"], ids["threads"]}
+
+
+async def test_a_google_workspace_mail_replica_is_kept_in_place(in_place, monkeypatch):
+    """Google Workspace's own adapter, looked up as the module declares the group-read types:
+    its mailboxes are read a part at a time and kept in place, as Microsoft 365's are."""
+    loader = _mail_loader("google_workspace")
+    loader.replica_unit_source = lambda source, tables, columns: _UnitRead(tables, in_place)
+    monkeypatch.setattr(
+        "provisa.events.app_wiring.build_adapter_loaders", lambda s, e: {"google_workspace": loader}
+    )
+    monkeypatch.setattr(replica_builds, "GROUP_READ_TYPES", REAL_GROUP_READ_TYPES)
+    state = _in_place_state(in_place)
+    state.config.sources[0].type = "google_workspace"
+    built = await replica_builds.build_group(state, KEYS, _noop)
+    assert state.federation_engine.engine.backend.targets == {}  # no build table, no swap
+    assert in_place["unit_tables"] == NAMES
+    assert {outcome.method for outcome in built.values()} == {"apply_units"}

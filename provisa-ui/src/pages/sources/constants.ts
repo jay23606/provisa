@@ -168,16 +168,16 @@ export const SOURCE_TYPES = [
     category: "Enterprise",
     defaultPort: 0,
   },
-  // REQ-1923: the mail of a Google account, read through Google's own API (calendar and tasks
-  // are named in its setup and not yet read).
+  // REQ-1923, REQ-1994: the mail, calendars and tasks of a Google account, read through Google's
+  // own API; calendar events and tasks are also written back.
   {
     value: "google_workspace",
     label: "Google Workspace (Gmail)",
     category: "Enterprise",
     defaultPort: 0,
   },
-  // REQ-1923: the mail of a Microsoft 365 account, read through Microsoft Graph (calendar and
-  // tasks are named in its setup and not yet read).
+  // REQ-1923, REQ-1994: the mail, calendars and tasks of a Microsoft 365 account, read through
+  // Microsoft Graph; calendar events and tasks are also written back.
   {
     value: "microsoft_365",
     label: "Microsoft 365 (Outlook, Exchange)",

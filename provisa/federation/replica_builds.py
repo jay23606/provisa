@@ -438,10 +438,10 @@ async def run_build(state: Any, key: ReplicaKey, progress: Progress) -> BuildOut
 
 
 #: The source types whose adapter reads its tables as a group (``replica_group``): a mail
-#: source's several tables from one read, a Logs source's one table (REQ-1996), each of which
-#: may be kept in place a part at a time. Asked first, so a build of any other source's table
-#: looks no adapter up.
-GROUP_READ_TYPES: frozenset[str] = frozenset({"microsoft_365", "logs"})
+#: source's several tables from one read (Microsoft 365, Google Workspace), a Logs source's one
+#: table (REQ-1996), each of which may be kept in place a part at a time. Asked first, so a
+#: build of any other source's table looks no adapter up.
+GROUP_READ_TYPES: frozenset[str] = frozenset({"microsoft_365", "google_workspace", "logs"})
 
 
 def _group_loader(state: Any, source: Any) -> Any:
