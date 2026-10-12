@@ -248,7 +248,9 @@ def test_starting_the_server_does_not_wait_for_it_to_listen(monkeypatch):
     pr.start_endpoint(_salesforce())
     pr.start_endpoint(_salesforce())
     assert started == ["sf-sales", "sf-sales"]  # asked twice of ONE replica
-    assert list(pr._ENDPOINTS) == ["sf-sales"]
+    from provisa.core.org_scope import source_key
+
+    assert list(pr._ENDPOINTS) == [source_key("sf-sales")]  # REQ-1992: the org's source
     pr.stop_endpoint("sf-sales")
     assert pr._ENDPOINTS == {}
 

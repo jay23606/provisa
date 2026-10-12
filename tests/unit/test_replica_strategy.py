@@ -901,11 +901,16 @@ def test_stop_endpoint_closes_and_forgets_only_that_source(monkeypatch):  # REQ-
         def close(self):
             closed.append(self.sid)
 
-    endpoints = {"a": _Replica("a"), "b": _Replica("b")}
+    from provisa.core.org_scope import source_key
+
+    # REQ-1992: by the bound org's source of that id; another org's source of the id stays.
+    elsewhere = ("another_org", "a")
+    endpoints = {source_key("a"): _Replica("a"), source_key("b"): _Replica("b")}
+    endpoints[elsewhere] = _Replica("a-elsewhere")
     monkeypatch.setattr(pr, "_ENDPOINTS", endpoints)
     pr.stop_endpoint("a")
     assert closed == ["a"]
-    assert endpoints == {"b": endpoints["b"]}
+    assert set(endpoints) == {source_key("b"), elsewhere}
 
 
 def test_stop_endpoint_noop_when_never_started(monkeypatch):  # REQ-1690
@@ -995,6 +1000,68 @@ def test_owner_pid_flag_is_gated_on_the_bundle_release(tmp_path):
     assert spawned[-1][-2:] == ["--owner-pid", str(os.getpid())]
 
 
+def test_two_orgs_with_one_source_id_have_their_own_server_state_and_ports(
+    tmp_path, bind_org, monkeypatch
+):
+    """REQ-1992: a source id is unique only within its org. Two orgs' sources of one id each get
+    their own state directory (their own model, which holds the source's credentials, and their
+    own adapter state), their own ports, and their own server in the node's registry."""
+
+    def _dl(spec, dest):
+        _lay_down_bundle(spec, dest)
+
+    resolver = rd.BundleResolver(cache_root=tmp_path / "cache", downloader=_dl)
+    started: list[Path] = []
+
+    def _spawn(cmd, cwd):
+        started.append(cwd)
+        return _FakeProc()
+
+    allocator = pr.PortAllocator(is_free=lambda _: True)
+
+    def _server_of(org: str, path: str):
+        bind_org(org)
+        replica = pr.ConnectorReplica(
+            _files_source(id="files", path=path),
+            resolver=resolver,
+            allocator=allocator,
+            spawn=_spawn,
+            health_check=_health_from(lambda: True),
+            port_is_free=lambda _: True,
+        )
+        return replica, replica.endpoint()
+
+    (_a, ports_a), (_b, ports_b) = _server_of("org_a", "/data/a"), _server_of("org_b", "/data/b")
+    cwd_a, cwd_b = started
+    assert cwd_a != cwd_b
+    assert (cwd_a.parent.name, cwd_b.parent.name) == ("org_a", "org_b")
+    assert ports_a != ports_b
+    model_a = json.loads((cwd_a / "model" / "model.json").read_text())
+    model_b = json.loads((cwd_b / "model" / "model.json").read_text())
+    assert model_a != model_b
+
+    # The node's registry holds one server per org's source, not one per source id.
+    monkeypatch.setattr(pr, "_ENDPOINTS", {})
+    monkeypatch.setattr(pr, "ConnectorReplica", lambda source, allocator: object())
+    bind_org("org_a")
+    first = pr._endpoint_replica(_files_source(id="files", path="/data/a"))
+    bind_org("org_b")
+    second = pr._endpoint_replica(_files_source(id="files", path="/data/b"))
+    assert first is not second
+    assert set(pr._ENDPOINTS) == {("org_a", "files"), ("org_b", "files")}
+
+
+def test_two_orgs_stage_and_crawl_into_their_own_directories(bind_org):
+    """REQ-1992: a crawl's landing directory and a staged dataset are under the org."""
+    from provisa.file_source.crawl import crawl_landing_directory
+
+    bind_org("org_a")
+    a = crawl_landing_directory("wiki")
+    bind_org("org_b")
+    b = crawl_landing_directory("wiki")
+    assert a != b and (a.parent.name, b.parent.name) == ("org_a", "org_b")
+
+
 def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     """The bundle is a machine-wide download cache. Two servers of one connector (two sources,
     or two Provisa instances) used to write one ``model/model.json`` into it and run in it, so
@@ -1030,7 +1097,7 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     # Each runs in its own directory, under the instance's data directory, never the bundle.
     assert cwd_a != cwd_b
     data_dir = Path(os.environ["PROVISA_DATA_DIR"])
-    assert {cwd_a.parent.name, cwd_b.parent.name} == {first.spec.version}
+    assert {cwd_a.parent.parent.name, cwd_b.parent.parent.name} == {first.spec.version}
     assert cwd_a.is_relative_to(data_dir) and cwd_b.is_relative_to(data_dir)
     # Each reads its own model: the launcher resolves its home from its linked bin directory.
     assert cmd_a[0] == str(cwd_a / "bin" / first.spec.artifact_name)

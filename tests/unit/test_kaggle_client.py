@@ -140,7 +140,10 @@ async def test_stage_dataset_multi_csv(tmp_path, monkeypatch):
 
     root = await stage_dataset(TOKEN, "acme", "orders")
 
-    assert root == tmp_path / "kaggle" / "acme" / "orders"
+    from provisa.core.request_context import require_current_org
+
+    # REQ-1992: staged under the org that stages it.
+    assert root == tmp_path / "kaggle" / require_current_org() / "acme" / "orders"
     assert (root / "orders" / "orders.csv").read_bytes() == b"id\n1\n"
     assert (root / "customers" / "customers.csv").read_bytes() == b"id\n2\n"
 
