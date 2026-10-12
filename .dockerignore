@@ -19,3 +19,5 @@ build/
 ._*
 __MACOSX/
 .env
+# render_graph renderer: a checkout links it to provisa-ui/graph-render; the image builds its own
+provisa/_graph_render

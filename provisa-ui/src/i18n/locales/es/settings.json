@@ -535,6 +535,10 @@
         "label": "Límite de filas de MCP",
         "help": "El máximo de filas que devuelve una llamada a una herramienta MCP a un cliente de IA."
       },
+      "render_timeout_s": {
+        "label": "Límite de tiempo del renderizado de grafos",
+        "help": "Cuánto puede tardar render_graph en dibujar un grafo como PNG antes de que se detenga."
+      },
       "port": {
         "label": "Puerto de MCP",
         "help": "El puerto en el que escucha el servidor MCP; 0 lo deja desactivado. Requiere reinicio; requiere confirmación al guardar porque abre o cierra un listener."

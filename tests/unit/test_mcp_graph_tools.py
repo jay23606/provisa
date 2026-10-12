@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -140,36 +140,121 @@ async def test_run_cypher_refuses_no_role_and_lets_a_refusal_through():
 # --- render_graph -------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("layout", "name", "extension"),
-    [
-        ("force", "fcose", "cytoscape-fcose"),
-        ("hierarchy", "breadthfirst", None),
-        ("elk", "elk", "cytoscape-elk"),
-    ],
-)
-def test_render_graph_hands_back_the_elements_and_the_ui_s_layout(layout, name, extension):
+class _Done:
+    def __init__(self, returncode=0, stdout=b"\x89PNG\r\n\x1a\nimage", stderr=b""):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+
+
+@pytest.fixture
+def renderer(tmp_path, monkeypatch):
+    """A renderer file where the tool looks for it, and `node` on PATH."""
+    script = tmp_path / "render.mjs"
+    script.write_text("// stand-in")
+    monkeypatch.setattr(tools, "GRAPH_RENDERER", script)
+    monkeypatch.setattr(
+        "shutil.which", lambda name: "/usr/local/bin/node" if name == "node" else None
+    )
+    return script
+
+
+def test_render_graph_hands_the_renderer_the_graph_and_returns_its_png(renderer, monkeypatch):
+    monkeypatch.setenv("PROVISA_MCP_RENDER_TIMEOUT_S", "7")
     elements = tools.cytoscape_elements([{"r": PLACED}])
-    drawn = tools.render_graph(elements, layout)
-    assert drawn["elements"] == elements
-    served = json.loads(tools.GRAPH_LAYOUTS_FILE.read_text())[layout]
-    assert drawn["layout"] == served and drawn["layout"]["name"] == name
-    assert drawn["extension"] == extension
-    # Options only, nothing computed: no element carries a position.
-    assert all(
-        "position" not in el for el in [*drawn["elements"]["nodes"], *drawn["elements"]["edges"]]
+    run = MagicMock(return_value=_Done())
+    with patch("subprocess.run", run):
+        png = tools.render_graph(elements, "elk", "dark", 1024, 768)
+    assert png.startswith(b"\x89PNG")
+    (argv,), kwargs = run.call_args
+    assert argv == ["/usr/local/bin/node", str(renderer)]
+    assert kwargs["timeout"] == 7 and kwargs["capture_output"] is True
+    assert json.loads(kwargs["input"]) == {
+        "elements": elements,
+        "layout": "elk",
+        "theme": "dark",
+        "width": 1024,
+        "height": 768,
+    }
+
+
+def test_render_graph_draws_light_with_the_force_layout_unless_told(renderer):
+    run = MagicMock(return_value=_Done())
+    with patch("subprocess.run", run):
+        tools.render_graph(tools.cytoscape_elements([{"r": PLACED}]))
+    request = json.loads(run.call_args.kwargs["input"])
+    assert (request["layout"], request["theme"], request["width"], request["height"]) == (
+        "force",
+        "light",
+        800,
+        600,
     )
 
 
-def test_render_graph_refuses_an_unknown_layout_and_elements_that_do_not_hold_together():
+def test_render_graph_says_why_a_drawing_failed(renderer, monkeypatch):
+    import subprocess
+
+    elements = tools.cytoscape_elements([{"r": PLACED}])
+    with patch("subprocess.run", MagicMock(return_value=_Done(1, b"", b'unknown layout "x"\n'))):
+        with pytest.raises(RuntimeError, match='render_graph failed: unknown layout "x"'):
+            tools.render_graph(elements)
+    monkeypatch.setenv("PROVISA_MCP_RENDER_TIMEOUT_S", "2")
+    with patch("subprocess.run", MagicMock(side_effect=subprocess.TimeoutExpired("node", 2))):
+        with pytest.raises(RuntimeError, match=r"longer than mcp.render_timeout_s \(2 s\)"):
+            tools.render_graph(elements)
+
+
+def test_render_graph_names_what_the_host_lacks(tmp_path, monkeypatch):
+    elements = tools.cytoscape_elements([{"r": PLACED}])
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    with pytest.raises(RuntimeError, match="`node` is not on this host's PATH"):
+        tools.render_graph(elements)
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/local/bin/node")
+    monkeypatch.setattr(tools, "GRAPH_RENDERER", tmp_path / "absent" / "render.mjs")
+    with pytest.raises(RuntimeError, match="renderer is not built"):
+        tools.render_graph(elements)
+
+
+def test_render_graph_refuses_what_it_cannot_draw(renderer):
     elements = tools.cytoscape_elements([{"r": PLACED}])
     with pytest.raises(ValueError, match="layout must be one of"):
         tools.render_graph(elements, "circle")
+    with pytest.raises(ValueError, match="theme must be one of"):
+        tools.render_graph(elements, theme="sepia")
+    with pytest.raises(ValueError, match="width must be between 100 and 4000"):
+        tools.render_graph(elements, width=50)
     with pytest.raises(ValueError, match="as run_cypher returns them"):
-        tools.render_graph({"nodes": []}, "force")
+        tools.render_graph({"nodes": []})
     dangling = {"nodes": [elements["nodes"][0]], "edges": elements["edges"]}
     with pytest.raises(ValueError, match="target names no node"):
-        tools.render_graph(dangling, "force")
+        tools.render_graph(dangling)
+
+
+def test_the_render_timeout_is_an_operator_setting_with_a_floor():
+    from provisa.core import settings_catalog
+
+    s = next(s for s in settings_catalog.DECLARED if s.key == "mcp.render_timeout_s")
+    assert (s.type, s.effect, s.default, s.min, s.unit, s.env) == (
+        "int",
+        "live",
+        30,
+        1,
+        "seconds",
+        "PROVISA_MCP_RENDER_TIMEOUT_S",
+    )
+
+
+async def test_the_server_s_render_graph_answers_an_mcp_png_image(renderer):
+    from provisa.api.mcp.server import build_mcp_server
+
+    mcp = build_mcp_server(_make_state())
+    elements = tools.cytoscape_elements([{"r": PLACED}])
+    with patch("subprocess.run", MagicMock(return_value=_Done())):
+        content = await mcp.call_tool("render_graph", {"elements": elements, "theme": "dark"})
+    blocks = content[0] if isinstance(content, tuple) else content
+    image = next(b for b in blocks if getattr(b, "type", None) == "image")
+    assert image.mimeType == "image/png"
+    import base64
+
+    assert base64.b64decode(image.data).startswith(b"\x89PNG")
 
 
 # --- the server --------------------------------------------------------------------

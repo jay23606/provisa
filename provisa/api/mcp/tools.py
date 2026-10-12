@@ -948,19 +948,36 @@ async def run_cypher(
     }
 
 
-#: The layouts render_graph offers, by name -- the UI's own options for a Cypher graph (force,
-#: hierarchy: components/graph/canvas/canvas-types.ts LAYOUT_OPTIONS) and the ERD's ELK layout
-#: (components/erd/erd-layout-options.ts). provisa-ui's graphLayoutsParity test holds the two equal.
-GRAPH_LAYOUTS_FILE = Path(__file__).with_name("graph_layouts.json")
+#: render_graph's renderer: provisa-ui/graph-render bundled (the image builds it there; in a
+#: checkout, build that package and link this directory to it).
+GRAPH_RENDERER = Path(__file__).resolve().parents[2] / "_graph_render" / "dist" / "render.mjs"
+GRAPH_LAYOUTS = ("force", "hierarchy", "elk")
+GRAPH_THEMES = ("light", "dark")
 
 
-def render_graph(elements: dict, layout: str = "force") -> dict:
-    """The elements and the Cytoscape layout to draw them with, as the UI draws them. The client
-    runs the layout (cytoscape.use the fcose / elk extension it names); no positions are computed
-    here -- that would be a second layout engine beside the UI's."""
-    layouts = json.loads(GRAPH_LAYOUTS_FILE.read_text())
-    if layout not in layouts:
-        raise ValueError(f"layout must be one of {sorted(layouts)}, not {layout!r}")
+def render_graph(
+    elements: dict,
+    layout: str = "force",
+    theme: str = "light",
+    width: int = 800,
+    height: int = 600,
+) -> bytes:
+    """The graph run_cypher returned, drawn as the UI's graph page draws it, as a PNG: the page's
+    own Cytoscape stylesheet and layouts (force, hierarchy, or the ERD's elk) on the page's
+    background for the theme. Drawn by Node (provisa-ui/graph-render), one process per call,
+    within mcp.render_timeout_s."""
+    import shutil
+    import subprocess
+
+    from provisa.core import settings_registry
+
+    if layout not in GRAPH_LAYOUTS:
+        raise ValueError(f"layout must be one of {list(GRAPH_LAYOUTS)}, not {layout!r}")
+    if theme not in GRAPH_THEMES:
+        raise ValueError(f"theme must be one of {list(GRAPH_THEMES)}, not {theme!r}")
+    for name, size in (("width", width), ("height", height)):
+        if not 100 <= int(size) <= 4000:
+            raise ValueError(f"{name} must be between 100 and 4000 pixels, not {size}")
     nodes, edges = elements.get("nodes"), elements.get("edges")
     if not isinstance(nodes, list) or not isinstance(edges, list):
         raise ValueError(
@@ -978,11 +995,38 @@ def render_graph(elements: dict, layout: str = "force") -> dict:
         for end in ("source", "target"):
             if e["data"].get(end) not in ids:
                 raise ValueError(f"edge {e['data']['id']!r} {end} names no node in elements")
-    return {
+
+    node = shutil.which("node")
+    if node is None:
+        raise RuntimeError("render_graph draws with Node, and `node` is not on this host's PATH")
+    if not GRAPH_RENDERER.is_file():
+        raise RuntimeError(
+            f"render_graph's renderer is not built: {GRAPH_RENDERER} is missing "
+            "(npm ci && npm run build in provisa-ui/graph-render)"
+        )
+    timeout = settings_registry.value("mcp.render_timeout_s")
+    request = {
         "elements": {"nodes": nodes, "edges": edges},
-        "layout": layouts[layout],
-        "extension": {"force": "cytoscape-fcose", "elk": "cytoscape-elk"}.get(layout),
+        "layout": layout,
+        "theme": theme,
+        "width": int(width),
+        "height": int(height),
     }
+    try:
+        done = subprocess.run(  # noqa: S603 -- the host's node, our own bundled script
+            [node, str(GRAPH_RENDERER)],
+            input=json.dumps(request).encode(),
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"render_graph took longer than mcp.render_timeout_s ({timeout} s)"
+        ) from exc
+    if done.returncode != 0:
+        raise RuntimeError(f"render_graph failed: {done.stderr.decode(errors='replace').strip()}")
+    return done.stdout
 
 
 async def explain_sql(state: Any, role: str, sql: str) -> dict:

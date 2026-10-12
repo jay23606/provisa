@@ -535,6 +535,10 @@
         "label": "MCP row limit",
         "help": "The most rows one MCP tool call returns to an AI client."
       },
+      "render_timeout_s": {
+        "label": "Graph render time limit",
+        "help": "How long render_graph may take to draw one graph as a PNG before it is stopped."
+      },
       "port": {
         "label": "MCP port",
         "help": "The port the MCP server listens on; 0 leaves it off. Restart required; guarded because it opens or closes a listener."

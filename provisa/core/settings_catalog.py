@@ -956,6 +956,17 @@ DECLARED: list[Setting] = [
         unit="rows",
     ),
     Setting(
+        key="mcp.render_timeout_s",
+        card="mcp",
+        type="int",
+        effect="live",  # read on every render_graph call
+        req="REQ-1990",
+        env="PROVISA_MCP_RENDER_TIMEOUT_S",
+        default=30,
+        min=1,
+        unit="seconds",
+    ),
+    Setting(
         key="mcp.port",
         card="mcp",
         type="int",

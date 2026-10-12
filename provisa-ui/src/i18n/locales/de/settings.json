@@ -535,6 +535,10 @@
         "label": "MCP-Zeilenlimit",
         "help": "Die maximale Zeilenanzahl, die ein MCP-Tool-Aufruf an einen KI-Client zurückgibt."
       },
+      "render_timeout_s": {
+        "label": "Zeitlimit für Graph-Rendering",
+        "help": "Wie lange render_graph zum Zeichnen eines Graphen als PNG brauchen darf, bevor es abgebrochen wird."
+      },
       "port": {
         "label": "MCP-Port",
         "help": "Der Port, auf dem der MCP-Server lauscht; 0 lässt ihn aus. Neustart erforderlich; bestätigungspflichtig, da ein Listener geöffnet oder geschlossen wird."

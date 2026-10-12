@@ -535,6 +535,10 @@
         "label": "Rijlimiet voor MCP",
         "help": "Het maximale aantal rijen dat één MCP-toolaanroep aan een AI-client teruggeeft."
       },
+      "render_timeout_s": {
+        "label": "Tijdslimiet voor grafiekweergave",
+        "help": "Hoe lang render_graph over het tekenen van één graaf als PNG mag doen voordat het wordt gestopt."
+      },
       "port": {
         "label": "MCP-poort",
         "help": "De poort waarop de MCP-server luistert; 0 laat hem uit. Opnieuw opstarten vereist; met bevestiging omdat een listener wordt geopend of gesloten."

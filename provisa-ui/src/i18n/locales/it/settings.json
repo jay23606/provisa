@@ -535,6 +535,10 @@
         "label": "Limite di righe MCP",
         "help": "Il numero massimo di righe restituite da una singola chiamata di strumento MCP a un client di intelligenza artificiale."
       },
+      "render_timeout_s": {
+        "label": "Limite di tempo del rendering dei grafi",
+        "help": "Quanto tempo può impiegare render_graph per disegnare un grafo come PNG prima di essere interrotto."
+      },
       "port": {
         "label": "Porta MCP",
         "help": "La porta su cui è in ascolto il server MCP; 0 lo lascia disattivato. Richiede un riavvio; protetta da conferma perché apre o chiude un listener."
