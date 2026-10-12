@@ -367,6 +367,117 @@ class AzureMonitor(JsonFormat):
         return [self.row(item) for item in items]
 
 
+# --- Windows Event Log (.evtx) ----------------------------------------------------------------
+
+_EVT = "{http://schemas.microsoft.com/win/2004/08/events/event}"
+
+
+def _element(node: Any) -> Any:
+    """An XML element as JSON: its attributes and children by name, or its text."""
+    children = list(node)
+    if not children and not node.attrib:
+        return node.text
+    out: dict[str, Any] = {k: v for k, v in node.attrib.items() if not k.startswith("{")}
+    for child in children:
+        name = child.tag.rsplit("}", 1)[-1]
+        value = _element(child)
+        if name in out:
+            out[name] = (out[name] if isinstance(out[name], list) else [out[name]]) + [value]
+        else:
+            out[name] = value
+    return out
+
+
+class WindowsEvtx(Format):
+    """Windows Event Log files (.evtx): binary, read record by record with python-evtx, each
+    record's XML a row. A record's offset is its own in the file, so a growing log is read on
+    from the record it reached."""
+
+    name, label, group = "windows_evtx", "Windows Event Log (.evtx)", GROUP
+    frames_bytes = True
+
+    def columns(self, preview: list[str]) -> list[Column]:
+        return [
+            Column("time_created", "timestamp"),
+            Column("event_id", "integer"),
+            Column("provider", "string"),
+            Column("provider_guid", "string"),
+            Column("level", "integer"),
+            Column("task", "integer"),
+            Column("opcode", "integer"),
+            Column("keywords", "string"),
+            Column("event_record_id", "integer"),
+            Column("process_id", "integer"),
+            Column("thread_id", "integer"),
+            Column("channel", "string"),
+            Column("computer", "string"),
+            Column("user_id", "string"),
+            Column("activity_id", "string"),
+            Column("event_data", "json"),
+            Column("user_data", "json"),
+            Column("extra", "json"),
+        ]
+
+    def frame(self, path: str, stream: Any, start: int, whole: bool) -> Any:
+        from Evtx.Evtx import Evtx
+
+        with Evtx(path) as log:
+            for record in log.records():
+                offset = record.offset()
+                if offset < start:
+                    continue
+                yield offset, record.xml(), offset + record.size()
+
+    def parse(self, record: str, ctx: FileContext) -> dict[str, Any]:
+        from defusedxml.ElementTree import ParseError as XmlError
+        from defusedxml.ElementTree import fromstring
+
+        try:
+            event = fromstring(record)
+        except XmlError as exc:
+            raise ParseError(f"not an event record: {exc}") from exc
+        system = event.find(f"{_EVT}System")
+        if system is None:
+            raise ParseError("an event record without its System element")
+
+        def text(tag: str) -> str | None:
+            node = system.find(f"{_EVT}{tag}")
+            return None if node is None or not node.text else node.text
+
+        def attr(tag: str, name: str) -> str | None:
+            node = system.find(f"{_EVT}{tag}")
+            value = None if node is None else node.get(name)
+            return value or None
+
+        event_data = event.find(f"{_EVT}EventData")
+        data: Any = None
+        if event_data is not None:
+            items = [(d.get("Name"), d.text) for d in event_data.findall(f"{_EVT}Data")]
+            named = all(name for name, _ in items)
+            data = {name: value for name, value in items} if named else [v for _, v in items]
+        user_data = event.find(f"{_EVT}UserData")
+        stamp = attr("TimeCreated", "SystemTime")
+        return {
+            "time_created": utc(stamp),
+            "event_id": text("EventID"),
+            "provider": attr("Provider", "Name"),
+            "provider_guid": attr("Provider", "Guid"),
+            "level": text("Level"),
+            "task": text("Task"),
+            "opcode": text("Opcode"),
+            "keywords": text("Keywords"),
+            "event_record_id": text("EventRecordID"),
+            "process_id": attr("Execution", "ProcessID"),
+            "thread_id": attr("Execution", "ThreadID"),
+            "channel": text("Channel"),
+            "computer": text("Computer"),
+            "user_id": attr("Security", "UserID"),
+            "activity_id": attr("Correlation", "ActivityID"),
+            "event_data": data,
+            "user_data": None if user_data is None else _element(user_data),
+        }
+
+
 PRESETS: list[Format] = [
     IIS(),
     WindowsFirewall(),
@@ -376,4 +487,5 @@ PRESETS: list[Format] = [
     SQLSERVER_ERRORLOG,
     AzureStorage(),
     AzureMonitor(),
+    WindowsEvtx(),
 ]

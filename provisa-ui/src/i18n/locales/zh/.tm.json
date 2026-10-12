@@ -6004,5 +6004,6 @@
   "zh/logsFields.json::logsFields.formats.redis": "Redis log",
   "zh/logsFields.json::logsFields.formats.log4j2_default": "log4j 2 default pattern",
   "zh/logsFields.json::logsFields.formats.logback_default": "logback default pattern",
-  "zh/logsFields.json::logsFields.formats.python_logging": "Python logging default format"
+  "zh/logsFields.json::logsFields.formats.python_logging": "Python logging default format",
+  "zh/logsFields.json::logsFields.formats.windows_evtx": "Windows Event Log (.evtx)"
 }
