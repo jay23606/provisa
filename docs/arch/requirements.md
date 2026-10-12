@@ -22638,9 +22638,149 @@ The model export offers a dbt sources file (sources.yml) written by Provisa dire
 
 **Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
 
-Every form in the UI is laid out by one shared form layout, and a field is as wide as what it holds, not as wide as the form. A field declares a size class (short for numbers, ports, durations, switches and short choices; medium for names and hosts; long for addresses, paths and one-line descriptions; full for multi-line text and editors only), and each class has a minimum and a maximum width, so a field neither stretches across the form nor collapses. Fields flow into as many columns as the screen allows and wrap on a narrower one, with no form carrying its own breakpoints; fields that belong together (host and port, precision and scale) are declared as a group and wrap as one. A single-line field is never full width; full width is for multi-line text, editors and tables. Identifier fields, where a form has them, are not in the flow: they sit at the top of the form in a section of their own. A form's action buttons are at the bottom, aligned to the start of the line (left in a left-to-right language, right in a right-to-left one), primary action first. Reading order and keyboard order are the same after any reflow. Minimum widths hold each field's label in every shipped locale. Creating an object follows one pattern on every page: a button at the top of the page named for the object ("+ Table", "+ Source") opens the form, and the form ends in Save and Cancel -- Save creates the object, Cancel closes the form with nothing created; the form's own button never repeats the opening button's label, and an edit form ends in the same two actions in the same order. A button is as wide as its label, with one shared minimum width, and never grows to fill its container: it is not a direct child of a stretching stack or grid cell but sits in an action row at its natural width. A full-width button is allowed only where it is named as an exception: the single call to action of a narrow card (sign-in, an onboarding step), a row of a menu or list that is itself the action, and a phone-width screen. The rule is held by a guard test: a form that lays its fields out outside the shared layout, a single-line field stretched to full width, action buttons aligned elsewhere, a button stretched by its container, and a full-width button outside the named exceptions each fail it.
+Every form in the UI is laid out by one shared form layout, and a field is as wide as what it holds, not as wide as the form. A field declares a size class (short for numbers, ports, durations, switches and short choices; medium for names and hosts; long for addresses, paths and one-line descriptions; full for multi-line text and editors only), and each class has a minimum and a maximum width, so a field neither stretches across the form nor collapses. Fields flow into as many columns as the screen allows and wrap on a narrower one, with no form carrying its own breakpoints; fields that belong together (host and port, precision and scale) are declared as a group and wrap as one. A single-line field is never full width; full width is for multi-line text, editors and tables. Identifier fields, where a form has them, are not in the flow: they sit at the top of the form in a section of their own. A form's action buttons are at the bottom, aligned to the start of the line (left in a left-to-right language, right in a right-to-left one), primary action first. Reading order and keyboard order are the same after any reflow. Minimum widths hold each field's label in every shipped locale. Creating an object follows one pattern on every page: a button at the top of the page named for the object ("+ Table", "+ Source") opens the form, and the form ends in Save and Cancel -- Save creates the object, Cancel closes the form with nothing created; the form's own button never repeats the opening button's label, and an edit form ends in the same two actions in the same order. A button is as wide as its label, with one shared minimum width, and never grows to fill its container: it is not a direct child of a stretching stack or grid cell but sits in an action row at its natural width. A full-width button is allowed only where it is named as an exception: the single call to action of a narrow card (sign-in, an onboarding step), a row of a menu or list that is itself the action, and a phone-width screen. The rule is held by a guard test: a form that lays its fields out outside the shared layout, a single-line field stretched to full width, action buttons aligned elsewhere, a button stretched by its container, and a full-width button outside the named exceptions each fail it. Nothing is rendered between a field label and its control: a brief explanation (one short sentence) sits below the field, and a longer explanation is reached from a help icon immediately to the right of the label. Controls in one row share a baseline. A form takes its natural height; it never scrolls inside a box that hides its first or last row.
 
 **Use case:** An operator fills in a source or table form on a laptop or a wide monitor and sees short fields side by side, identifiers set apart at the top, and the buttons where every form has them.
+
+**Code:** —
+
+**Tests:** —
+
+## 11. Platform, Infrastructure & Delivery
+
+### REQ-1969 · Model Store {#REQ-1969}
+
+**Status:** 💡 proposed · **Priority:** MUST · **Type:** behavioral
+
+Every save of a model object passes one consequences gate on the server before it reaches the model store ([REQ-1919](#REQ-1919)). A save is a create, an update or a delete, whatever asks for it: the UI, the API, a config load or an agent. The gate has ONE contract for every object type and answers with one of three verdicts. HARMLESS: the change is saved at once, with no prompt. CONSEQUENTIAL: the change is feasible and has consequences; the answer lists each affected object and what becomes of it (returned to draft, flagged needs review, rebuilt), and the save proceeds only on confirmation of exactly that list. NOT FEASIBLE: the change is refused; the answer says why and names what blocks it. Each object type supplies its own judgement of a proposed change -- which fields changed, what depends on them, what becomes of each dependent; the contract, the format of the list, the confirmation and the marking of dependents are shared. A field no judgement has classified is treated as consequential, never as harmless. Affected tables and views are returned to draft ([REQ-1921](#REQ-1921)) and affected relationships, rules and metrics are flagged needs review ([REQ-020](#REQ-020)), in the same transaction as the save; nothing is deleted on the caller's behalf and nothing keeps serving on a guess. The verdict states what it cannot see: clients outside the product that call an object by name. The existing refused-delete lists, the column-dependents confirmation and the needs-review flagging are instances of this gate. With the gate in place every field of an object is editable, identity fields included; until an object type has its judgement, the fields whose change the server cannot reason about are read-only. Acceptance: a guard fails any save path that does not pass the gate, and any object type that has no judgement.
+
+**Use case:** An operator opens a source's detail panel and changes its type, or renames a table other objects are built on. Before anything is written the server says which of three things the change is: nothing depends on it and it is saved; these named tables go back to draft and these relationships need review, confirm to proceed; or it cannot be done, and this is what stands in the way. No dependent object is left serving against a definition that no longer exists, and no change is refused without its reason.
+
+**Code:** —
+
+**Tests:** —
+
+## 10. UI & Admin Surfaces
+
+### REQ-1970 · UI & Design Patterns {#REQ-1970}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+On a list page a row's detail opens in a right-hand panel beside the list, not under the row. The panel is resizable and can be expanded; one row's detail is open at a time. Whether a page uses the right-hand panel or an inline detail is chosen per page. The right-hand panel is used on Tables, Views, Sources, Relationships, Metrics, Commands, and Security's Roles and RLS; Data Products keeps its inline detail. A page's list stretches to the width of the viewport.
+
+**Use case:** An operator scanning a list of tables selects one and reads or edits its detail without losing the list, widens the panel for a long form, and selects the next row to replace what is shown.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1971 · UI & Design Patterns {#REQ-1971}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+The head of a detail panel is pinned: the item's name, then its actions. While the item is being edited, Save and Cancel take the place of the actions in the head; nothing is pinned at the foot of the panel. The actions in a detail panel's head share one style: no background and no border.
+
+**Use case:** An operator editing a long detail always has Save and Cancel in view at the top of the panel, and the panel's height goes to the fields rather than to a bar of disabled buttons and a footer.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1972 · UI & Design Patterns {#REQ-1972}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** ui
+
+An item's detail is divided into sections shown as top-level tabs, not as one scrolling form with expanding sections. The read view and the edit view use the SAME tabs, and the read view summarises every detail of the item. For a table the tabs are Identity, Associations, Load and timeliness, Query, Quality, Columns.
+
+**Use case:** An operator looking for a table's refresh settings goes to the same tab whether reading or editing, and sees everything the table is set to without opening an editor.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1973 · UI & Design Patterns {#REQ-1973}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+The column editor is four tabs: Naming, Type and keys, Access, Testing. The column's name comes first on each tab, and a hover on the name shows the column's full definition.
+
+**Use case:** An operator setting access on forty columns works in a table narrow enough to read, with the column's name always in the first position and the rest of its definition one hover away.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1974 · UI & Design Patterns {#REQ-1974}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+Creating an object is short. The page's + button asks only for what the object needs in order to exist; the object is then created, selected in the list, and its detail opens in edit. The create form is a subset of the edit form. For a table, creating registers every column.
+
+**Use case:** An operator adds a source by giving its identity, sees it in the list at once, and completes the rest in the same editor used for any later change.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1975 · UI & Design Patterns {#REQ-1975}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+A working surface is not modal: an editor or a form an operator works in is part of the page. A dialog is used only for a short interruption. Every delete of saved state asks for confirmation. Leaving a panel form that has unsaved changes asks "Discard your changes?".
+
+**Use case:** An operator editing a table can still read the list, switch to another page's information and come back; a dialog appears only to confirm something that cannot be taken back.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1976 · UI & Design Patterns {#REQ-1976}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+The explorers are outside the form and detail-panel rules: the pages at /query, /graph, /sql, /jsonapi, /openapi, /explore and /lineage are a different experience and keep their own layout. The Schema Explorer's fonts and colours follow the application's styles.
+
+**Use case:** An analyst working in the SQL or graph explorer keeps a workspace built for exploration; the rules for list pages and forms are not imposed on it.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1977 · UI & Design Patterns {#REQ-1977}
+
+**Status:** ✓ accepted · **Priority:** SHOULD · **Type:** ui
+
+The application has one tooltip style: the style of the ERD icon button on the Tables page. A tooltip opens on hover and on keyboard focus and is announced to a screen reader.
+
+**Use case:** An operator sees the same tooltip everywhere, and one who uses the keyboard or a screen reader gets the same text as one who hovers.
+
+**Code:** —
+
+**Tests:** —
+
+## 13. Multi-Tenancy & Organizations
+
+### REQ-1978 · Environments {#REQ-1978}
+
+**Status:** ✓ accepted · **Priority:** MUST · **Type:** behavioral
+
+Changing the domain of a registered table or view requires the caller to hold the registering right in the domain it is in AND in the domain it is going to. This applies to an update of the table or view and to a registration that lands on an existing address.
+
+**Use case:** A developer who holds the registering right in the sales domain only cannot move a view from finance into sales, and cannot move a sales view into finance; a caller who holds the right in both domains can do either.
+
+**Code:** —
+
+**Tests:** —
+
+## 1. Access Governance & Security
+
+### REQ-1979 · Data Governance {#REQ-1979}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+The `deprecated` system tag applies to every object of the model: metrics, commands, roles and row-level rules, as well as source, table/view, column and relationship. The rules are the same for all of them: a reason is required, and expires_on is the planned removal date. The tag is shown wherever the object is listed and is carried into every client schema and catalog export the object appears in. A deprecation changes nothing else about the object.
+
+**Use case:** A steward marks a metric deprecated with a reason and a removal date; everyone who lists the metric or reads it in a client schema or a catalog export sees that it is deprecated and until when, and the metric keeps answering exactly as before.
 
 **Code:** —
 
