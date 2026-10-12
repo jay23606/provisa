@@ -13,6 +13,7 @@
 // authority on what is valid, and this one only says what is still missing from the form.
 
 import { SignInRefused, shapesOffered, type SignInStatus } from "../../lib/sourceSignIn";
+import { CALENDAR, MAIL, resourcesField, resourcesOf } from "./mailResources";
 
 export const GOOGLE_WORKSPACE = "google_workspace";
 /** Where an administrator enters the organisation's Google client. */
@@ -27,12 +28,6 @@ export const GW_LIST = "list";
 export const GW_MAIL_FULL = "full";
 export const GW_MAIL_HEADERS = "headers";
 
-const SCOPE = "https://www.googleapis.com/auth/";
-const MAIL_SCOPE: Record<string, string> = {
-  [GW_MAIL_FULL]: `${SCOPE}gmail.readonly`,
-  [GW_MAIL_HEADERS]: `${SCOPE}gmail.metadata`,
-};
-
 const lines = (text: string | undefined) =>
   (text ?? "")
     .split("\n")
@@ -41,11 +36,12 @@ const lines = (text: string | undefined) =>
 
 const stated = (fields: Record<string, string>, key: string) => (fields[key] ?? "").trim();
 
-/** What Google is asked for: the scope of what the source reads and of nothing else. */
-export function gwScopes(fields: Record<string, string>): string[] {
-  const scope = MAIL_SCOPE[stated(fields, "gw_mail_content")];
-  return scope ? [scope] : [];
-}
+/** What the source reads: mail, calendars, tasks (REQ-1994). What Google is asked to grant
+ * is the server's to say, from the source's mapping (`gwMapping`). */
+export const gwResources = (fields: Record<string, string>) => resourcesOf(fields, "gw");
+
+/** Whether the source reads mail, and so states how much of it. */
+const readsMail = (fields: Record<string, string>) => gwResources(fields).includes(MAIL);
 
 /** Whether mail is read as headers and labels only, which Google does not search. */
 export const gwHeadersOnly = (fields: Record<string, string>) =>
@@ -84,10 +80,14 @@ export function gwMailboxes(fields: Record<string, string>): Record<string, unkn
 export function gwConnectMissing(fields: Record<string, string>, sourceId: string): string[] {
   const missing: string[] = [];
   if (!sourceId.trim()) missing.push("source_id");
-  for (const key of ["gw_account", "gw_mail_content"]) {
-    if (!stated(fields, key)) missing.push(key);
-  }
-  return missing;
+  if (!stated(fields, "gw_account")) missing.push("gw_account");
+  return [...missing, ...gwReadsMissing(fields)];
+}
+
+/** What the source reads, still unsaid: at least one resource, and how much mail. */
+function gwReadsMissing(fields: Record<string, string>): string[] {
+  if (gwResources(fields).length === 0) return ["gw_resources"];
+  return readsMail(fields) && !stated(fields, "gw_mail_content") ? ["gw_mail_content"] : [];
 }
 
 /** The fields still needed before the source can be saved. */
@@ -95,13 +95,11 @@ export function gwMissing(fields: Record<string, string>): string[] {
   if (gwOrganisation(fields)) {
     const missing: string[] = [];
     if (gwMailboxes(fields) === null) missing.push("gw_choice");
-    if (!stated(fields, "gw_mail_content")) missing.push("gw_mail_content");
-    return missing;
+    return [...missing, ...gwReadsMissing(fields)];
   }
   const missing: string[] = [];
-  for (const key of ["gw_account", "gw_mail_content"]) {
-    if (!stated(fields, key)) missing.push(key);
-  }
+  if (!stated(fields, "gw_account")) missing.push("gw_account");
+  missing.push(...gwReadsMissing(fields));
   // Its owner has signed in: the server keeps the approval and says so (the form asks it).
   if (!stated(fields, "gw_connected_as")) missing.push("gw_connected_as");
   return missing;
@@ -111,11 +109,12 @@ export function gwMissing(fields: Record<string, string>): string[] {
  * not part of it: a source of one mailbox keeps only its owner's approval, and a source of the
  * organisation's mailboxes keeps only which ones. */
 export function gwMapping(fields: Record<string, string>): Record<string, unknown> {
+  const resources = gwResources(fields);
   const mapping: Record<string, unknown> = gwOrganisation(fields)
-    ? { resources: ["mail"], mailboxes: gwMailboxes(fields) ?? {} }
+    ? { resources, mailboxes: gwMailboxes(fields) ?? {} }
     : {
         accounts: [stated(fields, "gw_account")],
-        resources: ["mail"],
+        resources,
         sign_in: GW_GOOGLE_ACCOUNT,
       };
   // The owner's approval is kept by the server, not in the source. A source connected before
@@ -123,6 +122,11 @@ export function gwMapping(fields: Record<string, string>): Record<string, unknow
   if (!gwOrganisation(fields) && stated(fields, "gw_earlier_approval")) {
     mapping.refresh_token = stated(fields, "gw_earlier_approval");
   }
+  // REQ-1994: whether a change to an event tells its attendees; off unless ticked.
+  if (resources.includes(CALENDAR)) {
+    mapping.calendar_send_updates = fields.gw_send_updates === "true";
+  }
+  if (!resources.includes(MAIL)) return mapping;
   mapping.mail_content = stated(fields, "gw_mail_content");
   if (lines(fields.gw_mail_labels).length) mapping.mail_labels = lines(fields.gw_mail_labels);
   if (fields.gw_mail_include_spam_trash === "true") mapping.mail_include_spam_trash = true;
@@ -139,6 +143,8 @@ export function gwFieldsFromMapping(mappingJson: string): Record<string, string>
   const fields: Record<string, string> = {
     gw_mail_labels: ((mapping.mail_labels as string[] | undefined) ?? []).join("\n"),
     gw_mail_include_spam_trash: mapping.mail_include_spam_trash ? "true" : "",
+    ...resourcesField("gw", (mapping.resources as string[] | undefined) ?? []),
+    gw_send_updates: mapping.calendar_send_updates === true ? "true" : "",
   };
   for (const key of ["mail_content", "mail_search", "mail_since"]) {
     if (mapping[key] !== undefined) fields[`gw_${key}`] = String(mapping[key]);

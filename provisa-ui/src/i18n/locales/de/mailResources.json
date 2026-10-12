@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "E-Mail",
+    "calendar": "Kalender",
+    "tasks": "Aufgaben",
+    "sendUpdates": "Teilnehmer über Änderungen informieren",
+    "sendUpdatesHelp": "Eine Änderung an einem Termin oder seinen Teilnehmern wird ihnen nur gesendet, wenn dies aktiviert ist. Solange es deaktiviert ist, lehnt Microsoft 365 eine solche Änderung ab, da es sie nicht vornehmen kann, ohne die Teilnehmer zu informieren.",
+    "checkDays": "Auf Änderungen geprüfte Tage",
+    "checkDaysHelp": "Wie viele Tage vor und nach heute eine Prüfung auf geänderte Termine betrachtet."
+  }
+}

@@ -51,6 +51,9 @@ OWNERS: dict[str, set[str]] = {
         # opens its own transient `duckdb.connect(":memory:")`, ATTACHes the store file under the
         # sentinel lock, and closes; this is the one place that connection is opened, by design.
         "provisa/federation/materialize_broker.py",
+        # REQ-1994: a scratch in-memory DuckDB holding the one row a mail-source write names, to
+        # evaluate the governed WHERE over it exactly as SQL does -- no engine, no store.
+        "provisa/federation/mail_write.py",
     },
     "trino": {
         "provisa/federation/trino_types.py",  # REQ-1678: the connection/exception alias leaf

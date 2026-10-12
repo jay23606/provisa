@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "Posta",
+    "calendar": "Calendari",
+    "tasks": "Attività",
+    "sendUpdates": "Avvisa i partecipanti delle modifiche",
+    "sendUpdatesHelp": "Una modifica a un evento o ai suoi partecipanti viene inviata loro solo quando questa opzione è attiva. Finché è disattivata, Microsoft 365 rifiuta tale modifica, perché non può farla senza avvisarli.",
+    "checkDays": "Giorni controllati per le modifiche",
+    "checkDaysHelp": "Quanti giorni prima e dopo oggi esamina un controllo degli eventi modificati."
+  }
+}

@@ -14,7 +14,7 @@
 // Microsoft: the client is the organisation's, entered once under Admin › Email.
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Anchor, Button, Checkbox, Select, Text, TextInput, Textarea } from "@mantine/core";
+import { Alert, Anchor, Button, Select, Text, TextInput, Textarea } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { serverMessage } from "../../i18n/serverMessage";
@@ -32,15 +32,18 @@ import {
   M365_LIST,
   M365_ONE,
   M365_ORGANISATION,
-  M365_SCOPES,
+  m365Mapping,
+  m365Resources,
   m365CheckMailboxes,
   m365ConnectMissing,
   m365Mailboxes,
   m365Organisation,
   m365Shapes,
 } from "./microsoft365";
-import { FieldGroup, FormChecks, FormField } from "../../components/form/FormLayout";
+import { FieldGroup, FormField } from "../../components/form/FormLayout";
 import { MailSinceField } from "./MailSinceField";
+import { MailResourcesFields } from "./MailResourcesFields";
+import { MAIL } from "./mailResources";
 
 interface Props {
   sourceId: string;
@@ -116,7 +119,8 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
         source_id: sourceId.trim(),
         kind: MICROSOFT_365,
         account: fields.m365_account.trim(),
-        scopes: M365_SCOPES,
+        // REQ-1994: the server asks Microsoft for the scopes of what this mapping reads.
+        mapping: m365Mapping(fields),
       });
       setFields({
         ...fields,
@@ -208,16 +212,6 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
               </Button>
             )}
           </FieldGroup>
-          <FormChecks>
-            <FormField help={t("microsoft365Fields.readsMailHelp")} size="short">
-              <Checkbox
-                label={t("microsoft365Fields.readsMail")}
-                checked
-                readOnly
-                data-testid="microsoft-365-reads-mail"
-              />
-            </FormField>
-          </FormChecks>
         </>
       )}
       {organisation && (
@@ -278,16 +272,6 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
               />
             </FormField>
           )}
-          <FormChecks>
-            <FormField help={t("microsoft365Fields.readsMailHelp")} size="short">
-              <Checkbox
-                label={t("microsoft365Fields.readsMail")}
-                checked
-                readOnly
-                data-testid="microsoft-365-reads-mail"
-              />
-            </FormField>
-          </FormChecks>
           <FormField size="full">
             <Text size="sm" c="dimmed" data-testid="microsoft-365-every-mailbox">
               {t("microsoft365Fields.everyMailbox")}
@@ -295,12 +279,31 @@ export function Microsoft365Fields({ sourceId, fields, setFields }: Props) {
           </FormField>
         </>
       )}
-      {/* Whichever mailboxes are read: nothing received before this date is held. */}
-      <MailSinceField
-        value={fields.m365_mail_since ?? ""}
-        onChange={(value) => setFields({ ...fields, m365_mail_since: value })}
-        testId="microsoft-365-m365_mail_since"
+      <MailResourcesFields
+        prefix="m365"
+        testPrefix="microsoft-365"
+        fields={fields}
+        // What the source reads is what was approved: another choice asks the approval again.
+        setAsked={(changed) =>
+          setFields({
+            ...fields,
+            ...changed,
+            m365_earlier_approval: "",
+            m365_connected_as: "",
+            m365_connected_at: "",
+          })
+        }
+        set={(changed) => setFields({ ...fields, ...changed })}
+        checkDays
       />
+      {/* Whichever mailboxes are read: nothing received before this date is held. */}
+      {m365Resources(fields).includes(MAIL) && (
+        <MailSinceField
+          value={fields.m365_mail_since ?? ""}
+          onChange={(value) => setFields({ ...fields, m365_mail_since: value })}
+          testId="microsoft-365-m365_mail_since"
+        />
+      )}
       {notSetUp && (
         <FormField size="full">
           <Alert color="yellow" variant="light" data-testid="microsoft-365-not-set-up">

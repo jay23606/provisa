@@ -43,7 +43,7 @@ import re
 import secrets
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
@@ -102,6 +102,9 @@ class SignInKind:
     authorization_params: Callable[[str], dict[str, str]]
     #: The account an access token was approved by, as the issuer names it.
     approved_account: Callable[[str], Awaitable[str]]
+    #: REQ-1994: what the issuer is asked to grant, from the source's settings as the form
+    #: states them -- the scopes of what the source reads, and nothing the form chose.
+    scopes: Callable[[Mapping[str, Any]], list[str]]
 
 
 KINDS: dict[str, SignInKind] = {}
@@ -125,9 +128,10 @@ class Completed:
     account: str
 
 
-#: Keeps the approval a sign-in produced (source id, account, refresh token) where the source's
-#: reads take it from: the organisation's state store, under the lock a renewal takes.
-KeepGrant = Callable[[str, str, str], Awaitable[None]]
+#: Keeps the approval a sign-in produced (source id, account, refresh token, the scopes the
+#: issuer says it grants) where the source's reads take it from: the organisation's state
+#: store, under the lock a renewal takes.
+KeepGrant = Callable[[str, str, str, list[str]], Awaitable[None]]
 #: Forgets the approval kept for (source id, account).
 ForgetGrant = Callable[[str, str], Awaitable[None]]
 
@@ -185,7 +189,7 @@ async def start(
     source_id: str,
     kind_id: str,
     account: str,
-    scopes: list[str],
+    mapping: Mapping[str, Any],
     client_id: str,
     public_address: str | None,
     settings: Mapping[str, str] | None = None,
@@ -196,6 +200,7 @@ async def start(
     recorded. Its secret is read from the organisation's entry when the sign-in is completed."""
     kind = _kind(kind_id)
     settings = dict(settings or {})
+    scopes = kind.scopes(mapping)
     if not (source_id and account and client_id and scopes):
         raise SignInRefused("incomplete", "A sign-in needs the source, the account and a client")
     address = redirect_address(public_address)
@@ -354,7 +359,15 @@ async def complete(
             approved=approved,
             account=pending["account"],
         )
-    await keep_grant(pending["source_id"], approved, refresh_token)
+    # REQ-1994: what the approval grants, as the issuer says, so a source that asks for more
+    # than it grants is told to sign in again rather than refused call by call.
+    scope = answered.get("scope")
+    if not isinstance(scope, str):
+        raise SignInRefused(
+            "no_scope",
+            "The issuer approved the sign-in without saying what it grants. Approve again.",
+        )
+    await keep_grant(pending["source_id"], approved, refresh_token, scope.split())
     return Completed(source_id=pending["source_id"], account=approved)
 
 

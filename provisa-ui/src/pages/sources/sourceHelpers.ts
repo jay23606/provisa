@@ -18,7 +18,8 @@ export function getCategory(type: string) {
 /** The picker type a type is registered through: a brand's carrier (REQ-1923), else itself. */
 export const carrierOf = (uiValue: string) => BRAND_CARRIER[uiValue] ?? uiValue;
 
-export const backendType = (uiValue: string) => TYPE_ALIAS[carrierOf(uiValue)] ?? carrierOf(uiValue);
+export const backendType = (uiValue: string) =>
+  TYPE_ALIAS[carrierOf(uiValue)] ?? carrierOf(uiValue);
 
 /** The brand a source row records (federation_hints.brand, REQ-1923), or null for a plain source. */
 export function sourceBrand(federationHintsJson: string | null | undefined): string | null {

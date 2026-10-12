@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "Correo",
+    "calendar": "Calendarios",
+    "tasks": "Tareas",
+    "sendUpdates": "Avisar a los asistentes de los cambios",
+    "sendUpdatesHelp": "Un cambio en un evento o en sus asistentes se les envía solo cuando esto está activado. Mientras está desactivado, Microsoft 365 rechaza ese cambio, porque no puede hacerlo sin avisarles.",
+    "checkDays": "Días revisados en busca de cambios",
+    "checkDaysHelp": "Cuántos días antes y después de hoy abarca una revisión de eventos cambiados."
+  }
+}

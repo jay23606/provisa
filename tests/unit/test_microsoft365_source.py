@@ -59,7 +59,10 @@ def test_the_settings_a_source_keeps():
         ({"accounts": ["a@b.co", "c@d.co"]}, "one mailbox"),
         ({"accounts": ["not an address"]}, "not a mailbox address"),
         ({"resources": []}, "what is read"),
-        ({"resources": ["calendar"]}, "cannot read calendar"),
+        ({"resources": ["drive"]}, "cannot read drive"),
+        # REQ-1994: a source that reads calendars says how many days a check looks at.
+        ({"resources": ["calendar"]}, "calendar_check_days must be a whole number"),
+        ({"resources": ["mail"], "calendar_check_days": 30}, "is a setting of calendars"),
         ({"refresh_token": 7}, "is text"),
         ({"mail_since": "10/01/2026"}, "mail_since must be a date as YYYY-MM-DD"),
         ({"mail_since": 20261001}, "mail_since must be a date as YYYY-MM-DD"),
@@ -305,20 +308,41 @@ def test_a_source_that_is_not_connected_is_refused_by_name_and_asks_nothing_of_m
 # ------------------------------------------------------------------------ the table picker
 
 
-def test_the_table_picker_lists_one_schema_and_the_six_canonical_tables():
+class _Stored:
+    """The control plane as the picker reads a source's settings from it."""
+
+    def __init__(self, mapping: dict) -> None:
+        self._mapping = mapping
+
+    async def execute_core(self, _statement):
+        return SimpleNamespace(scalar_one=lambda: self._mapping)
+
+
+@pytest.mark.parametrize(
+    ("resources", "offered"),
+    [
+        (["mail"], loader.MAIL_TABLES),
+        # REQ-1994: the calendar and task tables of a source that reads them.
+        (["calendar"], ("calendars", "events", "event_attendees")),
+        (["mail", "calendar", "tasks"], loader.TABLES),
+    ],
+)
+def test_the_table_picker_lists_one_schema_and_the_tables_of_what_is_read(resources, offered):
     from provisa.api.admin.introspect import native_schemas, native_tables
     from provisa.core import canonical_mail as cm
 
+    stored = _Stored({"resources": resources})
+
     async def run():
         schemas = await native_schemas("m365", SOURCE_TYPE, None, None)  # type: ignore[arg-type]
-        tables = await native_tables("m365", SOURCE_TYPE, "default", None, None, None)  # type: ignore[arg-type]
-        elsewhere = await native_tables("m365", SOURCE_TYPE, "other", None, None, None)  # type: ignore[arg-type]
+        tables = await native_tables("m365", SOURCE_TYPE, "default", None, stored, None)  # type: ignore[arg-type]
+        elsewhere = await native_tables("m365", SOURCE_TYPE, "other", None, stored, None)  # type: ignore[arg-type]
         return schemas, tables, elsewhere
 
     schemas, tables, elsewhere = asyncio.run(run())
     assert schemas == ["default"]
-    assert [t.name for t in tables] == list(loader.TABLES)
-    assert [t.comment for t in tables] == [cm.TABLES[name].note for name in loader.TABLES]
+    assert [t.name for t in tables] == list(offered)
+    assert [t.comment for t in tables] == [cm.TABLES[name].note for name in offered]
     assert elsewhere == []
 
 
@@ -340,7 +364,8 @@ def test_the_column_picker_marks_each_tables_key_and_offers_when_a_row_landed(mo
     from provisa.core import canonical_mail as cm
 
     src = inspect_source(schema_query)
-    assert src.count("is_primary_key=name in key_columns(table_name)") == 2  # both mail kinds
+    # Both mail kinds; a calendar or task table marks what a write names its rows by (REQ-1994).
+    assert src.count("is_primary_key=name in identity_columns(table_name)") == 2
     assert src.count("for name, ir_type in landing_columns(table_name)") == 2
     assert cm.landing_columns("messages")[-1] == (cm.LANDED_AT, "timestamp")
 

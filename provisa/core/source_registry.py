@@ -65,6 +65,11 @@ SOURCE_TO_DIALECT: dict[str, str] = {
     # direct driver registered for its type, so no read is routed to the server by this entry.
     "sharepoint": "postgres",
     "salesforce": "postgres",
+    # REQ-1994: a mail source's calendar and task writes are made through its API by a driver
+    # that reads the statement as PostgreSQL. No direct driver is registered for either type,
+    # so no read is routed to that driver by this entry.
+    "google_workspace": "postgres",
+    "microsoft_365": "postgres",
     "exasol": "exasol",
 }
 

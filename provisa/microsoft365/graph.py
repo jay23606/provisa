@@ -278,6 +278,18 @@ class Graph:
     def get(self, path: str, params: Mapping[str, str] | None = None, *, prefer=()) -> dict:
         return self._call("GET", BASE_URL + path, params, tuple(prefer))
 
+    def write(
+        self,
+        method: str,
+        path: str,
+        body: Any = None,
+        params: Mapping[str, str] | None = None,
+        *,
+        prefer=(),
+    ) -> Any:
+        """A POST, PATCH or DELETE (REQ-1994): Graph's answer, None for an empty one."""
+        return self._call(method, BASE_URL + path, params, tuple(prefer), body=body)
+
     def find(self, path: str, params: Mapping[str, str] | None = None) -> dict | None:
         """One item, or None where Graph says there is no such item."""
         try:

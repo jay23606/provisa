@@ -5831,5 +5831,12 @@
   "nl/settings.json::settings.mcp.render_timeout_s.label": "Graph render time limit",
   "nl/registerTableForm.json::registerTableForm.dqScanIntervalLabel": "Scan every (seconds)",
   "nl/registerTableForm.json::registerTableForm.dqScanIntervalHint": "Each scan adds its results to the table; earlier scans are kept.",
-  "nl/registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds."
+  "nl/registerTableForm.json::registerTableForm.errorDqScanInterval": "Set how often the table is scanned, in seconds.",
+  "nl/mailResources.json::mailResources.sendUpdates": "Tell attendees of changes",
+  "nl/mailResources.json::mailResources.checkDays": "Days checked for changes",
+  "nl/mailResources.json::mailResources.tasks": "Tasks",
+  "nl/mailResources.json::mailResources.sendUpdatesHelp": "A change to an event or its attendees is sent to them only when this is on. While it is off, Microsoft 365 refuses such a change, as it cannot make one without telling them.",
+  "nl/mailResources.json::mailResources.mail": "Mail",
+  "nl/mailResources.json::mailResources.calendar": "Calendars",
+  "nl/mailResources.json::mailResources.checkDaysHelp": "How many days either side of today a check for changed events looks at."
 }

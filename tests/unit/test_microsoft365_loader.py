@@ -71,8 +71,8 @@ def test_it_offers_the_six_canonical_mail_tables_as_google_workspace_does():
 
 
 def test_a_table_it_does_not_offer_is_refused_by_name(fetch):
-    with pytest.raises(loader.UnknownMailTable, match="'events'.*messages, message_recipients"):
-        asyncio.run(fetch(SOURCE, _table("events")))
+    with pytest.raises(loader.UnknownMailTable, match="'contacts'.*messages, message_recipients"):
+        asyncio.run(fetch(SOURCE, _table("contacts")))
     assert fetch.tokens == []  # refused before the source is signed in
 
 
@@ -86,7 +86,7 @@ def test_a_table_is_fetched_whole(fetch):
     assert fetch.tokens  # each call to Graph asked for the token
 
 
-@pytest.mark.parametrize("table", loader.TABLES)
+@pytest.mark.parametrize("table", loader.MAIL_TABLES)
 def test_the_replica_is_given_exactly_the_canonical_columns(fetch, table):
     fetch.graph.table.update(
         {
@@ -147,7 +147,7 @@ def test_the_tables_that_come_from_messages_are_one_group_and_folders_is_alone(f
     assert fetch.replica_group(SOURCE, _table("messages")) == mail.MESSAGE_TABLES
     assert fetch.replica_group(SOURCE, _table("threads")) == mail.MESSAGE_TABLES
     assert fetch.replica_group(SOURCE, _table("folders")) is None
-    assert set(mail.MESSAGE_TABLES) | {"folders"} == set(loader.TABLES)
+    assert set(mail.MESSAGE_TABLES) | {"folders"} == set(loader.MAIL_TABLES)
 
 
 def test_a_group_read_gives_each_table_its_canonical_batches_from_one_listing(fetch):

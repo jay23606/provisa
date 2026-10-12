@@ -104,6 +104,8 @@ class TestTheStore:
         # The scopes the administrator is told to authorise are the ones the reader asks for.
         assert set(DELEGATED_SCOPES) == {
             settings.MAIL_SCOPES[settings.MAIL_FULL],
+            *settings.RESOURCE_SCOPES[settings.CALENDAR],
+            *settings.RESOURCE_SCOPES[settings.TASKS],
             directory.USERS_SCOPE,
             directory.MEMBERS_SCOPE,
         }

@@ -55,11 +55,15 @@ class WritePath(str, Enum):  # REQ-229, REQ-842
     SQLALCHEMY = "sqlalchemy"  # generic SQLAlchemy fallback, direct
     PGWIRE = "pgwire"  # the source's own bundled pgwire server, on the PostgreSQL driver
     ENGINE = "engine"  # federation engine writes upstream via a write-capable connector
+    API = "api"  # REQ-1994: a mail source's calendar and task writes, made through its API
 
 
 # REQ-1946: the source types written through their own bundled pgwire server. ``files`` and
 # ``splunk`` have such a server too, and it reads only.
 PGWIRE_SERVER_WRITTEN: frozenset[str] = frozenset({"sharepoint", "salesforce"})
+#: REQ-1994: the source types whose writes are made through the provider's API by
+#: ``federation.mail_write`` -- the events, attendees and tasks of a mail source.
+API_WRITTEN: frozenset[str] = frozenset({"google_workspace", "microsoft_365"})
 
 
 # Whether a write on each route can hand back the rows it wrote (a ``RETURNING`` clause). The
@@ -71,6 +75,7 @@ _ROUTE_RETURNS_WRITTEN_ROWS: dict[WritePath, bool] = {
     WritePath.SQLALCHEMY: True,
     WritePath.PGWIRE: False,
     WritePath.ENGINE: True,
+    WritePath.API: False,
 }
 
 
@@ -86,6 +91,7 @@ _ROUTE_REFUSED_FORMS: dict[WritePath, frozenset[str]] = {
     WritePath.SQLALCHEMY: frozenset(),
     WritePath.PGWIRE: WRITE_FORMS,
     WritePath.ENGINE: frozenset(),
+    WritePath.API: WRITE_FORMS,
 }
 
 
@@ -176,6 +182,8 @@ def resolve_write_path(
         return WritePath.SQLALCHEMY
     if is_written_through_pgwire_server(source_type):
         return WritePath.PGWIRE
+    if source_type in API_WRITTEN:
+        return WritePath.API
     if engine is not None and is_writable_via_engine(source_type, engine):
         return WritePath.ENGINE
     return None

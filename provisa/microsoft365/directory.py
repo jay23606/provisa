@@ -52,6 +52,9 @@ class DirectoryRefused(RuntimeError):
 USERS = "User.Read.All"
 GROUP_MEMBERS = "GroupMember.Read.All"
 MAIL_READ = "Mail.Read"
+#: REQ-1994: reading and writing the mailboxes' calendars and To Do tasks.
+CALENDARS_WRITE = "Calendars.ReadWrite"
+TASKS_WRITE = "Tasks.ReadWrite.All"
 _GRANTS: dict[str, frozenset[str]] = {
     USERS: frozenset(
         {"User.Read.All", "User.ReadWrite.All", "Directory.Read.All", "Directory.ReadWrite.All"}
@@ -67,6 +70,8 @@ _GRANTS: dict[str, frozenset[str]] = {
         }
     ),
     MAIL_READ: frozenset({"Mail.Read", "Mail.ReadWrite"}),
+    CALENDARS_WRITE: frozenset({"Calendars.ReadWrite"}),
+    TASKS_WRITE: frozenset({"Tasks.ReadWrite.All"}),
 }
 
 

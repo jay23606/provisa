@@ -292,6 +292,7 @@ def test_a_sign_in_takes_the_refresh_lock_and_drops_the_held_access_token(plane)
                     source_id=SOURCE,
                     account=ACCOUNT,
                     refresh_token="rt-signed-in",
+                    scopes=["mail.read"],
                     lock_wait_seconds=0.2,
                 )
         finally:
@@ -303,6 +304,7 @@ def test_a_sign_in_takes_the_refresh_lock_and_drops_the_held_access_token(plane)
             source_id=SOURCE,
             account=ACCOUNT,
             refresh_token="rt-signed-in",
+            scopes=["mail.read"],
         )
         assert await _stored(db) == "rt-signed-in"
         assert await _token(db, url, issuer) == "at-for-rt-signed-in"
@@ -494,3 +496,78 @@ def test_on_postgresql_every_lock_holds_a_session_of_its_own(monkeypatch):
     assert opened[0].conn.closed and opened[0].disposed
     assert not opened[1].conn.closed
     second.close()
+
+
+# -- what an approval grants (REQ-1994) --------------------------------------------------------
+
+GRAPH = "https://graph.microsoft.com/"
+
+
+def _graph_name(scope: str) -> str:
+    return scope.removeprefix(GRAPH)
+
+
+def test_a_signed_in_approval_keeps_what_it_grants_and_forgets_it_with_the_approval(plane):
+    db, url = plane
+
+    async def run():
+        await store_refresh_token(
+            db,
+            url,
+            ORG,
+            source_id=SOURCE,
+            account=ACCOUNT,
+            refresh_token="rt-1",
+            scopes=["Mail.Read", "Calendars.ReadWrite"],
+        )
+        async with db.acquire() as conn:
+            assert await mail_sync_state.granted(conn, SOURCE, ACCOUNT) == {
+                "Mail.Read",
+                "Calendars.ReadWrite",
+            }
+            await mail_sync_state.forget_grant(conn, SOURCE, ACCOUNT)
+            assert await mail_sync_state.granted(conn, SOURCE, ACCOUNT) is None
+
+    asyncio.run(run())
+
+
+def test_a_source_that_reads_more_than_its_approval_grants_is_told_to_sign_in_again(plane):
+    db, url = plane
+
+    async def run():
+        await store_refresh_token(
+            db,
+            url,
+            ORG,
+            source_id=SOURCE,
+            account=ACCOUNT,
+            refresh_token="rt",
+            scopes=["Mail.Read"],
+        )
+        # What was granted is enough: nothing is said.
+        await oauth_store.require_granted(
+            db, source_id=SOURCE, account=ACCOUNT, needed=[f"{GRAPH}Mail.Read"], name=_graph_name
+        )
+        with pytest.raises(oauth_store.ScopesNotGranted, match="Tasks.ReadWrite.*signs in again"):
+            await oauth_store.require_granted(
+                db,
+                source_id=SOURCE,
+                account=ACCOUNT,
+                needed=[f"{GRAPH}Mail.Read", f"{GRAPH}Tasks.ReadWrite"],
+                name=_graph_name,
+            )
+
+    asyncio.run(run())
+
+
+def test_an_approval_kept_before_grants_were_recorded_is_left_to_the_provider(plane):
+    """Nothing is known of what it grants: the provider's own refusal names what to do."""
+    db, _url = plane
+
+    async def run():
+        await _seed(db)
+        await oauth_store.require_granted(
+            db, source_id=SOURCE, account=ACCOUNT, needed=[f"{GRAPH}Tasks.ReadWrite"]
+        )
+
+    asyncio.run(run())

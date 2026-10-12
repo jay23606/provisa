@@ -57,21 +57,27 @@ class TestScopes:
     def test_headers_and_labels_only_asks_for_the_metadata_scope(self):
         assert parse(_person(mail_content="headers")).scopes() == [METADATA]
 
-    def test_a_resource_not_ticked_adds_no_scope(self, monkeypatch):
-        monkeypatch.setattr(gw, "RESOURCES_READ", frozenset(gw.RESOURCES))
+    def test_a_resource_not_ticked_adds_no_scope(self):
         assert parse(_person(resources=["mail", "tasks"])).scopes() == [
             READONLY,
-            "https://www.googleapis.com/auth/tasks.readonly",
+            "https://www.googleapis.com/auth/tasks",
         ]
         calendar_only = _person(resources=["calendar"], mail_content=None)
         assert parse(calendar_only).scopes() == [
             "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
-            "https://www.googleapis.com/auth/calendar.events.readonly",
+            "https://www.googleapis.com/auth/calendar.events",
         ]
 
-    def test_every_scope_is_read_only(self):
-        every = [*gw.MAIL_SCOPES.values(), *(s for ss in gw.RESOURCE_SCOPES.values() for s in ss)]
-        assert all(s.endswith((".readonly", ".metadata")) for s in every)
+    def test_mail_is_read_only_and_only_events_and_tasks_are_written(self):
+        """REQ-1994: events and tasks are read and written; mail and the list of calendars are
+        only read."""
+        assert all(s.endswith((".readonly", ".metadata")) for s in gw.MAIL_SCOPES.values())
+        calendar, tasks = gw.RESOURCE_SCOPES[gw.CALENDAR], gw.RESOURCE_SCOPES[gw.TASKS]
+        assert [s.rsplit("/", 1)[1] for s in calendar] == [
+            "calendar.calendarlist.readonly",
+            "calendar.events",
+        ]
+        assert [s.rsplit("/", 1)[1] for s in tasks] == ["tasks"]
 
 
 class TestResources:
@@ -81,12 +87,27 @@ class TestResources:
     def test_an_unknown_resource_is_refused_by_name(self):
         assert "drive is not something" in _refused(_person(resources=["mail", "drive"]))
 
-    def test_a_resource_not_yet_read_is_refused_by_name(self):
-        said = _refused(_person(resources=["mail", "calendar"]))
-        assert said == "calendar is not read by this version"
+    def test_calendars_and_tasks_are_read(self):
+        """REQ-1994: every resource Google offers is read by this version."""
+        assert parse(_person(resources=["mail", "calendar", "tasks"])).resources == (
+            "mail",
+            "calendar",
+            "tasks",
+        )
 
-    def test_a_mail_setting_without_mail_is_refused(self, monkeypatch):
-        monkeypatch.setattr(gw, "RESOURCES_READ", frozenset(gw.RESOURCES))
+    def test_whether_attendees_are_told_is_off_unless_the_source_says(self):
+        assert parse(_person(resources=["calendar"], mail_content=None)).send_updates is False
+        told = _person(resources=["calendar"], mail_content=None, calendar_send_updates=True)
+        assert parse(told).send_updates is True
+
+    def test_telling_attendees_is_a_setting_of_calendars(self):
+        said = _refused(_person(calendar_send_updates=True))
+        assert (
+            said
+            == "calendar_send_updates is a setting of calendars, which this source does not read"
+        )
+
+    def test_a_mail_setting_without_mail_is_refused(self):
         said = _refused(_person(resources=["tasks"], mail_search="from:bo@example.test"))
         assert said.startswith("mail_content, mail_search is a setting of mail")
 

@@ -78,7 +78,7 @@ def test_a_source_of_the_organisations_mailboxes_says_which(stated, expected):
         ({"mailboxes": {"domain": "contoso.com"}}, "not a way to choose"),
         ({"mailboxes": {"everyone": True}, "accounts": ["a@b.co"]}, "states no accounts"),
         ({"mailboxes": {"everyone": True}, "refresh_token": "${secret:t}"}, "nobody connects it"),
-        ({"mailboxes": {"everyone": True}, "resources": ["calendar"]}, "cannot read calendar"),
+        ({"mailboxes": {"everyone": True}, "resources": ["drive"]}, "cannot read drive"),
     ],
 )
 def test_a_choice_of_mailboxes_that_cannot_be_one_is_refused_by_name(mapping, says):

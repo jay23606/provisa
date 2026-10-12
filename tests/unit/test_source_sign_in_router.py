@@ -92,7 +92,7 @@ def wired(monkeypatch):
         seen["completed"].append(given)
         if seen.get("refusal"):
             raise seen["refusal"]
-        await given["keep_grant"]("mail", "ada@example.test", APPROVAL)
+        await given["keep_grant"]("mail", "ada@example.test", APPROVAL, ["Mail.Read"])
         return Completed("mail", "ada@example.test")
 
     monkeypatch.setattr(router, "require_capability_request", gate)
@@ -136,7 +136,7 @@ def _start_body(**changed) -> router.StartRequest:
         "source_id": "mail",
         "kind": KIND,
         "account": "ada@example.test",
-        "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
+        "mapping": {"accounts": ["ada@example.test"], "resources": ["mail"]},
     }
     given.update(changed)
     return router.StartRequest(**given)
@@ -214,7 +214,8 @@ class TestStatus:
 
 class TestStart:
     async def test_the_form_sends_no_client_and_no_address(self, wired):
-        assert set(router.StartRequest.model_fields) == {"source_id", "kind", "account", "scopes"}
+        # REQ-1994: the source's settings, from which the server asks for the scopes they read.
+        assert set(router.StartRequest.model_fields) == {"source_id", "kind", "account", "mapping"}
 
     async def test_the_client_is_the_callers_organisations(self, wired):
         wired["client"] = Configured(KIND, "org-client-1", {"tenant": "contoso"})
@@ -278,6 +279,8 @@ class TestComplete:
             "source_id": "mail",
             "account": "ada@example.test",
             "refresh_token": APPROVAL,
+            # REQ-1994: what the issuer said the approval grants, kept with it.
+            "scopes": ["Mail.Read"],
         }
 
     async def test_the_caller_and_their_organisation_are_what_the_state_is_checked_against(

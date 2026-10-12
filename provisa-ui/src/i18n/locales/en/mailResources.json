@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "Mail",
+    "calendar": "Calendars",
+    "tasks": "Tasks",
+    "sendUpdates": "Tell attendees of changes",
+    "sendUpdatesHelp": "A change to an event or its attendees is sent to them only when this is on. While it is off, Microsoft 365 refuses such a change, as it cannot make one without telling them.",
+    "checkDays": "Days checked for changes",
+    "checkDaysHelp": "How many days either side of today a check for changed events looks at."
+  }
+}

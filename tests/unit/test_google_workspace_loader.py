@@ -30,6 +30,7 @@ from provisa.google_workspace import SOURCE_TYPE, loader
 from provisa.api_source.oauth_grants import CredentialRefused
 from provisa.google_workspace.gmail import GmailNotFound, QuotaExhausted
 from provisa.google_workspace.loader import (
+    MAIL_TABLES,
     MESSAGE_TABLES,
     TABLES,
     UnknownMailTable,
@@ -186,7 +187,7 @@ def _connected_loader():
 
 
 class TestEveryTableIsItsCanonicalTable:
-    @pytest.mark.parametrize("table", TABLES)
+    @pytest.mark.parametrize("table", MAIL_TABLES)
     async def test_a_row_has_exactly_the_canonical_columns_in_their_order(self, table):
         rows = await _rows(table)
         assert rows, table
@@ -194,17 +195,17 @@ class TestEveryTableIsItsCanonicalTable:
         for row in rows:
             assert list(row) == canonical
 
-    @pytest.mark.parametrize("table", TABLES)
+    @pytest.mark.parametrize("table", MAIL_TABLES)
     async def test_its_values_are_of_the_canonical_types(self, table):
         columns = cm.ir_columns(table)
         batch = rows_to_batch(await _rows(table), columns, arrow_schema(columns))
         assert batch.num_rows > 0 and batch.schema.names == [name for name, _ in columns]
 
-    @pytest.mark.parametrize("table", TABLES)
+    @pytest.mark.parametrize("table", MAIL_TABLES)
     async def test_every_row_says_whose_mailbox_and_which_provider(self, table):
         assert {(r["provider"], r["account"]) for r in await _rows(table)} == {("google", ACCOUNT)}
 
-    @pytest.mark.parametrize("table", TABLES)
+    @pytest.mark.parametrize("table", MAIL_TABLES)
     async def test_a_column_google_does_not_populate_is_null(self, table):
         for row in await _rows(table):
             for column in cm.TABLES[table].columns:
@@ -212,13 +213,21 @@ class TestEveryTableIsItsCanonicalTable:
                     assert row[column.name] is None, (table, column.name)
 
     async def test_the_source_offers_the_six_mail_tables_and_they_are_canonical(self):
-        assert set(TABLES) == {
+        assert set(MAIL_TABLES) == {
             "messages",
             "message_recipients",
             "folders",
             "message_folders",
             "threads",
             "attachments",
+        }
+        # REQ-1994: and the calendar and task tables, every one canonical.
+        assert set(TABLES) == set(MAIL_TABLES) | {
+            "calendars",
+            "events",
+            "event_attendees",
+            "task_lists",
+            "tasks",
         }
         assert set(TABLES) <= set(cm.TABLES)
 
@@ -700,7 +709,7 @@ class TestTheGroupBuild:
             group = fetch.replica_group(self.SOURCE, SimpleNamespace(table_name=table))
             assert group == MESSAGE_TABLES
         assert fetch.replica_group(self.SOURCE, SimpleNamespace(table_name="folders")) is None
-        assert set(MESSAGE_TABLES) | {"folders"} == set(TABLES)
+        assert set(MESSAGE_TABLES) | {"folders"} == set(MAIL_TABLES)
 
     async def test_one_read_gives_each_claimed_table_its_canonical_batches(self, fetch):
         tables = ("messages", "message_recipients", "threads")
@@ -782,10 +791,11 @@ class TestTheMailboxProbe:
     async def test_every_table_read_from_the_mailbox_has_the_probe_and_shares_its_token(
         self, fetch
     ):
-        tokens = {table: await self._probe(fetch, table)() for table in TABLES}
+        tokens = {table: await self._probe(fetch, table)() for table in MAIL_TABLES}
         assert len(set(tokens.values())) == 1
-        assert self._probe(fetch, "events") is None  # a calendar table: no cheap token
-        assert self._probe(fetch, "tasks") is None
+        # REQ-1994: a calendar or task table has a probe of its own (calendar_read.change_token).
+        assert self._probe(fetch, "events") is not None
+        assert self._probe(fetch, "tasks") is not None
 
     @pytest.mark.parametrize(
         "refusal",

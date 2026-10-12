@@ -118,7 +118,13 @@ def test_every_sql_dialect_type_is_catalog_reachable():
     # A type reached by a NATIVE Provisa driver rather than a Trino catalog: sqlite/duckdb, and the
     # warehouse direct-source drivers (bigquery/fabric/synapse/…). Derived from the driver registry so
     # the invariant tracks it, never a hand-maintained list.
+    # REQ-1994: a mail source's dialect is the one its write statements are read in by its API
+    # write driver (executor.writable.API_WRITTEN); its reads are its replicas'.
+    from provisa.executor.writable import API_WRITTEN
+
     orphans = [
-        st for st in SOURCE_TO_DIALECT if st not in TRINO_CONNECTORS and not has_native_driver(st)
+        st
+        for st in SOURCE_TO_DIALECT
+        if st not in TRINO_CONNECTORS and not has_native_driver(st) and st not in API_WRITTEN
     ]
     assert not orphans, f"SQL types with a dialect but no connector/driver: {orphans}"

@@ -1771,23 +1771,25 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
             return []
         return [AvailableTableType(name=source_id, comment=None)]
 
-    # REQ-1923: the canonical mail tables, the same for every mailbox.
-    if t == "google_workspace":
+    # REQ-1923: the canonical tables, the same for every mailbox: those of the resources the
+    # source reads -- mail, calendars, tasks (REQ-1994).
+    if t in ("google_workspace", "microsoft_365"):
         from provisa.api.admin.types import AvailableTableType
         from provisa.core.canonical_mail import TABLES as CANONICAL
-        from provisa.google_workspace.loader import SCHEMA, TABLES
+        from provisa.core.canonical_mail import tables_for
 
-        if schema_name != SCHEMA:
+        if schema_name != "default":
             return []
-        return [AvailableTableType(name=name, comment=CANONICAL[name].note) for name in TABLES]
-    if t == "microsoft_365":
-        from provisa.api.admin.types import AvailableTableType
-        from provisa.core.canonical_mail import TABLES as CANONICAL
-        from provisa.microsoft365.loader import SCHEMA, TABLES
-
-        if schema_name != SCHEMA:
-            return []
-        return [AvailableTableType(name=name, comment=CANONICAL[name].note) for name in TABLES]
+        mapping = (
+            await config_conn.execute_core(
+                select(sources.c.mapping).where(sources.c.id == source_id)
+            )
+        ).scalar_one()
+        resources = list((mapping or {}).get("resources") or [])
+        return [
+            AvailableTableType(name=name, comment=CANONICAL[name].note)
+            for name in tables_for(resources)
+        ]
 
     # See native_schemas's snowflake/databricks/bigquery/fabric/synapse branches for why these
     # need their own path rather than falling through to _native_tables_rdbms's engine-catalog

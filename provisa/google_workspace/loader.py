@@ -56,15 +56,11 @@ from provisa.google_workspace.settings import MAIL_HEADERS, MailSettings, Settin
 
 log = logging.getLogger(__name__)
 
-#: The canonical tables this source offers, in the order the table picker lists them.
-TABLES: tuple[str, ...] = (
-    "messages",
-    "message_recipients",
-    "folders",
-    "message_folders",
-    "threads",
-    "attachments",
-)
+#: The canonical tables this source offers, in the order the table picker lists them: the mail
+#: tables, and the calendar and task tables (REQ-1994). A source offers those of the resources
+#: it reads (``canonical_mail.tables_for``).
+MAIL_TABLES: tuple[str, ...] = cm.RESOURCE_TABLES[cm.MAIL]
+TABLES: tuple[str, ...] = cm.tables_for((cm.MAIL, cm.CALENDAR, cm.TASKS))
 #: The schema the table picker shows them under: a mailbox has none of its own.
 SCHEMA = "default"
 
@@ -274,7 +270,7 @@ class Reading:
     organisation's mailboxes, how many are read at once."""
 
     accounts: tuple[str, ...]
-    mail: MailSettings
+    mail: MailSettings | None  # None when the source does not read mail
     token: Callable[[str], Awaitable[str]]
     organisation: bool = False
     at_once: int = 1
@@ -517,7 +513,9 @@ class _MailboxRead:
         reading = self._reading = await self._connect(self._source)
         async for table, rows in _read_mailboxes(
             reading,
-            lambda gmail: message_table_rows(gmail, reading.mail, self._tables, self._unreadable),
+            lambda gmail: message_table_rows(
+                gmail, _mail_of(reading, self._tables[0]), self._tables, self._unreadable
+            ),
             self._left_out,
             self._reached,
         ):
@@ -602,7 +600,7 @@ class _UnitsRead:
             reading,
             lambda gmail: units.mailbox_units(
                 gmail,
-                reading.mail,
+                _mail_of(reading, self._tables[0]),
                 self._tables,
                 kept.get(gmail.account.lower()),
                 _opened_at(gmail),
@@ -633,6 +631,47 @@ class _UnitsRead:
         for account in sorted({a.lower() for a in self._left_out}):
             await reading.forget_mailbox(account)
             await reading.keep_part(account, {units.MAILBOX: LEFT_OUT}, PROBE)
+
+
+def _mail_of(reading: Reading, table: str) -> MailSettings:
+    """The mail the source holds, for a read of the mail table ``table``: refused by name when
+    the source does not read mail."""
+    if reading.mail is None:
+        raise UnknownMailTable(table)
+    return reading.mail
+
+
+async def _calendar_token(connect: Connect, source: Any, table: str) -> str | None:
+    """The change token of the source's calendars or task lists (``calendar_read``), or None
+    when Google cannot be asked: None is never "unchanged", so a read is asked for and reports
+    the reason on the replica."""
+    from provisa.api_source.caller import ApiCallError
+    from provisa.api_source.oauth_store import NotConnected, ScopesNotGranted
+    from provisa.core.mail_platforms import MailPlatformRefused
+    from provisa.google_workspace import calendar_read, directory
+
+    try:
+        return await calendar_read.change_token(await connect(source), table)
+    except (
+        NotConnected,
+        ScopesNotGranted,
+        GmailRefused,
+        ApiCallError,
+        MailPlatformRefused,
+        directory.DelegationRefused,
+        directory.DirectoryRefused,
+        directory.NotAUser,
+        NoMailboxRead,
+        httpx.HTTPError,
+    ) as cannot:
+        log.warning(
+            "Google Workspace source %s: its %s could not be asked whether they changed (%s); "
+            "a read is asked for instead",
+            source.id,
+            table,
+            cannot,
+        )
+        return None
 
 
 async def mailbox_token(connect: Connect, source: Any) -> str | None:
@@ -702,9 +741,20 @@ def make_google_workspace_loader(connect: Connect) -> Any:
         if name not in TABLES:
             raise UnknownMailTable(name)
         reading = await connect(source)
+        if name not in MAIL_TABLES:
+            # REQ-1994: a calendar or task table, read whole for every account.
+            from provisa.google_workspace import calendar_read
+
+            for rows in await calendar_read.table_rows(
+                reading, name, [] if left_out is None else left_out
+            ):
+                if rows:
+                    yield rows
+            return
+        mail = _mail_of(reading, name)
         async for rows in _read_mailboxes(
             reading,
-            lambda gmail: table_rows(gmail, reading.mail, name, unreadable),
+            lambda gmail: table_rows(gmail, mail, name, unreadable),
             [] if left_out is None else left_out,
         ):
             if rows:
@@ -732,8 +782,15 @@ def make_google_workspace_loader(connect: Connect) -> Any:
     def _freshness_probe(source: Any, table: Any) -> Any:
         """The table's change probe (REQ-855, REQ-982), for a table read from the mailboxes:
         their messages or their labels. None for any other table: it has no cheap token."""
-        if table.table_name not in TABLES:
+        name = table.table_name
+        if name not in TABLES:
             return None
+        if name not in MAIL_TABLES:
+
+            async def calendar_token() -> str | None:
+                return await _calendar_token(connect, source, name)
+
+            return calendar_token
 
         async def token() -> str | None:
             return await mailbox_token(connect, source)
@@ -811,8 +868,6 @@ def make_connect(state: Any) -> Connect:
 
     async def connect(source: Any) -> Reading:
         settings = source_settings(source)
-        if settings.mail is None:
-            raise UnknownMailTable("messages")
         org_id = require_current_org()
 
         async def keep(rows: dict[tuple[str, str, str], str]) -> None:
@@ -887,6 +942,11 @@ def make_connect(state: Any) -> Connect:
         # approval when it is used, so it is read and nothing is written back.
         approval = await oauth_store.kept_refresh_token(
             state.tenant_db, source_id=source.id, account=address, earlier=earlier
+        )
+        # REQ-1994: an approval that does not grant what the source now reads is refused here,
+        # once, naming what to grant, rather than by Google call by call.
+        await oauth_store.require_granted(
+            state.tenant_db, source_id=source.id, account=address, needed=settings.scopes()
         )
         # Resolved here, in the organisation's vault: the exchange runs in a worker thread,
         # which holds none.

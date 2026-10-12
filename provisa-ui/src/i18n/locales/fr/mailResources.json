@@ -1,0 +1,11 @@
+{
+  "mailResources": {
+    "mail": "E-mail",
+    "calendar": "Agendas",
+    "tasks": "Tâches",
+    "sendUpdates": "Informer les participants des modifications",
+    "sendUpdatesHelp": "Une modification d'un événement ou de ses participants ne leur est envoyée que lorsque cette option est activée. Tant qu'elle est désactivée, Microsoft 365 refuse une telle modification, car il ne peut pas la faire sans les informer.",
+    "checkDays": "Jours vérifiés pour les modifications",
+    "checkDaysHelp": "Combien de jours avant et après aujourd'hui une vérification des événements modifiés examine."
+  }
+}

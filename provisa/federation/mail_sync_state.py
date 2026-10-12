@@ -41,6 +41,9 @@ KINDS = frozenset({PROBE, DELTA})
 #: under the mailbox's own scope. It is sign-in state, not something a read reached: a completed
 #: read leaves it alone, and only a sign-in or a renewal writes it (:func:`keep_grant`).
 GRANT = "grant"
+#: REQ-1994: the scopes the provider said the owner's approval grants, space-separated, as its
+#: token endpoint answered the sign-in. Written with the approval and forgotten with it.
+GRANTED = "granted"
 
 #: (account, scope, kind): the address of one token of a source.
 Key = tuple[str, str, str]
@@ -183,11 +186,49 @@ async def keep_grant(conn: Any, source_id: str, account: str, token: str) -> Non
 
 
 async def forget_grant(conn: Any, source_id: str, account: str | None = None) -> None:
-    """Keep no approval for ``account`` of ``source_id`` (every account's when None)."""
-    where = (mail_sync_state.c.source_id == source_id) & (mail_sync_state.c.kind == GRANT)
+    """Keep no approval for ``account`` of ``source_id`` (every account's when None), and no
+    record of the scopes it granted."""
+    where = (mail_sync_state.c.source_id == source_id) & (
+        mail_sync_state.c.kind.in_((GRANT, GRANTED))
+    )
     if account is not None:
-        where = _grant_of(source_id, account)
+        where = where & (mail_sync_state.c.account == account.lower())
     await conn.execute_core(delete(mail_sync_state).where(where))
+
+
+def _granted_of(source_id: str, account: str) -> Any:
+    return (
+        (mail_sync_state.c.source_id == source_id)
+        & (mail_sync_state.c.account == account.lower())
+        & (mail_sync_state.c.scope == "")
+        & (mail_sync_state.c.kind == GRANTED)
+    )
+
+
+async def keep_granted(conn: Any, source_id: str, account: str, scopes: list[str]) -> None:
+    """Keep the scopes a sign-in's approval grants (REQ-1994), in place of any kept before."""
+    async with conn.transaction():
+        await conn.execute_core(delete(mail_sync_state).where(_granted_of(source_id, account)))
+        await conn.execute_core(
+            mail_sync_state.insert().values(
+                source_id=source_id,
+                account=account.lower(),
+                scope="",
+                kind=GRANTED,
+                token=" ".join(scopes),
+                updated_at=datetime.now(UTC),
+            )
+        )
+
+
+async def granted(conn: Any, source_id: str, account: str) -> frozenset[str] | None:
+    """The scopes the approval kept for ``account`` of ``source_id`` grants; None when none is
+    recorded (an approval given before they were recorded)."""
+    found = await conn.execute_core(
+        select(mail_sync_state.c.token).where(_granted_of(source_id, account))
+    )
+    row = found.fetchone()
+    return None if row is None else frozenset(row.token.split())
 
 
 async def granted_at(conn: Any, source_id: str, account: str) -> datetime | None:
