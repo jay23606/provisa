@@ -9,7 +9,7 @@ Jede Abfrage wird letztlich über die Federation-Engine ausgeführt, die Federat
 | **Direktfähig** | Ja | Ja | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Nur Federation** | Nein | Ja | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-gestützt) |
 | **Direktlesen (Replikat)** | Ja | Ja | Snowflake, Databricks, ClickHouse — Treiber liest Daten und landet ein Replikat; Abfragen laufen gegen das Replikat in der aktiven Engine |
-| **Materialisieren → Federation** | Nein | Nein | REST/OpenAPI, Remote-GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (Push-Empfänger), GovData, SharePoint, Splunk |
+| **Materialisieren → Federation** | Nein | Nein | REST/OpenAPI, Remote-GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (Push-Empfänger), GovData, SharePoint, Splunk, ServiceNow |
 
 **Direktfähige** Quellen führen Einzelquellen-Abfragen über ihren nativen Treiber aus (unter 100 ms) und umgehen dabei die Federation-Engine (REQ-027, REQ-229). Sie behalten volle Connector-Unterstützung und nehmen an der Federation teil, wenn sie mit anderen Quellen gejoint werden (REQ-028).
 
@@ -37,7 +37,7 @@ Provisa registriert **54** Quelltypen. Die folgenden Tabellen decken alle 54 ab;
 | 38–39 | [Graph & Semantic](#graph-semantic) | `neo4j`, `sparql` |
 | 40–43 | [Dateibasiert](#dateibasiert) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [Observability & Sonstiges](#observability-sonstiges) | `google_sheets`, `prometheus` |
-| 46–47 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk` |
+| 46–47 | [Enterprise-SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [API-Quellen](#api-quellen) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [Data-Quality-Checker](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
@@ -245,7 +245,7 @@ Nach dem Hinzufügen der Quelle registrieren Sie deren Tabellen über den normal
 
 ### Enterprise-SaaS-Connectors
 
-SharePoint und Splunk registrieren sich über Apache-Calcite-Connectors (kenstott/calcite-Fork). Keiner hat einen direkten Treiber — Provisa startet den mitgelieferten Calcite-pgwire-Server des Connectors (`pgwire-sharepoint`, `pgwire-splunk`) und erreicht ihn als generischen PostgreSQL-Endpunkt. Auf der DuckDB-Engine wird dieser Endpunkt live über die postgres-Erweiterung angehängt: Register Table listet die Tabellen des Connectors aus dem angehängten Katalog, Abfragen lesen den Connector vor Ort, und Filter und Projektionen werden zu Calcite heruntergeschoben (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Jede andere Engine landet die Zeilen im Materialisierungs-Store für die Federation (REQ-954). Die Bundles werden pro OS/Architektur aus dem gepinnten `kenstott/calcite`-Release abgerufen (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]. Beide Connectors aktivieren immer Groß-/Kleinschreibung-unabhängigen Namensabgleich, entsprechend der eigenen case-insensitiven Semantik des jeweiligen Produkts (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Splunk und ServiceNow registrieren sich über Apache-Calcite-Connectors (kenstott/calcite-Fork). Keiner hat einen direkten Treiber — Provisa startet den mitgelieferten Calcite-pgwire-Server des Connectors (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) und erreicht ihn als generischen PostgreSQL-Endpunkt. Auf der DuckDB-Engine wird dieser Endpunkt live über die postgres-Erweiterung angehängt: Register Table listet die Tabellen des Connectors aus dem angehängten Katalog, Abfragen lesen den Connector vor Ort, und Filter und Projektionen werden zu Calcite heruntergeschoben (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Jede andere Engine landet die Zeilen im Materialisierungs-Store für die Federation (REQ-954). Die Bundles werden pro OS/Architektur aus dem gepinnten `kenstott/calcite`-Release abgerufen (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Ein Operator kann stattdessen pro Connector einen Bundle-Ordner benennen, der für diesen Host erstellt wurde, unter Admin → Einstellungen → Connector-Server (`connectors.<connector>.bundle_dir`); siehe [Admin](admin.md).. Alle drei Connectors aktivieren immer Groß-/Kleinschreibung-unabhängigen Namensabgleich, entsprechend der eigenen case-insensitiven Semantik des jeweiligen Produkts (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -338,6 +338,40 @@ Benutzername-Passwort-Flow:
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+Jede Tabelle der Instanz steht zur Registrierung bereit; nichts wird automatisch registriert (REQ-1954). Auf einer vollen Instanz können es Tausende Tabellen sein; Register Table gruppiert sie daher nach Thema — jedes Thema ist der Anzeigename eines ServiceNow-Pakets oder „(kein Paket)", wenn eine Tabelle keinem Paket angehört. Jede Tabelle wird als `name — label` angezeigt. Die Auswahl einer Tabelle liest deren Spalten aus der Instanz; das bloße Auflisten liest keine. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
+
+Eine ServiceNow-Quelle nennt die vollständige `https://…`-URL der Instanz sowie Benutzername und Passwort. Die URL stammt aus `base_url` oder `host`; ein blosser Host oder ein anderes Schema wird abgelehnt und das Feld benannt (`instanceUrl`). Ein fehlender Benutzername oder ein fehlendes Passwort wird abgelehnt und das jeweilige Feld benannt. Jeder Wert kann eine `${secret:…}`- oder `${env:…}`-Referenz sein.
+
+| Quellfeld | Adapter-Eigenschaft | Hinweis |
+| --- | --- | --- |
+| `base_url` oder `host` | `instanceUrl` | Vollständige `https://…`-URL der Instanz (z. B. `https://acme.service-now.com`). Ein blosser Host oder ein anderes Schema wird abgelehnt |
+| `username` | `username` | Basic-Auth-Benutzername |
+| `password` | `password` | Basic-Auth-Passwort |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`, `servicenow_settings`]
+
+**Lesen.** Auf Trino wird die Quelle über den `servicenow`-Katalog gelesen, der nur liest. Auf jeder anderen Engine bindet die Engine den pgwire-Server der Quelle ein und liest sie an Ort und Stelle. Nur die ausgewählten Spalten werden von der Instanz angefordert (`sysparm_fields`). Ein Filter wird nur in einer Form an die Instanz gesendet (`sysparm_query`), die der Adapter an einer Live-Instanz verifiziert hat; jeder andere Filter sowie jede Sortierung und jedes Limit werden auf die gelesenen Zeilen angewendet. [inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+Ein Referenzfeld erscheint als zwei Spalten: `<Feld>` enthält die sys_id des referenzierten Eintrags, und `<Feld>__display` enthält den Anzeigewert. Ein leerer Feldwert ist NULL. Ein Feld, dessen Typ der Adapter nicht abbilden kann, erzeugt einen Fehler, der Tabelle, Feld und Typ benennt. [inferred from adapter behavior; in dieser Sitzung nicht direkt im Provisa-Quellcode überprüft]
+
+Die Tabellensuche (natürliche Sprache) stimmt auf Name, Label und Thema jeder Tabelle ab. Sobald eine Tabelle registriert ist, nehmen ihre Spalten an der Suche teil. [tool-verified: `provisa/discovery/catalog_cache.py` `COLUMNS_PER_TABLE_KINDS` Docstring]
+
+**Server-Lebenszyklus.** Der Server bedient nur die aus ihm registrierten Tabellen. Das Registrieren oder Entfernen einer Tabelle startet den Server neu und provisioniert die Quelle erneut auf der Engine; eine Anweisung, die während dieses Neustarts eintrifft, schlägt fehl. [tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES`; `provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**Schreiben.** `INSERT`, `UPDATE` und `DELETE` auf einer registrierten Tabelle sind Mutationen: gesteuert, auditiert und je Umgebung behandelt wie jede andere Mutation. Auf jeder Engine, auch Trino, läuft ein Schreibvorgang auf dem pgwire-Server der Quelle. Der Server gibt die Zeile zurück, die die Instanz nach dem Schreibvorgang enthält; eine `RETURNING`-Klausel wird daher akzeptiert, und GraphQL bietet Mutationsfelder für diese Tabellen an. Ein Schreibvorgang ist eine einzelne Anweisung auf einer Tabelle: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` und `TRUNCATE` werden abgelehnt und das jeweilige Formular benannt. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
+
+**Import-Sets.** Wenn eine Tabelle über eine aktive Transform-Map verfügt, bietet Register Table deren Import-Sets an, und der Steward kann die Tabelle an eines davon binden (eine Tabelle mit mehreren Maps benennt jedes einzeln). Einfügungen in eine gebundene Tabelle laufen über die Import-Set-API der Instanz und die Transformation der jeweiligen Map; Einfügungen in eine ungebundene Tabelle sowie alle Updates und Deletes werden direkt in die Tabelle geschrieben. Eine Zeile, die die Transformation ablehnt, wird zurückgewiesen und die betreffende Zeile benannt; bereits geschriebene Zeilen bleiben erhalten. Die Bindung wird beim Speichern der Tabelle geprüft: Sie muss das Import-Set einer aktiven Transform-Map in die Tabelle sein, auf einer ServiceNow-Quelle. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal`; `provisa/federation/servicenow.py` `servicenow_settings`; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

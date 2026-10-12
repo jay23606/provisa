@@ -40,6 +40,7 @@ async def _candidates_from_cache(  # REQ-464
             comment=c.comment,
             columns=c.column_names,
             schema_name=c.schema_name,
+            group=c.group,
         )
         for c in cached
     ]
@@ -103,7 +104,9 @@ async def _candidates_live(
         ]
     else:
         candidates = [
-            TableCandidate(name=t.name, comment=t.comment, columns=[], schema_name=schema_name)
+            TableCandidate(
+                name=t.name, comment=t.comment, columns=[], schema_name=schema_name, group=t.group
+            )
             for t in raw_tables
         ]
 

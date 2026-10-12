@@ -44,12 +44,13 @@ from provisa.core.secrets import resolve_secrets
 from provisa.federation.cloudops import cloudops_settings
 from provisa.federation.connector_config import MissingConnectorConfig
 from provisa.federation.salesforce import salesforce_login_url
+from provisa.federation.servicenow import servicenow_settings
 from provisa.runtime_deps import BundleResolver, BundleSpec, bundle_spec_for
 
 # The pgwire-replica source types (mirror of strategy._CONNECTOR_PGWIRE_REPLICA). A type here has a
 # bundled Calcite pgwire server and is landed through this module when no engine connector reaches it.
 PGWIRE_REPLICA_TYPES = frozenset(
-    {"files", "sharepoint", "splunk", "salesforce", "cloudops", "govdata"}
+    {"files", "sharepoint", "splunk", "salesforce", "servicenow", "cloudops", "govdata"}
 )
 # Types whose bundle is a complete install — its own model of SEVERAL schemas (AskAmerica: sec,
 # econ, ...) and the catalog prebuilt for exactly that model beside it. Such a server is the
@@ -89,6 +90,7 @@ _SCHEMA_FACTORY: dict[str, str] = {
     "sharepoint": "org.apache.calcite.adapter.sharepoint.SharePointListSchemaFactory",
     "splunk": "org.apache.calcite.adapter.splunk.SplunkSchemaFactory",
     "salesforce": "org.apache.calcite.adapter.salesforce.SalesforceSchemaFactory",
+    "servicenow": "org.apache.calcite.adapter.servicenow.ServiceNowSchemaFactory",
     "cloudops": "org.apache.calcite.adapter.ops.CloudOpsSchemaFactory",
 }
 
@@ -449,6 +451,7 @@ _OPERAND_BUILDERS: dict[str, Callable[[Any], dict]] = {
     "sharepoint": _sharepoint_operand,
     "splunk": _splunk_operand,
     "salesforce": _salesforce_operand,
+    "servicenow": servicenow_settings,  # REQ-1954
     "cloudops": cloudops_settings,
 }
 
@@ -636,6 +639,20 @@ def server_environment(source: Any, bundle_dir: Path) -> dict[str, str] | None:
 
         return _askamerica_environment(source, catalog=install_seed(bundle_dir))
     return None
+
+
+#: Where a server's launcher keeps its own state (its catalog cache), named in its environment.
+CALCITE_STATE_ENV = "PGWIRE_CALCITE_STATE_DIR"
+
+
+def calcite_state_environment(run_dir: Path) -> dict[str, str]:
+    """The server's own state directory, inside its run directory: one per server. Unset, the
+    launcher keeps its state under the user's ``$XDG_STATE_HOME`` (``~/.local/state``), shared
+    by every server of the connector and unwritable on a host where another user owns it; the
+    server then exits at start (REQ-1954)."""
+    state = run_dir / "calcite-state"
+    state.mkdir(parents=True, exist_ok=True)
+    return {CALCITE_STATE_ENV: str(state)}
 
 
 def _spawn_process(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Any:
@@ -898,8 +915,9 @@ def listening_endpoint(source: Any) -> PortPair:
 
 
 async def _read_information_schema(source: Any, statement: str) -> list[Any]:
-    """Run one information_schema statement on the source's server over a connection of its
-    own. THE one reader discovery uses; a statement naming pg_catalog is refused."""
+    """Run one discovery statement on the source's server over a connection of its own: its
+    information_schema, or a catalog table its adapter serves (a ServiceNow source's table and
+    column lists). THE one reader discovery uses; a statement naming pg_catalog is refused."""
     import asyncio
 
     if "pg_catalog" in statement.lower():
@@ -923,6 +941,52 @@ async def adapter_tables(source: Any, schema: str) -> list[str]:
     # Read by position: the server labels a result column in its own lexical case (TABLE_NAME
     # under its ORACLE lexer), so the label is not the name the statement wrote.
     return [row[0] for row in rows]
+
+
+async def servicenow_table_list(source: Any, schema: str) -> list[tuple[str, str, str]]:
+    """``[(name, label, theme), ...]`` of every table a ServiceNow source's server offers
+    (REQ-1954), from the one table it serves for that (``servicenow.TABLE_LIST``): one statement,
+    and no table's columns resolved."""
+    from provisa.federation.servicenow import TABLE_LIST
+
+    schema = _identifier(schema, "schema")
+    rows = await _read_information_schema(
+        source,
+        f'SELECT name, label, theme FROM "{schema}"."{TABLE_LIST}" '  # noqa: S608 - identifiers
+        "ORDER BY theme, name",
+    )
+    return [(row[0], row[1], row[2]) for row in rows]  # by position, as in adapter_tables
+
+
+async def servicenow_columns(source: Any, schema: str, table: str) -> list[tuple[str, str]]:
+    """``[(column, type), ...]`` of one table of a ServiceNow source (REQ-1954), in order, from the
+    adapter's column list (``servicenow.COLUMN_LIST``): that table's metadata alone is read."""
+    from provisa.federation.servicenow import COLUMN_LIST
+
+    schema = _identifier(schema, "schema")
+    table = _identifier(table, "table")
+    rows = await _read_information_schema(
+        source,
+        f'SELECT column_name, data_type FROM "{schema}"."{COLUMN_LIST}" '  # noqa: S608 - identifiers
+        f"WHERE table_name = '{table}' ORDER BY ordinal_position",
+    )
+    return [(row[0], row[1]) for row in rows]
+
+
+async def servicenow_transform_maps(source: Any, schema: str, target: str) -> list[tuple[str, str]]:
+    """``[(name, import set), ...]`` of the active transform maps of a ServiceNow source that
+    write into ``target`` (REQ-1954), from the adapter's transform map list
+    (``servicenow.TRANSFORM_MAP_LIST``): the import sets a table may be bound to."""
+    from provisa.federation.servicenow import TRANSFORM_MAP_LIST
+
+    schema = _identifier(schema, "schema")
+    target = _identifier(target, "table")
+    rows = await _read_information_schema(
+        source,
+        f'SELECT name, source_table FROM "{schema}"."{TRANSFORM_MAP_LIST}" '  # noqa: S608 - identifiers
+        f"WHERE target_table = '{target}' AND active ORDER BY name",
+    )
+    return [(row[0], row[1]) for row in rows]
 
 
 async def adapter_columns(
@@ -1087,6 +1151,9 @@ class ConnectorReplica:  # REQ-954/955/956
             # shared bundle is never written to (one model and one adapter state per server).
             run_dir = server_state_dir(bundle_dir, self._spec.version, *self._key)
             model = build_model_json(self._source, state_dir=run_dir)  # REQ-955 (config)
+        environment = server_environment(self._source, Path(bundle_dir))
+        if _source_type(self._source) not in BUNDLE_MODEL_TYPES:
+            environment = {**(environment or {}), **calcite_state_environment(run_dir)}
         server = PgwireServer(
             bundle_dir=run_dir,
             spec=self._spec,
@@ -1095,10 +1162,7 @@ class ConnectorReplica:  # REQ-954/955/956
             spawn=self._spawn,
             health_check=self._health,
             port_is_free=self._port_is_free,
-            environment={
-                **(server_environment(self._source, Path(bundle_dir)) or {}),
-                **org_jvm_environment(self._key[0]),
-            },
+            environment={**(environment or {}), **org_jvm_environment(self._key[0])},
         )
         server.start()  # REQ-955 (lifecycle)
         self._server = server

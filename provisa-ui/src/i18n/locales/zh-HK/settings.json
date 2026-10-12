@@ -669,6 +669,50 @@
       "read_before_control_plane": "此設定在控制平面可用之前就已讀取，因此需在 UI 以外設定。",
       "set_by_launcher": "此值由啟動此部署的啟動器設定。",
       "set_by_desktop_launcher": "此值由桌面啟動器為此安裝設定。"
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Cloud Inventory 伺服器套件資料夾",
+          "help": "存放為本主機建置的 Cloud Inventory 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "File Crawler 伺服器套件資料夾",
+          "help": "存放為本主機建置的 File Crawler 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "AskAmerica 伺服器套件資料夾",
+          "help": "存放為本主機建置的 AskAmerica 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Salesforce 伺服器套件資料夾",
+          "help": "存放為本主機建置的 Salesforce 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "ServiceNow 伺服器套件資料夾",
+          "help": "存放為本主機建置的 ServiceNow 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "SharePoint 伺服器套件資料夾",
+          "help": "存放為本主機建置的 SharePoint 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Splunk 伺服器套件資料夾",
+          "help": "存放為本主機建置的 Splunk 伺服器套件的資料夾，其啟動程式位於 bin/ 之下。留空則使用固定的發行版本。資料夾中沒有啟動程式時，伺服器無法啟動，並會指出此設定。"
+        }
+      }
     }
   }
 }

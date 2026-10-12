@@ -1115,3 +1115,13 @@ def test_each_source_server_runs_from_its_own_state_directory(tmp_path):
     assert not (bundle / "model" / "model.json").exists()
     first.close()
     second.close()
+
+
+def test_each_server_is_given_its_own_calcite_state_directory(tmp_path):
+    """REQ-1954: unset, the launcher keeps its state under the user's ~/.local/state, which on a
+    host where another user owns it stops the server at start, its error swallowed."""
+    from provisa.federation import pgwire_replica as pr
+
+    env = pr.calcite_state_environment(tmp_path / "run")
+    assert env == {"PGWIRE_CALCITE_STATE_DIR": str(tmp_path / "run" / "calcite-state")}
+    assert (tmp_path / "run" / "calcite-state").is_dir()

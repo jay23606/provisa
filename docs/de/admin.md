@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 Die Einstellungsoberfläche umfasst die Umleitung großer Ergebnisse, Standard-Sampling und Zeilenlimit, Response-Cache-TTL, Namenskonvention, automatische FK-Erkennung für Relationships, Materialisierungsspeicher-DSN, Föderations-Engine-Speicher (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`) sowie die gesamte Tuning-Oberfläche der OpenTelemetry-Tracing-Pipeline (REQ-1082). Remote-GraphQL-Traversierungslimits sowie Warm-Tier-/Read-Cache-Einstellungen werden ebenfalls exponiert (REQ-1081, REQ-1083).
 
+Die Karte **Connector-Server** benennt für jeden Connector mit einem mitgelieferten Server (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica) einen Ordner mit einem für diesen Host erstellten Server-Bundle (`connectors.<connector>.bundle_dir`, Umgebungsvariable `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). Ist er leer, wird der Server des Connectors aus dem gepinnten `kenstott/calcite`-Release abgerufen. Ist er gesetzt, wird der Ordner so verwendet, wie er ist: Sein Launcher muss unter `bin/pgwire-<connector>` liegen; fehlt er, wird der Start des Connector-Servers mit einem Fehler abgebrochen, der die Einstellung nennt — das Release wird nie an seiner Stelle abgerufen. Die Einstellung wird bei jedem Start eines Connector-Servers gelesen (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 Sicherheitshaltung — `security.mode` (`standard` | `high`) — wird beim Neustart angewendet (REQ-1079):
 
 ```http

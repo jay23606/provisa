@@ -37,6 +37,7 @@ import { KaggleFormSection } from "./KaggleFormSection";
 import { PushFeedFormSection } from "./PushFeedFormSection";
 import { ProfilerFormSection } from "./ProfilerFormSection";
 import { SalesforceFields } from "./SalesforceFields";
+import { ServiceNowFields } from "./ServiceNowFields";
 import { CloudopsFields } from "./CloudopsFields";
 import { GoogleWorkspaceFields } from "./GoogleWorkspaceFields";
 import { Microsoft365Fields } from "./Microsoft365Fields";
@@ -679,6 +680,7 @@ export function SourceFormFieldsExtended({
           setFields={setAuthFields}
         />
       )}
+      {form.type === "servicenow" && <ServiceNowFields form={form} setForm={setForm} />}
       {form.type === "sharepoint" && (
         <SharepointFields
           form={form}

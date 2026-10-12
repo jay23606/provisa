@@ -255,6 +255,9 @@ registered_tables = Table(
     # REQ-1981: the table's format where its source reports one (an Athena table: "iceberg" or
     # "hive"), recorded when it is registered; it decides the writes the table takes.
     Column("table_format", Text),
+    # REQ-1954: a ServiceNow table's import set: the staging table of the transform map its
+    # inserts go through. NULL = its inserts are written to the table directly.
+    Column("import_set", Text),
     Column(
         "delta", JSON(none_as_null=True)
     ),  # REQ-874: incremental-reload (delta) declaration; NULL = whole rebuild only
@@ -1356,6 +1359,8 @@ source_catalog_cache = Table(
     Column("table_name", Text, nullable=False),
     Column("column_names", JSON, nullable=False, default=list, server_default="[]"),
     Column("comment", Text),
+    # REQ-1954: the heading the source lists the table under (a ServiceNow table's theme).
+    Column("group_name", Text),
     Column("indexed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     PrimaryKeyConstraint("source_id", "schema_name", "table_name"),
 )

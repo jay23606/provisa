@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API's",
+    "lead": "De eigen API's van de instantie. Een ingeschakelde API wordt aangeboden via {{companion}}, waar de bewerkingen als tabellen en opdrachten worden geregistreerd. {{count}} ingeschakeld.",
+    "filter": "API's filteren",
+    "loadFailed": "De API's van de instantie konden niet worden gelezen: {{error}}",
+    "importSetsTitle": "Import Sets",
+    "importSetRow": "{{staging}}, naar {{table}}",
+    "removeImportSet": "Deze Import Set verwijderen",
+    "table": "Tabel",
+    "importSet": "Import Set",
+    "addImportSet": "Import Set toevoegen"
+  }
+}

@@ -96,12 +96,61 @@ def default_params_from_spec(spec: dict, path: str) -> dict:
     return defaults
 
 
-def endpoint_columns(match: OpenAPIQuery) -> list[dict]:
+class NoDeclaredColumns(Exception):
+    """A table whose operation declares no response schema, registered with no column of its
+    own: nothing says what its rows hold (REQ-1924)."""
+
+    def __init__(self, table_name: str) -> None:
+        super().__init__(
+            f"table {table_name!r}: its operation declares no response schema, so its columns "
+            "are declared when it is registered, and none was"
+        )
+        self.table_name = table_name
+
+
+# A declared column's registered (IR) type as the type its value is read as from the answer.
+_API_TYPE_OF_IR = {
+    "smallint": "integer",
+    "integer": "integer",
+    "bigint": "integer",
+    "float": "number",
+    "double": "number",
+    "numeric": "number",
+    "boolean": "boolean",
+    "json": "jsonb",
+}
+
+
+def _declared_fields(table_name: str, columns: list[Any]) -> list[dict]:
+    """The response fields of a table whose columns its steward declared (REQ-1924): each column
+    of the registration that is not one of the operation's parameters, read as its type says."""
+    from provisa.core.ir_types import to_ir
+
+    fields = [
+        {"name": c.name, "type": _API_TYPE_OF_IR.get(to_ir(c.data_type), "string")}
+        for c in columns
+        if not c.native_filter_type and c.data_type
+    ]
+    if not fields:
+        raise NoDeclaredColumns(table_name)
+    return fields
+
+
+def endpoint_columns(
+    match: OpenAPIQuery, declared: tuple[str, list[Any]] | None = None
+) -> list[dict]:
     """The endpoint's columns: the response's fields, then a param-only column for each path
-    parameter and each query parameter that is not also a response field."""
+    parameter and each query parameter that is not also a response field. An operation that
+    declares no response schema takes its fields from ``declared``: the table's name and its
+    registered columns (REQ-1924)."""
     from provisa.openapi.register import _openapi_to_provisa_type, _schema_to_columns
 
-    response = _schema_to_columns(match.response_schema)
+    if match.columns_declared:
+        if declared is None:
+            raise NoDeclaredColumns(match.operation_id)
+        response = _declared_fields(*declared)
+    else:
+        response = _schema_to_columns(match.response_schema)
     resp_col_names: set[str] = {c["name"] for c in response}
     api_columns: list[dict] = [
         {
@@ -226,7 +275,7 @@ async def register_openapi_endpoint(
     default params, and a copy of the table's own paging. The source's ``api_sources`` row
     (:func:`register_openapi_source`) is written before it."""
     match = openapi_operation(spec, table.source_id, table.table_name, table.pagination)
-    columns = endpoint_columns(match)
+    columns = endpoint_columns(match, (table.table_name, list(table.columns)))
     defaults = default_params_from_spec(spec, match.path)
     await conn.upsert(
         api_endpoints,

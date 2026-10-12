@@ -19,6 +19,7 @@ import { useRefreshKaggleSource } from "../../hooks/useAdminQueries";
 import { runProfiler, type SourceRunOutcome } from "../../api/profiler";
 import { FormField, FormFooter, FormLayout } from "../../components/form/FormLayout";
 import { Tip } from "../../components/Tip";
+import { ServiceNowApisSection } from "./ServiceNowApisSection";
 
 interface SourceDetailPanelProps {
   s: Source;
@@ -88,6 +89,7 @@ export function SourceDetailPanel({
   return (
     <Stack gap="sm">
       {fields}
+      {s.type === "servicenow" && <ServiceNowApisSection sourceId={s.id} />}
       {/* In a panel these sit in its pinned head, beside the source's name. */}
       <PanelActions>
         <Group gap="xs" wrap="nowrap">

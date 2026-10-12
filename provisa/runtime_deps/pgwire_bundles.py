@@ -65,10 +65,30 @@ BUNDLE_CONNECTOR: dict[str, str] = {
     "files": "file",
     "sharepoint": "sharepoint",
     "salesforce": "salesforce",
+    "servicenow": "servicenow",  # REQ-1954
     "cloudops": "cloudops",
     "splunk": "splunk",
     "govdata": "govdata",  # AskAmerica (REQ-540)
 }
+
+
+def bundle_dir_key(connector: str) -> str:
+    """The operator setting that names a connector's bundle folder (``connectors.servicenow.
+    bundle_dir``): a bundle built for this host, used as it is in place of the pinned release
+    (REQ-1954). Declared in ``core/settings_catalog_connectors``."""
+    return f"connectors.{connector}.bundle_dir"
+
+
+def bundle_dir_setting(connector: str) -> str:
+    """The environment variable of :func:`bundle_dir_key` (``PROVISA_PGWIRE_BUNDLE_SERVICENOW``)."""
+    return f"PROVISA_PGWIRE_BUNDLE_{connector.upper()}"
+
+
+def named_bundle_dir(connector: str) -> str | None:
+    """The bundle folder the operator named for ``connector``, or None for the pinned release."""
+    from provisa.core import settings_registry
+
+    return settings_registry.value(bundle_dir_key(connector)) or None
 
 
 class BundleUnavailable(Exception):  # REQ-956
@@ -231,7 +251,11 @@ class BundleResolver:  # REQ-956
         self._download = downloader if downloader is not None else download_release_asset
 
     def cached_path(self, spec: BundleSpec) -> Path:
-        """The version-namespaced bundle directory for ``spec`` (whether or not it exists yet)."""
+        """The version-namespaced bundle directory for ``spec`` (whether or not it exists yet), or
+        the directory its connector's setting names (:func:`bundle_dir_key`)."""
+        named = named_bundle_dir(spec.connector)
+        if named:
+            return Path(named)
         return self._cache_root / spec.version / spec.artifact_name
 
     def launcher_path(self, spec: BundleSpec) -> Path:
@@ -244,12 +268,20 @@ class BundleResolver:  # REQ-956
 
     def resolve(self, spec: BundleSpec) -> Path:
         """Return the local bundle directory for ``spec``, downloading + caching on a miss (REQ-956).
+        A bundle its connector's setting names (:func:`bundle_dir_key`) is returned as it is,
+        or refused when it has no launcher; the pinned release is then never fetched.
 
         A cache hit returns without any download. A miss downloads via the injected downloader; if the
         launcher is still absent afterwards the bundle is unusable and this fails loud."""
         dest = self.cached_path(spec)
         if self.is_cached(spec):
             return dest
+        if named_bundle_dir(spec.connector):
+            # A bundle named explicitly is used as it is: nothing is downloaded in its place.
+            raise BundleUnavailable(
+                f"setting {bundle_dir_key(spec.connector)} names {dest}, which has no launcher "
+                f"{self.launcher_path(spec)}"
+            )
         self._download(spec, dest)
         if not self.is_cached(spec):
             raise BundleUnavailable(

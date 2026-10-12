@@ -44,6 +44,8 @@
     "maxListDepthHint": "リストフィールドをたどらなくなるネストの深さ。",
     "maxListItems": "最大リスト項目数",
     "maxListItemsHint": "リモートのリストフィールドに対して Provisa が送る first: 引数。",
+    "maxRows": "読み取りあたりの最大行数",
+    "maxRowsHint": "ページ分割されたリモートテーブルの1回の読み取りで、カーソルをページごとにたどって取得する最大行数。",
     "serverLimits": "リクエストのタイムアウト",
     "serverLimitsHint": "トランスポートごとにワークロードが異なります。各トランスポートでリクエストを実行できる時間を設定します。リクエストは自身の期限を短くできますが、この値を超えることはできません。",
     "rowLimit": "既定の行数上限",
@@ -87,6 +89,7 @@
         "limits": "サーバーの上限",
         "concurrency": "同時実行",
         "engine": "エンジン",
+        "connectors": "コネクタサーバー",
         "security": "セキュリティ",
         "network": "ネットワークと TLS",
         "cache": "キャッシュ",
@@ -189,8 +192,6 @@
     "policyApplied": "ドメインポリシーを適用しました。",
     "policyApplyFailed": "ドメインポリシーの適用に失敗しました",
     "settingsPanel": "設定",
-    "maxRows": "読み取りあたりの最大行数",
-    "maxRowsHint": "ページ分割されたリモートテーブルの1回の読み取りで、カーソルをページごとにたどって取得する最大行数。",
     "deleteDomainTitle": "ドメイン「{{id}}」を削除しますか？",
     "deleteDomainConsequence": "ドメインは削除されます。使用中のドメインは削除できません。"
   }

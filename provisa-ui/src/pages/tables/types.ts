@@ -34,3 +34,29 @@ export interface ColumnForm {
   // the owning table's source type is `ingest`.
   path?: string | null;
 }
+
+/**
+ * A column with nothing granted beyond who may see it: the shape a column takes when the steward
+ * adds it, or a preview or a sample names it. Nothing is public by default (REQ-1959).
+ */
+export function blankColumn(name: string, dataType: string, visibleTo: string[]): ColumnForm {
+  return {
+    name,
+    visibleTo,
+    writableBy: [],
+    unmaskedTo: "",
+    maskType: "",
+    maskPattern: "",
+    maskReplace: "",
+    maskValue: "",
+    maskPrecision: "",
+    alias: "",
+    description: "",
+    selected: true,
+    nativeFilterType: null,
+    dataType,
+    isPrimaryKey: false,
+    scope: "domain",
+    path: null,
+  };
+}

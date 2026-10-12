@@ -669,6 +669,50 @@
       "read_before_control_plane": "Deze instelling wordt gelezen voordat het control plane beschikbaar is en wordt daarom buiten de UI ingesteld.",
       "set_by_launcher": "De launcher die deze deployment heeft gestart, stelt deze waarde in.",
       "set_by_desktop_launcher": "De desktoplauncher stelt deze waarde in voor deze installatie."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Map van de Cloud Inventory-serverbundel",
+          "help": "Een map met een voor deze host gebouwde Cloud Inventory-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "Map van de File Crawler-serverbundel",
+          "help": "Een map met een voor deze host gebouwde File Crawler-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "Map van de AskAmerica-serverbundel",
+          "help": "Een map met een voor deze host gebouwde AskAmerica-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Map van de Salesforce-serverbundel",
+          "help": "Een map met een voor deze host gebouwde Salesforce-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "Map van de ServiceNow-serverbundel",
+          "help": "Een map met een voor deze host gebouwde ServiceNow-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "Map van de SharePoint-serverbundel",
+          "help": "Een map met een voor deze host gebouwde SharePoint-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Map van de Splunk-serverbundel",
+          "help": "Een map met een voor deze host gebouwde Splunk-serverbundel, met het startprogramma onder bin/. Leeg gebruikt de vastgezette release. Een map zonder startprogramma houdt de server tegen en noemt deze instelling."
+        }
+      }
     }
   }
 }

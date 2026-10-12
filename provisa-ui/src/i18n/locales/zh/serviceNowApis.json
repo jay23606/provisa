@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "实例自身的 API。开启的 API 通过 {{companion}} 提供，其操作在那里注册为表和命令。已开启 {{count}} 个。",
+    "filter": "筛选 API",
+    "loadFailed": "无法读取实例的 API：{{error}}",
+    "importSetsTitle": "导入集",
+    "importSetRow": "{{staging}}，写入 {{table}}",
+    "removeImportSet": "移除此导入集",
+    "table": "表",
+    "importSet": "导入集",
+    "addImportSet": "添加导入集"
+  }
+}

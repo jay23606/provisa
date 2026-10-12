@@ -44,6 +44,8 @@
     "maxListDepthHint": "Verschachtelungstiefe, ab der Listenfeldern nicht mehr gefolgt wird.",
     "maxListItems": "Max. Listenelemente",
     "maxListItemsHint": "Das first:-Argument, das Provisa an ein entferntes Listenfeld sendet.",
+    "maxRows": "Max. Zeilen pro Lesevorgang",
+    "maxRowsHint": "Die maximale Anzahl Zeilen, die ein Lesevorgang einer seitenweise gelesenen entfernten Tabelle holt, indem er ihrem Cursor Seite für Seite folgt.",
     "serverLimits": "Request-Timeouts",
     "serverLimitsHint": "Verschiedene Transporte tragen unterschiedliche Workloads; legen Sie fest, wie lange eine Anfrage auf jedem davon laufen darf. Eine Anfrage kann ihre eigene Frist verkürzen, aber nicht über diesen Wert hinaus verlängern.",
     "rowLimit": "Standard-Zeilenlimit",
@@ -87,6 +89,7 @@
         "limits": "Serverlimits",
         "concurrency": "Parallelität",
         "engine": "Engine",
+        "connectors": "Connector-Server",
         "security": "Sicherheit",
         "network": "Netzwerk und TLS",
         "cache": "Cache",
@@ -189,8 +192,6 @@
     "policyApplied": "Domänenrichtlinie angewendet.",
     "policyApplyFailed": "Anwenden der Domänenrichtlinie fehlgeschlagen",
     "settingsPanel": "Einstellungen",
-    "maxRows": "Max. Zeilen pro Lesevorgang",
-    "maxRowsHint": "Die maximale Anzahl Zeilen, die ein Lesevorgang einer seitenweise gelesenen entfernten Tabelle holt, indem er ihrem Cursor Seite für Seite folgt.",
     "deleteDomainTitle": "Domäne „{{id}}“ löschen?",
     "deleteDomainConsequence": "Die Domäne wird entfernt. Eine Domäne, die noch verwendet wird, kann nicht gelöscht werden."
   }

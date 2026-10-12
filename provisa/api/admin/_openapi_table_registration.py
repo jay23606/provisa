@@ -38,7 +38,11 @@ async def persist_openapi_endpoint(
     this process, or has no operation of the table's name: the table would have nothing to be
     read from."""
     from provisa.api.admin.types import MutationResult
-    from provisa.api_source.openapi_endpoint import NoOperation, register_openapi_endpoint
+    from provisa.api_source.openapi_endpoint import (
+        NoDeclaredColumns,
+        NoOperation,
+        register_openapi_endpoint,
+    )
     from provisa.openapi.mapper import NoRowsField
 
     row = (
@@ -64,6 +68,13 @@ async def persist_openapi_endpoint(
             message=str(missing),
             code="schema.openapi_no_operation",
             params={"source_id": model.source_id, "table": model.table_name},
+        )
+    except NoDeclaredColumns as missing:
+        return MutationResult(
+            success=False,
+            message=str(missing),
+            code="schema.openapi_columns_undeclared",
+            params={"table": model.table_name},
         )
     except NoRowsField as missing:
         return MutationResult(

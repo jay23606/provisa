@@ -332,7 +332,7 @@ async def native_schemas(  # REQ-012, REQ-250, REQ-252
 
         return [SCHEMA]
 
-    if t == "files":
+    if t in ("files", "servicenow"):
         # Schema is always the sql-normalised source-id (matches pgwire_replica.schema_name())
         return [source_id.replace("-", "_")]
 
@@ -554,9 +554,10 @@ def _openapi_is_table(query) -> bool:
 
     All GET operations with non-null responses qualify: the execution layer
     auto-wraps single-object responses as [item] so every GET can be queried
-    as a table.
+    as a table. One that declares no response schema qualifies too, its columns declared by the
+    steward who registers it (REQ-1924).
     """
-    return query.response_schema is not None
+    return query.response_schema is not None or query.columns_declared
 
 
 def _unwrap_gql_type(type_node: dict) -> dict:
@@ -596,6 +597,7 @@ async def _native_tables_openapi(  # REQ-314, REQ-316
             comment=q.summary,
             paging_kind=ENDPOINT,  # REQ-318: with the paging the operation suggests
             pagination=paging_type(paging_row(q.pagination)),
+            columns_declared=q.columns_declared,  # REQ-1924
         )
         for q in queries
         if _openapi_is_table(q)
@@ -1255,6 +1257,18 @@ async def _native_columns_athena(
         return await asyncio.to_thread(columns, source, schema_name, table_name)
 
 
+async def _native_columns_servicenow(
+    source_id: str, schema_name: str, table_name: str
+) -> list[tuple[str, str]]:
+    """One ServiceNow table's columns from the adapter's column list (REQ-1954): read only
+    when the steward selects the table, and for that table alone."""
+    from provisa.federation.pgwire_replica import servicenow_columns
+
+    source = await _adapter_source(source_id)
+    async with _adapter_bound():
+        return await servicenow_columns(source, schema_name.strip().lower(), table_name)
+
+
 async def native_columns(  # REQ-1732
     source_id: str,
     source_type: str,
@@ -1285,6 +1299,8 @@ async def native_columns(  # REQ-1732
         return await _native_columns_athena(source_id, schema_name, table_name)
     if t == "govdata":
         return await _native_columns_govdata(source_id, schema_name, table_name)
+    if t == "servicenow":
+        return await _native_columns_servicenow(source_id, schema_name, table_name)
     if not pool.has(source_id):
         return None
     if t == "trino":
@@ -1693,6 +1709,20 @@ async def native_tables(  # REQ-012, REQ-250, REQ-252, REQ-295, REQ-307, REQ-314
         async with _adapter_bound():
             names = await adapter_tables(source, schema_name.strip().lower())
         return [AvailableTableType(name=name, comment=None) for name in names]
+
+    if t == "servicenow":
+        # REQ-1954: every table of the instance, by name with its label, under its theme; read
+        # from the adapter's table list, so no table's columns are resolved to list them.
+        from provisa.api.admin.types import AvailableTableType
+        from provisa.federation.pgwire_replica import servicenow_table_list
+
+        source = await _adapter_source(source_id)
+        async with _adapter_bound():
+            listed = await servicenow_table_list(source, schema_name.strip().lower())
+        return [
+            AvailableTableType(name=name, comment=label, group=theme)
+            for name, label, theme in listed
+        ]
 
     if t == "openapi":
         return await _native_tables_openapi(source_id, schema_name, state)

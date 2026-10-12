@@ -9,7 +9,7 @@ Toute requête finit par s'exécuter à travers le moteur de fédération, qui a
 | **Capable en direct** | Oui | Oui | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Fédération seule** | Non | Oui | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (adossé à S3) |
 | **Lecture directe (réplica)** | Oui | Oui | Snowflake, Databricks, ClickHouse — le pilote lit les données et dépose un réplica ; les requêtes s'exécutent contre le réplica dans le moteur actif |
-| **Matérialisation → fédération** | Non | Non | REST/OpenAPI, GraphQL distant, gRPC, Cypher Neo4j, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (récepteur push), GovData, SharePoint, Splunk |
+| **Matérialisation → fédération** | Non | Non | REST/OpenAPI, GraphQL distant, gRPC, Cypher Neo4j, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (récepteur push), GovData, SharePoint, Splunk, ServiceNow |
 
 Les sources **capables en direct** exécutent les requêtes mono-source via leur pilote natif (moins de 100 ms), en contournant le moteur de fédération (REQ-027, REQ-229). Elles conservent la prise en charge complète des connecteurs et participent à la fédération lorsqu'elles sont jointes à d'autres sources (REQ-028).
 
@@ -37,7 +37,7 @@ Provisa enregistre **54** types de sources. Les tableaux ci-dessous les couvrent
 | 38–39 | [Graphe et sémantique](#graphe-et-semantique) | `neo4j`, `sparql` |
 | 40–43 | [Fondées sur des fichiers](#fondees-sur-des-fichiers) | `sqlite`, `csv`, `parquet`, `files` |
 | 44–45 | [Observabilité et autres](#observabilite-et-autres) | `google_sheets`, `prometheus` |
-| 46–47 | [SaaS d'entreprise](#connecteurs-saas-dentreprise) | `sharepoint`, `splunk` |
+| 46–47 | [SaaS d'entreprise](#connecteurs-saas-dentreprise) | `sharepoint`, `splunk`, `servicenow` |
 | 48–50 | [Sources API](#sources-api) | `openapi`, `graphql_remote`, `grpc_remote` |
 | 51 | [GovData](#govdata) | `govdata` |
 | 52–53 | [Vérificateurs de qualité des données](#verificateurs-de-qualite-des-donnees-req-1443) | `soda`, `great_expectations` |
@@ -246,7 +246,7 @@ Après l'ajout de la source, enregistrez ses tables via l'écran normal Register
 
 ### Connecteurs SaaS d'entreprise
 
-SharePoint et Splunk s'enregistrent via des connecteurs Apache Calcite (fork kenstott/calcite). Ni l'un ni l'autre n'a de pilote direct — Provisa lance le serveur pgwire Calcite fourni avec le connecteur (`pgwire-sharepoint`, `pgwire-splunk`) et l'atteint comme un endpoint PostgreSQL générique. Sur le moteur DuckDB, cet endpoint est rattaché en direct via l'extension postgres : Register Table liste les tables du connecteur depuis le catalogue rattaché, les requêtes lisent le connecteur sur place, et les filtres et projections se repoussent vers Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Tout autre moteur dépose les lignes dans le magasin de matérialisation pour la fédération (REQ-954). Les paquets sont récupérés par OS/architecture depuis la version épinglée de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz` ; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`]. Les deux connecteurs activent toujours la correspondance de noms insensible à la casse, conformément aux sémantiques insensibles à la casse de chaque produit (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100 ; `provisa/federation/trino_connectors.py` lines 223–286]
+SharePoint, Splunk et ServiceNow s'enregistrent via des connecteurs Apache Calcite (fork kenstott/calcite). Ni l'un ni l'autre n'a de pilote direct — Provisa lance le serveur pgwire Calcite fourni avec le connecteur (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) et l'atteint comme un endpoint PostgreSQL générique. Sur le moteur DuckDB, cet endpoint est rattaché en direct via l'extension postgres : Register Table liste les tables du connecteur depuis le catalogue rattaché, les requêtes lisent le connecteur sur place, et les filtres et projections se repoussent vers Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Tout autre moteur dépose les lignes dans le magasin de matérialisation pour la fédération (REQ-954). Les paquets sont récupérés par OS/architecture depuis la version épinglée de `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz` ; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Un opérateur peut à la place nommer un dossier de paquet compilé pour cet hôte, par connecteur, sous Admin → Paramètres → Serveurs des connecteurs (`connectors.<connector>.bundle_dir`) ; voir [Admin](admin.md).. Les trois connecteurs activent toujours la correspondance de noms insensible à la casse, conformément aux sémantiques insensibles à la casse de chaque produit (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100 ; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -339,6 +339,40 @@ Flux nom d'utilisateur et mot de passe :
     sf_username: ops@acme.com
     sf_password: ${env:SF_PASSWORD}
     security_token: ${env:SF_SECURITY_TOKEN}
+```
+
+#### `servicenow`
+
+Chaque table de l'instance est disponible pour l'enregistrement ; rien n'est enregistré automatiquement (REQ-1954). Une instance complète peut en compter des milliers ; Register Table les regroupe donc par thème — chaque thème est le nom d'affichage d'un paquet ServiceNow, ou « (sans paquet) » quand une table n'appartient à aucun. Chaque table est présentée comme `nom — libellé`. Sélectionner une table lit ses colonnes depuis l'instance ; lister les tables ne le fait pas. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
+
+Une source ServiceNow indique l'URL complète `https://…` de l'instance ainsi qu'un nom d'utilisateur et un mot de passe. L'URL est prise depuis `base_url` ou `host` ; un hôte nu ou tout autre schéma est refusé, en nommant le champ (`instanceUrl`). Un nom d'utilisateur ou un mot de passe absent est refusé, en nommant le champ. Chaque valeur peut être une référence `${secret:…}` ou `${env:…}`.
+
+| Champ source | Propriété de l'adaptateur | Notes |
+| --- | --- | --- |
+| `base_url` ou `host` | `instanceUrl` | URL complète `https://…` de l'instance (par exemple `https://acme.service-now.com`). Un hôte nu ou un autre schéma est refusé |
+| `username` | `username` | Nom d'utilisateur pour l'authentification de base |
+| `password` | `password` | Mot de passe pour l'authentification de base |
+
+[tool-verified: `provisa/federation/servicenow.py` `servicenow_instance_url`, `servicenow_settings`]
+
+**Lectures.** Sur Trino, la source est lue via le catalogue `servicenow`, qui ne fait que lire. Sur tout autre moteur, le moteur rattache le serveur pgwire de la source et la lit sur place. Seules les colonnes sélectionnées sont demandées à l'instance (`sysparm_fields`). Un filtre est envoyé à l'instance (`sysparm_query`) uniquement sous une forme que l'adaptateur a vérifiée contre une instance réelle ; tout autre filtre, ainsi que chaque tri et limite, est appliqué aux lignes lues. [inferred: the adapter's requirements ledger (kenstott/calcite `docs/requirements/servicenow.yaml`, SNOW-022, SNOW-023, SNOW-030)]
+
+Un champ de référence apparaît sous forme de deux colonnes : `<champ>` contient le sys_id de l'enregistrement référencé et `<champ>__display` contient la valeur d'affichage. Un champ vide est NULL. Un champ dont le type ne peut pas être mappé par l'adaptateur provoque une erreur nommant la table, le champ et le type. [inferred from adapter behavior ; non vérifié directement dans le code source Provisa lors de cette session]
+
+La recherche de tables (langage naturel) correspond au nom, au libellé et au thème de chaque table. Une fois une table enregistrée, ses colonnes rejoignent la recherche. [tool-verified: `provisa/discovery/catalog_cache.py` docstring de `COLUMNS_PER_TABLE_KINDS`]
+
+**Cycle de vie du serveur.** Le serveur ne sert que les tables enregistrées depuis lui. Enregistrer ou supprimer une table redémarre le serveur et réapprovisionne la source sur le moteur ; une instruction arrivant pendant ce redémarrage échoue. [tool-verified: `provisa/federation/pgwire_replica.py` `SERVES_REGISTERED_TABLES` ; `provisa/api/app_rebuild.py` `serve_registered_tables`]
+
+**Écritures.** `INSERT`, `UPDATE` et `DELETE` sur une table enregistrée sont des mutations : gouvernées, auditées et traitées par environnement comme toute autre mutation. Sur tous les moteurs, Trino compris, une écriture s'exécute sur le serveur pgwire de la source. Le serveur renvoie la ligne que l'instance détient après chaque écriture ; une clause `RETURNING` est donc acceptée et GraphQL propose des champs de mutation pour ces tables. Une écriture est une seule instruction sur une table : `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` et `TRUNCATE` sont refusés, en nommant la forme. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`, `PGWIRE_SERVER_RETURNS_ROWS`]
+
+**Import sets.** Quand une table possède un transform map actif vers elle, Register Table propose ses import sets, et le steward peut lier la table à l'un d'eux (une table avec plusieurs maps nomme chacun). Les insertions sur une table liée passent par l'Import Set API de l'instance et la transformation de ce map ; les insertions sur une table non liée, ainsi que chaque mise à jour et suppression, sont écrites directement dans la table. Une ligne que la transformation refuse est rejetée, en la nommant ; les lignes déjà écrites restent écrites. La liaison est vérifiée à l'enregistrement de la table : elle doit être l'import set d'un transform map actif vers la table, sur une source ServiceNow. [tool-verified: `provisa/api/admin/_import_set.py` `table_import_set_refusal` ; `provisa/federation/servicenow.py` `servicenow_settings` ; `provisa/federation/pgwire_replica.py` `servicenow_transform_maps`]
+
+```yaml
+- id: helpdesk-sn
+  type: servicenow
+  base_url: https://acme.service-now.com
+  username: ${env:SN_USERNAME}
+  password: ${env:SN_PASSWORD}
 ```
 
 #### `cloudops`

@@ -669,6 +669,50 @@
       "read_before_control_plane": "Diese Einstellung wird gelesen, bevor die Control Plane verfügbar ist, und wird daher außerhalb der UI festgelegt.",
       "set_by_launcher": "Der Launcher, der dieses Deployment gestartet hat, setzt diesen Wert.",
       "set_by_desktop_launcher": "Der Desktop-Launcher setzt diesen Wert für diese Installation."
+    },
+    "connectors": {
+      "cloudops": {
+        "bundle_dir": {
+          "label": "Cloud Inventory: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten Cloud Inventory-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "file": {
+        "bundle_dir": {
+          "label": "File Crawler: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten File Crawler-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "govdata": {
+        "bundle_dir": {
+          "label": "AskAmerica: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten AskAmerica-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "salesforce": {
+        "bundle_dir": {
+          "label": "Salesforce: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten Salesforce-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "servicenow": {
+        "bundle_dir": {
+          "label": "ServiceNow: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten ServiceNow-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "sharepoint": {
+        "bundle_dir": {
+          "label": "SharePoint: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten SharePoint-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      },
+      "splunk": {
+        "bundle_dir": {
+          "label": "Splunk: Ordner des Server-Bundles",
+          "help": "Ein Ordner mit einem für diesen Host gebauten Splunk-Server-Bundle, dessen Startprogramm unter bin/ liegt. Leer verwendet das festgelegte Release. Ein Ordner ohne Startprogramm verhindert den Serverstart und nennt diese Einstellung."
+        }
+      }
     }
   }
 }

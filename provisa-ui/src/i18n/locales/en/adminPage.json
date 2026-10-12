@@ -89,6 +89,7 @@
         "limits": "Server limits",
         "concurrency": "Concurrency",
         "engine": "Engine",
+        "connectors": "Connector servers",
         "security": "Security",
         "network": "Network and TLS",
         "cache": "Cache",

@@ -53,6 +53,8 @@ PUT  /admin/settings
 
 The settings surface covers large-result redirect, default sampling and row limit, response-cache TTL, naming convention, relationship FK auto-tracking, materialization-store DSN, federation-engine memory (`jvm_heap_gb`, `query_max_memory`, `query_max_memory_per_node`, `query_max_total_memory`, `fault_tolerant_execution`, `fault_tolerant_task_memory`, `exchange_spool_dir`), and the full OpenTelemetry tracing-pipeline tuning surface (REQ-1082). Remote-GraphQL traversal limits and warm-tier/read-cache settings are also exposed (REQ-1081, REQ-1083).
 
+The **Connector servers** card names, for each connector with a bundled server (File Crawler, SharePoint, Salesforce, ServiceNow, Cloud Inventory, Splunk, AskAmerica), a folder holding a server bundle built for this host (`connectors.<connector>.bundle_dir`, environment variable `PROVISA_PGWIRE_BUNDLE_<CONNECTOR>`). Empty, the connector's server is fetched from the pinned `kenstott/calcite` release. Set, the folder is used as it is: its launcher must be at `bin/pgwire-<connector>`, and a folder without it stops that connector's server from starting with an error naming the setting; the release is never fetched in its place. The setting is read each time a connector's server starts (REQ-1954). [tool-verified: `provisa/core/settings_catalog_connectors.py`; `provisa/runtime_deps/pgwire_bundles.py` `BundleResolver.resolve`]
+
 Security posture — `security.mode` (`standard` | `high`) — applied on restart (REQ-1079):
 
 ```http

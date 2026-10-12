@@ -1,0 +1,12 @@
+{
+  "declaredColumns": {
+    "title": "Colonnes de cette table",
+    "lead": "Cette opération ne dit rien de ce que contiennent ses lignes. Nommez chaque colonne et son type ; la table contient ces colonnes.",
+    "name": "Nom",
+    "type": "Type",
+    "remove": "Retirer cette colonne",
+    "add": "Ajouter une colonne",
+    "sampleTitle": "Suggérer des colonnes à partir d'un échantillon",
+    "sample": "Appeler une fois et suggérer"
+  }
+}

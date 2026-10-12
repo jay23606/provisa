@@ -44,6 +44,8 @@
     "maxListDepthHint": "Profundidade de aninhamento a partir da qual os campos de lista deixam de ser seguidos.",
     "maxListItems": "Máximo de itens de lista",
     "maxListItemsHint": "O argumento first: que o Provisa envia em um campo de lista remoto.",
+    "maxRows": "Máximo de linhas por leitura",
+    "maxRowsHint": "O máximo de linhas que uma leitura de uma tabela remota paginada obtém, seguindo o cursor página a página.",
     "serverLimits": "Tempos limite de solicitações",
     "serverLimitsHint": "Cada transporte carrega cargas de trabalho diferentes; defina por quanto tempo uma solicitação pode ser executada em cada um. Uma solicitação pode encurtar seu próprio prazo, mas não exceder este valor.",
     "rowLimit": "Limite de linhas padrão",
@@ -87,6 +89,7 @@
         "limits": "Limites do servidor",
         "concurrency": "Concorrência",
         "engine": "Motor",
+        "connectors": "Servidores de conectores",
         "security": "Segurança",
         "network": "Rede e TLS",
         "cache": "Cache",
@@ -189,8 +192,6 @@
     "policyApplied": "Política de domínios aplicada.",
     "policyApplyFailed": "Falha ao aplicar a política de domínio",
     "settingsPanel": "Configurações",
-    "maxRows": "Máximo de linhas por leitura",
-    "maxRowsHint": "O máximo de linhas que uma leitura de uma tabela remota paginada obtém, seguindo o cursor página a página.",
     "deleteDomainTitle": "Excluir o domínio \"{{id}}\"?",
     "deleteDomainConsequence": "O domínio é removido. Um domínio que ainda está em uso não pode ser excluído."
   }

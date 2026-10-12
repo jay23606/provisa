@@ -1,0 +1,12 @@
+{
+  "declaredColumns": {
+    "title": "Kolommen van deze tabel",
+    "lead": "Deze bewerking zegt niets over wat de rijen bevatten. Geef elke kolom een naam en type; de tabel bevat deze kolommen.",
+    "name": "Naam",
+    "type": "Type",
+    "remove": "Deze kolom verwijderen",
+    "add": "Kolom toevoegen",
+    "sampleTitle": "Kolommen voorstellen uit een steekproef",
+    "sample": "Eenmaal aanroepen en voorstellen"
+  }
+}

@@ -18,8 +18,8 @@ server → engine):
                 PG-canonical SQL then transpiled to the source's dialect before it reaches the driver).
 2. SQLALCHEMY — the generic SQLAlchemy fallback driver, for a type with no native driver. Same two
                 gates (DBAPI installed + SQLGlot dialect); broadens the set to any SQLAlchemy dialect.
-3. PGWIRE     — the source's own bundled pgwire server (REQ-1946): a SharePoint or Salesforce
-                source is written through the PostgreSQL driver connected to that server's endpoint
+3. PGWIRE     — the source's own bundled pgwire server (REQ-1946): a SharePoint, Salesforce or
+                ServiceNow (REQ-1954) source is written through the PostgreSQL driver connected to that server's endpoint
                 (``api/data/pgwire_write.py``), on the DIRECT terminal like routes 1 and 2. The
                 route does not depend on the serving engine: where the engine reads the source
                 through a connector of its own (Trino), the server runs for writes alone.
@@ -59,8 +59,12 @@ class WritePath(str, Enum):  # REQ-229, REQ-842
 
 
 # REQ-1946: the source types written through their own bundled pgwire server. ``files`` and
-# ``splunk`` have such a server too, and it reads only.
-PGWIRE_SERVER_WRITTEN: frozenset[str] = frozenset({"sharepoint", "salesforce"})
+# ``splunk`` have such a server too, and it reads only. REQ-1954: ServiceNow's tables are written
+# through its server as well.
+PGWIRE_SERVER_WRITTEN: frozenset[str] = frozenset({"sharepoint", "salesforce", "servicenow"})
+# The types of those whose server returns the rows a write wrote (REQ-1954): the ServiceNow
+# server answers each write with the record the instance holds after it.
+PGWIRE_SERVER_RETURNS_ROWS: frozenset[str] = frozenset({"servicenow"})
 #: REQ-1994: the source types whose writes are made through the provider's API by
 #: ``federation.mail_write`` -- the events, attendees and tasks of a mail source.
 API_WRITTEN: frozenset[str] = frozenset({"google_workspace", "microsoft_365"})
@@ -196,12 +200,15 @@ def is_writable_on(source_type: str, engine: FederationEngine | None = None) -> 
 
 def write_returns_rows(source_type: str, engine: FederationEngine | None = None) -> bool:
     """Whether a write to ``source_type`` can return the rows it wrote — the flag of its write
-    route (``_ROUTE_RETURNS_WRITTEN_ROWS``), unless the type's own SQL cannot
-    (``_TYPE_RETURNS_NO_ROWS``). A source with no write route returns none."""
+    route (``_ROUTE_RETURNS_WRITTEN_ROWS``), or on the pgwire route its own server's
+    (``PGWIRE_SERVER_RETURNS_ROWS``), unless the type's own SQL cannot (``_TYPE_RETURNS_NO_ROWS``).
+    A source with no write route returns none."""
     route = resolve_write_path(source_type, engine)
     if route is None or source_type in _TYPE_RETURNS_NO_ROWS:
         return False
-    return _ROUTE_RETURNS_WRITTEN_ROWS[route]
+    return _ROUTE_RETURNS_WRITTEN_ROWS[route] or (
+        route is WritePath.PGWIRE and source_type in PGWIRE_SERVER_RETURNS_ROWS
+    )
 
 
 def write_refused_forms(source_type: str, engine: FederationEngine | None = None) -> frozenset[str]:

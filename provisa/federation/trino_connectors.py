@@ -875,6 +875,42 @@ class TrinoSalesforceConnector(_TrinoConnector):
         return props
 
 
+class TrinoServicenowConnector(_TrinoConnector):
+    """REQ-1954: a ServiceNow instance read through the trino-servicenow plugin, which reads only.
+    The catalog carries the same settings the source's pgwire server is given
+    (``servicenow.servicenow_settings``, where a missing one is refused by name), and the same
+    schema name, so a table registered once is addressed identically on every engine."""
+
+    source_type = "servicenow"
+    trino_connector = "servicenow"
+    mechanism = Mechanism.ATTACH_R
+
+    def capability(self) -> Capability:
+        return Capability(predicate_pushdown=True)
+
+    def details(self, source: Source) -> dict:
+        from provisa.federation.servicenow import servicenow_settings
+
+        settings = servicenow_settings(source)
+        props = {
+            "instance-url": settings["instanceUrl"],
+            "auth-type": settings["authType"],
+            "username": settings["username"],
+            "password": settings["password"],
+            # Same sql-normalization pgwire_replica.schema_name() applies, inlined as the other
+            # pgwire siblings' is (lint-imports' must-not-import-executor contract).
+            "schema": source.id.replace("-", "_"),
+            "case-insensitive-name-matching": "true",
+        }
+        if "tables" in settings:
+            props["tables"] = ",".join(settings["tables"])
+        if "importSet" in settings:
+            props["import-set"] = ",".join(
+                f"{target}:{staging}" for target, staging in sorted(settings["importSet"].items())
+            )
+        return props
+
+
 class TrinoSplunkConnector(_TrinoConnector):
     """REQ-1730: the underlying trino-splunk plugin (a standalone wrapper over Calcite's splunk
     adapter, distinct from the bundled Calcite pgwire bridge DuckDB attaches through) used to
@@ -1058,6 +1094,7 @@ def build_trino_connectors() -> list[_TrinoConnector]:
         TrinoParquetConnector(),
         TrinoSharepointConnector(),
         TrinoSalesforceConnector(),
+        TrinoServicenowConnector(),
         TrinoCloudopsConnector(),
         TrinoSplunkConnector(),
         TrinoRedisConnector(),

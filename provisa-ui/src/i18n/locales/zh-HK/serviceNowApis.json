@@ -1,0 +1,14 @@
+{
+  "serviceNowApis": {
+    "title": "API",
+    "lead": "執行個體自身的 API。開啟的 API 經由 {{companion}} 提供，其操作在該處註冊為表格及命令。已開啟 {{count}} 個。",
+    "filter": "篩選 API",
+    "loadFailed": "無法讀取執行個體的 API：{{error}}",
+    "importSetsTitle": "匯入集",
+    "importSetRow": "{{staging}}，寫入 {{table}}",
+    "removeImportSet": "移除此匯入集",
+    "table": "表格",
+    "importSet": "匯入集",
+    "addImportSet": "新增匯入集"
+  }
+}

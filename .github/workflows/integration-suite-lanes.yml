@@ -45,6 +45,15 @@ on:
         type: boolean
         required: false
         default: false
+      include_servicenow:
+        type: boolean
+        required: false
+        default: false
+      # The kenstott/calcite ref the servicenow lane builds pgwire-servicenow from.
+      servicenow_calcite_ref:
+        type: string
+        required: false
+        default: ""
     # Every secret a job of this workflow reads, by name: the caller passes each one, and
     # nothing is inherited. The matrix lanes read only the first three; the rest are the
     # warehouse and salesforce jobs' live credentials.
@@ -132,6 +141,12 @@ on:
       REDSHIFT_AWS_REGION:
         required: false
       REDSHIFT_AWS_SECRET_ACCESS_KEY:
+        required: false
+      SERVICENOW_INSTANCE_URL:
+        required: false
+      SERVICENOW_PASSWORD:
+        required: false
+      SERVICENOW_USERNAME:
         required: false
       SF_CONSUMER_KEY:
         required: false
@@ -652,9 +667,94 @@ jobs:
           path: results/
           if-no-files-found: error
 
+
+  # The live ServiceNow instance (REQ-1954): a dispatch asks for it, as for the Salesforce org.
+  servicenow:
+    name: servicenow (live instance)
+    if: github.event_name == 'workflow_dispatch' && inputs.include_servicenow
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SERVICENOW_INSTANCE_URL: ${{ secrets.SERVICENOW_INSTANCE_URL }}
+      SERVICENOW_USERNAME: ${{ secrets.SERVICENOW_USERNAME }}
+      SERVICENOW_PASSWORD: ${{ secrets.SERVICENOW_PASSWORD }}
+      # Where the downloaded bundles live (default_cache_root).
+      PROVISA_RUNTIME_DEPS_CACHE: ${{ github.workspace }}/.runtime-deps
+      SERVICENOW_CALCITE_REF: ${{ inputs.servicenow_calcite_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - name: Set up Python
+        uses: ./.github/actions/setup-python
+        with:
+          cache: "true"
+          client: "true"
+
+      - name: Restore Trino plugins
+        id: trino-plugins
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: restore
+
+      # A missing credential or calcite ref fails the lane by name rather than surfacing as a
+      # skipped test.
+      - name: Credentials present
+        run: |
+          missing=""
+          for v in SERVICENOW_INSTANCE_URL SERVICENOW_USERNAME SERVICENOW_PASSWORD \
+                   SERVICENOW_CALCITE_REF; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::servicenow lane cannot run; repo secrets not set:$missing"
+            exit 1
+          fi
+
+      # The ServiceNow server is built from the calcite ref the dispatch names (REQ-1954), and the
+      # app is pointed at that build; the pinned release is never fetched in its place.
+      - name: Check out the ServiceNow adapter
+        uses: actions/checkout@v4
+        with:
+          repository: kenstott/calcite
+          ref: ${{ inputs.servicenow_calcite_ref }}
+          path: calcite
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build pgwire-servicenow
+        working-directory: calcite
+        env:
+          PGWIRE_BUNDLE_VERSION: dev
+        run: |
+          bash pgwire-calcite/packaging/build-bundle.sh servicenow linux-x86_64 "$RUNNER_TEMP/pgw"
+          echo "PROVISA_PGWIRE_BUNDLE_SERVICENOW=$RUNNER_TEMP/pgw/pgwire-servicenow-dev-linux-x86_64" >> "$GITHUB_ENV"
+
+      - name: Stack slots on this runner
+        run: bash scripts/ci/lanes/suite-prepare.sh
+
+      - name: Run lane
+        run: uv run python scripts/ci/run_lane.py servicenow --junitxml results/servicenow/junit.xml
+
+      - name: Cache Trino plugins
+        if: always()
+        uses: ./.github/actions/trino-plugins
+        with:
+          phase: save
+          cache-hit: ${{ steps.trino-plugins.outputs.cache-hit }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lane-servicenow
+          path: results/
+          if-no-files-found: error
+
   report:
     name: results by lane
-    needs: [plan, suite, cluster, warehouse, salesforce, athena]
+    needs: [plan, suite, cluster, warehouse, salesforce, athena, servicenow]
     if: always()
     runs-on: ubuntu-latest
     steps:
