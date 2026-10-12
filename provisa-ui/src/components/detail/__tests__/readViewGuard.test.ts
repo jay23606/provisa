@@ -135,7 +135,6 @@ const PANELS: Readonly<Record<string, Panel>> = {
       "registerTableForm.neo4jTableNameLabel": "a neo4j table's name: shown in Identity as Table",
       "registerTableForm.discoverLabel":
         "a registration act that reads the source's columns, not a value",
-      "registerTableForm.dqVisibleToLabel": "written to the columns' Visible to: shown in Columns",
       "modelingForm.attributesLabel":
         "a create step: the model is lowered to a view, read as that view",
       "modelingForm.domainLabel":
