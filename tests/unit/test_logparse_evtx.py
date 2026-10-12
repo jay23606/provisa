@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: b0490926-f9ac-4d32-97cc-6e9ce476499c
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1996: Windows Event Log files (.evtx) are read record by record, each record's XML a row.
