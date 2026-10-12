@@ -15,7 +15,13 @@ import { replicateLabel } from "../../components/admin/replicate";
 import { useRegionChoices } from "../../hooks/useRegionQueries";
 import { NAMING_CONVENTIONS } from "./constants";
 import { DetailFields, type DetailField } from "../../components/detail/DetailFields";
-import { changeSignalChoices, isCheckerSource, unset, yesNo } from "./tableSectionFields";
+import {
+  changeSignalChoices,
+  isCheckerSource,
+  isFilesSourceType,
+  unset,
+  yesNo,
+} from "./tableSectionFields";
 import {
   deltaFields,
   liveFields,
@@ -63,7 +69,7 @@ export function RefreshPolicyAlert({ policy }: { policy: RefreshPolicySummary })
   );
 }
 
-export function IdentityRead({ table }: { table: RegisteredTable }) {
+export function IdentityRead({ table, source }: { table: RegisteredTable; source?: Source }) {
   const { t } = useTranslation();
   const regions = useRegionChoices().regions;
   const naming =
@@ -90,6 +96,18 @@ export function IdentityRead({ table }: { table: RegisteredTable }) {
       : []),
     ...(table.apiEndpoint
       ? [{ label: t("tableEditForm.apiEndpointLabel"), value: <code>{table.apiEndpoint}</code> }]
+      : []),
+    ...(source && isFilesSourceType(source.type.toLowerCase())
+      ? [
+          {
+            label: t("registerTableForm.fileGlobLabel"),
+            value: table.fileGlob ? <code>{table.fileGlob}</code> : null,
+          },
+          {
+            label: t("registerTableForm.sourceFileColumnLabel"),
+            value: table.sourceFileColumn ? <code>{table.sourceFileColumn}</code> : null,
+          },
+        ]
       : []),
   ];
   return <DetailFields fields={fields} testId="table-identity" />;

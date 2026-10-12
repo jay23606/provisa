@@ -15,6 +15,7 @@ import { ProfilerRowRulesField } from "./ProfilerRowRulesField";
 import { QueryTableFields } from "./QueryTableFields";
 import { isPipelineArgument, previewedColumn } from "./queryTables";
 import { FilesGlobFieldset } from "./FilesGlobFieldset";
+import { isFilesSourceType } from "./tableSectionFields";
 import { useTranslation } from "react-i18next";
 import {
   Checkbox,
@@ -192,7 +193,7 @@ export function RegisterTableForm({
   const [profilerRowRules, setProfilerRowRules] = useState<ProfilerRowRule[]>([]);
   const { upsertRlsRule } = useUpsertRlsRule();
   const isSparql = sourceType === "sparql";
-  const isFilesSource = ["files", "csv", "parquet"].includes(sourceType); // REQ-788
+  const isFilesSource = isFilesSourceType(sourceType); // REQ-788
   // REQ-1670/REQ-1683: a query-API source has no tables to list — its table IS a query projection.
   const isPipeline = sourceType === "mongodb" && mongoMode === "pipeline";
   const isQueryApi = (QUERY_API_TYPES as readonly string[]).includes(sourceType) || isPipeline;
