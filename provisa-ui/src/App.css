@@ -572,10 +572,15 @@ main {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
   line-clamp: 1;
-  overflow-wrap: anywhere;
+  /* Broken at any letter, not first at a hyphen, so its one line is filled before the ellipsis. */
+  word-break: break-all;
 }
-/* What the page drew in a cell asks for one width and is never squeezed below it. */
-.list-cell-drawn {
+/* A pill or a control in a cell the page drew is never cut: it keeps its own width, and text set
+ * beside it in the same row (ListTable's capGroupText) gives way instead. */
+.list-cell-drawn .mantine-Badge-root,
+.list-cell-drawn .mantine-Button-root,
+.list-cell-drawn .mantine-ActionIcon-root {
+  flex-shrink: 0;
   min-width: max-content;
 }
 /* Several words: wraps, the row grows to its maximum of lines, the last ends with an ellipsis.
@@ -688,8 +693,8 @@ main {
 }
 /* A list is as wide as its container. Each column asks for its content's width up to its cap
  * (td.list-capped below). When they do not all fit, the columns of wrapped text and of long,
- * already-cut single values give up width, down to their minimums; a short value and anything the
- * page drew (a control, a pill) keep the width they ask for. Only when nothing is left to give does the list pass its
+ * already-cut single values give up width, down to their minimums; a short value, a control and a
+ * pill are never cut below their own width. Only when nothing is left to give does the list pass its
  * container and scroll sideways. */
 .split-pane__list > .table-scroll > table {
   width: 100%;
