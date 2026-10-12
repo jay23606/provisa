@@ -431,6 +431,17 @@ async def _optimize_and_route(
             dialect=None,
             reason=f"source {decision.source_id!r} has no direct connection on this node",
         )
+    if decision.route == Route.DIRECT and _similarity_needs_engine(governed_sql, decision, state):
+        # REQ-423: a similarity search runs on a source only where the source's own SQL computes
+        # it (similarity.DIRECT_DIALECTS); elsewhere the engine computes it.
+        from provisa.transpiler.router import RouteDecision
+
+        decision = RouteDecision(
+            route=Route.ENGINE,
+            source_id=None,
+            dialect=None,
+            reason=f"source {decision.source_id!r} cannot compute cosine_similarity",
+        )
     if _rewrites and decision.route != Route.ENGINE:
         # A cache rewrite points the SQL at a materialized table living in the engine's
         # attached mat_store catalog — no native pool or API caller can see it, so the
@@ -446,6 +457,14 @@ async def _optimize_and_route(
             reason="query rewritten to a materialized cache table",
         )
     return exec_sql, decision, default_source, optimized, sources, tuple(opt_labels)
+
+
+def _similarity_needs_engine(governed_sql: str, decision: Any, state: Any) -> bool:  # REQ-423
+    from provisa.vector.similarity import DIRECT_DIALECTS, mentions
+
+    if not mentions(governed_sql):
+        return False
+    return (state.source_dialects.get(decision.source_id) or "") not in DIRECT_DIALECTS
 
 
 @functools.lru_cache(maxsize=4096)
@@ -1037,6 +1056,17 @@ async def _off_loop(fn, *args, **kwargs):
     return await loop.run_in_executor(None, fn, *args)
 
 
+async def vector_registry(state: Any) -> Any:  # REQ-419, REQ-423
+    """The org's embedding-model registry (``vector_models``), as the AI Models settings hold it."""
+    from provisa.api.mcp.tools import effective_config
+    from provisa.vector.registry import VectorModelRegistry
+
+    entries = (await effective_config(state)).get("vector_models") or []
+    return VectorModelRegistry.from_config(
+        [e if isinstance(e, dict) else e.model_dump() for e in entries]
+    )
+
+
 async def _govern_and_route(
     sql: str,
     role_id: str,
@@ -1425,9 +1455,19 @@ async def govern_statement(
     # REQ-863 pipeline order: governance → post-governance optimization → routing.
     # REQ-1882: apply_governance re-parses+transforms the statement's AST (sqlglot) synchronously;
     # off-load it (see _off_loop's own docstring).
+    from provisa.vector import similarity as _similarity
+
+    # REQ-423/429: the registered models' dimensions, which governance completes each
+    # similarity search with.
+    _registry = await vector_registry(state) if _similarity.mentions(normalized_sql) else None
+    if _registry is not None:
+        gov_ctx.embedding_dims = {m.id: m.dimensions for m in _registry.list_enabled()}
     governed_semantic = await _off_loop(
         apply_governance, normalized_sql, gov_ctx, _session_vars, embedded_params or None
     )
+    if _registry is not None:
+        # REQ-430: a text the statement searches for is embedded once, with the statement.
+        governed_semantic = await _similarity.embed_text_queries(governed_semantic, _registry)
 
     # REQ-1120/REQ-1682: resolve RLS session predicates (current_setting('provisa.<var>')) to
     # SQL literals on EVERY route. A caller that supplies session vars out-of-band (the airport
@@ -1526,6 +1566,14 @@ async def route_governed(
                 "supply the parameter values one way"
             )
         embedded_params = list(params)
+    # REQ-429/430: a similarity search's query value, the request's own, is made a vector of the
+    # searched column's model here -- once per execution, before anything reads the values.
+    from provisa.vector import similarity as _similarity
+
+    if embedded_params and _similarity.mentions(governed_semantic):
+        embedded_params = await _similarity.bind_query_vectors(
+            governed_semantic, embedded_params, await vector_registry(state)
+        )
 
     # REQ-074/REQ-1386: open the audit record for this execution of the governed statement. The
     # terminal finalizes it with the real status and duration.
@@ -1964,7 +2012,12 @@ async def route_governed(
                 from provisa.compiler.stage2 import apply_row_cap
 
                 _physical = apply_row_cap(_physical, _cap)
-            _direct = transpile(_physical, dialect)
+            _direct = transpile(
+                _physical,
+                dialect,
+                pgvector=_similarity.mentions(_physical)
+                and state.source_pools.vector_capability(_direct_sid) == "pgvector",
+            )
             if not _optimized:
                 governed.memo[_direct_key] = _direct
         sql_to_run = _direct

@@ -290,12 +290,16 @@ def rewrite_json_object_to_build_object(pg_sql: str) -> str:  # REQ-902
     return tree.sql(dialect="postgres")
 
 
-def transpile(pg_sql: str, target_dialect: str) -> str:  # REQ-066, REQ-068, REQ-229
+def transpile(
+    pg_sql: str, target_dialect: str, *, pgvector: bool = False
+) -> str:  # REQ-066, REQ-068, REQ-229, REQ-423
     """Transpile PostgreSQL-dialect SQL to a target dialect.
 
     Args:
         pg_sql: SQL string in PostgreSQL dialect with double-quoted identifiers.
         target_dialect: SQLGlot dialect name (e.g. "trino", "postgres", "mysql").
+        pgvector: the statement runs on a PostgreSQL source with the pgvector extension, whose
+            own operator a similarity search is then written with (REQ-423).
 
     Returns:
         SQL string in target dialect.
@@ -335,6 +339,10 @@ def transpile(pg_sql: str, target_dialect: str) -> str:  # REQ-066, REQ-068, REQ
         # source must reference the bare table name (matches provisa/observability/ops_schema.py's
         # `use_schema = engine.dialect.name != "sqlite"` convention elsewhere in the codebase).
         result = _strip_schema_qualifiers(result)
+    from provisa.vector.similarity import lower as _lower_similarity
+
+    # REQ-423: a governed similarity search, in the target's own form.
+    result = _lower_similarity(result, target_dialect, pgvector=pgvector)
     from provisa.observability.stage_trace import trace_stage
 
     trace_stage(f"transpile.{target_dialect}", result)

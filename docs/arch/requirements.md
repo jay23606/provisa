@@ -1864,29 +1864,29 @@ A column may be declared as an embedding vector by setting `embedding: true` wit
 
 **Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
-Source capability auto-detection at registration time must identify native vector support: pgvector extension for PostgreSQL, Atlas Vector Search for MongoDB, Cortex for Snowflake. Sources without detected capability are flagged as requiring fallback.
+A source's native vector capability is detected when its driver connects, at boot and when the source is registered (executor.pool.SourcePool.add): what its own SQL computes a cosine_similarity search with. A PostgreSQL source has it when the pgvector extension is installed, probed on the connection; Snowflake's SQL always has its VECTOR functions. A source without it is flagged for the federation engine, which computes the search. MongoDB Atlas, Qdrant and Azure Cosmos DB search natively in a query form, not a SQL scalar: their own nearest-neighbour search is a pipeline or search table ([REQ-1980](#REQ-1980), [REQ-1982](#REQ-1982), [REQ-1983](#REQ-1983)).
 
 **Use case:** Early capability detection allows fallback materialization strategy to be planned at source registration.
 
-**Code:** `provisa/vector/capability.py`, `provisa/vector/support.py`
+**Code:** `provisa/vector/capability.py`, `provisa/executor/pool.py`
 
 **Tests:** `tests/unit/test_vector.py`
 
 ### REQ-423 · Vector Search {#REQ-423}
 
-**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
-A `cosine_similarity(column, query_vector)` UDF must be available in Provisa SQL. It translates to the native vector operator for sources with native capability (pgvector `<=>`, Snowflake `VECTOR_COSINE_SIMILARITY()`, etc.) and to the pgvector fallback cache for sources without.
+A `cosine_similarity(column, query)` function is available in Provisa SQL (and so in Cypher, which compiles to it). The column is an embedding column ([REQ-421](#REQ-421)); the query is a vector (a bound value or a '[...]' literal), a text embedded by the column's model ([REQ-430](#REQ-430)), or another embedding column of the same model. The call is governed with the whole statement and lowered to the terminal that runs it: on a source whose own SQL computes it, that source's form (pgvector's cosine_distance on PostgreSQL with the extension, a plain array computation without it, Snowflake VECTOR_COSINE_SIMILARITY); elsewhere the statement routes to the federation engine, which computes it exactly (DuckDB array_cosine_similarity, Trino cosine_similarity over arrays). Over a table of a source whose native vector search is a query form (MongoDB Atlas, Qdrant, Cosmos DB), the engine computes it exactly over the landed or replicated rows; the source's own nearest-neighbour search is its pipeline or search table.
 
 **Use case:** Unified UDF hides native vs. fallback complexity from analysts.
 
-**Code:** `provisa/compiler/sql_gen.py`
+**Code:** `provisa/vector/similarity.py`, `provisa/compiler/stage2.py`, `provisa/transpiler/transpile.py`, `provisa/pgwire/_pipeline.py`
 
 **Tests:** `tests/unit/test_vector.py`
 
 ### REQ-424 · Vector Search {#REQ-424}
 
-**Status:** ✅ complete · **Priority:** SHOULD · **Type:** behavioral
+**Status:** ⚙ in-progress · **Priority:** SHOULD · **Type:** behavioral
 
 For sources without native vector capability, Provisa must transparently materialize the embedding column to an internal pgvector-enabled PostgreSQL cache table, build an HNSW index, rewrite the query against the cache joining PKs back to the source, and return unified results. The caller must not be aware of the fallback path.
 
@@ -1898,7 +1898,7 @@ For sources without native vector capability, Provisa must transparently materia
 
 ### REQ-425 · Vector Search {#REQ-425}
 
-**Status:** ✅ complete · **Priority:** MUST · **Type:** constraint
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** constraint
 
 The pgvector fallback cache must support TTL-based invalidation, mutation-triggered invalidation, manual refresh via admin API, and row count drift detection. Stale cache must not silently serve results beyond configured TTL.
 
@@ -1910,13 +1910,13 @@ The pgvector fallback cache must support TTL-based invalidation, mutation-trigge
 
 ### REQ-426 · Vector Search {#REQ-426}
 
-**Status:** ✅ complete · **Priority:** MUST · **Type:** constraint
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** constraint
 
-Embedding columns are subject to the full Provisa governance stack: RLS, column masking, domain boundary rules, and sensitivity tiers. A `restricted` sensitivity tier on an embedding column must prevent cosine similarity search for unauthorized roles.
+Embedding columns are subject to the full Provisa governance stack: row filters, domain boundary rules, and sensitivity tiers. A role may search an embedding column with cosine_similarity only if it is served that column (its visible_to grant and scope; a restricted scope is the sensitivity tier, admitting only whom visible_to names); a search of any other column is refused naming it.
 
 **Use case:** Embedding vectors inherit standard governance, preventing privacy bypass through vector search.
 
-**Code:** `provisa/compiler/sql_gen.py`
+**Code:** `provisa/vector/similarity.py`, `provisa/compiler/stage2.py`
 
 **Tests:** `tests/unit/test_vector.py`
 
@@ -2114,13 +2114,13 @@ Schema generation synthesizes `ColumnMetadata` for remote schema tables (GraphQL
 
 ### REQ-652 · Vector Search {#REQ-652}
 
-**Status:** ✅ complete · **Priority:** MUST · **Type:** constraint
+**Status:** ⚙ in-progress · **Priority:** MUST · **Type:** constraint
 
-Column masking does not apply to embedding columns — a vector cannot be partially masked and remain semantically meaningful. Access to an embedding column is enforced via visibility (hide entirely), RLS (filter rows), sensitivity tier (block search), and domain boundary rules; the column is either visible and searchable for a given role, or absent from the schema entirely.
+Column masking does not apply to embedding columns — a vector cannot be partially masked and remain semantically meaningful. Registration refuses a mask on an embedding column. Access to an embedding column is enforced via visibility (hide entirely), row filters, sensitivity tier (block search), and domain boundary rules; the column is either visible and searchable for a given role, or absent from the schema entirely.
 
 **Use case:** Preventing partial-masking of vectors ensures access control is all-or-nothing for embedding columns, which cannot be meaningfully redacted at the field level.
 
-**Code:** `provisa/vector/governance.py`
+**Code:** `provisa/core/models.py`, `provisa/vector/similarity.py`
 
 **Tests:** `tests/unit/test_vector.py`
 
