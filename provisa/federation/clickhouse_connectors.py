@@ -220,6 +220,15 @@ class ClickHouseMongoConnector(Connector):
         return Capability(predicate_pushdown=True)
 
     def details(self, source: Source) -> dict:
+        from provisa.core.secrets import resolve_secrets
+        from provisa.mongodb.fetch import is_connection_string
+
+        if is_connection_string(resolve_secrets(source.host or "")):
+            # REQ-1985: ClickHouse's MongoDB table engine takes one host and port.
+            raise ValueError(
+                f"source {source.id!r}: the ClickHouse engine reaches MongoDB by one host and "
+                "port, and this source is given by a connection string"
+            )
         return {
             "engine_clause": (
                 f"MongoDB('{source.host}:{source.port}', '{source.database}', "

@@ -1171,16 +1171,10 @@ def make_mongodb_loader() -> AdapterLoader:
     ``SourceRowLoader``'s generic ``SELECT * FROM {per_source_catalog}...`` engine-scan assumption
     (this module's own fallback, below) always failed for mongodb on any of them — unexercised
     until REQ-1730's engine-swap harness first queried a mongodb source under one live."""
-    from provisa.core.secrets import resolve_secrets
     from provisa.mongodb.fetch import MongoConnection, fetch_rows
 
     async def _load(source: Any, table: Any) -> list[dict]:
-        conn = MongoConnection.build(
-            resolve_secrets(getattr(source, "host", "") or "localhost"),
-            int(getattr(source, "port", 0) or 27017),
-            username=getattr(source, "username", None) or None,
-            password=resolve_secrets(getattr(source, "password", "") or "") or None,
-        )
+        conn = MongoConnection.from_source(source)
         database = getattr(source, "database", None) or table.schema_name
         names = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
         if not names:
@@ -1191,12 +1185,7 @@ def make_mongodb_loader() -> AdapterLoader:
         from provisa.federation.replica_source import BlockingCursorSource
         from provisa.mongodb.fetch import iter_row_batches
 
-        conn = MongoConnection.build(
-            resolve_secrets(getattr(source, "host", "") or "localhost"),
-            int(getattr(source, "port", 0) or 27017),
-            username=getattr(source, "username", None) or None,
-            password=resolve_secrets(getattr(source, "password", "") or "") or None,
-        )
+        conn = MongoConnection.from_source(source)
         database = getattr(source, "database", None) or table.schema_name
         names = [name for name, _ in columns]
         return BlockingCursorSource(
@@ -1213,7 +1202,6 @@ def make_mongodb_loader() -> AdapterLoader:
 def make_mongodb_keyed_loader() -> AdapterKeyedLoader:
     """The ``load_keys`` counterpart to :func:`make_mongodb_loader` (REQ-1865): a bound
     ``$in``/``$or`` filter instead of the whole-collection scan."""
-    from provisa.core.secrets import resolve_secrets
     from provisa.mongodb.fetch import MongoConnection, fetch_rows_by_keys
 
     async def _load(
@@ -1221,12 +1209,7 @@ def make_mongodb_keyed_loader() -> AdapterKeyedLoader:
     ) -> list[dict]:
         if not keys:
             return []
-        conn = MongoConnection.build(
-            resolve_secrets(getattr(source, "host", "") or "localhost"),
-            int(getattr(source, "port", 0) or 27017),
-            username=getattr(source, "username", None) or None,
-            password=resolve_secrets(getattr(source, "password", "") or "") or None,
-        )
+        conn = MongoConnection.from_source(source)
         database = getattr(source, "database", None) or table.schema_name
         names = [c.name for c in table.columns if getattr(c, "native_filter_type", None) is None]
         if not names:

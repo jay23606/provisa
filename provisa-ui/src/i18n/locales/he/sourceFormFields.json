@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "תיאור קצר של מקור הנתונים הזה",
     "host": "מארח",
     "port": "פורט",
+    "mongoHostHint": "שם מארח, או מחרוזת חיבור mongodb:// או mongodb+srv:// (עבור Atlas). שם המשתמש והסיסמה נשארים בשדות שלהם.",
     "username": "שם משתמש",
     "password": "סיסמה",
     "database": "מסד נתונים",

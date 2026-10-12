@@ -22827,3 +22827,41 @@ Node is a source type. A source holds a Node bundle (TypeScript, or JavaScript w
 **Code:** —
 
 **Tests:** —
+
+### REQ-1980 · Source Connectors {#REQ-1980}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+A table on a MongoDB source can be registered from an aggregation pipeline instead of a collection. The table stores the pipeline with its input collection. Each pipeline argument is a parameter of the table ([REQ-1986](#REQ-1986), how it reaches the source being pipeline_arg): it has an IR type (an array type such as array(double) for a query vector), and it is optional unless a steward makes it required. A caller passes the arguments the way it passes any parameter column: as GraphQL field arguments, or as equality conditions on the parameter columns in SQL. Each value is checked against its declared type and bound into the pipeline as a BSON value; it is never spliced into the pipeline text. A query that omits a required argument is refused by the [REQ-1986](#REQ-1986) rule. The output columns are fixed at registration, either declared or typed from one preview run with sample arguments, and every row the pipeline returns is checked against them on the way out. Provisa runs the pipeline itself (an aggregate call), on every federation engine, so Atlas Search ($search, $searchMeta) and Atlas Vector Search ($vectorSearch) stages run. The table can be joined with any other table and is governed on every surface like any registered table. A pipeline with no arguments behaves as a view.
+
+**Use case:** A developer registers a "similar_movies" table from a $vectorSearch pipeline over the movies collection, with a required query_vector argument (array(double), 1536 dimensions) and an optional limit argument (integer). An analyst then joins its rows to the reviews table in SQL, passing the vector as an argument, and a GraphQL client reads the same table with query_vector as a field argument. Column grants, masks and row rules apply to both.
+
+**Code:** —
+
+**Tests:** —
+
+### REQ-1985 · Source Connectors {#REQ-1985}
+
+**Status:** 💡 proposed · **Priority:** MUST · **Type:** behavioral
+
+A MongoDB source can be reached by a connection string, so a MongoDB Atlas cluster can be registered. The source's host holds either a host name (with the port in its own field, as today) or a mongodb:// or mongodb+srv:// connection string carrying the hosts and the connection options, among them tls. The credentials stay in the source's username and password, where a secret reference is resolved at use, and are percent-encoded wherever they are written into a connection string. With a connection string the source has no port; a source that gives both is refused, naming the source. Every reach of the source uses the same connection: the native reader, the change-feed check, and the Trino and DuckDB attaches. The ClickHouse engine's MongoDB table engine takes one host and port only, so a source given by a connection string is refused there, naming the source and the engine. On the Sources form, a connection string in the host field hides the port.
+
+**Use case:** A developer registers an Atlas cluster as a MongoDB source with host mongodb+srv://cluster0.example.mongodb.net/?retryWrites=true, username app and password ${env:ATLAS_PASSWORD}; its tables and its search and vector-search pipelines are read through that one connection.
+
+**Code:** —
+
+**Tests:** —
+
+## 3. Source Registration & Data Modeling
+
+### REQ-1986 · Table Registration {#REQ-1986}
+
+**Status:** 💡 proposed · **Priority:** MUST · **Type:** behavioral
+
+A table declares its parameters: the values a caller passes to the source to read the table. Each parameter has a name, a type, and how it reaches the source: a path parameter or a query parameter of an OpenAPI operation, an argument of a remote GraphQL field, a field of a gRPC request, or an argument of a MongoDB pipeline ([REQ-1980](#REQ-1980)). Each parameter is optional or required. It is required when the source requires it, or when a steward has made it required for this table. A parameter the source requires is required for good; a steward can make an optional parameter required, and can make it optional again. Registration records every parameter the source describes, the optional ones included, with whether the source requires it. One rule holds for every source kind and every surface: a read of the table that leaves a required parameter without a value is refused before anything is sent to the source, and the refusal names the table and the parameter. GraphQL marks a required parameter's argument non-null. The admin API reads and sets the steward's switch per parameter. The table page has a Parameters section listing each parameter with its type, how it reaches the source, and the switch, which is on and locked where the source requires the parameter.
+
+**Use case:** An OpenAPI operation takes an optional region query parameter, and without it returns every region's rows, millions of them. A steward makes region required on the table; from then on an analyst's SQL query without a region condition is refused, naming the table and region, and the GraphQL field's region argument is non-null. The operation's id path parameter is shown locked on, because the source requires it.
+
+**Code:** —
+
+**Tests:** —

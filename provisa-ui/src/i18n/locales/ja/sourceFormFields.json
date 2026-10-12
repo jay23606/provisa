@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "このデータソースの簡単な説明",
     "host": "ホスト",
     "port": "ポート",
+    "mongoHostHint": "ホスト名、または mongodb:// / mongodb+srv:// の接続文字列（Atlas 用）。ユーザー名とパスワードはそれぞれの欄に入力します。",
     "username": "ユーザー名",
     "password": "パスワード",
     "database": "データベース",

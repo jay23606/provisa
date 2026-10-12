@@ -347,6 +347,17 @@ class Source(BaseModel):  # REQ-012, REQ-052, REQ-053, REQ-204, REQ-229, REQ-250
             raise ValueError(f"source {self.id!r}: {refused}")
         return self
 
+    @model_validator(mode="after")
+    def _connection_string_has_no_port(self) -> "Source":  # REQ-1985
+        """A MongoDB source given by a connection string carries its hosts in it; a port beside it
+        is refused. A host held as a secret reference is checked where it is resolved, at use."""
+        if self.type == SourceType.mongodb and self.port:
+            from provisa.mongodb.fetch import ConnectionStringWithPort, is_connection_string
+
+            if is_connection_string(self.host):
+                raise ConnectionStringWithPort(self.id)
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def _resolve_push_source_change_signal(cls, data: Any) -> Any:  # REQ-1907, REQ-929

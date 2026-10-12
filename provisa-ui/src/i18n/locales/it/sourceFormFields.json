@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "Breve descrizione di questa origine dati",
     "host": "Host",
     "port": "Porta",
+    "mongoHostHint": "Un nome host, oppure una stringa di connessione mongodb:// o mongodb+srv:// (per Atlas). Nome utente e password restano nei rispettivi campi.",
     "username": "Nome utente",
     "password": "Password",
     "database": "Database",

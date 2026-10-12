@@ -43,12 +43,5 @@ async def require_change_feed(source: Any) -> None:
     """Refuse a source whose server serves no change streams (:class:`ChangeStreamsUnavailable`).
     The source's connection values are resolved here, at use; a server that cannot be reached
     raises the driver's own error."""
-    from provisa.core.secrets import resolve_secrets
-
-    conn = MongoConnection.build(
-        resolve_secrets(source.host or "localhost"),
-        int(source.port or 0),
-        username=source.username or None,
-        password=resolve_secrets(source.password or "") or None,
-    )
+    conn = MongoConnection.from_source(source)
     await asyncio.to_thread(require_change_streams, conn, source.id)

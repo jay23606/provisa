@@ -14,6 +14,7 @@ import type { Domain } from "../../types/admin";
 import type { GovdataSubject } from "./govdataSubjects";
 import { DATA_LAKE, FILE_SOURCES, HOST_PORT_ONLY, SIMPLE_RDBMS } from "./constants";
 import { AuthUserPass } from "./AuthUserPass";
+import { isMongoConnectionString } from "./mongoConnection";
 import { IcebergCatalogFields } from "./IcebergCatalogFields";
 import { ObjectStoreCredentialFields } from "./ObjectStoreCredentialFields";
 import { CLOUD_FILE_TYPES, objectStoreOf } from "./objectStoreHints";
@@ -183,24 +184,34 @@ export function SourceFormFields(props: SourceFormFieldsProps) {
       {isSimpleRdbms && (
         <>
           <FieldGroup>
-            <FormField size="medium">
+            <FormField
+              size="medium"
+              help={form.type === "mongodb" ? t("sourceFormFields.mongoHostHint") : undefined}
+            >
               <TextInput
                 label={t("sourceFormFields.host")}
                 required
                 value={form.host}
-                onChange={(e) => setForm({ ...form, host: e.currentTarget.value })}
+                onChange={(e) => {
+                  const host = e.currentTarget.value;
+                  // REQ-1985: a connection string carries its hosts, so the source has no port.
+                  const uri = form.type === "mongodb" && isMongoConnectionString(host);
+                  setForm({ ...form, host, port: uri ? 0 : form.port });
+                }}
                 placeholder="localhost"
               />
             </FormField>
-            <FormField size="short">
-              <NumberInput
-                label={t("sourceFormFields.port")}
-                required
-                value={form.port}
-                onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
-                hideControls
-              />
-            </FormField>
+            {!(form.type === "mongodb" && isMongoConnectionString(form.host)) && (
+              <FormField size="short">
+                <NumberInput
+                  label={t("sourceFormFields.port")}
+                  required
+                  value={form.port}
+                  onChange={(v) => setForm({ ...form, port: typeof v === "number" ? v : 0 })}
+                  hideControls
+                />
+              </FormField>
+            )}
           </FieldGroup>
           <FieldGroup>
             <FormField size="medium">

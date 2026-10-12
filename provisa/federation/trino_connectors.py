@@ -299,16 +299,10 @@ class TrinoMongoConnector(_TrinoConnector):
         return Capability(predicate_pushdown=True)
 
     def details(self, source: Source) -> dict:
-        from provisa.core.secrets import resolve_secrets
+        from provisa.mongodb.fetch import MongoConnection
 
-        host = resolve_secrets(source.host or "")
-        user = resolve_secrets(source.username or "")
-        pw = resolve_secrets(source.password or "")
-        url = (
-            f"mongodb://{user}:{pw}@{host}:{source.port}/"
-            if user
-            else f"mongodb://{host}:{source.port}/"
-        )
+        # REQ-1985: a host and port, or the source's connection string, credentials encoded.
+        url = MongoConnection.from_source(source).url()
         return {"mongodb.connection-url": url, "mongodb.schema-collection": "_schema"}
 
 

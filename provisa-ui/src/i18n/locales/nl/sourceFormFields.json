@@ -6,6 +6,7 @@
     "descriptionPlaceholder": "Korte beschrijving van deze databron",
     "host": "Host",
     "port": "Poort",
+    "mongoHostHint": "Een hostnaam, of een verbindingsreeks mongodb:// of mongodb+srv:// (voor Atlas). Gebruikersnaam en wachtwoord blijven in hun eigen velden.",
     "username": "Gebruikersnaam",
     "password": "Wachtwoord",
     "database": "Database",

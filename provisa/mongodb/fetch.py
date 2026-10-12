@@ -24,14 +24,40 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 
 _DEFAULT_PORT = 27017
+# REQ-1985: a source's host may be a connection string instead of a host name.
+_URI_SCHEMES = ("mongodb://", "mongodb+srv://")
+
+
+def is_connection_string(host: str) -> bool:
+    """Whether ``host`` is a MongoDB connection string rather than a host name (REQ-1985)."""
+    return host.startswith(_URI_SCHEMES)
+
+
+class ConnectionStringWithPort(ValueError):
+    """A MongoDB source given both a connection string and a port (REQ-1985): the string carries
+    its hosts, so a port beside it would be ignored or contradict it."""
+
+    code = "schema.mongodb_connection_string_with_port"
+
+    def __init__(self, source_id: str) -> None:
+        self.params = {"source": source_id}
+        super().__init__(
+            f"source {source_id!r}: the host is a connection string, which carries its hosts and "
+            "ports; leave the port empty"
+        )
 
 
 @dataclass(frozen=True)
-class MongoConnection:  # REQ-1730
+class MongoConnection:  # REQ-1730, REQ-1985
+    """How a MongoDB source is reached: a host and port, or a connection string (``uri``) that
+    carries the hosts and the connection options (tls among them). The credentials are held
+    apart from either, already resolved."""
+
     host: str
     port: int = _DEFAULT_PORT
     username: str | None = None
     password: str | None = None
+    uri: str | None = None
 
     @classmethod
     def build(
@@ -44,10 +70,59 @@ class MongoConnection:  # REQ-1730
             password=password if (username and password) else None,
         )
 
-    @contextmanager
-    def client(self) -> Iterator[Any]:
+    @classmethod
+    def from_source(cls, source: Any) -> "MongoConnection":
+        """The source's connection, its host, username and password resolved here, at use. A host
+        that is a connection string is used as given, with no port (REQ-1985)."""
+        from provisa.core.secrets import resolve_secrets
+
+        host = resolve_secrets(getattr(source, "host", "") or "")
+        username = resolve_secrets(getattr(source, "username", "") or "") or None
+        password = resolve_secrets(getattr(source, "password", "") or "") or None
+        port = int(getattr(source, "port", 0) or 0)
+        if is_connection_string(host):
+            if port:
+                raise ConnectionStringWithPort(source.id)
+            return cls(
+                host="",
+                port=0,
+                username=username,
+                password=password if username else None,
+                uri=host,
+            )
+        return cls.build(host, port, username=username, password=password)
+
+    def url(self) -> str:
+        """The connection as one connection string, the credentials percent-encoded into it, for a
+        reach that takes only a string (the Trino and DuckDB attaches). A connection string that
+        already names a user is used as given."""
+        from urllib.parse import quote
+
+        user = ""
+        if self.username:
+            user = quote(self.username, safe="")
+            if self.password:
+                user += ":" + quote(self.password, safe="")
+            user += "@"
+        if self.uri is None:
+            return f"mongodb://{user}{self.host}:{self.port}/"
+        scheme, _, rest = self.uri.partition("://")
+        if "@" in rest.split("/", 1)[0]:
+            return self.uri
+        return f"{scheme}://{user}{rest}"
+
+    def _client(self, timeout_ms: int) -> Any:
         from pymongo import MongoClient
 
+        if self.uri is not None:
+            # The connection string carries its own topology options (directConnection,
+            # replicaSet, tls); an SRV string forbids directConnection.
+            return MongoClient(
+                self.uri,
+                username=self.username,
+                password=self.password,
+                serverSelectionTimeoutMS=timeout_ms,
+            )
         # directConnection=True: without it, pymongo's replica-set discovery (SDAM) trusts the
         # server's own hello/isMaster response for where to actually connect -- a single-node
         # replica set started for transaction/change-stream support (mongo:7 --replSet, the
@@ -59,14 +134,18 @@ class MongoConnection:  # REQ-1730
         # it until serverSelectionTimeoutMS elapsed, and the caller's own outer
         # concurrent.futures.TimeoutError (str() == "") surfaced first. directConnection=True
         # makes the driver honor host/port as given and skip topology discovery entirely.
-        client: Any = MongoClient(
+        return MongoClient(
             host=self.host,
             port=self.port,
             username=self.username,
             password=self.password,
-            serverSelectionTimeoutMS=30000,
+            serverSelectionTimeoutMS=timeout_ms,
             directConnection=True,
         )
+
+    @contextmanager
+    def client(self) -> Iterator[Any]:
+        client = self._client(30000)
         try:
             yield client
         finally:
@@ -166,16 +245,7 @@ def require_change_streams(conn: MongoConnection, source_id: str) -> None:  # RE
     """Refuse a server that serves no change streams (:class:`ChangeStreamsUnavailable`). The
     server's ``hello`` says what it is: a replica set member names its set, a mongos says it is
     one. A server that cannot be reached raises the driver's own error -- never a pass."""
-    from pymongo import MongoClient
-
-    client: Any = MongoClient(
-        host=conn.host,
-        port=conn.port,
-        username=conn.username,
-        password=conn.password,
-        serverSelectionTimeoutMS=5000,
-        directConnection=True,
-    )
+    client = conn._client(5000)
     try:
         hello = client.admin.command("hello")
     finally:
