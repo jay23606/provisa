@@ -22933,3 +22933,31 @@ Every query surface strives to match the capabilities of the other surfaces. A c
 **Code:** —
 
 **Tests:** —
+
+## 11. Platform, Infrastructure & Delivery
+
+### REQ-1992 · Tenant Isolation {#REQ-1992}
+
+**Status:** 💡 proposed · **Priority:** MUST · **Type:** infrastructure
+
+Every file Provisa itself generates (a source's conversion caches and crawl downloads, the Calcite file adapter's working files, replicas, checker and profiler output, large results, downloaded runtimes' and bundles' per-org state, and any other file a source or engine writes by default) is written only under its org's directory in the server's default file location. Each org has its own folder under that location. The files are ephemeral and each node keeps its own copy of an org's folder. An org setting (with its admin UI) encrypts the org's folder on each node with a random key created when the folder is mounted and held only in that node's memory; it is never stored, wrapped or derived from any persistent key, so no one, the platform admin included, can decrypt the files from stored state, and the platform admin role has no path to an org's folder. When the mount ends (restart, unmount, idle) the key is gone, the folder's ciphertext is deleted, and the files are rebuilt as needed. When it is on, only ciphertext reaches the underlying storage, and the components that read and write files see plain paths either way, so no adapter, engine, checker or connector needs its own encryption. No generated file is written outside an org's directory, and an operation that needs an org directory refuses, naming the org, when that directory is not available. Files a client provides (a file source in the client's own bucket or at the client's own URL) are the client's and are read with the credentials the client supplies; this requirement does not govern them.
+
+**Use case:** On the SaaS deployment, two orgs whose file sources the Calcite file adapter converts from Excel to Parquet each have their caches written to their own folder, encrypted for an org that has turned encryption on, on the shared storage; a copy of the storage, a misconfigured bucket or a leaked backup holds only ciphertext, and neither org's files can be read under the other's key.
+
+**Code:** —
+
+**Tests:** —
+
+## 4. Source Connectors
+
+### REQ-1993 · Source Connectors {#REQ-1993}
+
+**Status:** 💡 proposed · **Priority:** SHOULD · **Type:** behavioral
+
+Python is a source type, the Python counterpart of the Node connector ([REQ-1984](#REQ-1984)), on the same language-neutral worker protocol. A source holds Python code; each module-level function whose docstring carries the tag @table is offered as a table, @command as a command and @stream (a generator or async generator) as a live table; untagged functions are ignored. Parameters, columns and the types that reach every surface come from the function's type hints (a dataclass, TypedDict or annotated class becomes a named type); the docstring text is the description; a type that cannot be mapped, an unknown tag, or a @table that does not return a collection is refused by name when the code is loaded. No Provisa package or SDK is imported by the code. A source names its code as a PyPI package at an exact version (public or a private index), a Git repository at a commit or tag with a subdirectory, or an uploaded archive; the reference is pinned and the content's hash recorded. Dependencies install from the code's lockfile when the code is loaded, not per call, cached by content hash, through the org's package indexes (an organization setting with its own admin page, like [REQ-1984](#REQ-1984)'s registries; every field resolved with the standard resolution, so it can be a secret reference). The Python runtime is fetched on demand, pinned and hashed. The code runs in its own sandboxed worker process, never inside Provisa's process: no file access beyond its code, network only to the egress allow-list. Each subscription to a @stream table starts its own generator with that subscriber's arguments.
+
+**Use case:** A data team's scoring function, def churn_risk(account_id: str) -> list[RiskRow] with @table in its docstring, is registered from their private index and joined to Salesforce accounts in SQL, under the same governance as any table, without the team adding any Provisa dependency.
+
+**Code:** —
+
+**Tests:** —
