@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "डेटाबेस",
+    "databaseHint": "MotherDuck डेटाबेस, या उसके पते से कोई शेयर (_share/…)।",
+    "token": "MotherDuck टोकन",
+    "tokenHint": "${secret:NAME} जैसा सीक्रेट संदर्भ स्रोत पढ़ते समय हल किया जाता है।",
+    "dataMovement": "स्थानीय DuckDB फ़ाइल को इस स्रोत से जोड़ने वाला कथन फ़ाइल की पंक्तियाँ आपके MotherDuck खाते में भेज सकता है: MotherDuck तय करता है कि हर हिस्सा कहाँ चलेगा।"
+  }
+}

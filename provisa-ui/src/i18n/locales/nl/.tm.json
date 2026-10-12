@@ -6107,5 +6107,10 @@
   "nl/codeSourceFields.json::codeSourceFields.npm": "npm package",
   "nl/packageRegistries.json::packageRegistries.npmTitle": "npm registries",
   "nl/packageRegistries.json::packageRegistries.mirrorHelp": "Every package without a scope of its own is installed through this registry. An organization has one npm mirror.",
-  "nl/packageRegistries.json::packageRegistries.remove": "Remove"
+  "nl/packageRegistries.json::packageRegistries.remove": "Remove",
+  "nl/motherDuckFields.json::motherDuckFields.database": "Database",
+  "nl/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "nl/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "nl/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "nl/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

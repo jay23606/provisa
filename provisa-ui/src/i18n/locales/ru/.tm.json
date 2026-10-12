@@ -6107,5 +6107,10 @@
   "ru/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
   "ru/codeSourceFields.json::codeSourceFields.pypi": "PyPI package",
   "ru/codeSourceFields.json::codeSourceFields.originHint": "The code is installed and read when the source is saved; its functions tagged @table, @command or @stream become its tables, commands and live tables.",
-  "ru/packageRegistries.json::packageRegistries.saved": "Saved"
+  "ru/packageRegistries.json::packageRegistries.saved": "Saved",
+  "ru/motherDuckFields.json::motherDuckFields.database": "Database",
+  "ru/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "ru/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "ru/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "ru/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

@@ -95,6 +95,8 @@ export const SOURCE_TYPES = [
   // protocol/default port as sqlserver.
   { value: "fabric", label: "Microsoft Fabric Warehouse", category: "Cloud DW", defaultPort: 1433 },
   { value: "synapse", label: "Azure Synapse SQL", category: "Cloud DW", defaultPort: 1433 },
+  // REQ-1998: a MotherDuck database, attached in place by the DuckDB engine (md:<database>).
+  { value: "motherduck", label: "MotherDuck", category: "Cloud DW", defaultPort: 0 },
   // Analytics / OLAP
   { value: "clickhouse", label: "ClickHouse", category: "Analytics", defaultPort: 8123 },
   { value: "elasticsearch", label: "Elasticsearch", category: "Analytics", defaultPort: 9200 },

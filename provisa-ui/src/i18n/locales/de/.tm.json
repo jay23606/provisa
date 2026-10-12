@@ -6107,5 +6107,10 @@
   "de/packageRegistries.json::packageRegistries.remove": "Remove",
   "de/packageRegistries.json::packageRegistries.pypiNone": "No PyPI indexes. Packages come from the public PyPI.",
   "de/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
-  "de/codeSourceFields.json::codeSourceFields.runtime_node": "Node.js"
+  "de/codeSourceFields.json::codeSourceFields.runtime_node": "Node.js",
+  "de/motherDuckFields.json::motherDuckFields.database": "Database",
+  "de/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "de/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "de/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "de/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

@@ -6107,5 +6107,10 @@
   "ja/codeSourceFields.json::codeSourceFields.version": "Version",
   "ja/packageRegistries.json::packageRegistries.pypiHelp": "The indexes Python sources install their packages from. The default index serves every Python install in place of the public PyPI.",
   "ja/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories.",
-  "ja/packageRegistries.json::packageRegistries.help": "The registries every Node and Python source of this organization installs from, for its own code and its dependencies. Each field can hold a value or a secret reference such as ${secret:npm_token}. The public npm registry and the public PyPI need no entry."
+  "ja/packageRegistries.json::packageRegistries.help": "The registries every Node and Python source of this organization installs from, for its own code and its dependencies. Each field can hold a value or a secret reference such as ${secret:npm_token}. The public npm registry and the public PyPI need no entry.",
+  "ja/motherDuckFields.json::motherDuckFields.database": "Database",
+  "ja/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "ja/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "ja/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "ja/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

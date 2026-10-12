@@ -6108,5 +6108,10 @@
   "it/packageRegistries.json::packageRegistries.npmCredentialHelp": "The registry's access token.",
   "it/packageRegistries.json::packageRegistries.saved": "Saved",
   "it/codeSourceFields.json::codeSourceFields.git": "Git repository",
-  "it/packageRegistries.json::packageRegistries.pypiAddress": "Index URL"
+  "it/packageRegistries.json::packageRegistries.pypiAddress": "Index URL",
+  "it/motherDuckFields.json::motherDuckFields.database": "Database",
+  "it/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "it/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "it/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "it/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

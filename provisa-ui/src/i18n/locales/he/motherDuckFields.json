@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "מסד נתונים",
+    "databaseHint": "מסד הנתונים ב-MotherDuck, או שיתוף לפי כתובתו (_share/…).",
+    "token": "אסימון MotherDuck",
+    "tokenHint": "הפניה לסוד, כמו ${secret:NAME}, נפתרת כשהמקור נקרא.",
+    "dataMovement": "משפט שמצרף קובץ DuckDB מקומי למקור זה עשוי לשלוח שורות מהקובץ לחשבון MotherDuck שלכם: MotherDuck מחליט היכן כל חלק רץ."
+  }
+}

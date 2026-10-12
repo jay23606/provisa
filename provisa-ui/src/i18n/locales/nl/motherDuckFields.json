@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "Database",
+    "databaseHint": "De MotherDuck-database, of een share via het adres (_share/…).",
+    "token": "MotherDuck-token",
+    "tokenHint": "Een geheimverwijzing zoals ${secret:NAME} wordt opgelost wanneer de bron wordt gelezen.",
+    "dataMovement": "Een instructie die een lokaal DuckDB-bestand met deze bron combineert, kan rijen uit het bestand naar uw MotherDuck-account sturen: MotherDuck bepaalt waar elk deel wordt uitgevoerd."
+  }
+}

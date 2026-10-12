@@ -6108,5 +6108,10 @@
   "zh-HK/codeSourceFields.json::codeSourceFields.repository": "Repository URL",
   "zh-HK/packageRegistries.json::packageRegistries.gitHelp": "The hosts Node and Python sources fetch Git code and Git dependencies from.",
   "zh-HK/codeSourceFields.json::codeSourceFields.git": "Git repository",
-  "zh-HK/codeSourceFields.json::codeSourceFields.upload": "Upload"
+  "zh-HK/codeSourceFields.json::codeSourceFields.upload": "Upload",
+  "zh-HK/motherDuckFields.json::motherDuckFields.database": "Database",
+  "zh-HK/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "zh-HK/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "zh-HK/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "zh-HK/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: bcb0124b-75eb-4cf2-b651-c47e01b9a8cb
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-1998: a MotherDuck database attached in place by the DuckDB engine (md:<database>), its

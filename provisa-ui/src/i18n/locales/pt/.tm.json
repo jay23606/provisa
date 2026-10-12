@@ -6107,5 +6107,10 @@
   "pt/codeSourceFields.json::codeSourceFields.subdirectory": "Subdirectory",
   "pt/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
   "pt/packageRegistries.json::packageRegistries.npmNone": "No npm registries. Packages come from the public npm registry.",
-  "pt/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories."
+  "pt/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories.",
+  "pt/motherDuckFields.json::motherDuckFields.database": "Database",
+  "pt/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "pt/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "pt/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "pt/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

@@ -1,0 +1,9 @@
+{
+  "motherDuckFields": {
+    "database": "Datenbank",
+    "databaseHint": "Die MotherDuck-Datenbank oder eine Freigabe über ihre Adresse (_share/…).",
+    "token": "MotherDuck-Token",
+    "tokenHint": "Ein Secret-Verweis wie ${secret:NAME} wird beim Lesen der Quelle aufgelöst.",
+    "dataMovement": "Eine Anweisung, die eine lokale DuckDB-Datei mit dieser Quelle verknüpft, kann Zeilen der Datei an Ihr MotherDuck-Konto senden: MotherDuck entscheidet, wo jeder Teil ausgeführt wird."
+  }
+}

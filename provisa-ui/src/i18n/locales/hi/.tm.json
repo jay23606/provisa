@@ -6109,5 +6109,10 @@
   "hi/codeSourceFields.json::codeSourceFields.package": "Package",
   "hi/codeSourceFields.json::codeSourceFields.git": "Git repository",
   "hi/packageRegistries.json::packageRegistries.pypiTitle": "PyPI indexes",
-  "hi/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index."
+  "hi/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
+  "hi/motherDuckFields.json::motherDuckFields.database": "Database",
+  "hi/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "hi/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "hi/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "hi/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

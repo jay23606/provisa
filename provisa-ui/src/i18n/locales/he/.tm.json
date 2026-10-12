@@ -6107,5 +6107,10 @@
   "he/codeSourceFields.json::codeSourceFields.lockfileHint": "A published package rarely carries its lockfile. Give one ({{names}}) when the package has dependencies.",
   "he/packageRegistries.json::packageRegistries.gitTitle": "Git hosts",
   "he/codeSourceFields.json::codeSourceFields.runtime_deno": "Deno",
-  "he/packageRegistries.json::packageRegistries.add_npm": "Add npm registry"
+  "he/packageRegistries.json::packageRegistries.add_npm": "Add npm registry",
+  "he/motherDuckFields.json::motherDuckFields.database": "Database",
+  "he/motherDuckFields.json::motherDuckFields.databaseHint": "The MotherDuck database, or a share by its address (_share/…).",
+  "he/motherDuckFields.json::motherDuckFields.token": "MotherDuck token",
+  "he/motherDuckFields.json::motherDuckFields.tokenHint": "A secret reference, such as ${secret:NAME}, is resolved when the source is read.",
+  "he/motherDuckFields.json::motherDuckFields.dataMovement": "A statement that joins a local DuckDB file with this source may send the file's rows to your MotherDuck account: MotherDuck decides where each part of it runs."
 }

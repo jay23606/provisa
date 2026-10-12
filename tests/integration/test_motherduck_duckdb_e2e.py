@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 0e6044a7-d167-4ab1-8b4d-f4ffcf1f21a8
 #
 # This source code is licensed under the Business Source License 1.1
 """E2E (REQ-1998): MotherDuck read in place by the DuckDB engine, and a statement joining a local
