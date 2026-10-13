@@ -15,7 +15,7 @@
 from provisa.core import model_change
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete as _delete, select, update
+from sqlalchemy import delete as _delete, insert, select, update
 
 from provisa.core.models import BUILT_IN_SOURCE_IDS, Source
 from provisa.core.repositories.integrity import Dependent, ObjectRef, guard, remove_parts
@@ -226,17 +226,30 @@ async def remove_where(conn: "Connection", *where) -> None:
     await conn.execute_core(_delete(sources).where(*where))
 
 
+class SourceIdTaken(ValueError):
+    """A rename onto the id of another source: refused, naming it, before anything is written."""
+
+    def __init__(self, source_id: str) -> None:
+        self.source_id = source_id
+        super().__init__(f"Source {source_id!r} already exists")
+
+
 async def rename(conn: "Connection", old_id: str, new_id: str) -> bool:  # REQ-012
-    """Rename a source: copy to new_id, retarget registered_tables, delete old_id."""
+    """Rename a source: copy to new_id, retarget registered_tables, delete old_id. A rename onto
+    an existing source's id is refused (:class:`SourceIdTaken`); one onto its own id changes
+    nothing."""
     async with conn.transaction():
         result = await conn.execute_core(select(sources).where(sources.c.id == old_id))
         row = result.fetchone()
         if row is None:
             return False
+        if new_id == old_id:
+            return True
+        if await get(conn, new_id) is not None:
+            raise SourceIdTaken(new_id)
         vals = dict(row._mapping)
         vals["id"] = new_id
-        # Insert the copy; leave an existing new_id untouched (DO NOTHING semantics).
-        await conn.upsert(sources, vals, index_elements=["id"], update_columns=[])
+        await conn.execute_core(insert(sources).values(**vals))
         await conn.execute_core(
             update(registered_tables)
             .where(registered_tables.c.source_id == old_id)

@@ -399,7 +399,8 @@
       "relationship_ambiguous_table": "El nombre de tabla '{{table}}' ({{end}}) designa una tabla en más de un origen ({{sources}})",
       "relationship_unknown_source": "La tabla de origen '{{table}}' no está registrada",
       "relationship_unknown_target": "La tabla de destino '{{table}}' no está registrada",
-      "relationship_unknown_junction": "La tabla de unión '{{table}}' no está registrada"
+      "relationship_unknown_junction": "La tabla de unión '{{table}}' no está registrada",
+      "source_id_taken": "El origen '{{source}}' ya existe"
     },
     "secrets": {
       "name_refused": "{{name}} no es un nombre dentro de los secretos de esta organización en {{service}}: un nombre es relativo a la organización y no puede salir de ella",

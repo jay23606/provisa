@@ -399,7 +399,8 @@
       "relationship_ambiguous_table": "テーブル名 '{{table}}' ({{end}}) は複数のソース ({{sources}}) のテーブルを指しています",
       "relationship_unknown_source": "ソーステーブル '{{table}}' は登録されていません",
       "relationship_unknown_target": "ターゲットテーブル '{{table}}' は登録されていません",
-      "relationship_unknown_junction": "結合テーブル '{{table}}' は登録されていません"
+      "relationship_unknown_junction": "結合テーブル '{{table}}' は登録されていません",
+      "source_id_taken": "ソース '{{source}}' はすでに存在します"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",
