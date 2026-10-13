@@ -572,9 +572,8 @@ KEPT_ON_FORM_EDIT: tuple[str, ...] = (
     "promotions",
     "relay_pagination",
 )
+# REQ-2000: a column's embedding and its model are carried by the form, which sets them.
 COLUMN_KEPT_ON_FORM_EDIT: tuple[str, ...] = (
-    "embedding",
-    "embedding_model",
     "embedding_source_column",
     "encrypted",
 )

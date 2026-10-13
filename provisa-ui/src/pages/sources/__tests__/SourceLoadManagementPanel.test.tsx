@@ -348,4 +348,24 @@ describe("SourceLoadManagementPanel", () => {
       asked.mockRestore();
     });
   });
+
+  // REQ-2000: a live-only kind's tables are read live, never replicated.
+  it("offers no Replicate choice for a kind the server says is live-only", async () => {
+    const asked = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const kind = decodeURIComponent(String(url).split("/admin/source-kinds/")[1]);
+      return new Response(
+        JSON.stringify({
+          cache_ttl_required: false,
+          sentinel_path: false,
+          live_only: kind === "qdrant",
+        }),
+      );
+    });
+    renderInForm(
+      <SourceLoadManagementPanel form={{ ...FORM, type: "qdrant" }} setForm={vi.fn()} />,
+    );
+    await vi.waitFor(() => expect(screen.queryByTestId("source-replicate-select")).toBeNull());
+    expect(screen.getByTestId("cache-ttl-input")).toBeInTheDocument();
+    asked.mockRestore();
+  });
 });

@@ -60,7 +60,9 @@ class QdrantConnection:  # REQ-1983
         if not url.startswith(("https://", "http://")):
             raise QdrantSourceInvalid(source.id, "the host is the instance's URL")
         api_key = resolve_secrets(getattr(source, "password", "") or "") or None
-        return cls(url=url, api_key=api_key, prefer_grpc=bool(hints.get("prefer_grpc")))
+        # A hint is text: the boot resolves each one as a secret reference.
+        grpc = str(hints.get("prefer_grpc", "")).lower() == "true"
+        return cls(url=url, api_key=api_key, prefer_grpc=grpc)
 
     def client(self) -> Any:
         from qdrant_client import QdrantClient

@@ -5960,7 +5960,6 @@
   "ru/serverErrors.json::serverErrors.schema.logs_invalid": "Logs source {{source}}: {{error}}",
   "ru/logsFields.json::logsFields.glob": "Files",
   "ru/serverErrors.json::serverErrors.schema.logs_path_refused": "Logs source {{source}}: {{reason}}",
-  "ru/replicaBuild.json::replicaBuild.buildingPartsFiles": "Replica being brought up to date: {{done}} of {{total}} files checked ({{how}}).",
   "ru/logsFields.json::logsFields.group.amazon": "Amazon Web Services",
   "ru/logsFields.json::logsFields.formats.aws_alb": "AWS Application Load Balancer access log",
   "ru/logsFields.json::logsFields.formats.aws_nlb": "AWS Network Load Balancer access log",
@@ -6030,5 +6029,9 @@
   "ru/settings.json::settings.sources.max_upload_bytes.label": "Largest uploaded file",
   "ru/settings.json::settings.sources.max_upload_bytes.help": "The largest file a SQLite, DuckDB, CSV or Parquet source may be given by upload from the source form; a larger one is refused, naming this limit. A larger file is better read where it is, from an object store.",
   "ru/serverErrors.json::serverErrors.schema.file_path_leaves_org": "Source {{source}}: {{path}} leaves the organization's folder.",
-  "ru/serverErrors.json::serverErrors.schema.file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address."
+  "ru/serverErrors.json::serverErrors.schema.file_path_local_refused": "Source {{source}}: a server of many organizations reads no file on its own disk; upload the file, or name it as {files}/… or by a remote address.",
+  "ru/vectorModelCell.json::vectorModelCell.none": "No registered model has this vector's size",
+  "ru/vectorModelCell.json::vectorModelCell.header": "Embedding model",
+  "ru/vectorModelCell.json::vectorModelCell.label": "Embedding model of {{column}}",
+  "ru/vectorModelCell.json::vectorModelCell.placeholder": "Choose a model"
 }

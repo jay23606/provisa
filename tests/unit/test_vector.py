@@ -420,6 +420,9 @@ class TestCapabilityIsDetectedWhenASourceConnects:  # REQ-422
             def __init__(self, rows):
                 self.rows = rows
 
+            def bind_source(self, source_id):  # REQ-2000: a driver knows its source
+                pass
+
             def configure(self, extra):
                 pass
 

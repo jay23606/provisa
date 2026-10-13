@@ -45,6 +45,9 @@ SOURCE_TO_DIALECT: dict[str, str] = {
     "clickhouse": "clickhouse",
     "redshift": "redshift",
     "athena": "athena",  # REQ-1981
+    # REQ-2000: PostgreSQL text, read by the Qdrant driver and lowered to Qdrant's API
+    # (provisa/qdrant/dialect.py registers the name with SQLGlot).
+    "qdrant": "qdrant",
     "databricks": "databricks",
     "fabric": "tsql",  # Microsoft Fabric Warehouse — T-SQL over TDS (REQ-986)
     "synapse": "tsql",  # Azure Synapse — T-SQL over TDS
@@ -78,3 +81,21 @@ LAKE_ONLY_SOURCES: set[str] = {"iceberg", "delta_lake", "hive_s3"}
 
 # Source types that support time-travel vithe engine FOR TIMESTAMP/VERSION AS OF (REQ-372)
 TIME_TRAVEL_SOURCES: set[str] = {"iceberg", "delta_lake"}
+
+# REQ-2000: source types that are live-only -- a property of the type, never a per-source option.
+# The maintainer: "its reserved for scenarios where the engine cannot replicate the live db query
+# feature." A type has it only when its defining query capability cannot be reproduced by the
+# engine over a replica (Qdrant: its own vector index and query API). A live-only source's tables
+# have no replica and no keyed fetch: a statement on the source runs on it, and its part of an
+# engine-answered statement is fetched live for that statement.
+LIVE_ONLY_TYPES: frozenset[str] = frozenset({"qdrant"})
+
+
+def is_live_only(source_type: str | None) -> bool:
+    """Whether ``source_type`` is live-only (``LIVE_ONLY_TYPES``)."""
+    return source_type in LIVE_ONLY_TYPES
+
+
+# REQ-2000: the ``qdrant`` dialect named above is registered with SQLGlot wherever this mapping is
+# read, so a Qdrant source's statements transpile and its writes find their dialect.
+import provisa.qdrant.dialect  # noqa: E402, F401

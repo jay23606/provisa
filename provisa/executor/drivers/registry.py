@@ -94,6 +94,12 @@ def _make_athena() -> DirectDriver:  # REQ-1981: Amazon Athena through its own A
     return AthenaDriver()
 
 
+def _make_qdrant() -> DirectDriver:  # REQ-2000: Qdrant through its own client
+    from provisa.qdrant.direct import QdrantDriver
+
+    return QdrantDriver()
+
+
 def _make_trino() -> DirectDriver:  # remote Trino/Presto coordinator as a SOURCE (read-then-land)
     from provisa.executor.drivers.sqlalchemy_driver import SQLAlchemyDriver
 
@@ -141,6 +147,9 @@ _DRIVER_FACTORIES: dict[str, Callable[[], DirectDriver]] = {  # REQ-229, REQ-550
     "fabric": _make_mssql_warehouse,  # T-SQL over TDS, Azure AD (per-source SP)
     "synapse": _make_mssql_warehouse,
     "athena": _make_athena,  # REQ-1981
+    # REQ-2000: a single-source statement Qdrant's API expresses exactly runs there; the rest is
+    # the engine's, over the replica (provisa/qdrant/direct.py ``expressible``).
+    "qdrant": _make_qdrant,
     # Trino/Presto as a SOURCE (not just an engine): a remote coordinator Provisa reads via the
     # SQLAlchemy trino dialect, then lands — reachable as a REPLICA on ANY engine, like GraphQL/REST.
     "trino": _make_trino,

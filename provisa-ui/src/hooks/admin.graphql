@@ -29,6 +29,8 @@ fragment ColumnFields on TableColumnType {
   nativeFilterRequired
   requiredBySteward
   path
+  embedding
+  embeddingModel
   isPrimaryKey
   isForeignKey
   isAlternateKey
@@ -410,6 +412,7 @@ query QdrantVectors($sourceId: String!, $collection: String!) {
     name
     size
     distance
+    models
   }
 }
 

@@ -115,6 +115,9 @@ def _column_input(c: Any) -> Any:
         description=c.description or None,
         data_type=c.data_type or None,
         path=c.path or None,
+        # REQ-2000: the editor carries a column's embedding and its model, as the form does.
+        embedding=c.embedding,
+        embedding_model=c.embedding_model,
         native_filter_type=c.native_filter_type or None,
         native_filter_required=c.native_filter_required,
         is_primary_key=c.is_primary_key,

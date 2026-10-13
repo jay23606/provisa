@@ -1,0 +1,8 @@
+{
+  "vectorModelCell": {
+    "header": "Modelo de embeddings",
+    "label": "Modelo de embeddings de {{column}}",
+    "placeholder": "Elija un modelo",
+    "none": "Ningún modelo registrado tiene el tamaño de este vector"
+  }
+}

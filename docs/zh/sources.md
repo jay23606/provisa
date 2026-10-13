@@ -180,11 +180,30 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 
 ### Qdrant
 
-`qdrant`（REQ-1983）由 Qdrant 自带的客户端 `qdrant-client` 读取；没有联邦引擎拥有 Qdrant 连接器，因此它在每个引擎上的读取方式相同，并在语句联接它的位置落地。[tool-verified: `provisa/qdrant/fetch.py`；`provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+`qdrant`（REQ-1983、REQ-2000）由 Qdrant 自带的客户端 `qdrant-client` 读写。Qdrant **仅限实时**：这是源类型的属性，不是设置。它用自己的向量索引和 Query API 作答，任何副本都无法给出同样的答案，因此其表永远不会被复制。Qdrant 源及其表没有 Replicate 选项；对其设置 `replicate` 值或 `row_materialize` 会被拒绝。[tool-verified: `provisa/core/source_registry.py` `LIVE_ONLY_TYPES`；`provisa/api/admin/_landing_ttl.py` `_live_only_refusal`]
 
 **连接。** `host` 是实例的 URL 及端口（`https://<cluster>.cloud.qdrant.io:6333`，或自托管的 `http://qdrant:6333`）；`password` 是其 API 密钥，是在读取该源时解析的密钥引用，无密钥的实例则留空。`federation_hints.prefer_grpc: true` 改为通过 Qdrant 的 gRPC 端口读取，而非 REST。该源只有一个 schema，即 `default`。[tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`；`provisa/qdrant/introspect.py` `SCHEMA`]
 
-**集合表。** 集合（collection）就是一张表，整张落地为副本（scroll，逐页读取），并按其 TTL 刷新；Qdrant 没有变更源（change feed）。Register Table 提供集合的列：`id`（点 ID，即其键，路径 `@id`）、payload 的字段（已建索引的字段按其索引定型，其他字段按抽样点的提示定型；嵌套字段连同路径展平），以及每个向量一个 `json` 列（路径 `@vector`，命名向量则为 `@vector.<name>`），默认不选中。对 `id` 的按键读取是一次 `retrieve`；对 payload 字段则是一次带过滤的 scroll。[tool-verified: `provisa/qdrant/introspect.py` `columns`；`provisa/qdrant/loader.py`]
+**集合表。** 集合（collection）就是一张表。Register Table 提供集合的列：`id`（点 ID，即其键，路径 `@id`）、payload 的字段（已建索引的字段按其索引定型，其他字段按抽样点的提示定型；嵌套字段连同路径展平），以及每个向量一个 `json` 列（路径 `@vector`，命名向量则为 `@vector.<name>`），默认不选中。向量列会指明它所存嵌入所属的已注册嵌入模型，从维度等于该向量大小的模型中选择（在 Register Table 中，以及编辑器的“类型与键”标签页）；选择模型即注册该向量。[tool-verified: `provisa/qdrant/introspect.py` `columns`；`provisa-ui/src/pages/tables/QdrantVectorColumns.tsx`]
+
+**针对单个 Qdrant 源的语句。** 只读取一个集合的语句，在 Qdrant 的 API 能够精确表达它时于 Qdrant 中运行：
+
+- payload 条件转为 Qdrant 过滤器（`=`、`<>`、`IN`、数字和日期的范围、`IS NULL`、`AND`、`OR`、`NOT`）；保持 SQL 的 NULL 语义，因此 `lang <> 'en'` 会跳过没有 `lang` 的点；
+- 仅对 `id` 的条件（`=` 或 `IN`）是一次 `retrieve`；其他任何读取是带过滤的 `scroll`；
+- `ORDER BY cosine_similarity(<vector>, <query>) DESC LIMIT k` 是对距离为 Cosine 的向量的一次 `query_points`，过滤器在取 top-k 之前应用。文本查询由该向量的模型嵌入。答案带有警告：top-k 是近似的，通过 Qdrant 的索引选出。
+
+其他情况（聚合、`GROUP BY`、计算列或脱敏列、非“最相似优先”的排序）由引擎作答，见下文。[tool-verified: `provisa/qdrant/direct.py` `analyse`、`condition`、`QdrantDriver`]
+
+**由引擎作答的语句。** 当语句把集合与另一个源联接，或对其列做计算时，该集合的那一部分会在该语句执行时从 Qdrant 实时读取，并以行的形式交给引擎。这一部分包括集合的列、语句中仅针对该集合的条件（其行规则也在内），以及在集合于其 `SELECT` 中单独读取时，该 `SELECT` 的相似度排序和 `LIMIT`。Qdrant 无法精确表达的部分会被拒绝，并指明表及原因。没有条件、没有键、没有 top-k 的部分会读取整个集合，同样被拒绝。针对参数（`$1`）的条件留给引擎处理。[tool-verified: `provisa/federation/live_only.py` `cut`、`read`；`provisa/pgwire/_pipeline.py` `_read_live_parts`]
+
+**写入。** 对集合的 `INSERT`、`UPDATE` 和 `DELETE` 在 Qdrant 中运行：
+
+- `INSERT … VALUES` 指明 `id` 列并写入新点。集合中已有的 `id` 会按名称被拒绝。该检查先读取 id，因此与写入不是原子的。
+- `INSERT … ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c, …` 是 upsert。语句未设置的列保持原值。
+- `UPDATE` 和 `DELETE` 作用于其 `WHERE` 选出的点，以 Qdrant 过滤器的形式；没有过滤器形式的条件会被拒绝。
+- 写入向量列的文本由该列的模型嵌入。写入其中的向量必须具有该模型的维度。
+
+[tool-verified: `provisa/qdrant/direct.py` `_insert`、`_upsert_clause`、`_write_points`、`_update`、`_delete`、`_vector_value`]
 
 **搜索表。** 向量搜索是一张搜索表：其 `query_template` 保存一个 Query API 请求。
 
@@ -202,7 +221,7 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 - `score` 是集合自身针对所搜索向量的度量：对 Cosine 集合而言就是余弦相似度。Register Table 列出集合的向量及其大小和距离。
 - `model` 指定一个已注册的嵌入模型（`vector_models`，管理 → AI Models）。此时给定的查询文本由该模型嵌入，给定的向量必须具有该模型的维度（REQ-429、REQ-430）。没有 `model` 时，查询必须是向量。
 
-搜索按每条语句、在其参数下读取，其行在这些参数下保留一个表 TTL 的时间。`cosine_similarity(column, vector)`（REQ-423）不会为 Qdrant 翻译：相似度搜索就是搜索表。不支持写入 Qdrant。[tool-verified: `provisa/qdrant/table.py` `check_table`、`plan`、`read`；`provisa/api/data/materialization.py` `_is_native_read`]
+搜索按每条语句、在其参数下读取，其行在这些参数下保留一个表 TTL 的时间。搜索表是只读的。[tool-verified: `provisa/qdrant/table.py` `check_table`、`plan`、`read`；`provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming {: #streaming }
 

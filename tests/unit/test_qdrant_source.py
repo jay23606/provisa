@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -69,7 +70,7 @@ class _Client:
 def test_the_url_and_api_key_are_resolved_at_use(monkeypatch):
     monkeypatch.setenv("QDRANT_KEY", "from-env")
     conn = QdrantConnection.from_source(
-        _source(password="${env:QDRANT_KEY}", federation_hints={"prefer_grpc": True})
+        _source(password="${env:QDRANT_KEY}", federation_hints={"prefer_grpc": "true"})
     )
     assert (conn.url, conn.api_key, conn.prefer_grpc) == (_URL, "from-env", True)
 
@@ -405,75 +406,67 @@ async def test_a_search_left_without_its_query_is_refused_before_any_read():
     ran.assert_not_awaited()
 
 
-# --- loaders ---
+# --- live-only (REQ-2000) ---
 
 
-def _collection_table(*columns: tuple[str, str, str | None]) -> SimpleNamespace:
-    return SimpleNamespace(
+def test_qdrant_is_live_only_and_owns_no_replica():
+    from provisa.core.source_registry import is_live_only
+    from provisa.federation.replica_routing import owns_replica, reads_replica
+
+    source = SimpleNamespace(type="qdrant", replicate=0, load_protected=None)
+    table = SimpleNamespace(replicate=0, load_protected=None)
+    assert is_live_only("qdrant") and not is_live_only("postgresql")
+    assert not owns_replica(source)
+    assert not reads_replica(source, table, engine=None, promoted=True)
+
+
+def test_a_qdrant_table_has_no_loader_and_no_keyed_fetch():
+    import importlib.util
+
+    from provisa.events.source_loader import _ADAPTER_FETCH_ONLY
+
+    assert "qdrant" not in _ADAPTER_FETCH_ONLY
+    assert importlib.util.find_spec("provisa.qdrant.loader") is None
+
+
+def _ttl_table(**kw) -> Any:
+    from provisa.api.admin._landing_ttl import TableTtl
+
+    fields = dict(
+        schema_name="qdrant",
         table_name="docs",
-        query_template=None,
-        columns=[
-            SimpleNamespace(name=n, data_type=t, path=p, native_filter_type=None)
-            for n, t, p in columns
-        ],
+        change_signal=None,
+        cache_ttl=None,
+        materialize=False,
+        row_materialize=False,
+        replicate=None,
+        load_protected=None,
     )
+    return TableTtl(**{**fields, **kw})
 
 
-async def test_a_collection_lands_every_point_a_page_at_a_time():
-    from provisa.qdrant.loader import make_qdrant_loader
+@pytest.mark.parametrize(
+    "source_replicate, table, refused",
+    [
+        (None, {}, None),
+        (0, {}, "Source 'vec'"),
+        (None, {"replicate": 500}, "Table 'docs'"),
+        (None, {"row_materialize": True}, "Table 'docs'"),
+    ],
+)
+def test_a_live_only_source_refuses_any_replication_setting(source_replicate, table, refused):
+    from provisa.api.admin._landing_ttl import SourceTtl, _live_only_refusal
 
-    client = _Client([_point(i, {"title": f"t{i}"}) for i in range(5)], page=2)
-    table = _collection_table(("id", "bigint", "@id"), ("title", "text", None))
-    with patch.object(QdrantConnection, "client", lambda self: client):
-        rows = await make_qdrant_loader()(_source(), table)
-    assert rows == [{"id": i, "title": f"t{i}"} for i in range(5)]
-    assert all(kw["with_vectors"] is False for _, kw in client.calls)
-
-
-async def test_a_vector_column_reads_the_points_vector_by_its_name():
-    from provisa.qdrant.loader import make_qdrant_loader
-
-    client = _Client([_point(1, {"title": "a"}, vector={"text": [0.5, 0.5]})])
-    table = _collection_table(("id", "bigint", "@id"), ("text_vector", "json", "@vector.text"))
-    with patch.object(QdrantConnection, "client", lambda self: client):
-        rows = await make_qdrant_loader()(_source(), table)
-    assert rows == [{"id": 1, "text_vector": [0.5, 0.5]}]
-    assert client.calls[0][1]["with_vectors"] == ["text"]
-
-
-async def test_a_search_has_no_whole_table_to_load():
-    from provisa.qdrant.loader import make_qdrant_loader
-
-    table = _collection_table(("id", "text", "@id"))
-    table.query_template = _SEARCH
-    with pytest.raises(ValueError, match="is a search, read under the arguments"):
-        await make_qdrant_loader()(_source(), table)
-
-
-async def test_a_keyed_fetch_on_the_point_id_is_one_retrieve():
-    from provisa.qdrant.loader import make_qdrant_keyed_loader
-
-    client = _Client([_point(1, {"title": "a"}), _point(2, {"title": "b"})])
-    table = _collection_table(("id", "bigint", "@id"), ("title", "text", None))
-    with patch.object(QdrantConnection, "client", lambda self: client):
-        rows = await make_qdrant_keyed_loader()(_source(), table, ["id"], [(2,)])
-    assert rows == [{"id": 2, "title": "b"}]
-    assert client.calls[0][0] == "retrieve" and client.calls[0][1]["ids"] == [2]
-
-
-async def test_a_keyed_fetch_on_a_payload_field_is_one_filtered_scroll():
-    from provisa.qdrant.loader import make_qdrant_keyed_loader
-
-    client = _Client([_point(1, {"sku": "x1"})])
-    table = _collection_table(("id", "bigint", "@id"), ("sku", "text", None))
-    with patch.object(QdrantConnection, "client", lambda self: client):
-        await make_qdrant_keyed_loader()(_source(), table, ["sku"], [("x1",), ("x2",)])
-    ((kind, sent),) = client.calls
-    assert kind == "scroll"
-    assert sent["scroll_filter"].model_dump(exclude_none=True)["should"] == [
-        {"must": [{"key": "sku", "match": {"value": "x1"}}]},
-        {"must": [{"key": "sku", "match": {"value": "x2"}}]},
-    ]
+    source = SourceTtl("ttl", None, source_replicate, False, False)
+    result = _live_only_refusal("vec", "qdrant", source, [_ttl_table(**table)])
+    if refused is None:
+        assert result is None
+    else:
+        assert result is not None and not result.success
+        assert result.message == (
+            f"{refused}: qdrant is live-only: its tables are read live, never replicated"
+        )
+        assert result.code == "schema.live_only_replicated"
 
 
 # --- what Register Table offers ---
@@ -518,14 +511,16 @@ async def test_a_collections_columns_are_its_id_its_payload_and_its_vectors():
     ]
 
 
-def test_qdrant_is_read_by_its_client_on_every_engine():
-    from provisa.events.source_loader import _ADAPTER_FETCH_ONLY
+def test_qdrant_has_a_direct_driver_and_is_never_landed():
+    """REQ-2000: a statement on one Qdrant source runs there, through its direct driver; the
+    engine never reads it from a landed replica."""
+    from provisa.executor.drivers.registry import has_native_driver
     from provisa.federation.strategy import _MATERIALIZE_ONLY
     from provisa.transpiler.router import VIRTUAL_SOURCES
 
-    assert "qdrant" in _ADAPTER_FETCH_ONLY
-    assert "qdrant" in _MATERIALIZE_ONLY
-    assert "qdrant" in VIRTUAL_SOURCES
+    assert "qdrant" not in _MATERIALIZE_ONLY
+    assert "qdrant" not in VIRTUAL_SOURCES
+    assert has_native_driver("qdrant")
 
 
 def test_a_search_in_a_config_is_checked_at_load():

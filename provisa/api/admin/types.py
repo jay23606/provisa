@@ -554,6 +554,10 @@ class TableColumnType:  # REQ-040, REQ-041, REQ-393, REQ-399
     # (provisa/ingest/router.py's `_extract_row`) — already a DB column and a core Column model
     # field, just never surfaced through this GraphQL type, so the table editor couldn't read it.
     path: str | None = None
+    # REQ-421, REQ-2000: the column is an embedding of this registered model -- what a similarity
+    # search over it and a text written to it are embedded by.
+    embedding: bool = False
+    embedding_model: str | None = None
     is_primary_key: bool = False
     is_foreign_key: bool = False
     is_alternate_key: bool = False
@@ -948,6 +952,10 @@ class ColumnInput:  # REQ-040, REQ-041, REQ-393, REQ-399
     native_filter_required: bool | None = None
     # REQ-1986: a steward made the parameter required for the table.
     required_by_steward: bool = False
+    # REQ-421, REQ-2000: the column is an embedding of this registered model. The form carries
+    # both, so an edit keeps or changes them.
+    embedding: bool = False
+    embedding_model: str | None = None
     is_primary_key: bool = False
     is_foreign_key: bool = False
     is_alternate_key: bool = False
@@ -1288,6 +1296,8 @@ class QdrantVectorType:  # REQ-1983: one vector of a Qdrant collection
     name: str  # "" for the collection's unnamed vector
     size: int
     distance: str  # Cosine, Dot, Euclid or Manhattan: what a search's score is
+    # The registered models whose dimensions are the vector's size: what its column may name.
+    models: list[str] = strawberry.field(default_factory=list)
 
 
 @strawberry.type

@@ -199,7 +199,36 @@ def kind_lands(source_type: str) -> bool:
     signal -- the judgment :func:`landing_ttl_refusal` makes at the save."""
     from provisa.federation.replica_routing import NO_REPLICA_TYPES
 
-    return source_type not in NO_REPLICA_TYPES and not _engine_reads_in_place(source_type)
+    from provisa.core.source_registry import is_live_only
+
+    return (
+        source_type not in NO_REPLICA_TYPES
+        and not is_live_only(source_type)  # REQ-2000
+        and not _engine_reads_in_place(source_type)
+    )
+
+
+def _live_only_refusal(
+    source_id: str, source_type: str | None, source: SourceTtl, tables: list[TableTtl]
+) -> MutationResult | None:
+    """REQ-2000: a live-only source's tables are read live, never replicated, so a replicate value
+    on the source or a table, or a table's row_materialize, is refused; with none there is no
+    landing clock to judge."""
+    if source.replicate is not None:
+        return _replicated_live_only(source_id, source_type, f"Source {source_id!r}")
+    for t in tables:
+        if t.replicate is not None or t.row_materialize:
+            return _replicated_live_only(source_id, source_type, f"Table {t.table_name!r}")
+    return None
+
+
+def _replicated_live_only(source_id: str, source_type: str | None, what: str) -> MutationResult:
+    return MutationResult(
+        success=False,
+        message=f"{what}: {source_type} is live-only: its tables are read live, never replicated",
+        code="schema.live_only_replicated",
+        params={"source": source_id, "type": source_type},
+    )
 
 
 def source_states_the_clock(source_type: str | None) -> bool:
@@ -270,6 +299,10 @@ async def landing_ttl_refusal(
     # REQ-1934) is read where it is written and never landed, so it has no landing clock to judge.
     if source_type in NO_REPLICA_TYPES:
         return None
+    from provisa.core.source_registry import is_live_only
+
+    if is_live_only(source_type):
+        return _live_only_refusal(source_id, source_type, source, tables)  # REQ-2000
     hints = (
         federation_hints if federation_hints is not None else await _stored_hints(conn, source_id)
     )

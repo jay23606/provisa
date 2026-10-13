@@ -64,20 +64,22 @@ export function SourceLoadManagementPanel({
           {t("sourceFormFieldsExtended.loadManagementHelp")}
         </Text>
         <FormLayout>
-          <FormField size="medium">
-            <ReplicateSelect
-              value={form.replicate}
-              onChange={(replicate) => setForm({ ...form, replicate })}
-              // REQ-1141: load protection is the drop-down's last choice, not a setting beside it.
-              onScheduledChange={(replicate, loadProtected) =>
-                // A source inherits from nothing: the drop-down reports true or false here.
-                setForm({ ...form, replicate, loadProtected: loadProtected === true })
-              }
-              scope="source"
-              loadProtected={form.loadProtected}
-              testId="source-replicate-select"
-            />
-          </FormField>
+          {kind?.live_only !== true && (
+            <FormField size="medium">
+              <ReplicateSelect
+                value={form.replicate}
+                onChange={(replicate) => setForm({ ...form, replicate })}
+                // REQ-1141: load protection is the drop-down's last choice, not a setting beside it.
+                onScheduledChange={(replicate, loadProtected) =>
+                  // A source inherits from nothing: the drop-down reports true or false here.
+                  setForm({ ...form, replicate, loadProtected: loadProtected === true })
+                }
+                scope="source"
+                loadProtected={form.loadProtected}
+                testId="source-replicate-select"
+              />
+            </FormField>
+          )}
           {/* Medium, not short: its error is a sentence. */}
           <FormField size="medium">
             <NumberInput

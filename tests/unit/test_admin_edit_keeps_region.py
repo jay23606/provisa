@@ -100,7 +100,9 @@ async def test_an_admin_edit_of_a_source_keeps_its_region(tmp_path):
 async def test_an_edit_through_update_table_keeps_the_store_only_settings(tmp_path):
     """REQ-1919: every setting a configuration can give a table is held by the store, and the
     admin's table form — and the MCP model tools (set_column_fake, set_table_profiler), which save
-    through the same updateTable — carry none of the store-only ones. A save keeps each as stored."""
+    through the same updateTable — carry none of the store-only ones. A save keeps each as stored.
+    REQ-2000: a column's embedding and its model are the form's (a vector column names its model
+    there), so a save stores them as the form gives them: here, none."""
     from provisa.api.admin.schema_mutation import Mutation
     from provisa.core.schema_org import table_columns
 
@@ -142,9 +144,33 @@ async def test_an_edit_through_update_table_keeps_the_store_only_settings(tmp_pa
             ).one()
             columns = (
                 await conn.execute_core(
-                    select(table_columns.c.encrypted, table_columns.c.embedding)
+                    select(
+                        table_columns.c.encrypted,
+                        table_columns.c.embedding,
+                        table_columns.c.embedding_model,
+                    )
                 )
             ).fetchall()
         assert (table.hot, table.approval_hook, table.relay_pagination) == (True, True, True)
         assert table.promotions == promotions
-        assert columns and all(c.encrypted and c.embedding for c in columns)
+        assert columns and all(c.encrypted for c in columns)
+        assert [(c.embedding, c.embedding_model) for c in columns] == [(False, None)]
+
+
+def test_the_forms_column_carries_its_embedding_and_model():
+    """REQ-2000: a column's embedding and its model are the form's to give."""
+    from provisa.api.admin._table_ops import _build_column_models
+    from provisa.api.admin.types import ColumnInput
+
+    (column,) = _build_column_models(
+        [
+            ColumnInput(
+                name="body_vec",
+                data_type="json",
+                visible_to=[],
+                embedding=True,
+                embedding_model="stub",
+            )
+        ]
+    )
+    assert (column.embedding, column.embedding_model) == (True, "stub")

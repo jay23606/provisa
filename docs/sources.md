@@ -180,11 +180,30 @@ These source types are federation-only — no direct driver, no dialect. [tool-v
 
 ### Qdrant
 
-`qdrant` (REQ-1983) is read by Qdrant's own client, `qdrant-client`; no federation engine has a Qdrant connector, so it is read the same way on every engine and lands where a statement joins it. [tool-verified: `provisa/qdrant/fetch.py`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`]
+`qdrant` (REQ-1983, REQ-2000) is read and written by Qdrant's own client, `qdrant-client`. Qdrant is **live-only**: a property of the source type, not a setting. Its vector index and Query API are what it answers with, and no replica can answer the same, so its tables are never replicated. There is no Replicate choice for a Qdrant source or its tables; a `replicate` value or `row_materialize` on one is refused. [tool-verified: `provisa/core/source_registry.py` `LIVE_ONLY_TYPES`; `provisa/api/admin/_landing_ttl.py` `_live_only_refusal`]
 
 **Connection.** `host` is the instance's URL with its port (`https://<cluster>.cloud.qdrant.io:6333`, or a self-hosted `http://qdrant:6333`); `password` is its API key, a secret reference resolved when the source is read, empty for an instance without one. `federation_hints.prefer_grpc: true` reads over Qdrant's gRPC port instead of REST. The source has one schema, `default`. [tool-verified: `provisa/qdrant/fetch.py` `QdrantConnection.from_source`; `provisa/qdrant/introspect.py` `SCHEMA`]
 
-**Collection tables.** A collection is a table, landed whole as a replica (scroll, a page at a time) and refreshed on its TTL; Qdrant has no change feed. Register Table offers the collection's columns: `id` (the point id, its key, path `@id`), the payload's fields (an indexed field typed by its index, any other as the sampled points suggest; nested fields flattened with their path), and one `json` column per vector (path `@vector`, or `@vector.<name>` for a named vector), offered unselected. A keyed read on `id` is one `retrieve`; on a payload field, one filtered scroll. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa/qdrant/loader.py`]
+**Collection tables.** A collection is a table. Register Table offers the collection's columns: `id` (the point id, its key, path `@id`), the payload's fields (an indexed field typed by its index, any other as the sampled points suggest; nested fields flattened with their path), and one `json` column per vector (path `@vector`, or `@vector.<name>` for a named vector), offered unselected. A vector column names the registered embedding model it holds embeddings of, chosen from the models whose dimensions are the vector's size (in Register Table, and on the editor's Type and keys tab); choosing a model registers the vector. [tool-verified: `provisa/qdrant/introspect.py` `columns`; `provisa-ui/src/pages/tables/QdrantVectorColumns.tsx`]
+
+**Statements on one Qdrant source.** A statement that reads only one collection runs in Qdrant when Qdrant's API states it exactly:
+
+- payload conditions become a Qdrant filter (`=`, `<>`, `IN`, ranges on numbers and dates, `IS NULL`, `AND`, `OR`, `NOT`); SQL's NULL semantics are kept, so `lang <> 'en'` skips points with no `lang`;
+- a condition on `id` alone (`=` or `IN`) is one `retrieve`; any other read is a filtered `scroll`;
+- `ORDER BY cosine_similarity(<vector>, <query>) DESC LIMIT k` is one `query_points` over a vector whose distance is Cosine, the filter applied before the top-k. A text query is embedded by the vector's model. The answer carries a warning that the top-k is approximate, chosen through Qdrant's index.
+
+Anything else (an aggregate, a `GROUP BY`, a computed or masked column, an ordering other than most similar first) is answered by the engine, as below. [tool-verified: `provisa/qdrant/direct.py` `analyse`, `condition`, `QdrantDriver`]
+
+**Statements the engine answers.** When a statement joins a collection to another source, or computes over its columns, the collection's part of it is read live from Qdrant for that statement and handed to the engine as rows. The part is the collection's columns, the statement's conditions on the collection alone (its row rules among them), and, when the collection is read alone in its `SELECT`, that `SELECT`'s similarity ordering and `LIMIT`. A part Qdrant cannot state exactly is refused, naming the table and why. A part with no condition, no key and no top-k would read the whole collection and is refused too. A condition on a parameter (`$1`) is left to the engine. [tool-verified: `provisa/federation/live_only.py` `cut`, `read`; `provisa/pgwire/_pipeline.py` `_read_live_parts`]
+
+**Writes.** `INSERT`, `UPDATE` and `DELETE` on a collection run in Qdrant:
+
+- `INSERT … VALUES` names the `id` column and writes new points. An `id` the collection already holds is refused by name. The check reads the ids first, so it is not atomic with the write.
+- `INSERT … ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c, …` is an upsert. Columns the statement does not set keep their values.
+- `UPDATE` and `DELETE` act on the points their `WHERE` selects, as a Qdrant filter; a condition with no filter form is refused.
+- A text written to a vector column is embedded by the column's model. A vector written to it must have the model's dimensions.
+
+[tool-verified: `provisa/qdrant/direct.py` `_insert`, `_upsert_clause`, `_write_points`, `_update`, `_delete`, `_vector_value`]
 
 **Search tables.** Vector search is a search table: its `query_template` holds a Query API request.
 
@@ -202,7 +221,7 @@ These source types are federation-only — no direct driver, no dialect. [tool-v
 - `score` is the collection's own metric for the vector searched: for a Cosine collection, the cosine similarity. Register Table lists the collection's vectors with their size and distance.
 - `model` names a registered embedding model (`vector_models`, admin → AI Models). A text given for the query is then embedded by that model, and a vector given for it must have that model's dimensions (REQ-429, REQ-430). With no `model`, the query must be a vector.
 
-A search is read per statement under its arguments, its rows kept under those arguments for the table's TTL. `cosine_similarity(column, vector)` (REQ-423) is not translated for Qdrant: a similarity search is a search table. Writes to Qdrant are not supported. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
+A search is read per statement under its arguments, its rows kept under those arguments for the table's TTL. A search table is read-only. [tool-verified: `provisa/qdrant/table.py` `check_table`, `plan`, `read`; `provisa/api/data/materialization.py` `_is_native_read`]
 
 ### Streaming
 

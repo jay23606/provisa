@@ -202,6 +202,9 @@ export interface TableColumn {
   requiredBySteward?: boolean;
   // REQ-1739: dot-notation JSON extraction path for an `ingest` push source's column mapping.
   path?: string | null;
+  /** REQ-421, REQ-2000: the column is an embedding of this registered model. */
+  embedding?: boolean;
+  embeddingModel?: string | null;
   isPrimaryKey: boolean;
   isForeignKey: boolean;
   isAlternateKey: boolean;

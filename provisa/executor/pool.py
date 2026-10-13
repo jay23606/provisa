@@ -69,6 +69,7 @@ class SourcePool:  # REQ-052, REQ-053
             if source_id in self._drivers:
                 return
             driver = create_driver(source_type, use_pgbouncer=use_pgbouncer)
+            driver.bind_source(source_id)  # REQ-2000
             driver.configure(
                 extra or {}
             )  # warehouse drivers read federation_hints; RDBMS drivers no-op
