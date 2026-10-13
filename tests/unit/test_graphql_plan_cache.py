@@ -426,3 +426,22 @@ def test_cache_key_normalization_parses_a_statement_once(monkeypatch):
         )
         != k1
     )
+
+
+def test_a_single_aggregate_root_is_answered_in_the_data_envelope(monkeypatch):
+    """REQ-196: an aggregate's answer is a map ({aggregate, nodes}), not rows; it was taken for a
+    binary format's response and answered bare, with no ``data`` (the weblogs demo's statement
+    times query on main 15bd4bf1b)."""
+    import json
+
+    from provisa.api.data import endpoint
+
+    h = _endpoint_harness(monkeypatch)
+    answer = {"aggregate": {"count": 4}, "nodes": [{"orderId": 1}]}
+
+    async def _aggregate(compiled, *args, **kwargs):
+        return compiled.root_field, answer, None, None
+
+    monkeypatch.setattr(endpoint, "_execute_one_field", _aggregate)
+    body = json.loads(bytes(h.call().body))
+    assert body == {"data": {"orders": answer}}

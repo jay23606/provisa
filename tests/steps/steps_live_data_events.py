@@ -74,7 +74,8 @@ def _make_source(sid: str, stype: str) -> SimpleNamespace:
 
 
 def _make_table(schema: str, table: str) -> SimpleNamespace:
-    return SimpleNamespace(schema_name=schema, table_name=table)
+    # columns: the registered columns the read projects (REQ-1965); none declared here.
+    return SimpleNamespace(schema_name=schema, table_name=table, columns=[])
 
 
 # ---------------------------------------------------------------------------
