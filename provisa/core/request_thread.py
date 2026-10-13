@@ -73,7 +73,10 @@ _PREREAD_MAX_BYTES = 1 << 20
 # its health probes and its administrators.
 # /setup/status is the UI shell's first call: the app renders nothing until it answers, so a worker
 # whose data threads are all busy would show every new tab a page that never loads.
-_CONTROL_PATHS = ("/health", "/live", "/ready", "/setup/status")
+# /data/engine/state is what the UI asks while a request is slow (REQ-1516): a read of the engine's
+# known state that never waits on the engine, and queued behind the slowness it reports, it would
+# only add to it.
+_CONTROL_PATHS = ("/health", "/live", "/ready", "/setup/status", "/data/engine/state")
 _CONTROL_PREFIXES = ("/admin/", "/auth/")
 _WS_TRY_AGAIN_LATER = 1013
 
