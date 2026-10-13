@@ -12,7 +12,7 @@
 and the store is unchanged. A create used to overwrite the object holding the key and report it
 created; changing an object is its update."""
 
-# Requirements: REQ-021, REQ-1634
+# Requirements: REQ-021, REQ-1634, REQ-1373
 
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.api.admin import schema_mutation
-from provisa.api.admin.types import DataProductInput, DomainInput
+from provisa.api.admin.types import DataProductInput, DomainInput, TagInput
 from provisa.core.database import Database
-from provisa.core.schema_org import data_products, domains
+from provisa.core.schema_org import data_products, domains, tags
 
 pytestmark = pytest.mark.asyncio
 
@@ -38,6 +38,9 @@ async def plane(monkeypatch, control_plane) -> Database:
         )
         await conn.execute_core(
             insert(data_products).values(id="orders_product", domain_id="sales", name="Orders")
+        )
+        await conn.execute_core(
+            insert(tags).values(id="regional", description="By region", applies_to=["table"])
         )
 
     async def _pool():
@@ -100,3 +103,34 @@ async def test_a_data_product_update_changes_one_that_exists_and_refuses_one_tha
     result = await mutation.update_data_product(None, _product("missing_product", "Nothing"))
     assert (result.success, result.code) == (False, "schema.data_product_not_found")
     assert await _rows(plane, data_products) == before
+
+
+async def test_a_tag_create_on_an_existing_id_is_refused_and_an_update_changes_it(
+    plane, monkeypatch
+):
+    async def _nothing():
+        return None
+
+    monkeypatch.setattr(schema_mutation, "_require_tag_editor", lambda _info: None)
+    monkeypatch.setattr(schema_mutation, "require_capability", lambda *_a, **_k: None)
+    monkeypatch.setattr(schema_mutation, "_refresh_config_tags", _nothing)
+    mutation: Any = schema_mutation.Mutation()
+    before = await _rows(plane, tags)
+    taken = await mutation.create_tag(
+        None, TagInput(id="regional", description="Overwritten", applies_to=["column"])
+    )
+    assert (taken.success, taken.code, taken.params) == (
+        False,
+        "schema.tag_id_taken",
+        {"tag": "regional"},
+    )
+    assert await _rows(plane, tags) == before
+    missing = await mutation.update_tag(
+        None, TagInput(id="nowhere", description="", applies_to=["table"])
+    )
+    assert (missing.success, missing.code) == (False, "schema.tag_not_found")
+    assert await _rows(plane, tags) == before
+    updated = await mutation.update_tag(
+        None, TagInput(id="regional", description="By sales region", applies_to=["table"])
+    )
+    assert (updated.success, updated.code) == (True, "schema.tag_saved"), updated.message

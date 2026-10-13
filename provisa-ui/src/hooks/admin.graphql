@@ -885,8 +885,14 @@ mutation DeleteDataProduct($id: String!) {
   }
 }
 
-mutation UpsertTag($input: TagInput!) {
-  upsertTag(input: $input) {
+mutation CreateTag($input: TagInput!) {
+  createTag(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateTag($input: TagInput!) {
+  updateTag(input: $input) {
     ...MutationResult
   }
 }
@@ -979,9 +985,15 @@ mutation DeleteCalendar($name: String!) {
   }
 }
 
-# REQ-1317: create/update a semantic metric.
-mutation UpsertMetric($input: MetricInput!) {
-  upsertMetric(input: $input) {
+# REQ-1317: create a semantic metric (a name that exists is refused), or update one.
+mutation CreateMetric($input: MetricInput!) {
+  createMetric(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateMetric($input: MetricInput!) {
+  updateMetric(input: $input) {
     ...MutationResult
   }
 }
@@ -1167,6 +1179,12 @@ mutation DeleteRlsRule(
 
 mutation CreateRole($input: RoleInput!) {
   createRole(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateRole($input: RoleInput!) {
+  updateRole(input: $input) {
     ...MutationResult
   }
 }

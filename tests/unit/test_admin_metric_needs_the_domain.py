@@ -32,7 +32,7 @@ from tests.unit.test_admin_deletes_need_the_domain import _info, _names, plane  
 
 
 async def test_a_metric_over_the_callers_domain_is_saved(plane):  # noqa: F811
-    result = await schema_mutation.Mutation().upsert_metric(
+    result = await schema_mutation.Mutation().create_metric(
         _info("sales_steward"), MetricInput(name="orders_total", expression="SUM(orders.amount)")
     )
     assert result.success is True
@@ -41,7 +41,7 @@ async def test_a_metric_over_the_callers_domain_is_saved(plane):  # noqa: F811
 
 async def test_a_metric_reading_another_domain_is_refused(plane):  # noqa: F811
     with pytest.raises(PermissionError, match="No access to domain 'finance'"):
-        await schema_mutation.Mutation().upsert_metric(
+        await schema_mutation.Mutation().create_metric(
             _info("sales_steward"), MetricInput(name="owed", expression="SUM(invoices.amount)")
         )
     assert "owed" not in await _names(plane, metrics)
@@ -50,7 +50,7 @@ async def test_a_metric_reading_another_domain_is_refused(plane):  # noqa: F811
 async def test_replacing_another_domains_metric_is_refused(plane):  # noqa: F811
     """The new expression reads only sales; the definition it replaces is finance's."""
     with pytest.raises(PermissionError, match="No access to domain 'finance'"):
-        await schema_mutation.Mutation().upsert_metric(
+        await schema_mutation.Mutation().update_metric(
             _info("sales_steward"), MetricInput(name="billed", expression="SUM(orders.amount)")
         )
     async with plane.acquire() as conn:
@@ -60,8 +60,33 @@ async def test_replacing_another_domains_metric_is_refused(plane):  # noqa: F811
     assert stored == "SUM(invoices.amount)"
 
 
+async def test_a_create_on_a_metric_name_that_exists_is_refused_and_writes_nothing(plane):  # noqa: F811
+    async def _expression() -> str:
+        async with plane.acquire() as conn:
+            return (
+                await conn.execute_core(
+                    select(metrics.c.expression).where(metrics.c.name == "billed")
+                )
+            ).scalar_one()
+
+    result = await schema_mutation.Mutation().create_metric(
+        _info("everywhere"), MetricInput(name="billed", expression="SUM(orders.amount)")
+    )
+    assert (result.success, result.code, result.params) == (
+        False,
+        "schema.metric_name_taken",
+        {"metric": "billed"},
+    )
+    assert await _expression() == "SUM(invoices.amount)"
+    missing = await schema_mutation.Mutation().update_metric(
+        _info("everywhere"), MetricInput(name="nowhere", expression="SUM(orders.amount)")
+    )
+    assert (missing.success, missing.code) == (False, "schema.metric_not_found")
+    assert "nowhere" not in await _names(plane, metrics)
+
+
 async def test_a_caller_reaching_every_domain_saves_a_metric_across_two(plane):  # noqa: F811
-    result = await schema_mutation.Mutation().upsert_metric(
+    result = await schema_mutation.Mutation().create_metric(
         _info("everywhere"),
         MetricInput(name="net", expression="SUM(orders.amount) - SUM(invoices.amount)"),
     )

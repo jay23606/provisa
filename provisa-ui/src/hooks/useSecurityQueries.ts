@@ -19,6 +19,7 @@ import {
   UpsertRlsRule,
   DeleteRlsRule,
   CreateRole,
+  UpdateRole,
   DeleteRole,
   RevokeRoleFromTable,
   RevokeRoleFromObject,
@@ -93,28 +94,41 @@ export function useDeleteRlsRule() {
 }
 
 export function useUpsertRole() {
-  const [createRole, { loading }] = useMutation<{ createRole: MutationResult }>(CreateRole, {
-    refetchQueries: [{ query: ROLES_QUERY }],
-    // The save is done when the list holds the role: the page opens it straight away.
-    awaitRefetchQueries: true,
-  });
+  // The save is done when the list holds the role: the page opens it straight away.
+  const saved = { refetchQueries: [{ query: ROLES_QUERY }], awaitRefetchQueries: true };
+  const [createRole, { loading: creating }] = useMutation<{ createRole: MutationResult }>(
+    CreateRole,
+    saved,
+  );
+  const [updateRole, { loading: updating }] = useMutation<{ updateRole: MutationResult }>(
+    UpdateRole,
+    saved,
+  );
   return {
-    upsertRole: async (input: {
-      id: string;
-      capabilities: string[];
-      domainAccess: string[];
-      rateLimit?: {
-        requestsPerSecond: number | null;
-        maxQueryComplexity: number | null;
-        maxQueryTimeMs: number | null;
-      } | null;
-      parentRoleId?: string | null; // REQ-1677
-      residencyValues?: string[]; // REQ-1921
-    }) => {
-      const result = await createRole({ variables: { input } });
-      return (result.data?.createRole ?? { success: false, message: "" }) as MutationResult;
+    /** A new role is created (an id that exists is refused); one that exists is updated. */
+    upsertRole: async (
+      input: {
+        id: string;
+        capabilities: string[];
+        domainAccess: string[];
+        rateLimit?: {
+          requestsPerSecond: number | null;
+          maxQueryComplexity: number | null;
+          maxQueryTimeMs: number | null;
+        } | null;
+        parentRoleId?: string | null; // REQ-1677
+        residencyValues?: string[]; // REQ-1921
+      },
+      isNew: boolean,
+    ) => {
+      if (isNew) {
+        const result = await createRole({ variables: { input } });
+        return (result.data?.createRole ?? { success: false, message: "" }) as MutationResult;
+      }
+      const result = await updateRole({ variables: { input } });
+      return (result.data?.updateRole ?? { success: false, message: "" }) as MutationResult;
     },
-    loading,
+    loading: creating || updating,
   };
 }
 

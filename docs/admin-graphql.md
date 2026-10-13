@@ -344,11 +344,11 @@ Pending creation requests, visible to callers holding the relevant create capabi
 
 #### `createSource(input: SourceInput!) → MutationResult`
 
-Register a new data source. Validates the connection before persisting — a rejected source leaves no vault entry behind. Stores credentials in the org vault and records the reference; the plaintext never lands in the database. (REQ-012, REQ-013) Requires `source_registration` capability. [tool-verified: `provisa/api/admin/schema_mutation.py:616-781`]
+Register a new data source. An id that exists is refused (`schema.source_id_taken`) after the definition checks and before anything is staged or written; changing a source is `updateSource`. Validates the connection before persisting — a rejected source leaves no vault entry behind. Stores credentials in the org vault and records the reference; the plaintext never lands in the database. (REQ-012, REQ-013) Requires `source_registration` capability. [tool-verified: `provisa/api/admin/schema_mutation.py:616-781`]
 
 #### `updateSource(input: SourceInput!) → MutationResult`
 
-Update an existing source's connection details, description, and config. Tears down and re-attaches the pgwire endpoint for file/SharePoint sources so a path change takes effect immediately. Requires `source_registration`. [tool-verified: `provisa/api/admin/schema_mutation.py:922-1073`]
+Update an existing source's connection details, description, and config, then provision it again on the bound engine, rebuild the schemas and reconcile its landed tables, so a source saved under one engine is served by one swapped to since (REQ-1730). Tears down and re-attaches the pgwire endpoint for file/SharePoint sources so a path change takes effect immediately. Requires `source_registration`. [tool-verified: `provisa/api/admin/schema_mutation.py:922-1073`]
 
 #### `deleteSource(id: String!) → MutationResult`
 
@@ -356,7 +356,7 @@ Remove a source and its vault entry. Drops the engine catalog and rebuilds schem
 
 #### `renameSource(oldId: String!, newId: String!) → MutationResult`
 
-Rename a source ID. [tool-verified: `provisa/api/admin/schema_mutation.py:1076-1098`]
+Rename a source ID. A new ID that another source holds is refused (`schema.source_id_taken`) and nothing is written; renaming a source onto its own ID changes nothing. [tool-verified: `provisa/core/repositories/source.py` `rename`]
 
 #### `updateSourceCache(sourceId: String!, cacheEnabled: Boolean!, cacheTtl: Int) → MutationResult`
 
@@ -460,7 +460,7 @@ Delete a relationship by ID and rebuild schemas. [tool-verified: `provisa/api/ad
 
 #### `createDomain(input: DomainInput!) → MutationResult`
 
-Create a domain. Reserved segment words (`tables`, `relationships`, and other URI path segments) are rejected, as is the wildcard literal `*`. Requires `org_settings` capability. (REQ-021, REQ-1531) [tool-verified: `provisa/api/admin/schema_mutation.py:1135-1189`]
+Create a domain. An id that exists is refused (`schema.domain_id_taken`). Reserved segment words (`tables`, `relationships`, and other URI path segments) are rejected, as is the wildcard literal `*`. Requires `org_settings` capability. (REQ-021, REQ-1531) [tool-verified: `provisa/api/admin/schema_mutation.py:1135-1189`]
 
 #### `deleteDomain(id: String!) → MutationResult`
 
@@ -476,7 +476,11 @@ Set the global GraphQL naming convention and rebuild schemas for all roles. Only
 
 #### `createRole(input: RoleInput!) → MutationResult`
 
-Create or replace a role with capabilities, domain access, optional rate limits, and an optional parent role. Validates that the parent exists and that the parent chain is cycle-free. Requires `user_management`. (REQ-042, REQ-1531, REQ-1677) [tool-verified: `provisa/api/admin/schema_mutation.py:1657-1712`]
+Create a role with capabilities, domain access, optional rate limits, and an optional parent role. Validates that the parent exists and that the parent chain is cycle-free. After the definition checks, an id that exists is refused (`schema.role_id_taken`). Requires `user_management`. (REQ-042, REQ-1531, REQ-1677) [tool-verified: `provisa/api/admin/schema_mutation.py:1657-1712`]
+
+#### `updateRole(input: RoleInput!) → MutationResult`
+
+Change an existing role, with the same checks as `createRole`. An id no role holds is refused (`schema.role_not_found`). Redefining a role is an act in every domain it reaches. (REQ-042, REQ-1531) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_role`]
 
 #### `deleteRole(id: String!) → MutationResult`
 
@@ -502,7 +506,11 @@ Delete an RLS rule. Requires `masking_config`. (REQ-1531) [tool-verified: `provi
 
 #### `createDataProduct(input: DataProductInput!) → MutationResult`
 
-Create or replace a data product. Requires `data_product_rw` capability. (REQ-1634) [tool-verified: `provisa/api/admin/schema_mutation.py:1216-1259`]
+Create a data product. An id that exists is refused (`schema.data_product_id_taken`). Requires `data_product_rw` capability. (REQ-1634) [tool-verified: `provisa/api/admin/schema_mutation.py:1216-1259`]
+
+#### `updateDataProduct(input: DataProductInput!) → MutationResult`
+
+Change an existing data product. An id no product holds is refused (`schema.data_product_not_found`). Requires `data_product_rw`. (REQ-1634) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_data_product`]
 
 #### `deleteDataProduct(id: String!) → MutationResult`
 
@@ -512,9 +520,13 @@ Delete a data product. Requires `data_product_rw`. (REQ-1634) [tool-verified: `p
 
 ### Tags
 
-#### `upsertTag(input: TagInput!) → MutationResult`
+#### `createTag(input: TagInput!) → MutationResult`
 
-Create or update a tag definition. System tags and derived tags cannot be redefined. `appliesTo` must be a non-empty subset of `["source", "table", "column", "relationship", "command"]`. (REQ-1373, REQ-1375) [tool-verified: `provisa/api/admin/schema_mutation.py:1288-1361`]
+Create a tag definition. An id that exists is refused (`schema.tag_id_taken`). System tags and derived tags cannot be redefined. `appliesTo` must be a non-empty subset of `["source", "table", "column", "relationship", "command"]`. (REQ-1373, REQ-1375) [tool-verified: `provisa/api/admin/schema_mutation.py:1288-1361`]
+
+#### `updateTag(input: TagInput!) → MutationResult`
+
+Change an existing tag definition, with the same checks as `createTag`. An id no tag holds is refused (`schema.tag_not_found`). (REQ-1373) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_tag`]
 
 #### `deleteTag(id: String!) → MutationResult`
 
@@ -540,9 +552,13 @@ Remove a permitted value. Refused while any assignment still carries it, because
 
 ### Metrics
 
-#### `upsertMetric(input: MetricInput!) → MutationResult`
+#### `createMetric(input: MetricInput!) → MutationResult`
 
-Create or replace a governed metric definition. The expression must parse under sqlglot and contain at least one aggregate function. Regenerates all metric-composed views that reference this metric. Requires `table_registration`. (REQ-1317, REQ-1318) [tool-verified: `provisa/api/admin/schema_mutation.py:1779-1831`]
+Create a governed metric definition. A name that exists is refused (`schema.metric_name_taken`). The expression must parse under sqlglot and contain at least one aggregate function. Regenerates all metric-composed views that reference this metric. Requires `table_registration`. (REQ-1317, REQ-1318) [tool-verified: `provisa/api/admin/schema_mutation.py:1779-1831`]
+
+#### `updateMetric(input: MetricInput!) → MutationResult`
+
+Replace an existing metric's definition, with the same checks as `createMetric`. A name no metric holds is refused (`schema.metric_not_found`). Saving it needs the domains of the new expression and of the definition it replaces. (REQ-1317, REQ-1531) [tool-verified: `provisa/api/admin/schema_mutation.py` `_save_metric`]
 
 #### `deleteMetric(name: String!) → MutationResult`
 

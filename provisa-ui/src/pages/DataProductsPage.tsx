@@ -428,32 +428,36 @@ export function DataProductsPage() {
       );
     }
     // REQ-1634: command -> product membership is owned by the function row; reconcile the
-    // multi-select against current membership. saveFunction upserts by name (function_repo
-    // .upsert_function), so resending the full existing field set with only productId toggled
-    // is safe.
+    // multi-select against current membership. Each changed command is updated with its full
+    // existing field set and only productId toggled.
     const selectedFns = new Set(selectedFunctionNames);
     const changedFns = functions.filter(
       (fn) => selectedFns.has(fn.name) !== (fn.productId === productId),
     );
     for (const fn of changedFns) {
-      await saveFunction({
-        name: fn.name,
-        sourceId: fn.sourceId,
-        schemaName: fn.schemaName,
-        functionName: fn.functionName,
-        returns: fn.returns,
-        arguments: fn.arguments,
-        visibleTo: fn.visibleTo,
-        domainId: fn.domainId,
-        description: fn.description,
-        kind: fn.kind,
-        returnSchema: fn.returnSchema,
-        outputColumns: fn.outputColumns,
-        implKind: fn.implKind,
-        binding: fn.binding,
-        materialize: fn.materialize,
-        productId: selectedFns.has(fn.name) ? productId : null,
-      });
+      await saveFunction(
+        {
+          name: fn.name,
+          sourceId: fn.sourceId,
+          schemaName: fn.schemaName,
+          functionName: fn.functionName,
+          returns: fn.returns,
+          arguments: fn.arguments,
+          visibleTo: fn.visibleTo,
+          domainId: fn.domainId,
+          description: fn.description,
+          kind: fn.kind,
+          returnSchema: fn.returnSchema,
+          outputColumns: fn.outputColumns,
+          implKind: fn.implKind,
+          binding: fn.binding,
+          materialize: fn.materialize,
+          requiresApproval: fn.requiresApproval, // REQ-1924
+          writesTable: fn.writesTable, // REQ-1924, REQ-871
+          productId: selectedFns.has(fn.name) ? productId : null,
+        },
+        fn.name,
+      );
     }
     if (changedFns.length > 0) {
       const refreshed = await fetchActions();

@@ -126,6 +126,7 @@ describe("SecurityPage — per-role rate & query-complexity limits (REQ-1174)", 
           maxQueryTimeMs: 3000,
         },
       }),
+      false, // a role that exists is updated
     );
   });
 
@@ -137,6 +138,9 @@ describe("SecurityPage — per-role rate & query-complexity limits (REQ-1174)", 
     await chooseAllDomains();
     fireEvent.click(screen.getByTestId("save-role"));
     await waitFor(() => expect(upsertRoleSpy).toHaveBeenCalledTimes(1));
-    expect(upsertRoleSpy).toHaveBeenCalledWith(expect.objectContaining({ rateLimit: null }));
+    expect(upsertRoleSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ rateLimit: null }),
+      true, // a new role is created
+    );
   });
 });

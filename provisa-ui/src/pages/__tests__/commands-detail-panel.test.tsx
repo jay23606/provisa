@@ -192,11 +192,18 @@ describe("+ Command asks only what a command needs in order to exist", () => {
     await userEvent.click(screen.getByTestId("commands-save"));
     await waitFor(() => expect(saveWebhook).toHaveBeenCalled());
     expect(saveWebhook.mock.calls[0][0]).toMatchObject({ name: "page_ops" });
+    expect(saveWebhook.mock.calls[0][1]).toBeNull(); // a new one: created, never saved over
     // Selected in its list, and its detail open in edit: the whole form now.
     await waitFor(() =>
       expect(screen.getByTestId("commands-split-title")).toHaveTextContent("page_ops"),
     );
     expect(screen.getByTestId("commands-wh-row-page_ops")).toHaveClass("row-selected");
     expect(within(panel()!).getByLabelText(/^Description/)).toBeInTheDocument();
+
+    // Saved again from its open detail, it is updated by its name.
+    saveWebhook.mockClear();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(saveWebhook).toHaveBeenCalled());
+    expect(saveWebhook.mock.calls[0][1]).toBe("page_ops");
   });
 });

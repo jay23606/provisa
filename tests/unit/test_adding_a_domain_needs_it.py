@@ -226,6 +226,13 @@ async def _create_role(caller: str, role_id: str, listed: list[str], parent: str
     )
 
 
+async def _update_role(caller: str, role_id: str, listed: list[str]):
+    return await schema_mutation.Mutation().update_role(
+        _info(caller),  # type: ignore[arg-type]
+        RoleInput(id=role_id, capabilities=["usage"], domain_access=listed),
+    )
+
+
 async def test_graphql_creates_a_role_in_the_callers_domain_and_refuses_one_outside_it(plane):
     assert (await _create_role("sales_admin", "g1", ["sales"])).success is True
     for listed, parent in ((["finance"], None), (["*"], None), (["sales"], "auditor")):
@@ -237,13 +244,31 @@ async def test_graphql_creates_a_role_in_the_callers_domain_and_refuses_one_outs
 
 async def test_graphql_redefining_a_role_adds_only_what_the_caller_reaches(plane):
     with pytest.raises(PermissionError, match="No access to domain 'finance'"):
-        await _create_role("sales_admin", "seller", ["sales", "finance"])
+        await _update_role("sales_admin", "seller", ["sales", "finance"])
     assert (await _role_row(plane, "seller"))["domain_access"] == ["sales"]
     # REQ-1531 (amended 2026-10-07): the auditor role reaches finance, so redefining it is an act
     # in finance even when finance stays on it.
     with pytest.raises(PermissionError, match="No access to domain 'finance'"):
-        await _create_role("sales_admin", "auditor", ["finance"])
-    assert (await _create_role("everywhere", "auditor", ["finance"])).success is True
+        await _update_role("sales_admin", "auditor", ["finance"])
+    assert (await _update_role("everywhere", "auditor", ["finance"])).success is True
+
+
+async def test_graphql_create_refuses_a_role_that_exists_and_update_refuses_one_that_does_not(
+    plane,
+):
+    """A create makes a new role, an update changes one: each refuses the other's id by name,
+    and writes nothing."""
+    before = await _role_row(plane, "auditor")
+    taken = await _create_role("everywhere", "auditor", ["*"])
+    assert (taken.success, taken.code, taken.params) == (
+        False,
+        "schema.role_id_taken",
+        {"role": "auditor"},
+    )
+    assert await _role_row(plane, "auditor") == before
+    missing = await _update_role("everywhere", "nobody", ["sales"])
+    assert (missing.success, missing.code) == (False, "schema.role_not_found")
+    assert await _role_row(plane, "nobody") is None
 
 
 # --- a source ------------------------------------------------------------------------------------

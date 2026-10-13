@@ -387,6 +387,7 @@ async def create_function(
     )
     # return_schema is a JSON column — pass the Python object directly (no double-encoding).
     async with state.model_db.acquire() as _conn:
+        await _refuse_taken_name(_conn, tracked_functions, body.name, "function")
         # REQ-870: re-registering a stored command read-safe is a reclassification.
         await _require_reclassification(
             request, _conn, tracked_functions, body.name, body.kind, body.domainId
@@ -475,6 +476,16 @@ async def update_function(
     return {"success": True, "name": name}
 
 
+async def _refuse_taken_name(conn, table, name: str, kind: str) -> None:
+    """A create makes a new command or webhook: a name one already holds is refused by name
+    (409), before anything is written. Changing one is its PUT."""
+    taken = (await conn.execute_core(select(table.c.name).where(table.c.name == name))).fetchone()
+    if taken is not None:
+        raise ApiError(
+            409, f"actions.{kind}_exists", f"{kind.capitalize()} '{name}' already exists", name=name
+        )
+
+
 async def _require_its_domain(request: Request, conn, table, name: str) -> None:  # REQ-1531
     """Gate an act on a command or webhook named by ``name`` on the domain it sits in.
 
@@ -531,6 +542,7 @@ async def create_webhook(
     from provisa.core.repositories import creation_request as cr_repo
 
     async with state.model_db.acquire() as conn:
+        await _refuse_taken_name(conn, tracked_webhooks, body.name, "webhook")
         # REQ-870: re-registering a stored webhook read-safe is a reclassification.
         await _require_reclassification(
             request, conn, tracked_webhooks, body.name, body.kind, body.domainId

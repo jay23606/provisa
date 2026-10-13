@@ -122,59 +122,80 @@ export async function fetchActions(): Promise<{
   return resp.json();
 }
 
-export async function saveFunction(input: {
-  name: string;
-  sourceId: string;
-  schemaName: string;
-  functionName: string;
-  returns: string;
-  arguments: ActionArg[];
-  visibleTo: string[];
-  domainId: string;
-  description?: string | null;
-  kind?: string;
-  returnSchema?: Record<string, unknown> | null;
-  outputColumns?: DatasetColumn[] | null;
-  implKind?: string;
-  binding?: Record<string, unknown>;
-  materialize?: boolean;
-  // REQ-1924: each call is approved by the deployment's approval hook before it runs.
-  requiresApproval?: boolean;
-  // REQ-1924, REQ-871: "schema.table" of the registered table it writes, where known.
-  writesTable?: string | null;
-  productId?: string | null;
-}): Promise<MutationResult> {
-  const resp = await fetch(`${API_BASE}/admin/actions/functions`, {
-    method: "POST",
+function actionUrl(kind: "functions" | "webhooks", existingName: string | null): string {
+  const base = `${API_BASE}/admin/actions/${kind}`;
+  return existingName === null ? base : `${base}/${encodeURIComponent(existingName)}`;
+}
+
+/** The Error for a save the server answered with an error status: its refusal as the reader's
+ *  language words it (an existing name, a domain not reached), else the status. */
+async function refusedSave(resp: Response, op: string): Promise<Error> {
+  const body = await resp.json().catch(() => null);
+  return new Error(serverMessage(body, requestFailed(op, resp.status)));
+}
+
+export async function saveFunction(
+  input: {
+    name: string;
+    sourceId: string;
+    schemaName: string;
+    functionName: string;
+    returns: string;
+    arguments: ActionArg[];
+    visibleTo: string[];
+    domainId: string;
+    description?: string | null;
+    kind?: string;
+    returnSchema?: Record<string, unknown> | null;
+    outputColumns?: DatasetColumn[] | null;
+    implKind?: string;
+    binding?: Record<string, unknown>;
+    materialize?: boolean;
+    // REQ-1924: each call is approved by the deployment's approval hook before it runs.
+    requiresApproval?: boolean;
+    // REQ-1924, REQ-871: "schema.table" of the registered table it writes, where known.
+    writesTable?: string | null;
+    productId?: string | null;
+  },
+  /** The name of the command saved over (an update), or null for a new one (a create, which
+   *  refuses a name that exists). */
+  existingName: string | null,
+): Promise<MutationResult> {
+  const resp = await fetch(actionUrl("functions", existingName), {
+    method: existingName === null ? "POST" : "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!resp.ok) throw new Error(requestFailed("Save function", resp.status));
+  if (!resp.ok) throw await refusedSave(resp, "Save function");
   const result: MutationResult = await resp.json();
   return { ...result, message: serverMessage(result, result.message) };
 }
 
-export async function saveWebhook(input: {
-  name: string;
-  url: string;
-  method: string;
-  timeoutMs: number;
-  returns?: string;
-  inlineReturnType: InlineField[];
-  arguments: ActionArg[];
-  visibleTo: string[];
-  domainId: string;
-  description?: string | null;
-  kind?: string;
-  // REQ-209, REQ-1924: each call is approved by the deployment's approval hook before it is made.
-  requiresApproval?: boolean;
-}): Promise<MutationResult> {
-  const resp = await fetch(`${API_BASE}/admin/actions/webhooks`, {
-    method: "POST",
+export async function saveWebhook(
+  input: {
+    name: string;
+    url: string;
+    method: string;
+    timeoutMs: number;
+    returns?: string;
+    inlineReturnType: InlineField[];
+    arguments: ActionArg[];
+    visibleTo: string[];
+    domainId: string;
+    description?: string | null;
+    kind?: string;
+    // REQ-209, REQ-1924: each call is approved by the deployment's approval hook before it is made.
+    requiresApproval?: boolean;
+  },
+  /** The name of the webhook saved over (an update), or null for a new one. */
+  existingName: string | null,
+): Promise<MutationResult> {
+  const resp = await fetch(actionUrl("webhooks", existingName), {
+    method: existingName === null ? "POST" : "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!resp.ok) throw new Error(requestFailed("Save webhook", resp.status));
+  if (!resp.ok) throw await refusedSave(resp, "Save webhook");
   const result: MutationResult = await resp.json();
   return { ...result, message: serverMessage(result, result.message) };
 }

@@ -11,7 +11,9 @@
       "unknown_action_type": "Onbekend actionType '{{action_type}}'",
       "unknown_role": "Onbekende rol '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' niet gevonden",
-      "written_table_not_registered": "'{{table}}' is geen geregistreerde tabel van bron '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' is geen geregistreerde tabel van bron '{{source_id}}'",
+      "function_exists": "Functie '{{name}}' bestaat al",
+      "webhook_exists": "Webhook '{{name}}' bestaat al"
     },
     "ai_models": {
       "vector_model_fields_required": "elk vector_models-item vereist id, provider en dimensions"
@@ -402,7 +404,9 @@
       "relationship_unknown_target": "Doeltabel '{{table}}' is niet geregistreerd",
       "relationship_unknown_junction": "Koppeltabel '{{table}}' is niet geregistreerd",
       "source_id_taken": "Bron '{{source}}' bestaat al",
-      "domain_id_taken": "Domein '{{domain}}' bestaat al"
+      "domain_id_taken": "Domein '{{domain}}' bestaat al",
+      "role_id_taken": "Rol '{{role}}' bestaat al",
+      "role_updated": "Rol '{{role}}' bijgewerkt"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

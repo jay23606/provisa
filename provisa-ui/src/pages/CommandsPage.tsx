@@ -235,41 +235,47 @@ export function CommandsPage() {
         // REQ-2001: a statement command's statement declares its kind, its written table and its
         // output; the server derives them, and one sent beside it would have to agree.
         const isStatement = form.implKind === "statement";
-        await saveFunction({
-          name: form.name,
-          sourceId: form.sourceId,
-          schemaName: form.schemaName,
-          functionName: form.functionName,
-          returns: isDataset ? "" : form.returns,
-          arguments: form.arguments,
-          visibleTo,
-          domainId: form.domainId,
-          description: form.description || undefined,
-          kind: isStatement ? undefined : form.kind,
-          returnSchema: isDataset && !isStatement ? deriveReturnSchema(outputColumns) : null,
-          outputColumns: isStatement ? null : outputColumns, // REQ-1159
-          implKind: form.implKind,
-          binding: form.binding,
-          materialize: form.materialize,
-          requiresApproval: form.requiresApproval, // REQ-1924
-          writesTable: isStatement ? undefined : form.writesTable || null, // REQ-1924, REQ-871
-          productId: form.productId || null, // REQ-1634
-        });
+        await saveFunction(
+          {
+            name: form.name,
+            sourceId: form.sourceId,
+            schemaName: form.schemaName,
+            functionName: form.functionName,
+            returns: isDataset ? "" : form.returns,
+            arguments: form.arguments,
+            visibleTo,
+            domainId: form.domainId,
+            description: form.description || undefined,
+            kind: isStatement ? undefined : form.kind,
+            returnSchema: isDataset && !isStatement ? deriveReturnSchema(outputColumns) : null,
+            outputColumns: isStatement ? null : outputColumns, // REQ-1159
+            implKind: form.implKind,
+            binding: form.binding,
+            materialize: form.materialize,
+            requiresApproval: form.requiresApproval, // REQ-1924
+            writesTable: isStatement ? undefined : form.writesTable || null, // REQ-1924, REQ-871
+            productId: form.productId || null, // REQ-1634
+          },
+          editingName, // the open command is updated; a new one is created
+        );
       } else {
-        await saveWebhook({
-          name: form.name,
-          url: form.url,
-          method: form.method,
-          timeoutMs: form.timeoutMs,
-          returns: form.returns || undefined,
-          inlineReturnType: form.inlineReturnType,
-          arguments: form.arguments,
-          visibleTo,
-          domainId: form.domainId,
-          description: form.description || undefined,
-          kind: form.kind,
-          requiresApproval: form.requiresApproval, // REQ-209
-        });
+        await saveWebhook(
+          {
+            name: form.name,
+            url: form.url,
+            method: form.method,
+            timeoutMs: form.timeoutMs,
+            returns: form.returns || undefined,
+            inlineReturnType: form.inlineReturnType,
+            arguments: form.arguments,
+            visibleTo,
+            domainId: form.domainId,
+            description: form.description || undefined,
+            kind: form.kind,
+            requiresApproval: form.requiresApproval, // REQ-209
+          },
+          editingName,
+        );
       }
       setMsg(t("commandsPage.savedMessage", { type: form.actionType, name: form.name }));
       setShowForm(false);

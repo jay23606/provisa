@@ -11,7 +11,9 @@
       "unknown_action_type": "Неизвестный actionType '{{action_type}}'",
       "unknown_role": "Неизвестная роль '{{role}}'",
       "webhook_not_found": "Вебхук '{{name}}' не найден",
-      "written_table_not_registered": "'{{table}}' не является зарегистрированной таблицей источника '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' не является зарегистрированной таблицей источника '{{source_id}}'",
+      "function_exists": "Функция '{{name}}' уже существует",
+      "webhook_exists": "Вебхук '{{name}}' уже существует"
     },
     "ai_models": {
       "vector_model_fields_required": "каждая запись vector_models требует id, provider и dimensions"
@@ -402,7 +404,9 @@
       "relationship_unknown_target": "Целевая таблица '{{table}}' не зарегистрирована",
       "relationship_unknown_junction": "Связующая таблица '{{table}}' не зарегистрирована",
       "source_id_taken": "Источник '{{source}}' уже существует",
-      "domain_id_taken": "Домен '{{domain}}' уже существует"
+      "domain_id_taken": "Домен '{{domain}}' уже существует",
+      "role_id_taken": "Роль '{{role}}' уже существует",
+      "role_updated": "Роль '{{role}}' обновлена"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

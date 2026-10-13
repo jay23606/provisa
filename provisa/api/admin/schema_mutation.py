@@ -335,6 +335,332 @@ async def _save_data_product(
     )
 
 
+async def _save_role(
+    info: StrawberryInfo, input: RoleInput, *, creating: bool
+) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
+    """A role saved: a create makes a new one, an update changes one that exists."""
+    # REQ-1531: a role carries both capabilities and domain_access (REQ-1530), so minting one is
+    # how a member would widen their own scope. It is the org_admin's act, gated by the right
+    # that administers members.
+    from provisa.api.admin.capabilities import require_capability
+    from provisa.core.models import Role as RoleModel
+
+    require_capability(info, "user_management")
+    from provisa.core.models import RoleRateLimit
+    from provisa.core.repositories import role as role_repo
+
+    pool = await _get_pool()
+    # REQ-1174: carry the per-role rate + query-complexity limits through to the model/DB.
+    rl = input.rate_limit
+    rate_limit = (
+        RoleRateLimit(
+            requests_per_second=rl.requests_per_second,
+            max_query_complexity=rl.max_query_complexity,
+            max_query_time_ms=rl.max_query_time_ms,
+        )
+        if rl is not None
+        else None
+    )
+    # REQ-1677: the parent must exist, be another role, and not close a cycle.
+    from provisa.security.inheritance import parent_map, parent_problem
+
+    parent_id = input.parent_role_id or None
+    async with pool.acquire() as conn:
+        existing = await role_repo.list_all(cast("Connection", conn))
+    problem = parent_problem(input.id, parent_id, parent_map(existing))
+    if problem is not None:
+        return MutationResult(
+            success=False,
+            message=problem,
+            code="schema.role_parent_invalid",
+            params={"role": input.id, "parent": parent_id, "reason": problem},
+        )
+    # REQ-042/REQ-1337: the same two refusals the REST surface makes — an unknown capability,
+    # and a platform right (the role's own or its parent chain's) defined by a caller who is
+    # not a platform administrator.
+    from provisa.api.admin._platform_guard import role_definition_problem
+    from provisa.security.inheritance import effective_capabilities, effective_domain_access
+
+    inherited = effective_capabilities(parent_id, existing) if parent_id is not None else []
+    inherited_domains = (
+        effective_domain_access(parent_id, existing) if parent_id is not None else []
+    )
+    definition_problem = role_definition_problem(
+        info.context["request"],
+        input.capabilities,
+        inherited,
+        role_id=input.id,
+        domain_access=input.domain_access,
+        inherited_domain_access=inherited_domains,
+    )
+    if definition_problem is not None:
+        return MutationResult(
+            success=False,
+            message=str(definition_problem.detail),
+            code=definition_problem.code,
+            params={"role": input.id, **definition_problem.params},
+        )
+    # REQ-1531: a role hands out reach; whoever defines it must hold every domain the
+    # definition adds to what the role reaches — listed or inherited.
+    from provisa.api.admin.capabilities import require_reach_of_added_domains
+
+    held = next((r for r in existing if r["id"] == input.id), None)
+    # A create makes a new role and an update changes one: an id held by another role, or one no
+    # role holds, is refused by name. A refused definition was refused above, for what it is.
+    if creating and held is not None:
+        return MutationResult(
+            success=False,
+            message=f"Role {input.id!r} already exists",
+            code="schema.role_id_taken",
+            params={"role": input.id},
+        )
+    if not creating and held is None:
+        return MutationResult(
+            success=False,
+            message=f"Role {input.id!r} not found",
+            code="schema.role_not_found",
+            params={"role": input.id},
+        )
+    if held is not None:
+        # REQ-1531: redefining a role is an act in every domain it reaches now, not only in
+        # the ones the change adds.
+        require_right_in_domains(
+            info, "user_management", effective_domain_access(input.id, existing)
+        )
+    require_reach_of_added_domains(
+        info,
+        None if held is None else effective_domain_access(input.id, existing),
+        [*input.domain_access, *inherited_domains],
+    )
+    model = RoleModel(
+        id=input.id,
+        capabilities=input.capabilities,
+        domain_access=input.domain_access,
+        rate_limit=rate_limit,
+        parent_role_id=parent_id,
+        residency_values=input.residency_values,  # REQ-1921
+        # REQ-1919: what the form does not carry is kept as the store holds it.
+        **({} if held is None else {name: held[name] for name in role_repo.KEPT_ON_FORM_EDIT}),
+    )
+    async with pool.acquire() as conn:
+        await role_repo.upsert(
+            cast("Connection", conn),
+            model,
+            org_id=_resolve_admin_context(info),
+        )
+    # A new role has no state.schemas[role_id]/state.contexts[role_id] until some rebuild
+    # runs; without this, the role is unusable until an unrelated mutation happens to trigger
+    # one, and any prepared-plan cache keyed on schema_version would never see this role exist.
+    await _rebuild_schemas()
+    if creating:
+        return MutationResult(
+            success=True,
+            message=f"Role {input.id!r} created",
+            code="schema.role_created",
+            params={"role": input.id},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Role {input.id!r} updated",
+        code="schema.role_updated",
+        params={"role": input.id},
+    )
+
+
+async def _save_tag(
+    info: StrawberryInfo, input: TagInput, *, creating: bool
+) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
+    """A tag saved: a create makes a new one, an update changes one that exists."""
+    _require_tag_editor(info)
+    from provisa.core.models import (
+        DERIVED_TAG_IDS,
+        SYSTEM_TAG_IDS,
+        TAG_FIELD_POLICIES,
+        TAG_OBJECT_TYPES,
+        TAG_PARAM_POLICIES,
+        TAG_PARAM_SEPARATOR,
+        Tag as TagModel,
+    )
+    from provisa.core.repositories import tag as tag_repo
+
+    # REQ-1467: a registry id is a base id. Accepting "entity:customer" here would define a
+    # tag whose id parses as the system `entity` tag carrying a parameter, and every base-id
+    # comparison downstream would then resolve the user tag to the intrinsic.
+    if TAG_PARAM_SEPARATOR in input.id:
+        return MutationResult(
+            success=False,
+            message=(
+                f"Tag id {input.id!r} may not contain {TAG_PARAM_SEPARATOR!r} — "
+                "the separator introduces a parameter value on an assignment"
+            ),
+            code="schema.tag_id_has_separator",
+            params={"tag": input.id},
+        )
+    # REQ-1443: a derived tag is code-defined like a system tag, so it is reserved the same way.
+    if input.id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
+        return MutationResult(
+            success=False,
+            message=f"Tag {input.id!r} is a system tag and cannot be redefined",
+            code="schema.tag_system_immutable",
+            params={"tag": input.id},
+        )
+    bad_scopes = [s for s in input.applies_to if s not in TAG_OBJECT_TYPES]
+    if bad_scopes or not input.applies_to:
+        return MutationResult(
+            success=False,
+            message=f"applies_to must be a non-empty subset of {list(TAG_OBJECT_TYPES)}",
+            code="schema.tag_bad_scope",
+            params={"tag": input.id, "scopes": ",".join(bad_scopes)},
+        )
+    for policy in (input.reason_policy, input.expires_policy):
+        if policy not in TAG_FIELD_POLICIES:
+            return MutationResult(
+                success=False,
+                message=f"Field policy must be one of {list(TAG_FIELD_POLICIES)}",
+                code="schema.tag_bad_policy",
+                params={"tag": input.id, "policy": policy},
+            )
+    if input.param_policy not in TAG_PARAM_POLICIES:  # REQ-1467
+        return MutationResult(
+            success=False,
+            message=f"Parameter policy must be one of {list(TAG_PARAM_POLICIES)}",
+            code="schema.tag_bad_param_policy",
+            params={"tag": input.id, "policy": input.param_policy},
+        )
+    model = TagModel(
+        id=input.id,
+        description=input.description,
+        applies_to=list(input.applies_to),
+        reason_policy=input.reason_policy,
+        expires_policy=input.expires_policy,
+        param_policy=input.param_policy,
+        sensitive=input.sensitive,
+    )
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        existing = await tag_repo.get(cast("Connection", conn), input.id)
+        # A create makes a new tag and an update changes one: an id another tag holds, or one
+        # no tag holds, is refused by name, and nothing is written.
+        if creating and existing is not None:
+            return MutationResult(
+                success=False,
+                message=f"Tag {input.id!r} already exists",
+                code="schema.tag_id_taken",
+                params={"tag": input.id},
+            )
+        if not creating and existing is None:
+            return MutationResult(
+                success=False,
+                message=f"Tag {input.id!r} not found",
+                code="schema.tag_not_found",
+                params={"tag": input.id},
+            )
+        was_sensitive = bool(existing is not None and existing["sensitive"])
+        if input.sensitive != was_sensitive:
+            # REQ-1943: setting or clearing the Sensitive data option reveals or hides every
+            # column carrying the tag -- in every domain, so the right must reach them all
+            # (REQ-1944).
+            require_right_in_domains(info, SENSITIVE_DATA, {ALL_DOMAINS})
+        elif was_sensitive:
+            # REQ-1944: a sensitive tag's definition is maintained by whoever governs
+            # sensitive columns across the org, or by a table editor as before.
+            _require_sensitive_tag_definer(info)
+        else:
+            require_capability(info, "table_registration")
+        await tag_repo.upsert(cast("Connection", conn), model)
+    await _refresh_config_tags()
+    return MutationResult(
+        success=True,
+        message=f"Tag {input.id!r} saved",
+        code="schema.tag_saved",
+        params={"tag": input.id},
+    )
+
+
+async def _save_metric(
+    info: StrawberryInfo, input: MetricInput, *, creating: bool
+) -> MutationResult:  # REQ-1317
+    """A governed metric definition saved (REQ-1317): a create makes a new one, an update
+    replaces one that exists. The expression must parse under sqlglot and contain at least one
+    aggregate function -- hard error otherwise."""
+    from provisa.api.admin.capabilities import require_capability
+    from provisa.core.models import Metric as MetricModel
+    from provisa.core.repositories import metric as metric_repo
+
+    require_capability(info, "table_registration")
+    try:
+        model = MetricModel(
+            name=input.name,
+            expression=input.expression,
+            datatype=input.datatype,
+            description=input.description,
+            ai_context=input.ai_context,
+            visible_to=list(input.visible_to),
+        )
+    except ValueError as e:  # pydantic name validation (snake_case)
+        return MutationResult(success=False, message=str(e))
+    from provisa.api.admin.domain_guard import (
+        expression_domains,
+        metric_domains,
+        require_domains,
+    )
+
+    pool = await _get_pool()
+    try:
+        async with pool.acquire() as conn:
+            # REQ-1531: a metric is an object of every domain its expression reads. Saving one
+            # needs the domains the NEW expression reads, and those of the definition it
+            # replaces -- replacing it is an act on that one too.
+            reads = await expression_domains(cast("Connection", conn), input.name, input.expression)
+            replaced = await metric_domains(cast("Connection", conn), input.name)
+            # A create makes a new metric and an update changes one: a name another metric
+            # holds, or one no metric holds, is refused by name, and nothing is written.
+            if creating and replaced is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Metric {input.name!r} already exists",
+                    code="schema.metric_name_taken",
+                    params={"metric": input.name},
+                )
+            if not creating and replaced is None:
+                return MutationResult(
+                    success=False,
+                    message=f"Metric {input.name!r} not found",
+                    code="schema.metric_not_found",
+                    params={"metric": input.name},
+                )
+            require_domains(info, reads | (replaced or set()))
+            await metric_repo.upsert(cast("Connection", conn), model)
+            # REQ-1318: every registered view whose view_metrics spec references this
+            # metric regenerates its stored view_sql against the UPDATED definition.
+            # Free-hand view_sql born from inline metric() calls carries no stored
+            # provenance and is not regenerated (config-path views regenerate on reload).
+            from provisa.api.admin._metric_views import regenerate_metric_views
+
+            regenerated = await regenerate_metric_views(cast("Connection", conn), input.name)
+    except ValueError as e:  # REQ-1317/1318: invalid expression / spec no longer compiles
+        return MutationResult(success=False, message=str(e))
+    # Always rebuild: state.metrics (raw-SQL `metrics.<name>` expansion) and the
+    # per-role schema metric blocks republish from the DB registry on rebuild.
+    await _rebuild_schemas()
+    if regenerated:
+        return MutationResult(
+            success=True,
+            message=(
+                f"Metric {input.name!r} saved; regenerated view(s): "
+                + ", ".join(sorted(regenerated))
+            ),
+            code="schema.metric_saved_regenerated",
+            params={"metric": input.name, "views": ", ".join(sorted(regenerated))},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Metric {input.name!r} saved",
+        code="schema.metric_saved",
+        params={"metric": input.name},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -2286,97 +2612,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
-    async def upsert_tag(
+    async def create_tag(
         self, info: StrawberryInfo, input: TagInput
     ) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
-        _require_tag_editor(info)
-        from provisa.core.models import (
-            DERIVED_TAG_IDS,
-            SYSTEM_TAG_IDS,
-            TAG_FIELD_POLICIES,
-            TAG_OBJECT_TYPES,
-            TAG_PARAM_POLICIES,
-            TAG_PARAM_SEPARATOR,
-            Tag as TagModel,
-        )
-        from provisa.core.repositories import tag as tag_repo
+        return await _save_tag(info, input, creating=True)
 
-        # REQ-1467: a registry id is a base id. Accepting "entity:customer" here would define a
-        # tag whose id parses as the system `entity` tag carrying a parameter, and every base-id
-        # comparison downstream would then resolve the user tag to the intrinsic.
-        if TAG_PARAM_SEPARATOR in input.id:
-            return MutationResult(
-                success=False,
-                message=(
-                    f"Tag id {input.id!r} may not contain {TAG_PARAM_SEPARATOR!r} — "
-                    "the separator introduces a parameter value on an assignment"
-                ),
-                code="schema.tag_id_has_separator",
-                params={"tag": input.id},
-            )
-        # REQ-1443: a derived tag is code-defined like a system tag, so it is reserved the same way.
-        if input.id in SYSTEM_TAG_IDS + DERIVED_TAG_IDS:
-            return MutationResult(
-                success=False,
-                message=f"Tag {input.id!r} is a system tag and cannot be redefined",
-                code="schema.tag_system_immutable",
-                params={"tag": input.id},
-            )
-        bad_scopes = [s for s in input.applies_to if s not in TAG_OBJECT_TYPES]
-        if bad_scopes or not input.applies_to:
-            return MutationResult(
-                success=False,
-                message=f"applies_to must be a non-empty subset of {list(TAG_OBJECT_TYPES)}",
-                code="schema.tag_bad_scope",
-                params={"tag": input.id, "scopes": ",".join(bad_scopes)},
-            )
-        for policy in (input.reason_policy, input.expires_policy):
-            if policy not in TAG_FIELD_POLICIES:
-                return MutationResult(
-                    success=False,
-                    message=f"Field policy must be one of {list(TAG_FIELD_POLICIES)}",
-                    code="schema.tag_bad_policy",
-                    params={"tag": input.id, "policy": policy},
-                )
-        if input.param_policy not in TAG_PARAM_POLICIES:  # REQ-1467
-            return MutationResult(
-                success=False,
-                message=f"Parameter policy must be one of {list(TAG_PARAM_POLICIES)}",
-                code="schema.tag_bad_param_policy",
-                params={"tag": input.id, "policy": input.param_policy},
-            )
-        model = TagModel(
-            id=input.id,
-            description=input.description,
-            applies_to=list(input.applies_to),
-            reason_policy=input.reason_policy,
-            expires_policy=input.expires_policy,
-            param_policy=input.param_policy,
-            sensitive=input.sensitive,
-        )
-        pool = await _get_pool()
-        async with pool.acquire() as conn:
-            existing = await tag_repo.get(cast("Connection", conn), input.id)
-            was_sensitive = bool(existing is not None and existing["sensitive"])
-            if input.sensitive != was_sensitive:
-                # REQ-1943: setting or clearing the Sensitive data option reveals or hides every
-                # column carrying the tag -- in every domain, so the right must reach them all
-                # (REQ-1944).
-                require_right_in_domains(info, SENSITIVE_DATA, {ALL_DOMAINS})
-            elif was_sensitive:
-                # REQ-1944: a sensitive tag's definition is maintained by whoever governs
-                # sensitive columns across the org, or by a table editor as before.
-                _require_sensitive_tag_definer(info)
-            else:
-                require_capability(info, "table_registration")
-            await tag_repo.upsert(cast("Connection", conn), model)
-        await _refresh_config_tags()
-        return MutationResult(
-            success=True,
-            message=f"Tag {input.id!r} saved",
-            code="schema.tag_saved",
-            params={"tag": input.id},
-        )
+    @strawberry.mutation
+    async def update_tag(
+        self, info: StrawberryInfo, input: TagInput
+    ) -> MutationResult:  # REQ-1373, REQ-1375, REQ-1944
+        return await _save_tag(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_tag(
@@ -2661,109 +2906,13 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
     async def create_role(
         self, info: StrawberryInfo, input: RoleInput
     ) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
-        # REQ-1531: a role carries both capabilities and domain_access (REQ-1530), so minting one is
-        # how a member would widen their own scope. It is the org_admin's act, gated by the right
-        # that administers members.
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import Role as RoleModel
+        return await _save_role(info, input, creating=True)
 
-        require_capability(info, "user_management")
-        from provisa.core.models import RoleRateLimit
-        from provisa.core.repositories import role as role_repo
-
-        pool = await _get_pool()
-        # REQ-1174: carry the per-role rate + query-complexity limits through to the model/DB.
-        rl = input.rate_limit
-        rate_limit = (
-            RoleRateLimit(
-                requests_per_second=rl.requests_per_second,
-                max_query_complexity=rl.max_query_complexity,
-                max_query_time_ms=rl.max_query_time_ms,
-            )
-            if rl is not None
-            else None
-        )
-        # REQ-1677: the parent must exist, be another role, and not close a cycle.
-        from provisa.security.inheritance import parent_map, parent_problem
-
-        parent_id = input.parent_role_id or None
-        async with pool.acquire() as conn:
-            existing = await role_repo.list_all(cast("Connection", conn))
-        problem = parent_problem(input.id, parent_id, parent_map(existing))
-        if problem is not None:
-            return MutationResult(
-                success=False,
-                message=problem,
-                code="schema.role_parent_invalid",
-                params={"role": input.id, "parent": parent_id, "reason": problem},
-            )
-        # REQ-042/REQ-1337: the same two refusals the REST surface makes — an unknown capability,
-        # and a platform right (the role's own or its parent chain's) defined by a caller who is
-        # not a platform administrator.
-        from provisa.api.admin._platform_guard import role_definition_problem
-        from provisa.security.inheritance import effective_capabilities, effective_domain_access
-
-        inherited = effective_capabilities(parent_id, existing) if parent_id is not None else []
-        inherited_domains = (
-            effective_domain_access(parent_id, existing) if parent_id is not None else []
-        )
-        definition_problem = role_definition_problem(
-            info.context["request"],
-            input.capabilities,
-            inherited,
-            role_id=input.id,
-            domain_access=input.domain_access,
-            inherited_domain_access=inherited_domains,
-        )
-        if definition_problem is not None:
-            return MutationResult(
-                success=False,
-                message=str(definition_problem.detail),
-                code=definition_problem.code,
-                params={"role": input.id, **definition_problem.params},
-            )
-        # REQ-1531: a role hands out reach; whoever defines it must hold every domain the
-        # definition adds to what the role reaches — listed or inherited.
-        from provisa.api.admin.capabilities import require_reach_of_added_domains
-
-        held = next((r for r in existing if r["id"] == input.id), None)
-        if held is not None:
-            # REQ-1531: redefining a role is an act in every domain it reaches now, not only in
-            # the ones the change adds.
-            require_right_in_domains(
-                info, "user_management", effective_domain_access(input.id, existing)
-            )
-        require_reach_of_added_domains(
-            info,
-            None if held is None else effective_domain_access(input.id, existing),
-            [*input.domain_access, *inherited_domains],
-        )
-        model = RoleModel(
-            id=input.id,
-            capabilities=input.capabilities,
-            domain_access=input.domain_access,
-            rate_limit=rate_limit,
-            parent_role_id=parent_id,
-            residency_values=input.residency_values,  # REQ-1921
-            # REQ-1919: what the form does not carry is kept as the store holds it.
-            **({} if held is None else {name: held[name] for name in role_repo.KEPT_ON_FORM_EDIT}),
-        )
-        async with pool.acquire() as conn:
-            await role_repo.upsert(
-                cast("Connection", conn),
-                model,
-                org_id=_resolve_admin_context(info),
-            )
-        # A new role has no state.schemas[role_id]/state.contexts[role_id] until some rebuild
-        # runs; without this, the role is unusable until an unrelated mutation happens to trigger
-        # one, and any prepared-plan cache keyed on schema_version would never see this role exist.
-        await _rebuild_schemas()
-        return MutationResult(
-            success=True,
-            message=f"Role {input.id!r} created",
-            code="schema.role_created",
-            params={"role": input.id},
-        )
+    @strawberry.mutation
+    async def update_role(
+        self, info: StrawberryInfo, input: RoleInput
+    ) -> MutationResult:  # REQ-042, REQ-059, REQ-060, REQ-215, REQ-1531
+        return await _save_role(info, input, creating=False)
 
     @strawberry.mutation
     async def register_table(
@@ -2832,73 +2981,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
-    async def upsert_metric(
+    async def create_metric(
         self, info: StrawberryInfo, input: MetricInput
     ) -> MutationResult:  # REQ-1317
-        """Create or replace a governed metric definition (REQ-1317). The expression must parse
-        under sqlglot and contain at least one aggregate function — hard error otherwise."""
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import Metric as MetricModel
-        from provisa.core.repositories import metric as metric_repo
+        return await _save_metric(info, input, creating=True)
 
-        require_capability(info, "table_registration")
-        try:
-            model = MetricModel(
-                name=input.name,
-                expression=input.expression,
-                datatype=input.datatype,
-                description=input.description,
-                ai_context=input.ai_context,
-                visible_to=list(input.visible_to),
-            )
-        except ValueError as e:  # pydantic name validation (snake_case)
-            return MutationResult(success=False, message=str(e))
-        from provisa.api.admin.domain_guard import (
-            expression_domains,
-            metric_domains,
-            require_domains,
-        )
-
-        pool = await _get_pool()
-        try:
-            async with pool.acquire() as conn:
-                # REQ-1531: a metric is an object of every domain its expression reads. Saving one
-                # needs the domains the NEW expression reads, and those of the definition it
-                # replaces -- replacing it is an act on that one too.
-                reads = await expression_domains(
-                    cast("Connection", conn), input.name, input.expression
-                )
-                replaced = await metric_domains(cast("Connection", conn), input.name)
-                require_domains(info, reads | (replaced or set()))
-                await metric_repo.upsert(cast("Connection", conn), model)
-                # REQ-1318: every registered view whose view_metrics spec references this
-                # metric regenerates its stored view_sql against the UPDATED definition.
-                # Free-hand view_sql born from inline metric() calls carries no stored
-                # provenance and is not regenerated (config-path views regenerate on reload).
-                from provisa.api.admin._metric_views import regenerate_metric_views
-
-                regenerated = await regenerate_metric_views(cast("Connection", conn), input.name)
-        except ValueError as e:  # REQ-1317/1318: invalid expression / spec no longer compiles
-            return MutationResult(success=False, message=str(e))
-        # Always rebuild: state.metrics (raw-SQL `metrics.<name>` expansion) and the
-        # per-role schema metric blocks republish from the DB registry on rebuild.
-        await _rebuild_schemas()
-        if regenerated:
-            return MutationResult(
-                success=True,
-                message=(
-                    f"Metric {input.name!r} saved; regenerated view(s): "
-                    + ", ".join(sorted(regenerated))
-                ),
-                code="schema.metric_saved_regenerated",
-                params={"metric": input.name, "views": ", ".join(sorted(regenerated))},
-            )
-        return MutationResult(
-            success=True,
-            message=f"Metric {input.name!r} saved",
-            code="schema.metric_saved",
-            params={"metric": input.name},
-        )
+    @strawberry.mutation
+    async def update_metric(
+        self, info: StrawberryInfo, input: MetricInput
+    ) -> MutationResult:  # REQ-1317
+        return await _save_metric(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_metric(self, info: StrawberryInfo, name: str) -> MutationResult:  # REQ-1317

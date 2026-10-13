@@ -11,7 +11,9 @@
       "unknown_action_type": "Unbekannter actionType '{{action_type}}'",
       "unknown_role": "Unbekannte Rolle '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' nicht gefunden",
-      "written_table_not_registered": "'{{table}}' ist keine registrierte Tabelle der Quelle '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' ist keine registrierte Tabelle der Quelle '{{source_id}}'",
+      "function_exists": "Die Funktion '{{name}}' existiert bereits",
+      "webhook_exists": "Der Webhook '{{name}}' existiert bereits"
     },
     "ai_models": {
       "vector_model_fields_required": "jeder vector_models-Eintrag erfordert id, provider und dimensions"
@@ -402,7 +404,9 @@
       "relationship_unknown_target": "Die Zieltabelle '{{table}}' ist nicht registriert",
       "relationship_unknown_junction": "Die Verknüpfungstabelle '{{table}}' ist nicht registriert",
       "source_id_taken": "Die Quelle '{{source}}' existiert bereits",
-      "domain_id_taken": "Die Domäne '{{domain}}' existiert bereits"
+      "domain_id_taken": "Die Domäne '{{domain}}' existiert bereits",
+      "role_id_taken": "Die Rolle '{{role}}' existiert bereits",
+      "role_updated": "Rolle '{{role}}' aktualisiert"
     },
     "secrets": {
       "name_refused": "{{name}} ist kein Name innerhalb der Secrets dieser Organisation in {{service}}: Ein Name ist relativ zur Organisation und kann sie nicht verlassen",

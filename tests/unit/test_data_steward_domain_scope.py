@@ -400,8 +400,8 @@ def _tag(sensitive: bool) -> Any:
 
 async def test_the_sensitive_option_on_a_tag_needs_every_domain(plane):
     with pytest.raises(PermissionError, match="every domain"):
-        await M().upsert_tag(_info(plane.steward), _tag(False))
-    assert (await M().upsert_tag(_info("steward_everywhere"), _tag(False))).success
+        await M().update_tag(_info(plane.steward), _tag(False))
+    assert (await M().update_tag(_info("steward_everywhere"), _tag(False))).success
 
 
 # --- column hiding on a table save ---------------------------------------------------------------

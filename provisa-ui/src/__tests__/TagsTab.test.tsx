@@ -17,6 +17,7 @@ import type { Tag, TagAssignment } from "../types/admin";
 const t = i18n.getFixedT("en");
 
 const upsertSpy = vi.fn(async () => ({ success: true, message: "ok" }));
+const updateSpy = vi.fn(async (..._fields: unknown[]) => ({ success: true, message: "ok" }));
 const deleteSpy = vi.fn(async () => ({ success: true, message: "ok" }));
 const upsertValueSpy = vi.fn(async () => ({ success: true, message: "ok" }));
 const deleteValueSpy = vi.fn(async () => ({ success: true, message: "ok" }));
@@ -30,7 +31,7 @@ vi.mock("../hooks/useTagQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../hooks/useAdminQueries")>()),
   useTags: () => ({ tags: mockTags, loading: false, refetch: vi.fn() }),
   useTagAssignments: () => ({ tagAssignments: mockAssignments, loading: false }),
-  useUpsertTag: () => ({ upsertTag: upsertSpy, loading: false }),
+  useSaveTag: () => ({ createTag: upsertSpy, updateTag: updateSpy, loading: false }),
   useDeleteTag: () => ({ deleteTag: deleteSpy, loading: false }),
   useUpsertTagParamValue: () => ({ upsertTagParamValue: upsertValueSpy, loading: false }),
   useDeleteTagParamValue: () => ({ deleteTagParamValue: deleteValueSpy, loading: false }),
@@ -115,6 +116,7 @@ async function pickPolicy(testid: string, label: string) {
 describe("TagsTab", () => {
   beforeEach(() => {
     upsertSpy.mockClear();
+    updateSpy.mockClear();
     deleteSpy.mockClear();
     upsertValueSpy.mockClear();
     deleteValueSpy.mockClear();
@@ -202,6 +204,19 @@ describe("TagsTab", () => {
         "none",
       ),
     );
+  });
+
+  it("saves an edited tag through updateTag, never a create", async () => {
+    render(<TagsTab />);
+    fireEvent.click(
+      within(screen.getByTestId("tags-row-finance")).getByLabelText(
+        t("tagsTab.editTag", { id: "finance" }),
+      ),
+    );
+    fireEvent.click(screen.getByTestId("tags-save"));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1));
+    expect(updateSpy.mock.calls[0][0]).toBe("finance");
+    expect(upsertSpy).not.toHaveBeenCalled();
   });
 
   it("passes the selected reason and expiry policies to upsertTag", async () => {

@@ -11,7 +11,9 @@
       "unknown_action_type": "Unknown actionType '{{action_type}}'",
       "unknown_role": "Unknown role '{{role}}'",
       "webhook_not_found": "Webhook '{{name}}' not found",
-      "written_table_not_registered": "'{{table}}' is not a registered table of source '{{source_id}}'"
+      "written_table_not_registered": "'{{table}}' is not a registered table of source '{{source_id}}'",
+      "function_exists": "Function '{{name}}' already exists",
+      "webhook_exists": "Webhook '{{name}}' already exists"
     },
     "ai_models": {
       "vector_model_fields_required": "each vector_models entry requires id, provider, and dimensions"
@@ -402,7 +404,9 @@
       "relationship_unknown_target": "Target table '{{table}}' is not registered",
       "relationship_unknown_junction": "Junction table '{{table}}' is not registered",
       "source_id_taken": "Source '{{source}}' already exists",
-      "domain_id_taken": "Domain '{{domain}}' already exists"
+      "domain_id_taken": "Domain '{{domain}}' already exists",
+      "role_id_taken": "Role '{{role}}' already exists",
+      "role_updated": "Role '{{role}}' updated"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

@@ -21,7 +21,8 @@ declare module "*.graphql" {
   export const TablesQuery: DocumentNode;
   export const TagsQuery: DocumentNode;
   export const TagAssignmentsQuery: DocumentNode;
-  export const UpsertTag: DocumentNode;
+  export const CreateTag: DocumentNode;
+  export const UpdateTag: DocumentNode;
   export const DeleteTag: DocumentNode;
   export const AssignTag: DocumentNode;
   export const UnassignTag: DocumentNode;
@@ -29,7 +30,8 @@ declare module "*.graphql" {
   export const DeleteTagParamValue: DocumentNode;
   export const RefreshPolicyPreview: DocumentNode;
   export const MetricsQuery: DocumentNode;
-  export const UpsertMetric: DocumentNode;
+  export const CreateMetric: DocumentNode;
+  export const UpdateMetric: DocumentNode;
   export const DeleteMetric: DocumentNode;
   export const RelationshipsQuery: DocumentNode;
   export const AllRelationshipsQuery: DocumentNode;
@@ -77,6 +79,7 @@ declare module "*.graphql" {
   export const UpsertRlsRule: DocumentNode;
   export const DeleteRlsRule: DocumentNode;
   export const CreateRole: DocumentNode;
+  export const UpdateRole: DocumentNode;
   export const DeleteRole: DocumentNode;
   export const RevokeRoleFromTable: DocumentNode;
   export const RevokeRoleFromObject: DocumentNode;
@@ -142,7 +145,8 @@ declare module "*.gql" {
   export const TablesQuery: DocumentNode;
   export const TagsQuery: DocumentNode;
   export const TagAssignmentsQuery: DocumentNode;
-  export const UpsertTag: DocumentNode;
+  export const CreateTag: DocumentNode;
+  export const UpdateTag: DocumentNode;
   export const DeleteTag: DocumentNode;
   export const AssignTag: DocumentNode;
   export const UnassignTag: DocumentNode;
@@ -150,7 +154,8 @@ declare module "*.gql" {
   export const DeleteTagParamValue: DocumentNode;
   export const RefreshPolicyPreview: DocumentNode;
   export const MetricsQuery: DocumentNode;
-  export const UpsertMetric: DocumentNode;
+  export const CreateMetric: DocumentNode;
+  export const UpdateMetric: DocumentNode;
   export const DeleteMetric: DocumentNode;
   export const RelationshipsQuery: DocumentNode;
   export const AllRelationshipsQuery: DocumentNode;
@@ -197,6 +202,7 @@ declare module "*.gql" {
   export const UpsertRlsRule: DocumentNode;
   export const DeleteRlsRule: DocumentNode;
   export const CreateRole: DocumentNode;
+  export const UpdateRole: DocumentNode;
   export const DeleteRole: DocumentNode;
   export const RevokeRoleFromTable: DocumentNode;
   export const RevokeRoleFromObject: DocumentNode;

@@ -11,7 +11,9 @@
       "unknown_action_type": "未知的 actionType '{{action_type}}'",
       "unknown_role": "未知角色 '{{role}}'",
       "webhook_not_found": "未找到 Webhook '{{name}}'",
-      "written_table_not_registered": "'{{table}}' 不是数据源 '{{source_id}}' 的已注册表"
+      "written_table_not_registered": "'{{table}}' 不是数据源 '{{source_id}}' 的已注册表",
+      "function_exists": "函数 '{{name}}' 已存在",
+      "webhook_exists": "Webhook '{{name}}' 已存在"
     },
     "ai_models": {
       "vector_model_fields_required": "每个 vector_models 条目都需要 id、provider 和 dimensions"
@@ -402,7 +404,9 @@
       "relationship_unknown_target": "目标表 '{{table}}' 未注册",
       "relationship_unknown_junction": "连接表 '{{table}}' 未注册",
       "source_id_taken": "数据源 '{{source}}' 已存在",
-      "domain_id_taken": "域 '{{domain}}' 已存在"
+      "domain_id_taken": "域 '{{domain}}' 已存在",
+      "role_id_taken": "角色 '{{role}}' 已存在",
+      "role_updated": "角色 '{{role}}' 已更新"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",
