@@ -373,17 +373,19 @@ export function SecurityRlsPage() {
             </FormField>
           )}
           {ruleForm.applyToTag && (
-            <FormField size="medium">
+            <FormField
+              size="medium"
+              hint={
+                ruleForm.tagId
+                  ? t("securityPage.tagTableCount", {
+                      count: tablesCarrying(ruleForm.tagId).length,
+                    })
+                  : undefined
+              }
+            >
               <Select
                 label={t("securityPage.tag")}
                 placeholder={t("securityPage.selectPlaceholder")}
-                description={
-                  ruleForm.tagId
-                    ? t("securityPage.tagTableCount", {
-                        count: tablesCarrying(ruleForm.tagId).length,
-                      })
-                    : undefined
-                }
                 data={filterableTags.map((tg) => ({ value: tg.id, label: tg.id }))}
                 value={ruleForm.tagId || null}
                 onChange={(v) => setRuleForm({ ...ruleForm, tagId: v ?? "" })}
