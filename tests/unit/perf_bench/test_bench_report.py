@@ -73,7 +73,8 @@ def _write_run(
     busy = {**step, "concurrency": 16, "server_cpu_ms_per_request": 99.0}  # not the one costed
     out = root / "results" / name / "optimistic"
     out.mkdir(parents=True)
-    replication = {source: {"replication": "live", "ttl_seconds": 0, "route": "auto"}}
+    setting = "replica" if ttl else "live"
+    replication = {source: {"replication": setting, "ttl_seconds": ttl, "route": "auto"}}
     (out / f"{transport}.json").write_text(
         json.dumps({"transport": transport, "replication": replication, "steps": [busy, step]})
     )
@@ -85,7 +86,6 @@ def _write_run(
         "value": value,
         "contract": f"{name}.yaml",
         "skipped": None,
-        "ttl": ttl,
     }
 
 
@@ -251,7 +251,7 @@ def test_break_even_between_live_and_replica(tmp_path: Path) -> None:
         src=0.1,
         ttl=60,
     )
-    (tmp_path / "results" / mat["name"] / "idle.json").write_text(
+    (tmp_path / "results" / mat["name"] / "optimistic" / "idle.json").write_text(
         json.dumps(
             {
                 "window_s": 120.0,

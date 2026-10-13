@@ -18,7 +18,7 @@ Reads what ``sweeps.py`` planned and ``run_benchmark.py --optimistic`` produced:
 
     <root>/manifest.json
     <root>/results/<run name>/optimistic/<transport>.json     (every step, server and source CPU)
-    <root>/results/<run name>/idle.json                       (replica runs: the refresh cost)
+    <root>/results/<run name>/optimistic/idle.json            (replica runs: the refresh cost)
 
     python bench_report.py --root results/sweeps --out results/sweeps/report.json [--tolerance 0.05]
 
@@ -117,7 +117,7 @@ def _break_even(
         return _provisa_ms(run, step) + source_ms
 
     mat = by_mode["replica"]
-    idle_path = root / "results" / mat["name"] / "idle.json"
+    idle_path = root / "results" / mat["name"] / "optimistic" / "idle.json"
     if not idle_path.exists():
         raise ValueError(f"{mat['name']}: no idle.json (the refresh cost needs an idle window)")
     idle = json.loads(idle_path.read_text())
@@ -125,7 +125,7 @@ def _break_even(
         raise ValueError(
             f"{mat['name']}: the idle window's source CPU failed: {idle['source_cpu_error']}"
         )
-    ttl = mat["ttl"]
+    ttl = _replication(root, mat)["ttl_seconds"]
     idle_cores = idle["server_cpu_cores"] + idle["source_cpu_cores"][source]
     live_ms, replica_ms = total_ms(by_mode["live"]), total_ms(mat)
     refresh = idle_cores * ttl
