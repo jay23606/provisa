@@ -331,6 +331,437 @@ views:
   - {name: avg_ms, data_type: decimal, description: Their average duration, visible_to: [org_admin, analyst]}
   - {name: p95_ms, data_type: decimal, description: 'Their 95th percentile duration (approximate on Trino)', visible_to: [org_admin, analyst]}
   - {name: max_ms, data_type: double, description: The longest, visible_to: [org_admin, analyst]}
+# The glossary (REQ-1641, REQ-1387). Every column derives a term from its business name; one
+# declared here by that name gets its definition, and a defined, grounded term is live (approved,
+# core.glossary.live_term_ids). Four derived terms are left undefined on purpose, so the Glossary
+# page shows them as Proposed: line offset, entry and raw (a log record's own bookkeeping) and
+# query (which joins the access log's query string and the database log's query id -- two
+# meanings for a curator to split). The abstract terms below the derived ones are the shop's
+# ontology, grounded in the derived terms by their edges.
+glossary_terms:
+- name: access log status
+  definition: The HTTP status code nginx returned for a request, as its access log records it.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: access log time
+  definition: When nginx served a request, as its access log records it.
+  domains:
+  - shop
+- name: application name
+  definition: The application name the shop's database connection reported. The shop names each request's
+    connection by the request's id, so it ties a database log record to its request.
+  domains:
+  - shop
+- name: average ms
+  definition: The average duration, in milliseconds, of the statements in a group.
+  domains:
+  - shop
+- name: backend type
+  definition: The kind of database server process that wrote a log record, such as a client backend serving
+    a connection.
+  domains:
+  - shop
+- name: bytes
+  definition: The size, in bytes, of the response body nginx sent.
+  domains:
+  - shop
+- name: city
+  definition: The city a customer lives in.
+  domains:
+  - shop
+- name: client
+  definition: The network address a request came from.
+  domains:
+  - shop
+- name: context
+  definition: Where inside a database function or procedure an error was raised.
+  domains:
+  - shop
+- name: customer
+  definition: A person with an account at the shop, who browses, searches and places orders.
+  domains:
+  - shop
+  edges:
+  - to: customer journey
+    rel_type: RELATED_TO
+- name: customer email
+  definition: The email address a customer signed up with.
+  domains:
+  - shop
+- name: customer name
+  definition: A customer's full name.
+  domains:
+  - shop
+- name: db log message
+  definition: 'The text of a database log record: for a statement, its duration and its SQL; for an error,
+    what went wrong.'
+  domains:
+  - shop
+- name: db log timestamp
+  definition: When the database wrote a log record.
+  domains:
+  - shop
+- name: dbname
+  definition: The database a log record's session was connected to.
+  domains:
+  - shop
+- name: detail
+  definition: The database's further explanation of an error, such as the key value that broke a constraint.
+  domains:
+  - shop
+- name: duration ms
+  definition: How long, in milliseconds, the database took to run one statement.
+  domains:
+  - shop
+  edges:
+  - to: database statement
+    rel_type: PART_OF
+- name: error
+  definition: The database's message for a statement that failed.
+  domains:
+  - shop
+- name: error severity
+  definition: 'How serious a database log record is: LOG for a statement the database ran, ERROR for one
+    that failed.'
+  domains:
+  - shop
+  edges:
+  - to: database statement
+    rel_type: PART_OF
+- name: extra
+  definition: Any field of a log record that none of its table's columns holds.
+  domains:
+  - shop
+- name: file
+  definition: The log file a record was read from, known by a checksum of its first bytes, so a renamed
+    or rotated copy is the same file.
+  domains:
+  - shop
+- name: file name
+  definition: The path of the log file a record was read from.
+  domains:
+  - shop
+- name: hint
+  definition: The database's suggestion for fixing an error, when it gives one.
+  domains:
+  - shop
+- name: joined on
+  definition: The date a customer signed up.
+  domains:
+  - shop
+- name: landed at
+  definition: When a log record was read into Provisa.
+  domains:
+  - shop
+- name: last error at
+  definition: When a customer was last served a server error.
+  domains:
+  - shop
+- name: line number
+  definition: The position of a log record among those its database session wrote.
+  domains:
+  - shop
+- name: logged at
+  definition: When the database logged a statement.
+  domains:
+  - shop
+- name: max ms
+  definition: The longest duration, in milliseconds, of the statements in a group.
+  domains:
+  - shop
+- name: method
+  definition: The HTTP method of a request, such as GET or POST.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: order
+  definition: A purchase a customer placed at the shop.
+  domains:
+  - shop
+  edges:
+  - to: customer journey
+    rel_type: PART_OF
+- name: order item
+  definition: 'One line of an order: a product, and how many of it.'
+  domains:
+  - shop
+- name: order item quantity
+  definition: How many units of a product an order line is for.
+  domains:
+  - shop
+- name: order status
+  definition: 'Where an order stands: placed, paid, shipped, delivered or cancelled.'
+  domains:
+  - shop
+- name: orders
+  definition: How many orders a customer has placed.
+  domains:
+  - shop
+- name: p95 ms
+  definition: The duration, in milliseconds, that 95 percent of the statements in a group finish within.
+  domains:
+  - shop
+- name: page ms
+  definition: How long, in milliseconds, the shop took to answer a page request, as nginx measured it.
+  domains:
+  - shop
+- name: parse error
+  definition: Why a log record, or a value in it, could not be read; empty when it was read.
+  domains:
+  - shop
+- name: path
+  definition: The URL path a request asked for, such as /products/12.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: pid
+  definition: The process id of the database server process that wrote a log record.
+  domains:
+  - shop
+- name: placed at
+  definition: When an order was placed.
+  domains:
+  - shop
+- name: product
+  definition: An item the shop sells.
+  domains:
+  - shop
+- name: product category
+  definition: The group a product is sold under, such as kitchen or outdoor.
+  domains:
+  - shop
+- name: product description
+  definition: The shop's description of a product.
+  domains:
+  - shop
+- name: product name
+  definition: The name a product is sold under.
+  domains:
+  - shop
+- name: product price
+  definition: A product's current price, in US dollars.
+  domains:
+  - shop
+- name: ps
+  definition: The command a database session was running when it wrote a log record, such as SELECT or
+    INSERT.
+  domains:
+  - shop
+- name: remote host
+  definition: 'The address of the client a database session served: here, the shop''s application server.'
+  domains:
+  - shop
+- name: request
+  definition: One HTTP request nginx served, known by the id nginx gave it. The shop's database statements
+    carry the same id.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: request time
+  definition: How long, in seconds, nginx took to answer a request.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: requested at
+  definition: When a request that failed in the database was served.
+  domains:
+  - shop
+- name: server errors
+  definition: How many server errors (HTTP 5xx) a customer was served.
+  domains:
+  - shop
+- name: session
+  definition: The database session, one connection's lifetime, that a log record belongs to.
+  domains:
+  - shop
+- name: session start
+  definition: When a database session began.
+  domains:
+  - shop
+- name: slowest sql ms
+  definition: How long, in milliseconds, the slowest statement of a request ran.
+  domains:
+  - shop
+- name: sql ms
+  definition: How long, in milliseconds, all the statements of a request ran in total.
+  domains:
+  - shop
+- name: state
+  definition: The SQLSTATE code of a database error, such as 23503 for a broken foreign key.
+  domains:
+  - shop
+- name: statement
+  definition: A SQL statement the shop sent its database.
+  domains:
+  - shop
+  edges:
+  - to: database statement
+    rel_type: PART_OF
+- name: statements
+  definition: How many SQL statements a request, or a table, accounted for.
+  domains:
+  - shop
+- name: stock
+  definition: How many units of a product the shop has on hand.
+  domains:
+  - shop
+- name: table name
+  definition: The table a SQL statement read from or wrote to.
+  domains:
+  - shop
+  edges:
+  - to: database statement
+    rel_type: PART_OF
+- name: txid
+  definition: The id of the database transaction a log record belongs to, when one was assigned.
+  domains:
+  - shop
+- name: unit price
+  definition: The price of one unit of a product when it was ordered.
+  domains:
+  - shop
+- name: user
+  definition: The database role a session connected as.
+  domains:
+  - shop
+- name: user agent
+  definition: The browser or app a request came from, as its User-Agent header names it.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: PART_OF
+- name: view customers with 5xx name
+  definition: The name of a customer who was served a server error.
+  domains:
+  - shop
+- name: view requests with db error status
+  definition: The HTTP status returned to a request that failed in the database.
+  domains:
+  - shop
+- name: view slowest page status
+  definition: The HTTP status returned to a request, as the slowest pages view lists it.
+  domains:
+  - shop
+- name: view viewed not bought category
+  definition: The category of a product that was viewed but never bought.
+  domains:
+  - shop
+- name: view viewed not bought name
+  definition: The name of a product that was viewed but never bought.
+  domains:
+  - shop
+- name: view viewed not bought price
+  definition: The price of a product that was viewed but never bought.
+  domains:
+  - shop
+- name: views
+  definition: How many times a product's page was viewed.
+  domains:
+  - shop
+  edges:
+  - to: customer journey
+    rel_type: PART_OF
+- name: vxid
+  definition: The virtual transaction id the database gave a statement's transaction.
+  domains:
+  - shop
+- name: shop operations
+  definition: 'Everything the web shop does in a day: the requests it serves, the SQL it runs to serve
+    them, and what its customers do.'
+  domains:
+  - shop
+- name: web request
+  definition: A request a visitor's browser or app sends the shop, and the answer nginx gives it.
+  domains:
+  - shop
+  edges:
+  - to: shop operations
+    rel_type: PART_OF
+- name: database statement
+  definition: A SQL statement the shop runs against its database to serve a web request, with how long
+    it took and whether it failed.
+  domains:
+  - shop
+  edges:
+  - to: shop operations
+    rel_type: PART_OF
+  - to: web request
+    rel_type: RELATED_TO
+- name: customer journey
+  definition: 'The path a customer takes through the shop: the products they look at and the orders they
+    place.'
+  domains:
+  - shop
+  edges:
+  - to: shop operations
+    rel_type: PART_OF
+- name: server error
+  definition: A web request the shop failed to answer, with an HTTP status of 500 or above.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: KIND_OF
+  - to: server errors
+    rel_type: RELATED_TO
+- name: database error
+  definition: A database statement that failed, with the SQLSTATE and message the database gave.
+  domains:
+  - shop
+  edges:
+  - to: database statement
+    rel_type: KIND_OF
+  - to: server error
+    rel_type: RELATED_TO
+  - to: error
+    rel_type: RELATED_TO
+  - to: state
+    rel_type: RELATED_TO
+- name: page latency
+  definition: 'How long a visitor waits for a page: the time nginx took to answer, most of it spent running
+    the page''s SQL.'
+  domains:
+  - shop
+  edges:
+  - to: duration ms
+    rel_type: DERIVED_FROM
+  - to: page ms
+    rel_type: RELATED_TO
+  - to: request time
+    rel_type: RELATED_TO
+- name: slow page
+  definition: A page whose latency is high enough for a visitor to notice; the slowest pages view ranks
+    them.
+  domains:
+  - shop
+  edges:
+  - to: web request
+    rel_type: KIND_OF
+  - to: page latency
+    rel_type: DERIVED_FROM
+- name: abandoned interest
+  definition: A product a customer looked at and never ordered; the viewed but not bought view lists them.
+  domains:
+  - shop
+  edges:
+  - to: customer journey
+    rel_type: PART_OF
+  - to: views
+    rel_type: RELATED_TO
+  - to: product
+    rel_type: RELATED_TO
 relationships:
 - {id: access-to-customer, alias: BY_CUSTOMER, cardinality: many-to-one, source_table_id: access_log, source_column: customer_id, target_table_id: customers, target_column: id}
 - {id: access-to-product, alias: VIEWED_PRODUCT, cardinality: many-to-one, source_table_id: access_log, source_column: product_id, target_table_id: products, target_column: id}
