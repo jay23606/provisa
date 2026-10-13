@@ -58,6 +58,17 @@ export function StarIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function SlidersIcon({ size = 16 }: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} fill="none" strokeLinecap="round">
+      <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10" cy="4" r="1.8" fill="currentColor" />
+      <circle cx="5.5" cy="12" r="1.8" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function GraphViewIcon({ size = 16 }: IconProps) {
   return (
     <svg viewBox="0 0 16 16" width={size} height={size} fill="none" strokeLinecap="round">

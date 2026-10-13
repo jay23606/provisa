@@ -26,6 +26,9 @@
     "rename": "名前を変更",
     "remove": "削除",
     "renameFavoriteInput": "お気に入りの名前",
-    "resizeSidebar": "サイドバーのサイズ変更"
+    "resizeSidebar": "サイドバーのサイズ変更",
+    "tabSettings": "表示設定",
+    "maxNodes": "最大ノード数",
+    "maxNodesHint": "クエリごとに描画するノード数（最大 {{ceiling}}）"
   }
 }

@@ -26,6 +26,9 @@
     "rename": "Rename",
     "remove": "Remove",
     "renameFavoriteInput": "Favorite name",
-    "resizeSidebar": "Resize sidebar"
+    "resizeSidebar": "Resize sidebar",
+    "tabSettings": "View settings",
+    "maxNodes": "Max nodes",
+    "maxNodesHint": "Nodes drawn per query, up to {{ceiling}}"
   }
 }

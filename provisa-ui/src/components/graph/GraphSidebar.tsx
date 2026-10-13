@@ -12,7 +12,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@mantine/core";
 import { labelColor } from "./graph-model";
-import { DatabaseIcon, HistoryIcon, StarIcon, ExportIcon } from "./GraphIcons";
+import { DatabaseIcon, HistoryIcon, StarIcon, ExportIcon, SlidersIcon } from "./GraphIcons";
+import { GraphViewSettings } from "./GraphViewSettings";
 import type { RelLineOverride } from "./graph-model";
 import type { SchemaNodeLabel, SchemaRel } from "./graph-schema-types";
 import type { Favorite } from "./graph-persistence";
@@ -61,6 +62,9 @@ interface SidebarProps {
   totalNodeCount?: number | null;
   totalRelCount?: number | null;
   labelCounts?: Record<string, number>;
+  maxNodes: number;
+  nodeCap: number | null;
+  onMaxNodesChange: (n: number) => void;
 }
 
 const NUMERIC_TYPES = new Set([
@@ -117,9 +121,12 @@ export function Sidebar({
   totalNodeCount = null,
   totalRelCount = null,
   labelCounts = {},
+  maxNodes,
+  nodeCap,
+  onMaxNodesChange,
 }: SidebarProps) {
   const { t } = useTranslation();
-  const [section, setSection] = useState<"db" | "history" | "favorites">("db");
+  const [section, setSection] = useState<"db" | "history" | "favorites" | "settings">("db");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [relContextMenu, setRelContextMenu] = useState<RelContextMenuState | null>(null);
 
@@ -295,6 +302,21 @@ export function Sidebar({
               data-testid="graph-sidebar-tab-favorites"
             >
               <StarIcon size={15} />
+            </button>
+          </Tip>
+        </Tip>
+        <Tip text={t("graphSidebar.tabSettings")}>
+          <Tip text={t("graphSidebar.tabSettings")} named>
+            <button
+              type="button"
+              className={`graph-sidebar-tab ${section === "settings" ? "active" : ""}`}
+              onClick={() => setSection("settings")}
+              aria-label={t("graphSidebar.tabSettings")}
+              aria-selected={section === "settings"}
+              role="tab"
+              data-testid="graph-sidebar-tab-settings"
+            >
+              <SlidersIcon size={15} />
             </button>
           </Tip>
         </Tip>
@@ -776,6 +798,14 @@ export function Sidebar({
               </div>
             )}
           </div>
+        )}
+
+        {section === "settings" && (
+          <GraphViewSettings
+            maxNodes={maxNodes}
+            nodeCap={nodeCap}
+            onMaxNodesChange={onMaxNodesChange}
+          />
         )}
 
         {section === "favorites" && (

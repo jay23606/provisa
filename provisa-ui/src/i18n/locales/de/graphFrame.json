@@ -32,6 +32,7 @@
     "viewCode": "Code",
     "showPropertiesPanel": "Eigenschaftenbereich anzeigen",
     "copyErrorTitle": "Fehler kopieren",
-    "expandedDialogLabel": "Erweiterte Graphansicht"
+    "expandedDialogLabel": "Erweiterte Graphansicht",
+    "firstNodesShown": "Die ersten {{count}} Knoten werden angezeigt; es gibt weitere. Erhöhen Sie das Limit im Seitenmenü."
   }
 }

@@ -26,6 +26,9 @@
     "rename": "Naam wijzigen",
     "remove": "Verwijderen",
     "renameFavoriteInput": "Naam van favoriet",
-    "resizeSidebar": "Zijbalk vergroten of verkleinen"
+    "resizeSidebar": "Zijbalk vergroten of verkleinen",
+    "tabSettings": "Weergave-instellingen",
+    "maxNodes": "Max. knooppunten",
+    "maxNodesHint": "Getekende knooppunten per query, tot {{ceiling}}"
   }
 }

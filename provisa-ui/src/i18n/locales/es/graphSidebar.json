@@ -26,6 +26,9 @@
     "rename": "Renombrar",
     "remove": "Quitar",
     "renameFavoriteInput": "Nombre del favorito",
-    "resizeSidebar": "Redimensionar barra lateral"
+    "resizeSidebar": "Redimensionar barra lateral",
+    "tabSettings": "Ajustes de vista",
+    "maxNodes": "Máx. de nodos",
+    "maxNodesHint": "Nodos dibujados por consulta, hasta {{ceiling}}"
   }
 }

@@ -56,3 +56,18 @@ async def test_graph_schema_includes_singular_pk(monkeypatch):
     assert "pk" in by_label["Orders"]
     assert by_label["Orders"]["pk"] == cr._cql_prop("customer_id")
     assert by_label["Events"]["pk"] is None
+
+
+async def test_graph_schema_says_the_drawing_ceiling(monkeypatch):
+    """The explorer's max-nodes setting can ask for at most node_cap: the row limit, which bounds
+    a drawn read."""
+    import provisa.core.limits as limits
+
+    label_map = types.SimpleNamespace(nodes={}, relationships={})
+    monkeypatch.setattr(cr, "_resolve_role_id", lambda *_: "admin")
+    monkeypatch.setattr(cr, "_build_label_map", lambda *_: label_map)
+    monkeypatch.setattr(appmod.state, "contexts", {"admin": object()})
+    monkeypatch.setattr(appmod.state, "schema_build_cache", {"tables": []})
+    monkeypatch.setattr(limits, "default_row_limit", lambda: 700)
+    resp = await cr.graph_schema(cast(Any, types.SimpleNamespace()))
+    assert json.loads(bytes(resp.body))["node_cap"] == 700

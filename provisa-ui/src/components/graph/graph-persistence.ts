@@ -67,6 +67,7 @@ interface SerializedFrame {
   columns: string[];
   error?: string;
   redirect?: ResultRedirect;
+  truncated?: boolean;
   elapsed?: number;
   pinned?: boolean;
 }
@@ -82,6 +83,7 @@ function serializeFrame(f: FrameData): SerializedFrame {
     rows: f.rows,
     columns: f.columns,
     redirect: f.redirect,
+    truncated: f.truncated,
     elapsed: f.elapsed,
     pinned: f.pinned,
   };

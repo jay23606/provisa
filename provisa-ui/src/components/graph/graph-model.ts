@@ -413,6 +413,9 @@ export interface FrameData {
   /** The result was over the large-result threshold and was delivered to a file instead of
    *  rows (REQ-1224): the frame says so, with the row count and the link, never zero rows. */
   redirect?: ResultRedirect;
+  /** The result has more nodes than the max-nodes setting (or the row limit) let the frame draw:
+   *  the first ones are drawn, and the canvas says there are more. */
+  truncated?: boolean;
   elapsed?: number;
   queryStats?: unknown;
   pinned?: boolean;
