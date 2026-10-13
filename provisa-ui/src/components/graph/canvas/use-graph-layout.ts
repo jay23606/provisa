@@ -11,11 +11,16 @@
 import { useRef, useState, useCallback, useEffect, type MutableRefObject } from "react";
 import { labelColor } from "../graph-model";
 import type { GNode, GEdge } from "../graph-model";
-import { buildClusterMetaEdges } from "../graph-clusters";
+import { swapToLayoutMetaEdges } from "../graph-clusters";
 import type { ClusterLevel } from "../graph-clusters";
 import type { CyInstance, CyLayoutOptions } from "../cytoscape-types";
 import { LAYOUT_OPTIONS, type LayoutMode } from "./canvas-types";
-import { computeLabelSizeRanges, applyNodeSize, resolveNodeLabel } from "./canvas-helpers";
+import {
+  anchoredPositions,
+  computeLabelSizeRanges,
+  applyNodeSize,
+  resolveNodeLabel,
+} from "./canvas-helpers";
 import { getStored } from "../../../lib/browserStorage";
 
 interface GraphLayoutRefs {
@@ -125,6 +130,8 @@ export function useGraphLayout({
           // In cluster mode: higher nestingFactor shortens ideal edge length within compounds,
           // pulling cluster members together; higher repulsion spreads clusters apart.
           ...(inCluster ? { nestingFactor: 0.1, nodeRepulsion: () => 25000 } : {}),
+          // The nodes the user dragged stay where they were put, and the rest lay out around them.
+          fixedNodeConstraint: anchoredPositions(cy, anchored),
         } as CyLayoutOptions;
       }
       const layout = cy.layout(opts);
@@ -226,17 +233,14 @@ export function useGraphLayout({
         // or show edges at stale positions during animation. Restore layout meta-edges so fcose
         // has correct cross-cluster attraction forces during the nudge.
         if (portEdgesAddedRef.current && clusterLevelRef.current !== "none") {
-          cy.nodes("[?_port]").remove(); // also removes attached port meta-edges
-          const level = clusterLevelRef.current as Exclude<ClusterLevel, "none">;
-          const layoutMeta = buildClusterMetaEdges(
+          swapToLayoutMetaEdges(
+            cy,
             nodesRef.current,
             edgesRef.current,
-            level,
+            clusterLevelRef.current as Exclude<ClusterLevel, "none">,
             overlayEdgesRef.current,
             collapsedClustersRef.current,
-            false,
           );
-          if (layoutMeta.length > 0) cy.add(layoutMeta);
           portEdgesAddedRef.current = false;
         }
         const anchored = anchoredRef.current;
@@ -271,6 +275,8 @@ export function useGraphLayout({
           // containing anchored (locked) nodes, which would override their locked positions
           // and displace the dragged group off-screen after centroid shift.
           packComponents: false,
+          // Locking alone does not hold a node in fcose's simulation (anchoredPositions).
+          fixedNodeConstraint: anchoredPositions(cy, anchored),
         } as CyLayoutOptions;
         const layout = cy.layout(opts);
         activeLayoutRef.current = layout;
@@ -348,8 +354,11 @@ export function useGraphLayout({
           releaseNudge();
         });
         layout.run();
-      } catch {
+      } catch (err) {
+        // Free the layout lock, and let the failure be seen: swallowing it here is how a nudge
+        // that never ran went unnoticed.
         layoutRunningRef.current = false;
+        throw err;
       }
     },
     [

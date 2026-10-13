@@ -10,7 +10,7 @@
 
 import { clusterColor } from "./graph-model";
 import type { GNode, GEdge } from "./graph-model";
-import type { CyElementDefinition } from "./cytoscape-types";
+import type { CyElementDefinition, CyInstance } from "./cytoscape-types";
 
 export type ClusterLevel = "none" | "l1" | "l2" | "l3" | string;
 
@@ -217,4 +217,30 @@ export function buildClusterMetaEdges(
   });
 
   return els;
+}
+
+// Puts the layout's meta-edges on the canvas in place of whatever routing it holds: the port nodes
+// and every meta-edge go first. A collapsed supernode's meta-edges carry the same ids in both
+// routings (they end on the supernode either way), so adding the layout set beside them is a
+// second element with one id, which Cytoscape refuses -- and the layout the drag or the redraw
+// asked for never ran, leaving the supernodes' neighbours where they were.
+export function swapToLayoutMetaEdges(
+  cy: CyInstance,
+  nodes: Map<string, GNode>,
+  edges: Map<string, GEdge>,
+  level: Exclude<ClusterLevel, "none">,
+  overlayEdges: Map<string, GEdge>,
+  collapsedClusters: Set<string>,
+): void {
+  cy.nodes("[?_port]").remove(); // also removes the port meta-edges
+  cy.edges("[?_metaEdge]").remove();
+  const layoutMeta = buildClusterMetaEdges(
+    nodes,
+    edges,
+    level,
+    overlayEdges,
+    collapsedClusters,
+    false,
+  );
+  if (layoutMeta.length > 0) cy.add(layoutMeta);
 }

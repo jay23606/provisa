@@ -71,3 +71,20 @@ export function applyNodeSize(
   }
   node.style({ width: sz, height: sz, "text-max-width": `${sz - 4}px` });
 }
+
+// The nodes the user placed, where they are, as fcose's fixedNodeConstraint: fcose moves a locked
+// node during its simulation and only the final write is refused, so the rest were laid out around
+// where the simulation had carried it, not where the user put it.
+export function anchoredPositions(
+  cy: CyInstance,
+  anchored: Set<string>,
+): Array<{ nodeId: string; position: { x: number; y: number } }> {
+  const fixed: Array<{ nodeId: string; position: { x: number; y: number } }> = [];
+  anchored.forEach((id) => {
+    const n = cy.getElementById(id);
+    if (n.length === 0) return; // a node of a previous result, gone from this one
+    const { x, y } = n.position();
+    fixed.push({ nodeId: id, position: { x, y } });
+  });
+  return fixed;
+}
