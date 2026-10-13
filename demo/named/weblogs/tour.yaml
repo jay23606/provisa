@@ -1,0 +1,68 @@
+# Copyright (c) 2026 Kenneth Stott
+#
+# This source code is licensed under the Business Source License 1.1
+# found in the LICENSE file in the root directory of this source tree.
+#
+# NOTICE: Use of this software for training artificial intelligence or
+# machine learning models is strictly prohibited without explicit written
+# permission from the copyright holder.
+#
+# The weblogs demo's own tour (REQ-2010): the story of the demo, told with its own data, offered
+# before the product tour when the demo is open. A step names a page (route, with the capability
+# its gate needs) and one object of the demo it shows:
+#
+#   source        a source of config.yaml, by id: its row on the Sources page
+#   relationship  a relationship of config.yaml, by alias: its row on the Relationships page
+#   example       an example query (queries/<name>.graphql): opened in a new tab and run
+#   sql           a statement over the demo's tables and views: opened in a new tab and run
+#   term          a glossary term of config.yaml, by name: opened on the Glossary page
+#   role          a role of config.yaml (or "all"): picked in the SQL explorer's run-as picker on
+#                 Next, so a step with it is on the SQL explorer
+#
+# A step with no route stays on the page of the step before it. The words of each step are
+# tour.steps.<key> in the UI's tour.json, in every language. Every name here is checked against
+# the demo by tests/unit/test_named_demo_tour.py.
+steps:
+- key: weblogsSources
+  route: /sources
+  capability: source_registration
+  source: shop_access
+- key: weblogsDbLog
+  source: shop_db_log
+- key: weblogsJoin
+  route: /relationships
+  capability: create_relationship
+  relationship: LOGGED_FOR
+- key: weblogsSlowestPages
+  route: /query
+  capability: query_development
+  example: 1-slowest-pages-by-path
+- key: weblogsStatements
+  route: /sql
+  capability: query_development
+  sql: >-
+    SELECT p.path, p.page_ms, r.duration_ms, r.statement
+    FROM "shop"."view_slowest_pages" AS p
+    JOIN "shop"."view_request_sql" AS r ON r.request_id = p.request_id
+    ORDER BY p.page_ms DESC, r.duration_ms DESC
+    LIMIT 20
+- key: weblogsDbErrors
+  route: /query
+  capability: query_development
+  example: 4-database-errors-by-page
+- key: weblogsGlossary
+  route: /admin/glossary
+  capability: glossary_read
+  term: slow page
+- key: weblogsCustomers
+  route: /sql
+  capability: query_development
+  sql: SELECT * FROM "shop"."customers" ORDER BY id LIMIT 10
+- key: weblogsAnalyst
+  role: analyst
+- key: weblogsCustomersMasked
+  route: /sql
+  capability: query_development
+  sql: SELECT * FROM "shop"."customers" ORDER BY id LIMIT 10
+- key: weblogsRoleBack
+  role: all

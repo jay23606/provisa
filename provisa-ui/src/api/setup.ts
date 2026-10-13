@@ -9,6 +9,7 @@
 // permission from the copyright holder.
 
 import { serverMessage, requestFailed } from "../i18n/serverMessage";
+import type { DemoTourStepDef } from "../tour/demoTour";
 
 export interface SetupStatus {
   needs_setup: boolean;
@@ -23,6 +24,10 @@ export interface SetupStatus {
   // REQ-2009: the example GraphQL queries the named demo ships (demo/named/<name>/queries), in
   // order; none when no named demo was started. The GraphQL explorer opens them as its first tabs.
   example_queries: ExampleQuery[];
+  // REQ-2010: the started named demo's name, and its own tour (demo/named/<name>/tour.yaml); null
+  // and none when no named demo was started.
+  named_demo: string | null;
+  demo_tour: DemoTourStepDef[];
 }
 
 export interface ExampleQuery {

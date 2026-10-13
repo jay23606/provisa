@@ -22,7 +22,8 @@
       "intro": "Um modelo para seus dados, metadados e processamento, sincronizado e reaproveitado em todo lugar. Escolha um tópico: cada um é um tour curto e independente, e Concluir leva você de volta aqui. A bússola na barra de ferramentas reabre este menu a qualquer momento.",
       "completed": "Concluído",
       "steps": "Passos: {{count}}",
-      "coreTour": "Começar do início"
+      "coreTour": "Começar do início",
+      "thisDemo": "Esta demo"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "Relacionamentos e agentes de IA",
         "description": "🤖 O modelo e seus relacionamentos estão disponíveis para agentes de IA — o Polly e agentes que se conectam por MCP — e moldam as consultas que esses agentes escrevem.<p>Um agente roda sob um papel, então a mesma regra vale para ele e para uma pessoa: uma consulta que faz join fora dos relacionamentos registrados <strong>falha</strong>. Isso é imposto, não apenas recomendado.</p><p>Também é uma escolha sua. Para deixar um agente descobrir relacionamentos, conceda ao papel dele o direito <code>ignore_relationships</code>; para mantê-lo dentro de barreiras, deixe o papel sem ele. É a mesma concessão deliberada feita a uma identidade de confiança (nunca vale no modo de alta segurança).</p>"
+      },
+      "weblogsSources": {
+        "title": "Os dois logs de uma loja virtual",
+        "description": "Esta demo lê como tabelas os logs de uma pequena loja virtual. <strong>shop_access</strong> é o log de acesso do nginx: uma linha por requisição, com caminho, status e tempo."
+      },
+      "weblogsDbLog": {
+        "title": "O log do banco de dados",
+        "description": "<strong>shop_db_log</strong> é o log de comandos do banco da loja: uma linha por comando executado, com sua duração. Nenhum dos logs é copiado ou carregado antes; os dois são lidos onde estão."
+      },
+      "weblogsJoin": {
+        "title": "Uma requisição, dois logs",
+        "description": "O nginx dá um id a cada requisição, e a loja nomeia cada conexão ao banco com ele. O relacionamento <strong>LOGGED_FOR</strong> liga por esse id cada comando à requisição que ele atendeu."
+      },
+      "weblogsSlowestPages": {
+        "title": "As páginas mais lentas",
+        "description": "Uma das consultas de exemplo da demo, executada: cada caminho com o número de requisições e o tempo médio e máximo, as dez mais lentas primeiro. Uma única consulta GraphQL agrupa e ordena."
+      },
+      "weblogsStatements": {
+        "title": "O SQL por trás de uma página lenta",
+        "description": "As mesmas requisições ligadas a seus comandos: para as páginas mais lentas, cada comando executado e quanto tempo levou. Foi aqui que o tempo foi gasto."
+      },
+      "weblogsDbErrors": {
+        "title": "Requisições que falharam no banco",
+        "description": "Requisições cujo comando falhou, agrupadas por página e pelo código de erro do banco. O log web mostra um 500; o do banco diz por quê."
+      },
+      "weblogsCustomers": {
+        "title": "Clientes, como administrador",
+        "description": "Os clientes da loja, lidos como administrador. Todas as colunas estão lá, inclusive o e-mail."
+      },
+      "weblogsAnalyst": {
+        "title": "Mudar para o analista",
+        "description": "O papel analyst não pode ver endereços de e-mail. Próximo muda para ele."
+      },
+      "weblogsCustomersMasked": {
+        "title": "Clientes, como analista",
+        "description": "A mesma consulta como analista. A coluna email sumiu: os direitos do papel decidem o que cada consulta devolve, seja qual for a linguagem em que foi escrita."
+      },
+      "weblogsRoleBack": {
+        "title": "De volta a todos os papéis",
+        "description": "Próximo volta a todos os papéis. Em seguida vêm o tour do produto e seus Deep Dives."
+      },
+      "weblogsGlossary": {
+        "title": "As palavras da própria loja",
+        "description": "O glossário da demo diz o que os logs significam: <strong>slow page</strong> é um tipo de requisição web, derivado da latência da página. Seus termos e os vínculos entre eles, a ontologia da loja, deixam qualquer pessoa encontrar os logs pelo significado em vez de pelo nome das colunas."
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "Pular esta etapa",
       "exit": "Sair do tour",
       "cancel": "Cancelar"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "Os logs da loja virtual",
+        "summary": "Os logs web e do banco da loja, ligados: as páginas mais lentas e o SQL por trás delas, as requisições que falharam no banco e o que um analista pode ver."
+      }
     }
   }
 }

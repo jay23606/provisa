@@ -65,6 +65,19 @@ export interface TourStep {
    */
   openBranch?: "sql" | "graphql" | "cypher" | "grpc" | "jsonapi" | "openapi";
   /**
+   * REQ-2010: a statement of a named demo's own tour, opened in a new tab of the step's explorer and
+   * run — the explorers' navigation hand-off, under the state key the explorer reads (`sql` for the
+   * SQL explorer, `query` for GraphiQL). Handed over on every entry, even when the explorer is
+   * already the page, since each such step opens its own statement.
+   */
+  openQuery?: { stateKey: "sql" | "query"; text: string };
+  /**
+   * REQ-2010: on Next only, open the picker `open` and choose its option `option`, then advance —
+   * a choice the step shows (the picker is highlighted) and makes when the visitor moves on. Back
+   * and close leave the picker as it was.
+   */
+  chooseOnNext?: { open: string; option: string };
+  /**
    * Named warm-up for *this* step's backend work, resolved by the runner's prefetch registry and
    * fired one step early (while the previous popover is on screen). The start-up prefetch only
    * covers page chunks and the shared GraphQL queries; a step whose anchor waits on its own REST
@@ -658,6 +671,9 @@ export const TOPIC_IDS = [
 ] as const;
 export type TopicId = (typeof TOPIC_IDS)[number];
 export type TourScope = "core" | TopicId;
+/** REQ-2010: what one run of the tour walks — a scope of TOUR_STEPS, or the named demo's track,
+ * the steps after TOUR_STEPS in the runner's list. */
+export type RunScope = TourScope | "demo";
 
 export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
   core: ["step0", "stepPolly", "step1", "step2", "stepQuery", "step14"],
@@ -708,9 +724,12 @@ export const TOUR_SCOPES: Record<TourScope, readonly string[]> = {
  * appears, and the runner's wait times out — the tour button looks dead. Resolving the inherited
  * route makes any index directly enterable.
  */
-export function stepRoute(index: number): string | undefined {
+export function stepRoute(
+  index: number,
+  steps: readonly TourStep[] = TOUR_STEPS,
+): string | undefined {
   for (let i = index; i >= 0; i--) {
-    const route = TOUR_STEPS[i].route;
+    const route = steps[i].route;
     if (route) return route;
   }
   return undefined;
@@ -735,13 +754,20 @@ export function stepRoute(index: number): string | undefined {
  */
 export function tourItinerary(
   meets: (capability: Capability) => boolean,
-  scope?: TourScope,
+  scope?: RunScope,
+  steps: readonly TourStep[] = TOUR_STEPS,
 ): number[] {
+  // REQ-2010: the demo track is every step after TOUR_STEPS; a scope of TOUR_STEPS keeps its keys.
+  const inScope = (step: TourStep, i: number) =>
+    scope === undefined ||
+    (scope === "demo"
+      ? i >= TOUR_STEPS.length
+      : i < TOUR_STEPS.length && TOUR_SCOPES[scope].includes(step.key));
   const out: number[] = [];
   // Whether the route currently in force is one this viewer may open. Steps before the first
   // routed step (there are none today) would inherit `true` — no gate to fail.
   let ownerAllowed = true;
-  TOUR_STEPS.forEach((step, i) => {
+  steps.forEach((step, i) => {
     if (step.route) {
       if (step.capability === undefined) {
         throw new Error(`Tour: step ${i} declares a route with no capability`);
@@ -750,7 +776,7 @@ export function tourItinerary(
     }
     // The owner walk covers every step, so a scoped run whose first step is routeless still
     // resolves its owner's rights; the scope only filters what is kept.
-    if (ownerAllowed && (scope === undefined || TOUR_SCOPES[scope].includes(step.key))) out.push(i);
+    if (ownerAllowed && inScope(step, i)) out.push(i);
   });
   return out;
 }

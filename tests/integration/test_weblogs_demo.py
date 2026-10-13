@@ -28,6 +28,7 @@ from typing import Any
 
 import httpx
 import pytest
+import yaml
 
 pytestmark = [pytest.mark.integration]
 
@@ -272,3 +273,16 @@ def test_each_example_query_answers_rows_on_the_demo(server, path):
     (answer,) = body["data"].values()
     rows = answer["nodes"] if isinstance(answer, dict) else answer
     assert rows, f"{path.name}: no rows"
+
+
+_TOUR_SQL = [
+    (step["key"], step["sql"])
+    for step in yaml.safe_load((_DEMO / "tour.yaml").read_text())["steps"]
+    if "sql" in step
+]
+
+
+@pytest.mark.parametrize("statement", [s for _k, s in _TOUR_SQL], ids=[k for k, _s in _TOUR_SQL])
+def test_each_tour_statement_answers_rows_on_the_demo(server, statement):
+    """REQ-2010: every statement the demo's own tour runs answers rows on the demo."""
+    assert query(server, statement)

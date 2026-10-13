@@ -40,6 +40,8 @@ describe("TourMenu", () => {
         completed={["govern"]}
         onPick={onPick}
         onCore={onCore}
+        demo={null}
+        onDemo={() => {}}
         onClose={() => {}}
       />,
     );
@@ -68,6 +70,8 @@ describe("TourMenu", () => {
         completed={[]}
         onPick={() => {}}
         onCore={() => {}}
+        demo={null}
+        onDemo={() => {}}
         onClose={() => {}}
       />,
     );

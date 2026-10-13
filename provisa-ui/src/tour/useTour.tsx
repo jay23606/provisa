@@ -32,9 +32,12 @@ import {
   stepRoute,
   tourItinerary,
   LINEAGE_DEMO_SQL,
-  type TourScope,
+  type RunScope,
+  type TopicId,
   type TourStep,
 } from "./tourSteps";
+import { demoTourSteps } from "./demoTour";
+import { useNamedDemo } from "../context/NamedDemoContext";
 import { TourMenu } from "./TourMenu";
 import { completedTopics, markTopicCompleted } from "./tourTopics";
 import { EXPANDED_STORAGE_KEY as DATA_PRODUCTS_EXPANDED_KEY } from "../pages/DataProductsPage";
@@ -53,6 +56,21 @@ import {
   TOUR_TOPICS_DONE_KEY,
 } from "./tourKeys";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
+
+/** REQ-2010: the named demo's own track was walked to its end in this browser. Saved per control
+ * plane and org (REQ-2008), so each demo, and each fresh start of one, offers its track first. */
+const DEMO_TRACK_DONE_KEY = "provisa_tour_demo_track_done";
+
+function demoTrackDone(): boolean {
+  return getStored(DEMO_TRACK_DONE_KEY) === "true";
+}
+
+/** Two frames: long enough for React to commit what a navigation hand-off changed. */
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
 
 // localStorage keys owned by NlPage — mirrored here so the tour can seed a
 // canned result (NL needs an external LLM key, which a demo visitor lacks).
@@ -185,10 +203,13 @@ const PREP_ACTIONS: Record<string, () => void> = {
   seedNl() {
     // Snapshot the visitor's NL state once (guard against re-entry via Back).
     if (getStored(NL_BACKUP_KEY) === null) {
-      setStored(NL_BACKUP_KEY, JSON.stringify({
+      setStored(
+        NL_BACKUP_KEY,
+        JSON.stringify({
           question: getStored(NL_QUESTION_KEY),
           branches: getStored(NL_BRANCHES_KEY),
-        }));
+        }),
+      );
     }
     setStored(NL_QUESTION_KEY, NL_DEMO_QUESTION);
     setStored(NL_BRANCHES_KEY, JSON.stringify(NL_DEMO_BRANCHES));
@@ -440,10 +461,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<TourStatus>(null);
   // Which tour (the core tour or one Deep Dives topic) activeStep belongs to, and whether the
   // Deep Dives menu is open (REQ-1945).
-  const [activeScope, setActiveScope] = useState<TourScope | null>(null);
+  const [activeScope, setActiveScope] = useState<RunScope | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const prefetchTourData = useTourPrefetch();
   const { capabilities } = useAuth();
+  // REQ-2010: the named demo's own steps follow TOUR_STEPS in the list the runner walks; its track
+  // is those steps (scope "demo").
+  const namedDemo = useNamedDemo();
+  const allSteps = useMemo(
+    () => [...TOUR_STEPS, ...demoTourSteps(namedDemo.tour, namedDemo.exampleQueries)],
+    [namedDemo],
+  );
+  const allStepsRef = useRef(allSteps);
+  useEffect(() => {
+    allStepsRef.current = allSteps;
+  }, [allSteps]);
   // REQ-1945: a step that refers to Polly opens the panel through the launcher's own handler. Read through
   // a ref because the runner's closure predates the render that last changed its state.
   const polly = usePolly();
@@ -466,10 +498,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const itineraries = useMemo(() => {
     const meets = (capability: Parameters<typeof hasCapability>[1]) =>
       hasCapability(capabilities, capability);
-    const out = { core: tourItinerary(meets, "core") } as Record<TourScope, number[]>;
+    const out = { core: tourItinerary(meets, "core") } as Record<RunScope, number[]>;
     for (const id of TOPIC_IDS) out[id] = tourItinerary(meets, id);
+    out.demo = tourItinerary(meets, "demo", allSteps);
     return out;
-  }, [capabilities]);
+  }, [capabilities, allSteps]);
   // The active tour's steps. Everything below that walked "the tour" walks this.
   const itinerary = itineraries[activeScope ?? "core"];
   // Read inside handlers whose closure predates a capability refresh. Effects only: startTour reads
@@ -478,13 +511,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // still held the empty itinerary of the render before. startTour declines an empty one, and the
   // param is spent by then, so the tour never started at all.
   const itineraryRef = useRef(itinerary);
-  const scopeRef = useRef<TourScope | null>(null);
+  const scopeRef = useRef<RunScope | null>(null);
   useEffect(() => {
     itineraryRef.current = itinerary;
     scopeRef.current = activeScope;
   }, [itinerary, activeScope]);
   const driverRef = useRef<Driver | null>(null);
   const currentPathRef = useRef<string>("");
+  // REQ-2010: each entry into a step is a visit (Next, Back, a jump), counted as the active step
+  // changes; the visit and attempt whose statement was last handed to an explorer.
+  const visitRef = useRef(0);
+  const handedRef = useRef<string | null>(null);
   // Mirrors activeStep for handlers (onDestroyed) whose closure predates the current step.
   const activeStepRef = useRef<number | null>(null);
 
@@ -497,31 +534,41 @@ export function TourProvider({ children }: { children: ReactNode }) {
   //
   // REQ-1945: the core tour ends on the Deep Dives menu (Done, or its Deep Dives button, "deepdives"),
   // and so does every topic however it ends; only a dismissed core tour saves a position instead.
-  const endTour = useCallback((how: "completed" | "dismissed" | "deepdives") => {
-    setStatus(null);
-    setStored(TOUR_SEEN_KEY, "true", { global: true });
-    const scope = scopeRef.current;
-    if (how !== "dismissed") {
-      removeStored(TOUR_PROGRESS_KEY, { global: true });
-    } else if (scope === "core" && activeStepRef.current != null) {
-      setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
-    }
-    if (how === "completed" && scope && scope !== "core") markTopicCompleted(scope);
-    if (how !== "dismissed" || scope !== "core") setMenuOpen(true);
-    cleanupPrep();
-    closeTourPolly();
-    // Null the ref before destroy so onDestroyed treats this as an intentional end, not a dismissal.
-    const inst = driverRef.current;
-    driverRef.current = null;
-    inst?.destroy();
-    setActiveStep(null);
-    setActiveScope(null);
-  }, [closeTourPolly]);
+  const endTour = useCallback(
+    (how: "completed" | "dismissed" | "deepdives") => {
+      setStatus(null);
+      setStored(TOUR_SEEN_KEY, "true", { global: true });
+      const scope = scopeRef.current;
+      if (how !== "dismissed") {
+        removeStored(TOUR_PROGRESS_KEY, { global: true });
+      } else if (scope === "core" && activeStepRef.current != null) {
+        setStored(TOUR_PROGRESS_KEY, String(activeStepRef.current), { global: true });
+      }
+      if (how === "completed" && scope === "demo") setStored(DEMO_TRACK_DONE_KEY, "true");
+      else if (how === "completed" && scope && scope !== "core" && scope !== "demo")
+        markTopicCompleted(scope);
+      if (how !== "dismissed" || scope !== "core") setMenuOpen(true);
+      cleanupPrep();
+      closeTourPolly();
+      // Null the ref before destroy so onDestroyed treats this as an intentional end, not a dismissal.
+      const inst = driverRef.current;
+      driverRef.current = null;
+      inst?.destroy();
+      setActiveStep(null);
+      setActiveScope(null);
+    },
+    [closeTourPolly],
+  );
 
   const clickIfPresent = (selector?: string) => {
     if (!selector) return;
     document.querySelector<HTMLElement>(selector)?.click();
   };
+
+  // Declared before the runner below, so a visit is counted before the runner reads it.
+  useEffect(() => {
+    visitRef.current += 1;
+  }, [activeStep]);
 
   // Render whichever step is active. Re-runs on every setActiveStep.
   useEffect(() => {
@@ -551,7 +598,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
         // Indices only ever advance within range (step 0 has no Back button and
         // the last step calls finish() instead of advancing), so TOUR_STEPS[i]
         // is always defined here; a bad index would throw into the catch below.
-        const step: TourStep = TOUR_STEPS[i];
+        const step: TourStep = allStepsRef.current[i];
         // A saved position from a session with different rights, or one recorded before a grant was
         // withdrawn. Entering it would render NotAuthorized and wait out the anchor window, so move
         // to the next step this viewer does get; past the end there is nothing left to show.
@@ -570,8 +617,24 @@ export function TourProvider({ children }: { children: ReactNode }) {
         // resume can enter at any index, including one that omits `route` because it continues on
         // its predecessor's page. Stepping forward the inherited route already equals
         // currentPathRef, so the equality guard makes this a no-op exactly as before.
-        const route = stepRoute(i);
-        if (route && route !== currentPathRef.current) {
+        const route = stepRoute(i, allStepsRef.current);
+        if (route && step.openQuery) {
+          // REQ-2010: a demo step's own statement, handed to its explorer once per visit to the
+          // step: a new tab that runs it. This effect also re-runs within a visit when one of its
+          // other inputs changes, and a second hand-off would open the statement twice; Retry hands
+          // it over again. The page then commits that tab before the step's anchor is looked for, so a
+          // result still on screen from the tab before is never taken for this one's.
+          currentPathRef.current = route;
+          const entry = `${visitRef.current}:${attempt}`;
+          if (handedRef.current !== entry) {
+            handedRef.current = entry;
+            navigate(route, {
+              state: { [step.openQuery.stateKey]: step.openQuery.text, autoRun: true },
+            });
+          }
+          await nextPaint();
+          if (cancelled) return;
+        } else if (route && route !== currentPathRef.current) {
           currentPathRef.current = route;
           if (step.openBranch) {
             // Land on the explorer with the branch's demo query pre-filled + auto-run,
@@ -645,8 +708,22 @@ export function TourProvider({ children }: { children: ReactNode }) {
             prevBtnText: t("tour.nav.back"),
             onNextClick: () => {
               clickIfPresent(step.clickAfterNext);
-              if (isLast) endTour("completed");
-              else setActiveStep(steps[pos + 1]);
+              const advance = () => {
+                if (isLast) endTour("completed");
+                else setActiveStep(steps[pos + 1]);
+              };
+              const choose = step.chooseOnNext;
+              if (!choose) return advance();
+              // The option is painted only once the picker is open; a picker that never offers it
+              // is the stuck step's to report, like any anchor that never arrives.
+              document.querySelector<HTMLElement>(choose.open)?.click();
+              waitForElement(choose.option, undefined, abort.signal).then(
+                (option) => {
+                  option.click();
+                  advance();
+                },
+                () => setStatus({ kind: "stuck", step: i }),
+              );
             },
             onPrevClick: () => {
               clickIfPresent(step.clickAfterNext);
@@ -746,7 +823,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // a double-start from a second click during the wait.
   // Run one tour: the core tour (resuming a saved position unless `fresh`) or a Deep Dives topic.
   const launch = useCallback(
-    (scope: TourScope, fresh: boolean) => {
+    (scope: RunScope, fresh: boolean) => {
       if (driverRef.current) return;
       const steps = itineraries[scope];
       // Nothing this viewer may open: every step's page is denied to them.
@@ -808,11 +885,19 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const startTour = useCallback(
     (opts?: { restart?: boolean }) => {
       if (driverRef.current) return;
-      if (TOPIC_IDS.every((id) => itineraries[id].length === 0) && itineraries.core.length === 0) {
+      if (
+        TOPIC_IDS.every((id) => itineraries[id].length === 0) &&
+        itineraries.core.length === 0 &&
+        itineraries.demo.length === 0
+      ) {
         return;
       }
-      if (opts?.restart) launch("core", true);
+      // REQ-2010: starting the tour from the top, in a named demo, starts with the demo's story;
+      // the product tour is the Deep Dives menu's "Start at the Beginning".
+      if (opts?.restart) launch(itineraries.demo.length > 0 ? "demo" : "core", true);
       else if (tourResumeStep() !== null) launch("core", false);
+      // REQ-2010: a named demo tells its own story first, until it has been walked to its end.
+      else if (itineraries.demo.length > 0 && !demoTrackDone()) launch("demo", true);
       else if (hasSeenTour() || itineraries.core.length === 0) setMenuOpen(true);
       else launch("core", true);
     },
@@ -832,7 +917,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
         running: activeStep !== null,
         canResume: tourResumeStep() !== null,
         status,
-        available: TOPIC_IDS.some((id) => itineraries[id].length > 0) || itineraries.core.length > 0,
+        available:
+          TOPIC_IDS.some((id) => itineraries[id].length > 0) ||
+          itineraries.core.length > 0 ||
+          itineraries.demo.length > 0,
       }}
     >
       {children}
@@ -840,7 +928,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
         opened={menuOpen}
         topics={menuTopics}
         completed={completedTopics()}
-        onPick={(id) => launch(id, true)}
+        demo={
+          namedDemo.name !== null && itineraries.demo.length > 0
+            ? { name: namedDemo.name, steps: itineraries.demo.length, done: demoTrackDone() }
+            : null
+        }
+        onDemo={() => launch("demo", true)}
+        onPick={(id: TopicId) => launch(id, true)}
         onCore={() => launch("core", true)}
         onClose={() => setMenuOpen(false)}
       />

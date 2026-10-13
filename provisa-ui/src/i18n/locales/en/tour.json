@@ -22,7 +22,8 @@
       "intro": "One model for your data, metadata and processing, kept in sync and reused everywhere. Pick a topic: each is a short tour of its own, and Done brings you back here. The compass in the toolbar reopens this menu anytime.",
       "completed": "Completed",
       "steps": "Steps: {{count}}",
-      "coreTour": "Start at the Beginning"
+      "coreTour": "Start at the Beginning",
+      "thisDemo": "This demo"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "Relationships and AI agents",
         "description": "🤖 The model and its relationships are available to AI agents — Polly, and agents connecting over MCP — and they shape the queries those agents write.<p>An agent runs under a role, so the same rule applies to it as to a person: a query that joins outside the registered relationships <strong>fails</strong>. This is enforced, not advisory.</p><p>It is also your choice. To let an agent discover relationships, grant its role the <code>ignore_relationships</code> right; to keep it inside guardrails, leave the role without it. It is the same deliberate grant as for a trusted identity (never honored in high-security mode).</p>"
+      },
+      "weblogsSources": {
+        "title": "A web shop's two logs",
+        "description": "This demo reads a small web shop's own logs as tables. <strong>shop_access</strong> is nginx's access log: one row for each request, with its path, status and time."
+      },
+      "weblogsDbLog": {
+        "title": "The database's log",
+        "description": "<strong>shop_db_log</strong> is the shop database's statement log: one row for each statement it ran, with how long it took. Neither log is copied or loaded first; both are read where they are."
+      },
+      "weblogsJoin": {
+        "title": "One request, two logs",
+        "description": "nginx gives every request an id, and the shop names each database connection after it. The <strong>LOGGED_FOR</strong> relationship joins each statement to the request it served on that id."
+      },
+      "weblogsSlowestPages": {
+        "title": "The slowest pages",
+        "description": "One of the demo's example queries, run: each path with its request count and its average and longest time, the ten slowest first. One GraphQL query groups and ranks them."
+      },
+      "weblogsStatements": {
+        "title": "The SQL behind a slow page",
+        "description": "The same requests joined to their statements: for the slowest pages, each statement they ran and how long it took. This is where the time went."
+      },
+      "weblogsDbErrors": {
+        "title": "Requests that failed in the database",
+        "description": "Requests whose statement failed, grouped by page and by the database's error code. The web log shows a 500; the database log says why."
+      },
+      "weblogsCustomers": {
+        "title": "Customers, as an administrator",
+        "description": "The shop's customers, read as the administrator. Every column is there, the email address included."
+      },
+      "weblogsAnalyst": {
+        "title": "Switch to the analyst",
+        "description": "The analyst role may not see email addresses. Next switches to it."
+      },
+      "weblogsCustomersMasked": {
+        "title": "Customers, as the analyst",
+        "description": "The same query as the analyst. The email column is gone: the role's rights decide what every query returns, whichever language it is written in."
+      },
+      "weblogsRoleBack": {
+        "title": "Back to all roles",
+        "description": "Next switches back to all roles. The product tour and its Deep Dives are next."
+      },
+      "weblogsGlossary": {
+        "title": "The shop's own words",
+        "description": "The demo's glossary says what the logs mean: <strong>slow page</strong> is a kind of web request, derived from page latency. Its terms and the links between them, the shop's ontology, let anyone find the logs by what they mean rather than by column names."
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "Skip this step",
       "exit": "Exit tour",
       "cancel": "Cancel"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "The web shop's logs",
+        "summary": "The shop's web and database logs, joined: the slowest pages and the SQL behind them, the requests that failed in the database, and what an analyst may see."
+      }
     }
   }
 }

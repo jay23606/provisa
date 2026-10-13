@@ -22,7 +22,8 @@
       "intro": "一個模型承載你的數據、元數據和處理,保持同步,並在各處重用。選擇一個主題:每個主題都是一段獨立的簡短導覽,按「完成」即可返回此處。工具列中的指南針可隨時重新開啟此選單。",
       "completed": "已完成",
       "steps": "步驟數:{{count}}",
-      "coreTour": "從頭開始"
+      "coreTour": "從頭開始",
+      "thisDemo": "本示範"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "關係與 AI 智能體",
         "description": "🤖 模型及其關係對 AI 智能體開放——包括 Polly 和透過 MCP 連接的智能體——並決定這些智能體撰寫的查詢。<p>智能體在某個角色下運行，因此適用與人相同的規則：在已註冊關係之外做連接的查詢會<strong>失敗</strong>。這是強制執行的，而不只是建議。</p><p>這也由你決定。想讓智能體發現關係，就把 <code>ignore_relationships</code> 權限授予它的角色；想把它限制在防護欄之內，就不要授予。這與授予可信身份的有意授權相同（高安全模式下永不生效）。</p>"
+      },
+      "weblogsSources": {
+        "title": "一間網店的兩份日誌",
+        "description": "本示範把一間小型網店自己的日誌當作表來讀。<strong>shop_access</strong> 是 nginx 的存取日誌：每個請求一行，包含路徑、狀態和耗時。"
+      },
+      "weblogsDbLog": {
+        "title": "資料庫的日誌",
+        "description": "<strong>shop_db_log</strong> 是網店資料庫的語句日誌：每條執行過的語句一行，包含其耗時。兩份日誌都不會預先複製或載入，而是在原處讀取。"
+      },
+      "weblogsJoin": {
+        "title": "一個請求，兩份日誌",
+        "description": "nginx 為每個請求分配一個 id，網店用它命名每個資料庫連線。關係 <strong>LOGGED_FOR</strong> 按這個 id 把每條語句連接到它所服務的請求。"
+      },
+      "weblogsSlowestPages": {
+        "title": "最慢的頁面",
+        "description": "執行了本示範的一個範例查詢：每個路徑的請求數以及平均和最長耗時，最慢的十個排在前面。一個 GraphQL 查詢完成分組和排序。"
+      },
+      "weblogsStatements": {
+        "title": "慢頁面背後的 SQL",
+        "description": "把同樣的請求與其語句連接：對最慢的頁面，列出它們執行的每條語句及耗時。時間就花在這裏。"
+      },
+      "weblogsDbErrors": {
+        "title": "在資料庫中失敗的請求",
+        "description": "語句失敗的請求，按頁面和資料庫錯誤代碼分組。Web 日誌顯示 500；資料庫日誌說明原因。"
+      },
+      "weblogsCustomers": {
+        "title": "客戶，以管理員身份",
+        "description": "以管理員身份讀取網店的客戶。所有欄都在，包括電郵地址。"
+      },
+      "weblogsAnalyst": {
+        "title": "切換到分析員",
+        "description": "analyst 角色不能查看電郵地址。按「下一步」切換到該角色。"
+      },
+      "weblogsCustomersMasked": {
+        "title": "客戶，以分析員身份",
+        "description": "以分析員身份執行同一查詢。email 欄不見了：無論用哪種語言編寫查詢，傳回甚麼都由角色的權限決定。"
+      },
+      "weblogsRoleBack": {
+        "title": "回到所有角色",
+        "description": "按「下一步」回到所有角色。接着是產品導覽及其 Deep Dives。"
+      },
+      "weblogsGlossary": {
+        "title": "網店自己的術語",
+        "description": "本示範的術語表說明日誌的含義：<strong>slow page</strong> 是一種 Web 請求，由頁面延遲推導而來。這些術語及其之間的聯繫，也就是網店的本體，讓任何人都能按含義而不是按欄名找到日誌。"
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "略過此步驟",
       "exit": "結束導覽",
       "cancel": "取消"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "網店的日誌",
+        "summary": "網店的 Web 日誌與資料庫日誌連接在一起：最慢的頁面及其背後的 SQL、在資料庫中失敗的請求，以及分析員能看到的內容。"
+      }
     }
   }
 }

@@ -67,7 +67,10 @@ function Polly() {
 describe("QueryPage — a hand-off while the page is open", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
   });
 
   it("opens and runs the query each time one is handed over", async () => {
@@ -88,5 +91,24 @@ describe("QueryPage — a hand-off while the page is open", () => {
     act(() => screen.getByText("polly").click());
     await waitFor(() => expect(actions.addTab).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(actions.run).toHaveBeenCalledTimes(2));
+  });
+
+  it("titles the new tab by the handed query's own operation", async () => {
+    render(
+      <MantineProvider>
+        <MemoryRouter initialEntries={["/query"]}>
+          <Polly />
+          <QueryPage />
+        </MemoryRouter>
+      </MantineProvider>,
+    );
+    act(() => screen.getByText("polly").click());
+    // An anonymous query has no name: the title of the tab it was opened from is not kept.
+    await waitFor(() =>
+      expect(actions.updateActiveTabValues).toHaveBeenCalledWith({
+        query: "{ orders { id } }",
+        operationName: null,
+      }),
+    );
   });
 });

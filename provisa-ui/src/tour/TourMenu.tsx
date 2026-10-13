@@ -9,7 +9,17 @@
 // permission from the copyright holder.
 
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Group, Modal, Paper, SimpleGrid, Stack, Text, UnstyledButton } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Group,
+  Modal,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import { Check } from "lucide-react";
 import type { TopicId } from "./tourSteps";
 
@@ -22,6 +32,8 @@ export function TourMenu({
   opened,
   topics,
   completed,
+  demo,
+  onDemo,
   onPick,
   onCore,
   onClose,
@@ -30,6 +42,10 @@ export function TourMenu({
   /** Topics to list, in menu order, with the number of steps this viewer would be shown. */
   topics: { id: TopicId; steps: number }[];
   completed: readonly TopicId[];
+  /** REQ-2010: the named demo's own track, listed first, or null when no named demo has one. */
+  demo: { name: string; steps: number; done: boolean } | null;
+  /** Begin the named demo's track at its first step. */
+  onDemo: () => void;
   onPick: (id: TopicId) => void;
   /** Begin the core tour at its first step. */
   onCore: () => void;
@@ -60,6 +76,40 @@ export function TourMenu({
             {t("tour.menu.coreTour")}
           </Button>
         </Group>
+        {demo && (
+          <UnstyledButton
+            data-testid="tour-demo-track"
+            onClick={onDemo}
+            aria-label={t(`tour.demos.${demo.name}.title`)}
+          >
+            <Paper withBorder p="md" radius="md">
+              <Stack gap={6}>
+                <Group justify="space-between" wrap="nowrap" align="flex-start">
+                  <Group gap="xs" wrap="nowrap">
+                    <Badge variant="light">{t("tour.menu.thisDemo")}</Badge>
+                    <Text fw={600}>{t(`tour.demos.${demo.name}.title`)}</Text>
+                  </Group>
+                  {demo.done && (
+                    <Badge
+                      color="green"
+                      variant="light"
+                      leftSection={<Check size={12} aria-hidden />}
+                      data-testid="tour-demo-track-done"
+                    >
+                      {t("tour.menu.completed")}
+                    </Badge>
+                  )}
+                </Group>
+                <Text size="sm" c="dimmed">
+                  {t(`tour.demos.${demo.name}.summary`)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {t("tour.menu.steps", { count: demo.steps })}
+                </Text>
+              </Stack>
+            </Paper>
+          </UnstyledButton>
+        )}
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
           {topics.map(({ id, steps }) => (
             <UnstyledButton

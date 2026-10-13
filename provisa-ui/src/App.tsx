@@ -15,7 +15,7 @@ import { client } from "./apolloClient";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DomainFilterProvider } from "./context/DomainFilterContext";
 import { StorageScopeGate } from "./components/StorageScopeGate";
-import { ExampleQueriesContext } from "./context/ExampleQueriesContext";
+import { NamedDemoContext, NO_NAMED_DEMO, type NamedDemo } from "./context/NamedDemoContext";
 import { SubnavExtraProvider } from "./context/SubnavExtraContext";
 import { NavBar } from "./components/NavBar";
 import { AdminRail } from "./components/AdminRail";
@@ -33,7 +33,7 @@ import { PlatformAdminWelcomeModal } from "./components/PlatformAdminWelcomeModa
 import { MaintenanceBanner } from "./components/MaintenanceBanner"; // REQ-1466
 import { LicenseBadge } from "./components/LicenseBadge";
 import { ChatPanel } from "./components/ChatPanel";
-import { fetchSetupStatus, type ExampleQuery } from "./api/setup";
+import { fetchSetupStatus } from "./api/setup";
 import { PollyProvider } from "./context/PollyContext";
 import { TourProvider } from "./tour/useTour";
 import { TourAutoStart } from "./tour/TourAutoStart";
@@ -168,13 +168,18 @@ function App() {
   const [demoMode, setDemoMode] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [multitenancy, setMultitenancy] = useState(false);
-  const [exampleQueries, setExampleQueries] = useState<ExampleQuery[]>([]);
+  const [namedDemo, setNamedDemo] = useState<NamedDemo>(NO_NAMED_DEMO);
   const [setupError, setSetupError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSetupStatus()
-      .then(({ needs_setup, demo_mode, auth_enabled, multitenancy, example_queries }) => {
-        setExampleQueries(example_queries);
+      .then((status) => {
+        const { needs_setup, demo_mode, auth_enabled, multitenancy } = status;
+        setNamedDemo({
+          name: status.named_demo,
+          exampleQueries: status.example_queries,
+          tour: status.demo_tour,
+        });
         setNeedsSetup(needs_setup);
         setDemoMode(demo_mode);
         setAuthEnabled(auth_enabled);
@@ -197,7 +202,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <ExampleQueriesContext.Provider value={exampleQueries}>
+      <NamedDemoContext.Provider value={namedDemo}>
         <ApolloProvider client={client}>
           {/* REQ-1291: authVersion also reaches AuthProvider, so a sign-in refetches /auth/me.
             Without it the identity resolved at mount (unauthenticated) stood forever, and
@@ -642,7 +647,7 @@ function App() {
             )}
           </AuthProvider>
         </ApolloProvider>
-      </ExampleQueriesContext.Provider>
+      </NamedDemoContext.Provider>
     </BrowserRouter>
   );
 }

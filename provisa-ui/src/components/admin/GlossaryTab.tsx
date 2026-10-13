@@ -595,6 +595,8 @@ export function GlossaryTab() {
                   label={term.name}
                   onClick={() => setSelectedId(term.id)}
                   data-testid={`glossary-item-${term.id}`}
+                  // REQ-2010: a demo's tour opens a term by its name.
+                  data-glossary-term={term.name}
                   rightSection={
                     <Group gap={4} wrap="nowrap">
                       {term.is_abstract && (

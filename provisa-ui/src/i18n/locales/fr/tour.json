@@ -22,7 +22,8 @@
       "intro": "Un modèle pour vos données, métadonnées et traitements, synchronisé et réutilisé partout. Choisissez un sujet : chacun est une courte visite à part entière, et « Terminé » vous ramène ici. La boussole de la barre d'outils rouvre ce menu à tout moment.",
       "completed": "Terminé",
       "steps": "Étapes : {{count}}",
-      "coreTour": "Commencer par le début"
+      "coreTour": "Commencer par le début",
+      "thisDemo": "Cette démo"
     },
     "topics": {
       "connect": {
@@ -290,6 +291,50 @@
       "stepRelsAgents": {
         "title": "Relations et agents IA",
         "description": "🤖 Le modèle et ses relations sont accessibles aux agents IA — Polly et les agents qui se connectent via MCP — et orientent les requêtes que ces agents écrivent.<p>Un agent s'exécute sous un rôle, la même règle s'applique donc à lui comme à une personne : une requête qui joint en dehors des relations enregistrées <strong>échoue</strong>. C'est appliqué, pas seulement conseillé.</p><p>C'est aussi votre choix. Pour qu'un agent découvre des relations, accordez à son rôle le droit <code>ignore_relationships</code> ; pour le garder dans des garde-fous, laissez le rôle sans ce droit. C'est la même attribution délibérée que pour une identité de confiance (jamais prise en compte en mode haute sécurité).</p>"
+      },
+      "weblogsSources": {
+        "title": "Les deux journaux d'une boutique en ligne",
+        "description": "Cette démo lit comme des tables les journaux d'une petite boutique en ligne. <strong>shop_access</strong> est le journal d'accès de nginx : une ligne par requête, avec son chemin, son statut et sa durée."
+      },
+      "weblogsDbLog": {
+        "title": "Le journal de la base de données",
+        "description": "<strong>shop_db_log</strong> est le journal des instructions de la base de la boutique : une ligne par instruction exécutée, avec sa durée. Aucun journal n'est copié ni chargé au préalable ; les deux sont lus là où ils sont."
+      },
+      "weblogsJoin": {
+        "title": "Une requête, deux journaux",
+        "description": "nginx donne un identifiant à chaque requête, et la boutique nomme chaque connexion à la base d'après lui. La relation <strong>LOGGED_FOR</strong> relie par cet identifiant chaque instruction à la requête qu'elle a servie."
+      },
+      "weblogsSlowestPages": {
+        "title": "Les pages les plus lentes",
+        "description": "L'une des requêtes d'exemple de la démo, exécutée : chaque chemin avec son nombre de requêtes et sa durée moyenne et maximale, les dix plus lentes d'abord. Une seule requête GraphQL les regroupe et les classe."
+      },
+      "weblogsStatements": {
+        "title": "Le SQL derrière une page lente",
+        "description": "Les mêmes requêtes reliées à leurs instructions : pour les pages les plus lentes, chaque instruction exécutée et sa durée. C'est là que le temps est passé."
+      },
+      "weblogsDbErrors": {
+        "title": "Les requêtes échouées dans la base",
+        "description": "Les requêtes dont l'instruction a échoué, regroupées par page et par code d'erreur de la base. Le journal web montre un 500 ; celui de la base dit pourquoi."
+      },
+      "weblogsCustomers": {
+        "title": "Les clients, en administrateur",
+        "description": "Les clients de la boutique, lus en administrateur. Toutes les colonnes sont là, l'adresse e-mail comprise."
+      },
+      "weblogsAnalyst": {
+        "title": "Passer à l'analyste",
+        "description": "Le rôle analyst ne peut pas voir les adresses e-mail. Suivant passe à ce rôle."
+      },
+      "weblogsCustomersMasked": {
+        "title": "Les clients, en analyste",
+        "description": "La même requête en analyste. La colonne email a disparu : les droits du rôle décident de ce que renvoie chaque requête, quel que soit le langage dans lequel elle est écrite."
+      },
+      "weblogsRoleBack": {
+        "title": "Retour à tous les rôles",
+        "description": "Suivant revient à tous les rôles. Viennent ensuite la visite du produit et ses Deep Dives."
+      },
+      "weblogsGlossary": {
+        "title": "Les mots de la boutique",
+        "description": "Le glossaire de la démo dit ce que signifient les journaux : <strong>slow page</strong> est un type de requête web, dérivé de la latence de page. Ses termes et leurs liens, l'ontologie de la boutique, permettent à chacun de trouver les journaux par leur sens plutôt que par des noms de colonnes."
       }
     },
     "status": {
@@ -301,6 +346,12 @@
       "skip": "Ignorer cette étape",
       "exit": "Quitter la visite",
       "cancel": "Annuler"
+    },
+    "demos": {
+      "weblogs": {
+        "title": "Les journaux de la boutique en ligne",
+        "summary": "Les journaux web et base de données de la boutique, reliés : les pages les plus lentes et le SQL qui les explique, les requêtes échouées dans la base et ce qu'un analyste peut voir."
+      }
     }
   }
 }
