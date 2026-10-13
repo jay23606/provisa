@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import tempfile
 from pathlib import Path
 
 import grpc
@@ -66,7 +67,11 @@ def _make_handler(pb2) -> grpc.GenericRpcHandler:
 async def serve() -> None:
     port = os.environ.get("DEMO_GRPC_REMOTE_PORT", "50072")
     proto_text = _PROTO_PATH.read_text()
-    pb2_path, pb2_grpc_path = compile_proto_stubs(proto_text, proto_name="animal_catalog")
+    # A remote, not a Provisa node: it serves no org, so its stubs are compiled in a temporary
+    # directory of its own (an org's are compiled in the org's folder, REQ-1992).
+    pb2_path, pb2_grpc_path = compile_proto_stubs(
+        proto_text, proto_name="animal_catalog", out_dir=tempfile.mkdtemp(prefix="demo_grpc_stubs_")
+    )
     pb2, _ = load_stubs(pb2_path, pb2_grpc_path)
 
     server = grpc.aio.server()

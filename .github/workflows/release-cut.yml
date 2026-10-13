@@ -3,6 +3,8 @@
 # How a release is made. Run by hand on main (Actions -> Release: cut -> Run workflow) with the
 # version to cut (v0.1.0-alpha.480). In order, and stopping at the first failure:
 #
+#   0. Every UI e2e lane (core, Trino, swap) passed on the commit being cut: its push run on main
+#      completed green. A lane that did not is named and the cut stops.
 #   1. scripts/release_cut_check.py: the version is a release tag, its tag does not exist, no
 #      hand-written docs/releases/<version>.md would be overwritten, and the previous release's
 #      tag is found.
@@ -59,6 +61,26 @@ jobs:
 
       - name: Set up Python
         uses: ./.github/actions/setup-python
+
+      # The maintainer's rule: a release is cut only from a commit of main that every UI e2e
+      # lane passed on its push run. A lane not green on it -- failed, cancelled, still running
+      # or never run -- refuses the cut, by name.
+      - name: Refuse unless every UI e2e lane is green on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          refused=0
+          for workflow in ui-e2e-core.yml ui-e2e-trino.yml ui-e2e-swap-amd64.yml; do
+            run="$(gh run list --workflow "$workflow" --branch main --event push \
+              --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,url \
+              --jq '.[0] // {} | "\(.status // "never run") \(.conclusion // "") \(.url // "")"')"
+            if [ "${run#completed success }" = "$run" ]; then
+              echo "::error::$workflow is not green on $GITHUB_SHA: $run"
+              refused=1
+            fi
+          done
+          exit "$refused"
 
       - name: Check the release can be cut
         id: check

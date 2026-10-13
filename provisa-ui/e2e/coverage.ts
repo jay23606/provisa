@@ -48,6 +48,11 @@ if (TARGET === "local" && !BACKEND_PORTS[PARALLEL_INDEX]) {
   );
 }
 export const BACKEND_PORT = BACKEND_PORTS[PARALLEL_INDEX];
+
+// The petstore mock the backend's petstore-api source is pointed at (playwright.config.ts sets the
+// port). The source's path is stored as written, its ${env:PETSTORE_BASE_URL} reference resolved
+// only where it is read, so a spec cannot take the address from the source.
+export const PETSTORE_BASE_URL = `http://localhost:${process.env.PROVISA_E2E_PETSTORE_PORT}/api/v3`;
 export const BACKEND_URL = TARGET === "cloud" ? CLOUD_URL : `http://localhost:${BACKEND_PORT}`;
 
 // UI dev server port — matches playwright.config.ts's E2E_UI_PORT.

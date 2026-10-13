@@ -27,15 +27,18 @@ name: UI e2e (core lane)
 
 on:
   push:
-    branches: ["release/**"]
+    branches: [main, "release/**"]
     tags: ["v*"]
+    # Every push to main runs this lane alongside the integration suite, filtered as that suite is
+    # (no run for a push of only the website, the docs or markdown), and a release is cut only
+    # from a main commit every UI e2e lane passed (release-cut.yml). Tag pushes ignore paths.
     paths:
-      - "provisa-ui/**"
-      - "provisa/**"
-      - "main.py"
-      - "config/provisa-install.yaml"
-      - "demo/**"
-      - ".github/workflows/ui-e2e-core.yml"
+      - "**"
+      - "!site/**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "!.github/workflows/docs.yml"
+      - "!scripts/gen-site-*.mjs"
   workflow_dispatch:
   # Callable: by an orchestrator, and by the proof of the CI's own structure. Every secret its two
   # jobs read, by name; the caller passes each one and nothing is inherited.

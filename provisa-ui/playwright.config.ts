@@ -288,6 +288,9 @@ if (RUNS_TRINO && IS_RUNNER) {
 // them derive the backend URL from the single source of truth above instead of
 // hardcoding it a second time.
 process.env.PROVISA_E2E_API_PORT = String(E2E_API_PORT);
+// The petstore mock the backend's petstore-api source reaches (PETSTORE_BASE_URL below): a spec
+// that checks what a write left at the remote reads it there (e2e/coverage.ts PETSTORE_BASE_URL).
+process.env.PROVISA_E2E_PETSTORE_PORT = String(E2E_PETSTORE_PORT);
 // The full per-worker backend list, in worker order. global-setup bootstraps every entry;
 // e2e/coverage.ts indexes it by TEST_PARALLEL_INDEX to pick the worker's own backend; and the
 // Vite dev server reads it to route each proxied request to the backend named by the

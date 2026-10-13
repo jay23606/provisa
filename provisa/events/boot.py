@@ -162,8 +162,15 @@ def build_source_node_spec(
     from provisa.events.handlers import make_source_land
     from provisa.federation.engine import UnreachableSource
     from provisa.federation.residency import resolve_landing_args
+    from provisa.federation.replica_routing import owns_replica
     from provisa.federation.strategy import Strategy, federate
 
+    # A type that owns no replica (a checker's scans, a profiler's results, ingest, a live-only
+    # source) is read where it is written: no land, no build. The engine attaches none of them, so
+    # federate calls them MATERIALIZED, and the boot seed asked for a build that could never
+    # succeed, retried for ever (REQ-1443, REQ-1934).
+    if not owns_replica(src):
+        return None
     try:
         if federate(src, engine) is not Strategy.MATERIALIZED:
             return None  # live/scan federates in place — not landed, not a source processor
