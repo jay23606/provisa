@@ -29,6 +29,6 @@
     "resizeSidebar": "Resize sidebar",
     "tabSettings": "View settings",
     "maxNodes": "Max nodes",
-    "maxNodesHint": "Nodes drawn per query, up to {{ceiling}}"
+    "maxNodesHint": "The most nodes a query draws"
   }
 }

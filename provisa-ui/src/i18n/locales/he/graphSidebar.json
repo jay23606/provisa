@@ -29,6 +29,6 @@
     "resizeSidebar": "שינוי גודל סרגל הצד",
     "tabSettings": "הגדרות תצוגה",
     "maxNodes": "מקסימום צמתים",
-    "maxNodesHint": "צמתים המוצגים בכל שאילתה, עד {{ceiling}}"
+    "maxNodesHint": "מספר הצמתים המרבי ששאילתה מציגה"
   }
 }

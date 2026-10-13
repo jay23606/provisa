@@ -78,9 +78,8 @@ export function GraphPage() {
   });
   const [schemaNodeLabels, setSchemaNodeLabels] = useState<SchemaNodeLabel[]>([]);
   const [schemaRels, setSchemaRels] = useState<SchemaRel[]>([]);
-  // The viewer's max-nodes setting, and the server's ceiling for it (graph-schema's node_cap).
+  // The viewer's max-nodes setting: the most distinct nodes a frame draws.
   const [maxNodes, setMaxNodes] = useMaxNodes();
-  const [nodeCap, setNodeCap] = useState<number | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(true);
   const [totalNodeCount, setTotalNodeCount] = useState<number | null>(null);
   const [totalRelCount, setTotalRelCount] = useState<number | null>(null);
@@ -250,7 +249,6 @@ export function GraphPage() {
           if (node.domainLabel) newClusterMap[`${node.domainLabel}:${node.tableLabel}`] = entry;
         }
         clusterMapRef.current = newClusterMap;
-        setNodeCap(data.node_cap);
         setSchemaNodeLabels(uniqueNodeLabels);
         setSchemaRels(rels.sort((a, b) => a.type.localeCompare(b.type)));
       })
@@ -338,7 +336,7 @@ export function GraphPage() {
         const res = await fetch("/data/cypher", {
           method: "POST",
           headers: hdrs,
-          body: JSON.stringify({ query, params: {}, max_nodes: maxNodes }),
+          body: JSON.stringify({ query, params: {} }),
         });
         const elapsed = Date.now() - start;
         if (!res.ok) {
@@ -368,7 +366,7 @@ export function GraphPage() {
         const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
         // A result that returns nodes, relationships or paths is drawn, up to max nodes; one that
         // returns rows only is a table (the server says which, from the translation).
-        const { nodes, edges, truncated } = drawnElements(data);
+        const { nodes, edges, truncated } = drawnElements(data, maxNodes);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
           if (clusters)
@@ -492,7 +490,7 @@ export function GraphPage() {
         const res = await fetch("/data/cypher", {
           method: "POST",
           headers: hdrs2,
-          body: JSON.stringify({ query, params: {}, max_nodes: maxNodes }),
+          body: JSON.stringify({ query, params: {} }),
         });
         const elapsed = Date.now() - start;
         if (!res.ok) {
@@ -522,7 +520,7 @@ export function GraphPage() {
         const redirect = data.redirect ? toResultRedirect(data.redirect) : undefined;
         // A result that returns nodes, relationships or paths is drawn, up to max nodes; one that
         // returns rows only is a table (the server says which, from the translation).
-        const { nodes, edges, truncated } = drawnElements(data);
+        const { nodes, edges, truncated } = drawnElements(data, maxNodes);
         nodes.forEach((node) => {
           const clusters = clusterMapRef.current[node.label];
           if (clusters)
@@ -912,7 +910,6 @@ export function GraphPage() {
         totalRelCount={totalRelCount}
         labelCounts={labelCounts}
         maxNodes={maxNodes}
-        nodeCap={nodeCap}
         onMaxNodesChange={setMaxNodes}
       />
 

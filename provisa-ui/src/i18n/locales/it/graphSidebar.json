@@ -29,6 +29,6 @@
     "resizeSidebar": "Ridimensiona barra laterale",
     "tabSettings": "Impostazioni di visualizzazione",
     "maxNodes": "Nodi max",
-    "maxNodesHint": "Nodi disegnati per query, fino a {{ceiling}}"
+    "maxNodesHint": "Numero massimo di nodi disegnati da una query"
   }
 }

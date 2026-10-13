@@ -29,6 +29,6 @@
     "resizeSidebar": "调整侧边栏大小",
     "tabSettings": "视图设置",
     "maxNodes": "最大节点数",
-    "maxNodesHint": "每次查询绘制的节点数，最多 {{ceiling}}"
+    "maxNodesHint": "一次查询最多绘制的节点数"
   }
 }

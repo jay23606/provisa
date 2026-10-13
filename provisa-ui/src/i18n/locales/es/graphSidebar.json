@@ -29,6 +29,6 @@
     "resizeSidebar": "Redimensionar barra lateral",
     "tabSettings": "Ajustes de vista",
     "maxNodes": "Máx. de nodos",
-    "maxNodesHint": "Nodos dibujados por consulta, hasta {{ceiling}}"
+    "maxNodesHint": "Máximo de nodos que dibuja una consulta"
   }
 }

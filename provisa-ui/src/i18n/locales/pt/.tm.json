@@ -1501,7 +1501,7 @@
   "pt/graphSidebar.json::graphSidebar.tabHistory": "History",
   "pt/graphSidebar.json::graphSidebar.tabSettings": "View settings",
   "pt/graphSidebar.json::graphSidebar.maxNodes": "Max nodes",
-  "pt/graphSidebar.json::graphSidebar.maxNodesHint": "Nodes drawn per query, up to {{ceiling}}",
+  "pt/graphSidebar.json::graphSidebar.maxNodesHint": "The most nodes a query draws",
   "pt/graphStatsPanel.json::graphStatsPanel.average": "Average",
   "pt/graphStatsPanel.json::graphStatsPanel.avgPathLength": "Avg path length",
   "pt/graphStatsPanel.json::graphStatsPanel.cache": "cache",

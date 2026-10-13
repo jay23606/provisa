@@ -29,6 +29,6 @@
     "resizeSidebar": "Redimensionner la barre latérale",
     "tabSettings": "Paramètres d'affichage",
     "maxNodes": "Nœuds max.",
-    "maxNodesHint": "Nœuds dessinés par requête, jusqu'à {{ceiling}}"
+    "maxNodesHint": "Nombre maximal de nœuds dessinés par une requête"
   }
 }

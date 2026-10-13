@@ -29,6 +29,6 @@
     "resizeSidebar": "Zijbalk vergroten of verkleinen",
     "tabSettings": "Weergave-instellingen",
     "maxNodes": "Max. knooppunten",
-    "maxNodesHint": "Getekende knooppunten per query, tot {{ceiling}}"
+    "maxNodesHint": "Het maximale aantal knooppunten dat een query tekent"
   }
 }
