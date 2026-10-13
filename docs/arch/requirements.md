@@ -23144,4 +23144,4 @@ A group-by is ordered by its keys and its aggregates. The <Type>GroupBy field's 
 
 **Code:** `provisa/compiler/aggregate_gen.py`, `provisa/compiler/aggregates.py`, `provisa/compiler/schema_gen.py`, `provisa/grpc/proto_gen.py`, `provisa/grpc/query_ir.py`, `provisa/grpc/server.py`, `provisa/api/data/endpoint_grpc_proxy.py`, `provisa/api/rest/generator.py`, `provisa/api/jsonapi/generator.py`
 
-**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_rest_aggregates.py`, `tests/unit/test_jsonapi_aggregates.py`
+**Tests:** `tests/unit/test_aggregate_field_names.py`, `tests/unit/test_rest_aggregates.py`, `tests/unit/test_jsonapi_aggregates.py`, `tests/unit/test_jsonapi_physical_naming.py`

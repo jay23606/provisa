@@ -81585,6 +81585,7 @@
   - tests/unit/test_aggregate_field_names.py
   - tests/unit/test_rest_aggregates.py
   - tests/unit/test_jsonapi_aggregates.py
+  - tests/unit/test_jsonapi_physical_naming.py
   related_reqs:
   - REQ-196
   - REQ-197

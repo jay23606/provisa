@@ -3470,6 +3470,7 @@
   "it/serverErrors.json::serverErrors.data.engine_not_connected": "the engine not connected",
   "it/serverErrors.json::serverErrors.data.grpc_source_not_registered": "gRPC remote source '{{source_id}}' not registered",
   "it/serverErrors.json::serverErrors.data.invalid_as_of": "invalid X-Provisa-As-Of: {{error}}",
+  "it/serverErrors.json::serverErrors.data.invalid_order_by": "invalid group-by order: {{error}}",
   "it/serverErrors.json::serverErrors.data.invalid_cache_control": "invalid response-cache opt-in: {{error}}",
   "it/serverErrors.json::serverErrors.data.invalid_filter": "filter must be an object mapping field names to values",
   "it/serverErrors.json::serverErrors.data.invalid_filter_field": "Invalid filter field '{{field}}' for {{type_name}}",

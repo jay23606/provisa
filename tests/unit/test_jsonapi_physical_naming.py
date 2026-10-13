@@ -332,6 +332,32 @@ async def test_group_by_keys_come_back_physically_named(client, monkeypatch):
     assert "userId" not in attrs["nodes"][0]
 
 
+@pytest.mark.anyio
+async def test_a_group_by_is_sorted_by_its_group_keys_only(client, monkeypatch):
+    """REQ-2007: a group-by's sort orders by its group keys; a field it does not group by is
+    refused, named physically, before anything runs."""
+    monkeypatch.setattr(
+        "provisa.executor.serialize.serialize_group_by",
+        lambda rows, columns, node_rows, node_columns, root_field: {"data": {root_field: []}},
+    )
+    async with client as c:
+        refused = await c.get(
+            "/data/jsonapi/pet-store/inquiries",
+            params={"aggregate": "count", "groupBy": "user_id", "sort": "pet_id"},
+            headers=_HEADERS,
+        )
+        sorted_by_key = await c.get(
+            "/data/jsonapi/pet-store/inquiries",
+            params={"aggregate": "count", "groupBy": "user_id", "sort": "-user_id"},
+            headers=_HEADERS,
+        )
+    assert refused.status_code == 400, refused.text
+    error = refused.json()["errors"][0]
+    assert error["source"] == {"parameter": "sort"}
+    assert "'pet_id' is not one of the groupBy columns" in error["detail"]
+    assert sorted_by_key.status_code == 200, sorted_by_key.text
+
+
 def test_the_relationship_physical_name_comes_from_the_naming_authority():
     """The admin API answers what ?include= should name a relationship, so no client has to
     transliterate ``graphqlAlias``'s casing itself."""
