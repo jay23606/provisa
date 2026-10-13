@@ -29,23 +29,19 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import insert, update
-from provisa.core.database import create_engine_from_url
 
 from provisa.api.branding_router import router as branding_router
 from provisa.api.errors import ApiError
 from provisa.core.database import Database
 from provisa.core.org_branding import serialize_branding, validate_branding
-from provisa.core.schema_admin import metadata, orgs
+from provisa.core.schema_admin import orgs
 
 _PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
 
 
 @pytest.fixture
-async def admin_db():
-    engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-    with engine.begin() as conn:
-        metadata.create_all(conn)
-    db = Database(engine, "test")
+async def admin_db(control_plane):
+    db = control_plane.platform
     async with db.acquire() as conn:
         await conn.execute_core(
             insert(orgs).values(
@@ -63,10 +59,7 @@ async def admin_db():
             )
         )
         await conn.execute_core(insert(orgs).values(id="plain", name="Plain Co"))
-    try:
-        yield db
-    finally:
-        engine.dispose()
+    return db
 
 
 @pytest.fixture

@@ -16,18 +16,21 @@ removed it; every other region removes its own when it prunes."""
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from sqlalchemy import func, insert, select
-from sqlalchemy.engine import Engine
 
 from provisa.core import request_context
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.database import Database
+from provisa.core.db import init_schema
+from provisa.core.environments import org_schema
 from provisa.core.repositories.integrity import ObjectRef, discard, prune_state_parts
+from tests.pg_control_plane import SCHEMA_SQL
 from provisa.core.schema_org import (
     domains,
     file_source_mtimes,
     materialized_views,
-    metadata,
     mv_delta_ledger,
     mv_refresh_log,
     registered_tables,
@@ -37,19 +40,20 @@ from provisa.core.schema_org import (
 _STATE_PARTS = (file_source_mtimes, mv_refresh_log, mv_delta_ledger)
 
 
-def _store(path) -> Engine:
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{path}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return engine
+def _store(control_plane, org_id: str, holds: str) -> Database:
+    """A store of its own: the org schema ``org_id`` laid out whole, held on one side."""
+    db = control_plane.org(org_id, holds=holds)
+    if org_id != "default":
+        asyncio.run(init_schema(db, SCHEMA_SQL, org_id=org_id))
+    return db
 
 
 @pytest.fixture
-def stores(tmp_path, monkeypatch):
+def stores(control_plane, monkeypatch):
     """The org's model store and the state stores of two of its regions: three databases."""
-    model_db = Database(_store(tmp_path / "model.db"), "org-model", holds="model")
-    here = Database(_store(tmp_path / "eu-state.db"), "org-state", holds="state")
-    there = Database(_store(tmp_path / "us-state.db"), "org-state", holds="state")
+    model_db = _store(control_plane, "default", "model")
+    here = _store(control_plane, "eu", "state")
+    there = _store(control_plane, "us", "state")
     sides = {"model": model_db, "state": here}
     monkeypatch.setattr(request_context, "_org_store_provider", lambda side: sides[side])
     return model_db, here, there
@@ -140,15 +144,16 @@ async def test_a_prune_keeps_the_rows_of_objects_the_model_still_has(stores):
 
 
 async def test_with_one_database_keeping_every_side_a_table_is_removed_in_one_transaction(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
     """The implicit region keeps its state with the model, in the control plane's one database
     (region_stores.open_org_stores): both handles are over one engine. Removing a table in a
     transaction reached its state part through a SECOND connection to that database, which
-    waited on the first's write lock — on SQLite, 'database is locked' and the table stayed."""
-    engine = _store(tmp_path / "tenant.db")
-    model_db = Database(engine, "org-model", holds="model")
-    state_db = Database(engine, "org-state", holds="state")
+    waited on the first's write lock and the table stayed."""
+    engine = control_plane.engine()
+    schema = org_schema("default")
+    model_db = Database(engine, "org-model", search_path=schema, holds="model")
+    state_db = Database(engine, "org-state", search_path=schema, holds="state")
     sides = {"model": model_db, "state": state_db}
     monkeypatch.setattr(request_context, "_org_store_provider", lambda side: sides[side])
     table_id = await _seed(model_db, state_db)

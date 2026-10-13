@@ -29,8 +29,7 @@ from sqlalchemy import func, insert, select
 
 import provisa.api.app as appmod
 from provisa.api.admin import schema_mutation
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.repositories import relationship as rel_repo
 from provisa.core.schema_org import (
     domains,
@@ -44,9 +43,8 @@ JOIN = "SELECT o.id FROM orders o JOIN customers c ON o.customer_id = c.id"
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="rel-delete-test")
-    await _init_schema_portable(db)
+async def plane(monkeypatch, control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         await conn.execute_core(insert(domains).values(id="sales"))

@@ -21,10 +21,9 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import insert
 
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.database import Database
 from provisa.core.schema_org import (
     domains,
-    metadata,
     registered_tables,
     sources,
     table_columns,
@@ -76,11 +75,8 @@ def test_a_change_to_how_a_sensitive_column_is_hidden_is_named():
 
 
 @pytest.fixture
-async def model(tmp_path) -> Database:
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn)
-    db = Database(engine, name="org")
+async def model(control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         await conn.execute_core(insert(domains).values(id="sales"))

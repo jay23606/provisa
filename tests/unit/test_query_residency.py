@@ -22,8 +22,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, replica_state as replica_state_table
+from provisa.core.database import Database
+from provisa.core.schema_org import replica_state as replica_state_table
 from provisa.federation import replica_state
 from provisa.federation.query_residency import ensure_resident, is_stale_of
 from provisa.federation.replica_address import ReplicaRoutes
@@ -174,12 +174,8 @@ class _Runner:
 
 
 @pytest.fixture
-def plane(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[replica_state_table])
-    yield Database(engine, "test")
-    engine.dispose()
+def plane(control_plane):
+    return control_plane.org()
 
 
 def _state(sources, tables, backend, plane):

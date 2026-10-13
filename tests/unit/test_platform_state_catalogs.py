@@ -9,7 +9,7 @@
 # permission from the copyright holder.
 
 """What each coordinator's system catalogs were last created from, kept in the PLATFORM STATE
-STORE (REQ-1429): a table of the platform schema like any other, on a SQLite platform database
+STORE (REQ-1429): a table of the platform schema like any other, on a platform database
 here (tests/integration/test_catalog_registrar_pgbouncer.py has it on PostgreSQL)."""
 
 from __future__ import annotations
@@ -20,14 +20,12 @@ from provisa.core.platform_state import TABLES, catalogs
 
 
 @pytest.fixture
-def record(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import engine_system_catalogs, metadata
+def record(control_plane):
+    from provisa.core.database import Database
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[engine_system_catalogs])
-    return catalogs.CatalogRecord(Database(engine, "platform-state", holds="platform_state"))
+    return catalogs.CatalogRecord(
+        Database(control_plane.engine(), "platform-state", holds="platform_state")
+    )
 
 
 def test_the_table_is_one_of_the_platform_state_stores_and_of_the_schema_init_creates():

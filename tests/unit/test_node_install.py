@@ -430,17 +430,14 @@ def test_a_failed_install_caches_nothing_and_leaves_no_configuration(tmp_path):
 
 
 @pytest.fixture
-def plane(tmp_path):
-    from provisa.core import schema_admin
-    from provisa.core.database import Database, create_engine_from_url
+def plane(control_plane):
+    from sqlalchemy import insert
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-    with engine.begin() as conn:
-        schema_admin.metadata.create_all(
-            conn, tables=[schema_admin.orgs, schema_admin.org_code_bundles]
-        )
-    yield Database(engine, name="admin")
-    engine.dispose()
+    from provisa.core.schema_admin import orgs
+
+    with control_plane.engine().begin() as conn:
+        conn.execute(insert(orgs).values(id="acme", name="acme"))  # org_code_bundles' foreign key
+    return control_plane.platform
 
 
 async def test_an_upload_is_kept_by_its_bundles_content_hash(plane, tmp_path):

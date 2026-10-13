@@ -29,22 +29,14 @@ from provisa.core.schema_org import domains, sources
 
 
 @pytest.fixture
-async def control_plane(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import init_schema
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'tenant.db'}")
-    db = Database(engine, name="org")
-    await init_schema(db, "", org_id="default")
+async def org_plane(control_plane):
+    db = control_plane.org()
     async with db.acquire() as conn:
         for domain in ("pet-store", "copies"):
             await conn.execute_core(insert(domains).values(id=domain))
         for source in ("petstore-api", "copy-api"):
             await conn.execute_core(insert(sources).values(id=source, type="openapi"))
-    try:
-        yield db
-    finally:
-        engine.dispose()
+    return db
 
 
 def _table(source: str, *, domain: str = "pet-store", alias: str | None = None) -> Table:
@@ -58,8 +50,8 @@ def _table(source: str, *, domain: str = "pet-store", alias: str | None = None) 
     )
 
 
-async def test_a_second_table_at_a_taken_address_is_refused_naming_the_holder(control_plane):
-    async with control_plane.acquire() as conn:
+async def test_a_second_table_at_a_taken_address_is_refused_naming_the_holder(org_plane):
+    async with org_plane.acquire() as conn:
         await table_repo.upsert(conn, _table("petstore-api"))
         with pytest.raises(SqlAddressTaken) as refused:
             await table_repo.upsert(conn, _table("copy-api"))
@@ -68,21 +60,21 @@ async def test_a_second_table_at_a_taken_address_is_refused_naming_the_holder(co
     assert refused.value.newcomer == "copy-api.openapi.getInventory"
 
 
-async def test_config_load_refuses_it_the_same_way(control_plane):
-    async with control_plane.acquire() as conn:
+async def test_config_load_refuses_it_the_same_way(org_plane):
+    async with org_plane.acquire() as conn:
         await table_repo.upsert(conn, _table("petstore-api"))
         with pytest.raises(SqlAddressTaken):
             await table_repo.upsert(conn, _table("copy-api"))
 
 
-async def test_an_alias_or_another_domain_is_its_own_address(control_plane):
-    async with control_plane.acquire() as conn:
+async def test_an_alias_or_another_domain_is_its_own_address(org_plane):
+    async with org_plane.acquire() as conn:
         await table_repo.upsert(conn, _table("petstore-api"))
         await table_repo.upsert(conn, _table("copy-api", alias="copy_inventory"))
         await table_repo.upsert(conn, _table("copy-api", domain="copies"))
 
 
-async def test_saving_a_table_again_is_not_a_second_table(control_plane):
-    async with control_plane.acquire() as conn:
+async def test_saving_a_table_again_is_not_a_second_table(org_plane):
+    async with org_plane.acquire() as conn:
         await table_repo.upsert(conn, _table("petstore-api"))
         await table_repo.upsert(conn, _table("petstore-api"))

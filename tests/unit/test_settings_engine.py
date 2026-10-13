@@ -23,13 +23,9 @@ import types
 import pytest
 import yaml
 
-from provisa.core import config_stamp
 import provisa.api.app  # noqa: F401 - imported before any test narrows process state
 from provisa.api.errors import ApiError
 from provisa.core import deployment_settings, settings_registry
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 
 ENGINE_KEYS = (
     "jvm_heap_gb",
@@ -43,7 +39,7 @@ ENGINE_KEYS = (
 
 
 @pytest.fixture
-def deployment(tmp_path, monkeypatch):
+def deployment(tmp_path, monkeypatch, control_plane):
     """A config file stating a heap of 4 GB, a fresh control plane, and an engine that records
     when its config files are regenerated."""
     cfg = tmp_path / "provisa.yaml"
@@ -52,12 +48,7 @@ def deployment(tmp_path, monkeypatch):
     monkeypatch.delenv(settings_registry.IGNORE_STORED_ENV, raising=False)
     monkeypatch.setattr(settings_registry, "_config", yaml.safe_load(cfg.read_text()))
     monkeypatch.setattr(settings_registry, "_frozen", None)
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_held", None)
     monkeypatch.setattr(deployment_settings, "_db", db)
     regenerated: list[str] = []
@@ -69,7 +60,6 @@ def deployment(tmp_path, monkeypatch):
     )
     monkeypatch.setattr("provisa.api.app.state", state, raising=False)
     yield types.SimpleNamespace(db=db, config=cfg, state=state, regenerated=regenerated)
-    engine.dispose()
 
 
 def test_the_sizing_keys_are_declared_as_engine_restart_settings(deployment):

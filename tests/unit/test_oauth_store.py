@@ -49,20 +49,10 @@ def _isolated(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def plane(tmp_path):
-    """The organisation's state store (SQLite), where an approval is kept, and the platform
-    control plane's URL (where the refresh locks go)."""
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import mail_sync_state as table
-    from provisa.core.schema_org import metadata
-
-    url = f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'state.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[table])
-    db = Database(engine, name="state")
-    yield db, url
-    engine.dispose()
+def plane(control_plane):
+    """The organisation's state store, where an approval is kept, and the platform control
+    plane's URL (where the refresh locks go)."""
+    return control_plane.org(), control_plane.url
 
 
 async def _seed(db, value: str = "rt-0") -> None:

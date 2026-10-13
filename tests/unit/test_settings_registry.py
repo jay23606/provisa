@@ -22,11 +22,8 @@ import logging
 
 import pytest
 
-from provisa.core import config_stamp
 from provisa.core import deployment_settings, settings_registry
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 from provisa.core.settings_registry import Setting, SettingInvalid, UnknownSetting
 
 LIVE = Setting(
@@ -140,16 +137,10 @@ def registry(monkeypatch):
 
 
 @pytest.fixture
-def control_plane(tmp_path, registry):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+def settings_plane(tmp_path, registry, control_plane):
+    db = control_plane.platform
     deployment_settings.bind(db)
     yield db
-    engine.dispose()
 
 
 # --- precedence ----------------------------------------------------------------------------------
@@ -171,33 +162,33 @@ def test_the_environment_overrides_config(registry, monkeypatch):
     assert settings_registry.resolve("test.live_limit") == (300, "env")
 
 
-def test_the_stored_value_overrides_the_environment(control_plane, monkeypatch):
+def test_the_stored_value_overrides_the_environment(settings_plane, monkeypatch):
     settings_registry.bind_config({"server": {"limits": {"live_limit": 200}}})
     monkeypatch.setenv("PROVISA_TEST_LIVE_LIMIT", "300")
-    settings_registry.store(control_plane, {"test.live_limit": 400}, updated_by="alice")
+    settings_registry.store(settings_plane, {"test.live_limit": 400}, updated_by="alice")
     assert settings_registry.resolve("test.live_limit") == (400, "stored")
 
 
-def test_clearing_the_stored_value_returns_to_the_environment(control_plane, monkeypatch):
+def test_clearing_the_stored_value_returns_to_the_environment(settings_plane, monkeypatch):
     monkeypatch.setenv("PROVISA_TEST_LIVE_LIMIT", "300")
-    settings_registry.store(control_plane, {"test.live_limit": 400}, updated_by="alice")
-    settings_registry.store(control_plane, {"test.live_limit": None}, updated_by="alice")
+    settings_registry.store(settings_plane, {"test.live_limit": 400}, updated_by="alice")
+    settings_registry.store(settings_plane, {"test.live_limit": None}, updated_by="alice")
     assert settings_registry.resolve("test.live_limit") == (300, "env")
 
 
-def test_clearing_removes_the_row_rather_than_storing_a_null(control_plane):
+def test_clearing_removes_the_row_rather_than_storing_a_null(settings_plane):
     settings_registry.store(
-        control_plane, {"test.live_limit": 400, "test.rate": 0.5}, updated_by="alice"
+        settings_plane, {"test.live_limit": 400, "test.rate": 0.5}, updated_by="alice"
     )
-    settings_registry.store(control_plane, {"test.live_limit": None}, updated_by="alice")
-    with control_plane.engine.connect() as conn:
+    settings_registry.store(settings_plane, {"test.live_limit": None}, updated_by="alice")
+    with settings_plane.engine.connect() as conn:
         rows = {r.key: r.value for r in conn.execute(settings_table.select())}
     assert rows == {"test.rate": "0.5"}
     # Clearing a setting with nothing stored is not an error, and a map emptied key by key goes too.
-    settings_registry.store(control_plane, {"test.live_limit": None}, updated_by="alice")
-    settings_registry.store(control_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
-    settings_registry.store(control_plane, {"test.timeouts": {"flight": None}}, updated_by="a")
-    with control_plane.engine.connect() as conn:
+    settings_registry.store(settings_plane, {"test.live_limit": None}, updated_by="alice")
+    settings_registry.store(settings_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.timeouts": {"flight": None}}, updated_by="a")
+    with settings_plane.engine.connect() as conn:
         keys = {r.key for r in conn.execute(settings_table.select())}
     assert keys == {"test.rate"}
 
@@ -246,10 +237,10 @@ def test_an_out_of_range_config_value_names_the_setting_and_the_source(registry)
     assert err.value.min == 1
 
 
-def test_a_bad_stored_value_is_an_error_not_the_next_source(control_plane, monkeypatch):
+def test_a_bad_stored_value_is_an_error_not_the_next_source(settings_plane, monkeypatch):
     monkeypatch.setenv("PROVISA_TEST_LIVE_LIMIT", "300")
     # Written past the validating door, as a hand edit of the control plane would be.
-    deployment_settings.write(control_plane, {"test.live_limit": 5000}, updated_by="x")
+    deployment_settings.write(settings_plane, {"test.live_limit": 5000}, updated_by="x")
     with pytest.raises(SettingInvalid) as err:
         settings_registry.resolve("test.live_limit")
     assert (err.value.source, err.value.reason, err.value.max) == ("stored", "above_max", 1000)
@@ -317,9 +308,9 @@ def test_a_map_resolves_every_key_and_carries_its_declared_defaults(registry):
     }
 
 
-def test_a_map_is_merged_key_by_key_across_the_sources(control_plane):
+def test_a_map_is_merged_key_by_key_across_the_sources(settings_plane):
     settings_registry.bind_config({"server": {"limits": {"timeouts": {"graphql": 30}}}})
-    settings_registry.store(control_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
     assert settings_registry.value("test.timeouts") == {
         "graphql": 30.0,
         "flight": 7200.0,
@@ -332,11 +323,11 @@ def test_a_map_is_merged_key_by_key_across_the_sources(control_plane):
     }
 
 
-def test_storing_a_map_is_partial_and_null_clears_one_key(control_plane):
+def test_storing_a_map_is_partial_and_null_clears_one_key(settings_plane):
     settings_registry.store(
-        control_plane, {"test.timeouts": {"flight": 7200, "graphql": 10}}, updated_by="a"
+        settings_plane, {"test.timeouts": {"flight": 7200, "graphql": 10}}, updated_by="a"
     )
-    settings_registry.store(control_plane, {"test.timeouts": {"flight": None}}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.timeouts": {"flight": None}}, updated_by="a")
     assert settings_registry.value("test.timeouts") == {
         "graphql": 10.0,
         "flight": 3600.0,
@@ -344,36 +335,36 @@ def test_storing_a_map_is_partial_and_null_clears_one_key(control_plane):
     }
 
 
-def test_a_map_refuses_a_key_it_does_not_declare(control_plane):
+def test_a_map_refuses_a_key_it_does_not_declare(settings_plane):
     with pytest.raises(SettingInvalid) as err:
-        settings_registry.store(control_plane, {"test.timeouts": {"smtp": 5}}, updated_by="a")
+        settings_registry.store(settings_plane, {"test.timeouts": {"smtp": 5}}, updated_by="a")
     assert (err.value.key, err.value.reason) == ("test.timeouts.smtp", "unknown_key")
 
 
-def test_a_map_value_out_of_range_names_the_key(control_plane):
+def test_a_map_value_out_of_range_names_the_key(settings_plane):
     with pytest.raises(SettingInvalid) as err:
-        settings_registry.store(control_plane, {"test.timeouts": {"flight": 0}}, updated_by="a")
+        settings_registry.store(settings_plane, {"test.timeouts": {"flight": 0}}, updated_by="a")
     assert (err.value.key, err.value.reason) == ("test.timeouts.flight", "below_min")
 
 
 # --- storing validates everything first, then writes once ----------------------------------------
 
 
-def test_one_bad_value_stores_nothing(control_plane):
+def test_one_bad_value_stores_nothing(settings_plane):
     with pytest.raises(SettingInvalid) as err:
         settings_registry.store(
-            control_plane, {"test.live_limit": 50, "test.boot_pool": 0}, updated_by="a"
+            settings_plane, {"test.live_limit": 50, "test.boot_pool": 0}, updated_by="a"
         )
     assert err.value.key == "test.boot_pool" and err.value.source == "stored"
     assert settings_registry.resolve("test.live_limit") == (120, "default")
 
 
-def test_storing_an_unknown_setting_is_refused(control_plane):
+def test_storing_an_unknown_setting_is_refused(settings_plane):
     with pytest.raises(UnknownSetting):
-        settings_registry.store(control_plane, {"test.nope": 1}, updated_by="a")
+        settings_registry.store(settings_plane, {"test.nope": 1}, updated_by="a")
 
 
-def test_a_setting_that_is_not_editable_cannot_be_stored(control_plane, monkeypatch):
+def test_a_setting_that_is_not_editable_cannot_be_stored(settings_plane, monkeypatch):
     locator = Setting(
         key="test.locator",
         card="network",
@@ -386,49 +377,49 @@ def test_a_setting_that_is_not_editable_cannot_be_stored(control_plane, monkeypa
     )
     monkeypatch.setitem(settings_registry._settings, locator.key, locator)
     with pytest.raises(SettingInvalid) as err:
-        settings_registry.store(control_plane, {"test.locator": "y"}, updated_by="a")
+        settings_registry.store(settings_plane, {"test.locator": "y"}, updated_by="a")
     assert err.value.reason == "not_editable"
 
 
 # --- live or restart-required --------------------------------------------------------------------
 
 
-def test_a_live_setting_follows_the_stored_value_without_a_restart(control_plane):
+def test_a_live_setting_follows_the_stored_value_without_a_restart(settings_plane):
     settings_registry.freeze()
-    settings_registry.store(control_plane, {"test.live_limit": 400}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.live_limit": 400}, updated_by="a")
     assert settings_registry.value("test.live_limit") == 400
     assert settings_registry.pending_restart("test.live_limit") is False
 
 
-def test_a_restart_setting_keeps_the_value_the_process_booted_with(control_plane):
+def test_a_restart_setting_keeps_the_value_the_process_booted_with(settings_plane):
     settings_registry.freeze()
-    settings_registry.store(control_plane, {"test.boot_pool": 32}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.boot_pool": 32}, updated_by="a")
     assert settings_registry.value("test.boot_pool") == 16
     assert settings_registry.resolve("test.boot_pool") == (32, "stored")
     assert settings_registry.pending_restart("test.boot_pool") is True
     assert settings_registry.pending() == ["test.boot_pool"]
 
 
-def test_the_next_boot_runs_on_the_stored_value_and_nothing_is_pending(control_plane):
+def test_the_next_boot_runs_on_the_stored_value_and_nothing_is_pending(settings_plane):
     settings_registry.freeze()
-    settings_registry.store(control_plane, {"test.boot_pool": 32}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.boot_pool": 32}, updated_by="a")
     settings_registry.freeze()  # the restarted process
     assert settings_registry.value("test.boot_pool") == 32
     assert settings_registry.pending() == []
 
 
-def test_a_config_reload_is_not_a_restart(control_plane):
+def test_a_config_reload_is_not_a_restart(settings_plane):
     settings_registry.freeze_at_boot()
-    settings_registry.store(control_plane, {"test.boot_pool": 32}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.boot_pool": 32}, updated_by="a")
     settings_registry.bind_config({"server": {"boot_pool": 64}})
     settings_registry.freeze_at_boot()  # the reload applies the server config again
     assert settings_registry.value("test.boot_pool") == 16
     assert settings_registry.pending() == ["test.boot_pool"]
 
 
-def test_storing_the_value_already_running_is_not_pending(control_plane):
+def test_storing_the_value_already_running_is_not_pending(settings_plane):
     settings_registry.freeze()
-    settings_registry.store(control_plane, {"test.boot_pool": 16}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.boot_pool": 16}, updated_by="a")
     assert settings_registry.pending_restart("test.boot_pool") is False
 
 
@@ -450,11 +441,11 @@ def test_a_boot_refuses_to_start_on_a_bad_restart_setting(registry, monkeypatch)
 
 
 def test_the_override_flag_ignores_stored_values_and_logs_each_one(
-    control_plane, monkeypatch, caplog
+    settings_plane, monkeypatch, caplog
 ):
     monkeypatch.setenv("PROVISA_TEST_BOOT_POOL", "8")
     settings_registry.store(
-        control_plane, {"test.boot_pool": 32, "test.live_limit": 400}, updated_by="a"
+        settings_plane, {"test.boot_pool": 32, "test.live_limit": 400}, updated_by="a"
     )
     monkeypatch.setenv(settings_registry.IGNORE_STORED_ENV, "1")
     with caplog.at_level(logging.WARNING, logger="provisa.core.settings_registry"):
@@ -466,9 +457,9 @@ def test_the_override_flag_ignores_stored_values_and_logs_each_one(
     assert any("test.live_limit" in m for m in ignored)
 
 
-def test_without_the_flag_stored_values_are_never_ignored(control_plane, monkeypatch):
+def test_without_the_flag_stored_values_are_never_ignored(settings_plane, monkeypatch):
     monkeypatch.setenv(settings_registry.IGNORE_STORED_ENV, "0")
-    settings_registry.store(control_plane, {"test.live_limit": 400}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.live_limit": 400}, updated_by="a")
     assert settings_registry.resolve("test.live_limit") == (400, "stored")
 
 
@@ -500,13 +491,13 @@ class _Reversing:
 
 
 @pytest.fixture
-def secret_store(control_plane, monkeypatch):
+def secret_store(settings_plane, monkeypatch):
     from provisa.encryption import runtime
 
     monkeypatch.setattr(runtime, "_service", _Reversing())
     monkeypatch.setitem(settings_registry._settings, SECRET.key, SECRET)
     monkeypatch.delenv("PROVISA_TEST_STORE_PASSWORD", raising=False)
-    return control_plane
+    return settings_plane
 
 
 def _stored_text(db, key: str) -> str:
@@ -601,7 +592,7 @@ def test_a_changed_secret_is_pending_until_the_restart(secret_store):
 # --- describing a setting for the catalog --------------------------------------------------------
 
 
-def test_the_description_carries_value_source_range_and_effect(control_plane, monkeypatch):
+def test_the_description_carries_value_source_range_and_effect(settings_plane, monkeypatch):
     monkeypatch.setenv("PROVISA_TEST_LIVE_LIMIT", "300")
     assert settings_registry.describe("test.live_limit") == {
         "key": "test.live_limit",
@@ -624,18 +615,18 @@ def test_the_description_carries_value_source_range_and_effect(control_plane, mo
     }
 
 
-def test_a_restart_setting_is_described_with_the_running_and_the_stored_value(control_plane):
+def test_a_restart_setting_is_described_with_the_running_and_the_stored_value(settings_plane):
     settings_registry.freeze()
-    settings_registry.store(control_plane, {"test.boot_pool": 32}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.boot_pool": 32}, updated_by="a")
     described = settings_registry.describe("test.boot_pool")
     assert described["value"] == 16 and described["stored"] == 32
     assert described["source"] == "stored"
     assert described["restart_required"] is True and described["pending_restart"] is True
 
 
-def test_an_enum_a_map_and_a_read_only_setting_describe_their_shape(control_plane, monkeypatch):
+def test_an_enum_a_map_and_a_read_only_setting_describe_their_shape(settings_plane, monkeypatch):
     assert settings_registry.describe("test.mode")["choices"] == ["standard", "high"]
-    settings_registry.store(control_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.timeouts": {"flight": 7200}}, updated_by="a")
     described = settings_registry.describe("test.timeouts")
     assert described["map_keys"] == ["graphql", "flight", "pgwire"]
     assert described["stored"] == {"flight": 7200.0}
@@ -664,7 +655,7 @@ def appliers(monkeypatch):
     monkeypatch.setattr(settings_registry, "_appliers", [])
 
 
-def test_a_changed_setting_is_applied_and_an_unchanged_one_is_not(control_plane, appliers):
+def test_a_changed_setting_is_applied_and_an_unchanged_one_is_not(settings_plane, appliers):
     applied: list[tuple] = []
     settings_registry.on_change(("test.live_limit", "test.rate"), lambda *v: applied.append(v))
     settings_registry.apply_changes()
@@ -672,27 +663,27 @@ def test_a_changed_setting_is_applied_and_an_unchanged_one_is_not(control_plane,
     settings_registry.apply_changes()
     assert applied == [(120, 1.0)]
     # Another worker stores a change: this one applies it when its snapshot shows it.
-    deployment_settings.write(control_plane, {"test.live_limit": 300}, updated_by="other-worker")
+    deployment_settings.write(settings_plane, {"test.live_limit": 300}, updated_by="other-worker")
     settings_registry.apply_changes()
     assert applied == [(120, 1.0), (300, 1.0)]
     assert settings_registry.applied("test.live_limit") == 300
 
 
-def test_the_worker_that_stores_a_change_applies_it_at_once(control_plane, appliers):
+def test_the_worker_that_stores_a_change_applies_it_at_once(settings_plane, appliers):
     applied: list[tuple] = []
     settings_registry.on_change(("test.live_limit",), lambda *v: applied.append(v))
     settings_registry.apply_changes()
-    settings_registry.store(control_plane, {"test.live_limit": 300}, updated_by="a")
+    settings_registry.store(settings_plane, {"test.live_limit": 300}, updated_by="a")
     assert applied == [(120,), (300,)]
 
 
 def test_a_value_that_cannot_be_applied_leaves_the_last_one_in_force(
-    control_plane, appliers, caplog
+    settings_plane, appliers, caplog
 ):
     applied: list[tuple] = []
     settings_registry.on_change(("test.live_limit",), lambda *v: applied.append(v))
     settings_registry.apply_changes()
-    deployment_settings.write(control_plane, {"test.live_limit": 99999}, updated_by="hand-edit")
+    deployment_settings.write(settings_plane, {"test.live_limit": 99999}, updated_by="hand-edit")
     with caplog.at_level(logging.ERROR, logger="provisa.core.settings_registry"):
         settings_registry.apply_changes()
     assert applied == [(120,)]
@@ -700,7 +691,7 @@ def test_a_value_that_cannot_be_applied_leaves_the_last_one_in_force(
     assert any("test.live_limit" in r.getMessage() for r in caplog.records)
 
 
-def test_a_setting_nothing_applies_reports_no_applied_value(control_plane, appliers):
+def test_a_setting_nothing_applies_reports_no_applied_value(settings_plane, appliers):
     assert settings_registry.applied("test.live_limit") is None
     assert "applied" not in settings_registry.describe("test.live_limit")
     settings_registry.on_change(("test.live_limit",), lambda *_v: None)

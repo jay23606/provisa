@@ -53,17 +53,14 @@ def _info(name="GIT_TOKEN", owner_id=ORG_OWNER):
 
 
 @pytest.fixture
-def platform(tmp_path):
-    """The platform control plane, holding the one organisation ``ORG``."""
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import metadata, orgs
+def platform(control_plane):
+    """The platform control plane, holding the organisation ``ORG``."""
+    from provisa.core.schema_admin import orgs
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[orgs])
+    db = control_plane.platform
+    with db.engine.begin() as conn:
         conn.execute(orgs.insert().values(id=ORG, name="Acme"))
-    yield Database(engine, "test")
-    engine.dispose()
+    return db
 
 
 @pytest.fixture

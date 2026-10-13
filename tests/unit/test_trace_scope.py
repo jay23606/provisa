@@ -30,9 +30,7 @@ from provisa.compiler.directives import (
     cache_hint_from_grpc_metadata,
 )
 from provisa.core import trace_scope as ts
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.operator_floor import OperatorFloorError
-from provisa.core.schema_admin import debug_trace_hint_roles, debug_trace_windows, metadata
 
 _NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -162,10 +160,13 @@ def test_grpc_metadata_and_http_header_carry_the_hint():
 # --- the control-plane store, and the cached read on the request path ------------------------
 
 
-def _store(path) -> Database:
-    db = Database(create_engine_from_url(f"sqlite+pysqlite:///{path}"), name="trace-scope-test")
+def _platform(control_plane):
+    """The platform handle, holding the orgs the windows name (a window's org is a registry FK)."""
+    from provisa.core.schema_admin import orgs
+
+    db = control_plane.platform
     with db.engine.begin() as conn:
-        metadata.create_all(conn, tables=[debug_trace_windows, debug_trace_hint_roles])
+        conn.execute(orgs.insert(), [{"id": org, "name": org} for org in ("acme", "globex")])
     return db
 
 
@@ -177,8 +178,8 @@ def _fresh_cache():
 
 
 @pytest.mark.asyncio
-async def test_a_started_window_is_listed_and_stopping_it_removes_it(tmp_path):
-    db = _store(tmp_path / "cp.db")
+async def test_a_started_window_is_listed_and_stopping_it_removes_it(control_plane):
+    db = _platform(control_plane)
     window = await ts.start_window(
         db, scope="org", org_id="acme", target=None, minutes=15, created_by="ops@example.com"
     )
@@ -190,8 +191,10 @@ async def test_a_started_window_is_listed_and_stopping_it_removes_it(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_window_needs_a_stated_bounded_duration_and_a_target_for_role_and_source(tmp_path):
-    db = _store(tmp_path / "cp.db")
+async def test_a_window_needs_a_stated_bounded_duration_and_a_target_for_role_and_source(
+    control_plane,
+):
+    db = _platform(control_plane)
     for minutes in (0, -5, ts.MAX_WINDOW_MINUTES + 1):
         with pytest.raises(ValueError, match="minutes"):
             await ts.start_window(
@@ -209,8 +212,8 @@ async def test_a_window_needs_a_stated_bounded_duration_and_a_target_for_role_an
 
 
 @pytest.mark.asyncio
-async def test_an_expired_window_is_not_listed(tmp_path):
-    db = _store(tmp_path / "cp.db")
+async def test_an_expired_window_is_not_listed(control_plane):
+    db = _platform(control_plane)
     await ts.start_window(
         db,
         scope="org",
@@ -224,8 +227,8 @@ async def test_an_expired_window_is_not_listed(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_hint_permission_is_set_and_cleared_per_role(tmp_path):
-    db = _store(tmp_path / "cp.db")
+async def test_hint_permission_is_set_and_cleared_per_role(control_plane):
+    db = _platform(control_plane)
     await ts.set_hint_permission(db, "acme", "analyst", True, updated_by="ops@example.com")
     await ts.set_hint_permission(db, "acme", "analyst", True, updated_by="ops@example.com")
     assert await ts.list_hint_roles(db) == [("acme", "analyst")]
@@ -234,13 +237,11 @@ async def test_hint_permission_is_set_and_cleared_per_role(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_two_instances_on_one_control_plane_share_a_window(tmp_path):
+async def test_two_instances_on_one_control_plane_share_a_window(control_plane):
     # Two Database handles on one store stand for two app instances: the window written through
     # one is what the other resolves — the state is the control plane's, not a process's.
-    instance_a = _store(tmp_path / "cp.db")
-    instance_b = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"), name="instance-b"
-    )
+    instance_a = _platform(control_plane)
+    instance_b = control_plane.platform
     await ts.start_window(
         instance_a, scope="org", org_id="acme", target=None, minutes=15, created_by=None
     )
@@ -252,9 +253,9 @@ async def test_two_instances_on_one_control_plane_share_a_window(tmp_path):
 
 @pytest.mark.asyncio
 async def test_the_request_path_reads_a_cached_snapshot_not_the_control_plane(
-    tmp_path, monkeypatch
+    control_plane, monkeypatch
 ):
-    db = _store(tmp_path / "cp.db")
+    db = _platform(control_plane)
     loads = 0
     real_load = ts.load_snapshot
 
@@ -279,8 +280,8 @@ async def test_the_request_path_reads_a_cached_snapshot_not_the_control_plane(
 
 
 @pytest.mark.asyncio
-async def test_a_change_made_on_this_instance_is_visible_to_its_next_request(tmp_path):
-    db = _store(tmp_path / "cp.db")
+async def test_a_change_made_on_this_instance_is_visible_to_its_next_request(control_plane):
+    db = _platform(control_plane)
     now = datetime.now(timezone.utc)
     first = await ts.current_snapshot(db)
     assert first.debug_for(org_id="acme", role_id="r", source_ids=(), hint=False, now=now) is False
