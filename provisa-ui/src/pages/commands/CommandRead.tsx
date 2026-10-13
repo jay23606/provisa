@@ -144,26 +144,31 @@ export function FunctionRead({
   };
   const yesNo = (v: boolean) => (v ? t("commandsPage.yes") : t("commandsPage.no"));
   const bySource = impl === "source_procedure" || impl === "source_operation";
-  const implementation: DetailField[] = bySource
-    ? [
-        { label: t("commandFormFields.source"), value: fn.sourceId },
-        { label: t("commandFormFields.schema"), value: fn.schemaName },
-        { label: t("commandFormFields.functionName"), value: fn.functionName },
-      ]
-    : impl === "script"
-      ? [{ label: t("commandFormFields.bindingArgv"), value: bound("argv") }]
-      : impl === "http"
-        ? [
-            { label: t("commandFormFields.bindingUrl"), value: bound("url") },
-            { label: t("commandFormFields.method"), value: bound("method") },
-          ]
-        : impl === "grpc"
+  // REQ-2001: a statement command is its statement; its kind and written table are shown as the
+  // statement declares them, and it has no identity switch or return type to show.
+  const isStatement = impl === "statement";
+  const implementation: DetailField[] = isStatement
+    ? [{ label: t("commandFormFields.bindingSql"), value: bound("sql") }]
+    : bySource
+      ? [
+          { label: t("commandFormFields.source"), value: fn.sourceId },
+          { label: t("commandFormFields.schema"), value: fn.schemaName },
+          { label: t("commandFormFields.functionName"), value: fn.functionName },
+        ]
+      : impl === "script"
+        ? [{ label: t("commandFormFields.bindingArgv"), value: bound("argv") }]
+        : impl === "http"
           ? [
-              { label: t("commandFormFields.bindingTarget"), value: bound("target") },
-              { label: t("commandFormFields.bindingGrpcMethod"), value: bound("method") },
-              { label: t("commandFormFields.bindingTls"), value: yesNo(Boolean(binding.tls)) },
+              { label: t("commandFormFields.bindingUrl"), value: bound("url") },
+              { label: t("commandFormFields.method"), value: bound("method") },
             ]
-          : [{ label: t("commandFormFields.bindingCallable"), value: bound("callable") }];
+          : impl === "grpc"
+            ? [
+                { label: t("commandFormFields.bindingTarget"), value: bound("target") },
+                { label: t("commandFormFields.bindingGrpcMethod"), value: bound("method") },
+                { label: t("commandFormFields.bindingTls"), value: yesNo(Boolean(binding.tls)) },
+              ]
+            : [{ label: t("commandFormFields.bindingCallable"), value: bound("callable") }];
   const toTable = Boolean(fn.returns);
   return (
     <div className="detail-groups" data-testid={`function-read-${fn.name}`}>
@@ -177,7 +182,7 @@ export function FunctionRead({
             value: IMPL_KINDS.find((k) => k.value === impl)?.label ?? impl,
           },
           ...implementation,
-          ...(bySource
+          ...(bySource || isStatement
             ? []
             : [
                 {
@@ -185,12 +190,16 @@ export function FunctionRead({
                   value: yesNo(Boolean(fn.materialize)),
                 },
               ]),
-          {
-            label: t("commandFormFields.returnType"),
-            value: toTable
-              ? t("commandFormFields.registeredTable")
-              : t("commandFormFields.datasetColumns"),
-          },
+          ...(isStatement
+            ? []
+            : [
+                {
+                  label: t("commandFormFields.returnType"),
+                  value: toTable
+                    ? t("commandFormFields.registeredTable")
+                    : t("commandFormFields.datasetColumns"),
+                },
+              ]),
           ...(toTable ? [{ label: t("commandFormFields.returnsTable"), value: fn.returns }] : []),
           {
             label: t("commandFormFields.visibleTo"),
