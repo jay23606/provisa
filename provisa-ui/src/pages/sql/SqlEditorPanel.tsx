@@ -32,6 +32,7 @@ import { nlToSql } from "../../api/admin";
 import type { SqlTab } from "./types";
 import type { RegisteredTable } from "../../types/admin";
 import { Tip } from "../../components/Tip";
+import { statementHasOwnLimit } from "./sqlHelpers";
 
 interface SqlEditorPanelProps {
   // Tab strip
@@ -510,34 +511,39 @@ export function SqlEditorPanel({
             {analyzing ? t("sqlEditorPanel.analyzing") : t("sqlEditorPanel.analyze")}
           </Button>
         </Tip>
-        <Select
-          aria-label={t("sqlEditorPanel.sampleModeLabel")}
-          size="xs"
-          data={[
-            { value: "first", label: t("sqlEditorPanel.sampleModeFirst") },
-            { value: "last", label: t("sqlEditorPanel.sampleModeLast") },
-            { value: "random", label: t("sqlEditorPanel.sampleModeRandom") },
-          ]}
-          value={sampleMode}
-          onChange={(v) => setSampleMode((v as "first" | "last" | "random") ?? "first")}
-          allowDeselect={false}
-          data-testid="sql-sample-mode"
-          style={{ width: "110px" }}
-        />
-        <Tip text={t("sqlEditorPanel.rowCountLabel")} named>
-          <NumberInput
-            aria-label={t("sqlEditorPanel.rowCountLabel")}
-            value={sampleSize}
-            min={1}
-            max={10000}
-            onChange={(v) =>
-              setSampleSize(Math.max(1, typeof v === "number" ? v : parseInt(String(v)) || 100))
-            }
-            size="xs"
-            data-testid="sql-sample-size"
-            style={{ width: "90px" }}
-          />
-        </Tip>
+        {/* A statement with its own LIMIT runs as written: the sample controls do not apply. */}
+        {!statementHasOwnLimit(sqlText) && (
+          <>
+            <Select
+              aria-label={t("sqlEditorPanel.sampleModeLabel")}
+              size="xs"
+              data={[
+                { value: "first", label: t("sqlEditorPanel.sampleModeFirst") },
+                { value: "last", label: t("sqlEditorPanel.sampleModeLast") },
+                { value: "random", label: t("sqlEditorPanel.sampleModeRandom") },
+              ]}
+              value={sampleMode}
+              onChange={(v) => setSampleMode((v as "first" | "last" | "random") ?? "first")}
+              allowDeselect={false}
+              data-testid="sql-sample-mode"
+              style={{ width: "110px" }}
+            />
+            <Tip text={t("sqlEditorPanel.rowCountLabel")} named>
+              <NumberInput
+                aria-label={t("sqlEditorPanel.rowCountLabel")}
+                value={sampleSize}
+                min={1}
+                max={10000}
+                onChange={(v) =>
+                  setSampleSize(Math.max(1, typeof v === "number" ? v : parseInt(String(v)) || 100))
+                }
+                size="xs"
+                data-testid="sql-sample-size"
+                style={{ width: "90px" }}
+              />
+            </Tip>
+          </>
+        )}
         <Select
           aria-label={t("sqlEditorPanel.roleLabel")}
           size="xs"

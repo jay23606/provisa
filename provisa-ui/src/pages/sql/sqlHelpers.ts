@@ -24,13 +24,23 @@ export type SampleMode = "first" | "last" | "random";
  * keeps whatever ordering (or lack of one) it already specifies — exactly what "first N rows"
  * means. "last"/"random" genuinely override the row order (DESC by column 1 / random) and still
  * need the wrap for that. */
+/** A statement's own trailing LIMIT, a literal or a bound parameter (`$1`, `?`, `:name`), with an
+ * optional OFFSET and trailing semicolon. A parameterized LIMIT is the statement's own as much as a
+ * literal one, so appending a second LIMIT to it is invalid SQL. */
+export const TRAILING_LIMIT =
+  /\bLIMIT\s+(?:\d+|\$\d+|\?|:\w+)(?:\s+OFFSET\s+(?:\d+|\$\d+|\?|:\w+))?\s*;?\s*$/i;
+
+/** Whether the statement ends in its own LIMIT, so the sample-size controls do not apply to it. */
+export function statementHasOwnLimit(sql: string): boolean {
+  return TRAILING_LIMIT.test(sql.trim());
+}
+
 export function wrapSampledSql(inner: string, sampleMode: SampleMode, sampleSize: number): string {
-  if (sampleMode === "first") {
-    // Already has its own LIMIT — appending a second one is invalid SQL; leave it as-is and let
-    // the server's governed ceiling (REQ-005/263) bound it if it's larger than allowed.
-    if (/\bLIMIT\s+\d+\s*$/i.test(inner)) return inner;
-    return `${inner}\nLIMIT ${sampleSize}`;
-  }
+  // A statement with its own LIMIT is run as written, whatever the sample mode: its LIMIT is the
+  // row count the user chose, and the sample controls are hidden for it (statementHasOwnLimit).
+  // The server's governed ceiling (REQ-005/263) still bounds it if it's larger than allowed.
+  if (statementHasOwnLimit(inner)) return inner;
+  if (sampleMode === "first") return `${inner}\nLIMIT ${sampleSize}`;
   return sampleMode === "last"
     ? `SELECT * FROM (\n${inner}\n) _sample ORDER BY 1 DESC LIMIT ${sampleSize}`
     : `SELECT * FROM (\n${inner}\n) _sample ORDER BY random() LIMIT ${sampleSize}`;

@@ -43,7 +43,7 @@ import type {
   ColumnProfile,
 } from "./sql-modeling/types";
 import { domainToSqlName } from "../naming";
-import { wrapSampledSql } from "../pages/sql/sqlHelpers";
+import { statementHasOwnLimit, wrapSampledSql } from "../pages/sql/sqlHelpers";
 import { loadHistory, saveHistory } from "./sql-modeling/history";
 import { JoinCanvas } from "./sql-modeling/JoinCanvas";
 import { SchemaSidebar } from "./sql-modeling/SchemaSidebar";
@@ -751,32 +751,39 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                   >
                     {running ? t("sqlModelingModal.runningLabel") : t("sqlModelingModal.run")}
                   </Button>
-                  <Select
-                    size="xs"
-                    aria-label={t("sqlModelingModal.sampleModeLabel")}
-                    value={sampleMode}
-                    onChange={(v) => v && setSampleMode(v as "first" | "last" | "random")}
-                    allowDeselect={false}
-                    data={[
-                      { value: "first", label: t("sqlModelingModal.sampleModeFirst") },
-                      { value: "last", label: t("sqlModelingModal.sampleModeLast") },
-                      { value: "random", label: t("sqlModelingModal.sampleModeRandom") },
-                    ]}
-                    w={100}
-                    data-testid="sql-modeling-sample-mode"
-                  />
-                  <Tip text={t("sqlModelingModal.sampleSizeLabel")} named>
-                    <NumberInput
-                      size="xs"
-                      value={sampleSize}
-                      min={1}
-                      max={10000}
-                      onChange={(v) => setSampleSize(Math.max(1, typeof v === "number" ? v : 100))}
-                      aria-label={t("sqlModelingModal.sampleSizeLabel")}
-                      w={70}
-                      data-testid="sql-modeling-sample-size"
-                    />
-                  </Tip>
+                  {/* A statement with its own LIMIT runs as written: the sample controls do not apply. */}
+                  {!statementHasOwnLimit(sqlText) && (
+                    <>
+                      <Select
+                        size="xs"
+                        aria-label={t("sqlModelingModal.sampleModeLabel")}
+                        value={sampleMode}
+                        onChange={(v) => v && setSampleMode(v as "first" | "last" | "random")}
+                        allowDeselect={false}
+                        data={[
+                          { value: "first", label: t("sqlModelingModal.sampleModeFirst") },
+                          { value: "last", label: t("sqlModelingModal.sampleModeLast") },
+                          { value: "random", label: t("sqlModelingModal.sampleModeRandom") },
+                        ]}
+                        w={100}
+                        data-testid="sql-modeling-sample-mode"
+                      />
+                      <Tip text={t("sqlModelingModal.sampleSizeLabel")} named>
+                        <NumberInput
+                          size="xs"
+                          value={sampleSize}
+                          min={1}
+                          max={10000}
+                          onChange={(v) =>
+                            setSampleSize(Math.max(1, typeof v === "number" ? v : 100))
+                          }
+                          aria-label={t("sqlModelingModal.sampleSizeLabel")}
+                          w={70}
+                          data-testid="sql-modeling-sample-size"
+                        />
+                      </Tip>
+                    </>
+                  )}
                   <Select
                     size="xs"
                     aria-label={t("sqlModelingModal.roleLabel")}

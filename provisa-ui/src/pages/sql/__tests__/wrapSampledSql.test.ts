@@ -13,7 +13,7 @@
 // own, and Trino's redis connector was observed to not preserve it in practice.
 
 import { describe, it, expect } from "vitest";
-import { wrapSampledSql } from "../sqlHelpers";
+import { statementHasOwnLimit, wrapSampledSql } from "../sqlHelpers";
 
 describe("wrapSampledSql", () => {
   it("first: appends LIMIT directly, preserving the query's own ORDER BY", () => {
@@ -24,6 +24,30 @@ describe("wrapSampledSql", () => {
   it("first: leaves a query that already has its own LIMIT untouched", () => {
     const inner = "SELECT id FROM t ORDER BY id LIMIT 10";
     expect(wrapSampledSql(inner, "first", 100)).toBe(inner);
+  });
+
+  it("first: leaves a query whose own LIMIT is a bound parameter untouched", () => {
+    for (const inner of [
+      'SELECT "path", COUNT(*) FROM v GROUP BY "path" ORDER BY AVG("page_ms") DESC LIMIT $1',
+      "SELECT id FROM t LIMIT ?",
+      "SELECT id FROM t LIMIT :n OFFSET :o",
+      "SELECT id FROM t LIMIT $1 OFFSET $2;",
+    ]) {
+      expect(wrapSampledSql(inner, "first", 100)).toBe(inner);
+    }
+  });
+
+  it("last and random: a query with its own LIMIT runs as written", () => {
+    const inner = "SELECT id FROM t ORDER BY id LIMIT $1";
+    expect(wrapSampledSql(inner, "last", 100)).toBe(inner);
+    expect(wrapSampledSql(inner, "random", 100)).toBe(inner);
+  });
+
+  it("statementHasOwnLimit: literal, parameter, offset and semicolon; not a LIMIT inside a subquery", () => {
+    expect(statementHasOwnLimit("SELECT 1 LIMIT 5")).toBe(true);
+    expect(statementHasOwnLimit("SELECT 1 LIMIT $1 OFFSET $2;  ")).toBe(true);
+    expect(statementHasOwnLimit("SELECT * FROM (SELECT 1 LIMIT 5) s")).toBe(false);
+    expect(statementHasOwnLimit("SELECT 1")).toBe(false);
   });
 
   it("first: an unordered query still just gets LIMIT appended", () => {
