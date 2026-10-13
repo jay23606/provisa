@@ -492,6 +492,19 @@ def _id_column(columns: dict[str, dict], table: dict) -> dict:
     raise WriteRefused(f"{table['table_name']!r} registers no point id column (path @id)")
 
 
+def _insert_target(tree: exp.Insert) -> tuple[str, list[str]]:
+    """The collection an INSERT writes and the columns it names. The physical form of a governed
+    statement aliases its target (``INSERT INTO "s"."t" AS "t" ("a", ...)``), and the column list
+    is then the alias's."""
+    target = tree.this
+    if isinstance(target, exp.Schema) and target.expressions:
+        return target.this.name, [c.name for c in target.expressions]
+    alias = target.args.get("alias") if isinstance(target, exp.Table) else None
+    if alias is not None and alias.columns:
+        return target.name, [c.name for c in alias.columns]
+    raise WriteRefused("an INSERT into a Qdrant collection names its columns")
+
+
 def _upsert_clause(tree: exp.Insert, id_column: dict) -> list[str] | None:
     """The columns ``INSERT … ON CONFLICT (id) DO UPDATE SET c = EXCLUDED.c`` replaces; None for
     a plain INSERT. Any other conflict clause is refused by name."""
@@ -589,6 +602,10 @@ class QdrantDriver(DirectDriver):  # REQ-2000
 
     async def reason(self, sql: str, table: dict) -> str | None:
         """Why the governed ``sql`` on ``table`` is not run in Qdrant, or None when it is."""
+        if table.get("query_template"):
+            # a search table names no collection of its own: it is read under its arguments,
+            # and its collection is never asked for its vectors here
+            return "a search table is read under its arguments"
         try:
             tree = sqlglot.parse_one(sql, read="postgres")
             distances = await asyncio.to_thread(self.distance_of, table["table_name"])
@@ -692,13 +709,10 @@ class QdrantDriver(DirectDriver):  # REQ-2000
     async def _insert(self, tree: exp.Insert, params: list | None) -> QueryResult:
         from provisa.api.app import state
 
-        schema = tree.this
-        if not isinstance(schema, exp.Schema) or not schema.expressions:
-            raise WriteRefused("an INSERT into a Qdrant collection names its columns")
-        table = self.table(schema.this.name)
+        target_name, names = _insert_target(tree)
+        table = self.table(target_name)
         columns = _columns(table)
         id_column = _id_column(columns, table)
-        names = [c.name for c in schema.expressions]
         if id_column["column_name"] not in names:
             raise WriteRefused(f"an INSERT into {table['table_name']!r} gives each point its id")
         values = tree.expression

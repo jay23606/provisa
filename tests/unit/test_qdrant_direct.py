@@ -445,3 +445,27 @@ def test_the_engine_route_reads_live_only_tables_live():
     from provisa.pgwire import _pipeline
 
     assert "_read_live_parts(" in inspect.getsource(_pipeline._optimize_and_route)
+
+
+async def test_an_insert_in_its_physical_form_reads_the_aliased_targets_columns(qdrant):
+    # the physical rewrite aliases the target; sqlglot then keeps the column list on the alias
+    driver, client = qdrant
+    done = await driver.execute(
+        'INSERT INTO "default"."docs" AS "docs" ("id", "title") VALUES ($1, $2)', [8, "h"]
+    )
+    assert done.rowcount == 1
+    assert client.retrieve("docs", ids=[8])[0].payload == {"title": "h"}
+    with pytest.raises(WriteRefused, match="names its columns"):
+        await driver.execute('INSERT INTO "default"."docs" VALUES (9, \'i\')', None)
+
+
+async def test_a_search_table_is_the_engines_without_asking_qdrant(qdrant):
+    # a search table's name is no collection: asking Qdrant for its vectors answers 404
+    driver, client = qdrant
+    search = {**_TABLE, "table_name": "docs_search", "query_template": "{}"}
+    asked: list[str] = []
+    real = driver.distance_of
+    driver.distance_of = lambda collection: asked.append(collection) or real(collection)
+    said = await driver.reason('SELECT "id" FROM "default"."docs_search"', search)
+    assert said == "a search table is read under its arguments"
+    assert asked == []
