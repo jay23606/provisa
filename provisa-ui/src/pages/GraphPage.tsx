@@ -38,7 +38,7 @@ import { Sidebar } from "../components/graph/GraphSidebar";
 import { QueryBar } from "../components/graph/QueryBar";
 import { NativeFilterModal } from "../components/graph/graph-context-menus";
 import { Neo4jExportModal } from "../components/graph/Neo4jExportModal";
-import { buildDropExpansion } from "./graph-drop";
+import { buildDropExpansion, withExpansion } from "./graph-drop";
 import { getStored, removeStored, setStored } from "../lib/browserStorage";
 import { toResultRedirect } from "../api/admin";
 import { drawnElements, useMaxNodes } from "../components/graph/graph-drawing";
@@ -653,7 +653,7 @@ export function GraphPage() {
 
       const suffix = domainLabel.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
       let targetVar = `z${suffix}`;
-      const trimmed = frame.query.replace(/\s+LIMIT\s+\d+\s*$/i, "").trim();
+      const trimmed = frame.query.trim();
       let counter = 2;
       while (trimmed.includes(` ${targetVar}`) || trimmed.includes(`(${targetVar}`)) {
         targetVar = `z${suffix}${counter}`;
@@ -661,16 +661,12 @@ export function GraphPage() {
       }
 
       const optMatchPattern = `(${firstVar})-[]-(${targetVar}:${domainLabel})`;
-      const returnMatches = [...trimmed.matchAll(/\bRETURN\b/gi)];
-      const lastReturn = returnMatches.pop();
-      let newQuery: string;
-      if (!lastReturn || lastReturn.index === undefined) {
-        newQuery = `${trimmed}\nOPTIONAL MATCH ${optMatchPattern}\nRETURN ${firstVar}, ${targetVar}`;
-      } else {
-        const beforeReturn = trimmed.slice(0, lastReturn.index).trimEnd();
-        const returnClause = trimmed.slice(lastReturn.index + 6).trim();
-        newQuery = `${beforeReturn}\nOPTIONAL MATCH ${optMatchPattern}\nRETURN ${returnClause}, ${targetVar}`;
-      }
+      const newQuery = withExpansion(
+        trimmed,
+        `OPTIONAL MATCH ${optMatchPattern}`,
+        `, ${targetVar}`,
+        `${firstVar}, ${targetVar}`,
+      );
       rerunFrame(frameId, newQuery);
     },
     [rerunFrame],

@@ -28,6 +28,31 @@ export interface DropExpansion {
   targetVars: string[];
 }
 
+/**
+ * ``query`` with ``matchBlock`` (its OPTIONAL MATCH lines) before its last RETURN and
+ * ``extraReturn`` (", var, ...") added to that RETURN's projection. The result's own ORDER BY,
+ * SKIP and LIMIT stay where Cypher puts them, after the projection: the expansion widens the
+ * pattern, never the paging the query asked for. A query with no RETURN returns ``projection``.
+ */
+export function withExpansion(
+  query: string,
+  matchBlock: string,
+  extraReturn: string,
+  projection: string,
+): string {
+  const q = query.trim();
+  const last = [...q.matchAll(/\bRETURN\b/gi)].pop();
+  if (!last || last.index === undefined) return `${q}\n${matchBlock}\nRETURN ${projection}`;
+  const before = q.slice(0, last.index).trimEnd();
+  const clause = q.slice(last.index + "RETURN".length).trim();
+  // The projection ends where the paging begins: ORDER BY, SKIP or LIMIT as a clause, preceded by
+  // whitespace (a property spelled n.limit is not one).
+  const paging = clause.search(/\s(ORDER\s+BY|SKIP|LIMIT)\s/i);
+  const own = paging < 0 ? clause : clause.slice(0, paging).trimEnd();
+  const tail = paging < 0 ? "" : `\n${clause.slice(paging).trim()}`;
+  return `${before}\n${matchBlock}\nRETURN ${own}${extraReturn}${tail}`;
+}
+
 export function buildDropExpansion(
   query: string,
   compoundLabel: string,
@@ -81,7 +106,7 @@ export function buildDropExpansion(
   }
 
   const suffix = droppedTableName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
-  const trimmed = query.replace(/\s+LIMIT\s+\d+\s*$/i, "").trim();
+  const trimmed = query.trim();
   const taken = (v: string) =>
     trimmed.includes(`[${v}`) || trimmed.includes(` ${v}`) || trimmed.includes(`(${v}`);
   // One free (rel, target) variable pair per type. Each type gets its own OPTIONAL MATCH: a
@@ -115,15 +140,11 @@ export function buildDropExpansion(
       ? relAliases.map((_, k) => `, ${pairs[k].relVar}, ${pairs[k].targetVar}`).join("")
       : `, ${pairs[0].targetVar}`;
   const optMatchBlock = optMatchPatterns.map((p) => `OPTIONAL MATCH ${p}`).join("\n");
-  const returnMatches = [...trimmed.matchAll(/\bRETURN\b/gi)];
-  const lastReturn = returnMatches.pop();
-  let newQueryBase: string;
-  if (!lastReturn || lastReturn.index === undefined) {
-    newQueryBase = `${trimmed}\n${optMatchBlock}\nRETURN ${sourceVar}${extraReturn}`;
-  } else {
-    const beforeReturn = trimmed.slice(0, lastReturn.index).trimEnd();
-    const returnClause = trimmed.slice(lastReturn.index + 6).trim();
-    newQueryBase = `${beforeReturn}\n${optMatchBlock}\nRETURN ${returnClause}${extraReturn}`;
-  }
+  const newQueryBase = withExpansion(
+    trimmed,
+    optMatchBlock,
+    extraReturn,
+    `${sourceVar}${extraReturn}`,
+  );
   return { query: newQueryBase, targetVars: pairs.map((p) => p.targetVar) };
 }

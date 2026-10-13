@@ -113,3 +113,51 @@ describe("REQ-1586 buildDropExpansion", () => {
     expect(out.query).toContain(":SEES_ALSO]-");
   });
 });
+
+describe("a drop keeps the result's own paging", () => {
+  const drop = (query: string) =>
+    buildDropExpansion(query, "GlossaryTerm", [junction(1, "kind_of")], L2T).query;
+
+  it("keeps a LIMIT after the widened RETURN", () => {
+    expect(drop("MATCH (t:GlossaryTerm) RETURN t LIMIT 25")).toBe(
+      "MATCH (t:GlossaryTerm)\n" +
+        "OPTIONAL MATCH (t)-[rGlossaryTerm:KIND_OF]-(mGlossaryTerm:GlossaryTerm)\n" +
+        "RETURN t, rGlossaryTerm, mGlossaryTerm\n" +
+        "LIMIT 25",
+    );
+  });
+
+  it("keeps ORDER BY and LIMIT, in that order", () => {
+    expect(drop("MATCH (t:GlossaryTerm) RETURN t ORDER BY t.name DESC LIMIT 10")).toBe(
+      "MATCH (t:GlossaryTerm)\n" +
+        "OPTIONAL MATCH (t)-[rGlossaryTerm:KIND_OF]-(mGlossaryTerm:GlossaryTerm)\n" +
+        "RETURN t, rGlossaryTerm, mGlossaryTerm\n" +
+        "ORDER BY t.name DESC LIMIT 10",
+    );
+  });
+
+  it("keeps a SKIP", () => {
+    expect(drop("MATCH (t:GlossaryTerm)\nRETURN t\nSKIP 50 LIMIT 25")).toBe(
+      "MATCH (t:GlossaryTerm)\n" +
+        "OPTIONAL MATCH (t)-[rGlossaryTerm:KIND_OF]-(mGlossaryTerm:GlossaryTerm)\n" +
+        "RETURN t, rGlossaryTerm, mGlossaryTerm\n" +
+        "SKIP 50 LIMIT 25",
+    );
+  });
+
+  it("adds no LIMIT to a query that had none", () => {
+    const out = drop("MATCH (t:GlossaryTerm) RETURN t");
+    expect(out).toBe(
+      "MATCH (t:GlossaryTerm)\n" +
+        "OPTIONAL MATCH (t)-[rGlossaryTerm:KIND_OF]-(mGlossaryTerm:GlossaryTerm)\n" +
+        "RETURN t, rGlossaryTerm, mGlossaryTerm",
+    );
+    expect(out).not.toMatch(/LIMIT|SKIP|ORDER BY/);
+  });
+
+  it("does not take a property spelled limit for the clause", () => {
+    expect(drop("MATCH (t:GlossaryTerm) RETURN t, t.limit LIMIT 5")).toContain(
+      "RETURN t, t.limit, rGlossaryTerm, mGlossaryTerm\nLIMIT 5",
+    );
+  });
+});
