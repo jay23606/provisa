@@ -682,10 +682,25 @@ CREATE TABLE IF NOT EXISTS glossary_term_edges (
     id           SERIAL PRIMARY KEY,
     from_term_id INTEGER NOT NULL REFERENCES glossary_terms(id) ON DELETE CASCADE,
     to_term_id   INTEGER NOT NULL REFERENCES glossary_terms(id) ON DELETE CASCADE,
-    rel_type     TEXT NOT NULL CHECK (rel_type IN ('KIND_OF', 'RELATED_TO', 'PART_OF', 'SYNONYM_OF')),
+    rel_type     TEXT NOT NULL CONSTRAINT glossary_term_edges_rel_type_check CHECK (rel_type IN (
+        'KIND_OF', 'RELATED_TO', 'PART_OF', 'SYNONYM_OF',
+        'VALID_VALUE_OF', 'DERIVED_FROM', 'REPLACES', 'PREFERRED_TERM_FOR',
+        'TRANSLATION_OF', 'ANTONYM_OF')),
     tenant_id    UUID,
     UNIQUE (from_term_id, to_term_id, rel_type)
 );
+
+-- REQ-1387: the edge set is core.glossary.TERM_EDGE_TYPES; a table that predates the wider set
+-- carries the four-type check, which refused a config's DERIVED_FROM edge at boot.
+DO $$ BEGIN
+    ALTER TABLE glossary_term_edges DROP CONSTRAINT IF EXISTS glossary_term_edges_rel_type_check;
+    ALTER TABLE glossary_term_edges ADD CONSTRAINT glossary_term_edges_rel_type_check
+        CHECK (rel_type IN (
+        'KIND_OF', 'RELATED_TO', 'PART_OF', 'SYNONYM_OF',
+        'VALID_VALUE_OF', 'DERIVED_FROM', 'REPLACES', 'PREFERRED_TERM_FOR',
+        'TRANSLATION_OF', 'ANTONYM_OF'));
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- REQ-1591: a term's DECLARED domains. A rooted term's domains are derived from its refs'
 -- tables and nothing is written here while it holds a ref; rows appear for two reasons only:
