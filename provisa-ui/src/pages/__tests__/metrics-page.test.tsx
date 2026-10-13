@@ -188,6 +188,16 @@ describe("MetricsPage detail-then-edit", () => {
     expect(screen.getByTestId("metric-builder-agg")).toHaveValue("SUM");
   });
 
+  it("saves an edited metric as an update, never a create", async () => {
+    upsertMetric.mockClear();
+    upsertMetric.mockResolvedValue({ success: true, message: "ok" });
+    render(<MetricsPage />);
+    await userEvent.click(screen.getByTestId("metrics-row-revenue"));
+    await userEvent.click(screen.getByTestId("metric-detail-edit-revenue"));
+    await userEvent.click(screen.getByTestId("metric-save-button"));
+    expect(upsertMetric).toHaveBeenCalledWith(expect.objectContaining({ name: "revenue" }), false);
+  });
+
   it("delete opens the confirm dialog from within the detail panel", async () => {
     render(<MetricsPage />);
     await userEvent.click(screen.getByTestId("metrics-row-revenue"));
@@ -294,6 +304,7 @@ describe("MetricsPage fact-sourced builder", () => {
     await userEvent.click(screen.getByTestId("metric-save-button"));
     expect(upsertMetric).toHaveBeenCalledWith(
       expect.objectContaining({ name: "custom", expression: "COUNT(DISTINCT orders.id)" }),
+      true, // a new metric is created
     );
   });
 });

@@ -186,13 +186,16 @@ export function OssieInterchangePanel() {
         const key: ItemKey = `metric:${m.name}`;
         if (!checked.has(key)) continue;
         outcome[key] = await attempt(() =>
-          upsertMetric({
-            name: m.name,
-            expression: m.expression,
-            datatype: m.datatype,
-            description: m.description,
-            aiContext: m.ai_context,
-          }),
+          upsertMetric(
+            {
+              name: m.name,
+              expression: m.expression,
+              datatype: m.datatype,
+              description: m.description,
+              aiContext: m.ai_context,
+            },
+            true, // an imported metric is a new one: a name the model holds is refused
+          ),
         );
       }
     } finally {

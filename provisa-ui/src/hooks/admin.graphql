@@ -985,9 +985,15 @@ mutation DeleteCalendar($name: String!) {
   }
 }
 
-# REQ-1317: create/update a semantic metric.
-mutation UpsertMetric($input: MetricInput!) {
-  upsertMetric(input: $input) {
+# REQ-1317: create a semantic metric (a name that exists is refused), or update one.
+mutation CreateMetric($input: MetricInput!) {
+  createMetric(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateMetric($input: MetricInput!) {
+  updateMetric(input: $input) {
     ...MutationResult
   }
 }

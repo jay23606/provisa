@@ -30,7 +30,8 @@ declare module "*.graphql" {
   export const DeleteTagParamValue: DocumentNode;
   export const RefreshPolicyPreview: DocumentNode;
   export const MetricsQuery: DocumentNode;
-  export const UpsertMetric: DocumentNode;
+  export const CreateMetric: DocumentNode;
+  export const UpdateMetric: DocumentNode;
   export const DeleteMetric: DocumentNode;
   export const RelationshipsQuery: DocumentNode;
   export const AllRelationshipsQuery: DocumentNode;
@@ -153,7 +154,8 @@ declare module "*.gql" {
   export const DeleteTagParamValue: DocumentNode;
   export const RefreshPolicyPreview: DocumentNode;
   export const MetricsQuery: DocumentNode;
-  export const UpsertMetric: DocumentNode;
+  export const CreateMetric: DocumentNode;
+  export const UpdateMetric: DocumentNode;
   export const DeleteMetric: DocumentNode;
   export const RelationshipsQuery: DocumentNode;
   export const AllRelationshipsQuery: DocumentNode;

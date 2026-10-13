@@ -54,7 +54,8 @@ import {
   DryRunDqContract as DRY_RUN_DQ_CONTRACT_MUTATION,
   RunDqCheckNow as RUN_DQ_CHECK_NOW_MUTATION,
   MetricsQuery as METRICS_QUERY,
-  UpsertMetric as UPSERT_METRIC_MUTATION,
+  CreateMetric as CREATE_METRIC_MUTATION,
+  UpdateMetric as UPDATE_METRIC_MUTATION,
   DeleteMetric as DELETE_METRIC_MUTATION,
   RelationshipsQuery as RELATIONSHIPS_QUERY,
   AllRelationshipsQuery as ALL_RELATIONSHIPS_QUERY,
@@ -245,17 +246,27 @@ export interface MetricInput {
 }
 
 export function useUpsertMetric() {
-  const [upsertMetric, { loading }] = useMutation<{ upsertMetric: MutationResult }>(
-    UPSERT_METRIC_MUTATION,
-    // The save is done when the list holds the metric: the page opens it straight away.
-    { refetchQueries: [{ query: METRICS_QUERY }], awaitRefetchQueries: true },
+  // The save is done when the list holds the metric: the page opens it straight away.
+  const saved = { refetchQueries: [{ query: METRICS_QUERY }], awaitRefetchQueries: true };
+  const [createMetric, { loading: creating }] = useMutation<{ createMetric: MutationResult }>(
+    CREATE_METRIC_MUTATION,
+    saved,
+  );
+  const [updateMetric, { loading: updating }] = useMutation<{ updateMetric: MutationResult }>(
+    UPDATE_METRIC_MUTATION,
+    saved,
   );
   return {
-    upsertMetric: async (input: MetricInput) => {
-      const result = await upsertMetric({ variables: { input } });
-      return (result.data?.upsertMetric ?? { success: false, message: "" }) as MutationResult;
+    /** A new metric is created (a name that exists is refused); one that exists is updated. */
+    upsertMetric: async (input: MetricInput, isNew: boolean) => {
+      if (isNew) {
+        const result = await createMetric({ variables: { input } });
+        return (result.data?.createMetric ?? { success: false, message: "" }) as MutationResult;
+      }
+      const result = await updateMetric({ variables: { input } });
+      return (result.data?.updateMetric ?? { success: false, message: "" }) as MutationResult;
     },
-    loading,
+    loading: creating || updating,
   };
 }
 

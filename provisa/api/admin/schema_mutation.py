@@ -577,6 +577,90 @@ async def _save_tag(
     )
 
 
+async def _save_metric(
+    info: StrawberryInfo, input: MetricInput, *, creating: bool
+) -> MutationResult:  # REQ-1317
+    """A governed metric definition saved (REQ-1317): a create makes a new one, an update
+    replaces one that exists. The expression must parse under sqlglot and contain at least one
+    aggregate function -- hard error otherwise."""
+    from provisa.api.admin.capabilities import require_capability
+    from provisa.core.models import Metric as MetricModel
+    from provisa.core.repositories import metric as metric_repo
+
+    require_capability(info, "table_registration")
+    try:
+        model = MetricModel(
+            name=input.name,
+            expression=input.expression,
+            datatype=input.datatype,
+            description=input.description,
+            ai_context=input.ai_context,
+            visible_to=list(input.visible_to),
+        )
+    except ValueError as e:  # pydantic name validation (snake_case)
+        return MutationResult(success=False, message=str(e))
+    from provisa.api.admin.domain_guard import (
+        expression_domains,
+        metric_domains,
+        require_domains,
+    )
+
+    pool = await _get_pool()
+    try:
+        async with pool.acquire() as conn:
+            # REQ-1531: a metric is an object of every domain its expression reads. Saving one
+            # needs the domains the NEW expression reads, and those of the definition it
+            # replaces -- replacing it is an act on that one too.
+            reads = await expression_domains(cast("Connection", conn), input.name, input.expression)
+            replaced = await metric_domains(cast("Connection", conn), input.name)
+            # A create makes a new metric and an update changes one: a name another metric
+            # holds, or one no metric holds, is refused by name, and nothing is written.
+            if creating and replaced is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Metric {input.name!r} already exists",
+                    code="schema.metric_name_taken",
+                    params={"metric": input.name},
+                )
+            if not creating and replaced is None:
+                return MutationResult(
+                    success=False,
+                    message=f"Metric {input.name!r} not found",
+                    code="schema.metric_not_found",
+                    params={"metric": input.name},
+                )
+            require_domains(info, reads | (replaced or set()))
+            await metric_repo.upsert(cast("Connection", conn), model)
+            # REQ-1318: every registered view whose view_metrics spec references this
+            # metric regenerates its stored view_sql against the UPDATED definition.
+            # Free-hand view_sql born from inline metric() calls carries no stored
+            # provenance and is not regenerated (config-path views regenerate on reload).
+            from provisa.api.admin._metric_views import regenerate_metric_views
+
+            regenerated = await regenerate_metric_views(cast("Connection", conn), input.name)
+    except ValueError as e:  # REQ-1317/1318: invalid expression / spec no longer compiles
+        return MutationResult(success=False, message=str(e))
+    # Always rebuild: state.metrics (raw-SQL `metrics.<name>` expansion) and the
+    # per-role schema metric blocks republish from the DB registry on rebuild.
+    await _rebuild_schemas()
+    if regenerated:
+        return MutationResult(
+            success=True,
+            message=(
+                f"Metric {input.name!r} saved; regenerated view(s): "
+                + ", ".join(sorted(regenerated))
+            ),
+            code="schema.metric_saved_regenerated",
+            params={"metric": input.name, "views": ", ".join(sorted(regenerated))},
+        )
+    return MutationResult(
+        success=True,
+        message=f"Metric {input.name!r} saved",
+        code="schema.metric_saved",
+        params={"metric": input.name},
+    )
+
+
 def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
     from provisa.core.models import Cardinality
 
@@ -2897,73 +2981,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
-    async def upsert_metric(
+    async def create_metric(
         self, info: StrawberryInfo, input: MetricInput
     ) -> MutationResult:  # REQ-1317
-        """Create or replace a governed metric definition (REQ-1317). The expression must parse
-        under sqlglot and contain at least one aggregate function — hard error otherwise."""
-        from provisa.api.admin.capabilities import require_capability
-        from provisa.core.models import Metric as MetricModel
-        from provisa.core.repositories import metric as metric_repo
+        return await _save_metric(info, input, creating=True)
 
-        require_capability(info, "table_registration")
-        try:
-            model = MetricModel(
-                name=input.name,
-                expression=input.expression,
-                datatype=input.datatype,
-                description=input.description,
-                ai_context=input.ai_context,
-                visible_to=list(input.visible_to),
-            )
-        except ValueError as e:  # pydantic name validation (snake_case)
-            return MutationResult(success=False, message=str(e))
-        from provisa.api.admin.domain_guard import (
-            expression_domains,
-            metric_domains,
-            require_domains,
-        )
-
-        pool = await _get_pool()
-        try:
-            async with pool.acquire() as conn:
-                # REQ-1531: a metric is an object of every domain its expression reads. Saving one
-                # needs the domains the NEW expression reads, and those of the definition it
-                # replaces -- replacing it is an act on that one too.
-                reads = await expression_domains(
-                    cast("Connection", conn), input.name, input.expression
-                )
-                replaced = await metric_domains(cast("Connection", conn), input.name)
-                require_domains(info, reads | (replaced or set()))
-                await metric_repo.upsert(cast("Connection", conn), model)
-                # REQ-1318: every registered view whose view_metrics spec references this
-                # metric regenerates its stored view_sql against the UPDATED definition.
-                # Free-hand view_sql born from inline metric() calls carries no stored
-                # provenance and is not regenerated (config-path views regenerate on reload).
-                from provisa.api.admin._metric_views import regenerate_metric_views
-
-                regenerated = await regenerate_metric_views(cast("Connection", conn), input.name)
-        except ValueError as e:  # REQ-1317/1318: invalid expression / spec no longer compiles
-            return MutationResult(success=False, message=str(e))
-        # Always rebuild: state.metrics (raw-SQL `metrics.<name>` expansion) and the
-        # per-role schema metric blocks republish from the DB registry on rebuild.
-        await _rebuild_schemas()
-        if regenerated:
-            return MutationResult(
-                success=True,
-                message=(
-                    f"Metric {input.name!r} saved; regenerated view(s): "
-                    + ", ".join(sorted(regenerated))
-                ),
-                code="schema.metric_saved_regenerated",
-                params={"metric": input.name, "views": ", ".join(sorted(regenerated))},
-            )
-        return MutationResult(
-            success=True,
-            message=f"Metric {input.name!r} saved",
-            code="schema.metric_saved",
-            params={"metric": input.name},
-        )
+    @strawberry.mutation
+    async def update_metric(
+        self, info: StrawberryInfo, input: MetricInput
+    ) -> MutationResult:  # REQ-1317
+        return await _save_metric(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_metric(self, info: StrawberryInfo, name: str) -> MutationResult:  # REQ-1317

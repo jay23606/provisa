@@ -301,13 +301,17 @@ export function MetricsPage() {
 
   const handleSave = async () => {
     setMsg("");
-    const result = await upsertMetric({
-      name: form.name.trim(),
-      expression: form.expression.trim(),
-      datatype: form.datatype.trim() || null,
-      description: form.description.trim() || null,
-      aiContext: form.aiContext.trim() || null,
-    });
+    const result = await upsertMetric(
+      {
+        name: form.name.trim(),
+        expression: form.expression.trim(),
+        datatype: form.datatype.trim() || null,
+        description: form.description.trim() || null,
+        aiContext: form.aiContext.trim() || null,
+      },
+      // The new-metric form creates; a metric's own detail updates it.
+      creating,
+    );
     if (result.success && creating) {
       // The metric exists now, with everything else at its defaults: it is selected in the list
       // and its detail opens in edit, where its description and AI context are filled in.

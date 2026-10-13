@@ -233,13 +233,16 @@ describe("Ossie interchange panel (REQ-1316)", () => {
       modelingRole: "fact",
       modelingHistory: undefined,
     });
-    expect(upsertMetric).toHaveBeenCalledWith({
-      name: "revenue",
-      expression: "SUM(orders.amount)",
-      datatype: "numeric",
-      description: null,
-      aiContext: "Total booked revenue",
-    });
+    expect(upsertMetric).toHaveBeenCalledWith(
+      {
+        name: "revenue",
+        expression: "SUM(orders.amount)",
+        datatype: "numeric",
+        description: null,
+        aiContext: "Total booked revenue",
+      },
+      true, // an imported metric is created
+    );
     expect(upsertRelationship).not.toHaveBeenCalled();
 
     // Per-item MutationResult surfaces on the review rows.
