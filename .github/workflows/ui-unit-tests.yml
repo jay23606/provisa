@@ -47,6 +47,11 @@ jobs:
       - name: Live demos page in step with its demos
         run: node ../scripts/gen-site-demos.mjs --check
 
+      # The site's source picker and every count of connectors it states, in figures or in words,
+      # are generated from SOURCE_TYPES; a source added without regenerating them fails here.
+      - name: Site source picker and counts in step with SOURCE_TYPES
+        run: node ../scripts/gen-site-source-picker.mjs --check
+
       # render_graph's renderer (REQ-1990): its own package, tested by node --test against its
       # built bundle -- each layout on each theme, as the MCP server runs it.
       - name: Graph renderer -- type check, build, test
