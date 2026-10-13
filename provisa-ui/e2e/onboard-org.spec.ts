@@ -29,7 +29,9 @@ test("member-less user onboards a new org with demo data and is routed into the 
   });
 
   await page.route("**/setup/status", (route) =>
-    route.fulfill({ json: { needs_setup: false, demo_mode: false, auth_enabled: true } }),
+    route.fulfill({
+      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+    }),
   );
   // Firebase config probe from index.html is absent under the stubbed harness.
   await page.route("**/firebase-config.js", (route) =>
@@ -103,7 +105,9 @@ test("member-less user joins an existing org with an invite code and is routed i
   });
 
   await page.route("**/setup/status", (route) =>
-    route.fulfill({ json: { needs_setup: false, demo_mode: false, auth_enabled: true } }),
+    route.fulfill({
+      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+    }),
   );
   await page.route("**/firebase-config.js", (route) =>
     route.fulfill({ body: "", contentType: "application/javascript" }),

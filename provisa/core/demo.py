@@ -14,8 +14,26 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 
 def is_demo() -> bool:
     """True when the deployment was launched in demo mode (PROVISA_DEMO=1/true/yes)."""
     return os.environ.get("PROVISA_DEMO", "").lower() in ("1", "true", "yes")
+
+
+NAMED_DEMO_DIR_ENV = "PROVISA_NAMED_DEMO_DIR"
+
+
+def example_queries() -> list[dict[str, str]]:  # REQ-2009
+    """The example GraphQL queries the named demo ships (``demo/named/<name>/queries/*.graphql``),
+    in file-name order: each its file's name without the extension, and its text. The GraphQL
+    explorer opens them as tabs the first time the demo is opened. None when no named demo was
+    started (start-ui-install.sh --demo <name> names its directory) or it ships none."""
+    named = os.environ.get(NAMED_DEMO_DIR_ENV)
+    if not named:
+        return []  # no named demo started: nothing ships examples
+    return [
+        {"name": path.stem, "query": path.read_text(encoding="utf-8")}
+        for path in sorted((Path(named) / "queries").glob("*.graphql"))
+    ]

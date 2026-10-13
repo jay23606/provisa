@@ -199,6 +199,9 @@ tables:
 views:
 - id: request_sql
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: Every statement the shop sent, with the request it served, its duration and the
     table it read or wrote
   sql: >-
@@ -224,6 +227,9 @@ views:
   - {name: logged_at, data_type: timestamp, description: When the database logged it, visible_to: [org_admin, analyst]}
 - id: slowest_pages
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: Each request the shop served, slowest first, with how many statements it ran and how
     long they took; its statements are its request_sql
   sql: >-
@@ -243,6 +249,9 @@ views:
   - {name: slowest_sql_ms, data_type: double, description: Milliseconds its slowest statement ran, visible_to: [org_admin, analyst]}
 - id: requests_with_db_errors
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: Requests whose statement failed in the database, with the error and the statement
   sql: >-
     SELECT a.request_id, a.method, a.path, a.status, a.customer_id, a."time" AS requested_at,
@@ -263,6 +272,9 @@ views:
   - {name: statement, data_type: varchar, description: The statement that failed, without its comment, visible_to: [org_admin, analyst]}
 - id: customers_with_5xx
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: Customers who were served a server error, with how many and their orders so far
   sql: >-
     SELECT c.id AS customer_id, c.name, c.city, COUNT(*) AS server_errors, MAX(a."time") AS last_error_at,
@@ -282,6 +294,9 @@ views:
   - {name: orders, data_type: bigint, description: Orders the customer has placed, visible_to: [org_admin, analyst]}
 - id: viewed_not_bought
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: Products customers looked at that no order has ever included
   sql: >-
     SELECT p.id AS product_id, p.name, p.category, p.price, v.views
@@ -300,6 +315,9 @@ views:
   - {name: views, data_type: bigint, description: Times its page was viewed, visible_to: [org_admin, analyst]}
 - id: slow_statements_by_table
   domain_id: shop
+  # GraphQL's Aggregate and GroupBy fields, which the example queries (queries/) use.
+  enable_aggregates: true
+  enable_group_by: true
   description: The shop's statements grouped by the table they read or wrote, slowest first
   sql: >-
     SELECT table_name, COUNT(*) AS statements, CAST(AVG(duration_ms) AS DECIMAL(12, 3)) AS avg_ms,

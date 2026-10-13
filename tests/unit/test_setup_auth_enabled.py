@@ -32,6 +32,7 @@ def test_auth_enabled_helper():
 async def test_status_demo_no_auth_is_unsecured(monkeypatch):
     monkeypatch.setattr(setup_router, "_is_demo", lambda: True)
     monkeypatch.setattr(setup_router, "_idp_override", lambda: None)
+    monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
     monkeypatch.setattr("provisa.api.admin._config_io.read_config", lambda: {})
     result = await setup_status()
     assert result == {
@@ -39,6 +40,7 @@ async def test_status_demo_no_auth_is_unsecured(monkeypatch):
         "demo_mode": True,
         "auth_enabled": False,
         "multitenancy": False,
+        "example_queries": [],  # REQ-2009: no named demo was started
     }
 
 
@@ -46,6 +48,7 @@ async def test_status_demo_no_auth_is_unsecured(monkeypatch):
 async def test_status_demo_firebase_config_is_enforced(monkeypatch):
     monkeypatch.setattr(setup_router, "_is_demo", lambda: True)
     monkeypatch.setattr(setup_router, "_idp_override", lambda: None)
+    monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
     monkeypatch.setattr(
         "provisa.api.admin._config_io.read_config",
         lambda: {"auth": {"provider": "firebase"}},
@@ -56,6 +59,7 @@ async def test_status_demo_firebase_config_is_enforced(monkeypatch):
         "demo_mode": True,
         "auth_enabled": True,
         "multitenancy": False,
+        "example_queries": [],  # REQ-2009: no named demo was started
     }
 
 
@@ -63,6 +67,7 @@ async def test_status_demo_firebase_config_is_enforced(monkeypatch):
 async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
     monkeypatch.setattr(setup_router, "_is_demo", lambda: False)
     monkeypatch.setattr(setup_router, "_idp_override", lambda: None)
+    monkeypatch.delenv("PROVISA_NAMED_DEMO_DIR", raising=False)
     monkeypatch.setattr("provisa.api.admin._config_io.read_config", lambda: {})
     result = await setup_status()
     assert result == {
@@ -70,4 +75,5 @@ async def test_status_non_demo_no_auth_needs_setup(monkeypatch):
         "demo_mode": False,
         "auth_enabled": False,
         "multitenancy": False,
+        "example_queries": [],  # REQ-2009: no named demo was started
     }

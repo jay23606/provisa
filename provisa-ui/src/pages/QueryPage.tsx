@@ -59,6 +59,7 @@ import {
   setStored,
   storedKeys,
 } from "../lib/browserStorage";
+import { useExampleQueries } from "../context/ExampleQueriesContext";
 
 /** Register # @provisa hint completions in the GraphQL Monaco editor. */
 monaco.languages.registerCompletionItemProvider("graphql", {
@@ -557,6 +558,12 @@ export function QueryPage() {
   // REQ-2008: GraphiQL's tabs, history and headers are saved in this control plane's and org's
   // scope; the page mounts again when it changes, so each scope opens its own tabs.
   const [graphiqlStorage] = useState(() => scopedStorage("graphiql:"));
+  // REQ-2009: a named demo's example queries are the explorer's first tabs. GraphiQL opens them
+  // only while the scope has no tabs saved, so the first time a demo is opened, not after.
+  const exampleQueries = useExampleQueries();
+  const [defaultTabs] = useState(() =>
+    exampleQueries.length > 0 ? exampleQueries.map((e) => ({ query: e.query })) : undefined,
+  );
   // REQ-1516: start the engine on arrival, not on the first Run. Sign-in already prewarms
   // (REQ-1471), which covers a session that queries soon after it starts; it does not cover the tab
   // left open past the idle window, where the shard is reaped underneath the operator. Composing a
@@ -959,6 +966,7 @@ export function QueryPage() {
         defaultEditorToolsVisibility={initialEditorTab}
         shouldPersistHeaders
         storage={graphiqlStorage}
+        defaultTabs={defaultTabs}
       >
         {handed && <OpenFromNav key={handed.seq} query={handed.query} autoRun={handed.autoRun} />}
         <GraphiQL.Footer>

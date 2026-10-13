@@ -81626,3 +81626,24 @@
     Then ops is still unchecked and the saved tab is restored'
   related_reqs: [REQ-1297, REQ-1326, REQ-1349]
   notes: 'Maintainer 2026-10-13, through the lead: scope all browser-saved UI state by org and control plane, so each named demo, org or instance keeps its own state; switching demos must not carry state across, and coming back to a demo restores its own state. The lead set the key shape (<control plane id>:<org id>:<key>), the id served on an endpoint the UI already loads, one helper with a guard and an explicit global flag. The list of global keys, the no-org scope, the remount on a change of scope and the catalog cache tag are the implementation''s, for the lead to confirm.'
+- id: REQ-2009
+  status: proposed
+  since: 2026-10
+  group: 10. UI & Admin Surfaces
+  category: UI
+  priority: SHOULD
+  type: behavioral
+  feature: product-tour-and-demos-named-demos
+  description: 'A named demo ships example GraphQL queries, one file a query in its directory (demo/named/<name>/queries/*.graphql), and the GraphQL explorer opens them as its tabs, in file-name order, the first time that demo is opened in a browser. They reach the UI on /setup/status, which the app reads before anything else, as the started demo''s example_queries; a deployment started without a named demo has none. They are the explorer''s tabs only while it has saved no tabs of its own for that demo''s control plane and org (REQ-2008), so a later visit opens what was left there. The weblogs demo ships one a view, using the GraphQL Aggregate and GroupBy fields its views offer (a view enables them with enable_aggregates and enable_group_by, as a table does): the slowest pages by path with their count, average and maximum time, the ten slowest by average; the slow statements by table; the customers served a server error, by city; the database errors by page; the products viewed and never bought, by category; and the statement times over every table. Every example the demo ships runs on the demo and answers rows.'
+  use_case: 'A prospect opens the weblogs demo and goes to the GraphQL explorer: its tabs already hold queries over the demo''s own views, each ready to run.'
+  scenario: 'Given the weblogs demo started in a browser that has never opened it
+
+    When the GraphQL explorer opens
+
+    Then its tabs are the demo''s example queries, in order, and each runs and answers rows
+
+    When a tab is changed and the explorer is opened again later
+
+    Then the changed tabs are shown, not the examples'
+  related_reqs: [REQ-2007, REQ-2008, REQ-653, REQ-1996]
+  notes: 'Maintainer 2026-10-13, through the lead: the weblogs demo ships example GraphQL queries, one per view, using its GroupBy and Aggregate fields (slowest pages grouped by path with count, avg and max, top 10 by avg; slow statements by table; 5xx customers by city); the GraphQL explorer opens with them as tabs the first time that demo''s scope is opened. The lead set the layout (demo/named/<name>/queries/*.graphql), an endpoint the UI already loads, GraphiQL''s defaultTabs only when the scope has no saved tabs, and the run-on-the-demo check as a CI case of tests/integration/test_weblogs_demo.py. The two view keys for Aggregate and GroupBy are the implementation''s: the views: block took neither.'

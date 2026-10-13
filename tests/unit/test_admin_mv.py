@@ -158,6 +158,31 @@ class TestMaterializedViewIsQueryable:
             60,
         )
 
+    async def test_a_views_entry_offers_aggregate_and_group_by_as_a_table_does(self):
+        """REQ-2009: a view turns on the GraphQL Aggregate and GroupBy root fields with the
+        table's own keys."""
+        from provisa.core.config_loader import views_as_tables
+        from provisa.core.models import ProvisaConfig
+
+        raw = views_as_tables(
+            {
+                "views": [
+                    {
+                        "id": "v3",
+                        "sql": "SELECT 3 AS x",
+                        "domain_id": "d",
+                        "enable_aggregates": True,
+                        "enable_group_by": True,
+                        "columns": [{"name": "x", "visible_to": ["analyst"]}],
+                    }
+                ]
+            }
+        )
+        (table,) = ProvisaConfig.model_validate(
+            {**raw, "sources": [], "domains": [], "roles": []}
+        ).tables
+        assert (table.enable_aggregates, table.enable_group_by) == (True, True)
+
     async def test_a_views_entry_with_a_key_it_does_not_take_is_refused(self):
         from provisa.core.config_loader import views_as_tables
 
