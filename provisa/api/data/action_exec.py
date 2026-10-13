@@ -86,6 +86,76 @@ def _record_call(name: str, args: dict, state, role_id: str) -> None:
     )
 
 
+async def _run_recorded(fn: dict, args: dict, state, role_id: str) -> list[dict]:  # REQ-2001
+    """A statement command's run and its provenance record: enough to prove what produced the
+    rows -- the statement as registered, its hash and contract version, the bound argument
+    values, the models it embedded with (with their versions), the caller, its start and end,
+    its outcome, the tables it read, the table it wrote and the rows affected. Written once the
+    run ends, however it ends; append-only, as every audit row. No copy of the data is kept."""
+    import time
+
+    from provisa.audit.context import current_audit_identity
+    from provisa.audit.pipeline import PendingAudit, enqueue_audit
+    from provisa.executor.function_dispatch import _bind_arg_names
+    from provisa.executor.statement_command import RUN_FACTS
+
+    identity = current_audit_identity()
+    contract = fn["contract"]
+    values = _bind_arg_names(fn, args)
+    started = time.monotonic()
+    token = RUN_FACTS.set(None)
+    status = 500
+    try:
+        rows = await dispatch_function(fn, args, state, role_id)
+        status = 200
+        return rows
+    except ApiError as exc:
+        status = exc.status_code
+        raise
+    finally:
+        facts = RUN_FACTS.get()
+        RUN_FACTS.reset(token)
+        if identity is not None:
+            enqueue_audit(
+                PendingAudit(
+                    user_id=identity.user_id,
+                    surface=identity.surface,
+                    role_id=role_id,
+                    query_text=fn["binding"]["sql"],
+                    table_ids=[],
+                    started=started,
+                    model_stamp=state.model_stamp,
+                    enforced={
+                        "command": {
+                            "name": fn["name"],
+                            "kind": "statement",
+                            "statement_hash": contract["statement_hash"],
+                            "contract_version": contract["version"],
+                            "arguments": {k: _recorded(v) for k, v in values.items()},
+                            "reads": list(contract["reads"]),
+                            "writes": contract["writes"],
+                            "embed": facts["embed"] if facts is not None else [],
+                        }
+                    },
+                ),
+                status,
+                state,
+                route="command",
+                row_count=facts["rows"] if facts is not None else None,
+            )
+
+
+def _recorded(value):
+    """An argument value as the record holds it: JSON-safe, as given."""
+    import json
+
+    try:
+        json.dumps(value)
+    except TypeError:
+        return str(value)
+    return value
+
+
 def usable_commands(state, role_id: str, *, webhooks: bool = True) -> dict[str, dict]:
     """The commands ``role_id`` may call, by name: assigned to it and in a domain it reaches. A
     surface that recognizes a command by its name in the statement (SQL) recognizes only these,
@@ -242,6 +312,9 @@ async def invoke_command(
         assert role_id is not None
         if fn.get("requires_approval"):
             await _require_approval(fn, args, state, role_id, role)
+        if fn.get("impl_kind") == "statement":
+            rows = await _run_recorded(fn, args, state, role_id)  # REQ-2001
+            return await govern_action_rows(rows, fn, role_id, state)
         _record_call(name, args, state, role_id)
         rows = await dispatch_function(fn, args, state, role_id)
         # A statement command's write passed the pipeline's own write terminal, which already

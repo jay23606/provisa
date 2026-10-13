@@ -17,10 +17,15 @@ statement declares is :mod:`provisa.core.statement_declaration`."""
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from typing import Any
 
 from provisa.api.errors import ApiError
 from provisa.core.statement_declaration import StatementCommandRefused, declared
+
+#: What the run in this context found, for its provenance record (action_exec): the models its
+#: statement embedded with, and the rows it affected or answered. Set by :func:`run`.
+RUN_FACTS: ContextVar[dict[str, Any] | None] = ContextVar("statement_run_facts", default=None)
 
 
 async def run(fn: dict, args: dict, state: Any, role_id: str | None) -> list[dict]:
@@ -49,9 +54,15 @@ async def run(fn: dict, args: dict, state: Any, role_id: str | None) -> list[dic
     params = [args[n] for n in names]
     plan = await _govern_and_route(found.sql, role_id, params=params or None)
     result = await _execute_plan(plan, state)
+    # The write's count, as pgwire's command tag reads it (server._write_tag); a read's rows.
+    count = result.rowcount if result.rowcount is not None else len(result.rows)
+    RUN_FACTS.set(
+        {
+            "rows": count,
+            "embed": list(plan.embedded.audit or ()) if plan.embedded is not None else [],
+        }
+    )
     if found.kind == "mutation" and not found.returns_rows:
-        # The write's count, as pgwire's command tag reads it (server._write_tag).
-        count = result.rowcount if result.rowcount is not None else len(result.rows)
         return [{"rows_affected": count}]
     cols = result.column_names
     return [{c: _convert_value(v) for c, v in zip(cols, r)} for r in result.rows]

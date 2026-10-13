@@ -128,7 +128,7 @@ def pipeline(monkeypatch):
 
     async def govern(sql, role_id, *, params=None):
         calls.update(sql=sql, role_id=role_id, params=params)
-        return SimpleNamespace(plan=True)
+        return SimpleNamespace(plan=True, embedded=calls.get("embedded"))
 
     result = {"value": QueryResult(rows=[], column_names=[], rowcount=3)}
 
@@ -254,3 +254,83 @@ def test_the_admin_api_refuses_a_sent_kind_that_contradicts_the_statement():
     with pytest.raises(ApiError) as refused:
         _as_statement(body)
     assert refused.value.code == "actions.statement_invalid"
+
+
+# -- the run's provenance record -----------------------------------------------------------------
+
+
+def _recorded_fn() -> dict:
+    return {
+        **_fn_dict(),
+        "impl_kind": "statement",
+        "contract": {
+            "broken": None,
+            "statement_hash": "abc123",
+            "version": "v7",
+            "reads": ["support.tickets"],
+            "writes": "kb.docs",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_each_run_leaves_a_record_proving_what_produced_its_rows(pipeline, monkeypatch):
+    from provisa.api.data import action_exec
+    from provisa.audit.context import audit_identity_scope
+    from provisa.vector.embed_fn import Folded
+
+    calls, _ = pipeline
+    used = ({"id": "mini", "provider": "ollama", "dimensions": 3, "version": "sha256:9f"},)
+    calls["embedded"] = Folded("x", audit=used)
+    recorded: list = []
+    monkeypatch.setattr(
+        "provisa.audit.pipeline.enqueue_audit",
+        lambda pending, status, _state, **kw: recorded.append((pending, status, kw)),
+    )
+    state = SimpleNamespace(udf_trace_sink=None, minted_sessions=None, model_stamp=4)
+    with audit_identity_scope("scheduler:hourly", "scheduler"):
+        rows = await action_exec._run_recorded(
+            _recorded_fn(), {"a0": "2026-10-11", "a1": "ops"}, state, "steward"
+        )
+    assert rows == [{"rows_affected": 3}]
+    ((pending, status, kw),) = recorded
+    assert status == 200 and kw["row_count"] == 3 and kw["route"] == "command"
+    assert (pending.user_id, pending.surface, pending.role_id) == (
+        "scheduler:hourly",
+        "scheduler",
+        "steward",
+    )
+    assert pending.query_text == _INSERT
+    assert pending.enforced["command"] == {
+        "name": "embed_tickets",
+        "kind": "statement",
+        "statement_hash": "abc123",
+        "contract_version": "v7",
+        "arguments": {"since": "2026-10-11", "team": "ops"},
+        "reads": ["support.tickets"],
+        "writes": "kb.docs",
+        "embed": list(used),
+    }
+
+
+@pytest.mark.asyncio
+async def test_a_failed_run_is_recorded_with_its_outcome(monkeypatch):
+    from provisa.api.data import action_exec
+    from provisa.api.errors import ApiError
+    from provisa.audit.context import audit_identity_scope
+
+    recorded: list = []
+    monkeypatch.setattr(
+        "provisa.audit.pipeline.enqueue_audit",
+        lambda pending, status, _state, **kw: recorded.append((status, kw)),
+    )
+    monkeypatch.setattr(
+        action_exec,
+        "dispatch_function",
+        AsyncMock(side_effect=ApiError(409, "functions.statement_broken", "broken")),
+    )
+    with audit_identity_scope("u", "sql"), pytest.raises(ApiError):
+        await action_exec._run_recorded(
+            _recorded_fn(), {"since": "x", "team": "y"}, SimpleNamespace(model_stamp=1), "ops"
+        )
+    assert recorded == [(409, {"route": "command", "row_count": None})]
