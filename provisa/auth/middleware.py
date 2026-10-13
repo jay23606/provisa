@@ -887,6 +887,23 @@ class AuthMiddleware:  # REQ-120, REQ-125, REQ-273
                     code=ORG_SELECTION_REQUIRED,
                 )
 
+            if active_org_id is not None:
+                # REQ-2006: an org of the other tier is answered here, by name, before anything
+                # builds its runtime in this process -- a sandbox's opens its DuckDB file.
+                from provisa.api.errors import ApiError
+                from provisa.api.sandbox_tier import require_this_tier
+
+                try:
+                    require_this_tier(active_org_id)
+                except ApiError as refused:
+                    return _deny(
+                        request,
+                        refused.status_code,
+                        str(refused.detail),
+                        cause="wrong_tier",
+                        code=refused.code,
+                    )
+
             # Tenant-plane assignments. A member's role assignment lives in their org's OWN schema,
             # so bind that org and read it there (the default-org read above sees no such row).
             # REQ-1327: this read is unconditional — capabilities inside an org come ONLY from

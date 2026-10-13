@@ -122,7 +122,7 @@ async def test_a_document_is_held_whole_and_written_in_bounded_batches():
 
 def _state(*, streams=False):
     return SimpleNamespace(
-        source_pools=SimpleNamespace(supports_stream=lambda _id: streams),
+        source_pools=SimpleNamespace(has=lambda _id: True, supports_stream=lambda _id: streams),
         source_dialects={"src": "postgres"},
     )
 

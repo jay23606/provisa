@@ -444,3 +444,115 @@ def test_two_devices_writing_at_once_one_succeeds_and_the_other_is_refused_by_na
     assert listed.status_code == 200, listed.text
     twice = [s for s in listed.json()["data"]["sources"] if s["id"] == "twice"]
     assert twice == [{"id": "twice", "type": "csv"}]
+
+
+def test_the_deployments_own_api_refuses_a_sandbox_by_name(tier, alpha, tmp_path_factory):
+    """A request for a sandbox that reaches the deployment's ordinary API -- a process that is not
+    the sandbox tier -- is refused by name: that process never opens the sandbox's file."""
+    from tests.integration.isolated_server import IsolatedServer
+
+    work = tmp_path_factory.mktemp("ordinary_tier")
+    config = work / "config.yaml"
+    _deployment_config(config)
+    ordinary = IsolatedServer(
+        _ORG,
+        engine="duckdb",
+        config=str(config),
+        auth={"provider": "basic", "jwt_secret": _JWT_SECRET, "assignments_source": "provisa"},
+        env={"PROVISA_DATA_DIR": str(work / "data")},
+    )
+    ordinary.start(timeout=240)
+    try:
+        refused = _sql(ordinary, alpha, "SELECT name FROM animals")
+        assert refused.status_code == 421, (refused.text, _last_traceback(ordinary))
+        assert refused.json()["code"] == "sandbox.wrong_tier"
+        opened = httpx.post(f"{ordinary.base_url}/public/demos/alpha", timeout=60)
+        assert opened.status_code == 421, opened.text
+    finally:
+        ordinary.stop_process()
+
+
+def test_a_visitor_lands_a_source_of_their_own_within_the_caps(tier, alpha):
+    """A visitor uploads a file, registers it as a source and its table replicated always, and
+    reads it: the replica is landed into the sandbox's own store, within its disk cap."""
+    headers = {"Authorization": f"Bearer {alpha['token']}", "x-org-provisa": alpha["org_id"]}
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as scratch:
+        db = sqlite3.connect(Path(scratch) / "birds.sqlite")
+        db.execute("CREATE TABLE birds (id INTEGER PRIMARY KEY, name TEXT)")
+        db.executemany("INSERT INTO birds VALUES (?, ?)", [(1, "owl"), (2, "wren")])
+        db.commit()
+        db.close()
+        content = (Path(scratch) / "birds.sqlite").read_bytes()
+    uploaded = httpx.put(
+        f"{tier.base_url}/admin/sources/birds/file",
+        params={"name": "birds.sqlite", "type": "sqlite"},
+        content=content,
+        headers=headers,
+        timeout=120,
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    created = _admin_graphql(
+        tier,
+        alpha,
+        'mutation { createSource(input: {id: "birds", type: "sqlite", host: "", port: 0, '
+        f'database: "", path: "{uploaded.json()["path"]}", cacheTtl: 3600}}) '
+        "{ success message code } }",
+    )
+    assert created.json()["data"]["createSource"]["success"], created.text
+    columns = ", ".join(
+        f'{{name: "{n}", visibleTo: ["sandbox"], dataType: "{t}"}}'
+        for n, t in (("id", "integer"), ("name", "varchar"))
+    )
+    registered = _admin_graphql(
+        tier,
+        alpha,
+        'mutation { registerTable(input: {sourceId: "birds", domainId: "zoo", '
+        f'schemaName: "main", tableName: "birds", columns: [{columns}]}}) '
+        "{ success message } }",
+    )
+    assert (registered.json().get("data") or {}).get("registerTable", {}).get("success"), (
+        registered.text
+    )
+    from tests.helpers import registered_id, release_field
+
+    _admin_graphql(
+        tier,
+        alpha,
+        "mutation { "
+        + release_field(registered_id(registered.json()["data"]["registerTable"]["message"]))
+        + " { success message } }",
+    )
+    # Registered, the source is read from its replica from now on: always (REQ-826).
+    replicated = _admin_graphql(
+        tier,
+        alpha,
+        'mutation { updateSource(input: {id: "birds", type: "sqlite", host: "", port: 0, '
+        f'database: "", path: "{uploaded.json()["path"]}", replicate: 0, cacheTtl: 3600}}) '
+        "{ success message code } }",
+    )
+    assert (replicated.json().get("data") or {}).get("updateSource", {}).get("success"), (
+        replicated.text
+    )
+    deadline = time.monotonic() + 120
+    while True:
+        read = _sql(tier, alpha, "SELECT name FROM birds")
+        if read.status_code == 200:
+            break
+        assert time.monotonic() < deadline, (read.text, _last_traceback(tier))
+        time.sleep(2)
+    assert _names(read) == ["owl", "wren"]
+    store = tier.data_dir / "orgs" / alpha["org_id"] / "materialize.duckdb"
+    assert store.stat().st_size < _DISK
+    import duckdb
+
+    con = duckdb.connect(str(store), read_only=True)
+    try:
+        landed = con.execute(
+            "SELECT table_name FROM duckdb_tables() WHERE schema_name = ?",
+            [f"org_{alpha['org_id']}_replicas"],
+        ).fetchall()
+    finally:
+        con.close()
+    assert any("birds" in name for (name,) in landed), landed

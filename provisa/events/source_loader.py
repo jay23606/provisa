@@ -258,6 +258,9 @@ class SourceRowLoader:
         if (
             floor_setting(source) is not None
             and pools is not None
+            # A floored source with no driver of its own (a file read by the engine) has no
+            # cursor to stream through; it is read by the engine below.
+            and pools.has(source.id)
             and pools.supports_stream(source.id)
         ):
             dialect = state.source_dialects[source.id] or None
