@@ -822,8 +822,9 @@ async def _handle_query(
             )
         if redirect_info is not None:
             return JSONResponse(content={"data": {root_field: None}, "redirect": redirect_info})
-        # Binary format passthrough (parquet/arrow/csv single-field)
-        if not isinstance(field_rows, list):
+        # Binary format passthrough (parquet/arrow/csv single-field). An aggregate's answer is a
+        # map ({aggregate, nodes}), not rows, and is answered in the envelope as rows are.
+        if isinstance(field_rows, Response):
             return field_rows
         headers = build_cache_headers(None)
         return JSONResponse(

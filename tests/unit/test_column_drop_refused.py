@@ -24,8 +24,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import insert, select
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import integrity
 from provisa.core.repositories import table as table_repo
@@ -52,9 +51,8 @@ def _table(name: str, *columns: str, view_sql: str | None = None) -> Table:
 
 
 @pytest.fixture
-async def plane() -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="column-drop-test")
-    await _init_schema_portable(db)
+async def plane(control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
         await conn.execute_core(insert(domains).values(id="sales"))

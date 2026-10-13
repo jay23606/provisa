@@ -13,10 +13,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import outcomes, queue
 from provisa.events.handlers import make_mv_generate
 from provisa.events.lineage import derive_output_schema, infer_pk
@@ -191,14 +187,8 @@ def test_require_pk_delta_without_pk_fails_loud():
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 def _mv_proc(db, *, emit, subscribers, node="mv.a", deps=("d.replace", "d.append", "d.delta")):
@@ -223,14 +213,14 @@ async def _events_from(conn, node):
 
 
 @pytest.mark.asyncio
-async def test_emit_set_routes_each_shape_to_shape_matched_dependents(tmp_path):
+async def test_emit_set_routes_each_shape_to_shape_matched_dependents(control_plane, tmp_path):
     # demand map: d.replace consumes replace, d.append consumes append, d.delta consumes delta
     _consumes = {"d.replace": {"replace"}, "d.append": {"append"}, "d.delta": {"delta"}}
 
     def subscribers(node, shape):
         return [d for d, c in _consumes.items() if shape in c]
 
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await queue.post_event(conn, source_table="s.o", event_type="append")
         await queue.fan_out(conn, up, ["mv.a"])
         proc = _mv_proc(db, emit={"replace", "append", "delta"}, subscribers=subscribers)
@@ -253,12 +243,12 @@ async def test_emit_set_routes_each_shape_to_shape_matched_dependents(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_emit_none_when_no_subscriber(tmp_path):
+async def test_emit_none_when_no_subscriber(control_plane, tmp_path):
     # declared delta, but the only dependent consumes replace → delta NOT produced (emit NONE)
     def subscribers(node, shape):
         return ["d.replace"] if shape == "replace" else []
 
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await queue.post_event(conn, source_table="s.o", event_type="append")
         await queue.fan_out(conn, up, ["mv.a"])
         proc = _mv_proc(db, emit={"delta"}, subscribers=subscribers)
@@ -270,7 +260,7 @@ async def test_emit_none_when_no_subscriber(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_persist_and_emit_are_independent(tmp_path):
+async def test_persist_and_emit_are_independent(control_plane, tmp_path):
     # persist=upsert into the store, emit=delta downstream — the two axes decoupled (REQ-965)
     dsn = _dsn(tmp_path)
 
@@ -290,7 +280,7 @@ async def test_persist_and_emit_are_independent(tmp_path):
     def subscribers(node, shape):
         return ["d.delta"] if shape == "delta" else []
 
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         up = await queue.post_event(conn, source_table="s.o", event_type="append")
         await queue.fan_out(conn, up, ["mv.a"])
         proc = MVTableProcessor(

@@ -15,9 +15,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import insert
 
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.region_stores import ForeignRegion, HomeRegionUnavailable
-from provisa.core.schema_org import metadata, mv_build_state
+from provisa.core.schema_org import mv_build_state
 from provisa.mv.models import MVDefinition
 from provisa.mv.registry import MVRegistry
 
@@ -58,12 +57,8 @@ class _Backend:
 
 
 @pytest.fixture
-def eu_state_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'eu_state.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[mv_build_state])
-    yield Database(engine, name="eu-state")
-    engine.dispose()
+def eu_state_db(control_plane):
+    return control_plane.org()
 
 
 def _state(eu_state_db, backend, monkeypatch, *, region="eu"):
@@ -128,7 +123,7 @@ async def test_a_view_another_region_keeps_is_attached_from_its_views_store_once
     [(region, reads, url, schema, table, build)] = backend.attached
     assert (region, reads, url, table) == ("eu", "views", "postgresql://eu/views", "mv_eu_sales")
     assert schema.endswith("_rg_eu_mv_cache")  # where eu keeps its views
-    assert build.replace(tzinfo=UTC) == built_at
+    assert build == built_at
 
 
 @pytest.mark.asyncio

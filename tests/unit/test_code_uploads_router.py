@@ -41,17 +41,13 @@ def _zip(entries: dict[str, bytes]) -> bytes:
 
 
 @pytest.fixture
-def plane(tmp_path):
-    from provisa.core import schema_admin
-    from provisa.core.database import Database, create_engine_from_url
+def plane(control_plane):
+    from provisa.core.schema_admin import orgs
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-    with engine.begin() as conn:
-        schema_admin.metadata.create_all(
-            conn, tables=[schema_admin.orgs, schema_admin.org_code_bundles]
-        )
-    yield Database(engine, name="admin")
-    engine.dispose()
+    db = control_plane.platform
+    with db.engine.begin() as conn:
+        conn.execute(orgs.insert().values(id="acme", name="Acme"))  # the org the uploads are for
+    return db
 
 
 @pytest.fixture

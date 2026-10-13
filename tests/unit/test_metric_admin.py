@@ -17,27 +17,15 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from provisa.core.database import Database
 from provisa.core.models import Metric
 from provisa.core.repositories import metric as metric_repo
-from provisa.core.schema_org import metrics
 
 pytestmark = pytest.mark.asyncio
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    from provisa.core.database import create_engine_from_url
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'metrics.db'}")
-    with engine.begin() as c:
-        # The whole org schema: deleting a metric asks the dependency guard, which reads the
-        # tables that can refer to one.
-        metrics.metadata.create_all(c)
-    try:
-        yield Database(engine, name="cp")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 # ── expression validation (REQ-1317) ─────────────────────────────────────────
@@ -59,8 +47,8 @@ async def test_aggregate_expressions_accepted():
     metric_repo.validate_expression("COUNT(orders.id)")
 
 
-async def test_upsert_of_non_aggregate_metric_is_a_hard_error(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_upsert_of_non_aggregate_metric_is_a_hard_error(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             with pytest.raises(ValueError, match="aggregate"):
                 await metric_repo.upsert(
@@ -72,8 +60,8 @@ async def test_upsert_of_non_aggregate_metric_is_a_hard_error(tmp_path):
 # ── CRUD ─────────────────────────────────────────────────────────────────────
 
 
-async def test_upsert_get_list_delete_roundtrip(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_upsert_get_list_delete_roundtrip(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await metric_repo.upsert(
                 conn,
@@ -115,8 +103,8 @@ async def test_upsert_get_list_delete_roundtrip(tmp_path):
             assert await metric_repo.delete(conn, "net_revenue") is False  # already gone
 
 
-async def test_upsert_replaces_by_name(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_upsert_replaces_by_name(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await metric_repo.upsert(conn, Metric(name="gmv", expression="SUM(orders.amount)"))
             await metric_repo.upsert(
@@ -137,49 +125,24 @@ async def test_upsert_replaces_by_name(tmp_path):
 
 
 @asynccontextmanager
-async def _admin_db(tmp_path):
-    """Sqlite control plane carrying the registries the metric-view compiler reads."""
-    from provisa.core.database import create_engine_from_url
+async def _admin_db(control_plane):
+    """The org's plane with the source and domain the registered tables name (foreign keys)."""
+    from provisa.core.models import Domain, Source
+    from provisa.core.repositories import domain as domain_repo
+    from provisa.core.repositories import source as source_repo
+    from provisa.core.schema_org import sources
 
-    from provisa.core.schema_org import (
-        glossary_term_edges,
-        glossary_term_domains,
-        glossary_term_experts,
-        glossary_term_refs,
-        glossary_terms,
-        registered_tables,
-        relationships,
-        roles,
-        table_columns,
-        naming_rules,
-    )
-
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'admin.db'}")
-    with engine.begin() as c:
-        # roles: table_repo resolves control-plane (cross_org) roles from the DB (REQ-1337), so
-        # every fixture that registers tables must carry the roles table the bootstrap guarantees.
-        # glossary_*: the table upsert derives glossary terms from columns (REQ-1387).
-        metrics.metadata.create_all(
-            c,
-            tables=[
-                metrics,
-                registered_tables,
-                table_columns,
-                # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-                naming_rules,
-                relationships,
-                roles,
-                glossary_terms,
-                glossary_term_refs,
-                glossary_term_edges,
-                glossary_term_domains,
-                glossary_term_experts,
-            ],
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await source_repo.upsert(conn, Source(id="pg", type="postgresql"))
+        await conn.upsert(
+            sources,
+            {"id": "__derived__", "type": "duckdb"},
+            index_elements=["id"],
+            update_columns=[],
         )
-    try:
-        yield Database(engine, name="cp")
-    finally:
-        engine.dispose()
+        await domain_repo.upsert(conn, Domain(id="sales", description="sales"))
+    yield db
 
 
 async def _seed_semantic_layer(conn):
@@ -216,7 +179,7 @@ async def _seed_semantic_layer(conn):
     )
 
 
-async def test_register_view_metrics_generates_and_persists_view_sql(tmp_path):
+async def test_register_view_metrics_generates_and_persists_view_sql(control_plane):
     # REQ-1318: a metric-composed view registers with the spec persisted AND the
     # generated SELECT stored in view_sql (the SQL flows everywhere view_sql does).
     from provisa.api.admin._metric_views import compile_view_metrics_sql
@@ -224,7 +187,7 @@ async def test_register_view_metrics_generates_and_persists_view_sql(tmp_path):
     from provisa.core.repositories import table as table_repo
     from provisa.core.models import Table
 
-    async with _admin_db(tmp_path) as db:
+    async with _admin_db(control_plane) as db:
         async with db.acquire() as conn:
             await _seed_semantic_layer(conn)
             spec = ViewMetricsSpec(metrics=["net_revenue"], dimensions=["region"])
@@ -268,14 +231,14 @@ async def test_view_sql_and_view_metrics_together_is_hard_error():
         table_model_from_input(inp, [], [], "conflicted")
 
 
-async def test_metric_upsert_regenerates_dependent_view_sql(tmp_path):
+async def test_metric_upsert_regenerates_dependent_view_sql(control_plane):
     # REQ-1318 core property: changing a metric regenerates every view whose spec
     # references it — the stored SQL tracks the updated business definition.
     from provisa.api.admin._metric_views import compile_view_metrics_sql, regenerate_metric_views
     from provisa.core.models import Table, ViewMetricsSpec
     from provisa.core.repositories import table as table_repo
 
-    async with _admin_db(tmp_path) as db:
+    async with _admin_db(control_plane) as db:
         async with db.acquire() as conn:
             await _seed_semantic_layer(conn)
             spec = ViewMetricsSpec(metrics=["net_revenue"], dimensions=["region"])

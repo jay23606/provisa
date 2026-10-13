@@ -12,55 +12,24 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    glossary_term_edges,
-    glossary_term_domains,
-    glossary_term_experts,
-    glossary_term_refs,
-    glossary_terms,
-    registered_tables,
-    roles,
-    table_columns,
-    naming_rules,
-)
+from provisa.core.schema_org import domains, sources
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'r.db'}")
-    with engine.begin() as c:
-        # roles: table_repo resolves control-plane (cross_org) roles from the DB (REQ-1337), so
-        # every fixture that registers tables must carry the roles table the bootstrap guarantees.
-        registered_tables.metadata.create_all(
-            c,
-            # glossary_*: the table upsert derives glossary terms from columns (REQ-1387).
-            tables=[
-                registered_tables,
-                table_columns,
-                # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-                naming_rules,
-                roles,
-                glossary_terms,
-                glossary_term_refs,
-                glossary_term_edges,
-                glossary_term_domains,
-                glossary_term_experts,
-            ],
-        )
-    try:
-        async with Database(engine, name="r").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        # The registered table's source and domain are foreign keys.
+        await conn.execute_core(insert(sources).values(id="__derived__", type="duckdb"))
+        await conn.execute_core(insert(domains).values(id="d"))
+        yield conn
 
 
 @pytest.mark.asyncio
-async def test_mv_debounce_round_trips_through_repo(tmp_path):
+async def test_mv_debounce_round_trips_through_repo(control_plane):
     t = Table(
         source_id="__derived__",
         domain_id="d",
@@ -72,7 +41,7 @@ async def test_mv_debounce_round_trips_through_repo(tmp_path):
         mv_debounce_quiet=3.5,
         mv_debounce_max_delay=12.0,
     )
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, t)
         assert tid is not None
         got = await table_repo.get(conn, tid)
@@ -84,7 +53,7 @@ async def test_mv_debounce_round_trips_through_repo(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_mv_debounce_defaults_when_unset(tmp_path):
+async def test_mv_debounce_defaults_when_unset(control_plane):
     t = Table(
         source_id="__derived__",
         domain_id="d",
@@ -94,7 +63,7 @@ async def test_mv_debounce_defaults_when_unset(tmp_path):
         view_sql="SELECT 1 AS id",
         materialize=True,
     )
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, t)
         assert tid is not None
         got = await table_repo.get(conn, tid)

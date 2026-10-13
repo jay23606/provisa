@@ -22,9 +22,7 @@ from types import SimpleNamespace
 import pytest
 
 from provisa.api.admin._replica_builds import build_view
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, registered_tables, sources
-from provisa.core.schema_org import replica_state as replica_state_table
+from provisa.core.schema_org import sources
 from provisa.federation import replica_state
 from provisa.mongodb.change_feed import ChangeStreamsUnavailable, follows_change_feed
 
@@ -35,11 +33,8 @@ NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-async def db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state_table])
-    return Database(engine, "test")
+async def db(control_plane):
+    return control_plane.org()
 
 
 def _checks(monkeypatch, outcome):
@@ -153,11 +148,10 @@ async def test_the_load_checks_only_sources_with_a_table_on_the_change_feed(monk
 
 
 @pytest.fixture
-async def plane(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'plane.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[sources, registered_tables])
-        raw.execute(
+async def plane(control_plane):
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        await conn.execute_core(
             sources.insert().values(
                 id="orders_db",
                 type="mongodb",
@@ -169,7 +163,7 @@ async def plane(tmp_path):
                 change_signal="native",
             )
         )
-    return Database(engine, "test")
+    return db
 
 
 async def test_saving_a_table_on_the_change_feed_refuses_a_standalone_server_by_name(

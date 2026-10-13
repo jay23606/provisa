@@ -26,17 +26,14 @@ import jwt
 import pytest
 
 from provisa.core import schema_admin
-from provisa.core.database import Database, create_engine_from_url
 
 _SECRET = "simple-provider-signing-secret-of-48-bytes-or-more"
 _PASSWORD = "the-right-password"
 
 
 @pytest.fixture()
-def admin_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    schema_admin.metadata.create_all(engine, tables=[schema_admin.simple_user_ids])
-    return Database(engine, "test")
+def admin_db(control_plane):
+    return control_plane.platform
 
 
 def _provider(admin_db):

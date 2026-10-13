@@ -9,9 +9,6 @@ import json
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata
-from provisa.core.schema_org import replica_state as rst
 from provisa.federation import replica_state
 
 pytestmark = pytest.mark.unit
@@ -20,11 +17,8 @@ KEY = ("pg", "public", "orders")
 
 
 @pytest.fixture
-async def db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[rst])
-    return Database(engine, "test")
+async def db(control_plane):
+    return control_plane.org()
 
 
 async def test_a_delta_applied_stores_the_cursor_and_clears_skipped(db):

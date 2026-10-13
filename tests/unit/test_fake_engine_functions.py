@@ -156,10 +156,8 @@ class _Reversing:
 
 
 @pytest.fixture
-def control_plane(tmp_path, monkeypatch):
-    from provisa.core import config_stamp, deployment_settings, settings_registry
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import metadata
+def platform(control_plane, monkeypatch):
+    from provisa.core import deployment_settings, settings_registry
     from provisa.encryption import runtime
 
     monkeypatch.setattr(runtime, "_service", _Reversing())
@@ -168,16 +166,9 @@ def control_plane(tmp_path, monkeypatch):
     monkeypatch.delenv(settings_registry.IGNORE_STORED_ENV, raising=False)
     monkeypatch.delenv(platform_key.KEY_DIR_ENV, raising=False)
     monkeypatch.delenv(platform_key.DEPLOYMENT_KEY_ENV, raising=False)
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(
-            conn, tables=[metadata.tables["deployment_settings"], metadata.tables["config_stamp"]]
-        )
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     deployment_settings.bind(db)
-    yield db
-    engine.dispose()
+    return db
 
 
 def _stored(db) -> str:
@@ -187,66 +178,64 @@ def _stored(db) -> str:
         return conn.execute(table.select().where(table.c.key == "fakes.key")).one().value
 
 
-def test_the_platform_key_is_created_once_and_sealed(control_plane):
-    first = platform_key.ensure(control_plane)
+def test_the_platform_key_is_created_once_and_sealed(platform):
+    first = platform_key.ensure(platform)
     assert len(first) == 32
-    assert platform_key.ensure(control_plane) == first
-    assert first.hex() not in _stored(control_plane)
+    assert platform_key.ensure(platform) == first
+    assert first.hex() not in _stored(platform)
 
 
-def test_a_second_creation_keeps_the_first_key(control_plane):
+def test_a_second_creation_keeps_the_first_key(platform):
     from provisa.core import deployment_settings
 
-    first = platform_key.ensure(control_plane)
-    assert not deployment_settings.create(control_plane, "fakes.key", "other", updated_by="x")
-    assert platform_key.ensure(control_plane) == first
+    first = platform_key.ensure(platform)
+    assert not deployment_settings.create(platform, "fakes.key", "other", updated_by="x")
+    assert platform_key.ensure(platform) == first
 
 
 def test_the_key_is_written_to_the_engine_key_directory_by_fingerprint(
-    control_plane, tmp_path, monkeypatch
+    platform, tmp_path, monkeypatch
 ):
     monkeypatch.setenv(platform_key.KEY_DIR_ENV, str(tmp_path / "keys"))
-    key = platform_key.ensure(control_plane)
+    key = platform_key.ensure(platform)
     path = tmp_path / "keys" / f"{digest_mod.fingerprint(key)}.key"
     assert path.read_text() == key.hex()
 
 
-def test_two_platforms_sharing_a_key_directory_keep_their_own_keys(tmp_path, monkeypatch):
+def test_two_platforms_sharing_a_key_directory_keep_their_own_keys(
+    control_plane, tmp_path, monkeypatch
+):
     """Two control planes (two test stacks, two servers) writing into one engine's directory: each
     key file is named by its own fingerprint, so neither overwrites the other."""
-    from provisa.core import config_stamp, deployment_settings, settings_registry
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import metadata
+    from provisa.core import deployment_settings, settings_registry
     from provisa.encryption import runtime
+    from tests.pg_control_plane import TEMPLATE, clone
 
     monkeypatch.setattr(runtime, "_service", _Reversing())
     monkeypatch.delenv(settings_registry.IGNORE_STORED_ENV, raising=False)
     monkeypatch.delenv(platform_key.DEPLOYMENT_KEY_ENV, raising=False)
     monkeypatch.setenv(platform_key.KEY_DIR_ENV, str(tmp_path / "keys"))
+    monkeypatch.setattr(deployment_settings, "_db", None)  # restored: the clone is dropped below
     keys = []
-    for name in ("one", "two"):
-        engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / name}.db")
-        with engine.begin() as conn:
-            metadata.create_all(
-                conn,
-                tables=[metadata.tables["deployment_settings"], metadata.tables["config_stamp"]],
-            )
-            config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-        db = Database(engine, name=name)
-        deployment_settings.bind(db)
-        monkeypatch.setattr(deployment_settings, "_held", None)
-        keys.append(platform_key.ensure(db))
-        engine.dispose()
+    planes = [control_plane, clone(control_plane.pg, TEMPLATE)]
+    try:
+        for plane in planes:
+            db = plane.platform
+            deployment_settings.bind(db)
+            monkeypatch.setattr(deployment_settings, "_held", None)
+            keys.append(platform_key.ensure(db))
+    finally:
+        planes[1].close()
     assert keys[0] != keys[1]
     for key in keys:
         path = tmp_path / "keys" / f"{digest_mod.fingerprint(key)}.key"
         assert path.read_text() == key.hex()
 
 
-def test_the_platform_key_is_created_from_the_deployments_key(control_plane, monkeypatch):
+def test_the_platform_key_is_created_from_the_deployments_key(platform, monkeypatch):
     deployed = bytes(range(32))
     monkeypatch.setenv(platform_key.DEPLOYMENT_KEY_ENV, deployed.hex())
-    assert platform_key.ensure(control_plane) == deployed
+    assert platform_key.ensure(platform) == deployed
     monkeypatch.setenv(platform_key.DEPLOYMENT_KEY_ENV, (b"x" * 32).hex())
     with pytest.raises(platform_key.FakeKeyMismatch, match="is not the platform's"):
-        platform_key.ensure(control_plane)
+        platform_key.ensure(platform)

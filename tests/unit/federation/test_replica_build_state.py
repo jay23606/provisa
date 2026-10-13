@@ -10,11 +10,10 @@ for, and a read does not ask again too soon after a failure."""
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import delete
 
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core import config_stamp
 from provisa.core.schema_org import config_stamp as stamps
-from provisa.core.schema_org import metadata, replica_state
 from provisa.federation.data_replicator import BuildNote
 from provisa.federation import replica_state as build_state
 from provisa.federation.replica_state import promoted_keys, promotion, serving_keys, set_promoted
@@ -24,15 +23,10 @@ KEY = ("src", "public", "orders")
 
 
 @pytest.fixture
-async def conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state, stamps])
-        # REQ-826: the replica-state stamp has a row and no trigger; the state store advances it.
-        config_stamp.install(raw, {}, advanced=config_stamp.TENANT_ADVANCED)
-    async with Database(engine, "test").acquire() as connection:
+async def conn(control_plane):
+    # REQ-826: the replica-state stamp has a row and no trigger; the state store advances it.
+    async with control_plane.org().acquire() as connection:
         yield connection
-    engine.dispose()
 
 
 async def test_the_first_request_creates_the_record_and_later_ones_join_it(conn):
@@ -242,18 +236,13 @@ async def test_promoting_again_a_table_whose_replica_still_stands_serves_without
     assert await serving_keys(conn, "store-a") == frozenset({KEY})
 
 
-async def test_advancing_a_stamp_that_has_no_row_is_refused(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'bare.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state, stamps])
-    try:
-        async with Database(engine, "test").acquire() as connection:
-            with pytest.raises(RuntimeError, match="config stamp 'replica' has no row"):
-                await set_promoted(connection, KEY, True)
-            # the promotion was not recorded without its stamp
-            assert await promoted_keys(connection) == frozenset()
-    finally:
-        engine.dispose()
+async def test_advancing_a_stamp_that_has_no_row_is_refused(control_plane):
+    async with control_plane.org().acquire() as connection:
+        await connection.execute_core(delete(stamps).where(stamps.c.kind == config_stamp.REPLICA))
+        with pytest.raises(RuntimeError, match="config stamp 'replica' has no row"):
+            await set_promoted(connection, KEY, True)
+        # the promotion was not recorded without its stamp
+        assert await promoted_keys(connection) == frozenset()
 
 
 async def test_an_unknown_reason_is_refused(conn):

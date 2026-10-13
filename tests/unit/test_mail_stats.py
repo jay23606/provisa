@@ -14,18 +14,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
 from provisa.core.mail_stats import MailAttempt, record, stats
 from provisa.core.schema_admin import mail_events
 
 
 @pytest.fixture
-async def db():
-    pool = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="mail-stats-test")
-    with pool.engine.begin() as conn:
-        mail_events.create(conn)
-    yield pool
-    await pool.close()
+def db(control_plane):
+    return control_plane.platform
 
 
 async def _seed(pool, *, sent_at, succeeded, error=None, kind="invite", recipient="a@b.test"):
@@ -112,19 +107,16 @@ class TestRecording:
         }
         assert s["recent"][0]["sent_at"] is not None
 
-    async def test_recording_never_fails_the_send_it_observes(self):
+    async def test_recording_never_fails_the_send_it_observes(self, control_plane):
         """A registry the writer cannot reach must not turn a delivered message into a reported
         failure, so ``record`` absorbs its own storage error."""
-        pool = Database(
-            create_engine_from_url("sqlite+pysqlite:///:memory:"), name="mail-stats-no-table"
+        pool = control_plane.platform
+        with control_plane.engine().begin() as conn:
+            mail_events.drop(conn)
+        await record(
+            pool,
+            MailAttempt(provider="smtp", kind="invite", recipient="a@b.test", succeeded=True),
         )
-        try:
-            await record(
-                pool,
-                MailAttempt(provider="smtp", kind="invite", recipient="a@b.test", succeeded=True),
-            )
-        finally:
-            await pool.close()
 
     async def test_the_most_recent_attempts_come_back_newest_first(self, db):
         now = datetime.now(timezone.utc)

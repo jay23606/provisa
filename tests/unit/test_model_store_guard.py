@@ -25,8 +25,7 @@ from typing import Any
 import pytest
 from sqlalchemy import func, insert, select
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.repositories import integrity
 from provisa.core.repositories.integrity import Match, ObjectRef, Standing
 from provisa.core.schema_org import metadata
@@ -96,7 +95,7 @@ def test_the_names_a_sql_text_reads():
 
 
 class Plane:
-    """A seeded SQLite control plane and short ways to put rows on it and ask the guard."""
+    """A seeded control plane and short ways to put rows on it and ask the guard."""
 
     def __init__(self, db: Database) -> None:
         self.db = db
@@ -164,10 +163,8 @@ class Plane:
 
 
 @pytest.fixture
-async def plane() -> Plane:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="guard-test")
-    await _init_schema_portable(db)
-    p = Plane(db)
+async def plane(control_plane) -> Plane:
+    p = Plane(control_plane.org())
     await p.add("sources", id="pg", type="postgresql")
     for domain_id in ("sales", "finance"):
         await p.add("domains", id=domain_id)

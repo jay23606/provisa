@@ -15,33 +15,23 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
 from provisa.core.models import DataProduct
 from provisa.core.repositories import data_product as data_product_repo
 from provisa.core.schema_org import domains
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'dp.db'}")
-    with engine.begin() as c:
-        # The whole org schema: a delete asks the dependency guard, which reads every table
-        # that can refer to the object.
-        domains.metadata.create_all(c)
-        c.execute(domains.insert().values(id="sales", description="Sales"))
-        c.execute(domains.insert().values(id="finance", description="Finance"))
-    try:
-        async with Database(engine, name="dp").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        await conn.execute_core(domains.insert().values(id="sales", description="Sales"))
+        await conn.execute_core(domains.insert().values(id="finance", description="Finance"))
+        yield conn
 
 
 @pytest.mark.asyncio
-async def test_upsert_then_get_round_trips_all_fields(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_upsert_then_get_round_trips_all_fields(control_plane):
+    async with _conn(control_plane) as conn:
         await data_product_repo.upsert(
             conn,
             DataProduct(
@@ -59,14 +49,14 @@ async def test_upsert_then_get_round_trips_all_fields(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_get_missing_returns_none(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_get_missing_returns_none(control_plane):
+    async with _conn(control_plane) as conn:
         assert await data_product_repo.get(conn, "missing") is None
 
 
 @pytest.mark.asyncio
-async def test_upsert_is_idempotent_by_id(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_upsert_is_idempotent_by_id(control_plane):
+    async with _conn(control_plane) as conn:
         await data_product_repo.upsert(
             conn, DataProduct(id="checkout", domain_id="sales", name="Checkout")
         )
@@ -82,8 +72,8 @@ async def test_upsert_is_idempotent_by_id(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_list_by_domain_only_returns_that_domains_products(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_list_by_domain_only_returns_that_domains_products(control_plane):
+    async with _conn(control_plane) as conn:
         await data_product_repo.upsert(
             conn, DataProduct(id="checkout", domain_id="sales", name="Checkout")
         )
@@ -97,8 +87,8 @@ async def test_list_by_domain_only_returns_that_domains_products(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_delete_removes_the_row_and_reports_whether_one_existed(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_delete_removes_the_row_and_reports_whether_one_existed(control_plane):
+    async with _conn(control_plane) as conn:
         await data_product_repo.upsert(
             conn, DataProduct(id="checkout", domain_id="sales", name="Checkout")
         )

@@ -16,10 +16,6 @@ import pytest
 
 from provisa.events.nodes import source_node, view_node
 from tests.helpers import derived_lineage
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import lineage, queue, supervisor
 from provisa.events.handlers import make_mv_generate, make_source_land
 from provisa.events.processor import MVTableProcessor, SourceTableProcessor
@@ -40,14 +36,8 @@ async def _rows(dsn, table):
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +98,7 @@ def test_acyclic_invariant_derived_from_sql():
 
 
 @pytest.mark.asyncio
-async def test_sql_only_mv_auto_processes_zero_config(tmp_path):
+async def test_sql_only_mv_auto_processes_zero_config(control_plane, tmp_path):
     dsn = _store(tmp_path)
     # an MV declared with ONLY its SQL — every other knob is a default (persist=replace, emit=None →
     # single-shape fan-out, no calendar, no debounce → real-time). Nothing hand-orchestrated.
@@ -171,7 +161,7 @@ async def test_sql_only_mv_auto_processes_zero_config(tmp_path):
         name="m",
         generate=gen,
     )
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         src._db = db
         mv_proc._db = db
         # seed the source once; the DAG self-organizes and reprocesses in near-real-time
@@ -189,7 +179,7 @@ async def test_sql_only_mv_auto_processes_zero_config(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_dq_scorecard_is_an_mv_over_warn_error_emissions(tmp_path):
+async def test_dq_scorecard_is_an_mv_over_warn_error_emissions(control_plane, tmp_path):
     dsn = _store(tmp_path)
 
     async def run_ok():
@@ -218,7 +208,7 @@ async def test_dq_scorecard_is_an_mv_over_warn_error_emissions(tmp_path):
     err_gen = make_mv_generate(
         DsnEngine(dsn), schema="", table="ok2", columns=_COLS, run_query=run_ok
     )
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         warn_mv = MVTableProcessor(
             "dq.warn",
             change_signal="ttl",

@@ -85,12 +85,12 @@ def _make_live_row(query_id: str = "live_orders_query") -> dict:
 
 
 @given("the admin GraphQL API for table mutations")
-def given_admin_graphql_api(shared_data: dict, tmp_path) -> None:
+def given_admin_graphql_api(shared_data: dict, control_plane) -> None:
     """The real admin mutation, over an org model store holding one registered table."""
     from provisa.api.admin.schema_mutation import Mutation
 
     shared_data["mutation"] = Mutation()
-    shared_data["tmp_path"] = tmp_path
+    shared_data["control_plane"] = control_plane
     shared_data["live_config"] = _LIVE_CONFIG.copy()
 
 
@@ -124,7 +124,7 @@ def when_update_table_live_config(shared_data: dict) -> None:
 
     async def _run() -> None:
         # A TTL-signalled source lands, so it carries a landing TTL (REQ-1907).
-        async with _db(shared_data["tmp_path"], source_ttl=60) as db:
+        async with _db(shared_data["control_plane"], source_ttl=60) as db:
             with ExitStack() as stack:
                 patches = _table_patches(db)
                 for p in patches:
@@ -196,7 +196,9 @@ def _save_live(db, mutation, poll_interval: int):
 
 
 @given("the admin UI TablesPage")
-def given_admin_ui_tables_page(shared_data: dict, tmp_path) -> None:
+def given_admin_ui_tables_page(
+    shared_data: dict, request, embedded_postgres, control_plane_template
+) -> None:
     """A table whose live configuration TablesPage saved (poll every 10 s), and the org's running
     live engine reconciled from it."""
     from provisa.api.admin.schema_mutation import Mutation
@@ -207,9 +209,12 @@ def given_admin_ui_tables_page(shared_data: dict, tmp_path) -> None:
     shared_data["mutation"] = Mutation()
     engine = LiveEngine(tenant_db=None, org_id="default", scheduler=MagicMock())
     shared_data["ui_engine"] = engine
-    # Its own store: the GraphQL half of this scenario has one of its own under tmp_path.
-    (tmp_path / "ui").mkdir()
-    shared_data["ui_db_cm"] = _db(tmp_path / "ui", source_ttl=60)
+    # Its own store: the GraphQL half of this scenario has one of its own (control_plane).
+    from tests.pg_control_plane import clone
+
+    ui_plane = clone(embedded_postgres, control_plane_template)
+    request.addfinalizer(ui_plane.close)
+    shared_data["ui_db_cm"] = _db(ui_plane, source_ttl=60)
 
     async def _setup() -> None:
         db = await shared_data["ui_db_cm"].__aenter__()

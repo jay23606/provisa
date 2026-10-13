@@ -21,31 +21,22 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
 from provisa.core.repositories import catalog_binding
-from provisa.core.schema_org import catalog_bindings
 
 URI_ORDERS = "provisa://acme/sales/tables/orders"
 URI_TOTALS = "provisa://acme/sales/tables/order_totals"
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'bindings.db'}")
-    with engine.begin() as c:
-        catalog_bindings.metadata.create_all(c, tables=[catalog_bindings])
-    try:
-        async with Database(engine, name="bindings").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 @pytest.mark.asyncio
-async def test_bindings_round_trip_per_provider(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_bindings_round_trip_per_provider(control_plane):
+    async with _conn(control_plane) as conn:
         await catalog_binding.upsert_bindings(
             conn,
             "atlas",
@@ -70,8 +61,8 @@ async def test_bindings_round_trip_per_provider(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_republish_updates_the_binding_in_place(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_a_republish_updates_the_binding_in_place(control_plane):
+    async with _conn(control_plane) as conn:
         await catalog_binding.upsert_bindings(
             conn, "atlas", {URI_ORDERS: ("guid-1", "wh.public.orders@provisa")}
         )
@@ -85,8 +76,8 @@ async def test_a_republish_updates_the_binding_in_place(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_remove_stale_bindings_keeps_only_the_published_set(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_remove_stale_bindings_keeps_only_the_published_set(control_plane):
+    async with _conn(control_plane) as conn:
         await catalog_binding.upsert_bindings(
             conn,
             "atlas",

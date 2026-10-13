@@ -91,7 +91,8 @@ $RuntimePy = Join-Path $RuntimeDst 'python.exe'
 Write-Host '[build-sfx] Installing provisa + deps into the native runtime...' -ForegroundColor Cyan
 & $RuntimePy -m pip install --upgrade pip --quiet
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed" }
-# The native tier's control plane is sqlite+pysqlite (stdlib sqlite3), so it needs no extra driver.
+# The native tier's control plane is an embedded PostgreSQL (pgserver, REQ-2014), reached through
+# psycopg; both are provisa dependencies and checked below.
 # mcp-proxy (REQ-1104): the Node-free stdio<->Streamable-HTTP bridge Claude Desktop launches to
 # reach the local MCP server. Bundled INTO the runtime so the connector is fully airgapped (no npx,
 # no user pip). The Explore/MCP panel emits a config whose command is this runtime's own python.
@@ -99,9 +100,9 @@ if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed" }
 if ($LASTEXITCODE -ne 0) { throw "pip install provisa failed" }
 & $RuntimePy -c "import mcp_proxy" 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "mcp-proxy missing from the bundled native runtime after install" }
-# Fail the build loudly if the control-plane driver (stdlib sqlite3) is missing from the runtime.
-& $RuntimePy -c "import sqlite3" 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "sqlite3 missing from the bundled native runtime" }
+# Fail the build loudly if the control plane (pgserver) or its driver (psycopg) is missing.
+& $RuntimePy -c "import pgserver, psycopg" 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "pgserver/psycopg missing from the bundled native runtime" }
 
 # Place the built UI where ui_server resolves it: <site-packages>\static.
 $Site = & $RuntimePy -c "import sysconfig; print(sysconfig.get_paths()['purelib'])"

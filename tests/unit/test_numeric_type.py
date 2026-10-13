@@ -170,76 +170,49 @@ def test_the_engines_introspection_seam_hands_on_the_stored_spelling():
 # --- the one place a column's type is written -----------------------------------------------------
 
 
-async def _registered_types(tmp_path, columns: dict[str, str]) -> dict[str, str]:
-    """Register a table with ``columns`` through the table repository, on a real SQLite control
-    plane, and return each column's stored type."""
-    from provisa.core.database import Database, create_engine_from_url
+async def _registered_types(control_plane, columns: dict[str, str]) -> dict[str, str]:
+    """Register a table with ``columns`` through the table repository, on a real control plane,
+    and return each column's stored type."""
+    from sqlalchemy import insert
+
     from provisa.core.models import Column, Table
     from provisa.core.repositories import table as table_repo
-    from provisa.core.schema_org import (
-        glossary_term_domains,
-        glossary_term_edges,
-        glossary_term_experts,
-        glossary_term_refs,
-        glossary_terms,
-        naming_rules,
-        registered_tables,
-        roles,
-        table_columns,
-    )
+    from provisa.core.schema_org import domains, sources, table_columns
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    try:
-        with engine.begin() as c:
-            registered_tables.metadata.create_all(
-                c,
-                tables=[
-                    registered_tables,
-                    table_columns,
-                    naming_rules,
-                    roles,
-                    glossary_terms,
-                    glossary_term_refs,
-                    glossary_term_edges,
-                    glossary_term_experts,
-                    glossary_term_domains,
+    db = control_plane.org()
+    async with db.acquire() as conn:
+        # The registered table's source and domain are foreign keys.
+        await conn.execute_core(insert(sources).values(id="__derived__", type="duckdb"))
+        await conn.execute_core(insert(domains).values(id="sales"))
+        await table_repo.upsert(
+            conn,
+            Table(
+                source_id="__derived__",
+                domain_id="sales",
+                schema_name="public",
+                table_name="orders",
+                columns=[
+                    Column(name=name, data_type=declared, visible_to=["analyst"])
+                    for name, declared in columns.items()
                 ],
+                view_sql="SELECT 1 AS id",
+            ),
+        )
+    async with db.acquire() as conn:
+        result = await conn.execute_core(
+            table_columns.select().with_only_columns(
+                table_columns.c.column_name, table_columns.c.data_type
             )
-        db = Database(engine, name="model")
-        async with db.acquire() as conn:
-            await table_repo.upsert(
-                conn,
-                Table(
-                    source_id="__derived__",
-                    domain_id="sales",
-                    schema_name="public",
-                    table_name="orders",
-                    columns=[
-                        Column(name=name, data_type=declared, visible_to=["analyst"])
-                        for name, declared in columns.items()
-                    ],
-                    view_sql="SELECT 1 AS id",
-                ),
-            )
-        with engine.connect() as c:
-            return {
-                row.column_name: row.data_type
-                for row in c.execute(
-                    table_columns.select().with_only_columns(
-                        table_columns.c.column_name, table_columns.c.data_type
-                    )
-                )
-            }
-    finally:
-        engine.dispose()
+        )
+        return {row.column_name: row.data_type for row in result.fetchall()}
 
 
 @pytest.mark.asyncio
-async def test_a_registration_stores_a_numerics_size_in_the_one_spelling(tmp_path):
+async def test_a_registration_stores_a_numerics_size_in_the_one_spelling(control_plane):
     """Whoever writes the registration and however they spelled it: the table repository is the
     one place a column's type is written."""
     assert await _registered_types(
-        tmp_path,
+        control_plane,
         {
             "a": "DECIMAL(10, 2)",
             "b": "numeric(18,4)",
@@ -262,11 +235,11 @@ async def test_a_registration_stores_a_numerics_size_in_the_one_spelling(tmp_pat
 @pytest.mark.parametrize(
     "declared", ["numeric(5,9)", "numeric(0,0)", "decimal(77,2)", "numeric(a,b)"]
 )
-async def test_a_size_no_numeric_can_have_is_refused_naming_the_column(tmp_path, declared):
+async def test_a_size_no_numeric_can_have_is_refused_naming_the_column(control_plane, declared):
     with pytest.raises(
         ValueError, match=r"column orders\.amount is declared .* precision is 1 to 76"
     ):
-        await _registered_types(tmp_path, {"amount": declared})
+        await _registered_types(control_plane, {"amount": declared})
 
 
 def test_both_table_mutations_answer_an_impossible_size_with_a_code():

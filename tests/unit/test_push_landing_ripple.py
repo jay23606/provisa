@@ -7,7 +7,7 @@
 """REQ-961/REQ-965: a push listener's landed batch is the table's change. It is posted to the
 views that read the table and stamps the table's freshness, as the node's own processor does for
 its landings. Before this, a relay landing told no one: dependent views never refreshed from a
-push table and its freshness never moved. Real event queue on sqlite."""
+push table and its freshness never moved. Real event queue."""
 
 from __future__ import annotations
 
@@ -18,8 +18,6 @@ from unittest.mock import patch
 
 import pytest
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import push_wiring, queue
 from provisa.events.processor import SourceTableProcessor
 
@@ -28,14 +26,8 @@ _VIEW = "view-orders_by_day"
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 class _Engine:
@@ -87,8 +79,8 @@ def _state(db) -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
-async def test_a_landed_relay_batch_fans_out_to_a_dependent_view_and_moves_freshness(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_a_landed_relay_batch_fans_out_to_a_dependent_view_and_moves_freshness(control_plane):
+    async with _db(control_plane) as db:
         state = _state(db)
         engine = _Engine({"upserted": 2, "deleted": 0})
         await _listen_once(state, engine, [{"op": "insert", "row": {"id": 1}}])
@@ -105,8 +97,8 @@ async def test_a_landed_relay_batch_fans_out_to_a_dependent_view_and_moves_fresh
 
 
 @pytest.mark.asyncio
-async def test_a_batch_that_changed_nothing_ripples_nothing(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_a_batch_that_changed_nothing_ripples_nothing(control_plane):
+    async with _db(control_plane) as db:
         state = _state(db)
         await _listen_once(state, _Engine({"upserted": 0, "deleted": 0}), [])
         async with db.acquire() as conn:
@@ -115,8 +107,8 @@ async def test_a_batch_that_changed_nothing_ripples_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_a_row_level_table_is_left_to_its_row_cache(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_a_row_level_table_is_left_to_its_row_cache(control_plane):
+    async with _db(control_plane) as db:
         state = _state(db)
         await _listen_once(
             state, _Engine({"upserted": 1}), [{"row": {"id": 1}}], row_materialize=True

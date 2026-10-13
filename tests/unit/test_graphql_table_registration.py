@@ -24,8 +24,6 @@ from graphql import build_schema
 from sqlalchemy import insert, select
 
 from provisa.api.admin import _graphql_table_registration as registration
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
 from provisa.core.models import Column, GraphQLRemoteConfig, Table
 from provisa.core.repositories import table as table_repo
 from provisa.core.schema_org import domains, relationships, sources
@@ -76,9 +74,8 @@ def _introspected() -> dict:
 
 
 @pytest.fixture
-async def state() -> SimpleNamespace:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="gql-register")
-    await _init_schema_portable(db)
+async def state(control_plane) -> SimpleNamespace:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(
             insert(sources).values(id="shop", type="graphql_remote", path=URL, mapping={})

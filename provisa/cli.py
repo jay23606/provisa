@@ -11,7 +11,7 @@
 """``provisa`` console entry point (REQ-1128).
 
 Launches the pip-installed embedded tier (REQ-1126): a self-contained Provisa
-system — SQLite control plane + embedded DuckDB engine + in-memory cache — with
+system — embedded PostgreSQL control plane + embedded DuckDB engine + in-memory cache — with
 no Docker, Node, or external services. ``provisa run`` starts the API app and the
 UI static/proxy server together in a single process and serves the precompiled
 React UI packaged into the wheel (REQ-1127).
@@ -658,7 +658,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument(
         "--data-dir",
         default=str(_DEFAULT_DATA_DIR),
-        help=f"State directory for the SQLite control plane (default: {_DEFAULT_DATA_DIR})",
+        help=f"State directory for the embedded control plane (default: {_DEFAULT_DATA_DIR})",
     )
     run.add_argument(
         "--mode",

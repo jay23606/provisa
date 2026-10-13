@@ -23,16 +23,19 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from provisa.core.database import Database, StoreSideViolation, create_engine_from_url
+from provisa.core.database import Database, StoreSideViolation
+from provisa.core.environments import org_schema
 from provisa.core.schema_org import metadata, registered_tables, replica_state
 
 
 @pytest.fixture
-def handles(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return Database(engine, "model", holds="model"), Database(engine, "state", holds="state")
+def handles(control_plane):
+    engine = control_plane.engine()
+    schema = org_schema("default")
+    return (
+        Database(engine, "model", search_path=schema, holds="model"),
+        Database(engine, "state", search_path=schema, holds="state"),
+    )
 
 
 async def test_each_handle_reads_and_writes_its_own_tables(handles):
@@ -65,11 +68,8 @@ async def test_the_model_handle_refuses_a_state_table_by_name(handles):
             await conn.execute("DELETE FROM query_audit_log WHERE 1 = 0")
 
 
-async def test_a_handle_that_holds_no_side_refuses_nothing(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'any.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    async with Database(engine, "any").acquire() as conn:
+async def test_a_handle_that_holds_no_side_refuses_nothing(control_plane):
+    async with control_plane.org().acquire() as conn:
         await conn.execute_core(select(registered_tables.c.id))
         await conn.execute_core(select(replica_state.c.source_id))
 
@@ -94,11 +94,11 @@ def test_every_org_table_is_kept_in_one_store_or_named_as_in_both():
     assert kept == org, org - kept
 
 
-async def test_the_org_handles_are_one_of_each(tmp_path):
+async def test_the_org_handles_are_one_of_each(control_plane):
     from provisa.core.database import org_store_handles
     from provisa.core.model_change import ModelPlane
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
+    engine = control_plane.engine()
     model_db, tenant_db, record_db = org_store_handles(
         "org_acme",
         ModelPlane("acme", None),
@@ -121,16 +121,13 @@ async def test_a_schema_statement_is_not_refused(handles):
             await conn.fetch("-- a comment first\nSELECT id FROM registered_tables")
 
 
-async def test_the_record_is_kept_apart_from_the_state(tmp_path):
+async def test_the_record_is_kept_apart_from_the_state(control_plane):
     """REQ-1922: a region names the store its record is kept in, so the record handle refuses
     the region's state and the state handle refuses the record."""
     from provisa.core.schema_org import query_audit_log
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'org.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    record_db = Database(engine, "record", holds="record")
-    tenant_db = Database(engine, "state", holds="state")
+    record_db = control_plane.org(holds="record")
+    tenant_db = control_plane.org(holds="state")
     async with record_db.acquire() as conn:
         await conn.execute_core(select(query_audit_log.c.id))
         with pytest.raises(StoreSideViolation, match="replica_state is a state table"):
@@ -156,16 +153,12 @@ def test_no_foreign_key_crosses_from_one_store_to_another():
     assert crossing == []
 
 
-async def test_the_platform_registry_handle_and_the_org_handles_keep_apart(tmp_path):
+async def test_the_platform_registry_handle_and_the_org_handles_keep_apart(control_plane):
     """REQ-1922: the platform's registry (orgs, users, invites, settings) is reached through
     ``admin_db`` alone, and ``admin_db`` reaches no org table and no platform state."""
     from provisa.core.schema_admin import cluster_nodes, orgs
-    from provisa.core.schema_admin import metadata as platform_metadata
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'one.db'}")
-    with engine.begin() as raw:
-        platform_metadata.create_all(raw, tables=[orgs, cluster_nodes])
-        metadata.create_all(raw)
+    engine = control_plane.engine()
     admin_db = Database(engine, "platform", holds="platform_admin")
     async with admin_db.acquire() as conn:
         await conn.execute_core(select(orgs.c.id))
@@ -173,7 +166,7 @@ async def test_the_platform_registry_handle_and_the_org_handles_keep_apart(tmp_p
             await conn.execute_core(select(registered_tables.c.id))
         with pytest.raises(StoreSideViolation, match="cluster_nodes is a platform_state table"):
             await conn.execute_core(select(cluster_nodes.c.node_id))
-    async with Database(engine, "model", holds="model").acquire() as conn:
+    async with control_plane.org(holds="model").acquire() as conn:
         with pytest.raises(
             StoreSideViolation,
             match="orgs is a platform_admin table, use the deployment's admin_db",
@@ -190,11 +183,12 @@ async def test_the_admin_lists_stamp_regions_from_the_model_store(handles):
     from sqlalchemy import insert
 
     from provisa.api.admin.schema_query import _table_region_maps
-    from provisa.core.schema_org import sources
+    from provisa.core.schema_org import domains, sources
 
     model_db, tenant_db = handles
     async with model_db.acquire() as conn:
         await conn.execute_core(insert(sources).values(id="pg", type="postgresql"))
+        await conn.execute_core(insert(domains).values(id="sales"))
         await conn.execute_core(
             insert(registered_tables).values(
                 id=7,

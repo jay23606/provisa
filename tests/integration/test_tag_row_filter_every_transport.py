@@ -48,7 +48,9 @@ _EAST = {1, 3}
 def server():
     base = _config(_PG_HOST, _PG_PORT, "unused")
     orders = base["tables"][0]
-    roles = [r["id"] for r in base["roles"]] + _NEW_ROLES
+    # org_admin is the reserved administrative role every org has (REQ-1349): no config lists
+    # it, and the columns are visible to it as to the roles the config defines.
+    roles = ["org_admin"] + [r["id"] for r in base["roles"]] + _NEW_ROLES
     for column in orders["columns"]:
         column["visible_to"] = roles
     boot = WorkerBoot(

@@ -19,12 +19,12 @@ import pytest
 from sqlalchemy import select
 
 from provisa.core import process_region
-from provisa.core.database import create_engine_from_url
 from provisa.core.model_change import ModelPlane
 from provisa.core.region_stores import StoreNotDeclared, bind_region_stores, open_org_stores
 from provisa.core.regions import OrgRegion, StoreConfig
+from tests.pg_control_plane import SCHEMA_SQL
 from provisa.core.repositories.region import OrgNotInRegion, upsert_region, upsert_store
-from provisa.core.schema_org import metadata, org_regions, query_audit_log, replica_state
+from provisa.core.schema_org import org_regions, query_audit_log, replica_state
 
 _PLATFORM = {
     "regions": [
@@ -41,22 +41,28 @@ def _restore_region():
     process_region._region = was
 
 
-def _sqlite(path) -> str:
-    return f"sqlite+pysqlite:///{path}"
+@pytest.fixture
+def model_engine(control_plane):
+    """The org's model store: the control plane's database, its org schema ``org_default``."""
+    return control_plane.engine()
 
 
 @pytest.fixture
-def control_plane(tmp_path):
-    engine = create_engine_from_url(_sqlite(tmp_path / "model.db"))
-    with engine.begin() as raw:
-        metadata.create_all(raw)
-    return engine
+def region_dbs(control_plane):
+    """The databases the region's state and record stores are, by store id: databases of their
+    own on the plane's server, as a deployment points a region's stores at its own databases."""
+    from tests.pg_control_plane import TEMPLATE, clone
+
+    planes = {store: clone(control_plane.pg, TEMPLATE) for store in ("eu-state", "eu-record")}
+    yield {store: plane.name for store, plane in planes.items()}
+    for plane in planes.values():
+        plane.close()
 
 
-async def _declare(model_db, tmp_path, *, state="eu-state", record="eu-record", region="eu"):
+async def _declare(model_db, pg, region_dbs, *, state="eu-state", record="eu-record", region="eu"):
     async with model_db.acquire() as conn:
         for store in ("eu-state", "eu-record"):
-            await upsert_store(conn, StoreConfig(id=store, url=_sqlite(tmp_path / f"{store}.db")))
+            await upsert_store(conn, StoreConfig(id=store, url=pg.url(region_dbs[store])))
         await upsert_store(
             conn,
             StoreConfig(id="eu-duck", url="duckdb:///eu.duckdb", kind="duckdb"),
@@ -84,34 +90,36 @@ async def _bind(stores):
         stores,
         pool_size=1,
         max_overflow=0,
-        schema_sql="-- the portable path lays the schema out from metadata",
+        schema_sql=SCHEMA_SQL,
         initialise=True,
     )
 
 
-async def test_with_no_platform_regions_all_three_are_kept_with_the_model(control_plane):
+async def test_with_no_platform_regions_all_three_are_kept_with_the_model(model_engine):
     process_region.bind_launch({}, requested=None)
-    stores = open_org_stores("org_acme", ModelPlane("acme", None), model_engine=control_plane)
+    stores = open_org_stores("org_default", ModelPlane("acme", None), model_engine=model_engine)
     assert {stores.model_db.engine, stores.tenant_db.engine, stores.record_db.engine} == {
-        control_plane
+        model_engine
     }
     assert await _bind(stores) == stores
 
 
-async def test_in_a_region_the_state_and_record_wait_for_the_model(control_plane):
+async def test_in_a_region_the_state_and_record_wait_for_the_model(model_engine):
     process_region.bind_launch(_PLATFORM, requested="eu")
-    stores = open_org_stores("org_acme", ModelPlane("acme", None), model_engine=control_plane)
+    stores = open_org_stores("org_default", ModelPlane("acme", None), model_engine=model_engine)
     assert (stores.tenant_db, stores.record_db) == (None, None)
 
 
-async def test_the_regions_state_and_record_are_its_own_stores(control_plane, tmp_path):
+async def test_the_regions_state_and_record_are_its_own_stores(
+    model_engine, control_plane, region_dbs
+):
     process_region.bind_launch(_PLATFORM, requested="eu")
-    stores = open_org_stores("org_acme", ModelPlane("acme", None), model_engine=control_plane)
-    await _declare(stores.model_db, tmp_path)
+    stores = open_org_stores("org_default", ModelPlane("acme", None), model_engine=model_engine)
+    await _declare(stores.model_db, control_plane.pg, region_dbs)
     bound = await _bind(stores)
     assert bound.model_db is stores.model_db
-    assert str(bound.tenant_db.engine.url).endswith("eu-state.db")
-    assert str(bound.record_db.engine.url).endswith("eu-record.db")
+    assert bound.tenant_db.engine.url.database == region_dbs["eu-state"]
+    assert bound.record_db.engine.url.database == region_dbs["eu-record"]
     # Laid out in each store, and each handle reads its own side there.
     async with bound.tenant_db.acquire() as conn:
         await conn.execute_core(select(replica_state.c.source_id))
@@ -119,19 +127,21 @@ async def test_the_regions_state_and_record_are_its_own_stores(control_plane, tm
         await conn.execute_core(select(query_audit_log.c.id))
 
 
-async def test_an_org_not_in_the_nodes_region_is_refused_by_name(control_plane, tmp_path):
+async def test_an_org_not_in_the_nodes_region_is_refused_by_name(
+    model_engine, control_plane, region_dbs
+):
     process_region.bind_launch(_PLATFORM, requested="us")
-    stores = open_org_stores("org_acme", ModelPlane("acme", None), model_engine=control_plane)
-    await _declare(stores.model_db, tmp_path)
+    stores = open_org_stores("org_default", ModelPlane("acme", None), model_engine=model_engine)
+    await _declare(stores.model_db, control_plane.pg, region_dbs)
     with pytest.raises(OrgNotInRegion, match="does not select region 'us'.*it selects eu"):
         await _bind(stores)
 
 
-async def test_a_store_the_org_does_not_declare_is_refused(control_plane, tmp_path):
+async def test_a_store_the_org_does_not_declare_is_refused(model_engine, control_plane, region_dbs):
     """Load and save refuse this; a model store written around them is refused here too."""
     process_region.bind_launch(_PLATFORM, requested="eu")
-    stores = open_org_stores("org_acme", ModelPlane("acme", None), model_engine=control_plane)
-    await _declare(stores.model_db, tmp_path, record="nowhere")
+    stores = open_org_stores("org_default", ModelPlane("acme", None), model_engine=model_engine)
+    await _declare(stores.model_db, control_plane.pg, region_dbs, record="nowhere")
     with pytest.raises(StoreNotDeclared, match="keeps its record in store 'nowhere'"):
         await _bind(stores)
 
@@ -284,7 +294,7 @@ def test_an_org_without_its_own_cache_is_served_the_deployments(deployment_org, 
 
 
 async def test_in_a_region_an_org_keeps_its_cache_on_the_store_its_region_names(
-    deployment_org, monkeypatch, control_plane, tmp_path
+    deployment_org, monkeypatch, model_engine, control_plane, region_dbs
 ):
     from provisa.api import app as app_mod
     from provisa.core.database import Database
@@ -295,9 +305,9 @@ async def test_in_a_region_an_org_keeps_its_cache_on_the_store_its_region_names(
     monkeypatch.setattr("provisa.core.settings_registry.value", lambda key: True)
     process_region.bind_launch(_PLATFORM, requested="eu")
     state.model_db = Database(
-        control_plane, "org-model", search_path=None, model=None, holds="model"
+        model_engine, "org-model", search_path="org_default", model=None, holds="model"
     )
-    await _declare(state.model_db, tmp_path)
+    await _declare(state.model_db, control_plane.pg, region_dbs)
     async with state.model_db.acquire() as conn:
         await upsert_store(conn, StoreConfig(id="eu-state", url="rediss://cache.eu:6379/0"))
     await app_mod._bind_region_cache("acme")

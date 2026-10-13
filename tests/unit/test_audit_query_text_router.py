@@ -26,8 +26,7 @@ import pytest
 from provisa.api.admin import audit_query_text_router as router
 from provisa.api.errors import ApiError
 from provisa.audit.query_log import log_query
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import metadata, query_audit_log
+from provisa.core.schema_org import query_audit_log
 
 
 class _Reversing:
@@ -41,10 +40,8 @@ class _Reversing:
 
 
 @pytest.fixture
-async def audit_id(tmp_path, monkeypatch) -> int:
-    db = Database(create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"), name="audit")
-    with db.engine.begin() as conn:
-        metadata.create_all(conn, tables=[query_audit_log])
+async def audit_id(control_plane, monkeypatch) -> int:
+    db = control_plane.org()
     await log_query(
         db,
         tenant_id="acme",

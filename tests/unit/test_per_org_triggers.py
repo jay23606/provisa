@@ -35,22 +35,13 @@ pytestmark = pytest.mark.unbound
 _PURGE = "DELETE FROM s.orders WHERE day < '{{YYYY-MM-DD}}'"
 
 
-def _store(path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import (
-        domains,
-        metadata,
-        registered_tables,
-        scheduled_triggers,
-        sources,
-    )
+async def _store(control_plane, org_id):
+    from provisa.core.db import init_schema
+    from tests.pg_control_plane import SCHEMA_SQL
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{path}")
-    with engine.begin() as raw:
-        # The model store's sources and tables too: a Data Profiler's schedule (REQ-1934) is
-        # registered beside the triggers, read from its source and member tables.
-        metadata.create_all(raw, tables=[scheduled_triggers, sources, domains, registered_tables])
-    return Database(engine, "model")
+    db = control_plane.org(org_id)
+    await init_schema(db, SCHEMA_SQL, org_id=org_id)
+    return db
 
 
 class _Orgs:
@@ -67,8 +58,8 @@ class _Orgs:
 
 
 @pytest.fixture
-def orgs(tmp_path, monkeypatch):
-    stores = {org: _store(tmp_path / f"{org}.db") for org in ("a", "b")}
+async def orgs(control_plane, monkeypatch):
+    stores = {org: await _store(control_plane, org) for org in ("a", "b")}
     monkeypatch.setattr("provisa.api.app.state", _Orgs(stores), raising=False)
     return stores
 

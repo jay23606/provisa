@@ -28,23 +28,16 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
-from provisa.core.database import create_engine_from_url
 
 from provisa.api import sandbox_org as sandbox_mod
 from provisa.api.sandbox_org import SANDBOX_ORG_ID, ensure_sandbox_org
-from provisa.core.database import Database
-from provisa.core.schema_admin import AWAITING_CHECKOUT, metadata, orgs
+from provisa.core.schema_admin import AWAITING_CHECKOUT, orgs
+from tests.pg_control_plane import SCHEMA_SQL
 
 
 @pytest.fixture
-async def admin_db():
-    engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-    with engine.begin() as conn:
-        metadata.create_all(conn)
-    try:
-        yield Database(engine, "test")
-    finally:
-        engine.dispose()
+def admin_db(control_plane):
+    return control_plane.platform
 
 
 @pytest.fixture
@@ -178,34 +171,18 @@ class TestStartupHook:
 
 
 @pytest.fixture
-async def tenant_dbs(monkeypatch):
+async def tenant_dbs(monkeypatch, control_plane):
     """The root org's schema and the sandbox org's, as two separate planes.
 
     Two engines rather than one: the platform_admin assignments the seating READS live in the root
     org's schema, and the org_admin assignment it WRITES lands in the sandbox's. Sharing one would
     let the read see what the write put there.
     """
-    from provisa.core.db import _SEED_ROLES
-    from provisa.core.schema_org import metadata as org_metadata
-    from provisa.core.schema_org import roles as org_roles
+    from provisa.core.db import init_schema
 
-    made = []
-    for _ in range(2):
-        engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-        with engine.begin() as conn:
-            org_metadata.create_all(conn)
-            # Every org schema holds the system roles (the seed); a grant reads the role it
-            # confers out of the schema it lands in.
-            for role_id, capabilities in _SEED_ROLES:
-                conn.execute(
-                    org_roles.insert().values(
-                        id=role_id,
-                        capabilities=capabilities,
-                        domain_access=["*"],
-                    )
-                )
-        made.append((engine, Database(engine, "test")))
-    root, sandbox = made[0][1], made[1][1]
+    root = control_plane.org()
+    sandbox = control_plane.org(SANDBOX_ORG_ID)
+    await init_schema(sandbox, SCHEMA_SQL, org_id=SANDBOX_ORG_ID)
 
     monkeypatch.setattr(
         "provisa.api.app.state",
@@ -219,11 +196,7 @@ async def tenant_dbs(monkeypatch):
         return SimpleNamespace(model_db=sandbox, tenant_db=sandbox)
 
     monkeypatch.setattr("provisa.api.app.ensure_org_runtime", _ensure, raising=False)
-    try:
-        yield SimpleNamespace(root=root, sandbox=sandbox)
-    finally:
-        for engine, _ in made:
-            engine.dispose()
+    return SimpleNamespace(root=root, sandbox=sandbox)
 
 
 async def _assign(db, user_id, role_id):

@@ -111,6 +111,7 @@ async def test_a_postgresql_source_answers_a_sorted_page_as_postgres_does(pg, tm
         schema_name="remote",
         table_name="items",
         path=None,
+        max_live_concurrency=None,  # REQ-1909: a source always carries its cap; none here
     )
     rt = DuckDBFederationRuntime(materialize_dsn=f"duckdb:///{tmp_path / 'store.duckdb'}")
     rt.attach_source(src)

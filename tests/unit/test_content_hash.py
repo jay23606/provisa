@@ -16,10 +16,7 @@ import datetime as dt
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.content_hash import content_hash
 from provisa.events.handlers import make_source_land
@@ -160,18 +157,12 @@ async def test_append_shape_is_never_gated(tmp_path):
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="cp")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 @pytest.mark.asyncio
-async def test_processor_gates_second_identical_land(tmp_path):
+async def test_processor_gates_second_identical_land(tmp_path, control_plane):
     store = f"sqlite+pysqlite:///{tmp_path / 'store.db'}"
 
     async def fetch(_pending):
@@ -195,7 +186,7 @@ async def test_processor_gates_second_identical_land(tmp_path):
             fetch=fetch,
         ),
     )
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         proc._db = db
         # first cycle: an upstream trigger lands + re-posts
         async with db.acquire() as conn:

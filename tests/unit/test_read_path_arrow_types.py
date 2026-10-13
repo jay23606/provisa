@@ -640,3 +640,20 @@ def test_the_type_a_catalog_lists_for_a_column_is_the_type_a_read_of_it_returns(
     for read in (row_stream, materialised, airport, airport_batch.schema):
         assert _types(read) == listed
     assert _types(engine_schema) == {name: listed[name] for name in engine_schema.names}
+
+
+def test_a_numeric_read_as_the_floating_point_its_statement_states_is_typed_without_rows():
+    """A numeric the model records no size for is read through CAST(... AS DOUBLE PRECISION), so
+    the shape states its type: it is float64 whether or not rows arrive. The integration lane
+    read a result of no rows with it as Arrow null (main 15bd4bf1b)."""
+    from provisa.compiler.result_shape import StatedType
+
+    class _Ledger(_Stream):
+        def __init__(self, rows: list[tuple]) -> None:
+            super().__init__(rows, ["int4", "float8"])
+            self.column_names = ["id", "ratio"]
+
+    shape = [("id", RegisteredType("integer")), ("ratio", StatedType("DOUBLE PRECISION"))]
+    none = arrow_batches_from_rows(_Ledger([]), shape=shape)[0]
+    some = arrow_batches_from_rows(_Ledger([(1, 0.5)]), shape=shape)[0]
+    assert _types(none) == _types(some) == {"id": pa.int32(), "ratio": pa.float64()}

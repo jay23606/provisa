@@ -20,10 +20,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events
 from provisa.events import queue
 from provisa.federation.row_materialize_cdc import row_refresh_claim_node
 
@@ -31,15 +28,9 @@ _NOW = datetime(2026, 9, 26, 12, 0, 0, tzinfo=timezone.utc)
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status])
-    try:
-        async with Database(engine, name="q").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 @pytest.mark.asyncio
@@ -50,9 +41,9 @@ async def test_row_refresh_claim_node_is_namespaced_not_bare():
 
 
 @pytest.mark.asyncio
-async def test_ordinary_processor_cannot_claim_a_row_refresh_event(tmp_path):
+async def test_ordinary_processor_cannot_claim_a_row_refresh_event(control_plane):
     node = "public.orders"
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         eid = await queue.post_event(
             conn, source_table=node, event_type="row_refresh", payload={"keys": [[1]]}
         )
@@ -76,9 +67,9 @@ async def test_ordinary_processor_cannot_claim_a_row_refresh_event(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_row_refresh_event_never_appears_on_bare_node_pending(tmp_path):
+async def test_row_refresh_event_never_appears_on_bare_node_pending(control_plane):
     node = "public.orders"
-    async with _conn(tmp_path) as conn:
+    async with _conn(control_plane) as conn:
         eid = await queue.post_event(
             conn, source_table=node, event_type="delta", payload={"cursor": 1}
         )

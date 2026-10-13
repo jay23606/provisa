@@ -21,14 +21,13 @@ import contextlib
 from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from provisa.core import secrets_store
 from provisa.core.config_loader import apply_config, parse_config_dict, read_config_with_includes
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
 from provisa.core.repositories import glossary as glossary_repo
-from provisa.core.schema_org import glossary_term_edges, glossary_terms
+from provisa.core.models import DERIVED_SOURCE_ID
+from provisa.core.schema_org import glossary_term_edges, glossary_terms, sources
 
 CONFIG = Path(__file__).resolve().parents[2] / "demo" / "named" / "weblogs" / "config.yaml"
 
@@ -50,7 +49,7 @@ ONTOLOGY = {
 
 
 @pytest.fixture
-async def loaded(monkeypatch, tmp_path):
+async def loaded(monkeypatch, tmp_path, control_plane):
     """The demo's config applied to an empty control plane: (terms by name, live ids, edges)."""
 
     @contextlib.asynccontextmanager
@@ -59,9 +58,11 @@ async def loaded(monkeypatch, tmp_path):
 
     monkeypatch.setattr(secrets_store, "bound_to_request_org", _unbound)
     monkeypatch.setenv("PROVISA_NAMED_DEMO_DIR", str(tmp_path))
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="weblogs-glossary")
-    await _init_schema_portable(plane)
+    plane = control_plane.org()
     async with plane.acquire() as conn:
+        # The virtual views' sentinel source, which the boot seeds and the config's views register
+        # against.
+        await conn.execute_core(insert(sources).values(id=DERIVED_SOURCE_ID, type="trino"))
         await apply_config(parse_config_dict(read_config_with_includes(CONFIG)), conn)
         terms = {
             r.name: r

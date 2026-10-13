@@ -622,8 +622,10 @@ class TestJSONAPIPaginationHTTP:
             buffered=False,
             cache_hint=None,
             *,
+            serve_cached,
             sdl_joins,
         ):
+            assert serve_cached is True  # REQ-544: an opted-in read is served from the cache
             assert sdl_joins is True  # a generated GraphQL document: the SDL's joins
             # The count query wraps the compiled SELECT in COUNT(*); tag the plan so the
             # fake terminal returns a scalar count row rather than the full data rows.
@@ -688,8 +690,10 @@ class TestJSONAPIPaginationHTTP:
             buffered=False,
             cache_hint=None,
             *,
+            serve_cached,
             sdl_joins,
         ):
+            assert serve_cached is True  # REQ-544: an opted-in read is served from the cache
             assert sdl_joins is True  # a generated GraphQL document: the SDL's joins
             # The count query wraps the compiled SELECT in COUNT(*); tag the plan so the
             # fake terminal returns a scalar count row rather than the full data rows.
@@ -759,8 +763,10 @@ class TestJSONAPIPaginationHTTP:
             buffered=False,
             cache_hint=None,
             *,
+            serve_cached,
             sdl_joins,
         ):
+            assert serve_cached is True  # REQ-544: an opted-in read is served from the cache
             assert sdl_joins is True  # a generated GraphQL document: the SDL's joins
             # The count query wraps the compiled SELECT in COUNT(*); tag the plan so the
             # fake terminal returns a scalar count row rather than the full data rows.
@@ -855,8 +861,10 @@ class TestJSONAPIPaginationHTTP:
             buffered=False,
             cache_hint=None,
             *,
+            serve_cached,
             sdl_joins,
         ):
+            assert serve_cached is True  # REQ-544: an opted-in read is served from the cache
             assert sdl_joins is True  # a generated GraphQL document: the SDL's joins
             # The count query wraps the compiled SELECT in COUNT(*); tag the plan so the
             # fake terminal returns a scalar count row rather than the full data rows.

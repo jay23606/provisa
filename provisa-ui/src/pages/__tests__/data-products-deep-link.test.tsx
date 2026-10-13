@@ -61,16 +61,25 @@ const products = [
 // per render would re-fire it forever (the real hook hands back Apollo's cached reference).
 const none: never[] = [];
 
+vi.mock("../../hooks/useDataProductMutations", () => ({
+  useCreateDataProduct: () => ({ createDataProduct: vi.fn(), loading: false }),
+  useUpdateDataProduct: () => ({ updateDataProduct: vi.fn(), loading: false }),
+  useDeleteDataProduct: () => ({ deleteDataProduct: vi.fn(), loading: false }),
+}));
+
 vi.mock("../../hooks/useAdminQueries", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/useAdminQueries")>()),
-  useDataProducts: () => ({ dataProducts: products, loading: false, error: null, refetch: vi.fn() }),
+  useDataProducts: () => ({
+    dataProducts: products,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useDomains: () => ({ domains: none, loading: false, refetch: vi.fn() }),
   useTables: () => ({ tables: none, loading: false, refetch: vi.fn() }),
   useSources: () => ({ sources: none, loading: false, refetch: vi.fn() }),
   useRelationships: () => ({ relationships: none, loading: false, refetch: vi.fn() }),
   useRoles: () => ({ roles: none, loading: false, refetch: vi.fn() }),
-  useCreateDataProduct: () => ({ createDataProduct: vi.fn(), loading: false }),
-  useDeleteDataProduct: () => ({ deleteDataProduct: vi.fn(), loading: false }),
   useUpdateTable: () => ({ updateTable: vi.fn(), loading: false }),
 }));
 
@@ -99,7 +108,9 @@ describe("Data Products deep link (REQ-1659)", () => {
 
   it("expanding a row writes ?product= so the address is a link to it", async () => {
     render(<DataProductsPage />, { initialEntries: ["/data-products"] });
-    await waitFor(() => expect(screen.getByTestId("data-products-row-pet_health")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId("data-products-row-pet_health")).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByTestId("data-products-row-pet_health"));
     await waitFor(() => expect(screen.getByTestId("detail-panel")).toHaveTextContent("pet_health"));
     expect(localStorage.getItem(scopedKey(EXPANDED_STORAGE_KEY))).toBe("pet_health");

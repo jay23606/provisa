@@ -271,10 +271,16 @@ def _annotated_shape(
         table_id = _resolve_table(tbl, table_map)
         if table_id is None:
             continue
+        columns = table_columns(table_id, ctx, column_types)
+        if not columns:
+            # No column of it is known (none registered, or none this role sees): there is
+            # nothing to type its columns by, so they are left untyped, as an unregistered
+            # table's are -- a SQLGlot schema refuses a table with no columns.
+            continue
         db = f"_t{table_id}"
         tbl.set("catalog", None)
         tbl.set("db", exp.to_identifier(db))
-        registered[(db, tbl.name)] = table_columns(table_id, ctx, column_types)
+        registered[(db, tbl.name)] = columns
 
     nested: dict[str, Any] = {}
     for (db, name), columns in registered.items():

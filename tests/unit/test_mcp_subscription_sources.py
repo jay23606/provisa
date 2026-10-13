@@ -13,17 +13,15 @@ log line.
 """
 
 import types
-from contextlib import asynccontextmanager
 
 import httpx
 import pytest
 import respx
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
 from provisa.api.mcp import tools as mcp_tools
-from provisa.core.database import Database
 from provisa.core.models import GovDataSubject, GovDataSubscription
-from provisa.core.schema_admin import deployment_encryption_key, secrets_store
+from provisa.core.schema_admin import orgs
 from tests.role_state import RoleState
 
 #: What the setting holds until an operator types over it: a reference, shown in its field.
@@ -66,24 +64,9 @@ class TestSearchGovdataSubjects:
             await mcp_tools.search_govdata_subjects(_state(), "ghost", "inflation")
 
 
-@asynccontextmanager
-async def _admin_db(tmp_path):
-    """A real (SQLite) admin_db holding secrets_store — REQ-1799/1802's `bound_to_request_org`
-    always queries this table for the org's vault, regardless of whether resolve_secrets itself
-    is mocked, so every test below needs a real one, not a bare mock."""
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'secrets.db'}")
-    with engine.begin() as c:
-        secrets_store.metadata.create_all(c, tables=[secrets_store, deployment_encryption_key])
-    db = Database(engine, name="admin")
-    try:
-        yield db
-    finally:
-        engine.dispose()
-
-
 class TestSearchKaggleDatasets:
     @pytest.fixture(autouse=True)
-    async def _bind_request_org(self, tmp_path, monkeypatch):
+    async def _bind_request_org(self, control_plane, monkeypatch):
         # REQ-1799/1802: search_kaggle_datasets resolves ${secret:...} inside
         # secrets_store.bound_to_request_org(), which needs an installed request-org resolver —
         # exactly the plumbing the real API layer installs at import (provisa.api.app). Without
@@ -93,10 +76,11 @@ class TestSearchKaggleDatasets:
         # over the real ${secret:...} resolution path).
         from provisa.core import secrets_store as secrets_store_mod
 
-        async with _admin_db(tmp_path) as db:
-            self.admin_db = db
-            monkeypatch.setattr(secrets_store_mod, "_request_org", lambda: (db, "test_org"))
-            yield
+        with control_plane.engine().begin() as conn:
+            conn.execute(insert(orgs).values(id="test_org", name="test_org"))
+        db = control_plane.platform
+        self.admin_db = db
+        monkeypatch.setattr(secrets_store_mod, "_request_org", lambda: (db, "test_org"))
 
     async def test_resolves_what_the_setting_holds_never_a_raw_token_argument(self, monkeypatch):
         seen_reference = {}

@@ -401,7 +401,8 @@
       "relationship_unknown_source": "La table source '{{table}}' n'est pas enregistrée",
       "relationship_unknown_target": "La table cible '{{table}}' n'est pas enregistrée",
       "relationship_unknown_junction": "La table de jonction '{{table}}' n'est pas enregistrée",
-      "source_id_taken": "La source '{{source}}' existe déjà"
+      "source_id_taken": "La source '{{source}}' existe déjà",
+      "domain_id_taken": "Le domaine '{{domain}}' existe déjà"
     },
     "secrets": {
       "name_refused": "{{name}} n'est pas un nom situé dans les secrets de cette organisation dans {{service}} : un nom est relatif à l'organisation et ne peut pas en sortir",

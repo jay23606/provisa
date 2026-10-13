@@ -25,8 +25,8 @@ from typing import Any
 import pytest
 from sqlalchemy import insert, select
 
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import registered_tables, sources
+from provisa.core.database import Database
+from provisa.core.schema_org import domains, registered_tables, sources
 from provisa.dq.results import RESULT_FIELDS, results_sa_table
 from tests.helpers import dq_contexts
 
@@ -44,14 +44,14 @@ MAPPING = {
 
 
 @pytest.fixture
-def plane(tmp_path, monkeypatch):
+def plane(control_plane, monkeypatch):
     """A control plane holding one checker source and its table, bound as the org's model store."""
     import provisa.api.app as appmod
     import provisa.core.secrets_store as secrets_store
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=[sources, registered_tables])
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="sales", description=""))
         c.execute(insert(sources).values(id="dq", type="soda", mapping=MAPPING))
         c.execute(insert(sources).values(id="warehouse", type="postgresql"))
         c.execute(
@@ -66,7 +66,7 @@ def plane(tmp_path, monkeypatch):
                 cache_ttl=600,
             )
         )
-    db = Database(engine, name="cp")
+    db = control_plane.org()
     monkeypatch.setattr(appmod.state, "model_db", db, raising=False)
     monkeypatch.setattr(
         appmod.state,
@@ -82,7 +82,6 @@ def plane(tmp_path, monkeypatch):
     # The mapping holds plain values: there is no reference for the org's vault to resolve.
     monkeypatch.setattr(secrets_store, "bound_to_request_org", _no_vault)
     yield SimpleNamespace(db=db, state=appmod.state)
-    engine.dispose()
 
 
 @pytest.fixture

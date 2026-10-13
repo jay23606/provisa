@@ -24,10 +24,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from provisa.core import config_stamp
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_org import config_stamp as stamps
-from provisa.core.schema_org import metadata, replica_state
 from provisa.federation import replica_runner
 from provisa.federation import replica_state as build_state
 from provisa.federation.replica_state import Failure, RetryPolicy
@@ -38,14 +34,9 @@ T0 = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-async def conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[replica_state, stamps])
-        config_stamp.install(raw, {}, advanced=config_stamp.TENANT_ADVANCED)
-    async with Database(engine, "test").acquire() as connection:
+async def conn(control_plane):
+    async with control_plane.org().acquire() as connection:
         yield connection
-    engine.dispose()
 
 
 def test_the_wait_doubles_with_each_failure_in_a_row_up_to_the_ceiling():
@@ -310,25 +301,19 @@ def test_the_retry_interval_refuses_a_value_below_one_second():
 
 
 async def test_a_build_that_keeps_failing_is_not_attempted_again_until_its_wait_has_passed(
-    tmp_path,
+    tmp_path, control_plane
 ):
     """The regression of #203. With no wait a failing build was claimed again the moment it
     failed, hundreds of times a second, and the runner never rested. At the shortest wait the
     setting allows it is attempted once, and the runner comes to rest."""
     import asyncio
 
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata
-    from provisa.core.schema_org import replica_state as replica_state_table
     from provisa.federation import replica_state as build_state
     from provisa.federation.replica_locks import BuildLocks
     from provisa.federation.replica_runner import ReplicaRunner
 
-    url = f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"
-    engine = create_engine_from_url(url)
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[replica_state_table])
-    db = Database(engine, "test")
+    url = control_plane.url
+    db = control_plane.org()
     key = ("src", "public", "t1")
     async with db.acquire() as conn:
         assert await build_state.request_build(conn, key, build_state.REASON_MODEL)
@@ -368,7 +353,6 @@ async def test_a_build_that_keeps_failing_is_not_attempted_again_until_its_wait_
     finally:
         for task in tasks:
             task.cancel()
-        engine.dispose()
     assert attempts == 1
 
 

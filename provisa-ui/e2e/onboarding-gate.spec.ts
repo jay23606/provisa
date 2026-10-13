@@ -67,7 +67,14 @@ async function stubDeployment(
 
   await page.route("**/setup/status", (route: Route) =>
     route.fulfill({
-      json: { needs_setup: false, demo_mode: false, auth_enabled: true, example_queries: [] },
+      json: {
+        needs_setup: false,
+        demo_mode: false,
+        auth_enabled: true,
+        example_queries: [],
+        named_demo: null,
+        demo_tour: [],
+      },
     }),
   );
   await page.route("**/firebase-config.js", (route: Route) =>
@@ -101,8 +108,7 @@ async function stubDeployment(
   );
 }
 
-const stored = (page: Page, key: string) =>
-  page.evaluate((k) => localStorage.getItem(k), key);
+const stored = (page: Page, key: string) => page.evaluate((k) => localStorage.getItem(k), key);
 
 /** The sign-in screen, whichever provider the deployment renders it with. */
 const signIn = (page: Page) => page.getByRole("heading", { name: "Login" });

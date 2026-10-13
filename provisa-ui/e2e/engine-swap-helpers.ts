@@ -356,14 +356,13 @@ export async function reloadEngineBackend(engine: EngineTarget) {
   expect(res.ok, await res.text()).toBeTruthy();
 }
 
-/** Replay `createSource` (same values, on an id that already exists — `_upsert_source_with_domains`
- * makes this an upsert, not a duplicate error) against the target engine so its OWN
- * `_register_source_on_engine()` runs under THAT engine — the per-source engine catalog it
- * provisions (`catalog.create_catalog`, e.g. Trino's real `mongodb`/`cassandra`/`redis`/
- * `elasticsearch` connectors) only happens inside `create_source`, bound to whichever engine is
- * active AT THE CALL (`update_source` never calls it at all — checked directly), and this
- * harness's registration phase only ever calls it under DuckDB. A no-op for a type with no engine
- * connector (REQ-842 skips catalog creation for it either way). */
+/** Save the source again through `updateSource` (same values; `createSource` refuses an id that
+ * exists) against the target engine, so its `_register_source_on_engine()` runs under THAT engine
+ * — the per-source engine catalog it provisions (`catalog.create_catalog`, e.g. Trino's real
+ * `mongodb`/`cassandra`/`redis`/`elasticsearch` connectors) is bound to whichever engine is active
+ * AT THE CALL, and this harness's registration phase only ever creates the source under DuckDB.
+ * `update_source` then rebuilds the schemas and reconciles the landed tables on that engine. A
+ * no-op for a type with no engine connector (REQ-842 skips catalog creation for it either way). */
 export async function reprovisionSourceOnEngine(engine: EngineTarget, sourceId: string) {
   // Raw fetch() against the engine's own URL, NOT page.request — page.request is a separate
   // APIRequestContext that page.route() never intercepts (only browser-initiated requests are
@@ -463,7 +462,7 @@ export async function reprovisionSourceOnEngine(engine: EngineTarget, sourceId: 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      query: `mutation($s: SourceInput!) { createSource(input: $s) { success message } }`,
+      query: `mutation($s: SourceInput!) { updateSource(input: $s) { success message } }`,
       // SourceInput has no `passwordRef` field, only `password` (GraphQL input coercion rejects
       // an unknown field outright) — drop it from the spread and carry the vault reference under
       // the name SourceInput actually declares (see the query's own comment for why this is safe).
@@ -474,7 +473,7 @@ export async function reprovisionSourceOnEngine(engine: EngineTarget, sourceId: 
   expect(mutation.ok, mutationText).toBeTruthy();
   const body = JSON.parse(mutationText);
   expect(body.errors, JSON.stringify(body.errors)).toBeUndefined();
-  expect(body.data.createSource.success, body.data.createSource.message).toBeTruthy();
+  expect(body.data.updateSource.success, body.data.updateSource.message).toBeTruthy();
 }
 
 /** Requery every DuckDB-registered source this engine can reach, on this SAME page — the route
@@ -543,8 +542,8 @@ export async function requeryOnEngine(page: Page, engine: EngineTarget, registra
       // state.event_loop_processors yet. reloadEngineBackend's reload right before this loop can
       // race ahead of that completion, and a wire_new_poll_jobs call that loses this race is not
       // automatically retried by anything: nothing re-triggers the wiring until another mutation
-      // calls _rebuild_schemas again. Re-issuing the (idempotent, upsert) createSource replay
-      // each retry gives that race another chance to resolve.
+      // calls _rebuild_schemas again. Re-issuing the (idempotent) updateSource replay each
+      // retry gives that race another chance to resolve.
       await reprovisionSourceOnEngine(engine, reg.sourceId);
       await new Promise((r) => setTimeout(r, 5000));
     }
@@ -968,10 +967,10 @@ export async function sweepRebootZombieSources(): Promise<void> {
  * "host.docker.internal" via `updateSource` — same host-reachability translation
  * reprovisionSourceOnEngine applies on replay (see its own comment for the kafka two-hop special
  * case and the rss/websocket exclusion), but as a one-time persisted UPDATE instead of a mutation
- * replay: reboot's whole point is that NO mutation ever replays. `updateSource` does not itself
- * (re)issue an engine catalog (confirmed: `update_source`'s mutation handler never calls
- * `_register_source_on_engine`, unlike `create_source`'s) — it only fixes the row a LATER reboot's
- * boot-time catalog provisioning (REQ-1730's `extra_sources` plumbing) will read. Call this on the
+ * replay: reboot's whole point is that NO mutation ever replays. `updateSource` provisions the
+ * source on the engine bound at the call (DuckDB here, before the reboot); what this persists is
+ * the row a LATER reboot's boot-time catalog provisioning (REQ-1730's `extra_sources` plumbing)
+ * will read. Call this on the
  * DuckDB-registered source BEFORE rebooting into a containerized engine (currently just Trino);
  * a no-op for a type with no live Trino connector (REQ-842) since its catalog is never issued
  * either way. This is 100% test-harness Docker-topology plumbing, not anything a real deployment

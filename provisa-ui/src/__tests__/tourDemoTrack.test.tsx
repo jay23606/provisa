@@ -18,7 +18,12 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { useNavPayload } from "../hooks/useNavPayload";
 import { MantineProvider } from "@mantine/core";
 import { demoTourSteps, type DemoTourStepDef } from "../tour/demoTour";
-import { NamedDemoContext, type NamedDemo } from "../context/NamedDemoContext";
+import {
+  NamedDemoContext,
+  NO_NAMED_DEMO,
+  namedDemoOf,
+  type NamedDemo,
+} from "../context/NamedDemoContext";
 import { storageKey } from "../lib/browserStorage";
 import type { OrgHas } from "../tour/tourPrerequisites";
 
@@ -207,6 +212,32 @@ describe("the tour button in a named demo", () => {
     expect(screen.queryByText("tour.steps.weblogsSources.title")).toBeNull();
     // The product tour's first step is under way instead (its page is not mounted here).
     expect(screen.getByText("tour.status.waiting")).toBeInTheDocument();
+  });
+});
+
+describe("a freshly onboarded org, started as no named demo", () => {
+  // The status of a deployment no named demo was started as: the onboard-org flow's.
+  const FRESH = { named_demo: null, example_queries: [], demo_tour: [] };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("has no named demo: no demo track and no examples", () => {
+    expect(namedDemoOf(FRESH)).toBe(NO_NAMED_DEMO);
+  });
+
+  it("opens the tour without a demo track", async () => {
+    org.current = { sources: new Set(), tables: new Set(), dataProducts: 0 };
+    localStorage.setItem("provisa_tour_seen", "true"); // the tour button opens the menu
+    renderTour(namedDemoOf(FRESH));
+    fireEvent.click(screen.getByText("launch"));
+    expect(await screen.findByTestId("tour-menu")).toBeInTheDocument();
+    expect(screen.queryByTestId("tour-demo-track-done")).toBeNull();
+    expect(screen.queryByText("tour.steps.weblogsSources.title")).toBeNull();
   });
 });
 

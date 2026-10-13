@@ -16,6 +16,14 @@ Applies the ``bdd`` marker to every pytest-bdd scenario collected from
 
 import pytest
 
+# REQ-2014: a step that needs a control plane takes the unit harness's own -- a PostgreSQL
+# database cloned per test from the worker's template (tests/pg_control_plane.py).
+from tests.unit.conftest import (  # noqa: F401  (fixtures, registered by being named here)
+    control_plane,
+    control_plane_template,
+    embedded_postgres,
+)
+
 
 def pytest_collection_modifyitems(items: list) -> None:
     """Mark every item from a steps_*.py module with the ``bdd`` marker."""

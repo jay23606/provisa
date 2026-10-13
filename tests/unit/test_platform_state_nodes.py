@@ -25,14 +25,10 @@ from provisa.core.platform_state import nodes
 
 
 @pytest.fixture
-async def platform(tmp_path):
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import cluster_nodes, metadata
+async def platform(control_plane):
+    from provisa.core.database import Database
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[cluster_nodes])
-    return Database(engine, "platform-state", holds="platform_state")
+    return Database(control_plane.engine(), "platform-state", holds="platform_state")
 
 
 @pytest.fixture(autouse=True)
@@ -85,28 +81,22 @@ def test_the_platform_state_store_is_never_the_model_or_an_environments():
         assert table not in PROJECTED and table not in CLASSIFIED
 
 
-async def test_the_platform_state_handle_and_the_org_handles_keep_apart(tmp_path):
+async def test_the_platform_state_handle_and_the_org_handles_keep_apart(control_plane):
     """REQ-1922: the deployment's state is reached through its own handle alone, and that handle
     reaches no org table."""
     from sqlalchemy import select
 
-    from provisa.core.database import Database, StoreSideViolation, create_engine_from_url
+    from provisa.core.database import Database, StoreSideViolation
     from provisa.core.schema_admin import cluster_nodes
-    from provisa.core.schema_admin import metadata as platform_metadata
-    from provisa.core.schema_org import metadata as org_metadata
     from provisa.core.schema_org import registered_tables
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'one.db'}")
-    with engine.begin() as raw:
-        platform_metadata.create_all(raw, tables=[cluster_nodes])
-        org_metadata.create_all(raw)
-    platform_state_db = Database(engine, "platform-state", holds="platform_state")
+    platform_state_db = Database(control_plane.engine(), "platform-state", holds="platform_state")
     async with platform_state_db.acquire() as conn:
         await conn.execute_core(select(cluster_nodes.c.node_id))
         with pytest.raises(StoreSideViolation, match="registered_tables is a model table"):
             await conn.execute_core(select(registered_tables.c.id))
     for side in ("model", "state", "record"):
-        async with Database(engine, side, holds=side).acquire() as conn:
+        async with control_plane.org(holds=side).acquire() as conn:
             with pytest.raises(
                 StoreSideViolation,
                 match="cluster_nodes is a platform_state table, use the deployment's platform_state_db",

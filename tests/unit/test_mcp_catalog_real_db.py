@@ -12,57 +12,29 @@ wrapper via `asyncio.to_thread`, which spins up a brand-new event loop and tries
 reject that cross-event-loop reuse. Every MCP tool that reached `_catalog()` failed, but the
 existing test suite only ever exercised it with `_build_catalog_tables_async` monkeypatched away
 entirely (test_mcp_server.py), so the real DB path was never actually run. This file runs it for
-real, on a genuine SQLite-backed Database, with no catalog mock."""
+real, on a genuine PostgreSQL-backed Database, with no catalog mock."""
 
 from __future__ import annotations
 
 import types
 
 import pytest
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
-from provisa.core.database import Database
 from provisa.core.models import Column, Table
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    glossary_term_domains,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_refs,
-    glossary_terms,
-    registered_tables,
-    relationships,
-    roles,
-    table_columns,
-    naming_rules,
-)
+from provisa.core.schema_org import domains, registered_tables, sources
 from tests.role_state import RoleState
 
 pytestmark = pytest.mark.asyncio
 
-# table_repo.upsert() (used only by this test's own seeding, not by list_schemas/_catalog
-# themselves) touches the glossary tables too — mirrors test_mcp_glossary_protocol.py's fixture.
-_TABLES = [
-    registered_tables,
-    table_columns,
-    # The catalog reads a table's references from the declared relationships.
-    relationships,
-    # naming_rules: the table upsert refuses a taken SQL address under them (REQ-1933).
-    naming_rules,
-    roles,
-    glossary_terms,
-    glossary_term_refs,
-    glossary_term_edges,
-    glossary_term_experts,
-    glossary_term_domains,
-]
 
-
-async def _seeded_db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'catalog.db'}")
-    with engine.begin() as c:
-        registered_tables.metadata.create_all(c, tables=_TABLES)
-    db = Database(engine, name="catalog")
+async def _seeded_db(control_plane):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        c.execute(insert(domains).values(id="sales", description=""))
+        c.execute(insert(sources).values(id="__derived__", type="postgresql"))
+    db = control_plane.org()
     async with db.acquire() as conn:
         await table_repo.upsert(
             conn,
@@ -75,7 +47,7 @@ async def _seeded_db(tmp_path):
                 view_sql="SELECT 1 AS id",
             ),
         )
-    return engine, db
+    return db
 
 
 def _state(db):
@@ -83,7 +55,8 @@ def _state(db):
     # the tools list what the role is served, so a context with no table is an empty catalog.
     from provisa.compiler.sql_types import TableMeta
 
-    with db._engine.connect() as c:
+    with db._engine.begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
         (table_id,) = c.execute(
             registered_tables.select().with_only_columns(registered_tables.c.id)
         ).one()
@@ -111,26 +84,20 @@ def _state(db):
     )
 
 
-async def test_list_schemas_against_real_db_no_event_loop_error(tmp_path):
+async def test_list_schemas_against_real_db_no_event_loop_error(control_plane):
     from provisa.api.mcp import tools
 
-    engine, db = await _seeded_db(tmp_path)
-    try:
-        result = await tools.list_schemas(_state(db), "analyst")
-        assert result == [{"schema": "sales", "description": "", "table_count": 1}]
-    finally:
-        engine.dispose()
+    db = await _seeded_db(control_plane)
+    result = await tools.list_schemas(_state(db), "analyst")
+    assert result == [{"schema": "sales", "description": "", "table_count": 1}]
 
 
-async def test_list_tables_against_real_db_no_event_loop_error(tmp_path):
+async def test_list_tables_against_real_db_no_event_loop_error(control_plane):
     from provisa.api.mcp import tools
 
-    engine, db = await _seeded_db(tmp_path)
-    try:
-        result = await tools.list_tables(_state(db), "analyst", "sales")
-        assert [r["table"] for r in result] == ["orders"]
-    finally:
-        engine.dispose()
+    db = await _seeded_db(control_plane)
+    result = await tools.list_tables(_state(db), "analyst", "sales")
+    assert [r["table"] for r in result] == ["orders"]
 
 
 async def test_catalog_returns_empty_list_when_no_tenant_db():

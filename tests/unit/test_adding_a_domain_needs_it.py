@@ -35,8 +35,7 @@ from provisa.api.admin.capabilities import (
 )
 from provisa.api.admin.types import RoleInput
 from provisa.api.errors import ApiError
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.schema_org import domains, roles, sources
 from provisa.security.rights import domains_added
 
@@ -97,9 +96,8 @@ def _info(role_id: str | None) -> Any:
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="add-domain-test")
-    await _init_schema_portable(db)
+async def plane(monkeypatch, control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         for domain_id in ("sales", "finance"):
             await conn.execute_core(insert(domains).values(id=domain_id))

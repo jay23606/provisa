@@ -36,17 +36,12 @@ _WRITE = "INSERT INTO audit.d SELECT '{{YYYY-MM-DD}}'"
 
 
 @pytest.fixture
-def cfg_path(tmp_path, monkeypatch):
+def cfg_path(tmp_path, monkeypatch, control_plane):
     path = tmp_path / "provisa.yaml"
     path.write_text("scheduled_triggers: []\n")
     monkeypatch.setenv("PROVISA_CONFIG", str(path))
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_org import metadata, scheduled_triggers
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'model.db'}")
-    with engine.begin() as raw:
-        metadata.create_all(raw, tables=[scheduled_triggers])
-    monkeypatch.setattr(appmod.state, "model_db", Database(engine, "model"), raising=False)
+    monkeypatch.setattr(appmod.state, "model_db", control_plane.org(), raising=False)
     monkeypatch.setattr(appmod.state, "_scheduler", None, raising=False)
     monkeypatch.setattr(
         appmod.state,

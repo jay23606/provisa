@@ -72,8 +72,6 @@ import {
   CompileQuery,
   CreateDomain,
   DeleteDomain,
-  CreateDataProduct,
-  DeleteDataProduct,
   RegisterTable,
   RegisterEntity,
   RegisterFact,
@@ -450,53 +448,6 @@ export function useDeleteDomain() {
     deleteDomain: async (id: string) => {
       const result = await deleteDomain({ variables: { id } });
       return (result.data?.deleteDomain ?? { success: false, message: "" }) as MutationResult;
-    },
-    loading,
-  };
-}
-
-// REQ-1660: mirrors the DataProductInput GraphQL input type field-for-field.
-export interface DataProductInput {
-  id: string;
-  domainId: string;
-  name: string;
-  ownerRole: string | null;
-  teamRole: string | null;
-  purpose: string;
-  limitations: string;
-  usage: string;
-  version: string | null;
-  status: string | null;
-  sla: string | null;
-  support: string | null;
-  customProperties: Record<string, unknown>;
-}
-
-export function useCreateDataProduct() {
-  // REQ-1634
-  const [createDataProduct, { loading }] = useMutation<{ createDataProduct: MutationResult }>(
-    CreateDataProduct,
-    { refetchQueries: [{ query: DATA_PRODUCTS_QUERY }] },
-  );
-  return {
-    createDataProduct: async (input: DataProductInput) => {
-      const result = await createDataProduct({ variables: { input } });
-      return (result.data?.createDataProduct ?? { success: false, message: "" }) as MutationResult;
-    },
-    loading,
-  };
-}
-
-export function useDeleteDataProduct() {
-  // REQ-1634
-  const [deleteDataProduct, { loading }] = useMutation<{ deleteDataProduct: MutationResult }>(
-    DeleteDataProduct,
-    { refetchQueries: [{ query: DATA_PRODUCTS_QUERY }] },
-  );
-  return {
-    deleteDataProduct: async (id: string) => {
-      const result = await deleteDataProduct({ variables: { id } });
-      return (result.data?.deleteDataProduct ?? { success: false, message: "" }) as MutationResult;
     },
     loading,
   };

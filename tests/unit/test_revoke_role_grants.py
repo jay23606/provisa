@@ -13,8 +13,8 @@
 ``revokeRoleFromTable`` takes it off every column grant of one table (read, write, unmasked);
 ``revokeRoleFromObject`` off a metric's, command's or webhook's assigned roles. Each is an edit
 of that one object through the model store, one commit (REQ-1524), a no-op success when the role
-is not on the grant, and refused by name for an object that does not exist. Run on a SQLite
-control plane.
+is not on the grant, and refused by name for an object that does not exist. Run on a
+PostgreSQL control plane.
 """
 
 # Requirements: REQ-1918, REQ-1524, REQ-1919
@@ -32,8 +32,7 @@ import provisa.api.app as appmod
 from provisa.api.admin import schema_mutation
 from provisa.api.admin.types import GrantKind
 from provisa.core import model_change
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.env_deploy import PROJECTED
 from provisa.core.model_change import ModelPlane
 from provisa.core.models import Function, Role, Webhook
@@ -53,11 +52,10 @@ ORG = "acme"
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
+async def plane(monkeypatch, control_plane) -> Database:
     """``leaving`` and ``staying`` granted on a table's columns, a metric, a command and a
     webhook; a config-declared table granting ``leaving`` too."""
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="revoke-test")
-    await _init_schema_portable(db)
+    db = control_plane.org()
     await seed(db)
     monkeypatch.setattr(appmod.state, "tenant_db", db, raising=False)
     monkeypatch.setattr(appmod.state, "model_db", appmod.state.tenant_db, raising=False)

@@ -86,6 +86,9 @@ def _planes(monkeypatch, *org_rows: dict):
     from provisa.api.app import state as app_state
 
     monkeypatch.setattr(app_state, "admin_db", admin_db, raising=False)
+    # REQ-2008: /auth/me reports the control plane's id, which the platform start creates; this
+    # app is assembled from its routers and skips that start.
+    monkeypatch.setattr("provisa.core.control_plane_id.current", lambda: "cp-test")
     # REQ-1568: auto-join is a multitenant act; this app's middleware runs multitenant, and the
     # offers endpoint reads the deployment's flag.
     monkeypatch.setattr(app_state, "multitenancy", True, raising=False)

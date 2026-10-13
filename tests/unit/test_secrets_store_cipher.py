@@ -87,21 +87,15 @@ class _EnvelopeStub:
 
 
 @pytest.fixture
-def plane(tmp_path):
-    """A platform control plane (SQLite) holding the vault and the deployment key's record."""
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.schema_admin import (
-        deployment_encryption_key,
-        metadata,
-        secrets_store,
-    )
+def plane(control_plane):
+    """A platform control plane holding the vault and the deployment key's record, and the org
+    ``acme`` whose secrets the tests store."""
+    from provisa.core.schema_admin import orgs
 
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[secrets_store, deployment_encryption_key])
-    db = Database(engine, name="admin")
-    yield db
-    engine.dispose()
+    db = control_plane.platform
+    with db.engine.begin() as conn:
+        conn.execute(orgs.insert().values(id="acme", name="acme"))
+    return db
 
 
 def _put(plane, name: str = "PG_PASSWORD", value: str = "s3cret") -> None:

@@ -47,8 +47,7 @@ from provisa.core.config_loader import (
     seed_config,
     store_config,
 )
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.models import Column, Domain, Role, Source, SourceType, Table
 from provisa.core.repositories import domain as domain_repo
 from provisa.core.repositories import role as role_repo
@@ -61,6 +60,7 @@ from provisa.core.store_config import (
     store_model,
     with_store_model,
 )
+from tests.pg_control_plane import ControlPlane, clone
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -76,16 +76,28 @@ def no_vault(monkeypatch):
     monkeypatch.setattr(secrets_store, "bound_to_request_org", _unbound)
 
 
-async def _plane(name: str) -> Database:
-    plane = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name=name)
-    await _init_schema_portable(plane)
-    await seed_the_view_source(plane)
-    return plane
+@pytest.fixture
+def new_plane(embedded_postgres, control_plane_template):
+    """A factory of further control planes, each a fresh deployment's: a test that seeds one plane
+    and reads the result into another."""
+    made: list[ControlPlane] = []
+
+    async def make() -> Database:
+        made.append(clone(embedded_postgres, control_plane_template))
+        plane = made[-1].org()
+        await seed_the_view_source(plane)
+        return plane
+
+    yield make
+    for plane in made:
+        plane.close()
 
 
 @pytest.fixture
-async def db() -> Database:
-    return await _plane("seed-test")
+async def db(control_plane) -> Database:
+    plane = control_plane.org()
+    await seed_the_view_source(plane)
+    return plane
 
 
 async def seed_the_view_source(plane: Database) -> None:
@@ -652,7 +664,7 @@ def _everything() -> dict:
     return raw
 
 
-async def test_the_export_round_trips(db):
+async def test_the_export_round_trips(db, new_plane):
     """Export the model → apply it to an empty store → the same model."""
     raw = _everything()
     await _boot(db, raw)
@@ -661,7 +673,7 @@ async def test_the_export_round_trips(db):
     # Through the file format: what an admin downloads and uploads again.
     text = yaml.safe_dump(exported, sort_keys=False)
 
-    fresh = await _plane("round-trip")
+    fresh = await new_plane()
     async with fresh.acquire() as conn:
         await apply_config(parse_config_dict(yaml.safe_load(text)), conn)
 
@@ -683,7 +695,7 @@ async def test_the_export_writes_every_model_section_and_keeps_the_file_s_settin
     assert "origin" not in yaml.safe_dump(exported)
 
 
-async def test_a_chosen_part_of_the_model_is_exported_and_applies_alone(db):
+async def test_a_chosen_part_of_the_model_is_exported_and_applies_alone(db, new_plane):
     raw = _everything()
     await _boot(db, raw)
     exported = with_store_model(raw, await _model(db))
@@ -691,7 +703,7 @@ async def test_a_chosen_part_of_the_model_is_exported_and_applies_alone(db):
     assert set(part) == {"sources", "domains", "tables", "roles"}
     assert part["tables"] == [] and part["roles"] == []
 
-    fresh = await _plane("part")
+    fresh = await new_plane()
     async with fresh.acquire() as conn:
         await apply_config(parse_config_dict(part), conn)
     assert (await _model(fresh))["sources"] == (await _model(db))["sources"]
@@ -746,13 +758,13 @@ def test_the_schema_seeds_its_rows_without_an_origin():
 # --- a demo organisation is its config ------------------------------------------------------------
 
 
-async def test_a_demo_rebuild_starts_exactly_as_its_config_says(db):
+async def test_a_demo_rebuild_starts_exactly_as_its_config_says(db, new_plane):
     """DEMO ORGANISATIONS ARE THEIR CONFIG: every build rebuilds a demo's model from its
     configuration — an admin's additions and edits last until then, and the seed stays."""
     from provisa.core.config_loader import rebuild_from_config
 
     demo = _everything()
-    fresh = await _plane("demo-fresh")
+    fresh = await new_plane()
     async with fresh.acquire() as conn:
         await rebuild_from_config(parse_config_dict(_everything()), conn)
     expected = await _model(fresh)
@@ -825,11 +837,11 @@ async def test_kafka_sources_are_seeded_once_and_read_from_the_store(db):
     )
 
 
-async def test_kafka_sources_round_trip_through_the_export(db):
+async def test_kafka_sources_round_trip_through_the_export(db, new_plane):
     raw = _raw(kafka_sources=[_kafka()])
     await _boot(db, raw)
     exported = with_store_model(raw, await _model(db))
-    fresh = await _plane("kafka-round-trip")
+    fresh = await new_plane()
     async with fresh.acquire() as conn:
         await apply_config(parse_config_dict(yaml.safe_load(yaml.safe_dump(exported))), conn)
     assert await _model(fresh) == await _model(db)
@@ -841,7 +853,7 @@ async def test_kafka_sources_round_trip_through_the_export(db):
 @pytest.mark.parametrize(
     "config_file", ["config/provisa-install.yaml", "demo/named/perf/config.yaml"]
 )
-async def test_a_whole_demo_config_seeds_rebuilds_and_round_trips(db, config_file):
+async def test_a_whole_demo_config_seeds_rebuilds_and_round_trips(db, config_file, new_plane):
     """A demo's whole config (the standard one, and a named one such as perf) seeds an empty
     store once, a demo rebuild from it gives the same model, and its export applied to an empty
     store builds that model again."""
@@ -855,7 +867,7 @@ async def test_a_whole_demo_config_seeds_rebuilds_and_round_trips(db, config_fil
         await rebuild_from_config(parse_config_dict(raw), conn)
     assert await _model(db) == first
     exported = with_store_model(raw, first)
-    fresh = await _plane("demo-round-trip")
+    fresh = await new_plane()
     async with fresh.acquire() as conn:
         await apply_config(parse_config_dict(yaml.safe_load(yaml.safe_dump(exported))), conn)
     assert await _model(fresh) == first

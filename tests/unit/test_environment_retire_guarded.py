@@ -31,7 +31,7 @@ import pytest
 from sqlalchemy import insert, select
 
 from provisa.core import env_reaper, env_retire, schema_admin
-from provisa.core.database import Database, create_engine_from_url
+from provisa.core.database import Database
 from provisa.core.env_retire import (
     DEPENDENT,
     ENVIRONMENT_REFERENCES,
@@ -57,11 +57,8 @@ PAST = datetime.now(tz=timezone.utc) - timedelta(days=1)
 
 
 @pytest.fixture
-async def admin(tmp_path) -> Database:
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'platform.db'}")
-    with engine.begin() as conn:
-        schema_admin.metadata.create_all(conn)
-    plane = Database(engine, name="admin")
+async def admin(control_plane) -> Database:
+    plane = control_plane.platform
     await seed(plane)
     return plane
 

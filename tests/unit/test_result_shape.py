@@ -188,3 +188,21 @@ def test_a_read_of_a_statement_every_column_of_which_is_typed_is_the_whole_descr
 def test_a_statement_that_cannot_be_described_at_all_still_raises_for_a_read():
     with pytest.raises(UnderivableColumn):
         derive_result_shape("SET search_path TO x", _TABLES, _CTX, _COLUMNS, each=True)
+
+
+def test_a_registered_table_whose_columns_are_not_known_leaves_its_columns_underived():
+    """A registered table the registry holds no column types for is no schema error: its columns
+    are underived, and the columns of the tables beside it keep their types. The integration lane
+    failed every Flight read of such a table with sqlglot's "Table _t1 must have at least one
+    column" (main 15bd4bf1b)."""
+    from provisa.compiler.result_shape import RegisteredType, Underived
+
+    tables = {**_TABLES, "sales.lines": 3}
+    sql = (
+        "SELECT o.order_id, l.qty FROM sales.orders AS o JOIN sales.lines AS l ON l.id = o.order_id"
+    )
+    shape = derive_result_shape(sql, tables, _CTX, _COLUMNS, each=True)
+    assert shape[0] == ("order_id", "integer") and isinstance(shape[0][1], RegisteredType)
+    assert shape[1][0] == "qty" and isinstance(shape[1][1], Underived)
+    with pytest.raises(UnderivableColumn):
+        derive_result_shape(sql, tables, _CTX, _COLUMNS)

@@ -25,17 +25,13 @@ import types
 
 import pytest
 
-from provisa.core import config_stamp
 import provisa.api.app  # noqa: F401 - imported before any test narrows process state
 from provisa.api.errors import ApiError
 from provisa.core import deployment_settings, settings_registry
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.schema_admin import deployment_settings as settings_table
-from provisa.core.schema_admin import metadata
 
 
 @pytest.fixture
-def control_plane(tmp_path, monkeypatch):
+def settings_plane(tmp_path, monkeypatch, control_plane):
     from provisa.encryption import runtime
 
     for s in settings_registry.all_settings():
@@ -48,19 +44,13 @@ def control_plane(tmp_path, monkeypatch):
     cfg = tmp_path / "provisa.yaml"
     cfg.write_text("sources: []\n")
     monkeypatch.setenv("PROVISA_CONFIG", str(cfg))
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=[settings_table, metadata.tables["config_stamp"]])
-        # REQ-1914: the settings snapshot is loaded with the plane's `settings` stamp.
-        config_stamp.install(conn, config_stamp.PLATFORM_TABLES)
-    db = Database(engine, name="platform")
+    db = control_plane.platform
     monkeypatch.setattr(deployment_settings, "_held", None)
     monkeypatch.setattr(deployment_settings, "_db", db)
     monkeypatch.setattr(
         "provisa.api.app.state", types.SimpleNamespace(admin_db=db, roles={}), raising=False
     )
     yield types.SimpleNamespace(db=db, config=cfg)
-    engine.dispose()
 
 
 @pytest.fixture
@@ -78,11 +68,11 @@ def attached(monkeypatch):
 
 
 def test_the_block_is_stored_in_the_control_plane_not_the_file_or_the_environment(
-    control_plane, attached
+    settings_plane, attached
 ):
     from provisa.api.admin.settings_router import _apply_otel
 
-    before = control_plane.config.read_text()
+    before = settings_plane.config.read_text()
     updated: list[str] = []
     _apply_otel(
         {
@@ -130,12 +120,12 @@ def test_the_block_is_stored_in_the_control_plane_not_the_file_or_the_environmen
     assert value("otel.subsystem_traces.http_api") == (True, "default")
     assert {"otel.endpoint", "otel.sample_rate", "otel.subsystem_traces"} <= set(updated)
     # Neither the node's config file nor this worker's environment was written.
-    assert control_plane.config.read_text() == before
+    assert settings_plane.config.read_text() == before
     assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in os.environ
     assert "OTEL_SERVICE_NAME" not in os.environ
 
 
-def test_a_blank_retention_clears_the_stored_value(control_plane, attached):
+def test_a_blank_retention_clears_the_stored_value(settings_plane, attached):
     from provisa.api.admin.settings_router import _apply_otel
 
     _apply_otel({"ops_snapshot_retention_hours": 24}, [], updated_by="a")
@@ -143,7 +133,7 @@ def test_a_blank_retention_clears_the_stored_value(control_plane, attached):
     assert settings_registry.resolve("otel.ops_snapshot_retention_hours") == (None, "default")
 
 
-def test_a_value_that_cannot_be_used_is_refused_naming_the_field(control_plane, attached):
+def test_a_value_that_cannot_be_used_is_refused_naming_the_field(settings_plane, attached):
     """It used to be swallowed: the save answered success and nothing changed."""
     from provisa.api.admin.settings_router import _apply_otel
 
@@ -156,7 +146,7 @@ def test_a_value_that_cannot_be_used_is_refused_naming_the_field(control_plane, 
     assert settings_registry.resolve("otel.service_name") == ("provisa", "default")
 
 
-def test_an_unknown_subsystem_or_protocol_is_refused(control_plane, attached):
+def test_an_unknown_subsystem_or_protocol_is_refused(settings_plane, attached):
     from provisa.api.admin.settings_router import _apply_otel
 
     with pytest.raises(ApiError) as err:
@@ -170,7 +160,7 @@ def test_an_unknown_subsystem_or_protocol_is_refused(control_plane, attached):
     assert err.value.params["field"] == "otel.protocol"
 
 
-def test_the_settings_endpoint_reports_the_stored_block(control_plane, attached):
+def test_the_settings_endpoint_reports_the_stored_block(settings_plane, attached):
     from provisa.api.admin.settings_router import _apply_otel, _otel_block
 
     _apply_otel(
@@ -192,14 +182,14 @@ def test_the_settings_endpoint_reports_the_stored_block(control_plane, attached)
 
 
 def test_the_exporters_are_attached_when_the_endpoint_changes_and_not_otherwise(
-    control_plane, attached
+    settings_plane, attached
 ):
     from provisa.api import otel_setup
 
     otel_setup.apply_exporter_settings()
     assert attached == []  # no endpoint: nothing to export to
     settings_registry.store(
-        control_plane.db,
+        settings_plane.db,
         {"otel.endpoint": "http://collector.example:4317", "otel.service_name": "east"},
         updated_by="another-worker",
     )
@@ -209,7 +199,7 @@ def test_the_exporters_are_attached_when_the_endpoint_changes_and_not_otherwise(
     assert len(attached) == 1
 
 
-def test_saving_the_block_applies_it_in_the_worker_that_saved(control_plane, attached):
+def test_saving_the_block_applies_it_in_the_worker_that_saved(settings_plane, attached):
     from provisa.api.admin.settings_router import _apply_otel
 
     _apply_otel(
@@ -220,7 +210,7 @@ def test_saving_the_block_applies_it_in_the_worker_that_saved(control_plane, att
     assert attached == [("http://collector.example:4318", "provisa", "http/protobuf")]
 
 
-def test_the_transport_belongs_to_the_endpoint_that_won(control_plane, monkeypatch):
+def test_the_transport_belongs_to_the_endpoint_that_won(settings_plane, monkeypatch):
     """REQ-549: ``observability.protocol`` in the config file describes the config file's
     endpoint. An endpoint from a higher source does not inherit it."""
     from provisa.api import otel_setup
@@ -238,7 +228,7 @@ def test_the_transport_belongs_to_the_endpoint_that_won(control_plane, monkeypat
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
     assert otel_setup.exporter_settings()[2] == "http/protobuf"
     settings_registry.store(
-        control_plane.db, {"otel.endpoint": "http://stored.example:4317"}, updated_by="a"
+        settings_plane.db, {"otel.endpoint": "http://stored.example:4317"}, updated_by="a"
     )
     assert otel_setup.exporter_settings() == ("http://stored.example:4317", "provisa", "grpc")
 
@@ -246,11 +236,11 @@ def test_the_transport_belongs_to_the_endpoint_that_won(control_plane, monkeypat
 # --- the other readers ---------------------------------------------------------------------------
 
 
-def test_the_compaction_settings_a_boot_runs_on_are_the_stored_ones(control_plane):
+def test_the_compaction_settings_a_boot_runs_on_are_the_stored_ones(settings_plane):
     from provisa.api import app_loaders
 
     settings_registry.store(
-        control_plane.db,
+        settings_plane.db,
         {
             "otel.compact_cron": "*/5 * * * *",
             "otel.compact_batch_size": 42,
@@ -273,19 +263,19 @@ def test_the_compaction_settings_a_boot_runs_on_are_the_stored_ones(control_plan
     }
 
 
-def test_the_telemetry_object_store_follows_the_stored_endpoint(control_plane, monkeypatch):
+def test_the_telemetry_object_store_follows_the_stored_endpoint(settings_plane, monkeypatch):
     from provisa.core.trino_system_catalogs import otel_object_store
 
     assert otel_object_store()["endpoint"] == "http://minio:9000"
     monkeypatch.setenv("PROVISA_OTEL_S3_ENDPOINT", "http://env.example:9000")
     assert otel_object_store()["endpoint"] == "http://env.example:9000"
     settings_registry.store(
-        control_plane.db, {"otel.s3_endpoint": "http://stored.example:9000"}, updated_by="a"
+        settings_plane.db, {"otel.s3_endpoint": "http://stored.example:9000"}, updated_by="a"
     )
     assert otel_object_store()["endpoint"] == "http://stored.example:9000"
 
 
-def test_the_defaults_are_the_config_models(control_plane):
+def test_the_defaults_are_the_config_models(settings_plane):
     from provisa.core.models import OtelConfig, SubsystemTracesConfig
 
     for field in (
