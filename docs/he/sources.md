@@ -9,13 +9,16 @@
 | **תמיכה ישירה** | כן | כן | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **פדרציה בלבד** | לא | כן | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (S3-backed) |
 | **קריאה ישירה (עותק משוכפל)** | כן | כן | Snowflake, Databricks, ClickHouse — הדרייבר קורא נתונים ומנחית עותק משוכפל; השאילתות רצות מול העותק המשוכפל במנוע הפעיל |
-| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
+| **ישיר (ללא מחבר חוצה-מקורות)** | כן | לא | Athena — הצהרות על מקור בודד רצות במלואן ב-Athena; הצטרפויות בין מקורות מנחיתות עותק משוכפל מלא |
+| **מטריאליזציה → פדרציה** | לא | לא | REST/OpenAPI, remote GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (push receiver), GovData, SharePoint, Salesforce, ServiceNow, Cloud inventory, Splunk, Qdrant, Azure Cosmos DB, Logs, Google Workspace, Microsoft 365 |
 
 מקורות מסוג **תמיכה ישירה** מבצעים שאילתות חד-מקוריות דרך הדרייבר הילידי שלהם (מתחת ל-100ms), תוך עקיפת מנוע הפדרציה (REQ-027, REQ-229). הם שומרים על תמיכה מלאה במחבר ומשתתפים בפדרציה כשהם מוצטרפים (joined) עם מקורות אחרים (REQ-028).
 
 מקורות מסוג **פדרציה בלבד** נשאלים תמיד דרך שכבת הפדרציה. לא קיים דרייבר ישיר (REQ-229).
 
-למקורות מסוג **קריאה ישירה (עותק משוכפל)** יש DirectDriver שקורא מהמחסן באופן ילידי (Arrow-native היכן שזמין), מנחית עותק משוכפל למחסן המטריאליזציה של המנוע הפעיל, ולאחר מכן השאילתות רצות מול אותו עותק משוכפל. ראו [Warehouses as Named Sources](#_10).
+למקורות מסוג **קריאה ישירה (עותק משוכפל)** יש DirectDriver שקורא מהמחסן באופן ילידי (Arrow-native היכן שזמין), מנחית עותק משוכפל למחסן המטריאליזציה של המנוע הפעיל, ולאחר מכן השאילתות רצות מול אותו עותק משוכפל. ראו [Warehouses as Named Sources](#_11).
+
+למקורות מסוג **ישיר (ללא מחבר חוצה-מקורות)** יש DirectDriver שמריץ הצהרות על מקור בודד במלואן בתוך המקור — כל מסנן, עמודה והגבלה מועברים אליו. כאשר הצהרה מצרפת (join) את המקור עם כל מקור אחר, הדרייבר קורא את הנתונים ומנחית עותק משוכפל; ההצטרפות רצה כנגד העותק במנוע הפעיל. לא קיים מחבר Trino למקורות אלו.
 
 למקורות **מטריאליזציה** אין מחבר מפודרר. Provisa שולפת את הנתונים שלהם (בעת ההפעלה או בזמן השאילתה) ושומרת אותם במטמון כ-Parquet ב-S3 או ב-PostgreSQL, כך שהם נגישים למנוע הפדרציה לצורך שאילתות חוצות מקורות (REQ-309).
 
@@ -23,25 +26,27 @@
 
 ## כל המקורות
 
-Provisa רושמת **58** סוגי מקור. הטבלאות שלהלן מכסות את כל 58; המספור הוא הספירה. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle נספר כמקור נפרד למרות שהוא נרשם באופן פנימי דרך מחבר `files`]
+Provisa רושמת **69** סוגי מקור, אלה שטופס המקורות מציע. הטבלאות שלהלן מכסות את כל 69; המספור הוא הספירה. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, where `graphql` and `grpc` are `graphql_remote` and `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab and Stripe are counted as distinct sources even though they register through the `files`, `graphql_remote` and `openapi` connectors internally]
 
 | # | קבוצה | סוגי מקור |
 | --- | --- | --- |
-| 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–21 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 22–26 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 27–31 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 37–39 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
-| 40 | [Push Receiver](#push-receiver) | `ingest` |
-| 41–42 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
-| 43–46 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files` |
-| 47–48 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
-| 49–51 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `splunk`, `servicenow` |
-| 52–54 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 55 | [GovData](#govdata) | `govdata` |
-| 56–57 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
-| 58 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
+| 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
+| 16–23 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 24–28 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 29–32 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 38–40 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
+| 41 | [Push Receiver](#push-receiver) | `ingest` |
+| 42–43 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
+| 44–48 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 49–50 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
+| 51–57 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 58–63 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 64 | [GovData](#govdata) | `govdata` |
+| 65–66 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
+| 67 | [Data Profiler](#data-profiler) | `data_profiler` |
+| 68 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
+| 69 | [Wikipedia](#wikipedia) | Wikipedia (נרשם כמקור מסוג `files` שסורק את הדפים הנקובים — ראו [Wikipedia](#wikipedia)) |
 
 מסמך עזר לכל סוג מקור שנתמך על ידי Provisa. "דרייבר ישיר" פירושו ששאילתות חד-מקוריות מבוצעות מול המקור באופן ילידי (מתחת ל-100ms) (REQ-027). "שם המחבר" הוא המחבר המפודרר שבו נעשה שימוש כאשר המקור משתתף ב-JOIN רב-מקורי (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -62,10 +67,20 @@ Provisa רושמת **58** סוגי מקור. הטבלאות שלהלן מכסו�
 | `tidb` | aiomysql (mysql wire) | mysql | mysql | כן |
 | `firebird` | — | — (DuckDB extension) | — | לא |
 | `airport` | — | — (DuckDB extension) | — | לא |
+| `saphana` | SQLAlchemy (`hana+hdbcli`) | — | — | לא |
+| `hiveserver2` | impyla (HiveServer2 over Thrift) | — | hive | לא |
 
 מסדי נתונים תואמי-wire עושים שימוש חוזר ב-JDBC driver, בדרייבר האסינכרוני הילידי ובדיאלקט של ה-wire הבסיסי — CockroachDB, YugabyteDB ו-Greenplum רוכבים על ה-wire של PostgreSQL; TiDB רוכב על ה-wire של MySQL. הם זקוקים רק לרשומות רישום, ללא קוד מחבר חדש. [tool-verified: `provisa/core/source_registry.py` `_PG_WIRE_TYPES`, `_MYSQL_WIRE_TYPES`] (REQ-950)
 
 `firebird` (Firebird 3/4/5) ו-`airport` (Arrow Flight server) הם סוגי מקור רשומים המושגים במקום דרך תוספי הקהילה של DuckDB כאשר DuckDB הוא המנוע הפעיל — ללא דרייבר ישיר, ללא מחבר מפודרר. [tool-verified: `provisa/core/models.py` lines 44, 93] (REQ-899)
+
+#### `saphana`
+
+SAP HANA נקרא דרך הדרייבר שלו ומשוכפל אל מחסן המנוע הפעיל, ולכן הוא נגיש בכל מנוע. הטופס מקבל host, פורט (ברירת מחדל 39015), שם משתמש, סיסמה ומסד נתונים; במערכת מרובת-דיירים שם מסד הנתונים מציין את הדייר (tenant). Register Table מציג את הסכמות שהמשתמש יכול לקרוא, ללא סכמות המערכת של HANA. [tool-verified: `provisa/executor/drivers/registry.py` `_SQLALCHEMY_FALLBACK`; `provisa/api/admin/introspect.py` `_SAPHANA_SYSTEM_SCHEMAS`] (REQ-1753)
+
+#### `hiveserver2`
+
+נקודת קצה של HiveServer2 הנקראת ישירות מעל Thrift, עבור פריסת Hive שבה נקודת הקצה היא הדבר היחיד שנגיש. הוא נבדל מ-`hive` ומ-`hive_s3`, שקוראים את קבצי המחסן ואת ה-metastore ולעולם אינם עוברים דרך HiveServer2. השורות נקראות דרך נקודת הקצה ומשוכפלות אל מחסן המנוע הפעיל. הטופס מקבל host, פורט (ברירת מחדל 10000), שם משתמש, סיסמה ומסד נתונים; `federation_hints.auth_mechanism` בוחר את שיטת האימות (ברירת מחדל `PLAIN`, למשל `GSSAPI` עבור Kerberos). [tool-verified: `provisa/executor/drivers/hive.py` `HiveDriver`; `provisa/core/models.py` `SourceType.hiveserver2`] (REQ-1731)
 
 ### מחסני נתונים בענן
 
@@ -139,7 +154,7 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 | `clickhouse` | ClickHouseDriver | clickhouse | clickhouse | מפודרר | קורא באמצעות clickhouse-connect (HTTP); `secure: "true"` ב-`federation_hints` עבור TLS (REQ-986) |
 | `druid` | — | druid | druid | לא | — |
 | `exasol` | — | exasol | exasol | לא | — |
-| `elasticsearch` | — | elasticsearch | — | לא | מאפייני המחבר מגיעים מ-DSL המיפוי של הסוג [tool-verified: `trino_connectors.py:309`] |
+| `elasticsearch` | HTTP (מנועים ילידיים) | elasticsearch (Trino) | — | לא | ב-Trino המחבר קורא אותו, ומאפייניו מגיעים מ-DSL המיפוי של הסוג [tool-verified: `trino_connectors.py:309`]; בכל מנוע אחר Provisa קוראת את האינדקס דרך HTTP (אינדקסים ומיפוי עבור Register Table, קריאת scroll עבור הנחתה) ומנחיתה את השורות [tool-verified: `provisa/elasticsearch/fetch.py`, `provisa/events/source_loader.py` `make_elasticsearch_loader`] (REQ-1672) |
 | `pinot` | — | pinot | — | לא | מחבר `pinot` של Trino; `pinot.controller-urls` = host:port של בקר ה-Pinot [tool-verified: `trino_connectors.py:199`] |
 
 ### Data Lake / פורמטי טבלה פתוחים
@@ -161,8 +176,8 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 | סוג מקור | שם המחבר | מוטציות |
 | ------------ | ----------------- | ----------- |
 | `mongodb` | mongodb | לא |
-| `cassandra` | cassandra | לא |
-| `redis` | redis | לא |
+| `cassandra` | cassandra (Trino); קריאת CQL דרך cassandra-driver בכל מנוע אחר | לא | Keyspace הם סכמות; Register Table מציג את הטבלאות של keyspace ומקצה טיפוסים לעמודות לפי מטא-נתוני הסכמה של האשכול (מפתחות מחיצה כמפתחות ראשיים); התוסף `cassandra` מתקין את הדרייבר [tool-verified: `provisa/cassandra/fetch.py`] (REQ-1676) |
+| `redis` | redis (Trino); קריאת redis-py ללא HTTP בכל מנוע אחר | לא | קידומת מפתח `<table>:*` היא טבלה ו-hash הוא שורה; Register Table מציג את הקידומות הקיימות ומקצה טיפוסים לעמודות הקידומת לפי ה-hashes שלה (רשומת `mapping.tables` עוקפת תבנית, עמודת מפתח, טיפוס ערך ועמודות) [tool-verified: `provisa/redis/fetch.py`] (REQ-1675) |
 
 ### Qdrant
 
@@ -213,7 +228,7 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 
 ### מבוססי קובץ
 
-שני מנגנונים מכסים קבצים. שניהם משתמשים בשדה `path` במקום `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553)
+שלושה מנגנונים מכסים קבצים. מקורות הקובץ הבודד וסורק הקבצים משתמשים בשדה `path` במקום `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) השלישי, [Logs](#logs), נוקב בקבציו באמצעות glob ב-`mapping` שלו וקורא רק קבצים שנמצאים בשרת Provisa. [tool-verified: `provisa/logs/settings.py`]
 
 **מקורות חד-קובציים** — `sqlite`, `csv`, `parquet` מפנים את `path` לקובץ בודד.
 
@@ -237,7 +252,109 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
   path: s3://bucket/sales/**/*.csv   # glob; local and http(s):// also supported
 ```
 
+כל מקור `files` יכול גם להצהיר על `crawl` ב-mapping שלו, עם אותן הגדרות המפורטות תחת [Wikipedia](#wikipedia): המקור קורא תחילה דפי אינטרנט ומנחית כל טבלת HTML של נתונים וכל קובץ נתונים מקושר בספרייה שלו כטבלה. [tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
+
 במנוע DuckDB, `files` נקרא באופן ילידי — תצוגת סורק `read_csv_auto` לכל `<table>.csv` תחת הספרייה שנפתרה (REQ-229) [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]. במנוע ללא מחבר `files` משלו, השורות מונחתות דרך אותו שרת pgwire המצורף למחבר של Calcite (`pgwire-file`) ש-sharepoint/splunk משתמשים בו (REQ-954) — ראו [מחברי SaaS ארגוניים](#saas) בהמשך. כיסוי UI מקצה-לקצה (טופס Sources → Register Table → שאילתת SQL) ונתיב הנחיתה של pgwire מוכחים ב-REQ-1694.
+
+#### Logs (REQ-1996) {: #logs }
+
+מקור `logs` הופך קובצי יומן שבשרת Provisa לטבלה אחת. נוקבים בקבצים לפי נתיב מלא או glob, ובוחרים את הפורמט שבו הרשומות שלהם כתובות. כל רשומה הופכת לשורה. רשומה שהפורמט אינו מצליח לקרוא נשמרת, עם הטקסט הגולמי שלה והסיבה, ולעולם אינה נזרקת. [tool-verified: `provisa/logs/__init__.py`; `provisa/logs/files.py` `rows_of`]
+
+```yaml
+sources:
+  - id: mac-install-log
+    type: logs
+    mapping:
+      glob: /var/log/install.log*   # the live file and its rotated, compressed copies
+      format: macos_install
+```
+
+ה-mapping מקבל ארבעה מפתחות ודוחה כל מפתח אחר בשמו: `glob` ו-`format` (שניהם חובה), ו-`pattern` ו-`record_start`, שרק הפורמט `regex` מקבל. [tool-verified: `provisa/logs/settings.py` `parse`; `provisa/logparse/__init__.py` `format_for`]
+
+```yaml
+    mapping:
+      glob: /var/log/myapp/*.log
+      format: regex
+      pattern: '(?P<ts>\S+ \S+) (?P<level>[A-Z]+) (?P<message>.*)'
+      record_start: '\d{4}-\d{2}-\d{2} '   # a stack trace joins the line it follows
+```
+
+בטופס המקורות, מקור Logs מופיע בשם "Log files" תחת File. הכפתור **Preview** מציג את הקבצים שה-glob תופס, את העמודות שהפורמט נותן ואת 20 השורות הראשונות מהקובץ החדש ביותר, עוד לפני שמשהו נשמר. [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
+
+**ה-glob.** הוא חייב להיות נתיב מלא; `~` מורחב, ונתיב יחסי נדחה ("name the files by their full path"). ההתאמה נעשית באמצעות `glob` של Python במצב לא רקורסיבי, ולכן `**` מתנהג כמו `*` ותופס בתוך רמת ספרייה אחת. נלקחים רק קבצים רגילים, לפי סדר שמות. קובץ ריק מדולג עד שיש בו בתים. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+
+**העמודות של כל שורה.** הן באות לפני עמודות הפורמט:
+
+| עמודה | טיפוס | תוכן |
+| --- | --- | --- |
+| `_file_id` | text | זהות הקובץ: סכום ביקורת של 4096 הבתים הראשונים שלו, לאחר פריסה |
+| `_file_name` | text | הנתיב שתחתיו נקראה הרשומה |
+| `_line_offset` | bigint | היסט בבתים של השורה הראשונה של הרשומה בטקסט הפרוס |
+| `_entry` | bigint | איזו רשומת משנה של הרשומה היא השורה: 0, מלבד רשומת אצווה כגון `Records` בקובץ CloudTrail |
+| `_raw` | text | הרשומה כפי שנכתבה |
+| `_parse_error` | text | מדוע לא ניתן היה לקרוא את הרשומה, או אחד מערכיה; NULL כשנקראה |
+| `_landed_at` | timestamp | מתי השורה הונחתה |
+
+`_file_id`, `_line_offset` ו-`_entry` הם המפתח של השורה, ולכן רשומה שנקראה פעמיים היא שורה אחת. [tool-verified: `provisa/logs/__init__.py` `META_COLUMNS`, `KEY`; `provisa/logs/preview.py` `columns`]
+
+**פורמטים ותבניות מוכנות.** רשימת הפורמטים מקבצת אותם לפי משפחה; הבחירה האחרונה, `regex`, היא התבנית שלכם. [tool-verified: `provisa/logparse/__init__.py` `BUILT_IN`, `catalog`; `provisa/logparse/presets/__init__.py` `presets`; family labels from `provisa-ui/src/i18n/locales/en/logsFields.json`]
+
+| משפחה (תווית בטופס) | שמות פורמטים |
+| --- | --- |
+| תבניות נפוצות | `rfc3164`, `rfc5424`, `macos_install`, `clf`, `combined`, `jsonl`, `logfmt`, `w3c`, `cef`, `gelf` |
+| Amazon Web Services | `aws_alb`, `aws_nlb`, `aws_elb`, `aws_cloudfront`, `aws_s3_access`, `aws_cloudtrail`, `aws_vpc_flow`, `aws_waf`, `aws_route53_resolver` |
+| מסדי נתונים וסביבות ריצה | `postgresql_stderr`, `postgresql_csvlog`, `postgresql_jsonlog`, `mysql_error`, `mysql_slow`, `mongodb`, `redis`, `log4j2_default`, `logback_default`, `python_logging` |
+| Google | `gcp_cloud_logging`, `android_logcat`, `chrome_net_export` |
+| קונטיינרים ולינוקס | `kubernetes_cri`, `journald_json`, `linux_auditd`, `linux_dmesg` |
+| Microsoft | `ms_iis`, `ms_windows_firewall`, `ms_dns_debug`, `ms_dhcp_audit`, `ms_exchange_tracking`, `ms_sqlserver_errorlog`, `azure_storage_analytics`, `azure_monitor`, `windows_evtx` |
+| ניטור אבטחת רשת | `zeek_tsv`, `zeek_json`, `suricata_eve`, `snort_fast` |
+| שרתי אינטרנט ופרוקסי | `nginx_error`, `apache_error`, `haproxy_http`, `squid_access`, `envoy_access`, `caddy_access`, `traefik_access` |
+| משלכם | `regex` |
+
+אלה 56 פורמטים מובנים ו-`regex`. [tool-verified: `BUILT_IN` enumerated with the project interpreter]
+
+**כיצד פורמט יוצר עמודות.** פורמטים מקבלים את עמודותיהם באחת מארבע דרכים. [tool-verified: `provisa/logparse/formats.py`; `provisa/logparse/presets/_shared.py`; `provisa/logparse/coltypes.py`]
+
+- **עמודות קבועות.** רוב הפורמטים מצהירים על עמודותיהם ועל טיפוסיהן. `rfc3164`, למשל, נותן `timestamp`, `facility`, `severity`, `host`, `process`, `pid` ו-`message`; `facility` ו-`severity` מחושבים מהערך `<PRI>`. שורת syslog של BSD אינה נושאת שנה, ולכן השנה היא שנת הכתיבה האחרונה של הקובץ, או השנה שלפניה כשחודש השורה מאוחר מחודש הכתיבה.
+- **שדות שהרשומה נותנת להם שם.** `jsonl` ו-`logfmt` לוקחים את עמודותיהם מהשדות שנראו בשורות הראשונות של הקבצים (ההגדרה `logs.preview_lines`, ברירת מחדל 1000). כל עמודה מקבלת את הטיפוס הצר ביותר שכל הערכים שנראו מתאימים לו: boolean, אחר כך integer, float, timestamp ו-json, ואחרת text. שדה שרשומה מאוחרת יותר נושאת ואין לו עמודה נכנס לעמודת json בשם `extra`.
+- **שדות שכותרת נותנת להם שם.** `w3c` והתבניות המוכנות שנבנו עליו קוראים את שורת `#Fields:` של כל קובץ; `date` ו-`time` מתחברים לעמודת `timestamp` אחת. `aws_cloudfront`, `ms_iis`, `ms_windows_firewall`, `ms_exchange_tracking` ו-`zeek_tsv` קוראים שורות כותרת המתחילות ב-`#` באותו אופן, ו-`aws_vpc_flow` קורא שורת כותרת שמתחילה ב-`version`. המקום שבו נקראה שורת כותרת נשאר עם הקובץ, ולכן קובץ שנקרא בהמשך שומר על השדות שלו.
+- **`regex`.** כל קבוצה בעלת שם, כגון `(?P<level>…)`, היא עמודה מטיפוס text.
+
+מסך Register Table מציג את העמודות האלה עם הטיפוסים שלהן ומסמן את המפתח. [tool-verified: `provisa/api/admin/schema_query.py` `_logs_columns`] כשהשורות נקראות, כל ערך מומר לטיפוס שיש לעמודתו בטבלה הרשומה, ולכן טיפוס ששונה שם הוא זה שמיושם. ערך שהעמודה אינה יכולה להכיל הופך ל-NULL, וסיבתו נכתבת ב-`_parse_error`. [tool-verified: `provisa/logs/loader.py` `_load`; `provisa/logs/files.py` `_typed`] [inferred: that the screen lets a steward change a suggested type, as REQ-1996 states]
+
+רשומה ארוכה מ-`logs.max_line_bytes` (ברירת מחדל 65536) שומרת את הבתים הראשונים שלה ב-`_raw` ואינה מנותחת; `_parse_error` נותן את אורכה. קובץ שמתחיל בסימן סדר בתים (BOM) של UTF-8 או UTF-16 נקרא בקידוד הזה, וכל קובץ אחר נקרא כ-UTF-8. [tool-verified: `provisa/core/settings_catalog.py`; `provisa/logs/files.py` `rows_of`, `text_encoding`]
+
+**רשומות המשתרעות על כמה שורות.** פורמט עם תבנית תחילת רשומה יוצר רשומה משורה שמתאימה לה ומכל השורות העוקבות שאינן מתאימות. Stack trace נשאר עם החריגה שלו, ורשומת שאילתה איטית נשארת שלמה. שורות שלפני ההתאמה הראשונה הן רשומה בפני עצמה; הפורמט בדרך כלל דוחה אותה, והשורה נשמרת. הפורמטים המובנים עם תחילת רשומה הם `rfc3164`, `macos_install`, `aws_cloudtrail`, `postgresql_stderr`, `postgresql_csvlog`, `mysql_error`, `mysql_slow`, `log4j2_default`, `logback_default`, `python_logging`, `chrome_net_export`, `ms_sqlserver_errorlog` ו-`azure_monitor`. עם `regex`, קבעו `record_start` בעצמכם. [tool-verified: `provisa/logparse/framing.py` `records`; `record_start` of each format enumerated with the project interpreter]
+
+שני פורמטים קוראים את הרשומות שלהם בעצמם ולא לפי שורות. `kubernetes_cri` מחבר לרשומה אחת את שורות ה-`P` החלקיות שסביבת הריצה פיצלה, ו-`windows_evtx` קורא את הקובץ הבינארי `.evtx`. [tool-verified: `provisa/logparse/presets/linux.py` `KubernetesCri`; `frames_bytes` enumerated with the project interpreter]
+
+קובץ שעדיין נכתב נקרא עד השורה השלמה האחרונה שלו. בפורמט רב-שורתי הוא נקרא עד תחילת הרשומה האחרונה שלו, שהשורה הבאה עשויה להמשיך. משעברו 2 שניות בלי כתיבה לקובץ, הרשומה האחרונה נחשבת שלמה. [tool-verified: `provisa/logs/files.py` `QUIET_SECONDS`, `read_file`]
+
+**רוטציה.** קובץ מזוהה לפי סכום ביקורת של 4096 הבתים הראשונים שלו, לאחר פריסה, ולא לפי שמו. כש-`system.log` עובר רוטציה ל-`system.log.0` ואחר כך נדחס ל-`system.log.0.gz`, כל העותקים הם אותו קובץ. הקריאה נמשכת מהבית שהקריאה הקודמת הגיעה אליו, ולכן אף שורה אינה נקראת פעמיים. [tool-verified: `provisa/logs/files.py` module docstring, `identify`; `tests/unit/test_logs_source.py` `test_a_rotated_and_compressed_file_is_read_on_and_no_line_twice`]
+
+- דחיסה מזוהה לפי הבתים הראשונים של הקובץ, אף פעם לא לפי שמו: gzip ו-bzip2. קובץ דחוס נחשב שלם.
+- עותק שעבר רוטציה והתאום הדחוס שלו, שניהם תואמים, נקראים פעם אחת, מהדחוס.
+- קובץ שנמצא קצר מההיסט שכבר נקרא נקטע: הוא קובץ חדש, ונקרא מהתחלתו. השורות של הישן נשארות.
+- קבצים קצרים מ-4096 בתים שמתחילים אותו דבר מובחנים לפי inode, ולכן נשארים שני קבצים.
+- קובץ שה-glob כבר אינו תופס נשכח; השורות שלו נשארות כהיסטוריה.
+
+[tool-verified: `provisa/logs/files.py` `compression`, `Found.complete`, `identify`; `provisa/logs/loader.py` module docstring; `tests/unit/test_logs_source.py`]
+
+**רענון והעברה חיה.** טבלת Logs היא עותק משוכפל. שום דבר אינו עוקב אחר הקבצים. במקום זאת, כאשר אות השינוי של המקור הוא `probe` או `ttl_probe`, הבדיקה שלו מחשבת תקציר של הנתיב, ה-inode, הגודל והכתיבה האחרונה של כל קובץ תואם; כשהתקציר שונה, מתבקש רענון. סוגי הבדיקה שמקור Logs מקבל הם `hash` ו-`none`. [tool-verified: `provisa/logs/loader.py` `files_token`, `_freshness_probe`; `provisa/events/probes.py` `_LOADER_PROBED`, `probe_capabilities`]
+
+רענון קורא רק את החדש. כל קובץ נקרא מהמקום שאליו הגיעה הסריקה הקודמת, והשורות נכתבות לפי המפתח שלהן, 5000 בכל פעם, לפני שהמיקום החדש נשמר. סריקה שנעצרת בין שני השלבים קוראת את הרשומות האלה שוב, וזה משאיר את אותן שורות. כל סריקה מחתימה את שורותיה ב-`_landed_at`, העמודה שההעברה החיה משתמשת בה כסימן מים. שינוי בהגדרת הטבלה הוא בנייה מחדש מלאה שקוראת כל קובץ מתחילתו. [tool-verified: `provisa/logs/loader.py` `_UnitsRead`, `_WholeRead`, `BATCH_ROWS`, `replica_stamp_column`; `provisa/federation/replica_builds.py` `_kept_in_place`] [inferred: that subscriptions deliver a Logs table's new rows by `_landed_at`, as REQ-1996 states; the subscription side was not traced]
+
+**שורשים מורשים.** הגדרת המפעיל `logs.allowed_roots` מפרטת את הספריות שאליהן glob רשאי להיפתר. ברירת המחדל שלה היא `["/var/log"]`; זו רשימה בכרטיס Security של Admin → Settings, שאפשר לקבוע גם באמצעות `PROVISA_LOGS_ALLOWED_ROOTS`, ושינוי בה מבקש אישור. כל שורש נפתר לאחר הרחבת `~` ו-symlinks. [tool-verified: `provisa/core/settings_catalog.py` `logs.allowed_roots`; `provisa/logs/roots.py` `allowed_roots`]
+
+חלות שתי בדיקות. החלק הקבוע של ה-glob, עד התו הכללי הראשון שלו, חייב להיפתר בתוך שורש; זה נבדק כשהמקור נשמר ובכל פעם שהוא נבדק בתצוגה מקדימה או נקרא. גם כל קובץ תואם חייב להיפתר בתוך שורש לאחר מעקב אחר ה-symlinks שלו, ולכן symlink היוצא מ-`/var/log` נדחה. הדחייה נוקבת בנתיב, במה שהוא נפתר אליו ובשורשים המורשים:
+
+```text
+/home/me/app.log resolves to /home/me/app.log, outside the directories log files may be read from: /var/log
+```
+
+בשמירה הקוד הוא `schema.logs_path_refused`; בתצוגה מקדימה זו תשובת 403 עם `logs.path_refused`. [tool-verified: `provisa/logs/roots.py` `checked_glob`, `checked_file`; `provisa/api/admin/schema_common.py` `logs_refusal`; `provisa/api/admin/logs_router.py`; `tests/unit/test_logs_source.py` `test_a_symlink_escaping_the_root_is_refused_by_name`]
+
+**דחיית פריסה מתארחת (SaaS).** פריסה המחזיקה ארגונים רבים אינה קוראת שום קובץ יומן משלה. כל בדיקת נתיב דוחה ראשונה, בשמירה, בתצוגה מקדימה ובקריאה, עם "`<path>`: a server that holds many organizations reads no log file of its own". הקבצים שייכים לשרת, לא לארגון כלשהו, ולכן אין דייר שרשאי לקרוא אותם. הפריסה יודעת אם היא מחזיקה ארגונים רבים ממצב ה-multitenancy שלה. [tool-verified: `provisa/logs/roots.py` `_refuse_on_saas`; `provisa/core/secrets_providers.py` `many_organisations`; `provisa/api/app.py` `set_many_organisations_resolver(lambda: state.multitenancy)`; `tests/unit/test_logs_source.py` `test_a_server_of_many_organizations_reads_no_log_file_of_its_own`]
 
 #### ערכות נתונים של Kaggle (REQ-1780, REQ-1781, REQ-1782, REQ-1783) {: #kaggle-datasets }
 
@@ -254,11 +371,70 @@ Kaggle היא פלטפורמת הורדת קבצים. ערכת נתונים של
 
 **מגבלת v1.** חבילה המכילה קובץ `.sqlite` או `.db` נדחית מיידית עם שגיאה ברורה. רק קבצי CSV ו-Parquet מוכנים. [tool-verified: `provisa/kaggle/downloader.py` `UnsupportedKaggleDataset`, `_UNSUPPORTED_EXTENSIONS`]
 
-**מתן שם לטבלה.** כל קובץ נוחת בתת-ספרייה `<file-stem>/` משלו תחת שורש ערכת הנתונים. מחבר pgwire-file נותן לטבלה המתקבלת את השם `<subdir>__<stem>` לאחר נורמליזציית SMART_CASING. לדוגמה: `StatewiseTestingDetails.csv` נוחת ב-`statewise_testing_details/StatewiseTestingDetails.csv` והופך לטבלה `statewise_testing_details__statewise_testing_details`. הכפילות בגזע השם צפויה עבור ערכות נתונים בעלות קובץ יחיד. ערכת נתונים מרובת קבצים מייצרת זוג אחד לכל קובץ: `orders__orders`, `customers__customers`. (REQ-471)
+**מתן שם לטבלה.** טבלה שנסרקה נקראת `<page>__<name>`: כותרת הדף, ואז כיתוב הטבלה (caption), או הכותרת האחרונה שמעל הטבלה כשאין לה כיתוב, שתיהן באיות שמות העמודות של המקור. לדוגמה, הטבלה שמתחת לכותרת "Tallest buildings in the world" בדף `List_of_tallest_buildings` היא `list_of_tallest_buildings__tallest_buildings_in_the_world`. קובץ נתונים מקושר שומר על שמו שלו. [tool-verified: a live crawl of that page through the 0.109.0 file bundle]
 
 **רענון.** כדי לאחזר מחדש ערכת נתונים לאחר ש-Kaggle מפרסמת גרסה חדשה, קראו ל-mutation מסוג GraphQL בשם `refreshKaggleSource` עם מזהה המקור וטוקן תקף. פעולה זו מכינה מחדש את הקבצים במקומם ומפנה את מטמון נקודת הקצה של pgwire-file כך שהמחבר יקלוט כל שינוי סכימה בשאילתה הבאה שלו. `kaggle_owner` ו-`kaggle_ref`, השמורים ב-`federation_hints` בעת היצירה, מזהים איזו ערכת נתונים לאחזר מחדש. [tool-verified: `provisa/api/admin/schema_mutation.py` `refresh_kaggle_source`] (REQ-1780)
 
 **אין נתיב תצורת YAML סטטי.** מקורות Kaggle נוצרים רק דרך טופס Sources. מקור Kaggle שיוצא ל-YAML מופיע כ-`type: files` עם `kaggle_owner` ו-`kaggle_ref` תחת `federation_hints`. הורדה מחדש מ-Kaggle דורשת את תהליך הרענון ב-UI או את ה-mutation בשם `refreshKaggleSource` — הפניית ה-`path` ב-YAML לספרייה שכבר הוכנה היא החלופה עבור סביבות מבודדות (air-gapped).
+
+
+#### Wikipedia (REQ-1960) {: #wikipedia }
+
+Wikipedia סורקת את הדפים שאתם מציינים. כל טבלת נתונים בדף, וכל קובץ CSV, TSV, Excel, JSON או Parquet מקושר, הופכים לטבלה של המקור. כמו Kaggle, הוא נרשם כמקור `files` עם `crawl` ב-mapping שלו. הוספתו אינה רושמת דבר: steward רושם את הטבלאות הרצויות דרך מסך Register Table הרגיל. [tool-verified: `provisa/file_source/wikipedia.py` `crawl_settings`, `DATA_FILE_EXTENSIONS`; `provisa-ui/src/pages/sources/constants.ts` `wikipedia: "files"`] (REQ-316)
+
+**שדות ההגדרה.**
+
+| שדה | ברירת מחדל | משמעות |
+| --- | --- | --- |
+| Pages to start from | אין (חובה) | אחד בכל שורה: כותרת דף, או כתובת של דף במהדורה שנבחרה |
+| Language edition | `en` | קוד המהדורה, למשל `en`, `de` או `ja` |
+| Link depth | `1` | כמה קישורים הרחק מדף התחלה לקרוא; `0` קורא רק את דפי ההתחלה |
+| Page limit | `25` | מספר הדפים המרבי שסריקה אחת קוראת |
+| Contact | ריק | נשלח עם כל בקשה כדי ש-Wikipedia תוכל ליצור קשר, כפי שמדיניותה מבקשת |
+| Follow "See also" links | כבוי | כבוי משמיט את הפרק הזה מהערך |
+| What this edition calls its "See also" section | ריק | נשאל רק כשהתיבה שלמעלה כבויה ו-Provisa אינה יכולה לנקוב בפרק עבור המהדורה שנבחרה. כותרת הפרק כפי שדף מציג אותה, למשל `Voir aussi` |
+| Directory for the crawl's files | ריק | היכן נכתבות הטבלאות וקבצי הנתונים. ריק: `<PROVISA_DATA_DIR>/crawl/<source id>` |
+
+[tool-verified: `provisa-ui/src/pages/sources/WikipediaFields.tsx`; `provisa-ui/src/i18n/locales/en/sourceFormFieldsExtended.json` `wp*`; `provisa/file_source/wikipedia.py` `DEFAULTS`; `provisa/file_source/crawl.py` `crawl_landing_directory`]
+
+Provisa מכירה את כותרת "See also" של המהדורות האלה: `en`, `de`, `es`, `it`, `pt`, `nl`, `pl`, `sv`, `ja`, `zh`, `ru`. עבור כל מהדורה אחרת כש-"See also" כבוי, הטופס שואל איך המהדורה קוראת לפרק הזה; הקלידו את כותרתו כפי שדף מציג אותה (למשל `Voir aussi`). מקור שנשמר בלעדיה נדחה (`wikipedia.see_also_heading_needed`). [tool-verified: `provisa/file_source/wikipedia.py` `SEE_ALSO_HEADING`, `crawl_settings`]
+
+**אילו קישורים נעקבים.** קישור נבחר לפי מה שהסימון של הדף עצמו אומר שהוא, לעולם לא לפי שם בכתובת שלו: שמות כאלה שונים בכל מהדורת שפה ומופיעים גם בכותרות רגילות. [tool-verified: `provisa/file_source/wikipedia.py` module docstring]
+
+- נעקבים: קישורים לערכים אחרים השוכנים בטקסט הערך עצמו, ברשימות ובטבלאות הנתונים. סימן הסימון הוא `a[rel='mw:WikiLink']`.
+- לא נעקבים: דפים שטרם נכתבו, הדף עצמו, חיפושי ספרים, דפי קבצים, ויקיות אחרות ואתרים חיצוניים.
+- לא נקראים כלל (מוסרים לפני שאוספים קישורים וטבלאות): תיבות ניווט, תיבות מידע, הערות וציטוטים, קטגוריות, תוכן העניינים, תמונות והודעות תחזוקה.
+- לא נקרא אלא אם מפעילים את האפשרות: הפרק "See also".
+
+רק טבלאות שעורכים מסמנים כטבלאות נתונים (`table.wikitable`) הופכות לטבלאות, וטבלה עם פחות מ-2 שורות אינה מוצעת. [tool-verified: `provisa/file_source/wikipedia.py` `LINK_SELECTOR`, `REMOVE_SELECTORS`, `TABLE_SELECTOR`, `DEFAULTS`]
+
+**הגדרות סריקה מתקדמות.** הטופס שומר אותן מקופלות תחת "Crawl settings" ומציג כל אחת עם ברירת המחדל שלה; השאירו שדה ריק כדי לשמור אותה. במיפוי `files` אותם שמות באים תחת `crawl:`, ושם שמחוץ לרשימה זו נדחה. [tool-verified: `provisa/file_source/crawl.py` `CRAWL_SETTINGS`, `crawl_operand`; `provisa/file_source/wikipedia.py` `crawl_settings`]
+
+| הגדרה | ברירת מחדל ב-Wikipedia | משמעות |
+| --- | --- | --- |
+| `start_urls` | הדפים שציינתם | הדפים שהסריקה מתחילה מהם |
+| `max_depth` | `1` | עומק קישורים |
+| `max_pages` | `25` | מגבלת דפים |
+| `request_delay` | `1 seconds` | השהיה בין בקשות |
+| `user_agent` | `Provisa/<version> (+https://provisa.dev) file-crawler`, עם איש הקשר שלכם מצורף | השם שהסריקה נותנת לעצמה |
+| `content_selector` | `#mw-content-text .mw-parser-output` | בורר CSS: קישורים וטבלאות נקראים רק בתוכו |
+| `remove_selectors` | רשימת החלקים שתוארו לעיל | בוררי CSS לחלקים שמושמטים. ציון שלה מחליף את הרשימה כולה, כולל הכלל של "See also" |
+| `link_selector` | `a[rel='mw:WikiLink']` עם החרגות | בורר CSS שקישור חייב להתאים לו כדי להיעקב |
+| `link_exclude_patterns` | ריק | ביטויים רגולריים; קישור שכתובתו מתאימה לאחד מהם אינו נעקב |
+| `follow_external_links` | `false` | לעקוב אחר קישורים לאתרים אחרים |
+| `allowed_domains` | לא מוגדר | הדומיינים שהסריקה רשאית לבקר בהם |
+| `table_selector` | `table.wikitable` | בורר CSS שטבלה חייבת להתאים לו |
+| `generate_tables_from_html` | לא מוגדר | האם טבלאות HTML הופכות לטבלאות |
+| `html_table_min_rows` | `2` | מספר השורות המינימלי בטבלה |
+| `html_table_max_rows` | לא מוגדר | מספר השורות המרבי בטבלה |
+| `allowed_file_extensions` | `csv`, `tsv`, `xlsx`, `xls`, `json`, `parquet` | סוגי קבצים מקושרים שהופכים לטבלאות |
+| `html_cache_ttl` | `1 days` | כמה זמן סריקה נשמרת |
+| `max_html_size` | לא מוגדר | הדף הגדול ביותר שנקרא, למשל `10MB` |
+| `max_data_file_size` | לא מוגדר | קובץ הנתונים הגדול ביותר שנקרא, למשל `100MB` |
+
+**מתן שם לטבלה.** טבלה שנסרקה נקראת `<page>__<name>`. השם הוא ה-`id` של הטבלה עצמה כשיש לה, אחרת הכיתוב שלה, אחרת הכותרת הקרובה ביותר מעליה. לדוגמה, טבלה מתחת לכותרת "Tallest buildings" בדף `List_of_tallest_buildings` הופכת ל-`list_of_tallest_buildings__tallest_buildings` לאחר נרמול השם. [tool-verified: calcite `file` adapter `HtmlToJsonConverter.java` (`baseFileName + "__" + tableName`), `HtmlTableScanner.java` `getTableName`] [inferred: the exact normalized spelling in the example]
+
+**רענון.** סריקה נשמרת לתקופת המטמון, `1 days` כברירת מחדל (`html_cache_ttl`). דפים נשלפים מחדש רק לאחר שהזמן הזה חלף. [tool-verified: `provisa/file_source/wikipedia.py` `DEFAULTS`]
 
 ### Observability ואחרים
 
@@ -267,11 +443,11 @@ Kaggle היא פלטפורמת הורדת קבצים. ערכת נתונים של
 | סוג מקור | שם המחבר | מוטציות |
 | ------------ | ----------------- | ----------- |
 | `google_sheets` | — (מטריאליזציה) | לא |
-| `prometheus` | prometheus | לא |
+| `prometheus` | prometheus | לא | מטריקה היא טבלה ודגימה היא שורה (`timestamp`, `value`, עמודה אחת לכל label); בכל מנוע ללא מחבר חי Provisa קוראת את ה-API של HTTP — שמות מטריקות ו-labels עבור Register Table, `query_range` על טווח הטבלה עבור הנחתה [tool-verified: `provisa/prometheus/fetch.py`] (REQ-1689) |
 
 ### מחברי SaaS ארגוניים
 
-SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (kenstott/calcite fork). לאף אחד מהם אין דרייבר ישיר — Provisa מבצעת מטריאליזציה של השורות שלהם על ידי הפעלת שרת ה-pgwire המצורף של המחבר (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`), התחברות אליו כנקודת קצה גנרית של PostgreSQL, והנחתת השורות למחסן המטריאליזציה לצורך פדרציה (REQ-954). שלושת המחברים מפעילים תמיד התאמת שמות שאינה תלוית רישיות, בהתאמה לסמנטיקה שאינה תלוית-רישיות של כל מוצר (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+Google Workspace ו-Microsoft 365 נקראים על ידי טוענים משלהם; ראו [Google Workspace ו-Microsoft 365](#google-workspace-and-microsoft-365). SharePoint, Salesforce, ServiceNow, מלאי הענן ו-Splunk נרשמים דרך מחברי Apache Calcite (kenstott/calcite fork). לאף אחד מהם אין דרייבר ישיר — Provisa מפעילה את שרת ה-pgwire המצורף של Calcite למחבר (`pgwire-sharepoint`, `pgwire-salesforce`, `pgwire-servicenow`, `pgwire-cloudops`, `pgwire-splunk`) ומתחברת אליו כנקודת קצה גנרית של PostgreSQL. במנוע DuckDB נקודת הקצה הזו מצורפת חיה דרך תוסף postgres: Register Table מציג את הטבלאות של המחבר מהקטלוג המצורף, השאילתות קוראות את המחבר במקומו, והסינונים וההטלות מועברים ל-Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. כל מנוע אחר מנחית את השורות למחסן המטריאליזציה לצורך פדרציה (REQ-954). החבילות נשלפות לפי מערכת הפעלה וארכיטקטורה מהגרסה המוצמדת של `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] מפעיל רשאי במקום זאת לציין תיקיית חבילה שנבנתה עבור המארח הזה, לכל מחבר, תחת Admin → Settings → Connector servers (`connectors.<connector>.bundle_dir`); ראו [Admin](admin.md). חמשת המחברים מפעילים תמיד התאמת שמות שאינה תלוית רישיות, בהתאמה לסמנטיקה שאינה תלוית-רישיות של כל מוצר (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -284,7 +460,7 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 | `password` | `client-secret` | סוד client של אפליקציית Azure |
 | `database` | `tenant-id` | UUID דייר (tenant) של Azure |
 | `mapping.auth_type` | `auth-type` | `CLIENT_CREDENTIALS` (ברירת מחדל) או `CERTIFICATE` |
-| `mapping.certificate_path` | `certificate-path` | נתיב PFX כאשר `auth_type: CERTIFICATE` |
+| `mapping.certificate_path` | `certificate-path` | נתיב PFX כאשר `auth_type: CERTIFICATE` — חייב להיות מוחלט |
 | `mapping.certificate_password` | `certificate-password` | סיסמת PFX — המפתח חייב להיות נוכח, מחרוזת ריקה עבור PFX ללא סיסמה |
 
 אימות תעודה (certificate) על המנועים שאינם Trino נושא שני כללים נוספים, שניהם נאכפים כאשר האופרנד `model.json` של שרת ה-Calcite pgwire נבנה (REQ-1693). `certificate_path` חייב להיות מוחלט: השרת רץ עם תיקיית החבילה שלו כתיקיית העבודה, כך שנתיב יחסי נפתר בתוך מטמון runtime-deps והקובץ PFX אינו נמצא. `certificate_password` חייב להיות נוכח ב-`mapping` גם כאשר ל-PFX אין סיסמה, ובמקרה זה הוא מחרוזת ריקה — מתאם ה-Calcite דוחה סיסמת null באופן מוחלט, ומפתח נעדר מטופל כשגיאת הגדרות ולא נקרא בשקט כסיסמה ריקה. ערך חסר או יחסי מעלה `MissingConnectorConfig` הנוקב בשדה. [tool-verified: `provisa/federation/pgwire_replica.py` `_sharepoint_operand`]
@@ -320,11 +496,11 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 
 כל sObject שפרטי ההזדהות יכולים לתשאל הוא טבלה שה-steward רשאי לרשום (`Account`, `Opportunity`, אובייקטים מותאמים `*__c`); דבר אינו נרשם אוטומטית (REQ-1946). העמודות והטיפוסים מגיעים מה-describe של ה-sObject. סינונים, הטלות, מיונים והגבלות מועברים ל-Salesforce כ-SOQL. [tool-verified: `provisa/federation/pgwire_replica.py` `_salesforce_operand`; `provisa/federation/trino_connectors.py` `TrinoSalesforceConnector`]
 
-מקור Salesforce מציין את כתובת ההתחברות My Domain של הארגון וסט שלם אחד של פרטי הזדהות, שנבחר באמצעות `mapping.auth_type`. סט חלקי נדחה בעת השימוש במקור, תוך ציון הערך החסר. כל סוד יכול להיות הפניה מסוג `${secret:…}` או `${env:…}`.
+מקור Salesforce מציין את כתובת ההתחברות My Domain של הארגון וסט שלם אחד של פרטי הזדהות, שנבחר באמצעות `mapping.auth_type`. כתובת ההתחברות היא כתובת `https://…` מלאה (לדוגמה `https://acme.my.salesforce.com`); מארח בלבד או כל פרוטוקול אחר נדחה תוך ציון השדה. סט חלקי נדחה בעת השימוש במקור, תוך ציון הערך החסר. כל סוד יכול להיות הפניה מסוג `${secret:…}` או `${env:…}`. סוד שהוקלד כערך מילולי נשמר בכספת הארגון, והמקור שומר את ההפניה אליו.
 
 | שדה מקור | מאפיין מחבר | הערות |
 | --- | --- | --- |
-| `base_url` / `host` | `login-url` | כתובת ה-My Domain של הארגון (Setup, ואז My Domain). `login.salesforce.com` אינו פועל בזרימת client credentials |
+| `base_url` או `host` | `login-url` | כתובת ה-My Domain של הארגון (Setup, ואז My Domain). `login.salesforce.com` אינו פועל בזרימת client credentials |
 | `username` | `client-id` | ה-consumer key של האפליקציה המחוברת |
 | `password` | `client-secret` | ה-consumer secret של האפליקציה המחוברת |
 | `mapping.auth_type` | — | `CLIENT_CREDENTIALS` (ברירת מחדל), `USERNAME_PASSWORD` או `ACCESS_TOKEN` |
@@ -337,9 +513,9 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 
 **קריאות.** ב-Trino המקור נקרא דרך הקטלוג `salesforce`, שרק קורא. בכל מנוע אחר, המנוע מצרף את שרת ה-pgwire של המקור וקורא אותו במקומו.
 
-**כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על sObject רשום הן מוטציות: נשלטות, מתועדות בביקורת ומטופלות לפי סביבה ככל מוטציה אחרת. בכל מנוע, כולל Trino, כתיבה רצה על שרת ה-pgwire של המקור; ב-Trino שרת זה רץ לכתיבות בלבד. כל פקודה נשלחת ל-Salesforce ומאושרת עם ביצועה, ולכן אי אפשר לבטל אותה, ו-`RETURNING` אינו נתמך. מקור SharePoint נכתב באותה דרך. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
+**כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על sObject רשום הן מוטציות: נשלטות, מתועדות בביקורת ומטופלות לפי סביבה ככל מוטציה אחרת. בכל מנוע, כולל Trino, כתיבה רצה על שרת ה-pgwire של המקור; ב-Trino שרת זה רץ לכתיבות בלבד. כל פקודה נשלחת ל-Salesforce ומאושרת עם ביצועה, ולכן אי אפשר לבטל אותה. השרת אינו מחזיר את השורות שהוא כותב: פקודה עם סעיף `RETURNING` נדחית, ו-GraphQL אינו מציע שדות מוטציה עבור הטבלאות הללו; `INSERT`, `UPDATE`, `DELETE` ו-`COPY` ב-SQL הם נתיבי הכתיבה. כתיבה היא פקודה פשוטה אחת על טבלה אחת: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` ו-`TRUNCATE` נדחים תוך ציון הצורה. מקור SharePoint נכתב באותה דרך. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
 
-**הפעלה.** לפני שהוא מקבל חיבורים, שרת המקור קורא את העמודות של כל sObject, כארבע דקות לארגון עם 1,200 כאלה. המחיר משולם פעם אחת: תוצאות ה-describe נשמרות בספריית המצב של המקור עצמו, תחת ספריית הנתונים של המופע. השרת מופעל כשהמקור נרשם או נטען. עד שהוא מקבל חיבורים, רישום טבלה מציג את המחבר כמתחיל לפעול, וכתיבה מקבלת את אותה הודעה במקום להמתין. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
+**הפעלה.** לפני שהוא מקבל חיבורים, שרת המקור קורא את העמודות של כל sObject, כארבע דקות לארגון עם 1,200 כאלה. המחיר משולם פעם אחת: תוצאות ה-describe נשמרות בספריית המצב של המקור עצמו, תחת ספריית הנתונים של המופע. השרת מופעל כשהמקור נרשם או נטען. ב-Trino הקטלוג `salesforce` שומר תוצאות describe משלו, ספרייה אחת לכל מקור תחת `/data/trino/cache/salesforce-describe` ב-coordinator, כך שהמחיר משולם פעם אחת גם שם כשהנתיב הזה הוא volume שמתקיים מעבר לחיי הקונטיינר: ה-volume בשם `trino_cache` של ערימת ה-compose, או ה-volume של מטמון ה-coordinator בתרשים Helm (`trino.coordinator.cache.persistence`). עד שהשרת מקבל חיבורים, Register Table מציג את המחבר כמתחיל לפעול, וכתיבה מקבלת את אותה הודעה במקום להמתין. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
 
 ```yaml
 - id: sales-salesforce
@@ -402,26 +578,26 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 
 #### `cloudops`
 
-מלאי הענן מציג את המשאבים של Azure,‏ AWS ו-GCP כסט אחד של טבלאות: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries`, `compute_security_groups`. לכל טבלה אותן עמודות בשלושת העננים, והעמודה `cloud_provider` מציינת מאיזה ענן הגיעה כל שורה. המקור קורא בלבד, והטבלאות שלו נרשמות על ידי steward כמו כל טבלה אחרת (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
+מלאי הענן מציג את המשאבים של Azure,‏ AWS ו-GCP כסט אחד של טבלאות: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries`, ו-`compute_security_groups`, המקשרת משאב חישוב לקבוצות האבטחה שלו. לכל טבלה אותן עמודות בשלושת העננים, והעמודה `cloud_provider` מציינת מאיזה ענן הגיעה כל שורה. המקור קורא בלבד, והטבלאות שלו נרשמות על ידי steward כמו כל טבלה אחרת (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
 
-מקור מציין ענן אחד או יותר. כל ענן הוא הכול או כלום: ענן שרק חלק מערכי החובה שלו מולאו נדחה, תוך ציון מה חסר, וכך גם מקור שאינו מציין אף ענן. המקור קורא בדיוק את העננים שהוא מציין. כל הערכים נמצאים ב-`mapping`; כל סוד יכול להיות הפניה מסוג `${secret:…}` או `${env:…}`, וסוד שהוקלד ישירות נשמר בכספת של הארגון.
+מקור מציין ענן אחד או יותר. כל ענן הוא הכול או כלום: ענן שרק חלק מערכי החובה שלו מולאו נדחה, תוך ציון מה חסר, וכך גם מקור שאינו מציין אף ענן. המקור קורא בדיוק את העננים שהוא מציין. כל הערכים נמצאים ב-`mapping`; כל סוד יכול להיות הפניה מסוג `${secret:…}` או `${env:…}`, סוד שהוקלד כערך מילולי נשמר בכספת הארגון, והמקור שומר את ההפניה אליו.
 
 | ענן | מפתח `mapping` | מאפיין מחבר | הערות |
 | --- | --- | --- | --- |
 | Azure | `azure_tenant_id` | `azure.tenant-id` | חובה |
-| Azure | `azure_client_id` | `azure.client-id` | חובה |
+| Azure | `azure_client_id` | `azure.client-id` | חובה; מזהה ה-client של רישום האפליקציה |
 | Azure | `azure_client_secret` | `azure.client-secret` | חובה; סוד |
 | Azure | `azure_subscription_ids` | `azure.subscription-ids` | חובה; מופרדים בפסיקים |
 | AWS | `aws_access_key_id` | `aws.access-key-id` | חובה |
 | AWS | `aws_secret_access_key` | `aws.secret-access-key` | חובה; סוד |
-| AWS | `aws_region` | `aws.region` | חובה |
+| AWS | `aws_region` | `aws.region` | חובה, לדוגמה `us-east-1` |
 | AWS | `aws_account_ids` | `aws.account-ids` | חובה; מופרדים בפסיקים |
-| AWS | `aws_role_arn` | `aws.role-arn` | אופציונלי |
-| GCP | `gcp_credentials_path` | `gcp.credentials-path` | חובה |
+| AWS | `aws_role_arn` | `aws.role-arn` | אופציונלי; תפקיד להנחה (assume) לגישה חוצת-חשבונות |
+| GCP | `gcp_credentials_path` | `gcp.credentials-path` | חובה; נתיב מוחלט לקובץ מפתח JSON של חשבון שירות |
 | GCP | `gcp_project_ids` | `gcp.project-ids` | חובה; מופרדים בפסיקים |
-| — | `cache_ttl_minutes` | `cache.ttl-minutes` | אופציונלי |
+| — | `cache_ttl_minutes` | `cache.ttl-minutes` | אופציונלי; כמה זמן תוצאה נעשית בה שימוש חוזר לפני שהענן נשאל שוב (ברירת מחדל של המתאם 5) |
 
-קובץ המפתח של GCP נפתח על ידי מי שקורא את המקור: ב-Trino זהו שרת Trino, ובכל מנוע אחר זהו שרת ה-pgwire של המקור במארח של Provisa. הנתיב חייב להיות מוחלט.
+קובץ המפתח של GCP נפתח על ידי מי שקורא את המקור. ב-Trino זהו שרת Trino, ולכן הנתיב חייב להתקיים שם. בכל מנוע אחר זהו שרת ה-pgwire של המקור במארח של Provisa, שספריית העבודה שלו היא ספריית המצב שלו, ולכן נתיב יחסי נדחה.
 
 ב-Trino המקור נקרא דרך הקטלוג `cloudops`. בכל מנוע אחר, המנוע מצרף את שרת ה-pgwire של המקור וקורא אותו במקומו, כמו מקור SharePoint.
 
@@ -452,6 +628,8 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 | `mapping.datamodel_filter` | `datamodel-filter` | סינון למודל נתונים מסוים |
 | `mapping.disable_ssl_validation` | `disable-ssl-validation` | עבור תעודות בחתימה עצמית (REQ-724) |
 
+במסלול pgwire-replica (כל מנוע מלבד Trino) אותן ארבע ההגדרות האופציונליות הופכות למפתחות האופרנד `app`, `token`/`username`+`password`, `datamodelFilter` ו-`disableSslValidation` של `model.json` ב-Calcite — שתי האחרונות כטיפוסים ש-`SplunkSchemaFactory` ממיר אליהם, מחרוזת ובוליאני (REQ-1694). [tool-verified: `provisa/federation/pgwire_replica.py` `_splunk_operand`]
+
 ```yaml
 - id: ops-splunk
   type: splunk
@@ -462,6 +640,84 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
     use_token: true
     disable_ssl_validation: true
 ```
+
+#### Google Workspace ו-Microsoft 365 (REQ-1923, REQ-1994) {: #google-workspace-and-microsoft-365 }
+
+`google_workspace` ו-`microsoft_365` קוראים את הדואר, לוחות השנה והמשימות של החשבונות שמקור נוקב בהם, ומנחיתים אותם כעותקים משוכפלים. הם אינם מחברי Calcite: לכל אחד יש טוען משלו הקורא ל-API של הספק, Gmail, Google Calendar ו-Google Tasks מצד אחד ו-Microsoft Graph מצד שני. הטופס מציג אותם תחת Enterprise בשם "Google Workspace (Gmail)" ו-"Microsoft 365 (Outlook, Exchange)". [tool-verified: `provisa/core/models.py` `SourceType`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`; `provisa-ui/src/pages/sources/constants.ts`]
+
+**טבלאות.** שני הסוגים מפיקים אותן טבלאות קנוניות: אותם שמות, טיפוסי עמודות וסדר. איחוד של השניים אינו דורש המרה או שינוי שם; עמודה שלספק אחד אין בה ערך היא NULL. הטבלאות רשומות תחת הסכמה `default`, וכל שורה מובילה בחשבון שממנו נקראה. מקור מציע את הטבלאות של המשאבים שהוא קורא: [tool-verified: `provisa/core/canonical_mail.py` module docstring, `RESOURCE_TABLES`, `tables_for`; `provisa/google_workspace/loader.py` `SCHEMA`]
+
+| משאב | טבלאות | נכתב על ידי הצהרות |
+| --- | --- | --- |
+| `mail` | `messages`, `message_recipients`, `folders`, `message_folders`, `threads`, `attachments` | לא |
+| `calendar` | `calendars`, `events`, `event_attendees` | `events`, `event_attendees` |
+| `tasks` | `task_lists`, `tasks` | `tasks` |
+
+העמודות מפורטות ב-[סכמת הדואר הקנונית](arch/canonical-mail-schema.md). `events` מחזיקה אירועים בודדים, אירועי אב של סדרות עם החזרתיות שלהם כשורות RFC 5545, וחריגים; היא לעולם אינה מחזיקה את המופעים המורחבים של סדרה. [tool-verified: `provisa/google_workspace/calendar_read.py` module docstring] (REQ-1994)
+
+**רישום.** מנהל הארגון מזין תחילה את הלקוח של הארגון עבור הפלטפורמה תחת Admin → Email: מזהה לקוח וסוד, ועבור Microsoft 365 גם מזהה הספרייה (tenant) או הדומיין. מי שמוסיף מקור אינו רואה אותו ואינו מקליד אותו. מקור מקבל אחת משתי צורות: [tool-verified: `provisa/core/mail_platforms.py` module docstring; `provisa/microsoft365/__init__.py`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json`]
+
+- **תיבת דואר אחת.** המקור נוקב כתובת אחת ב-`accounts`. הבעלים שלה לוחץ על **Connect** בטופס ומאשר את לקוח הארגון. האישור שמתקבל נשמר במאגר המצב של הארגון, לא בהגדרות המקור. ב-Google Workspace הצורה הזו מצהירה גם `sign_in: google_account`.
+- **תיבות הדואר של הארגון.** המקור מצהיר `mailboxes` כאחד בדיוק מ-`everyone: true`, `group: <address or id>` או `list: [addresses]`. הוא אינו מחזיק אישור גישה ואיש אינו מחבר אותו. הארגון קורא בגישה משלו, ורק לאחר שמנהל המערכת הפעיל את "Read the organization's mailboxes". ב-Google הגישה היא מפתח של חשבון שירות עם האצלה ברמת הדומיין (domain-wide delegation), בצירוף כתובת מנהל לקריאות ספרייה. ב-Microsoft זו זרימת client-credentials של רישום האפליקציה.
+
+[tool-verified: `provisa/google_workspace/settings.py` `parse`, `_mailboxes`; `provisa/microsoft365/settings.py` `parse`; `provisa/core/mail_platforms.py` `organisation_mailboxes`]
+
+בצורה השנייה, טבלה אחת מחזיקה את השורות של כל תיבות הדואר. תפקיד שרשאי לקרוא את הטבלה קורא את כל תיבות הדואר, אלא אם כלל שורה על העמודה `account` מגביל אותו. [tool-verified: `provisa-ui/src/i18n/locales/en/googleWorkspaceFields.json` `everyMailbox`]
+
+```yaml
+sources:
+  - id: team-mail
+    type: microsoft_365
+    mapping:
+      resources: [mail, calendar, tasks]
+      mailboxes:
+        group: support@acme.com
+      mail_since: "2026-01-01"
+      calendar_check_days: 30        # required when calendar is read
+      calendar_send_updates: false
+```
+
+**הגדרות.** כל מודול דוחה בשמו מפתח שהוא אינו קורא. [tool-verified: `provisa/google_workspace/settings.py` `_KEYS`; `provisa/microsoft365/settings.py` `_KEYS`]
+
+| מפתח `mapping` | טיפוס | משמעות |
+| --- | --- | --- |
+| `resources` | שניהם | אילו מ-`mail`, `calendar`, `tasks` המקור קורא; לפחות אחד |
+| `accounts` | שניהם | כתובת תיבת הדואר היחידה (צורת תיבה אחת) |
+| `mailboxes` | שניהם | `everyone`, `group` או `list` (צורת ארגון) |
+| `sign_in` | `google_workspace` | `google_account` (צורת תיבה אחת) |
+| `mail_since` | שניהם | `YYYY-MM-DD`; דבר שהתקבל קודם אינו נשמר |
+| `mail_content` | `google_workspace` | `full`, או `headers` לכותרות ותוויות בלבד (ההיקף `gmail.metadata` של Gmail). חובה כשקוראים דואר |
+| `mail_search` | `google_workspace` | חיפוש כפי שמקלידים בתיבת החיפוש של Gmail |
+| `mail_labels` | `google_workspace` | שמות תוויות; נקרא רק דואר הנושא את כולן |
+| `mail_include_spam_trash` | `google_workspace` | `false` כברירת מחדל |
+| `calendar_send_updates` | שניהם | האם כתיבה מודיעה למשתתפי אירוע; כבוי כברירת מחדל |
+| `calendar_check_days` | `microsoft_365` | ימים משני צדי היום שבהם בדיקת השינויים מסתכלת; מספר שלם, 1 או יותר, חובה כשקוראים לוח שנה |
+
+Google דוחה חיפוש תחת `gmail.metadata`, ולכן `mail_content: headers` עם `mail_search` או `mail_since` נדחה. [tool-verified: `provisa/google_workspace/settings.py` `_mail`]
+
+**היקפים (Scopes).** כניסה מבקשת רק את ההיקפים של המשאבים שסומנו: [tool-verified: `provisa/google_workspace/settings.py` `MAIL_SCOPES`, `RESOURCE_SCOPES`; `provisa/google_workspace/sign_in.py` `EMAIL_SCOPE`; `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`, `BASE_SCOPES`; `provisa/microsoft365/directory.py`]
+
+| משאב | Google Workspace | Microsoft 365 (delegated) |
+| --- | --- | --- |
+| `mail` | `gmail.readonly`, או `gmail.metadata` לכותרות בלבד | `Mail.Read` |
+| `calendar` | `calendar.calendarlist.readonly`, `calendar.events` | `Calendars.ReadWrite` |
+| `tasks` | `tasks` | `Tasks.ReadWrite` |
+| כל מקור | `userinfo.email` | `offline_access`, `User.Read` |
+
+בצורת הארגון, Microsoft דורשת את הרשאות האפליקציה `Mail.Read` ו-`User.Read.All`, וכן `Calendars.ReadWrite` ו-`Tasks.ReadWrite.All` ללוחות שנה ולמשימות. חשבון השירות של Google מורשה להיקפים ב-`DELEGATED_SCOPES`, הכוללים גם קריאת משתמשי ספרייה וחברי קבוצות. [tool-verified: `provisa/microsoft365/directory.py`; `provisa/google_workspace/__init__.py` `DELEGATED_SCOPES`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json` `organisationGrant`]
+
+**רענון ועדכניות.** סוגי הבדיקה שהמקורות האלה מקבלים הם `hash` ו-`none`, והטוען שלהם מספק את אסימון השינוי: [tool-verified: `provisa/events/probes.py` `_MAIL_TYPES`, `probe_capabilities`]
+
+- **Gmail:** תקציר של מזהה ההיסטוריה הנוכחי של כל תיבת דואר, קריאת `users.getProfile` אחת לכל תיבה. [tool-verified: `provisa/google_workspace/loader.py` `mailbox_token`]
+- **דואר Microsoft:** כל delta link שנשמר, במעקב אחר פריט אחד. [tool-verified: `provisa/microsoft365/loader.py` `unchanged`]
+- **לוחות שנה ומשימות של Google:** התג וזמן השינוי האחרון של כל לוח שנה; התג של כל רשימת משימות, והמזהה וזמן העדכון של כל משימה. [tool-verified: `provisa/google_workspace/calendar_read.py` `change_token`]
+- **לוחות שנה ומשימות של Microsoft:** שורות השינוי של כל תיבת דואר, על פני `calendar_check_days` משני צדי היום. [tool-verified: `provisa/microsoft365/loader.py` `_calendar_token`] [inferred: that a line is an event's id and change key, or a task's update time, from REQ-1994]
+
+בדיקה שאי אפשר לבצע מבקשת קריאה; היא לעולם אינה מדווחת "ללא שינוי". טבלאות לוח שנה ומשימות נקראות במלואן בכל רענון. העותקים המשוכפלים של הדואר במקור Microsoft 365 או Google Workspace נשמרים במקומם: כל חלק של תיבת דואר נכתב כשהוא מגיע וניתן לשאול אותו מיד. [tool-verified: `provisa/core/canonical_mail.py` `RESOURCE_TABLES` comment; `provisa/federation/replica_builds.py` `GROUP_READ_TYPES`; `provisa/federation/mail_units.py`] מקור Google Workspace המצמצם לפי `mail_search` נקרא שוב במלואו בכל רענון, משום שרק Google יכולה לומר מה חיפוש תואם. [tool-verified: `provisa/google_workspace/units.py` module docstring]
+
+**כתיבות.** `INSERT`, `UPDATE` ו-`DELETE` על `events`, `event_attendees` ו-`tasks` עוברים לספק דרך נתיב כתיבה אחד לשני הסוגים. `UPDATE` או `DELETE` נוקבים בשורותיהם לפי `provider`, `account` ו-`id`; משתתף נקוב לפי `event_id` ו-`address`. מופע אחד של סדרה נקוב לפי `series_id` ו-`original_start_at`. כתיבה שקובעת עמודה מחוץ לקבוצת העמודות הניתנות לכתיבה של הטבלה נדחית בשמה. Google כותבת עם `sendUpdates=all` כש-`calendar_send_updates` פעיל ועם `sendUpdates=none` כשהוא כבוי. Microsoft Graph אינו יכול לבצע שינוי כזה בשקט, ולכן שינוי במשתתפי פגישה נדחה, תוך ציון ההגדרה. [tool-verified: `provisa/executor/writable.py` `API_WRITTEN`; `provisa/core/canonical_mail.py` `WRITE_KEYS`, `WRITABLE_COLUMNS`; `provisa-ui/src/i18n/locales/en/mailResources.json` `sendUpdatesHelp`] [tool-verified: `provisa/google_workspace/calendar_write.py`]
+
+**החרגות.** הדואר לקריאה בלבד; שום הצהרה אינה משנה תיבת דואר. `calendars`, `task_lists` וכל טבלאות הדואר אינן מקבלות כתיבות. התיקיות Spam ו-Trash של Gmail מושמטות אלא אם `mail_include_spam_trash` פעיל. ה-API של Google Tasks שומר רק את היום שבו משימה אמורה להסתיים, ואין בו תזכורת. [tool-verified: `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`; `provisa/core/canonical_mail.py` `WRITABLE_COLUMNS`; `provisa/google_workspace/settings.py` `_mail`] [inferred: the Tasks API limit, from REQ-1994]
 
 ### מקורות API
 
@@ -477,24 +733,79 @@ SharePoint, Splunk ו-ServiceNow נרשמים דרך מחברי Apache Calcite (
 
 **כללי JSONB**: עמודות מורכבות (אובייקטים, מערכים) המאוחסנות כ-JSONB אינן ניתנות לסינון (REQ-119). גישה לתת-שדה משתמשת בחילוץ `->>` ב-SQL (REQ-151). קשרים (relationships) מוצהרים בין טבלאות באמצעות עמודות FK סקלריות — עמודות blob מסוג JSONB אינן יעדי join. השתמשו בקידום JSONB (JSONB promotion) כדי להמיר שדות מקוננים לעמודות סקלריות ילידיות כאשר נדרש לסנן או להצטרף (join) אליהן (REQ-119).
 
+#### GitHub ו-GitLab
+
+GitHub ו-GitLab הם מקורות ממותגים הנישאים על ידי `graphql_remote`: כל אחד מופיע בטופס המקורות בשמו שלו ונרשם כמקור GraphQL מרוחק השומר את המותג שלו. הטופס מקבל אסימון גישה אישי (personal access token) ותו לא. נקודת הקצה (`https://api.github.com/graphql`, `https://gitlab.com/api/graphql`) והסכמה נשלחות עם Provisa, ולכן הסכמה אינה נבדקת ב-introspection בעת הרישום. האסימון נבדק כשהמקור מתווסף. הוספת המקור אינה רושמת טבלאות: כל טבלה שהסכמה מציעה זמינה תחת מרחב השמות של המקור (`gh`, `gl`), וה-steward רושם את הרצויות. שדה שהאסימון אינו רשאי לקרוא מושמט מטבלה כשהיא נרשמת. [tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
+
+#### Stripe (REQ-1923) {: #stripe }
+
+Stripe הוא מקור ממותג הנישא על ידי `openapi`, שנבנה כפי ש-GitHub ו-GitLab נבנים על `graphql_remote`. הוא מופיע בטופס המקורות בשם Stripe, תחת Enterprise. הוא נרשם כמקור OpenAPI ששורתו רושמת את המותג ב-`federation_hints`, ונתיב המפרט שלו הוא `brand:stripe`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_CARRIER`; `provisa/openapi/brands.py` `BRANDS`, `SPEC_SCHEME`; `provisa/api/admin/openapi_router.py` `_branded`]
+
+**מה הוא מגיע אליו.** ה-REST API של Stripe, דרך מפרט ה-OpenAPI שהוא מפרסם (`stripe/openapi`, `spec3.json`). המפרט נשלח עם Provisa, מוצמד ודחוס ב-gzip, ואינו נשלף בעת הרישום. זה שנשלח הוא גרסת ה-API `2026-09-30.endive` עם 425 נתיבים. כל קריאה נושאת `Stripe-Version` הקבוע לגרסה הזו, ולכן לכל תשובה יש הצורה שהמפרט מתאר, יהיו ברירת המחדל של החשבון אשר יהיו. שדות ש-Stripe מחזירה והמפרט משמיט מתווספים מ-`stripe.additions.json`. [tool-verified: `provisa/openapi/brands.py` `brand_spec`, `Brand.headers`; `provisa/openapi/_known_specs/`; version and path count read with the project interpreter]
+
+כמו בכל מקור OpenAPI, כל פעולת `GET` היא טבלה מוצעת וכל פעולה אחרת היא פקודה מוצעת. הוספת המקור אינה רושמת אף אחת מהן: ה-steward רושם את הרצויות. [tool-verified: `provisa/api/admin/openapi_router.py` `register_openapi_source`; `provisa/openapi/brands.py` module docstring]
+
+**אימות.** הטופס מבקש דבר אחד, אסימון גישה (`BRAND_AUTH`: `token`). השתמשו במפתח API סודי או מוגבל של Stripe. האסימון נשלח כ-bearer token, ונבדק פעם אחת עם `GET /v1/balance` לפני שהמקור מתווסף. אסימון שנדחה מכשיל את הרישום עם `openapi.credential_rejected`; אסימון חסר מכשיל אותו עם `openapi.credential_required`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_AUTH`; `provisa/openapi/brands.py` `Brand.auth`, `verify_path`; `provisa/api/admin/openapi_router.py` `_branded`] [inferred: that a restricted key works, provided it may read `/v1/balance`]
+
+**רענון ועדכניות.** טבלת Stripe היא עותק משוכפל, כמו כל טבלת OpenAPI. התשובות השמורות שלה בתוקף למשך `cache_ttl` של המקור, שבקשת רישום קובעת ל-300 שניות אלא אם נאמר אחרת. סוגי הבדיקה של OpenAPI חלים. [tool-verified: `provisa/api/admin/openapi_router.py` `OpenAPIRegisterRequest.cache_ttl`; `provisa/events/probes.py` `_HTTP_API_TYPES`] REQ-1923 קובע שתבנית מוכנה (preset) יכולה לנקוב בפרמטר שרענון משתמש בו כדי לשלוף רק את מה שהשתנה. מותג Stripe אינו נוקב באף אחד, ולכן כל רענון קורא את הטבלאות שלו במלואן. [tool-verified: `provisa/openapi/brands.py` `Brand` has no such field]
+
+**החרגות.** שילוב התשלומים הישן של Stripe בשם token ו-Sources מושמט מהמפרט שנשלח. הרשימה נמצאת תחת [החרגות במקור הנבנה ממפרט](#exclusions). `exclusions` של המפעיל עצמו מתווספות לאלה של המותג. [tool-verified: `provisa/openapi/_known_specs/stripe.exclusions.json`; `provisa/openapi/brands.py` `brand_spec`] (REQ-1957)
+
+`stripe` מופיע גם ב-`SourceType` בין סוגי ה-stub של Supabase `wrappers`. מקור Stripe שנוסף דרך הטופס הוא מקור `openapi`, לא אותו stub. [tool-verified: `provisa/core/models.py` `SourceType`]
+
+#### החרגות במקור הנבנה ממפרט {: #exclusions }
+
+מפרט OpenAPI שפורסם מתאר כל מה שה-API המרוחק מקבל, כולל מה שהספק שלו הכריז עליו כמיושן ומה שפריסה אסור לה לשלוח לעולם. מקור OpenAPI יכול לשאת החרגות: דברים במפרט שהמקור אינו מציע. (REQ-1957)
+
+| מוחרג | נקוב לפי | השפעה |
+|---|---|---|
+| פעולה (operation) | `method` ו-`path` | אינה מוצגת לרישום כטבלה או כפקודה |
+| ארגומנט בקשה | `name`, על פעולה אחת (`method` ו-`path`) או, בלעדיהם, על כל פעולה שיש בה אותו | אינו בין ארגומנטי הפעולה, אינו מוצג, לעולם אינו נשלח |
+
+החרגות מוגדרות תחת `exclusions` ב-`mapping` של המקור:
+
+```yaml
+sources:
+  - id: shop-api
+    type: openapi
+    path: https://shop.example.com/openapi.json
+    mapping:
+      exclusions:
+        operations:
+          - {method: POST, path: /v1/tokens}
+        arguments:
+          - {name: source, method: POST, path: /v1/customers}
+          - {name: legacy_token}          # on every operation that has it
+```
+
+הן מוחלות על המפרט בעת טעינתו, כך שרשימת הרישום, הפקודות שנוצרות והבקשה שנשלחת כולם רואים מפרט שבו הדברים המוחרגים אינם קיימים. אפשר להחריג מאפיין גוף (body) ופרמטר של query, header או cookie; אי אפשר להחריג פרמטר נתיב (path), כי הוא חלק מכתובת הפעולה.
+
+החרגה הנוקבת בפעולה או בארגומנט שאינם קיימים במפרט מכשילה את טעינת המפרט של אותו מקור ונוקבת בכל רשומה מיושנת, כך שרשימה שאינה תואמת עוד מפרט חדש יותר מתגלה.
+
+מקור ממותג נשלח עם החרגות משלו כחלק מהאצירה שלו, והחרגות המפעיל מתווספות אליהן. מקור Stripe מחריג את שילוב התשלומים המיושן של אסימונים ומקורות ב-Stripe: יצירת חיוב (charge), ממשקי Tokens ו-Sources, הוספת כרטיס או חשבון בנק ללקוח מתוך אסימון, והארגומנטים `source`, `card`, `bank_account` ו-`default_card` בכתיבות של לקוח ושל תשלום חשבונית. תשלומים נגבים דרך Payment Intents, Payment Methods ו-Setup Intents, שהמקור מציע. קריאה ומחיקה של מקורות תשלום שכבר יש לחשבון נשארות מוצעות.
+
 ### GovData
 
 נתונים פתוחים של ממשלת ארה"ב. הגישה מחולקת לפי קיבוץ נושאים. [tool-verified: `provisa/core/models.py` lines 543–609]
 
-כל מקור `govdata` בוחר נושא אחד. אותו נושא קובע אילו סכמות GovData חשופות. הסכמות `ref` ו-`geo` נכללות תמיד כסכמות מקשרות (linker schemas) — הן אינן מופיעות ברשימה לפי נושא אך תמיד נוכחות. [tool-verified: `provisa/core/models.py` line 562–563 comment]
+למקור ניתן נושא אחד או יותר, וכל נושא מביא את סכמות המתאם המפורטות להלן. סכמה יכולה להשתייך ליותר מנושא אחד (`census`). הסכמות `ref` ו-`geo` הן סכמות מקשרות (linker schemas): נתוני ייחוס וגיאוגרפיה שהטבלאות של כל נושא מצטרפות דרכן, ולכן כל מקור משרת אותן יהיו הנושאים שניתנו לו אשר יהיו. הרשימה מוצהרת פעם אחת בשרת ומוצמדת, באמצעות בדיקה, לסכמות שחבילת המתאם המוצמדת משרתת. [tool-verified: `provisa/core/models.py` `GOVDATA_SUBJECT_SCHEMAS`, `GOVDATA_LINKER_SCHEMAS`; `tests/unit/test_govdata_subject_schemas.py`]
 
 | נושא | סכמות חשופות |
 | --------- | ----------------- |
-| `COMMERCE` | `sec`, `patents` |
-| `ECONOMY` | `econ` |
-| `EDUCATION` | `census`, `edu` |
+| `COMMERCE` | `sec`, `patents`, `cftc` |
+| `ECONOMY` | `econ`, `econ_reference`, `ag`, `banking`, `fiscal`, `housing`, `transport` |
+| `EDUCATION` | `census`, `edu`, `research` |
 | `HEALTH` | `health` |
 | `CYBER` | `cyber_threat`, `cyber_vuln` |
-| `PUBLIC_SAFETY` | `crime` |
-| `ENVIRONMENT` | `lands` |
+| `PUBLIC_SAFETY` | `crime`, `disasters` |
+| `ENVIRONMENT` | `lands`, `environment` |
 | `WEATHER` | `weather` |
-| `GOVERNMENT` | `fedregister`, `fec` |
-| `ALL` | כל סכמה שלעיל |
+| `ENERGY` | `energy` |
+| `GOVERNMENT` | `fedregister`, `fec`, `officials`, `law` |
+| `DEMOGRAPHICS` | `census` |
+| כל מקור | `ref`, `geo` |
+
+`ALL` הוא קיצור של מנוי לכל הנושאים; אינו בחירה בטופס המקורות.
 
 ```yaml
 sources:
@@ -513,38 +824,46 @@ sources:
 | `domain_id` | כן | — | הדומיין שאליו שייך מקור זה |
 | `description` | לא | `""` | תיאור קריא לבני אדם |
 
+מקור AskAmerica שנוצר בממשק הניהול מקבל פרט הזדהות אחד, מפתח ה-API. Provisa מציגה את המפתח ל-API של AskAmerica ומקבלת את פרטי ההזדהות לאחסון, קצרי-חיים ולקריאה בלבד, שבהם הנתונים נקראים; המפתח נדחה שם בשמו אם הוא אינו מוכר או שבוטל. [tool-verified: `provisa/federation/askamerica.py`]
+
+המקור הוא אז מקור Postgres-wire כמו מקורות SharePoint, Salesforce ומלאי הענן: Provisa מפעילה עבורו את שרת `pgwire-govdata` המצורף, כשהמפתח ופרטי ההזדהות האלה בסביבת השרת, וכל מנוע מגיע לשרת הזה כפי שהוא מגיע לשרת של אח. DuckDB,‏ Postgres ו-ClickHouse מצרפים אותו וקוראים את הטבלאות שלו במקומן, כך שטבלת AskAmerica מצטרפת לטבלאות של מקורות אחרים, יושבת מתחת לתצוגות (views) ומסופקת כמו כל טבלה אחרת. ל-Trino אין מחבר עבורו והוא קורא עותק משוכפל שהונחת דרך השרת: עותק של הטבלה השמור במחסן המטריאליזציה, טרי כמו הרענון האחרון שלו לפי הגדרות המטמון וההעתקה של הטבלה ולא נקרא בזמן השאילתה. טבלה נקראת מסכמת המתאם שהיא נוקבת בה (`sec`, `econ` וכן הלאה). [tool-verified: `provisa/federation/pgwire_replica.py`, `provisa/federation/connector_duckdb.py`, `provisa/federation/clickhouse_connectors.py`]
+
+השרת מרכיב את הסכמות שלו מאחסון אובייקטים לפני שהוא מקבל חיבור, וזה לוקח דקות בהפעלה הראשונה. הוא מופעל כשהמקור נשמר; עד שהוא מוכן, טופס Register Table מדווח שהמקור עדיין מתחיל לפעול. [tool-verified: `provisa/federation/pgwire_replica.py` `start_when_saved`]
+
 ### היכן חיה סיסמת המקור
 
 סיסמת מקור לעולם אינה נשמרת לצד שאר הגדרות החיבור שלו. שורת ה-`sources` של מישור הבקרה
-נושאת עמודת `password_ref` המחזיקה *הפניה* —
-`${env:PG_PASSWORD}`, `${secret:SNOWFLAKE_KEY}` — הנפתרת ברגע שהמקור
-נחייג, בתוך הארגון שהבקשה רצה כמותו (REQ-1695). [tool-verified:
-`provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
+נושאת עמודת `password_ref` המחזיקה את מה שהוזן עבור הסיסמה: הערך עצמו, או הפניה כגון
+`${env:PG_PASSWORD}` או `${secret:SNOWFLAKE_KEY}`. היא נפתרת ברגע שהמקור
+נחייג, בתוך הארגון שהבקשה רצה כמותו. [tool-verified: `provisa/core/schema_org.py`,
+`provisa/core/repositories/source.py`]
 
-`${env:VAR}` קורא את סביבת התהליך של הפריסה ואינו זקוק לכריכה כלשהי. `${secret:NAME}`
-נוקב סוד בבעלות ארגון, כך שהוא נפתר רק בתוך הפעולות של אותו ארגון: תפרי חשיפת הניהול
-ומסוף השאילתות שכל משטח מגיע אליו מכוננים את
-הכריכה הזו. [tool-verified: `provisa/pgwire/_pipeline.py` `_execute_plan`]
+ערך ללא `${…}` בתוכו משמש כפי שהוא. `${env:VAR}` קורא את סביבת התהליך של הפריסה ואינו
+זקוק לכריכה כלשהי. `${secret:NAME}` נוקב סוד בבעלות ארגון, כך שהוא נפתר רק בתוך הפעולות
+של אותו ארגון: תפרי חשיפת הניהול ומסוף השאילתות שכל משטח מגיע אליו מכוננים את הכריכה
+הזו. [tool-verified: `provisa/core/secrets.py` `resolve_secrets`; `provisa/pgwire/_pipeline.py` `_execute_plan`]
 
-לאן ההפניה מצביעה תלוי באופן שבו המקור נרשם:
+השדה מחזיק את מה שהוקלד בו, בכל דרך שבה המקור נרשם:
 
-- **מקובץ הגדרות.** כתוב את ההפניה בעצמך. `${env:VAR}` קורא את סביבת התהליך
-  של הפריסה; `${secret:NAME}` קורא את הכספת של הארגון (ראה [סודות](secrets.md)). ה-
-  קובץ הוא הרשומה, ו-Provisa מעתיקה את ההפניה אל `password_ref` כלשונה.
-- **מטופס המקורות.** הפניה שהוקלדה לתוך שדה הסיסמה נשמרת גם היא
-  כלשונה. סיסמה *מילולית* נכתבת לתוך הכספת של הארגון תחת
-  `source_<id>_password` — מוצפנת במנוחה, ולעולם לא ניתנת לקריאה חזרה לפי שם — והשורה שומרת
-  את `${secret:source_<id>_password}` הנוקב בה. [tool-verified:
-  `provisa/api/admin/schema_common.py` `persist_source_password`]
+- **מקובץ הגדרות.** הקובץ הוא הרשומה: Provisa מעתיקה את הערך או את ההפניה אל
+  `password_ref` כלשונם.
+- **מטופס המקורות.** מה שמוקלד בשדה הסיסמה נשמר כלשונו, ערך או הפניה כאחד. Provisa אינה כותבת דבר
+  לכספת הארגון עבורו ואינה ממציאה שם סוד. כדי להרחיק פרט הזדהות משורת מישור הבקרה, צרו את הסוד
+  בעצמכם (ראו [סודות](secrets.md)) והקלידו `${secret:NAME}` בשדה. [tool-verified:
+  `provisa/api/admin/schema_mutation.py` `create_source`]
 
-הקלדת הסיסמה מחדש על מקור קיים מסובבת (rotate) את אותה רשומת כספת יחידה במקום ליצור
-שנייה. מחיקת המקור מסירה את הרשומה ש-Provisa טבעה עבורו, ורק אותה: הפניה
-שכתבת בעצמך נוקבת בסוד שאתה הבעלים שלו מסיבותיך שלך, כך שהיא נותרת ללא שינוי.
-[tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`]
+ערך שהוקלד כערך נשמר במסד הנתונים של מישור הבקרה כפי שהוקלד. הקלדת הסיסמה מחדש
+מחליפה את טקסט השדה. מחיקת המקור מסירה את השורה שלו ואינה מסירה דבר מהכספת: סוד
+שיצרתם הוא שלכם. [tool-verified: `provisa/api/admin/schema_mutation.py`
+`delete_source`; `tests/unit/test_no_product_written_secrets.py`]
 
 `password_ref` אינה עוברת בין סביבות (REQ-1491). ענף או סביבה משוכפלת
 מספקים ערכי חיבור משלהם, והכספת שההפניה נוקבת בה שייכת לאיזו
 סביבה שסיפקה אותה. [tool-verified: `provisa/core/env_classes.py` `BINDING_COLUMNS`]
+
+### Data Profiler {: #data-profiler }
+
+Data profiler הוא מקור שמחזיק שם, לוח זמנים וברירות מחדל להרצה, ותו לא. הוא אינו נסרק לעולם. טבלאות של מקורות אחרים מתווספות אליו, וכל הרצה מודדת אותן וכותבת את השורות שלה למישור הבקרה של הארגון, שם הן נקראות כמו הטבלאות של כל מקור אחר. ראו [Test data](test-data.md) ליצירת profiler ולהוספת טבלאות אליו. [tool-verified: `provisa/core/models.py` `SourceType.data_profiler`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`] (REQ-1934)
 
 ### בודקי איכות נתונים (REQ-1443)
 
@@ -777,7 +1096,7 @@ sources:
 | `port` | לא | `0` | מספר פורט |
 | `database` | לא | `""` | שם מסד נתונים |
 | `username` | לא | `""` | שם משתמש |
-| `password` | לא | `""` | סיסמה; השתמשו ב-`${env:VAR}` לפתרון סוד |
+| `password` | לא | `""` | סיסמה; השתמשו ב-`${env:VAR}` או ב-`${secret:NAME}` ולא בערך מילולי (ראו להלן) |
 | `path` | לא | `null` | נתיב קובץ או URI ענן עבור מקורות מבוססי-קובץ ו-object/lake |
 | `base_url` | לא | `null` | כתובת URL בסיסית עבור מקורות OpenAPI |
 | `pool_min` | לא | `1` | גודל מינימלי של pool חיבורים (REQ-052) |
@@ -790,7 +1109,7 @@ sources:
 | `cache_schema` | לא | `api_cache` | סכמה בתוך קטלוג המטמון |
 | `naming_convention` | לא | `null` | דריסת מוסכמת השמות הגלובלית עבור מקור זה (REQ-194) |
 | `federation_hints` | לא | `{}` | מאפייני session המועברים למנוע הפדרציה, ופרמטרי חיבור מורחבים עבור מקורות מחסן (REQ-278, REQ-281) |
-| `mapping` | לא | `{}` | הגדרות מחבר ספציפיות-סוג עבור מקורות NoSQL ו-SaaS (למשל `auth_type` של SharePoint, `use_token` של Splunk) (REQ-251) |
+| `mapping` | לא | `{}` | הגדרות מחבר ספציפיות-סוג עבור מקורות NoSQL ו-SaaS (למשל `auth_type` של SharePoint, `auth_type` של Salesforce, `use_token` של Splunk) (REQ-251) |
 | `allowed_domains` | לא | `[]` | הגבלת המקור לדומיינים ספציפיים; ריק = ללא הגבלה |
 | `description` | לא | `""` | תיאור קריא לבני אדם |
 

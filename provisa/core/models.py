@@ -131,11 +131,13 @@ class SourceType(str, Enum):
     parquet = "parquet"
     # Other
     google_sheets = "google_sheets"
-    # REQ-1923: the mail of a Google account, read through Google's own API by its loader
-    # (provisa/google_workspace) and landed; calendar and tasks are named and not yet read.
+    # REQ-1923, REQ-1994: the mail, calendars and tasks of a Google account, read through
+    # Google's own API by its loader (provisa/google_workspace) and landed; calendar events and
+    # tasks are also written back.
     google_workspace = "google_workspace"
-    # REQ-1923: the mail of a Microsoft 365 account, read through Microsoft Graph by its loader
-    # (provisa/microsoft365) and landed; calendar and tasks are named and not yet read.
+    # REQ-1923, REQ-1994: the mail, calendars and tasks of a Microsoft 365 account, read through
+    # Microsoft Graph by its loader (provisa/microsoft365) and landed; calendar events and tasks
+    # are also written back.
     microsoft_365 = "microsoft_365"
     # REQ-1996: the lines of log files matched by a glob, read by its loader (provisa/logs) and
     # landed.

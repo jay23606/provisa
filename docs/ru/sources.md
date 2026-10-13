@@ -9,7 +9,8 @@
 | **Прямая поддержка (direct-capable)** | Да | Да | PostgreSQL, MySQL, MariaDB, SingleStore, SQL Server, Oracle, DuckDB |
 | **Только федерация** | Нет | Да | Redshift, Druid, Exasol, Hive, Iceberg, Delta Lake, Hive (на базе S3) |
 | **Прямое чтение (реплика)** | Да | Да | Snowflake, Databricks, ClickHouse — драйвер читает данные и создаёт реплику; запросы выполняются против реплики в активном движке |
-| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Splunk, ServiceNow, Qdrant, Azure Cosmos DB |
+| **Прямой (без межисточникового коннектора)** | Да | Нет | Athena — инструкции для одного источника выполняются целиком в Athena; межисточниковые соединения выгружают полную реплику |
+| **Материализация → Федерация** | Нет | Нет | REST/OpenAPI, удалённый GraphQL, gRPC, Neo4j Cypher, SPARQL, WebSocket, RSS, CSV, SQLite, Parquet, Ingest (приёмник push-данных), GovData, SharePoint, Salesforce, ServiceNow, облачный инвентарь, Splunk, Qdrant, Azure Cosmos DB, Logs, Google Workspace, Microsoft 365 |
 
 Источники с **прямой поддержкой** выполняют однопоточные (single-source) запросы через свой нативный драйвер (менее 100 мс), минуя движок федерации (REQ-027, REQ-229). Они сохраняют полную поддержку коннектора и участвуют в федерации при объединении с другими источниками (REQ-028).
 
@@ -17,31 +18,35 @@
 
 Источники **с прямым чтением (реплика)** имеют DirectDriver, который читает данные из хранилища нативно (в формате Arrow, где это возможно), создаёт реплику в хранилище материализации активного движка, а затем запросы выполняются против этой реплики. См. [Хранилища как именованные источники](#warehouses-as-named-sources).
 
+Источники **прямого типа (без межисточникового коннектора)** имеют DirectDriver, который выполняет инструкции для одного источника целиком в самом источнике — передаются все фильтры, столбцы и лимиты. Когда инструкция объединяет источник с любым другим, драйвер читает данные и выгружает реплику; соединение выполняется против этой реплики в активном движке. Коннектора Trino для таких источников нет.
+
 Источники **материализации** не имеют федеративного коннектора. Provisa получает их данные (при запуске или во время выполнения запроса) и кеширует их как Parquet в S3 или в PostgreSQL, делая их достижимыми для движка федерации в межисточниковых запросах (REQ-309).
 
 ---
 
 ## Все источники
 
-Provisa регистрирует **58** типа источников. Приведённые ниже таблицы охватывают все 58; индекс — это просто счётчик. [tool-verified: `provisa/core/models.py` `SourceType`; Kaggle учитывается как отдельный источник, хотя внутренне регистрируется через коннектор `files`]
+Provisa регистрирует **69** типов источников — те, что предлагает форма Sources. Приведённые ниже таблицы охватывают все 69; индекс — это счётчик. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, где `graphql` и `grpc` — это `graphql_remote` и `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab и Stripe учитываются как отдельные источники, хотя внутренне регистрируются через коннекторы `files`, `graphql_remote` и `openapi`]
 
 | # | Группа | Типы источников |
 | --- | --- | --- |
-| 1–13 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport` |
-| 14–21 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 22–26 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 27–31 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hudi`, `hive`, `hive_s3` |
-| 32–36 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 37–39 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
-| 40 | [Приёмник push-данных](#push-receiver) | `ingest` |
-| 41–42 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
-| 43–46 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files` |
-| 47–48 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
-| 49–51 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `splunk`, `servicenow` |
-| 52–54 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote` |
-| 55 | [GovData](#govdata) | `govdata` |
-| 56–57 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 58 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
+| 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
+| 16–23 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
+| 24–28 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 29–32 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 38–40 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
+| 41 | [Приёмник push-данных](#push-receiver) | `ingest` |
+| 42–43 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
+| 44–48 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 49–50 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
+| 51–57 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 58–63 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 64 | [GovData](#govdata) | `govdata` |
+| 65–66 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 67 | [Профайлер данных](#data-profiler) | `data_profiler` |
+| 68 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
+| 69 | [Wikipedia](#wikipedia) | Wikipedia (регистрируется как источник `files`, который обходит указанные страницы — см. [Wikipedia](#wikipedia)) |
 
 Справочник по каждому типу источника, поддерживаемому Provisa. «Прямой драйвер» означает, что однопоточные запросы выполняются напрямую к источнику (менее 100 мс) (REQ-027). «Имя коннектора» — это федеративный коннектор, используемый, когда источник участвует в многопоточных (multi-source) JOIN (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -62,10 +67,20 @@ Provisa регистрирует **58** типа источников. Прив�
 | `tidb` | aiomysql (протокол mysql) | mysql | mysql | Да |
 | `firebird` | — | — (расширение DuckDB) | — | Нет |
 | `airport` | — | — (расширение DuckDB) | — | Нет |
+| `saphana` | SQLAlchemy (`hana+hdbcli`) | — | — | Нет |
+| `hiveserver2` | impyla (HiveServer2 поверх Thrift) | — | hive | Нет |
 
 Базы данных, совместимые по протоколу, повторно используют JDBC-драйвер, нативный асинхронный драйвер и диалект базового протокола — CockroachDB, YugabyteDB и Greenplum используют протокол PostgreSQL; TiDB использует протокол MySQL. Им требуются только записи в реестре, без нового кода коннектора. [tool-verified: `provisa/core/source_registry.py` `_PG_WIRE_TYPES`, `_MYSQL_WIRE_TYPES`] (REQ-950)
 
 `firebird` (Firebird 3/4/5) и `airport` (сервер Arrow Flight) — зарегистрированные типы источников, достигаемые на месте через community-расширения DuckDB, когда DuckDB является активным движком — без прямого драйвера, без федеративного коннектора. [tool-verified: `provisa/core/models.py` lines 44, 93] (REQ-899)
+
+#### `saphana`
+
+SAP HANA читается собственным драйвером и реплицируется в хранилище активного движка, поэтому доступна на любом движке. Форма принимает хост, порт (по умолчанию 39015), имя пользователя, пароль и базу данных; в многотенантной системе база данных называет тенанта. Register Table перечисляет схемы, которые пользователь может читать, без системных схем HANA. [tool-verified: `provisa/executor/drivers/registry.py` `_SQLALCHEMY_FALLBACK`; `provisa/api/admin/introspect.py` `_SAPHANA_SYSTEM_SCHEMAS`] (REQ-1753)
+
+#### `hiveserver2`
+
+Конечная точка HiveServer2, читаемая напрямую поверх Thrift, — для развёртывания Hive, где эта точка единственная доступная. Она отличается от `hive` и `hive_s3`, которые читают файлы и metastore хранилища и никогда не обращаются к HiveServer2. Строки читаются через конечную точку и реплицируются в хранилище активного движка. Форма принимает хост, порт (по умолчанию 10000), имя пользователя, пароль и базу данных; `federation_hints.auth_mechanism` выбирает аутентификацию (по умолчанию `PLAIN`, например `GSSAPI` для Kerberos). [tool-verified: `provisa/executor/drivers/hive.py` `HiveDriver`; `provisa/core/models.py` `SourceType.hiveserver2`] (REQ-1731)
 
 ### Облачные хранилища данных {: #cloud-data-warehouses }
 
@@ -213,7 +228,7 @@ Amazon Athena — безсерверный сервис запросов к да
 
 ### На основе файлов {: #file-based }
 
-Два механизма охватывают файлы. Оба используют поле `path` вместо `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553)
+Три механизма охватывают файлы. Источники из одного файла и обходчик файлов используют поле `path` вместо `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) Третий, [Logs](#logs), задаёт свои файлы glob-шаблоном в `mapping` и читает только файлы на сервере Provisa. [tool-verified: `provisa/logs/settings.py`]
 
 **Однофайловые источники** — `sqlite`, `csv`, `parquet` указывают `path` на один файл.
 
@@ -237,7 +252,109 @@ Amazon Athena — безсерверный сервис запросов к да
   path: s3://bucket/sales/**/*.csv   # glob; local and http(s):// also supported
 ```
 
+Любой источник `files` может также объявить `crawl` в своём mapping с теми же настройками, что перечислены в разделе [Wikipedia](#wikipedia): тогда источник сначала читает веб-страницы и выгружает каждую HTML-таблицу данных и каждый связанный файл данных в своей директории как таблицу. [tool-verified: `provisa/file_source/crawl.py` `crawl_operand`]
+
 На движке DuckDB `files` читается нативно — представление-сканер `read_csv_auto` для каждого `<table>.csv` в разрешённой директории (REQ-229) [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBFilesConnector`]. На движке без собственного коннектора `files` строки загружаются через тот же встроенный в коннектор сервер Calcite pgwire (`pgwire-file`), который используют sharepoint/splunk (REQ-954) — см. [Корпоративные SaaS-коннекторы](#enterprise-saas-connectors) ниже. Сквозное покрытие UI (форма Sources → регистрация таблицы → SQL-запрос) и путь загрузки через pgwire подтверждены в REQ-1694.
+
+#### Logs (REQ-1996) {: #logs }
+
+Источник `logs` превращает файлы журналов на сервере Provisa в одну таблицу. Вы задаёте файлы полным путём или glob-шаблоном и выбираете формат, в котором записаны их записи. Каждая запись становится строкой. Запись, которую формат не может прочитать, сохраняется вместе с исходным текстом и причиной и никогда не отбрасывается. [tool-verified: `provisa/logs/__init__.py`; `provisa/logs/files.py` `rows_of`]
+
+```yaml
+sources:
+  - id: mac-install-log
+    type: logs
+    mapping:
+      glob: /var/log/install.log*   # the live file and its rotated, compressed copies
+      format: macos_install
+```
+
+Mapping принимает четыре ключа и по имени отклоняет любой другой: `glob` и `format` (оба обязательны), а также `pattern` и `record_start`, которые принимает только формат `regex`. [tool-verified: `provisa/logs/settings.py` `parse`; `provisa/logparse/__init__.py` `format_for`]
+
+```yaml
+    mapping:
+      glob: /var/log/myapp/*.log
+      format: regex
+      pattern: '(?P<ts>\S+ \S+) (?P<level>[A-Z]+) (?P<message>.*)'
+      record_start: '\d{4}-\d{2}-\d{2} '   # a stack trace joins the line it follows
+```
+
+В форме Sources источник Logs называется «Log files» и находится в группе File. Кнопка **Preview** до сохранения показывает файлы, которым соответствует glob, столбцы, которые даёт формат, и первые 20 строк самого нового файла. [tool-verified: `provisa-ui/src/pages/sources/constants.ts`; `provisa-ui/src/pages/sources/LogsFields.tsx`; `provisa/api/admin/logs_router.py` `PREVIEW_ROWS`]
+
+**Glob.** Это должен быть полный путь; `~` раскрывается, а относительный путь отклоняется («name the files by their full path»). Сопоставление идёт функцией `glob` из Python в нерекурсивном режиме, поэтому `**` ведёт себя как `*` и сопоставляет в пределах одного уровня каталога. Берутся только обычные файлы, в порядке имён. Пустой файл пропускается, пока в нём нет байтов. [tool-verified: `provisa/logs/roots.py` `checked_glob`; `provisa/logs/files.py` `matched`, `identify`]
+
+**Собственные столбцы каждой строки.** Они идут перед столбцами формата:
+
+| Столбец | Тип | Содержит |
+| --- | --- | --- |
+| `_file_id` | text | Идентичность файла: контрольная сумма его первых 4096 байт после распаковки |
+| `_file_name` | text | Путь, по которому прочитана запись |
+| `_line_offset` | bigint | Смещение в байтах первой строки записи в распакованном тексте |
+| `_entry` | bigint | Каким по счёту элементом записи является строка: 0, кроме пакетных записей, например `Records` в файле CloudTrail |
+| `_raw` | text | Запись в том виде, в каком она записана |
+| `_parse_error` | text | Почему запись или одно из её значений не удалось прочитать; NULL, если удалось |
+| `_landed_at` | timestamp | Когда строка была загружена |
+
+`_file_id`, `_line_offset` и `_entry` образуют ключ строки, поэтому запись, прочитанная дважды, остаётся одной строкой. [tool-verified: `provisa/logs/__init__.py` `META_COLUMNS`, `KEY`; `provisa/logs/preview.py` `columns`]
+
+**Форматы и пресеты.** Выпадающий список форматов группирует их по семействам; последний вариант, `regex`, — ваш собственный шаблон. [tool-verified: `provisa/logparse/__init__.py` `BUILT_IN`, `catalog`; `provisa/logparse/presets/__init__.py` `presets`; family labels from `provisa-ui/src/i18n/locales/en/logsFields.json`]
+
+| Семейство (подпись в форме) | Названия форматов |
+| --- | --- |
+| Common formats | `rfc3164`, `rfc5424`, `macos_install`, `clf`, `combined`, `jsonl`, `logfmt`, `w3c`, `cef`, `gelf` |
+| Amazon Web Services | `aws_alb`, `aws_nlb`, `aws_elb`, `aws_cloudfront`, `aws_s3_access`, `aws_cloudtrail`, `aws_vpc_flow`, `aws_waf`, `aws_route53_resolver` |
+| Databases and runtimes | `postgresql_stderr`, `postgresql_csvlog`, `postgresql_jsonlog`, `mysql_error`, `mysql_slow`, `mongodb`, `redis`, `log4j2_default`, `logback_default`, `python_logging` |
+| Google | `gcp_cloud_logging`, `android_logcat`, `chrome_net_export` |
+| Containers and Linux | `kubernetes_cri`, `journald_json`, `linux_auditd`, `linux_dmesg` |
+| Microsoft | `ms_iis`, `ms_windows_firewall`, `ms_dns_debug`, `ms_dhcp_audit`, `ms_exchange_tracking`, `ms_sqlserver_errorlog`, `azure_storage_analytics`, `azure_monitor`, `windows_evtx` |
+| Network security monitoring | `zeek_tsv`, `zeek_json`, `suricata_eve`, `snort_fast` |
+| Web servers and proxies | `nginx_error`, `apache_error`, `haproxy_http`, `squid_access`, `envoy_access`, `caddy_access`, `traefik_access` |
+| Your own | `regex` |
+
+Итого 56 встроенных форматов и `regex`. [tool-verified: `BUILT_IN` enumerated with the project interpreter]
+
+**Как формат создаёт столбцы.** Формат получает столбцы одним из четырёх способов. [tool-verified: `provisa/logparse/formats.py`; `provisa/logparse/presets/_shared.py`; `provisa/logparse/coltypes.py`]
+
+- **Фиксированные столбцы.** Большинство форматов сами задают столбцы и типы. Например, `rfc3164` даёт `timestamp`, `facility`, `severity`, `host`, `process`, `pid` и `message`; `facility` и `severity` вычисляются из значения `<PRI>`. Строка BSD syslog не содержит года, поэтому берётся год последней записи в файл, а если месяц строки позже месяца этой записи — предыдущий год.
+- **Поля, названные записью.** `jsonl` и `logfmt` берут столбцы из полей, встреченных в первых строках файлов (настройка `logs.preview_lines`, по умолчанию 1000). Каждый столбец получает самый узкий тип, подходящий для всех увиденных значений: boolean, затем integer, float, timestamp и json, иначе text. Поле, которое несёт более поздняя запись, но для которого нет столбца, попадает в json-столбец `extra`.
+- **Поля, названные заголовком.** `w3c` и пресеты на его основе читают строку `#Fields:` каждого файла; `date` и `time` объединяются в один столбец `timestamp`. `aws_cloudfront`, `ms_iis`, `ms_windows_firewall`, `ms_exchange_tracking` и `zeek_tsv` так же читают строки заголовка, начинающиеся с `#`, а `aws_vpc_flow` читает строку заголовка, начинающуюся с `version`. Место, где прочитана строка заголовка, сохраняется вместе с файлом, поэтому файл, который дочитывают позже, сохраняет свои поля.
+- **`regex`.** Каждая именованная группа, например `(?P<level>…)`, — это столбец типа text.
+
+Экран Register Table перечисляет эти столбцы с их типами и отмечает ключ. [tool-verified: `provisa/api/admin/schema_query.py` `_logs_columns`] При чтении строк каждое значение приводится к типу, который его столбец имеет в зарегистрированной таблице, поэтому применяется тип, изменённый там. Значение, которое столбец вместить не может, становится NULL, а причина записывается в `_parse_error`. [tool-verified: `provisa/logs/loader.py` `_load`; `provisa/logs/files.py` `_typed`] [inferred: that the screen lets a steward change a suggested type, as REQ-1996 states]
+
+Запись длиннее `logs.max_line_bytes` (по умолчанию 65536) сохраняет в `_raw` свои первые байты и не разбирается; `_parse_error` указывает её длину. Файл, начинающийся с метки порядка байтов UTF-8 или UTF-16, читается в этой кодировке, любой другой — как UTF-8. [tool-verified: `provisa/core/settings_catalog.py`; `provisa/logs/files.py` `rows_of`, `text_encoding`]
+
+**Записи из нескольких строк.** Формат с шаблоном начала записи собирает запись из строки, соответствующей ему, и всех следующих за ней строк, которые ему не соответствуют. Трассировка стека остаётся вместе со своим исключением, а запись о медленном запросе остаётся целой. Строки до первого совпадения образуют отдельную запись; формат обычно её отклоняет, но строка сохраняется. Встроенные форматы с началом записи: `rfc3164`, `macos_install`, `aws_cloudtrail`, `postgresql_stderr`, `postgresql_csvlog`, `mysql_error`, `mysql_slow`, `log4j2_default`, `logback_default`, `python_logging`, `chrome_net_export`, `ms_sqlserver_errorlog` и `azure_monitor`. С `regex` задайте `record_start` сами. [tool-verified: `provisa/logparse/framing.py` `records`; `record_start` of each format enumerated with the project interpreter]
+
+Два формата читают свои записи сами, а не построчно. `kubernetes_cri` склеивает в одну запись частичные строки (`P`), на которые их разбила среда выполнения, а `windows_evtx` читает двоичный файл `.evtx`. [tool-verified: `provisa/logparse/presets/linux.py` `KubernetesCri`; `frames_bytes` enumerated with the project interpreter]
+
+Файл, в который ещё пишут, читается до последней полной строки. Для многострочного формата он читается до начала своей последней записи, которую следующая строка может продолжить. Когда в файл не писали 2 секунды, эта последняя запись считается целой. [tool-verified: `provisa/logs/files.py` `QUIET_SECONDS`, `read_file`]
+
+**Ротация.** Файл определяется контрольной суммой его первых 4096 байт после распаковки, а не именем. Когда `system.log` ротируется в `system.log.0`, а затем сжимается в `system.log.0.gz`, все копии — один и тот же файл. Чтение продолжается с байта, до которого дошло прошлое чтение, поэтому ни одна строка не читается дважды. [tool-verified: `provisa/logs/files.py` module docstring, `identify`; `tests/unit/test_logs_source.py` `test_a_rotated_and_compressed_file_is_read_on_and_no_line_twice`]
+
+- Сжатие определяется по первым байтам файла, а не по имени: gzip и bzip2. Сжатый файл считается завершённым.
+- Ротированная копия и её сжатый двойник, если соответствуют обе, читаются один раз — из сжатой.
+- Файл, оказавшийся короче уже прочитанного смещения, был усечён: это новый файл, он читается с начала. Строки старого остаются.
+- Файлы короче 4096 байт, начинающиеся одинаково, различаются по inode, поэтому остаются двумя файлами.
+- Файл, которому glob больше не соответствует, забывается; его строки остаются как история.
+
+[tool-verified: `provisa/logs/files.py` `compression`, `Found.complete`, `identify`; `provisa/logs/loader.py` module docstring; `tests/unit/test_logs_source.py`]
+
+**Обновление и живая доставка.** Таблица Logs — это реплика. За файлами никто не следит. Вместо этого, когда сигнал изменений источника — `probe` или `ttl_probe`, его проба вычисляет дайджест пути, inode, размера и времени последней записи каждого подходящего файла; если дайджест отличается, запрашивается обновление. Типы проб, которые принимает источник Logs, — `hash` и `none`. [tool-verified: `provisa/logs/loader.py` `files_token`, `_freshness_probe`; `provisa/events/probes.py` `_LOADER_PROBED`, `probe_capabilities`]
+
+Обновление читает только новое. Каждый файл читается с места, до которого дошёл прошлый проход, а строки записываются по ключу, по 5000 за раз, прежде чем сохраняется новая позиция. Проход, прервавшийся между этими двумя шагами, читает те же записи заново, и строки получаются теми же. Каждый проход помечает свои строки в `_landed_at` — столбце, который живая доставка использует как водяной знак. Изменение определения таблицы — это полная перестройка, которая читает каждый файл с начала. [tool-verified: `provisa/logs/loader.py` `_UnitsRead`, `_WholeRead`, `BATCH_ROWS`, `replica_stamp_column`; `provisa/federation/replica_builds.py` `_kept_in_place`] [inferred: that subscriptions deliver a Logs table's new rows by `_landed_at`, as REQ-1996 states; the subscription side was not traced]
+
+**Разрешённые корни.** Настройка оператора `logs.allowed_roots` перечисляет каталоги, в которые может разрешаться glob. Значение по умолчанию — `["/var/log"]`; это список на карточке Security в Admin → Settings, который также задаётся через `PROVISA_LOGS_ALLOWED_ROOTS`, а изменение требует подтверждения. Каждый корень разрешается после раскрытия `~` и символических ссылок. [tool-verified: `provisa/core/settings_catalog.py` `logs.allowed_roots`; `provisa/logs/roots.py` `allowed_roots`]
+
+Действуют две проверки. Фиксированная часть glob до первого подстановочного знака должна разрешаться внутри корня; это проверяется при сохранении источника и при каждом просмотре или чтении. Каждый подходящий файл также должен разрешаться внутри корня после раскрытия его символических ссылок, поэтому ссылка за пределы `/var/log` отклоняется. Отказ называет путь, во что он разрешился, и разрешённые корни:
+
+```text
+/home/me/app.log resolves to /home/me/app.log, outside the directories log files may be read from: /var/log
+```
+
+При сохранении код — `schema.logs_path_refused`; при просмотре — 403 с `logs.path_refused`. [tool-verified: `provisa/logs/roots.py` `checked_glob`, `checked_file`; `provisa/api/admin/schema_common.py` `logs_refusal`; `provisa/api/admin/logs_router.py`; `tests/unit/test_logs_source.py` `test_a_symlink_escaping_the_root_is_refused_by_name`]
+
+**Отказ на хостинге (SaaS).** Развёртывание, в котором работает много организаций, не читает никаких собственных файлов журналов. Каждая проверка пути отказывает первой — при сохранении, просмотре и чтении — сообщением «`<path>`: a server that holds many organizations reads no log file of its own». Эти файлы принадлежат серверу, а не какой-либо одной организации, поэтому ни один арендатор не вправе их читать. Развёртывание определяет, обслуживает ли оно много организаций, по состоянию своей мультитенантности. [tool-verified: `provisa/logs/roots.py` `_refuse_on_saas`; `provisa/core/secrets_providers.py` `many_organisations`; `provisa/api/app.py` `set_many_organisations_resolver(lambda: state.multitenancy)`; `tests/unit/test_logs_source.py` `test_a_server_of_many_organizations_reads_no_log_file_of_its_own`]
 
 #### Наборы данных Kaggle (REQ-1780, REQ-1781, REQ-1782, REQ-1783) {: #kaggle-datasets }
 
@@ -254,11 +371,70 @@ Kaggle — это платформа для загрузки файлов. За�
 
 **Ограничение v1.** Пакет, содержащий файл `.sqlite` или `.db`, отклоняется сразу с чёткой ошибкой. Загружаются только файлы CSV и Parquet. [tool-verified: `provisa/kaggle/downloader.py` `UnsupportedKaggleDataset`, `_UNSUPPORTED_EXTENSIONS`]
 
-**Именование таблиц.** Каждый файл попадает в собственную поддиректорию `<file-stem>/` под корнем набора данных. Коннектор pgwire-file именует итоговую таблицу как `<subdir>__<stem>` после нормализации SMART_CASING. Например: `StatewiseTestingDetails.csv` попадает в `statewise_testing_details/StatewiseTestingDetails.csv` и становится таблицей `statewise_testing_details__statewise_testing_details`. Удвоение основы ожидаемо для однофайловых наборов данных. Многофайловый набор данных даёт одну пару на файл: `orders__orders`, `customers__customers`. (REQ-471)
+**Именование таблиц.** Обойденная таблица называется `<page>__<name>`: заголовок страницы, затем подпись таблицы или, если подписи нет, последний заголовок над таблицей — оба в написании имён столбцов источника. Например, таблица под заголовком «Tallest buildings in the world» на странице `List_of_tallest_buildings` называется `list_of_tallest_buildings__tallest_buildings_in_the_world`. Связанный файл данных сохраняет собственное имя. [tool-verified: a live crawl of that page through the 0.109.0 file bundle]
 
 **Обновление.** Чтобы повторно получить набор данных после публикации Kaggle новой версии, вызовите GraphQL-мутацию `refreshKaggleSource` с идентификатором источника и действительным токеном. Она заново загружает файлы на месте и очищает кеш конечной точки pgwire-file, чтобы коннектор подхватил любые изменения схемы при следующем запросе. `kaggle_owner` и `kaggle_ref`, сохранённые в `federation_hints` при создании, определяют, какой набор данных обновлять. [tool-verified: `provisa/api/admin/schema_mutation.py` `refresh_kaggle_source`] (REQ-1780)
 
 **Нет статического пути конфигурации YAML.** Источники Kaggle создаются только через форму Sources. Источник Kaggle, экспортированный в YAML, отображается как `type: files` с `kaggle_owner` и `kaggle_ref` в `federation_hints`. Повторная загрузка из Kaggle требует потока обновления через UI или мутации `refreshKaggleSource` — указание `path` в YAML на уже загруженную директорию — альтернатива для сред без доступа к интернету (air-gapped).
+
+
+#### Wikipedia (REQ-1960) {: #wikipedia }
+
+Wikipedia обходит названные вами страницы. Каждая таблица данных на странице и каждый связанный файл CSV, TSV, Excel, JSON или Parquet становится таблицей источника. Как и Kaggle, он регистрируется как источник `files` с `crawl` в mapping. Добавление источника ничего не регистрирует: стюард регистрирует нужные таблицы через обычный экран Register Table. [tool-verified: `provisa/file_source/wikipedia.py` `crawl_settings`, `DATA_FILE_EXTENSIONS`; `provisa-ui/src/pages/sources/constants.ts` `wikipedia: "files"`] (REQ-316)
+
+**Поля настройки.**
+
+| Поле | По умолчанию | Значение |
+| --- | --- | --- |
+| Pages to start from | нет (обязательно) | По одной на строку: название страницы или адрес страницы в выбранной редакции |
+| Language edition | `en` | Код редакции, например `en`, `de` или `ja` |
+| Link depth | `1` | На сколько ссылок от начальной страницы читать; `0` читает только начальные страницы |
+| Page limit | `25` | Наибольшее число страниц, читаемых за один обход |
+| Contact | пусто | Отправляется с каждым запросом, чтобы Wikipedia могла с вами связаться, как требует её политика |
+| Follow "See also" links | выкл. | Выключено — раздел исключается из статьи |
+| What this edition calls its "See also" section | пусто | Запрашивается, только когда флажок выше выключен и Provisa не может назвать раздел для выбранной редакции. Название раздела так, как его показывает страница, например `Voir aussi` |
+| Directory for the crawl's files | пусто | Куда записываются таблицы и файлы данных. Пусто: `<PROVISA_DATA_DIR>/crawl/<source id>` |
+
+[tool-verified: `provisa-ui/src/pages/sources/WikipediaFields.tsx`; `provisa-ui/src/i18n/locales/en/sourceFormFieldsExtended.json` `wp*`; `provisa/file_source/wikipedia.py` `DEFAULTS`; `provisa/file_source/crawl.py` `crawl_landing_directory`]
+
+Provisa знает заголовок «See also» этих редакций: `en`, `de`, `es`, `it`, `pt`, `nl`, `pl`, `sv`, `ja`, `zh`, `ru`. Для любой другой редакции при выключенном «See also» форма спрашивает, как редакция называет этот раздел; введите его название так, как его показывает страница (например, `Voir aussi`). Источник, сохранённый без него, отклоняется (`wikipedia.see_also_heading_needed`). [tool-verified: `provisa/file_source/wikipedia.py` `SEE_ALSO_HEADING`, `crawl_settings`]
+
+**Какие ссылки отслеживаются.** Ссылка выбирается по тому, чем её называет собственная разметка страницы, а не по имени в её адресе: такие имена различаются в каждой языковой редакции и встречаются также в обычных заголовках. [tool-verified: `provisa/file_source/wikipedia.py` module docstring]
+
+- Отслеживаются: ссылки на другие статьи, расположенные в тексте статьи, в списках и таблицах данных. Метка разметки — `a[rel='mw:WikiLink']`.
+- Не отслеживаются: ещё не написанные страницы, сама страница, поиск по книжным источникам, страницы файлов, другие вики и внешние сайты.
+- Не читаются вовсе (удаляются до сбора ссылок и таблиц): навигационные блоки, информационные блоки, примечания и цитаты, категории, оглавление, изображения и служебные сообщения.
+- Не читаются, пока вы не включите параметр: раздел «See also».
+
+Таблицами становятся только таблицы, которые редакторы помечают как таблицы данных (`table.wikitable`), а таблица менее чем из 2 строк не предлагается. [tool-verified: `provisa/file_source/wikipedia.py` `LINK_SELECTOR`, `REMOVE_SELECTORS`, `TABLE_SELECTOR`, `DEFAULTS`]
+
+**Расширенные настройки обхода.** Форма держит их свёрнутыми под «Crawl settings» и показывает каждую с её значением по умолчанию; оставьте поле пустым, чтобы сохранить его. В mapping источника `files` те же имена идут под `crawl:`, а имя вне этого списка отклоняется. [tool-verified: `provisa/file_source/crawl.py` `CRAWL_SETTINGS`, `crawl_operand`; `provisa/file_source/wikipedia.py` `crawl_settings`]
+
+| Настройка | Значение по умолчанию для Wikipedia | Значение |
+| --- | --- | --- |
+| `start_urls` | названные вами страницы | Страницы, с которых начинается обход |
+| `max_depth` | `1` | Глубина ссылок |
+| `max_pages` | `25` | Лимит страниц |
+| `request_delay` | `1 seconds` | Задержка между запросами |
+| `user_agent` | `Provisa/<version> (+https://provisa.dev) file-crawler`, с добавленным вашим контактом | Имя, под которым обход представляется |
+| `content_selector` | `#mw-content-text .mw-parser-output` | CSS-селектор: ссылки и таблицы читаются только внутри него |
+| `remove_selectors` | список частей, описанный выше | CSS-селекторы для исключаемых частей. Указание заменяет весь список, включая правило «See also» |
+| `link_selector` | `a[rel='mw:WikiLink']` с исключениями | CSS-селектор, которому должна соответствовать ссылка, чтобы её отслеживать |
+| `link_exclude_patterns` | пусто | Регулярные выражения; ссылка, в адресе которой одно из них найдено, не отслеживается |
+| `follow_external_links` | `false` | Переходить по ссылкам на другие сайты |
+| `allowed_domains` | не задано | Домены, которые обход может посещать |
+| `table_selector` | `table.wikitable` | CSS-селектор, которому должна соответствовать таблица |
+| `generate_tables_from_html` | не задано | Становятся ли HTML-таблицы таблицами |
+| `html_table_min_rows` | `2` | Наименьшее число строк в таблице |
+| `html_table_max_rows` | не задано | Наибольшее число строк в таблице |
+| `allowed_file_extensions` | `csv`, `tsv`, `xlsx`, `xls`, `json`, `parquet` | Типы связанных файлов, которые становятся таблицами |
+| `html_cache_ttl` | `1 days` | Как долго хранится обход |
+| `max_html_size` | не задано | Наибольшая читаемая страница, например `10MB` |
+| `max_data_file_size` | не задано | Наибольший читаемый файл данных, например `100MB` |
+
+**Именование таблиц.** Обойденная таблица называется `<page>__<name>`. Имя — собственный `id` таблицы, если он есть, иначе её подпись, иначе ближайший заголовок над ней. Например, таблица под заголовком «Tallest buildings» на странице `List_of_tallest_buildings` после нормализации имени становится `list_of_tallest_buildings__tallest_buildings`. [tool-verified: calcite `file` adapter `HtmlToJsonConverter.java` (`baseFileName + "__" + tableName`), `HtmlTableScanner.java` `getTableName`] [inferred: the exact normalized spelling in the example]
+
+**Обновление.** Обход хранится в течение периода кеша, по умолчанию `1 days` (`html_cache_ttl`). Страницы загружаются заново только после истечения этого времени. [tool-verified: `provisa/file_source/wikipedia.py` `DEFAULTS`]
 
 
 ### Наблюдаемость и прочее {: #observability-other }
@@ -272,7 +448,7 @@ Kaggle — это платформа для загрузки файлов. За�
 
 ### Корпоративные SaaS-коннекторы {: #enterprise-saas-connectors }
 
-SharePoint, Splunk и ServiceNow регистрируются через коннекторы Apache Calcite (форк kenstott/calcite). Ни у одного нет прямого драйвера — Provisa запускает встроенный в коннектор сервер Calcite pgwire (`pgwire-sharepoint`, `pgwire-splunk`, `pgwire-servicenow`) и обращается к нему как к обычной конечной точке PostgreSQL. На движке DuckDB эта конечная точка подключается вживую через расширение postgres: регистрация таблицы перечисляет таблицы коннектора из подключённого каталога, запросы читают коннектор на месте, а фильтры и проекции проталкиваются в Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Любой другой движок загружает строки в хранилище материализации для федерации (REQ-954). Пакеты загружаются под конкретную ОС/архитектуру из закреплённого релиза `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Оператор может вместо этого задать папку с пакетом, собранным для данного хоста, отдельно для каждого коннектора, в разделе Admin → Настройки → Серверы коннекторов (`connectors.<connector>.bundle_dir`); см. [Admin](admin.md).. Все три коннектора всегда включают сопоставление имён без учёта регистра, что соответствует собственной регистронезависимой семантике каждого продукта (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
+Google Workspace и Microsoft 365 читаются собственными загрузчиками; см. [Google Workspace и Microsoft 365](#google-workspace-and-microsoft-365). SharePoint, Salesforce, ServiceNow, облачный инвентарь и Splunk регистрируются через коннекторы Apache Calcite (форк kenstott/calcite). Ни у одного нет прямого драйвера — Provisa запускает встроенный в коннектор сервер Calcite pgwire (`pgwire-sharepoint`, `pgwire-salesforce`, `pgwire-servicenow`, `pgwire-cloudops`, `pgwire-splunk`) и обращается к нему как к обычной конечной точке PostgreSQL. На движке DuckDB эта конечная точка подключается вживую через расширение postgres: регистрация таблицы перечисляет таблицы коннектора из подключённого каталога, запросы читают коннектор на месте, а фильтры и проекции проталкиваются в Calcite (REQ-1690) [tool-verified: `provisa/federation/connector_duckdb.py` `_DuckDBPgwireConnector`]. Любой другой движок загружает строки в хранилище материализации для федерации (REQ-954). Пакеты загружаются под конкретную ОС/архитектуру из закреплённого релиза `kenstott/calcite` (`pgwire-<connector>-<version>-<os>-<arch>.tar.gz`; macOS arm64, Linux x86_64, Windows x86_64) [tool-verified: `provisa/runtime_deps/pgwire_bundles.py`] Оператор может вместо этого задать папку с пакетом, собранным для данного хоста, отдельно для каждого коннектора, в разделе Admin → Настройки → Серверы коннекторов (`connectors.<connector>.bundle_dir`); см. [Admin](admin.md).. Все пять коннекторов всегда включают сопоставление имён без учёта регистра, что соответствует собственной регистронезависимой семантике каждого продукта (REQ-725, REQ-730). [tool-verified: `provisa/core/models.py` lines 99–100; `provisa/federation/trino_connectors.py` lines 223–286]
 
 #### `sharepoint`
 
@@ -321,11 +497,11 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 Каждый sObject, который доступен учётным данным для запросов, — это таблица, которую стюард может зарегистрировать (`Account`, `Opportunity`, пользовательские объекты `*__c`); автоматически ничего не регистрируется (REQ-1946). Столбцы и типы берутся из describe объекта. Фильтры, проекции, сортировки и лимиты передаются в Salesforce в виде SOQL. [tool-verified: `provisa/federation/pgwire_replica.py` `_salesforce_operand`; `provisa/federation/trino_connectors.py` `TrinoSalesforceConnector`]
 
-Источник Salesforce указывает URL входа «Мой домен» организации и один полный набор учётных данных, выбираемый через `mapping.auth_type`. Неполный набор отклоняется при использовании источника с указанием недостающего значения. Каждый секрет может быть ссылкой `${secret:…}` или `${env:…}`.
+Источник Salesforce указывает URL входа «Мой домен» организации и один полный набор учётных данных, выбираемый через `mapping.auth_type`. URL входа — полный URL `https://…` (например, `https://acme.my.salesforce.com`); голый хост или любая другая схема отклоняется с указанием поля. Неполный набор отклоняется при использовании источника с указанием недостающего значения. Каждый секрет может быть ссылкой `${secret:…}` или `${env:…}`. Секрет, введённый как буквальное значение, сохраняется в хранилище организации, а источник хранит ссылку на него.
 
 | Поле источника | Свойство коннектора | Примечания |
 | --- | --- | --- |
-| `base_url` / `host` | `login-url` | URL «Мой домен» организации (Настройка, затем Мой домен). `login.salesforce.com` не работает с потоком client credentials |
+| `base_url` или `host` | `login-url` | URL «Мой домен» организации (Настройка, затем Мой домен). `login.salesforce.com` не работает с потоком client credentials |
 | `username` | `client-id` | Ключ клиента подключённого приложения |
 | `password` | `client-secret` | Секрет клиента подключённого приложения |
 | `mapping.auth_type` | — | `CLIENT_CREDENTIALS` (по умолчанию), `USERNAME_PASSWORD` или `ACCESS_TOKEN` |
@@ -338,9 +514,9 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 **Чтение.** В Trino источник читается через каталог `salesforce`, который только читает. В любом другом движке движок подключает pgwire-сервер источника и читает его на месте.
 
-**Запись.** `INSERT`, `UPDATE` и `DELETE` над зарегистрированным sObject — это мутации: они управляются, попадают в аудит и обрабатываются по правилам среды, как любая другая мутация. В каждом движке, включая Trino, запись выполняется на pgwire-сервере источника; в Trino этот сервер работает только для записи. Каждая инструкция отправляется в Salesforce и фиксируется при выполнении, поэтому её нельзя откатить, а `RETURNING` не поддерживается. Источник SharePoint записывается так же. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
+**Запись.** `INSERT`, `UPDATE` и `DELETE` над зарегистрированным sObject — это мутации: они управляются, попадают в аудит и обрабатываются по правилам среды, как любая другая мутация. В каждом движке, включая Trino, запись выполняется на pgwire-сервере источника; в Trino этот сервер работает только для записи. Каждая инструкция отправляется в Salesforce и фиксируется при выполнении, поэтому её нельзя откатить. Сервер не возвращает записанные им строки: инструкция с предложением `RETURNING` отклоняется, а GraphQL не предлагает поля мутаций для этих таблиц; SQL `INSERT`, `UPDATE`, `DELETE` и `COPY` — пути записи. Запись — это одна простая инструкция над одной таблицей: `INSERT … ON CONFLICT`, `UPDATE … FROM`, `DELETE … USING`, `MERGE` и `TRUNCATE` отклоняются с указанием формы. Источник SharePoint записывается так же. [tool-verified: `provisa/executor/writable.py` `PGWIRE_SERVER_WRITTEN`; `provisa/api/data/pgwire_write.py`]
 
-**Запуск.** Прежде чем принимать подключения, сервер источника читает столбцы каждого sObject — около четырёх минут для организации с 1200 объектами. Это оплачивается один раз: результаты describe хранятся в собственном каталоге состояния источника внутри каталога данных экземпляра. Сервер запускается при регистрации или загрузке источника. Пока он не принимает подключения, «Регистрация таблицы» показывает, что коннектор запускается, а запись получает то же сообщение, а не ждёт. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
+**Запуск.** Прежде чем принимать подключения, сервер источника читает столбцы каждого sObject — около четырёх минут для организации с 1200 объектами. Это оплачивается один раз: результаты describe хранятся в собственном каталоге состояния источника внутри каталога данных экземпляра. Сервер запускается при регистрации или загрузке источника. В Trino каталог `salesforce` хранит собственные результаты describe, по одному каталогу на источник в `/data/trino/cache/salesforce-describe` внутри координатора, поэтому и там цена оплачивается один раз, если этот путь — том, переживающий контейнер: том `trino_cache` стека compose или том кеша координатора в Helm-чарте (`trino.coordinator.cache.persistence`). Пока сервер не принимает подключения, Register Table показывает, что коннектор запускается, а запись получает то же сообщение, а не ждёт. [tool-verified: `provisa/federation/pgwire_replica.py` `build_model_json`, `start_endpoint`]
 
 ```yaml
 - id: sales-salesforce
@@ -371,7 +547,7 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 Каждая таблица инстанса доступна для регистрации; ничего не регистрируется автоматически (REQ-1954). Полный инстанс может содержать тысячи таблиц; Register Table группирует их по теме — каждая тема является отображаемым именем пакета ServiceNow, или «(без пакета)», если таблица не принадлежит ни одному пакету. Каждая таблица отображается как `имя — метка`. При выборе таблицы её столбцы считываются из инстанса; простое перечисление таблиц столбцы не загружает. [tool-verified: `provisa/federation/pgwire_replica.py` `servicenow_table_list`, `servicenow_columns`; `provisa/federation/servicenow.py` `TABLE_LIST`, `COLUMN_LIST`]
 
-Источник ServiceNow указывает полный URL `https://…` инстанса, а также имя пользователя и пароль. URL берётся из `base_url` или `host`; голый хост или любая другая схема отклоняется с указанием поля (`instanceUrl`). Отсутствующее имя пользователя или пароль отклоняется с указанием поля. Каждое значение может быть ссылкой `${secret:…}` или `${env:…}`.
+Источник ServiceNow указывает полный URL `https://…` инстанса, а также имя пользователя и пароль. URL берётся из `base_url` или `host`; голый хост или любая другая схема отклоняется с указанием поля (`instanceUrl`). Отсутствующее имя пользователя или пароль отклоняется с указанием поля. Каждое значение может быть ссылкой `${secret:…}` или `${env:…}`. Секрет, введённый как буквальное значение, сохраняется в хранилище организации, а источник хранит ссылку на него.
 
 | Поле источника | Свойство адаптера | Примечание |
 | --- | --- | --- |
@@ -403,26 +579,26 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 #### `cloudops`
 
-Облачный инвентарь представляет ресурсы Azure, AWS и GCP как один набор таблиц: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries`, `compute_security_groups`. У каждой таблицы один набор столбцов для всех трёх облаков, а её столбец `cloud_provider` называет облако, из которого пришла строка. Источник только читает, а его таблицы регистрирует стюард, как и любые другие (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
+Облачный инвентарь представляет ресурсы Azure, AWS и GCP как один набор таблиц: `compute_resources`, `storage_resources`, `kubernetes_clusters`, `database_resources`, `network_resources`, `iam_resources`, `container_registries` и `compute_security_groups`, связывающую вычислительный ресурс с его группами безопасности. У каждой таблицы один набор столбцов для всех трёх облаков, а её столбец `cloud_provider` называет облако, из которого пришла строка. Источник только читает, а его таблицы регистрирует стюард, как и любые другие (REQ-1947). [tool-verified: `provisa/federation/cloudops.py` `cloudops_settings`; `provisa/federation/trino_connectors.py` `TrinoCloudopsConnector`]
 
-Источник называет одно или несколько облаков. Для каждого облака действует правило «всё или ничего»: облако, у которого заполнена лишь часть обязательных значений, отклоняется с указанием недостающего, как и источник, не называющий ни одного облака. Источник читает ровно те облака, которые называет. Все значения находятся в `mapping`; каждый секрет может быть ссылкой `${secret:…}` или `${env:…}`, а секрет, введённый напрямую, помещается в хранилище секретов организации.
+Источник называет одно или несколько облаков. Для каждого облака действует правило «всё или ничего»: облако, у которого заполнена лишь часть обязательных значений, отклоняется с указанием недостающего, как и источник, не называющий ни одного облака. Источник читает ровно те облака, которые называет. Все значения находятся в `mapping`; каждый секрет может быть ссылкой `${secret:…}` или `${env:…}`. Секрет, введённый как буквальное значение, сохраняется в хранилище организации, а источник хранит ссылку на него.
 
 | Облако | Ключ `mapping` | Свойство коннектора | Примечания |
 | --- | --- | --- | --- |
 | Azure | `azure_tenant_id` | `azure.tenant-id` | Обязательно |
-| Azure | `azure_client_id` | `azure.client-id` | Обязательно |
+| Azure | `azure_client_id` | `azure.client-id` | Обязательно; ID клиента регистрации приложения |
 | Azure | `azure_client_secret` | `azure.client-secret` | Обязательно; секрет |
 | Azure | `azure_subscription_ids` | `azure.subscription-ids` | Обязательно; через запятую |
 | AWS | `aws_access_key_id` | `aws.access-key-id` | Обязательно |
 | AWS | `aws_secret_access_key` | `aws.secret-access-key` | Обязательно; секрет |
-| AWS | `aws_region` | `aws.region` | Обязательно |
+| AWS | `aws_region` | `aws.region` | Обязательно, например `us-east-1` |
 | AWS | `aws_account_ids` | `aws.account-ids` | Обязательно; через запятую |
-| AWS | `aws_role_arn` | `aws.role-arn` | Необязательно |
-| GCP | `gcp_credentials_path` | `gcp.credentials-path` | Обязательно |
+| AWS | `aws_role_arn` | `aws.role-arn` | Необязательно; роль, принимаемая для доступа между аккаунтами |
+| GCP | `gcp_credentials_path` | `gcp.credentials-path` | Обязательно; АБСОЛЮТНЫЙ путь к JSON-файлу ключа сервисного аккаунта |
 | GCP | `gcp_project_ids` | `gcp.project-ids` | Обязательно; через запятую |
-| — | `cache_ttl_minutes` | `cache.ttl-minutes` | Необязательно |
+| — | `cache_ttl_minutes` | `cache.ttl-minutes` | Необязательно; как долго результат используется повторно, прежде чем облака будут опрошены снова (по умолчанию в адаптере 5) |
 
-Файл ключа GCP открывает тот, кто читает источник: в Trino это сервер Trino, в любом другом движке — pgwire-сервер источника на хосте Provisa. Путь должен быть абсолютным.
+Файл ключа GCP открывает тот, кто читает источник. В Trino это сервер Trino, поэтому путь должен существовать на нём. В любом другом движке это pgwire-сервер источника на хосте Provisa, чей рабочий каталог — его собственный каталог состояния, поэтому относительный путь отклоняется.
 
 В Trino источник читается через каталог `cloudops`. В любом другом движке движок подключает pgwire-сервер источника и читает его на месте, как источник SharePoint.
 
@@ -466,6 +642,84 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
     disable_ssl_validation: true
 ```
 
+#### Google Workspace и Microsoft 365 (REQ-1923, REQ-1994) {: #google-workspace-and-microsoft-365 }
+
+`google_workspace` и `microsoft_365` читают почту, календари и задачи учётных записей, которые называет источник, и загружают их как реплики. Это не коннекторы Calcite: у каждого свой загрузчик, обращающийся к API провайдера — Gmail, Google Calendar и Google Tasks с одной стороны и Microsoft Graph с другой. Форма перечисляет их в группе Enterprise как «Google Workspace (Gmail)» и «Microsoft 365 (Outlook, Exchange)». [tool-verified: `provisa/core/models.py` `SourceType`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`; `provisa-ui/src/pages/sources/constants.ts`]
+
+**Таблицы.** Оба типа создают одни и те же канонические таблицы: те же имена, типы столбцов и порядок. Для объединения двух не нужны ни приведение типов, ни переименование; столбец, для которого у одного из провайдеров нет значения, равен NULL. Таблицы перечислены в схеме `default`, и каждая строка начинается с учётной записи, из которой она прочитана. Источник предлагает таблицы тех ресурсов, которые он читает: [tool-verified: `provisa/core/canonical_mail.py` module docstring, `RESOURCE_TABLES`, `tables_for`; `provisa/google_workspace/loader.py` `SCHEMA`]
+
+| Ресурс | Таблицы | Записываются инструкциями |
+| --- | --- | --- |
+| `mail` | `messages`, `message_recipients`, `folders`, `message_folders`, `threads`, `attachments` | Нет |
+| `calendar` | `calendars`, `events`, `event_attendees` | `events`, `event_attendees` |
+| `tasks` | `task_lists`, `tasks` | `tasks` |
+
+Столбцы перечислены в [канонической схеме почты](arch/canonical-mail-schema.md). `events` хранит одиночные события, главные события серий с правилом повторения в виде строк RFC 5545 и исключения; развёрнутых вхождений серии она не хранит никогда. [tool-verified: `provisa/google_workspace/calendar_read.py` module docstring] (REQ-1994)
+
+**Регистрация.** Сначала администратор организации вводит клиент организации для платформы в Admin → Email: ID клиента и секрет, а для Microsoft 365 ещё и ID каталога (tenant) или домен. Тот, кто добавляет источник, их не видит и не вводит. Затем источник принимает одну из двух форм: [tool-verified: `provisa/core/mail_platforms.py` module docstring; `provisa/microsoft365/__init__.py`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json`]
+
+- **Один почтовый ящик.** Источник называет один адрес в `accounts`. Его владелец нажимает **Connect** в форме и одобряет клиент организации. Полученное одобрение хранится в хранилище состояния организации, а не в настройках источника. В Google Workspace эта форма дополнительно задаёт `sign_in: google_account`.
+- **Почтовые ящики организации.** Источник задаёт `mailboxes` ровно одним из вариантов: `everyone: true`, `group: <address or id>` или `list: [addresses]`. Учётных данных он не хранит, и подключать его никто не должен. Организация читает со своим собственным доступом, и только после того, как администратор включил «Read the organization's mailboxes». В Google этот доступ — ключ сервисного аккаунта с делегированием на уровне домена плюс адрес администратора для обращений к каталогу. В Microsoft это грант client-credentials регистрации приложения.
+
+[tool-verified: `provisa/google_workspace/settings.py` `parse`, `_mailboxes`; `provisa/microsoft365/settings.py` `parse`; `provisa/core/mail_platforms.py` `organisation_mailboxes`]
+
+При второй форме одна таблица содержит строки всех ящиков. Роль, которой разрешено читать таблицу, читает все ящики, если её не ограничивает правило строк по столбцу `account`. [tool-verified: `provisa-ui/src/i18n/locales/en/googleWorkspaceFields.json` `everyMailbox`]
+
+```yaml
+sources:
+  - id: team-mail
+    type: microsoft_365
+    mapping:
+      resources: [mail, calendar, tasks]
+      mailboxes:
+        group: support@acme.com
+      mail_since: "2026-01-01"
+      calendar_check_days: 30        # required when calendar is read
+      calendar_send_updates: false
+```
+
+**Настройки.** Каждый модуль по имени отклоняет ключ, который он не читает. [tool-verified: `provisa/google_workspace/settings.py` `_KEYS`; `provisa/microsoft365/settings.py` `_KEYS`]
+
+| Ключ `mapping` | Тип | Значение |
+| --- | --- | --- |
+| `resources` | оба | Какие из `mail`, `calendar`, `tasks` читает источник; не менее одного |
+| `accounts` | оба | Адрес единственного ящика (форма «один ящик») |
+| `mailboxes` | оба | `everyone`, `group` или `list` (форма организации) |
+| `sign_in` | `google_workspace` | `google_account` (форма «один ящик») |
+| `mail_since` | оба | `YYYY-MM-DD`; ничего, полученное раньше, не хранится |
+| `mail_content` | `google_workspace` | `full` или `headers` — только заголовки и метки (область `gmail.metadata` Gmail). Обязателен, если читается почта |
+| `mail_search` | `google_workspace` | Поиск в том виде, как его вводят в строку поиска Gmail |
+| `mail_labels` | `google_workspace` | Названия меток; читается только почта, несущая каждую из них |
+| `mail_include_spam_trash` | `google_workspace` | По умолчанию `false` |
+| `calendar_send_updates` | оба | Сообщает ли запись участникам события; по умолчанию выключено |
+| `calendar_check_days` | `microsoft_365` | На сколько дней в обе стороны от сегодняшнего дня смотрит проверка изменений; целое число, 1 или больше, обязательно, если читается календарь |
+
+Google отклоняет поиск в области `gmail.metadata`, поэтому `mail_content: headers` вместе с `mail_search` или `mail_since` отклоняется. [tool-verified: `provisa/google_workspace/settings.py` `_mail`]
+
+**Области доступа (scopes).** При входе запрашиваются только области отмеченных ресурсов: [tool-verified: `provisa/google_workspace/settings.py` `MAIL_SCOPES`, `RESOURCE_SCOPES`; `provisa/google_workspace/sign_in.py` `EMAIL_SCOPE`; `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`, `BASE_SCOPES`; `provisa/microsoft365/directory.py`]
+
+| Ресурс | Google Workspace | Microsoft 365 (делегированные) |
+| --- | --- | --- |
+| `mail` | `gmail.readonly` или `gmail.metadata` только для заголовков | `Mail.Read` |
+| `calendar` | `calendar.calendarlist.readonly`, `calendar.events` | `Calendars.ReadWrite` |
+| `tasks` | `tasks` | `Tasks.ReadWrite` |
+| каждый источник | `userinfo.email` | `offline_access`, `User.Read` |
+
+Для формы организации Microsoft требует разрешения приложения `Mail.Read` и `User.Read.All`, а для календарей и задач ещё `Calendars.ReadWrite` и `Tasks.ReadWrite.All`. Сервисный аккаунт Google авторизован на области из `DELEGATED_SCOPES`, которые также включают чтение пользователей каталога и участников групп. [tool-verified: `provisa/microsoft365/directory.py`; `provisa/google_workspace/__init__.py` `DELEGATED_SCOPES`; `provisa-ui/src/i18n/locales/en/mailPlatforms.json` `organisationGrant`]
+
+**Обновление и актуальность.** Эти источники принимают типы проб `hash` и `none`, а токен изменений предоставляет их загрузчик: [tool-verified: `provisa/events/probes.py` `_MAIL_TYPES`, `probe_capabilities`]
+
+- **Gmail:** дайджест текущего history id каждого ящика, один вызов `users.getProfile` на ящик. [tool-verified: `provisa/google_workspace/loader.py` `mailbox_token`]
+- **Почта Microsoft:** каждая сохранённая delta-ссылка, пройденная на один элемент. [tool-verified: `provisa/microsoft365/loader.py` `unchanged`]
+- **Календари и задачи Google:** тег и время последнего изменения каждого календаря; тег каждого списка задач, а также id и время обновления каждой задачи. [tool-verified: `provisa/google_workspace/calendar_read.py` `change_token`]
+- **Календари и задачи Microsoft:** строки изменений каждого ящика за `calendar_check_days` дней в обе стороны от сегодняшнего дня. [tool-verified: `provisa/microsoft365/loader.py` `_calendar_token`] [inferred: that a line is an event's id and change key, or a task's update time, from REQ-1994]
+
+Проверка, которую выполнить нельзя, запрашивает чтение; она никогда не сообщает «unchanged». Таблицы календарей и задач читаются целиком при каждом обновлении. Реплики почты источника Microsoft 365 или Google Workspace хранятся на месте: каждая часть ящика записывается по мере поступления и сразу доступна для запросов. [tool-verified: `provisa/core/canonical_mail.py` `RESOURCE_TABLES` comment; `provisa/federation/replica_builds.py` `GROUP_READ_TYPES`; `provisa/federation/mail_units.py`] Источник Google Workspace, сужающий выборку через `mail_search`, при каждом обновлении читается заново целиком, потому что только Google может сказать, чему соответствует поиск. [tool-verified: `provisa/google_workspace/units.py` module docstring]
+
+**Запись.** `INSERT`, `UPDATE` и `DELETE` для `events`, `event_attendees` и `tasks` уходят провайдеру по одному пути записи для обоих типов. `UPDATE` или `DELETE` называет свои строки по `provider`, `account` и `id`; участник называется по `event_id` и `address`. Одно вхождение серии называется по `series_id` и `original_start_at`. Запись, задающая столбец вне набора записываемых столбцов таблицы, отклоняется по имени. Google пишет с `sendUpdates=all`, когда `calendar_send_updates` включена, и с `sendUpdates=none`, когда выключена. Microsoft Graph не может сделать такое изменение незаметно, поэтому изменение состава участников встречи отклоняется с указанием этой настройки. [tool-verified: `provisa/executor/writable.py` `API_WRITTEN`; `provisa/core/canonical_mail.py` `WRITE_KEYS`, `WRITABLE_COLUMNS`; `provisa-ui/src/i18n/locales/en/mailResources.json` `sendUpdatesHelp`] [tool-verified: `provisa/google_workspace/calendar_write.py`]
+
+**Исключения.** Почта только для чтения; ни одна инструкция не изменяет почтовый ящик. `calendars`, `task_lists` и все таблицы почты не принимают записи. Папки Spam и Trash в Gmail исключены, пока не включён `mail_include_spam_trash`. Google Tasks API хранит только день, на который назначен срок задачи, и не имеет напоминаний. [tool-verified: `provisa/microsoft365/settings.py` `RESOURCE_SCOPES`; `provisa/core/canonical_mail.py` `WRITABLE_COLUMNS`; `provisa/google_workspace/settings.py` `_mail`] [inferred: the Tasks API limit, from REQ-1994]
+
 ### API-источники {: #api-sources }
 
 Зарегистрируйте любую HTTP-конечную точку как запрашиваемую таблицу. [tool-verified: `provisa/core/models.py` `SourceType` enum] (REQ-314, REQ-307, REQ-322)
@@ -480,24 +734,80 @@ SharePoint, Splunk и ServiceNow регистрируются через кон�
 
 **Правила JSONB**: сложные столбцы (объекты, массивы), хранящиеся как JSONB, не поддерживают фильтрацию (REQ-119). Доступ к вложенным полям использует извлечение через `->>` в SQL (REQ-151). Связи объявляются между таблицами через скалярные столбцы внешнего ключа — столбцы-блобы JSONB не являются целями соединения (join). Используйте продвижение JSONB (JSONB promotion), чтобы преобразовать вложенные поля в нативные скалярные столбцы, когда требуется фильтрация или соединение по ним (REQ-119).
 
+#### GitHub и GitLab {: #github-and-gitlab }
+
+GitHub и GitLab — фирменные источники на основе `graphql_remote`: каждый появляется в форме Sources под своим именем и регистрируется как удалённый источник GraphQL, запоминающий свой бренд. Форма принимает персональный токен доступа и ничего больше. Конечная точка (`https://api.github.com/graphql`, `https://gitlab.com/api/graphql`) и схема поставляются вместе с Provisa, поэтому схема при регистрации не интроспектируется. Токен проверяется при добавлении источника. Добавление источника не регистрирует таблиц: каждая таблица, которую предлагает схема, доступна в пространстве имён источника (`gh`, `gl`), а стюард регистрирует нужные. Поле, которое токену читать нельзя, при регистрации таблицы исключается. [tool-verified: `provisa/graphql_remote/brands.py` `BRANDS`] (REQ-1923)
+
+#### Stripe (REQ-1923) {: #stripe }
+
+Stripe — фирменный источник на основе `openapi`, построенный так же, как GitHub и GitLab поверх `graphql_remote`. В форме Sources он появляется под именем Stripe в группе Enterprise. Он регистрируется как источник OpenAPI, строка которого записывает бренд в `federation_hints`, а путь спецификации — `brand:stripe`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_CARRIER`; `provisa/openapi/brands.py` `BRANDS`, `SPEC_SCHEME`; `provisa/api/admin/openapi_router.py` `_branded`]
+
+**Что он охватывает.** REST API Stripe через опубликованную Stripe спецификацию OpenAPI (`stripe/openapi`, `spec3.json`). Спецификация поставляется вместе с Provisa, закреплённой по версии и сжатой gzip, и при регистрации не загружается. Поставляемая — версия API `2026-09-30.endive` с 425 путями. Каждый вызов несёт `Stripe-Version`, равный этой версии, поэтому каждый ответ имеет форму, описанную в спецификации, какую бы версию ни использовал аккаунт по умолчанию. Поля, которые Stripe возвращает, но которых нет в спецификации, добавляются из `stripe.additions.json`. [tool-verified: `provisa/openapi/brands.py` `brand_spec`, `Brand.headers`; `provisa/openapi/_known_specs/`; version and path count read with the project interpreter]
+
+Как и в любом источнике OpenAPI, каждая операция `GET` — это предлагаемая таблица, а каждая другая операция — предлагаемая команда. Добавление источника не регистрирует ни одну из них: управляющий данными регистрирует нужные. [tool-verified: `provisa/api/admin/openapi_router.py` `register_openapi_source`; `provisa/openapi/brands.py` module docstring]
+
+**Аутентификация.** Форма просит одно — токен доступа (`BRAND_AUTH`: `token`). Используйте секретный или ограниченный API-ключ Stripe. Токен отправляется как bearer-токен и один раз проверяется запросом `GET /v1/balance` до добавления источника. Отклонённый токен завершает регистрацию ошибкой `openapi.credential_rejected`; отсутствующий — ошибкой `openapi.credential_required`. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `BRAND_AUTH`; `provisa/openapi/brands.py` `Brand.auth`, `verify_path`; `provisa/api/admin/openapi_router.py` `_branded`] [inferred: that a restricted key works, provided it may read `/v1/balance`]
+
+**Обновление и актуальность.** Таблица Stripe — это реплика, как и любая таблица OpenAPI. Её кешированные ответы живут `cache_ttl` источника, который запрос регистрации устанавливает равным 300 секундам, если не указано иное. Применимы типы проб OpenAPI. [tool-verified: `provisa/api/admin/openapi_router.py` `OpenAPIRegisterRequest.cache_ttl`; `provisa/events/probes.py` `_HTTP_API_TYPES`] REQ-1923 предусматривает, что пресет может назвать параметр, с помощью которого обновление получает только изменившееся. Бренд Stripe такого параметра не называет, поэтому каждое обновление читает свои таблицы целиком. [tool-verified: `provisa/openapi/brands.py` `Brand` has no such field]
+
+**Исключения.** Устаревшая платёжная интеграция Stripe с токенами и Sources исключена из поставляемой спецификации. Список приведён в разделе [Исключения в источнике, построенном по спецификации](#exclusions-on-a-specification-built-source). Собственные `exclusions` оператора добавляются к исключениям бренда. [tool-verified: `provisa/openapi/_known_specs/stripe.exclusions.json`; `provisa/openapi/brands.py` `brand_spec`] (REQ-1957)
+
+`stripe` также присутствует в `SourceType` среди заглушек типов Supabase `wrappers`. Источник Stripe, добавленный через форму, — это источник `openapi`, а не эта заглушка. [tool-verified: `provisa/core/models.py` `SourceType`]
+
+#### Исключения в источнике, построенном по спецификации {: #exclusions-on-a-specification-built-source }
+
+Опубликованная спецификация OpenAPI описывает всё, что принимает удалённый API, включая то, что его поставщик объявил устаревшим и что развёртывание ни в коем случае не должно отправлять. Источник OpenAPI может нести исключения: то, что есть в спецификации, но источник не предлагает. (REQ-1957)
+
+| Исключается | Задаётся | Эффект |
+|---|---|---|
+| Операция | `method` и `path` | Не предлагается для регистрации как таблица или команда |
+| Аргумент запроса | `name`, для одной операции (`method` и `path`) или, при отсутствии обоих, для каждой операции, где он есть | Не входит в аргументы операции, не показывается, никогда не отправляется |
+
+Исключения задаются под `exclusions` в `mapping` источника:
+
+```yaml
+sources:
+  - id: shop-api
+    type: openapi
+    path: https://shop.example.com/openapi.json
+    mapping:
+      exclusions:
+        operations:
+          - {method: POST, path: /v1/tokens}
+        arguments:
+          - {name: source, method: POST, path: /v1/customers}
+          - {name: legacy_token}          # on every operation that has it
+```
+
+Они применяются к спецификации при её загрузке, поэтому список для регистрации, сгенерированные команды и отправляемый запрос видят спецификацию, в которой исключённых элементов не существует. Можно исключить свойство тела, а также параметр запроса, заголовка или cookie; параметр пути исключить нельзя, потому что он часть адреса операции.
+
+Исключение, называющее операцию или аргумент, которых нет в спецификации, приводит к сбою загрузки спецификации этого источника и называет каждую устаревшую запись, так что список, переставший соответствовать более новой спецификации, не остаётся незамеченным.
+
+Фирменный источник поставляется со своими исключениями как частью кураторской настройки, а исключения оператора добавляются к ним. Источник Stripe исключает устаревшую интеграцию платежей Stripe через токены и источники: создание списания (charge), API Tokens и Sources, добавление карты или банковского счёта клиенту из токена, а также аргументы `source`, `card`, `bank_account` и `default_card` в операциях записи клиентов и оплаты счетов. Платежи принимаются через Payment Intents, Payment Methods и Setup Intents, которые источник предлагает. Чтение и удаление платёжных источников, которые у аккаунта уже есть, остаются доступными.
+
+
 ### GovData
 
 Открытые данные правительства США. Доступ разделён по тематическим группам. [tool-verified: `provisa/core/models.py` lines 543–609]
 
-Каждый источник `govdata` выбирает одну тему. Эта тема определяет, какие схемы GovData доступны. Схемы `ref` и `geo` всегда включены как связующие схемы — они не перечислены по темам, но присутствуют всегда. [tool-verified: `provisa/core/models.py` line 562–563 comment]
+Источнику задаются одна или несколько тем, и каждая тема приносит перечисленные ниже схемы адаптера. Схема может принадлежать более чем одной теме (`census`). Схемы `ref` и `geo` — связующие: справочные данные и география, через которые соединяются таблицы каждой темы, поэтому каждый источник обслуживает их независимо от заданных тем. Список задан один раз на сервере, и тест удерживает его в соответствии со схемами, которые обслуживает закреплённый пакет адаптера. [tool-verified: `provisa/core/models.py` `GOVDATA_SUBJECT_SCHEMAS`, `GOVDATA_LINKER_SCHEMAS`; `tests/unit/test_govdata_subject_schemas.py`]
 
 | Тема | Открываемые схемы |
 | --------- | ----------------- |
-| `COMMERCE` | `sec`, `patents` |
-| `ECONOMY` | `econ` |
-| `EDUCATION` | `census`, `edu` |
+| `COMMERCE` | `sec`, `patents`, `cftc` |
+| `ECONOMY` | `econ`, `econ_reference`, `ag`, `banking`, `fiscal`, `housing`, `transport` |
+| `EDUCATION` | `census`, `edu`, `research` |
 | `HEALTH` | `health` |
 | `CYBER` | `cyber_threat`, `cyber_vuln` |
-| `PUBLIC_SAFETY` | `crime` |
-| `ENVIRONMENT` | `lands` |
+| `PUBLIC_SAFETY` | `crime`, `disasters` |
+| `ENVIRONMENT` | `lands`, `environment` |
 | `WEATHER` | `weather` |
-| `GOVERNMENT` | `fedregister`, `fec` |
-| `ALL` | Все схемы выше |
+| `ENERGY` | `energy` |
+| `GOVERNMENT` | `fedregister`, `fec`, `officials`, `law` |
+| `DEMOGRAPHICS` | `census` |
+| каждый источник | `ref`, `geo` |
+
+`ALL` — сокращение подписки для всех тем; в форме Sources такого выбора нет.
 
 ```yaml
 sources:
@@ -516,39 +826,67 @@ sources:
 | `domain_id` | Да | — | Домен, которому принадлежит этот источник |
 | `description` | Нет | `""` | Описание для человека |
 
+Источник AskAmerica, созданный в админке, принимает один учётный параметр — ключ API. Provisa
+предъявляет ключ API AskAmerica и получает краткоживущие учётные данные хранилища только для
+чтения, с которыми читаются данные; неизвестный или отозванный ключ отклоняется там с указанием
+имени. [tool-verified: `provisa/federation/askamerica.py`]
+
+Затем источник — это источник с протоколом Postgres, как источники SharePoint, Salesforce и
+облачного инвентаря: Provisa запускает для него встроенный сервер `pgwire-govdata`, передавая ключ и
+эти учётные данные в окружение сервера, а каждый движок обращается к этому серверу так же, как к
+серверу соседнего источника. DuckDB, Postgres и ClickHouse подключают его и читают его таблицы на
+месте, поэтому таблица AskAmerica соединяется с таблицами других источников, лежит под
+представлениями и доставляется как любая другая. У Trino для него нет коннектора, и он читает
+реплику, выгруженную через сервер: копию таблицы, хранящуюся в хранилище материализации, настолько
+свежую, насколько свежо её последнее обновление по настройкам кеша и репликации таблицы, а не
+прочитанную во время запроса. Таблица читается из схемы адаптера, которую она называет (`sec`,
+`econ` и так далее). [tool-verified: `provisa/federation/pgwire_replica.py`,
+`provisa/federation/connector_duckdb.py`, `provisa/federation/clickhouse_connectors.py`]
+
+Сервер монтирует свои схемы из объектного хранилища, прежде чем принять подключение, — при первом
+запуске это занимает минуты. Он запускается при сохранении источника; пока он не готов, форма
+Register Table сообщает, что источник ещё запускается. [tool-verified:
+`provisa/federation/pgwire_replica.py` `start_when_saved`]
+
 ### Где хранится пароль источника
 
 Пароль источника никогда не хранится рядом с остальными настройками подключения. Строка `sources`
-в плоскости управления содержит столбец `password_ref`, хранящий *ссылку* —
-`${env:PG_PASSWORD}`, `${secret:SNOWFLAKE_KEY}` — которая разрешается в момент, когда источник
-подключается, внутри организации, от имени которой выполняется запрос (REQ-1695). [tool-verified:
-`provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
+в плоскости управления содержит столбец `password_ref`, хранящий то, что было введено как пароль:
+само значение или ссылку, например `${env:PG_PASSWORD}` либо `${secret:SNOWFLAKE_KEY}`. Она
+разрешается в момент, когда источник подключается, внутри организации, от имени которой выполняется
+запрос. [tool-verified: `provisa/core/schema_org.py`, `provisa/core/repositories/source.py`]
 
-`${env:VAR}` читает переменную окружения процесса развёртывания и не требует привязки. `${secret:NAME}`
-именует секрет, которым владеет организация, поэтому он разрешается только в рамках собственных
-операций этой организации: интроспекционные точки администрирования и терминал запросов, к которым
-обращается каждая поверхность, устанавливают эту привязку. [tool-verified: `provisa/pgwire/_pipeline.py` `_execute_plan`]
+Значение без `${…}` используется как есть. `${env:VAR}` читает переменную окружения процесса
+развёртывания и не требует привязки. `${secret:NAME}` именует секрет, которым владеет организация,
+поэтому он разрешается только в рамках собственных операций этой организации: интроспекционные
+точки администрирования и терминал запросов, к которым обращается каждая поверхность, устанавливают
+эту привязку. [tool-verified: `provisa/core/secrets.py` `resolve_secrets`;
+`provisa/pgwire/_pipeline.py` `_execute_plan`]
 
-Куда указывает ссылка, зависит от того, как был зарегистрирован источник:
+Поле хранит то, что вы в него ввели, как бы ни был зарегистрирован источник:
 
-- **Из конфигурации.** Вы сами пишете ссылку. `${env:VAR}` читает переменную окружения процесса
-  развёртывания; `${secret:NAME}` читает хранилище секретов организации (см. [Секреты](secrets.md)).
-  Файл — это запись, и Provisa копирует ссылку в `password_ref` дословно.
-- **Из формы Sources.** Ссылка, введённая в поле пароля, также сохраняется дословно. *Буквальный*
-  пароль записывается в хранилище секретов организации под именем
-  `source_<id>_password` — зашифрованно, и его нельзя прочитать обратно по имени — а строка сохраняет
-  `${secret:source_<id>_password}`, который его именует. [tool-verified:
-  `provisa/api/admin/schema_common.py` `persist_source_password`]
+- **Из конфигурации.** Файл — это запись: Provisa копирует значение или ссылку в `password_ref`
+  дословно.
+- **Из формы Sources.** То, что введено в поле пароля, сохраняется дословно — значение или ссылка.
+  Provisa ничего не записывает для него в хранилище организации и не придумывает имя секрета. Чтобы
+  не держать учётные данные в строке плоскости управления, создайте секрет сами (см.
+  [Секреты](secrets.md)) и введите `${secret:NAME}` в поле. [tool-verified:
+  `provisa/api/admin/schema_mutation.py` `create_source`]
 
-Повторный ввод пароля для существующего источника ротирует эту одну запись хранилища, а не создаёт
-вторую. Удаление источника убирает запись, созданную для него Provisa, и только её: ссылка, которую
-вы написали сами, именует секрет, которым владеете вы по своим собственным причинам, и её никто не
-трогает.
-[tool-verified: `provisa/api/admin/schema_mutation.py` `delete_source`]
+Значение, введённое как значение, хранится в базе данных плоскости управления так, как введено.
+Повторный ввод пароля заменяет текст поля. Удаление источника убирает его строку и ничего не
+убирает из хранилища: созданный вами секрет остаётся вашим. [tool-verified:
+`provisa/api/admin/schema_mutation.py` `delete_source`;
+`tests/unit/test_no_product_written_secrets.py`]
 
-`password_ref` не переносится между окружениями (REQ-1491). Ветка (branch) или скопированное окружение
-предоставляет собственные значения подключения, а хранилище секретов, которое именует ссылка, принадлежит
-тому окружению, которое её предоставило. [tool-verified: `provisa/core/env_classes.py` `BINDING_COLUMNS`]
+`password_ref` не переносится между окружениями (REQ-1491). Ветка (branch) или скопированное
+окружение предоставляет собственные значения подключения, а хранилище, которое именует ссылка,
+принадлежит тому окружению, которое её предоставило. [tool-verified:
+`provisa/core/env_classes.py` `BINDING_COLUMNS`]
+
+### Профайлер данных {: #data-profiler }
+
+Профайлер данных — это источник, который хранит только имя, расписание и значения запуска по умолчанию. Он никогда не интроспектируется. К нему добавляются таблицы других источников, и каждый запуск измеряет их и записывает свои строки в плоскость управления организации, где они читаются как таблицы любого другого источника. О создании профайлера и добавлении в него таблиц см. [Тестовые данные](test-data.md). [tool-verified: `provisa/core/models.py` `SourceType.data_profiler`; `provisa/federation/strategy.py` `_MATERIALIZE_ONLY`] (REQ-1934)
 
 ### Проверки качества данных (REQ-1443) {: #data-quality-checkers-req-1443 }
 
@@ -794,7 +1132,7 @@ sources:
 | `cache_schema` | Нет | `api_cache` | Схема внутри каталога кеша |
 | `naming_convention` | Нет | `null` | Переопределить глобальное соглашение об именовании для этого источника (REQ-194) |
 | `federation_hints` | Нет | `{}` | Параметры сессии, передаваемые движку федерации, и расширенные параметры подключения для источников-хранилищ (REQ-278, REQ-281) |
-| `mapping` | Нет | `{}` | Настройки коннектора, специфичные для типа, для NoSQL- и SaaS-источников (например, `auth_type` SharePoint, `use_token` Splunk) (REQ-251) |
+| `mapping` | Нет | `{}` | Настройки коннектора, специфичные для типа, для NoSQL- и SaaS-источников (например, `auth_type` SharePoint, `auth_type` Salesforce, `use_token` Splunk) (REQ-251) |
 | `allowed_domains` | Нет | `[]` | Ограничить источник конкретными доменами; пусто = без ограничений |
 | `description` | Нет | `""` | Описание для человека |
 
