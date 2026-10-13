@@ -1458,18 +1458,6 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         from provisa.core.models import Source as SourceModel, SourceType as SourceTypeEnum
         from provisa.core.repositories import source as _source_repo
 
-        # A create makes a new source: an existing id is refused by name before anything is
-        # staged, connected or written. Changing a source, and provisioning it again on another
-        # engine, is updateSource.
-        async with (await _get_pool()).acquire() as _taken_conn:
-            if await _source_repo.get(cast("Connection", _taken_conn), input.id) is not None:
-                return MutationResult(
-                    success=False,
-                    message=f"Source {input.id!r} already exists",
-                    code="schema.source_id_taken",
-                    params={"source": input.id},
-                )
-
         # REQ-1907: a ttl / ttl_probe signal needs a cache_ttl on the source or on each table
         # already registered under this id.
         async with (await _get_pool()).acquire() as _ttl_conn:
@@ -1506,6 +1494,19 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         _residency = _residency_refusal(info, f"source {input.id}", CREATED, input.region)
         if _residency is not None:  # REQ-1921
             return _residency
+
+        # A create makes a new source. A definition that is refused is refused for what it is
+        # (above); a valid one whose id exists is refused by name, before anything is staged,
+        # connected or written. Changing a source, and provisioning it again on another engine,
+        # is updateSource.
+        async with (await _get_pool()).acquire() as _taken_conn:
+            if await _source_repo.get(cast("Connection", _taken_conn), input.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Source {input.id!r} already exists",
+                    code="schema.source_id_taken",
+                    params={"source": input.id},
+                )
 
         pool = await _get_pool()
         if input.type == "govdata":
