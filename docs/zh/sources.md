@@ -26,27 +26,28 @@
 
 ## 所有数据源
 
-Provisa 注册了 **69** 种数据源类型，即 Sources 表单所提供的类型。下表覆盖全部 69 种；索引即为计数。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`，其中 `graphql` 和 `grpc` 即 `graphql_remote` 和 `grpc_remote`；Kaggle、Wikipedia、GitHub、GitLab 和 Stripe 虽然内部通过 `files`、`graphql_remote` 和 `openapi` 连接器注册，但仍作为独立数据源计数]
+Provisa 注册了 **72** 种数据源类型，即 Sources 表单所提供的类型。下表覆盖全部 72 种；索引即为计数。[tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`，其中 `graphql` 和 `grpc` 即 `graphql_remote` 和 `grpc_remote`；Kaggle、Wikipedia、GitHub、GitLab 和 Stripe 虽然内部通过 `files`、`graphql_remote` 和 `openapi` 连接器注册，但仍作为独立数据源计数]
 
 | # | 分组 | 数据源类型 |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`、`mysql`、`mariadb`、`singlestore`、`sqlserver`、`oracle`、`duckdb`、`cockroachdb`、`yugabytedb`、`greenplum`、`tidb`、`firebird`、`airport`、`saphana`、`hiveserver2` |
-| 16–23 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino` |
-| 24–28 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
-| 29–32 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hive`、`hive_s3` |
-| 33–37 | [NoSQL](#nosql) | `mongodb`、`cosmosdb`、`qdrant`、`cassandra`、`redis` |
-| 38–40 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
-| 41 | [推送接收器](#push-receiver) | `ingest` |
-| 42–43 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
-| 44–48 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files`、`logs` |
-| 49–50 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
-| 51–57 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`salesforce`、`servicenow`、`cloudops`、`splunk`、`google_workspace`, `microsoft_365` |
-| 58–63 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote`、GitHub、GitLab、Stripe |
-| 64 | [GovData](#govdata) | `govdata` |
-| 65–66 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
-| 67 | [数据剖析器](#data-profiler) | `data_profiler` |
-| 68 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
-| 69 | [Wikipedia](#wikipedia) | Wikipedia（注册为抓取所指定页面的 `files` 数据源 — 参见 [Wikipedia](#wikipedia)） |
+| 16–24 | [云数据仓库](#cloud-data-warehouses) | `snowflake`、`bigquery`、`databricks`、`redshift`, `athena`、`fabric`、`synapse`、`trino`, [`motherduck`](#motherduck) |
+| 25–29 | [Analytics / OLAP](#analytics-olap) | `clickhouse`、`druid`、`exasol`、`elasticsearch`、`pinot` |
+| 30–33 | [数据湖 / 开放表格式](#data-lake-open-table-formats) | `iceberg`、`delta_lake`、`hive`、`hive_s3` |
+| 34–38 | [NoSQL](#nosql) | `mongodb`、`cosmosdb`、`qdrant`、`cassandra`、`redis` |
+| 39–40 | [代码源](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [流式处理](#streaming) | `kafka`、`websocket`、`rss` |
+| 44 | [推送接收器](#push-receiver) | `ingest` |
+| 45–46 | [图与语义](#graph-semantic) | `neo4j`、`sparql` |
+| 47–51 | [基于文件](#file-based) | `sqlite`、`csv`、`parquet`、`files`、`logs` |
+| 52–53 | [可观测性及其他](#observability-other) | `google_sheets`、`prometheus` |
+| 54–60 | [企业级 SaaS](#enterprise-saas-connectors) | `sharepoint`、`salesforce`、`servicenow`、`cloudops`、`splunk`、`google_workspace`, `microsoft_365` |
+| 61–66 | [API 数据源](#api-sources) | `openapi`、`graphql_remote`、`grpc_remote`、GitHub、GitLab、Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [数据质量检查器](#data-quality-checkers-req-1443) | `soda`、`great_expectations` |
+| 70 | [数据剖析器](#data-profiler) | `data_profiler` |
+| 71 | [Kaggle 数据集](#kaggle-datasets) | Kaggle（通过 Sources 表单暂存；注册为 `files` 数据源 — 参见 [Kaggle 数据集](#kaggle-datasets)） |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia（注册为抓取所指定页面的 `files` 数据源 — 参见 [Wikipedia](#wikipedia)） |
 
 Provisa 支持的每种数据源类型的参考。"Direct driver"（直连驱动）表示单数据源查询直接针对该数据源原生执行（亚 100 毫秒）（REQ-027）。"Connector Name"（连接器名称）是当该数据源参与多数据源 JOIN 时所使用的联邦连接器（REQ-028）。[tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`；`provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -143,6 +144,32 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
     role_arn: arn:aws:iam::123456789012:role/AthenaQueryRole
     s3_staging_dir: s3://my-bucket/athena-results/
 ```
+
+### MotherDuck
+
+`motherduck`（REQ-1998）是托管在 MotherDuck 上的 DuckDB 数据库。在 DuckDB 引擎上它被就地附加；在 Postgres 引擎上它仍是 `pg_duckdb` 外部数据包装器（foreign data wrapper）连接器（REQ-1868）。 [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBMotherDuckConnector`, `PgDuckdbMotherDuckConnector`]
+
+**连接。** `database` 指定 MotherDuck 数据库，或按共享地址指定一个共享。`password` 是 MotherDuck 令牌，与任何数据源密钥一样解析。 [tool-verified: `DuckDBMotherDuckConnector.details`]
+
+```yaml
+- id: reference
+  type: motherduck
+  database: analytics            # attached as md:analytics
+  password: ${secret:<name>}     # the MotherDuck token, or a reference to it
+```
+
+DuckDB 引擎执行 `ATTACH 'md:<database>'`；对于共享，`database` 是共享地址（`_share/...`），因此附加的是 `md:_share/...`。 [tool-verified: `details` builds `"md:" + database`; `tests/integration/test_motherduck_duckdb_e2e.py` attaches MotherDuck's public sample-data share this way]
+
+- **令牌处理。** 引擎以 `SET GLOBAL motherduck_token = ?` 登录，令牌作为绑定值传入。它不出现在任何语句的文本中，因此任何日志、追踪或错误都不包含它。 [tool-verified: `provisa/federation/duckdb_runtime.py` `_sign_in_motherduck`]
+- **无令牌。** 没有 `password` 的数据源在附加任何内容之前即被按名拒绝(`a MotherDuck source signs in with its token (the password field); none is set`)。没有这项检查，扩展会启动交互式登录并等待约一分钟。没有 `database` 的数据源同样会被拒绝。 [tool-verified: `details`]
+- **每个引擎一个账户。** 一个引擎登录一个 MotherDuck 账户。令牌不同的第二个 MotherDuck 数据源会被按名拒绝："one DuckDB engine reads one MotherDuck account"。 [tool-verified: `_sign_in_motherduck` compares a SHA-256 of the token]
+- **写入**经由引擎进行，与 Postgres 引擎相同。 [tool-verified: `DuckDBMotherDuckConnector.capability` `write=True`]
+
+**混合（双重）执行**无需任何设置。在 DuckDB 引擎上，所有数据源都附加在同一个连接上，因此将 DuckDB 文件数据源的表与 MotherDuck 表联接的语句作为一条 DuckDB 语句执行，由 MotherDuck 决定每个部分在哪里执行。 [tool-verified: `DuckDBMotherDuckConnector` docstring; REQ-1998 notes record a live join showing dual-execution operators]
+
+> **数据移动。** 在双重执行下，MotherDuck 可能会把本地行移到它那一侧，用于它执行的部分。因此这样的语句可能把本地文件中的数据发送到组织的 MotherDuck 账户。除非可以接受把数据发送到该账户，否则不要将存有必须留在节点上的数据的文件与 MotherDuck 数据源联接。 [tool-verified: `DuckDBMotherDuckConnector` docstring: "which may move local rows to its side"]
+
+MotherDuck 数据源只由 DuckDB 和 Postgres 引擎提供服务。其他引擎都没有它的连接器，也没有任何机制把它的表作为副本落地到那里。 [tool-verified: `provisa/federation/engine.py` registers `DuckDBMotherDuckConnector` and `PgDuckdbMotherDuckConnector` and no other MotherDuck connector]
 
 ### Analytics / OLAP {: #analytics-olap }
 
@@ -248,17 +275,49 @@ Amazon Athena 是一项针对 S3 数据的无服务器查询服务，按扫描�
 
 有三种机制覆盖文件类数据源。单文件数据源和文件爬取器使用 `path` 字段而非 `host`/`port`。[tool-verified: `provisa/core/models.py`] (REQ-553) 第三种 [Logs](#logs) 在其 `mapping` 中用通配符（glob）指定文件，并且只读取 Provisa 服务器上的文件。[tool-verified: `provisa/logs/settings.py`]
 
-**单文件数据源** — `sqlite`、`csv`、`parquet` 将 `path` 指向单个文件。
+**文件数据库与单文件数据源** — `sqlite`、`duckdb`、`csv`、`parquet` 将 `path` 指向单个文件。（`duckdb` 数据源把位置保存在表单的 `database` 字段中。） [tool-verified: `provisa-ui/src/pages/sources/FileLocationFields.tsx`]
 
-| Source Type | Transports | Mutations |
+| Source Type | 位置 | Mutations |
 | --- | --- | --- |
-| `sqlite` | local | Yes |
-| `csv` | local | No |
-| `parquet` | local, `s3://` | No |
+| `sqlite` | 本地路径、`https://`, `s3://`, `gs://`, `az://` | 本地文件上为是；远程文件上无 |
+| `duckdb` | 本地路径、`https://`, `s3://`, `gs://`, `az://` | 本地文件上为是；远程文件上无 |
+| `csv` | 本地路径、`https://`, `s3://`, `gs://`, `az://` （DuckDB 引擎） | 否 |
+| `parquet` | 本地路径、`https://`, `s3://`, `gs://`, `az://` （DuckDB 引擎） | 否 |
 
-私有存储桶需要凭据（来自环境变量的 AWS 区域和密钥）。要在 `s3://` 或 `http(s)://` 上使用 CSV，或一次注册多个文件，请使用 `files` 数据源。[tool-verified: `provisa/file_source/source.py`]
+[tool-verified: `provisa/federation/connector_duckdb.py` `location_kind`, `file_location_details`; `provisa/executor/write_capability.py` `table_write_ops`. The table describes the DuckDB engine, where the connectors above take every location. On other engines, CSV and Parquet over `s3://` or `http(s)://` are better registered through the `files` source. [inferred]] (REQ-1997)
 
-**`files` 数据源** — 将 `path` 指向一个通配符（glob），递归遍历该路径，并将该目录注册为一个联邦目录（catalog）中的表集合。它支持多种格式和多种传输方式；下方的集合来自文件连接器（kenstott/calcite fork）。[tool-verified: `provisa/core/catalog.py` `files` 分支及 `provisa/core/models.py` `SOURCE_TO_CONNECTOR`；格式和传输方式列表来自 calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
+使用其他任何协议（例如 `ftp://`）的路径会被拒绝："DuckDB reads no file at a `ftp://` location"。 [tool-verified: `location_kind` raises `ValueError`]
+
+**远程位置的凭据。** 将其放在数据源的 `federation_hints` 中。每项凭据只作用于该路径自身的存储桶或容器，因此一个数据源的凭据永远不会用于另一个数据源的位置。未提供凭据的数据源按公共位置读取。 [tool-verified: `object_store_secret_ddl`]
+
+| 位置 | `federation_hints` 键 |
+| --- | --- |
+| `s3://` | `access_key_id`、`secret_access_key`；可选 `region`、`endpoint`（R2 或 MinIO 等 S3 兼容存储） |
+| `gs://` | `gcs_access_id`、`gcs_secret_key`（HMAC 密钥） |
+| `az://` | `azure_account_name`, `azure_account_key` |
+
+**远程 SQLite 和 DuckDB 文件为只读。** DuckDB 引擎以 `READ_ONLY` 就地附加它们，基于其上的表不提供 insert、update 或 delete。在不附加 SQLite 的引擎上，远程 SQLite 文件通过一个以只读方式附加它的临时 DuckDB 连接读取，其行照常落地。 [tool-verified: `_attach_options`; `table_write_ops`; `provisa/events/source_loader.py` `make_sqlite_loader` `_remote`]
+
+**上传文件。** 在 `sqlite`、`duckdb`、`csv` 或 `parquet` 数据源的表单中，上传文件而不是输入路径。文件以流式写入磁盘，从不保存在内存中，存放到组织文件夹下的 `files/<source id>/<file name>`，数据源的路径随即指向它。 [tool-verified: `provisa/core/source_uploads.py` `receive`, `upload_dir`; `provisa/api/admin/source_files_router.py` `upload_file`]
+
+- **替换。** 再次上传会取代先前的文件，无论其名称为何，并且数据源会重新预配，使下一次读取看到新文件。 [tool-verified: `receive` removes other files in the directory; `upload_file` calls `reprovision_source_after_registration`]
+- **删除。** 删除数据源会删除其上传的文件。其他操作都不会删除它。 [tool-verified: `provisa/api/admin/schema_mutation.py` `source_uploads.remove(id)`]
+- **权限。** 只有具备 `source_registration` 能力的角色才能上传。 [tool-verified: `upload_file` `require_capability_request(request, "source_registration")`]
+- **大小限制。** 设置 `sources.max_upload_bytes`（环境变量 `PROVISA_SOURCES_MAX_UPLOAD_BYTES`）限制文件大小，默认 1 GiB（1073741824 字节），最小为 1，在上传开始时读取。更大的文件会以 HTTP 413 被拒绝并注明限制，且不保留任何部分。 [tool-verified: `provisa/core/settings_catalog.py`; `UploadTooLarge`]
+- **路径。** 当路径为该数据源的上传文件时，表单的路径字段为只读。 [tool-verified: `FileLocationFields.tsx` `readOnly={uploaded}`]
+- **名称。** 数据源 id 和文件名只能使用字母、数字、`.`、`_` 和 `-`。 [tool-verified: `source_uploads._SEGMENT`]
+- **存储。** [inferred from the `source_uploads` docstring] 上传的文件与任何组织文件一样存储：位于组织文件夹下，组织文件夹加密时随之加密，并在共享挂载上对每个节点可见。
+
+**写入本地 SQLite 或 DuckDB 文件，以及锁。** 写入会获取文件锁，且从不等待。当另一个进程或节点持有该文件时，写入会被拒绝，并注明数据源及其文件已被锁定。 [tool-verified: `provisa/federation/file_locks.py` `FileLocked`; REQ-1997 notes quote the maintainer: "writes back to file databases in a multi-node env - just error them out when they can't a lock on it."]
+
+- **SQLite。** 写入设置 `PRAGMA busy_timeout = 0`，因此被锁定的文件会立即失败。 [tool-verified: `provisa/executor/drivers/sqlalchemy_driver.py` `_write_sqlite`]
+- **DuckDB。** DuckDB 只在只读打开之间共享文件。因此引擎的附加和数据源自身的连接都以只读方式持有文件，每个节点可同时读取。写入会暂停本进程的持有者，仅为该语句以读写方式打开文件，然后关闭。如果打开时无法获取锁，写入会被拒绝。 [tool-verified: `provisa/executor/drivers/duckdb_driver.py` `_write`: `with file_locks.exclusive(self._database):` then `duckdb.connect(self._database)`; `connector_duckdb._attach_options`]
+
+**共享挂载。** 在挂载由多个节点共享的加密组织文件夹中（设置 `org_files.shared_mount`），对其中 SQLite 或 DuckDB 文件的写入会直接被拒绝，并注明数据源。文件夹加密层（gocryptfs）不会把文件锁传递到其他节点，因此没有任何机制能阻止两个节点同时写入。读取仍然可用。 [tool-verified: `file_locks.refuse_unprotected`, `UnprotectedWrite`; both drivers call it before a write]
+
+未加密共享的文件夹必须以能到达每个节点的锁进行挂载：启用锁定的 NFS 挂载，而不是 `nolock`，也不是 `local_lock`。没有任何探测检查这一点；这是部署要求。 [tool-verified: REQ-1997 description in `docs/arch/requirements.yaml`; no check exists in source [inferred]]
+
+**文件爬取器（`files` 数据源）** — 将 `path` 指向一个通配符（glob），递归遍历该路径，并将该目录注册为一个联邦目录（catalog）中的表集合。它支持多种格式和多种传输方式；下方的集合来自文件连接器（kenstott/calcite fork）。[tool-verified: `provisa/core/catalog.py` `files` 分支及 `provisa/core/models.py` `SOURCE_TO_CONNECTOR`；格式和传输方式列表来自 calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
 
 | Formats | Transports |
 | --- | --- |

@@ -26,27 +26,28 @@
 
 ## כל המקורות
 
-Provisa רושמת **69** סוגי מקור, אלה שטופס המקורות מציע. הטבלאות שלהלן מכסות את כל 69; המספור הוא הספירה. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, where `graphql` and `grpc` are `graphql_remote` and `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab and Stripe are counted as distinct sources even though they register through the `files`, `graphql_remote` and `openapi` connectors internally]
+Provisa רושמת **72** סוגי מקור, אלה שטופס המקורות מציע. הטבלאות שלהלן מכסות את כל 72; המספור הוא הספירה. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, where `graphql` and `grpc` are `graphql_remote` and `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab and Stripe are counted as distinct sources even though they register through the `files`, `graphql_remote` and `openapi` connectors internally]
 
 | # | קבוצה | סוגי מקור |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–23 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 24–28 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 29–32 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 38–40 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
-| 41 | [Push Receiver](#push-receiver) | `ingest` |
-| 42–43 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
-| 44–48 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
-| 49–50 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
-| 51–57 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
-| 58–63 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
-| 64 | [GovData](#govdata) | `govdata` |
-| 65–66 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
-| 67 | [Data Profiler](#data-profiler) | `data_profiler` |
-| 68 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
-| 69 | [Wikipedia](#wikipedia) | Wikipedia (נרשם כמקור מסוג `files` שסורק את הדפים הנקובים — ראו [Wikipedia](#wikipedia)) |
+| 16–24 | [מחסני נתונים בענן](#_4) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino`, [`motherduck`](#motherduck) |
+| 25–29 | [אנליטיקה / OLAP](#olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 30–33 | [Data Lake / פורמטי טבלה פתוחים](#data-lake) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 34–38 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 39–40 | [מקורות קוד](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [סטרימינג](#_5) | `kafka`, `websocket`, `rss` |
+| 44 | [Push Receiver](#push-receiver) | `ingest` |
+| 45–46 | [גרף וסמנטיקה](#_6) | `neo4j`, `sparql` |
+| 47–51 | [מבוססי קובץ](#_7) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 52–53 | [Observability ואחרים](#observability) | `google_sheets`, `prometheus` |
+| 54–60 | [מחברי SaaS ארגוניים](#saas) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 61–66 | [מקורות API](#api) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [בודקי איכות נתונים](#req-1443) | `soda`, `great_expectations` |
+| 70 | [Data Profiler](#data-profiler) | `data_profiler` |
+| 71 | [ערכות נתונים של Kaggle](#kaggle-datasets) | Kaggle (מוכן דרך טופס המקורות; נרשם כמקור מסוג `files` — ראו [ערכות נתונים של Kaggle](#kaggle-datasets)) |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia (נרשם כמקור מסוג `files` שסורק את הדפים הנקובים — ראו [Wikipedia](#wikipedia)) |
 
 מסמך עזר לכל סוג מקור שנתמך על ידי Provisa. "דרייבר ישיר" פירושו ששאילתות חד-מקוריות מבוצעות מול המקור באופן ילידי (מתחת ל-100ms) (REQ-027). "שם המחבר" הוא המחבר המפודרר שבו נעשה שימוש כאשר המקור משתתף ב-JOIN רב-מקורי (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -144,6 +145,32 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
     s3_staging_dir: s3://my-bucket/athena-results/
 ```
 
+
+### MotherDuck
+
+`motherduck` (REQ-1998) הוא מסד נתונים של DuckDB המתארח ב-MotherDuck. במנוע DuckDB הוא מצורף במקומו; במנוע Postgres הוא נשאר המחבר דרך ה-foreign data wrapper `pg_duckdb` (REQ-1868). [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBMotherDuckConnector`, `PgDuckdbMotherDuckConnector`]
+
+**חיבור.** `database` מציין את מסד הנתונים של MotherDuck, או שיתוף לפי כתובת השיתוף שלו. `password` הוא הטוקן של MotherDuck, ונפתר כמו כל סוד של מקור. [tool-verified: `DuckDBMotherDuckConnector.details`]
+
+```yaml
+- id: reference
+  type: motherduck
+  database: analytics            # attached as md:analytics
+  password: ${secret:<name>}     # the MotherDuck token, or a reference to it
+```
+
+מנוע DuckDB מריץ `ATTACH 'md:<database>'`; עבור שיתוף, `database` הוא כתובת השיתוף (`_share/...`), ולכן הצירוף הוא `md:_share/...`. [tool-verified: `details` builds `"md:" + database`; `tests/integration/test_motherduck_duckdb_e2e.py` attaches MotherDuck's public sample-data share this way]
+
+- **טיפול בטוקן.** המנוע מתחבר עם `SET GLOBAL motherduck_token = ?`, והטוקן מועבר כערך מאוגד. הוא אינו מופיע בטקסט של אף הצהרה, ולכן אף לוג, trace או שגיאה אינם מכילים אותו. [tool-verified: `provisa/federation/duckdb_runtime.py` `_sign_in_motherduck`]
+- **אין טוקן.** מקור ללא `password` נדחה בשמו לפני שמשהו מצורף (`a MotherDuck source signs in with its token (the password field); none is set`). בלי הבדיקה, ההרחבה הייתה מתחילה התחברות אינטראקטיבית וממתינה כדקה. גם מקור ללא `database` נדחה. [tool-verified: `details`]
+- **חשבון אחד לכל מנוע.** מנוע אחד מתחבר לחשבון MotherDuck אחד. מקור MotherDuck שני עם טוקן אחר נדחה בשמו: "one DuckDB engine reads one MotherDuck account". [tool-verified: `_sign_in_motherduck` compares a SHA-256 of the token]
+- **כתיבות** עוברות דרך המנוע, כמו במנוע Postgres. [tool-verified: `DuckDBMotherDuckConnector.capability` `write=True`]
+
+**ביצוע היברידי (כפול)** אינו דורש הגדרה. במנוע DuckDB כל מקור מצורף על חיבור אחד, ולכן הצהרה המחברת טבלה של מקור קובץ DuckDB עם טבלת MotherDuck רצה כהצהרת DuckDB אחת, ו-MotherDuck מחליט היכן רץ כל חלק. [tool-verified: `DuckDBMotherDuckConnector` docstring; REQ-1998 notes record a live join showing dual-execution operators]
+
+> **תנועת נתונים.** בביצוע כפול, MotherDuck עשוי להעביר שורות מקומיות לצד שלו עבור החלקים שהוא מריץ. לכן הצהרה כזו יכולה לשלוח נתונים מהקובץ המקומי לחשבון MotherDuck של הארגון. אל תחברו קובץ המכיל נתונים שחייבים להישאר בצומת עם מקור MotherDuck, אלא אם שליחתם לחשבון זה מקובלת. [tool-verified: `DuckDBMotherDuckConnector` docstring: "which may move local rows to its side"]
+
+מקור MotherDuck מוגש על ידי מנועי DuckDB ו-Postgres בלבד. לאף מנוע אחר אין מחבר עבורו, ושום דבר אינו מנחית שם את הטבלאות שלו כעותקים. [tool-verified: `provisa/federation/engine.py` registers `DuckDBMotherDuckConnector` and `PgDuckdbMotherDuckConnector` and no other MotherDuck connector]
 
 ### אנליטיקה / OLAP
 
@@ -249,17 +276,49 @@ Amazon Athena הוא שירות שאילתות ללא שרת על נתונים �
 
 שלושה מנגנונים מכסים קבצים. מקורות הקובץ הבודד וסורק הקבצים משתמשים בשדה `path` במקום `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) השלישי, [Logs](#logs), נוקב בקבציו באמצעות glob ב-`mapping` שלו וקורא רק קבצים שנמצאים בשרת Provisa. [tool-verified: `provisa/logs/settings.py`]
 
-**מקורות חד-קובציים** — `sqlite`, `csv`, `parquet` מפנים את `path` לקובץ בודד.
+**מקורות של מסד נתונים בקובץ ומקורות חד-קובציים** — `sqlite`, `duckdb`, `csv`, `parquet` מפנים את `path` לקובץ בודד. (מקור `duckdb` שומר את מיקומו בשדה `database` של הטופס.) [tool-verified: `provisa-ui/src/pages/sources/FileLocationFields.tsx`]
 
-| סוג מקור | תעבורות | מוטציות |
+| סוג מקור | מיקומים | מוטציות |
 | --- | --- | --- |
-| `sqlite` | מקומי | כן |
-| `csv` | מקומי | לא |
-| `parquet` | מקומי, `s3://` | לא |
+| `sqlite` | נתיב מקומי, `https://`, `s3://`, `gs://`, `az://` | כן בקובץ מקומי; אין בקובץ מרוחק |
+| `duckdb` | נתיב מקומי, `https://`, `s3://`, `gs://`, `az://` | כן בקובץ מקומי; אין בקובץ מרוחק |
+| `csv` | נתיב מקומי, `https://`, `s3://`, `gs://`, `az://` (מנוע DuckDB) | לא |
+| `parquet` | נתיב מקומי, `https://`, `s3://`, `gs://`, `az://` (מנוע DuckDB) | לא |
 
-דליים (buckets) פרטיים דורשים אישורים (region ומפתחות AWS מהסביבה). עבור CSV מעל `s3://` או `http(s)://`, או כדי לרשום קבצים רבים בבת אחת, השתמשו במקור `files`. [tool-verified: `provisa/file_source/source.py`]
+[tool-verified: `provisa/federation/connector_duckdb.py` `location_kind`, `file_location_details`; `provisa/executor/write_capability.py` `table_write_ops`. The table describes the DuckDB engine, where the connectors above take every location. On other engines, CSV and Parquet over `s3://` or `http(s)://` are better registered through the `files` source. [inferred]] (REQ-1997)
 
-**מקור `files`** — מפנה את `path` ל-glob, סורק אותו רקורסיבית, ורושם את הספרייה כקטלוג מפודרר של טבלאות. הוא קורא פורמטים רבים על פני תעבורות רבות; הקבוצות שלהלן מגיעות ממחבר הקבצים (kenstott/calcite fork). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
+נתיב עם כל סכמה אחרת (למשל `ftp://`) נדחה: "DuckDB reads no file at a `ftp://` location". [tool-verified: `location_kind` raises `ValueError`]
+
+**אישורים למיקום מרוחק.** שימו אותם ב-`federation_hints` של המקור. כל אחד מהם מוגבל לדלי (bucket) או למכל (container) של הנתיב עצמו, כך שהאישורים של מקור אחד לעולם אינם משמשים למיקום של מקור אחר. מקור שאינו מספק אישורים נקרא כמיקום ציבורי. [tool-verified: `object_store_secret_ddl`]
+
+| מיקום | מפתחות `federation_hints` |
+| --- | --- |
+| `s3://` | `access_key_id`, `secret_access_key`; אופציונליים `region`, `endpoint` (אחסון תואם S3 כמו R2 או MinIO) |
+| `gs://` | `gcs_access_id`, `gcs_secret_key` (מפתח HMAC) |
+| `az://` | `azure_account_name`, `azure_account_key` |
+
+**קובצי SQLite ו-DuckDB מרוחקים הם לקריאה בלבד.** מנוע DuckDB מצרף אותם במקומם עם `READ_ONLY`, וטבלה עליהם אינה מציעה insert, update או delete. במנוע שאינו מצרף SQLite, קובץ SQLite מרוחק נקרא דרך חיבור DuckDB זמני שמצרף אותו לקריאה בלבד, והשורות שלו מונחתות כרגיל. [tool-verified: `_attach_options`; `table_write_ops`; `provisa/events/source_loader.py` `make_sqlite_loader` `_remote`]
+
+**העלאת קובץ.** בטופס של מקור `sqlite`, `duckdb`, `csv` או `parquet`, העלו את הקובץ במקום להקליד נתיב. הקובץ נכתב לדיסק בזרימה, לעולם אינו מוחזק בזיכרון, לתיקיית הארגון תחת `files/<source id>/<file name>`, ונתיב המקור מוגדר אליו. [tool-verified: `provisa/core/source_uploads.py` `receive`, `upload_dir`; `provisa/api/admin/source_files_router.py` `upload_file`]
+
+- **החלפה.** העלאה חוזרת תופסת את מקום הקובץ הקודם, יהיה שמו אשר יהיה, והמקור מוקצה מחדש כך שהקריאה הבאה רואה את הקובץ החדש. [tool-verified: `receive` removes other files in the directory; `upload_file` calls `reprovision_source_after_registration`]
+- **הסרה.** הסרת המקור מסירה את הקובץ שהועלה. שום דבר אחר אינו מסיר אותו. [tool-verified: `provisa/api/admin/schema_mutation.py` `source_uploads.remove(id)`]
+- **מי.** רק תפקידים עם היכולת `source_registration` רשאים להעלות. [tool-verified: `upload_file` `require_capability_request(request, "source_registration")`]
+- **מגבלת גודל.** ההגדרה `sources.max_upload_bytes` (משתנה סביבה `PROVISA_SOURCES_MAX_UPLOAD_BYTES`) מגבילה את הקובץ, 1 GiB (1073741824 בתים) כברירת מחדל, מינימום 1, ונקראת כשהעלאה מתחילה. קובץ גדול יותר נדחה עם HTTP 413 שמציין את המגבלה, ושום חלק ממנו אינו נשמר. [tool-verified: `provisa/core/settings_catalog.py`; `UploadTooLarge`]
+- **נתיב.** כל עוד הנתיב הוא הקובץ שהועלה למקור, שדה הנתיב בטופס הוא לקריאה בלבד. [tool-verified: `FileLocationFields.tsx` `readOnly={uploaded}`]
+- **שמות.** מזהה המקור ושם הקובץ רשאים להכיל רק אותיות, ספרות, `.`, `_` ו-`-`. [tool-verified: `source_uploads._SEGMENT`]
+- **אחסון.** [inferred from the `source_uploads` docstring] קובץ שהועלה מאוחסן כמו כל קובץ של הארגון: תחת תיקיית הארגון, מוצפן כשתיקיית הארגון מוצפנת, ונראה לכל צומת על mount משותף.
+
+**כתיבות לקובץ SQLite או DuckDB מקומי, ונעילות.** כתיבה לוקחת את נעילת הקובץ ולעולם אינה ממתינה לה. כשתהליך או צומת אחר מחזיקים את הקובץ, הכתיבה נדחית, עם שם המקור וציון שהקובץ שלו נעול. [tool-verified: `provisa/federation/file_locks.py` `FileLocked`; REQ-1997 notes quote the maintainer: "writes back to file databases in a multi-node env - just error them out when they can't a lock on it."]
+
+- **SQLite.** הכתיבה מגדירה `PRAGMA busy_timeout = 0`, כך שקובץ נעול נכשל מיד. [tool-verified: `provisa/executor/drivers/sqlalchemy_driver.py` `_write_sqlite`]
+- **DuckDB.** DuckDB משתף קובץ רק בין פתיחות לקריאה בלבד. לכן הצירוף של המנוע והחיבור של המקור עצמו מחזיקים את הקובץ לקריאה בלבד, וכל צומת קורא אותו בו-זמנית. כתיבה משהה את המחזיקים של התהליך הזה, פותחת את הקובץ לקריאה וכתיבה עבור ההצהרה הזו בלבד, וסוגרת אותו. אם הפתיחה אינה יכולה לקחת את הנעילה, הכתיבה נדחית. [tool-verified: `provisa/executor/drivers/duckdb_driver.py` `_write`: `with file_locks.exclusive(self._database):` then `duckdb.connect(self._database)`; `connector_duckdb._attach_options`]
+
+**mounts משותפים.** בתיקיית ארגון מוצפנת שה-mount שלה משותף לכמה צמתים (ההגדרה `org_files.shared_mount`), כתיבה לקובץ SQLite או DuckDB בתוכה נדחית מראש, עם שם המקור. שכבת הצפנת התיקיות (gocryptfs) אינה מעבירה נעילות קבצים לצמתים האחרים, כך ששום דבר לא היה מונע משני צמתים לכתוב בו-זמנית. קריאות עדיין עובדות. [tool-verified: `file_locks.refuse_unprotected`, `UnprotectedWrite`; both drivers call it before a write]
+
+תיקייה המשותפת ללא הצפנה חייבת להיות מעוגנת (mount) עם נעילות שמגיעות לכל צומת: mount של NFS עם נעילה פעילה, לא `nolock` ולא `local_lock`. אף בדיקה אינה בודקת זאת; זו דרישת פריסה. [tool-verified: REQ-1997 description in `docs/arch/requirements.yaml`; no check exists in source [inferred]]
+
+**סורק קבצים (מקור `files`)** — מפנה את `path` ל-glob, סורק אותו רקורסיבית, ורושם את הספרייה כקטלוג מפודרר של טבלאות. הוא קורא פורמטים רבים על פני תעבורות רבות; הקבוצות שלהלן מגיעות ממחבר הקבצים (kenstott/calcite fork). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
 
 | פורמטים | תעבורות |
 | --- | --- |

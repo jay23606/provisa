@@ -26,27 +26,28 @@
 
 ## Все источники
 
-Provisa регистрирует **69** типов источников — те, что предлагает форма Sources. Приведённые ниже таблицы охватывают все 69; индекс — это счётчик. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, где `graphql` и `grpc` — это `graphql_remote` и `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab и Stripe учитываются как отдельные источники, хотя внутренне регистрируются через коннекторы `files`, `graphql_remote` и `openapi`]
+Provisa регистрирует **72** типов источников — те, что предлагает форма Sources. Приведённые ниже таблицы охватывают все 72; индекс — это счётчик. [tool-verified: `provisa-ui/src/pages/sources/constants.ts` `SOURCE_TYPES`, где `graphql` и `grpc` — это `graphql_remote` и `grpc_remote`; Kaggle, Wikipedia, GitHub, GitLab и Stripe учитываются как отдельные источники, хотя внутренне регистрируются через коннекторы `files`, `graphql_remote` и `openapi`]
 
 | # | Группа | Типы источников |
 | --- | --- | --- |
 | 1–15 | [RDBMS](#rdbms) | `postgresql`, `mysql`, `mariadb`, `singlestore`, `sqlserver`, `oracle`, `duckdb`, `cockroachdb`, `yugabytedb`, `greenplum`, `tidb`, `firebird`, `airport`, `saphana`, `hiveserver2` |
-| 16–23 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino` |
-| 24–28 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
-| 29–32 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
-| 33–37 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
-| 38–40 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
-| 41 | [Приёмник push-данных](#push-receiver) | `ingest` |
-| 42–43 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
-| 44–48 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
-| 49–50 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
-| 51–57 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
-| 58–63 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
-| 64 | [GovData](#govdata) | `govdata` |
-| 65–66 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
-| 67 | [Профайлер данных](#data-profiler) | `data_profiler` |
-| 68 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
-| 69 | [Wikipedia](#wikipedia) | Wikipedia (регистрируется как источник `files`, который обходит указанные страницы — см. [Wikipedia](#wikipedia)) |
+| 16–24 | [Облачные хранилища данных](#cloud-data-warehouses) | `snowflake`, `bigquery`, `databricks`, `redshift`, `athena`, `fabric`, `synapse`, `trino`, [`motherduck`](#motherduck) |
+| 25–29 | [Аналитика / OLAP](#analytics-olap) | `clickhouse`, `druid`, `exasol`, `elasticsearch`, `pinot` |
+| 30–33 | [Data lake / открытые табличные форматы](#data-lake-open-table-formats) | `iceberg`, `delta_lake`, `hive`, `hive_s3` |
+| 34–38 | [NoSQL](#nosql) | `mongodb`, `cosmosdb`, `qdrant`, `cassandra`, `redis` |
+| 39–40 | [Источники на основе кода](arch/code-sources.md) | `node`, `python` |
+| 41–43 | [Потоковая передача](#streaming) | `kafka`, `websocket`, `rss` |
+| 44 | [Приёмник push-данных](#push-receiver) | `ingest` |
+| 45–46 | [Граф и семантика](#graph-semantic) | `neo4j`, `sparql` |
+| 47–51 | [На основе файлов](#file-based) | `sqlite`, `csv`, `parquet`, `files`, `logs` |
+| 52–53 | [Наблюдаемость и прочее](#observability-other) | `google_sheets`, `prometheus` |
+| 54–60 | [Корпоративный SaaS](#enterprise-saas-connectors) | `sharepoint`, `salesforce`, `servicenow`, `cloudops`, `splunk`, `google_workspace`, `microsoft_365` |
+| 61–66 | [API-источники](#api-sources) | `openapi`, `graphql_remote`, `grpc_remote`, GitHub, GitLab, Stripe |
+| 67 | [GovData](#govdata) | `govdata` |
+| 68–69 | [Проверки качества данных](#data-quality-checkers-req-1443) | `soda`, `great_expectations` |
+| 70 | [Профайлер данных](#data-profiler) | `data_profiler` |
+| 71 | [Наборы данных Kaggle](#kaggle-datasets) | Kaggle (загружается через форму Sources; регистрируется как источник `files` — см. [Наборы данных Kaggle](#kaggle-datasets)) |
+| 72 | [Wikipedia](#wikipedia) | Wikipedia (регистрируется как источник `files`, который обходит указанные страницы — см. [Wikipedia](#wikipedia)) |
 
 Справочник по каждому типу источника, поддерживаемому Provisa. «Прямой драйвер» означает, что однопоточные запросы выполняются напрямую к источнику (менее 100 мс) (REQ-027). «Имя коннектора» — это федеративный коннектор, используемый, когда источник участвует в многопоточных (multi-source) JOIN (REQ-028). [tool-verified: `provisa/core/source_registry.py` `SOURCE_TO_DIALECT`; `provisa/federation/trino_connectors.py` `trino_connector_name`]
 
@@ -144,6 +145,32 @@ Amazon Athena — безсерверный сервис запросов к да
     s3_staging_dir: s3://my-bucket/athena-results/
 ```
 
+
+### MotherDuck
+
+`motherduck` (REQ-1998) — база данных DuckDB, размещённая в MotherDuck. На движке DuckDB она подключается на месте; на движке Postgres она остаётся коннектором через foreign data wrapper `pg_duckdb` (REQ-1868). [tool-verified: `provisa/federation/connector_duckdb.py` `DuckDBMotherDuckConnector`, `PgDuckdbMotherDuckConnector`]
+
+**Подключение.** `database` задаёт базу данных MotherDuck или общий ресурс по его адресу. `password` — токен MotherDuck, который разрешается как любой секрет источника. [tool-verified: `DuckDBMotherDuckConnector.details`]
+
+```yaml
+- id: reference
+  type: motherduck
+  database: analytics            # attached as md:analytics
+  password: ${secret:<name>}     # the MotherDuck token, or a reference to it
+```
+
+Движок DuckDB выполняет `ATTACH 'md:<database>'`; для общего ресурса `database` — это адрес ресурса (`_share/...`), поэтому подключение выглядит как `md:_share/...`. [tool-verified: `details` builds `"md:" + database`; `tests/integration/test_motherduck_duckdb_e2e.py` attaches MotherDuck's public sample-data share this way]
+
+- **Обработка токена.** Движок входит в систему через `SET GLOBAL motherduck_token = ?`, передавая токен как связанное значение. Его нет в тексте ни одной инструкции, поэтому он не попадает ни в лог, ни в трассировку, ни в ошибку. [tool-verified: `provisa/federation/duckdb_runtime.py` `_sign_in_motherduck`]
+- **Нет токена.** Источник без `password` отклоняется с указанием причины до того, как что-либо подключается (`a MotherDuck source signs in with its token (the password field); none is set`). Без этой проверки расширение начало бы интерактивный вход и ждало бы около минуты. Источник без `database` также отклоняется. [tool-verified: `details`]
+- **Одна учётная запись на движок.** Один движок входит в одну учётную запись MotherDuck. Второй источник MotherDuck с другим токеном отклоняется с указанием причины: "one DuckDB engine reads one MotherDuck account". [tool-verified: `_sign_in_motherduck` compares a SHA-256 of the token]
+- **Запись** идёт через движок, как и на движке Postgres. [tool-verified: `DuckDBMotherDuckConnector.capability` `write=True`]
+
+**Гибридное (двойное) выполнение** не требует настройки. На движке DuckDB все источники подключены к одному соединению, поэтому инструкция, соединяющая таблицу файлового источника DuckDB с таблицей MotherDuck, выполняется как одна инструкция DuckDB, а MotherDuck решает, где выполняется каждая часть. [tool-verified: `DuckDBMotherDuckConnector` docstring; REQ-1998 notes record a live join showing dual-execution operators]
+
+> **Перемещение данных.** При двойном выполнении MotherDuck может переносить локальные строки на свою сторону для тех частей, которые он выполняет. Поэтому такая инструкция может отправить данные из локального файла в учётную запись MotherDuck организации. Не соединяйте файл с данными, которые должны оставаться на узле, с источником MotherDuck, если отправка их в эту учётную запись недопустима. [tool-verified: `DuckDBMotherDuckConnector` docstring: "which may move local rows to its side"]
+
+Источник MotherDuck обслуживают только движки DuckDB и Postgres. Ни у одного другого движка нет для него коннектора, и ничто не выгружает туда его таблицы как реплики. [tool-verified: `provisa/federation/engine.py` registers `DuckDBMotherDuckConnector` and `PgDuckdbMotherDuckConnector` and no other MotherDuck connector]
 
 ### Аналитика / OLAP {: #analytics-olap }
 
@@ -249,17 +276,49 @@ Amazon Athena — безсерверный сервис запросов к да
 
 Три механизма охватывают файлы. Источники из одного файла и обходчик файлов используют поле `path` вместо `host`/`port`. [tool-verified: `provisa/core/models.py`] (REQ-553) Третий, [Logs](#logs), задаёт свои файлы glob-шаблоном в `mapping` и читает только файлы на сервере Provisa. [tool-verified: `provisa/logs/settings.py`]
 
-**Однофайловые источники** — `sqlite`, `csv`, `parquet` указывают `path` на один файл.
+**Файловые базы данных и однофайловые источники** — `sqlite`, `duckdb`, `csv`, `parquet` указывают `path` на один файл. (Источник `duckdb` хранит своё расположение в поле `database` формы.) [tool-verified: `provisa-ui/src/pages/sources/FileLocationFields.tsx`]
 
-| Тип источника | Транспорты | Мутации |
+| Тип источника | Расположения | Мутации |
 | --- | --- | --- |
-| `sqlite` | локальный | Да |
-| `csv` | локальный | Нет |
-| `parquet` | локальный, `s3://` | Нет |
+| `sqlite` | локальный путь, `https://`, `s3://`, `gs://`, `az://` | Да для локального файла; нет для удалённого |
+| `duckdb` | локальный путь, `https://`, `s3://`, `gs://`, `az://` | Да для локального файла; нет для удалённого |
+| `csv` | локальный путь, `https://`, `s3://`, `gs://`, `az://` (движок DuckDB) | Нет |
+| `parquet` | локальный путь, `https://`, `s3://`, `gs://`, `az://` (движок DuckDB) | Нет |
 
-Приватным бакетам нужны учётные данные (регион AWS и ключи из окружения). Для CSV через `s3://` или `http(s)://`, или для регистрации многих файлов сразу, используйте источник `files`. [tool-verified: `provisa/file_source/source.py`]
+[tool-verified: `provisa/federation/connector_duckdb.py` `location_kind`, `file_location_details`; `provisa/executor/write_capability.py` `table_write_ops`. The table describes the DuckDB engine, where the connectors above take every location. On other engines, CSV and Parquet over `s3://` or `http(s)://` are better registered through the `files` source. [inferred]] (REQ-1997)
 
-**Источник `files`** — указывает `path` на glob-шаблон, рекурсивно обходит его и регистрирует директорию как федеративный каталог таблиц. Он читает множество форматов через множество транспортов; наборы ниже приведены из файлового коннектора (форк kenstott/calcite). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
+Путь с любой другой схемой (например, `ftp://`) отклоняется: "DuckDB reads no file at a `ftp://` location". [tool-verified: `location_kind` raises `ValueError`]
+
+**Учётные данные для удалённого расположения.** Укажите их в `federation_hints` источника. Каждый набор действует только для бакета или контейнера самого пути, поэтому учётные данные одного источника никогда не используются для расположения другого. Источник без учётных данных читается как публичное расположение. [tool-verified: `object_store_secret_ddl`]
+
+| Расположение | Ключи `federation_hints` |
+| --- | --- |
+| `s3://` | `access_key_id`, `secret_access_key`; необязательные `region`, `endpoint` (S3-совместимое хранилище, например R2 или MinIO) |
+| `gs://` | `gcs_access_id`, `gcs_secret_key` (ключ HMAC) |
+| `az://` | `azure_account_name`, `azure_account_key` |
+
+**Удалённые файлы SQLite и DuckDB доступны только для чтения.** Движок DuckDB подключает их на месте с `READ_ONLY`, и таблица на таком файле не поддерживает insert, update или delete. На движке, который не подключает SQLite, удалённый файл SQLite читается через временное соединение DuckDB, подключающее его только для чтения, и его строки выгружаются как обычно. [tool-verified: `_attach_options`; `table_write_ops`; `provisa/events/source_loader.py` `make_sqlite_loader` `_remote`]
+
+**Загрузка файла.** В форме источника `sqlite`, `duckdb`, `csv` или `parquet` загрузите файл вместо ввода пути. Файл потоком записывается на диск, никогда не удерживаясь в памяти, в папку организации по пути `files/<source id>/<file name>`, и путь источника указывает на него. [tool-verified: `provisa/core/source_uploads.py` `receive`, `upload_dir`; `provisa/api/admin/source_files_router.py` `upload_file`]
+
+- **Замена.** Повторная загрузка занимает место прежнего файла, каким бы ни было его имя, и источник подготавливается заново, чтобы следующее чтение увидело новый файл. [tool-verified: `receive` removes other files in the directory; `upload_file` calls `reprovision_source_after_registration`]
+- **Удаление.** Удаление источника удаляет загруженный файл. Больше ничто его не удаляет. [tool-verified: `provisa/api/admin/schema_mutation.py` `source_uploads.remove(id)`]
+- **Кто.** Загружать могут только роли с возможностью `source_registration`. [tool-verified: `upload_file` `require_capability_request(request, "source_registration")`]
+- **Ограничение размера.** Настройка `sources.max_upload_bytes` (переменная окружения `PROVISA_SOURCES_MAX_UPLOAD_BYTES`) ограничивает файл: по умолчанию 1 ГиБ (1073741824 байт), минимум 1, значение читается в начале загрузки. Файл большего размера отклоняется с HTTP 413 с указанием лимита, и ничего из него не сохраняется. [tool-verified: `provisa/core/settings_catalog.py`; `UploadTooLarge`]
+- **Путь.** Пока путь указывает на загруженный файл источника, поле пути в форме доступно только для чтения. [tool-verified: `FileLocationFields.tsx` `readOnly={uploaded}`]
+- **Имена.** Идентификатор источника и имя файла могут содержать только буквы, цифры, `.`, `_` и `-`. [tool-verified: `source_uploads._SEGMENT`]
+- **Хранение.** [inferred from the `source_uploads` docstring] Загруженный файл хранится как любой файл организации: в папке организации, зашифрованным, если зашифрована папка организации, и виден каждому узлу на общем монтировании.
+
+**Запись в локальный файл SQLite или DuckDB и блокировки.** Запись берёт блокировку файла и никогда её не ждёт. Если файл удерживает другой процесс или узел, запись отклоняется с указанием источника и того, что его файл заблокирован. [tool-verified: `provisa/federation/file_locks.py` `FileLocked`; REQ-1997 notes quote the maintainer: "writes back to file databases in a multi-node env - just error them out when they can't a lock on it."]
+
+- **SQLite.** Запись устанавливает `PRAGMA busy_timeout = 0`, поэтому заблокированный файл сразу даёт ошибку. [tool-verified: `provisa/executor/drivers/sqlalchemy_driver.py` `_write_sqlite`]
+- **DuckDB.** DuckDB разделяет файл только между открытиями только для чтения. Поэтому подключение движка и собственное соединение источника держат файл только для чтения, и каждый узел читает его одновременно. Запись приостанавливает держателей в этом процессе, открывает файл на чтение и запись только для этой инструкции и закрывает его. Если при открытии не удаётся взять блокировку, запись отклоняется. [tool-verified: `provisa/executor/drivers/duckdb_driver.py` `_write`: `with file_locks.exclusive(self._database):` then `duckdb.connect(self._database)`; `connector_duckdb._attach_options`]
+
+**Общие монтирования.** В зашифрованной папке организации, монтирование которой разделяют несколько узлов (настройка `org_files.shared_mount`), запись в файл SQLite или DuckDB в этой папке отклоняется сразу, с указанием источника. Слой шифрования папок (gocryptfs) не передаёт блокировки файлов другим узлам, поэтому ничто не помешало бы двум узлам писать одновременно. Чтение по-прежнему работает. [tool-verified: `file_locks.refuse_unprotected`, `UnprotectedWrite`; both drivers call it before a write]
+
+Папка, разделяемая без шифрования, должна быть смонтирована с блокировками, которые доходят до каждого узла: монтирование NFS с включёнными блокировками, не `nolock` и не `local_lock`. Никакая проверка этого не контролирует; это требование к развёртыванию. [tool-verified: REQ-1997 description in `docs/arch/requirements.yaml`; no check exists in source [inferred]]
+
+**Обходчик файлов (источник `files`)** — указывает `path` на glob-шаблон, рекурсивно обходит его и регистрирует директорию как федеративный каталог таблиц. Он читает множество форматов через множество транспортов; наборы ниже приведены из файлового коннектора (форк kenstott/calcite). [tool-verified: `provisa/core/catalog.py` `files` branch and `provisa/core/models.py` `SOURCE_TO_CONNECTOR`; format and transport lists from the calcite `file` adapter — `FileSchema.java`, `storage/StorageProviderFactory.java`]
 
 | Форматы | Транспорты |
 | --- | --- |
