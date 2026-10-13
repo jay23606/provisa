@@ -158,6 +158,7 @@ nav:
       - Change Signal Unification: arch/change-signal-unification.md
       - Requirements: arch/requirements.md
   - Release Notes:
+      - v0.1.0-alpha.481: releases/v0.1.0-alpha.481.md
       - v0.1.0-alpha.480: releases/v0.1.0-alpha.480.md
       - v0.1.0-alpha.479: releases/v0.1.0-alpha.479.md
 
