@@ -180,7 +180,10 @@ async def _federation_graph(conn: "Connection"):
     merged = build_federation_graph_incremental(
         views, commands=commands, materialized_relations=mats
     )
-    return merged.graph
+    from provisa.lineage.commands import with_command_writes
+
+    # REQ-2001: a statement command's write is a dependent of every column it reads or writes.
+    return with_command_writes(merged, commands).graph
 
 
 async def _exposed_name_dependents(

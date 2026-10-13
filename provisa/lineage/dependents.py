@@ -28,7 +28,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from provisa.lineage.graph import LineageGraph
-from provisa.lineage.merge import slice_graph
 
 
 @dataclass(frozen=True)
@@ -59,32 +58,60 @@ def _matches(relation: str | None, candidates: set[str]) -> bool:
 
 
 def graph_dependents(graph: LineageGraph, candidates: set[str], column: str) -> list[Dependent]:
-    """Views and MVs downstream of ``<candidates>.<column>`` in the federation graph.
+    """Views and MVs downstream of ``<candidates>.<column>`` in the federation graph, and the
+    statement commands that read or write it (REQ-2001).
 
     ``column`` is the EXPOSED name (alias, else the snake_case default) — that is the only name a
-    view's SQL can have been written against. Each distinct downstream relation is reported once."""
-    origins = [
+    view's SQL can have been written against. Each distinct downstream relation is reported once.
+    A command's write is where its dependents end: the table it writes still has its columns when
+    one the command reads is renamed, so what reads that table is not broken by it."""
+    from provisa.lineage.commands import COMMAND_WRITE
+
+    origins = {
         n.id
         for n in graph.nodes.values()
         if n.column == column and _matches(n.relation, candidates)
-    ]
+    }
     if not origins:
         return []
+    commands: dict[str, str] = {}
+    downstream: dict[str, list] = {}
+    for edge in graph.edges:
+        downstream.setdefault(edge.source, []).append(edge)
+        writer = next((op.name for op in edge.ops if op.kind == COMMAND_WRITE), None)
+        if writer is not None and edge.target in origins:
+            commands[writer] = f"writes {column}"
     reached: dict[str, bool] = {}
-    for origin in origins:
-        scoped = slice_graph(graph, origin, direction="downstream")
-        for node in scoped.nodes.values():
-            if node.relation is None or _matches(node.relation, candidates):
+    seen = set(origins)
+    frontier = list(origins)
+    while frontier:
+        for edge in downstream.get(frontier.pop(), []):
+            writer = next((op.name for op in edge.ops if op.kind == COMMAND_WRITE), None)
+            if writer is not None:
+                commands.setdefault(writer, f"reads {column}")
+                continue
+            if edge.target in seen:
+                continue
+            seen.add(edge.target)
+            frontier.append(edge.target)
+            node = graph.nodes.get(edge.target)
+            if node is None or node.relation is None or _matches(node.relation, candidates):
                 continue
             # A relation reached downstream is materialized or not; the flag distinguishes an MV
             # (whose stored rows go stale) from a view (which simply fails to compile).
             reached[node.relation] = reached.get(node.relation, False) or node.materialized
     return [
-        Dependent(
-            kind="mv" if materialized else "view",
-            name=relation,
-            detail=f"selects {column}",
-            breaks_on="rename",
-        )
-        for relation, materialized in sorted(reached.items())
+        *(
+            Dependent(
+                kind="mv" if materialized else "view",
+                name=relation,
+                detail=f"selects {column}",
+                breaks_on="rename",
+            )
+            for relation, materialized in sorted(reached.items())
+        ),
+        *(
+            Dependent(kind="command", name=name, detail=detail, breaks_on="rename")
+            for name, detail in sorted(commands.items())
+        ),
     ]

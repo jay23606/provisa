@@ -70,6 +70,8 @@ export const IMPL_KINDS = [
   { value: "http", label: "HTTP endpoint" },
   { value: "grpc", label: "gRPC service" },
   { value: "python", label: "Python (in-process)" },
+  // REQ-2001: a Provisa SQL statement, governed and run as the caller.
+  { value: "statement", label: "Provisa SQL statement" },
 ];
 
 export const ARG_KINDS = [

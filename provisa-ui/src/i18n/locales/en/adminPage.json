@@ -144,7 +144,8 @@
       "flight": "Arrow Flight",
       "bolt": "Bolt",
       "grpc": "gRPC",
-      "mcp": "MCP"
+      "mcp": "MCP",
+      "scheduler": "Scheduled tasks"
     },
     "saveSettings": "Save settings",
     "settingsUpdated": "Updated: {{fields}}",

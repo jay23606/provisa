@@ -318,7 +318,7 @@ class CopyHandler:  # REQ-038, REQ-040, REQ-129, REQ-266, REQ-272
     def _handle_copy_to_query(self, _ctx: BVContext, query: str, fmt: str, role_id: str) -> int:
         from provisa.audit.context import with_audit_identity
         from provisa.pgwire import server as _srv
-        from provisa.pgwire._pipeline import plan_pgwire_sql
+        from provisa.pgwire._pipeline import plan_pgwire_sql, streams_from_terminal
         from provisa.transpiler.router import Route
 
         user_id = _ctx.session.user_id  # type: ignore[attr-defined]
@@ -336,7 +336,7 @@ class CopyHandler:  # REQ-038, REQ-040, REQ-129, REQ-266, REQ-272
         )
 
         try:
-            if plan.route == Route.ENGINE:
+            if plan.route == Route.ENGINE and streams_from_terminal(plan):
                 data_bytes, nrows = self._exec_engine_flight(plan, fmt)
             else:
                 data_bytes, nrows = self._exec_direct_plan(plan, fmt)

@@ -1118,6 +1118,7 @@ class ProvisaSession(Session):  # REQ-001, REQ-002, REQ-266
             governed_statement_is_current,
             plan_pgwire_statement,
             require_governed_plan,
+            streams_from_terminal,
         )
 
         # REQ-589: a statement its Describe already governed is only ROUTED here, with the Bind's
@@ -1197,7 +1198,9 @@ class ProvisaSession(Session):  # REQ-001, REQ-002, REQ-266
                     )
                     result = _redirect_row(delivered.redirect, governed.materialize)
                 elif isinstance(governed, _Plan) and (
-                    governed.writes_tables or governed.temp is not None
+                    governed.writes_tables
+                    or governed.temp is not None
+                    or not streams_from_terminal(governed)  # REQ-2002: rows embedded after read
                 ):
                     # A data write executes once, through the one terminal every surface's write
                     # passes (its after-write step and audit), and answers its count. It never

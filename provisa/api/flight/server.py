@@ -1334,7 +1334,11 @@ class ProvisaFlightServer(
         """Execute SQL through the shared governance pipeline and return Arrow record batches."""
         from provisa.compiler.sql_gen import ColumnRef
         from provisa.executor.result import QueryResult
-        from provisa.pgwire._pipeline import govern_batch_final_plan_with_fn, require_governed_plan
+        from provisa.pgwire._pipeline import (
+            govern_batch_final_plan_with_fn,
+            require_governed_plan,
+            streams_from_terminal,
+        )
 
         sql = str(request.get("query", ""))
         role_id = str(request.get("role", "org_admin"))
@@ -1372,6 +1376,17 @@ class ProvisaFlightServer(
         )  # REQ-1176: verify at the last moment, before the engine executes
         if plan.materialize is not None:
             return self._delivered_stream(plan)
+        if not streams_from_terminal(plan):
+            # REQ-2002: the rows are embedded once read, in the pipeline terminal (its audit too).
+            from provisa.pgwire._pipeline import _execute_plan
+
+            done = self._run_on_loop(_execute_plan(plan, self._state))
+            columns = [
+                ColumnRef(field_name=c, column=c, alias=None, nested_in=None)
+                for c in done.column_names
+            ]
+            table = rows_to_arrow_table(done.rows, columns)
+            return self._license_stream(table, role_id, plan.warnings)  # REQ-1137
         # REQ-074/REQ-1386: this govern-then-stream terminal never reaches _execute_plan, so the
         # audit row is written here — once the terminal is established, or on the way out.
         try:

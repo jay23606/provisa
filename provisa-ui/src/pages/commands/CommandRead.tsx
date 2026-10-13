@@ -19,6 +19,7 @@ import type {
   ActionArg,
   DatasetColumn,
   InlineField,
+  StatementContract,
   TrackedFunction,
   TrackedWebhook,
 } from "../../api/actions";
@@ -144,26 +145,34 @@ export function FunctionRead({
   };
   const yesNo = (v: boolean) => (v ? t("commandsPage.yes") : t("commandsPage.no"));
   const bySource = impl === "source_procedure" || impl === "source_operation";
-  const implementation: DetailField[] = bySource
+  // REQ-2001: a statement command is its statement; its kind and written table are shown as the
+  // statement declares them, and it has no identity switch or return type to show.
+  const isStatement = impl === "statement";
+  const implementation: DetailField[] = isStatement
     ? [
-        { label: t("commandFormFields.source"), value: fn.sourceId },
-        { label: t("commandFormFields.schema"), value: fn.schemaName },
-        { label: t("commandFormFields.functionName"), value: fn.functionName },
+        { label: t("commandFormFields.bindingSql"), value: bound("sql") },
+        ...contractFields(fn.contract, t),
       ]
-    : impl === "script"
-      ? [{ label: t("commandFormFields.bindingArgv"), value: bound("argv") }]
-      : impl === "http"
-        ? [
-            { label: t("commandFormFields.bindingUrl"), value: bound("url") },
-            { label: t("commandFormFields.method"), value: bound("method") },
-          ]
-        : impl === "grpc"
+    : bySource
+      ? [
+          { label: t("commandFormFields.source"), value: fn.sourceId },
+          { label: t("commandFormFields.schema"), value: fn.schemaName },
+          { label: t("commandFormFields.functionName"), value: fn.functionName },
+        ]
+      : impl === "script"
+        ? [{ label: t("commandFormFields.bindingArgv"), value: bound("argv") }]
+        : impl === "http"
           ? [
-              { label: t("commandFormFields.bindingTarget"), value: bound("target") },
-              { label: t("commandFormFields.bindingGrpcMethod"), value: bound("method") },
-              { label: t("commandFormFields.bindingTls"), value: yesNo(Boolean(binding.tls)) },
+              { label: t("commandFormFields.bindingUrl"), value: bound("url") },
+              { label: t("commandFormFields.method"), value: bound("method") },
             ]
-          : [{ label: t("commandFormFields.bindingCallable"), value: bound("callable") }];
+          : impl === "grpc"
+            ? [
+                { label: t("commandFormFields.bindingTarget"), value: bound("target") },
+                { label: t("commandFormFields.bindingGrpcMethod"), value: bound("method") },
+                { label: t("commandFormFields.bindingTls"), value: yesNo(Boolean(binding.tls)) },
+              ]
+            : [{ label: t("commandFormFields.bindingCallable"), value: bound("callable") }];
   const toTable = Boolean(fn.returns);
   return (
     <div className="detail-groups" data-testid={`function-read-${fn.name}`}>
@@ -177,7 +186,7 @@ export function FunctionRead({
             value: IMPL_KINDS.find((k) => k.value === impl)?.label ?? impl,
           },
           ...implementation,
-          ...(bySource
+          ...(bySource || isStatement
             ? []
             : [
                 {
@@ -185,12 +194,16 @@ export function FunctionRead({
                   value: yesNo(Boolean(fn.materialize)),
                 },
               ]),
-          {
-            label: t("commandFormFields.returnType"),
-            value: toTable
-              ? t("commandFormFields.registeredTable")
-              : t("commandFormFields.datasetColumns"),
-          },
+          ...(isStatement
+            ? []
+            : [
+                {
+                  label: t("commandFormFields.returnType"),
+                  value: toTable
+                    ? t("commandFormFields.registeredTable")
+                    : t("commandFormFields.datasetColumns"),
+                },
+              ]),
           ...(toTable ? [{ label: t("commandFormFields.returnsTable"), value: fn.returns }] : []),
           {
             label: t("commandFormFields.visibleTo"),
@@ -207,12 +220,52 @@ export function FunctionRead({
       {!toTable && (
         <ResponseColumns
           title={t("commandFormFields.outputColumnsTitle")}
-          columns={fn.outputColumns ?? []}
+          columns={isStatement ? (fn.contract?.outputs ?? []) : (fn.outputColumns ?? [])}
           testId="function-read-columns"
         />
       )}
     </div>
   );
+}
+
+/** REQ-2001: what a statement command does, as its statement declares it — or why it no longer
+ * resolves against the model. */
+function contractFields(
+  contract: StatementContract | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): DetailField[] {
+  if (contract === undefined) return [];
+  if (contract.broken !== null) {
+    return [{ label: t("commandsPage.contractBroken"), value: contract.broken }];
+  }
+  const parts: string[] = [];
+  if (contract.reads.length > 0) {
+    parts.push(t("commandsPage.contractReads", { tables: contract.reads.join(", ") }));
+  }
+  if (contract.writes !== null) {
+    parts.push(
+      t(contract.upsert ? "commandsPage.contractUpserts" : "commandsPage.contractWrites", {
+        table: contract.writes,
+      }),
+    );
+  }
+  parts.push(
+    contract.writes !== null &&
+      contract.outputs.length === 1 &&
+      contract.outputs[0].name === "rows_affected"
+      ? t("commandsPage.contractReturnsCount")
+      : t("commandsPage.contractReturnsRows", {
+          columns: contract.outputs.map((o) => o.name).join(", "),
+        }),
+  );
+  return [
+    { label: t("commandsPage.contract"), value: parts.join(", ") },
+    {
+      label: t("commandsPage.contractArguments"),
+      value: contract.arguments.map((a) => `${a.name}: ${a.type}`).join(", ") || null,
+    },
+    { label: t("commandsPage.contractVersion"), value: contract.version },
+  ];
 }
 
 export function WebhookRead({ wh }: { wh: TrackedWebhook }) {

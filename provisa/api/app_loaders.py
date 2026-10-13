@@ -1483,6 +1483,13 @@ async def _check_fakes(conn: Any) -> None:  # REQ-1494
     check_model(await fetch_tables(conn), await fetch_relationships(conn))
 
 
+def _json_dict(value: Any) -> dict:
+    """A JSON object column as a dict; raw SQL returns it as its text (see :func:`_json_list`)."""
+    if isinstance(value, str):
+        return json.loads(value)
+    return dict(value)
+
+
 def _json_list(value: Any) -> list:
     """Coerce a JSON list-column to a Python list, tolerating raw-SQL string returns.
 
@@ -1500,9 +1507,11 @@ def _json_list(value: Any) -> list:
 
 
 async def _load_tracked_functions_and_webhooks(  # REQ-042
-    conn: Any, raw_config: dict | None
+    conn: Any, raw_config: dict | None, tables: list[dict]
 ) -> tuple[list[dict], list[dict]]:
-    """Load tracked functions and webhooks from DB; populate state.tracked_functions/webhooks."""
+    """Load tracked functions and webhooks from DB; populate state.tracked_functions/webhooks.
+    ``tables`` are the registered tables this build serves: a statement command's contract is
+    derived against them (REQ-2001)."""
     from provisa.api.app import state
 
     assert state.model_db is not None, (
@@ -1551,6 +1560,16 @@ async def _load_tracked_functions_and_webhooks(  # REQ-042
     undefined = await undefined_commands(conn)
     not_defined = [f for f in tracked_functions if f["name"] in undefined]
     tracked_functions = [f for f in tracked_functions if f["name"] not in undefined]
+    # REQ-2001: a statement command's contract, derived again at every build; one whose statement
+    # no longer resolves against the model carries why (contract.broken), and a call is refused.
+    from provisa.compiler.statement_contract import derive as _derive_contract
+
+    for f in tracked_functions:
+        if f["impl_kind"] == "statement":
+            f["binding"] = _json_dict(f["binding"])
+            f["contract"] = _derive_contract(
+                f["name"], f["binding"], f["arguments"], tables
+            ).as_dict()
     tracked_webhooks = [
         {
             **dict(r),

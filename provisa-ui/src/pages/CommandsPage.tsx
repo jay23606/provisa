@@ -232,6 +232,9 @@ export function CommandsPage() {
         // contract; return_schema (the GraphQL projection) is DERIVED, never authored.
         const outputColumns = form.outputColumns.filter((c) => c.name.trim() !== "");
         const isDataset = form.returnSchemaMode === "dataset";
+        // REQ-2001: a statement command's statement declares its kind, its written table and its
+        // output; the server derives them, and one sent beside it would have to agree.
+        const isStatement = form.implKind === "statement";
         await saveFunction({
           name: form.name,
           sourceId: form.sourceId,
@@ -242,14 +245,14 @@ export function CommandsPage() {
           visibleTo,
           domainId: form.domainId,
           description: form.description || undefined,
-          kind: form.kind,
-          returnSchema: isDataset ? deriveReturnSchema(outputColumns) : null,
-          outputColumns, // REQ-1159
+          kind: isStatement ? undefined : form.kind,
+          returnSchema: isDataset && !isStatement ? deriveReturnSchema(outputColumns) : null,
+          outputColumns: isStatement ? null : outputColumns, // REQ-1159
           implKind: form.implKind,
           binding: form.binding,
           materialize: form.materialize,
           requiresApproval: form.requiresApproval, // REQ-1924
-          writesTable: form.writesTable || null, // REQ-1924, REQ-871
+          writesTable: isStatement ? undefined : form.writesTable || null, // REQ-1924, REQ-871
           productId: form.productId || null, // REQ-1634
         });
       } else {

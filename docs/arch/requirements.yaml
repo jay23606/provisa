@@ -71086,7 +71086,7 @@
     large GraphQL queries, another does not), so the request timeout is an operator setting per transport.
     `server.limits.request_timeout` stays as the default, and `server.limits.request_timeouts` holds an
     optional value per transport: graphql, rest, jsonapi, sql_http, cypher_http, pgwire, flight, bolt,
-    grpc, mcp. A transport with no value of its own uses the default, with two exceptions shipped in the
+    grpc, mcp, and scheduler, a scheduled trigger''s run (REQ-2001). A transport with no value of its own uses the default, with two exceptions shipped in the
     product: Flight is expected to carry large data transfers, so its shipped value is 3600 seconds, and
     pgwire carries a lot of BI workloads (dashboards and ad-hoc analytical SQL, mixed medium to small),
     so its shipped value is 300 seconds; every other transport ships on the 60-second default. An operator
@@ -78494,3 +78494,60 @@
     Then the point is replaced'
   related_reqs: [REQ-1983, REQ-423, REQ-430]
   notes: 'Maintainer 2026-10-12, through the lead: "writes that are single source are supposed to back to the direct source. could that be a design idea here." This supersedes the read-only ruling for Qdrant (REQ-1983) for single-source writes.'
+- id: REQ-2001
+  status: proposed
+  since: 2026-10
+  group: 3. Source Registration & Data Modeling
+  category: Commands
+  priority: SHOULD
+  type: behavioral
+  description: 'A command can be implemented by a Provisa SQL statement with typed arguments (implementation kind statement): the statement is governed and run through the one pipeline under the caller''s rights like any statement, its arguments bound as values, never spliced. An argument is written {{name}} in the statement, as a MongoDB pipeline command writes one: every placeholder is a declared argument and every declared argument is used. A statement command is a query when its statement reads and a mutation when it writes. It is invocable on every surface commands are, a scheduled trigger can run it (the trigger''s SQL is one call of the command, run as the trigger''s role), and every run is audited, a scheduled run under the scheduler''s audit identity and bounded by the scheduler''s own request timeout (limits.request_timeouts.scheduler, REQ-1905). An INSERT ... SELECT whose SELECT reads a source other than its target''s, or computes embed(), is run as its governed SELECT read as any read, its rows then written into the target through that table''s write route as an INSERT ... VALUES, so a command can compute rows across sources and write them to one target; an ON CONFLICT ... DO UPDATE on it is carried to that write, and a target whose write route has no upsert refuses it by name. The statement is the command''s declaration: at registration its contract is derived from the governed statement and stored, namely its kind (a SELECT is a query, a write a mutation), writes_table (its target), the tables it reads after view expansion, its output columns (the select list''s types, or the write''s row count), its column lineage as REQ-1160 computes it, and the types of its {{name}} arguments. The command form shows the steward that contract (e.g. "reads support.tickets, writes kb.docs (upsert), returns a row count"). A declared kind or writes_table that contradicts the statement is refused by name. At every schema rebuild the command''s contract is derived again; one that no longer resolves (a table or column it reads or writes was renamed or dropped) is marked broken with the reason, its invocation refused naming that reason and the commands page showing it; lineage and impact analysis list statement commands as they list views, so a rename or drop that would break one lists it beforehand, through its write edge. The lineage carries the write edge: the target table shows it is written by the command, from the tables and columns the command reads (e.g. kb.docs "written by command embed_tickets, from support.tickets (ticket_id, subject)"), in the lineage graph and in impact analysis, so rows a command derives into a source stay traceable as derived, not as plain source data. Those edges (its reads, its write to the target, column by column) are added to the lineage graph from the statement itself at registration, as a view''s are, and derived again on a model change; a run adds none, its audit record kept apart. Each run creates one audit record for provenance, the command call''s own record extended for this kind (no second log): the command and the version of its contract that ran, the caller (or the scheduled trigger''s role and principal), the argument values, its start and end, its outcome, the tables it read, the target it wrote and the rows affected; the record names the command, so a derived table answers both "derived from what" (the lineage graph) and "which run, when, by whom, with what inputs" (the audit). The record lets someone prove what produced the rows: it holds the exact registered statement text with its hash and contract version, the bound argument values, and each embed() call''s model (its id, provider, dimensions and version, REQ-2002), beside the caller, start and end, outcome, tables read, target and rows affected. Run records are append-only, as the audit log is.'
+  scenario: 'Given a statement command embed_tickets(since timestamp) whose statement is INSERT INTO kb.docs (id, title, body_vec) SELECT ticket_id, subject, embed(''text-embedding-3-small'', subject) FROM support.tickets WHERE updated_at > {{since}} ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, body_vec = EXCLUDED.body_vec
+
+    When a steward runs it with since set to yesterday
+
+    Then the changed tickets are embedded and upserted into the Qdrant collection, and the run is in the audit log
+
+    When a scheduled trigger runs it every hour
+
+    Then each run writes only the rows its argument selects'
+  related_reqs: [REQ-885, REQ-2000, REQ-2002]
+  code:
+  - provisa/core/statement_declaration.py
+  - provisa/executor/statement_command.py
+  - provisa/executor/function_dispatch.py
+  - provisa/api/admin/actions_router.py
+  - provisa-ui/src/pages/commands/CommandFormFields.tsx
+  - provisa/compiler/statement_contract.py
+  - provisa/lineage/commands.py
+  - provisa/lineage/dependents.py
+  - provisa/api/app_loaders.py
+  - provisa/scheduler/trigger_sql.py
+  - provisa/scheduler/jobs.py
+  - provisa-ui/src/pages/commands/CommandRead.tsx
+  tests:
+  - tests/unit/test_statement_command.py
+  - tests/unit/test_statement_contract.py
+  - tests/unit/test_two_step_insert.py
+  - tests/unit/test_scheduled_sql.py
+  - provisa-ui/src/__tests__/CommandFormFields.test.tsx
+  - provisa-ui/src/pages/commands/__tests__/CommandRead.test.tsx
+  notes: 'Maintainer 2026-10-12, through the lead: an embedding job into Qdrant, "couldn''t it be a type of mv?", then "so could it be a command then?", then "instead of an mv". The statement kind and its argument binding are the lead''s proposal. Lead 2026-10-12, approving the design: arguments as {{name}} after the source_query precedent; scheduled triggers run one registered command call through the command executor as the trigger''s role, with the scheduler''s audit identity; events left for a later requirement; the INSERT ... SELECT routed to an arbitrary source is a defect (GitHub issue 253), fixed by the two-step read then write; an ON CONFLICT ... DO UPDATE is carried to the target''s write route, refused by name where that route has no upsert. Maintainer 2026-10-12, through the lead: "other commands declare their intent, so where''s a statement command''s?" Lead''s answer, approved: the statement is the declaration, its contract derived at registration, shown on the command form, checked against a declared kind or writes_table, and derived again when the model changes, a command that no longer resolves marked broken. Lead 2026-10-12: views have impact analysis beforehand but no broken-marking afterwards; marking broken is for statement commands only (contract.broken with its reason, re-derived at every schema rebuild). Lead 2026-10-12, adding the write edge, in the maintainer''s framing: statement commands are how derivations are created in direct-write sources, which MVs cannot do. Maintainer 2026-10-12, through the lead: "when they are run an audit record should be created - for provenance", then "provenance aka prove-it". Then "reproduce might be a half step further than prove-it": the record proves, it does not hold input or target snapshots. And "what can''t be reproduced is the original source/target data - the working assumption is that that''s too much of a performance drag": the run record proves what ran and deliberately keeps no copy or snapshot of the input or target data. And "if the operator sets up bitemporal views that lets you get to the source/target - that''s on them": the run record''s timestamps are what an operator''s own bitemporal views would be read as of; Provisa adds nothing for it. Hash-chaining of run records is not in scope unless the maintainer asks for it (lead). Lead 2026-10-12: an audited scheduled run is bounded by a request timeout of its own, limits.request_timeouts.scheduler, so a scheduled job has its own budget without raising every transport''s. Then "add model version to the audit record" (REQ-2002 gives the registry a model version).'
+- id: REQ-2002
+  status: proposed
+  since: 2026-10
+  group: 4. Source Connectors
+  category: Vector Search
+  priority: SHOULD
+  type: behavioral
+  description: 'embed(model, text) is a function of Provisa SQL that returns the embedding of text by a model from the registry, its dimensions those of the model. It is evaluated by Provisa, once per distinct text in a statement, never sent to a source; a model not in the registry, or one the registry has disabled, is refused naming it. A literal text is embedded once, with the statement. A text read from rows is embedded on the rows a statement reads, so embed() of a column or expression is an item of the select list; anywhere else it is refused by name. Each registered model has a version: where the provider reports one it is taken from the provider (an Ollama model''s digest, a local HuggingFace model''s revision or commit hash), otherwise it is the value the operator enters (a model name such as OpenAI''s carries none); it is set in the AI Models settings. The audit record of every statement that calls embed() holds each model it used: its id, provider, dimensions and version.'
+  related_reqs: [REQ-430, REQ-2001]
+  code:
+  - provisa/vector/embed_fn.py
+  - provisa/vector/providers.py
+  - provisa/pgwire/_pipeline.py
+  - provisa-ui/src/components/admin/AiModelsTab.tsx
+  tests:
+  - tests/unit/test_embed_fn.py
+  - provisa-ui/src/__tests__/AiModelsTab.test.tsx
+  notes: 'Maintainer 2026-10-12, through the lead, as part of the Qdrant embedding command. Lead 2026-10-12, approving the design: the registry allowlist is the rule, with no per-role model rights (the drafted "a model the caller''s role may not use" is that rule). Maintainer 2026-10-12, through the lead: "add model version to the audit record".'

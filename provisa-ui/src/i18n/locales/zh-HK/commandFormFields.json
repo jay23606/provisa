@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "gRPC 方法",
     "bindingTls": "使用 TLS",
     "bindingCallable": "Python 可呼叫項 (module:attr)",
+    "bindingSql": "SQL 陳述式",
+    "bindingSqlHint": "一條以呼叫者身分執行的 Provisa SQL 陳述式。參數寫作 {{placeholder}}：每個參數都要出現，並作為值綁定。",
     "materialize": "具體化（以管理員／定義者身分）",
     "materializeHint": "開啟：以管理員身分執行，治理輸出。關閉：以呼叫者身分執行，治理輸入。",
     "argKind": "引數種類",

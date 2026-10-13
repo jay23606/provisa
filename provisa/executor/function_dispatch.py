@@ -345,7 +345,9 @@ def _check_egress(state, endpoint: str, kind: str) -> None:
 _EXTERNAL_KINDS = frozenset({"http", "grpc"})
 # Kinds whose arguments go to the implementation as given: a source's own procedure, and a
 # source's write operation, which is passed through as is (REQ-1924).
-_PASSED_THROUGH_KINDS = frozenset({"source_procedure", "source_operation", "source_query"})
+_PASSED_THROUGH_KINDS = frozenset(
+    {"source_procedure", "source_operation", "source_query", "statement"}  # REQ-2001
+)
 _RELATION_ARG_KINDS = frozenset({"table_ref", "result_set"})
 
 
@@ -505,6 +507,13 @@ def _rows_from_response(
     )
 
 
+async def _exec_statement(fn: dict, args: dict, state, _payload, session) -> list[dict]:
+    """REQ-2001: a Provisa SQL statement, run through the one pipeline as the caller's role."""
+    from provisa.executor.statement_command import run
+
+    return await run(fn, _bind_arg_names(fn, args), state, session.role_id)
+
+
 _EXECUTORS = {
     "source_procedure": _exec_source_procedure,
     "source_operation": _exec_source_operation,
@@ -513,6 +522,7 @@ _EXECUTORS = {
     "http": _exec_http,
     "grpc": _exec_grpc,
     "python": _exec_python,
+    "statement": _exec_statement,  # REQ-2001
 }
 
 

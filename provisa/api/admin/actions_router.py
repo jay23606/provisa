@@ -126,10 +126,13 @@ async def list_actions(request: Request):  # REQ-205, REQ-209
             wh["approved"] = await cr_repo.latest_status(conn, "webhook", wh["name"]) == "executed"
             webhooks.append(wh)
 
-    return {
-        "functions": [_row_to_function(dict(r._mapping)) for r in fn_rows],
-        "webhooks": webhooks,
-    }
+    functions = [_row_to_function(dict(r._mapping)) for r in fn_rows]
+    # REQ-2001: a statement command's contract as this build derived it from its statement.
+    served = getattr(state, "tracked_functions", None) or {}
+    for fn in functions:
+        if fn["implKind"] == "statement" and fn["name"] in served:
+            fn["contract"] = served[fn["name"]]["contract"]
+    return {"functions": functions, "webhooks": webhooks}
 
 
 class FunctionInput(BaseModel):  # REQ-205, REQ-206, REQ-304, REQ-305, REQ-306
@@ -202,13 +205,39 @@ async def _as_source_operation(body: FunctionInput) -> None:
         body.outputColumns = [dict(c) for c in BINARY_ANSWER]
 
 
+def _as_statement(body: FunctionInput) -> None:  # REQ-2001
+    """A statement command's kind and written table are what its statement declares: a kind or
+    written table the caller sent that contradicts the statement is refused naming both."""
+    if body.implKind != "statement":
+        return
+    from provisa.core.statement_declaration import StatementCommandRefused, check
+
+    sent = body.model_fields_set
+    try:
+        found = check(
+            body.name,
+            body.binding,
+            [a["name"] for a in body.arguments],
+            body.kind if "kind" in sent else None,
+            body.writesTable if "writesTable" in sent else None,
+        )
+    except StatementCommandRefused as exc:
+        raise ApiError(
+            422, "actions.statement_invalid", str(exc), name=body.name, reason=exc.reason
+        ) from exc
+    body.kind = found.kind
+    body.writesTable = found.writes
+    body.functionName = body.functionName or body.name
+
+
 def _check_written_table(body: FunctionInput) -> None:
     """REQ-1924, REQ-871: the table a command is registered as writing is a registered table of
-    the command's own source."""
+    the command's own source. A statement command's is the table its statement writes, through
+    the pipeline (REQ-2001)."""
     from provisa.api.app import state
     from provisa.executor.source_operation import written_table
 
-    if body.writesTable is None:
+    if body.writesTable is None or body.implKind == "statement":
         return
     if written_table(state, body.sourceId, body.writesTable) is None:
         raise ApiError(
@@ -322,6 +351,7 @@ async def create_function(
     require_capability_request(request, "table_registration")
     body.domainId = _saved_domain(request, body.name, body.domainId)
     await _as_source_operation(body)
+    _as_statement(body)  # REQ-2001
     _check_written_table(body)
     from provisa.api.app import state
     from provisa.core.models import DatasetColumn, Function, FunctionArgument
@@ -378,6 +408,7 @@ async def update_function(
     require_capability_request(request, "table_registration")
     body.domainId = _saved_domain(request, name, body.domainId)
     await _as_source_operation(body)
+    _as_statement(body)  # REQ-2001
     _check_written_table(body)
     from provisa.api.app import state
 

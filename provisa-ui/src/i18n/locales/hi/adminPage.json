@@ -144,7 +144,8 @@
       "flight": "Arrow Flight",
       "bolt": "Bolt",
       "grpc": "gRPC",
-      "mcp": "MCP"
+      "mcp": "MCP",
+      "scheduler": "निर्धारित कार्य"
     },
     "saveSettings": "सेटिंग्स सहेजें",
     "settingsUpdated": "अपडेट किया गया: {{fields}}",

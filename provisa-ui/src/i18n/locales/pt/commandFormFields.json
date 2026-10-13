@@ -44,6 +44,8 @@
     "bindingGrpcMethod": "Método gRPC",
     "bindingTls": "Usar TLS",
     "bindingCallable": "Callable Python (module:attr)",
+    "bindingSql": "Instrução SQL",
+    "bindingSqlHint": "Uma instrução SQL do Provisa, executada como quem chama. Escreva um argumento como {{placeholder}}: cada argumento aparece e é vinculado como valor.",
     "materialize": "Materializar (identidade do admin/definidor)",
     "materializeHint": "Ativado: executa como admin e governa a saída. Desativado: executa como o chamador e governa as entradas.",
     "argKind": "Tipo de argumento",

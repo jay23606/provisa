@@ -28,6 +28,8 @@
     "vectorDimensions": "Размерность",
     "vectorApiKeyEnv": "Ключ API",
     "vectorBaseUrl": "Базовый URL",
+    "vectorVersion": "Версия",
+    "vectorVersionPlaceholder": "необязательно",
     "vectorEnabled": "Включена",
     "addVectorModel": "Добавить векторную модель",
     "removeVectorModel": "Удалить",

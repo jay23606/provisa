@@ -36,6 +36,8 @@ REQUEST_TRANSPORTS = (
     "bolt",
     "grpc",
     "mcp",
+    # REQ-2001: a scheduled trigger's run is audited, so it is bounded; by its own value.
+    "scheduler",
 )
 
 
@@ -94,6 +96,7 @@ _SURFACE_TRANSPORT = {
     "bolt": "bolt",
     "grpc": "grpc",
     "mcp": "mcp",
+    "scheduler": "scheduler",  # REQ-2001: a scheduled trigger's run (scheduler/jobs.py)
 }
 
 

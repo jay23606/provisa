@@ -144,7 +144,8 @@
       "flight": "Arrow Flight",
       "bolt": "Bolt",
       "grpc": "gRPC",
-      "mcp": "MCP"
+      "mcp": "MCP",
+      "scheduler": "משימות מתוזמנות"
     },
     "saveSettings": "שמירת הגדרות",
     "settingsUpdated": "עודכן: {{fields}}",

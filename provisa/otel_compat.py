@@ -613,6 +613,7 @@ TRANSPORT_BY_KIND: dict[str, str] = {
     "http": "http",
     "grpc": "grpc",
     "python": "python",
+    "statement": "sql",  # REQ-2001: a Provisa SQL statement, through the one pipeline
 }
 
 

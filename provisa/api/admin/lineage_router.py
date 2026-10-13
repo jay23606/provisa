@@ -304,6 +304,10 @@ async def federation_graph(
     merged = build_federation_graph_incremental(
         views, commands=commands, materialized_relations=mats, extra_relations=registry_relations
     )
+    from provisa.lineage.commands import with_command_writes
+
+    # REQ-2001: each statement command's write, its target's columns derived by the command.
+    merged = with_command_writes(merged, commands)
     merged = _with_registry_columns(merged, column_rows, seed_relations)
     # A relation the registry has no column rows for cannot be seeded by visibility, and dropping it
     # would silently shrink the graph below what it shows today. Seed it: the perspective can only be

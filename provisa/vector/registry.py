@@ -32,6 +32,7 @@ class VectorModel:  # REQ-419, REQ-429
     api_key_env: str | None = None  # env var holding the API key (resolved at call time)
     base_url: str | None = None  # provider base URL override
     enabled: bool = True
+    version: str | None = None  # REQ-2002: as the operator states it (providers.model_version)
 
 
 class VectorModelRegistry:  # REQ-419
@@ -68,6 +69,7 @@ class VectorModelRegistry:  # REQ-419
                     api_key_env=e.get("api_key_env"),
                     base_url=e.get("base_url"),
                     enabled=e.get("enabled", True),
+                    version=e.get("version"),
                 )
                 for e in entries
             ]

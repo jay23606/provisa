@@ -53,7 +53,7 @@ def control_plane(tmp_path):
     engine.dispose()
 
 
-def test_the_ten_transports():
+def test_the_transports():
     assert REQUEST_TRANSPORTS == (
         "graphql",
         "rest",
@@ -65,6 +65,7 @@ def test_the_ten_transports():
         "bolt",
         "grpc",
         "mcp",
+        "scheduler",  # REQ-2001: a scheduled trigger's run
     )
 
 
@@ -80,6 +81,7 @@ def test_a_fresh_deployment_ships_flight_at_3600_pgwire_at_300_and_the_rest_at_6
         "bolt",
         "grpc",
         "mcp",
+        "scheduler",
     ):
         assert request_timeout_for(transport) == 60.0
 
@@ -150,7 +152,7 @@ def client(control_plane, tmp_path, monkeypatch):
     return TestClient(app)
 
 
-def test_get_reports_the_default_and_all_ten_transports(client):
+def test_get_reports_the_default_and_every_transport(client):
     body = client.get("/admin/settings").json()["limits"]
     assert body["request_timeout"] == 60.0
     assert set(body["request_timeouts"]) == set(REQUEST_TRANSPORTS)
@@ -236,8 +238,14 @@ def test_a_statement_is_timed_by_its_route_when_one_is_bound_else_by_its_surface
     from provisa.core.limits import bound_request_transport, statement_timeout
 
     settings_registry.bind_config(
-        {"server": {"limits": {"request_timeouts": {"rest": 7, "bolt": 9, "mcp": 11}}}}
+        {
+            "server": {
+                "limits": {"request_timeouts": {"rest": 7, "bolt": 9, "mcp": 11, "scheduler": 5}}
+            }
+        }
     )
+    # REQ-2001: a scheduled trigger's run is timed by its own value.
+    assert statement_timeout("scheduler") == (5.0, "scheduler", "limits.request_timeouts.scheduler")
     assert statement_timeout("bolt") == (9.0, "bolt", "limits.request_timeouts.bolt")
     assert statement_timeout("mcp") == (11.0, "mcp", "limits.request_timeouts.mcp")
     assert statement_timeout("grpc") == (60.0, "grpc", "limits.request_timeout")
