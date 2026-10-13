@@ -18,7 +18,7 @@ A real SQLite control plane (sources + registered_tables) through the admin muta
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -341,6 +341,18 @@ def _table_input(**kw) -> TableInput:
     return TableInput(**base)
 
 
+@contextmanager
+def _model_store(db: Database):
+    from provisa.api.app import state
+
+    held = state.model_db
+    state.model_db = db
+    try:
+        yield
+    finally:
+        state.model_db = held
+
+
 def _table_patches(db: Database):
     from provisa.core.models import Column
 
@@ -368,6 +380,9 @@ def _table_patches(db: Database):
         ),
         patch("provisa.api.admin.schema_mutation._rebuild_schemas", new=AsyncMock()),
         patch("provisa.api.admin.schema_mutation._remove_view_mv"),
+        # The org's model store, as the mutation's other readers of it (the checker reschedule)
+        # find it: the same store _get_pool hands out.
+        _model_store(db),
     )
 
 

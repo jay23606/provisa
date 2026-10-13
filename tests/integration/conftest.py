@@ -348,6 +348,8 @@ def _deployment_org_bound(request: pytest.FixtureRequest, monkeypatch: pytest.Mo
     if request.node.get_closest_marker("unbound") is not None:
         yield
         return
+    import provisa.api.app as app_mod
+    from provisa.core import org_files
     from tests.conftest import as_deployment_org
 
     served = request.node.get_closest_marker("deployment_org")
@@ -355,9 +357,9 @@ def _deployment_org_bound(request: pytest.FixtureRequest, monkeypatch: pytest.Mo
         # The app's own org is re-pointed BEFORE it is bound (its runtime moves with it,
         # AppState.org_id), here in the test's own context: a binding made inside an async fixture
         # stays in that fixture's task.
-        import provisa.api.app as app_mod
-
         monkeypatch.setattr(app_mod.state, "org_id", served.args[0], raising=False)
+    # REQ-1992: the deployment org's folder, as its runtime's build makes it ready on a node.
+    org_files.folder(app_mod.state.org_id).mkdir(parents=True, exist_ok=True)
     with as_deployment_org():
         yield
         # A routed AppState attribute monkeypatch replaced is put back while the org is bound.

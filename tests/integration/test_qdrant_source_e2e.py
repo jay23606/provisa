@@ -204,6 +204,9 @@ def server(qdrant, embeddings, tmp_path_factory):
             {"id": "stub", "provider": "openai", "dimensions": 4, "base_url": embeddings.base_url}
         ],
         "domains": [{"id": "kb", "description": "qdrant e2e"}],
+        # org_admin is the reserved administrative role (REQ-1349): every org has it and a
+        # config file may not declare it.
+        "roles": [],
         "sources": [{"id": "vec", "type": "qdrant", "host": qdrant.url, "cache_ttl": 60}],
         "tables": [
             {
