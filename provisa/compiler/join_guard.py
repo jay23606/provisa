@@ -323,6 +323,17 @@ def _is_filter(query: exp.Expr) -> bool:
     return isinstance(parent, exp.In) and parent.args.get("query") is node
 
 
+def _own_columns(scope: Scope) -> list[exp.Column]:
+    """The columns written in ``scope``'s own query. sqlglot's ``Scope.columns`` also lists a
+    nested scope's columns it cannot place there (a derived table's GROUP BY column, say), as
+    candidates for a correlated reference; each is judged in the scope it is written in, which
+    resolves it outward when it is one."""
+    query = scope.expression
+    if not isinstance(query, exp.Query):
+        return list(scope.columns)
+    return [c for c in scope.columns if c.find_ancestor(exp.Query) is query]
+
+
 def _conjuncts(condition: exp.Expr | None) -> list[exp.Expr]:
     """``condition`` as the conditions it ANDs together."""
     if condition is None:
@@ -417,7 +428,7 @@ def _unrelated_in(
         own = resolver.alternatives(scope)
         groups += own
         reach = frozenset().union(*own)
-        mine = {id(c) for c in scope.columns}
+        mine = {id(c) for c in _own_columns(scope)}
         query = scope.expression
         while not isinstance(query, (exp.Select, exp.SetOperation)):
             query = query.args.get("this")
@@ -542,7 +553,7 @@ def _unrelated_in(
             other_matching(touching)
         # A column of the statement around it: a correlated subquery is combined with the
         # instance it reaches out to.
-        for column in scope.columns:
+        for column in _own_columns(scope):
             for instance in resolver.touched(scope, column):
                 if instance in reach:
                     continue  # one of its own, whichever branch of a union it reads it from

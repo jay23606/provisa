@@ -273,6 +273,40 @@ def test_tables_a_statement_does_not_combine_need_no_relationship(sql):
     assert _v002(sql) == [], sql
 
 
+# A scalar subquery that refers to nothing around it is a value, not a table joined to the rows
+# around it -- also when it reads a derived table of its own (the bake-off's "the most" shape),
+# whose GROUP BY columns sqlglot lists for the scopes around it too.
+_SCALAR_SUBQUERIES = {
+    "having": "SELECT region FROM orders GROUP BY region HAVING COUNT(*) = (SELECT MAX(n) FROM "
+    "(SELECT COUNT(*) AS n FROM orders GROUP BY region) AS c)",
+    "where": "SELECT name FROM customers WHERE id = (SELECT MAX(n) FROM "
+    "(SELECT COUNT(*) AS n FROM customers GROUP BY region) AS c)",
+    "select": "SELECT id, (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM orders GROUP BY region) "
+    "AS c) AS most FROM orders",
+    "another_table": "SELECT region FROM orders GROUP BY region HAVING COUNT(*) > (SELECT MAX(n) "
+    "FROM (SELECT COUNT(*) AS n FROM customers GROUP BY region) AS c)",
+}
+
+
+@pytest.mark.parametrize("sql", _SCALAR_SUBQUERIES.values(), ids=list(_SCALAR_SUBQUERIES))
+def test_a_scalar_subquery_is_a_value_not_a_join(sql):
+    assert _v002(sql) == [], sql
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT o.id FROM orders o, customers c",
+        "SELECT o.id FROM orders o CROSS JOIN customers c",
+        # Correlated, from inside its own derived table: still a pairing of the two tables.
+        "SELECT o.id FROM orders o WHERE o.id = (SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM "
+        "customers c WHERE c.region = o.region) AS x)",
+    ],
+)
+def test_tables_combined_with_no_relationship_beside_a_scalar_subquery_are_still_refused(sql):
+    assert _v002(sql), sql
+
+
 def test_a_union_read_beside_a_table_is_held_branch_by_branch():
     sql = (
         "SELECT v.id FROM visits v JOIN "
