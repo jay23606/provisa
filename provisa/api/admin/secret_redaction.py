@@ -59,20 +59,51 @@ def redact_per_provider(
     return safe, is_set
 
 
+#: Query parameters a DSN carries a credential in, as a password is carried in its netloc: a
+#: MotherDuck URL signs in with ``?motherduck_token=`` (REQ-1999).
+_SECRET_QUERY_PARAMS = frozenset({"motherduck_token"})
+
+
+def _secret_query(query: str) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """A DSN's query parameters split into (the rest, the credentials)."""
+    from urllib.parse import parse_qsl
+
+    pairs = parse_qsl(query, keep_blank_values=True)
+    return (
+        [(k, v) for k, v in pairs if k not in _SECRET_QUERY_PARAMS],
+        [(k, v) for k, v in pairs if k in _SECRET_QUERY_PARAMS],
+    )
+
+
+def _with_query(url: str, pairs: list[tuple[str, str]]) -> str:
+    """``url`` with its query replaced by ``pairs``, the rest of it as written: urlunsplit would
+    drop the empty authority of ``motherduck:///db``."""
+    from urllib.parse import urlencode
+
+    head, _, rest = url.partition("?")
+    _, hash_, fragment = rest.partition("#")
+    query = f"?{urlencode(pairs)}" if pairs else ""
+    return f"{head}{query}{hash_}{fragment}"
+
+
 def redact_url_password(url: str | None) -> str | None:
     """Strip the password out of a DSN, keeping everything an operator reads it for.
 
-    A URL field looks like an address and carries a credential: ``trino://user:pw@host:443/cat``.
-    The host, port, path and user are what tell an operator what they are pointed at, so those stay
-    and only the password goes. Anything that does not parse as a URL is returned untouched --
-    there is no password to find in it, and rewriting it would corrupt a value the form must save
-    back.
+    A URL field looks like an address and carries a credential: ``trino://user:pw@host:443/cat``,
+    or ``motherduck:///db?motherduck_token=...``. The host, port, path and user are what tell an
+    operator what they are pointed at, so those stay and only the password -- or the credential
+    query parameter -- goes. Anything that does not parse as a URL is returned untouched -- there
+    is no password to find in it, and rewriting it would corrupt a value the form must save back.
     """
-    if not url or "@" not in url:
+    if not url:
         return url
     from urllib.parse import urlsplit, urlunsplit
 
     parts = urlsplit(url)
+    kept, secret = _secret_query(parts.query)
+    if secret:
+        url = _with_query(url, kept)
+        parts = urlsplit(url)
     if not parts.hostname or parts.password is None:
         return url
     netloc = parts.hostname if parts.username is None else f"{parts.username}@{parts.hostname}"
@@ -89,15 +120,14 @@ def restore_url_password(submitted: str | None, stored: str | None) -> str | Non
     path) and no password submitted means the operator did not touch the field, so the stored
     password stands. Change the address and the stored password does NOT follow -- it belonged to
     the old target, and carrying it to a new one is a credential sent somewhere it was never issued
-    for. A submitted password always wins, which is how a password is changed.
+    for. A submitted password always wins, which is how a password is changed. A credential query
+    parameter is put back by the same rule.
     """
     if not submitted or not stored:
         return submitted
     from urllib.parse import urlsplit
 
     new, old = urlsplit(submitted), urlsplit(stored)
-    if new.password is not None or old.password is None:
-        return submitted
     same = (new.scheme, new.username, new.hostname, new.port, new.path) == (
         old.scheme,
         old.username,
@@ -105,4 +135,12 @@ def restore_url_password(submitted: str | None, stored: str | None) -> str | Non
         old.port,
         old.path,
     )
-    return stored if same else submitted
+    if not same:
+        return submitted
+    kept, secret = _secret_query(new.query)
+    _, stored_secret = _secret_query(old.query)
+    if stored_secret and not secret:
+        return _with_query(submitted, kept + stored_secret)
+    if new.password is not None or old.password is None:
+        return submitted
+    return stored

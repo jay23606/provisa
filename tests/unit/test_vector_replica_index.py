@@ -210,6 +210,8 @@ def _duckdb_runtime(rows: list[list[float] | None]):
     runtime._ext_loaded = set()
     runtime._store_copy_canary = {}
     runtime._store_relation_lock = __import__("threading").Lock()
+    # the embedded store file, read through a per-statement copy (REQ-1999: MotherDuck's is not)
+    runtime._attached_store_dsn = "duckdb:///store.duckdb"
     runtime._store_broker = _Broker(
         pa.table(
             {

@@ -578,7 +578,9 @@ def build_trino_engine() -> FederationEngine:  # REQ-840 broad federator
     )
 
 
-def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
+def build_duckdb_engine(
+    name: str = "duckdb", default_store: Any = None
+) -> FederationEngine:  # REQ-840 partial federator
     from provisa.federation.duckdb_backend import DuckDBBackend
     from provisa.federation.runtime import EngineCapability
     from provisa.federation.connector_duckdb import (
@@ -610,7 +612,7 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
     from provisa.federation.custom_connectors import load_custom_connectors
 
     return FederationEngine(
-        "duckdb",
+        name,
         [
             DuckDBPostgresConnector(),
             DuckDBSqliteConnector(),
@@ -661,9 +663,17 @@ def build_duckdb_engine() -> FederationEngine:  # REQ-840 partial federator
             }
         ),
         # DECLARED default: an embedded DuckDB file — the fully-embedded zero-config store (REQ-989),
-        # not the platform tenant DB. An explicit materialize_store_url still overrides it.
-        default_materialize_store=_embedded_duckdb_materialize_default,
+        # not the platform tenant DB — unless the variant names its own. An explicit
+        # materialize_store_url still overrides it.
+        default_materialize_store=default_store or _embedded_duckdb_materialize_default,
     )
+
+
+def build_motherduck_engine() -> FederationEngine:  # REQ-1999
+    """The DuckDB engine whose store is a MotherDuck database: the in-process engine federates as
+    the embedded one does, and keeps its replicas and views in MotherDuck, which every node of a
+    deployment reaches -- the embedded file belongs to one node."""
+    return build_duckdb_engine("motherduck", _own_warehouse_materialize_default)
 
 
 def _embedded_duckdb_materialize_default() -> str | None:  # REQ-989
@@ -1135,6 +1145,7 @@ _ENGINE_BUILDERS = {
     "trino-byo": build_trino_engine,  # external Trino coordinator (same runtime; connection only)
     "pg": build_pg_engine,  # PostgreSQL (BYO or embedded) — FDW/pg_duckdb federation
     "duckdb": build_duckdb_engine,  # native in-process partial federator
+    "motherduck": build_motherduck_engine,  # the same, its store a MotherDuck database (REQ-1999)
     "clickhouse": build_clickhouse_engine,  # embedded chdb OLAP federator (REQ-909)
     "clickhouse-server": build_clickhouse_engine,  # external ClickHouse server/cloud (same runtime, URL-driven)
     "snowflake": build_snowflake_engine,  # self-only MPP warehouse, Arrow-native (REQ-988)
@@ -1330,6 +1341,20 @@ ENGINE_REGISTRY: list[dict] = [
         "label": "DuckDB",
         "description": "In-process partial federator. Reaches postgres/sqlite/files and cloud sources via DuckDB extensions. No external service.",
         "config_fields": [],
+    },
+    {
+        "key": "motherduck",
+        "label": "MotherDuck",
+        "description": "The in-process DuckDB engine with its replicas and views kept in a MotherDuck database that every node reads. Every replica of every source is stored in your MotherDuck account, and the engine is signed in to that one account. A source only this node can reach is still read here, and MotherDuck moves its rows to MotherDuck for the parts MotherDuck runs. MotherDuck bills the compute and storage used.",
+        "config_fields": [
+            {
+                "config_key": "federation_engine_url",
+                "label": "MotherDuck database URL",
+                "type": "string",
+                "required": True,
+                "placeholder": "motherduck:///my_db?motherduck_token=<token>",
+            },
+        ],
     },
     {
         "key": "pg",
@@ -1639,7 +1664,7 @@ def configured_engine_url() -> str | None:
 # never actually treated as per-source-catalog by that function; it fell through to the generic
 # `make_url(url).database` branch instead, dormant only because pg's own `catalog_qualified=False`
 # + `fold_catalog_into_schema` compiler-side fold overrides whatever catalog that branch produced.
-_PER_SOURCE_CATALOG_ENGINES = frozenset({"duckdb", "trino", "postgres", "clickhouse"})
+_PER_SOURCE_CATALOG_ENGINES = frozenset({"duckdb", "motherduck", "trino", "postgres", "clickhouse"})
 
 
 def fixed_catalog_for(engine: FederationEngine) -> str | None:

@@ -336,6 +336,7 @@ def test_engine_registry_lists_all_selectable_engines():
         "trino",
         "trino-byo",
         "duckdb",
+        "motherduck",  # REQ-1999: the DuckDB engine with its store in MotherDuck
         "pg",
         "clickhouse",
         "clickhouse-server",

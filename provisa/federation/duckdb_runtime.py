@@ -479,16 +479,21 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         """REQ-1998: sign this connection in to MotherDuck with the source's token, given as a
         bound value so it is in no statement's text. The instance is signed in to one account: a
         source signed in with another token is refused by name."""
+        self._sign_in_motherduck_as(source.password, f"Source {source.id!r}")
+
+    def _sign_in_motherduck_as(self, token: str, who: str) -> None:
+        """Sign this connection in to MotherDuck with ``token`` (a bound value), once; ``who`` --
+        a source, or the materialization store (REQ-1999) -- signing in with another account's
+        token is refused by name."""
         import hashlib
 
-        token = source.password
         account = hashlib.sha256(token.encode()).hexdigest()
         if self._motherduck_account is None:
             self._con.execute("SET GLOBAL motherduck_token = ?", [token])
             self._motherduck_account = account
         elif self._motherduck_account != account:
             raise ValueError(
-                f"Source {source.id!r}: this engine is signed in to another MotherDuck account; "
+                f"{who}: this engine is signed in to another MotherDuck account; "
                 "one DuckDB engine reads one MotherDuck account"
             )
 
@@ -868,13 +873,22 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             else self._store_engine.materialize_store()
         )
 
-    def _store_is_duckdb(self) -> bool:
-        """True when the materialization store is an embedded DuckDB file (REQ-989). A DuckDB store is
-        single-writer, so it is landed through THIS engine's own connection (which already holds it
-        attached), not the separate server-relational write face."""
+    def _store_scheme(self) -> str:
         from urllib.parse import urlparse
 
-        return urlparse(self._store_dsn()).scheme.split("+", 1)[0] == "duckdb"
+        return urlparse(self._store_dsn()).scheme.split("+", 1)[0]
+
+    def _store_is_duckdb(self) -> bool:
+        """True when the materialization store is written with DuckDB's own statements through the
+        store broker: an embedded DuckDB file (REQ-989), single-writer, or a MotherDuck database
+        the engine holds attached (REQ-1999) -- not the separate server-relational write face."""
+        return self._store_scheme() in ("duckdb", "motherduck")
+
+    def _store_is_file(self) -> bool:
+        """True when the store is the embedded DuckDB file, which this connection never attaches
+        (REQ-1901): a statement reads a per-statement copy of each store table it names. A
+        MotherDuck store is attached here and read in place."""
+        return self._store_scheme() == "duckdb"
 
     def ensure_materialize_attached(self) -> str:
         """ATTACH the materialization store under ``mat_store`` (idempotent); return the alias. The
@@ -898,6 +912,11 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
 
             url = make_url(dsn)
             scheme = url.get_backend_name()
+            if scheme == "motherduck":
+                self._attach_motherduck_store(url)
+                self._store_attached = True
+                self._attached_store_dsn = dsn
+                return self._MAT_STORE
             store_type = self._ATTACH_TYPE_BY_SCHEME.get(scheme)
             if store_type is None:
                 raise RuntimeError(f"materialize store scheme {scheme!r} is not attachable")
@@ -921,6 +940,26 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             self._store_attached = True
             self._attached_store_dsn = dsn
         return self._MAT_STORE
+
+    def _attach_motherduck_store(self, url: Any) -> None:
+        """REQ-1999: the store is a MotherDuck database (``motherduck:///<db>?motherduck_token=``),
+        ATTACHed on this connection as ``mat_store`` once the connection is signed in with the
+        store's token; its writes run on cursors of this connection (``EngineAttachedStore``)."""
+        from provisa.compiler.sql_literals import sql_literal
+        from provisa.federation.materialize_broker import EngineAttachedStore
+
+        token = url.query.get("motherduck_token")
+        if not token:
+            raise RuntimeError("the MotherDuck materialize store URL names no motherduck_token")
+        if not url.database:
+            raise RuntimeError("the MotherDuck materialize store URL names no database")
+        if "motherduck" not in self._ext_loaded:
+            install_and_load(self._con, "motherduck", from_community=False)
+            self._ext_loaded.add("motherduck")
+        self._sign_in_motherduck_as(token, "The materialize store")
+        md = sql_literal("md:" + url.database, "duckdb")
+        self._con.execute(f"ATTACH {md} AS {self._MAT_STORE}")
+        self._store_broker = EngineAttachedStore(self._con)
 
     def region_table_address(self, name: str, schema: str, table: str) -> tuple[str, str, str]:
         """Where a statement reads ``schema.table`` of another region's store (REQ-1922): under
@@ -1166,8 +1205,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         Matching is textual — a false positive (a name inside an unrelated literal) only costs one
         extra broker round-trip; a false negative cannot happen, since a read of the store must
         name it."""
-        if self._store_broker is None:
-            return duck_sql
+        if self._store_broker is None or not self._store_is_file():
+            return duck_sql  # no store, or one attached here and read in place (REQ-1999)
         refs = {_store_ref(m) for m in _MAT_STORE_REF.finditer(duck_sql)}
         if not refs:
             return duck_sql

@@ -65,6 +65,9 @@ class _Connection:
 def _runtime() -> Any:
     runtime: Any = SimpleNamespace(_con=_Connection(), _motherduck_account=None)
     runtime._sign_in = lambda src: DuckDBFederationRuntime._sign_in_motherduck(runtime, src)
+    runtime._sign_in_motherduck_as = lambda token, who: (
+        DuckDBFederationRuntime._sign_in_motherduck_as(runtime, token, who)
+    )
     return runtime
 
 
@@ -103,6 +106,9 @@ def test_the_engine_signs_in_before_it_attaches():
     runtime._reach_location = lambda d: DuckDBFederationRuntime._reach_location(runtime, d)
     runtime._hold_file = lambda s, a: DuckDBFederationRuntime._hold_file(runtime, s, a)
     runtime._sign_in_motherduck = lambda s: DuckDBFederationRuntime._sign_in_motherduck(runtime, s)
+    runtime._sign_in_motherduck_as = lambda token, who: (
+        DuckDBFederationRuntime._sign_in_motherduck_as(runtime, token, who)
+    )
     source = _source()
     source.catalog = "md_share"
     details = DuckDBMotherDuckConnector().details(source)
