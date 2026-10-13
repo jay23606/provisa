@@ -71,7 +71,9 @@ _IDLE_TTL_S = 60.0
 _PREREAD_MAX_BYTES = 1 << 20
 # Paths served from the control pool, so a worker whose request threads are all busy still answers
 # its health probes and its administrators.
-_CONTROL_PATHS = ("/health", "/live", "/ready")
+# /setup/status is the UI shell's first call: the app renders nothing until it answers, so a worker
+# whose data threads are all busy would show every new tab a page that never loads.
+_CONTROL_PATHS = ("/health", "/live", "/ready", "/setup/status")
 _CONTROL_PREFIXES = ("/admin/", "/auth/")
 _WS_TRY_AGAIN_LATER = 1013
 
@@ -203,6 +205,25 @@ class RequestThreadPool:
         self._streams = 0  # threads serving a stream
         # Requests waiting for a thread: (their accepting loop, a future on that loop).
         self._waiting: list[tuple[asyncio.AbstractEventLoop, asyncio.Future[_RequestThread]]] = []
+        # What each busy thread is serving and since when (monotonic), for the refusal's log line.
+        self._serving: dict[_RequestThread, tuple[str, float]] = {}
+
+    def serving(self, thread: _RequestThread, label: str) -> None:
+        """``thread`` has been given the request ``label`` (method and path)."""
+        with self._lock:
+            self._serving[thread] = (label, time.monotonic())
+
+    def occupancy(self) -> str:
+        """What the request threads are serving, longest first, and how many requests wait: the
+        operator's answer to "what held them" when a request is refused. Server log only -- it
+        names other callers' requests."""
+        now = time.monotonic()
+        with self._lock:
+            held = sorted(self._serving.values(), key=lambda held: held[1])
+            # A waiter that gave up stays listed until a freed thread passes it over.
+            waiting = sum(1 for _, waiter in self._waiting if not waiter.done())
+        serving = ", ".join(f"{label} for {now - since:.0f}s" for label, since in held)
+        return f"serving [{serving}]; {waiting} waiting"
 
     def counts(self) -> dict[str, int]:
         with self._lock:
@@ -269,6 +290,7 @@ class RequestThreadPool:
             self._reserve_stream()
             thread.streaming = True
             self._threads -= 1
+            self._serving.pop(thread, None)
         self._serve_waiters()
 
     def _serve_waiters(self) -> None:
@@ -309,6 +331,7 @@ class RequestThreadPool:
         False when the pool has no place for it (the bound was lowered, or it served a stream and
         the request bound is full): the thread exits."""
         with self._lock:
+            self._serving.pop(thread, None)
             if thread.streaming:
                 thread.streaming = False
                 self._streams -= 1
@@ -379,16 +402,21 @@ async def run_on_request_thread(
     context: contextvars.Context | None = None,
     pool: RequestThreadPool | None = None,
     stream: bool = False,
+    label: str = "",
 ) -> T:
     """Run ``make_coro()`` to completion on a request thread's own connection loop.
 
     Awaited on a front loop (ASGI / MCP). The coroutine is created and run on the request thread, in
     ``context`` (default: a copy of the caller's, so request-scoped ContextVars the front side bound
     — MCP's role/org/identity — are visible to it). ``stream``: the request is a stream from its
-    first message (a WebSocket) and is counted under the stream bound, never the request bound."""
+    first message (a WebSocket) and is counted under the stream bound, never the request bound.
+    ``label``: what the request is (method and path), named in a refusal's log line while it
+    holds its thread."""
     ctx = context if context is not None else contextvars.copy_context()
     chosen = pool or _pool
     thread = chosen.acquire_stream() if stream else await chosen.acquire()
+    if not stream:
+        chosen.serving(thread, label)
     fut: concurrent.futures.Future[T] = concurrent.futures.Future()
     # REQ-1882 sanctioned hop: the accepting loop hands the request to its own thread, where it
     # runs start to finish.
@@ -570,7 +598,9 @@ class RequestThreadMiddleware:
         busy: Exception | None = None
         try:
             try:
-                await run_on_request_thread(_request, pool=pool)
+                await run_on_request_thread(
+                    _request, pool=pool, label=f"{scope.get('method')} {scope.get('path')}"
+                )
             except RequestThreadsExhausted as exc:
                 busy = exc  # the request never started
             except Exception:
@@ -580,7 +610,13 @@ class RequestThreadMiddleware:
                 busy = refused[0]  # its stream was refused before anything was sent
             if busy is not None:
                 # Answered here, on the accepting loop, saying which bound was reached.
-                log.error("%s %s refused: %s", scope.get("method"), scope.get("path"), busy)
+                log.error(
+                    "%s %s refused: %s (%s)",
+                    scope.get("method"),
+                    scope.get("path"),
+                    busy,
+                    pool.occupancy(),
+                )
                 body = json.dumps({"error": {"code": "server.busy", "message": str(busy)}}).encode()
                 await send(
                     {

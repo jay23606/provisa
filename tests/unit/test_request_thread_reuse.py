@@ -499,7 +499,15 @@ def test_health_and_admin_stay_reachable_when_every_request_thread_is_busy(front
     holder.start()
     time.sleep(0.1)
     try:
-        for path in ("/health", "/ready", "/live", "/admin/graphql", "/admin/settings"):
+        # /setup/status: the UI shell renders nothing until it answers.
+        for path in (
+            "/health",
+            "/ready",
+            "/live",
+            "/setup/status",
+            "/admin/graphql",
+            "/admin/settings",
+        ):
             f = front(body=[b""])
             scope = f.scope()
             scope["path"] = path
@@ -509,6 +517,40 @@ def test_health_and_admin_stay_reachable_when_every_request_thread_is_busy(front
         refused = front(body=[b"y"])  # a data request, meanwhile, waits its budget and is refused
         refused.call(middleware)
         assert refused.sent[0]["status"] == 503
+    finally:
+        release.set()
+        holder.join(10)
+
+
+def test_a_refusal_logs_what_holds_the_request_threads(front, caplog):
+    """The server log names the request each busy thread serves and for how long, and how many
+    wait: what an operator needs to find the request that kept the others out. The refused
+    caller's answer names none of them -- they are other callers' requests."""
+    release = threading.Event()
+
+    async def hold(scope, receive, send):
+        release.wait(10)
+        await _echo(scope, receive, send)
+
+    middleware = RequestThreadMiddleware(hold, pool=RequestThreadPool(max_threads=1, wait_s=0.3))
+    busy = front(body=[b"x"])
+    held = busy.scope()
+    held["path"] = "/data/neo4j-export"
+    holder = threading.Thread(
+        target=lambda: asyncio.run_coroutine_threadsafe(
+            middleware(held, busy.receive, busy.send), busy.loop
+        ).result(15)
+    )
+    holder.start()
+    time.sleep(0.1)
+    try:
+        refused = front(body=[b"y"])
+        with caplog.at_level("ERROR", logger="provisa.core.request_thread"):
+            refused.call(middleware)
+        assert refused.sent[0]["status"] == 503
+        line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
+        assert "serving [POST /data/neo4j-export for 0s]; 0 waiting" in line, line
+        assert b"neo4j-export" not in refused.sent[1]["body"]
     finally:
         release.set()
         holder.join(10)
