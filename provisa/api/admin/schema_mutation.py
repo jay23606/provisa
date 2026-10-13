@@ -145,16 +145,20 @@ def _dq_pgwire_port() -> str:
     return str(port if port != 0 else _DQ_STANDARD_PGWIRE_PORT)
 
 
-async def _upsert_relationship_impl(
-    info: StrawberryInfo, input: RelationshipInput
+async def _save_relationship_as_caller(
+    info: StrawberryInfo, input: RelationshipInput, *, creating: bool
 ) -> MutationResult:  # REQ-019, REQ-020, REQ-366, REQ-434
-    """Shared body of the upsertRelationship mutation. Module-level so register_fact can
-    create its dimension links directly — strawberry invokes root mutations with self=None,
-    so a self.upsert_relationship call never works from inside another resolver."""
-    from provisa.api.admin.capabilities import has_capability
+    """Shared body of the createRelationship and updateRelationship mutations. Module-level so
+    register_fact can create its dimension links directly — strawberry invokes root mutations
+    with self=None, so a self.create_relationship call never works from inside another
+    resolver."""
+    from provisa.api.admin.capabilities import has_capability, require_capability
 
-    # REQ-434/366: a user lacking create_relationship queues a request instead of erroring.
+    # REQ-434/366: a user lacking create_relationship queues a request instead of erroring. A
+    # request is for a new relationship; changing one needs the right itself.
     if not has_capability(info, "create_relationship"):
+        if not creating:
+            require_capability(info, "create_relationship")
         return await _queue_creation_request(info, "relationship", "create_relationship", input)
     from provisa.api.admin.capabilities import _identity_from_info
 
@@ -177,13 +181,17 @@ async def _upsert_relationship_impl(
     try:
         require_domain(info, _src_row["domain_id"])
     except PermissionError:
+        if not creating:
+            raise
         # REQ-434/1531: out of domain queues a request, the same answer a missing right gets.
         return await _queue_creation_request(info, "relationship", "create_relationship", input)
     _cross_domain = _tgt_row is not None and _tgt_row["domain_id"] != _src_row["domain_id"]
     # REQ-020: record the defining steward as owner.
     _identity = _identity_from_info(info)
     _owner = getattr(_identity, "user_id", None) if _identity is not None else None
-    return await save_relationship(input, owner=_owner, needs_review=_cross_domain)
+    return await save_relationship(
+        input, owner=_owner, needs_review=_cross_domain, creating=creating
+    )
 
 
 async def _relationship_tables(
@@ -229,11 +237,63 @@ async def _relationship_tables(
     return None, rows["source"], rows.get("target")
 
 
+async def _relationship_id_refusal(
+    conn: "Connection", input: RelationshipInput, *, creating: bool
+) -> "MutationResult | None":
+    """A create makes a new relationship and an update changes one: an id another relationship
+    holds, or one no relationship holds, is refused by name."""
+    held = (
+        await conn.execute_core(select(relationships.c.id).where(relationships.c.id == input.id))
+    ).fetchone()
+    if creating and held is not None:
+        return MutationResult(
+            success=False,
+            message=f"Relationship {input.id!r} already exists",
+            code="schema.relationship_id_taken",
+            params={"relationship": input.id},
+        )
+    if not creating and held is None:
+        return MutationResult(
+            success=False,
+            message=f"Relationship {input.id!r} not found",
+            code="schema.relationship_not_found",
+            params={"relationship": input.id},
+        )
+    return None
+
+
 async def _relationship_alias_refusal(
     conn: "Connection", input: RelationshipInput, source_table_id: int
 ) -> "MutationResult | None":
-    """An alias another relationship of the same source table already holds, refused by name
-    with the relationship that holds it: one source table's relationships are told apart by it."""
+    """An alias -- the Cypher type or the GraphQL field -- another relationship of the same
+    source table already holds, refused by name with the relationship that holds it: one source
+    table's relationships are told apart by each. A GraphQL field two relationships shared used
+    to drop one of them from the schema."""
+    graphql_alias = getattr(input, "graphql_alias", None)
+    if graphql_alias:
+        shared = (
+            await conn.execute_core(
+                select(relationships.c.id).where(
+                    relationships.c.source_table_id == source_table_id,
+                    relationships.c.graphql_alias == graphql_alias,
+                    relationships.c.id != input.id,
+                )
+            )
+        ).fetchone()
+        if shared is not None:
+            return MutationResult(
+                success=False,
+                message=(
+                    f"GraphQL alias {graphql_alias!r} is already the alias of relationship "
+                    f"{shared.id!r} from {input.source_table_id!r}"
+                ),
+                code="schema.relationship_graphql_alias_taken",
+                params={
+                    "alias": graphql_alias,
+                    "table": input.source_table_id,
+                    "relationship": shared.id,
+                },
+            )
     if not input.alias:
         return None
     held = (
@@ -677,12 +737,13 @@ def _cardinality_problem(input: RelationshipInput) -> "MutationResult | None":
 
 
 async def save_relationship(
-    input: RelationshipInput, *, owner: str | None, needs_review: bool
+    input: RelationshipInput, *, owner: str | None, needs_review: bool, creating: bool
 ) -> MutationResult:  # REQ-019, REQ-020, REQ-1948
     """Store a relationship whose author has already been authorized: by holding the right in
     the source table's domain (the mutation above), or by the approvals of the domains the
     relationship touches (REQ-1948). ``needs_review`` flags an edge the target's domain has not
-    seen (REQ-1531)."""
+    seen (REQ-1531). ``creating``: a new relationship, whose id must be free; else one that
+    exists, changed."""
     from provisa.core.models import Relationship as RelModel, Cardinality
     from provisa.core.repositories import relationship as rel_repo
 
@@ -737,6 +798,8 @@ async def save_relationship(
         from provisa.api.admin._fake_guard import relationship_fake_refusal
 
         _refusal, _src_row, _tgt_row = await _relationship_tables(_conn, input)
+        if _refusal is None:
+            _refusal = await _relationship_id_refusal(_conn, input, creating=creating)
         if _refusal is None:
             assert _src_row is not None  # _relationship_tables refuses an unresolved source
             _refusal = await _relationship_alias_refusal(_conn, input, _src_row["id"])
@@ -910,6 +973,7 @@ async def perform_request_creation(info: StrawberryInfo, req: dict) -> MutationR
             _rebuild_relationship_input(req["payload"]),
             owner=getattr(caller, "user_id", None),
             needs_review=False,
+            creating=True,  # a request is for a new relationship
         )
     if kind in ("view", "table"):  # REQ-1792: "table" is the MCP-proposal kind
         table = _rebuild_table_input(req["payload"])
@@ -2961,7 +3025,7 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         for rel in rels:
             rel.source_table_id = await _virtual_name(rel.source_table_id)
             rel.target_table_id = await _virtual_name(rel.target_table_id)
-            rr = await _upsert_relationship_impl(info, rel)
+            rr = await _save_relationship_as_caller(info, rel, creating=True)
             if not rr.success:
                 return rr
         # REQ-1320: each fact measure auto-registers as a governed metric (upsert by name).
@@ -3841,10 +3905,16 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
         )
 
     @strawberry.mutation
-    async def upsert_relationship(  # REQ-019, REQ-020, REQ-366, REQ-434
+    async def create_relationship(  # REQ-019, REQ-020, REQ-366, REQ-434
         self, info: StrawberryInfo, input: RelationshipInput
     ) -> MutationResult:
-        return await _upsert_relationship_impl(info, input)
+        return await _save_relationship_as_caller(info, input, creating=True)
+
+    @strawberry.mutation
+    async def update_relationship(  # REQ-019, REQ-020
+        self, info: StrawberryInfo, input: RelationshipInput
+    ) -> MutationResult:
+        return await _save_relationship_as_caller(info, input, creating=False)
 
     @strawberry.mutation
     async def delete_relationship(self, info: StrawberryInfo, id: str) -> MutationResult:

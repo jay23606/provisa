@@ -406,7 +406,9 @@
       "source_id_taken": "数据源 '{{source}}' 已存在",
       "domain_id_taken": "域 '{{domain}}' 已存在",
       "role_id_taken": "角色 '{{role}}' 已存在",
-      "role_updated": "角色 '{{role}}' 已更新"
+      "role_updated": "角色 '{{role}}' 已更新",
+      "relationship_id_taken": "关系 '{{relationship}}' 已存在",
+      "relationship_graphql_alias_taken": "GraphQL 别名 '{{alias}}' 已是来自 '{{table}}' 的关系 '{{relationship}}' 的别名"
     },
     "secrets": {
       "name_refused": "{{name}} 不是 {{service}} 中本组织密钥范围内的名称：名称相对于组织，不能超出组织范围",

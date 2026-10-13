@@ -406,7 +406,9 @@
       "source_id_taken": "ソース '{{source}}' はすでに存在します",
       "domain_id_taken": "ドメイン「{{domain}}」はすでに存在します",
       "role_id_taken": "ロール「{{role}}」はすでに存在します",
-      "role_updated": "ロール「{{role}}」を更新しました"
+      "role_updated": "ロール「{{role}}」を更新しました",
+      "relationship_id_taken": "リレーションシップ「{{relationship}}」はすでに存在します",
+      "relationship_graphql_alias_taken": "GraphQL エイリアス「{{alias}}」は、すでに「{{table}}」からのリレーションシップ「{{relationship}}」のエイリアスです"
     },
     "secrets": {
       "name_refused": "{{name}} は {{service}} 内のこの組織のシークレットに含まれる名前ではありません。名前は組織に対する相対指定であり、組織の外に出ることはできません",

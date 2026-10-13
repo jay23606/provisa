@@ -79,7 +79,8 @@ import {
   UpdateTable,
   DeleteTable,
   DeployViewToDb,
-  UpsertRelationship,
+  CreateRelationship,
+  UpdateRelationship,
   DeleteRelationship,
   CreateSource,
   UpdateSource,
@@ -534,20 +535,28 @@ export function useDeleteTable() {
 }
 
 export function useUpsertRelationship() {
-  const [upsertRelationship, { loading }] = useMutation<{ upsertRelationship: MutationResult }>(
-    UpsertRelationship,
-    {
-      refetchQueries: [{ query: RELATIONSHIPS_QUERY }],
-      // The save is done when the list holds the relationship: the page opens it straight away.
-      awaitRefetchQueries: true,
-    },
-  );
+  // The save is done when the list holds the relationship: the page opens it straight away.
+  const saved = { refetchQueries: [{ query: RELATIONSHIPS_QUERY }], awaitRefetchQueries: true };
+  const [createRelationship, { loading: creating }] = useMutation<{
+    createRelationship: MutationResult;
+  }>(CreateRelationship, saved);
+  const [updateRelationship, { loading: updating }] = useMutation<{
+    updateRelationship: MutationResult;
+  }>(UpdateRelationship, saved);
   return {
-    upsertRelationship: async (input: Record<string, unknown>) => {
-      const result = await upsertRelationship({ variables: { input } });
-      return (result.data?.upsertRelationship ?? { success: false, message: "" }) as MutationResult;
+    /** A new relationship is created (an id that exists is refused); one that exists updated. */
+    upsertRelationship: async (input: Record<string, unknown>, isNew: boolean) => {
+      if (isNew) {
+        const result = await createRelationship({ variables: { input } });
+        return (result.data?.createRelationship ?? {
+          success: false,
+          message: "",
+        }) as MutationResult;
+      }
+      const result = await updateRelationship({ variables: { input } });
+      return (result.data?.updateRelationship ?? { success: false, message: "" }) as MutationResult;
     },
-    loading,
+    loading: creating || updating,
   };
 }
 

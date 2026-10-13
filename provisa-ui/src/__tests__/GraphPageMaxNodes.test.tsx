@@ -38,6 +38,7 @@ vi.mock("../hooks/useAdminQueries", async (importOriginal) => ({
   useRelationships: () => ({ relationships: [], refetch: vi.fn() }),
   useAllRelationships: () => ({ relationships: [], refetch: vi.fn() }),
   useUpsertRelationship: () => ({ upsertRelationship: vi.fn() }),
+  useTables: () => ({ tables: [], loading: false }),
 }));
 // The canvas, as the frame hands it its note.
 vi.mock("../components/graph/GraphCanvas", async (importOriginal) => ({

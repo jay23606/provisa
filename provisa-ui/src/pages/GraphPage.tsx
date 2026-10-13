@@ -24,7 +24,9 @@ import {
   useRelationships,
   useAllRelationships,
   useUpsertRelationship,
+  useTables,
 } from "../hooks/useAdminQueries";
+import { tableRef } from "../components/relationships/relationship-types";
 import { useAuth } from "../context/AuthContext";
 import "./GraphPage.css";
 import { useLocalStorage, graphState, saveGraphState } from "../components/graph/graph-persistence";
@@ -123,6 +125,8 @@ export function GraphPage() {
   // where system-generated rows must stay read-only.
   const { relationships: graphRels } = useAllRelationships();
   const { upsertRelationship } = useUpsertRelationship();
+  // The name a relationship's save takes for each table: its alias, else its table name.
+  const { tables } = useTables();
   const [nfModal, setNfModal] = useState<{
     label: string;
     filterColumns: { name: string; type: string }[];
@@ -718,26 +722,34 @@ export function GraphPage() {
     async (relId: number, cqlAlias: string, gqlAlias: string) => {
       const rel = adminRels.find((r) => r.id === relId);
       if (!rel) return null;
-      const result = await upsertRelationship({
-        id: String(rel.id),
-        sourceTableId: rel.sourceTableName,
-        targetTableId: rel.targetTableName ?? "",
-        sourceColumn: rel.sourceColumn,
-        targetColumn: rel.targetColumn ?? "",
-        cardinality: rel.cardinality,
-        materialize: rel.materialize,
-        refreshInterval: rel.refreshInterval,
-        targetFunctionName: rel.targetFunctionName,
-        functionArg: rel.functionArg,
-        alias: cqlAlias || null,
-        graphqlAlias: gqlAlias || null,
-      });
+      const tableRefOf = (id: number) => {
+        const table = tables.find((t) => t.id === id);
+        if (!table) throw new Error(`table ${id} of relationship ${rel.id} is not registered`);
+        return tableRef(table);
+      };
+      const result = await upsertRelationship(
+        {
+          id: String(rel.id),
+          sourceTableId: tableRefOf(rel.sourceTableId),
+          targetTableId: rel.targetTableId != null ? tableRefOf(rel.targetTableId) : "",
+          sourceColumn: rel.sourceColumn,
+          targetColumn: rel.targetColumn ?? "",
+          cardinality: rel.cardinality,
+          materialize: rel.materialize,
+          refreshInterval: rel.refreshInterval,
+          targetFunctionName: rel.targetFunctionName,
+          functionArg: rel.functionArg,
+          alias: cqlAlias || null,
+          graphqlAlias: gqlAlias || null,
+        },
+        false, // its aliases changed: an update
+      );
       // A refusal (a reserved word, an alias in use) is said, not taken for a save.
       if (!result.success) return result.message;
       await refetchRelationships();
       return null;
     },
-    [adminRels, upsertRelationship, refetchRelationships],
+    [adminRels, tables, upsertRelationship, refetchRelationships],
   );
 
   const visibleNodeLabels =

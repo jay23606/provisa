@@ -1004,8 +1004,14 @@ mutation DeleteMetric($name: String!) {
   }
 }
 
-mutation UpsertRelationship($input: RelationshipInput!) {
-  upsertRelationship(input: $input) {
+mutation CreateRelationship($input: RelationshipInput!) {
+  createRelationship(input: $input) {
+    ...MutationResult
+  }
+}
+
+mutation UpdateRelationship($input: RelationshipInput!) {
+  updateRelationship(input: $input) {
     ...MutationResult
   }
 }

@@ -382,7 +382,7 @@ class TestRelationship:
             client,
             """
             mutation {
-                upsertRelationship(input: {
+                createRelationship(input: {
                     id: "smtest-rel-1",
                     sourceTableId: "pets",
                     sourceColumn: "id",
@@ -391,7 +391,7 @@ class TestRelationship:
             }
             """,
         )
-        result = data["data"]["upsertRelationship"]
+        result = data["data"]["createRelationship"]
         assert result["success"] is False
         assert result["message"] == "Invalid cardinality: 'not-a-real-cardinality'"
 
