@@ -92,6 +92,9 @@ async def test_a_lockfile_is_kept_by_the_sha256_of_its_bytes(client, plane):
         (_zip({"../escape.py": b"x"}), 400, "codesource.archive_escapes"),
         (b"", 400, "codesource.upload_empty"),
     ],
+    # Named: the archive's bytes carry the time it was zipped, and an id made of them differs
+    # between xdist workers collecting in different seconds.
+    ids=["escaping-path", "empty"],
 )
 def test_an_upload_that_cannot_be_kept_is_refused_by_name(client, data, status, code):
     answer = client.post("/admin/orgs/acme/code-uploads/archive?filename=rates.zip", content=data)
