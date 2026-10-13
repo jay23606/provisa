@@ -160,3 +160,83 @@ def test_another_engine_does_not_divide_the_cap(workers, monkeypatch):
     workers(4)
     monkeypatch.setattr("provisa.api.admin.schema_mutation._engine_name", lambda: "trino")
     assert _validate_source_load_management(_input(3)) is None
+
+
+def _walk_attaches(monkeypatch, row_cap: int | None) -> list[dict]:
+    """Walk the native backend's registry with one postgres source registered at runtime (a
+    sources row, not the config file), attaching through the real DuckDB postgres connector:
+    the details each attach was given."""
+    from types import SimpleNamespace
+
+    from provisa.federation.native_backend import NativeEngineBackend
+
+    monkeypatch.setattr("provisa.core.operator_floor.floor_setting", lambda _src: None)
+    details: list[dict] = []
+
+    class _Runtime:
+        def attach_source(self, source) -> None:
+            details.append(DuckDBPostgresConnector().details(source))
+
+    class _Backend(NativeEngineBackend):
+        def __init__(self) -> None:  # the walk and its shims alone are under test
+            self._runtime = _Runtime()
+            self.engine = SimpleNamespace(
+                name="duckdb",
+                connector_for_source=lambda _src: SimpleNamespace(reads_in_place=True),
+            )
+            self._attached = set()
+            self._detached = set()
+            self._refused = set()
+
+    row = {
+        "id": "shop-db",
+        "type": "postgresql",
+        "region": None,
+        "host": "db",
+        "port": 5432,
+        "database": "shop",
+        "username": "reader",
+        "password_ref": "reader",
+        "path": None,
+        "base_url": None,
+        "mapping": {},
+        "replicate": None,
+        "load_protected": False,
+        "max_live_concurrency": row_cap,
+    }
+    config = SimpleNamespace(
+        sources=[],
+        tables=[
+            SimpleNamespace(
+                source_id="shop-db", schema_name="shop", table_name="orders", region=None
+            )
+        ],
+    )
+    state = SimpleNamespace(
+        runtime_sources={"shop-db": row},
+        tables=[],
+        model_db=None,
+        tenant_db=None,
+        source_catalogs={"shop-db": "shop_db"},
+    )
+    assert _Backend()._walk_registry(state, config) is True
+    return details
+
+
+def test_a_runtime_registered_capped_source_is_attached_with_its_pool_capped(workers, monkeypatch):
+    """REQ-1909: a source registered after startup reaches the attach through the native
+    backend's shims, which carry its live-read cap; its pool is its share of the cap."""
+    workers(2)
+    [attached] = _walk_attaches(monkeypatch, 4)
+    assert attached["configure_pool"] == (
+        "FROM postgres_configure_pool(catalog_name='_src_shop-db', "
+        "max_connections=2, acquire_mode='wait')"
+    )
+
+
+def test_a_runtime_registered_uncapped_source_is_attached_as_the_extension_builds_it(
+    workers, monkeypatch
+):
+    workers(2)
+    [attached] = _walk_attaches(monkeypatch, None)
+    assert "configure_pool" not in attached

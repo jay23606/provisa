@@ -93,6 +93,7 @@ def _source(source_id: str, kind: str) -> SimpleNamespace:
         path=None,
         federation_hints={},
         mapping={},
+        max_live_concurrency=None,  # REQ-1909: a source always carries its cap
         replicate=None,
         load_protected=False,
         cache_ttl=None,
@@ -175,6 +176,7 @@ def test_a_source_registered_after_boot_is_reachable_on_the_next_query():
             "path": None,
             "base_url": None,
             "mapping": {},
+            "max_live_concurrency": None,  # REQ-1909: a sources row always carries it
         }
     }
     state.tables = [

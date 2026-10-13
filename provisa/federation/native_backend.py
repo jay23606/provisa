@@ -393,6 +393,10 @@ class NativeEngineBackend(EngineBackend):
                     # above (REQ-1746) already documents and fixes for a different connector
                     # attribute (DuckDBGsheetsConnector.details() reads mapping["credentials_json"]).
                     mapping=_rs_dict.get("mapping") or {},
+                    # REQ-1909: the source's live-read cap, which a capped postgres source's pool
+                    # is divided from (DuckDBPostgresConnector.details reads it directly). A
+                    # sources row always carries the column; NULL is no cap.
+                    max_live_concurrency=_rs_dict["max_live_concurrency"],
                 )
 
         def _rs(v: Any) -> Any:
@@ -483,6 +487,9 @@ class NativeEngineBackend(EngineBackend):
                 # glob tables (pgwire_replica._files_operand). Dropping them here builds the
                 # endpoint without the merged table, so the glob table is never queryable.
                 file_glob_tables=glob_tables.get(src.id, []),
+                # REQ-1909: read directly by DuckDBPostgresConnector.details; every source this
+                # walk holds carries it (a config Source, or the runtime row's shim above).
+                max_live_concurrency=src.max_live_concurrency,
                 schema_name=schema_name,
                 table_name=table_name,
             )

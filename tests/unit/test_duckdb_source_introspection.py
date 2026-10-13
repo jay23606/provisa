@@ -41,6 +41,7 @@ def sqlite_source(tmp_path):
         path=str(db),
         federation_hints={},
         mapping={},
+        max_live_concurrency=None,  # REQ-1909: a source always carries its cap
         schema_name="main",
         table_name="orders",
     )
@@ -93,6 +94,7 @@ def test_extension_connectors_attach_under_a_private_alias(source_type):
         base_url="grpc://h:1",
         federation_hints={"project": "proj"},
         mapping={},
+        max_live_concurrency=None,  # REQ-1909: a source always carries its cap
     )
     details = engine.connector_for(source_type).details(src)
     assert details["raw_alias"] == "_src_shop"
