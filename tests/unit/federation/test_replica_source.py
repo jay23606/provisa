@@ -40,6 +40,8 @@ async def _drain(source, batch_rows):
 class _Engine:
     """An engine runtime whose stream hands back two record batches."""
 
+    dialect = "duckdb"
+
     def __init__(self):
         self.sql: list[str] = []
         self.closed = False
@@ -129,7 +131,7 @@ def _source(stype, **more):
     return SimpleNamespace(id="src", type=stype, **more)
 
 
-TABLE = SimpleNamespace(schema_name="public", table_name="orders")
+TABLE = SimpleNamespace(schema_name="public", table_name="orders", columns=[])
 
 
 def test_each_source_type_is_given_its_own_kind_of_read(monkeypatch):

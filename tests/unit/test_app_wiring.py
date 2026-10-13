@@ -91,6 +91,11 @@ def _rcol(name, dt="bigint", pk=False):
         "native_filter_type": None,
         "path": None,
         "embedding": False,
+        # REQ-1965: the hidden attributes fetch_tables reads with every column.
+        "array_depth": 0,
+        "element_type": None,
+        "native_type": None,
+        "native_platform": None,
     }
 
 

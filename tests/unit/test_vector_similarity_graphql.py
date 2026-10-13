@@ -152,3 +152,12 @@ def test_the_compiled_search_is_governed_as_sql_is():
     gov.embedding_dims = {"mini": 3}
     governed = apply_governance(compiled.sql, gov)
     assert "COSINE_SIMILARITY(\"vec\", $1, 'mini', 3)" in governed
+
+
+def test_an_embedding_column_is_a_list_of_its_components_not_json():
+    """REQ-424: an embedding is exempt from REQ-1965's JSON rule: its field is a list of its
+    element type, as it was before native arrays became JSON columns."""
+    schema, _ = _schema()("admin")
+    assert schema.query_type is not None
+    row = schema.query_type.fields["docs"].type.of_type.of_type  # pyright: ignore[reportAttributeAccessIssue]
+    assert str(row.fields["vec"].type) == "[Float!]"

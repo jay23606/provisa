@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from provisa.compiler.native_nested import NestedColumns
     from provisa.compiler.introspect import ColumnMetadata
 
 
@@ -146,6 +147,9 @@ class CompilationContext:
     # REQ-1908: (schema, physical table) lowercased → {column lowercased: (epoch unit, data_type)}
     # for every registered temporal column its source stores as an epoch number.
     epoch_columns: dict[tuple[str, str], dict[str, tuple[str, str]]] = field(default_factory=dict)
+    # REQ-1965: (schema, physical table) lowercased → {column lowercased: its hidden attributes}
+    # for every registered column that is natively an array, a struct or a map at its source.
+    nested_columns: "NestedColumns" = field(default_factory=dict)
     # table_id → [(col_name, column_type)] for aggregate column metadata
     aggregate_columns: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
     # table_id → user-designated PK column names (informational; empty = heuristic only)

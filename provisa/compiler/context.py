@@ -23,6 +23,7 @@ from provisa.compiler.naming import (
     rel_field_name as _rel_field_name,
     source_to_catalog,
 )
+from provisa.compiler.native_nested import NestedColumn, NestedColumns
 from provisa.compiler.sql_rewrite import semantic_table_name
 from provisa.compiler.sql_types import (
     CompilationContext,
@@ -476,6 +477,35 @@ def _epoch_columns(
     return out
 
 
+def _nested_columns(
+    si: object,  # object-ok: circular-import boundary — SchemaInput imported inside function body
+    physical_map: dict[str, str],
+) -> NestedColumns:
+    """REQ-1965: every registered column that is natively an array, a struct or a map at its
+    source (its native type is recorded), keyed like ``_epoch_columns``. All registered tables,
+    not only the role's visible ones: what a column is at its source is a fact of the table."""
+    from provisa.compiler.naming import apply_sql_name
+    from provisa.compiler.schema_gen import SchemaInput
+
+    assert isinstance(si, SchemaInput)
+    out: NestedColumns = {}
+    for td in si.tables:
+        for col in td.get("columns") or []:
+            native = col.get("native_type")
+            if not native:
+                continue
+            key = (
+                td["schema_name"].lower(),
+                (physical_map.get(td["table_name"]) or td["table_name"]).lower(),
+            )
+            nested = NestedColumn(native, col.get("array_depth") or 0, col.get("element_type"))
+            phys = col["column_name"]
+            names = out.setdefault(key, {})
+            names[phys.lower()] = nested
+            names[(col.get("alias") or apply_sql_name(phys)).lower()] = nested
+    return out
+
+
 def build_context(  # REQ-008, REQ-009, REQ-151, REQ-393
     si: object,  # object-ok: circular-import boundary — SchemaInput imported inside function body
 ) -> (
@@ -513,6 +543,7 @@ def build_context(  # REQ-008, REQ-009, REQ-151, REQ-393
         _register_table_in_ctx(t, ctx, si, physical_map, table_preset_map)
 
     ctx.epoch_columns = _epoch_columns(si, physical_map)
+    ctx.nested_columns = _nested_columns(si, physical_map)
 
     _register_relationship_joins(si, ctx, table_lookup, physical_map)
 

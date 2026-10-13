@@ -798,6 +798,7 @@ def pg_statement_copy(
     columns: list[tuple[str, str]],
     pk_columns: list[str],
     prior_hash: str | None,
+    projection: str = "*",
 ) -> tuple[int, str, bool]:
     """Build the replica ``schema.table`` from ``source_relation`` as PostgreSQL's own statements,
     in one transaction on ``cur``'s connection: fill a build table with ``INSERT ... SELECT``,
@@ -811,7 +812,11 @@ def pg_statement_copy(
     halves summed, with the row count. Summing does not depend on order. It is the same kind
     of digest as ``RowSetHash`` but not comparable with it — one hashes PostgreSQL's text form
     of a row, the other Provisa's — so it is prefixed and only ever compared with the hash of
-    this replica's previous engine-side build."""
+    this replica's previous engine-side build.
+
+    ``projection`` is the select list over ``source_relation`` when it is not the columns by
+    name: a natively array, struct or map column read as the JSON PostgreSQL produces
+    (REQ-1965)."""
     from provisa.federation.replica_guard import require_pg_replica_table, require_replicas_schema
 
     require_replicas_schema(schema, table, action="build the replica at")
@@ -828,7 +833,8 @@ def pg_statement_copy(
         require_pg_replica_table(cur, schema, table, action="build the replica at")
         cur.execute(f"DROP TABLE IF EXISTS {target}")
         cur.execute(ddl)
-        cur.execute(f"INSERT INTO {target} ({names}) SELECT {names} FROM {source_relation}")
+        selected = names if projection == "*" else projection
+        cur.execute(f"INSERT INTO {target} ({names}) SELECT {selected} FROM {source_relation}")
         copied = cur.rowcount
         cur.execute(
             "SELECT count(*), "

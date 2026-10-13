@@ -6107,5 +6107,6 @@
   "fr/codeSourceFields.json::codeSourceFields.upload": "Upload",
   "fr/codeSourceFields.json::codeSourceFields.runtime_node": "Node.js",
   "fr/codeSourceFields.json::codeSourceFields.runtime": "Runtime",
-  "fr/codeSourceFields.json::codeSourceFields.lockfile": "Lockfile"
+  "fr/codeSourceFields.json::codeSourceFields.lockfile": "Lockfile",
+  "fr/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

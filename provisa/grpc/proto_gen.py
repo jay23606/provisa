@@ -82,9 +82,13 @@ def _physical_to_proto(column_type: str) -> str:
     base = normalized.split("(")[0].strip()
     if base in _PROTO_TYPE_MAP:
         return _PROTO_TYPE_MAP[base]
-    if normalized.startswith("array(") and normalized.endswith(")"):
-        inner = normalized[6:-1]
-        return _physical_to_proto(inner)
+    # REQ-1965: a natively array, struct or map column is a JSON column: a string field carrying
+    # the JSON the source or engine produced, at every depth. Never ``repeated``: a repeated
+    # field could only be filled by decoding that JSON here, value by value.
+    from provisa.core.native_types import parse_native_type
+
+    if parse_native_type(normalized).nested:
+        return "string"
     raise ValueError(f"Unmapped column type for proto: {column_type!r}")
 
 
@@ -93,6 +97,8 @@ def _needs_timestamp_import(columns: list[tuple[str, str]]) -> bool:
 
 
 def _is_array_type(column_type: str) -> bool:
+    """Whether a parameter is an array (REQ-1986: a query vector). A parameter is an argument,
+    not a column: it stays a repeated field of its element type, not a JSON string."""
     return column_type.lower().strip().startswith("array(")
 
 
@@ -156,10 +162,17 @@ def _parameter_proto_types(t) -> dict[str, str]:  # REQ-1986
     types: dict[str, str] = {}
     for nfc in sorted(t.native_filter_columns, key=lambda c: c["column_name"]):
         meta = t.column_metadata.get(nfc["column_name"].lower())
-        # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded.
-        proto_type = _physical_to_proto(meta.data_type) if meta is not None else "string"
+        # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded. An
+        # array parameter is repeated of its element type (a column of that type is JSON).
+        array = False
+        if meta is None:
+            proto_type = "string"
+        else:
+            array = _is_array_type(meta.data_type)
+            typed = meta.data_type.strip()[len("array(") : -1] if array else meta.data_type
+            proto_type = _physical_to_proto(typed)
         filter_proto = "string" if proto_type == "google.protobuf.Timestamp" else proto_type
-        label = "repeated" if meta is not None and _is_array_type(meta.data_type) else "optional"
+        label = "repeated" if array else "optional"
         types[parameter_name(nfc["column_name"])] = f"{label} {filter_proto}"
     return types
 
@@ -389,9 +402,8 @@ def generate_proto(
             if meta is None:
                 continue
             proto_type = _physical_to_proto(meta.data_type)
-            repeated = "repeated " if _is_array_type(meta.data_type) else ""
             field_num = row_numbers[col["column_name"]]
-            lines.append(f"  {repeated}{proto_type} {col['column_name']} = {field_num};")
+            lines.append(f"  {proto_type} {col['column_name']} = {field_num};")
 
         for rel, target in rel_fields:
             field_num = row_numbers[target.field_name]

@@ -901,7 +901,8 @@ async def test_selecting_a_table_fetches_its_columns_live_with_the_cache_empty(s
         source_types={"test": "govdata"},
         source_pools=None,
         federation_engine=SimpleNamespace(
-            engine=SimpleNamespace(native_store="duckdb"), introspect_columns=_describe
+            engine=SimpleNamespace(native_store="duckdb", dialect="duckdb"),
+            introspect_columns=_describe,
         ),
     )
     monkeypatch.setattr(app_mod, "state", state, raising=False)
@@ -953,7 +954,9 @@ def test_both_admin_column_fields_keep_what_a_selection_fetched():
     source = inspect.getsource(schema_query)
     assert source.count("await _remember_selected_columns(source_id, schema_name, table_name") == 2
     # The resolver itself never reads the search cache.
-    resolver = inspect.getsource(schema_query.resolve_available_columns_metadata)
+    resolver = inspect.getsource(
+        schema_query.resolve_available_columns_metadata
+    ) + inspect.getsource(schema_query._introspect_available_columns)
     assert "read_cache" not in resolver and "source_catalog_cache" not in resolver
 
 

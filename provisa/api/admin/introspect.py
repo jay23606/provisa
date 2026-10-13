@@ -30,6 +30,7 @@ from provisa.core.schema_org import kafka_topics, sources
 
 if TYPE_CHECKING:
     from provisa.cassandra.fetch import CassandraConnection
+    from provisa.core.ir_types import ColumnTyping
     from provisa.elasticsearch.fetch import ESConnection
     from provisa.prometheus.fetch import PrometheusConnection
     from provisa.redis.fetch import RedisConnection
@@ -68,8 +69,29 @@ _SQLSERVER_SYSTEM_SCHEMAS = {
 _PG_SYSTEM_SCHEMAS = {"information_schema", "pg_catalog", "pg_toast"}
 # The source types that speak PostgreSQL's wire protocol and expose its information_schema shape.
 _POSTGRES_WIRE = ("postgresql", "cockroachdb", "yugabytedb", "greenplum", "redshift")
-# information_schema.columns.data_type values that are markers, not type names.
-_PG_COLLAPSED_TYPES = frozenset({"ARRAY", "USER-DEFINED"})
+# information_schema.columns.data_type values that are markers, not type names: an array, and an
+# enum, a domain or a composite.
+_PG_ARRAY = "ARRAY"
+_PG_USER_DEFINED = "USER-DEFINED"
+# The PostgreSQL forks, whose pg_catalog states what information_schema's markers hide (REQ-1965):
+# the element type of an array (format_type) and whether a user-defined type is a composite.
+_PG_CATALOG_KINDS = ("postgresql", "greenplum", "yugabytedb")
+_PG_COLUMN_TYPES_SQL = (
+    "SELECT c.column_name, c.data_type, c.udt_name, "
+    "pg_catalog.format_type(a.atttypid, a.atttypmod), t.typtype "
+    "FROM information_schema.columns c "
+    "JOIN pg_catalog.pg_namespace n ON n.nspname = c.table_schema "
+    "JOIN pg_catalog.pg_class r ON r.relnamespace = n.oid AND r.relname = c.table_name "
+    "JOIN pg_catalog.pg_attribute a ON a.attrelid = r.oid AND a.attname = c.column_name "
+    "JOIN pg_catalog.pg_type t ON t.oid = a.atttypid "
+    "WHERE c.table_schema = $1 AND c.table_name = $2 ORDER BY c.ordinal_position"
+)
+# The other kinds that speak the wire protocol list only information_schema's own columns; an
+# array's element is read from udt_name (``_int4``).
+_PG_WIRE_COLUMN_TYPES_SQL = (
+    "SELECT column_name, data_type, udt_name, NULL, NULL FROM information_schema.columns "
+    "WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position"
+)
 # Redshift is a Postgres 8.0 fork — same wire protocol and catalog shape as _PG_SYSTEM_SCHEMAS,
 # plus its own pg_internal schema (holds temp tables), which upstream Postgres doesn't have.
 _REDSHIFT_SYSTEM_SCHEMAS = _PG_SYSTEM_SCHEMAS | {"pg_internal"}
@@ -1278,6 +1300,55 @@ async def _native_columns_servicenow(
         return await servicenow_columns(source, schema_name.strip().lower(), table_name)
 
 
+def _pg_column_typing(
+    kind: str, data_type: str, udt_name: str, formatted: str | None, typtype: str | None
+) -> "ColumnTyping":
+    """What one PostgreSQL-wire column registers as, from its catalog row. information_schema
+    reports ANSI spellings ("character varying", "timestamp without time zone") that the IR table
+    (the one native→canonical authority) resolves — an unknown type raises there rather than
+    registering an unmappable column. Its two markers are resolved here: ``ARRAY`` from the
+    array type's own spelling, and ``USER-DEFINED`` as a composite (JSON, REQ-1965) or as an enum
+    or domain (text)."""
+    from provisa.core.ir_types import ColumnTyping, column_typing, composite_typing, to_ir
+
+    if data_type == _PG_ARRAY:
+        return column_typing(formatted or udt_name, kind)
+    if data_type == _PG_USER_DEFINED:
+        if typtype == "c":
+            return composite_typing(formatted or udt_name, kind)
+        return ColumnTyping("text")
+    return ColumnTyping(to_ir(data_type))
+
+
+async def native_column_typings(  # REQ-1965
+    source_id: str,
+    source_type: str,
+    schema_name: str,
+    table_name: str,
+    pool: "SourcePool",
+    config_conn: "Connection | None" = None,
+) -> "list[tuple[str, ColumnTyping]] | None":
+    """``[(column_name, what it registers as)]`` via native introspection, or None to fall back
+    to the engine: ``native_columns`` with each type decided by ``column_typing``. The
+    PostgreSQL-wire kinds are typed from their catalog rows, which say more than a spelling."""
+    from provisa.core.ir_types import column_typing
+
+    kind = source_type.lower()
+    if kind in _POSTGRES_WIRE and pool.has(source_id):
+        result = await pool.execute(
+            source_id,
+            _PG_COLUMN_TYPES_SQL if kind in _PG_CATALOG_KINDS else _PG_WIRE_COLUMN_TYPES_SQL,
+            [schema_name, table_name],
+        )
+        return [(row[0], _pg_column_typing(kind, *row[1:5])) for row in result.rows]
+    listed = await native_columns(
+        source_id, source_type, schema_name, table_name, pool, config_conn
+    )
+    if listed is None:
+        return None
+    return [(name, column_typing(native, kind)) for name, native in listed]
+
+
 async def native_columns(  # REQ-1732
     source_id: str,
     source_type: str,
@@ -1337,24 +1408,10 @@ async def native_columns(  # REQ-1732
         # for any of them, so this direct-pool path is the only one. postgresql: the path for a
         # source the bound engine holds no live attach of (REQ-1912 — a floored source has no
         # engine catalog to list). All speak the identical wire protocol/information_schema shape.
-        # information_schema reports ANSI spellings ("character varying", "double precision",
-        # "timestamp without time zone") that no downstream type map keys on; the IR table
-        # (provisa.core.ir_types, the one native→canonical authority) resolves them — an
-        # unknown type raises there rather than registering an unmappable column.
-        from provisa.core.ir_types import to_ir
-
-        result = await pool.execute(
-            source_id,
-            "SELECT column_name, data_type FROM information_schema.columns "
-            "WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position",
-            [schema_name, table_name],
+        typings = await native_column_typings(
+            source_id, source_type, schema_name, table_name, pool, config_conn
         )
-        # ``ARRAY`` and ``USER-DEFINED`` (an enum, a domain, a composite) are not type names but
-        # information_schema's markers for a composite/array type, which the IR collapses to text.
-        return [
-            (row[0], "text" if row[1] in _PG_COLLAPSED_TYPES else to_ir(row[1]))
-            for row in result.rows
-        ]
+        return None if typings is None else [(name, typing.data_type) for name, typing in typings]
     if t == "sqlserver":
         # The path for a SQL Server source the bound engine holds no live attach of (REQ-1912).
         # T-SQL's own spellings (nvarchar, datetime2, bit, uniqueidentifier, money) resolve

@@ -6107,5 +6107,6 @@
   "de/packageRegistries.json::packageRegistries.remove": "Remove",
   "de/packageRegistries.json::packageRegistries.pypiNone": "No PyPI indexes. Packages come from the public PyPI.",
   "de/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
-  "de/codeSourceFields.json::codeSourceFields.runtime_node": "Node.js"
+  "de/codeSourceFields.json::codeSourceFields.runtime_node": "Node.js",
+  "de/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

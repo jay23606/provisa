@@ -6109,5 +6109,6 @@
   "hi/codeSourceFields.json::codeSourceFields.package": "Package",
   "hi/codeSourceFields.json::codeSourceFields.git": "Git repository",
   "hi/packageRegistries.json::packageRegistries.pypiTitle": "PyPI indexes",
-  "hi/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index."
+  "hi/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
+  "hi/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

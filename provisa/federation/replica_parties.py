@@ -77,6 +77,7 @@ class PgStatementCopy:
         address: ReplicaAddress,
         columns: list[tuple[str, str]],
         pk_columns: list[str],
+        projection: str = "*",
     ) -> None:
         self._backend = backend
         self._state = state
@@ -84,6 +85,7 @@ class PgStatementCopy:
         self._address = address
         self._columns = columns
         self._pk = pk_columns
+        self._projection = projection
 
     async def copy(self, prior_hash: str | None) -> BuildOutcome:
         import asyncio
@@ -121,6 +123,7 @@ class PgStatementCopy:
                 columns=self._columns,
                 pk_columns=self._pk,
                 prior_hash=prior_hash,
+                projection=self._projection,
             )
         finally:
             with shield.lock:

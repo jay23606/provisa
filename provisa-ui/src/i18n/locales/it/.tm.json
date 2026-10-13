@@ -6108,5 +6108,6 @@
   "it/packageRegistries.json::packageRegistries.npmCredentialHelp": "The registry's access token.",
   "it/packageRegistries.json::packageRegistries.saved": "Saved",
   "it/codeSourceFields.json::codeSourceFields.git": "Git repository",
-  "it/packageRegistries.json::packageRegistries.pypiAddress": "Index URL"
+  "it/packageRegistries.json::packageRegistries.pypiAddress": "Index URL",
+  "it/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

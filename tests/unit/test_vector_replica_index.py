@@ -353,3 +353,38 @@ def test_an_engine_reading_its_store_through_a_connector_computes_the_search_exa
     assert "PROVISA_COSINE_DISTANCE" not in physical
     assert '"org_acme_replicas"."src__public__docs"' in physical
     assert found == []
+
+
+# -- an embedding is never REQ-1965's JSON ----------------------------------------------------
+
+
+def test_an_embedding_never_lands_as_json_on_any_platform():
+    # REQ-1965 lands a native array as JSON; an embedding is exempt end to end (REQ-424)
+    source = SimpleNamespace(change_signal=None, type="postgresql")
+    for platform in ("duckdb", "postgres", "trino", "sqlite"):
+        args = resolve_landing_args(source, _table(), platform=platform)  # type: ignore[arg-type]
+        assert dict(args.columns)["vec"] != "json", platform
+
+
+def test_an_embedding_on_a_duckdb_replica_serves_cosine_similarity():
+    """What lands for an embedding on DuckDB is a float list, and the lowered similarity search
+    reads it: nearest first."""
+    import duckdb
+
+    from provisa.core.ir_types import Embedding
+
+    source = SimpleNamespace(change_signal=None, type="postgresql")
+    args = resolve_landing_args(source, _table(), platform="duckdb")  # type: ignore[arg-type]
+    assert dict(args.columns)["vec"] == "vector"
+    import duckdb_engine
+
+    float_list = Embedding().compile(dialect=duckdb_engine.Dialect())
+    con = duckdb.connect()
+    con.execute(f"CREATE TABLE docs (id INTEGER, vec {float_list})")
+    con.execute("INSERT INTO docs VALUES (1, [1.0, 0.0, 0.0]), (2, [0.0, 1.0, 0.0])")
+    search = (
+        'SELECT "d"."id" FROM "docs" AS "d" '
+        "ORDER BY cosine_similarity(\"d\".\"vec\", '[0.1, 0.9, 0.0]', 'mini', 3) DESC LIMIT 2"
+    )
+    lowered = lower(search, "duckdb", pgvector=False)
+    assert [r[0] for r in con.execute(lowered).fetchall()] == [2, 1]

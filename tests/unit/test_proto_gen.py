@@ -108,8 +108,21 @@ class TestTypeMapping:
         with pytest.raises(ValueError, match="Unmapped column type"):
             _physical_to_proto("hyperloglog")
 
-    def test_array_inner(self):
-        assert _physical_to_proto("array(varchar)") == "string"
+    @pytest.mark.parametrize(
+        "native",
+        [
+            "array(varchar)",
+            "array(integer)",
+            "array(array(bigint))",
+            "integer[]",
+            "array<int64>",
+            "row(a integer)",
+            "map(varchar, integer)",
+        ],
+    )
+    def test_a_natively_nested_column_is_a_string_field_carrying_json(self, native):
+        """REQ-1965: at every depth, whatever its element; never a repeated field."""
+        assert _physical_to_proto(native) == "string"
 
 
 class TestGenerateProto:

@@ -289,3 +289,29 @@ def test_an_engine_with_no_store_of_its_own_names_the_store_it_reads_back(monkey
 def test_an_engine_with_a_native_store_lands_into_it():
     assert build_engine("duckdb").replica_store_backend() == "duckdb"
     assert build_engine("pg").replica_store_backend() == "postgres"
+
+
+def test_a_replica_holds_json_so_the_datasource_cast_is_dropped_for_its_columns_only():
+    """REQ-1965: a natively nested column is landed as JSON, so a read of the replica takes the
+    stored value; the same statement's live table keeps the cast its source executes."""
+    import sqlglot.expressions as exp
+
+    from provisa.transpiler.native_json import NestedColumn, native_json_marker
+
+    def _cast(alias: str, column: str) -> str:
+        marker = native_json_marker(
+            exp.column(column, alias, quoted=True), NestedColumn("text[]", 1, "text")
+        )
+        return marker.sql(dialect="postgres")
+
+    routes = _routes("trino", "provisa_admin", ("src", "public", "orders"))
+    sql = (
+        f'SELECT {_cast("o", "tags")} AS "tags", {_cast("c", "labels")} AS "labels" '
+        'FROM "src"."public"."orders" AS "o" '
+        'JOIN "crm"."public"."customers" AS "c" ON "c"."id" = "o"."customer_id"'
+    )
+    assert address_replicas(sql, routes) == (
+        f'SELECT "o"."tags" AS "tags", {_cast("c", "labels")} AS "labels" '
+        'FROM "provisa_admin"."org_acme_replicas"."src__public__orders" AS "o" '
+        'JOIN "crm"."public"."customers" AS "c" ON "c"."id" = "o"."customer_id"'
+    )

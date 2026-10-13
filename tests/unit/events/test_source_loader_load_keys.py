@@ -76,7 +76,7 @@ async def test_load_keys_runs_bounded_select_through_engine_terminal():
 
     loader = SourceRowLoader(engine=_FakeEngine())
     source = types.SimpleNamespace(type="postgresql", id="pg1")
-    table = types.SimpleNamespace(schema_name="public", table_name="orders")
+    table = types.SimpleNamespace(schema_name="public", table_name="orders", columns=[])
     rows = await loader.load_keys(source, table, ["id"], [(1,)])
     assert rows == [{"id": 1, "status": "new"}]
     assert len(calls) == 1

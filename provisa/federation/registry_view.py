@@ -244,6 +244,12 @@ def _build_registered_tables(registered: list[dict]) -> list[Any]:
                         native_filter_type=c["native_filter_type"],
                         path=c["path"],
                         embedding=c["embedding"],  # REQ-424: lands as an indexed vector
+                        # REQ-1965: what a natively nested column is at its source, for the
+                        # cast that lands it as JSON.
+                        array_depth=c["array_depth"],
+                        element_type=c["element_type"],
+                        native_type=c["native_type"],
+                        native_platform=c["native_platform"],
                     )
                     for c in rt["columns"]
                 ],

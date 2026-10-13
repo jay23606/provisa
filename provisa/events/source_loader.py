@@ -26,7 +26,7 @@ lands nothing for that node and logs; it never fabricates an empty snapshot).
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing
 
 from provisa.federation.execution_auth import system_auth
@@ -106,6 +106,24 @@ AdapterLoader = Any  # Callable[[source, table], Awaitable[list[dict]]] — a pe
 AdapterKeyedLoader = Any
 
 
+def _projection(table: Any, dialect_of: Callable[[], str | None]) -> str:
+    """The select list that reads ``table``'s rows from its source (REQ-1965): ``*`` for a table
+    with no natively nested column -- the table as it is, and the dialect is not asked for --
+    otherwise each column by name, a natively array, struct or map one as the JSON the backend
+    that runs the read produces (``native_json.source_projection``)."""
+    if not any(getattr(c, "native_type", None) for c in table.columns):
+        return "*"
+    from provisa.transpiler.native_json import source_projection
+
+    dialect = dialect_of()
+    if not dialect:
+        raise ValueError(
+            f"{table.schema_name}.{table.table_name} has a natively nested column and its source "
+            "has no SQL dialect to read it as JSON in"
+        )
+    return source_projection(table.columns, dialect)
+
+
 async def engine_table_rows(engine: Any, source: Any, table: Any) -> list[dict]:
     """Every row of ``table`` read through the engine terminal at its catalog-physical name — the
     default row fetch for an engine-scannable source."""
@@ -113,8 +131,10 @@ async def engine_table_rows(engine: Any, source: Any, table: Any) -> list[dict]:
 
     catalog = source_to_catalog(source.id)
     ref = f'"{catalog}"."{table.schema_name}"."{table.table_name}"'
+    # REQ-1965: a natively array/struct/map column is landed as JSON the engine produces.
+    projection = _projection(table, lambda: engine.dialect)
     result = await engine.execute_engine(
-        f"SELECT * FROM {ref}", authorization=system_auth("source row load")
+        f"SELECT {projection} FROM {ref}", authorization=system_auth("source row load")
     )
     return [dict(zip(result.column_names, row)) for row in result.rows]
 
@@ -138,11 +158,10 @@ def make_floored_direct_loader(state: Any, engine: Any) -> AdapterLoader:  # REQ
         if floor_setting(source) is None and engine_attaches(engine, _source_type(source)):
             return await engine_table_rows(engine, source, table)
         dialect = state.source_dialects[source.id] or None
-        sql = (
-            exp.select("*")
-            .from_(exp.table_(table.table_name, db=table.schema_name))
-            .sql(dialect=dialect)
-        )
+        relation = exp.table_(table.table_name, db=table.schema_name).sql(dialect=dialect)
+        # REQ-1965: a natively array/struct/map column is landed as JSON the source produces.
+        projection = _projection(table, lambda: dialect)
+        sql = f"SELECT {projection} FROM {relation}"
         result = await engine.execute_native(state.source_pools, source.id, sql, [])
         return [dict(zip(result.column_names, row)) for row in result.rows]
 
@@ -231,11 +250,11 @@ class SourceRowLoader:
             and pools is not None
             and pools.supports_stream(source.id)
         ):
-            sql = (
-                exp.select("*")
-                .from_(exp.table_(table.table_name, db=table.schema_name))
-                .sql(dialect=state.source_dialects[source.id] or None)
-            )
+            dialect = state.source_dialects[source.id] or None
+            relation = exp.table_(table.table_name, db=table.schema_name).sql(dialect=dialect)
+            # REQ-1965: a natively array/struct/map column is copied as JSON the source produces.
+            projection = _projection(table, lambda: dialect)
+            sql = f"SELECT {projection} FROM {relation}"
             return DirectTableSource(lambda: open_direct_stream(pools, source.id, sql, []), columns)
         loader = self._adapter_loaders.get(stype)
         if loader is not None:
@@ -251,7 +270,12 @@ class SourceRowLoader:
                 f"is wired (source {source.id!r})"
             )
         ref = f'"{source_to_catalog(source.id)}"."{table.schema_name}"."{table.table_name}"'
-        return EngineTableSource(self._engine, ref, in_place=engine_attaches(self._engine, stype))
+        return EngineTableSource(
+            self._engine,
+            ref,
+            in_place=engine_attaches(self._engine, stype),
+            projection=_projection(table, lambda: self._engine.dialect),
+        )
 
     async def load_keys(
         self,
@@ -302,8 +326,10 @@ class SourceRowLoader:
 
             rule = sqlglot.parse_one(admit, read="postgres").sql(dialect=self._engine.dialect)
             where = f"({where}) AND ({rule})"
+        projection = _projection(table, lambda: self._engine.dialect)  # REQ-1965
         result = await self._engine.execute_engine(
-            f"SELECT * FROM {ref} WHERE {where}", authorization=system_auth("source row load")
+            f"SELECT {projection} FROM {ref} WHERE {where}",
+            authorization=system_auth("source row load"),
         )
         return [dict(zip(result.column_names, row)) for row in result.rows]
 

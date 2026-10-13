@@ -3373,7 +3373,18 @@ def create_app() -> FastAPI:
             headers=exc.headers,
         )
 
+    from provisa.core.json_refusal import JsonRefused as _JsonRefused
     from provisa.core.read_refusal import ReadRefused as _ReadRefused
+
+    @app.exception_handler(_JsonRefused)
+    async def _json_refused_handler(_req: _Request, exc: _JsonRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]
+        """REQ-1965: a statement on a JSON column that cannot be answered correctly -- an
+        operation its backend lacks, a float element with no JSON form. The statement is
+        refused, by name; nothing has failed."""
+        return _JSONResponse(
+            status_code=422,
+            content={"detail": str(exc), "code": exc.code, "params": exc.params},
+        )
 
     @app.exception_handler(_ReadRefused)
     async def _read_refused_handler(_req: _Request, exc: _ReadRefused):  # noqa: F841  # pyright: ignore[reportUnusedFunction, reportUnusedVariable]

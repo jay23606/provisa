@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 import sqlglot
 import sqlglot.expressions as exp
 
+from provisa.compiler.native_nested import mark_native_nested_reads
 from provisa.compiler.sql_types import CompilationContext, TableMeta
 from provisa.core.ir_types import EPOCH_UNITS
 
@@ -415,7 +416,8 @@ def rewrite_semantic_to_physical(sql: str, ctx: CompilationContext) -> str:  # R
     sql = _apply_replacements(normalize_table_refs(sql, ctx), replacements)
     # DIRECT route: a native driver addresses schema.table, not catalog.schema.table — strip the
     # catalog normalize_table_refs re-attaches for already-qualified refs (REQ-641/REQ-863).
-    return translate_epoch_temporal_columns(strip_catalog(sql), ctx.epoch_columns)  # REQ-1908
+    sql = translate_epoch_temporal_columns(strip_catalog(sql), ctx.epoch_columns)  # REQ-1908
+    return mark_native_nested_reads(sql, ctx.nested_columns)  # REQ-1965
 
 
 def _all_table_metas(ctx: CompilationContext) -> list[TableMeta]:
@@ -461,9 +463,10 @@ def rewrite_semantic_to_catalog_physical(sql: str, ctx: CompilationContext) -> s
         # pet_store_sqlite.org_kstott__pet_store_sqlite.pet_store.pets ("Too many dots").
         base_catalog_ref = f"{_q(source_to_catalog(meta.source_id))}.{physical_no_catalog}"
         replacements.setdefault(base_catalog_ref, physical_with_catalog)
-    return translate_epoch_temporal_columns(  # REQ-1908
+    sql = translate_epoch_temporal_columns(  # REQ-1908
         _apply_replacements(sql, replacements), ctx.epoch_columns
     )
+    return mark_native_nested_reads(sql, ctx.nested_columns)  # REQ-1965
 
 
 def qualify_with_catalogs(sql: str, ctx: CompilationContext) -> str:  # REQ-641

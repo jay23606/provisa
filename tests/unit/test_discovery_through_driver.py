@@ -105,12 +105,17 @@ class _Acquire:
         return False
 
 
+# A PostgreSQL catalog row: name, information_schema's data_type and udt_name, then pg_catalog's
+# format_type and typtype.
 _PG_COLUMNS = [
-    ("id", "integer"),
-    ("name", "character varying"),
-    ("placed_at", "timestamp without time zone"),
-    ("tags", "ARRAY"),
-    ("status", "USER-DEFINED"),
+    ("id", "integer", "int4", "integer", "b"),
+    ("name", "character varying", "varchar", "character varying(40)", "b"),
+    ("placed_at", "timestamp without time zone", "timestamp", "timestamp without time zone", "b"),
+    ("tags", "ARRAY", "_text", "text[]", "b"),
+    ("amounts", "ARRAY", "_numeric", "numeric(18,2)[]", "b"),
+    ("status", "USER-DEFINED", "order_status", "order_status", "e"),
+    ("ship_to", "USER-DEFINED", "address", "address", "c"),
+    ("stops", "ARRAY", "_address", "address[]", "b"),
 ]
 
 
@@ -146,8 +151,11 @@ async def test_postgres_columns_come_from_the_driver_in_the_ir_vocabulary():
         ("id", "integer"),
         ("name", "text"),
         ("placed_at", "timestamp"),
-        ("tags", "text"),  # an array collapses to text in the IR
-        ("status", "text"),  # so does an enum / domain / composite
+        ("tags", "json"),  # REQ-1965: a native array is a JSON column
+        ("amounts", "json"),
+        ("status", "text"),  # an enum or a domain
+        ("ship_to", "json"),  # a composite is a struct
+        ("stops", "json"),  # an array of structs
     ]
     ((_sid, _sql, params),) = pool.asked
     assert params == ["public", "orders"]
@@ -245,9 +253,23 @@ async def test_column_metadata_of_a_floored_source_never_asks_the_engine(monkeyp
         ("id", "integer", True),
         ("name", "text", False),
         ("placed_at", "timestamp", False),
-        ("tags", "text", False),
+        ("tags", "json", False),
+        ("amounts", "json", False),
         ("status", "text", False),
+        ("ship_to", "json", False),
+        ("stops", "json", False),
     ]
+    # REQ-1965: the hidden attributes, read from the catalog's own spelling of each type.
+    assert {
+        c.name: (c.array_depth, c.element_type, c.native_type) for c in columns if c.native_type
+    } == {
+        "tags": (1, "text", "text[]"),
+        "amounts": (1, "numeric(18,2)", "numeric(18,2)[]"),
+        "ship_to": (0, None, "address"),
+        "stops": (0, None, "address[]"),
+    }
+    # The source's own driver listed them: the spelling is PostgreSQL's.
+    assert {c.native_platform for c in columns if c.native_type} == {"postgresql"}
     assert engine.statements == []
 
 
@@ -260,10 +282,66 @@ async def test_a_floored_table_the_driver_cannot_list_is_refused_not_answered_em
     async def _no_listing(*args: Any, **kwargs: Any) -> None:
         del args, kwargs
 
-    monkeypatch.setattr("provisa.api.admin.introspect.native_columns", _no_listing)
+    monkeypatch.setattr("provisa.api.admin.introspect.native_column_typings", _no_listing)
     with pytest.raises(SourceNotListable):
         await schema_query.resolve_available_columns_metadata("orders-pg", "public", "orders")
     assert engine.statements == []
+
+
+@pytest.mark.parametrize(
+    ("stype", "native", "attributes"),
+    [
+        (SourceType.duckdb, "VARCHAR[]", (1, "text", "varchar[]")),
+        (SourceType.duckdb, "DECIMAL(18,2)[][]", (2, "numeric(18,2)", "decimal(18,2)[][]")),
+        (
+            SourceType.duckdb,
+            "STRUCT(a INTEGER, b VARCHAR)",
+            (0, None, "struct(a integer, b varchar)"),
+        ),
+        (SourceType.clickhouse, "Array(String)", (1, "text", "array(string)")),
+        (SourceType.trino, "array(row(a integer))", (0, None, "array(row(a integer))")),
+    ],
+)
+async def test_registration_suggests_json_for_a_native_array_struct_or_map(
+    monkeypatch, stype, native, attributes
+):
+    """REQ-1965: a reader that lists a column in the source's own spelling has it suggested as
+    json, with the hidden attributes read from that spelling."""
+    from provisa.api.admin.schema_query import resolve_available_columns_metadata
+
+    # Each driver words its catalog statements its own way; the column listing is the one that
+    # is not the primary-key lookup.
+    answers = {"PRIMARY": [], "KEY": [], "pk": [], "": [("id", "integer"), ("tags", native)]}
+    _state(monkeypatch, _source(stype=stype, replicate=0, cache_ttl=60), _Pool(answers), _Engine())
+
+    columns = await resolve_available_columns_metadata("orders-pg", "public", "orders")
+
+    assert [(c.name, c.data_type) for c in columns] == [("id", "integer"), ("tags", "json")]
+    tags = columns[1]
+    assert (tags.array_depth, tags.element_type, tags.native_type) == attributes
+    assert columns[0].native_type is None
+
+
+async def test_a_column_that_is_json_at_its_source_carries_no_hidden_attribute(monkeypatch):
+    from provisa.api.admin.schema_query import resolve_available_columns_metadata
+
+    answers = {"PRIMARY": [], "KEY": [], "pk": [], "": [("id", "int"), ("doc", "json")]}
+    _state(
+        monkeypatch,
+        _source(stype=SourceType.mysql, replicate=0, cache_ttl=60),
+        _Pool(answers),
+        _Engine(),
+    )
+
+    columns = await resolve_available_columns_metadata("orders-pg", "public", "orders")
+
+    doc = columns[1]
+    assert (doc.data_type, doc.array_depth, doc.element_type, doc.native_type) == (
+        "json",
+        0,
+        None,
+        None,
+    )
 
 
 async def test_table_search_of_a_floored_source_never_asks_the_engine(monkeypatch):

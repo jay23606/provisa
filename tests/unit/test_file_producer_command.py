@@ -46,7 +46,7 @@ def _file_src(cmd, stype="csv"):
 
 
 def _tbl():
-    return SimpleNamespace(schema_name="main", table_name="prices")
+    return SimpleNamespace(schema_name="main", table_name="prices", columns=[])
 
 
 def _ok_run(calls):

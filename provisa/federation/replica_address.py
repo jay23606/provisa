@@ -285,6 +285,10 @@ def address_replicas(pg_sql: str, routes: ReplicaRoutes) -> str:
     alias is kept — the lowering pins one on every table — so the statement's column references
     still bind. A table read live is left exactly as written.
 
+    A replica holds a natively array, struct or map column as JSON already (REQ-1965: it was
+    landed through the datasource cast), so the cast marked on a read of such a column is
+    dropped for every table re-addressed here; a table read live keeps it.
+
     Raises ``ReplicaUnavailable`` for a table whose replica could not be reconciled (it has no
     replica a read may be answered from), and ``AmbiguousReplica`` for a name two sources share.
     """
@@ -295,13 +299,17 @@ def address_replicas(pg_sql: str, routes: ReplicaRoutes) -> str:
 
     tree = sqlglot.parse_one(pg_sql, read="postgres")
     changed = False
+    replica_aliases: set[str] = set()
+    live_tables = 0
     for tbl in tree.find_all(exp.Table):
         if not tbl.name:
             continue
         key: TableKey = (tbl.catalog or None, tbl.db, tbl.name)
         target = read_address(key, routes)
         if target == key:
+            live_tables += 1
             continue
+        replica_aliases.add(tbl.alias_or_name.lower())
         catalog, schema, table = target
         if not tbl.alias:
             # Column references written against the table's own name keep binding to it.
@@ -310,6 +318,16 @@ def address_replicas(pg_sql: str, routes: ReplicaRoutes) -> str:
         tbl.set("db", exp.to_identifier(schema, quoted=True))
         tbl.set("catalog", exp.to_identifier(catalog, quoted=True) if catalog else None)
         changed = True
+    if changed:
+        from provisa.transpiler.native_json import strip_native_json
+
+        def _read_from_a_replica(column: exp.Expr) -> bool:
+            qualifier = column.args.get("table")
+            # An unqualified column binds to the statement's tables; it is a replica's when
+            # every one of them is.
+            return qualifier.name.lower() in replica_aliases if qualifier else live_tables == 0
+
+        strip_native_json(tree, _read_from_a_replica)
     return tree.sql(dialect="postgres") if changed else pg_sql
 
 

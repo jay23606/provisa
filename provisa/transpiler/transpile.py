@@ -17,6 +17,7 @@ Supports PG SQL → Trino, and PG SQL → any target dialect for direct executio
 
 import sqlglot
 
+from provisa.transpiler.native_json import resolve_native_json
 from provisa.transpiler.transpile_correlated import (
     rewrite_correlated_subqueries_for_trino,
 )
@@ -339,6 +340,9 @@ def transpile(
         # source must reference the bare table name (matches provisa/observability/ops_schema.py's
         # `use_schema = engine.dialect.name != "sqlite"` convention elsewhere in the codebase).
         result = _strip_schema_qualifiers(result)
+    # REQ-1965: each read of a natively array/struct/map column becomes this backend's own
+    # to-JSON expression here, the one place every route's dialect is known.
+    result = resolve_native_json(result, target_dialect)
     from provisa.vector.similarity import lower as _lower_similarity
 
     # REQ-423: a governed similarity search, in the target's own form. REQ-2000: Qdrant's driver

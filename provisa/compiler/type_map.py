@@ -16,6 +16,7 @@ BigInt.
 
 # Requirements: REQ-010, REQ-306
 
+from collections.abc import Mapping
 from typing import cast
 
 from graphql import (
@@ -196,12 +197,50 @@ _TYPE_MAP: dict[str, GraphQLScalarType] = cast(
 )
 
 
+def nested_column_graphql_type(column: Mapping) -> GraphQLScalarType | GraphQLList | None:
+    """The GraphQL type of a registered column that is natively an array, a struct or a map at
+    its source (REQ-1965), from its hidden attributes alone -- never from the spelling of a
+    source type. An array of one primitive type is a list, nested to its depth, of the GraphQL
+    type of its element; an element may be null, and a decimal element with a declared precision
+    is a String. Every other such column is the opaque JSON value. None for a column that is
+    not natively nested."""
+    if not column.get("native_type"):
+        return None
+    depth = column.get("array_depth") or 0
+    element = column.get("element_type")
+    if depth == 0 or not element:
+        return JSONScalar
+    # A decimal element with a declared precision travels as a JSON string, exact on every
+    # engine, and is declared as what is served.
+    sized_decimal = element.startswith("numeric(")
+    declared: GraphQLScalarType | GraphQLList = (
+        GraphQLString if sized_decimal else column_type_to_graphql(element)
+    )
+    for _ in range(depth):
+        declared = GraphQLList(declared)
+    return declared
+
+
+def array_graphql_type(data_type: str) -> GraphQLScalarType | GraphQLList:  # REQ-1986, REQ-424
+    """The GraphQL type of a parameter's argument or an embedding column: an array (a query
+    vector, an embedding) is a list of its element type, where any other column of that type is
+    a JSON column (REQ-1965)."""
+    normalized = data_type.lower().strip()
+    if normalized.startswith("array(") and normalized.endswith(")"):
+        return GraphQLList(GraphQLNonNull(column_type_to_graphql(normalized[6:-1])))
+    return column_type_to_graphql(data_type)
+
+
 def column_type_to_graphql(column_type: str) -> GraphQLScalarType | GraphQLList:  # REQ-010, REQ-306
     """Map the engine column type to a GraphQL scalar.
 
-    Handles parameterized types like varchar(255), decimal(10,2), array(varchar).
+    Handles parameterized types like varchar(255), decimal(10,2). A type spelled as an array, a
+    struct or a map is a JSON column (REQ-1965): the opaque JSON value. A list is declared from a
+    column's hidden attributes (``nested_column_graphql_type``), never from this spelling.
     Raises ValueError for unmapped types.
     """
+    from provisa.core.native_types import parse_native_type
+
     normalized = column_type.lower().strip()
 
     # Check exact match first
@@ -213,11 +252,8 @@ def column_type_to_graphql(column_type: str) -> GraphQLScalarType | GraphQLList:
     if base in _TYPE_MAP:
         return _TYPE_MAP[base]
 
-    # Handle array types: array(varchar) → List of mapped type
-    if normalized.startswith("array(") and normalized.endswith(")"):
-        inner = normalized[6:-1]
-        inner_type = column_type_to_graphql(inner)
-        return GraphQLList(GraphQLNonNull(inner_type))
+    if parse_native_type(normalized).nested:
+        return JSONScalar
 
     raise ValueError(f"Unmapped the engine type: {column_type!r}")
 

@@ -225,6 +225,11 @@ CREATE TABLE IF NOT EXISTS table_columns (
     mask_precision TEXT,
     is_primary_key BOOLEAN NOT NULL DEFAULT FALSE,
     epoch_unit   TEXT,  -- REQ-1908: epoch-number storage unit of a temporal column
+    -- REQ-1965: the hidden attributes of a natively array/struct/map column, from its source
+    array_depth  INTEGER NOT NULL DEFAULT 0,
+    element_type TEXT,
+    native_type  TEXT,
+    native_platform TEXT,  -- whose spelling native_type is
     fake         TEXT,  -- REQ-1494: the column's kind of fake, as declared
     fake_stable  BOOLEAN NOT NULL DEFAULT FALSE,  -- REQ-1494
     fake_stable_version INTEGER,  -- REQ-1494: the portable definition version a stable fake is pinned to

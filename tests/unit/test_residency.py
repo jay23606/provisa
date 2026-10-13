@@ -102,7 +102,7 @@ class TestResolveLandingArgs:
         args = resolve_landing_args(_source(), t, platform="trino")
         assert args.columns == [
             ("blob", "bytea"),
-            ("doc", "text"),
+            ("doc", "json"),  # REQ-1965: a native struct is a JSON column
             ("name", "text"),
             ("ts", "timestamp"),
         ]

@@ -52,7 +52,7 @@ from provisa.compiler.naming import (
 )
 from provisa.compiler.metric_expand import metric_reference_tables
 from provisa.core.modeling_tags import append_modeling_tag
-from provisa.compiler.type_map import JSONScalar, column_type_to_graphql
+from provisa.compiler.type_map import JSONScalar, column_type_to_graphql, array_graphql_type
 from provisa.compiler.schema_types import SchemaInput, _TableInfo
 from provisa.security.rights import (
     GOVERNANCE_META_COLUMNS,
@@ -631,7 +631,7 @@ def _build_native_filter_args(
         arg_name = f"_{bare_name}" if bare_name in response_field_names else bare_name
         meta = t.column_metadata.get(col_name.lower())
         # An array parameter (a query vector) takes a list, as its column holds one.
-        nfc_gql_type = column_type_to_graphql(meta.data_type) if meta else GraphQLString
+        nfc_gql_type = array_graphql_type(meta.data_type) if meta else GraphQLString
         # REQ-1986: non-null where the source or a steward requires the parameter.
         args[arg_name] = GraphQLArgument(
             GraphQLNonNull(nfc_gql_type) if is_required(nfc) else nfc_gql_type,

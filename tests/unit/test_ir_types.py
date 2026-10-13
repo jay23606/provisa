@@ -28,7 +28,7 @@ def test_platform_translators_native_to_ir():
     assert to_ir("datetime2", "sqlserver") == "timestamp"
     # Trino
     assert to_ir("varbinary", "trino") == "bytea"
-    assert to_ir("row", "trino") == "text"
+    assert to_ir("row", "trino") == "json"  # REQ-1965
     # DuckDB
     assert to_ir("hugeint", "duckdb") == "bigint"
     assert to_ir("blob", "duckdb") == "bytea"
@@ -94,11 +94,66 @@ def test_to_physical_renders_per_dialect():
     assert to_physical("timestamp", "mysql") == "DATETIME"  # mysql renders DateTime as DATETIME
     assert to_physical("varchar", "postgresql") == "TEXT"  # native spelling normalized to IR first
     # REQ-980: first-class JSON renders natively per store dialect
-    assert to_physical("json", "postgresql") == "JSON"
-    assert to_physical("jsonb", "postgresql") == "JSON"  # jsonb narrows to portable generic JSON
+    assert to_physical("json", "postgresql") == "JSONB"  # REQ-1965: the indexable JSON type
+    assert to_physical("jsonb", "postgresql") == "JSONB"
     assert to_physical("json", "sqlite") == "JSON"  # SQLAlchemy JSON on sqlite (TEXT-affinity)
 
 
 def test_ir_types_are_canonical_names():
     assert "text" in IR_TYPES and "bigint" in IR_TYPES
     assert "varchar" not in IR_TYPES  # varchar is an alias, not a canonical IR name
+
+
+# REQ-1965: a native array, struct or map is a JSON column. Every spelling a supported source or
+# engine reports for one resolves to IR ``json`` -- never ``text``, and never an unknown type.
+_NESTED_SPELLINGS = [
+    ("VARCHAR[]", "duckdb"),
+    ("INTEGER[][]", "duckdb"),
+    ("INTEGER[3]", "duckdb"),
+    ("STRUCT(a INTEGER, b VARCHAR)", "duckdb"),
+    ("MAP(VARCHAR, INTEGER)", "duckdb"),
+    ("ARRAY", "postgresql"),
+    ("_int4", "postgresql"),
+    ("text[]", "postgresql"),
+    ("numeric(18,2)[]", "postgresql"),
+    ("ARRAY", "cockroachdb"),
+    ("super", "redshift"),
+    ("array(varchar)", "trino"),
+    ("array(row(a integer, b varchar))", "trino"),
+    ("row(a integer)", "trino"),
+    ("map(varchar, integer)", "trino"),
+    ("Array(String)", "clickhouse"),
+    ("Array(Array(UInt8))", "clickhouse"),
+    ("Tuple(String, UInt8)", "clickhouse"),
+    ("Map(String, UInt8)", "clickhouse"),
+    ("Nested(a String, b UInt8)", "clickhouse"),
+    ("ARRAY<STRING>", "bigquery"),
+    ("STRUCT<a INT64, b ARRAY<STRING>>", "bigquery"),
+    ("array<string>", "databricks"),
+    ("struct<a:int,b:string>", "databricks"),
+    ("map<string,int>", "databricks"),
+    ("array<string>", "hiveserver2"),
+    ("ARRAY", "snowflake"),
+    ("OBJECT", "snowflake"),
+    ("VARIANT", "snowflake"),
+]
+
+
+@pytest.mark.parametrize(("native", "platform"), _NESTED_SPELLINGS)
+def test_a_native_array_struct_or_map_is_json(native, platform):
+    assert to_ir(native, platform) == "json"
+    assert is_ir_type(native, platform)
+
+
+@pytest.mark.parametrize(("native", "platform"), _NESTED_SPELLINGS)
+def test_a_native_array_struct_or_map_is_json_without_a_platform(native, platform):
+    # The later readers of a stored type (landing, Arrow, the stores) resolve it with no platform.
+    del platform
+    assert to_ir(native) == "json"
+
+
+def test_a_scalar_whose_name_starts_like_a_nested_type_is_not_json():
+    with pytest.raises(ValueError, match="not in the IR vocabulary"):
+        to_ir("arraylike")
+    assert to_ir("text") == "text"
+    assert to_ir("varchar(3)") == "text"

@@ -27,7 +27,8 @@ from provisa.compiler.sql_literals import sql_literal
 
 from typing import Any
 
-from provisa.core.ir_types import to_ir
+from provisa.api.admin.introspect import native_column_typings
+from provisa.core.ir_types import ColumnTyping, column_typing, to_ir
 from provisa.core.models import Column, ProvisaConfig, Source
 from provisa.core.secrets import resolve_secrets
 from provisa.import_shared.warnings import WarningCollector
@@ -45,12 +46,31 @@ def _quote(value: str, dialect: str) -> str:
     return sql_literal(value, dialect)
 
 
-async def _discover(pool: Any, source: Source, schema: str, table: str) -> dict[str, str]:
+async def _discover(pool: Any, source: Source, schema: str, table: str) -> dict[str, ColumnTyping]:
+    """What each column of a source table registers as. PostgreSQL is typed from its catalog, as
+    registration types it (``native_column_typings``): information_schema alone names neither the
+    element of an array nor a composite (REQ-1965)."""
+    kind = source.type.value
+    if kind == "postgresql":
+        typings = await native_column_typings(source.id, kind, schema, table, pool)
+        return dict(typings or [])
     dialect = source.dialect or "postgres"
     result = await pool.execute(
         source.id, _COLUMNS_SQL % (_quote(schema, dialect), _quote(table, dialect)), []
     )
-    return {str(name): to_ir(str(native), source.type.value) for name, native in result.rows}
+    found: dict[str, ColumnTyping] = {}
+    for name, native in result.rows:
+        typing = column_typing(str(native), kind)
+        found[str(name)] = typing if typing.native_type else ColumnTyping(to_ir(str(native), kind))
+    return found
+
+
+def _typed(column: Column, typing: ColumnTyping) -> None:
+    column.data_type = typing.data_type
+    column.array_depth = typing.array_depth
+    column.element_type = typing.element_type
+    column.native_type = typing.native_type
+    column.native_platform = typing.native_platform
 
 
 async def type_imported_columns(
@@ -115,7 +135,11 @@ async def type_imported_columns(
                 t.columns = [
                     Column(
                         name=n,
-                        data_type=ty,
+                        data_type=ty.data_type,
+                        array_depth=ty.array_depth,
+                        element_type=ty.element_type,
+                        native_type=ty.native_type,
+                        native_platform=ty.native_platform,
                         visible_to=[ORG_ADMIN_ROLE],
                         writable_by=[ORG_ADMIN_ROLE],
                     )
@@ -125,7 +149,7 @@ async def type_imported_columns(
             for c in t.columns:
                 if c.data_type in (None, ""):
                     if c.name in found:
-                        c.data_type = found[c.name]
+                        _typed(c, found[c.name])
                     else:
                         collector.warn(
                             "tables",

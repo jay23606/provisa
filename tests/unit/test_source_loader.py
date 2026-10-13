@@ -40,7 +40,7 @@ def _src(sid, stype):
 
 def _tbl(schema, table, pagination=None):
     # A registry row (registry_view): it carries the table's paging, None when it sets none.
-    return SimpleNamespace(schema_name=schema, table_name=table, pagination=pagination)
+    return SimpleNamespace(schema_name=schema, table_name=table, pagination=pagination, columns=[])
 
 
 @pytest.mark.asyncio

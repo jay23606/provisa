@@ -256,7 +256,14 @@ async def test_native_columns_lists_postgresql_through_its_own_driver():
     """REQ-1912: a source's catalog is listed through the source's own driver. A floored
     postgresql source has no live attach on any engine (no Trino catalog), so the engine-catalog
     path cannot be what lists it; the driver's information_schema does, in the IR vocabulary."""
-    pool = _pool([("id", "integer"), ("label", "character varying")])
+    # A catalog row: name, information_schema's data_type and udt_name, then pg_catalog's
+    # format_type and typtype (REQ-1965).
+    pool = _pool(
+        [
+            ("id", "integer", "int4", "integer", "b"),
+            ("label", "character varying", "varchar", "character varying(40)", "b"),
+        ]
+    )
     result = await native_columns("src", "postgresql", "public", "widgets", pool)
     assert result == [("id", "integer"), ("label", "text")]
 
@@ -767,13 +774,15 @@ def test_a_petstore_get_with_no_response_schema_is_a_command_and_a_declared_tabl
 async def test_native_columns_pg_wire_family_reports_ir_types(source_type):
     """information_schema's ANSI spellings resolve through the IR table (provisa.core.ir_types) —
     every downstream type map (GraphQL, proto) keys on canonical names, not "character varying"."""
+    # A catalog row: name, data_type, udt_name, then format_type and typtype where the kind is a
+    # PostgreSQL fork whose pg_catalog is read (REQ-1965).
     pool = _pool(
         [
-            ("id", "integer"),
-            ("name", "character varying"),
-            ("price", "double precision"),
-            ("seen_at", "timestamp without time zone"),
-            ("opens", "time without time zone"),
+            ("id", "integer", "int4", "integer", "b"),
+            ("name", "character varying", "varchar", "character varying", "b"),
+            ("price", "double precision", "float8", "double precision", "b"),
+            ("seen_at", "timestamp without time zone", "timestamp", None, None),
+            ("opens", "time without time zone", "time", None, None),
         ]
     )
     result = await native_columns("src", source_type, "public", "widgets", pool)

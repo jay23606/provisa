@@ -6107,5 +6107,6 @@
   "zh/packageRegistries.json::packageRegistries.gitHost": "Host",
   "zh/codeSourceFields.json::codeSourceFields.subdirectory": "Subdirectory",
   "zh/codeSourceFields.json::codeSourceFields.originHint": "The code is installed and read when the source is saved; its functions tagged @table, @command or @stream become its tables, commands and live tables.",
-  "zh/codeSourceFields.json::codeSourceFields.runtime": "Runtime"
+  "zh/codeSourceFields.json::codeSourceFields.runtime": "Runtime",
+  "zh/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }

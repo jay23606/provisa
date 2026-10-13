@@ -6107,5 +6107,6 @@
   "pt/codeSourceFields.json::codeSourceFields.subdirectory": "Subdirectory",
   "pt/packageRegistries.json::packageRegistries.pypiMirrorHelp": "Every Python package is installed from this index instead of the public PyPI. An organization has one default index.",
   "pt/packageRegistries.json::packageRegistries.npmNone": "No npm registries. Packages come from the public npm registry.",
-  "pt/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories."
+  "pt/packageRegistries.json::packageRegistries.gitCredentialHelp": "A token with read access to the repositories.",
+  "pt/serverErrors.json::serverErrors.schema.column_natively_nested": "Cannot register: column {{column}} is natively {{native_type}} at its source, so its type is json, not {{type}}."
 }
