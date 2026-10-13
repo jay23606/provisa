@@ -1,4 +1,5 @@
 # Copyright (c) 2026 Kenneth Stott
+# Canary: 6eb4ac8b-6997-45e5-8adb-e32f4095d3df
 #
 # This source code is licensed under the Business Source License 1.1
 """REQ-2010: a named demo's own tour names only what the demo has. Every step's target is an
