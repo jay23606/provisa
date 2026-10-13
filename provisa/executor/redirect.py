@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import io
 import json
-import os
 import threading
 import uuid
 from dataclasses import dataclass
@@ -388,34 +387,23 @@ async def upload_and_presign(  # REQ-029, REQ-044, REQ-137, REQ-138, REQ-139, RE
     key = f"{results_prefix()}/{name}"
 
     def _store_local(reason: str) -> dict:
-        """Write the payload to the local redirect dir and return a ``file://`` URL to it (desktop dev)."""
-        from pathlib import Path
+        """Keep the payload in the org's folder on this node (REQ-1992), served by
+        /data/redirect-file/<name> to the user who asked for it (REQ-1191, REQ-1192): the local
+        result sink's own store (``local_results``), the one run_materialize's local tier uses."""
+        from provisa.executor import local_results
 
-        # Desktop-dev case: no object store reachable (or none configured). The result is
-        # written in the org's folder on this node (REQ-1992) and served by
-        # /data/redirect-file/<name> instead of a presigned S3 URL.
-        from provisa.core.org_files import org_path
-
-        results_dir = str(org_path("results"))
-        path = os.path.join(results_dir, name)
-        with open(path, "wb") as fh:
-            fh.write(body_bytes)
-        resp = {
-            # A fully-qualified file:// URL to the result on the local filesystem. Note: browsers block
-            # navigating to file:// from an http page, so open it directly (Finder/terminal) or from a
-            # desktop shell — it is not a clickable web download.
-            "redirect_url": Path(path).resolve().as_uri(),
-            "row_count": row_count,
-            "expires_in": config.ttl,
-            "content_type": content_type,
-            "local": True,
-            "note": (
-                f"{reason} Saved locally as a file:// URL ({path}) — for desktop testing only (open it "
-                "directly; browsers won't download file:// from a web page). For shared/production "
-                "access, configure a reachable S3-compatible object store via PROVISA_REDIRECT_ENDPOINT "
-                "(local dev: run MinIO with `docker compose -f docker-compose.core.yml up -d minio minio-init`)."
-            ),
-        }
+        resp = local_results.store_bytes(
+            body_bytes,
+            ext.split(".")[1],  # the format the body was serialized in (".parquet", ".csv.enc")
+            row_count,
+            config.ttl,
+            content_type=content_type,
+        )
+        resp["note"] = (
+            f"{reason} Kept on this server for {config.ttl} seconds and served to you at "
+            f"{resp['redirect_url']}. For shared or production access, configure an "
+            "S3-compatible object store (redirect.endpoint)."
+        )
         if encryption_meta is not None:
             resp["encryption"] = encryption_meta
         return resp
@@ -780,6 +768,20 @@ _CONTENT_TYPES = {
 }
 
 
+def object_store_configured(config: RedirectConfig) -> bool:  # REQ-1195
+    """Whether the deployment names an object store for results: an endpoint (MinIO, R2, any
+    S3-compatible store), or credentials for AWS S3 itself, whose endpoint is AWS's own."""
+    return bool(config.endpoint_url or config.access_key)
+
+
+def uses_object_store(config: RedirectConfig, engine: Any, output_format: str) -> bool:  # REQ-1195
+    """The sink-tier choice: the object store when one is configured and the engine writes
+    ``output_format`` to it itself; the org's folder on this node otherwise. A configured store
+    the engine writes to and cannot reach fails the delivery by name -- it is not a reason to
+    write the result somewhere else."""
+    return object_store_configured(config) and engine.writes_result(output_format)
+
+
 async def run_materialize(
     state, physical_sql: str, delivery: Delivery, params: list | None
 ) -> dict:  # REQ-1194, REQ-1195
@@ -788,10 +790,12 @@ async def run_materialize(
     ``params`` are the statement's bound values (None when it binds none). Required, so no caller
     can hand the engine a statement whose placeholders have nothing bound to them.
 
-    Sink-tier selection rule (REQ-1195): when the engine can write the requested format natively to a
-    configured object store, the engine runs a CTAS straight to object storage (REQ-1194) and the
-    client receives a presigned URL — zero rows transit Provisa. Otherwise the local/HTTP sink tier
-    (REQ-1191) is used. The tiers are exclusive and chosen here, once, for every transport.
+    Sink-tier selection rule (REQ-1195, :func:`uses_object_store`): when an object store is
+    configured and the engine writes the requested format to it, the engine runs a CTAS straight
+    to object storage (REQ-1194) and the client receives a presigned URL — zero rows transit
+    Provisa. Otherwise the result is written to a file in the org's folder and served over HTTP
+    (REQ-1191, :mod:`provisa.executor.local_results`). The tiers are exclusive and chosen here,
+    once, for every transport.
 
     Returns a handle dict: ``{sink, redirect_url, row_count, expires_in, content_type}``.
     """
@@ -799,12 +803,7 @@ async def run_materialize(
     fmt = delivery.output_format.lower()
     config = delivery.config
 
-    # Object-store tier (REQ-1194): the bound engine writes this format to an object store itself
-    # (its backend's ``result_formats``). S3 creds/bucket come from config/env/IAM. An empty
-    # endpoint_url means real AWS S3, not "no store", so it does NOT disqualify this tier.
-    object_store_available = state.federation_engine.writes_result(fmt)
-
-    if object_store_available:
+    if uses_object_store(config, state.federation_engine, fmt):
         # Object-store tier: the engine CTAS-writes Parquet/ORC directly to S3-compatible storage.
         ctas_result = state.federation_engine.ctas_redirect(physical_sql, fmt, params)
         url = await presign_ctas_result(ctas_result["s3_prefix"], config)
@@ -819,9 +818,12 @@ async def run_materialize(
             "content_type": _CONTENT_TYPES.get(fmt, "application/octet-stream"),
         }
 
-    # Local/HTTP sink tier (REQ-1191/REQ-1192/REQ-1193): served by the app's redirect-file endpoint
-    # with per-username scoping and TTL reaping. Implemented as the follow-on increment.
-    raise NotImplementedError(
-        "local/HTTP materialization sink not yet wired — configure an object store "
-        "(PROVISA_REDIRECT_ENDPOINT) with a native format (parquet/orc) to materialize results"
+    # Local tier (REQ-1191/REQ-1192/REQ-1193): a file in the org's folder, served by
+    # /data/redirect-file/<name> to the user who asked for it, deleted after the TTL.
+    import asyncio
+
+    from provisa.executor import local_results
+
+    return await asyncio.to_thread(
+        local_results.write, state, physical_sql, fmt, params, config.ttl
     )

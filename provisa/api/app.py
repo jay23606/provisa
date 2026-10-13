@@ -34,6 +34,7 @@ from provisa.core.config_location import config_path_str
 from provisa.core.connection_loop import CrossLoopLock, LongLived, run_lifecycle_work
 from provisa.api.role_surface import RoleSurface
 from provisa.api.data.endpoint import router as data_router
+from provisa.api.data.redirect_file import router as redirect_file_router
 from provisa.api.data.redirect_unwrap import router as redirect_unwrap_router
 from provisa.api.data.endpoint_dev import router as dev_router
 from provisa.api.data.endpoint_grpc_proxy import router as grpc_proxy_router
@@ -3781,6 +3782,7 @@ def create_app() -> FastAPI:
 
     app.include_router(data_router)
     app.include_router(redirect_unwrap_router)
+    app.include_router(redirect_file_router)  # REQ-1191
     app.include_router(dev_router)
     app.include_router(grpc_proxy_router)
     app.include_router(sdl_router)

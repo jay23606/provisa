@@ -118,26 +118,88 @@ class TestSinkTierSelection:
         assert handle["redirect_url"].endswith("f.parquet")
         assert handle["content_type"] == "application/vnd.apache.parquet"
 
-    @pytest.mark.asyncio
-    async def test_an_engine_that_writes_no_result_itself_uses_the_local_tier(self):
-        # REQ-1194: the tier is chosen by what the bound engine declares it writes, not by which
-        # engine it is. One that writes nothing itself → local/HTTP tier (follow-on, REQ-1191).
-        state = MagicMock()
-        state.federation_engine.writes_result.return_value = False
-        with pytest.raises(NotImplementedError):
-            await run_materialize(
-                state, "SELECT 1", Delivery(output_format="parquet", config=_cfg()), None
-            )
+    @staticmethod
+    def _local(monkeypatch) -> list[tuple]:
+        """Record the local tier's writes in place of writing a file."""
+        from provisa.executor import local_results
+
+        calls: list[tuple] = []
+
+        def _write(state, physical_sql, fmt, params, ttl):
+            calls.append((physical_sql, fmt, params, ttl))
+            return {"sink": "local", "redirect_url": "/data/redirect-file/x", "row_count": 3}
+
+        monkeypatch.setattr(local_results, "write", _write)
+        return calls
 
     @pytest.mark.asyncio
-    async def test_non_native_format_uses_local_tier(self):
-        # CSV is a format no engine writes itself → the local tier, whatever the engine.
+    async def test_an_engine_that_writes_no_result_itself_uses_the_local_tier(self, monkeypatch):
+        # REQ-1194: the tier is chosen by what the bound engine declares it writes, not by which
+        # engine it is. One that writes nothing itself → the local tier (REQ-1191).
+        calls = self._local(monkeypatch)
+        state = MagicMock()
+        state.federation_engine.writes_result.return_value = False
+        handle = await run_materialize(
+            state, "SELECT 1", Delivery(output_format="parquet", config=_cfg()), [5]
+        )
+        assert handle["sink"] == "local"
+        assert calls == [("SELECT 1", "parquet", [5], 3600)]
+        state.federation_engine.ctas_redirect.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_non_native_format_uses_local_tier(self, monkeypatch):
+        # CSV is a format no engine writes to the store itself → the local tier, whatever the engine.
+        calls = self._local(monkeypatch)
         state = MagicMock()
         state.federation_engine.writes_result.side_effect = lambda fmt: fmt == "parquet"
-        with pytest.raises(NotImplementedError):
-            await run_materialize(
-                state, "SELECT 1", Delivery(output_format="csv", config=_cfg()), None
-            )
+        await run_materialize(state, "SELECT 1", Delivery(output_format="csv", config=_cfg()), None)
+        assert [c[1] for c in calls] == ["csv"]
+        state.federation_engine.ctas_redirect.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_object_store_configured_uses_the_local_tier(self, monkeypatch):
+        # REQ-1195: no endpoint and no credentials name no store, so even a format the engine
+        # writes to a store itself is written to the org's folder.
+        calls = self._local(monkeypatch)
+        state = MagicMock()
+        state.federation_engine.writes_result.return_value = True
+        config = RedirectConfig(
+            enabled=True,
+            threshold=1000,
+            bucket="provisa-results",
+            endpoint_url="",
+            access_key="",
+            secret_key="",
+            ttl=60,
+        )
+        await run_materialize(
+            state, "SELECT 1", Delivery(output_format="parquet", config=config), None
+        )
+        assert [c[1] for c in calls] == ["parquet"]
+        state.federation_engine.ctas_redirect.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aws_credentials_without_an_endpoint_are_an_object_store(self, monkeypatch):
+        # REQ-1195: an empty endpoint with credentials is AWS S3 itself.
+        calls = self._local(monkeypatch)
+        import provisa.executor.redirect as rd
+
+        async def _fake_presign(prefix, config):
+            return f"https://s3/{prefix}"
+
+        monkeypatch.setattr(rd, "presign_ctas_result", _fake_presign)
+        monkeypatch.setattr(rd, "schedule_s3_cleanup", lambda *a, **k: None)
+        state = MagicMock()
+        state.federation_engine.writes_result.return_value = True
+        state.federation_engine.ctas_redirect.return_value = {
+            "s3_prefix": "s3a://b/r",
+            "row_count": 2,
+        }
+        handle = await run_materialize(
+            state, "SELECT 1", Delivery(output_format="parquet", config=_cfg(endpoint_url="")), None
+        )
+        assert handle["sink"] == "object-store"
+        assert calls == []
 
 
 def _pipeline_redirect_module():

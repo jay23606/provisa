@@ -36196,7 +36196,8 @@
 
     '
 - id: REQ-1191
-  status: proposed
+  status: complete
+  since: 2026-10
   group: 7. Result Delivery
   category: Large Result Redirect & CTAS
   priority: SHOULD
@@ -36208,13 +36209,24 @@
     receives only a URL" property to the embedded/no-object-store case, enabling web clients and remote
     consumers to retrieve materialized results.
   code:
+  - provisa/executor/local_results.py
+  - provisa/api/data/redirect_file.py
   - provisa/executor/redirect.py
   target: 2026-Q3
+  scenario: 'Given redirect is on and no object store is configured
+
+    When a GraphQL query returns more rows than the threshold
+
+    Then the result is written to a file in the org''s results folder and the response names
+    /data/redirect-file/<name>, which serves the file to the user who asked for it
+
+    '
   e2e: true
   e2e_reason: HTTP endpoint behavior and file serve correctness are only verifiable through a live server
     and HTTP transport.
 - id: REQ-1192
-  status: proposed
+  status: complete
+  since: 2026-10
   group: 7. Result Delivery
   category: Large Result Redirect & CTAS
   priority: SHOULD
@@ -36224,6 +36236,9 @@
     token per request, consistent with Provisa's stateless, token-derived governance.
   use_case: Per-username access scoping ensures users cannot retrieve redirect results materialized by
     other users, maintaining data isolation and governance.
+  code:
+  - provisa/executor/local_results.py
+  - provisa/api/data/redirect_file.py
   target: 2026-Q3
   scenario: 'Given a redirect file materialized by user A
 
@@ -36233,7 +36248,8 @@
 
     '
 - id: REQ-1193
-  status: proposed
+  status: complete
+  since: 2026-10
   group: 7. Result Delivery
   category: Large Result Redirect & CTAS
   priority: SHOULD
@@ -36244,7 +36260,7 @@
   use_case: TTL-based reaping prevents indefinite disk usage accumulation from materialized redirect files
     on long-running embedded or on-premise deployments.
   code:
-  - provisa/executor/redirect.py
+  - provisa/executor/local_results.py
   target: 2026-Q3
   scenario: 'Given a locally-materialized redirect file created at time T
 
@@ -36283,7 +36299,8 @@
     '
   notes: Accepted by the maintainer 2026-10-03 for the feature-complete line.
 - id: REQ-1195
-  status: proposed
+  status: complete
+  since: 2026-10
   group: 7. Result Delivery
   category: Large Result Redirect & CTAS
   priority: SHOULD
@@ -36296,6 +36313,12 @@
     tier absent an extension.
   use_case: Sink-tier selection ensures redirect results use the highest-fidelity, most scalable path
     available given the engine and deployment configuration.
+  code:
+  - provisa/executor/redirect.py
+  - provisa/federation/duckdb_backend.py
+  - provisa/federation/pg_backend.py
+  - provisa/federation/pg_runtime.py
+  - provisa/federation/result_sink.py
   target: 2026-Q3
   scenario: 'Given PROVISA_REDIRECT_ENDPOINT is configured
 

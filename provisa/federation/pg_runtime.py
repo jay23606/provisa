@@ -1035,6 +1035,35 @@ class PgFederationRuntime:  # REQ-825, REQ-840, REQ-904
             statements=statements,
         )
 
+    def write_result_csv(self, sql: str, params: list | None, path: str) -> int:
+        """REQ-1195: Postgres runs the statement and writes its result as CSV with a header line
+        (``COPY (query) TO STDOUT``), streamed into ``path`` -- a file in the org's folder on
+        Provisa's host, which a ``COPY ... TO '<file>'`` would put on the database's host
+        instead. The statement's values are bound into its text first (``mogrify``): COPY takes
+        none. Returns the rows written."""
+        self.refresh_live_relations(sql)  # REQ-1867
+        shield = request_deadline.shielded()
+        with shield.lock:
+            shield.settle()
+            con = self._read_pool.getconn()
+        discard = True
+        try:
+            cur = con.cursor()
+            query = cur.mogrify(*_psycopg2_exec_args(sql, params)).decode()
+            with open(path, "wb") as out, request_deadline.cancel_on_deadline(con.cancel):
+                cur.copy_expert(f"COPY ({query}) TO STDOUT WITH (FORMAT csv, HEADER)", out)
+            written = cur.rowcount
+            cur.close()
+            con.commit()
+            discard = False
+        finally:
+            # Giving the connection back is a section the deadline does not interrupt (REQ-1905).
+            release = request_deadline.shielded()
+            with release.lock:
+                release.settle()
+                self._read_pool.putconn(con, close=discard)
+        return int(written)
+
     def run_sync(self, sql: str, params: list | None = None) -> ResultStream:
         """Execute governed physical SQL (a SELECT — transpiled by the backend seam) and STREAM it.
 

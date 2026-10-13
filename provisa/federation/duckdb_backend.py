@@ -82,6 +82,23 @@ class DuckDBBackend(NativeEngineBackend):
         )
         return {"s3_prefix": target.s3_prefix, "row_count": rows}
 
+    #: REQ-1195: the formats DuckDB writes a result file in (``result_sink.DUCKDB_FILE_FORMATS``).
+    local_result_formats = frozenset({"parquet", "csv", "ndjson", "json"})
+
+    def write_result_file(
+        self, state: Any, physical_sql: str, output_format: str, params: list | None, path: str
+    ) -> int:
+        """REQ-1195: DuckDB runs the statement and writes its result to ``path``, a file in the
+        org's folder on this host (``COPY (query) TO '<path>'``)."""
+        from provisa.federation import result_sink
+
+        result_sink.require_format(self.engine.name, output_format, self.local_result_formats)
+        return self._runtime_for(state).write_result(
+            result_sink.duckdb_copy_file(physical_sql, path, output_format.lower()),
+            params,
+            secret_sql=None,
+        )
+
     def transpile_physical(self, pg_sql: str) -> str:
         """DuckDB physical SQL, then rewrite the JSON array aggregate the compiler emits for
         one-to-many relationships: SQLGlot writes Postgres json_agg as JSON_ARRAYAGG, which DuckDB

@@ -29,7 +29,7 @@ executor.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Generator, Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol, runtime_checkable
 
@@ -166,7 +166,7 @@ class StreamingQueryResult:  # REQ-028
         # at construction, so a never-iterated generator's finally can't be relied on to free it.
         self._on_release = on_release
 
-    def batches(self) -> Iterator[list[tuple]]:
+    def batches(self) -> Generator[list[tuple], None, None]:
         if self._materialized is not None:
             if self._materialized:
                 yield self._materialized
@@ -183,17 +183,25 @@ class StreamingQueryResult:  # REQ-028
                 request_deadline.check()
                 self.stats.row_count += len(batch)
                 yield batch
-        except TimeoutError:
+        except (TimeoutError, GeneratorExit):
             # The request timed out — noticed here between batches, or raised into the pull of
-            # one. The source (server-side cursor, pooled connection) is released now: nothing
-            # will drain this stream to the end.
+            # one — or the consumer stopped early and closed the stream's iterator (the buffered
+            # threshold probe stops at threshold+1 rows). The source (server-side cursor, pooled
+            # connection, the engine's catalogue read) is released now: nothing will drain this
+            # stream to the end.
             self._release_source(source)
             raise
         self._finish()
 
     def iter_rows(self) -> Iterator[tuple]:
-        for batch in self.batches():
-            yield from batch
+        # Closing this iterator closes the batches under it, so a consumer that stops early
+        # releases the source then, not whenever the abandoned generator is collected.
+        batches = self.batches()
+        try:
+            for batch in batches:
+                yield from batch
+        finally:
+            batches.close()
 
     @property
     def rows(self) -> list[tuple]:

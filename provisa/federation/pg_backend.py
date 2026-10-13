@@ -36,6 +36,18 @@ class PgBackend(NativeEngineBackend):
     # unrelated later query's attach pass (see duckdb_backend.py for the observed failure mode).
     _attach_errors = (psycopg2.Error, KeyError, *NativeEngineBackend._attach_errors)
 
+    #: REQ-1195: Postgres writes a result file in CSV (``COPY ... TO STDOUT``).
+    local_result_formats = frozenset({"csv"})
+
+    def write_result_file(
+        self, state: Any, physical_sql: str, output_format: str, params: list | None, path: str
+    ) -> int:
+        """REQ-1195: Postgres runs the statement and its CSV result is streamed into ``path``."""
+        from provisa.federation import result_sink
+
+        result_sink.require_format(self.engine.name, output_format, self.local_result_formats)
+        return self._runtime_for(state).write_result_csv(physical_sql, params, path)
+
     def replica_engine(
         self, state: Any, source: Any, table: Any, *, address: Any, args: Any
     ) -> Any:
