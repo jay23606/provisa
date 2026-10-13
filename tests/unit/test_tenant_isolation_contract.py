@@ -63,52 +63,6 @@ async def test_pg_realization_hardens_with_a_per_org_role():
 
 
 # ---------------------------------------------------------------------------
-# Portable (single-tenant) realization: default schema, no PG-only mechanism
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_non_pg_backend_does_not_use_the_pg_role_mechanism():
-    """A backend with no role system realizes isolation differently — the role step is a no-op.
-
-    Explicit degrade (REQ-889): isolation still holds (single-tenant default schema), the
-    PG-specific hardening is simply not attempted — never a silent half-applied mechanism.
-    """
-    from provisa.core.db import create_org_role
-
-    conn = AsyncMock()
-    conn.capabilities.dialect = "sqlite"
-    await create_org_role(conn, "acme")
-
-    conn.execute.assert_not_awaited()  # no role DDL issued on a non-PG store
-
-
-@pytest.mark.asyncio
-async def test_non_pg_backend_bootstraps_from_portable_schema_without_search_path(monkeypatch):
-    """On a non-PG control-plane store, init_schema takes the portable path (no search_path DDL).
-
-    The isolation mechanism here is the per-tenant database's sole default schema, so no
-    org_<id> schema / SET search_path is issued — a different realization of the same contract.
-    """
-    import provisa.core.db as db
-
-    portable_called = {"n": 0}
-
-    async def _fake_portable(pool):
-        assert pool.dialect == "sqlite"  # the portable path received the non-PG pool
-        portable_called["n"] += 1
-
-    monkeypatch.setattr(db, "_init_schema_portable", _fake_portable)
-
-    class _PortablePool:
-        dialect = "sqlite"
-
-    await db.init_schema(_PortablePool(), "CREATE TABLE t (id INT)", org_id="acme")  # type: ignore[arg-type]
-
-    assert portable_called["n"] == 1  # routed to the portable, non-search_path realization
-
-
-# ---------------------------------------------------------------------------
 # The contract holds regardless of which mechanism was selected
 # ---------------------------------------------------------------------------
 

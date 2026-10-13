@@ -76,7 +76,7 @@ async def cache_server():
         _ISOLATED_ORG,
         engine="duckdb",
         config=_CONFIG,
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{store_path}",
     )
     server.start()

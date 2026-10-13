@@ -1807,62 +1807,6 @@ def _on_sqlite_connect(dbapi_conn: Any, connection_record: Any) -> None:
         cur.close()
 
 
-# --------------------------------------------------------------------------- #
-# org router — multi-tenant on not-schema-capable backends
-# --------------------------------------------------------------------------- #
-class OrgRouter:
-    """Maps ``org_id`` -> :class:`Database`, one engine/file per org.
-
-    The multi-tenant mechanism for **not-schema-capable** backends (SQLite,
-    DuckDB), where an org cannot be a namespace switched on a shared connection
-    (``Capabilities.schemas`` is False) and instead lives in its own database
-    file. Schema-capable backends (PG/Oracle/MySQL) do NOT need this — a single
-    shared :class:`Database` scopes orgs via ``Capabilities.enter_org_sql`` — so
-    construct a router only when ``Capabilities.for_dialect(...).schemas`` is
-    False. Engines are built lazily and cached, so each org keeps one pool."""
-
-    def __init__(self, base_url: str, *, pool_size: int = 5, max_overflow: int = 5) -> None:
-        from sqlalchemy import make_url
-
-        self._base_url = make_url(base_url)
-        if Capabilities.for_dialect(self._base_url.get_dialect().name).schemas:
-            raise ValueError(
-                "OrgRouter is for not-schema-capable backends (file-per-org); "
-                f"{self._base_url.get_backend_name()} scopes orgs on a shared engine — "
-                "use a single Database with Capabilities.enter_org_sql instead."
-            )
-        self._pool_size = pool_size
-        self._max_overflow = max_overflow
-        self._cache: dict[str, Database] = {}
-
-    def _org_url(self, org_id: str) -> str:
-        """Per-org file URL: a sibling of the base file named ``org_<id>.db``."""
-        from pathlib import PurePosixPath
-
-        base_db = self._base_url.database
-        if not base_db:
-            raise ValueError(f"base URL has no database path: {self._base_url!r}")
-        parent = PurePosixPath(base_db).parent
-        org_path = str(parent / f"org_{org_id}{PurePosixPath(base_db).suffix or '.db'}")
-        return str(self._base_url.set(database=org_path))
-
-    def database_for(self, org_id: str) -> "Database":
-        from provisa.core.db import _validate_org_id
-
-        _validate_org_id(org_id)
-        if org_id not in self._cache:
-            engine = create_engine_from_url(
-                self._org_url(org_id), pool_size=self._pool_size, max_overflow=self._max_overflow
-            )
-            self._cache[org_id] = Database(engine, name=f"org_{org_id}")
-        return self._cache[org_id]
-
-    async def close(self) -> None:
-        for db in self._cache.values():
-            await db.close()
-        self._cache.clear()
-
-
 class OrgStores(NamedTuple):
     """An org's three control-plane handles in this region (REQ-1919, REQ-1920, REQ-1922)."""
 

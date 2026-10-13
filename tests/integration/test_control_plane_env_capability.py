@@ -219,20 +219,3 @@ async def test_oracle_holds_an_environment_but_is_not_an_openable_control_plane(
         create_engine_from_url(url)
     result = await _probe(url, via_loader=False)
     assert result == {"dialect": "oracle", "namespaces": True, "scoped": True}
-
-
-async def test_sqlite_control_plane_has_one_namespace(tmp_path):
-    """SQLite has no second namespace to give an environment, which is why REQ-1534 refuses one.
-
-    No container and no marker: the store is a file, so this runs everywhere the suite does, and it
-    is the end of the matrix the other cases are measured against.
-    """
-    url = f"sqlite+pysqlite:///{tmp_path}/control.db"
-    db = Database(create_engine_from_url(url), "probe")
-    assert db.capabilities.schemas is False
-    assert db.capabilities.enter_org_sql(_DEV) is None
-    async with db.acquire() as conn:
-        with pytest.raises(Exception) as err:
-            await conn.execute(f"CREATE SCHEMA {_DEV}")
-    assert "SCHEMA" in str(err.value).upper()
-    db.engine.dispose()

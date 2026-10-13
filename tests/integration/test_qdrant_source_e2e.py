@@ -274,7 +274,7 @@ def server(qdrant, embeddings, tmp_path_factory):
         "qdrant_source",
         engine="duckdb",
         config=str(path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
     )
     srv.start(timeout=240)

@@ -172,7 +172,7 @@ class IsolatedServer:
         self._enable_bolt = enable_bolt
         self._enable_pgwire = enable_pgwire
         self._config = config
-        if control_plane not in ("postgres", "own", "sqlite"):
+        if control_plane not in ("postgres", "own"):
             raise ValueError(f"control_plane is 'postgres' or 'own', not {control_plane!r}")
         self._control_plane = control_plane
         self._owns_plane = control_plane != "postgres"
@@ -227,9 +227,8 @@ class IsolatedServer:
         return tmp.name
 
     def _control_plane_env(self) -> dict:
-        """Env overriding the control-plane store. ``own`` (REQ-2014; ``sqlite`` is its former
-        spelling, still passed by callers not yet repointed) gives the server a PostgreSQL database
-        of its own cloned from the test template (tests/pg_control_plane.py), dropped by
+        """Env overriding the control-plane store. ``own`` (REQ-2014) gives the server a PostgreSQL
+        database of its own cloned from the test template (tests/pg_control_plane.py), dropped by
         ``stop_process``, and uses embedded redis. ``postgres`` uses the session's shared one."""
         if not self._owns_plane:
             return {}

@@ -27,14 +27,10 @@ def test_engines_are_independent():
     assert admin.pool is not tenant.pool
 
 
-def test_any_async_backend_accepted():
-    # PLATFORM_DATABASE_URL supports any async SQLAlchemy URI, not just asyncpg.
-    for url, backend in (
-        ("postgresql+psycopg://u:p@h/db", "postgresql"),
-        ("sqlite+pysqlite:////tmp/provisa_req837.db", "sqlite"),
-    ):
-        engine = create_engine_from_url(url)
-        assert engine.url.get_backend_name() == backend
+def test_a_postgresql_control_plane_uri_builds_its_engine():
+    # REQ-2014: the control plane is PostgreSQL, reached through psycopg 3.
+    engine = create_engine_from_url("postgresql+psycopg://u:p@h/db")
+    assert engine.url.get_backend_name() == "postgresql"
 
 
 def test_platform_url_default_has_no_fallback(monkeypatch):

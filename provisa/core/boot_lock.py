@@ -25,9 +25,7 @@ The workers are separate processes with no shared memory, so the one thing they 
 platform control-plane database — carries both the lock and the record of what is done:
 
 * a PostgreSQL session advisory lock, taken before the first control-plane statement. The server
-  releases it itself if the holding process dies. A control plane that is a file on one host
-  (SQLite) has no such lock; there the lock is an exclusive ``flock`` on a file beside it, which
-  the operating system releases the same way.
+  releases it itself if the holding process dies.
 * ``boot_generations``: one row per org naming the generation whose once-per-launch work is
   COMPLETE (written last, under the lock). A generation is the launch (``$PROVISA_LAUNCH_ID``,
   exported once by the launcher and inherited by every worker it starts, respawns included)
@@ -44,10 +42,7 @@ the once-per-launch work again — a restart re-applies the config, as it always
 
 ``boot_workers`` is the launch's roll call: a worker adds its row when it starts serving, so any
 worker can answer "how many of us are ready" from the control plane rather than from its own
-memory.
-
-Control planes on other dialects are single-writer file stores (SQLite) run by one process: they
-take no lock and record no generation."""
+memory."""
 
 # Requirements: REQ-1900
 
@@ -153,21 +148,6 @@ def control_plane_boot_lock(platform_url: str) -> Generator[BootLock]:
     """Hold the boot lock on ``platform_url`` for the block."""
     engine = create_engine_from_url(platform_url, pool_size=1, max_overflow=0)
     try:
-        if engine.dialect.name != "postgresql":
-            # A control plane that is a file on one host: the lock is a file lock beside it,
-            # held by this process until the block ends (or the process does). Autocommit, as
-            # below: the boot must not hold the store's write transaction for its whole length.
-            from provisa.core.host_lock import FileLock, control_plane_lock_dir
-
-            lock = FileLock(control_plane_lock_dir(platform_url) / "boot.lock")
-            lock.acquire()
-            try:
-                with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                    _metadata.create_all(conn)
-                    yield BootLock(conn)
-            finally:
-                lock.release()
-            return
         # A session-level lock lives on this one connection, so it stays open (autocommit: the
         # lock must not sit inside a transaction that idles for the whole boot) — on the server
         # itself, since behind a transaction-pooling PgBouncer no session is this process's own.

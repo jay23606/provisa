@@ -195,7 +195,7 @@ def sqlite_server():
         "audit_provenance_sqlite",
         engine="duckdb",
         config="tests/fixtures/duckdb_sqlite_config.yaml",
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{Path(store_dir.name) / 'materialize.duckdb'}",
     )
     srv.start(timeout=240)

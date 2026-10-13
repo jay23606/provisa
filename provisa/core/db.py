@@ -13,7 +13,6 @@
 import re
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import insert, select, update
 from sqlalchemy.schema import CreateSchema
 
 from provisa.core.environments import org_schema
@@ -28,16 +27,10 @@ async def create_org_role(
 ) -> None:  # REQ-699, REQ-889
     """Create a PG role scoped to org_<org_id> schema for physical multi-tenant isolation.
 
-    PostgreSQL-only hardening — a NO-OP on every other control-plane backend (REQ-889). Provisa
-    governance roles are a Provisa-layer concept living in metadata tables, never a DB role system;
-    this only adds defense-in-depth when Postgres is the control plane. Embedded/single-tenant
-    homes have no role system to harden, so the metadata home stays portable.
+    Defense-in-depth hardening on the control plane's PostgreSQL (REQ-889, REQ-2014): Provisa
+    governance roles are a Provisa-layer concept living in metadata tables, never a DB role system.
     """
     _validate_org_id(org_id)
-    # Default to postgresql for a raw asyncpg connection (which has no capabilities wrapper).
-    dialect = getattr(getattr(conn, "capabilities", None), "dialect", "postgresql")
-    if dialect != "postgresql":
-        return
     # REQ-1488: the role stays org-level — an environment multiplies the model, not the tenant — so
     # each of the org's environment schemas is granted to the one role the org already has.
     schema_name = org_schema(org_id, env)
@@ -349,59 +342,6 @@ def add_missing_columns(sync_conn, tables, schema: str | None = None) -> None:
             )
 
 
-async def _init_schema_portable(pool: "Database") -> None:
-    """Bootstrap the tenant plane from portable SQLAlchemy metadata.
-
-    ``schema.sql`` is PostgreSQL-only DDL (SERIAL/JSONB/DO $$/advisory locks) and
-    does not parse on SQLite/MySQL. The ``schema_org`` metadata is the dialect-
-    neutral mirror; ``create_all`` emits per-dialect DDL. Org isolation is the
-    default schema on these single-tenant backends (no ``search_path``)."""
-    from provisa.core import schema_org
-    from provisa.core.schema_org import domains, roles
-
-    with pool.engine.begin() as conn:
-        schema_org.metadata.create_all(conn)
-        # ``create_all`` skips tables that already exist, so a column added to the metadata never
-        # reaches an existing SQLite/MySQL file — the portable equivalent of schema.sql's
-        # ALTER ... ADD COLUMN IF NOT EXISTS blocks.
-        add_missing_columns(conn, schema_org.metadata.sorted_tables)
-        # REQ-1914: the stamp rows and the triggers that advance them, once every table exists.
-        from provisa.core import config_stamp
-
-        config_stamp.install(
-            conn, config_stamp.TENANT_TABLES, advanced=config_stamp.TENANT_ADVANCED
-        )
-    async with pool.acquire() as conn:
-        for domain_id, description, steward in _SEED_DOMAINS:
-            result = await conn.execute_core(select(domains.c.id).where(domains.c.id == domain_id))
-            if result.fetchone() is None:
-                await conn.execute_core(
-                    insert(domains).values(id=domain_id, description=description, steward=steward)
-                )
-        for role_id, capabilities in _SEED_ROLES:
-            demonstrated = _DEMONSTRATED_ROLES.get(role_id, [])
-            result = await conn.execute_core(select(roles.c.id).where(roles.c.id == role_id))
-            if result.fetchone() is None:
-                await conn.execute_core(
-                    insert(roles).values(
-                        id=role_id,
-                        capabilities=capabilities,
-                        demonstrated=demonstrated,
-                        # A role holding the cross-org right is the control plane, which reaches
-                        # no data domain (REQ-1337).
-                        domain_access=[] if "cross_org" in capabilities else ["*"],
-                        org_id=None,
-                    )
-                )
-            elif demonstrated:
-                # REQ-1602: the demonstrated list is part of the role's definition, and the seed
-                # above cannot reach a row an earlier release already created -- the same seam the
-                # tenancy grants re-assert their rights through.
-                await conn.execute_core(
-                    roles.update().where(roles.c.id == role_id).values(demonstrated=demonstrated)
-                )
-
-
 async def init_schema(
     pool: "Database",
     schema_sql: str,
@@ -413,14 +353,9 @@ async def init_schema(
     """Execute schema SQL scoped to org_<org_id> schema (REQ-697) — the one ``region`` names, in
     that region's store (REQ-1922: its state and record), else the org's model.
 
-    PostgreSQL runs the raw ``schema.sql`` script inside an ``org_<id>`` schema.
-    Non-PG backends bootstrap from portable ``schema_org`` metadata instead."""
+    The control plane is PostgreSQL (REQ-2014): the raw ``schema.sql`` script runs inside an
+    ``org_<id>`` schema."""
     _validate_org_id(org_id)
-    # A raw asyncpg pool (no Database shim) has no .dialect and is always PostgreSQL — run the
-    # native schema.sql path. Only the portable SQLAlchemy Database routes non-PG backends.
-    if getattr(pool, "dialect", "postgresql") != "postgresql":
-        await _init_schema_portable(pool)
-        return
     schema_name = org_schema(org_id, env, region=region)
     async with pool.acquire() as conn:
         # This branch is PostgreSQL-only (non-PG returned above); the advisory lock is taken through
@@ -459,114 +394,6 @@ async def init_schema(
             )
 
 
-async def _apply_tenancy_role_grants_portable(pool: "Database", *, multitenancy: bool) -> None:
-    """Portable (SQLite/non-PG) mirror of ``apply_tenancy_role_grants``'s tenancy-conditional UPDATEs.
-
-    Same rights, same rules, run through SQLAlchemy Core instead of PG jsonb operators since the
-    portable ``roles.capabilities`` column round-trips as a plain Python list."""
-    from provisa.core.schema_org import roles
-
-    async with pool.acquire() as conn:
-        result = await conn.execute_core(select(roles.c.id, roles.c.capabilities))
-        for role_id, capabilities in result.fetchall():
-            caps = set(capabilities or [])
-            changed = False
-            if role_id != "platform_admin" and "cross_org" in caps:
-                caps.discard("cross_org")
-                changed = True
-            # REQ-1573: the two environment rights, held by org_admin and developer alike. Same
-            # reason as the org_admin block below: the seed cannot add a right to a role row an
-            # earlier release already created.
-            if role_id in ("org_admin", "developer"):
-                for right in ("environment_management", "environment_switch"):
-                    if right not in caps:
-                        caps.add(right)
-                        changed = True
-            # REQ-1590: the glossary's two rights — every system role reads, org_admin and modeler
-            # curate. Same seam and same reason as the environment rights above.
-            if role_id in ("org_admin", "analyst", "developer", "modeler"):
-                if "glossary_read" not in caps:
-                    caps.add("glossary_read")
-                    changed = True
-            if role_id in ("org_admin", "modeler"):
-                if "glossary_rw" not in caps:
-                    caps.add("glossary_rw")
-                    changed = True
-            # REQ-1942: org_admin alone changes an environment's data choices.
-            if role_id == "org_admin" and "environment_data" not in caps:
-                caps.add("environment_data")
-                changed = True
-            # REQ-1943: and, by default, alone reveals or hides a sensitive column.
-            if role_id == "org_admin" and "sensitive_data" not in caps:
-                caps.add("sensitive_data")
-                changed = True
-            # REQ-1592: org_admin alone owns the org's glossary — see the seed table above.
-            if role_id == "org_admin" and "org_glossary_rw" not in caps:
-                caps.add("org_glossary_rw")
-                changed = True
-            # REQ-1634: data products' two rights — org_admin curates, org_admin/analyst/
-            # developer/modeler read. Same seam and same reason as the glossary rights above.
-            if role_id in ("org_admin", "analyst", "developer", "modeler"):
-                if "data_product_read" not in caps:
-                    caps.add("data_product_read")
-                    changed = True
-            if role_id == "org_admin" and "data_product_rw" not in caps:
-                caps.add("data_product_rw")
-                changed = True
-            if role_id == "org_admin":
-                for right in ("org_settings", "observability"):
-                    if right not in caps:
-                        caps.add(right)
-                        changed = True
-                if multitenancy and "platform_settings" in caps:
-                    caps.discard("platform_settings")
-                    changed = True
-                elif not multitenancy and "platform_settings" not in caps:
-                    caps.add("platform_settings")
-                    changed = True
-            if changed:
-                await conn.execute_core(
-                    update(roles).where(roles.c.id == role_id).values(capabilities=sorted(caps))
-                )
-        # REQ-1597: sandbox is org_admin minus a denylist, and the seed cannot reach a sandbox row an
-        # earlier release created -- so a right added to org_admin above (data_product_read among
-        # them) never reached an existing sandbox row, and the visitor's derived org_admin below
-        # then re-read the stale list. Re-derived here, from the org_admin row as re-asserted above.
-        admin_row = (
-            await conn.execute_core(select(roles.c.capabilities).where(roles.c.id == "org_admin"))
-        ).fetchone()
-        if admin_row is not None:
-            await conn.execute_core(
-                update(roles)
-                .where(roles.c.id == "sandbox")
-                .values(capabilities=sorted(set(admin_row[0] or []) - _SANDBOX_REDERIVE_DENIED))
-            )
-        # REQ-1624: the derived roles are re-read LAST, exactly as on PostgreSQL -- see the comment
-        # at the end of apply_tenancy_role_grants for what re-asserting over a subtraction did.
-        derived = (
-            await conn.execute_core(
-                select(roles.c.id, roles.c.defined_from).where(roles.c.defined_from.isnot(None))
-            )
-        ).fetchall()
-        for role_id, source in derived:
-            if role_id == source:
-                continue
-            row = (
-                await conn.execute_core(
-                    select(roles.c.capabilities, roles.c.demonstrated).where(roles.c.id == source)
-                )
-            ).fetchone()
-            if row is None:
-                raise ValueError(
-                    f"role {role_id!r} is defined from {source!r}, which this schema does not have"
-                )
-            await conn.execute_core(
-                update(roles)
-                .where(roles.c.id == role_id)
-                .values(capabilities=row[0], demonstrated=row[1])
-            )
-
-
 async def apply_tenancy_role_grants(  # REQ-1337
     pool: "Database", org_id: str, *, multitenancy: bool, env: str | None = None
 ) -> None:
@@ -594,9 +421,6 @@ async def apply_tenancy_role_grants(  # REQ-1337
     prod from an environment, leaving the environment's own roles carrying whatever the copy held.
     """
     _validate_org_id(org_id)
-    if getattr(pool, "dialect", "postgresql") != "postgresql":
-        await _apply_tenancy_role_grants_portable(pool, multitenancy=multitenancy)
-        return
     async with pool.acquire() as conn:
         await conn.execute(f'SET search_path TO "{org_schema(org_id, env)}"')  # REQ-1623
         # REQ-1337: cross_org is withdrawn in BOTH modes — org authority is confined to the org

@@ -284,7 +284,6 @@ class NativeEngineBackend(EngineBackend):
                 f"{_active_org!r} requires the Trino tier for per-org catalog isolation"
             )
 
-        self._refresh_control_plane_snapshot(state)
         registry = self._registry_of(state)
         if self._covers(registry):
             return
@@ -328,22 +327,6 @@ class NativeEngineBackend(EngineBackend):
         async with org_vault(state, await registered_sources(state)):
             # to_thread, not run_in_executor: the walk's thread must see the binding.
             return await asyncio.to_thread(self._runtime_for, state)
-
-    def _refresh_control_plane_snapshot(self, state: Any) -> None:
-        """A SQLite control plane is read through a snapshot the runtime re-takes when something
-        was committed since the last one (``attach_control_plane``: a table registered after
-        startup is visible to the very next query). That check is per query by design and is not
-        part of the registry walk; a PostgreSQL control plane is attached live, once, by the walk."""
-        tdb = getattr(state, "model_db", None)
-        if (
-            tdb is not None
-            and getattr(tdb, "dialect", None) == "sqlite"
-            and hasattr(self._runtime, "attach_control_plane")
-        ):
-            _org_id = getattr(state, "org_id", "default")
-            self._runtime.attach_control_plane(
-                str(tdb.engine.url.database or ""), f"org_{_org_id}", dialect="sqlite"
-            )
 
     def _walk_registry(self, state: Any, config: Any) -> bool:
         """Attach every registered table not yet attached. True when the walk is complete for this
@@ -532,20 +515,12 @@ class NativeEngineBackend(EngineBackend):
             if src is not None and _read_here(src, tbl_dict):
                 _attach_tbl(src, tbl_dict.get("schema_name", ""), tbl_dict.get("table_name", ""))
 
-        # Native DuckDB path: attach a PostgreSQL control-plane DB as the provisa_admin catalog so
-        # meta/ops entities resolve (parity with Trino, where provisa_admin is a real catalog). The
-        # attach is live, so once is enough; the SQLite control plane is a snapshot and is handled
-        # per query by _refresh_control_plane_snapshot.
+        # Native DuckDB path: attach the control plane (REQ-2014: PostgreSQL) as the provisa_admin
+        # catalog so meta/ops entities resolve (parity with Trino, where provisa_admin is a real
+        # catalog). The attach is live, so once is enough.
         tdb = getattr(state, "model_db", None)
-        if (
-            tdb is not None
-            and getattr(tdb, "dialect", None) == "postgresql"
-            and hasattr(self._runtime, "attach_control_plane")
-        ):
-            _org_id = getattr(state, "org_id", "default")
-            self._runtime.attach_control_plane(
-                libpq_dsn(tdb.engine.url), f"org_{_org_id}", dialect="postgresql"
-            )
+        if tdb is not None and hasattr(self._runtime, "attach_control_plane"):
+            self._runtime.attach_control_plane(libpq_dsn(tdb.engine.url))
         return complete
 
     # -- residency prep (REQ-825 stage-4b / REQ-932) ---------------------------

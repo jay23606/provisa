@@ -76,7 +76,7 @@ def _server(pg: _SourceAndEngine, workdir: str):
         "delta_build_e2e",
         engine="duckdb",
         config=str(path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{store}",
     )
     return srv, store

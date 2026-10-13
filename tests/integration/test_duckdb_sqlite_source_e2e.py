@@ -4,15 +4,15 @@
 # This source code is licensed under the Business Source License 1.1
 # found in the LICENSE file in the root directory of this source tree.
 
-"""E2E: a fully DuckDB + SQLite stack, queried over GraphQL.
+"""E2E: a SQLite source on the DuckDB engine, queried over GraphQL.
 
 Answers the question end-to-end, through the real HTTP GraphQL interface (not SQL):
 
   * federation engine   — DuckDB (``PROVISA_ENGINE=duckdb``)
   * data source         — a SQLite file (``inquiries.sqlite``), federated in place by the
                           DuckDB sqlite connector (``Mechanism.ATTACH_RW``)
-  * control plane       — SQLite (``TENANT/PLATFORM_DATABASE_URL=sqlite+pysqlite``), so the
-                          source is CONSUMED (registered) into a SQLite registry — no Postgres
+  * control plane       — a PostgreSQL database of the server's own (REQ-2014), into which the
+                          source is CONSUMED (registered)
   * materialize store   — DuckDB (``materialize_store_url=duckdb:///...``)
 
 A real Provisa server is booted with exactly that wiring; the SQLite source is then queried
@@ -48,7 +48,7 @@ async def duckdb_sqlite_server():
         _ISOLATED_ORG,
         engine="duckdb",
         config=_CONFIG,
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=store_url,
     )
     server.start()

@@ -42,7 +42,7 @@ def server():
         "server_log_e2e",
         engine="duckdb",
         config=str(config_path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{directory / 'materialize.duckdb'}",
     )
     try:

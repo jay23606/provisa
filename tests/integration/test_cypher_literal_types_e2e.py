@@ -157,7 +157,7 @@ def server(request):
         f"cypher_literal_{request.param.replace('-', '_')}",
         engine="duckdb",
         config=str(config_path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{directory / 'materialize.duckdb'}",
     )
     try:

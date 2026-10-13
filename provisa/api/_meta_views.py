@@ -286,45 +286,17 @@ _OPS_LOG_TABLE_VIEWS: dict[str, str] = {
 }
 
 
-# REQ-1386: helper view unnesting query_audit_log.table_ids to one row per
-# (audit row, table id) — the join spine for the report views below. JSON array
-# unnesting has no dialect-neutral spelling, so this is the single per-dialect
-# DDL; every report view built on it stays portable. Not registered in the
-# catalog — internal only.
-def _ops_table_usage_ddl(dialect: str) -> str:
-    header = "CREATE OR REPLACE VIEW ops_table_usage AS"
-    if dialect == "sqlite":
-        body = """
-        SELECT q.id, q.user_id, q.role_id, q.source,
-               q.status_code, q.duration_ms, q.logged_at,
-               CAST(j.value AS INTEGER) AS table_id
-        FROM query_audit_log q, json_each(q.table_ids) j
-        """
-    elif dialect == "mysql":
-        body = """
-        SELECT q.id, q.user_id, q.role_id, q.source,
-               q.status_code, q.duration_ms, q.logged_at, jt.table_id
-        FROM query_audit_log q,
-             JSON_TABLE(q.table_ids, '$[*]' COLUMNS (table_id INT PATH '$')) AS jt
-        """
-    elif dialect == "duckdb":
-        body = """
-        SELECT q.id, q.user_id, q.role_id, q.source,
-               q.status_code, q.duration_ms, q.logged_at,
-               CAST(unnest(from_json(q.table_ids, '["VARCHAR"]')) AS INTEGER) AS table_id
-        FROM query_audit_log q
-        """
-    else:
-        # PostgreSQL (table_ids is JSONB per AUDIT_SCHEMA_SQL); any other dialect
-        # fails loudly at CREATE rather than silently mis-parsing.
-        body = """
+# REQ-1386: helper view unnesting query_audit_log.table_ids (JSONB, AUDIT_SCHEMA_SQL) to one row
+# per (audit row, table id) -- the join spine for the report views below. Not registered in the
+# catalog -- internal only.
+def _ops_table_usage_ddl() -> str:
+    return """CREATE OR REPLACE VIEW ops_table_usage AS
         SELECT q.id, q.user_id, q.role_id, q.source,
                q.status_code, q.duration_ms, q.logged_at,
                CAST(j.elem AS INTEGER) AS table_id
         FROM query_audit_log q,
              jsonb_array_elements_text(q.table_ids) AS j(elem)
         """
-    return f"{header}\n{body}"
 
 
 # REQ-1386: management/operations report views in the built-in ``ops`` domain.

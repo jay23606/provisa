@@ -103,16 +103,3 @@ def host_lock_dir(deployment: str) -> Path:
     in the host's temporary directory: a lock is held only while its holder runs, so nothing in
     it has to outlive a restart of the host."""
     return Path(tempfile.gettempdir()) / "provisa-locks" / _digest(deployment)
-
-
-def control_plane_lock_dir(url: str) -> Path:
-    """Where the locks of a control plane that is a file on this host live: beside the file. A
-    control plane held in memory belongs to one process, whose locks go in the host directory."""
-    from sqlalchemy import make_url
-
-    from provisa.core.database import sync_store_url
-
-    database = make_url(sync_store_url(url)).database
-    if not database or database == ":memory:":
-        return host_lock_dir(f"{url}#{os.getpid()}")
-    return Path(database).resolve().parent / ".provisa-locks"

@@ -544,11 +544,7 @@ async def _resync_sequences(conn: "Connection", tables: list[Table], schema: str
 
     A copy carries primary keys verbatim — it has to, because the model references them — so a
     target whose sequence still sits at 1 would hand the next insert an id the copy already used.
-    PostgreSQL only: it is the one backend whose serial columns have a sequence to advance, and
-    the dialect is dispatched explicitly rather than attempted and swallowed.
     """
-    if conn.capabilities.dialect != "postgresql":
-        return
     for table in tables:
         pk = list(table.primary_key.columns)
         if len(pk) != 1 or pk[0].type.python_type is not int:

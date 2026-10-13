@@ -132,15 +132,10 @@ def _quote_literal(value: str) -> str:
 async def refresh_org_registry_view(*, model_db: "Database", admin_db: "Database") -> str:
     """(Re)create the registry view in the root org's schema and return the SQL that made it.
 
-    Raises :class:`RegistryViewUnavailable` when the topology cannot support it: a non-PostgreSQL
-    plane, or planes in separate databases (the tenant connection cannot see the admin tables, and
+    Raises :class:`RegistryViewUnavailable` when the topology cannot support it: planes in
+    separate databases (the tenant connection cannot see the admin tables, and
     PostgreSQL has no cross-database view).
     """
-    if model_db.dialect != "postgresql" or admin_db.dialect != "postgresql":
-        raise RegistryViewUnavailable(
-            f"the registry view is PostgreSQL DDL; planes are tenant={model_db.dialect} "
-            f"admin={admin_db.dialect}"
-        )
     admin_schema = await _admin_schema_name(admin_db)
     root_schema = root_schema_name(model_db)
 

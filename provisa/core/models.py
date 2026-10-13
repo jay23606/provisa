@@ -2343,6 +2343,29 @@ class GovDataSubscription(BaseModel):  # REQ-540
     subjects: list[GovDataSubject] = Field(default_factory=list)
 
 
+class ControlPlaneNotPostgresql(ValueError):
+    """A control-plane URL that names a backend other than PostgreSQL (REQ-2014)."""
+
+    def __init__(self, setting: str, backend: str) -> None:
+        self.setting = setting
+        self.backend = backend
+        super().__init__(
+            f"{setting} names a {backend} database; the control plane is PostgreSQL only "
+            "(postgresql+psycopg://...): an embedded one where none is named, or an external server"
+        )
+
+
+def _postgresql_control_plane(setting: str, url: str) -> str:
+    """``url`` when it names PostgreSQL, else :class:`ControlPlaneNotPostgresql` naming the setting
+    and the backend it named."""
+    from sqlalchemy.engine import make_url
+
+    backend = make_url(url).get_backend_name()
+    if backend != "postgresql":
+        raise ControlPlaneNotPostgresql(setting, backend)
+    return url
+
+
 class ControlPlaneConfig(BaseModel):
     """Database connections for the two control planes.
 
@@ -2373,12 +2396,14 @@ class ControlPlaneConfig(BaseModel):
     def resolved_tenant_url(self) -> str:
         from provisa.core.secrets import resolve_secrets
 
-        return resolve_secrets(self.tenant_url)
+        return _postgresql_control_plane("TENANT_DATABASE_URL", resolve_secrets(self.tenant_url))
 
     def resolved_platform_url(self) -> str:
         from provisa.core.secrets import resolve_secrets
 
-        return resolve_secrets(self.platform_url)
+        return _postgresql_control_plane(
+            "PLATFORM_DATABASE_URL", resolve_secrets(self.platform_url)
+        )
 
     def resolved_org_id(self) -> str:
         from provisa.core.secrets import resolve_secrets

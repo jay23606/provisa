@@ -85,7 +85,7 @@ def _server(tmp_path_factory, org: str, views: list[dict], view_tables: list[dic
 
     path = tmp_path_factory.mktemp(org) / "config.yaml"
     path.write_text(yaml.safe_dump(_config(views, view_tables)))
-    return IsolatedServer(org, engine="duckdb", config=str(path), control_plane="sqlite")
+    return IsolatedServer(org, engine="duckdb", config=str(path), control_plane="own")
 
 
 @pytest.fixture(scope="module")

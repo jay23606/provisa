@@ -387,7 +387,7 @@ def server(atlas, tmp_path_factory, request):
             "mongodb_pipeline_tables",
             engine="duckdb",
             config=str(path),
-            control_plane="sqlite",
+            control_plane="own",
             materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
         )
     else:

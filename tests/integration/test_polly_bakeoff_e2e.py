@@ -257,7 +257,7 @@ def server(stack, run, tmp_path_factory):
         "polly_bakeoff",
         engine="duckdb",
         config=str(_config(tmp_path_factory.mktemp("bakeoff"), via, models[0])),
-        control_plane="sqlite",
+        control_plane="own",
         env={
             **stack.env,
             "PROVISA_LOGS_ALLOWED_ROOTS": str(stack.home / "logs"),

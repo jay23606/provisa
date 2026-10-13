@@ -98,7 +98,7 @@ def start_server(work: Path):
         _ORG,
         engine="duckdb",
         config=str(cfg_path),
-        control_plane="sqlite",
+        control_plane="own",
         auth={
             "provider": "simple",
             "allow_simple_auth": True,

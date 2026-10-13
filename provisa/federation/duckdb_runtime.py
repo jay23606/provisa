@@ -30,8 +30,6 @@ import asyncio
 import hashlib
 import logging
 import os
-import shutil
-import sqlite3
 import re
 import threading
 from collections.abc import Iterator
@@ -62,18 +60,6 @@ log = logging.getLogger(__name__)
 # DBAPI row-stream batch (1000) because Arrow batches carry columnar overhead per batch; still bounds
 # peak memory to one batch rather than the whole result.
 _ARROW_STREAM_BATCH_ROWS = 65_536
-
-
-def _file_stat_pair(path: str) -> tuple[int, int] | None:
-    """(mtime_ns, size) for *path*, or None if it does not exist (e.g. no ``-wal`` sidecar yet —
-    a WAL-mode db has none until its first write). Used as the control-plane refresh canary; see
-    DuckDBFederationRuntime._refresh_control_plane_snapshot for why a kernel-level file stat
-    replaced PRAGMA data_version there."""
-    try:
-        st = os.stat(path)
-    except OSError:
-        return None
-    return (st.st_mtime_ns, st.st_size)
 
 
 def build_vss_index_connection(
@@ -107,19 +93,15 @@ def _sql_text(value: str) -> str:
 class _CatalogGate(ReadersWriterGate):
     """Readers-writer gate over the shared DuckDB connection's catalog.
 
-    The control-plane refresh (attach_control_plane, SQLite dialect) rebuilds ``provisa_admin`` in
-    place: it DROPs the org schema CASCADE, DETACHes the snapshot alias, replaces the snapshot file
-    and re-creates every view. A query that binds or scans during that window does not fail — it
-    comes back with ZERO ROWS, because the views it resolved point at an alias whose file was swapped
-    out from under it. Under the e2e suite that surfaced as meta/ops Cypher queries intermittently
-    returning nothing on every worker while /data/graph-counts on the same backend reported the real
-    counts. Queries therefore hold the gate for read; the rebuild holds it for write.
+    A local DuckDB file this connection holds is DETACHed while another writer takes it (REQ-1997,
+    ``file_locks``) and re-attached after. A query that binds or scans during that window does not
+    fail -- it comes back with ZERO ROWS, its relations pointing at an alias that is gone. Queries
+    therefore hold the gate for read; the pause holds it for write.
 
     Reader-priority, deliberately: a waiting writer must NOT block new readers. Execution paths that
     stream (run_sync, run_arrow_stream) keep their read hold until the cursor drains, and the thread
-    that opened such a stream may itself be the next one to trigger a refresh — writer preference
-    would let that thread block on its own outstanding read. A refresh happens only when the control
-    plane has actually committed something, so writer starvation is not a live concern."""
+    that opened such a stream may itself be the next one to pause a file -- writer preference would
+    let that thread block on its own outstanding read."""
 
 
 # REQ-1901: a `mat_store.<schema>.<table>` read on the engine connection (quoted or bare parts).
@@ -208,22 +190,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
             set()
         )  # community/extension connectors LOADed on this connection
         self._control_plane_attached = False  # provisa_admin catalog (native path only)
-        # SQLite control plane only: the engine attaches a private snapshot of the tenant DB, never
-        # the live file (see _refresh_control_plane_snapshot). These track that snapshot.
-        self._cp_snapshot_dir = ""  # created lazily, on the first SQLite control plane refresh
-        self._cp_snapshot_path = ""
-        # (main-file, wal-file) os.stat (mtime_ns, size) pair as of the last snapshot — see
-        # _refresh_control_plane_snapshot for why this replaced PRAGMA data_version (and why the
-        # backup source connection it drives is opened fresh every time, never kept long-lived).
-        self._cp_canary: tuple[tuple[int, int] | None, tuple[int, int] | None] | None = None
-        # attach_control_plane runs on whatever worker thread serves the request, and its
-        # DETACH -> os.replace -> ATTACH sequence leaves the catalog momentarily unbound. Two
-        # threads interleaving there would query a detached alias, so the whole refresh is
-        # serialized. It is taken BEFORE _catalog_gate on the refresh path; nothing takes them the
-        # other way.
-        self._cp_lock = threading.Lock()
-        # ...and the rebuild is invisible to concurrent queries only if they are excluded from it —
-        # see _CatalogGate. Held for read by every execution path, for write by the rebuild.
+        # A held file's pause is invisible to concurrent queries only if they are excluded from it
+        # -- see _CatalogGate. Held for read by every execution path, for write by the pause.
         self._catalog_gate = _CatalogGate()
         # REQ-1997: local DuckDB files held by this connection, by attach alias: (path, token).
         self._file_holders: dict[str, tuple[str, int]] = {}
@@ -699,146 +667,26 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         finally:
             close_cursor(cur)
 
-    def attach_control_plane(self, db_path: str, schema_name: str, dialect: str = "sqlite") -> None:
-        """Attach the tenant control-plane DB as the ``provisa_admin`` catalog.
-
-        Trino parity: on Trino, ``provisa_admin`` is a real catalog backed by the Postgres
-        control-plane DB (configured via a catalog file). On the native DuckDB tier there is no
-        such catalog, so this method provides it by ATTACHing the tenant control-plane DB itself.
-
-        Two dialects:
-        - sqlite: ATTACH a private SNAPSHOT of the tenant file READ_ONLY (never the live file —
-          see _refresh_control_plane_snapshot), then wrap every table under the schema the
-          compiler emits (``org_<id>``), since a SQLite ATTACH flattens everything into ``main``
-          with no real multi-schema support. Re-entrant: each call re-snapshots and rebuilds the
-          views if the control plane has committed anything since the last one, so a table
-          registered after startup is visible to the very next query.
-        - postgresql: ATTACH the connection DSN directly (READ_ONLY). DuckDB's postgres extension
-          maps every real Postgres schema (including ``schema_name``, and the meta views it
-          already holds per api._meta_views) 1:1 under the catalog, so no per-table view-wrapping
-          is needed.
-
-        All tables/schemas found are exposed — not a hardcoded subset — so future control-plane
-        schema additions are automatically visible without touching this method. Called from
-        NativeEngineBackend._attach_registered."""
-        if not db_path or db_path == ":memory:":
-            return  # in-memory tenant DB (tests/CI without a file): no-op, not an error
-        catalog = "provisa_admin"
-        if dialect == "postgresql":
-            if self._control_plane_attached:
-                return
-            self._ensure_postgres_loaded()
-            if catalog not in self._phys_catalogs:
-                self._con.execute(f"ATTACH '{db_path}' AS \"{catalog}\" (TYPE postgres, READ_ONLY)")
-                self._phys_catalogs.add(catalog)
-            self._control_plane_attached = True
+    def attach_control_plane(self, dsn: str) -> None:
+        """Attach the org's control plane (REQ-2014: PostgreSQL) as the ``provisa_admin`` catalog,
+        read-only and live, once: DuckDB's postgres extension maps every schema of it -- the org's
+        ``org_<id>`` and the meta views it holds -- 1:1 under the catalog, so a row it commits is
+        read by the next statement. Trino parity: there ``provisa_admin`` is a real catalog over
+        the same database. Called from NativeEngineBackend's registry walk."""
+        if self._control_plane_attached:
             return
-        with self._cp_lock:
-            scratch = self._refresh_control_plane_snapshot(db_path)
-            if scratch is None:
-                return  # nothing committed since the last snapshot; the attached views are current
-            # Only a real rebuild excludes queries. The no-change path above is the common one — this
-            # method runs before EVERY query (NativeEngineBackend._attach_registered), so taking the
-            # write gate unconditionally would serialize the whole engine behind one query at a time.
-            with self._catalog_gate.write():
-                self._rebuild_control_plane(catalog, schema_name, scratch)
-
-    def _rebuild_control_plane(self, catalog: str, schema_name: str, scratch: str) -> None:
-        """Swap in a freshly snapshotted control plane. Caller holds _cp_lock and the write gate."""
-        if not self._sqlite_loaded:
-            install_and_load(self._con, "sqlite", from_community=False)
-            self._sqlite_loaded = True
-        raw_alias = "_raw_provisa_admin"
+        catalog = self._CONTROL_PLANE
+        self._ensure_postgres_loaded()
         if catalog not in self._phys_catalogs:
-            self._con.execute(f"ATTACH ':memory:' AS \"{catalog}\"")
+            self._con.execute(f"ATTACH '{dsn}' AS \"{catalog}\" (TYPE postgres, READ_ONLY)")
             self._phys_catalogs.add(catalog)
-        else:
-            # Rebuild from scratch: the refreshed snapshot may have gained or dropped tables, and
-            # the views must be unbound before the stale snapshot file can be detached.
-            self._con.execute(f'DROP SCHEMA IF EXISTS "{catalog}"."{schema_name}" CASCADE')
-        if raw_alias in self._raw_attached:
-            self._con.execute(f'DETACH "{raw_alias}"')
-            self._raw_attached.discard(raw_alias)
-            self._let_file_go(raw_alias)
-        # Only now that DuckDB released the previous snapshot can the fresh copy take its place.
-        os.replace(scratch, self._cp_snapshot_path)
-        self._con.execute(
-            f"ATTACH '{self._cp_snapshot_path}' AS \"{raw_alias}\" (TYPE sqlite, READ_ONLY)"
-        )
-        self._raw_attached.add(raw_alias)
-        self._con.execute(f'CREATE SCHEMA IF NOT EXISTS "{catalog}"."{schema_name}"')
-        # Enumerate every table from the SQLite file via SHOW TABLES (sqlite_master is not
-        # accessible at the 3-part name DuckDB expects after a TYPE sqlite ATTACH).
-        for (tbl,) in self._con.execute(f'SHOW TABLES FROM "{raw_alias}"').fetchall():
-            view = f'"{catalog}"."{schema_name}"."{tbl}"'
-            remote = f'"{raw_alias}"."main"."{tbl}"'
-            self._con.execute(f"CREATE OR REPLACE VIEW {view} AS SELECT * FROM {remote}")
         self._control_plane_attached = True
-
-    def _refresh_control_plane_snapshot(self, db_path: str) -> str | None:
-        """Copy the live control-plane SQLite file into a private snapshot; return the path of the
-        fresh copy, or None if the control plane has committed nothing since the last one.
-
-        DuckDB's sqlite extension cannot read a SQLite file that another connection is writing:
-        doing so corrupts the database and kills the process with SIGBUS. Verified against both
-        READ_ONLY and read-write ATTACH, and both with and without explicit WAL checkpoints — a
-        plain sqlite3 read-only reader survives the identical workload, so this is specific to the
-        extension and not something WAL mode can make safe. The control-plane file is written
-        continuously by the control plane's SQLAlchemy engine, so the engine attaches a copy and never the
-        original.
-
-        ``sqlite3.Connection.backup`` is SQLite's supported online-backup API: it yields a
-        consistent point-in-time copy while a writer is active.
-
-        Change detection uses OS-level file metadata (mtime + size of the main db file and its
-        ``-wal`` sidecar) rather than ``PRAGMA data_version`` on the long-lived probe. That pragma
-        is SQLite's own documented signal and normally tracks external commits correctly, but a
-        long-lived ``mode=ro`` reader was observed (REQ-1771's ingest catalog wiring, which for the
-        first time made a query's CORRECTNESS — not just an admin dashboard's eventual consistency —
-        depend on this refresh firing on every single write) to simply STOP advancing after enough
-        external commits/checkpoints against this control-plane file: a WAL reader-snapshot edge
-        case, not something a plain ``sqlite3`` connection reconnect can safely paper over (a freshly
-        reopened reader's first ``PRAGMA data_version`` read reports a low session-relative baseline
-        regardless of the file's real history, so "reconnect and recheck" can't distinguish "nothing
-        changed" from "reconnected too late to see it"). Once data_version got stuck, every later
-        write was silently invisible forever — a landed ingest row (or ANY control-plane write) never
-        appeared under ``provisa_admin`` again for the life of the process. mtime/size are kernel
-        facts about the file itself; they cannot get stuck the way a reader's cached session state
-        can, and unlike data_version they stay meaningful across a reconnect.
-
-        The backup SOURCE connection is opened fresh for every copy, not reused (REQ-1771): a
-        single long-lived ``mode=ro`` reader's ``.backup()`` was ALSO observed going stale under
-        sustained write churn — after enough prior backups on the same connection, it kept copying
-        an old MVCC snapshot even once the mtime/size canary above correctly noticed the file had
-        changed and asked for a fresh copy, so the row a landed source had actually committed
-        stayed invisible no matter how many later writes triggered another rebuild attempt. A new
-        connection has no stale snapshot to be stuck on; the per-refresh cost of opening one is
-        negligible next to the backup + DROP/CREATE VIEW work already done on every real change."""
-        if self._cp_snapshot_dir == "":
-            # REQ-1992: in the org's folder on this node, never the node's temporary directory.
-            from provisa.core import org_files
-
-            self._cp_snapshot_dir = org_files.mkdtemp("provisa-control-plane-snapshot-")
-            self._cp_snapshot_path = os.path.join(self._cp_snapshot_dir, "control_plane.sqlite")
-        canary = (_file_stat_pair(db_path), _file_stat_pair(f"{db_path}-wal"))
-        if canary == self._cp_canary and self._cp_canary is not None:
-            return None
-        # The caller detaches the previous snapshot only after this returns, so write the new copy
-        # to a scratch path for it to move into place — never overwrite a file DuckDB has open.
-        scratch = f"{self._cp_snapshot_dir}/control_plane.sqlite.new"
-        src = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        dst = sqlite3.connect(scratch)
-        try:
-            src.backup(dst)
-        finally:
-            dst.close()
-            src.close()
-        self._cp_canary = canary
-        return scratch
 
     # The materialization store, attached under this backend-neutral alias. A store MUST exist (the
     # engine's invariant); its backend/dialect is taken from the store URL scheme, never assumed.
     _MAT_STORE = "mat_store"
+    # The catalog the control plane is read under (attach_control_plane).
+    _CONTROL_PLANE = "provisa_admin"
     # DuckDB ATTACH type per store URL scheme. postgres/sqlite attach via their extensions; duckdb
     # is core (a DuckDB file attaches directly, no extension). sqlite/duckdb attach a FILE PATH,
     # postgres attaches the full connection URL. A duckdb store has its own sync write face
@@ -1323,8 +1171,8 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         deadline_s = request_deadline.remaining()
 
         def _run() -> QueryResult:
-            # Read gate: a control-plane rebuild swaps the provisa_admin snapshot out from under any
-            # query already bound to it, which returns zero rows rather than failing (_CatalogGate).
+            # Read gate: a held file paused under a query already bound to it returns zero rows
+            # rather than failing (_CatalogGate).
             with self._catalog_gate.read():
                 sql = self._prepare_sql(duck_sql)
                 sql, live_http = self._rewrite_clickhouse_relations(
@@ -1514,8 +1362,3 @@ class DuckDBFederationRuntime:  # REQ-825, REQ-840, REQ-844
         for raw_alias in list(self._file_holders):
             self._let_file_go(raw_alias)
         self._con.close()
-        with self._cp_lock:  # never tear the snapshot out from under a refresh in flight
-            if self._cp_snapshot_dir:
-                shutil.rmtree(self._cp_snapshot_dir)
-                self._cp_snapshot_dir = ""
-                self._cp_snapshot_path = ""

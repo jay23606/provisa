@@ -244,7 +244,7 @@ async def test_a_table_schema_sql_does_not_create_lands_in_the_org_schema(own_da
         ).fetchall()
         assert [r[0] for r in rules] == ["no_delete_audit", "no_update_audit"]
         conn.exec_driver_sql(f'SET LOCAL search_path TO "{_SCHEMA}"')
-        conn.exec_driver_sql(_ops_table_usage_ddl("postgresql"))
+        conn.exec_driver_sql(_ops_table_usage_ddl())
 
     # A second start changes nothing.
     await init_schema(db, _SCHEMA_SQL, org_id=_ORG)

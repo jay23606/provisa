@@ -117,7 +117,7 @@ async def floor_server(request):
             org,
             engine="duckdb",
             config=_CONFIG,
-            control_plane="sqlite",
+            control_plane="own",
             enable_pgwire=True,
             materialize_store_url=f"duckdb:///{Path(store_dir.name) / 'materialize.duckdb'}",
         )

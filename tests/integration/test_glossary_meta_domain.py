@@ -129,7 +129,7 @@ def _config(tables: dict) -> dict:
 async def _setup(conn, tables: dict) -> None:
     await apply_config(parse_config_dict(_config(tables)), conn)
     for tbl in _VIEWS:
-        await conn.execute(_adapt_view_ddl(_META_TABLE_VIEWS[tbl], conn.capabilities.dialect))
+        await conn.execute(_adapt_view_ddl(_META_TABLE_VIEWS[tbl]))
 
 
 async def _terms(conn) -> dict[str, dict]:

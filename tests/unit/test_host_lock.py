@@ -4,14 +4,16 @@
 # This source code is licensed under the Business Source License 1.1
 # found in the LICENSE file in the root directory of this source tree.
 
-"""A file lock is exclusive among holders and is freed when its holding process ends."""
+"""A file lock is exclusive among holders and is freed when its holding process ends; the control
+plane's own locks (REQ-2014: PostgreSQL advisory locks) hold the same way among a deployment's
+workers."""
 
 import subprocess
 import sys
 import textwrap
 
 from provisa.core.boot_lock import boot_generation, control_plane_boot_lock
-from provisa.core.host_lock import FileLock, control_plane_lock_dir
+from provisa.core.host_lock import FileLock
 from provisa.scheduler.holder import SchedulerHolder
 
 
@@ -57,8 +59,8 @@ def test_a_killed_holder_frees_the_lock(tmp_path):
         holder.kill()
 
 
-def test_one_scheduler_holder_among_the_workers_of_a_sqlite_control_plane(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
+def test_one_scheduler_holder_among_the_workers_of_a_control_plane(control_plane):
+    url = control_plane.url
     workers = [SchedulerHolder(url, "default") for _ in range(3)]
     try:
         assert [w.holds() for w in workers] == [True, False, False]
@@ -71,11 +73,10 @@ def test_one_scheduler_holder_among_the_workers_of_a_sqlite_control_plane(tmp_pa
     finally:
         for w in workers:
             w.close()
-    assert control_plane_lock_dir(url) == tmp_path / ".provisa-locks"
 
 
-def test_the_boot_lock_on_a_sqlite_control_plane_records_the_generation(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'platform.db'}"
+def test_the_boot_lock_on_a_control_plane_records_the_generation(control_plane):
+    url = control_plane.url
     generation = boot_generation("launch-1", schema="s")
     with control_plane_boot_lock(url) as lock:
         assert not lock.completed("default", generation)  # the first worker does the work

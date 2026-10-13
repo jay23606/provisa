@@ -193,7 +193,7 @@ def served():
         "api_replica_duckdb",
         engine="duckdb",
         config=str(work / "config.yaml"),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{store}",
     )
     server.start()

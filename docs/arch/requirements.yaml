@@ -25533,11 +25533,15 @@
   priority: MUST
   type: structural
   since: 2026-07
-  description: OrgRouter (provisa/core/database.py) is the multi-tenant mechanism for not-schema-capable
-    backends, mapping org_id → Database and lazily caching one engine per org_<id> database file. OrgRouter
-    guards against construction on schema-capable backends and enforces that single-tenant SQLite uses
-    the default namespace with no router. Cross-org queries within a single not-schema-capable connection
-    are impossible (file boundary).
+  description: '[SUPERSEDED by REQ-2014, 2026-10-13 -- the control plane is PostgreSQL only: no control
+    plane lacks schemas; OrgRouter is removed. Kept here for history; do not implement against it.] OrgRouter
+    (provisa/core/database.py) is the multi-tenant mechanism for not-schema-capable backends, mapping org_id
+    → Database and lazily caching one engine per org_<id> database file. [END SUPERSEDED BLOCK] OrgRouter
+    guards against construction on schema-capable backends and enforces that single-tenant SQLite uses the
+    default namespace with no router. Cross-org queries within a single not-schema-capable connection are
+    impossible (file boundary). (Amended 2026-10-13, POSTGRESQL ONLY -- REQ-2014:) Every control plane is
+    PostgreSQL, where an org is a schema on one shared engine; OrgRouter and the file-per-org control plane
+    are removed.'
   use_case: Enables transparent multi-tenant routing for file-based backends (SQLite, DuckDB) while preventing
     misconfiguration on schema-capable systems.
   code:

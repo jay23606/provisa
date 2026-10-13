@@ -119,7 +119,7 @@ def server(request):
         engine="duckdb",
         enable_pgwire=True,
         config="tests/fixtures/pg_passthrough_loop_config.yaml",
-        control_plane="sqlite",
+        control_plane="own",
         app=app,
         loop=loop,
     )

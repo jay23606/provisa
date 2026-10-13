@@ -178,7 +178,7 @@ def server(pgvector, tmp_path_factory):
         "vector_similarity",
         engine="duckdb",
         config=str(path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
     )
     srv.start(timeout=240)

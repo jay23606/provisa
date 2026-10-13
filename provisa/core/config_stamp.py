@@ -167,21 +167,6 @@ def _install_postgresql(conn: Any, tables: dict[str, str], schema: str | None) -
                 conn.execute(text(f"CREATE TRIGGER {name} {definition}"))
 
 
-def _install_sqlite(conn: Any, tables: dict[str, str]) -> None:
-    _seed(conn, "config_stamp", set(tables.values()))
-    for table, kind in tables.items():
-        advance = f"UPDATE config_stamp SET stamp = stamp + 1 WHERE kind = '{kind}'"
-        for name, event in (
-            ("insert", "INSERT"),
-            ("delete", "DELETE"),
-            ("update", "UPDATE"),
-        ):
-            conn.exec_driver_sql(
-                f'CREATE TRIGGER IF NOT EXISTS "config_stamp_{table}_{name}" '
-                f'AFTER {event} ON "{table}" BEGIN {advance}; END'
-            )
-
-
 def install(
     conn: Any, tables: dict[str, str], schema: str | None = None, *, advanced: tuple[str, ...] = ()
 ) -> None:
@@ -190,26 +175,11 @@ def install(
     which ``config_stamp`` and every one of ``tables`` already exist. ``advanced``: the kinds of
     this plane that have a row and no trigger (``TENANT_ADVANCED``).
 
-    An embedded DuckDB control plane (REQ-828) gets the rows and no triggers: DuckDB has none,
-    and a DuckDB file admits one process, so there is no second process for a change to reach —
-    the process that made the change rebuilds itself. A control plane on any other dialect is
-    refused: without the triggers a change would reach only the process that made it."""
-    dialect = conn.dialect.name
-    if dialect == "postgresql":
-        _install_postgresql(conn, tables, schema)
-        if schema is None:
-            schema = conn.execute(text("SELECT current_schema()")).scalar_one()
-        _seed(conn, f'"{schema}".config_stamp', set(advanced))
-    elif dialect == "sqlite":
-        _install_sqlite(conn, tables)
-        _seed(conn, "config_stamp", set(advanced))
-    elif dialect == "duckdb":
-        _seed(conn, "config_stamp", set(tables.values()) | set(advanced))
-    else:
-        raise NotImplementedError(
-            f"the config stamp is not implemented for a {dialect} control plane; "
-            "PostgreSQL, SQLite and (single-process) DuckDB are supported"
-        )
+    The control plane is PostgreSQL (REQ-2014)."""
+    _install_postgresql(conn, tables, schema)
+    if schema is None:
+        schema = conn.execute(text("SELECT current_schema()")).scalar_one()
+    _seed(conn, f'"{schema}".config_stamp', set(advanced))
 
 
 async def advance(conn: "Connection", kind: str) -> None:

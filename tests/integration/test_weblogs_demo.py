@@ -108,7 +108,7 @@ def provisa_server(stack: WeblogsStack, org_id: str):
         org_id,
         engine="duckdb",
         config=str(_DEMO / "config.yaml"),
-        control_plane="sqlite",
+        control_plane="own",
         env={
             **stack.env,
             "PROVISA_LOGS_ALLOWED_ROOTS": str(stack.home / "logs"),

@@ -87,7 +87,7 @@ def server():
         engine="duckdb",
         enable_pgwire=True,
         config="tests/fixtures/pg_epoch_temporal_config.yaml",
-        control_plane="sqlite",
+        control_plane="own",
     )
     try:
         srv.start()

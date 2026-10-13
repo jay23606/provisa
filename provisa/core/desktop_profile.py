@@ -20,6 +20,9 @@ The runtime's discover()/probe still enforces functional truth on top of this de
 
 from __future__ import annotations
 
+import atexit
+import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -56,7 +59,7 @@ class LaunchProfile:
 
     name: str
     env: dict[str, str]  # process-env additions that select the self-contained runtime
-    control_plane_store: str  # where tenant/catalog state lives (embedded_pg | sqlite | ...)
+    control_plane_store: str  # where tenant/catalog state lives (embedded_pg | postgresql)
     sources: list[str]
     notes: list[str] = field(default_factory=list)
 
@@ -116,24 +119,13 @@ def _apply_control_plane(
     if cp_store in _COMPUTE_ONLY_TIER_ADDITIONS:
         raise ValueError(
             f"control_plane_store {cp_store!r} is a compute-only tier addition; the "
-            "metadata/config/roles store must stay on the embedded home (sqlite/embedded_pg) or an "
-            "explicit RDB — Trino/observability are added strictly as compute, never the metadata home"
+            "metadata/config/roles store must stay on the embedded PostgreSQL or an external "
+            "PostgreSQL — Trino/observability are added strictly as compute, never the metadata home"
         )
     if cp_store == "embedded_pg":
         _apply_embedded_pg(env, notes, preset=preset, data_dir=data_dir, ephemeral=ephemeral)
-        return
-    if cp_store != "sqlite":
-        return
-    # SQLAlchemy control plane on sqlite — no initdb, no pgserver, no Python-version gate.
-    if ephemeral:
-        env["PLATFORM_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
-        env["TENANT_DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
-        notes.append("control plane: in-memory sqlite (ephemeral, fastest)")
-        return
-    dd = Path(data_dir) if data_dir else _default_data_dir(preset)
-    env["PLATFORM_DATABASE_URL"] = f"sqlite+pysqlite:///{dd / 'platform.db'}"
-    env["TENANT_DATABASE_URL"] = f"sqlite+pysqlite:///{dd / 'tenant.db'}"
-    notes.append(f"control plane: sqlite files under {dd} (instant, persistent)")
+    # "postgresql": an external server, named by the operator in PLATFORM_DATABASE_URL and
+    # TENANT_DATABASE_URL (REQ-2014); nothing is started for it.
 
 
 def _apply_embedded_pg(
@@ -144,29 +136,43 @@ def _apply_embedded_pg(
     data_dir: Path | str | None,
     ephemeral: bool,
 ) -> None:
-    """Boot the bundled pgserver control plane and point both planes at its unix socket (REQ-1535).
+    """Boot the bundled pgserver control plane and point both planes at it (REQ-1535, REQ-2014).
 
     The instance is persistent and idempotent — a second call to the same data dir reuses the server
-    already running there — so resolving the profile is what brings the plane up, exactly as the
-    sqlite branch's files are created by first use.
+    already running there — so resolving the profile is what brings the plane up. An ephemeral
+    profile runs it in a throwaway data directory, stopped and removed when the process ends.
 
-    The socket directory and port are READ BACK from the started server rather than assumed: pgserver
-    picks the port, and a guessed one names a socket path that does not exist.
+    Where it listens is READ BACK from the started server rather than assumed: pgserver picks the
+    port, and a guessed one names a socket path that does not exist.
     """
-    if ephemeral:
+    import platform
+
+    if platform.system() == "Linux" and platform.machine().lower() in ("aarch64", "arm64"):
         raise ValueError(
-            "control_plane_store 'embedded_pg' has no in-memory form — pgserver is a real "
-            "PostgreSQL with a data directory. Use a data_dir, or pick the 'sqlite' store for an "
-            "ephemeral plane (which then holds only the 'prod' environment)."
+            "the control plane is PostgreSQL only, and Linux arm64 has no embedded PostgreSQL "
+            "(pgserver ships no wheel for it): set PLATFORM_DATABASE_URL and TENANT_DATABASE_URL "
+            "to a PostgreSQL server and choose control_plane_store 'postgresql'"
         )
     from provisa.core.control_plane_pg import start as start_control_plane_pg
 
-    dd = Path(data_dir) if data_dir else _default_data_dir(preset)
+    if ephemeral:
+        dd = Path(tempfile.mkdtemp(prefix="provisa-ephemeral-"))
+        atexit.register(_discard_control_plane, dd / "control-pg")
+    else:
+        dd = Path(data_dir) if data_dir else _default_data_dir(preset)
     host, port = start_control_plane_pg(str(dd / "control-pg"))
     url = f"postgresql+psycopg://provisa:provisa@/provisa?host={host}&port={port}"
     env["PLATFORM_DATABASE_URL"] = url
     env["TENANT_DATABASE_URL"] = url
-    notes.append(f"control plane: embedded PostgreSQL (pgserver, socket {host}:{port})")
+    notes.append(f"control plane: embedded PostgreSQL (pgserver, at {host}:{port})")
+
+
+def _discard_control_plane(datadir: Path) -> None:
+    """An ephemeral profile's control plane, when its process ends: stopped and removed."""
+    from provisa.core.control_plane_pg import stop
+
+    stop(str(datadir))
+    shutil.rmtree(datadir.parent)
 
 
 def load_profile(
@@ -184,9 +190,9 @@ def load_profile(
 ) -> LaunchProfile:
     """Resolve a capabilities preset into the launch environment for a self-contained desktop start.
 
-    A ``sqlite`` control_plane_store yields a TRULY INSTANT control plane (no initdb) via the SQLAlchemy
-    ``Database`` abstraction (REQ-837, tested). ``ephemeral=True`` uses in-memory sqlite (zero on-disk
-    state, fastest possible) instead of files under ``data_dir``.
+    The control plane is PostgreSQL only (REQ-2014): ``embedded_pg`` starts the bundled one under
+    ``data_dir`` (``ephemeral=True``: in a throwaway directory, removed when the process ends), and
+    ``postgresql`` uses the server the operator names in PLATFORM_DATABASE_URL/TENANT_DATABASE_URL.
 
     Wizard-time overrides layer the operator's chosen deployment on top of the preset's self-contained
     base (REQ-910 desktop tiers). Each override maps to the SAME env var the runtime already resolves:

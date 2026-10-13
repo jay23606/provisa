@@ -133,7 +133,7 @@ async def test_reseed_of_an_unchanged_view_does_not_drop_its_dependents(seeded_s
 
     await seeded_schema.seed("trino")  # creates ops_table_usage + deprecated_usage.
     schema = seeded_schema.schema
-    ddl = _ops_table_usage_ddl("postgresql")
+    ddl = _ops_table_usage_ddl()
 
     async def _dependent_oid() -> int | None:
         async with seeded_schema.db.acquire() as conn:
@@ -142,7 +142,7 @@ async def test_reseed_of_an_unchanged_view_does_not_drop_its_dependents(seeded_s
     assert await _dependent_oid() is not None
 
     async with seeded_schema.db.acquire() as conn:
-        await conn.execute(_adapt_view_ddl(ddl, "postgresql"))
+        await conn.execute(_adapt_view_ddl(ddl))
     assert await _dependent_oid() is None, (
         "expected the pre-fix DROP...CASCADE path to actually cascade-drop deprecated_usage — "
         "otherwise this test isn't exercising the real bug"
@@ -153,7 +153,7 @@ async def test_reseed_of_an_unchanged_view_does_not_drop_its_dependents(seeded_s
     assert oid_before is not None
 
     async with seeded_schema.db.acquire() as conn:
-        await _seed_view(conn, ddl, "postgresql")
+        await _seed_view(conn, ddl)
     assert await _dependent_oid() == oid_before, (
         "_seed_view's CREATE OR REPLACE VIEW must never touch deprecated_usage at all when "
         "ops_table_usage's own shape is unchanged"
@@ -246,7 +246,7 @@ async def test_a_view_whose_columns_moved_is_rebuilt_over_the_older_definition(s
     assert "table_names" not in await _columns()
 
     async with seeded_schema.db.acquire() as conn:
-        await _seed_view(conn, current, "postgresql")
+        await _seed_view(conn, current)
     columns = await _columns()
     assert columns.index("table_names") == columns.index("table_ids") + 1
     assert columns.index("source") == columns.index("table_names") + 1

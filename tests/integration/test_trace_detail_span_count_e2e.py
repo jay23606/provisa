@@ -129,7 +129,7 @@ def _start(work: Path, org: str, detail: str | None) -> _Traced:
         await_flight=True,
         await_grpc=True,
         config=str(_config(work)),
-        control_plane="sqlite",
+        control_plane="own",
         env=env,
     )
     try:

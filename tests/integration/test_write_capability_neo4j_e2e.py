@@ -87,7 +87,7 @@ def server(tmp_path_factory):
     path = tmp_path_factory.mktemp("write_capability_neo4j") / "config.yaml"
     path.write_text(yaml.safe_dump(_config()))
     srv = IsolatedServer(
-        "write_capability_neo4j", engine="duckdb", config=str(path), control_plane="sqlite"
+        "write_capability_neo4j", engine="duckdb", config=str(path), control_plane="own"
     )
     srv.start(timeout=240)
     try:

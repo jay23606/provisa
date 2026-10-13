@@ -23,17 +23,15 @@ from sqlalchemy import insert, select
 
 from provisa.api.admin import schema_mutation
 from provisa.api.admin.types import DataProductInput, DomainInput
-from provisa.core.database import Database, create_engine_from_url
-from provisa.core.db import _init_schema_portable
+from provisa.core.database import Database
 from provisa.core.schema_org import data_products, domains
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-async def plane(monkeypatch) -> Database:
-    db = Database(create_engine_from_url("sqlite+pysqlite:///:memory:"), name="create-taken")
-    await _init_schema_portable(db)
+async def plane(monkeypatch, control_plane) -> Database:
+    db = control_plane.org()
     async with db.acquire() as conn:
         await conn.execute_core(
             insert(domains).values(id="sales", description="The sales team's data")

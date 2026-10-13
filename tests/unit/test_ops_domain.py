@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock
 
-import pytest
 import sqlglot
 from sqlglot.errors import ParseError
 
@@ -41,6 +41,19 @@ from provisa.api._meta_views import (
 # --------------------------------------------------------------------------- #
 # Registry / seed structure                                                    #
 # --------------------------------------------------------------------------- #
+
+
+@asynccontextmanager
+async def _transaction():
+    yield
+
+
+def _seeding_conn(**answers) -> AsyncMock:
+    """A connection double the seed runs against: its transaction() is a context, as a real
+    connection's is (each view is created inside one)."""
+    conn = AsyncMock(**answers)
+    conn.transaction = _transaction
+    return conn
 
 
 class TestOpsRegistry:
@@ -87,7 +100,7 @@ class TestOpsRegistry:
             {"column_name": "user_id", "data_type": "text", "is_primary_key": False},
             {"column_name": "status_code", "data_type": "integer", "is_primary_key": False},
         ]
-        conn = AsyncMock()
+        conn = _seeding_conn()
         conn.upsert_returning = AsyncMock(return_value=42)
         conn.reflect_columns = AsyncMock(return_value=view_cols)
 
@@ -112,7 +125,7 @@ class TestOpsRegistry:
             {"column_name": "id", "data_type": "bigint", "is_primary_key": True},
             {"column_name": "user_id", "data_type": "text", "is_primary_key": False},
         ]
-        conn = AsyncMock()
+        conn = _seeding_conn()
         conn.upsert_returning = AsyncMock(return_value=42)
         conn.reflect_columns = AsyncMock(return_value=view_cols)
 
@@ -265,7 +278,7 @@ class TestOpsStewardGrant:
         # The rows name the `otel` Iceberg catalog, which only an engine carrying it can reach
         # (EngineBackend.has_otel_catalog), so the seed runs behind that capability.
         monkeypatch.setattr(startup_seed.state, "federation_engine", _OtelEngine(True))
-        conn = AsyncMock()
+        conn = _seeding_conn()
         conn.upsert_returning = AsyncMock(return_value=7)
 
         asyncio.run(_seed_ops_pg(conn))
@@ -283,7 +296,7 @@ class TestOpsStewardGrant:
         from provisa.api.startup_seed import _seed_ops_pg
 
         monkeypatch.setattr(startup_seed.state, "federation_engine", _OtelEngine(False))
-        conn = AsyncMock()
+        conn = _seeding_conn()
         conn.upsert_returning = AsyncMock(return_value=7)
 
         asyncio.run(_seed_ops_pg(conn))
@@ -309,7 +322,7 @@ class TestOpsStewardGrant:
             calls.append(stmt)
             return _Result()
 
-        conn = AsyncMock()
+        conn = _seeding_conn()
         conn.execute_core = _execute_core
 
         asyncio.run(_ensure_ops_steward_grant(conn))
@@ -339,21 +352,15 @@ class TestReportViewRegistry:
             except ParseError as exc:  # pragma: no cover
                 raise AssertionError(f"{name}: DDL does not parse: {exc}") from exc
 
-    def test_unnest_base_view_per_dialect(self):
-        assert "json_each" in _ops_table_usage_ddl("sqlite")
-        assert "JSON_TABLE" in _ops_table_usage_ddl("mysql")
-        assert "from_json" in _ops_table_usage_ddl("duckdb")
-        assert "jsonb_array_elements_text" in _ops_table_usage_ddl("postgresql")
+    def test_the_unnest_base_view_reads_the_jsonb_table_ids(self):
+        assert "jsonb_array_elements_text" in _ops_table_usage_ddl()
 
 
-@pytest.mark.parametrize("uri", ["postgresql", "sqlite+pysqlite:///:memory:", "duckdb:///:memory:"])
-async def test_report_views_functional(uri, control_plane):
-    """REQ-1386: create the report views on a real embedded backend, feed audit
-    rows + tags, and query every view — validates the SQL on each dialect."""
+async def test_report_views_functional(control_plane):
+    """REQ-1386: create the report views on the control plane's PostgreSQL, feed audit rows + tags,
+    and query every view."""
     from sqlalchemy import insert, text
 
-    from provisa.core.database import Database, create_engine_from_url
-    from provisa.core.db import _init_schema_portable
     from provisa.core.schema_org import (
         domains,
         query_audit_log,
@@ -364,11 +371,7 @@ async def test_report_views_functional(uri, control_plane):
     )
     from provisa.api.startup_seed import _adapt_view_ddl
 
-    if uri == "postgresql":
-        db = control_plane.org()
-    else:
-        db = Database(create_engine_from_url(uri), name="ops-report-test")
-        await _init_schema_portable(db)
+    db = control_plane.org()
     try:
         async with db.acquire() as conn:
             # The tables' domain, as a config declares it: no demo domain is seeded.
@@ -438,17 +441,16 @@ async def test_report_views_functional(uri, control_plane):
                         region="default",
                     )
                 )
-            dialect = conn.capabilities.dialect
-            await conn.execute(_adapt_view_ddl(_ops_table_usage_ddl(dialect), dialect))
+            await conn.execute(_adapt_view_ddl(_ops_table_usage_ddl()))
             # tag_usage reads tags_meta, which _seed_meta_domain creates first at startup
             # (startup_seed.py: _seed_meta_domain then _seed_ops_domain). DuckDB resolves a
             # view's references when it is created, so the order matters here too.
             for ddl in _META_TABLE_VIEWS.values():
-                await conn.execute(_adapt_view_ddl(ddl, dialect))
+                await conn.execute(_adapt_view_ddl(ddl))
             for ddl in _OPS_REPORT_VIEWS.values():
-                await conn.execute(_adapt_view_ddl(ddl, dialect))
+                await conn.execute(_adapt_view_ddl(ddl))
             for ddl in _OPS_LOG_TABLE_VIEWS.values():
-                await conn.execute(_adapt_view_ddl(ddl, dialect))
+                await conn.execute(_adapt_view_ddl(ddl))
 
             async def rows(sql):
                 return (await conn.execute_core(text(sql))).fetchall()
@@ -553,26 +555,20 @@ class TestViewDdlIsReseedableAfterNarrowing:
         assert _reshape_refused(_raised("42P16"))  # dropped, renamed, moved or retyped column
         assert not _reshape_refused(_raised("42P01"))  # a table it reads is missing: raised
 
-    def test_every_dialect_drops_the_view_before_recreating_it(self):
+    def test_the_view_is_dropped_before_it_is_recreated(self):
         from provisa.api.startup_seed import _adapt_view_ddl
 
         ddl = "CREATE OR REPLACE VIEW policy_denials AS SELECT id FROM query_audit_log"
-        for dialect in ("postgresql", "sqlite", "mysql", "duckdb"):
-            adapted = _adapt_view_ddl(ddl, dialect)
-            assert adapted.startswith("DROP VIEW IF EXISTS policy_denials"), dialect
-            assert "CREATE VIEW policy_denials AS" in adapted, dialect
-            assert "OR REPLACE" not in adapted, dialect
+        adapted = _adapt_view_ddl(ddl)
+        assert adapted.startswith("DROP VIEW IF EXISTS policy_denials")
+        assert "CREATE VIEW policy_denials AS" in adapted
+        assert "OR REPLACE" not in adapted
 
     def test_postgres_cascades_so_a_dependent_report_view_does_not_block_the_drop(self):
         from provisa.api.startup_seed import _adapt_view_ddl
 
         ddl = "CREATE OR REPLACE VIEW query_audit_log_ops AS SELECT id FROM query_audit_log"
-        assert "DROP VIEW IF EXISTS query_audit_log_ops CASCADE;" in _adapt_view_ddl(
-            ddl, "postgresql"
-        )
-        # SQLite/MySQL have no CASCADE keyword for DROP VIEW.
-        assert "CASCADE" not in _adapt_view_ddl(ddl, "sqlite")
-        assert "CASCADE" not in _adapt_view_ddl(ddl, "mysql")
+        assert "DROP VIEW IF EXISTS query_audit_log_ops CASCADE;" in _adapt_view_ddl(ddl)
 
 
 async def test_the_queries_report_from_the_audit_log_matches_the_report_from_query_spans(
@@ -678,9 +674,8 @@ async def test_the_queries_report_from_the_audit_log_matches_the_report_from_que
                     region="default",
                 )
             )
-        dialect = conn.capabilities.dialect
-        await conn.execute(_adapt_view_ddl(_ops_table_usage_ddl(dialect), dialect))
-        await conn.execute(_adapt_view_ddl(_OPS_REPORT_VIEWS["queries"], dialect))
+        await conn.execute(_adapt_view_ddl(_ops_table_usage_ddl()))
+        await conn.execute(_adapt_view_ddl(_OPS_REPORT_VIEWS["queries"]))
         new = sorted(
             (r[0], r[1], r[2], r[3], r[4] >= 400)
             for r in (

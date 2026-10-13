@@ -48,30 +48,21 @@ def _safe_type(data_type: str | None) -> str:  # REQ-337
     return dt if dt in _ALLOWED_TYPES else _DEFAULT_TYPE
 
 
-def generate_create_table(
-    table_name: str, columns: list[dict], *, sqlite: bool = False
-) -> str:  # REQ-332, REQ-333
+def generate_create_table(table_name: str, columns: list[dict]) -> str:  # REQ-332, REQ-333
     """Return CREATE TABLE IF NOT EXISTS DDL for an ingest backing table.
 
     Args:
         table_name: Target table name (already sanitised by caller).
         columns: List of ``{column_name, data_type}`` dicts from steward config.
-        sqlite: REQ-1745 -- a NO_CONNECTION ingest source mirrors state.tenant_db's own engine
-            verbatim, and that engine is SQLite on the e2e "core" lane and any local-dev
-            ``--demo`` install. SQLite has no ``SERIAL`` type (a Postgres-only auto-increment
-            sequence) -- its autoincrementing rowid alias is ``INTEGER PRIMARY KEY`` instead.
-            Every other declared type name here is accepted as-is by SQLite's type-affinity
-            rules, so only the id column needs a dialect branch.
 
     System columns injected automatically:
-        - ``id SERIAL PRIMARY KEY`` (``id INTEGER PRIMARY KEY`` when ``sqlite``)
+        - ``id SERIAL PRIMARY KEY``
         - ``_received_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP``
         - ``_updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP``
 
     The ``_updated_at`` column is the watermark used by the subscription provider.
     """
-    id_col = "id INTEGER PRIMARY KEY" if sqlite else "id SERIAL PRIMARY KEY"
-    col_defs: list[str] = [id_col]
+    col_defs: list[str] = ["id SERIAL PRIMARY KEY"]
     for col in columns:
         name = col.get("column_name") or col.get("name", "")
         if not name or name.startswith("_"):

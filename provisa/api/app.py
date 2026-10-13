@@ -1226,16 +1226,6 @@ async def _load_and_build(
     config = parse_config_dict(raw_config)
     state.config = config
     state.multitenancy = config.multitenancy
-    # REQ-1337: multitenancy demands per-org schema isolation (org_<id> schema + search_path on
-    # PostgreSQL). The portable/SQLite bootstrap (_init_schema_portable) writes every org into one
-    # flat file with no per-org scoping, so a multitenant deployment on a non-PG tenant DB would
-    # silently mix orgs' data. Fail loudly at startup instead of letting that combination run.
-    if config.multitenancy and getattr(state.model_db, "dialect", "postgresql") != "postgresql":
-        raise RuntimeError(
-            "multitenancy=true requires a PostgreSQL TENANT_DATABASE_URL "
-            f"(got dialect={getattr(state.model_db, 'dialect', None)!r}); "
-            "the portable/SQLite bootstrap has no per-org schema isolation"
-        )
     # REQ-1337: org_admin holds the platform_settings right only in a single-tenant deployment.
     # Asserted here rather than in _init_control_planes because the tenancy mode is only known once
     # the config is parsed, which happens after the root org's schema is created.
@@ -1954,7 +1944,6 @@ async def _build_org_runtime(
     """
     from provisa.api.startup_seed import _seed_built_in_sources, _resolve_pk_from_sources
     from provisa.core.config_loader import load_control_plane
-    from provisa.core.database import Capabilities, create_engine_from_url
     from provisa.core.region_stores import open_org_stores
     from provisa.core.db import apply_tenancy_role_grants, init_schema
     from provisa.audit.query_log import init_audit_schema
@@ -2104,18 +2093,10 @@ async def _build_org_runtime(
         # search_path on every checkout, so the org boundary is the handle, not the pool. Building
         # an engine per org multiplies open connections by tenant count against ONE server and
         # exhausts max_connections (the "remaining connection slots are reserved" failure).
-        # A not-schema-capable backend (SQLite/DuckDB) puts each org in its own FILE, so there the
-        # engine genuinely is per-org and a shared one would read the wrong database.
-        shared_engine = state.tenant_engine
-        assert shared_engine is not None, (
+        tenant_engine = state.tenant_engine
+        assert tenant_engine is not None, (
             "tenant engine not built; _init_control_planes must run first"
         )
-        if Capabilities.for_dialect(shared_engine.dialect.name).schemas:
-            tenant_engine = shared_engine
-        else:
-            tenant_engine = create_engine_from_url(
-                cp.resolved_tenant_url(), pool_size=cp.pool_max, max_overflow=cp.max_overflow
-            )
         # REQ-1488: the environment IS the schema. Every repository query this runtime issues goes
         # through this handle, so scoping it here is what makes an unmodified repository query read
         # the branch's copy of the model rather than prod's.

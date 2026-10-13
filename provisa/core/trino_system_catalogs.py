@@ -63,14 +63,8 @@ def _pg_parts(url: URL) -> tuple[str, int, str, str, str]:
     """(host, port, database, user, password) from the control-plane URL.
 
     Trino reaches both the self-catalog and the Iceberg JDBC metastore over JDBC, so the control
-    plane must be Postgres — a Trino deployment on a file-backed control plane has no
-    ``provisa_admin`` to expose and no metastore to hold the ``otel``/``results`` tables.
+    plane (REQ-2014: PostgreSQL) must be reachable on a host.
     """
-    if not url.get_backend_name().startswith("postgresql"):
-        raise ValueError(
-            f"Trino requires a Postgres control plane; control_plane.tenant_url is "
-            f"{url.get_backend_name()!r}"
-        )
     if not url.host or not url.database:
         raise ValueError("control_plane.tenant_url must specify a host and a database for Trino")
     # Port omitted in the URL means the Postgres default — the same reading ControlPlane.tenant_parts

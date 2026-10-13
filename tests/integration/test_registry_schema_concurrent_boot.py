@@ -119,10 +119,3 @@ def test_the_boot_lock_admits_one_process_at_a_time(fresh_database):
         t.join(timeout=60)
     assert not failures, failures
     assert peak == 1, f"{peak} boots held the lock together"
-
-
-def test_a_file_control_plane_takes_no_lock(tmp_path):
-    from provisa.core.boot_lock import control_plane_boot_lock
-
-    with control_plane_boot_lock(f"sqlite+pysqlite:///{tmp_path / 'cp.db'}"):
-        pass

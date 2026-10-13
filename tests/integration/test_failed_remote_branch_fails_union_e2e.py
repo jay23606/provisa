@@ -79,7 +79,7 @@ async def union_server():
         _ISOLATED_ORG,
         engine="duckdb",
         config=_CONFIG,
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{Path(store_dir.name) / 'materialize.duckdb'}",
     )
     server.start()

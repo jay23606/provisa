@@ -21,9 +21,9 @@ working only until its own lifetime ends). The state store then has to hold the 
 whichever process last refreshed. So one refresh of a source runs at a time, across every
 process and node, and each reads the token it sends from the store after it has the lock:
 
-- the lock is a session advisory lock on the platform control plane, or a ``flock`` beside a
-  control plane that is a file on one host -- the same two forms a replica build's lock takes
-  (``provisa.federation.replica_locks``), released by the holder's death with nothing to renew;
+- the lock is a session advisory lock on the platform control plane -- the form a replica build's
+  lock takes (``provisa.federation.replica_locks``), released by the holder's death with nothing
+  to renew;
 - a process keeps the access token it was given and its expiry, never a refresh token, so a
   refresh can only send what the store holds;
 - the replacement is written to the store before the access token is held: a write that fails
@@ -44,7 +44,6 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import text
 
 from provisa.core import request_deadline
-from provisa.core.host_lock import FileLock, control_plane_lock_dir, lock_name
 
 if TYPE_CHECKING:
     from provisa.core.database import Database
@@ -113,26 +112,13 @@ class _RefreshLock:
     """The lock of one source's refresh. Every attempt is a try; the waiting is the caller's."""
 
     def __init__(self, platform_url: str, name: str) -> None:
-        from sqlalchemy import make_url
-
-        from provisa.core.database import sync_store_url
 
         self._url = platform_url
         self._name = name
         self._engine: Any = None
         self._conn: Any = None
-        self._file: FileLock | None = None
-        self._postgres = make_url(sync_store_url(platform_url)).get_backend_name() == "postgresql"
 
     def try_acquire(self) -> bool:
-        if not self._postgres:
-            lock = FileLock(
-                control_plane_lock_dir(self._url) / lock_name("oauth-refresh", self._name)
-            )
-            if not lock.try_acquire():
-                return False
-            self._file = lock
-            return True
         if self._conn is None:
             from provisa.core.database import control_plane_lock_engine
 
@@ -160,9 +146,6 @@ class _RefreshLock:
 
     def close(self) -> None:
         """Release the lock and what it was held on."""
-        if self._file is not None:
-            self._file.release()
-            self._file = None
         if self._conn is not None:
             self._conn.close()  # ends the session, and with it the lock
             self._conn = None

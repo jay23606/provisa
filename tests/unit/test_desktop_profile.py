@@ -49,16 +49,37 @@ def test_demo_preset_is_self_contained_and_duckdb(tmp_path):
     assert any("no external services" in n for n in p.notes)
 
 
-def test_demo_ephemeral_has_no_embedded_pg_form():
-    """REQ-1535: pgserver is a real server with a data directory, so there is no in-memory version
-    of it — the profile says so instead of quietly resolving to some other store."""
-    with pytest.raises(ValueError, match="no in-memory form"):
-        load_profile("demo", ephemeral=True)
+def test_an_ephemeral_profile_runs_a_throwaway_embedded_postgresql(
+    tmp_path, _embedded_pg, monkeypatch
+):
+    """REQ-2014: there is no in-memory PostgreSQL, so an ephemeral profile runs the embedded one in
+    a throwaway data directory -- never the install's -- stopped and removed when the process ends."""
+    discarded: list = []
+    monkeypatch.setattr(
+        "provisa.core.desktop_profile.atexit.register", lambda fn, *a: discarded.append((fn, a))
+    )
+    p = load_profile("demo", ephemeral=True, data_dir=tmp_path)
+    assert p.env["PLATFORM_DATABASE_URL"] == p.env["TENANT_DATABASE_URL"] == _pg_url()
+    (started,) = _embedded_pg
+    assert not started.startswith(str(tmp_path)) and started.endswith("control-pg")
+    assert [(fn.__name__, str(a[0])) for fn, a in discarded] == [
+        ("_discard_control_plane", started)
+    ]
 
 
-def test_demo_ephemeral_sqlite_is_still_available():
-    p = load_profile("demo", ephemeral=True, control_plane="sqlite")
-    assert p.env["PLATFORM_DATABASE_URL"] == "sqlite+pysqlite:///:memory:"
+def test_a_control_plane_store_other_than_postgresql_is_refused_by_name():
+    """REQ-2014: the control plane is PostgreSQL only; sqlite is no longer offered."""
+    with pytest.raises(ValueError, match="unknown control_plane_store 'sqlite'"):
+        load_profile("demo", control_plane="sqlite")
+
+
+def test_linux_arm64_has_no_embedded_postgresql_and_says_so(tmp_path, monkeypatch):
+    """REQ-2014: pgserver ships no wheel for Linux arm64, so the embedded plane is refused there,
+    naming the external PostgreSQL to use instead."""
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    monkeypatch.setattr("platform.machine", lambda: "aarch64")
+    with pytest.raises(ValueError, match="Linux arm64 has no embedded PostgreSQL"):
+        load_profile("native", data_dir=tmp_path)
 
 
 def test_unknown_preset_rejected():

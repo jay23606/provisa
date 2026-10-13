@@ -99,7 +99,7 @@ def _server(pg: _SourceAndEngine, engine: str, workdir: str):
         "api_source_replication_duckdb",
         engine="duckdb",
         config=str(path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{Path(workdir) / 'materialize.duckdb'}",
     )
 

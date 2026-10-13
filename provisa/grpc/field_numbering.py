@@ -118,17 +118,7 @@ class FieldNumberAllocator:
 async def load_field_number_allocator(conn) -> FieldNumberAllocator:
     """Load the persisted allocation state for the current org's tenant DB, creating the table on
     first use (same ``CREATE TABLE IF NOT EXISTS`` convention as ``init_audit_schema`` — V1, no
-    migrations).
-
-    Postgres-only (``ON CONFLICT`` upsert syntax): same restriction ``init_audit_schema`` documents
-    for the append-only audit rules — a non-Postgres tenant DB gets an allocator with nothing
-    persisted, so every ``generate_proto`` call in this build falls back to fresh enumeration (the
-    pre-REQ-1903 behavior for that backend, not a partial/incorrect persisted state)."""
-    if (
-        getattr(conn, "capabilities", None) is not None
-        and conn.capabilities.dialect != "postgresql"
-    ):
-        return FieldNumberAllocator([])
+    migrations). The control plane is PostgreSQL (REQ-2014; the upsert is ``ON CONFLICT``)."""
     await conn.execute(FIELD_NUMBERS_SCHEMA_SQL)
     rows = await conn.fetch(
         "SELECT table_id, namespace, field_name, field_number, removed FROM grpc_field_numbers"
@@ -144,11 +134,6 @@ async def load_field_number_allocator(conn) -> FieldNumberAllocator:
 async def persist_field_numbers(conn, allocator: FieldNumberAllocator) -> None:
     """Flush every number allocated or retired during this build. A no-op build (no new/removed
     columns anywhere) issues no write."""
-    if (
-        getattr(conn, "capabilities", None) is not None
-        and conn.capabilities.dialect != "postgresql"
-    ):
-        return
     rows = allocator.pending_rows()
     if not rows:
         return

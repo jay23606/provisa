@@ -545,19 +545,6 @@ async def create_environment(request: Request, org_id: str, body: CreateEnvBody)
                 org=org_id,
                 env=body.name,
             )
-    # REQ-1488: an environment is a schema, so a plane without schemas cannot hold one. Refused
-    # here, before the name is reserved — provisioning would otherwise report success and write
-    # the new environment's model into the org's only namespace.
-    if _pool().dialect != "postgresql":
-        raise ApiError(
-            409,
-            "environments.plane_unsupported",
-            f"Environments need a PostgreSQL control plane; this one is "
-            f"{_pool().dialect!r}. Only {PROD!r} exists here.",
-            org=org_id,
-            env=body.name,
-        )
-
     try:
         report = await _create_env(
             _state(),

@@ -1293,9 +1293,7 @@ email_send_authority_audit = Table(
 node_ids = Table(
     "node_ids",
     metadata,
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     Column("composite_id", Text, nullable=False, unique=True),
     Column("label", Text, nullable=False),
     Column("properties", JSON, nullable=False, default=dict, server_default="{}"),
@@ -1304,9 +1302,7 @@ node_ids = Table(
 rel_ids = Table(
     "rel_ids",
     metadata,
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     Column("composite_id", Text, nullable=False, unique=True),
     Column("rel_type", Text, nullable=False),
     Column("properties", JSON, nullable=False, default=dict, server_default="{}"),
@@ -1317,9 +1313,7 @@ rel_ids = Table(
 query_audit_log = Table(
     "query_audit_log",
     metadata,
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     # The tenant is the ORG, and an org id is text ("default", "kstott") — not a UUID. Typing this
     # column UUID meant the only value the audit pipeline could ever store was NULL.
     Column("tenant_id", Text),
@@ -1365,9 +1359,7 @@ query_audit_log = Table(
 query_sla_log = Table(
     "query_sla_log",
     metadata,
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     Column("tenant_id", Uuid),
     Column("duration_ms", Integer, nullable=False),
     Column("status_code", Integer, nullable=False),
@@ -1401,9 +1393,7 @@ events = Table(
     "events",
     metadata,
     # id is the ordering key AND the repeater replay cursor.
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     # the node/table this event is ABOUT (a data source table or an MV).
     Column("source_table", Text, nullable=False),
     # delta (upsert by PK) | append (insert) | replace (delete+insert) | warn (advise) | error (halt)
@@ -1591,9 +1581,7 @@ preserved_snapshots = Table(
 admin_audit_log = Table(
     "admin_audit_log",
     metadata,
-    Column(
-        "id", BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    ),
+    Column("id", BigInteger(), primary_key=True, autoincrement=True),
     Column("action", Text, nullable=False),
     Column("actor_id", Text, nullable=False),
     Column("subject_id", Text, nullable=False),

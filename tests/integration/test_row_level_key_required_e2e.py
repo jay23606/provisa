@@ -98,7 +98,7 @@ def server(seeded, tmp_path_factory):
     }
     path = tmp_path_factory.mktemp("row_level") / "config.yaml"
     path.write_text(yaml.safe_dump(cfg))
-    srv = IsolatedServer(_ORG, engine="duckdb", config=str(path), control_plane="sqlite")
+    srv = IsolatedServer(_ORG, engine="duckdb", config=str(path), control_plane="own")
     srv.start(timeout=240)
     try:
         yield srv

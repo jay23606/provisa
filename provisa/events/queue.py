@@ -24,7 +24,7 @@ work is serialized — no concurrent write to one landed table, ordering preserv
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, insert, or_, select, update
@@ -248,11 +248,6 @@ async def get_node_state(conn: Any, node: str) -> dict | None:
     if row is None:
         return None
     at = row[2]
-    # A schema-less backend (sqlite) drops tzinfo on a DateTime(timezone=True) round-trip, returning a
-    # NAIVE datetime; ``.timestamp()`` would then read it as LOCAL time and skew the fresh-through
-    # comparison. Every stamp is written in UTC (record_refresh), so coerce naive → UTC here.
-    if at is not None and at.tzinfo is None:
-        at = at.replace(tzinfo=timezone.utc)
     return {
         "content_hash": row[0],
         "probe_token": row[1],

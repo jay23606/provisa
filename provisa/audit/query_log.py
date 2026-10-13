@@ -78,12 +78,6 @@ async def init_audit_schema(
     from provisa.core.environments import org_schema
 
     _validate_org_id(org_id)
-    # Non-PG backends already have query_audit_log from schema_org.create_all
-    # (init_schema portable path); the append-only RULE is PG-only. On those
-    # backends immutability is enforced app-side, so audit init is a no-op.
-    # A raw asyncpg pool (no Database shim) has no .dialect and is always PostgreSQL.
-    if getattr(pool, "dialect", "postgresql") != "postgresql":
-        return
     # REQ-1488: an environment is a schema of its own, so its query audit log is the one in its
     # own schema — an environment's reads are not entries in prod's log.
     schema_name = org_schema(org_id, env, region=region)

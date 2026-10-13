@@ -16,6 +16,8 @@ waits for a free pooled connection when the pool is exhausted."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import logging
 import threading
 from typing import Any
@@ -71,6 +73,27 @@ def get_engine(  # REQ-331, REQ-332
     prepared-statement policy through ``provisa.core.database.pg_engine``, the same one the
     control plane runs on. Ignored for other backends.
     """
+    return _cached(
+        source_id,
+        lambda: _build_url(dialect, host, port, database, username, password),
+        search_path,
+        use_pgbouncer=use_pgbouncer,
+    )
+
+
+def get_tenant_engine(  # REQ-1745, REQ-2014
+    source_id: str, url: str, search_path: str, *, use_pgbouncer: bool
+) -> Engine:
+    """The Engine of an ingest source that writes into the tenant control plane's own database:
+    ``url`` is that plane's URL as it stands -- a unix socket (the embedded plane names its
+    directory in the query) or a host -- scoped to the org's ``search_path`` (see
+    :func:`get_engine`)."""
+    return _cached(source_id, lambda: url, search_path, use_pgbouncer=use_pgbouncer)
+
+
+def _cached(
+    source_id: str, raw_url: Callable[[], str], search_path: str | None, *, use_pgbouncer: bool
+) -> Engine:
     cached = _engines.get(source_id)
     if cached is not None:
         return cached
@@ -82,7 +105,7 @@ def get_engine(  # REQ-331, REQ-332
             return cached
         from provisa.core.database import pg_engine, sync_store_url
 
-        url = sync_store_url(_build_url(dialect, host, port, database, username, password))
+        url = sync_store_url(raw_url())
         log.info("Creating ingest engine for source=%s url=%s", source_id, url.split("@")[-1])
         pool_kwargs: dict[str, Any] = {
             "pool_pre_ping": True,

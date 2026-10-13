@@ -36,11 +36,9 @@ from provisa.core.db import init_schema
 from provisa.core.org_registry_view import (
     VIEW_COLUMNS,
     VIEW_NAME,
-    RegistryViewUnavailable,
     build_view_sql,
     refresh_org_registry_view,
 )
-from provisa.core.database import Database, create_engine_from_url
 from tests.pg_control_plane import SCHEMA_SQL
 
 pytestmark = [pytest.mark.integration]
@@ -234,18 +232,6 @@ async def test_seed_is_idempotent(planes, monkeypatch):
             {"t": VIEW_NAME},
         ).scalar()
     assert registrations == 1
-
-
-async def test_non_postgresql_plane_is_refused_not_silently_skipped(planes, tmp_path):
-    """The view is PostgreSQL DDL. A SQLite platform plane is a supported topology, so the caller is
-    told why it did not happen rather than left believing it did."""
-    admin_db, tenant_db, _sync = planes
-    sqlite_admin = Database(
-        create_engine_from_url(f"sqlite+pysqlite:///{tmp_path}/platform.db"), name="admin"
-    )
-    with pytest.raises(RegistryViewUnavailable):
-        await refresh_org_registry_view(model_db=tenant_db, admin_db=sqlite_admin)
-    await sqlite_admin.close()
 
 
 def test_empty_deployment_still_yields_a_typed_view():

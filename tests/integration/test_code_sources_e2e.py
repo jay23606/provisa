@@ -139,7 +139,7 @@ def server(tmp_path_factory, runtime_cache, request):
         "code_sources",
         engine="duckdb",
         config=str(path),
-        control_plane="sqlite",
+        control_plane="own",
         materialize_store_url=f"duckdb:///{work / 'store.duckdb'}",
         env={"PROVISA_RUNTIME_DEPS_CACHE": str(runtime_cache)},
     )

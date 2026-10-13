@@ -894,19 +894,10 @@ async def _init_ingest_engines() -> None:
         # assigned and ephemeral; REAL prod deployments dial a managed Cloud SQL host, never
         # localhost), so a UI-registered ingest source silently wrote rows nowhere reachable. The
         # only sensible default for "no connection configured" is the SAME tenant database
-        # Provisa itself is already connected to. On Postgres that means reading off
-        # state.model_db's own engine URL and opening a SEPARATE pool with it (ingest write
-        # traffic gets its own pool, isolated from the admin-plane one). On SQLite -- the e2e
-        # "core" lane and any local-dev ``--demo`` install both run PROVISA_DEMO's SQLite control
-        # plane -- host/port/username don't exist to decompose, AND a second engine opened
-        # against the SAME sqlite FILE deadlocks against state.model_db's own WAL-mode
-        # connection (SQLAlchemy's default rollback-journal pool has no busy_timeout of its own
-        # and never gets the WAL pragma _on_sqlite_connect sets on state.model_db's engine — see
-        # provisa/core/database.py). So the SQLite/embedded case reuses state.model_db.engine
-        # directly instead of opening a second engine at all -- "the SAME tenant database" taken
-        # literally, not a look-alike connection to the same file.
+        # Provisa itself is already connected to (REQ-2014: PostgreSQL): read off state.model_db's
+        # own engine URL and open a SEPARATE pool with it (ingest write traffic gets its own pool,
+        # isolated from the admin-plane one).
         _tenant_url = state.model_db.engine.url
-        _tenant_is_pg = _tenant_url.get_backend_name() == "postgresql"
         for _isrc in _ingest_sources:
             _sid = _isrc["id"]
             if _isrc["host"]:
@@ -925,39 +916,30 @@ async def _init_ingest_engines() -> None:
                     # connection — the same default SourceConfig.use_pgbouncer has.
                     use_pgbouncer=False,
                 )
-            elif _tenant_is_pg:
+            else:
                 # REQ-1730: state.model_db.acquire() scopes every control-plane connection to the
                 # org's schema via a per-acquire `SET search_path` (core/database.py's
                 # Database.acquire) — this raw engine has no such wrapper, so without an explicit
                 # search_path its DDL/INSERT land wherever the role's own default resolves
                 # (typically "public"), not the org schema `register_table` already stamped onto
-                # this table's `registered_tables.schema_name` (schema_mutation_ops.py). Under a
-                # SQLite control plane this was invisible — DuckDB's own sqlite ATTACH flattens
-                # every schema into "main" regardless — but a Postgres control plane's real schema
-                # boundaries (DuckDB's postgres ATTACH respects them, and Trino's postgres
-                # connector requires them) exposed it: rows landed in "public", the compiled query
-                # asked provisa_admin.org_<id> for them, found the (empty) table, "No results."
+                # this table's `registered_tables.schema_name` (schema_mutation_ops.py): rows landed
+                # in "public", the compiled query asked provisa_admin.org_<id> for them, found the
+                # (empty) table, "No results."
                 from provisa.core.database import pg_uses_pgbouncer as _pg_uses_pgbouncer
                 from provisa.core.environments import active_org_schema
 
-                _pw = _resolve_secrets(_tenant_url.password or "")
-                _sp = active_org_schema(state.org_id, "")
-                _eng = _get_ingest_engine(
-                    source_id=_sid,
-                    dialect=_isrc["dialect"] or "postgresql",
-                    host=_tenant_url.host or "localhost",
-                    port=_tenant_url.port or 5432,
-                    database=_tenant_url.database or "",
-                    username=_tenant_url.username or "",
-                    password=_pw or "",
-                    search_path=_sp,
+                from provisa.ingest.engine import get_tenant_engine
+
+                # The tenant plane's URL as it stands: the embedded plane is a unix socket named in
+                # its query, which a host/port rebuild of it would lose.
+                _eng = get_tenant_engine(
+                    _sid,
+                    _tenant_url.render_as_string(hide_password=False),
+                    active_org_schema(state.org_id, ""),
                     # Same database as the tenant control plane, so the same PgBouncer path.
                     use_pgbouncer=_pg_uses_pgbouncer(state.model_db.engine),
                 )
-            else:
-                _eng = state.model_db.engine
             state.ingest_engines[_sid] = _eng
-            _sqlite_backed = _eng.dialect.name == "sqlite"
             async with state.model_db.acquire() as _pg_conn:
                 _itables = [
                     dict(_r._mapping)
@@ -995,7 +977,7 @@ async def _init_ingest_engines() -> None:
                 )
             state.ingest_tables[_sid] = _tbl_map
             for _tn, _cols in _tbl_map.items():
-                _ddl = _gen_ddl(_tn, _cols, sqlite=_sqlite_backed)
+                _ddl = _gen_ddl(_tn, _cols)
                 with tolerate_startup_failure(f"ingest DDL for {_sid}.{_tn}"):
                     with _eng.begin() as _conn:
                         _conn.execute(__import__("sqlalchemy").text(_ddl))
