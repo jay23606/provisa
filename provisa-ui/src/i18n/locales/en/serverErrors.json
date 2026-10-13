@@ -401,7 +401,8 @@
       "relationship_unknown_source": "Source table '{{table}}' is not registered",
       "relationship_unknown_target": "Target table '{{table}}' is not registered",
       "relationship_unknown_junction": "Junction table '{{table}}' is not registered",
-      "source_id_taken": "Source '{{source}}' already exists"
+      "source_id_taken": "Source '{{source}}' already exists",
+      "domain_id_taken": "Domain '{{domain}}' already exists"
     },
     "secrets": {
       "name_refused": "{{name}} is not a name inside this organization's secrets in {{service}}: a name is relative to the organization and cannot leave it",

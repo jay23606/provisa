@@ -2093,6 +2093,14 @@ class Mutation:  # REQ-012, REQ-013, REQ-016, REQ-042
             graphql_alias=input.graphql_alias or None,
         )
         async with pool.acquire() as conn:
+            # A create makes a new domain: an existing id is refused by name, nothing written.
+            if await domain_repo.get(cast("Connection", conn), input.id) is not None:
+                return MutationResult(
+                    success=False,
+                    message=f"Domain {input.id!r} already exists",
+                    code="schema.domain_id_taken",
+                    params={"domain": input.id},
+                )
             await domain_repo.upsert(cast("Connection", conn), model)
         return MutationResult(
             success=True,

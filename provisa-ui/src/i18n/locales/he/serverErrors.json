@@ -401,7 +401,8 @@
       "relationship_unknown_source": "טבלת המקור '{{table}}' אינה רשומה",
       "relationship_unknown_target": "טבלת היעד '{{table}}' אינה רשומה",
       "relationship_unknown_junction": "טבלת הקישור '{{table}}' אינה רשומה",
-      "source_id_taken": "המקור '{{source}}' כבר קיים"
+      "source_id_taken": "המקור '{{source}}' כבר קיים",
+      "domain_id_taken": "התחום '{{domain}}' כבר קיים"
     },
     "secrets": {
       "name_refused": "{{name}} אינו שם בתוך הסודות של הארגון הזה ב-{{service}}: שם הוא יחסי לארגון ואינו יכול לצאת ממנו",

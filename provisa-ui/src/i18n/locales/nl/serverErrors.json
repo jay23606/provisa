@@ -401,7 +401,8 @@
       "relationship_unknown_source": "Brontabel '{{table}}' is niet geregistreerd",
       "relationship_unknown_target": "Doeltabel '{{table}}' is niet geregistreerd",
       "relationship_unknown_junction": "Koppeltabel '{{table}}' is niet geregistreerd",
-      "source_id_taken": "Bron '{{source}}' bestaat al"
+      "source_id_taken": "Bron '{{source}}' bestaat al",
+      "domain_id_taken": "Domein '{{domain}}' bestaat al"
     },
     "secrets": {
       "name_refused": "{{name}} is geen naam binnen de secrets van deze organisatie in {{service}}: een naam is relatief ten opzichte van de organisatie en kan deze niet verlaten",

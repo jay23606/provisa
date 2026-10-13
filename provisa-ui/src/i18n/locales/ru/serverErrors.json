@@ -401,7 +401,8 @@
       "relationship_unknown_source": "Исходная таблица '{{table}}' не зарегистрирована",
       "relationship_unknown_target": "Целевая таблица '{{table}}' не зарегистрирована",
       "relationship_unknown_junction": "Связующая таблица '{{table}}' не зарегистрирована",
-      "source_id_taken": "Источник '{{source}}' уже существует"
+      "source_id_taken": "Источник '{{source}}' уже существует",
+      "domain_id_taken": "Домен '{{domain}}' уже существует"
     },
     "secrets": {
       "name_refused": "{{name}} не является именем в пределах секретов этой организации в {{service}}: имя задаётся относительно организации и не может выходить за её пределы",

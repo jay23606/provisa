@@ -401,7 +401,8 @@
       "relationship_unknown_source": "स्रोत तालिका '{{table}}' पंजीकृत नहीं है",
       "relationship_unknown_target": "लक्ष्य तालिका '{{table}}' पंजीकृत नहीं है",
       "relationship_unknown_junction": "जंक्शन तालिका '{{table}}' पंजीकृत नहीं है",
-      "source_id_taken": "स्रोत '{{source}}' पहले से मौजूद है"
+      "source_id_taken": "स्रोत '{{source}}' पहले से मौजूद है",
+      "domain_id_taken": "डोमेन '{{domain}}' पहले से मौजूद है"
     },
     "secrets": {
       "name_refused": "{{name}} {{service}} में इस संगठन के सीक्रेट्स के भीतर का नाम नहीं है: नाम संगठन के सापेक्ष होता है और उससे बाहर नहीं जा सकता",
