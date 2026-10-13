@@ -31,7 +31,7 @@ _STORED = [
 
 
 def _col(name, data_type, pk=False):
-    return SimpleNamespace(name=name, data_type=data_type, is_primary_key=pk)
+    return SimpleNamespace(name=name, data_type=data_type, is_primary_key=pk, embedding=False)
 
 
 @pytest.mark.parametrize("stored", _STORED)

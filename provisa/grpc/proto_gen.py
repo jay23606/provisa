@@ -96,6 +96,12 @@ def _needs_timestamp_import(columns: list[tuple[str, str]]) -> bool:
     return any(_physical_to_proto(dtype) == "google.protobuf.Timestamp" for _, dtype in columns)
 
 
+def _is_array_type(column_type: str) -> bool:
+    """Whether a parameter is an array (REQ-1986: a query vector). A parameter is an argument,
+    not a column: it stays a repeated field of its element type, not a JSON string."""
+    return column_type.lower().strip().startswith("array(")
+
+
 def _to_proto_type_name(gql_name: str) -> str:
     """Convert GQL type name to proto3 PascalCase. PS__Pets → PsPets."""
     if "__" in gql_name:
@@ -156,10 +162,17 @@ def _parameter_proto_types(t) -> dict[str, str]:  # REQ-1986
     types: dict[str, str] = {}
     for nfc in sorted(t.native_filter_columns, key=lambda c: c["column_name"]):
         meta = t.column_metadata.get(nfc["column_name"].lower())
-        # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded.
-        proto_type = _physical_to_proto(meta.data_type) if meta is not None else "string"
+        # Typed as schema_gen types the parameter's GraphQL argument: text when unrecorded. An
+        # array parameter is repeated of its element type (a column of that type is JSON).
+        array = False
+        if meta is None:
+            proto_type = "string"
+        else:
+            array = _is_array_type(meta.data_type)
+            typed = meta.data_type.strip()[len("array(") : -1] if array else meta.data_type
+            proto_type = _physical_to_proto(typed)
         filter_proto = "string" if proto_type == "google.protobuf.Timestamp" else proto_type
-        label = "repeated" if meta is not None and _is_array_type(meta.data_type) else "optional"
+        label = "repeated" if array else "optional"
         types[parameter_name(nfc["column_name"])] = f"{label} {filter_proto}"
     return types
 
