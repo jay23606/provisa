@@ -744,6 +744,12 @@
         "label": "File caricato più grande",
         "help": "Il file più grande che una sorgente SQLite, DuckDB, CSV o Parquet può ricevere per caricamento dal modulo della sorgente; uno più grande viene rifiutato indicando questo limite. Un file più grande è meglio leggerlo dove si trova, da un archivio di oggetti."
       }
+    },
+    "polly": {
+      "model_prices": {
+        "label": "Prezzi dei modelli di Polly",
+        "help": "Una riga per modello: il suo id, poi USD per milione di token per input, output, letture e scritture della cache. L'uso di Polly è calcolato su questa tabella."
+      }
     }
   }
 }

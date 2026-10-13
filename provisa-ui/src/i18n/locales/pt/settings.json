@@ -744,6 +744,12 @@
         "label": "Maior arquivo enviado",
         "help": "O maior arquivo que uma fonte SQLite, DuckDB, CSV ou Parquet pode receber por envio no formulário da fonte; um maior é recusado, citando este limite. É melhor ler um arquivo maior onde ele está, em um armazenamento de objetos."
       }
+    },
+    "polly": {
+      "model_prices": {
+        "label": "Preços dos modelos do Polly",
+        "help": "Uma linha por modelo: o id e depois USD por milhão de tokens de entrada, saída, leituras e gravações de cache. O uso do Polly é calculado com ela."
+      }
     }
   }
 }

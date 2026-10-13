@@ -744,6 +744,12 @@
         "label": "Archivo subido más grande",
         "help": "El archivo más grande que un origen SQLite, DuckDB, CSV o Parquet puede recibir por subida desde el formulario del origen; uno mayor se rechaza indicando este límite. Un archivo mayor conviene leerlo donde está, desde un almacén de objetos."
       }
+    },
+    "polly": {
+      "model_prices": {
+        "label": "Precios de modelos de Polly",
+        "help": "Una línea por modelo: su id y luego USD por millón de tokens de entrada, salida, lecturas de caché y escrituras de caché. El uso de Polly se calcula con ella."
+      }
     }
   }
 }

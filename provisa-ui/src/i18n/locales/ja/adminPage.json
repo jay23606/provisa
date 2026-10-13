@@ -118,6 +118,7 @@
         "file_not_found": "そのファイルはサーバー上に見つかりません。",
         "invalid_tls_pair": "証明書と秘密鍵は一緒に設定する必要があります（{{other}}）。",
         "redis_tls_required": "TLS が必須の間、Redis は TLS を使用する必要があります。",
+        "price_entry_invalid": "各エントリはモデル ID と 100 万トークンあたりの 4 つの価格です：入力、出力、キャッシュ読み取り、キャッシュ書き込み（{{entry}}）。",
         "retry_max_below_interval": "最大待機時間は再試行間隔（{{other}}）より小さくできません。",
         "cannot_decrypt": "保存された値を現在の鍵で復号できませんでした。"
       },

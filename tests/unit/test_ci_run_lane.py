@@ -315,12 +315,12 @@ def test_the_live_salesforce_test_is_in_no_lane_but_its_own():
     marker = run_lane.LANES["warehouse"].marker
     assert marker == (
         "requires_warehouse and not requires_salesforce and not requires_athena and not requires_servicenow "
-        "and not requires_microsoft_365 and not requires_google_workspace"
+        "and not requires_microsoft_365 and not requires_google_workspace and not requires_polly_bakeoff"
     )
     assert run_lane.LANES["salesforce"].marker == "requires_salesforce"
     # Every other lane excludes the live tests through the base exclusion or its own marker.
     for name, lane in run_lane.LANES.items():
-        if name in ("warehouse", "salesforce", "athena", "servicenow"):
+        if name in ("warehouse", "salesforce", "athena", "servicenow", "polly_bakeoff"):
             continue
         assert "not requires_warehouse" in lane.marker or name in ("isolated", "e2e", "cluster")
     for test in ("test_salesforce_source_e2e.py", "test_cloudops_source_e2e.py"):
@@ -550,5 +550,6 @@ def test_every_job_that_collects_the_container_suite_restores_the_trino_plugins_
         "integration-suite-lanes.yml:servicenow",
         "integration-suite-lanes.yml:suite",
         "integration-suite-lanes.yml:warehouse",
+        "polly-bakeoff.yml:bakeoff",
     ], collecting
     assert in_a_guest == ["nixos.yml:lane"], in_a_guest

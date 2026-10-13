@@ -118,6 +118,7 @@
         "file_not_found": "Ce fichier est introuvable sur le serveur.",
         "invalid_tls_pair": "Le certificat et la clé privée doivent être définis ensemble ({{other}}).",
         "redis_tls_required": "Redis doit utiliser TLS tant que TLS est requis.",
+        "price_entry_invalid": "Chaque entrée est un identifiant de modèle et quatre prix par million de jetons : entrée, sortie, lecture de cache, écriture de cache ({{entry}}).",
         "retry_max_below_interval": "L'attente maximale ne peut pas être inférieure à l'intervalle de nouvelle tentative ({{other}}).",
         "cannot_decrypt": "Une valeur stockée n'a pas pu être déchiffrée avec la clé actuelle."
       },

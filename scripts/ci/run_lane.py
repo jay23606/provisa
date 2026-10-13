@@ -75,7 +75,7 @@ LANES: dict[str, Lane] = {
     "warehouse": Lane(
         ("tests/integration", "tests/steps"),
         "requires_warehouse and not requires_salesforce and not requires_athena and not requires_servicenow "
-        "and not requires_microsoft_365 and not requires_google_workspace",
+        "and not requires_microsoft_365 and not requires_google_workspace and not requires_polly_bakeoff",
         clear_addopts=True,
     ),
     # The live Salesforce org: on demand only (workflow_dispatch, include_salesforce), its own job.
@@ -87,6 +87,13 @@ LANES: dict[str, Lane] = {
     # The live ServiceNow instance (REQ-1954): on demand only (include_servicenow), its own job.
     "servicenow": Lane(
         ("tests/integration", "tests/steps"), "requires_servicenow", clear_addopts=True
+    ),
+    # REQ-2012: Polly's model bake-off asks paid models real questions; on demand only, its own
+    # workflow (polly-bakeoff.yml).
+    "polly_bakeoff": Lane(
+        ("tests/integration/test_polly_bakeoff_e2e.py",),
+        "requires_polly_bakeoff",
+        clear_addopts=True,
     ),
 }
 

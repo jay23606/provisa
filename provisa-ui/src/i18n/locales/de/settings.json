@@ -744,6 +744,12 @@
         "label": "Größte hochgeladene Datei",
         "help": "Die größte Datei, die eine SQLite-, DuckDB-, CSV- oder Parquet-Quelle per Upload im Quellformular erhalten kann; eine größere wird unter Nennung dieses Limits abgelehnt. Eine größere Datei liest man besser dort, wo sie liegt, aus einem Objektspeicher."
       }
+    },
+    "polly": {
+      "model_prices": {
+        "label": "Polly-Modellpreise",
+        "help": "Eine Zeile je Modell: seine ID, dann USD pro Million Token für Eingabe, Ausgabe, Cache-Lesen und Cache-Schreiben. Danach werden Pollys Kosten berechnet."
+      }
     }
   }
 }
