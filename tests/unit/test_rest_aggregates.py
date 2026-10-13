@@ -312,7 +312,7 @@ class TestBuildGroupByGraphqlQuery:
         assert "offset: 10" in q
         assert "order_by: [{groupKey: {region: asc}}]" in q
 
-    def test_ordering_by_a_field_that_is_not_a_group_key_is_refused(self):  # REQ-2006
+    def test_ordering_by_a_field_that_is_not_a_group_key_is_refused(self):  # REQ-2007
         from fastapi import HTTPException
 
         schema, ctx = _build_schema_and_ctx()

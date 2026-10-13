@@ -318,7 +318,7 @@ async def grpc_proxy(type_name: str, request: Request):  # REQ-045, REQ-266
                     include_nodes=include_nodes,
                     include=include,
                     filter_msg=_filter_object(body),
-                    # REQ-2006: the native request's order_by entries, limit and offset.
+                    # REQ-2007: the native request's order_by entries, limit and offset.
                     order_by=[
                         SimpleNamespace(
                             func=o.get("func", ""),

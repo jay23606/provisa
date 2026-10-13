@@ -398,7 +398,7 @@ def _order_direction(direction: str) -> str:
     return sql_dir
 
 
-def _compile_group_by_order(  # REQ-2006
+def _compile_group_by_order(  # REQ-2007
     order_by: list[dict],
     by_cols: list[str],
     table_id: int,

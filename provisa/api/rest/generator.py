@@ -426,7 +426,7 @@ def _build_group_by_graphql_query(
     args_parts = [f"by: [{', '.join(apply_gql_name(c) for c in by_cols)}]"]
     args_parts.extend(variables.arguments)
     if order_by:
-        # REQ-2006: a group-by is ordered by its group keys; a sort on any other field is refused.
+        # REQ-2007: a group-by is ordered by its group keys; a sort on any other field is refused.
         keys = {apply_gql_name(c) for c in by_cols}
         for o in order_by:
             if o["field"] not in keys:

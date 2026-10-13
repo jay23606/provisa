@@ -309,7 +309,7 @@ def build_aggregate_types(  # REQ-196
     return aggregate_type
 
 
-def build_group_by_order_by_type(  # REQ-2006
+def build_group_by_order_by_type(  # REQ-2007
     type_name: str,
     visible_columns: list[dict],
     column_metadata: dict[str, ColumnMetadata],

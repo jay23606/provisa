@@ -9,7 +9,7 @@
 # permission from the copyright holder.
 
 """An aggregate field carries the name the row type gives its column (REQ-196, REQ-197), and a
-group-by is ordered by its keys and its aggregates (REQ-2006).
+group-by is ordered by its keys and its aggregates (REQ-2007).
 
 Under the camelCase convention a snake_case column ``slowest_sql_ms`` is ``slowestSqlMs`` on the
 row type, and so it is under ``sum``/``avg``/``stddev``/``variance``/``min``/``max`` of the
@@ -18,7 +18,7 @@ resolves each back to the column. Surfaces that name columns physically (gRPC's 
 JSON:API) select each aggregate field under its physical name as the alias.
 """
 
-# Requirements: REQ-196, REQ-197, REQ-2006
+# Requirements: REQ-196, REQ-197, REQ-2007
 
 from __future__ import annotations
 
@@ -165,7 +165,7 @@ def test_jsonapi_selects_each_aggregate_field_under_its_physical_name(camel):
     assert selection == "avg { slowest_sql_ms: slowestSqlMs page_ms: pageMs }"
 
 
-# -- a group-by's own order_by (REQ-2006) ----------------------------------------------------------
+# -- a group-by's own order_by (REQ-2007) ----------------------------------------------------------
 
 _TOP_TWO = (
     "{ slowPagesGroupBy(by: [page], order_by: [{aggregate: {avg: {slowestSqlMs: desc}}}],"

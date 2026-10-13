@@ -508,7 +508,7 @@ def _build_group_by_graphql_query(  # REQ-1359
         args_parts.append(f"offset: {offset}")
     args_parts.extend(variables.arguments)
     if sort:
-        # REQ-2006: a group-by is ordered by its group keys (the caller has checked each sort
+        # REQ-2007: a group-by is ordered by its group keys (the caller has checked each sort
         # field is one).
         ob_parts = [f"{{groupKey: {{{o['field']}: {o['dir']}}}}}" for o in sort]
         args_parts.append("order_by: [" + ", ".join(ob_parts) + "]")
@@ -826,7 +826,7 @@ def create_jsonapi_router(state: Any) -> APIRouter:  # REQ-256, REQ-257, REQ-266
                 keys = {apply_gql_name(c) for c in group_cols}
                 for o in sort:
                     if o["field"] not in keys:
-                        # REQ-2006: a group-by is sorted by its group keys only.
+                        # REQ-2007: a group-by is sorted by its group keys only.
                         return _jsonapi_error_response(
                             400,
                             "Invalid Sort",

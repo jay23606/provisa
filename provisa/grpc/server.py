@@ -1444,7 +1444,7 @@ class ProvisaServicer:  # REQ-045, REQ-143
                 include=include,
                 filter_msg=filter_msg,
                 columns=columns,
-                order_by=list(getattr(request, "order_by", [])),  # REQ-2006
+                order_by=list(getattr(request, "order_by", [])),  # REQ-2007
                 limit=request.limit or None,
                 offset=request.offset or None,
             )

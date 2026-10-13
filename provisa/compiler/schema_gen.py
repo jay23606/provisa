@@ -728,7 +728,7 @@ def _build_group_by_query_field(
     }
     if where_type:
         gb_args["where"] = GraphQLArgument(where_type)
-    # REQ-2006: a group-by is ordered by its keys and its aggregates, not by the table's columns.
+    # REQ-2007: a group-by is ordered by its keys and its aggregates, not by the table's columns.
     gb_order_by = build_group_by_order_by_type(
         t.type_name,
         t.visible_columns,

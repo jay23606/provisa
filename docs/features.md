@@ -118,7 +118,7 @@ A metric is a named, governed aggregate with its own definition. You write it on
 
 ??? note "Requirements"
 
-    - [Every table can offer an aggregate query and a group-by query in the style Hasura users...](#metrics-and-aggregates-aggregates): [REQ-196](arch/requirements.md#REQ-196), [REQ-197](arch/requirements.md#REQ-197), [REQ-198](arch/requirements.md#REQ-198), [REQ-199](arch/requirements.md#REQ-199), [REQ-479](arch/requirements.md#REQ-479), [REQ-653](arch/requirements.md#REQ-653), [REQ-654](arch/requirements.md#REQ-654), [REQ-655](arch/requirements.md#REQ-655), [REQ-733](arch/requirements.md#REQ-733), [REQ-734](arch/requirements.md#REQ-734), [REQ-1359](arch/requirements.md#REQ-1359), [REQ-1405](arch/requirements.md#REQ-1405), [REQ-2006](arch/requirements.md#REQ-2006)
+    - [Every table can offer an aggregate query and a group-by query in the style Hasura users...](#metrics-and-aggregates-aggregates): [REQ-196](arch/requirements.md#REQ-196), [REQ-197](arch/requirements.md#REQ-197), [REQ-198](arch/requirements.md#REQ-198), [REQ-199](arch/requirements.md#REQ-199), [REQ-479](arch/requirements.md#REQ-479), [REQ-653](arch/requirements.md#REQ-653), [REQ-654](arch/requirements.md#REQ-654), [REQ-655](arch/requirements.md#REQ-655), [REQ-733](arch/requirements.md#REQ-733), [REQ-734](arch/requirements.md#REQ-734), [REQ-1359](arch/requirements.md#REQ-1359), [REQ-1405](arch/requirements.md#REQ-1405), [REQ-2007](arch/requirements.md#REQ-2007)
     - [A metric is a named, governed aggregate with its own definition.](#metrics-and-aggregates-metric-objects): [REQ-1317](arch/requirements.md#REQ-1317), [REQ-1319](arch/requirements.md#REQ-1319), [REQ-1320](arch/requirements.md#REQ-1320), [REQ-1322](arch/requirements.md#REQ-1322), [REQ-1323](arch/requirements.md#REQ-1323), [REQ-1324](arch/requirements.md#REQ-1324), [REQ-1723](arch/requirements.md#REQ-1723)
 
 ### Glossary, tags and ontology
@@ -918,7 +918,7 @@ Polly can do the work as well as describe it. She can search for data sources, r
 
 ### Product tour and named demos
 
-**Available**
+**In development**
 
 A new user is offered a short core tour: welcome, Polly, connecting a source, and running a query. Every step has a Deep Dives button that jumps to a menu of topic tours. Each step waits until the page it points at is loaded and ready, and the tour is never offered over a sign-in or registration form.
 { #product-tour-and-demos-guided-tour }
@@ -933,7 +933,7 @@ On the hosted service, a prospect can try Provisa with no signup in an ephemeral
 
     - [A new user is offered a short core tour: welcome, Polly, connecting a source, and runni...](#product-tour-and-demos-guided-tour): [REQ-1362](arch/requirements.md#REQ-1362), [REQ-1446](arch/requirements.md#REQ-1446), [REQ-1570](arch/requirements.md#REQ-1570), [REQ-1945](arch/requirements.md#REQ-1945)
     - [You can start Provisa already loaded with a demo.](#product-tour-and-demos-named-demos): [REQ-414](arch/requirements.md#REQ-414), [REQ-1220](arch/requirements.md#REQ-1220), [REQ-1858](arch/requirements.md#REQ-1858)
-    - [On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbo...](#product-tour-and-demos-sandbox): [REQ-1033](arch/requirements.md#REQ-1033), [REQ-1034](arch/requirements.md#REQ-1034), [REQ-1036](arch/requirements.md#REQ-1036), [REQ-1037](arch/requirements.md#REQ-1037), [REQ-1039](arch/requirements.md#REQ-1039)
+    - [On the hosted service, a prospect can try Provisa with no signup in an ephemeral sandbo...](#product-tour-and-demos-sandbox): [REQ-1033](arch/requirements.md#REQ-1033), [REQ-1034](arch/requirements.md#REQ-1034), [REQ-1036](arch/requirements.md#REQ-1036), [REQ-1037](arch/requirements.md#REQ-1037), [REQ-1039](arch/requirements.md#REQ-1039), [REQ-2006](arch/requirements.md#REQ-2006)
 
 ### Internationalization and accessibility
 

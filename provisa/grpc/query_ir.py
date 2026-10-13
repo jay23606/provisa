@@ -697,7 +697,7 @@ def grpc_table_to_group_by_graphql_text(
     ``{Type}Filter`` sub-message; its explicitly-set fields become a ``where: { col: { eq: v } }``
     argument, mirroring JSON:API/REST's own equality filters. The filter is checked exactly as
     ``Query{Type}``'s is (``_checked_filter``; raises :class:`FilterError`). ``order_by``
-    (REQ-2006) is the request's ``{Type}GroupByOrder`` entries, in order; with ``limit`` and
+    (REQ-2007) is the request's ``{Type}GroupByOrder`` entries, in order; with ``limit`` and
     ``offset`` they make a top N (raises :class:`GroupByOrderError` on an entry it cannot read)."""
     meta = _find_table_meta(ctx, type_name)
     if meta is None:
@@ -719,7 +719,7 @@ def grpc_table_to_group_by_graphql_text(
     return f"{{ {gb_field}({gb_args}) {{ groupKey aggregate {agg_selection}{nodes_part} }} }}"
 
 
-class GroupByOrderError(ValueError):  # REQ-2006
+class GroupByOrderError(ValueError):  # REQ-2007
     """A ``{Type}GroupByOrder`` entry that names no function, no column of the table, or no
     direction."""
 
@@ -736,7 +736,7 @@ _ORDER_DIRECTIONS = (
 
 
 def _group_by_order_arg(ctx: Any, table_id: int, order_by: list[Any]) -> str:
-    """The ``order_by: [...]`` argument for a group-by's order entries (REQ-2006): each entry is
+    """The ``order_by: [...]`` argument for a group-by's order entries (REQ-2007): each entry is
     ``{func, column, direction}`` with ``column`` the physical name, written as GraphQL's
     ``{aggregate: {func: {column: dir}}}``, ``{aggregate: {count: dir}}`` or
     ``{groupKey: {column: dir}}`` under the column's GraphQL name."""
