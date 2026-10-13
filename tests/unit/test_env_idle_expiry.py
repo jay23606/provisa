@@ -24,25 +24,18 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
-from provisa.core.database import create_engine_from_url
 
-from provisa.core.database import Database
 from provisa.core.env_store import renew_idle_expiry
-from provisa.core.schema_admin import REGISTRY_TABLES, environments, metadata, orgs
+from provisa.core.schema_admin import environments, orgs
 
 
 @pytest.fixture
-async def admin_db():
-    engine = create_engine_from_url("sqlite+pysqlite:///:memory:")
-    with engine.begin() as conn:
-        metadata.create_all(conn, tables=REGISTRY_TABLES)
-    db = Database(engine, "test")
+async def admin_db(control_plane):
+    db = control_plane.platform
     async with db.acquire() as conn:
         await conn.execute_core(orgs.insert().values(id="acme", name="Acme"))
-    try:
-        yield db
-    finally:
-        engine.dispose()
+        await conn.execute_core(environments.insert().values(org_id="acme", name="prod"))
+    return db
 
 
 async def _write(db, name, *, expires_at, idle_ttl_seconds):

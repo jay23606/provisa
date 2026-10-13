@@ -13,10 +13,6 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.calendars import (
     BaseSystem,
@@ -309,14 +305,8 @@ def test_build_deadline_source_rejects_both_live_and_periodic():
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 class _RecProc(TableProcessor):
@@ -388,12 +378,12 @@ def test_trustworthy_zero_is_fresh():
 
 
 @pytest.mark.asyncio
-async def test_periodic_defers_until_boundary_plus_lateness(tmp_path, monkeypatch):
+async def test_periodic_defers_until_boundary_plus_lateness(control_plane, monkeypatch):
     import provisa.events.processor as pm
 
     win_end = datetime(2026, 7, 10, tzinfo=UTC).timestamp()
     fresh = StateSubject(refreshed_at=win_end, ok=True)
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         await _fan_in(db, "mat.daily_sales", "s.transactions")
         proc = _periodic_proc(
             db,
@@ -428,12 +418,12 @@ async def test_periodic_defers_until_boundary_plus_lateness(tmp_path, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_periodic_stale_input_is_outage_warn_hold(tmp_path, monkeypatch):
+async def test_periodic_stale_input_is_outage_warn_hold(control_plane, monkeypatch):
     import provisa.events.processor as pm
 
     win_end = datetime(2026, 7, 10, tzinfo=UTC).timestamp()
     stale = StateSubject(refreshed_at=win_end - 500, ok=True)  # not fresh-through window.end
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         await _fan_in(db, "mat.daily_sales", "s.transactions")
         proc = _periodic_proc(
             db,
@@ -460,12 +450,12 @@ async def test_periodic_stale_input_is_outage_warn_hold(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_periodic_holiday_no_window_no_alarm(tmp_path, monkeypatch):
+async def test_periodic_holiday_no_window_no_alarm(control_plane, monkeypatch):
     import provisa.events.processor as pm
 
     cal = _greg(holidays=frozenset({date(2026, 7, 9)}))
     fresh = StateSubject(refreshed_at=datetime(2026, 7, 10, tzinfo=UTC).timestamp(), ok=True)
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         await _fan_in(db, "mat.daily_sales", "s.transactions")
         proc = _RecProc(
             "mat.daily_sales",
@@ -497,14 +487,14 @@ async def test_periodic_holiday_no_window_no_alarm(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_window_opens_coalesces_fires_once_with_peg(tmp_path, monkeypatch):
+async def test_window_opens_coalesces_fires_once_with_peg(control_plane, monkeypatch):
     """A window opens on the first fanned-in event, gathers subsequent events across inputs, and
     fires ONCE at the deadline coalescing them all (fan-in collapse) — pegged to the window (REQ-958)."""
     import provisa.events.processor as pm
 
     win_end = datetime(2026, 7, 10, tzinfo=UTC).timestamp()
     fresh = StateSubject(refreshed_at=win_end, ok=True)
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         # cross-input burst: two events from A, one from B — all fan into the temporal MV.
         await _fan_in(db, "mat.daily_sales", "s.a", n=2)
         await _fan_in(db, "mat.daily_sales", "s.b", n=1)
@@ -538,11 +528,11 @@ async def test_window_opens_coalesces_fires_once_with_peg(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_live_debounce_window_is_none(tmp_path, monkeypatch):
+async def test_live_debounce_window_is_none(control_plane, monkeypatch):
     """A live (debounce) MV has no calendar peg — ctx.window stays None; it computes as-of now."""
     import provisa.events.processor as pm
 
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         await _fan_in(db, "mv.live", "s.o", n=2)
         proc = _RecProc(
             "mv.live",

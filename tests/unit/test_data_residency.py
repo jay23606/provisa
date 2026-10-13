@@ -255,7 +255,7 @@ async def test_a_role_saved_with_a_grant_is_held_to_the_same_rules(node, tmp_pat
 
 
 async def test_set_table_region_refuses_a_change_the_grant_does_not_cover(
-    node, monkeypatch, tmp_path
+    node, monkeypatch, control_plane
 ):
     """The admin mutation answers the refusal by name and changes nothing."""
     from unittest.mock import AsyncMock, patch
@@ -277,7 +277,7 @@ async def test_set_table_region_refuses_a_change_the_grant_does_not_cover(
     )
     monkeypatch.setattr(capabilities, "_identity_from_info", lambda info: info.identity)
     info = SimpleNamespace(identity=SimpleNamespace(user_id="u1", roles=["eu_steward"]))
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await conn.execute_core(update(registered_tables).values(region="eu"))
             (table_id,) = (await conn.execute_core(select(registered_tables.c.id))).one()
@@ -298,7 +298,7 @@ async def test_set_table_region_refuses_a_change_the_grant_does_not_cover(
             ).scalar_one() == "eu"
 
 
-async def test_set_table_region_runs_the_real_capability_gate(node, monkeypatch, tmp_path):
+async def test_set_table_region_runs_the_real_capability_gate(node, monkeypatch, control_plane):
     """REQ-1921: setting a region needs data_residency IN ADDITION TO owning the object through its
     domain (the ``table_registration`` gate). A holder of data_residency ALONE is refused at the
     capability gate, before the residency check ever runs; adding table_registration carries the
@@ -335,7 +335,7 @@ async def test_set_table_region_runs_the_real_capability_gate(node, monkeypatch,
         raising=False,
     )
     monkeypatch.setattr(capabilities, "_identity_from_info", lambda info: info.identity)
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await conn.execute_core(update(registered_tables).values(region="eu"))
             (table_id,) = (await conn.execute_core(select(registered_tables.c.id))).one()

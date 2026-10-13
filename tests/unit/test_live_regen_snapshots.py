@@ -17,10 +17,6 @@ import pytest
 from provisa.events.nodes import source_node, view_node
 from provisa.mv.models import MVDefinition
 from tests.helpers import derived_lineage
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state, preserved_snapshots
 from provisa.events import injector, queue, snapshots, supervisor
 from provisa.events.calendars import Calendar
 from provisa.events.deadlines import PeriodicCalendar
@@ -42,16 +38,8 @@ async def _rows(dsn, table):
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'q.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(
-            c, tables=[events, event_status, node_freshness_state, preserved_snapshots]
-        )
-    try:
-        yield Database(engine, name="q")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
 class _CapMV(MVTableProcessor):
@@ -110,9 +98,9 @@ def _const_mv(db, dsn, *, node="mv.a", deps=("down.x",)):
 
 
 @pytest.mark.asyncio
-async def test_regen_by_node_bypasses_output_gate_and_cascades(tmp_path):
+async def test_regen_by_node_bypasses_output_gate_and_cascades(control_plane, tmp_path):
     dsn = _store(tmp_path)
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         proc = _const_mv(db, dsn, deps=["down.x"])
         # fire 1: an organic upstream change lands + sets the baseline hash + ripples
         up = await queue.post_event(conn, source_table="s.o", event_type="append")
@@ -142,7 +130,7 @@ async def test_regen_by_node_bypasses_output_gate_and_cascades(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_regen_by_source_relands_and_cascades_forward(tmp_path):
+async def test_regen_by_source_relands_and_cascades_forward(control_plane, tmp_path):
     dsn = _store(tmp_path)
 
     async def fetch(_pending):
@@ -159,7 +147,7 @@ async def test_regen_by_source_relands_and_cascades_forward(tmp_path):
         fetch=fetch,
         probe_type="none",
     )
-    async with _db(tmp_path) as db:
+    async with _db(control_plane) as db:
         # lineage: the MV depends on the source
         view = MVDefinition(
             id="b",
@@ -225,7 +213,7 @@ async def test_regen_by_source_relands_and_cascades_forward(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_regen_by_window_pegs_the_requested_period(tmp_path):
+async def test_regen_by_window_pegs_the_requested_period(control_plane, tmp_path):
     dsn = _store(tmp_path)
     cal = Calendar(name="g", version="v1")
     src = PeriodicCalendar(cal, "daily")
@@ -242,7 +230,7 @@ async def test_regen_by_window_pegs_the_requested_period(tmp_path):
         persist="replace",
         pk_columns=["id"],
     )
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         proc = _CapMV(
             "mv.w",
             change_signal="ttl",
@@ -269,7 +257,7 @@ async def test_regen_by_window_pegs_the_requested_period(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_regen_window_id_mismatch_fails_loud(tmp_path):
+async def test_regen_window_id_mismatch_fails_loud(control_plane, tmp_path):
     dsn = _store(tmp_path)
     cal = Calendar(name="g", version="v1")
 
@@ -285,7 +273,7 @@ async def test_regen_window_id_mismatch_fails_loud(tmp_path):
         persist="replace",
         pk_columns=["id"],
     )
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         proc = _CapMV(
             "mv.w",
             change_signal="ttl",
@@ -309,9 +297,9 @@ async def test_regen_window_id_mismatch_fails_loud(tmp_path):
             await proc.process_pending(conn)
 
 
-def test_force_regen_rejects_unknown_scope_and_missing_reason():
+def test_force_regen_rejects_unknown_scope_and_missing_reason(control_plane):
     async def _run():
-        async with _db_ctx() as conn:
+        async with _db_ctx(control_plane) as conn:
             with pytest.raises(ValueError, match="unknown regen scope"):
                 await injector.force_regen(conn, scope="galaxy", node="mv.a", reason="x")
             with pytest.raises(ValueError, match="must carry a reason|reason"):
@@ -325,19 +313,9 @@ def test_force_regen_rejects_unknown_scope_and_missing_reason():
 
 
 @asynccontextmanager
-async def _db_ctx():
-    import tempfile
-    from pathlib import Path
-
-    with tempfile.TemporaryDirectory() as d:
-        engine = create_engine_from_url(f"sqlite+pysqlite:///{Path(d) / 'q.db'}")
-        with engine.begin() as c:
-            events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-        try:
-            async with Database(engine, name="q").acquire() as conn:
-                yield conn
-        finally:
-            engine.dispose()
+async def _db_ctx(control_plane):
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 # ---------------------------------------------------------------------------
@@ -346,9 +324,9 @@ async def _db_ctx():
 
 
 @pytest.mark.asyncio
-async def test_snapshot_seals_and_is_immutable(tmp_path):
+async def test_snapshot_seals_and_is_immutable(control_plane, tmp_path):
     dsn = _store(tmp_path)
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         sealed = await snapshots.seal_snapshot(
             conn,
             dsn,
@@ -382,9 +360,9 @@ async def test_snapshot_seals_and_is_immutable(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_without_why_tag_fails_loud(tmp_path):
+async def test_snapshot_without_why_tag_fails_loud(control_plane, tmp_path):
     dsn = _store(tmp_path)
-    async with _db(tmp_path) as db, db.acquire() as conn:
+    async with _db(control_plane) as db, db.acquire() as conn:
         for reason in ("", "   "):
             with pytest.raises(ValueError, match="MUST be declared with a why-tag"):
                 await snapshots.seal_snapshot(

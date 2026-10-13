@@ -68,10 +68,10 @@ async def _regions(db) -> tuple[str | None, str | None]:
 
 
 @pytest.mark.asyncio
-async def test_an_admin_edit_of_a_table_keeps_its_region(tmp_path):
+async def test_an_admin_edit_of_a_table_keeps_its_region(control_plane):
     from provisa.api.admin.schema_mutation import Mutation
 
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60) as db:
         await _in_region_eu(db)
         with ExitStack() as stack:
             for p in _table_patches(db):
@@ -82,8 +82,8 @@ async def test_an_admin_edit_of_a_table_keeps_its_region(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_an_admin_edit_of_a_source_keeps_its_region(tmp_path):
-    async with _db(tmp_path, source_signal="ttl", source_ttl=60) as db:
+async def test_an_admin_edit_of_a_source_keeps_its_region(control_plane):
+    async with _db(control_plane, source_signal="ttl", source_ttl=60) as db:
         await _in_region_eu(db)
         m, p = _mutation(db)
 
@@ -108,7 +108,7 @@ async def test_an_admin_edit_of_a_source_keeps_its_region(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_an_edit_through_update_table_keeps_the_store_only_settings(tmp_path):
+async def test_an_edit_through_update_table_keeps_the_store_only_settings(control_plane):
     """REQ-1919: every setting a configuration can give a table is held by the store, and the
     admin's table form — and the MCP model tools (set_column_fake, set_table_profiler), which save
     through the same updateTable — carry none of the store-only ones. A save keeps each as stored.
@@ -117,7 +117,7 @@ async def test_an_edit_through_update_table_keeps_the_store_only_settings(tmp_pa
     from provisa.api.admin.schema_mutation import Mutation
     from provisa.core.schema_org import table_columns
 
-    async with _db(tmp_path, source_signal="ttl", table_ttl=60) as db:
+    async with _db(control_plane, source_signal="ttl", table_ttl=60) as db:
         promotions = [{"source_path": "a.b", "target_column": "b", "data_type": "text"}]
         async with db.acquire() as conn:
             await conn.execute_core(

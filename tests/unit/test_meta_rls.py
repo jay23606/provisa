@@ -10,9 +10,10 @@
 
 """REQ-828 coupling #3: app-layer meta-governance RLS.
 
-Adversarial tenant-isolation tests proving the guard holds on the EMBEDDED admin stores
-(SQLite + DuckDB) that have no native row-level security — the whole point of moving
-enforcement out of Postgres. A leak here is a cross-tenant control-plane breach.
+Adversarial tenant-isolation tests proving the app-layer guard holds on the control plane
+(PostgreSQL) and on an embedded DuckDB store, which has no native row-level security -- the
+guard, not the database's own RLS, is what enforces it (the whole point of moving enforcement out
+of Postgres). A leak here is a cross-tenant control-plane breach.
 """
 
 from __future__ import annotations
@@ -29,7 +30,9 @@ from provisa.core.schema_org import domains
 
 pytestmark = pytest.mark.asyncio
 
-_EMBEDDED = ["sqlite+pysqlite:///:memory:", "duckdb:///:memory:"]
+# The control plane is PostgreSQL (REQ-2014); the guard is store-independent, so it is also pinned
+# on the embedded DuckDB dialect.
+_STORES = ["postgres", "duckdb:///:memory:"]
 
 # tenant_id is a UUID column. Strings are the ambient form (JWT claim → the guard coerces); the
 # raw, un-guarded seed inserts below use UUID objects the column accepts directly.
@@ -37,7 +40,9 @@ _A = "11111111-1111-1111-1111-111111111111"
 _B = "22222222-2222-2222-2222-222222222222"
 
 
-async def _store(uri: str) -> Database:
+async def _store(uri: str, control_plane) -> Database:
+    if uri == "postgres":
+        return control_plane.org()
     db = Database(create_engine_from_url(uri), name="meta-rls-test")
     await _init_schema_portable(db)
     return db
@@ -59,9 +64,9 @@ async def _ids(conn) -> set[str]:
     return {r[0] for r in res.fetchall()}
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_select_confined_to_tenant_plus_shared(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_select_confined_to_tenant_plus_shared(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             await _seed(conn)
@@ -77,9 +82,9 @@ async def test_select_confined_to_tenant_plus_shared(uri):
         await db.close()
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_no_scope_sees_all(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_no_scope_sees_all(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             await _seed(conn)
@@ -89,9 +94,9 @@ async def test_no_scope_sees_all(uri):
         await db.close()
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_insert_stamped_with_scoped_tenant(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_insert_stamped_with_scoped_tenant(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             with meta_tenant_scope(_A):
@@ -105,9 +110,9 @@ async def test_insert_stamped_with_scoped_tenant(uri):
         await db.close()
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_insert_cannot_land_under_another_tenant(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_insert_cannot_land_under_another_tenant(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             with meta_tenant_scope(_A):
@@ -121,9 +126,9 @@ async def test_insert_cannot_land_under_another_tenant(uri):
         await db.close()
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_update_cannot_touch_other_tenant_rows(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_update_cannot_touch_other_tenant_rows(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             await _seed(conn)
@@ -140,9 +145,9 @@ async def test_update_cannot_touch_other_tenant_rows(uri):
         await db.close()
 
 
-@pytest.mark.parametrize("uri", _EMBEDDED)
-async def test_delete_cannot_remove_other_tenant_rows(uri):
-    db = await _store(uri)
+@pytest.mark.parametrize("uri", _STORES)
+async def test_delete_cannot_remove_other_tenant_rows(uri, control_plane):
+    db = await _store(uri, control_plane)
     try:
         async with db.acquire() as conn:
             await _seed(conn)

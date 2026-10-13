@@ -41,7 +41,7 @@ class _Pools:
 
 
 @pytest.mark.asyncio
-async def test_an_edited_exasol_source_dials_with_its_certificate_pin(tmp_path):
+async def test_an_edited_exasol_source_dials_with_its_certificate_pin(control_plane):
     import provisa.api.app as app_mod
 
     pools = _Pools()
@@ -50,7 +50,7 @@ async def test_an_edited_exasol_source_dials_with_its_certificate_pin(tmp_path):
     async def _bound():
         yield
 
-    async with _db(tmp_path, source_type="exasol", source_ttl=60) as db:
+    async with _db(control_plane, source_type="exasol", source_ttl=60) as db:
         m, p = _mutation(db)
         with (
             p,

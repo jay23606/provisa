@@ -20,30 +20,24 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import pytest
-from provisa.core.database import create_engine_from_url
+from sqlalchemy import insert
 
-from provisa.core.database import Database
 from provisa.core.glossary import within_domains
 from provisa.core.models import Column, Table
 from provisa.core.repositories import glossary as glossary_repo
 from provisa.core.repositories import table as table_repo
-from provisa.core.schema_org import (
-    registered_tables,
-)
+from provisa.core.schema_org import domains, sources
 
 
 @asynccontextmanager
-async def _conn(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'gd.db'}")
-    with engine.begin() as c:
-        # The whole org schema: deleting a table asks the dependency guard, which reads every
-        # table that can refer to one.
-        registered_tables.metadata.create_all(c)
-    try:
-        async with Database(engine, name="gd").acquire() as conn:
-            yield conn
-    finally:
-        engine.dispose()
+async def _conn(control_plane):
+    with control_plane.engine().begin() as c:
+        c.exec_driver_sql('SET LOCAL search_path TO "org_default"')
+        for d in ("sales", "pet-store", "hr"):
+            c.execute(insert(domains).values(id=d, description=""))
+        c.execute(insert(sources).values(id="__derived__", type="postgresql"))
+    async with control_plane.org().acquire() as conn:
+        yield conn
 
 
 def _tbl(domain: str, name: str, columns: list[str]) -> Table:
@@ -75,16 +69,16 @@ def test_within_domains_is_any_not_all():
 
 
 @pytest.mark.asyncio
-async def test_a_rooted_terms_domains_are_its_refs(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_a_rooted_terms_domains_are_its_refs(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("sales", "orders", ["customer_id"]))
         scope = await glossary_repo.term_domains(conn)
         assert scope[await _id(conn, "customer")] == {"sales"}
 
 
 @pytest.mark.asyncio
-async def test_one_term_spans_two_domains_rather_than_splitting(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_one_term_spans_two_domains_rather_than_splitting(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("sales", "orders", ["customer_id"]))
         await table_repo.upsert(conn, _tbl("pet-store", "visits", ["customer_id"]))
         customer = await _id(conn, "customer")
@@ -98,8 +92,8 @@ async def test_one_term_spans_two_domains_rather_than_splitting(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_an_abstract_terms_domains_are_declared(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_an_abstract_terms_domains_are_declared(control_plane):
+    async with _conn(control_plane) as conn:
         party = await glossary_repo.create_abstract_term(
             conn, "party", definition="Any actor.", domains={"sales"}
         )
@@ -110,8 +104,8 @@ async def test_an_abstract_terms_domains_are_declared(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_the_list_narrows_by_domain(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_the_list_narrows_by_domain(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("sales", "orders", ["order_dt"]))
         await table_repo.upsert(conn, _tbl("hr", "staff", ["hire_dt"]))
         names = {r["name"] for r in await glossary_repo.list_terms(conn, domains=frozenset({"hr"}))}
@@ -125,8 +119,8 @@ async def test_the_list_narrows_by_domain(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_search_narrows_by_the_same_rule(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_search_narrows_by_the_same_rule(control_plane):
+    async with _conn(control_plane) as conn:
         await table_repo.upsert(conn, _tbl("sales", "orders", ["customer_id"]))
         customer = await _id(conn, "customer")
         await glossary_repo.set_definition(conn, customer, "The buyer.")
@@ -136,8 +130,8 @@ async def test_search_narrows_by_the_same_rule(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_the_departing_domains_are_stamped_when_the_last_ref_leaves(tmp_path):
-    async with _conn(tmp_path) as conn:
+async def test_the_departing_domains_are_stamped_when_the_last_ref_leaves(control_plane):
+    async with _conn(control_plane) as conn:
         tid = await table_repo.upsert(conn, _tbl("sales", "orders", ["customer_id"]))
         assert tid is not None
         customer = await _id(conn, "customer")

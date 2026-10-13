@@ -21,10 +21,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 import pytest
-from provisa.core.database import create_engine_from_url
-
-from provisa.core.database import Database
-from provisa.core.schema_org import event_status, events, node_freshness_state
 from provisa.events import queue
 from provisa.events.freshness_reader import make_db_freshness_of
 
@@ -34,26 +30,20 @@ WIN_END = datetime(2026, 7, 10, tzinfo=UTC)
 
 
 @asynccontextmanager
-async def _db(tmp_path):
-    engine = create_engine_from_url(f"sqlite+pysqlite:///{tmp_path / 'fr.db'}")
-    with engine.begin() as c:
-        events.metadata.create_all(c, tables=[events, event_status, node_freshness_state])
-    try:
-        yield Database(engine, name="fr")
-    finally:
-        engine.dispose()
+async def _db(control_plane):
+    yield control_plane.org()
 
 
-async def test_always_current_input_is_fresh_through_any_boundary(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_always_current_input_is_fresh_through_any_boundary(control_plane):
+    async with _db(control_plane) as db:
         reader = make_db_freshness_of(db, always_current={"live.orders"})
         subj = await reader("live.orders")  # never landed, no row — but live → fresh
     assert subj.last_refresh_ok() is True
     assert subj.last_refresh_at() == math.inf  # >= any window.end
 
 
-async def test_scheduled_input_with_stamp_maps_to_it(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_scheduled_input_with_stamp_maps_to_it(control_plane):
+    async with _db(control_plane) as db:
         async with db.acquire() as conn:
             await queue.record_refresh(conn, "mat.orders", at=WIN_END, ok=True)
         reader = make_db_freshness_of(db)
@@ -62,8 +52,8 @@ async def test_scheduled_input_with_stamp_maps_to_it(tmp_path):
     assert subj.last_refresh_at() == WIN_END.timestamp()
 
 
-async def test_scheduled_input_without_stamp_is_an_outage(tmp_path):
-    async with _db(tmp_path) as db:
+async def test_scheduled_input_without_stamp_is_an_outage(control_plane):
+    async with _db(control_plane) as db:
         reader = make_db_freshness_of(db, always_current={"live.other"})
         subj = await reader("mat.never_landed")  # scheduled, no stamp, not in always_current
     assert subj.last_refresh_ok() is False  # fail loud, never assume fresh
