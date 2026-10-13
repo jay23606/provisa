@@ -125,6 +125,22 @@ def duckdb_copy(select_sql: str, target: ResultTarget) -> str:
     return f"COPY ({select_sql}) TO {_quoted(target.object_url)} (FORMAT PARQUET)"
 
 
+#: The file formats DuckDB writes a result in on this host (REQ-1195), and the COPY options for
+#: each: ``ndjson`` one JSON object a line, ``json`` one JSON array.
+DUCKDB_FILE_FORMATS: dict[str, str] = {
+    "parquet": "FORMAT PARQUET",
+    "csv": "FORMAT CSV, HEADER",
+    "ndjson": "FORMAT JSON",
+    "json": "FORMAT JSON, ARRAY true",
+}
+
+
+def duckdb_copy_file(select_sql: str, path: str, output_format: str) -> str:
+    """``COPY (query) TO '<path>'``: DuckDB runs the query and writes the result to one file on
+    this host, in the org's folder (REQ-1195). Its one result row is the number of rows written."""
+    return f"COPY ({select_sql}) TO {_quoted(path)} ({DUCKDB_FILE_FORMATS[output_format]})"
+
+
 # -- ClickHouse --------------------------------------------------------------------------------------
 
 #: The ``s3`` table function's address and keys, sent as server-side parameters: ClickHouse keeps

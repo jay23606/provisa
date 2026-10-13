@@ -169,3 +169,25 @@ def test_materialize_preserves_stats():
     q = r.materialize()
     assert q.stats is r.stats
     assert q.stats.row_count == 2 and q.stats.done
+
+
+def test_a_stream_its_consumer_stops_early_releases_its_source():
+    """A consumer that stops reading and closes the row iterator (the buffered threshold probe
+    stops at threshold+1 rows, REQ-1224) releases the stream's source then: the engine's
+    catalogue read held for the stream was otherwise never given back, and the next catalogue
+    refresh waited for it forever."""
+    released: list[str] = []
+
+    def _source():
+        try:
+            for i in range(10):
+                yield [(i,)]
+        finally:
+            released.append("source")
+
+    stream = StreamingQueryResult(_source(), ["n"], on_release=lambda: released.append("release"))
+    rows = stream.iter_rows()
+    assert [next(rows), next(rows)] == [(0,), (1,)]
+    rows.close()
+    assert released == ["source", "release"]
+    assert stream.stats.done

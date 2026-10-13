@@ -592,6 +592,19 @@ class EngineBackend:
             f"engine {self.engine.name!r} does not write results to an object store"
         )
 
+    #: The formats this engine writes a result in to a file on this host itself (REQ-1195): the
+    #: local result sink, when no object store takes the result. Empty: the engine has no such
+    #: write, and Provisa writes the file from the result's rows.
+    local_result_formats: frozenset[str] = frozenset()
+
+    def write_result_file(
+        self, state: Any, physical_sql: str, output_format: str, params: list | None, path: str
+    ) -> int:
+        """Run the statement with its bound values and have the engine write the result to
+        ``path``, a file in the org's folder on this host; the rows written (REQ-1195). An engine
+        declares the formats it writes in ``local_result_formats``."""
+        raise NotImplementedError(f"engine {self.engine.name!r} does not write result files")
+
     # -- source lifecycle ------------------------------------------------------
 
     def register_source(

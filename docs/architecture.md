@@ -240,6 +240,22 @@ Results exceeding a row threshold are redirected to S3-compatible storage (MinIO
 
 For CTAS-native formats, Provisa never handles the data — the federation engine writes files directly to MinIO/S3. (REQ-138) This is the preferred path for large analytical exports.
 
+### With no object store
+
+A result goes to the object store when one is configured (an endpoint, or credentials for AWS S3) and the engine writes the requested format to it itself. Otherwise it is written to a file in the org's folder, `<data directory>/orgs/<org>/results/`. [tool-verified: `provisa/executor/redirect.py` `uses_object_store`, `run_materialize`] (REQ-1195) A configured store that the engine writes to but cannot reach fails the request by name. The result is not written to the folder instead.
+
+| Engine | Writes the file itself | Formats |
+| ------ | ---------------------- | ------- |
+| DuckDB | `COPY (query) TO '<file>'` | parquet, csv, json, ndjson |
+| PostgreSQL | `COPY (query) TO STDOUT`, streamed into the file on Provisa's host | csv |
+| Any other format or engine | Provisa writes it from the rows | parquet, orc, csv, arrow, json, ndjson |
+
+[tool-verified: `provisa/federation/result_sink.py` `DUCKDB_FILE_FORMATS`; `provisa/federation/pg_backend.py`; `provisa/executor/local_results.py` `FILE_FORMATS`]
+
+The handle has the same keys as the object store's, with `"sink": "local"` and a `redirect_url` of `/data/redirect-file/<name>`, a path on the server that answered. (REQ-1191) Only the user who asked for the result may fetch it. Each fetch compares the request's own identity with the owner recorded beside the file, and answers 403 to anyone else and 401 to a request with no identity. (REQ-1192) [tool-verified: `provisa/api/data/redirect_file.py`; `tests/unit/test_local_result_sink.py`]
+
+A file older than `redirect.ttl` is answered 404 and deleted. A timer deletes it at its expiry, as the object store's results are deleted. Each new result also sweeps the org's results folder, which removes files whose timer a restart ended. (REQ-1193) [tool-verified: `provisa/executor/local_results.py` `schedule_removal`, `reap_expired`]
+
 ### Redirect Headers
 
 | Header | Effect |

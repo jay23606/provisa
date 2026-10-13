@@ -806,6 +806,20 @@ class EngineRuntime:  # REQ-825, REQ-840
         (engine-specific). ``params``: the statement's bound values, None when it binds none."""
         return self._backend.ctas_redirect(self._state, physical_sql, output_format, params)
 
+    def writes_result_file(self, output_format: str) -> bool:
+        """Whether this engine writes a result in ``output_format`` to a file on this host itself
+        (REQ-1195, the backend's ``local_result_formats``)."""
+        return output_format.lower() in self._backend.local_result_formats
+
+    def write_result_file(
+        self, physical_sql: str, output_format: str, params: list | None, path: str
+    ) -> int:
+        """Execute a query and have the engine write its result to ``path``; the rows written
+        (REQ-1195). ``params``: the statement's bound values, None when it binds none."""
+        return self._backend.write_result_file(
+            self._state, physical_sql, output_format, params, path
+        )
+
     # -- engine-specific transports (REQ-825): designed, capability-gated ENGINE terminals ----
 
     def execute_engine_arrow(self, sql: str, params: list | None = None) -> pa.Table:
