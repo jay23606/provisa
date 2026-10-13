@@ -37,7 +37,9 @@ tables:
         data_type: integer
         visible_to: [org_admin, analyst]
       - name: amount
-        data_type: numeric
+        # REQ-1961: the size the source states (db/init.sql NUMERIC(10, 2)); a numeric with no
+        # recorded size is floating point on every read.
+        data_type: numeric(10,2)
         visible_to: [org_admin]
       - name: region
         data_type: varchar

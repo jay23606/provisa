@@ -353,7 +353,7 @@ def test_unknown_kind_raises_for_both_readers():
     with pytest.raises(ValueError, match="unknown kind"):
         entry_as_result({"kind": "x"}, None)
     with pytest.raises(ValueError, match="unknown kind"):
-        entry_as_arrow({"kind": "x"}, None)
+        entry_as_arrow({"kind": "x"}, None, None)
 
 
 # -- chokepoint + invalidation --------------------------------------------------------------------
@@ -478,7 +478,7 @@ def test_decoded_readers_refuse_a_pg_datarows_entry():
     with pytest.raises(ValueError, match="passthrough"):
         entry_as_result(entry, None)
     with pytest.raises(ValueError, match="passthrough"):
-        entry_as_arrow(entry, None)
+        entry_as_arrow(entry, None, None)
     with pytest.raises(ValueError, match="format codes"):
         entry_as_datarows(entry, [0])
     with pytest.raises(ValueError, match="needs a pg_datarows"):
@@ -600,7 +600,33 @@ def test_flight_direct_miss_and_its_hit_build_one_arrow_shape(declared):
     )
     miss = pa.Table.from_batches(list(batches), schema=miss_schema)
     entry = {"kind": KIND_ROWS, "rows": [list(rows[1])], "column_names": names}
-    hit = entry_as_arrow(entry, types)
+    hit = entry_as_arrow(entry, types, None)
     assert miss.schema.field("amount").type == pa.float64()
+    assert hit.schema == miss.schema
+    assert hit.to_pylist() == miss.to_pylist()[1:2]
+
+
+def test_flight_direct_hit_types_each_registered_column_as_its_miss_does():
+    """The miss reads each registered column as its registered type (REQ-1961): an integer is
+    int32, a numeric(10,2) an exact decimal. Its rows-entry hit is typed by the same result shape,
+    or it answered int64 where the miss had answered int32."""
+    from provisa.compiler.result_shape import RegisteredType
+    from provisa.federation.runtime_support import arrow_batches_from_rows
+
+    rows = [(1, decimal.Decimal("129.99"), "east"), (2, decimal.Decimal("19.99"), "west")]
+    names = ["id", "amount", "region"]
+    types = ["int4", "numeric", "varchar"]
+    shape = [
+        ("id", RegisteredType("integer")),
+        ("amount", RegisteredType("numeric(10,2)")),
+        ("region", RegisteredType("varchar")),
+    ]
+    miss_schema, batches = arrow_batches_from_rows(
+        StreamingQueryResult(iter([rows]), column_names=names, column_types=types), shape=shape
+    )
+    miss = pa.Table.from_batches(list(batches), schema=miss_schema)
+    entry = {"kind": KIND_ROWS, "rows": [list(rows[1])], "column_names": names}
+    hit = entry_as_arrow(entry, types, shape)
+    assert miss.schema.field("id").type == pa.int32()
     assert hit.schema == miss.schema
     assert hit.to_pylist() == miss.to_pylist()[1:2]

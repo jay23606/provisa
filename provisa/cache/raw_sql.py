@@ -141,8 +141,11 @@ def entry_as_result(entry: dict, column_types: list[str] | None) -> QueryResult:
     raise _decoded_only(kind)
 
 
-def entry_as_arrow(entry: dict, column_types: list[str] | None) -> Any:
-    """A cached entry of either kind as the Arrow table Flight serves."""
+def entry_as_arrow(
+    entry: dict, column_types: list[str] | None, shape: list[tuple[str, str]] | None
+) -> Any:
+    """A cached entry of either kind as the Arrow table Flight serves. ``shape`` is the governed
+    statement's result shape, which types each registered column on the miss (REQ-1961)."""
     import pyarrow as pa
 
     kind = entry["kind"]
@@ -152,11 +155,20 @@ def entry_as_arrow(entry: dict, column_types: list[str] | None) -> Any:
         names: list[str] = entry["column_names"]
         rows = entry["rows"]
         declared = column_types if column_types is not None else [None] * len(names)
-        # The rows->Arrow typing Flight's live row stream uses, so a miss and its hit agree.
-        from provisa.federation.runtime_support import arrow_array_for_rows
+        # The rows->Arrow typing Flight's live row stream uses, so a miss and its hit agree: a
+        # registered column as its registered type, any other as its rows read.
+        from provisa.federation.runtime_support import (
+            arrow_array_for_rows,
+            read_targets,
+            typed_arrow_array,
+        )
 
+        targets = read_targets(names, shape)
         arrays = [
-            arrow_array_for_rows([row[i] for row in rows], declared[i]) for i in range(len(names))
+            arrow_array_for_rows([row[i] for row in rows], declared[i])
+            if targets[i] is None
+            else typed_arrow_array([row[i] for row in rows], targets[i], names[i])
+            for i in range(len(names))
         ]
         return pa.table(arrays, names=names)
     raise _decoded_only(kind)

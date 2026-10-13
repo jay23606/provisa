@@ -3428,7 +3428,9 @@ async def check_response_cache_arrow(plan: _Plan, state: Any) -> Any | None:  # 
 
     entry, column_types, stored = hit
     await _account_cache_hit(plan, state, entry_as_result(entry, column_types), stored)
-    return entry_as_arrow(entry, column_types)
+    # REQ-1961: typed by the statement's result shape, as the miss's row stream is.
+    shape = None if plan.result_shape is None else await plan.result_shape()
+    return entry_as_arrow(entry, column_types, shape)
 
 
 async def check_response_cache_datarows(  # REQ-1897
