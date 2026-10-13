@@ -1025,6 +1025,10 @@ async def destroy_org(org_id: str) -> None:  # REQ-1300, REQ-1312, REQ-2006
 
     # REQ-1488: the org's environments go with it — each holds its own runtime under its own key.
     _app_state.org_registry.invalidate_org(org_id)
+    # REQ-2006: and its scheduled jobs, which would otherwise fire against the org it no longer is.
+    from provisa.scheduler.jobs import unschedule_org
+
+    unschedule_org(getattr(_app_state, "_scheduler", None), org_id)
     # REQ-1301: the registry view names the dropped schema, so it must stop naming it before anyone
     # queries it again.
     await _refresh_root_registry_view()

@@ -123,6 +123,10 @@ def template_seed(org_id: str) -> Any:  # a ProvisaConfig
         # always), landed into the template's file once, and copied into each sandbox's file. A
         # sandbox's reads never reach the demo's shared sources.
         source["replicate"] = ALWAYS
+        # And landed once: a demo's data is fixed, so a replica is refreshed only when something
+        # signals a change (REQ-932 ``signal``), never re-read on a cadence -- not by the template,
+        # and not by a sandbox, which carries the template's model.
+        source["change_signal"] = "signal"
     return parse_config_dict(raw)
 
 
@@ -215,8 +219,8 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
         if failed:
             log.error("demo template %s: replicas failed to land: %s", demo.name, failed)
             return
-        # Every table of a template is replicated always (template_seed): it is ready when each
-        # one registered has a landed replica, whether or not convergence has asked for all yet.
+        # Every table of a demo is replicated always (template_seed): its template is ready when
+        # each one has a landed replica, whether or not convergence has asked for all yet.
         if landed >= declared:
             break
         await asyncio.sleep(_LANDED_POLL_S)
@@ -234,11 +238,13 @@ async def _prepare(demo: PublishedDemo, build: bool) -> None:
 
 async def _replica_progress(rt) -> tuple[int, list[str], int]:
     """How many of the template's replicas have landed, the tables whose last build failed, and
-    how many tables the template registers."""
-    from sqlalchemy import func, select
+    how many tables its demo's configuration declares (the built-in tables every org registers
+    are not the demo's, and are not replicated)."""
+    from sqlalchemy import select
 
-    from provisa.core.schema_org import registered_tables, replica_state
+    from provisa.core.schema_org import replica_state
 
+    declared = len(template_seed(rt.org_id).tables)
     async with rt.tenant_db.acquire() as conn:
         rows = (
             await conn.execute_core(
@@ -249,12 +255,6 @@ async def _replica_progress(rt) -> tuple[int, list[str], int]:
                 ).where(replica_state.c.retired_at.is_(None))
             )
         ).fetchall()
-    async with rt.model_db.acquire() as conn:
-        declared = int(
-            (
-                await conn.execute_core(select(func.count()).select_from(registered_tables))
-            ).scalar_one()
-        )
     landed = sum(1 for r in rows if r[2] is not None)
     failed = [r[0] for r in rows if r[1] == "failed" and r[2] is None]
     return landed, failed, declared

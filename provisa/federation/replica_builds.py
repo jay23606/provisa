@@ -920,6 +920,13 @@ def wire_replica_runner(scheduler: Any, *, state: Any, platform_url: str) -> Non
     )
 
 
+def stop_replica_runner(org_id: str) -> None:
+    """A deleted org's build runner starts no more builds (REQ-2006)."""
+    runner = _runners.pop(org_id, None)
+    if runner is not None:
+        runner.stop()
+
+
 def stop_replica_runners() -> None:
     """Process shutdown: every build runner this process registered starts no more builds, so
     none runs after the engine it builds with has been closed."""

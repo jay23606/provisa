@@ -916,6 +916,7 @@ REGISTRY_TABLES = [
     org_code_bundles,
     deployment_encryption_key,
     personal_access_tokens,
+    demo_sandboxes,
     scram_credentials,
     platform_notice,
     mail_events,
