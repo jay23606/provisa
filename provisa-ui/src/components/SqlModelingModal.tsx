@@ -311,6 +311,24 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
     URL.revokeObjectURL(url);
   }, [profile]);
 
+  // The NL box's SQL, from Enter or the button. nlToSql answers a failure as its error.
+  const generateSql = async () => {
+    setNlLoading(true);
+    setNlError("");
+    setNlCypher("");
+    try {
+      const result = await nlToSql(nlText.trim(), role, nlStrict);
+      if (result.error) {
+        setNlError(result.error);
+      } else {
+        setSqlText(result.sql);
+        setNlCypher(result.cypher ?? "");
+      }
+    } finally {
+      setNlLoading(false);
+    }
+  };
+
   const handleRun = useCallback(async () => {
     if (!sqlText.trim()) return;
     setRunning(true);
@@ -318,7 +336,12 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
     const t0 = performance.now();
     const inner = sqlText.trim().replace(/;+$/, "");
     const sampledSql = wrapSampledSql(inner, sampleMode, sampleSize);
-    const result = await runSql(sampledSql, role);
+    let result: Awaited<ReturnType<typeof runSql>>;
+    try {
+      result = await runSql(sampledSql, role);
+    } finally {
+      setRunning(false);
+    }
     const durationMs = Math.round(performance.now() - t0);
     setExecMs(durationMs);
     setResultRedirect(result.redirect ?? null);
@@ -335,7 +358,6 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
     setColWidths({});
     setPage(0);
     setResultTab("results");
-    setRunning(false);
     const entry = {
       sql: sqlText.trim(),
       role,
@@ -597,20 +619,8 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                         setNlText(e.target.value);
                         setNlError("");
                       }}
-                      onKeyDown={async (e) => {
-                        if (e.key === "Enter" && nlText.trim() && !nlLoading) {
-                          setNlLoading(true);
-                          setNlError("");
-                          setNlCypher("");
-                          const result = await nlToSql(nlText.trim(), role, nlStrict);
-                          setNlLoading(false);
-                          if (result.error) {
-                            setNlError(result.error);
-                          } else {
-                            setSqlText(result.sql);
-                            setNlCypher(result.cypher ?? "");
-                          }
-                        }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && nlText.trim() && !nlLoading) void generateSql();
                       }}
                       rightSection={nlLoading ? <Loader size="xs" /> : null}
                       disabled={nlLoading}
@@ -635,19 +645,9 @@ export function SqlModelingModal({ tables, existingRels, onClose, onPromote }: P
                     size="xs"
                     disabled={!nlText.trim() || nlLoading}
                     loading={nlLoading}
-                    onClick={async () => {
+                    onClick={() => {
                       if (!nlText.trim() || nlLoading) return;
-                      setNlLoading(true);
-                      setNlError("");
-                      setNlCypher("");
-                      const result = await nlToSql(nlText.trim(), role, nlStrict);
-                      setNlLoading(false);
-                      if (result.error) {
-                        setNlError(result.error);
-                      } else {
-                        setSqlText(result.sql);
-                        setNlCypher(result.cypher ?? "");
-                      }
+                      void generateSql();
                     }}
                     data-testid="sql-modeling-generate-sql"
                   >

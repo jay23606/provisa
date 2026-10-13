@@ -135,3 +135,85 @@ describe("ScheduledTasks — SQL trigger", () => {
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith("nightly"));
   });
 });
+
+// A mutation wrapper throws when the server answers with GraphQL errors: the action's busy state
+// ends, and what went wrong is said, never a button left spinning.
+describe("ScheduledTasks — a failed action", () => {
+  const TASK = {
+    id: "nightly",
+    name: "Nightly Rollup",
+    cronExpression: "0 2 * * *",
+    webhookUrl: null,
+    kind: "sql",
+    sql: "SELECT 1",
+    role: "ops",
+    enabled: true,
+    lastRunAt: null,
+    nextRunAt: null,
+  };
+  beforeEach(() => {
+    mockTasks = [TASK];
+  });
+
+  const confirmDelete = async () => {
+    fireEvent.click(screen.getByRole("button", { name: t("scheduledTasks.delete") }));
+    await screen.findByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: t("common.confirm") }));
+  };
+
+  it("says why a delete raised, and frees its button", async () => {
+    deleteSpy.mockImplementationOnce(async () => {
+      throw new Error("scheduled task nightly is in use");
+    });
+    render(<ScheduledTasks />);
+    await confirmDelete();
+    expect((await screen.findByTestId("scheduled-tasks-action-error")).textContent).toBe(
+      "scheduled task nightly is in use",
+    );
+    expect(screen.getByRole("button", { name: t("scheduledTasks.delete") })).not.toHaveAttribute(
+      "data-loading",
+    );
+  });
+
+  it("says a refused delete, rather than taking it for done", async () => {
+    deleteSpy.mockImplementationOnce(async () => ({ success: false, message: "refused: in use" }));
+    render(<ScheduledTasks />);
+    await confirmDelete();
+    expect((await screen.findByTestId("scheduled-tasks-action-error")).textContent).toBe(
+      "refused: in use",
+    );
+  });
+
+  it("says why a create raised, and frees the form's save", async () => {
+    createSpy.mockImplementationOnce(async () => {
+      throw new Error("id nightly is taken");
+    });
+    mockTasks = [];
+    render(<ScheduledTasks />);
+    fireEvent.click(screen.getByTestId("scheduled-tasks-toggle-form"));
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.idLabel")), {
+      target: { value: "nightly" },
+    });
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.nameLabel")), {
+      target: { value: "Nightly" },
+    });
+    fireEvent.change(screen.getByLabelText(t("scheduledTasks.cronLabel")), {
+      target: { value: "0 2 * * *" },
+    });
+    fireEvent.click(screen.getByRole("textbox", { name: t("scheduledTasks.kindLabel") }));
+    fireEvent.click(
+      within(await screen.findByRole("listbox")).getByText(t("scheduledTasks.kindSql")),
+    );
+    fireEvent.change(await screen.findByLabelText(t("scheduledTasks.sqlLabel")), {
+      target: { value: "SELECT 1" },
+    });
+    fireEvent.click(screen.getByRole("textbox", { name: t("scheduledTasks.roleLabel") }));
+    fireEvent.click(await screen.findByRole("option", { name: "ops", hidden: true }));
+    fireEvent.click(screen.getByTestId("scheduled-tasks-submit"));
+
+    await waitFor(() => expect(createSpy).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("id nightly is taken")).toBeTruthy();
+    // The form stays open to correct, its save free again.
+    expect(screen.getByTestId("scheduled-tasks-submit")).not.toHaveAttribute("data-loading");
+  });
+});

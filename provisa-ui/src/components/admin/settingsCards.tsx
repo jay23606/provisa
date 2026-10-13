@@ -720,9 +720,14 @@ export function ConfigFileSection() {
   const handleApplyRevised = async () => {
     setUploading(true);
     setUploadMsg("");
-    const result = await uploadConfig(revisedConfig);
-    setUploadMsg(result.message);
-    setUploading(false);
+    try {
+      const result = await uploadConfig(revisedConfig);
+      setUploadMsg(result.message);
+    } catch (e) {
+      setUploadMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDownloadPatch = async () => {
@@ -744,10 +749,14 @@ export function ConfigFileSection() {
     if (!file) return;
     setUploading(true);
     setUploadMsg("");
-    const text = await file.text();
-    const result = await uploadConfig(text);
-    setUploadMsg(result.message);
-    setUploading(false);
+    try {
+      const result = await uploadConfig(await file.text());
+      setUploadMsg(result.message);
+    } catch (e) {
+      setUploadMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
   };
 
   // The file IS the deployment's configuration, so it is the deployment administrator's surface.

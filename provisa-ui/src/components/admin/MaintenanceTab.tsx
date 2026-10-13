@@ -88,6 +88,7 @@ export function MaintenanceTab() {
       await shutdownAllServices();
     } catch (e) {
       setStopError((e as Error).message);
+    } finally {
       setStopBusy(false);
     }
   };

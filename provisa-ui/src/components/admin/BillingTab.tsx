@@ -317,9 +317,9 @@ export function BillingTab() {
       // merchant of record, and the subscription is linked to the org by the webhook, so a closed
       // overlay after payment still lands the plan (REQ-1469).
       await openCheckout(await startTrial(activeOrgId, window.location.href, appearance), load);
-      setBusy(false);
     } catch (e) {
       setError(e instanceof BillingError ? e.message : String(e));
+    } finally {
       setBusy(false);
     }
   };
@@ -334,9 +334,9 @@ export function BillingTab() {
         await startEgressSubscription(activeOrgId, window.location.href, appearance),
         load,
       );
-      setBusy(false);
     } catch (e) {
       setError(e instanceof BillingError ? e.message : String(e));
+    } finally {
       setBusy(false);
     }
   };
@@ -345,9 +345,11 @@ export function BillingTab() {
     setBusy(true);
     setError("");
     try {
+      // The portal opens in place of this page; the button is free again either way.
       window.location.href = await fetchPortalUrl(activeOrgId);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
       setBusy(false);
     }
   };

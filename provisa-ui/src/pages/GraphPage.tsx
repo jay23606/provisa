@@ -721,8 +721,8 @@ export function GraphPage() {
   const handleSaveEdgeAlias = useCallback(
     async (relId: number, cqlAlias: string, gqlAlias: string) => {
       const rel = adminRels.find((r) => r.id === relId);
-      if (!rel) return;
-      await upsertRelationship({
+      if (!rel) return null;
+      const result = await upsertRelationship({
         id: String(rel.id),
         sourceTableId: rel.sourceTableName,
         targetTableId: rel.targetTableName ?? "",
@@ -736,7 +736,10 @@ export function GraphPage() {
         alias: cqlAlias || null,
         graphqlAlias: gqlAlias || null,
       });
+      // A refusal (a reserved word, an alias in use) is said, not taken for a save.
+      if (!result.success) return result.message;
       await refetchRelationships();
+      return null;
     },
     [adminRels, upsertRelationship, refetchRelationships],
   );
