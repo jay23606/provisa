@@ -21,19 +21,23 @@ export function RlsRuleRead({
   rule: r,
   domain,
   tableLabel,
+  tagTables = null,
 }: {
   rule: RLSRule;
   /** The domain the form shows for the rule: its own, its table's or its action's. */
   domain: string | null;
   /** The rule's table as the list names it; null for a rule on a domain or an action. */
   tableLabel: string | null;
+  /** How many tables carry the rule's tag; null for a rule that is not on a tag (REQ-1384). */
+  tagTables?: number | null;
 }) {
   const { t } = useTranslation();
-  const scope = r.actionName ? "action" : r.domainId ? "domain" : "table";
+  const scope = r.tagId ? "tag" : r.actionName ? "action" : r.domainId ? "domain" : "table";
   const scopeLabel = {
     table: t("securityPage.applyToTable"),
     domain: t("securityPage.applyToDomain"),
     action: t("securityPage.applyToAction"),
+    tag: t("securityPage.applyToTag"),
   }[scope];
   return (
     <DetailFields
@@ -41,12 +45,20 @@ export function RlsRuleRead({
       fields={[
         { label: t("securityPage.ruleId"), value: String(r.id) },
         { label: t("securityPage.applyTo"), value: scopeLabel },
-        { label: t("securityPage.domain"), value: domain },
-        ...(scope === "action"
-          ? [{ label: t("securityPage.action"), value: r.actionName }]
-          : scope === "table"
-            ? [{ label: t("securityPage.table"), value: tableLabel }]
-            : []),
+        // A tag reaches across domains: its form has no domain to pick, so none is shown.
+        ...(scope === "tag" ? [] : [{ label: t("securityPage.domain"), value: domain }]),
+        ...(scope === "tag"
+          ? [
+              {
+                label: t("securityPage.tag"),
+                value: `${r.tagId} (${t("securityPage.tagTableCount", { count: tagTables ?? 0 })})`,
+              },
+            ]
+          : scope === "action"
+            ? [{ label: t("securityPage.action"), value: r.actionName }]
+            : scope === "table"
+              ? [{ label: t("securityPage.table"), value: tableLabel }]
+              : []),
         { label: t("securityPage.role"), value: r.roleId },
         {
           label: t("securityPage.filterExpression"),

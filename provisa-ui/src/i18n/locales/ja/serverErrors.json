@@ -322,6 +322,7 @@
       "rls_rule_not_found": "RLS ルールが見つかりません",
       "rls_rule_saved_domain": "ドメイン「{{domain}}」／ロール「{{role}}」の RLS ルールを保存しました",
       "rls_rule_saved_table": "テーブル {{table}}／ロール「{{role}}」の RLS ルールを保存しました",
+      "rls_rule_saved_tag": "タグ「{{tag}}」／ロール「{{role}}」の RLS ルールを保存しました",
       "role_created": "ロール「{{role}}」を作成しました",
       "role_deleted": "ロール「{{role}}」を削除しました",
       "role_not_found": "ロール「{{role}}」が見つかりません",

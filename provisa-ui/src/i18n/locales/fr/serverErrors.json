@@ -322,6 +322,7 @@
       "rls_rule_not_found": "Règle de sécurité au niveau des lignes introuvable",
       "rls_rule_saved_domain": "Règle de sécurité au niveau des lignes enregistrée pour le domaine « {{domain}} » / rôle « {{role}} »",
       "rls_rule_saved_table": "Règle de sécurité au niveau des lignes enregistrée pour la table {{table}} / rôle « {{role}} »",
+      "rls_rule_saved_tag": "Règle de sécurité au niveau des lignes enregistrée pour le tag « {{tag}} » / rôle « {{role}} »",
       "role_created": "Rôle « {{role}} » créé",
       "role_deleted": "Rôle « {{role}} » supprimé",
       "role_not_found": "Rôle « {{role}} » introuvable",

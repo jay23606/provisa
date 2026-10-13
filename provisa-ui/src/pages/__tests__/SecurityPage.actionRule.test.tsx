@@ -147,7 +147,7 @@ describe("SecurityPage — RLS rules on actions (REQ-1679)", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
     await waitFor(() =>
-      expect(deleteRlsRuleSpy).toHaveBeenCalledWith("analyst", null, null, "customer_lookup"),
+      expect(deleteRlsRuleSpy).toHaveBeenCalledWith("analyst", null, null, "customer_lookup", null),
     );
   });
 });

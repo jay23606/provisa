@@ -191,6 +191,7 @@ COLUMN_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "role_id": "Role the predicate applies to",
         "filter_expr": "Predicate appended to every read of the table by that role",
         "action_name": "Tracked function or webhook whose response rows the predicate filters",
+        "tag_id": "Tag whose tables the predicate is applied to, beside each table's own rule",
         "tenant_id": _TENANT,
     },
     "roles": {

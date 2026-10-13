@@ -39,8 +39,8 @@ from provisa.core.schema_org import (
     registered_tables,
     relationships,
     rls_rules,
-    tag_assignments,
     table_columns,
+    tag_assignments,
 )
 from provisa.lineage.dependents import Dependent, graph_dependents, relation_candidates
 
@@ -206,6 +206,13 @@ async def _exposed_name_dependents(
             or_(
                 rls_rules.c.table_id == row["id"],
                 rls_rules.c.domain_id == row["domain_id"],
+                # REQ-1384: a rule on a tag the table carries is applied to the table too.
+                rls_rules.c.tag_id.in_(
+                    select(tag_assignments.c.base_tag_id).where(
+                        tag_assignments.c.table_id == row["id"],
+                        tag_assignments.c.object_type == "table",
+                    )
+                ),
             )
         )
     )

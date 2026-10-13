@@ -36,6 +36,7 @@ from provisa.api.metadata_export.refs import (
     domain_uri,
     table_ref,
     table_uri,
+    tag_uri,
 )
 from provisa.core.models import Column, ProvisaConfig, Table
 
@@ -83,7 +84,8 @@ def _visibility_tags(
 def _rls_tags(
     config: ProvisaConfig, index: TableIndex, all_roles: tuple[str, ...], org_id: str | None
 ) -> list[GovernanceTag]:
-    """One tag per (rule, restricted table). A domain-scoped rule tags every table in the domain.
+    """One tag per (rule, restricted table). A domain-scoped rule tags every table in the domain,
+    and a tag-scoped rule (REQ-1384) every table carrying the tag.
 
     The rule's ``filter`` predicate is never read here. Its identity is the scope it applies to
     plus the role it filters, which is enough for a catalog consumer to trace it back to Provisa.
@@ -97,10 +99,21 @@ def _rls_tags(
         elif rule.domain_id is not None:
             targets = [t for t in config.tables if t.domain_id == rule.domain_id]
             scope = domain_uri(org_id, rule.domain_id)
+        elif rule.tag_id is not None:  # REQ-1384
+            targets = [
+                index.resolve(
+                    a.table_ref, f"RLS rule on tag {rule.tag_id!r} for role {rule.role_id!r}"
+                )
+                for a in config.tag_assignments
+                if a.object_type == "table"
+                and a.base_tag_id() == rule.tag_id
+                and a.table_ref is not None
+            ]
+            scope = tag_uri(org_id, rule.tag_id)
         else:
             raise ValueError(
-                f"RLS rule for role {rule.role_id!r} names neither a table nor a domain; "
-                "its scope cannot be published"
+                f"RLS rule for role {rule.role_id!r} names neither a table, a domain nor a "
+                "tag; its scope cannot be published"
             )
         for target in targets:
             tags.append(

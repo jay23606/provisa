@@ -34,7 +34,7 @@ from provisa.core.models import (
     TagParamValue,
     base_tag_id,
 )
-from provisa.core.repositories.integrity import ObjectRef, remove_parts
+from provisa.core.repositories.integrity import Dependent, ObjectRef, guard, remove_parts
 from provisa.core.schema_org import (
     registered_tables,
     tag_assignments,
@@ -115,14 +115,26 @@ async def list_all(conn: "Connection") -> list[dict]:
     return [_code_tag_row(t) for t in SYSTEM_TAGS + DERIVED_TAGS] + user_rows
 
 
-async def delete(conn: "Connection", tag_id: str) -> bool:  # REQ-1918
+class TagDeleteRefused(Exception):  # REQ-1384
+    """A tag that may not be deleted because objects still refer to it; ``dependents`` lists
+    them. Today that is a row filter attached to the tag."""
+
+    def __init__(self, tag_id: str, dependents: list[Dependent]) -> None:
+        self.tag_id = tag_id
+        self.dependents = dependents
+        named = ", ".join(f"{d.ref.kind} {d.name or d.ref.id}" for d in dependents)
+        super().__init__(f"Tag {tag_id!r} is still referred to by: {named}")
+
+
+async def delete(conn: "Connection", tag_id: str) -> bool:  # REQ-1918, REQ-1384
     """Delete a user tag: THE delete, for every surface. False when there is no such tag.
 
     A tag takes its assignments and its parameter values with it (REQ-1918): they are its
     parts, removed here because no foreign key carries them — system tags are code-defined with
-    no row to reference. Nothing blocks a tag. How many objects lose it is
-    :func:`assignment_count`, for the confirmation shown before a tag that carries a policy is
-    deleted. One transaction.
+    no row to reference. A row filter attached to the tag blocks it (REQ-1384,
+    :class:`TagDeleteRefused`): removing the filter with the tag would widen what the filter's
+    role reads. How many objects lose the tag is :func:`assignment_count`, for the confirmation
+    shown before a tag that carries a policy is deleted. One transaction.
     """
     # The base id, not tag_id: a parameterized tag's assignments are stored in "{tag}:{value}"
     # form, so matching on tag_id would leave every one of them orphaned (REQ-1467).
@@ -133,6 +145,9 @@ async def delete(conn: "Connection", tag_id: str) -> bool:  # REQ-1918
         found = await conn.execute_core(select(tags.c.id).where(tags.c.id == base))
         if found.fetchone() is None:
             return False
+        blocking = await guard(conn, ref)
+        if blocking:
+            raise TagDeleteRefused(base, blocking)
         await remove_parts(conn, ref)
         await conn.execute_core(_delete(tags).where(tags.c.id == base))
     return True

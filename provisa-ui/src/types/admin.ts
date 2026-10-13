@@ -593,6 +593,7 @@ export interface RLSRule {
   tableId: number | null;
   domainId: string | null;
   actionName?: string | null; // REQ-1679: a tracked function/webhook target, by name
+  tagId?: string | null; // REQ-1384: the rule covers every table carrying this tag
   roleId: string;
   filterExpr: string;
 }

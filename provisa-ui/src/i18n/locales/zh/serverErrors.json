@@ -322,6 +322,7 @@
       "rls_rule_not_found": "未找到行级安全规则",
       "rls_rule_saved_domain": "域 '{{domain}}' / 角色 '{{role}}' 的行级安全规则已保存",
       "rls_rule_saved_table": "表 {{table}} / 角色 '{{role}}' 的行级安全规则已保存",
+      "rls_rule_saved_tag": "标签 '{{tag}}' / 角色 '{{role}}' 的行级安全规则已保存",
       "role_created": "角色 '{{role}}' 已创建",
       "role_deleted": "角色 '{{role}}' 已删除",
       "role_not_found": "未找到角色 '{{role}}'",

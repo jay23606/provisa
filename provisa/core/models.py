@@ -1620,6 +1620,9 @@ class RLSRule(BaseModel):  # REQ-041, REQ-402, REQ-1679
     table_id: str | None = None
     domain_id: str | None = None
     action_name: str | None = None  # REQ-1679: a tracked function/webhook, by name
+    # REQ-1384: a user tag, by its base id — the rule applies to every table carrying the tag,
+    # AND-ed with the table's own (or its domain's) rule.
+    tag_id: str | None = None
     role_id: str
     filter: str
 

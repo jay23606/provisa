@@ -2673,6 +2673,15 @@ async def _rebuild_schemas_impl(raw_config: dict | None = None, *, announce: boo
         rls_rules = materialize_rls(
             rls_rules, tables, role_chains_by_id, [*tracked_functions, *tracked_webhooks]
         )
+        # REQ-1384: one predicate per (role, table) — the table's own or its domain's rule,
+        # AND-ed with every rule on a tag the table carries. Resolved here so the governance
+        # path reads the one table-keyed rule it always has.
+        from provisa.core.repositories import tag as _tag_repo
+        from provisa.security.row_filters import resolve_table_rules
+
+        rls_rules = resolve_table_rules(
+            rls_rules, tables, role_chains_by_id, await _tag_repo.list_assignments(conn)
+        )
 
         # REQ-1317/1319: the metric registry feeds schema generation and raw-SQL expansion.
         # Read from the DB — the settled registry: the config loader upserts config-declared

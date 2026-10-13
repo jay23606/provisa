@@ -42,6 +42,7 @@ import { ListRow } from "../list/ListTable";
 import { SortGroupTable } from "../list/SortGroupTable";
 import { FormField, FormFooter, FormIdentifiers, FormLayout } from "../form/FormLayout";
 import { Tip } from "../Tip";
+import { useDependentsDialog } from "../../hooks/useDependentsDialog";
 
 const PAGE_SIZE = 50;
 
@@ -63,6 +64,7 @@ export function TagsTab() {
   const { tagAssignments } = useTagAssignments();
   const { upsertTag } = useUpsertTag();
   const { deleteTag } = useDeleteTag();
+  const refusal = useDependentsDialog();
   const { upsertTagParamValue } = useUpsertTagParamValue();
   const { deleteTagParamValue } = useDeleteTagParamValue();
 
@@ -187,6 +189,8 @@ export function TagsTab() {
   const handleDelete = async (tag: Tag) => {
     if (!window.confirm(t("tagsTab.deleteConfirm", { id: tag.id }))) return;
     const result = await deleteTag(tag.id);
+    // REQ-1384: a tag that carries a row filter is not deleted; the dialog names the filter.
+    if (refusal.refused(result, tag.id)) return;
     if (result.success) {
       notifications.show({ message: t("tagsTab.deleted", { id: tag.id }) });
     } else {
@@ -196,6 +200,7 @@ export function TagsTab() {
 
   return (
     <Stack gap="md">
+      {refusal.dialog}
       <Group justify="space-between" wrap="wrap">
         <Group gap="xs">
           <TagIcon size={18} />

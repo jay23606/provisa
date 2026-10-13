@@ -34,7 +34,8 @@ import { FilterInput } from "../../components/admin/FilterInput";
 import { HelpBubble } from "../../components/HelpBubble";
 import { useRoles, useTables, useDomains } from "../../hooks/useAdminQueries";
 import { useRLSRules, useUpsertRlsRule, useDeleteRlsRule } from "../../hooks/useSecurityQueries";
-import type { RLSRule } from "../../types/admin";
+import { baseTagId, type RLSRule } from "../../types/admin";
+import { useTags, useTagAssignments } from "../../hooks/useTagQueries";
 import { fetchActions } from "../../api/actions";
 import { useDomainFilter } from "../../context/DomainFilterContext";
 import { PageLoading } from "../../components/PageLoading";
@@ -55,11 +56,13 @@ const EMPTY_RULE = {
   tableId: "",
   domainId: "",
   actionName: "", // REQ-1679: the rule's target when scope is "action"
+  tagId: "", // REQ-1384: the rule's target when scope is "tag"
   roleId: "",
   filterExpr: "",
   domainFilter: "",
   applyToDomain: false,
   applyToAction: false,
+  applyToTag: false,
 };
 
 export function SecurityRlsPage() {
@@ -79,6 +82,17 @@ export function SecurityRlsPage() {
   const { domains, loading: domainsLoading, refetch: refetchDomains } = useDomains();
   const { upsertRlsRule } = useUpsertRlsRule();
   const { deleteRlsRule } = useDeleteRlsRule();
+  // REQ-1384: a rule may target a tag. Only a user tag that applies to tables takes one.
+  const { tags } = useTags();
+  const { tagAssignments } = useTagAssignments();
+  const filterableTags = tags.filter(
+    (tg) => !tg.isSystem && !tg.derived && tg.appliesTo.includes("table"),
+  );
+  // The tables a tag is on, whatever value it was assigned with ("entity:customer" is `entity`).
+  const tablesCarrying = (tagId: string) =>
+    tagAssignments
+      .filter((a) => a.objectType === "table" && baseTagId(a.tagId) === tagId)
+      .map((a) => a.tableId);
   const loading = rolesLoading || rulesLoading || tablesLoading || domainsLoading;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -140,11 +154,13 @@ export function SecurityRlsPage() {
   const handleSaveRule = async () => {
     // The footer names every field a rule still lacks, by its label, instead of a Save that
     // does nothing.
-    const target = ruleForm.applyToAction
-      ? [ruleForm.actionName, "securityPage.action"]
-      : ruleForm.applyToDomain
-        ? [ruleForm.domainFilter, "securityPage.domain"]
-        : [ruleForm.tableId, "securityPage.table"];
+    const target = ruleForm.applyToTag
+      ? [ruleForm.tagId, "securityPage.tag"]
+      : ruleForm.applyToAction
+        ? [ruleForm.actionName, "securityPage.action"]
+        : ruleForm.applyToDomain
+          ? [ruleForm.domainFilter, "securityPage.domain"]
+          : [ruleForm.tableId, "securityPage.table"];
     const missing = [
       target,
       [ruleForm.roleId, "securityPage.role"],
@@ -160,9 +176,13 @@ export function SecurityRlsPage() {
     setError("");
     try {
       const res = await upsertRlsRule({
-        tableId: ruleForm.applyToDomain || ruleForm.applyToAction ? null : ruleForm.tableId || null,
+        tableId:
+          ruleForm.applyToDomain || ruleForm.applyToAction || ruleForm.applyToTag
+            ? null
+            : ruleForm.tableId || null,
         domainId: ruleForm.applyToDomain ? ruleForm.domainFilter || null : null,
         actionName: ruleForm.applyToAction ? ruleForm.actionName || null : null, // REQ-1679
+        tagId: ruleForm.applyToTag ? ruleForm.tagId || null : null, // REQ-1384
         roleId: ruleForm.roleId,
         filterExpr: ruleForm.filterExpr,
       });
@@ -185,7 +205,13 @@ export function SecurityRlsPage() {
     setSaving(true);
     setError("");
     try {
-      await deleteRlsRule(rule.roleId, rule.tableId, rule.domainId, rule.actionName ?? null);
+      await deleteRlsRule(
+        rule.roleId,
+        rule.tableId,
+        rule.domainId,
+        rule.actionName ?? null,
+        rule.tagId ?? null,
+      );
       if (expandedRule === rule.id) setExpandedRule(null);
       await reload();
     } catch (e) {
@@ -196,7 +222,15 @@ export function SecurityRlsPage() {
   };
 
   const startEditingRule = (rule: RLSRule) => {
-    if (rule.actionName) {
+    if (rule.tagId) {
+      setRuleForm({
+        ...EMPTY_RULE,
+        tagId: rule.tagId,
+        roleId: rule.roleId,
+        filterExpr: rule.filterExpr,
+        applyToTag: true,
+      });
+    } else if (rule.actionName) {
       setRuleForm({
         ...EMPTY_RULE,
         actionName: rule.actionName,
@@ -234,7 +268,11 @@ export function SecurityRlsPage() {
   };
 
   const filtered = rules.filter((r) => {
-    if (narrowTo) {
+    if (narrowTo && r.tagId) {
+      // A tag rule belongs to every domain that holds a table carrying the tag.
+      const carrying = tablesCarrying(r.tagId);
+      if (!tables.some((tb) => carrying.includes(tb.id) && narrowTo.has(tb.domainId))) return false;
+    } else if (narrowTo) {
       const ruleDomain = r.actionName
         ? actions.find((a) => a.name === r.actionName)?.domainId
         : r.domainId
@@ -244,21 +282,25 @@ export function SecurityRlsPage() {
     }
     if (!ruleSearch.trim()) return true;
     const q = ruleSearch.toLowerCase();
-    const scope = r.actionName
-      ? `action:${r.actionName}`
-      : r.domainId
-        ? `domain:${r.domainId}`
-        : (tableLabelById[r.tableId!] ?? String(r.tableId));
+    const scope = r.tagId
+      ? `tag:${r.tagId}`
+      : r.actionName
+        ? `action:${r.actionName}`
+        : r.domainId
+          ? `domain:${r.domainId}`
+          : (tableLabelById[r.tableId!] ?? String(r.tableId));
     return r.roleId.toLowerCase().includes(q) || scope.toLowerCase().includes(q);
   });
 
   // REQ-1940: sort and group are the shared list mechanism.
   const ruleScope = (r: RLSRule) =>
-    r.actionName
-      ? r.actionName
-      : r.domainId
-        ? r.domainId
-        : (tableLabelById[r.tableId!] ?? String(r.tableId));
+    r.tagId
+      ? r.tagId
+      : r.actionName
+        ? r.actionName
+        : r.domainId
+          ? r.domainId
+          : (tableLabelById[r.tableId!] ?? String(r.tableId));
   const ruleColumns: ListColumn<RLSRule>[] = [
     { key: "id", label: t("securityPage.colId"), sortValue: (r) => r.id },
     {
@@ -292,32 +334,64 @@ export function SecurityRlsPage() {
                 { value: "table", label: t("securityPage.applyToTable") },
                 { value: "domain", label: t("securityPage.applyToDomain") },
                 { value: "action", label: t("securityPage.applyToAction") },
+                { value: "tag", label: t("securityPage.applyToTag") },
               ]}
               value={
-                ruleForm.applyToAction ? "action" : ruleForm.applyToDomain ? "domain" : "table"
+                ruleForm.applyToTag
+                  ? "tag"
+                  : ruleForm.applyToAction
+                    ? "action"
+                    : ruleForm.applyToDomain
+                      ? "domain"
+                      : "table"
               }
               onChange={(v) =>
                 setRuleForm({
                   ...ruleForm,
                   applyToDomain: v === "domain",
                   applyToAction: v === "action",
+                  applyToTag: v === "tag",
                   tableId: "",
                   actionName: "",
+                  tagId: "",
                 })
               }
               allowDeselect={false}
               data-testid="rule-apply-to"
             />
           </FormField>
-          <FormField size="medium">
-            <Select
-              label={t("securityPage.domain")}
-              placeholder={t("securityPage.selectPlaceholder")}
-              data={domains.map((d) => ({ value: d.id, label: d.id }))}
-              value={ruleForm.domainFilter || null}
-              onChange={(v) => setRuleForm({ ...ruleForm, domainFilter: v ?? "", tableId: "" })}
-            />
-          </FormField>
+          {/* A tag reaches across domains, so a tag rule has no domain to pick. */}
+          {!ruleForm.applyToTag && (
+            <FormField size="medium">
+              <Select
+                label={t("securityPage.domain")}
+                placeholder={t("securityPage.selectPlaceholder")}
+                data={domains.map((d) => ({ value: d.id, label: d.id }))}
+                value={ruleForm.domainFilter || null}
+                onChange={(v) => setRuleForm({ ...ruleForm, domainFilter: v ?? "", tableId: "" })}
+              />
+            </FormField>
+          )}
+          {ruleForm.applyToTag && (
+            <FormField size="medium">
+              <Select
+                label={t("securityPage.tag")}
+                placeholder={t("securityPage.selectPlaceholder")}
+                description={
+                  ruleForm.tagId
+                    ? t("securityPage.tagTableCount", {
+                        count: tablesCarrying(ruleForm.tagId).length,
+                      })
+                    : undefined
+                }
+                data={filterableTags.map((tg) => ({ value: tg.id, label: tg.id }))}
+                value={ruleForm.tagId || null}
+                onChange={(v) => setRuleForm({ ...ruleForm, tagId: v ?? "" })}
+                searchable
+                data-testid="rule-tag-select"
+              />
+            </FormField>
+          )}
           {ruleForm.applyToAction && (
             <FormField size="medium">
               <Select
@@ -333,7 +407,7 @@ export function SecurityRlsPage() {
               />
             </FormField>
           )}
-          {!ruleForm.applyToDomain && !ruleForm.applyToAction && (
+          {!ruleForm.applyToDomain && !ruleForm.applyToAction && !ruleForm.applyToTag && (
             <FormField size="medium">
               <Select
                 label={t("securityPage.table")}
@@ -450,13 +524,16 @@ export function SecurityRlsPage() {
           <RlsRuleRead
             rule={r}
             domain={
-              r.actionName
-                ? (actions.find((a) => a.name === r.actionName)?.domainId ?? null)
-                : r.domainId
-                  ? r.domainId
-                  : (tables.find((tb) => tb.id === r.tableId)?.domainId ?? null)
+              r.tagId
+                ? null
+                : r.actionName
+                  ? (actions.find((a) => a.name === r.actionName)?.domainId ?? null)
+                  : r.domainId
+                    ? r.domainId
+                    : (tables.find((tb) => tb.id === r.tableId)?.domainId ?? null)
             }
             tableLabel={r.tableId != null ? (tableLabelById[r.tableId] ?? String(r.tableId)) : null}
+            tagTables={r.tagId ? tablesCarrying(r.tagId).length : null}
           />
         ) : (
           <Stack gap="sm">
@@ -561,7 +638,14 @@ export function SecurityRlsPage() {
                     >
                       <Table.Td>{r.id}</Table.Td>
                       <Table.Td>
-                        {r.actionName ? (
+                        {r.tagId ? (
+                          <span data-testid={`rule-scope-${r.id}`}>
+                            <Text span c="dimmed" fz="0.75em">
+                              {t("securityPage.tagPrefix")}{" "}
+                            </Text>
+                            {r.tagId}
+                          </span>
+                        ) : r.actionName ? (
                           <span data-testid={`rule-scope-${r.id}`}>
                             <Text span c="dimmed" fz="0.75em">
                               {t("securityPage.actionPrefix")}{" "}

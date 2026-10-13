@@ -89,6 +89,10 @@ def source_uri(org_id: str | None, source_id: str) -> str:  # REQ-1385
     return f"{_URI_SCHEME}://{_org_segment(org_id)}sources/{_segment(source_id)}"
 
 
+def tag_uri(org_id: str | None, tag_id: str) -> str:  # REQ-1385
+    return f"{_URI_SCHEME}://{_org_segment(org_id)}tags/{_segment(tag_id)}"
+
+
 def data_product_ref(product_id: str) -> AssetRef:  # REQ-1634
     return AssetRef(kind=AssetKind.DATA_PRODUCT, parts=(product_id,))
 

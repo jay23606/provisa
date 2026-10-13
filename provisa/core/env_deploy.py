@@ -473,9 +473,13 @@ def _decompose(  # noqa: C901 -- allow-complex: one branch per projected kind, a
                 rows["glossary_term_domains"].append({**domain, "term_id": gid})
 
         elif table == "tags":
-            own, nested = _split(body, "values")
+            own, nested = _split(body, "values", "row_policies")
             tag = _name_of(path)[0]
             rows["tags"].append({**own, "id": tag})
+            for policy in nested["row_policies"]:  # REQ-1384
+                rows["rls_rules"].append(
+                    {**policy, "tag_id": tag, "table_id": None, "domain_id": None}
+                )
             for value in nested["values"]:
                 rows["tag_param_values"].append({**value, "tag_id": tag})
 

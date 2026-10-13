@@ -787,6 +787,7 @@ class RLSRuleType:  # REQ-041, REQ-402, REQ-1679
     role_id: str
     filter_expr: str
     action_name: str | None = None  # REQ-1679
+    tag_id: str | None = None  # REQ-1384: the rule applies to every table carrying this tag
 
 
 # --- Input types for mutations ---
@@ -1395,6 +1396,7 @@ class RLSRuleInput:  # REQ-041, REQ-402
     table_id: str | None = None  # table name (resolved to ID); mutually exclusive with domain_id
     domain_id: str | None = None  # domain ID for domain-level rules
     action_name: str | None = None  # REQ-1679: a tracked function/webhook, by name
+    tag_id: str | None = None  # REQ-1384: a user tag; the rule covers every table carrying it
     role_id: str = ""
     filter_expr: str = ""
 

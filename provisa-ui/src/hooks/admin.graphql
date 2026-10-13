@@ -603,6 +603,7 @@ query RLSRulesQuery {
     tableId
     domainId
     actionName
+    tagId
     roleId
     filterExpr
   }
@@ -1140,8 +1141,20 @@ mutation UpsertRlsRule($input: RLSRuleInput!) {
   }
 }
 
-mutation DeleteRlsRule($roleId: String!, $tableId: Int, $domainId: String, $actionName: String) {
-  deleteRlsRule(roleId: $roleId, tableId: $tableId, domainId: $domainId, actionName: $actionName) {
+mutation DeleteRlsRule(
+  $roleId: String!
+  $tableId: Int
+  $domainId: String
+  $actionName: String
+  $tagId: String
+) {
+  deleteRlsRule(
+    roleId: $roleId
+    tableId: $tableId
+    domainId: $domainId
+    actionName: $actionName
+    tagId: $tagId
+  ) {
     ...MutationResult
   }
 }

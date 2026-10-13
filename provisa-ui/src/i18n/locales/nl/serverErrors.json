@@ -322,6 +322,7 @@
       "rls_rule_not_found": "RLS-regel niet gevonden",
       "rls_rule_saved_domain": "RLS-regel voor domein '{{domain}}' / rol '{{role}}' opgeslagen",
       "rls_rule_saved_table": "RLS-regel voor tabel {{table}} / rol '{{role}}' opgeslagen",
+      "rls_rule_saved_tag": "RLS-regel voor tag '{{tag}}' / rol '{{role}}' opgeslagen",
       "role_created": "Rol '{{role}}' gemaakt",
       "role_deleted": "Rol '{{role}}' verwijderd",
       "role_not_found": "Rol '{{role}}' niet gevonden",

@@ -14270,15 +14270,15 @@ Both IdP-sourced and local attributes resolve into the same `user.*` namespace c
 
 ### REQ-1384 · Data Governance {#REQ-1384}
 
-**Status:** ✓ accepted · **Priority:** MUST · **Type:** structural
+**Status:** ✅ complete · **Priority:** MUST · **Type:** structural
 
 Tag-scoped RLS rules (follow-on to [REQ-1373](#REQ-1373)..1379 and existing table/domain-scoped RLS [REQ-040](#REQ-040)/041/402): an RLS rule may attach to a tag; at compile time it resolves to all tables carrying that tag and its predicate is AND-ed with any table- and domain-scoped predicates (most-restrictive-wins, no precedence tiers; multiple matching tags each contribute AND-ed predicates). Tagging an object may only expand restriction reach, never loosen access. Additionally, since the metadata catalog is part of the queryable model, RLS filter expressions may reference tag-assignment metadata directly (e.g. EXISTS subquery) as the fully general path.
 
 **Use case:** Write a predicate once, attach it to a tag, and every table a steward tags picks it up now and in the future — the tag-based-policy pattern inside Provisa's one SQL pipeline.
 
-**Code:** —
+**Code:** `provisa/security/row_filters.py`, `provisa/core/repositories/rls.py`, `provisa/core/repositories/tag.py`, `provisa/core/repositories/integrity.py`, `provisa/api/admin/schema_mutation.py`, `provisa/core/env_project.py`, `provisa/core/env_deploy.py`, `provisa/api/metadata_export/governance.py`, `provisa-ui/src/pages/security/SecurityRlsPage.tsx`
 
-**Tests:** —
+**Tests:** `tests/unit/test_tag_row_filters.py`, `tests/unit/test_tag_row_filter_model_store.py`, `tests/unit/test_metadata_export_governance.py`, `tests/integration/test_tag_row_filter_every_transport.py`, `provisa-ui/src/pages/__tests__/SecurityPage.tagRule.test.tsx`
 
 ## 11. Platform, Infrastructure & Delivery
 

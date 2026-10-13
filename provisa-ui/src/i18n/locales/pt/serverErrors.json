@@ -322,6 +322,7 @@
       "rls_rule_not_found": "Regra de RLS não encontrada",
       "rls_rule_saved_domain": "Regra de RLS para o domínio '{{domain}}' / função '{{role}}' salva",
       "rls_rule_saved_table": "Regra de RLS para a tabela {{table}} / função '{{role}}' salva",
+      "rls_rule_saved_tag": "Regra de RLS para a tag '{{tag}}' / função '{{role}}' salva",
       "role_created": "Função '{{role}}' criada",
       "role_deleted": "Função '{{role}}' excluída",
       "role_not_found": "Função '{{role}}' não encontrada",

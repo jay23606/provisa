@@ -470,8 +470,13 @@ rls_rules = Table(
     Column("role_id", Text, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False),
     Column("filter_expr", LargeBinary, nullable=False),  # REQ-686: encrypted at rest (BYTEA)
     Column("action_name", Text),  # REQ-1679: a tracked function/webhook target, by name
+    # REQ-1384: a user tag — the rule applies to every table carrying it. No ON DELETE: a tag
+    # that carries a row filter is refused deletion (repositories.integrity), because removing
+    # the filter with the tag would widen what its role reads without anyone saying so.
+    Column("tag_id", Text, ForeignKey("tags.id")),
     Column("tenant_id", Uuid),
     UniqueConstraint("table_id", "role_id"),
+    UniqueConstraint("tag_id", "role_id", name="rls_rules_tag_role_key"),
     UniqueConstraint("domain_id", "role_id", name="rls_rules_domain_role_key"),
     UniqueConstraint("action_name", "role_id", name="rls_rules_action_role_key"),
 )

@@ -322,6 +322,7 @@
       "rls_rule_not_found": "RLS नियम नहीं मिला",
       "rls_rule_saved_domain": "डोमेन '{{domain}}' / भूमिका '{{role}}' के लिए RLS नियम सहेजा गया",
       "rls_rule_saved_table": "टेबल {{table}} / भूमिका '{{role}}' के लिए RLS नियम सहेजा गया",
+      "rls_rule_saved_tag": "टैग '{{tag}}' / भूमिका '{{role}}' के लिए RLS नियम सहेजा गया",
       "role_created": "भूमिका '{{role}}' बनाई गई",
       "role_deleted": "भूमिका '{{role}}' हटाई गई",
       "role_not_found": "भूमिका '{{role}}' नहीं मिली",

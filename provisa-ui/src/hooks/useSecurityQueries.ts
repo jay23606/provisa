@@ -51,6 +51,7 @@ export function useUpsertRlsRule() {
       tableId?: string | null;
       domainId?: string | null;
       actionName?: string | null; // REQ-1679
+      tagId?: string | null; // REQ-1384
       roleId: string;
       filterExpr: string;
     }) => {
@@ -74,6 +75,7 @@ export function useDeleteRlsRule() {
       tableId?: number | null,
       domainId?: string | null,
       actionName?: string | null, // REQ-1679
+      tagId?: string | null, // REQ-1384
     ) => {
       const result = await deleteRlsRule({
         variables: {
@@ -81,6 +83,7 @@ export function useDeleteRlsRule() {
           tableId: tableId ?? null,
           domainId: domainId ?? null,
           actionName: actionName ?? null,
+          tagId: tagId ?? null,
         },
       });
       return (result.data?.deleteRlsRule ?? { success: false, message: "" }) as MutationResult;

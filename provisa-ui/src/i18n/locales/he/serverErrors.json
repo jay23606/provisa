@@ -322,6 +322,7 @@
       "rls_rule_not_found": "כלל RLS לא נמצא",
       "rls_rule_saved_domain": "כלל RLS עבור הדומיין '{{domain}}' / התפקיד '{{role}}' נשמר",
       "rls_rule_saved_table": "כלל RLS עבור הטבלה {{table}} / התפקיד '{{role}}' נשמר",
+      "rls_rule_saved_tag": "כלל RLS עבור התגית '{{tag}}' / התפקיד '{{role}}' נשמר",
       "role_created": "התפקיד '{{role}}' נוצר",
       "role_deleted": "התפקיד '{{role}}' נמחק",
       "role_not_found": "התפקיד '{{role}}' לא נמצא",
