@@ -23026,7 +23026,7 @@ A command can be implemented by a Provisa SQL statement with typed arguments (im
 
 **Code:** `provisa/core/statement_declaration.py`, `provisa/executor/statement_command.py`, `provisa/executor/function_dispatch.py`, `provisa/api/admin/actions_router.py`, `provisa-ui/src/pages/commands/CommandFormFields.tsx`, `provisa/compiler/statement_contract.py`, `provisa/lineage/commands.py`, `provisa/lineage/dependents.py`, `provisa/api/app_loaders.py`, `provisa-ui/src/pages/commands/CommandRead.tsx`
 
-**Tests:** `tests/unit/test_statement_command.py`, `tests/unit/test_statement_contract.py`, `provisa-ui/src/__tests__/CommandFormFields.test.tsx`, `provisa-ui/src/pages/commands/__tests__/CommandRead.test.tsx`
+**Tests:** `tests/unit/test_statement_command.py`, `tests/unit/test_statement_contract.py`, `tests/unit/test_two_step_insert.py`, `provisa-ui/src/__tests__/CommandFormFields.test.tsx`, `provisa-ui/src/pages/commands/__tests__/CommandRead.test.tsx`
 
 ## 4. Source Connectors
 

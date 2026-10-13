@@ -198,6 +198,9 @@ class _Plan:
     sources: frozenset[str] = field(default_factory=frozenset)
     route_reason: str | None = field(default=None)
     optimizations: tuple[str, ...] = field(default=())
+    # REQ-2001 (GitHub issue 253): an INSERT ... SELECT written in two steps (_TwoStepInsert): its
+    # governed SELECT read as any read, then its rows written through the target's write route.
+    two_step: Any = field(default=None)
     # REQ-2002: the statement's embed() calls as governance resolved them (embed_fn.Folded): the
     # select-list columns whose texts are embedded once the rows are read, and the models used,
     # which its audit record names. None: the statement calls no embed().
@@ -1494,12 +1497,6 @@ async def govern_statement(
         _folded = await _embed_fn.fold(
             governed_semantic, _registry or await vector_registry(state), embedding_provider
         )
-        import sqlglot.expressions as _exp
-
-        if _folded.rows and isinstance(_parsed_input, _exp.Insert):
-            raise _embed_fn.EmbedRefused(
-                "an INSERT ... SELECT that embeds the text of its rows is not yet written"
-            )
         governed_semantic = _folded.sql
         _memo["embed"] = _folded
 
@@ -1544,6 +1541,121 @@ async def _route_bounded(governed: "_Governed", **how: Any) -> _Plan:
         plan.row_limit = governed.gov_ctx.row_limit
     plan.embedded = governed.memo.get("embed")  # REQ-2002
     return plan
+
+
+@dataclass
+class _TwoStepInsert:  # REQ-2001
+    """An INSERT ... SELECT written in two steps: ``read`` is its governed SELECT's plan, and the
+    rows it answers are written through the target's write route as INSERT ... VALUES under
+    ``template`` (the governed INSERT, its ON CONFLICT clause kept), ``batch`` rows a statement."""
+
+    governed: Any  # the governed INSERT ... SELECT
+    template: Any  # its parsed governed form, the SELECT to be replaced by VALUES
+    target_source: str
+    read: Any = None  # the SELECT's plan
+    batch: int = 500
+
+
+def _two_step_insert(governed: "_Governed", written_table_id: int | None, state: Any):
+    """The two-step form of an INSERT ... SELECT that needs one, else None (REQ-2001, issue 253):
+    its SELECT reads a source other than its target's, or embeds the text of its rows (REQ-2002).
+    Such a statement sent whole to one source would be sent to a source that cannot answer it."""
+    import sqlglot
+    import sqlglot.expressions as exp
+
+    template = sqlglot.parse_one(governed.governed_semantic, read="postgres")
+    if not isinstance(template, exp.Insert) or not isinstance(template.expression, exp.Query):
+        return None
+    sources = {m.table_id: m.source_id for m in governed.ctx.tables.values()}
+    target_source = sources[written_table_id]
+    reads = {sources[t] for t in governed.table_ids if t != written_table_id and t in sources}
+    folded = governed.memo.get("embed")
+    if reads <= {target_source} and (folded is None or not folded.rows):
+        return None
+    return _TwoStepInsert(governed=governed, template=template, target_source=target_source)
+
+
+async def _two_step_plan(
+    governed: "_Governed",
+    two: _TwoStepInsert,
+    *,
+    params: list | None,
+    as_of: str | None,
+    audit: Any,
+    state: Any,
+) -> "_Plan":
+    """The plan of a two-step INSERT ... SELECT: its governed SELECT routed as any read, and the
+    statement's own record (one audit row, one after-write for its target)."""
+    import dataclasses
+
+    import sqlglot.expressions as exp
+    from provisa.transpiler.router import Route
+
+    select = two.template.expression
+    read_governed = dataclasses.replace(
+        governed,
+        governed_semantic=select.sql(dialect="postgres"),
+        parsed=governed.parsed.expression,
+        memo={},
+    )
+    read = await route_governed(read_governed, params=params, as_of=as_of)
+    read.audit = None  # the statement's one record is the write's
+    read.embedded = governed.memo.get("embed")  # REQ-2002: its rows' texts, embedded once read
+    two.read = read
+    assert isinstance(two.template, exp.Insert)
+    from provisa.compiler.write_admission import written_table_id
+
+    return _Plan(
+        route=Route.DIRECT,
+        sql=governed.governed_semantic,
+        source_id=two.target_source,
+        dialect=state.source_dialects.get(two.target_source) or "postgres",
+        exec_params=params,
+        audit=audit,
+        stamp=_mint_stamp(),  # governed-provenance: minted at the top of the pipeline
+        route_reason=(
+            "INSERT ... SELECT whose rows are read first, then written to its target's source"
+        ),
+        role_id=governed.role_id,
+        table_ids=governed.table_ids,
+        sources=frozenset({*read.sources, two.target_source}),
+        writes_tables=True,
+        written_table_id=written_table_id(governed.parsed, governed.gov_ctx),
+        embedded=governed.memo.get("embed"),
+        two_step=two,
+    )
+
+
+async def _run_two_step(plan: "_Plan", state: Any) -> QueryResult:  # REQ-2001
+    """Read the statement's rows, then write them through the target's write route, a batch of
+    rows an INSERT ... VALUES under the statement's own target, columns and ON CONFLICT."""
+    import dataclasses
+
+    import sqlglot
+
+    two = plan.two_step
+    rows = (await _execute_plan_bound(two.read, state)).materialize().rows
+    written = 0
+    for start in range(0, len(rows), two.batch):
+        chunk = rows[start : start + two.batch]
+        width = len(chunk[0])
+        values = ", ".join(
+            "(" + ", ".join(f"${i * width + j + 1}" for j in range(width)) + ")"
+            for i in range(len(chunk))
+        )
+        statement = two.template.copy()
+        statement.set("expression", sqlglot.parse_one(f"VALUES {values}", read="postgres"))
+        write_governed = dataclasses.replace(
+            two.governed,
+            governed_semantic=statement.sql(dialect="postgres"),
+            comment_params=None,
+            memo={},
+        )
+        write = await route_governed(write_governed, params=[v for r in chunk for v in r])
+        result = await _run_plan_terminal(write, state)
+        # The write's count, as pgwire's command tag reads it (server._write_tag).
+        written += result.rowcount if result.rowcount is not None else len(result.rows)
+    return QueryResult(rows=[], column_names=[], rowcount=written)
 
 
 async def route_governed(
@@ -1663,6 +1775,12 @@ async def route_governed(
                 params=embedded_params,
             ),
         )
+    if _is_mutation and isinstance(_parsed_input, exp.Insert):
+        _two = _two_step_insert(governed, _written_table_id, state)
+        if _two is not None:
+            return await _two_step_plan(
+                governed, _two, params=params, as_of=as_of, audit=_audit, state=state
+            )
     # REQ-1897: a read whose result is rows — not a write, an EXPLAIN, or a sink delivery.
     _raw_cacheable = not _is_mutation and explain is None and deliver is None
     # REQ-544 (amended 2026-09-30): the response cache is per-request opt-in — a `-- @provisa
@@ -2615,7 +2733,7 @@ async def _execute_plan_bound(plan: _Plan, state: Any) -> QueryResult:
     """``_execute_plan`` once the request deadline is settled: the org's secrets, the terminal,
     then what the statement does to a temporary table of its session with the rows (REQ-615)."""
     result = await _execute_plan_with_secrets(plan, state)
-    if plan.embedded is not None and plan.embedded.rows:
+    if plan.embedded is not None and plan.embedded.rows and plan.two_step is None:
         from provisa.vector.embed_fn import embed_rows
 
         result = await embed_rows(
@@ -2701,6 +2819,8 @@ def streams_from_terminal(plan: _Plan) -> bool:  # REQ-2002
     """Whether a surface may stream ``plan``'s rows straight from its terminal. Not when Provisa
     still has work to do on them: a select-list ``embed()`` of rows is embedded once the rows are
     read, in :func:`_execute_plan`, which such a plan is run through."""
+    if plan.two_step is not None:
+        return False  # REQ-2001: its rows are read, then written, by the pipeline terminal
     return plan.embedded is None or not plan.embedded.rows
 
 
@@ -3344,6 +3464,8 @@ async def _run_plan_terminal(plan: _Plan, state: Any) -> QueryResult:  # REQ-027
         from provisa.pgwire.kept_mutations import keep
 
         return await keep(plan.kept, state)
+    if plan.two_step is not None:
+        return await _run_two_step(plan, state)  # REQ-2001
     engine = state.federation_engine
 
     if plan.materialize is not None:
