@@ -48,7 +48,12 @@ def _ctx():
         schema_name="public",
         table_name="orders",
     )
-    return SimpleNamespace(tables={"orders": meta}, aggregate_columns={1: list(_READABLE)})
+    return SimpleNamespace(
+        tables={"orders": meta},
+        aggregate_columns={1: list(_READABLE)},
+        # Under the snake convention a column's GraphQL name is its physical name.
+        physical_to_gql={(1, column): column for column, _type in _READABLE},
+    )
 
 
 def _filter(**set_fields):
